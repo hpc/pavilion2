@@ -1,5 +1,5 @@
 Gazebo2 or Cluster Test Handler (CLTH) Functional Requirements
-Ver 1.3
+Ver 1.4
 
 
 1. Functionality exists in current version of Gazebo and is to be continued.
