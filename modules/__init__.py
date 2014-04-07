@@ -1,0 +1,1 @@
+__all__ = ['func_ex1', 'func_ex2']
