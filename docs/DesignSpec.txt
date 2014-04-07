@@ -154,5 +154,3 @@ Discussion:
 made to verify new updates don't break existing components. 
 
 a) also test across different revs of Python 
-
-3.12
