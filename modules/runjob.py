@@ -1,4 +1,4 @@
-
+#!/usr/bin/env python
 
 """ this stand-alone program supports running jobs for any scheduler type
 """
@@ -79,7 +79,7 @@ def main(args):
     name = args[1]
 
     # build a unique log file name
-    filename = "./" + name + ".log"
+    filename = "/tmp/" + name + ".log"
 
 
     with open(filename, "w+") as f:
@@ -111,7 +111,7 @@ def main(args):
 
 
 
-# this gets called if it's run as a script/program
+# this gets called if it's run as a script from the shell
 if __name__ == '__main__':
     #sys.exit(main(sys.argv[1:]))
     sys.exit(main(sys.argv))

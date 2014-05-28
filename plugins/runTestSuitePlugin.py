@@ -1,4 +1,5 @@
 #!python
+
 """ plug-in that implements the run_test_suite command 
 """
 
@@ -20,9 +21,8 @@ def job_dispatcher(name, params):
     # These jobs have the potential to "run" for days...
 
     print "** Dispatch job -> %s:" % name
-    #js_params = { params : json.dumps(getitems(self)) }
     js_params = json.dumps(params)
-    args = ["python", "/Users/cwi/VWE/modules/runjob.py", name, js_params]
+    args = ["python", "../modules/runjob.py", name, js_params]
     subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
 
 
