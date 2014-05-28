@@ -13,7 +13,7 @@ Collaboration:
   - all remaining support code add to the modules directory or set the
     ENV variable PV_SRC_DIR and place code there.
 
- Project goals included:
+Project goals included:
    - Support multiple schedulers/resource managers 
    - Very modular to encourage collaboration  
    - Make it simple to add tests, but highly configurable

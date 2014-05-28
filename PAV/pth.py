@@ -17,8 +17,6 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "../modules"))
 if (os.environ.get('PV_SRC_DIR')):
     sys.path.append(os.environ.get('PV_SRC_DIR'))
 
-print sys.path
-
 # foo sub-command implemented in the main program    
 def foo():
     print "running foo"
@@ -39,7 +37,7 @@ def main():
     #parser.add_argument('-g', '--hello', help='prints greeting', action="store_true")
     parser_foo = subparser.add_parser('foo', help="foo help message")
     parser_foo.set_defaults(sub_cmds='foo')
-    
+
     
     # find and load the 'feature' plug-ins and their arguments
     # Build the manager
@@ -49,7 +47,6 @@ def main():
     plugin_places = ['../plugins']
     if (os.environ.get('PV_PLUGIN_DIR')):
         plugin_places.append(os.environ.get('PV_PLUGIN_DIR'))
-    print plugin_places
     PavPluginManager.setPluginPlaces(plugin_places)
     # Load all the plug-ins
     PavPluginManager.collectPlugins()
@@ -73,7 +70,7 @@ def main():
             
 
     # turn the input arguments into a dict style with vars
-    args = vars(parser.parse_args())   
+    args = vars(parser.parse_args())
        
     # Process sub-commands, most of which should be found
     # in the plug-ins directory. 

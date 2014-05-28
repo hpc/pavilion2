@@ -1,6 +1,6 @@
-#!python
+#!/usr/bin/env python
 
-''' a test  '''
+''' a test of how to deamonize a program  '''
 
 import daemon
 import time
