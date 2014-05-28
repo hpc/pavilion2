@@ -1,0 +1,9 @@
+[Core]
+Name = ViewTestSuite 
+Module = viewTestSuitePlugin
+
+[Documentation]
+Author = Craig Idler 
+Version = 0.1
+Website = http://pavilion.org
+Description = Plugin to view test suite configuration 

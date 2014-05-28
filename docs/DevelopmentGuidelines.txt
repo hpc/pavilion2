@@ -30,7 +30,7 @@ CLTH guidlines to follow for cohesive team product development.
 
 3.1 Repository and Use 
 
-3.1.1  Source stored at git.lanl.gov/clth
+3.1.1  Stored at git.lanl.gov/cwi/clth
 
 3.1.2  Team development with Git - http://blog.ericbmerritt.com/2011/12/05/team-development-with-git.html
 

@@ -1,0 +1,26 @@
+# User test config  (YAML format)
+# 
+# Add sections to override the default
+
+# If problems with format try: http://yaml-online-parser.appspot.com
+
+testA:
+  location: '/user/joe/testA'
+  build: 
+    cmd: 'make'
+    build_before_run_flag: 'Yes' 
+  run:
+    cmd: 'runTestA'
+  working_space:
+    path: '/'
+
+testB:
+  location: /user/projects/testB 
+  build: 
+    cmd: make
+    build_before_run_flag: True 
+
+testC:
+  location: /home 
+  run:
+    scheduler: none

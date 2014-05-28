@@ -1,0 +1,9 @@
+[Core]
+Name = PluginOne
+Module = pi1
+
+[Documentation]
+Author = John Smith
+Version = 0.1
+Website = http://lotsofplugins.com
+Description = An example plugin

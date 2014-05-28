@@ -1,0 +1,21 @@
+# User test config  (YAML format)
+# 
+# Add sections to override the default
+
+# If problems with format try: http://yaml-online-parser.appspot.com
+
+testHW:
+  location: '/Users/cwi/VWE/CLTH'
+  run:
+    #cmd: 'python hw.py'
+    cmd: 'hw.bash'
+    scheduler: raw 
+
+testHW1:
+  location: '/Users/cwi/VWE/CLTH'
+  run:
+    #cmd: 'python hw.py'
+    cmd: 'hw.bash'
+    scheduler: moab 
+  build:
+    build_before_run_flag: True
