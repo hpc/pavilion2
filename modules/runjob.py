@@ -98,14 +98,14 @@ def main(args):
             this_job = jc(name,params)
 
             # do what every job has to do
-            print name, 'Starting @ ', datetime.datetime.now()
+            print "runjob:", name, 'Starting @ ', datetime.datetime.now()
             if params['build']['build_before_run_flag']:
-                print "<build-start> ", datetime.datetime.now()
+                print "runjob:", "<build-start> ", datetime.datetime.now()
                 this_job.build()
                 print "<build-end> ", datetime.datetime.now()
-            print "<job-start> " , datetime.datetime.now()
+            print "runjob:", "<job-start> " , datetime.datetime.now()
             this_job.start()
-            print "<job-end> " , datetime.datetime.now()
+            print "runjob:", "<job-end> " , datetime.datetime.now()
             this_job.cleanup()
 
 
