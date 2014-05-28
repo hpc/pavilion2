@@ -1,5 +1,5 @@
-CLTH functional High Level Design Specification 
-ver 1.1
+Pavilion functional High Level Design Specification 
+ver 1.2
 
 This document couples with the requirements document describing in more detail the specific requirment and the general implementation plan for that requirement. The intent is not to formalize the implementation details, but to provide a living document where developers and designers have a common understaning of the requirement and how it will be architected/developed/enhanced, etc.    
 

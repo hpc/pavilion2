@@ -1,4 +1,4 @@
-CLTH guidlines to follow for cohesive team product development.
+Pavilion guidlines to follow for cohesive team product development.
 
 1. General
 -------

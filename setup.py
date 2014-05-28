@@ -11,7 +11,7 @@ config = {
     'author_email': 'cwi@lanl.gov.',
     'version': '0.1',
     'install_requires': ['nose'],
-    'packages': ['CLTH'],
+    'packages': ['PAV'],
     'scripts': [],
     'name': 'projectname'
 }
