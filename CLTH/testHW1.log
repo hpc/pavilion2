@@ -1,7 +1,0 @@
-{'run': {'cmd': 'hw.bash', 'scheduler': 'moab'}, 'results': {'trend_data_regex': '<td>\\s+(.*)', 'base_location': '~/.PV/results', 'look_for_pass_fail_in_file': '$TH_WS/*.log', 'pass_fail_regex': '<result\\w{0,1}>\\s*(.+)', 'pass_fail_logic': '$TH_BIN/chk_pf'}, 'moab': {'time_limit': '01:00:00', 'msub_args': None, 'procs_per_node': 16, 'test_params': 'none', 'num_nodes': 1}, 'working_space': {'files_to_copy': '*', 'path': '$HOME/.TH/ws', 'no_copy': '*.c,*.o,*.h'}, 'location': '/Users/cwi/VWE/CLTH', 'build': {'cmd': 'buildme', 'build_before_run_flag': True}}
-testHW1 Starting @  2014-05-27 17:46:16.864693
-<build-start>  2014-05-27 17:46:16.864719
-<build-end>  2014-05-27 17:46:16.864727
-<job-start>  2014-05-27 17:46:16.864733
- ->  MoabJobController: invoke /Users/cwi/VWE/CLTH/hw.bash
-<job-end>  2014-05-27 17:46:16.864744
