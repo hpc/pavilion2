@@ -14,6 +14,10 @@ global _debug
 
 # look for modules relative to where this program is located
 sys.path.append(os.path.join(os.path.dirname(__file__), "../modules"))
+if (os.environ.get('PV_SRC_DIR')):
+    sys.path.append(os.environ.get('PV_SRC_DIR'))
+
+print sys.path
 
 # foo sub-command implemented in the main program    
 def foo():
