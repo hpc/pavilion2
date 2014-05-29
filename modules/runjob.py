@@ -79,7 +79,8 @@ def main(args):
     name = args[1]
 
     # build a unique log file name
-    filename = "/tmp/" + name + ".log"
+    # TO DO - make like Gazebo result directory
+    filename = params['results']['root'] + "/" + name + ".log"
 
 
     with open(filename, "w+") as f:
@@ -90,12 +91,13 @@ def main(args):
 
             #print "input:"
             #print args, "\n"
+            #print "runjob: results root: %s" % params['results']['root']
 
             # Load the correct JobController module for this job/test
             jc = load_jcmod(name, params)
 
             # Instantiate the JobController Object
-            this_job = jc(name,params)
+            this_job = jc(name,params,f)
 
             # do what every job has to do
             print "runjob:", name, 'Starting @ ', datetime.datetime.now()
@@ -103,9 +105,9 @@ def main(args):
                 print "runjob:", "<build-start> ", datetime.datetime.now()
                 this_job.build()
                 print "<build-end> ", datetime.datetime.now()
-            print "runjob:", "<job-start> " , datetime.datetime.now()
+            print "runjob:", "<start> " , datetime.datetime.now()
             this_job.start()
-            print "runjob:", "<job-end> " , datetime.datetime.now()
+            print "runjob:", "<end> " , datetime.datetime.now()
             this_job.cleanup()
 
 

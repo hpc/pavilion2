@@ -69,6 +69,7 @@ MyTestName:
 
     # The test handler will place it's results in...
     base_location: '~/.PV/results'
+    root: '/tmp'
 
     # The test handler will parse this file to 
     # look for pass/fail results

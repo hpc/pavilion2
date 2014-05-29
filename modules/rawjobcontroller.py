@@ -8,14 +8,26 @@ from basejobcontroller import BaseJobController
 class RawJobController(BaseJobController):
     """ class to run a test using no scheduler or special launcher """
 
-    # Invoke the correct way of running the job/test as defined in the
-    # tests config entry.
     def start(self):
 
+        # build the exact command to run
         cmd =  self.configs['location'] + "/" + self.configs['run']['cmd']
         print " ->  RawJobController: invoke %s" % cmd
-        #subprocess.call([cmd])
-        os.system(cmd)
+
+        # Get any buffered output into the output file now
+        # so that the the order doesn't look all mucked up
+        sys.stdout.flush()
+
+        # Invoke the cmd and send the output to the file setup when
+        # the object was instantiated
+        p = subprocess.Popen(cmd, stdout=self.output_file, stderr=self.output_file, shell=True)
+        # wait for the subprocess to finish
+        output, errors = p.communicate()
+
+        if p.returncode or errors:
+            print "Error: something went wrong!"
+            print [p.returncode, errors, output]
+
 
     
 # this gets called if it's run as a script/program

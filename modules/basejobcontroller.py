@@ -14,10 +14,11 @@ class BaseJobController():
     """ class to define the common actions for any job cycle """
 
     
-    def __init__(self, name, configs):
+    def __init__(self, name, configs, output_file):
 
         self.name = name
         self.configs = configs
+        self.output_file = output_file
 
         """
           A common set of things happen for each job type...
@@ -41,7 +42,7 @@ class BaseJobController():
 
         # start by making placeholder for the results for any attempted job launch
         # Simple version now,  need to enhance like Gazebo result dir
-        self.res_dir = self.configs['results']['base_location']
+        self.res_dir = self.configs['results']['root']
         self.res_dir = os.path.expanduser(self.res_dir)
 
         try:
@@ -59,6 +60,8 @@ class BaseJobController():
     # record all the pertinent run data to the log file for later analysis
     def save_common_settings(self):
         #print "\n\nsave what I know for job: %s" % self.name
+        print "basejobcontroller: <job_type> %s" % self.configs['run']['scheduler']
+        print "basejobcontroller: <nix_pid> %s" % str(os.getpid())
         print self.configs
 
     def build(self):
