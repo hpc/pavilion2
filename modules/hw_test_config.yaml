@@ -4,15 +4,57 @@
 
 # If problems with format try: http://yaml-online-parser.appspot.com
 
-testHW-raw:
-  location: '/Users/cwi/VWE/PAV'
+HW-raw-1:
+  source_location: '/Users/cwi/VWE/PAV'
   run:
-    #cmd: 'python hw.py'
     cmd: 'hw.bash'
     scheduler: raw 
+  working_space:
+    path:
 
-testHW-moab:
-  location: '/Users/cwi/VWE/PAV'
+HW-raw-2:
+  source_location: '/Users/cwi/VWE/PAV'
+  run:
+    cmd: 'hw.bash'
+    scheduler: raw 
+  working_space:
+    path: './myws'
+
+HW-raw-3:
+  source_location: '/Users/cwi/VWE/PAV'
+  run:
+    cmd: 'hw.bash'
+    scheduler: raw 
+  working_space:
+    path: '/'
+
+HW-raw-4:
+  source_location: '/Users/cwi/VWE/PAV'
+  run:
+    cmd: 'hw.bash'
+    scheduler: raw 
+  working_space:
+    path: '/tmp'
+
+HW-raw-5:
+  source_location: '/Users/cwi/VWE/PAV'
+  run:
+    cmd: 'hw.bash'
+    scheduler: raw 
+  working_space:
+    path: '/tmp'
+
+HW-raw-6:
+  source_location: '/Users/cwi/VWE/PAV'
+  run:
+    cmd: 'hw.bash'
+    scheduler: raw 
+  working_space:
+    path: 'tmp'
+
+
+HW-moab:
+  source_location: '/Users/cwi/VWE/PAV'
   run:
     #cmd: 'python hw.py'
     cmd: 'hw.bash'

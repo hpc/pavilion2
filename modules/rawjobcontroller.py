@@ -11,7 +11,7 @@ class RawJobController(BaseJobController):
     def start(self):
 
         # build the exact command to run
-        cmd =  self.configs['location'] + "/" + self.configs['run']['cmd']
+        cmd =  os.environ['PV_RUNHOME'] + "/" + self.configs['run']['cmd']
         print " ->  RawJobController: invoke %s" % cmd
 
         # Get any buffered output into the output file now
@@ -20,7 +20,7 @@ class RawJobController(BaseJobController):
 
         # Invoke the cmd and send the output to the file setup when
         # the object was instantiated
-        p = subprocess.Popen(cmd, stdout=self.output_file, stderr=self.output_file, shell=True)
+        p = subprocess.Popen(cmd, stdout=self.job_log_file, stderr=self.job_log_file, shell=True)
         # wait for the subprocess to finish
         output, errors = p.communicate()
 

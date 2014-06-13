@@ -17,12 +17,12 @@ import json
 
 def job_dispatcher(name, params):
 
-    # Run the job as it's own command so that the program can return
+    # Run the job as it's own detached subprocess so that the program can return
     # These jobs have the potential to "run" for days...
 
-    print "** Dispatch job -> %s:" % name
     js_params = json.dumps(params)
     args = ["python", "../modules/runjob.py", name, js_params]
+    print "runTestSuitePlugin: dispatch job -> %s:" % name
     subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
 
 
@@ -66,7 +66,7 @@ class RunTestSuite(IPlugin):
                     #print type(te[0]), type(te[1])
                 for name, test_params in my_test_suite.iteritems():
                     if args['verbose']:
-                        print " -> run %s: from %s using params %s:" % (name, test_params['location'], test_params['run'])
+                        print " -> run %s: from %s using params %s:" % (name, test_params['source_location'], test_params['run'])
                     job_dispatcher(name, test_params)
         else:
             print "  Error: could not find test suite %s" % args['testSuite']

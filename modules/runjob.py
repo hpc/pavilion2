@@ -5,8 +5,11 @@
 
 import sys,os
 import time
-import datetime
+import datetime, pytz
 import json
+import logging
+import errno
+import platform
 
 def convert(input):
     if isinstance(input, dict):
@@ -63,7 +66,41 @@ def load_jcmod(name, params):
     class_ = getattr(mh, class_name_Cc)
     return class_
 
+def build_results_dir(params, name):
 
+    """ function to create the final result directory for a job/test.
+        Intent is to make backwards compatible with Gazebo.
+    """
+
+    root_result_dir = params['results']['root']
+    new_dir = root_result_dir + "/gzshared/"
+    date_parts = datetime.datetime.now().strftime("%Y/%Y-%m/%Y-%m-%d/")
+    target = platform.uname()[1].split(".", 1)[0]
+    new_dir = new_dir +  date_parts + target + "/" + name + "/"
+    pid = str(os.getpid())
+    my_timezone = params['time']['tz']
+    ld = name + "__" + params['run']['cmd'].split(".", 1)[0] + \
+         "__" + pid + "__" + target  \
+         + "." + datetime.datetime.now(pytz.timezone(my_timezone)).strftime('%Y-%m-%dT%H:%M:%S%z')
+    new_dir += ld
+    logging.info(now() + " runjob: create result dir ->" + new_dir)
+
+    try:
+        os.umask(0o002)
+        os.makedirs(new_dir, 0o775)
+    except OSError as e:
+        if e.errno == errno.EEXIST:
+            logging.info(now() + " runjob:" + new_dir + " exists")
+            pass
+        else:
+            logging.info(now() + " runjob:" + new_dir + "something bad")
+            raise
+
+    return new_dir
+
+
+def now():
+    return " " + datetime.datetime.now().strftime("%m-%d-%YT%H:%M%:%S")
 
         
 def main(args):
@@ -74,41 +111,49 @@ def main(args):
         functions loosely like the setUpandRun wrapper script from Gazebo.
     """
 
+    logging.basicConfig(filename='/tmp/runjob.log', level=logging.INFO)
+
     params = json.loads(args[2])
     params = convert(params)
     name = args[1]
 
-    # build a unique log file name
-    # TO DO - make like Gazebo result directory
-    filename = params['results']['root'] + "/" + name + ".log"
+    # setup global log file
+    logging.info(now() + ' runjob:' + name)
+
+    # Load the correct JobController module for this specific job/test
+    jc = load_jcmod(name, params)
 
 
-    with open(filename, "w+") as f:
-        with stdout_redirected(f):
+    # all STDOUT and STDERR from job directed to its own log file
+    logfile = build_results_dir(params, name) + "/" + name + ".log"
+    os.environ["PV_JOB_RESULTS_LOG"] = logfile
+    with open(logfile, "w+") as lf:
+        with stdout_redirected(lf):
                 
             #redirect STDERR to the same file
-            sys.stderr = f
+            sys.stderr = lf
 
-            #print "input:"
-            #print args, "\n"
-            #print "runjob: results root: %s" % params['results']['root']
-
-            # Load the correct JobController module for this job/test
-            jc = load_jcmod(name, params)
-
-            # Instantiate the JobController Object
-            this_job = jc(name,params,f)
+            try:
+            # instantiate job controller object
+                this_job = jc(name, params, lf)
+            except:
+                print "Error: runjob: inst job object died, exiting job"
+                logging.info(now() + " Error: runjob:" + name + ' inst job object died, exiting job ')
+                return
 
             # do what every job has to do
-            print "runjob:", name, 'Starting @ ', datetime.datetime.now()
+            logging.info(now() + " runjob:" + name + ' Starting ')
             if params['build']['build_before_run_flag']:
-                print "runjob:", "<build-start> ", datetime.datetime.now()
+                logging.info(now() + " runjob:" + name + " build-start ")
+                print "<build-start> ", now()
                 this_job.build()
-                print "<build-end> ", datetime.datetime.now()
-            print "runjob:", "<start> " , datetime.datetime.now()
+                logging.info(now() + " runjob:" + name + " build-end ")
+                print "<build-end> ", now()
+            print "<start> " , now()
             this_job.start()
-            print "runjob:", "<end> " , datetime.datetime.now()
+            print "<end> " , now()
             this_job.cleanup()
+            logging.info(now() + " runjob:" + name + ' Completed ')
 
 
 

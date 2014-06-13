@@ -1,9 +1,11 @@
 # YAML        
 
-#   Default test configuration file, vers. 0.1 
+#   Default test configuration file, vers. 0.2 
+
+# NOTE - all CAPS variable are env vars
 
 #    All entires can be re-defined by a users test config
-#    file (found in $TH_HOME/test_conf) with defaults inherited
+#    file (found in PV_HOME/test_conf) with defaults inherited
 #    from this file.
 #    In theory, the entire default file can be used, but we recommend
 #    making a copy, editing at least the name, location, and
@@ -17,20 +19,20 @@
 
 
  
-# A new name stanza is needed for each new test  
+# A new name stanza is needed for each new test,
+# but only change what is different
+  
 MyTestName:
         
   # uri of test  
-  location: $HOME
+  source_location: HOME
         
   # Build Stanza  
   build:
-
     cmd: buildme
     build_before_run_flag : False
         
   # Run Stanza  
-
   run:
      cmd: 'runme'
      # select one scheduler type, or make a new one  
@@ -56,24 +58,26 @@ MyTestName:
      # free formatted string to be used/parsed by user tests/codes
      test_params: none
 
-  # runtime working space
-  # test dir copied and run from here, if working_space defined
+  # runtime working space.
+  # Test dir copied and run from here, if working_space defined
+  # Can be relative to source location (default) or hardcoded directory
 
   working_space:
 
-    path: $HOME/.TH/ws
+    # path entry is relative to source_location
+    path: '' 
     files_to_copy: '*'
     no_copy: '*.c,*.o,*.h'
 
   results:
 
-    # The test handler will place it's results in...
-    base_location: '~/.PV/results'
-    root: '/tmp'
+    # The test handler build the results file(s) under 
+    # this directory.
+    root: '/Users/cwi'
 
     # The test handler will parse this file to 
-    # look for pass/fail results
-    look_for_pass_fail_in_file: '$TH_WS/*.log'
+    # determine pass/fail results
+    results_log: 'PV_JOB_RESULTS_LOG'
 
     # The test handler will try to match "<result> pass" or
     # <result> fail" to determine if the test passed or failed.
@@ -90,3 +94,6 @@ MyTestName:
     # pass_fail_regex, OR it can report pass if at least one "pass"
     # is matched with the regex, otherwise unknown is reported.
     pass_fail_logic: $TH_BIN/chk_pf
+
+  time:
+    tz: 'US/Mountain'
