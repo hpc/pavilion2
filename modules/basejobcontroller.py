@@ -125,9 +125,6 @@ class BaseJobController():
 
         print self.configs
 
-    def log(self):
-        print
-
     def build(self):
         pass
 
@@ -138,6 +135,9 @@ class BaseJobController():
         pass
 
     def cleanup(self):
+        """
+            invoke the job specific routine that determines if job failed or passed.
+        """
         pass 
         
         
