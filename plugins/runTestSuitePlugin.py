@@ -13,6 +13,7 @@ import multiprocessing
 import daemon
 import subprocess
 import json
+import logging
 
 
 def job_dispatcher(name, params):
@@ -32,8 +33,11 @@ class RunTestSuite(IPlugin):
         defined in the users test suite configuration file.
     """
 
-    def print_name(self):
-        print "runTestSuite handler loaded!"
+    def __init__(self):
+        my_name = self.__class__.__name__
+        self.logger = logging.getLogger('pth.' + my_name)
+        self.logger.info('created instance of plugin: %s'% my_name)
+
 
     # Every plugin class MUST have a method by the name "add_parser_info"
     # and must return the name of the this sub-command
@@ -65,6 +69,7 @@ class RunTestSuite(IPlugin):
                 #for te in my_test_suite.iteritems():
                     #print type(te[0]), type(te[1])
                 for name, test_params in my_test_suite.iteritems():
+                    self.logger.info('dispatch %s' % name)
                     if args['verbose']:
                         print " -> run %s: from %s using params %s:" % (name, test_params['source_location'], test_params['run'])
                     job_dispatcher(name, test_params)

@@ -4,6 +4,7 @@ import sys
 from yaml import load, YAMLError
 import json
 #from itertools import chain
+import logging
 
 def recurse(x):
     checking_elem = x
@@ -54,7 +55,13 @@ class YamlTestConfig():
     default_config_doc = None
     user_config_doc = None
     
-    def __init__(self, ucf="../modules/user_test_config.yaml", dcf="../modules/default_test_config.yaml"):
+    def __init__(self, ucf="../test_suites/user_test_config.yaml", dcf="../test_suites/default_test_config.yaml"):
+
+
+        my_name = self.__class__.__name__
+        self.logger = logging.getLogger('pth.' + my_name)
+        self.logger.info('setup default test config file: %s '% dcf)
+
         
         # load and set a handle to the user config file
         try:
@@ -67,6 +74,7 @@ class YamlTestConfig():
                 # if there is an error in the file, try to show where
             except YAMLError, exc:
                     print "Error in configuration file:", exc
+                    self.logger.error('Error in configuration file:', exc)
         except:
             print "  Error: file (%s) not found" % ucf
             sys.exit()

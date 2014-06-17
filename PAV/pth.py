@@ -2,13 +2,21 @@
 """Cluster Test Harness (main module)"""
 
 import sys,os
-import logging
-# un-comment help debug issues loading plug-ins
-#logging.basicConfig(level=logging.DEBUG)
+
 # argparse module helps create Python style command line interfaces
 import argparse
 # yapsy module used for dynamically loading new features from the plugins directory
 from yapsy.PluginManager import PluginManager
+
+# set up logging
+import logging
+logger = logging.getLogger('pth')
+logger.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+fh = logging.FileHandler(filename='/tmp/pth.log')
+fh.setFormatter(formatter)
+logger.addHandler(fh)
+
 
 global _debug
 
@@ -40,25 +48,21 @@ def main():
 
     
     # find and load the 'feature' plug-ins and their arguments
+
     # Build the manager
     PavPluginManager = PluginManager()
     # Inform where to find plug-ins
-    # Allow user to add more places to look by setting ENV PV_PLUGIN_DIR
+    # User can add more places to look by setting ENV PV_PLUGIN_DIR
     plugin_places = ['../plugins']
     if (os.environ.get('PV_PLUGIN_DIR')):
         plugin_places.append(os.environ.get('PV_PLUGIN_DIR'))
     PavPluginManager.setPluginPlaces(plugin_places)
     # Load all the plug-ins
+    logger.info('loading plugins')
     PavPluginManager.collectPlugins()
-    # Activate all loaded plug-ins
-    
-    if _debug:
-        print "load plugins"
     
     # create a hash that maps all sub-commands to their respective function call
     for pluginInfo in PavPluginManager.getAllPlugins():
-        if _debug:
-            pluginInfo.plugin_object.print_name()
                     
         try: 
             # let new functions add to the help line
@@ -71,6 +75,9 @@ def main():
 
     # turn the input arguments into a dict style with vars
     args = vars(parser.parse_args())
+     # record the command line selections
+    logger.info('cmd line args: %s' % args)
+
        
     # Process sub-commands, most of which should be found
     # in the plug-ins directory. 
@@ -78,12 +85,8 @@ def main():
         foo()
     else:
         # invoke the cmd method of the object that corresponds to
-        # the command the user selected
+        # the command selected
         getattr(func_map[args['sub_cmds']], 'cmd')(args)
-        
-        
-    if _debug:
-        print args 
         
 
 

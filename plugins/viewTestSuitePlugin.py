@@ -3,16 +3,20 @@
 """
 
 import os,sys
+import logging
 from yapsy.IPlugin import IPlugin
 from testConfig import YamlTestConfig
 
+
 class ViewTestSuite(IPlugin):
-    """ This implements the feature to view the default, user, and 
+    """ This implements the feature to view the default, user, and
         effective (combined) test suite configuration files.
     """
 
-    def print_name(self):
-        print "viewTestSuite handler loaded!"
+    def __init__(self):
+        my_name = self.__class__.__name__
+        self.logger = logging.getLogger('pth.' + my_name)
+        self.logger.info('created instance of plugin: %s'% my_name)
 
     # Every plugin class MUST have a method by the name "add_parser_info
     # and must return the name of the this sub-command

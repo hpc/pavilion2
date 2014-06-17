@@ -111,21 +111,25 @@ def main(args):
         functions loosely like the setUpandRun wrapper script from Gazebo.
     """
 
-    logging.basicConfig(filename='/tmp/runjob.log', level=logging.INFO)
+    logger = logging.getLogger('runjob')
+    logger.setLevel(logging.DEBUG)
+    fh = logging.FileHandler(filename='/tmp/runjob.log')
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    fh.setFormatter(formatter)
+    logger.addHandler(fh)
 
     params = json.loads(args[2])
     params = convert(params)
     name = args[1]
 
-    # setup global log file
-    logging.info(now() + ' runjob:' + name)
-
     # Load the correct JobController module for this specific job/test
     jc = load_jcmod(name, params)
 
-
+    logger.info(name)
     # all STDOUT and STDERR from job directed to its own log file
     logfile = build_results_dir(params, name) + "/" + name + ".log"
+    logger.info(name + ": logfile -> %s" % logfile)
+
     os.environ["PV_JOB_RESULTS_LOG"] = logfile
     with open(logfile, "w+") as lf:
         with stdout_redirected(lf):
@@ -138,22 +142,22 @@ def main(args):
                 this_job = jc(name, params, lf)
             except:
                 print "Error: runjob: inst job object died, exiting job"
-                logging.info(now() + " Error: runjob:" + name + ' inst job object died, exiting job ')
+                logging.error(name + ' inst job object died, exiting job ')
                 return
 
             # do what every job has to do
-            logging.info(now() + " runjob:" + name + ' Starting ')
+            logger.info(name + ' Starting ')
             if params['build']['build_before_run_flag']:
-                logging.info(now() + " runjob:" + name + " build-start ")
+                logger.info(name + " build-start ")
                 print "<build-start> ", now()
                 this_job.build()
-                logging.info(now() + " runjob:" + name + " build-end ")
+                logger.info(name + " build-end ")
                 print "<build-end> ", now()
             print "<start> " , now()
             this_job.start()
             print "<end> " , now()
             this_job.cleanup()
-            logging.info(now() + " runjob:" + name + ' Completed ')
+            logger.info(name + ' Completed ')
 
 
 

@@ -4,13 +4,16 @@
 
 import sys
 from yapsy.IPlugin import IPlugin
+import logging
 
 
 class PluginTwo(IPlugin):
     """ This is plugin 2 that implements Feature 2 """
 
-    def print_name(self):
-        print "Plugin 2 loaded!"
+    def __init__(self):
+        my_name = self.__class__.__name__
+        self.logger = logging.getLogger('pth.' + my_name)
+        self.logger.info('created instance of plugin: %s'% my_name)
 
     # Every plugin class MUST have a method by the name "add_parser_info"
     # and must return the name of the this sub-command

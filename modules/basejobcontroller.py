@@ -8,18 +8,21 @@ import sys,os
 import subprocess
 import time
 import datetime
+import logging
 
 
 class BaseJobController():
 
     """ class to define the common actions for any job type """
 
-    
+
     def __init__(self, name, configs, job_log_file):
 
         self.name = name
         self.configs = configs
         self.job_log_file = job_log_file
+
+        self.logger = logging.getLogger('runjob.' + self.__class__.__name__)
 
         self.save_common_settings()
 
@@ -36,43 +39,40 @@ class BaseJobController():
         src_dir = self.configs['source_location']
         run_cmd = self.configs['run']['cmd'].split(".", 1)[0]
 
+        if 'NO-WS' in ws_path:
+            os.environ['PV_WS'] = src_dir
+            os.environ['PV_RUNHOME'] = src_dir
+            print os.environ['PV_RUNHOME']
+            print 'Working Space: %s' % os.environ['PV_RUNHOME']
+            self.logger.info('WS for %s: ' % self.name + os.environ['PV_RUNHOME'])
+            return
 
+        # Otherwise ...
         # test specific working space takes first precedence
 
-        ws=""
-        try:
-            if ws_path:
-            # tack onto source location if relative
-                if '.' in ws_path:
-                    print "debug with ."
-                    ws = src_dir + "/" + ws_path
-
-            # how about noop option here!
+        if ws_path:
+            # tack onto users home dir location if relative path provided
+            if '.' in ws_path:
+                print "debug with ."
+                ws = os.environ['HOME'] + "/" + ws_path
 
             # else new full path as defined
-                else:
-                    print "debug full path"
-                    ws = ws_path
-
-        # if not specified for test make it just goes under the source location
             else:
-                print "debug default path"
-                ws = src_dir + "/pv_ws"
+                print "debug full path"
+                ws = ws_path
 
-        except e:
-            print "Error, coding bug if I get here!:w"
-
+        # not specified, so place it just under the source location
+        else:
+            print "debug default path"
+            ws = src_dir + "/pv_ws"
 
         # now setup and do the move
         os.environ['PV_WS'] = ws
-
         os.environ['PV_RUNHOME'] = ws + "/" + self.name + "__" + run_cmd + "." + self.now()
 
-        print os.environ['PV_RUNHOME']
+        print 'Working Space: %s' % os.environ['PV_RUNHOME']
 
-        #logging.info(self.now() + self.__class__.__name__ + ': setup RUNHOME')
-
-        logging.info(self.now() + self.__class__.__name__ + ': setup RUNHOME')
+        self.logger.info('WS for ' + self.name + ":" + os.environ['PV_RUNHOME'])
 
         try:
             os.makedirs(os.environ['PV_RUNHOME'], 0o775)
@@ -82,8 +82,8 @@ class BaseJobController():
         from_loc = src_dir + "/"
         to_loc = os.environ['PV_RUNHOME']
 
-        print "from: ", from_loc
-        print "to: ", to_loc
+        self.logger.debug('rsync source: %s' % from_loc)
+        self.logger.debug('rsync dest: %s' % to_loc)
 
         # support specified files to copy here!
 
@@ -96,8 +96,6 @@ class BaseJobController():
             os.system(cmd)
         except:
             print "Error: rsync of src dir to ws failed!"
-
-
 
 
     def __str__(self):

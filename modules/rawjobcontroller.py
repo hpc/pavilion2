@@ -5,8 +5,10 @@ import sys,os
 import subprocess
 from basejobcontroller import BaseJobController
 
+
 class RawJobController(BaseJobController):
     """ class to run a test using no scheduler or special launcher """
+
 
     def start(self):
 
