@@ -22,7 +22,7 @@ class BaseJobController():
         self.configs = configs
         self.job_log_file = job_log_file
 
-        self.logger = logging.getLogger('runjob.' + self.__class__.__name__)
+        self.logger = logging.getLogger('pth.runjob.' + self.__class__.__name__)
 
         self.save_common_settings()
 
@@ -51,17 +51,15 @@ class BaseJobController():
         # test specific working space takes first precedence
 
         if ws_path:
-            # tack onto users home dir location if relative path provided
-            if '.' in ws_path:
-                print "debug with ."
-                ws = os.environ['HOME'] + "/" + ws_path
-
-            # else new full path as defined
-            else:
-                print "debug full path"
+            # it's either a relative path from the src directory
+            # or it's an absolute one.
+            if '/' in ws_path[0]:
                 ws = ws_path
+            else:
+                ws = src_dir + "/" + ws_path
 
         # not specified, so place it just under the source location
+        # with the default subdir name.
         else:
             print "debug default path"
             ws = src_dir + "/pv_ws"

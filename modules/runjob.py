@@ -10,6 +10,10 @@ import json
 import logging
 import errno
 import platform
+from signal import signal, SIGPIPE, SIG_DFL
+
+# handle for all loggin
+logger = ""
 
 def convert(input):
     if isinstance(input, dict):
@@ -83,17 +87,16 @@ def build_results_dir(params, name):
          "__" + pid + "__" + target  \
          + "." + datetime.datetime.now(pytz.timezone(my_timezone)).strftime('%Y-%m-%dT%H:%M:%S%z')
     new_dir += ld
-    logging.info(now() + " runjob: create result dir ->" + new_dir)
 
     try:
         os.umask(0o002)
         os.makedirs(new_dir, 0o775)
     except OSError as e:
         if e.errno == errno.EEXIST:
-            logging.info(now() + " runjob:" + new_dir + " exists")
+            logger.info(new_dir + " exists")
             pass
         else:
-            logging.info(now() + " runjob:" + new_dir + "something bad")
+            logger.info(new_dir + "something bad")
             raise
 
     return new_dir
@@ -111,9 +114,9 @@ def main(args):
         functions loosely like the setUpandRun wrapper script from Gazebo.
     """
 
-    logger = logging.getLogger('runjob')
+    logger = logging.getLogger('pth.runjob')
     logger.setLevel(logging.DEBUG)
-    fh = logging.FileHandler(filename='/tmp/runjob.log')
+    fh = logging.FileHandler(filename='/tmp/pth.log')
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     fh.setFormatter(formatter)
     logger.addHandler(fh)
@@ -122,10 +125,14 @@ def main(args):
     params = convert(params)
     name = args[1]
 
+
+    #signal(SIGPIPE,SIG_DFL)
+
+
     # Load the correct JobController module for this specific job/test
     jc = load_jcmod(name, params)
 
-    logger.info(name)
+    logger.info("Process- " + name)
     # all STDOUT and STDERR from job directed to its own log file
     logfile = build_results_dir(params, name) + "/" + name + ".log"
     logger.info(name + ": logfile -> %s" % logfile)

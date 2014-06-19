@@ -4,6 +4,8 @@
 import sys,os
 import subprocess
 from basejobcontroller import BaseJobController
+import shutil
+
 
 
 class RawJobController(BaseJobController):
@@ -36,18 +38,23 @@ class RawJobController(BaseJobController):
 
         self.logger.info(self.name + ': start cleanup')
 
-        # if it exists and is executable call it. Script should print
-        # to STDOUT to get output into log file
+        # Try calling the epilog script. Script should print
+        # to STDOUT to send output into the job log file
         es = self.configs['results']['epilog_script']
 
-        self.logger.info(self.name + ': start cleanup with: '+ es)
-        try:
-            subprocess.Popen(es, stdout=self.job_log_file, stderr=self.job_log_file, shell=True)
-        except:
-           self.logger.error('Error, call to %s failed' % es)
+        # run an epilog script if defined in the test config
+        if es:
+            self.logger.info(self.name + ': cleanup with: '+ es)
+            try:
+                subprocess.Popen(es, stdout=self.job_log_file, stderr=self.job_log_file, shell=True)
+            except:
+               self.logger.error('Error, call to %s failed' % es)
 
-        # clean up working space
-        self.logger.info('remove WS: ' + os.environ['PV_RUNHOME'])
+        # clean up working space, careful, do not remove if no
+        # working space created
+        if 'NO-WS' not in self.configs['working_space']['path']:
+            self.logger.info('remove WS: ' + os.environ['PV_RUNHOME'])
+            shutil.rmtree(os.environ['PV_RUNHOME'])
     
 # this gets called if it's run as a script/program
 if __name__ == '__main__':
