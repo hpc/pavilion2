@@ -15,6 +15,8 @@ class BaseJobController():
 
     """ class to define the common actions for any job type """
 
+    def now(self):
+        return datetime.datetime.now().strftime("%m-%d-%YT%H:%M%:%S")
 
     def __init__(self, name, configs, job_log_file):
 
@@ -27,12 +29,9 @@ class BaseJobController():
         self.save_common_settings()
 
         # move binaries and necessary files to temp working space
-        self.setup_temp_working_space()
+        self.setup_working_space()
 
-    def now(self):
-        return datetime.datetime.now().strftime("%m-%d-%YT%H:%M%:%S")
-
-    def setup_temp_working_space(self):
+    def setup_working_space(self):
 
 
         ws_path = self.configs['working_space']['path']
@@ -61,7 +60,6 @@ class BaseJobController():
         # not specified, so place it just under the source location
         # with the default subdir name.
         else:
-            print "debug default path"
             ws = src_dir + "/pv_ws"
 
         # now setup and do the move
@@ -77,18 +75,20 @@ class BaseJobController():
         except:
             print "Error, could not create: ", ws, sys.exc_info()[0]
 
-        from_loc = src_dir + "/"
         to_loc = os.environ['PV_RUNHOME']
 
-        self.logger.debug('rsync source: %s' % from_loc)
-        self.logger.debug('rsync dest: %s' % to_loc)
+        # support user specified files or dirs to copy here.
+        files2copy = self.configs['working_space']['files_to_copy']
+        if files2copy:
+            cmd = "cd " + src_dir + "; rsync -ar " + files2copy + " " + to_loc
+        # general case is to copy all except some known source file types
+        else:
+            from_loc = src_dir + "/"
+            cmd = "rsync -a --exclude 'pv_ws' --exclude '*.[ocfh]' --exclude '*.bck' --exclude '*.tar' "
+            cmd += from_loc + " " + to_loc
 
-        # support specified files to copy here!
 
-
-        # build command for rsync
-        cmd = "rsync -a --exclude 'pv_ws' --exclude '*.[ocfh]' --exclude '*.bck' --exclude '*.tar' "
-        cmd += from_loc + " " + to_loc
+        self.logger.debug('rsync cmd: %s' % cmd)
 
         try:
             os.system(cmd)

@@ -148,8 +148,8 @@ def main(args):
             # instantiate job controller object
                 this_job = jc(name, params, lf)
             except:
-                print "Error: runjob: inst job object died, exiting job"
-                logging.error(name + ' inst job object died, exiting job ')
+                print "Error: runjob: failed to instantiate job object, exiting job"
+                logging.error(name + ' failed to instantiate job object, exiting job ')
                 return
 
             # do what every job has to do
@@ -160,9 +160,9 @@ def main(args):
                 this_job.build()
                 logger.info(name + " build-end ")
                 print "<build-end> ", now()
-            print "<start> " , now()
+            print "<start>" , now()
             this_job.start()
-            print "<end> " , now()
+            print "<end>" , now()
             this_job.cleanup()
             logger.info(name + ' Completed ')
 
