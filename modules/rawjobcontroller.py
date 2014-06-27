@@ -14,6 +14,9 @@ class RawJobController(BaseJobController):
 
     def start(self):
 
+        # create own unique working space for this run
+        self.setup_working_space()
+
         # build the exact command to run
         cmd =  os.environ['PV_RUNHOME'] + "/" + self.configs['run']['cmd']
         print " ->  RawJobController: invoke %s" % cmd
@@ -34,27 +37,6 @@ class RawJobController(BaseJobController):
             print "Error: something went wrong!"
             print [p.returncode, errors, output]
 
-    def cleanup(self):
-
-        self.logger.info(self.name + ': start cleanup')
-
-        # Try calling the epilog script. Script should print
-        # to STDOUT to send output into the job log file
-        es = self.configs['results']['epilog_script']
-
-        # run an epilog script if defined in the test config
-        if es:
-            self.logger.info(self.name + ': cleanup with: '+ es)
-            try:
-                subprocess.Popen(es, stdout=self.job_log_file, stderr=self.job_log_file, shell=True)
-            except:
-               self.logger.error('Error, call to %s failed' % es)
-
-        # clean up working space, careful, do not remove if no
-        # working space created
-        if 'NO-WS' not in self.configs['working_space']['path']:
-            self.logger.info('remove WS: ' + os.environ['PV_RUNHOME'])
-            shutil.rmtree(os.environ['PV_RUNHOME'])
     
 # this gets called if it's run as a script/program
 if __name__ == '__main__':

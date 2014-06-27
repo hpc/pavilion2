@@ -1,0 +1,28 @@
+# User test config  (YAML format)
+# 
+# Add sections to override the default
+
+# If problems with format try: http://yaml-online-parser.appspot.com
+
+HW-f2c:
+  source_location: '/Users/cwi/VWE/t1'
+  run:
+    cmd: 'iPassed'
+    scheduler: raw 
+  working_space:
+    files_to_copy: "iPassed iFailed adir"
+
+HW-defws:
+  source_location: '/Users/cwi/VWE/t1'
+  run:
+    cmd: 'hw.bash'
+    scheduler: raw 
+
+
+HW-myws:
+  source_location: '/Users/cwi/VWE/t1'
+  run:
+    cmd: 'hw.bash'
+    scheduler: raw
+  working_space:
+    path: "my_ws"

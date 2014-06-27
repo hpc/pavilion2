@@ -1,0 +1,109 @@
+# YAML        
+
+#   Default test configuration file, vers. 0.2 
+
+# NOTE - all CAPS variable are env vars
+
+#    All entires can be re-defined by a users test config
+#    file (found in PV_HOME/test_conf) with defaults inherited
+#    from this file.
+#    In theory, the entire default file can be used, but we recommend
+#    making a copy, editing at least the name, location, and
+#    runcmd sub-elements and removing everything else you don't need.
+#
+
+# for YAML formatting issues try: http://yaml-online-parser.appspot.com
+    
+#    All values are available through:
+#     -   YamlTestConfig class interface 
+
+
+ 
+# A new name stanza is needed for each new test,
+# but only change what is different
+  
+MyTestName:
+        
+  # uri of test  
+  source_location: HOME
+        
+  # Build Stanza  
+  build:
+    cmd: buildme
+    build_before_run_flag : False
+        
+  # Run Stanza  
+  run:
+     cmd: 'runme'
+     # select one scheduler type, or make a new one  
+     # choices can be moab, slurm, torque, none  
+     scheduler: 'moab'
+     # user specified test parameter string
+     test_params: '' 
+
+  moab:
+
+     # Parameter(s) provided to scheduler
+     # Element stanza corresponds to scheduler choice above.
+     # All combinations of <num_nodes> and <procs_per_node> will be
+     # tried by by the scheduler where it makes sense. A "none"
+     # choice simply invokes the run command once
+
+     # comma separated list of values, or range [1-24]
+     num_nodes: 1
+     # queue to submit jobs against
+     queue: '' 
+     # comma separated list of values, or range [1-24]
+     procs_per_node: 16
+     # time in hr::min::secs
+     time_limit: 01:00:00
+     # free formatted string added to msub invocation line
+     msub_args:
+     # optional target segment, will be added to feature argument
+     target_seg: ''
+
+  # runtime working space.
+  # Test dir copied and run from here, if working_space defined
+  # Can be relative to source location (default) or hardcoded directory
+
+  working_space:
+
+    # path entry is relative to source_location
+    path: '' 
+    files_to_copy: ''
+    no_copy: '*.c,*.o,*.h'
+
+  results:
+
+    # The test handler places the results under this directory.
+    root: '/Users/cwi'
+
+    # Pass or Fail matching pattern, here
+    # the test handler will try to match "<result> pass" or
+    # <result> fail" to determine if the test passed or failed.
+    pass_fail_regex: '<result\w{0,1}>\s*(.+)'
+
+    # Trend Data matching pattern, here
+    # the test handler will try to match "<td> name value units"
+    # to match any special result data  (a.k.a - trend data).
+    # The "units" field is optional.
+    trend_data_regex: <td>\s+(.*)
+
+    # Script called at the end of the job. By default, the test harness requires
+    # a "<result>" entry in the job output log file at the beginning of a line
+    # followed by a pass or fail. Of course, there are many ways to accomplish this,
+    # but if it's not done by the job itself this may be a convient way to add
+    # this entry.
+    # If defined here and executable, call...  
+    epilog_script: ''
+
+    ##### TO BE MOVED TO "generic" config file!
+    # Script that contains the logic that examines the job log 
+    # to see if the test passed or failed.  chk_pf reports
+    # a fail if there are any "fail" matches with the
+    # pass_fail_regex, OR it can report pass if at least one "pass"
+    # is matched with the regex, otherwise unknown is reported.
+    pass_fail_logic: $TH_BIN/chk_pf
+
+  time:
+    tz: 'US/Mountain'

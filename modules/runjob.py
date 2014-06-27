@@ -133,11 +133,15 @@ def main(args):
     jc = load_jcmod(name, params)
 
     logger.info("Process- " + name)
+
     # all STDOUT and STDERR from job directed to its own log file
-    logfile = build_results_dir(params, name) + "/" + name + ".log"
+    results_dir = build_results_dir(params, name)
+    os.environ["PV_JOB_RESULTS_LOG_DIR"] = results_dir
+
+    logfile = results_dir + "/" + name + ".log"
     logger.info(name + ": logfile -> %s" % logfile)
 
-    os.environ["PV_JOB_RESULTS_LOG"] = logfile
+
     with open(logfile, "w+") as lf:
         with stdout_redirected(lf):
                 
@@ -148,7 +152,6 @@ def main(args):
             # instantiate job controller object
                 this_job = jc(name, params, lf)
             except:
-                print "Error: runjob: failed to instantiate job object, exiting job"
                 logging.error(name + ' failed to instantiate job object, exiting job ')
                 return
 

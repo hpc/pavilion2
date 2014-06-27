@@ -6,9 +6,10 @@
 
 import sys,os
 import subprocess
-import time
 import datetime
 import logging
+import shutil
+
 
 
 class BaseJobController():
@@ -16,7 +17,7 @@ class BaseJobController():
     """ class to define the common actions for any job type """
 
     def now(self):
-        return datetime.datetime.now().strftime("%m-%d-%YT%H:%M%:%S")
+        return datetime.datetime.now().strftime("%m-%d-%YT%H:%M%:%S:%f")
 
     def __init__(self, name, configs, job_log_file):
 
@@ -26,21 +27,32 @@ class BaseJobController():
 
         self.logger = logging.getLogger('pth.runjob.' + self.__class__.__name__)
 
+        # verify command is executable early on
+        is_exec = os.access(self.configs['source_location'] + "/" + self.configs['run']['cmd'], os.X_OK)
+        if not is_exec:
+            print self.configs['run']['cmd'] + " command not executable, returning!"
+            self.logger.error('%s %s not executable, returning!' % (self.name + ":", self.configs['run']['cmd']))
+            raise RuntimeError('some error message')
+
         self.save_common_settings()
 
-        # move binaries and necessary files to temp working space
-        self.setup_working_space()
+        # common global env params for this job
+        os.environ['PV_TESTNAME'] = self.name
+        os.environ['GZ_TESTNAME'] = self.name
+        os.environ['PV_TESTEXEC'] = self.configs['run']['cmd']
+        os.environ['GZ_TESTEXEC'] = self.configs['run']['cmd']
 
     def setup_working_space(self):
 
 
         ws_path = self.configs['working_space']['path']
         src_dir = self.configs['source_location']
-        run_cmd = self.configs['run']['cmd'].split(".", 1)[0]
+        run_cmd = self.configs['run']['cmd'].split(".")[0]
 
         if 'NO-WS' in ws_path:
-            os.environ['PV_WS'] = src_dir
+            os.environ['PV_WS'] = ""
             os.environ['PV_RUNHOME'] = src_dir
+            os.environ['GZ_RUNHOME'] = src_dir
             print os.environ['PV_RUNHOME']
             print 'Working Space: %s' % os.environ['PV_RUNHOME']
             self.logger.info('WS for %s: ' % self.name + os.environ['PV_RUNHOME'])
@@ -63,7 +75,7 @@ class BaseJobController():
             ws = src_dir + "/pv_ws"
 
         # now setup and do the move
-        os.environ['PV_WS'] = ws
+
         os.environ['PV_RUNHOME'] = ws + "/" + self.name + "__" + run_cmd + "." + self.now()
 
         print 'Working Space: %s' % os.environ['PV_RUNHOME']
@@ -76,6 +88,7 @@ class BaseJobController():
             print "Error, could not create: ", ws, sys.exc_info()[0]
 
         to_loc = os.environ['PV_RUNHOME']
+        os.environ['PV_WS'] = to_loc
 
         # support user specified files or dirs to copy here.
         files2copy = self.configs['working_space']['files_to_copy']
@@ -133,12 +146,27 @@ class BaseJobController():
         pass
 
     def cleanup(self):
-        """
-            invoke the job specific routine that determines if job failed or passed.
-        """
-        pass 
-        
-        
+
+        self.logger.info(self.name + ': start cleanup')
+
+        # Try calling the epilog script. Script should print
+        # to STDOUT to send output into the job log file
+        es = self.configs['results']['epilog_script']
+
+        # run an epilog script if defined in the test config
+        if es:
+            self.logger.info(self.name + ': cleanup with: '+ es)
+            try:
+                subprocess.Popen(es, stdout=self.job_log_file, stderr=self.job_log_file, shell=True)
+            except:
+               self.logger.error('Error, call to %s failed' % es)
+
+        # clean up working space, careful, do not remove if no
+        # working space created
+        if 'NO-WS' not in self.configs['working_space']['path']:
+            self.logger.info('remove WS: ' + os.environ['PV_RUNHOME'])
+            shutil.rmtree(os.environ['PV_RUNHOME'])
+
         
 # this gets called if it's run as a script/program
 if __name__ == '__main__':
