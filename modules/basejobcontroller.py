@@ -24,6 +24,7 @@ class BaseJobController():
         self.name = name
         self.configs = configs
         self.job_log_file = job_log_file
+        self.lh = self.configs['log_handle']
 
         self.logger = logging.getLogger('pth.runjob.' + self.__class__.__name__)
 
@@ -31,10 +32,10 @@ class BaseJobController():
         is_exec = os.access(self.configs['source_location'] + "/" + self.configs['run']['cmd'], os.X_OK)
         if not is_exec:
             print self.configs['run']['cmd'] + " command not executable, returning!"
-            self.logger.error('%s %s not executable, returning!' % (self.name + ":", self.configs['run']['cmd']))
+            self.logger.error('%s %s not executable, returning!' % (self.lh + ":", self.configs['run']['cmd']))
             raise RuntimeError('some error message')
 
-        self.save_common_settings()
+        #self.save_common_settings()
 
         # common global env params for this job
         os.environ['PV_TESTNAME'] = self.name
@@ -55,7 +56,7 @@ class BaseJobController():
             os.environ['GZ_RUNHOME'] = src_dir
             print os.environ['PV_RUNHOME']
             print 'Working Space: %s' % os.environ['PV_RUNHOME']
-            self.logger.info('WS for %s: ' % self.name + os.environ['PV_RUNHOME'])
+            self.logger.info('WS for %s: ' % self.lh + os.environ['PV_RUNHOME'])
             return
 
         # Otherwise ...
@@ -80,7 +81,7 @@ class BaseJobController():
 
         print 'Working Space: %s' % os.environ['PV_RUNHOME']
 
-        self.logger.info('WS for ' + self.name + ":" + os.environ['PV_RUNHOME'])
+        self.logger.info(self.lh + " : " + 'Create WS - ' + os.environ['PV_RUNHOME'])
 
         try:
             os.makedirs(os.environ['PV_RUNHOME'], 0o775)
@@ -147,7 +148,7 @@ class BaseJobController():
 
     def cleanup(self):
 
-        self.logger.info(self.name + ': start cleanup')
+        self.logger.info(self.lh + ': start cleanup')
 
         # Try calling the epilog script. Script should print
         # to STDOUT to send output into the job log file
@@ -155,16 +156,16 @@ class BaseJobController():
 
         # run an epilog script if defined in the test config
         if es:
-            self.logger.info(self.name + ': cleanup with: '+ es)
+            self.logger.info(self.lh + ': cleanup with: '+ es)
             try:
                 subprocess.Popen(es, stdout=self.job_log_file, stderr=self.job_log_file, shell=True)
             except:
-               self.logger.error('Error, call to %s failed' % es)
+               self.logger.error('%s : Error, call to epilog script %s failed' % (self.lh, es))
 
         # clean up working space, careful, do not remove if no
         # working space created
         if 'NO-WS' not in self.configs['working_space']['path']:
-            self.logger.info('remove WS: ' + os.environ['PV_RUNHOME'])
+            self.logger.info('%s : remove WS - %s ' % (self.lh, os.environ['PV_RUNHOME']))
             shutil.rmtree(os.environ['PV_RUNHOME'])
 
         

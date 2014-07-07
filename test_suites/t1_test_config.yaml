@@ -4,7 +4,7 @@
 
 # If problems with format try: http://yaml-online-parser.appspot.com
 
-HW-f2c:
+HW-raw:
   source_location: '/Users/cwi/VWE/t1'
   run:
     cmd: 'iPassed'
@@ -12,17 +12,18 @@ HW-f2c:
   working_space:
     files_to_copy: "iPassed iFailed adir"
 
-HW-defws:
+HW-moab:
   source_location: '/Users/cwi/VWE/t1'
   run:
     cmd: 'hw.bash'
-    scheduler: raw 
+    scheduler: moab 
+    count: 2
 
 
-HW-myws:
-  source_location: '/Users/cwi/VWE/t1'
-  run:
-    cmd: 'hw.bash'
-    scheduler: raw
-  working_space:
-    path: "my_ws"
+#HW-myws:
+#  source_location: '/Users/cwi/VWE/t1'
+#  run:
+#    cmd: 'hw.bash'
+#    scheduler: raw
+#  working_space:
+#    path: "my_ws"

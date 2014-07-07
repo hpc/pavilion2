@@ -17,6 +17,9 @@ class RawJobController(BaseJobController):
         # create own unique working space for this run
         self.setup_working_space()
 
+        # print the common log settings here right after the job is started
+        self.save_common_settings()
+
         # build the exact command to run
         cmd =  os.environ['PV_RUNHOME'] + "/" + self.configs['run']['cmd']
         print " ->  RawJobController: invoke %s" % cmd

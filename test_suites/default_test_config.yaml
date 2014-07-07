@@ -17,22 +17,25 @@
 #    All values are available through:
 #     -   YamlTestConfig class interface 
 
-
  
-# A new name stanza is needed for each new test,
-# but only change what is different
+# A new named stanza is needed for each new test,
+# but you only need to change what is different from the default config file
+
+# Each test/job stanza will result in ONE log directory 
   
-MyTestName:
-        
+
+# UNIQUE test/job identifier. Any string will do.
+MyTestIdentifier:
+
   # uri of test  
   source_location: HOME
         
-  # Build Stanza  
+  # Build Section  
   build:
     cmd: buildme
     build_before_run_flag : False
         
-  # Run Stanza  
+  # Run Section 
   run:
      cmd: 'runme'
      # select one scheduler type, or make a new one  
@@ -40,7 +43,10 @@ MyTestName:
      scheduler: 'moab'
      # user specified test parameter string
      test_params: '' 
+     # number of times to repeat
+     count: 1
 
+  # Optional scheduler section needed if defined in Run section
   moab:
 
      # Parameter(s) provided to scheduler
@@ -49,11 +55,11 @@ MyTestName:
      # tried by by the scheduler where it makes sense. A "none"
      # choice simply invokes the run command once
 
-     # comma separated list of values, or range [1-24]
+     # comma separated list of values, or range 
      num_nodes: 1
      # queue to submit jobs against
      queue: '' 
-     # comma separated list of values, or range [1-24]
+     # comma separated list of values, or range 
      procs_per_node: 16
      # time in hr::min::secs
      time_limit: 01:00:00
@@ -62,9 +68,11 @@ MyTestName:
      # optional target segment, will be added to feature argument
      target_seg: ''
 
-  # runtime working space.
-  # Test dir copied and run from here, if working_space defined
-  # Can be relative to source location (default) or hardcoded directory
+  # Working space section
+  # Test directory copied and run from 'path'. If path set to "NO-WS" then
+  # nothing done here, otherwise (default) the path
+  # is set to be under the source location or it can be defined to be some
+  # other path.
 
   working_space:
 
@@ -73,19 +81,21 @@ MyTestName:
     files_to_copy: ''
     no_copy: '*.c,*.o,*.h'
 
+
+  # Results section
   results:
 
-    # The test handler places the results under this directory.
+    # The test handler places all results under this directory.
     root: '/Users/cwi'
 
-    # Pass or Fail matching pattern, here
+    # Pass or Fail matching pattern
     # the test handler will try to match "<result> pass" or
     # <result> fail" to determine if the test passed or failed.
     pass_fail_regex: '<result\w{0,1}>\s*(.+)'
 
-    # Trend Data matching pattern, here
+    # Trend Data matching pattern
     # the test handler will try to match "<td> name value units"
-    # to match any special result data  (a.k.a - trend data).
+    # to discover any special result data  (a.k.a - trend data).
     # The "units" field is optional.
     trend_data_regex: <td>\s+(.*)
 

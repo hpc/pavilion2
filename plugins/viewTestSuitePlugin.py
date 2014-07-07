@@ -37,9 +37,8 @@ class ViewTestSuite(IPlugin):
     def cmd(self, args):
         print "\n"
         if args['verbose']:
-            print "\nrunning run_test_suite"
-            print "args -> %s" % args
-            print "using test suite -> %s\n" % args['testSuite']
+            print "input request -> %s" % args
+            #print "input test suite file -> %s\n" % args['testSuite']
         
         if (os.path.isfile(args['testSuite'])):
             with open(args['testSuite']) as file:
@@ -48,24 +47,24 @@ class ViewTestSuite(IPlugin):
                 
             if args['dict']:
                 
-                print "\nMy test suite configuration (dict style):"
+                print "\nUser test suite configuration (dict style):"
                 print tc.get_user_test_config()
                 
                 print "\nDefault test suite configuration (dict style):"
                 print tc.get_default_test_config()
   
-                print "\nEffective test configuration (dict style):"
+                print "\nEffective test configuration (dict style, combined User and Default):"
                 print tc.get_effective_config_file()
 
             else:
 
-                print "\nMy test suite configuration (yaml style):"
+                print "\nUser test suite configuration (yaml style):"
                 tc.show_user_test_config()
     
                 print "\nDefault test suite configuration (yaml style):"
                 tc.show_default_config()
     
-                print "\nEffective test suite configuration (yaml style):"
+                print "\nEffective test suite configuration (yaml style, combined User and Default):"
                 tc.show_effective_config_file()
 
         else:

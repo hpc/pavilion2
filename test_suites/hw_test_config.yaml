@@ -60,11 +60,9 @@ HW-raw-7:
   working_space:
     path: 'NO-WS'
 
-
 HW-moab:
   source_location: '/Users/cwi/VWE/PAV'
   run:
-    #cmd: 'python hw.py'
     cmd: 'hw.bash'
     scheduler: moab 
   build:

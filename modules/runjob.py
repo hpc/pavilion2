@@ -76,6 +76,8 @@ def build_results_dir(params, name):
         Intent is to make backwards compatible with Gazebo.
     """
 
+    lh = params['log_handle']
+
     root_result_dir = params['results']['root']
     new_dir = root_result_dir + "/gzshared/"
     date_parts = datetime.datetime.now().strftime("%Y/%Y-%m/%Y-%m-%d/")
@@ -93,10 +95,10 @@ def build_results_dir(params, name):
         os.makedirs(new_dir, 0o775)
     except OSError as e:
         if e.errno == errno.EEXIST:
-            logger.info(new_dir + " exists")
+            logger.info(lh + " : " + new_dir + " exists")
             pass
         else:
-            logger.info(new_dir + "something bad")
+            logger.info(lh + " : " + new_dir + "something bad")
             raise
 
     return new_dir
@@ -128,18 +130,21 @@ def main(args):
 
     #signal(SIGPIPE,SIG_DFL)
 
+    # This handle "name(pid)" can be used to follow all activity of this
+    # specific job thread in the pth.log file
+    logger_name = name + "(" + str(os.getpid()) + ")"
+    params['log_handle'] = logger_name
+    lh = params['log_handle']
 
     # Load the correct JobController module for this specific job/test
     jc = load_jcmod(name, params)
-
-    logger.info("Process- " + name)
 
     # all STDOUT and STDERR from job directed to its own log file
     results_dir = build_results_dir(params, name)
     os.environ["PV_JOB_RESULTS_LOG_DIR"] = results_dir
 
     logfile = results_dir + "/" + name + ".log"
-    logger.info(name + ": logfile -> %s" % logfile)
+    logger.info(lh + ": logfile -> %s" % logfile)
 
 
     with open(logfile, "w+") as lf:
@@ -152,22 +157,22 @@ def main(args):
             # instantiate job controller object
                 this_job = jc(name, params, lf)
             except:
-                logging.error(name + ' failed to instantiate job object, exiting job ')
+                logging.error(lh + ' failed to instantiate job object, exiting job ')
                 return
 
             # do what every job has to do
-            logger.info(name + ' Starting ')
+            logger.info(lh + ' Starting ')
             if params['build']['build_before_run_flag']:
-                logger.info(name + " build-start ")
+                logger.info(lh + " build-start ")
                 print "<build-start> ", now()
                 this_job.build()
-                logger.info(name + " build-end ")
+                logger.info(lh + " build-end ")
                 print "<build-end> ", now()
             print "<start>" , now()
             this_job.start()
             print "<end>" , now()
             this_job.cleanup()
-            logger.info(name + ' Completed ')
+            logger.info(lh + ' Completed ')
 
 
 

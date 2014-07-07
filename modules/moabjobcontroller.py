@@ -39,54 +39,44 @@ class MoabJobController(BaseJobController):
 
         # accounting file? or just log it?
 
-        # init processes per node (ppn)
-        ppn = self.configs['moab']['procs_per_node']
-        if (type(ppn) is not str):
-            ppn = str(ppn)
-
+        ppn = str(self.configs['eff_npes'])
         os.environ['GZ_PESPERNODE'] = ppn
         os.environ['PV_PESPERNODE'] = ppn
 
-        num_nodes = self.configs['moab']['num_nodes']
-        if (type(num_nodes) is not str):
-            num_nodes = str(num_nodes)
-        num_nodes_list = num_nodes.split(",")
+        nnodes = str(self.configs['eff_nnodes'])
+        os.environ['GZ_NNODES'] = nnodes
+        os.environ['PV_NNODES'] = nnodes
+        print "<nnodes> " + nnodes
 
-        self.logger.debug(num_nodes_list)
+        pes = int(nnodes) * int(ppn)
+        os.environ['PV_NPES'] = str(pes)
+        print "<npes> " + str(pes)
 
-        # handle multiple node sizes
-        for nnodes in num_nodes_list:
+        # create working space here so that each msub run gets its own
+        self.setup_working_space()
 
-            os.environ['GZ_NNODES'] = nnodes
-            os.environ['PV_NNODES'] = nnodes
-            pes = int(nnodes) * int(ppn)
-            os.environ['PV_NPES'] = str(pes)
+        # print the common log settings here right after the job is started
+        self.save_common_settings()
 
-            # create working space here so that each msub run gets its own
-            self.setup_working_space()
+        # setup unique Moab stdout and stderr file names
+        # Handle differences between moab-slurm, moab-cle, etc. ??
+        so = os.environ['PV_JOB_RESULTS_LOG_DIR'] + "/drm.stderr"
+        se = os.environ['PV_JOB_RESULTS_LOG_DIR'] + "/drm.stdout"
+        msub_cmd += "-o " + so + " -e " + se + " "
 
-            # setup unique Moab stdout and stderr file names
-            # Handle differences between moab-slurm, moab-cle, etc. ??
-            so = os.environ['PV_RUNHOME'] + "/drm.stderr"
-            se = os.environ['PV_RUNHOME'] + "/drm.stdout"
-            msub_cmd += "-o " + so + " -e " + se + " "
+        msub_cmd += "-l nodes=" + nnodes + ",walltime=" + time_lim
+        if ts:
+            msub_cmd += ",feature=" + ts
 
-            msub_cmd += "-l nodes=" + nnodes + ",walltime=" + time_lim
-            if ts:
-                msub_cmd += ",feature=" + ts
+        cmd =  os.environ['PV_RUNHOME'] + "/" + self.configs['run']['cmd']
+        os.environ['USER_CMD'] = cmd
 
-            cmd =  os.environ['PV_RUNHOME'] + "/" + self.configs['run']['cmd']
-            os.environ['USER_CMD'] = cmd
+        # invoke msub here
+        msub_cmd += " " + "./moab_job_handler"
+        self.logger.info(self.lh + " : " + msub_cmd)
 
-            # msub this
-            msub_cmd += " " + "./moab_job_handler"
-            self.logger.info(msub_cmd)
-            jid = "222222"
+        self.logger.info(self.lh + " Dummy job is launched!")
 
-            self.logger.info("job id %s launched!" % jid)
-
-    def cleanup(self):
-        pass
     
 # this gets called if it's run as a script/program
 if __name__ == '__main__':
