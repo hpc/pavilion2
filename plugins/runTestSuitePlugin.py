@@ -14,25 +14,20 @@ import daemon
 import subprocess
 import json
 import logging
+import itertools
+from testEntry import TestEntry
 
 
-def job_dispatcher(name, params):
 
-    # Run the job as it's own detached subprocess so that the program can return
-    # These jobs have the potential to "run" for days...
+def job_dispatcher(name, params, var):
+
+    # Run the job as its own detached subprocess so that we do not wait on long running jobs
+    # Jobs have the potential to "run" for days...
 
     js_params = json.dumps(params)
-    args = ["python", "../modules/runjob.py", name, js_params]
-    #print "runTestSuitePlugin: dispatch job -> %s:" % name
+    js_var = json.dumps(var)
+    args = ["python", "../modules/runjob.py", name, js_params, js_var]
     subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
-
-def get_test_variations(params):
-
-    # figure out all the (node by pe) variations for this test
-    # and return tuple of choices
-    tv = [ (1,16), (4,8) ]
-    return tv
-
 
     
 class RunTestSuite(IPlugin):
@@ -56,7 +51,7 @@ class RunTestSuite(IPlugin):
         parser_rts.set_defaults(sub_cmds='run_test_suite')
         return ('run_test_suite')
 
-    # Every plug-in class MUST have a method by the name "cmd"
+    # Every plug-in(command) class MUST have a method by the name "cmd"
     # so that it can called when its sub-command is selected
         
     def cmd(self, args):
@@ -67,31 +62,42 @@ class RunTestSuite(IPlugin):
         
         if (os.path.isfile(args['testSuite'])):
             with open(args['testSuite']) as file:
+
                 # Build the test configuration
                 tc = YamlTestConfig(args['testSuite'])
-                # get the "folded" test stanza for each test in the test suite
+
+                # get the "merged" test stanza for each test in the test suite
                 my_test_suite = tc.get_effective_config_file()
 
-                # just loop over each test variation and "run" it
-                for name, params in my_test_suite.iteritems():
-                    # get list of tuple variations ((nodes X pes ), ...]
-                    test_variants = get_test_variations(params)
-                    #test_variants = [ (1,16) ]
-                    #test_variants = [ (1,16), (4,8) ]
-                    count = 1
-                    # allow multiple runs, only if there is one test variation
-                    if (test_variants.__len__()  == 1):
-                       count = int(params['run']['count'])
+                #for stanza in my_test_suite.iteritems():
+                    #print "\n"
+                    #print stanza
+                    #print "\n"
 
-                    for nnodes, npes in test_variants:
+                # Process each test entry (stanza) in the test suite
+                # Name had better be unique
+                for name, params in my_test_suite.iteritems():
+
+                    test_type = TestEntry.get_test_type(params)
+                    #print test_type
+                    te = TestEntry(name,params)
+
+                    test_variants = [(None)]
+                    # get list of tuples for each test variation
+                    if ("moab" in test_type):
+                        test_variants = te.get_moab_test_variations()
+
+                    count = 1
+                    # If there is one test variation then allow multiple runs,
+                    # otherwise run only ONCE for each variation
+                    if (test_variants.__len__()  == 1):
+                       count = te.get_test_count()
+
+                    # new process for each test variation
+                    for var in test_variants.__iter__():
                         for _ in range(count):
-                            params['eff_nnodes'] = nnodes
-                            params['eff_npes'] = npes
-                            self.logger.info('dispatch %s (%s x %s)' % (name, nnodes, npes))
-                            if args['verbose']:
-                                print " -> run %s: using %s, nnodes - %s, npes - %s" % \
-                                    (name, params['source_location'] + "/" + params['run']['cmd'], nnodes, npes)
-                            job_dispatcher(name, params)
+                            self.logger.info('dispatch: %s, variation: %s' % (name, var))
+                            job_dispatcher(name, params, var)
         else:
             print "  Error: could not find test suite %s" % args['testSuite']
             sys.exit()

@@ -9,6 +9,7 @@ import subprocess
 import datetime
 import logging
 import shutil
+import json
 
 
 
@@ -19,11 +20,12 @@ class BaseJobController():
     def now(self):
         return datetime.datetime.now().strftime("%m-%d-%YT%H:%M%:%S:%f")
 
-    def __init__(self, name, configs, job_log_file):
+    def __init__(self, name, configs, job_log_file, job_variation):
 
         self.name = name
         self.configs = configs
         self.job_log_file = job_log_file
+        self.job_variation = job_variation
         self.lh = self.configs['log_handle']
 
         self.logger = logging.getLogger('pth.runjob.' + self.__class__.__name__)
@@ -35,6 +37,7 @@ class BaseJobController():
             self.logger.error('%s %s not executable, returning!' % (self.lh + ":", self.configs['run']['cmd']))
             raise RuntimeError('some error message')
 
+        self.logger.info(self.lh + " : init phase " )
         #self.save_common_settings()
 
         # common global env params for this job
@@ -42,6 +45,9 @@ class BaseJobController():
         os.environ['GZ_TESTNAME'] = self.name
         os.environ['PV_TESTEXEC'] = self.configs['run']['cmd']
         os.environ['GZ_TESTEXEC'] = self.configs['run']['cmd']
+        os.environ['GZ_TEST_PARAMS'] = self.configs['run']['test_args']
+        os.environ['PV_TEST_ARGS'] = self.configs['run']['test_args']
+
 
     def setup_working_space(self):
 
@@ -95,14 +101,14 @@ class BaseJobController():
         files2copy = self.configs['working_space']['files_to_copy']
         if files2copy:
             cmd = "cd " + src_dir + "; rsync -ar " + files2copy + " " + to_loc
-        # general case is to copy all except some known source file types
+        # general case is to copy all files except some known source file types
         else:
             from_loc = src_dir + "/"
             cmd = "rsync -a --exclude 'pv_ws' --exclude '*.[ocfh]' --exclude '*.bck' --exclude '*.tar' "
             cmd += from_loc + " " + to_loc
 
 
-        self.logger.debug('rsync cmd: %s' % cmd)
+        self.logger.debug('%s : %s' % (self.lh, cmd))
 
         try:
             os.system(cmd)

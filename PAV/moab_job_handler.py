@@ -10,38 +10,18 @@ import sys,os
 
 
 from contextlib import contextmanager
-@contextmanager
-def stdout_redirected(new_stdout):
-    save_stdout = sys.stdout
-    sys.stdout = new_stdout
-    try:
-        yield None
-    finally:
-        sys.stdout = save_stdout
 
-def collect_moab_node_list():
-    return "mu123 mu456"
-
-def get_moab_job_id():
-    return "123456"
 
 def main():
 
-    # setup so all stdout and stderr goes to log file in the working space(RUNHOME)
-    jobid = get_moab_job_id()
+    # setup so that all stdout and stderr goes to log file in the working space(RUNHOME)
 
-
-    print "<JobID> " + jobid
-    print "<nodes> " + collect_moab_node_list()
-
-    # call the user command
+    # call the command that runs the users test/job
     os.system(os.environ['USER_CMD'])
 
-
-    # copy all the junk in RUNHOME to the final results dir
-    # and
-    # remove the working space, only if PV_WS is set,
-    # otherwise the job was running out of the real test home.
+    # CLEANUP all the junk in RUNHOME
+    # and remove the working space if PV_WS was set,
+    # otherwise the job was running out of the actual test dir.
     from_loc = os.environ['PV_RUNHOME'] + "/"
     to_loc = os.environ["PV_JOB_RESULTS_LOG_DIR"]
     if (os.environ['PV_WS']):

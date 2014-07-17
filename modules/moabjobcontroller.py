@@ -5,15 +5,28 @@ import sys, os
 import subprocess
 from basejobcontroller import BaseJobController
 import time
+import itertools
+
+
+def find_jobid(message):
+    '''Finds the jobid in the output from nsub. The job id can either
+    be just a number or Moab.number.'''
+    # Optional \r because Windows python2.4 can't figure out \r\n is newline
+    match=re.search("^((Moab.)?(\d+))[\r]?$",message,re.IGNORECASE|re.MULTILINE)
+    if match:
+        return match.group(1)
+    return None
+
+def find_moab_node_list():
+    return "mu123 mu456"
 
 
 
 class MoabJobController(BaseJobController):
-    """ class to run/stop a job using Moab """
+    """ class to run a job using Moab """
 
 
-    # Invoke the correct way of running the job/test as defined in the
-    # tests config entry.
+    # .. some setup and let the msub command fly ...
     def start(self):
 
         # Get any buffered output into the output file now
@@ -39,16 +52,22 @@ class MoabJobController(BaseJobController):
 
         # accounting file? or just log it?
 
-        ppn = str(self.configs['eff_npes'])
+        # variation passed as arg0 - nodes, arg1, ppn
+        nnodes = str(self.job_variation[0])
+        ppn = str(self.job_variation[1])
+
+        self.logger.info(self.lh + " : nnodes=" + nnodes)
+
+        pes = int(ppn) * int(nnodes)
+
+        self.logger.info(self.lh + " : npes=" + str(pes))
         os.environ['GZ_PESPERNODE'] = ppn
         os.environ['PV_PESPERNODE'] = ppn
 
-        nnodes = str(self.configs['eff_nnodes'])
         os.environ['GZ_NNODES'] = nnodes
         os.environ['PV_NNODES'] = nnodes
         print "<nnodes> " + nnodes
 
-        pes = int(nnodes) * int(ppn)
         os.environ['PV_NPES'] = str(pes)
         print "<npes> " + str(pes)
 
@@ -68,14 +87,30 @@ class MoabJobController(BaseJobController):
         if ts:
             msub_cmd += ",feature=" + ts
 
-        cmd =  os.environ['PV_RUNHOME'] + "/" + self.configs['run']['cmd']
-        os.environ['USER_CMD'] = cmd
+        run_cmd =  os.environ['PV_RUNHOME'] + "/" + self.configs['run']['cmd']
+        os.environ['USER_CMD'] = run_cmd
 
-        # invoke msub here
+        # invoke msub and print jobid
         msub_cmd += " " + "./moab_job_handler"
         self.logger.info(self.lh + " : " + msub_cmd)
 
-        self.logger.info(self.lh + " Dummy job is launched!")
+        # change to msub_cmd when on msub system
+        p = subprocess.Popen(run_cmd, stdout=self.job_log_file, stderr=self.job_log_file, shell=True)
+        # wait for the subprocess to finish
+        (output,errors) = p.communicate()
+
+        if p.returncode or errors:
+            print "Error: something went wrong!"
+            self.logger.info(self.lh + " run error: " + errors)
+            print [p.returncode, errors, output]
+
+        # dummy line until on real Moab system
+        jobid = 3
+        #jobid = find_jobid(output)
+        print "<JobID> " + str(jobid)
+        self.logger.info(self.lh + " job %s launched!" % str(jobid))
+
+        print "<nodes> " + find_moab_node_list()
 
     
 # this gets called if it's run as a script/program

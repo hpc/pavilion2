@@ -112,8 +112,7 @@ def main(args):
 
     """ performs the task of running the job defined by the args sent to this handler.
         There may be no terminal associated with this program so all output from the job
-        is now directed to a corresponding log file. This program
-        functions loosely like the setUpandRun wrapper script from Gazebo.
+        is now directed to a corresponding log file.
     """
 
     logger = logging.getLogger('pth.runjob')
@@ -126,6 +125,7 @@ def main(args):
     params = json.loads(args[2])
     params = convert(params)
     name = args[1]
+    variation = json.loads(args[3])
 
 
     #signal(SIGPIPE,SIG_DFL)
@@ -155,21 +155,24 @@ def main(args):
 
             try:
             # instantiate job controller object
-                this_job = jc(name, params, lf)
+                this_job = jc(name, params, lf, variation)
             except:
                 logging.error(lh + ' failed to instantiate job object, exiting job ')
                 return
 
             # do what every job has to do
-            logger.info(lh + ' Starting ')
             if params['build']['build_before_run_flag']:
                 logger.info(lh + " build-start ")
                 print "<build-start> ", now()
                 this_job.build()
                 logger.info(lh + " build-end ")
                 print "<build-end> ", now()
+
+
+            logger.info(lh + " run-start")
             print "<start>" , now()
             this_job.start()
+            logger.info(lh + " run-end")
             print "<end>" , now()
             this_job.cleanup()
             logger.info(lh + ' Completed ')

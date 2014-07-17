@@ -41,8 +41,8 @@ MyTestIdentifier:
      # select one scheduler type, or make a new one  
      # choices can be moab, slurm, torque, none  
      scheduler: 'moab'
-     # user specified test parameter string
-     test_params: '' 
+     # user specified test specific argument string
+     test_args: '' 
      # number of times to repeat
      count: 1
 

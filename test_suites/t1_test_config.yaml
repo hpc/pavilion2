@@ -18,6 +18,10 @@ HW-moab:
     cmd: 'hw.bash'
     scheduler: moab 
     count: 2
+  moab:
+     num_nodes: "1,2"
+     procs_per_node: 4
+
 
 
 #HW-myws:
