@@ -93,20 +93,7 @@ class MoabJobController(BaseJobController):
             print [p.returncode, errors, output]
             self.logger.info(self.lh + " run error: " + errors)
 
-        #self.logger.info(self.lh + " job %s launched!" % str(jobid))
-
-        # Save the necessary files from the RUNHOME directory
-        from_loc = os.environ['PV_RUNHOME'] + "/"
-        to_loc = os.environ["PV_JOB_RESULTS_LOG_DIR"]
-        if (os.environ['PV_WS']):
-            # copy all the contents in this case
-            cmd_cp = "rsync -a  " + from_loc + " " + to_loc
-        else:
-                # just a few select files in this case
-            cmd_cp = "rsync -a --include '*.log' --include '*.stderr'--include '*.stdout' "
-            cmd_cp += from_loc + " " + to_loc
-
-
+        self.run_epilog()
 
     
 # this gets called if it's run as a script/program

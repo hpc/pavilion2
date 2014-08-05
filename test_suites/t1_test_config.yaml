@@ -10,7 +10,8 @@ HW-raw:
     cmd: 'iPassed'
     scheduler: raw 
   working_space:
-    files_to_copy: "iPassed iFailed adir"
+    copy_to_ws: "iPassed iFailed adir"
+    path: ""
 
 HW-moab:
   source_location: '/Users/cwi/VWE/t1'

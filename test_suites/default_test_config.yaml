@@ -32,7 +32,8 @@ MyTestIdentifier:
         
   # Build Section  
   build:
-    cmd: buildme
+    # command is relative to source directory
+    cmd: 'buildme'
     build_before_run_flag : False
         
   # Run Section 
@@ -70,13 +71,14 @@ MyTestIdentifier:
 
   # Working space section
   # The default is to create a working space to run each job.
-  # If changed to a null value ("") then nothing done, otherwise
-  # it will be relative to the source job directory or a
+  # If changed to a null value ("") then none created, otherwise
+  # it should be relative to the source directory or a
   # fully specified directory.
 
   working_space:
     path: 'pv_ws' 
-    files_to_copy: ''
+    copy_to_ws: ''
+    save_from_ws: ''
     no_copy: '*.c,*.o,*.h'
 
 

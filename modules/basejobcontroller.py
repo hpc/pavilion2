@@ -64,7 +64,7 @@ class BaseJobController():
             else:
                 ws = src_dir + "/" + ws_path
 
-        # set to null, so run from there
+        # working space is null, so run source directory
         else:
             os.environ['PV_WS'] = ""
             os.environ['PV_RUNHOME'] = src_dir
@@ -92,7 +92,7 @@ class BaseJobController():
         os.environ['PV_WS'] = to_loc
 
         # support user specified files or dirs to copy here.
-        files2copy = self.configs['working_space']['files_to_copy']
+        files2copy = self.configs['working_space']['copy_to_ws']
         if files2copy:
             cmd = "cd " + src_dir + "; rsync -ar " + files2copy + " " + to_loc
         # general case is to copy all files except some known source file types
@@ -140,29 +140,42 @@ class BaseJobController():
         sys.stdout.flush()
 
     def build(self):
-        pass
-
-    def kill(self):
-        pass
+        # call the command that builds the users test/job
+        bld_cmd = self.configs['source_location'] + "/" + self.configs['build']['cmd']
+        self.logger.info(self.lh + ': start build command: '+ bld_cmd)
+        os.system(bld_cmd)
+        self.logger.info(self.lh + '%s build command complete ' % bld_cmd)
 
     def query(self):
         pass
+
+    def run_epilog(self):
+        es = self.configs['results']['epilog_script']
+
+        # run an epilog script if defined in the test config
+        if es:
+            self.logger.info(self.lh + ': start epilog script: '+ es)
+            os.system(es)
+            self.logger.info(self.lh + '%s epilog script complete' % es)
 
     def cleanup(self):
 
         self.logger.info(self.lh + ': start cleanup')
 
-        # Try calling the epilog script. Script should print
-        # to STDOUT to send output into the job log file
-        es = self.configs['results']['epilog_script']
+        # Save the necessary files from the RUNHOME directory
+        from_loc = os.environ['PV_RUNHOME'] + "/"
+        to_loc = os.environ["PV_JOB_RESULTS_LOG_DIR"]
+        if (self.configs['working_space']['save_from_ws']):
+            files2copy = self.configs['working_space']['save_from_ws'] +\
+                "--include '*.log' --include '*.stderr' --include '*.stdout' "
+        else:
+            # just the basics
+            files2copy = "--include '*.log' --include '*.stderr' --include '*.stdout' "
 
-        # run an epilog script if defined in the test config
-        if es:
-            self.logger.info(self.lh + ': cleanup with: '+ es)
-            try:
-                subprocess.Popen(es, stdout=self.job_log_file, stderr=self.job_log_file, shell=True)
-            except:
-               self.logger.error('%s : Error, call to epilog script %s failed' % (self.lh, es))
+        # do it
+        cmd_cp = "cd " + from_loc + "; rsync -ar  " + files2copy + " " + to_loc
+        os.system(cmd_cp)
+
 
         # clean up working space, but be careful, only remove if a
         # working space was created

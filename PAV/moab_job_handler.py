@@ -36,7 +36,7 @@ def main():
 
     sys.stdout.flush()
 
-     # call the command that runs the users test/job
+    # call the command that runs the users test/job
     os.system(os.environ['USER_CMD'])
 
 

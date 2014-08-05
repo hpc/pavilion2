@@ -42,6 +42,8 @@ class RawJobController(BaseJobController):
             print "Error: something went wrong!"
             print [p.returncode, errors, output]
             self.logger.info(self.lh + " run error: " + errors)
+
+        self.run_epilog()
     
 # this gets called if it's run as a script/program
 if __name__ == '__main__':
