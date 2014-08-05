@@ -56,18 +56,6 @@ class BaseJobController():
         src_dir = self.configs['source_location']
         run_cmd = self.configs['run']['cmd'].split(".")[0]
 
-        if 'NO-WS' in ws_path:
-            os.environ['PV_WS'] = ""
-            os.environ['PV_RUNHOME'] = src_dir
-            os.environ['GZ_RUNHOME'] = src_dir
-            print os.environ['PV_RUNHOME']
-            print 'Working Space: %s' % os.environ['PV_RUNHOME']
-            self.logger.info('WS for %s: ' % self.lh + os.environ['PV_RUNHOME'])
-            return
-
-        # Otherwise ...
-        # test specific working space takes first precedence
-
         if ws_path:
             # it's either a relative path from the src directory
             # or it's an absolute one.
@@ -76,10 +64,16 @@ class BaseJobController():
             else:
                 ws = src_dir + "/" + ws_path
 
-        # not specified, so place it just under the source location
-        # with the default subdir name.
+        # set to null, so run from there
         else:
-            ws = src_dir + "/pv_ws"
+            os.environ['PV_WS'] = ""
+            os.environ['PV_RUNHOME'] = src_dir
+            os.environ['GZ_RUNHOME'] = src_dir
+            print os.environ['PV_RUNHOME']
+            print 'Working Space: %s' % os.environ['PV_RUNHOME']
+            self.logger.info('WS for %s: ' % self.lh + os.environ['PV_RUNHOME'])
+            return
+
 
         # now setup and do the move
 
@@ -143,6 +137,8 @@ class BaseJobController():
 
         print self.configs
 
+        sys.stdout.flush()
+
     def build(self):
         pass
 
@@ -168,9 +164,9 @@ class BaseJobController():
             except:
                self.logger.error('%s : Error, call to epilog script %s failed' % (self.lh, es))
 
-        # clean up working space, careful, do not remove if no
-        # working space created
-        if 'NO-WS' not in self.configs['working_space']['path']:
+        # clean up working space, but be careful, only remove if a
+        # working space was created
+        if self.configs['working_space']['path']:
             self.logger.info('%s : remove WS - %s ' % (self.lh, os.environ['PV_RUNHOME']))
             shutil.rmtree(os.environ['PV_RUNHOME'])
 

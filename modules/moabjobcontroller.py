@@ -8,19 +8,6 @@ import time
 import itertools
 
 
-def find_jobid(message):
-    '''Finds the jobid in the output from nsub. The job id can either
-    be just a number or Moab.number.'''
-    # Optional \r because Windows python2.4 can't figure out \r\n is newline
-    match=re.search("^((Moab.)?(\d+))[\r]?$",message,re.IGNORECASE|re.MULTILINE)
-    if match:
-        return match.group(1)
-    return None
-
-def find_moab_node_list():
-    return "mu123 mu456"
-
-
 
 class MoabJobController(BaseJobController):
     """ class to run a job using Moab """
@@ -94,23 +81,32 @@ class MoabJobController(BaseJobController):
         msub_cmd += " " + "./moab_job_handler"
         self.logger.info(self.lh + " : " + msub_cmd)
 
+        fake_job_cmd = "/Users/cwi/VWE/PAV/moab_job_handler.py"
         # change to msub_cmd when on msub system
-        p = subprocess.Popen(run_cmd, stdout=self.job_log_file, stderr=self.job_log_file, shell=True)
+        #p = subprocess.Popen(run_cmd, stdout=self.job_log_file, stderr=self.job_log_file, shell=True)
+        p = subprocess.Popen(fake_job_cmd, stdout=self.job_log_file, stderr=self.job_log_file, shell=True)
         # wait for the subprocess to finish
         (output,errors) = p.communicate()
 
         if p.returncode or errors:
             print "Error: something went wrong!"
-            self.logger.info(self.lh + " run error: " + errors)
             print [p.returncode, errors, output]
+            self.logger.info(self.lh + " run error: " + errors)
 
-        # dummy line until on real Moab system
-        jobid = 3
-        #jobid = find_jobid(output)
-        print "<JobID> " + str(jobid)
-        self.logger.info(self.lh + " job %s launched!" % str(jobid))
+        #self.logger.info(self.lh + " job %s launched!" % str(jobid))
 
-        print "<nodes> " + find_moab_node_list()
+        # Save the necessary files from the RUNHOME directory
+        from_loc = os.environ['PV_RUNHOME'] + "/"
+        to_loc = os.environ["PV_JOB_RESULTS_LOG_DIR"]
+        if (os.environ['PV_WS']):
+            # copy all the contents in this case
+            cmd_cp = "rsync -a  " + from_loc + " " + to_loc
+        else:
+                # just a few select files in this case
+            cmd_cp = "rsync -a --include '*.log' --include '*.stderr'--include '*.stdout' "
+            cmd_cp += from_loc + " " + to_loc
+
+
 
     
 # this gets called if it's run as a script/program

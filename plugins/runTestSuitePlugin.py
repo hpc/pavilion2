@@ -38,7 +38,7 @@ class RunTestSuite(IPlugin):
     def __init__(self):
         my_name = self.__class__.__name__
         self.logger = logging.getLogger('pth.' + my_name)
-        self.logger.info('created instance of plugin: %s'% my_name)
+        self.logger.info('created instance of plugin: %s' % my_name)
 
 
     # Every plugin class MUST have a method by the name "add_parser_info"
@@ -56,7 +56,7 @@ class RunTestSuite(IPlugin):
         
     def cmd(self, args):
 
-        print "run_test_suite:"
+        print "invoke: run_test_suite "
         if args['verbose']:
             print "args -> %s" % args
         

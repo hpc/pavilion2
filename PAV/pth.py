@@ -5,15 +5,16 @@ import sys,os
 
 # argparse module helps create Python style command line interfaces
 import argparse
-# yapsy module used for dynamically loading new features from the plugins directory
+# yapsy module used for dynamically loading new features/commands from the plugins directory
 from yapsy.PluginManager import PluginManager
 
 # set up logging
 import logging
+master_log_file = '/tmp/pth.log'
 logger = logging.getLogger('pth')
 logger.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-fh = logging.FileHandler(filename='/tmp/pth.log')
+fh = logging.FileHandler(filename=master_log_file)
 fh.setFormatter(formatter)
 logger.addHandler(fh)
 
@@ -25,7 +26,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "../modules"))
 if (os.environ.get('PV_SRC_DIR')):
     sys.path.append(os.environ.get('PV_SRC_DIR'))
 
-# foo sub-command implemented in the main program    
+# stub foo sub-command implemented in the main
 def foo():
     print "running foo"
     
@@ -46,6 +47,8 @@ def main():
     parser_foo = subparser.add_parser('foo', help="foo help message")
     parser_foo.set_defaults(sub_cmds='foo')
 
+    print "running from %s: " % os.getcwd()
+    print "Logging to -> %s" % master_log_file
     
     # find and load the 'feature' plug-ins and their arguments
 

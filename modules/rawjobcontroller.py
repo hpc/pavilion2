@@ -40,10 +40,8 @@ class RawJobController(BaseJobController):
 
         if p.returncode or errors:
             print "Error: something went wrong!"
-            self.logger.info(self.lh + " run error: " + errors)
             print [p.returncode, errors, output]
-
-        # call job cleanup function here
+            self.logger.info(self.lh + " run error: " + errors)
     
 # this gets called if it's run as a script/program
 if __name__ == '__main__':

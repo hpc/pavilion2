@@ -69,15 +69,13 @@ MyTestIdentifier:
      target_seg: ''
 
   # Working space section
-  # Test directory copied and run from 'path'. If path set to "NO-WS" then
-  # nothing done here, otherwise (default) the path
-  # is set to be under the source location or it can be defined to be some
-  # other path.
+  # The default is to create a working space to run each job.
+  # If changed to a null value ("") then nothing done, otherwise
+  # it will be relative to the source job directory or a
+  # fully specified directory.
 
   working_space:
-
-    # path entry is relative to source_location
-    path: '' 
+    path: 'pv_ws' 
     files_to_copy: ''
     no_copy: '*.c,*.o,*.h'
 
