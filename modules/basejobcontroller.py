@@ -56,6 +56,7 @@ class BaseJobController():
         src_dir = self.configs['source_location']
         run_cmd = self.configs['run']['cmd'].split(".")[0]
 
+        exclude_ws = ''
         if ws_path:
             # it's either a relative path from the src directory
             # or it's an absolute one.
@@ -63,6 +64,8 @@ class BaseJobController():
                 ws = ws_path
             else:
                 ws = src_dir + "/" + ws_path
+                exclude_ws = ws_path
+
 
         # working space is null, so run source directory
         else:
@@ -98,7 +101,10 @@ class BaseJobController():
         # general case is to copy all files except some known source file types
         else:
             from_loc = src_dir + "/"
-            cmd = "rsync -a --exclude 'pv_ws' --exclude '*.[ocfh]' --exclude '*.bck' --exclude '*.tar' "
+            if exclude_ws:
+                cmd = "rsync -a --exclude '" + exclude_ws  + "' --exclude '*.[ocfh]' --exclude '*.bck' --exclude '*.tar' "
+            else:
+                cmd = "rsync -a --exclude '*.[ocfh]' --exclude '*.bck' --exclude '*.tar' "
             cmd += from_loc + " " + to_loc
 
 
@@ -162,19 +168,26 @@ class BaseJobController():
 
         self.logger.info(self.lh + ': start cleanup')
 
+        sys.stdout.flush()
+        sys.stderr.flush()
+
         # Save the necessary files from the RUNHOME directory
         from_loc = os.environ['PV_RUNHOME'] + "/"
         to_loc = os.environ["PV_JOB_RESULTS_LOG_DIR"]
+
+        files2copy = ''
         if (self.configs['working_space']['save_from_ws']):
-            files2copy = self.configs['working_space']['save_from_ws'] +\
-                "--include '*.log' --include '*.stderr' --include '*.stdout' "
-        else:
-            # just the basics
-            files2copy = "--include '*.log' --include '*.stderr' --include '*.stdout' "
+            files2copy = " --include " + self.configs['working_space']['save_from_ws']\
+
+        # add the basics
+        files2copy += " --include '*.log' --include '*.stderr' --include '*.stdout' --exclude='*' "
 
         # do it
-        cmd_cp = "cd " + from_loc + "; rsync -ar  " + files2copy + " " + to_loc
-        os.system(cmd_cp)
+        cmd = "rsync -ar " + files2copy + " " + from_loc + " " + to_loc
+
+        self.logger.debug('%s : %s' % (self.lh, cmd))
+
+        os.system(cmd)
 
 
         # clean up working space, but be careful, only remove if a

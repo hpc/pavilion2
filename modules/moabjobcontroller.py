@@ -81,7 +81,10 @@ class MoabJobController(BaseJobController):
         msub_cmd += " " + "./moab_job_handler"
         self.logger.info(self.lh + " : " + msub_cmd)
 
-        fake_job_cmd = "/Users/cwi/VWE/PAV/moab_job_handler.py"
+
+        #fake_job_cmd = "cd " + os.environ['PV_RUNHOME'] + "; " + os.environ['PV_SRC_DIR'] + "/../modules/moab_job_handler.py"
+        fake_job_cmd = os.environ['PV_SRC_DIR'] + "/../modules/moab_job_handler.py"
+        cmd = "cd " + os.environ['PV_RUNHOME'] + "; ./" + self.configs['run']['cmd']
         # change to msub_cmd when on msub system
         #p = subprocess.Popen(run_cmd, stdout=self.job_log_file, stderr=self.job_log_file, shell=True)
         p = subprocess.Popen(fake_job_cmd, stdout=self.job_log_file, stderr=self.job_log_file, shell=True)

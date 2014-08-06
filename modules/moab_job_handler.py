@@ -37,7 +37,9 @@ def main():
     sys.stdout.flush()
 
     # call the command that runs the users test/job
-    os.system(os.environ['USER_CMD'])
+    cmd = "cd " + os.environ['PV_RUNHOME'] + "; " + os.environ['USER_CMD']
+    os.system(cmd)
+    #os.system(os.environ['USER_CMD'])
 
 
 # this gets called if it's run as a script/program

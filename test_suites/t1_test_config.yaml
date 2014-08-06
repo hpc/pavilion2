@@ -11,7 +11,8 @@ HW-raw:
     scheduler: raw 
   working_space:
     copy_to_ws: "iPassed iFailed adir"
-    path: ""
+    save_from_ws: "stdout"
+    path: "myws"
 
 HW-moab:
   source_location: '/Users/cwi/VWE/t1'

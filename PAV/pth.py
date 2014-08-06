@@ -23,6 +23,7 @@ global _debug
 
 # look for modules relative to where this program is located
 sys.path.append(os.path.join(os.path.dirname(__file__), "../modules"))
+os.environ['PV_SRC_DIR'] = os.getcwd()
 if (os.environ.get('PV_SRC_DIR')):
     sys.path.append(os.environ.get('PV_SRC_DIR'))
 
@@ -47,7 +48,7 @@ def main():
     parser_foo = subparser.add_parser('foo', help="foo help message")
     parser_foo.set_defaults(sub_cmds='foo')
 
-    print "running from %s: " % os.getcwd()
+    print "running from %s: " % os.environ['PV_SRC_DIR']
     print "Logging to -> %s" % master_log_file
     
     # find and load the 'feature' plug-ins and their arguments
