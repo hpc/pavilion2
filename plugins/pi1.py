@@ -1,5 +1,5 @@
 #!python
-""" example of plug-in that implements a feature
+""" skeleton example plug-in that implements a new command 
 """
 
 import sys
@@ -11,13 +11,13 @@ from yapsy.IPlugin import IPlugin
 
 
 class PluginOne(IPlugin):
-    """ This is plugin 1 that implements Feature 1 """
+    """ This is plugin 1 that implements command f1 """
 
     def __init__(self):
 
         my_name = self.__class__.__name__
 
-        # If you want the log output from this class to reside in the
+        # To log output from this class to to the
         # main (pth) log file you tack it's name onto the pth name space
         self.logger = logging.getLogger('pth.' + my_name)
         self.logger.info('created instance of plugin: %s'% my_name)
@@ -35,7 +35,7 @@ class PluginOne(IPlugin):
     # It will get invoked when sub-command is selected
         
     def cmd(self, args):
-        print "running function f1 with:"
+        print "running f1 with:"
         print "args -> %s" % args
         
         # handle the count argument

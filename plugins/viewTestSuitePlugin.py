@@ -9,7 +9,7 @@ from testConfig import YamlTestConfig
 
 
 class ViewTestSuite(IPlugin):
-    """ This implements the feature to view the default, user, and
+    """ This implements the plug-in, or command, to view the default, user, and
         effective (combined) test suite configuration files.
     """
 
@@ -35,9 +35,9 @@ class ViewTestSuite(IPlugin):
     # so that it can called when its sub-command is selected
         
     def cmd(self, args):
-        print "\n"
+
         if args['verbose']:
-            print "input request -> %s" % args
+            print "Command args -> %s" % args
             #print "input test suite file -> %s\n" % args['testSuite']
         
         if (os.path.isfile(args['testSuite'])):

@@ -1,9 +1,0 @@
-[Core]
-Name = PluginTwo
-Module = pi2
-
-[Documentation]
-Author = John Doe 
-Version = 0.1
-Website = http://lotsofplugins.com
-Description = An example plugin

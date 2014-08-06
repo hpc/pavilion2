@@ -31,7 +31,7 @@ def job_dispatcher(name, params, var):
 
     
 class RunTestSuite(IPlugin):
-    """ This implements the feature to run/launch a suite of tests as
+    """ This implements the plug-in, or command, to run a suite of tests as
         defined in the users test suite configuration file.
     """
 
@@ -56,23 +56,22 @@ class RunTestSuite(IPlugin):
         
     def cmd(self, args):
 
-        print "invoke: run_test_suite "
         if args['verbose']:
-            print "args -> %s" % args
+            print "Command args -> %s" % args
+            print "Invoke -> run_test_suite"
         
         if (os.path.isfile(args['testSuite'])):
             with open(args['testSuite']) as file:
 
                 # Build the test configuration
                 tc = YamlTestConfig(args['testSuite'])
+                if args['verbose']:
+                    print "user test suite:"
+                    utc = tc.get_user_test_config()
+                    print "  %s" % utc
 
                 # get the "merged" test stanza for each test in the test suite
                 my_test_suite = tc.get_effective_config_file()
-
-                #for stanza in my_test_suite.iteritems():
-                    #print "\n"
-                    #print stanza
-                    #print "\n"
 
                 # Process each test entry (stanza) in the test suite
                 # Name had better be unique

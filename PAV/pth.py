@@ -48,7 +48,7 @@ def main():
     parser_foo = subparser.add_parser('foo', help="foo help message")
     parser_foo.set_defaults(sub_cmds='foo')
 
-    print "running from %s: " % os.environ['PV_SRC_DIR']
+    print "Running from -> %s: " % os.environ['PV_SRC_DIR']
     print "Logging to -> %s" % master_log_file
     
     # find and load the 'feature' plug-ins and their arguments

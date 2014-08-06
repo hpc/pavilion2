@@ -182,16 +182,16 @@ class BaseJobController():
         # add the basics
         files2copy += " --include '*.log' --include '*.stderr' --include '*.stdout' --exclude='*' "
 
-        # do it
+        # complete command
         cmd = "rsync -ar " + files2copy + " " + from_loc + " " + to_loc
 
         self.logger.debug('%s : %s' % (self.lh, cmd))
 
+        # do it
         os.system(cmd)
 
 
-        # clean up working space, but be careful, only remove if a
-        # working space was created
+        # remove the working space if it was created
         if self.configs['working_space']['path']:
             self.logger.info('%s : remove WS - %s ' % (self.lh, os.environ['PV_RUNHOME']))
             shutil.rmtree(os.environ['PV_RUNHOME'])

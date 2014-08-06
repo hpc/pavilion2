@@ -70,7 +70,6 @@ class YamlTestConfig():
             f1 = fo.read()
             try:
                 self.user_config_doc = load(f1)
-                print self.user_config_doc
                 # if there is an error in the file, try to show where
             except YAMLError, exc:
                     print "Error in configuration file:", exc
