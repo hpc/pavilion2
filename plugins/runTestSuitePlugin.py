@@ -4,17 +4,11 @@
 """
 
 import os,sys
-import types
 from yapsy.IPlugin import IPlugin
 from testConfig import YamlTestConfig
-import time
-import datetime
-import multiprocessing
-import daemon
 import subprocess
 import json
 import logging
-import itertools
 from testEntry import TestEntry
 
 
@@ -36,13 +30,14 @@ class RunTestSuite(IPlugin):
     """
 
     def __init__(self):
+        #print sys.path
         my_name = self.__class__.__name__
         self.logger = logging.getLogger('pth.' + my_name)
         self.logger.info('created instance of plugin: %s' % my_name)
 
 
     # Every plugin class MUST have a method by the name "add_parser_info"
-    # and must return the name of the this sub-command
+    # and must return the name of the the sub-command
 
     def add_parser_info(self, subparser): 
         parser_rts = subparser.add_parser("run_test_suite", help="run each test in the test suite")
@@ -58,7 +53,6 @@ class RunTestSuite(IPlugin):
 
         if args['verbose']:
             print "Command args -> %s" % args
-            print "Invoke -> run_test_suite"
         
         if (os.path.isfile(args['testSuite'])):
             with open(args['testSuite']) as file:
@@ -79,7 +73,7 @@ class RunTestSuite(IPlugin):
 
                     test_type = TestEntry.get_test_type(params)
                     #print test_type
-                    te = TestEntry(name,params)
+                    te = TestEntry(name,params,args)
 
                     test_variants = [(None)]
                     # get list of tuples for each test variation
@@ -95,7 +89,7 @@ class RunTestSuite(IPlugin):
                     # new process for each test variation
                     for var in test_variants.__iter__():
                         for _ in range(count):
-                            self.logger.info('dispatch: %s, variation: %s' % (name, var))
+                            self.logger.info('dispatch: %s, variations: %s' % (name, var))
                             job_dispatcher(name, params, var)
         else:
             print "  Error: could not find test suite %s" % args['testSuite']

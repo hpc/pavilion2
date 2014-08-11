@@ -6,14 +6,16 @@ except ImportError:
 config = {
     'description': 'Cluster Test Harness',
     'author': 'LANL',
-    'url': 'URL to get it at.',
-    'download_url': 'Where to download it.',
+    'url': 'git.lanl.gov/cwi/pavilion',
+    'download_url': 'git@git.lanl.gov/cwi/pavilion',
     'author_email': 'cwi@lanl.gov.',
-    'version': '0.1',
-    'install_requires': ['nose'],
+    'version': '0.2',
     'packages': ['PAV'],
+    'packages': ['modules'],
+    'packages': ['plugins'],
+    'packages': ['special-pkgs/yapsy'],
     'scripts': [],
-    'name': 'projectname'
+    'name': 'pavilion'
 }
 
 setup(**config)

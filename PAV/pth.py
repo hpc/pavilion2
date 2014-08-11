@@ -1,11 +1,14 @@
 #!/usr/bin/env python
-"""Cluster Test Harness (main module)"""
+"""Pavilion Cluster Test Harness (main module)"""
 
 import sys,os
 
-# argparse module helps create Python style command line interfaces
+# support creating Python style command line interfaces
 import argparse
-# yapsy module used for dynamically loading new features/commands from the plugins directory
+
+# support for dynamically loading new features/commands from a "plugins" directory
+sys.path.append("../special-pkgs")
+#print sys.path
 from yapsy.PluginManager import PluginManager
 
 # set up logging
@@ -17,7 +20,6 @@ formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(messag
 fh = logging.FileHandler(filename=master_log_file)
 fh.setFormatter(formatter)
 logger.addHandler(fh)
-
 
 global _debug
 
@@ -48,10 +50,11 @@ def main():
     parser_foo = subparser.add_parser('foo', help="foo help message")
     parser_foo.set_defaults(sub_cmds='foo')
 
-    print "Running from -> %s: " % os.environ['PV_SRC_DIR']
+    print "Running from -> %s " % os.environ['PV_SRC_DIR']
     print "Logging to -> %s" % master_log_file
-    
-    # find and load the 'feature' plug-ins and their arguments
+
+    # Dynamic support for adding commands...
+    # Find and load the sub-commands (plug-ins) and their arguments
 
     # Build the manager
     PavPluginManager = PluginManager()
@@ -62,7 +65,7 @@ def main():
         plugin_places.append(os.environ.get('PV_PLUGIN_DIR'))
     PavPluginManager.setPluginPlaces(plugin_places)
     # Load all the plug-ins
-    logger.info('loading plugins')
+    logger.info('Loading plugins')
     PavPluginManager.collectPlugins()
     
     # create a hash that maps all sub-commands to their respective function call
@@ -71,20 +74,21 @@ def main():
         try: 
             # let new functions add to the help line
             func = pluginInfo.plugin_object.add_parser_info(subparser)
-            # dictionary of function name to object mapping 
+            # dictionary of function name to object mapping
             func_map[func] = pluginInfo.plugin_object
         except:
             print "Error using add_help_info method for %s" % pluginInfo.plugin_object
             
 
-    # turn the input arguments into a dict style with vars
+    # turn the input arguments into a dictionary
     args = vars(parser.parse_args())
-     # record the command line selections
+    # record the command line selections
     logger.info('cmd line args: %s' % args)
 
        
     # Process sub-commands, most of which should be found
-    # in the plug-ins directory. 
+    # in the plug-ins directory.
+    print "Invoke command: -> " + args['sub_cmds']
     if args['sub_cmds'] == 'foo':
         foo()
     else:

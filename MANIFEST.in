@@ -1,0 +1,4 @@
+include test_suites/*.yaml
+include t1/*.bash
+include t1/i*
+include plugins/*.yapsy-plugin

@@ -5,12 +5,11 @@
  """
 
 import sys,os
-import subprocess
 import datetime
 import logging
 import shutil
-import json
-
+import time
+from subprocess import Popen, PIPE
 
 
 class BaseJobController():
@@ -31,13 +30,14 @@ class BaseJobController():
         self.logger = logging.getLogger('pth.runjob.' + self.__class__.__name__)
 
         # verify command is executable early on
-        is_exec = os.access(self.configs['source_location'] + "/" + self.configs['run']['cmd'], os.X_OK)
+        mycmd = self.configs['source_location'] + "/" + self.configs['run']['cmd']
+        is_exec = os.access(mycmd, os.X_OK)
         if not is_exec:
             print self.configs['run']['cmd'] + " command not executable, returning!"
-            self.logger.error('%s %s not executable, returning!' % (self.lh + ":", self.configs['run']['cmd']))
+            self.logger.error('%s %s not executable, returning!' % (self.lh + ":", mycmd))
             raise RuntimeError('some error message')
 
-        self.logger.info(self.lh + " : init phase " )
+        self.logger.info(self.lh + " : init phase ")
         #self.save_common_settings()
 
         # common global env params for this job
@@ -110,10 +110,16 @@ class BaseJobController():
 
         self.logger.debug('%s : %s' % (self.lh, cmd))
 
-        try:
-            os.system(cmd)
-        except:
-            print "Error: rsync of src dir to ws failed!"
+        # run the command
+        p = Popen(cmd, stdout=PIPE, stderr=PIPE, shell=True)
+        output, errors = p.communicate()
+
+        if p.returncode or errors:
+            print "Error: failed copying data to working space!"
+            print [p.returncode, errors, output]
+            self.logger.info(self.lh + " failed copying data to working space!, skipping job: " + self.name +\
+                " (Hint: check the job logfile) ")
+
 
 
     def __str__(self):
@@ -188,7 +194,18 @@ class BaseJobController():
         self.logger.debug('%s : %s' % (self.lh, cmd))
 
         # do it
-        os.system(cmd)
+        #os.system(cmd)
+        p = Popen(cmd, stdout=PIPE, stderr=PIPE, shell=True)
+        output, errors = p.communicate()
+
+        if p.returncode or errors:
+            print "Error: failure copying job results the output directory!"
+            print [p.returncode, errors, output]
+            self.logger.info(self.lh + " failure copying job results to the output directory: " + self.name +\
+                " (Hint: check the job logfile) ")
+
+
+
 
 
         # remove the working space if it was created

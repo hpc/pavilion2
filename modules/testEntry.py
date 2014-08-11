@@ -1,7 +1,6 @@
 #!python
 
 import sys
-import json
 import logging
 import itertools
 
@@ -11,14 +10,16 @@ class TestEntry():
 
     this_dict = {}
     
-    def __init__(self, name, values):
+    def __init__(self, name, values, args):
 
 
         my_name = self.__class__.__name__
         self.name = name
         self.this_dict[name] = values
+        if args['verbose']:
+            print "Process test suite entry: " + name
         self.logger = logging.getLogger('pth.' + my_name)
-        self.logger.info('init %s test entry '% name)
+        self.logger.info('Process %s '% name)
 
     @classmethod
     def get_test_type(cls, params):

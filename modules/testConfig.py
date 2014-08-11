@@ -3,7 +3,6 @@
 import sys
 from yaml import load, YAMLError
 import json
-#from itertools import chain
 import logging
 
 def recurse(x):

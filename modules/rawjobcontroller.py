@@ -4,9 +4,6 @@
 import sys,os
 import subprocess
 from basejobcontroller import BaseJobController
-import shutil
-import itertools
-
 
 
 class RawJobController(BaseJobController):

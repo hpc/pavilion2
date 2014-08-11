@@ -4,15 +4,13 @@
 """
 
 import sys,os
-import time
 import datetime, pytz
 import json
 import logging
 import errno
 import platform
-from signal import signal, SIGPIPE, SIG_DFL
 
-# handle for all loggin
+# handle for all logging
 logger = ""
 
 def convert(input):
@@ -75,7 +73,7 @@ def build_results_dir(params, name):
     """ function to create the final result directory for a job/test.
         Intent is to make backwards compatible with Gazebo.
     """
-
+    logger = logging.getLogger('pth.runjob.build_results_dir')
     lh = params['log_handle']
 
     root_result_dir = params['results']['root']
@@ -90,15 +88,16 @@ def build_results_dir(params, name):
          + "." + datetime.datetime.now(pytz.timezone(my_timezone)).strftime('%Y-%m-%dT%H:%M:%S%z')
     new_dir += ld
 
+    logger.info("Make log directory: " + new_dir)
     try:
         os.umask(0o002)
         os.makedirs(new_dir, 0o775)
     except OSError as e:
         if e.errno == errno.EEXIST:
-            logger.info(lh + " : " + new_dir + " exists")
+            logger.info(lh + " Error, somehow log directory exists!, skipping job! : \n\t" + new_dir)
             pass
         else:
-            logger.info(lh + " : " + new_dir + "something bad")
+            logger.info(lh + " Error, cannot create log directory, skipping job! : \n\t" + new_dir)
             raise
 
     return new_dir
@@ -138,6 +137,7 @@ def main(args):
 
     # Load the correct JobController module for this specific job/test
     jc = load_jcmod(name, params)
+    logger.info(lh + ": loaded %s jobcontroller " % params['run']['scheduler'])
 
     # all STDOUT and STDERR from job directed to its own log file
     results_dir = build_results_dir(params, name)

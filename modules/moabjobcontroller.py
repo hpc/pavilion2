@@ -4,8 +4,6 @@
 import sys, os
 import subprocess
 from basejobcontroller import BaseJobController
-import time
-import itertools
 
 
 

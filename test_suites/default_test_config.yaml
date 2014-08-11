@@ -86,7 +86,7 @@ MyTestIdentifier:
   results:
 
     # The test handler places all results under this directory.
-    root: '/Users/cwi'
+    root: '/Users/cwi/pv_results'
 
     # Pass or Fail matching pattern
     # the test handler will try to match "<result> pass" or
