@@ -8,7 +8,9 @@
 
 import sys,os
 import re
+from subprocess import Popen, PIPE
 import subprocess
+import shutil
 
 
 
@@ -33,12 +35,41 @@ def run_epilog():
             os.system(es)
             print "epilog script complete"
 
-def run_cleanup():
+def run_moab_cleanup():
+
+        print "start cleanup"
+
+        # Save the necessary files from the RUNHOME directory
+        from_loc = os.environ['PV_RUNHOME'] + "/"
+        to_loc = os.environ["PV_JOB_RESULTS_LOG_DIR"]
+
+        files2copy = ''
+        #if (self.configs['working_space']['save_from_ws']):
+        if os.environ['PV_SAVE_FROM_WS']:
+            files2copy = " --include " + os.environ['PV_SAVE_FROM_WS']
+
+        # add the basics
+        files2copy += " --include '*.log' --include '*.stderr' --include '*.stdout' --exclude='*' "
+
+        # finalize complete command
+        cmd = "rsync -ar " + files2copy + " " + from_loc + " " + to_loc
+
+        print "cmd -> " +  cmd
+
+        # do it
+        p = Popen(cmd, stdout=PIPE, stderr=PIPE, shell=True)
+        output, errors = p.communicate()
+
+        if p.returncode or errors:
+            print [p.returncode, errors, output]
+            print "Failure copying job results to the output directory:  (Hint: check the job's logfile) "
 
 
-    print "run cleanup script"
-    if os.environ['PV_SAVE_FROM_WS']:
-        print "save " + os.environ['PV_SAVE_FROM_WS'] + " files"
+        # remove the working space if it was created
+        if os.environ['PV_WS']:
+            print "Remove WS - %s " % os.environ['PV_RUNHOME']
+            shutil.rmtree(os.environ['PV_RUNHOME'])
+
 
 
 def main():
@@ -69,7 +100,7 @@ def main():
 
         run_epilog()
         if os.environ['PV_WS']:
-            run_cleanup()
+            run_moab_cleanup()
 
 
 

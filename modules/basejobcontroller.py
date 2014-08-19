@@ -188,7 +188,7 @@ class BaseJobController():
         files2copy = ''
         #if (self.configs['working_space']['save_from_ws']):
         if os.environ['PV_SAVE_FROM_WS']:
-            files2copy = " --include " + self.configs['working_space']['save_from_ws']\
+            files2copy = " --include " + os.environ['PV_SAVE_FROM_WS']
 
         # add the basics
         files2copy += " --include '*.log' --include '*.stderr' --include '*.stdout' --exclude='*' "

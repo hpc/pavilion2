@@ -85,11 +85,6 @@ class MoabJobController(BaseJobController):
         msub_cmd += " " + os.environ['PV_SRC_DIR'] + "/../modules/moab_job_handler.py"
         self.logger.info(self.lh + " : " + msub_cmd)
 
-        #params = self.configs
-        #js_params = json.dumps(params)
-        #print "job parameters:  "
-        #print js_params
-
 
         if (os.path.isfile("/etc/toss-release")):
             # call to invoke real moab command

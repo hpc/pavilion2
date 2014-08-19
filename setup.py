@@ -9,7 +9,7 @@ config = {
     'url': 'git.lanl.gov/cwi/pavilion',
     'download_url': 'git@git.lanl.gov/cwi/pavilion',
     'author_email': 'cwi@lanl.gov.',
-    'version': '0.5',
+    'version': '0.6',
     'packages': ['PAV'],
     'packages': ['modules'],
     'packages': ['plugins'],
