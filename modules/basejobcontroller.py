@@ -8,7 +8,6 @@ import sys,os
 import datetime
 import logging
 import shutil
-import time
 from subprocess import Popen, PIPE
 
 
@@ -17,7 +16,7 @@ class BaseJobController():
     """ class to define the common actions for any job type """
 
     def now(self):
-        return datetime.datetime.now().strftime("%m-%d-%YT%H:%M%:%S:%f")
+        return datetime.datetime.now().strftime("%m-%d-%YT%H:%M:%S:%f")
 
     def __init__(self, name, configs, job_log_file, job_variation):
 
@@ -47,6 +46,7 @@ class BaseJobController():
         os.environ['GZ_TESTEXEC'] = self.configs['run']['cmd']
         os.environ['GZ_TEST_PARAMS'] = self.configs['run']['test_args']
         os.environ['PV_TEST_ARGS'] = self.configs['run']['test_args']
+
 
 
     def setup_working_space(self):
@@ -94,6 +94,7 @@ class BaseJobController():
         to_loc = os.environ['PV_RUNHOME']
         os.environ['PV_WS'] = to_loc
 
+
         # support user specified files or dirs to copy here.
         files2copy = self.configs['working_space']['copy_to_ws']
         if files2copy:
@@ -130,11 +131,6 @@ class BaseJobController():
         return os.path.dirname(self.job_log_file)
 
 
-    # Invoke the correct way of running the job/test as defined in the
-    # tests config entry.
-    def start(self):
-        pass
-
     # Print all the pertinent run data to the the job log file for later analysis.
     # Most of the <xxxx> stuff is for Gazebo backward compatibility
     def save_common_settings(self):
@@ -170,6 +166,14 @@ class BaseJobController():
             os.system(es)
             self.logger.info(self.lh + '%s epilog script complete' % es)
 
+    def setup_job_info(self):
+
+        # save for later reference
+        os.environ['PV_SAVE_FROM_WS'] = self.configs['working_space']['save_from_ws']
+
+        os.environ['PV_ES'] = self.configs['results']['epilog_script']
+
+
     def cleanup(self):
 
         self.logger.info(self.lh + ': start cleanup')
@@ -182,19 +186,19 @@ class BaseJobController():
         to_loc = os.environ["PV_JOB_RESULTS_LOG_DIR"]
 
         files2copy = ''
-        if (self.configs['working_space']['save_from_ws']):
+        #if (self.configs['working_space']['save_from_ws']):
+        if os.environ['PV_SAVE_FROM_WS']:
             files2copy = " --include " + self.configs['working_space']['save_from_ws']\
 
         # add the basics
         files2copy += " --include '*.log' --include '*.stderr' --include '*.stdout' --exclude='*' "
 
-        # complete command
+        # finalize complete command
         cmd = "rsync -ar " + files2copy + " " + from_loc + " " + to_loc
 
         self.logger.debug('%s : %s' % (self.lh, cmd))
 
         # do it
-        #os.system(cmd)
         p = Popen(cmd, stdout=PIPE, stderr=PIPE, shell=True)
         output, errors = p.communicate()
 
@@ -202,14 +206,12 @@ class BaseJobController():
             print "Error: failure copying job results the output directory!"
             print [p.returncode, errors, output]
             self.logger.info(self.lh + " failure copying job results to the output directory: " + self.name +\
-                " (Hint: check the job logfile) ")
-
-
-
+                " (Hint: check the job's logfile) ")
 
 
         # remove the working space if it was created
-        if self.configs['working_space']['path']:
+        #if self.configs['working_space']['path']:
+        if os.environ['PV_WS']:
             self.logger.info('%s : remove WS - %s ' % (self.lh, os.environ['PV_RUNHOME']))
             shutil.rmtree(os.environ['PV_RUNHOME'])
 

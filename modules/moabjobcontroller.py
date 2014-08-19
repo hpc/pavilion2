@@ -3,6 +3,7 @@
 
 import sys, os
 import subprocess
+import json
 from basejobcontroller import BaseJobController
 
 
@@ -11,8 +12,10 @@ class MoabJobController(BaseJobController):
     """ class to run a job using Moab """
 
 
+
     # .. some setup and let the msub command fly ...
     def start(self):
+
 
         # Get any buffered output into the output file now
         # so that the the order doesn't look all mucked up
@@ -62,10 +65,14 @@ class MoabJobController(BaseJobController):
         # print the common log settings here right after the job is started
         self.save_common_settings()
 
+        # save some info so that the msub script can run some code later on.
+        # I know of no other way to get info to the msub script.
+        self.setup_job_info()
+
         # setup unique Moab stdout and stderr file names
         # Handle differences between moab-slurm, moab-cle, etc. ??
-        so = os.environ['PV_JOB_RESULTS_LOG_DIR'] + "/drm.stderr"
-        se = os.environ['PV_JOB_RESULTS_LOG_DIR'] + "/drm.stdout"
+        se = os.environ['PV_JOB_RESULTS_LOG_DIR'] + "/drm.stderr"
+        so = os.environ['PV_JOB_RESULTS_LOG_DIR'] + "/drm.stdout"
         msub_cmd += "-o " + so + " -e " + se + " "
 
         msub_cmd += "-l nodes=" + nnodes + ",walltime=" + time_lim
@@ -75,26 +82,31 @@ class MoabJobController(BaseJobController):
         run_cmd =  os.environ['PV_RUNHOME'] + "/" + self.configs['run']['cmd']
         os.environ['USER_CMD'] = run_cmd
 
-        # invoke msub and print jobid
-        msub_cmd += " " + "./moab_job_handler"
+        msub_cmd += " " + os.environ['PV_SRC_DIR'] + "/../modules/moab_job_handler.py"
         self.logger.info(self.lh + " : " + msub_cmd)
 
+        #params = self.configs
+        #js_params = json.dumps(params)
+        #print "job parameters:  "
+        #print js_params
 
-        #fake_job_cmd = "cd " + os.environ['PV_RUNHOME'] + "; " + os.environ['PV_SRC_DIR'] + "/../modules/moab_job_handler.py"
-        fake_job_cmd = os.environ['PV_SRC_DIR'] + "/../modules/moab_job_handler.py"
-        cmd = "cd " + os.environ['PV_RUNHOME'] + "; ./" + self.configs['run']['cmd']
-        # change to msub_cmd when on msub system
-        #p = subprocess.Popen(run_cmd, stdout=self.job_log_file, stderr=self.job_log_file, shell=True)
-        p = subprocess.Popen(fake_job_cmd, stdout=self.job_log_file, stderr=self.job_log_file, shell=True)
-        # wait for the subprocess to finish
-        (output,errors) = p.communicate()
 
-        if p.returncode or errors:
-            print "Error: something went wrong!"
-            print [p.returncode, errors, output]
-            self.logger.info(self.lh + " run error: " + errors)
-
-        self.run_epilog()
+        if (os.path.isfile("/etc/toss-release")):
+            # call to invoke real moab command
+            output = subprocess.check_output(msub_cmd, shell=True)
+            id =  output.replace('\n', "")
+            print "<jobid> " + id
+        else:
+            # fake-out section to run on basic unix system
+            fake_job_cmd = os.environ['PV_SRC_DIR'] + "/../modules/moab_job_handler.py"
+            cmd = "cd " + os.environ['PV_RUNHOME'] + "; ./" + self.configs['run']['cmd']
+            p = subprocess.Popen(fake_job_cmd, stdout=self.job_log_file, stderr=self.job_log_file, shell=True)
+            # wait for the subprocess to finish
+            (output,errors) = p.communicate()
+            if p.returncode or errors:
+                print "Error: something went wrong!"
+                print [p.returncode, errors, output]
+                self.logger.info(self.lh + " run error: " + errors)
 
     
 # this gets called if it's run as a script/program

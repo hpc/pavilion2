@@ -104,7 +104,7 @@ def build_results_dir(params, name):
 
 
 def now():
-    return " " + datetime.datetime.now().strftime("%m-%d-%YT%H:%M%:%S")
+    return " " + datetime.datetime.now().strftime("%m-%d-%YT%H:%M:%S")
 
         
 def main(args):
@@ -144,6 +144,7 @@ def main(args):
     os.environ["PV_JOB_RESULTS_LOG_DIR"] = results_dir
 
     logfile = results_dir + "/" + name + ".log"
+    os.environ["PV_JOB_RESULTS_LOG"] = logfile
     logger.info(lh + ": logfile -> %s" % logfile)
 
 
@@ -169,13 +170,11 @@ def main(args):
                 print "<build-end> ", now()
 
 
-            logger.info(lh + " run-start")
+            logger.info(lh + " starting")
             print "<start>" , now()
             this_job.start()
-            logger.info(lh + " run-end")
-            print "<end>" , now()
-            this_job.cleanup()
-            logger.info(lh + ' Completed ')
+            #print "<end>" , now()
+            logger.info(lh + ' Submitted, possibly completed ')
 
 
 

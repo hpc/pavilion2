@@ -17,6 +17,9 @@ class RawJobController(BaseJobController):
         # print the common log settings here right after the job is started
         self.save_common_settings()
 
+        # save some info so that scripts may use later on.
+        self.setup_job_info()
+
 
         # build the exact command to run
         #cmd =  os.environ['PV_RUNHOME'] + "/" + self.configs['run']['cmd']
@@ -40,7 +43,9 @@ class RawJobController(BaseJobController):
             print [p.returncode, errors, output]
             self.logger.info(self.lh + " run error: " + errors)
 
+
         self.run_epilog()
+        self.cleanup()
     
 # this gets called if it's run as a script/program
 if __name__ == '__main__':

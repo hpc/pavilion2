@@ -13,15 +13,16 @@ from testEntry import TestEntry
 
 
 
-def job_dispatcher(name, params, var):
+#def job_dispatcher(name, params, var):
 
     # Run the job as its own detached subprocess so that we do not wait on long running jobs
     # Jobs have the potential to "run" for days...
 
-    js_params = json.dumps(params)
-    js_var = json.dumps(var)
-    args = ["python", "../modules/runjob.py", name, js_params, js_var]
-    subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
+#    js_params = json.dumps(params)
+#    js_var = json.dumps(var)
+#    args = ["python", "../modules/runjob.py", name, js_params, js_var]
+#    subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
+
 
     
 class RunTestSuite(IPlugin):
@@ -34,6 +35,17 @@ class RunTestSuite(IPlugin):
         my_name = self.__class__.__name__
         self.logger = logging.getLogger('pth.' + my_name)
         self.logger.info('created instance of plugin: %s' % my_name)
+
+    def job_dispatcher(self, my_te):
+        n = str(my_te.get_nnodes())
+        p = str(my_te.get_ppn())
+        var = (n,p)
+        js_var = json.dumps(var)
+        params = my_te.get_values()
+        js_params = json.dumps(params)
+        self.logger.info('dispatch: %s, variation: (%s x %s)' % (my_te.name, n, p))
+        args = ["python", "../modules/runjob.py", my_te.name, js_params, js_var]
+        subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
 
 
     # Every plugin class MUST have a method by the name "add_parser_info"
@@ -53,12 +65,15 @@ class RunTestSuite(IPlugin):
 
         if args['verbose']:
             print "Command args -> %s" % args
+            print "path of testSuite -> " + os.path.dirname(os.path.realpath(args['testSuite']))
         
         if (os.path.isfile(args['testSuite'])):
             with open(args['testSuite']) as file:
 
+                # Use the default (or master) test suite configuration from the same directory
+                dts = os.path.dirname(os.path.realpath(args['testSuite'])) + "/default_test_config.yaml"
                 # Build the test configuration
-                tc = YamlTestConfig(args['testSuite'])
+                tc = YamlTestConfig(args['testSuite'], dts)
                 if args['verbose']:
                     print "user test suite:"
                     utc = tc.get_user_test_config()
@@ -67,30 +82,41 @@ class RunTestSuite(IPlugin):
                 # get the "merged" test stanza for each test in the test suite
                 my_test_suite = tc.get_effective_config_file()
 
-                # Process each test entry (stanza) in the test suite
-                # Name had better be unique
+                # Process and launch a new test for each test entry (stanza) in the test suite
+                # and its variations here.
                 for name, params in my_test_suite.iteritems():
 
-                    test_type = TestEntry.get_test_type(params)
-                    #print test_type
                     te = TestEntry(name,params,args)
+                    test_type = te.get_type()
+                    #print "my test type -> " + test_type
 
                     test_variants = [(None)]
-                    # get list of tuples for each test variation
+                    # get list of "new" test entries
                     if ("moab" in test_type):
-                        test_variants = te.get_moab_test_variations()
+                        test_variants = te.get_test_variations()
+                        for test_entry in test_variants:
+                            self.job_dispatcher(test_entry)
+                    else:
+                        self.job_dispatcher(te)
 
-                    count = 1
+
+                 #   count = 1
                     # If there is one test variation then allow multiple runs,
                     # otherwise run only ONCE for each variation
-                    if (test_variants.__len__()  == 1):
-                       count = te.get_test_count()
+                 #   if (test_variants.__len__()  == 1):
+                 #      count = te.get_count()
 
                     # new process for each test variation
-                    for var in test_variants.__iter__():
-                        for _ in range(count):
-                            self.logger.info('dispatch: %s, variations: %s' % (name, var))
-                            job_dispatcher(name, params, var)
+                #    for test_entry in test_variants:
+                 #   for test_entry in test_variants.__iter__():
+                 #       print var, type(var)
+                 #       for _ in range(count):
+                #          if isinstance(var, tuple):
+                 #               self.logger.info('dispatch: %s, variation: (%s x %s)' % (name, var[0], var[1]))
+                 #           else:
+                #             self.logger.info('dispatch: %s, variations: %s' % (name, var))
+                 #           job_dispatcher(name, params, var)
+                 #           job_dispatcher2(test_entry)
         else:
             print "  Error: could not find test suite %s" % args['testSuite']
             sys.exit()

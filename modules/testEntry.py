@@ -15,23 +15,45 @@ class TestEntry():
 
         my_name = self.__class__.__name__
         self.name = name
+        self.eff_nodes = 1
+        self.eff_ppn = None
         self.this_dict[name] = values
-        if args['verbose']:
-            print "Process test suite entry: " + name
+        if args:
+            if args['verbose']:
+                print "Process test suite entry: " + name
         self.logger = logging.getLogger('pth.' + my_name)
         self.logger.info('Process %s '% name)
 
-    @classmethod
-    def get_test_type(cls, params):
-        return params['run']['scheduler']
+    #@classmethod
+    #def get_test_type(cls, params):
+    def get_type(self):
+        #return params['run']['scheduler']
+        return self.this_dict[self.name]['run']['scheduler']
 
-    def get_test_count(self):
+    def get_count(self):
         return int(self.this_dict[self.name]['run']['count'])
 
-    def get_moab_test_variations(self):
+    def get_values(self):
+        return (self.this_dict[self.name])
+
+    def get_name(self):
+        return (self.name)
+
+    def set_ppn(self, ppn):
+        self.eff_ppn = ppn
+
+    def get_ppn(self):
+        return self.eff_ppn
+
+    def set_nnodes(self, nn):
+        self.eff_nodes = nn
+
+    def get_nnodes(self):
+        return self.eff_nodes
+
+    def get_test_variations(self):
     # figure out all the variations for this test
-    # and return tuple of choices. Will vary between
-    # test types
+    # and return list of "new" choices.
 
 
         l1 = str(self.this_dict[self.name]['moab']['num_nodes'])
@@ -42,8 +64,18 @@ class TestEntry():
 
         tv = []
 
-        for i in itertools.product(nodes,ppn):
-            tv.append(i)
+        for n,p in itertools.product(nodes,ppn):
+            # actually create a new test entry object that has just the single choices
+            # for nodes and ppn's
+            new_te = TestEntry(self.name, self.this_dict[self.name], None)
+            new_te.set_nnodes(n)
+            new_te.set_ppn(p)
+            #print "build a new one with " + p + " procs per node"
+            tv.append(new_te)
+            #print new_te.get_name()
+            #print new_te
+            #print i
+            #tv.append(i)
 
         return tv
 
