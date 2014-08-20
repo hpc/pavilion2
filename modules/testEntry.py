@@ -51,6 +51,11 @@ class TestEntry():
     def get_nnodes(self):
         return self.eff_nodes
 
+    def get_run_times(self):
+        # for now this is as simple as the count, but with a more complex submit
+        # strategy (like Gazebo's testMgr) this can be enhanced.
+        return (self.get_count())
+
     def get_test_variations(self):
     # figure out all the variations for this test
     # and return list of "new" choices.
@@ -65,8 +70,8 @@ class TestEntry():
         tv = []
 
         for n,p in itertools.product(nodes,ppn):
-            # actually create a new test entry object that has just the single choices
-            # for nodes and ppn's
+            # actually create a new test entry object that has just the single
+            # combination of nodes X ppn
             new_te = TestEntry(self.name, self.this_dict[self.name], None)
             new_te.set_nnodes(n)
             new_te.set_ppn(p)
@@ -79,6 +84,16 @@ class TestEntry():
 
         return tv
 
+class MoabTestEntry(TestEntry):
+
+    def get_test_variations(self):
+        pass
+
+
+class RawTestEntry(TestEntry):
+
+    def get_test_variations(self):
+        pass
 
     
 # this gets called if it's run as a script/program

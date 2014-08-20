@@ -11,7 +11,11 @@ from basejobcontroller import BaseJobController
 class MoabJobController(BaseJobController):
     """ class to run a job using Moab """
 
-
+    def is_moab_system(self):
+        if (os.path.isfile("/etc/toss-release")):
+            return True
+        else:
+            return False
 
     # .. some setup and let the msub command fly ...
     def start(self):
@@ -57,6 +61,7 @@ class MoabJobController(BaseJobController):
         print "<nnodes> " + nnodes
 
         os.environ['PV_NPES'] = str(pes)
+        os.environ['GZ_NPES'] = os.environ['PV_NPES']
         print "<npes> " + str(pes)
 
         # create working space here so that each msub run gets its own
@@ -85,16 +90,17 @@ class MoabJobController(BaseJobController):
         msub_cmd += " " + os.environ['PV_SRC_DIR'] + "/../modules/moab_job_handler.py"
         self.logger.info(self.lh + " : " + msub_cmd)
 
-
-        if (os.path.isfile("/etc/toss-release")):
+        os.environ['PV_JOBID'] = ''
+        if (self.is_moab_system()):
             # call to invoke real moab command
             output = subprocess.check_output(msub_cmd, shell=True)
             id =  output.replace('\n', "")
             print "<jobid> " + id
+            os.environ['PV_JOBID'] = id
         else:
             # fake-out section to run on basic unix system
             fake_job_cmd = os.environ['PV_SRC_DIR'] + "/../modules/moab_job_handler.py"
-            cmd = "cd " + os.environ['PV_RUNHOME'] + "; ./" + self.configs['run']['cmd']
+            #cmd = "cd " + os.environ['PV_RUNHOME'] + "; ./" + self.configs['run']['cmd']
             p = subprocess.Popen(fake_job_cmd, stdout=self.job_log_file, stderr=self.job_log_file, shell=True)
             # wait for the subprocess to finish
             (output,errors) = p.communicate()

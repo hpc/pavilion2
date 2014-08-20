@@ -24,7 +24,11 @@ def find_jobid(message):
     return None
 
 def find_moab_node_list():
-    return "mu123 mu456"
+
+    #if os.environ['PV_JOBID']:
+    #    return "me123 mu456"
+    #else:
+    return "fake123 fake456"
 
 def run_epilog():
 
@@ -82,10 +86,13 @@ def main():
     #cmd2 = "cd " + os.environ['PV_RUNHOME'] + "; " + "ls -l"
     cmd3 = "cd " + os.environ['PV_RUNHOME'] + "; " + os.environ['USER_CMD']
 
+    print "am I here?"
     job_log_file = os.environ["PV_JOB_RESULTS_LOG"]
     with open(job_log_file, 'a') as f:
 
+        f.write("hello there")
         f.write("<nodes> " + find_moab_node_list() + "\n")
+        f.write("bye")
         f.flush()
 
         # call the command that runs the users test/job

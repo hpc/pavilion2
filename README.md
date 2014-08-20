@@ -5,6 +5,7 @@
 - This tree all Python 2.7 based
 
 Usage:
+    module load python-epd  # on lanl toss systems to get required modules
     "pth.py -h"
 
 Collaboration tips:

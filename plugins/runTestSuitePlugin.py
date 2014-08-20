@@ -12,18 +12,6 @@ import logging
 from testEntry import TestEntry
 
 
-
-#def job_dispatcher(name, params, var):
-
-    # Run the job as its own detached subprocess so that we do not wait on long running jobs
-    # Jobs have the potential to "run" for days...
-
-#    js_params = json.dumps(params)
-#    js_var = json.dumps(var)
-#    args = ["python", "../modules/runjob.py", name, js_params, js_var]
-#    subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
-
-
     
 class RunTestSuite(IPlugin):
     """ This implements the plug-in, or command, to run a suite of tests as
@@ -95,9 +83,11 @@ class RunTestSuite(IPlugin):
                     if ("moab" in test_type):
                         test_variants = te.get_test_variations()
                         for test_entry in test_variants:
-                            self.job_dispatcher(test_entry)
+                            for _ in range(te.get_run_times()):
+                                self.job_dispatcher(test_entry)
                     else:
-                        self.job_dispatcher(te)
+                        for _ in range(te.get_run_times()):
+                            self.job_dispatcher(te)
 
 
                  #   count = 1

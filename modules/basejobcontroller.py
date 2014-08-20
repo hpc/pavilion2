@@ -18,6 +18,7 @@ class BaseJobController():
     def now(self):
         return datetime.datetime.now().strftime("%m-%d-%YT%H:%M:%S:%f")
 
+
     def __init__(self, name, configs, job_log_file, job_variation):
 
         self.name = name
@@ -71,7 +72,6 @@ class BaseJobController():
         else:
             os.environ['PV_WS'] = ""
             os.environ['PV_RUNHOME'] = src_dir
-            os.environ['GZ_RUNHOME'] = src_dir
             print os.environ['PV_RUNHOME']
             print 'Working Space: %s' % os.environ['PV_RUNHOME']
             self.logger.info('WS for %s: ' % self.lh + os.environ['PV_RUNHOME'])
@@ -172,6 +172,10 @@ class BaseJobController():
         os.environ['PV_SAVE_FROM_WS'] = self.configs['working_space']['save_from_ws']
 
         os.environ['PV_ES'] = self.configs['results']['epilog_script']
+
+        os.environ['GZ_RUNHOME'] = os.environ['PV_RUNHOME']
+
+        os.environ['GZ_LOG_FILE'] = os.environ["PV_JOB_RESULTS_LOG"]
 
 
     def cleanup(self):
