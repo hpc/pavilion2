@@ -20,11 +20,9 @@ class RawJobController(BaseJobController):
         # save some info so that scripts may use later on.
         self.setup_job_info()
 
-
         # build the exact command to run
-        #cmd =  os.environ['PV_RUNHOME'] + "/" + self.configs['run']['cmd']
         cmd = "cd " + os.environ['PV_RUNHOME'] + "; ./" + self.configs['run']['cmd']
-        print " ->  RawJobController: invoke %s" % cmd
+        print "\n ->  RawJobController: invoke %s" % cmd
 
         # Get any buffered output into the output file now
         # so that the the order doesn't look all mucked up
@@ -46,6 +44,8 @@ class RawJobController(BaseJobController):
 
         self.run_epilog()
         self.cleanup()
+
+        print "<end>" , self.now()
     
 # this gets called if it's run as a script/program
 if __name__ == '__main__':

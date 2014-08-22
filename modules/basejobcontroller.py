@@ -142,6 +142,7 @@ class BaseJobController():
         print "<testName> " + self.name
         print "<testExec> " + self.configs['run']['cmd']
         print "<user> " + os.getenv('USER')
+        print "<segName> " + "theTargetSeg"
 
         print self.configs
 

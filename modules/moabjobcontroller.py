@@ -3,9 +3,8 @@
 
 import sys, os
 import subprocess
-import json
+import re
 from basejobcontroller import BaseJobController
-
 
 
 class MoabJobController(BaseJobController):
@@ -16,6 +15,16 @@ class MoabJobController(BaseJobController):
             return True
         else:
             return False
+
+    def extract_jobid(message):
+        '''Finds the jobid in the output from msub. The job id can either
+        be just a number or Moab.number.'''
+        # Optional \r because Windows python2.4 can't figure out \r\n is newline
+        match=re.search("^((Moab.)?(\d+))[\r]?$",message,re.IGNORECASE|re.MULTILINE)
+        if match:
+            return match.group(1)
+        return None
+
 
     # .. some setup and let the msub command fly ...
     def start(self):
@@ -90,17 +99,18 @@ class MoabJobController(BaseJobController):
         msub_cmd += " " + os.environ['PV_SRC_DIR'] + "/../modules/moab_job_handler.py"
         self.logger.info(self.lh + " : " + msub_cmd)
 
-        os.environ['PV_JOBID'] = ''
+
         if (self.is_moab_system()):
-            # call to invoke real moab command
+            # call to invoke real Moab command
             output = subprocess.check_output(msub_cmd, shell=True)
-            id =  output.replace('\n', "")
-            print "<jobid> " + id
-            os.environ['PV_JOBID'] = id
+            match=re.search("^((Moab.)?(\d+))[\r]?$",output,re.IGNORECASE|re.MULTILINE)
+            if (match.group(1)):
+                jid = match.group(1)
+            print "<JobID> " + str(jid)
+
         else:
             # fake-out section to run on basic unix system
             fake_job_cmd = os.environ['PV_SRC_DIR'] + "/../modules/moab_job_handler.py"
-            #cmd = "cd " + os.environ['PV_RUNHOME'] + "; ./" + self.configs['run']['cmd']
             p = subprocess.Popen(fake_job_cmd, stdout=self.job_log_file, stderr=self.job_log_file, shell=True)
             # wait for the subprocess to finish
             (output,errors) = p.communicate()

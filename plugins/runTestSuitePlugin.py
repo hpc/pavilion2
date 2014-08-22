@@ -53,17 +53,18 @@ class RunTestSuite(IPlugin):
 
         if args['verbose']:
             print "Command args -> %s" % args
-            print "path of testSuite -> " + os.path.dirname(os.path.realpath(args['testSuite']))
+            print "TestSuite search path -> " + os.path.dirname(os.path.realpath(args['testSuite']))
         
         if (os.path.isfile(args['testSuite'])):
             with open(args['testSuite']) as file:
 
                 # Use the default (or master) test suite configuration from the same directory
-                dts = os.path.dirname(os.path.realpath(args['testSuite'])) + "/default_test_config.yaml"
+                #dts = os.path.dirname(os.path.realpath(args['testSuite'])) + "/default_test_config.yaml"
                 # Build the test configuration
-                tc = YamlTestConfig(args['testSuite'], dts)
+                #tc = YamlTestConfig(args['testSuite'], dts)
+                tc = YamlTestConfig(args['testSuite'])
                 if args['verbose']:
-                    print "user test suite:"
+                    print "User test suite:"
                     utc = tc.get_user_test_config()
                     print "  %s" % utc
 
@@ -73,6 +74,10 @@ class RunTestSuite(IPlugin):
                 # Process and launch a new test for each test entry (stanza) in the test suite
                 # and its variations here.
                 for name, params in my_test_suite.iteritems():
+
+
+                    if "DefaultTestSuite" in name:
+                        continue
 
                     te = TestEntry(name,params,args)
                     test_type = te.get_type()

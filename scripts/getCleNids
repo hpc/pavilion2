@@ -1,0 +1,22 @@
+#!/bin/bash
+job_id=$BATCH_JOBID
+
+# Find the reservation ID by searching apstat output for our job ID
+# apstat -r sometimes will not list the current job, so retry until it does
+resv_id=`apstat -r | grep "batch:$job_id" | awk '{print $1}'`
+while [[ -z $resv_id ]]; do
+  echo "getCleNids: job_id=[$job_id]" 1>&2
+  echo "getCleNids: resv_id=[$resv_id]" 1>&2
+  sleep 1
+  resv_id=`apstat -r | grep "batch:$job_id" | awk '{print $1}'`
+done
+
+# Given the reservation ID, find the node IDs
+node_id=`apstat -nR $resv_id | awk '/BEGIN/{keep=0;nids=""}/Compute node summary/{print substr(nids,2)}{if (keep) nids=nids" nid"substr("0000", length($1))$1; keep=1}'`
+echo "$node_id"
+
+# echo "getCleNids: job_id=[$job_id]" 1>&2
+# echo "getCleNids: resv_id=[$resv_id]" 1>&2
+# echo "getCleNids: node_id=[$node_id]" 1>&2
+
+

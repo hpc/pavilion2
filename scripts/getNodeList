@@ -1,0 +1,48 @@
+#!/bin/tcsh
+
+
+# set up internationalization 
+# set all locale categories to ISO C 
+setenv LC_ALL C
+
+set sn = "getNodeList" 
+alias msg 'echo "`date --iso-8601=seconds`" ${sn}: '
+
+# DON'T muck with this start time printout!
+#set start = `date --iso-8601=seconds`
+#echo " $0 start: $start"
+
+
+# get list of nodes in use dependent on resource manager being used 
+if ( ${RMGR} == "CLE" ) then
+
+      set nl = `./getCleNids`
+      if ( "$nl" == "" ) then
+        # just try again if empty
+        set nl = `./getCleNids`
+      endif
+      set nodes = `echo $nl | gawk '{ for ( i=1 ; i <= NF ; i++ ) print $i }' | grep nid | tr '\n' ' ' `
+
+else
+
+   set nodes = `/users/cwi/pavilion-0.7/PAV/checkjob_getNodeList ${PV_JOBID}`
+   echo "$nodes" | gawk '{ for ( i=1 ; i <= NF ; i++ ) print $i }'
+
+
+endif
+
+if (! $?PV_NODES) then
+   setenv GZ_NODES "${nodes}"
+   setenv PV_NODES "${nodes}"
+endif
+
+set end = `date --iso-8601=seconds`
+#echo " -- $0 complete: ${end}"
+
+# Make special splunk data file from trend data.
+# This will not overwright user version of this file.
+#${GZBIN}/splunk/td2splunkData ${tmplogdir}
+
+# End of script
+exit
+

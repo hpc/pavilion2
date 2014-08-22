@@ -1,6 +1,6 @@
 #!python
 
-import sys
+import sys, os
 from yaml import load, YAMLError
 import json
 import logging
@@ -53,16 +53,21 @@ class YamlTestConfig():
     # define class vars here --
     default_config_doc = None
     user_config_doc = None
+    dcf = None
     
-    def __init__(self, ucf="../test_suites/user_test_config.yaml", dcf="../test_suites/default_test_config.yaml"):
+    def __init__(self, ucf="../test_suites/user_test_config.yaml"):
 
 
         my_name = self.__class__.__name__
         self.logger = logging.getLogger('pth.' + my_name)
-        self.logger.info('setup default test config file: %s '% dcf)
+        #self.logger.info('setup default test config file: %s '% dcf)
 
-        
-        # load and set a handle to the user config file
+        # unless overridden in the user's test suite config file the default config file
+        # is found in the same directory
+        test_suite_dir = os.path.dirname(os.path.realpath(ucf)) + "/"
+        self.dcf = test_suite_dir + "default_test_config.yaml"
+
+        # load the user test suite (or config file)
         try:
             #with open(ucf, 'r') as f1:
             fo = open(ucf)
@@ -77,18 +82,28 @@ class YamlTestConfig():
             print "  Error: file (%s) not found" % ucf
             sys.exit()
         fo.close()
-           
-           
-        # load and a set to the system config file 
+
+        if "DefaultTestSuite" in self.user_config_doc:
+            df = self.user_config_doc['DefaultTestSuite']
+            if "/" not in df:
+                self.dcf = test_suite_dir + df
+            else:
+                self.dcf = df
+        print "Default testSuite -> " + self.dcf
+        self.logger.info('Using default test config file: %s '% self.dcf)
+
+        # load the proper default test suite (or config file)
         try:
-            with open(dcf, 'r') as f2:
+            with open(self.dcf, 'r') as f2:
                 try:
                     self.default_config_doc = load(f2)
                 # if there is an error in the file, try to show where
                 except YAMLError, exc:
                     print "Error in configuration file:", exc
         except:
-            print "  Error: file (%s) not found " % dcf
+            print "  Error: Default testSuite configuration file (%s) not found" % self.dcf
+            print "  Check your 'DefaultFile' entry in your testSuite config file"
+            self.logger.error('Error: Default test configuration file (%s) not found', self.dcf)
             sys.exit()
            
     def bad_type(self, msg):

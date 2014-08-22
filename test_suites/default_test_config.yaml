@@ -19,13 +19,16 @@
 
  
 # A new named stanza is needed for each new test,
-# but you only need to change what is different from the default config file
+# but you only need to change what is different from the
+# default testSuite config file
 
-# Each test/job stanza will result in ONE log directory 
-  
+# Default testSuite override.
+# Uncomment and place in User defined testSuite with
+# a fully qualified path/name or just name of the file.
+# DefaultTestSuite: default_test_suite.yaml
 
 # UNIQUE test/job identifier. Any string will do.
-MyTestIdentifier:
+UniqueTestName:
 
   # uri of test  
   source_location: HOME

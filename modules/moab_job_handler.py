@@ -7,28 +7,42 @@
 """
 
 import sys,os
-import re
 from subprocess import Popen, PIPE
 import subprocess
 import shutil
+import platform
+import datetime
 
+def now():
+    return " " + datetime.datetime.now().strftime("%m-%d-%YT%H:%M:%S")
 
+from contextlib import contextmanager
+@contextmanager
+def stdout_redirected(new_stdout):
+    save_stdout = sys.stdout
+    sys.stdout = new_stdout
+    try:
+        yield None
+    finally:
+        sys.stdout = save_stdout
 
-def find_jobid(message):
-    '''Finds the jobid in the output from msub. The job id can either
-    be just a number or Moab.number.'''
-    # Optional \r because Windows python2.4 can't figure out \r\n is newline
-    match=re.search("^((Moab.)?(\d+))[\r]?$",message,re.IGNORECASE|re.MULTILINE)
-    if match:
-        return match.group(1)
-    return None
+def get_moab_node_list():
 
-def find_moab_node_list():
-
-    #if os.environ['PV_JOBID']:
-    #    return "me123 mu456"
-    #else:
-    return "fake123 fake456"
+    os.environ['RMGR'] = ''
+    jid = ''
+    if ("SLURM_JOBID" in os.environ):
+        jid = os.environ.get("SLURM_JOBID")
+        os.environ['RMGR'] = 'SLURM'
+    if ("PBS_JOBID" in os.environ):
+        jid = os.environ.get("PBS_JOBID")
+        os.environ['RMGR'] = 'CLE'
+    if (jid):
+        os.environ['PV_JOBID'] = jid
+        output = subprocess.check_output("/users/cwi/pavilion-0.7/PAV/getNodeList", shell=True)
+        nodes = output.replace('\n', " ")
+        return str(nodes)
+    else:
+        return platform.node()
 
 def run_epilog():
 
@@ -39,9 +53,9 @@ def run_epilog():
             os.system(es)
             print "epilog script complete"
 
-def run_moab_cleanup():
+def run_cleanup():
 
-        print "start cleanup"
+        print "start cleanup:"
 
         # Save the necessary files from the RUNHOME directory
         from_loc = os.environ['PV_RUNHOME'] + "/"
@@ -78,22 +92,22 @@ def run_moab_cleanup():
 
 def main():
 
-    #job_out_file = open(os.environ["PV_JOB_RESULTS_LOG_DIR"] + "/stdout", "w+")
-    #job_out_file.write(" STDOUT from: " + os.environ['USER_CMD'] + "\n")
-    #job_out_file.flush()
 
-    #cmd1 = "ls -l"
-    #cmd2 = "cd " + os.environ['PV_RUNHOME'] + "; " + "ls -l"
-    cmd3 = "cd " + os.environ['PV_RUNHOME'] + "; " + os.environ['USER_CMD']
+    #cmd = "cd " + os.environ['PV_RUNHOME'] + "; " + "ls -l"
 
-    print "am I here?"
+    cmd = "cd " + os.environ['PV_RUNHOME'] + "; " + os.environ['USER_CMD']
+    nodes = get_moab_node_list()
     job_log_file = os.environ["PV_JOB_RESULTS_LOG"]
-    with open(job_log_file, 'a') as f:
 
-        f.write("hello there")
-        f.write("<nodes> " + find_moab_node_list() + "\n")
-        f.write("bye")
-        f.flush()
+    with open(job_log_file, 'a') as lf:
+        with stdout_redirected(lf):
+
+            #redirect STDERR to the same file
+            sys.stderr = lf
+
+            print "<nodes> " + nodes + "\n"
+            print "\n ->  moab_job_hander: invoke %s" % cmd
+            lf.flush()
 
         # call the command that runs the users test/job
 
@@ -102,12 +116,15 @@ def main():
         #subprocess.call(cmd2, stdout=job_out_file, shell=True)
         #subprocess.call(cmd3, stdout=job_out_file, shell=True)
 
-        #subprocess.call(cmd1, stdout=job_out_file, shell=True)
-        subprocess.call(cmd3, stdout=f, shell=True)
+            #subprocess.call(cmd1, stdout=job_out_file, shell=True)
+            subprocess.call(cmd, stdout=lf, stderr=lf, shell=True)
 
-        run_epilog()
-        if os.environ['PV_WS']:
-            run_moab_cleanup()
+            run_epilog()
+
+            if os.environ['PV_WS']:
+                run_cleanup()
+
+            print "<end>" , now()
 
 
 
