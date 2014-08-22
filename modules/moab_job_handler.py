@@ -38,7 +38,7 @@ def get_moab_node_list():
         os.environ['RMGR'] = 'CLE'
     if (jid):
         os.environ['PV_JOBID'] = jid
-        output = subprocess.check_output("/users/cwi/pavilion-0.7/PAV/getNodeList", shell=True)
+        output = subprocess.check_output("../scripts/getNodeList", shell=True)
         nodes = output.replace('\n', " ")
         return str(nodes)
     else:
