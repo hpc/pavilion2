@@ -1,21 +1,22 @@
 #!python
 
-import sys, os
+import sys
+import os
 from yaml import load, YAMLError
 import json
 import logging
+
 
 def recurse(x):
     checking_elem = x
     try:
         for k, v in x.items():
-            if isinstance( v , dict ):
-                recurse( v )
+            if isinstance(v, dict):
+                recurse(v)
             else:
                 print "key: {}, val: {}".format(k, v)
     except:
         print " Error checking element: ", checking_elem
-        
 
 def flatten_dict(d):
     def items():
@@ -28,10 +29,11 @@ def flatten_dict(d):
                 
     return dict(items())
 
+
 # Recursive function to merge nested dictionaries
 # obj_2 wins conflicts
 def merge(obj_1, obj_2):
-    if isinstance(obj_1,dict) and isinstance(obj_2,dict):
+    if isinstance(obj_1, dict) and isinstance(obj_2, dict):
         result = {}
         for key, value in obj_1.iteritems():
             if key not in obj_2:
@@ -42,7 +44,7 @@ def merge(obj_1, obj_2):
             if key not in obj_1:
                 result[key] = value
         return result
-    if isinstance(obj_1,list) and isinstance(obj_2,list):
+    if isinstance(obj_1, list) and isinstance(obj_2, list):
         return obj_1 + obj_2
     return obj_2
             
@@ -60,7 +62,6 @@ class YamlTestConfig():
 
         my_name = self.__class__.__name__
         self.logger = logging.getLogger('pth.' + my_name)
-        #self.logger.info('setup default test config file: %s '% dcf)
 
         # unless overridden in the user's test suite config file the default config file
         # is found in the same directory
@@ -90,7 +91,7 @@ class YamlTestConfig():
             else:
                 self.dcf = df
         print "Default testSuite -> " + self.dcf
-        self.logger.info('Using default test config file: %s '% self.dcf)
+        self.logger.info('Using default test config file: %s ' % self.dcf)
 
         # load the proper default test suite (or config file)
         try:
@@ -130,12 +131,12 @@ class YamlTestConfig():
         """
         
         # get a copy of the default configuration for a test 
-        dk,default_config = self.default_config_doc.items()[0]
+        dk, default_config = self.default_config_doc.items()[0]
         
         # then, for each new test in the user_config_doc
         # override the defaults and create an updated test entry
         new_dict = {}
-        for test_name,v in self.user_config_doc.items():
+        for test_name, v in self.user_config_doc.items():
             tmp_config = default_config.copy()
             #print "dc:"
             #print tmp_config
@@ -151,10 +152,9 @@ class YamlTestConfig():
         
     def show_effective_config_file(self):
         """ Display the effective config file """
-        new_config = self.get_effective_config_file()
-        print json.dumps(new_config, sort_keys=True, indent=4)
-        
-        
+        ecf = self.get_effective_config_file()
+        print json.dumps(ecf, sort_keys=True, indent=4)
+
     
     # this gets called if it's run as a script/program
 if __name__ == '__main__':
