@@ -21,7 +21,8 @@ class RawJobController(BaseJobController):
         self.setup_job_info()
 
         # build the exact command to run
-        cmd = "cd " + os.environ['PV_RUNHOME'] + "; ./" + self.configs['run']['cmd']
+        cmd = "cd " + os.environ['PV_RUNHOME'] + "; " + \
+            os.environ['PV_SRC_DIR'] + "/scripts/mytime ./" + self.configs['run']['cmd']
         print "\n ->  RawJobController: invoke %s" % cmd
 
         # Get any buffered output into the output file now
@@ -41,17 +42,20 @@ class RawJobController(BaseJobController):
             print [p.returncode, errors, output]
             self.logger.info(self.lh + " run error: " + errors)
 
-
+        # The post_complete file needs to be placed in the log dir
+        # for Gazebo compatibility
+        pcf = os.environ["PV_JOB_RESULTS_LOG_DIR"] + "/post_complete"
+        text_file = open(pcf, "w")
+        text_file.write("{}\n".format("command complete"))
         self.run_epilog()
+        text_file.write("{}\n".format("epilog complete"))
         self.cleanup()
+        text_file.write("{}\n".format("cleanup complete"))
+        text_file.close()
 
         print "<end>" , self.now()
     
 # this gets called if it's run as a script/program
 if __name__ == '__main__':
-    
-    # instantiate a class to handle the config files
-    rjc = RawJobController()
 
     sys.exit()
-    

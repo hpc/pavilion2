@@ -11,7 +11,7 @@ from yapsy.IPlugin import IPlugin
 
 
 class PluginOne(IPlugin):
-    """ This is plugin 1 that implements command f1 """
+    """ This is an example plugin that implements a command called f1 """
 
     def __init__(self):
 
@@ -22,9 +22,9 @@ class PluginOne(IPlugin):
         self.logger = logging.getLogger('pth.' + my_name)
         self.logger.info('created instance of plugin: %s'% my_name)
 
-    # Every plugin class MUST have a method by the name "add_parser_info"
-    # and must return the name of the this sub-command
 
+    # Every plug-in (command) MUST have a method by the name "cmd".
+    # It will be what is called when that command is selected.
     def add_parser_info(self, subparser): 
         parser_f1 = subparser.add_parser("f1", help="f1 help message")
         parser_f1.add_argument('-c', type=int, default=1, help='repeat command Count times')
@@ -33,7 +33,6 @@ class PluginOne(IPlugin):
 
     # Every plugin class MUST have a method by the name "cmd"
     # It will get invoked when sub-command is selected
-        
     def cmd(self, args):
         print "running f1 with:"
         print "args -> %s" % args

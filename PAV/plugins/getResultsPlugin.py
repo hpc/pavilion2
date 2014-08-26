@@ -20,9 +20,8 @@ class GetResults(IPlugin):
 
     def __init__(self):
         my_name = self.__class__.__name__
-        #self.logger = logging.getLogger('pth.' + my_name)
-        #self.logger = logging.getLogger( __name__)
         self.logger.info('created instance of plugin: %s' % my_name)
+
 
     # Every plugin class MUST have a method by the name "add_parser_info"
     # and must return the name of the the sub-command
@@ -49,9 +48,8 @@ class GetResults(IPlugin):
         parser_gr.set_defaults(sub_cmds='get_results')
         return 'get_results'
 
-    # Every plug-in(command) class MUST have a method by the name "cmd"
-    # so that it can called when its sub-command is selected
-        
+    # Every plug-in (command) MUST have a method by the name "cmd".
+    # It will be what is called when that command is selected.
     def cmd(self, args):
 
         if args['verbose']:
@@ -86,7 +84,10 @@ class GetResults(IPlugin):
                 sys.exit()
 
         # call something here that gets the results
-
+        self.logger.debug('invoke get_results on %s' % result_location)
+        gr_cmd = os.environ['PV_SRC_DIR'] + "/scripts/get_results -g gzshared -l " + result_location
+        gr_output = subprocess.check_output(gr_cmd, shell=True)
+        print gr_output
 
 if __name__ == "__main__":
     print GetResults.__doc__

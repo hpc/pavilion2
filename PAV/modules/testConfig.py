@@ -18,6 +18,7 @@ def recurse(x):
     except:
         print " Error checking element: ", checking_elem
 
+
 def flatten_dict(d):
     def items():
         for key, value in d.items():
@@ -58,7 +59,6 @@ class YamlTestConfig():
     dcf = None
     
     def __init__(self, ucf="../test_suites/user_test_config.yaml"):
-
 
         my_name = self.__class__.__name__
         self.logger = logging.getLogger('pth.' + my_name)
@@ -191,8 +191,5 @@ if __name__ == '__main__':
     fd = {}
     #fd = flatten_dict(new_config)
     #nd = [ (k,v) for k,v in fd.iteritems() ]
-  
-    
-    
+
     sys.exit()
-    

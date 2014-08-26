@@ -6,12 +6,14 @@
 # after the msub allocation.
 """
 
-import sys,os
+import sys
+import os
 from subprocess import Popen, PIPE
 import subprocess
 import shutil
 import platform
 import datetime
+
 
 def now():
     return " " + datetime.datetime.now().strftime("%m-%d-%YT%H:%M:%S")
@@ -26,23 +28,25 @@ def stdout_redirected(new_stdout):
     finally:
         sys.stdout = save_stdout
 
+
 def get_moab_node_list():
 
     os.environ['RMGR'] = ''
     jid = ''
-    if ("SLURM_JOBID" in os.environ):
+    if "SLURM_JOBID" in os.environ:
         jid = os.environ.get("SLURM_JOBID")
         os.environ['RMGR'] = 'SLURM'
-    if ("PBS_JOBID" in os.environ):
+    if "PBS_JOBID" in os.environ:
         jid = os.environ.get("PBS_JOBID")
         os.environ['RMGR'] = 'CLE'
-    if (jid):
+    if jid:
         os.environ['PV_JOBID'] = jid
-        output = subprocess.check_output("../scripts/getNodeList", shell=True)
+        output = subprocess.check_output("./scripts/getNodeList", shell=True)
         nodes = output.replace('\n', " ")
         return str(nodes)
     else:
         return platform.node()
+
 
 def run_epilog():
 
@@ -52,6 +56,7 @@ def run_epilog():
             print "starting epilog script" + str(es)
             os.system(es)
             print "epilog script complete"
+
 
 def run_cleanup():
 
@@ -72,7 +77,7 @@ def run_cleanup():
         # finalize complete command
         cmd = "rsync -ar " + files2copy + " " + from_loc + " " + to_loc
 
-        print "cmd -> " +  cmd
+        print "cmd -> " + cmd
 
         # do it
         p = Popen(cmd, stdout=PIPE, stderr=PIPE, shell=True)
@@ -85,17 +90,17 @@ def run_cleanup():
 
         # remove the working space if it was created
         if os.environ['PV_WS']:
-            print "Remove WS - %s " % os.environ['PV_RUNHOME']
+            #print "Remove WS - %s " % os.environ['PV_RUNHOME']
             shutil.rmtree(os.environ['PV_RUNHOME'])
-
 
 
 def main():
 
-
     #cmd = "cd " + os.environ['PV_RUNHOME'] + "; " + "ls -l"
 
-    cmd = "cd " + os.environ['PV_RUNHOME'] + "; " + os.environ['USER_CMD']
+    #cmd = "cd " + os.environ['PV_RUNHOME'] + "; " + os.environ['USER_CMD']
+    cmd = "cd " + os.environ['PV_RUNHOME'] + "; " + \
+            os.environ['PV_SRC_DIR'] + "/scripts/mytime " + os.environ['USER_CMD']
     nodes = get_moab_node_list()
     job_log_file = os.environ["PV_JOB_RESULTS_LOG"]
 
@@ -119,13 +124,21 @@ def main():
             #subprocess.call(cmd1, stdout=job_out_file, shell=True)
             subprocess.call(cmd, stdout=lf, stderr=lf, shell=True)
 
+            # The post_complete file needs to be placed in the log dir
+            # for Gazebo compatibility
+            pcf = os.environ["PV_JOB_RESULTS_LOG_DIR"] + "/post_complete"
+            text_file = open(pcf, "w")
+            text_file.write("{}\n".format("command complete"))
             run_epilog()
+            text_file.write("{}\n".format("epilog complete"))
+            run_cleanup()
+            text_file.write("{}\n".format("cleanup complete"))
+            text_file.close()
 
-            if os.environ['PV_WS']:
-                run_cleanup()
+            #if os.environ['PV_WS']:
+            #run_cleanup()
 
-            print "<end>" , now()
-
+            print "<end>", now()
 
 
 # this gets called if it's run as a script/program

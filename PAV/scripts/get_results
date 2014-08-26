@@ -1,0 +1,635 @@
+#!/usr/bin/perl
+#
+#  ###################################################################
+#
+#  Disclaimer and Notice of Copyright
+#  ==================================
+#
+#  Copyright (c) 2014, Los Alamos National Security, LLC
+#  All rights reserved.
+#
+#  This software was produced under U.S. Government contract
+#  DE-AC52-06NA25396 for Los Alamos National Laboratory (LANL),
+#  which is operated by Los Alamos National Security, LLC for
+#  the U.S. Department of Energy. The U.S. Government has rights
+#  to use, reproduce, and distribute this software.  NEITHER
+#  THE GOVERNMENT NOR LOS ALAMOS NATIONAL SECURITY, LLC MAKES
+#  ANY WARRANTY, EXPRESS OR IMPLIED, OR ASSUMES ANY LIABILITY
+#  FOR THE USE OF THIS SOFTWARE.  If software is modified to
+#  produce derivative works, such modified software should be
+#  clearly marked, so as not to confuse it with the version
+#  available from LANL.
+#
+#  Additionally, redistribution and use in source and binary
+#  forms, with or without modification, are permitted provided
+#  that the following conditions are met:
+#  -  Redistributions of source code must retain the
+#     above copyright notice, this list of conditions
+#     and the following disclaimer.
+#  -  Redistributions in binary form must reproduce the
+#     above copyright notice, this list of conditions
+#     and the following disclaimer in the documentation
+#     and/or other materials provided with the distribution.
+#  -  Neither the name of Los Alamos National Security, LLC,
+#     Los Alamos National Laboratory, LANL, the U.S. Government,
+#     nor the names of its contributors may be used to endorse
+#     or promote products derived from this software without
+#     specific prior written permission.
+#
+#  THIS SOFTWARE IS PROVIDED BY LOS ALAMOS NATIONAL SECURITY, LLC
+#  AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
+#  INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+#  IN NO EVENT SHALL LOS ALAMOS NATIONAL SECURITY, LLC OR CONTRIBUTORS
+#  BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY,
+#  OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
+#  OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+#  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
+#  TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+#  OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY
+#  OF SUCH DAMAGE.
+#
+#  ###################################################################
+
+# script which prints a quick summary of the Pavilion test logs
+# 
+# 08/2014, adapted from Gazebo results script, Craig Idler
+#
+#
+
+use File::Basename;
+use Sys::Hostname;
+our $host = hostname;
+
+my $PH = $ENV{'PV_SRC_DIR'};
+
+use Getopt::Std;
+our %opt;
+$opt{t} = "";
+$opt{u} = "";
+$opt{l} = "";
+$opt{s} = "";
+$opt{e} = "";
+$opt{S} = "";
+$opt{E} = "";
+$opt{g} = "";
+# setup arguments as switches or ones that require strings  
+getopts( "g:t:u:l:s:S:e:E:apfhivT", \%opt);
+
+my $jobsRunning = "";
+my $activeJobs = "";
+my $pes;
+my $params;
+my $tn;
+my $my_cus;
+my ( $end, $start );
+my ($earliestStart, $latestEnd) = ""; 
+our @lfs;
+our $f;
+our $lf;
+our @tf;
+our $res_dir;
+my $max_name_len = 0;
+my $me = `whoami`;
+chomp $me;
+
+# print usage if h option set
+if ($opt{h}) { usage(); exit; }
+
+my $today = `date '+%Y-%m-%d'`;
+chomp $today;
+my $d;
+
+if (( "$opt{E}" ne "" ) || ( "$opt{e}" ne "" ))  {
+
+  if ( "$opt{e}" ne "" ) {
+    $d = `date '+%Y-%m-%d' -d "$opt{e}"`;
+  } else {
+    $d = $today;
+  }
+
+  if ( "$opt{E}" ne "" ) {
+    $end = `date '+%Y-%m-%d %H:%M:%S' -d "$d $opt{E}"`;
+  } else {
+    $end = `date '+%Y-%m-%d %H:%M:%S' -d "$d 23:59:59"`;
+  }
+}
+# catch bogus entries
+if ( $end eq "") {
+    $end = `date '+%Y-%m-%d %H:%M:%S' -d "$d 23:59:59"`;
+}
+chomp($end);
+
+if (( "$opt{S}" ne "" ) || ( "$opt{s}" ne "" ))  {
+
+  if ( "$opt{s}" ne "" ) {
+    $d = `date '+%Y-%m-%d' -d "$opt{s}"`;
+  } else {
+    $d = $today;
+  }
+
+  if ( "$opt{S}" ne "" ) {
+    $start = `date '+%Y-%m-%d %H:%M:%S' -d "$d $opt{S}"`;
+  } else {
+    $start = `date '+%Y-%m-%d %H:%M:%S' -d "$d 00:00:00"`;
+  }
+}
+
+# catch bogus entries
+if ($start eq "" ) {
+    $start = `date -I -d "15 days ago"`;
+}
+chomp($start);
+
+#get the job id's of the all my jobs in progress
+#$jobsRunning = `$GH/gzjobs | grep -i $me | grep running | awk '{ print \$1 }' | xargs `;
+#$activeJobs = `$GH/gzjobs | grep -i $me | awk '{ print \$1 }' | xargs `;
+$activeJobs = `$PH/scripts/pvjobs | grep -e "^[0-9]" | awk '{ print \$1 }' | xargs `;
+print "active jobs - $activeJobs\n" if ($opt{v});
+
+
+print "\n *** Job Summary ***\n";
+print " From: $start through $end \n";
+unless ( $opt{a} ) {
+  print "\t Analysis between $start and $end \n";
+  print "\t Output format: testName-[run Script].numberPEs(test parameters) - results, [avg. run time]\n";
+}
+
+# determine where to search 
+my $cmd;
+# specify alternate dirs to search for logs.
+# will only work for the parent of directories with the form
+# <testName>_<JobId>_<SegName>.date
+print "\t results directory -> $opt{l}\n\n";
+$res_dir = $opt{l};
+$cmd = "find $opt{l} -type d -maxdepth 1 -mindepth 1";
+
+# select the group directories to look through  
+my $tg;
+my @grps = ();
+
+# support multiple groups in result directory
+if ( "$opt{g}" ne "") {
+  push(@grps, $opt{g});
+} else {
+  $tg = `$PH/scripts/listgrp -u $me`; 
+  chomp $tg;
+  @grps = split(/ /, $tg);
+}
+
+my $group;
+foreach $group (@grps) {
+  unless ( $opt{a} ) {
+    print "\ngroup: $group" ;
+  }
+  if ($opt{l}) {
+    $cmd = qq($PH/scripts/find_test_dirs -d $res_dir -s "$start" -e "$end" -g $group);
+  } else {
+    $cmd = qq($PH/scripts/find_test_dirs -s "$start" -e "$end" -g $group);
+  }
+
+#print "\ndebug: my command is $cmd\n";
+  my $totalTests       = 0;
+  my $totalTestsPassed = 0;
+  my $totalTestsFailed = 0;
+  my $totalTestsUndef = 0;
+  my $totalTestsfoobar = 0;
+  my $thisTestPassed = ();
+  my %totalThisTest = ();
+  our %passed = ();
+  our %failed = ();
+  my %undef = ();
+  my %foobar = ();
+  our %failedTests = ();
+  our %passedTests = ();
+  my %undefTests = ();
+  my %foobarTests = ();
+  my %seen = ();
+  our %totalRealtime = ();
+  our $CumTotalTime = 0;
+  our $totalNodeHrs;
+  my @my_cus = ();
+  our %treal = ();
+
+  # a place to save list of all log directories with no log file
+  my $noLog = "$res_dir/noLog.txt";
+  open( NL, ">$noLog" )
+        or die("Unable to open tracking file $noLog for writing: $!\n");
+
+  my @fields;
+  my $ld;
+  my $log_directory;
+  @lfs = ();
+  foreach $_ (`$cmd`) {
+    chomp;
+    $params = "";
+    my $nnodes;
+
+    print "\n\nNEW SEARCH  \n" if ($opt{v});
+    print " looking in $_\n" if ($opt{v});
+
+    # skip null strings
+    next if ( $_ eq "" );
+    $log_directory = $_;
+
+    # all the test info is after the directory part, so lop it off
+    @fields = split /\//, $_;
+    $ld = pop(@fields);
+
+    # skip log if name starts with a number
+    next if ( $ld =~ /^\d/ );
+
+    if ($opt{t} ne "") {
+        # skip this log if user looking for a different test
+        if ( $ld !~ /$opt{t}/i ) {
+          print " skipping, not interested in this test name\n" if ($opt{v});
+	  next;
+        }
+    }
+
+    if ($opt{u} ne "" ) {
+        # skip this log if user looking for a different target segment 
+        if ( $ld !~ /__$opt{u}/ ) {
+          print " skipping, not interested in this segment name\n" if ($opt{v});
+	  next;
+	}
+    }
+
+    #get name, cu, jobid, and time of this test run
+    my @tmpstr = split( /\./, $ld );
+    my $arrlen = @tmpstr;
+    if ( $arrlen != 2 ) {
+        next;
+    }
+
+    # break out test information parts
+    my $testCU = "";
+    my $testName = "";
+    my $runScript = "";
+    my $testjid = "";
+    my $testTime = $tmpstr[1];
+    my @tmpstr1  = split( /__/, $tmpstr[0] );
+    $arrlen = @tmpstr1;
+    # make sure all four parts are present (testname, jobid, segment name, run script)
+    if ( $arrlen == 4 ) {
+      $testCU   = $tmpstr1[3];
+      $testName = $tmpstr1[0];
+      $testjid  = $tmpstr1[2];
+    } else {
+      # keep handling old format
+      @tmpstr1  = split( /_/, $tmpstr[0] );
+      $arrlen = @tmpstr1;
+      if ( $arrlen == 3) {
+        $testCU   = $tmpstr1[2];
+        ($testName,$runScript) = split("-", $tmpstr1[0]);
+        $testjid  = $tmpstr1[1];
+      } else {
+        print "warning, invalid test info -> $tmpstr[0], skipping \n";
+        next;
+      }
+    }
+
+    # skip if this test is currently running
+    if ( $activeJobs =~ /\b$testjid\b/ )  {
+        print "skipping active job ${testName}_${testjid}_${testCU}_${pes}\n" if ($opt{v});
+        next;
+    }
+
+    @lfs = glob("$_/*.log");
+    $lf = "";
+    # get correct log file
+    if (@lfs) {
+      print " choices are: @lfs\n" if ($opt{v});
+      foreach $f (@lfs) {
+        my $tlf = basename($f); 
+        if ($tlf =~ /^$testName/) {
+          $lf = $f; 
+        }
+      }
+    } else {
+      # save these around for the job analyzer
+      print " NO LOG FILE EXISTS for $_\n"if ($opt{v});
+      print NL "$_\n";
+    }
+
+    @tf = glob("$_/trend*");
+
+    if ( $opt{T} ) {
+      unless ( -r $tf[0] ) {
+	next;
+      }
+      print "\n\nchecking: $tf[0]" if ($opt{v});
+    } else {
+      if ( $lf ne "") {
+        print "\n checking: $lf \n" if ($opt{v});
+      } 
+    }
+ 
+    # get number of pe's this test ran on
+    $pes = "";
+    if ( -r "$_/machine" ) {
+        $pes = `grep -m 1 "<npes>" '$_/machine' | gawk '{ print \$2 }'`;
+        chomp($pes);
+    }
+
+
+    if ( -r "$lf" ) {
+        # get specific test parameters this test ran with
+        $params = "";
+        $params = `grep -m 1 "<params>" $lf | gawk -F"> "  '{ print \$2 }'`;
+        chomp($params);
+
+        # get number of nodes that were used
+        my $tmp;
+        my @nnodes = ();
+        $tmp = `grep -m 1 "<nodes> " $lf | gawk -F"> "  '{ print \$2 }'`;
+        chomp($tmp);
+        @nnodes = split(" ", $tmp);
+        $nnodes = @nnodes;
+
+        if ( $opt{a} ) {
+          # get earliest start time of any test 
+          my $thisStart = "";
+          $thisStart = `grep -m 1 "<start>" $lf | gawk -F"> "  '{ print \$2 }'`;
+          chomp($thisStart);
+          if ($thisStart ne "") {
+            if ($earliestStart eq "" ) {
+                $earliestStart = $thisStart;
+            } else {
+              if ($thisStart lt $earliestStart) {
+                $earliestStart = $thisStart;
+print "my earliest start is $thisStart\n";
+              }  
+            }
+          }
+
+          # get latest end time of any test 
+          my $thisEnd = "";
+          $thisEnd = `grep -m 1 "<end>" $lf | gawk -F"> "  '{ print \$2 }'`;
+          chomp($thisEnd);
+          if ($latestEnd  eq "" ) {
+            $latestEnd = $thisEnd;
+          } else {
+            if ($thisEnd gt $latestEnd) {
+              $latestEnd = $thisEnd;
+            }
+          }
+print "my latest end is $latestEnd\n";
+
+        }
+#my $tT = `tail -5 $lf | grep real | gawk '{ print \$2 }'`;
+#chomp $tT;
+#my $nnn = $pes/16;
+#   print " adding in $nnn * $tT secs \n";
+#   $totalNodeHrs = $totalNodeHrs + (( $nnn * $tT) / 3600);
+#   print " totalNodeHrs: $totalNodeHrs\n";
+    }
+
+
+    # build the unique test name to hash on
+    $tn = $testName . "." . $nnodes . "x" . $pes . "(" . $params . ")" ;
+    my $tn_len = length($tn);
+    # keep track of maximum name length for formatting purposes
+    if ( $max_name_len < $tn_len ) {
+      $max_name_len = $tn_len;
+    }
+
+
+    # handle special Trend Data here
+    my $td;
+    if ($opt{T}) {
+      my $cmd2 = "cat $tf[0]";
+      foreach $td (`$cmd2`) {
+        chomp $td;
+        print "\n\t$tn jid($testjid) $testTime $td";
+      }
+      next;
+    } else {
+      # examine the log file for passed or fail
+      $cmd = "$PH/scripts/chklg $lf ";
+      $totalTests++;
+      $totalThisTest{$tn}{$testCU}++;
+
+      #create a list of all the CU's being checked
+      $seen{$testCU}++;
+      if ( $seen{$testCU} == 1 ) {
+          push( @my_cus, $testCU )
+      }
+
+    #  don't even check for status if the log file does not exist
+    #  the test has been counted, but the results would be bogus anyway
+    my $status;
+
+    open(LF, ">$log_directory/RESULTS");
+    if ( -e $lf ) {
+          # run the chklg command
+          $status = qx/$cmd/;
+        print " --> $status " if ($opt{v});
+        if ( ( $status =~ /=> PASS/ )  || ( $status =~ /=>\(P\)/ ) ){
+            $totalTestsPassed++;
+            $passed{$tn}{$testCU}++;
+
+            # leave some cruft around which may speed later analysis runs
+            print LF $status;
+
+            # find real cpu time to be used for averages 
+            $treal{$tn}{$testCU} = `tail -20 $lf | grep ^real | gawk '{ print \$2 }'`;
+            chomp($treal{$tn}{$testCU});
+
+            print "--> $tn: $treal{$tn}{$testCU} secs of real time used\n" if ($opt{v});
+            if (exists $totalRealtime{$tn}{$testCU}) { 
+              $totalRealtime{$tn}{$testCU} = $totalRealtime{$tn}{$testCU} + $treal{$tn}{$testCU};
+#print "\nDebug1: total time so far - $totalRealtime{$tn}{$testCU}, num tests passed - $passed{$tn}{$testCU}\n";
+            } else {
+              $totalRealtime{$tn}{$testCU} = $treal{$tn}{$testCU};
+            }
+            push( @{ $passedTests{$tn}{$testCU} }, "$_" ) if ($opt{p});
+        }
+        elsif ( ( $status =~ /=> FAIL/ ) || ( $status =~ /=>\(F\)/ ) ) {    # test failed, save the failing log directory name
+            # stored values are references to arrays
+            $totalTestsFailed++;
+            push( @{ $failedTests{$tn}{$testCU} }, "$_" );
+            $failed{$tn}{$testCU}++;
+
+            # leave some cruft around which may speed later analysis runs
+            print LF $status;
+        }
+        elsif ( $status =~ /UNDEF/ ){    # test finished but no pass or fail indication 
+            push( @{ $undefTests{$tn}{$testCU} }, "$_" );
+            $totalTestsUndef++;
+            $undef{$tn}{$testCU}++;
+
+            # leave some cruft around which may speed later analysis runs
+            print LF $status;
+
+            # find real cpu time to be used for averages
+            $treal{$tn}{$testCU} = `tail -5 $lf | grep real | gawk '{ print \$2 }'`;
+            chomp($treal{$tn}{$testCU});
+            if (exists $totalRealtime{$tn}{$testCU}) {
+              $totalRealtime{$tn}{$testCU} = $totalRealtime{$tn}{$testCU} + $treal{$tn}{$testCU};
+            } else {
+              $totalRealtime{$tn}{$testCU} = $treal{$tn}{$testCU};
+            }
+        }
+        elsif ( $status =~ /LEARN/ ){    # test finished but in learning mode 
+            push( @{ $undefTests{$tn}{$testCU} }, "$_" );
+            $totalTestsUndef++;
+            $undef{$tn}{$testCU}++;
+
+            # leave some cruft around which may speed later analysis runs
+            print LF $status;
+
+            # find real cpu time to be used for averages
+            $treal{$tn}{$testCU} = `tail -5 $lf | grep real | gawk '{ print \$2 }'`;
+            chomp($treal{$tn}{$testCU});
+            if (exists $totalRealtime{$tn}{$testCU}) {
+              $totalRealtime{$tn}{$testCU} = $totalRealtime{$tn}{$testCU} + $treal{$tn}{$testCU};
+            } else {
+              $totalRealtime{$tn}{$testCU} = $treal{$tn}{$testCU};
+            }
+        }
+        else {    # test data INCOMPLETE 
+            push( @{ $foobarTests{$tn}{$testCU} }, "$_" );
+            $totalTestsfoobar++;
+            $foobar{$tn}{$testCU}++;
+
+            # leave some cruft around which may speed later analysis runs
+            print LF $status;
+        }
+    } else {  # no test output log, save the failing log directory name
+        push( @{ $foobarTests{$tn}{$testCU} }, "$_" );
+        $totalTestsfoobar++;
+        $foobar{$tn}{$testCU}++;
+
+        # since chklg not called fill in the RESULTS
+        $status = " $testName:$testjid => INCOMPLETE, no output log exists\n";
+
+        # leave some cruft around which may speed later analysis runs
+        print LF $status;
+    }
+    close(LF);
+
+    }
+  }
+
+
+  my $format_str;
+  $max_name_len = $max_name_len + 2;
+
+  my @sorted_cus = sort(@my_cus);
+  my ($cu, $kt, $val);
+  foreach $cu (@sorted_cus) {
+    if ("$opt{c}" ne "") {
+        next if ( $cu !~ /cu$opt{c}/ );
+    }
+    if ( $opt{a} ) { 
+      print "\ncluster $cu:\n";
+      $format_str = "%-" . $max_name_len . "s %10s %8s %8s %8s %16s\n";
+      printf ($format_str, "Test", "Total", "Passed", "Failed", "Unknown", "Avg. Run Time");
+      printf ($format_str, "=================", "======", "======", "======", "======", "=============");
+    } else {
+      print "\n  segment: $cu\n";
+    }
+    foreach $kt ( sort( keys(%totalThisTest) ) ) {
+      my $realAvg = 0;
+        if ( exists $totalThisTest{$kt}{$cu} ) {
+            if ( !exists $passed{$kt}{$cu} ) {
+                $passed{$kt}{$cu} = 0;
+            }
+            if ( !exists $undef{$kt}{$cu} ) {
+                $undef{$kt}{$cu} = 0;
+            }
+            if ( !exists $failed{$kt}{$cu} ) {
+                $failed{$kt}{$cu} = 0;
+            }
+            if ( !exists $foobar{$kt}{$cu} ) {
+                $foobar{$kt}{$cu} = 0;
+            }
+            if ( exists $totalRealtime{$kt}{$cu} ) {
+              $realAvg = $totalRealtime{$kt}{$cu} / ($passed{$kt}{$cu} + $undef{$kt}{$cu}); 
+              $CumTotalTime += $totalRealtime{$kt}{$cu}; # total time for all tests
+            }
+          if ( $opt{a} ) { 
+             $format_str = "%-" . $max_name_len . "s %10d %8d %8d %8d %16.2f\n";
+            printf ($format_str, $kt, $totalThisTest{$kt}{$cu}, $passed{$kt}{$cu}, $failed{$kt}{$cu}, ($undef{$kt}{$cu} + $foobar{$kt}{$cu}), $realAvg);
+          } else {
+            printf ("\t%s, [%4.2f secs]\n", "$kt - total_runs:$totalThisTest{$kt}{$cu}, passed:$passed{$kt}{$cu}, failed:$failed{$kt}{$cu}, undefined:$undef{$kt}{$cu}, incomplete:$foobar{$kt}{$cu}", $realAvg);
+          }
+        }
+        if ( ($opt{f}) && ( exists $failedTests{$kt}{$cu} ) ) {
+            print "\t failing: \n";
+            foreach $val ( @{ $failedTests{$kt}{$cu} } ) {
+                print "\t  $val\n";
+            }
+        }
+        if ( ($opt{p}) && ( exists $passedTests{$kt}{$cu} ) ) {
+            print "\t passing:  \n";
+            foreach $val ( @{ $passedTests{$kt}{$cu} } ) {
+                print "\t  $val\n";
+            }
+        }
+        if ($opt{i}) {
+          if  ( exists $undefTests{$kt}{$cu} ) {
+            print "\t undefined:  \n";
+            foreach $val ( @{ $undefTests{$kt}{$cu} } ) {
+                print "\t  $val\n";
+            }
+          }
+          if  ( exists $foobarTests{$kt}{$cu} ) {
+            print "\t incomplete:  \n";
+            foreach $val ( @{ $foobarTests{$kt}{$cu} } ) {
+                print "\t  $val\n";
+            }
+          }
+        }
+    }
+  }
+
+#  my $tmpCalc = $CumTotalTime/3600;
+  if (( "$opt{t}" eq "" ) && ( !$opt{T} )) {
+      print "\n\n";
+    if ( $opt{a} ) {
+      # combine total of undef and foobar tests for reporting 
+      my $other = $totalTestsUndef + $totalTestsfoobar;
+      $earliestStart =~ s/T/ /g;
+      $latestEnd =~ s/T/ /g;
+      print "First test started at: $earliestStart\n";
+      print "Job Totals\n";
+      print " Passed: $totalTestsPassed\n";
+      print " Failed: $totalTestsFailed\n";
+      print " Unknown: $other\n";
+#      print "Run Times\n";
+#      printf (" %s %4.2f hrs.\n", "Cumulative Wall Clock Run Time:", $tmpCalc);
+      print "Last test started at: $latestEnd\n";
+    } else {
+      print " Results: Tests Evaluated = $totalTests, Passed = $totalTestsPassed  \n";
+    }
+  }
+  print "\n  --------------------------------------------------------------------  \n";
+} # each group loop
+
+print "\n";
+
+exit;
+
+sub usage {
+
+    print "\n\n";
+    print "usage: $0 \n";
+    print "              -h help \n";
+#    print "              -a 'Acceptance Testing Mode. Default is Production Test Mode'\n";
+    print "              -e 'Analyze logs ending on yyyy-mm-dd, default is today'\n";
+    print "              -E 'Analyze logs ending at HH:MM:SS, default is 23:59:59, -e is today if not provided'\n";
+    print "              -f 'list log directories of failed tests'\n";
+    print "              -i 'list log directories of undefined or incomplete test results'\n";
+    print "              -p 'list log directories of passing tests'\n";
+    print "              -s 'Analyze logs starting on yyyy-mm-dd, default is last 15 days ago'\n";
+    print "              -S 'Analyze logs starting at HH:MM:SS, default is 00:00:00. -s is today if not provided'\n";
+    print "              -t 'test_name. Show test_name only. Partial name will work'\n";
+    print "              -T 'Show Trend Data values only'\n";
+    print "              -u 'list the results for a particular segment name. Exact match necessary'\n";
+    print "              -v 'verbose mode'\n";
+    print "\n\n";
+
+}

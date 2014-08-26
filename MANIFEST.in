@@ -1,5 +1,8 @@
+include PAV/pth
+recursive-include PAV/ *.py
 include test_suites/*.yaml
 include t1/*.bash
 include t1/i*
-include plugins/*.yapsy-plugin
-include scripts/*
+include PAV/plugins/*.yapsy-plugin
+include PAV/scripts/*
+include README.* 

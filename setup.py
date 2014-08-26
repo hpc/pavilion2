@@ -8,13 +8,10 @@ config = {
     'author': 'LANL',
     'url': 'git.lanl.gov/cwi/pavilion',
     'download_url': 'git@git.lanl.gov/cwi/pavilion',
-    'author_email': 'cwi@lanl.gov.',
-    'version': '0.11',
+    'author_email': 'cwi@lanl.gov',
+    'version': '0.16',
     'packages': ['PAV'],
-    'packages': ['modules'],
-    'packages': ['plugins'],
-    'packages': ['special-pkgs/yapsy'],
-    'scripts': [],
+    'packages': ['test'],
     'name': 'pavilion'
 }
 

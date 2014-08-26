@@ -4,7 +4,8 @@
      follow (i.e. - Moab, slurm, ...)
  """
 
-import sys,os
+import sys
+import os
 import datetime
 import logging
 import shutil
@@ -38,7 +39,6 @@ class BaseJobController():
             raise RuntimeError('some error message')
 
         self.logger.info(self.lh + " : init phase ")
-        #self.save_common_settings()
 
         # common global env params for this job
         os.environ['PV_TESTNAME'] = self.name
@@ -49,9 +49,7 @@ class BaseJobController():
         os.environ['PV_TEST_ARGS'] = self.configs['run']['test_args']
 
 
-
     def setup_working_space(self):
-
 
         ws_path = self.configs['working_space']['path']
         src_dir = self.configs['source_location']
@@ -67,8 +65,7 @@ class BaseJobController():
                 ws = src_dir + "/" + ws_path
                 exclude_ws = ws_path
 
-
-        # working space is null, so run source directory
+        # working space is null, so run from source directory
         else:
             os.environ['PV_WS'] = ""
             os.environ['PV_RUNHOME'] = src_dir
@@ -79,7 +76,6 @@ class BaseJobController():
 
 
         # now setup and do the move
-
         os.environ['PV_RUNHOME'] = ws + "/" + self.name + "__" + run_cmd + "." + self.now()
 
         print 'Working Space: %s' % os.environ['PV_RUNHOME']
@@ -94,7 +90,6 @@ class BaseJobController():
         to_loc = os.environ['PV_RUNHOME']
         os.environ['PV_WS'] = to_loc
 
-
         # support user specified files or dirs to copy here.
         files2copy = self.configs['working_space']['copy_to_ws']
         if files2copy:
@@ -103,11 +98,11 @@ class BaseJobController():
         else:
             from_loc = src_dir + "/"
             if exclude_ws:
-                cmd = "rsync -a --exclude '" + exclude_ws  + "' --exclude '*.[ocfh]' --exclude '*.bck' --exclude '*.tar' "
+                cmd = "rsync -a --exclude '" + \
+                      exclude_ws  + "' --exclude '*.[ocfh]' --exclude '*.bck' --exclude '*.tar' "
             else:
                 cmd = "rsync -a --exclude '*.[ocfh]' --exclude '*.bck' --exclude '*.tar' "
             cmd += from_loc + " " + to_loc
-
 
         self.logger.debug('%s : %s' % (self.lh, cmd))
 
@@ -118,9 +113,8 @@ class BaseJobController():
         if p.returncode or errors:
             print "Error: failed copying data to working space!"
             print [p.returncode, errors, output]
-            self.logger.info(self.lh + " failed copying data to working space!, skipping job: " + self.name +\
-                " (Hint: check the job logfile) ")
-
+            self.logger.info(self.lh + " failed copying data to working space!, skipping job: " + self.name +
+                                       "(Hint: check the job logfile)")
 
 
     def __str__(self):
@@ -163,7 +157,7 @@ class BaseJobController():
 
         # run an epilog script if defined in the test config
         if es:
-            self.logger.info(self.lh + ': start epilog script: '+ es)
+            self.logger.info(self.lh + ': start epilog script: ' + es)
             os.system(es)
             self.logger.info(self.lh + '%s epilog script complete' % es)
 
@@ -177,6 +171,9 @@ class BaseJobController():
         os.environ['GZ_RUNHOME'] = os.environ['PV_RUNHOME']
 
         os.environ['GZ_LOG_FILE'] = os.environ["PV_JOB_RESULTS_LOG"]
+
+        os.environ['PV_TEST_ARGS'] = self.configs['run']['test_args']
+        os.environ['GZ_TEST_PARAMS'] = os.environ['PV_TEST_ARGS']
 
 
     def cleanup(self):
@@ -210,8 +207,8 @@ class BaseJobController():
         if p.returncode or errors:
             print "Error: failure copying job results the output directory!"
             print [p.returncode, errors, output]
-            self.logger.info(self.lh + " failure copying job results to the output directory: " + self.name +\
-                " (Hint: check the job's logfile) ")
+            self.logger.info(self.lh + " failure copying job results to the output directory: " + self.name +
+                                       "(Hint: check the job's logfile)")
 
 
         # remove the working space if it was created
@@ -225,4 +222,3 @@ class BaseJobController():
 if __name__ == '__main__':
 
     sys.exit()
-    

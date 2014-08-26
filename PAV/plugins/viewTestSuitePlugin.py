@@ -31,9 +31,8 @@ class ViewTestSuite(IPlugin):
         parser_rts.set_defaults(sub_cmds='view_test_suite')
         return ('view_test_suite')
 
-    # Every plug-in class MUST have a method by the name "cmd"
-    # so that it can called when its sub-command is selected
-        
+    # Every plug-in (command) MUST have a method by the name "cmd".
+    # It will be what is called when that command is selected.
     def cmd(self, args):
 
         if args['verbose']:

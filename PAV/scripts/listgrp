@@ -1,0 +1,83 @@
+#!/usr/bin/perl -w
+
+our %opts;
+my (
+	$tmp,$usage,$gname,$user,$userlist,@nada,$grplist,
+	@stuff,$grp
+   );
+
+# # ------------------------------------------------------------------ # #
+
+
+# get parameters from command line
+use Getopt::Std;
+$opts{g} = "";          # group name for which info is deisred
+$opts{u} = "";          # user moniker for which info is desired
+getopts("m:g:u:ht",\%opts);
+
+if ( $opts{h} ) {	# print usage info
+   $usage = <<EOF;
+   Usage:  $0 [-g <group_name>] [-u <user_moniker>] [-h] [-t]
+   -g option alone will list the monikers of the users who
+      are members in the group "group_name".
+   -u option alone will list the groups to which the user
+      specified as "user_moniker" belongs.
+   Including both -g and -u on the command line will return 
+      1 if the user user_moniker belongs to group group_name, 
+      and 0 otherwise.
+   -h gives this help message
+   -t means return the -g or -u list with a title line
+EOF
+   print "$usage\n";
+   exit;
+}
+
+# indicate mode of functioning of this routine:
+
+$user = "$opts{u}";
+$user =~ s/\s//g;
+
+$gname = "$opts{g}";
+$gname =~ s/\s//g;
+
+
+# # ------------------------------------------------------------------ # #
+
+# get "gz" groups to which specified user belongs
+if (( $opts{u} ) && (! $opts{g} )) {
+   $grplist = `grep $user /etc/group | grep gz | gawk -F: '{print \$1}' | xargs`;
+   chop($grplist);
+   if ( $opts{t} ) {
+      print "User $user belongs to the following groups: \n\t$grplist\n";
+   } else {
+      print "$grplist\n";
+   }
+}
+
+# get users in specified group
+if (( $opts{g} ) && (! $opts{u} )) {
+      $userlist = `grep $gname /etc/group`;
+      if ( length("$userlist") > 1 ) {
+         @nada = split ':',$userlist;
+         $userlist = "$nada[$#nada]";
+      }
+
+   chop($userlist);
+   if ( $opts{t} ) {
+      print "Group $gname has the following members: \n\t$userlist\n";
+   } else {
+      print "$userlist\n";
+   }
+}
+
+# return 0 or 1 to say if specified user belongs to specified group
+if (( $opts{u} ) && ( $opts{g} )) {
+      $userlist = `grep $gname /etc/group`;
+      if ( $userlist =~ /$user/ ) {
+          print "1";
+      } else {
+          print "0";
+      }
+}
+
+exit;

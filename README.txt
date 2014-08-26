@@ -2,9 +2,18 @@ Pavilion test handler
 
 Built and tested on Python 2.7
 
+To Run:
+  - in the PAV directory type "pth -h"
 
-To build a src distribution tar file:
-  - edit setup.py file appropriately
+To Build a src distribution tar file:
+  - edit the setup.py file appropriately
   - add files to include in MANIFEST.in file
   - from this directory run -> "python setup.py sdist"
   - tar file placed in "dist" directory
+
+File Structure:
+ - all source under the PAV directory
+   - plugins for new commands
+   - scripts for non python tools
+   - modules for all custom built python src
+   - special-pkgs for location to place packages

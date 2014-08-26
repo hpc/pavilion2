@@ -3,7 +3,8 @@
 """ this stand-alone program supports running jobs for any scheduler type
 """
 
-import sys,os
+import sys
+import os
 import datetime, pytz
 import json
 import logging
@@ -52,7 +53,7 @@ def load_jcmod(name, params):
     module_name = params['run']['scheduler'] + "jobcontroller"
     class_name_Cc = params['run']['scheduler'].title() + "JobController"
 
-    sys.path.append("../modules")
+    sys.path.append("/modules")
 
     try:
 
@@ -60,7 +61,7 @@ def load_jcmod(name, params):
         mh = __import__(module_name)
 
     except:
-        print "Warning: no job controller for scheduler type %s"  % params['run']['scheduler']
+        print "Warning: no job controller for scheduler type %s" % params['run']['scheduler']
         print "  Skipping job %s" % name
         return
 
@@ -150,7 +151,7 @@ def main(args):
 
     with open(logfile, "w+") as lf:
         with stdout_redirected(lf):
-                
+
             #redirect STDERR to the same file
             sys.stderr = lf
 

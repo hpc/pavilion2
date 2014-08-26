@@ -6,12 +6,12 @@
 
 Usage:
     module load python-epd  # on lanl toss systems to get required modules
-    "pth.py -h"
+    "pth -h"
 
 Collaboration tips:
   - new features (sub-commands) add to the plugins directory or
-    set the ENV variable PV_PLUGIN_DIR and place code there.
-  - all remaining support code add to the modules directory or set the
+    append to the ENV variable PV_PLUGIN_DIR and place code there.
+  - all remaining support code add to the modules directory or append to the
     ENV variable PV_SRC_DIR and place code there.
 
 Project goals:
@@ -22,5 +22,5 @@ Project goals:
    - Development adheres to a well know set of developemnt and coding principles
    - Open source and managed thru git  
    - No extra files necessary to be placed into users test/job directory to hook into Pavilion
-   - Only one command needed to run cli. Test handler runs under pth.py umbrella  
+   - Only one command needed to run cli. Test handler runs under "pth" umbrella  
    - Separate system config and master config files to isolate hardware specifics 

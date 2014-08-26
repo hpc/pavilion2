@@ -96,7 +96,7 @@ class MoabJobController(BaseJobController):
         run_cmd =  os.environ['PV_RUNHOME'] + "/" + self.configs['run']['cmd']
         os.environ['USER_CMD'] = run_cmd
 
-        msub_cmd += " " + os.environ['PV_SRC_DIR'] + "/../modules/moab_job_handler.py"
+        msub_cmd += " " + os.environ['PV_SRC_DIR'] + "/modules/moab_job_handler.py"
         self.logger.info(self.lh + " : " + msub_cmd)
 
 
@@ -110,7 +110,7 @@ class MoabJobController(BaseJobController):
 
         else:
             # fake-out section to run on basic unix system
-            fake_job_cmd = os.environ['PV_SRC_DIR'] + "/../modules/moab_job_handler.py"
+            fake_job_cmd = os.environ['PV_SRC_DIR'] + "/modules/moab_job_handler.py"
             p = subprocess.Popen(fake_job_cmd, stdout=self.job_log_file, stderr=self.job_log_file, shell=True)
             # wait for the subprocess to finish
             (output,errors) = p.communicate()

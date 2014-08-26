@@ -3,12 +3,14 @@
 """ plug-in that implements the run_test_suite command 
 """
 
-import os,sys
-from yapsy.IPlugin import IPlugin
-from testConfig import YamlTestConfig
+import os
+import sys
 import subprocess
 import json
 import logging
+
+from yapsy.IPlugin import IPlugin
+from testConfig import YamlTestConfig
 from testEntry import TestEntry
 
 
@@ -32,13 +34,12 @@ class RunTestSuite(IPlugin):
         params = my_te.get_values()
         js_params = json.dumps(params)
         self.logger.info('dispatch: %s, variation: (%s x %s)' % (my_te.name, n, p))
-        args = ["python", "../modules/runjob.py", my_te.name, js_params, js_var]
+        args = ["python", "./modules/runjob.py", my_te.name, js_params, js_var]
         subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
 
 
-    # Every plugin class MUST have a method by the name "add_parser_info"
-    # and must return the name of the the sub-command
-
+    # Every plug-in (command) MUST have a method by the name "cmd".
+    # It will be what is called when that command is selected.
     def add_parser_info(self, subparser): 
         parser_rts = subparser.add_parser("run_test_suite", help="run each test in the test suite")
         parser_rts.add_argument('testSuite', help='test-suite-config-file')

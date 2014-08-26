@@ -12,7 +12,6 @@ class TestEntry():
     
     def __init__(self, name, values, args):
 
-
         my_name = self.__class__.__name__
         self.name = name
         self.eff_nodes = 1
@@ -34,10 +33,10 @@ class TestEntry():
         return int(self.this_dict[self.name]['run']['count'])
 
     def get_values(self):
-        return (self.this_dict[self.name])
+        return self.this_dict[self.name]
 
     def get_name(self):
-        return (self.name)
+        return self.name
 
     def set_ppn(self, ppn):
         self.eff_ppn = ppn
@@ -54,12 +53,11 @@ class TestEntry():
     def get_run_times(self):
         # for now this is as simple as the count, but with a more complex submit
         # strategy (like Gazebo's testMgr) this can be enhanced.
-        return (self.get_count())
+        return self.get_count()
 
     def get_test_variations(self):
     # figure out all the variations for this test
     # and return list of "new" choices.
-
 
         l1 = str(self.this_dict[self.name]['moab']['num_nodes'])
         l2 = str(self.this_dict[self.name]['moab']['procs_per_node'])
@@ -84,6 +82,7 @@ class TestEntry():
 
         return tv
 
+
 class MoabTestEntry(TestEntry):
 
     def get_test_variations(self):
@@ -99,4 +98,3 @@ class RawTestEntry(TestEntry):
 # this gets called if it's run as a script/program
 if __name__ == '__main__':
     sys.exit()
-    
