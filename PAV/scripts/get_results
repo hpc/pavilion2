@@ -136,6 +136,8 @@ if (( "$opt{S}" ne "" ) || ( "$opt{s}" ne "" ))  {
   }
 }
 
+
+
 # catch bogus entries
 if ($start eq "" ) {
     $start = `date -I -d "15 days ago"`;
@@ -145,8 +147,11 @@ chomp($start);
 #get the job id's of the all my jobs in progress
 #$jobsRunning = `$GH/gzjobs | grep -i $me | grep running | awk '{ print \$1 }' | xargs `;
 #$activeJobs = `$GH/gzjobs | grep -i $me | awk '{ print \$1 }' | xargs `;
-$activeJobs = `$PH/scripts/pvjobs | grep -e "^[0-9]" | awk '{ print \$1 }' | xargs `;
-print "active jobs - $activeJobs\n" if ($opt{v});
+$activeJobs = "";
+if (exists $ENV{TOSS})  {
+    $activeJobs = `$PH/scripts/pvjobs | grep -e "^[0-9]" | awk '{ print \$1 }' | xargs `;
+    print "active jobs - $activeJobs\n" if ($opt{v});
+}
 
 
 print "\n *** Job Summary ***\n";

@@ -79,7 +79,6 @@ def main():
             func_map[func] = pluginInfo.plugin_object
         except:
             print "Error using add_help_info method for %s" % pluginInfo.plugin_object
-            
 
     # turn the input arguments into a dictionary
     args = vars(parser.parse_args())

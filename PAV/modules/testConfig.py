@@ -32,7 +32,7 @@ def flatten_dict(d):
 
 
 # Recursive function to merge nested dictionaries
-# obj_2 wins conflicts
+# with obj_2 winning conflicts
 def merge(obj_1, obj_2):
     if isinstance(obj_1, dict) and isinstance(obj_2, dict):
         result = {}

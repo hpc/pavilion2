@@ -11,24 +11,13 @@ class MoabJobController(BaseJobController):
     """ class to run a job using Moab """
 
     def is_moab_system(self):
-        if (os.path.isfile("/etc/toss-release")):
+        if os.path.isfile("/etc/toss-release"):
             return True
         else:
             return False
 
-    def extract_jobid(message):
-        '''Finds the jobid in the output from msub. The job id can either
-        be just a number or Moab.number.'''
-        # Optional \r because Windows python2.4 can't figure out \r\n is newline
-        match=re.search("^((Moab.)?(\d+))[\r]?$",message,re.IGNORECASE|re.MULTILINE)
-        if match:
-            return match.group(1)
-        return None
-
-
     # .. some setup and let the msub command fly ...
     def start(self):
-
 
         # Get any buffered output into the output file now
         # so that the the order doesn't look all mucked up
@@ -93,18 +82,20 @@ class MoabJobController(BaseJobController):
         if ts:
             msub_cmd += ",feature=" + ts
 
-        run_cmd =  os.environ['PV_RUNHOME'] + "/" + self.configs['run']['cmd']
+        run_cmd = os.environ['PV_RUNHOME'] + "/" + self.configs['run']['cmd']
         os.environ['USER_CMD'] = run_cmd
 
         msub_cmd += " " + os.environ['PV_SRC_DIR'] + "/modules/moab_job_handler.py"
-        self.logger.info(self.lh + " : " + msub_cmd)
 
-
-        if (self.is_moab_system()):
+        if self.is_moab_system():
+            self.logger.info(self.lh + " : " + msub_cmd)
             # call to invoke real Moab command
+            os.environ['TOSS'] = "True"
             output = subprocess.check_output(msub_cmd, shell=True)
-            match=re.search("^((Moab.)?(\d+))[\r]?$",output,re.IGNORECASE|re.MULTILINE)
-            if (match.group(1)):
+            # Finds the jobid in the output from msub. The job id can either
+            # be just a number or Moab.number.
+            match = re.search("^((Moab.)?(\d+))[\r]?$",  output, re.IGNORECASE|re.MULTILINE)
+            if match.group(1):
                 jid = match.group(1)
             print "<JobID> " + str(jid)
 
@@ -127,4 +118,3 @@ if __name__ == '__main__':
     mjc = MoabJobController()
 
     sys.exit()
-    

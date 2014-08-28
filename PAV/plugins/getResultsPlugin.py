@@ -29,21 +29,21 @@ class GetResults(IPlugin):
     def add_parser_info(self, subparser): 
         parser_gr = subparser.add_parser("get_results", help="summarize test results")
         #parser_gr.add_argument('testSuite', help='test-suite-config-file')
-        parser_gr.add_argument('-s', nargs=1, help="default start date (yyyy-mm-dd), default 15 days ago")
-        parser_gr.add_argument('-S', nargs=1, help="default start time (HH:MM:SS), default is at 00:00:00")
+        parser_gr.add_argument('-s', nargs=1, metavar='<date>', help="start date (yyyy-mm-dd), default 15 days ago")
+        parser_gr.add_argument('-S', nargs=1, metavar='<time>', help="start time (HH:MM:SS), default is at 00:00:00")
 
-        parser_gr.add_argument('-e', nargs=1, help="default end date (yyyy-mm-dd), default today")
-        parser_gr.add_argument('-E', nargs=1, help="default start time (HH:MM:SS), default is at 23:59:59")
+        parser_gr.add_argument('-e', nargs=1, metavar='<date>', help="end date (yyyy-mm-dd), default today")
+        parser_gr.add_argument('-E', nargs=1, metavar='<time>', help="start time (HH:MM:SS), default is at 23:59:59")
 
-        parser_gr.add_argument('-t', nargs=1, help="test name string to match")
+        parser_gr.add_argument('-t', nargs=1, metavar='<string>', help="test name string to match")
 
         parser_gr.add_argument('-f', '--fail', help="locate failed test directories", action="store_true")
         parser_gr.add_argument('-i', '--inc', help="locate 'incomplete' test directories", action="store_true")
         parser_gr.add_argument('-p', '--pass', help="locate passing test directories", action="store_true")
+        parser_gr.add_argument('-T', '--td', help="display trend data", action="store_true")
 
-        parser_gr.add_argument('-T', nargs=1, help="display trend data")
-
-        parser_gr.add_argument('-ts', nargs=1, help="test suite to acquire results path, defaults to default_test_config.yaml")
+        parser_gr.add_argument('-ts', nargs=1, metavar='<file>',
+                               help="test suite to read results path (root) from, defaults to default_test_config.yaml")
 
         parser_gr.set_defaults(sub_cmds='get_results')
         return 'get_results'
@@ -85,9 +85,29 @@ class GetResults(IPlugin):
 
         # call something here that gets the results
         self.logger.debug('invoke get_results on %s' % result_location)
-        gr_cmd = os.environ['PV_SRC_DIR'] + "/scripts/get_results -g gzshared -l " + result_location
-        gr_output = subprocess.check_output(gr_cmd, shell=True)
-        print gr_output
+        # add in all the possible args
+        bc = "/scripts/get_results -g gzshared"
+        if args['pass']:
+            bc += " -p "
+        if args['fail']:
+            bc += " -f "
+        if args['inc']:
+            bc += " -i "
+        if args['s']:
+            bc += " -s " + args['s'][0]
+        if args['S']:
+            bc += " -S " + args['S'][0]
+        if args['e']:
+            bc += " -e " + args['e'][0]
+        if args['E']:
+            bc += " -E " + args['E'][0]
+        if args['td']:
+            bc += " -T "
+
+        gr_cmd = os.environ['PV_SRC_DIR'] + bc + " -l " + result_location
+        #gr_output = subprocess.check_output(gr_cmd, shell=True)
+        #print gr_output
+        print gr_cmd
 
 if __name__ == "__main__":
     print GetResults.__doc__

@@ -9,6 +9,7 @@ import os
 import datetime
 import logging
 import shutil
+import json
 from subprocess import Popen, PIPE
 
 
@@ -137,10 +138,15 @@ class BaseJobController():
         print "<testExec> " + self.configs['run']['cmd']
         print "<user> " + os.getenv('USER')
         print "<segName> " + "theTargetSeg"
-
-        print self.configs
-
         sys.stdout.flush()
+
+        # save the test config
+        tcf = os.environ["PV_JOB_RESULTS_LOG_DIR"] + "/test_config.txt"
+        tcf_file = open(tcf, "w+")
+        tcf_file.write("Pavilion configuration values used to run this test:\n\n")
+        tcf_file.write(json.dumps(self.configs, sort_keys=True, indent=4))
+        tcf_file.close()
+
 
     def build(self):
         # call the command that builds the users test/job
