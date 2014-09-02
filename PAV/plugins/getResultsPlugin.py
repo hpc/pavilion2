@@ -45,6 +45,9 @@ class GetResults(IPlugin):
         parser_gr.add_argument('-ts', nargs=1, metavar='<file>',
                                help="test suite to read results path (root) from, defaults to default_test_config.yaml")
 
+        parser_gr.add_argument('-bc', '--make-box-charts', action="store_true",
+                               help='create box charts from the selected set of test results and trend data values')
+
         parser_gr.set_defaults(sub_cmds='get_results')
         return 'get_results'
 
@@ -72,16 +75,22 @@ class GetResults(IPlugin):
         for name, params in tsc.iteritems():
 
             if "DefaultTestSuite" in name:
+                result_location = tsc['DefaultTestSuite']
                 continue
 
             if params['results']['root']:
-                print "\n let's use the results found in :"
                 result_location = params['results']['root']
-                print result_location
                 break  # use the first one found for now
             else:
-                print "No results location found from test suite config file, exiting!"
+                print "No results 'root' directory defined in test suite config file(s), exiting!"
                 sys.exit()
+
+        print "\nUse results found in :"
+        print result_location
+         # make sure this dir exists before moving on from here
+        if os.access(result_location, os.R_OK) is False:
+            print "  Error: results 'root' directory (%s) not readable" % result_location
+            sys.exit()
 
         # call something here that gets the results
         self.logger.debug('invoke get_results on %s' % result_location)
@@ -107,7 +116,14 @@ class GetResults(IPlugin):
         gr_cmd = os.environ['PV_SRC_DIR'] + bc + " -l " + result_location
         #gr_output = subprocess.check_output(gr_cmd, shell=True)
         #print gr_output
-        print gr_cmd
+        if args['verbose']:
+            print "Use command:"
+            print gr_cmd
+        gr_output = subprocess.check_output(gr_cmd, shell=True)
+        print gr_output
+        # tie in make box plot component here
+        if args['make_box_charts']:
+            print "make some box charts too!"
 
 if __name__ == "__main__":
     print GetResults.__doc__

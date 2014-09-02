@@ -333,8 +333,8 @@ foreach $group (@grps) {
  
     # get number of pe's this test ran on
     $pes = "";
-    if ( -r "$_/machine" ) {
-        $pes = `grep -m 1 "<npes>" '$_/machine' | gawk '{ print \$2 }'`;
+    if ( -r "$lf" ) {
+        $pes = `grep -m 1 "<npes>" '$lf' | gawk '{ print \$2 }'`;
         chomp($pes);
     }
 

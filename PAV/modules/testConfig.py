@@ -80,7 +80,7 @@ class YamlTestConfig():
                     print "Error in configuration file:", exc
                     self.logger.error('Error in configuration file:', exc)
         except:
-            print "  Error: file (%s) not found" % ucf
+            print "  Error: config file (%s) not found" % ucf
             sys.exit()
         fo.close()
 
