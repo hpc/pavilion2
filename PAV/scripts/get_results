@@ -52,7 +52,7 @@
 #
 #  ###################################################################
 
-# script which prints a quick summary of the Pavilion test logs
+# script which prints a quick summary of the Pavilion test result logs
 # 
 # 08/2014, adapted from Gazebo results script, Craig Idler
 #

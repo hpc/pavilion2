@@ -8,7 +8,7 @@ import os
 import argparse
 
 # support for dynamically loading new features/commands from a "plugins" directory
-sys.path.append(os.path.join(os.path.dirname(__file__), "./special-pkgs"))
+sys.path.append(os.path.join(os.path.dirname(__file__), "./special_pkgs"))
 #print sys.path
 from yapsy.PluginManager import PluginManager
 

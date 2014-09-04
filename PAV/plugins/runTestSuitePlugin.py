@@ -38,25 +38,24 @@ class RunTestSuite(IPlugin):
         subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
 
 
-    # Every plug-in (command) MUST have a method by the name "cmd".
-    # It will be what is called when that command is selected.
+    # build the sub-command argument list
     def add_parser_info(self, subparser): 
         parser_rts = subparser.add_parser("run_test_suite", help="run each test in the test suite")
         parser_rts.add_argument('testSuite', help='test-suite-config-file')
         parser_rts.add_argument('-d', "--debug", help="don't run, show what would be done", action="store_true")
+        parser_rts.add_argument('-m', "--ldms", help="start LDMS metrics within Moab allocation", action="store_true")
         parser_rts.set_defaults(sub_cmds='run_test_suite')
-        return ('run_test_suite')
+        return 'run_test_suite'
 
     # Every plug-in(command) class MUST have a method by the name "cmd"
-    # so that it can called when its sub-command is selected
-        
+    # so that it can called when it's selected
     def cmd(self, args):
 
         if args['verbose']:
             print "Command args -> %s" % args
             print "TestSuite search path -> " + os.path.dirname(os.path.realpath(args['testSuite']))
         
-        if (os.path.isfile(args['testSuite'])):
+        try:
             with open(args['testSuite']) as file:
 
                 # Use the default (or master) test suite configuration from the same directory
@@ -76,7 +75,8 @@ class RunTestSuite(IPlugin):
                 # and its variations here.
                 for name, params in my_test_suite.iteritems():
 
-
+                    # This just defines where to find a different DTS, so
+                    # skip this entry.
                     if "DefaultTestSuite" in name:
                         continue
 
@@ -86,7 +86,7 @@ class RunTestSuite(IPlugin):
 
                     test_variants = [(None)]
                     # get list of "new" test entries
-                    if ("moab" in test_type):
+                    if "moab" in test_type:
                         test_variants = te.get_test_variations()
                         for test_entry in test_variants:
                             for _ in range(te.get_run_times()):
@@ -94,7 +94,6 @@ class RunTestSuite(IPlugin):
                     else:
                         for _ in range(te.get_run_times()):
                             self.job_dispatcher(te)
-
 
                  #   count = 1
                     # If there is one test variation then allow multiple runs,
@@ -113,8 +112,8 @@ class RunTestSuite(IPlugin):
                 #             self.logger.info('dispatch: %s, variations: %s' % (name, var))
                  #           job_dispatcher(name, params, var)
                  #           job_dispatcher2(test_entry)
-        else:
-            print "  Error: could not find test suite %s" % args['testSuite']
+        except EnvironmentError as err:
+            print "  Error: could not access test suite %s" % args['testSuite']
             sys.exit()
         
 

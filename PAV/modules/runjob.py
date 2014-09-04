@@ -14,6 +14,7 @@ import platform
 # handle for all logging
 logger = ""
 
+
 def convert(input):
     if isinstance(input, dict):
         return {convert(key): convert(value) for key, value in input.iteritems()}
@@ -35,12 +36,12 @@ def stdout_redirected(new_stdout):
         sys.stdout = save_stdout
 
 
-
 # something to write to the log for now
 def greet(greeting='hello'):
     print 'greetings earthling!' 
     print "er ...   "
     print greeting + " world!"
+
 
 def load_jcmod(name, params):
 
@@ -127,7 +128,6 @@ def main(args):
     name = args[1]
     variation = json.loads(args[3])
 
-
     #signal(SIGPIPE,SIG_DFL)
 
     # This handle "name(pid)" can be used to follow all activity of this
@@ -147,7 +147,6 @@ def main(args):
     logfile = results_dir + "/" + name + ".log"
     os.environ["PV_JOB_RESULTS_LOG"] = logfile
     logger.info(lh + ": logfile -> %s" % logfile)
-
 
     with open(logfile, "w+") as lf:
         with stdout_redirected(lf):
@@ -169,7 +168,6 @@ def main(args):
                 this_job.build()
                 logger.info(lh + " build-end ")
                 print "<build-end> ", now()
-
 
             logger.info(lh + " starting")
             print "<start>" , now()

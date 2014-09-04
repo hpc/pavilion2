@@ -68,21 +68,21 @@ class YamlTestConfig():
         test_suite_dir = os.path.dirname(os.path.realpath(ucf)) + "/"
         self.dcf = test_suite_dir + "default_test_config.yaml"
 
-        # load the user test suite (or config file)
+        # load the user test suite (or config files
         try:
-            #with open(ucf, 'r') as f1:
             fo = open(ucf)
             f1 = fo.read()
-            try:
-                self.user_config_doc = load(f1)
-                # if there is an error in the file, try to show where
-            except YAMLError, exc:
-                    print "Error in configuration file:", exc
-                    self.logger.error('Error in configuration file:', exc)
-        except:
-            print "  Error: config file (%s) not found" % ucf
+            self.user_config_doc = load(f1)
+        except EnvironmentError, err:
+            print "Error: config file (%s) not found" % err
             sys.exit()
-        fo.close()
+        except YAMLError, exc:
+            print "Error in configuration file: ", exc
+            self.logger.error('Error in configuration file', exc)
+        except:
+            print "Unexpected error: (%s)" % sys.exc_info()[0]
+        finally:
+            fo.close()
 
         if "DefaultTestSuite" in self.user_config_doc:
             df = self.user_config_doc['DefaultTestSuite']

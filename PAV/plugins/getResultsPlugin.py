@@ -120,8 +120,7 @@ class GetResults(IPlugin):
             gr_cmd = os.environ['PV_SRC_DIR'] + bc + " -T -l " + result_location + " | " + plot_cmd
         else:
             gr_cmd = os.environ['PV_SRC_DIR'] + bc + " -l " + result_location
-        #gr_output = subprocess.check_output(gr_cmd, shell=True)
-        #print gr_output
+
         if args['verbose']:
             print "Use command:"
             print gr_cmd
