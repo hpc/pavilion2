@@ -116,7 +116,8 @@ class GetResults(IPlugin):
             bc += " -T "
 
         if args['make_box_plots']:
-            gr_cmd = os.environ['PV_SRC_DIR'] + bc + " -T -l " + result_location + " | ./makeboxplots.py "
+            plot_cmd = os.environ['PV_SRC_DIR'] + "/modules/makeboxplots.py"
+            gr_cmd = os.environ['PV_SRC_DIR'] + bc + " -T -l " + result_location + " | " + plot_cmd
         else:
             gr_cmd = os.environ['PV_SRC_DIR'] + bc + " -l " + result_location
         #gr_output = subprocess.check_output(gr_cmd, shell=True)
@@ -125,7 +126,7 @@ class GetResults(IPlugin):
             print "Use command:"
             print gr_cmd
         gr_output = subprocess.check_output(gr_cmd, shell=True)
-        print gr_output
+        print "\n" + gr_output
 
 
 if __name__ == "__main__":

@@ -2,11 +2,13 @@
 """ Make box plots from the output of the get_results command"""
 
 import sys
-import os
+import re
 
-
+print "Making box plots with data from:"
 for line in sys.stdin:
-    print line
+    searchObj = re.search(r'jid\(', line, re.M|re.I)
+    if searchObj:
+        print line,
 
 if __name__ == '__main__':
     # pass entire command line to main except for the command name
