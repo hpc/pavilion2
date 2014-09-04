@@ -28,6 +28,7 @@ class PluginOne(IPlugin):
     def add_parser_info(self, subparser): 
         parser_f1 = subparser.add_parser("f1", help="f1 help message")
         parser_f1.add_argument('-c', type=int, default=1, help='repeat command Count times')
+        parser_f1.add_argument("-v", "--gabby", help="more verbose output", action="store_true")
         parser_f1.set_defaults(sub_cmds='f1')
         return ('f1')
 
@@ -40,6 +41,12 @@ class PluginOne(IPlugin):
         # handle the count argument
         count = args['c']
         print "I should run %s times" % count
+
+        # Using some other word like gabby differentiate the "v" flag set for
+        # this command versus the one set for the main pth code
+        if args['gabby']:
+            print "more info..."
+
 
 
 if __name__=="__main__":

@@ -6,6 +6,7 @@
 
 import sys
 import os
+import re
 import datetime
 import logging
 import shutil
@@ -182,7 +183,6 @@ class BaseJobController():
         os.environ['PV_TEST_ARGS'] = self.configs['run']['test_args']
         os.environ['GZ_TEST_PARAMS'] = os.environ['PV_TEST_ARGS']
 
-
     def cleanup(self):
 
         self.logger.info(self.lh + ': start cleanup')
@@ -224,7 +224,25 @@ class BaseJobController():
             self.logger.info('%s : remove WS - %s ' % (self.lh, os.environ['PV_RUNHOME']))
             shutil.rmtree(os.environ['PV_RUNHOME'])
 
-        
+    @staticmethod
+    def process_trend_data():
+
+        # slurp up the trend data from the log file and place it in a file
+        # called trend_data in the results dir
+        tdf = os.environ["PV_JOB_RESULTS_LOG_DIR"] + "/trend_data"
+        out_file = open(tdf, "w")
+
+        lf = open(os.environ["PV_JOB_RESULTS_LOG"], 'r')
+
+        for line in lf:
+            match = re.search("^(<td>\s+(.*))", line, re.IGNORECASE)
+            if match:
+                out_file.write(match.group(2) + "\n")
+
+        out_file.close()
+
+
+
 # this gets called if it's run as a script/program
 if __name__ == '__main__':
 

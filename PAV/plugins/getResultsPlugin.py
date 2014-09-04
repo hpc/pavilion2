@@ -45,8 +45,8 @@ class GetResults(IPlugin):
         parser_gr.add_argument('-ts', nargs=1, metavar='<file>',
                                help="test suite to read results path (root) from, defaults to default_test_config.yaml")
 
-        parser_gr.add_argument('-bc', '--make-box-charts', action="store_true",
-                               help='create box charts from the selected set of test results and trend data values')
+        parser_gr.add_argument('-bp', '--make-box-plots', action="store_true",
+                               help='create box plots from the selected set of test results and trend data values')
 
         parser_gr.set_defaults(sub_cmds='get_results')
         return 'get_results'
@@ -85,7 +85,7 @@ class GetResults(IPlugin):
                 print "No results 'root' directory defined in test suite config file(s), exiting!"
                 sys.exit()
 
-        print "\nUse results found in :"
+        print "\nUse results found in:"
         print result_location
          # make sure this dir exists before moving on from here
         if os.access(result_location, os.R_OK) is False:
@@ -95,6 +95,8 @@ class GetResults(IPlugin):
         # call something here that gets the results
         self.logger.debug('invoke get_results on %s' % result_location)
         # add in all the possible args
+        # implement different shared Nix groups leter, use
+        # gzshared for now
         bc = "/scripts/get_results -g gzshared"
         if args['pass']:
             bc += " -p "
@@ -113,7 +115,10 @@ class GetResults(IPlugin):
         if args['td']:
             bc += " -T "
 
-        gr_cmd = os.environ['PV_SRC_DIR'] + bc + " -l " + result_location
+        if args['make_box_plots']:
+            gr_cmd = os.environ['PV_SRC_DIR'] + bc + " -T -l " + result_location + " | ./makeboxplots.py "
+        else:
+            gr_cmd = os.environ['PV_SRC_DIR'] + bc + " -l " + result_location
         #gr_output = subprocess.check_output(gr_cmd, shell=True)
         #print gr_output
         if args['verbose']:
@@ -121,9 +126,7 @@ class GetResults(IPlugin):
             print gr_cmd
         gr_output = subprocess.check_output(gr_cmd, shell=True)
         print gr_output
-        # tie in make box plot component here
-        if args['make_box_charts']:
-            print "make some box charts too!"
+
 
 if __name__ == "__main__":
     print GetResults.__doc__

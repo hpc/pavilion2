@@ -1,9 +1,8 @@
 #!/usr/bin/env python
 
 """
-# function similar to setUpandRun in Gazebo
-# Perform necessary tasks associated with running the job
-# after the msub allocation.
+# Functions similar to setUpandRun in Gazebo.
+# Application that is called by msub.
 """
 
 import sys
@@ -13,6 +12,10 @@ import subprocess
 import shutil
 import platform
 import datetime
+
+newpath = os.environ['PV_SRC_DIR'] + "/modules"
+sys.path.append(newpath)
+from basejobcontroller import BaseJobController
 
 
 def now():
@@ -124,7 +127,7 @@ def main():
             #subprocess.call(cmd1, stdout=job_out_file, shell=True)
             subprocess.call(cmd, stdout=lf, stderr=lf, shell=True)
 
-            # The post_complete file needs to be placed in the log dir
+            # The post_complete file needs to be placed in the results dir
             # for Gazebo compatibility
             pcf = os.environ["PV_JOB_RESULTS_LOG_DIR"] + "/post_complete"
             text_file = open(pcf, "w")
@@ -139,6 +142,10 @@ def main():
             #run_cleanup()
 
             print "<end>", now()
+
+            # The trend_data file needs to be placed in the results dir
+            # for Gazebo compatibility
+            BaseJobController.process_trend_data()
 
 
 # this gets called if it's run as a script/program

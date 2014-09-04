@@ -42,7 +42,7 @@ class RawJobController(BaseJobController):
             print [p.returncode, errors, output]
             self.logger.info(self.lh + " run error: " + errors)
 
-        # The post_complete file needs to be placed in the log dir
+        # The post_complete file needs to be placed in the results dir
         # for Gazebo compatibility
         pcf = os.environ["PV_JOB_RESULTS_LOG_DIR"] + "/post_complete"
         text_file = open(pcf, "w")
@@ -54,6 +54,10 @@ class RawJobController(BaseJobController):
         text_file.close()
 
         print "<end>" , self.now()
+
+        # The trend_data file needs to be placed in the results dir
+        # for Gazebo compatibility
+        BaseJobController.process_trend_data()
     
 # this gets called if it's run as a script/program
 if __name__ == '__main__':
