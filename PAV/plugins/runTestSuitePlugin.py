@@ -12,6 +12,7 @@ import logging
 from yapsy.IPlugin import IPlugin
 from testConfig import YamlTestConfig
 from testEntry import TestEntry
+from ldms import LDMS
 
 
     
@@ -43,7 +44,8 @@ class RunTestSuite(IPlugin):
         parser_rts = subparser.add_parser("run_test_suite", help="run each test in the test suite")
         parser_rts.add_argument('testSuite', help='test-suite-config-file')
         parser_rts.add_argument('-d', "--debug", help="don't run, show what would be done", action="store_true")
-        parser_rts.add_argument('-m', "--ldms", help="start LDMS metrics within Moab allocation", action="store_true")
+        parser_rts.add_argument('-m', "--ldms",
+                                help="start LDMS metrics. Within Moab allocation only", action="store_true")
         parser_rts.set_defaults(sub_cmds='run_test_suite')
         return 'run_test_suite'
 
@@ -80,7 +82,7 @@ class RunTestSuite(IPlugin):
                     if "DefaultTestSuite" in name:
                         continue
 
-                    te = TestEntry(name,params,args)
+                    te = TestEntry(name, params, args)
                     test_type = te.get_type()
                     #print "my test type -> " + test_type
 
@@ -89,6 +91,12 @@ class RunTestSuite(IPlugin):
                     if "moab" in test_type:
                         test_variants = te.get_test_variations()
                         for test_entry in test_variants:
+                            # initialize a unique LDMS for each job, if requested
+                            if args['ldms']:
+                                my_ldms = LDMS(te)
+                                os.environ['LDMS_START_CMD'] = my_ldms.get_start_cmd()
+                            else:
+                                os.environ['LDMS_START_CMD'] = ''
                             for _ in range(te.get_run_times()):
                                 self.job_dispatcher(test_entry)
                     else:

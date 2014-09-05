@@ -70,6 +70,7 @@ def load_jcmod(name, params):
     class_ = getattr(mh, class_name_Cc)
     return class_
 
+
 def build_results_dir(params, name):
 
     """ function to create the final result directory for a job/test.
@@ -173,7 +174,7 @@ def main(args):
             print "<start>" , now()
             this_job.start()
             #print "<end>" , now()
-            logger.info(lh + ' Submitted, possibly completed ')
+            logger.info(lh + ' Submit completed ')
 
 
 

@@ -108,7 +108,7 @@ UniqueTestName:
     # but if it's not done by the job itself this may be a convient way to add
     # this entry.
     # If defined here and executable, call...  
-    epilog_script: ''
+    epilog_script: "" 
 
     ##### TO BE MOVED (???) TO "generic" config file!
     # Script that contains the logic that examines the job log 
@@ -124,12 +124,12 @@ UniqueTestName:
     # command to fire up tool on all nodes
     start_cmd: startJobNodesLDMSD
     # base directory where all output for job resides 
-    output_dir_root: ~
+    output_dir_root: HOME 
     # sample rate
     freq: normal
     # comman separated list of plugin sampler names (all coming soon),
     # will be skipped if not supported
-    metric_list: meminfo,vmstat
+    metric_list: "meminfo,vmstat"
     
 
   time:

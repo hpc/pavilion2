@@ -16,6 +16,7 @@ import datetime
 newpath = os.environ['PV_SRC_DIR'] + "/modules"
 sys.path.append(newpath)
 from basejobcontroller import BaseJobController
+from ldms import LDMS
 
 
 def now():
@@ -53,9 +54,9 @@ def get_moab_node_list():
 
 def run_epilog():
 
-        es = os.environ['PV_ES']
-        if es:
+        if os.environ['PV_ES']:
         # run an epilog script if defined in the test config
+            es = os.environ['PV_ES']
             print "starting epilog script" + str(es)
             os.system(es)
             print "epilog script complete"
@@ -70,7 +71,6 @@ def run_cleanup():
         to_loc = os.environ["PV_JOB_RESULTS_LOG_DIR"]
 
         files2copy = ''
-        #if (self.configs['working_space']['save_from_ws']):
         if os.environ['PV_SAVE_FROM_WS']:
             files2copy = " --include " + os.environ['PV_SAVE_FROM_WS']
 
@@ -91,7 +91,7 @@ def run_cleanup():
             print "Failure copying job results to the output directory:  (Hint: check the job's logfile) "
 
 
-        # remove the working space if it was created
+        # remove the working space only if it was created
         if os.environ['PV_WS']:
             #print "Remove WS - %s " % os.environ['PV_RUNHOME']
             shutil.rmtree(os.environ['PV_RUNHOME'])
@@ -99,11 +99,10 @@ def run_cleanup():
 
 def main():
 
-    #cmd = "cd " + os.environ['PV_RUNHOME'] + "; " + "ls -l"
-
-    #cmd = "cd " + os.environ['PV_RUNHOME'] + "; " + os.environ['USER_CMD']
+    #cmd1 = "cd " + os.environ['PV_RUNHOME'] + "; " + "ls -l"
     cmd = "cd " + os.environ['PV_RUNHOME'] + "; " + \
             os.environ['PV_SRC_DIR'] + "/scripts/mytime " + os.environ['USER_CMD']
+
     nodes = get_moab_node_list()
     job_log_file = os.environ["PV_JOB_RESULTS_LOG"]
 
@@ -114,17 +113,21 @@ def main():
             sys.stderr = lf
 
             print "<nodes> " + nodes + "\n"
-            print "\n ->  moab_job_hander: invoke %s" % cmd
+            print "moab_job_hander: "
+
+            # start LDMS here if requested!  If the start command is
+            # defined, then it's a go!
+            if os.environ['LDMS_START_CMD']:
+                print "  start ldms with: \n    " + os.environ['LDMS_START_CMD']
+                LDMS.start(os.environ['LDMS_START_CMD'])
+
+            print "  start job with: \n    " + cmd
             lf.flush()
 
-        # call the command that runs the users test/job
-
-        # all these work with job_out_file = /users/cwi/mystdout
-        #subprocess.call(cmd1, stdout=job_out_file, shell=True)
-        #subprocess.call(cmd2, stdout=job_out_file, shell=True)
-        #subprocess.call(cmd3, stdout=job_out_file, shell=True)
-
+            # Call the command that runs the users test/job
+            # This works with job_out_file = /users/cwi/mystdout
             #subprocess.call(cmd1, stdout=job_out_file, shell=True)
+
             subprocess.call(cmd, stdout=lf, stderr=lf, shell=True)
 
             # The post_complete file needs to be placed in the results dir
@@ -137,9 +140,6 @@ def main():
             run_cleanup()
             text_file.write("{}\n".format("cleanup complete"))
             text_file.close()
-
-            #if os.environ['PV_WS']:
-            #run_cleanup()
 
             print "<end>", now()
 

@@ -149,7 +149,6 @@ class BaseJobController():
         tcf_file.write(json.dumps(self.configs, sort_keys=True, indent=4))
         tcf_file.close()
 
-
     def build(self):
         # call the command that builds the users test/job
         bld_cmd = self.configs['source_location'] + "/" + self.configs['build']['cmd']
@@ -216,7 +215,6 @@ class BaseJobController():
             print [p.returncode, errors, output]
             self.logger.info(self.lh + " failure copying job results to the output directory: " + self.name +
                                        "(Hint: check the job's logfile)")
-
 
         # remove the working space if it was created
         #if self.configs['working_space']['path']:
