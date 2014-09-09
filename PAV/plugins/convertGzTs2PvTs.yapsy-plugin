@@ -1,0 +1,9 @@
+[Core]
+Name = gzts2pvtsPlugin
+Module = convertGzTs2PvTs 
+
+[Documentation]
+Author = Phil Romero 
+Version = 0.01
+Website = http://lotsofplugins.com
+Description = Convert a gazebo test suite file into a pavillion test suite file

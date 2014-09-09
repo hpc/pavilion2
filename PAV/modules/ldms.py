@@ -31,7 +31,7 @@ class LDMS():
         self.output_dir = self.create_output_dir()
 
     def create_output_dir(self):
-        # This dir must be created before LDMS starts and should
+        # This dir must be created before LDMS can start and should
         # be unique so that each new test run does not stomp on
         # existing data from a prior one.
 
@@ -48,7 +48,7 @@ class LDMS():
             os.makedirs(output_dir, 0o755)
         except OSError:
             print " Error creating metrics directory : \n\t" + output_dir
-            self.logger.info(self.lh + " Error creating metrics directory! : \n\t" + output_dir)
+            self.logger.info(self.lh + " Error creating metrics directory : \n\t" + output_dir)
             output_dir = ''
             pass
 

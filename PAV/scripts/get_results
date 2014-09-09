@@ -136,8 +136,6 @@ if (( "$opt{S}" ne "" ) || ( "$opt{s}" ne "" ))  {
   }
 }
 
-
-
 # catch bogus entries
 if ($start eq "" ) {
     $start = `date -I -d "15 days ago"`;
@@ -148,11 +146,8 @@ chomp($start);
 #$jobsRunning = `$GH/gzjobs | grep -i $me | grep running | awk '{ print \$1 }' | xargs `;
 #$activeJobs = `$GH/gzjobs | grep -i $me | awk '{ print \$1 }' | xargs `;
 $activeJobs = "";
-if (exists $ENV{TOSS})  {
-    $activeJobs = `$PH/scripts/pvjobs | grep -e "^[0-9]" | awk '{ print \$1 }' | xargs `;
-    print "active jobs - $activeJobs\n" if ($opt{v});
-}
-
+#$activeJobs = `$PH/scripts/pvjobs | grep -e "^[0-9]" | awk '{ print \$1 }' | xargs `;
+$activeJobs = `$PH/scripts/pvjobs | grep -i $me | awk '{ print \$1 }' | xargs `;
 
 print "\n *** Job Summary ***\n";
 print " From: $start through $end \n";
@@ -165,7 +160,7 @@ unless ( $opt{a} ) {
 my $cmd;
 # specify alternate dirs to search for logs.
 # will only work for the parent of directories with the form
-# <testName>_<JobId>_<SegName>.date
+# <testName>_<Id>_<SegName>.date
 print "\t results directory -> $opt{l}\n\n";
 $res_dir = $opt{l};
 $cmd = "find $opt{l} -type d -maxdepth 1 -mindepth 1";
@@ -261,7 +256,7 @@ foreach $group (@grps) {
 	}
     }
 
-    #get name, cu, jobid, and time of this test run
+    #get name, cu, pid, and time of this test run
     my @tmpstr = split( /\./, $ld );
     my $arrlen = @tmpstr;
     if ( $arrlen != 2 ) {
@@ -272,50 +267,52 @@ foreach $group (@grps) {
     my $testCU = "";
     my $testName = "";
     my $runScript = "";
-    my $testjid = "";
+    my $testpid = "";
     my $testTime = $tmpstr[1];
     my @tmpstr1  = split( /__/, $tmpstr[0] );
     $arrlen = @tmpstr1;
-    # make sure all four parts are present (testname, jobid, segment name, run script)
+
+    # HW-raw__iPassed__109958__ml-fey1.  This number is NOT the  moab jobid in Pavililion!
+    # make sure all four parts are present (testname, run script, pid, segment name)
     if ( $arrlen == 4 ) {
       $testCU   = $tmpstr1[3];
       $testName = $tmpstr1[0];
-      $testjid  = $tmpstr1[2];
+      $testpid  = $tmpstr1[2];
     } else {
-      # keep handling old format
-      @tmpstr1  = split( /_/, $tmpstr[0] );
-      $arrlen = @tmpstr1;
-      if ( $arrlen == 3) {
-        $testCU   = $tmpstr1[2];
-        ($testName,$runScript) = split("-", $tmpstr1[0]);
-        $testjid  = $tmpstr1[1];
-      } else {
         print "warning, invalid test info -> $tmpstr[0], skipping \n";
-        next;
-      }
-    }
-
-    # skip if this test is currently running
-    if ( $activeJobs =~ /\b$testjid\b/ )  {
-        print "skipping active job ${testName}_${testjid}_${testCU}_${pes}\n" if ($opt{v});
         next;
     }
 
     @lfs = glob("$_/*.log");
     $lf = "";
-    # get correct log file
+    # get real log file in case some other log file was created
     if (@lfs) {
-      print " choices are: @lfs\n" if ($opt{v});
       foreach $f (@lfs) {
         my $tlf = basename($f); 
         if ($tlf =~ /^$testName/) {
           $lf = $f; 
+          print " log file is : $lf\n" if ($opt{v});
         }
       }
     } else {
       # save these around for the job analyzer
       print " NO LOG FILE EXISTS for $_\n"if ($opt{v});
       print NL "$_\n";
+    }
+
+    # get the real moab jobid 
+    $testjid = "";
+    if ( -r "$lf" ) {
+        $testjid = `grep -m 1 "<JobID>" '$lf' | gawk '{ print \$2 }'`;
+        chomp($testjid);
+        print "my moab job id : $testjid\n" if ($opt{v});
+    }
+
+    # skip if this test is currently running
+    print "my active jobs - $activeJobs\n" if ($opt{v});
+    if ( $activeJobs =~ /\b$testjid\b/ )  {
+        print "skipping active job $testjid\n" if ($opt{v});
+        next;
     }
 
     @tf = glob("$_/trend*");
@@ -364,7 +361,7 @@ foreach $group (@grps) {
             } else {
               if ($thisStart lt $earliestStart) {
                 $earliestStart = $thisStart;
-print "my earliest start is $thisStart\n";
+                #print "my earliest start is $thisStart\n";
               }  
             }
           }

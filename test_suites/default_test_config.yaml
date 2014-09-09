@@ -53,24 +53,29 @@ UniqueTestName:
   # Optional scheduler section needed if defined in Run section
   moab:
 
-     # Parameter(s) provided to scheduler
-     # Element stanza corresponds to scheduler choice above.
-     # All combinations of <num_nodes> and <procs_per_node> will be
-     # tried by by the scheduler where it makes sense. A "none"
-     # choice simply invokes the run command once
+    # Parameter(s) provided to scheduler
+    # Element stanza corresponds to scheduler choice above.
+    # All combinations of <num_nodes> and <procs_per_node> will be
+    # tried by by the scheduler where it makes sense. A "none"
+    # choice simply invokes the run command once
 
-     # comma separated list of values, or range 
-     num_nodes: 1
-     # queue to submit jobs against
-     queue: '' 
-     # comma separated list of values, or range 
-     procs_per_node: 16
-     # time in hr::min::secs
-     time_limit: 01:00:00
-     # free formatted string added to msub invocation line
-     msub_args:
-     # optional target segment, will be added to feature argument
-     target_seg: ''
+    # comma separated list of values, or range 
+    num_nodes: 1
+    # queue to submit jobs against
+    queue: '' 
+    # comma separated list of values, or range 
+    procs_per_node: 16
+    # time in hr::min::secs
+    time_limit: 01:00:00
+    # free formatted string added to msub invocation line
+    msub_args:
+    # optional target segment, will be added to feature argument
+    target_seg: "" 
+    # optional list of nodes to target 
+    node_list: "" 
+    # optional, percent of submitted jobs this job should consume 
+    percent: ""
+    
 
   # Working space section
   # The default is to create a working space to run each job.

@@ -90,7 +90,6 @@ class MoabJobController(BaseJobController):
         if self.is_moab_system():
             self.logger.info(self.lh + " : " + msub_cmd)
             # call to invoke real Moab command
-            os.environ['TOSS'] = "True"
             output = subprocess.check_output(msub_cmd, shell=True)
             # Finds the jobid in the output from msub. The job id can either
             # be just a number or Moab.number.
