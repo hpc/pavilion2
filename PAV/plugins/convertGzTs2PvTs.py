@@ -98,7 +98,6 @@ class gzts2pvtsPlugin(IPlugin):
             gzhome = os.environ.get('GZHOME')
             # print "gzhome is ", gzhome
             if gzhome:
-                testparentdir = gzhome
                 if args['verbose']:
                     print "GZHOME is not empty ", gzhome
                     print "Using a test parent directory of " + gzhome
@@ -106,8 +105,8 @@ class gzts2pvtsPlugin(IPlugin):
                 testparentdir = "/REQUIRED"
                 gzhome = testparentdir
                 if args['verbose']:
-                    print "GZHOME environment variable is empty ", gzhome
-                    print "Warning: cannot determine a test parent directory, continuing."
+                    print "Warning: GZHOME environment variable is empty "
+                    print "Cannot determine a test parent directory, continuing."
         else:
             gzhome = testparentdir
 
@@ -115,8 +114,12 @@ class gzts2pvtsPlugin(IPlugin):
             print "Converting %s gazebo test suite " % gzinputfile
             print " to %s that's in Pavilion test suite format " % pvoutputfile
 
-        gz_in_file = open(gzinputfile, 'r')
-        pv_out_file = open(pvoutputfile, 'w')
+        try:
+            gz_in_file = open(gzinputfile, 'r')
+            pv_out_file = open(pvoutputfile, 'w')
+        except IOError:
+            print "Error: opening I/O file, exiting!"
+            sys.exit()
 
 
 # example gazebo input line:
@@ -165,12 +168,12 @@ class gzts2pvtsPlugin(IPlugin):
                             testline = "  name: " + keysplit[1]
                             print >> pv_out_file, testline
                             srclocation = "  source_location: '" + gzhome + "/test_exec/" + keysplit[1] + "'"
-                            if gzhome != "":
+                            if gzhome:
                                 print >> pv_out_file, srclocation
                             else:
                                 print >> pv_out_file, "source_location: REQUIRED"
                                 if args['verbose']:
-                                    print "source location could not be found, you must replace REQUIRED text."
+                                    print "source location could not be found, replace REQUIRED text in output file"
 
                             print >> pv_out_file, '  run:'
                             getrunscript = "grep CMD " + gzhome + "/test_exec/" + keysplit[1] +\
@@ -194,7 +197,7 @@ class gzts2pvtsPlugin(IPlugin):
                             else:
                                 print >> pv_out_file, "    cmd: REQUIRED"
                                 if args['verbose']:
-                                    print "command could not be found, you must replace REQUIRED text."
+                                    print "run command could not be found, replace REQUIRED text output file"
 
                             print >> pv_out_file, "    scheduler: moab"
                             # print "in case ", keysplit[0], " is ", keysplit[1]
@@ -254,6 +257,8 @@ class gzts2pvtsPlugin(IPlugin):
 
         gz_in_file.close()
         pv_out_file.close()
+
+        print "\nNew Test Suite written to -> " + pvoutputfile
 
 
 if __name__=="__main__":
