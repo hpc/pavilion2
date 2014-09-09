@@ -1,9 +1,6 @@
-Pavilion test handler
+Pavilion Development Notes 
 
 Built and tested on Python 2.7
-
-To Run:
-  - in the PAV directory type "pth -h"
 
 To Build a src distribution tar file:
   - edit the setup.py file appropriately
