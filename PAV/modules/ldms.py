@@ -35,7 +35,7 @@ class LDMS():
         # be unique so that each new test run does not stomp on
         # existing data from a prior one.
 
-        sub_dir = self.name + "-" + datetime.datetime.now().strftime('%H:%M:%S%f')
+        sub_dir = self.name + "-" + datetime.datetime.now().strftime('%m-%d-%YT%H:%M:%S%f')
         if "HOME" in self.output_dir_root:
             root = os.environ['HOME']
         else:

@@ -52,7 +52,7 @@ class gzts2pvtsPlugin(IPlugin):
 
     def add_parser_info(self, subparser): 
         parser_gzts2pvts = subparser.add_parser("gzts2pvts",
-                                                help="convert old gazebo test suite to paviltion test suite")
+                                                help="convert Gazebo test suite to Pavilion test suite")
         parser_gzts2pvts.add_argument('-i', default='inputfile',
                                       help='input file in gazebo test suite format')
         parser_gzts2pvts.add_argument('-o', default='~/inputfile.yaml',
@@ -112,8 +112,8 @@ class gzts2pvtsPlugin(IPlugin):
             gzhome = testparentdir
 
         if args['verbose']:
-            print "I should convert %s gazebo test suite " % gzinputfile
-            print " to %s that is in pav test suite format " % pvoutputfile
+            print "Converting %s gazebo test suite " % gzinputfile
+            print " to %s that's in Pavilion test suite format " % pvoutputfile
 
         gz_in_file = open(gzinputfile, 'r')
         pv_out_file = open(pvoutputfile, 'w')
@@ -159,12 +159,12 @@ class gzts2pvtsPlugin(IPlugin):
                     # use a switch statement to process the key value pairs
                     while Switch(keysplit[0]):
                         if case('name'):
-                            print >> self.pv_out_file, emptyline
+                            print >> pv_out_file, emptyline
                             testline = keysplit[1] + "-" + str(linenumber) + ":"
                             print >> pv_out_file, testline
-                            testline = "name: " + keysplit[1]
+                            testline = "  name: " + keysplit[1]
                             print >> pv_out_file, testline
-                            srclocation = "source_location: '" + gzhome + "/test_exec/" + keysplit[1] + "'"
+                            srclocation = "  source_location: '" + gzhome + "/test_exec/" + keysplit[1] + "'"
                             if gzhome != "":
                                 print >> pv_out_file, srclocation
                             else:
@@ -188,11 +188,11 @@ class gzts2pvtsPlugin(IPlugin):
                             newcmd = string.replace(output, '"', '')
                             newcmd = string.replace(newcmd, ';', '\'')
                             newcmd = string.replace(newcmd, '\n', '')
-                            testline = "cmd: '" + newcmd
+                            testline = "    cmd: '" + newcmd
                             if newcmd != "":
                                 print >> pv_out_file, testline
                             else:
-                                print >> pv_out_file, "cmd: REQUIRED"
+                                print >> pv_out_file, "    cmd: REQUIRED"
                                 if args['verbose']:
                                     print "command could not be found, you must replace REQUIRED text."
 
@@ -238,20 +238,19 @@ class gzts2pvtsPlugin(IPlugin):
                         #  printed in order print out the remaining 5 tags in order so they fall under the
                         #  moab: section. "
 
+                print >> pv_out_file, '  moab:'
+                if num_nodes == 1:
+                    print >> pv_out_file, numnodesline
+                if procspernode == 1:
+                    print >> pv_out_file, procspernodeline
+                if timelimit == 1:
+                    print >> pv_out_file, timeline
+                if nodelist == 1:
+                    print >> pv_out_file, nodeline
+                if pctlist == 1:
+                    print >> pv_out_file, pctline
 
-                        print >> pv_out_file, 'moab:'
-                        if num_nodes == 1:
-                            print >> pv_out_file, numnodesline
-                        if procspernode == 1:
-                            print >> pv_out_file, procspernodeline
-                        if timelimit == 1:
-                            print >> pv_out_file, timeline
-                        if nodelist == 1:
-                            print >> pv_out_file, nodeline
-                        if pctlist == 1:
-                            print >> pv_out_file, pctline
-
-                linenumber += 1
+            linenumber += 1
 
         gz_in_file.close()
         pv_out_file.close()
