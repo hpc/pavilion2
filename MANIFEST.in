@@ -6,4 +6,4 @@ include t1/i*
 include PAV/plugins/*.yapsy-plugin
 include PAV/scripts/*
 include docs/*.txt
-include README.* 
+recursive-include README.* 
