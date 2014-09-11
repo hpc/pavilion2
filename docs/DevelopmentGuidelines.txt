@@ -3,42 +3,52 @@ Pavilion guidlines to follow for cohesive team product development.
 1. General
 -------
 
-1.1 Define requirements
+1.1 Define requirements (Mostly Finished)
 1.2 Expand (flesh out) requirements in Design Specification
-1.3 Prototype functionality and refine Design Spec, if needed
-1.4 Follow coding and code process as stated in steps 2 & 3
+1.3 Implement functionality and refine Design Spec as needed 
+1.4 Follow coding and code processes as stated in steps 2 & 3
 
 
 2. Coding - Generally being developed in Python. However, in cases where a shell script or other language makes sense, use it.
-------
 
 2.1 Style
 
   Idiomatic Python - http://python.net/~goodger/projects/pycon/2007/idiomatic/handout.html
 
-2.2 In line documentation  
-
-2.3 Language References 
+2.2 Language References 
 
  - http://www.greenteapress.com/thinkpython/thinkpython.pdf (nice, but more introductory)
  - http://www.diveintopython3.net
 
 
-
-3. Coding Process
+3. Coding Process/Philosphy
 -------
 
-3.1 Repository and Use 
+3.1 Code Sharing 
 
-3.1.1  Stored at git.lanl.gov/cwi/clth
+3.1.1  Stored at git.lanl.gov/cwi/pavilion
 
 3.1.2  Team development with Git - http://blog.ericbmerritt.com/2011/12/05/team-development-with-git.html
 
-3.2 Adding Functions as modules 
+3.2 Directory Structure <INSTALL_DIR>/PAV, test, docs, man, README's, etc.
 
-3.3 Unit or Self testing
+3.2.1 All source code under the PAV directory
 
-3.4 Setting up and using Virtual Environments
+3.2.1 Add new sub-commands in Plugins, with all "new" support code added to modules directory, under PAV.  
+
+3.2.2 External packages (outside of std Python distro) collected under special_pkgs directory, under PAV 
+
+3.3 Unit or Self testing to be used to verify correctness of code before any new release in test directory.
+
+3.4 Use setting up and using Virtual Environments to improve development process 
 
  - http://jeffknupp.com/blog/2014/02/04/starting-a-python-project-the-right-way/ 
 
+4. Test Configuration/Extensibility
+
+ - Test groups (test_suites directory) defined in a test_config YAML file.
+ - Each specific test to run defined as a new stanza in a user created test_config file.
+ - A default_test_config file serves as the master set of definitions for a test stanza.
+ - Only a miminal set of parameters may be needed to configure a new test. Each test inherits
+   its complete definition from the default file, so only define the differing parameters.
+    i.e. -  name, location, run_script_name

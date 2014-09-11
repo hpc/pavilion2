@@ -4,17 +4,25 @@
 import sys
 import os
 
+if sys.version_info[0] != 2 or sys.version_info[1] < 7:
+    sys.exit("Python 2.7 is required to run Pavilion")
+
+# support creating Python style command line interfaces
+#import argparse
+
+sys.path.append(os.path.join(os.path.dirname(__file__), "./special_pkgs"))
+#print sys.path
+
 # support creating Python style command line interfaces
 import argparse
 
 # support for dynamically loading new features/commands from a "plugins" directory
-sys.path.append(os.path.join(os.path.dirname(__file__), "./special_pkgs"))
-#print sys.path
 from yapsy.PluginManager import PluginManager
 
 # set up logging
 import logging
 master_log_file = '/tmp/pth.log'
+
 logger = logging.getLogger('pth')
 logger.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -22,32 +30,38 @@ fh = logging.FileHandler(filename=master_log_file)
 fh.setFormatter(formatter)
 logger.addHandler(fh)
 
+logy = logging.getLogger('yapsy')
+logy.setLevel(logging.DEBUG)
+logy.addHandler(fh)
+
 global _debug
 
 # look for modules relative to where this program is located
 sys.path.append(os.path.join(os.path.dirname(__file__), "./modules"))
 os.environ['PV_SRC_DIR'] = os.getcwd()
-if (os.environ.get('PV_SRC_DIR')):
+if os.environ.get('PV_SRC_DIR'):
     sys.path.append(os.environ.get('PV_SRC_DIR'))
+
 
 # stub foo sub-command implemented in the main
 def foo():
     print "running foo"
-    
+
+
 def usage():
     print __doc__
-        
+
+
 def main():
     """Main entry point for the test harness."""
 
-    _debug = 0
+    #_debug = 0
     func_map = {}
     
     # construct main input arguments
     parser = argparse.ArgumentParser(prog="Pavilion")
     subparser = parser.add_subparsers(title="commands", help='sub-commands')
     parser.add_argument("-v", "--verbose", help="provide verbose output", action="store_true")
-    #parser.add_argument('-g', '--hello', help='prints greeting', action="store_true")
     parser_foo = subparser.add_parser('foo', help="foo help message")
     parser_foo.set_defaults(sub_cmds='foo')
 
@@ -58,22 +72,22 @@ def main():
     # Find and load the sub-commands (plug-ins) and their arguments
 
     # Build the manager
-    PavPluginManager = PluginManager()
+    plug_man = PluginManager()
     # Inform where to find plug-ins
     # User can add more places to look by setting ENV PV_PLUGIN_DIR
     plugin_places = ['./plugins']
-    if (os.environ.get('PV_PLUGIN_DIR')):
+    if os.environ.get('PV_PLUGIN_DIR'):
         plugin_places.append(os.environ.get('PV_PLUGIN_DIR'))
-    PavPluginManager.setPluginPlaces(plugin_places)
+    plug_man.setPluginPlaces(plugin_places)
     # Load all the plug-ins
     logger.info('Loading plugins')
-    PavPluginManager.collectPlugins()
+    plug_man.collectPlugins()
     
     # create a hash that maps all sub-commands to their respective function call
-    for pluginInfo in PavPluginManager.getAllPlugins():
+    for pluginInfo in plug_man.getAllPlugins():
                     
         try: 
-            # let new functions add to the help line
+            # let new functions add their own args to the help line
             func = pluginInfo.plugin_object.add_parser_info(subparser)
             # dictionary of function name to object mapping
             func_map[func] = pluginInfo.plugin_object
@@ -85,7 +99,6 @@ def main():
     # record the command line selections
     logger.info('cmd line args: %s' % args)
 
-       
     # Process sub-commands, most of which should be found
     # in the plug-ins directory.
     print "Invoke command: -> " + args['sub_cmds']
@@ -95,7 +108,6 @@ def main():
         # invoke the cmd method of the object that corresponds to
         # the command selected
         getattr(func_map[args['sub_cmds']], 'cmd')(args)
-        
 
 
 # this gets called if it's run as a script/program

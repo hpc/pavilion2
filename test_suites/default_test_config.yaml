@@ -1,15 +1,14 @@
 # YAML        
 
-#   Default test configuration file, vers. 0.2 
+#   Default test configuration file, vers. 0.3 
 
 # NOTE - all CAPS variable are env vars
 
-#    All entires can be re-defined by a users test config
-#    file (found in PV_HOME/test_conf) with defaults inherited
-#    from this file.
-#    In theory, the entire default file can be used, but we recommend
-#    making a copy, editing at least the name, location, and
-#    runcmd sub-elements and removing everything else you don't need.
+#    Each test entiry can be re-defined by a users test config
+#    file with defaults inherited from this file.
+#    In theory, the entire default file can be used, but it's recommended
+#    at least changing the name, location, and run:cmd sub-elements
+#    and removing everything else you don't need.
 #
 
 # for YAML formatting issues try: http://yaml-online-parser.appspot.com
@@ -20,15 +19,17 @@
  
 # A new named stanza is needed for each new test,
 # but you only need to change what is different from the
-# default testSuite config file
+# this default test_config file
 
-# Default testSuite override.
+# Default testSuite override. Change the default file to that's used. 
 # Uncomment and place in User defined testSuite with
 # a fully qualified path/name or just name of the file.
 # DefaultTestSuite: default_test_suite.yaml
 
 # UNIQUE test/job identifier. Any string will do.
 UniqueTestName:
+
+  name: TestName
 
   # uri of test  
   source_location: HOME
@@ -50,7 +51,7 @@ UniqueTestName:
      # number of times to repeat
      count: 1
 
-  # Optional scheduler section needed if defined in Run section
+  # Optional scheduler section needed if defined in the "run" section
   moab:
 
     # Parameter(s) provided to scheduler
@@ -73,14 +74,15 @@ UniqueTestName:
     target_seg: "" 
     # optional list of nodes to target 
     node_list: "" 
-    # optional, percent of submitted jobs this job should consume 
+    # optional. Percent of cluster consumed by this particular test in this
+    # test suite of jobs. Noralization will occurr. 
     percent: ""
     
 
   # Working space section
   # The default is to create a working space to run each job.
-  # If changed to a null value ("") then none created, otherwise
-  # it should be relative to the source directory or a
+  # If changed to a null value ("") then none created or used, otherwise
+  # it should will be relative to the source directory or can be 
   # fully specified directory.
 
   working_space:
@@ -93,7 +95,7 @@ UniqueTestName:
   # Results section
   results:
 
-    # The test handler places all results under this directory.
+    # The test handler places all results under this directory space.
     root: '/Users/cwi/pv_results'
 
     # Pass or Fail matching pattern
@@ -102,33 +104,35 @@ UniqueTestName:
     pass_fail_regex: '<result\w{0,1}>\s*(.+)'
 
     # Trend Data matching pattern
-    # the test handler will try to match "<td> name value units"
+    # the test handler will try to match "<td> name value [units]"
     # to discover any special result data  (a.k.a - trend data).
     # The "units" field is optional.
     trend_data_regex: <td>\s+(.*)
 
     # Script called at the end of the job. By default, the test harness requires
-    # a "<result>" entry in the job output log file at the beginning of a line
+    # a "<result>" entry in the job output located at the beginning of a line
     # followed by a pass or fail. Of course, there are many ways to accomplish this,
-    # but if it's not done by the job itself this may be a convient way to add
-    # this entry.
-    # If defined here and executable, call...  
+    # but if it's not done by the job itself this may be a convient way to post-process 
+    # the data and add this entry.
+    # *** If define, make sure it's executable  
     epilog_script: "" 
 
-    ##### TO BE MOVED (???) TO "generic" config file!
     # Script that contains the logic that examines the job log 
     # to see if the test passed or failed.  chk_pf reports
     # a fail if there are any "fail" matches with the
     # pass_fail_regex, OR it can report pass if at least one "pass"
     # is matched with the regex, otherwise unknown is reported.
-    pass_fail_logic: $TH_BIN/chk_pf
+    # DO NOT change at this time!
+    pass_fail_logic: chklg
 
+  # the LDMS tool will use these settings 
+  # this tool can generate a great deal of data!
   ldms:
-    # to be set to env var LDMS_HOME
+    # used to set env var LDMS_HOME
     install_dir : "/usr/projects/hpctools/ldms"
-    # command to fire up tool on all nodes
+    # command to start up processes on nodes
     start_cmd: startJobNodesLDMSD
-    # base directory where all output for job resides 
+    # root directory where all output will go 
     output_dir_root: HOME 
     # sample rate
     freq: normal
@@ -136,6 +140,5 @@ UniqueTestName:
     # will be skipped if not supported
     metric_list: "meminfo,vmstat"
     
-
   time:
     tz: 'US/Mountain'

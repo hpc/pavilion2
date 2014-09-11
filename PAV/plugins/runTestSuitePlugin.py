@@ -15,7 +15,6 @@ from testEntry import TestEntry
 from ldms import LDMS
 
 
-    
 class RunTestSuite(IPlugin):
     """ This implements the plug-in, or command, to run a suite of tests as
         defined in the users test suite configuration file.
@@ -58,12 +57,11 @@ class RunTestSuite(IPlugin):
             print "TestSuite search path -> " + os.path.dirname(os.path.realpath(args['testSuite']))
         
         try:
-            with open(args['testSuite']) as file:
+            with open(args['testSuite']) as af:
 
                 # Use the default (or master) test suite configuration from the same directory
                 #dts = os.path.dirname(os.path.realpath(args['testSuite'])) + "/default_test_config.yaml"
                 # Build the test configuration
-                #tc = YamlTestConfig(args['testSuite'], dts)
                 tc = YamlTestConfig(args['testSuite'])
                 if args['verbose']:
                     print "User test suite:"
@@ -86,8 +84,9 @@ class RunTestSuite(IPlugin):
                     test_type = te.get_type()
                     #print "my test type -> " + test_type
 
-                    test_variants = [(None)]
+                    test_variants = [None]
                     # get list of "new" test entries
+                    # launch a new process for each test variation or count
                     if "moab" in test_type:
                         test_variants = te.get_test_variations()
                         for test_entry in test_variants:
@@ -103,27 +102,10 @@ class RunTestSuite(IPlugin):
                         for _ in range(te.get_run_times()):
                             self.job_dispatcher(te)
 
-                 #   count = 1
-                    # If there is one test variation then allow multiple runs,
-                    # otherwise run only ONCE for each variation
-                 #   if (test_variants.__len__()  == 1):
-                 #      count = te.get_count()
-
-                    # new process for each test variation
-                #    for test_entry in test_variants:
-                 #   for test_entry in test_variants.__iter__():
-                 #       print var, type(var)
-                 #       for _ in range(count):
-                #          if isinstance(var, tuple):
-                 #               self.logger.info('dispatch: %s, variation: (%s x %s)' % (name, var[0], var[1]))
-                 #           else:
-                #             self.logger.info('dispatch: %s, variations: %s' % (name, var))
-                 #           job_dispatcher(name, params, var)
-                 #           job_dispatcher2(test_entry)
         except EnvironmentError as err:
             print "  Error: could not access test suite %s" % args['testSuite']
             sys.exit()
         
 
-if __name__=="__main__":
+if __name__ == "__main__":
     print RunTestSuite.__doc__
