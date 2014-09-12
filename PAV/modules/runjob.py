@@ -5,7 +5,7 @@
 
 import sys
 import os
-import datetime, pytz
+import datetime
 import json
 import logging
 import errno
@@ -83,12 +83,13 @@ def build_results_dir(params, name):
     new_dir = root_result_dir + "/gzshared/"
     date_parts = datetime.datetime.now().strftime("%Y/%Y-%m/%Y-%m-%d/")
     target = platform.uname()[1].split(".", 1)[0]
-    new_dir = new_dir +  date_parts + target + "/" + name + "/"
+    new_dir = new_dir + date_parts + target + "/" + name + "/"
     pid = str(os.getpid())
     my_timezone = params['time']['tz']
+    now = datetime.datetime.now()
     ld = name + "__" + params['run']['cmd'].split(".", 1)[0] + \
          "__" + pid + "__" + target  \
-         + "." + datetime.datetime.now(pytz.timezone(my_timezone)).strftime('%Y-%m-%dT%H:%M:%S%z')
+         + "." + now.strftime('%Y-%m-%dT%H:%M:%S%f')
     new_dir += ld
 
     logger.info("Make log directory: " + new_dir)
