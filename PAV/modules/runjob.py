@@ -11,19 +11,16 @@ import logging
 import errno
 import platform
 
-# handle for all logging
-logger = ""
 
-
-def convert(input):
-    if isinstance(input, dict):
-        return {convert(key): convert(value) for key, value in input.iteritems()}
-    elif isinstance(input, list):
-        return [convert(element) for element in input]
-    elif isinstance(input, unicode):
-        return input.encode('utf-8')
+def convert(inp):
+    if isinstance(inp, dict):
+        return {convert(key): convert(value) for key, value in inp.iteritems()}
+    elif isinstance(inp, list):
+        return [convert(element) for element in inp]
+    elif isinstance(inp, unicode):
+        return inp.encode('utf-8')
     else:
-        return input
+        return inp
 
 from contextlib import contextmanager
 @contextmanager
@@ -43,7 +40,7 @@ def greet(greeting='hello'):
     print greeting + " world!"
 
 
-def load_jcmod(name, params):
+def load_jcmod(eid, params):
 
     """
         Basically trying to dynamically load the correct job controller
@@ -63,7 +60,7 @@ def load_jcmod(name, params):
 
     except:
         print "Warning: no job controller for scheduler type %s" % params['run']['scheduler']
-        print "  Skipping job %s" % name
+        print "  Skipping job %s" % eid
         return
 
     # get a reference to the JobController class
@@ -127,26 +124,26 @@ def main(args):
 
     params = json.loads(args[2])
     params = convert(params)
-    name = args[1]
+    entry_id = args[1]
     variation = json.loads(args[3])
 
     #signal(SIGPIPE,SIG_DFL)
 
     # This handle "name(pid)" can be used to follow all activity of this
     # specific job thread in the pth.log file
-    logger_name = name + "(" + str(os.getpid()) + ")"
+    logger_name = entry_id + "(" + str(os.getpid()) + ")"
     params['log_handle'] = logger_name
     lh = params['log_handle']
 
     # Load the correct JobController module for this specific job/test
-    jc = load_jcmod(name, params)
+    jc = load_jcmod(entry_id, params)
     logger.info(lh + ": loaded %s jobcontroller " % params['run']['scheduler'])
 
     # all STDOUT and STDERR from job directed to its own log file
-    results_dir = build_results_dir(params, name)
+    results_dir = build_results_dir(params, entry_id)
     os.environ["PV_JOB_RESULTS_LOG_DIR"] = results_dir
 
-    logfile = results_dir + "/" + name + ".log"
+    logfile = results_dir + "/" + entry_id + ".log"
     os.environ["PV_JOB_RESULTS_LOG"] = logfile
     logger.info(lh + ": logfile -> %s" % logfile)
 
@@ -158,7 +155,7 @@ def main(args):
 
             try:
             # instantiate job controller object
-                this_job = jc(name, params, lf, variation)
+                this_job = jc(entry_id, params, lf, variation)
             except:
                 logging.error(lh + ' failed to instantiate job object, exiting job ')
                 return

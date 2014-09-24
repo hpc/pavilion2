@@ -71,9 +71,9 @@ class LDMS():
     @staticmethod
     def start(cmd):
         # start and don't wait. Report success or fail in the log(s).
-
+        outfile = LDMS.get_output_dir() + "ldms.out"
         try:
-            output = subprocess.check_output(cmd, shell=True)
+            output = subprocess.check_output(cmd, stdout=outfile, shell=True)
             print output
         except subprocess.CalledProcessError as e:
             ret = e.returncode

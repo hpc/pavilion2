@@ -63,24 +63,31 @@ class RunTestSuite(IPlugin):
                 #dts = os.path.dirname(os.path.realpath(args['testSuite'])) + "/default_test_config.yaml"
                 # Build the test configuration
                 tc = YamlTestConfig(args['testSuite'])
+                utc = tc.get_user_test_config()
                 if args['verbose']:
                     print "User test suite:"
-                    utc = tc.get_user_test_config()
                     print "  %s" % utc
+
+                #for uid, elem in utc.iteritems():
+                #    if type(elem) is dict:
+                #        if not TestEntry.check_valid(elem):
+                #            print ", invalid entry (%s) skipping!" % uid
+                #            continue
 
                 # get the "merged" test stanza for each test in the test suite
                 my_test_suite = tc.get_effective_config_file()
 
                 # Process and launch a new test for each test entry (stanza) in the test suite
                 # and its variations here.
-                for name, params in my_test_suite.iteritems():
+                for entry_id, params in my_test_suite.iteritems():
 
                     # This just defines where to find a different DTS, so
                     # skip this entry.
-                    if "DefaultTestSuite" in name:
+                    if "DefaultTestSuite" in entry_id:
                         continue
 
-                    te = TestEntry(name, params, args)
+                    te = TestEntry(entry_id, params, args)
+
                     test_type = te.get_type()
                     #print "my test type -> " + test_type
 

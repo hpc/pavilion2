@@ -5,6 +5,18 @@ import logging
 import itertools
 
 
+def flatten_dict(d):
+    def items():
+        for key, value in d.items():
+            if isinstance(value, dict):
+                for subkey, subvalue in flatten_dict(value).items():
+                    yield key + "." + subkey, subvalue
+            else:
+                yield key, value
+
+    return dict(items())
+
+
 class TestEntry():
     """ class to manipulate a specific test entry in the test suite """
 
@@ -21,7 +33,27 @@ class TestEntry():
             if args['verbose']:
                 print "Process test suite entry: " + name
         self.logger = logging.getLogger('pth.' + my_name)
-        self.logger.info('Process %s '% name)
+        self.logger.info('Process %s ' % name)
+
+    @staticmethod
+    def check_valid(adict):
+        # minimal keys necessary to process this test/stanza any further
+        data = flatten_dict(adict)
+
+        #print data
+        needed = set(["source_location", "name", "run.cmd"])
+        seen = set()
+        for key, value in data.iteritems():
+            seen.add(key)
+
+        if needed.issubset(seen):
+            return True
+        else:
+            print "Error: missing at least one of %s" % needed,
+            return False
+
+    def get_results_location(self):
+        return self.this_dict[self.name]['results']['root']
 
     #@classmethod
     #def get_test_type(cls, params):

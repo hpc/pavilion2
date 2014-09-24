@@ -9,6 +9,7 @@ from yapsy.IPlugin import IPlugin
 from testConfig import YamlTestConfig
 import subprocess
 import logging
+from testEntry import TestEntry
 
 
 class GetResults(IPlugin):
@@ -65,67 +66,62 @@ class GetResults(IPlugin):
             dts = os.getcwd() + "/" + "../test_suites" + "/default_test_config.yaml"
 
         tc = YamlTestConfig(dts)
-        tsc = tc.get_effective_config_file()
 
         if args['verbose']:
             print "effective test suite configuration:"
+            tsc = tc.get_effective_config_file()
             print tsc
 
-        # look for the test result location
-        for name, params in tsc.iteritems():
+        # *** need to handle ALL result locations here!
+        res_loc_list = tc.get_result_locations()
+        #print res_loc_list
+        for results_dir in res_loc_list:
+            print "\nFor results location: %s " % results_dir
 
-            if "DefaultTestSuite" in name:
-                result_location = tsc['DefaultTestSuite']
-                continue
-
-            if params['results']['root']:
-                result_location = params['results']['root']
-                break  # use the first one found for now
-            else:
-                print "No results 'root' directory defined in test suite config file(s), exiting!"
+            try:
+                if os.access(results_dir, os.R_OK) is False:
+                    print "  Warning: results directory (%s) not readable, skipping" % results_dir
+                    continue
+            except Exception as ex:
+                template = "An exception of type {0} occurred."
+                print "No results 'root' directory defined in the test suite config file(s), exiting!"
+                message = template.format(type(ex).__name__, ex.args)
+                #print message
                 sys.exit()
 
-        print "\nUse results found in:"
-        print result_location
-         # make sure this dir exists before moving on from here
-        if os.access(result_location, os.R_OK) is False:
-            print "  Error: results 'root' directory (%s) not readable" % result_location
-            sys.exit()
+            # call something here that gets the results
+            self.logger.debug('invoke get_results on %s' % results_dir)
+            # add in all the possible args
+            # implement different shared Nix groups later, using gzshared for now
+            bc = "/scripts/get_results -g gzshared"
+            if args['pass']:
+                bc += " -p "
+            if args['fail']:
+                bc += " -f "
+            if args['inc']:
+                bc += " -i "
+            if args['s']:
+                bc += " -s " + args['s'][0]
+            if args['S']:
+                bc += " -S " + args['S'][0]
+            if args['e']:
+                bc += " -e " + args['e'][0]
+            if args['E']:
+                bc += " -E " + args['E'][0]
+            if args['td']:
+                bc += " -T "
 
-        # call something here that gets the results
-        self.logger.debug('invoke get_results on %s' % result_location)
-        # add in all the possible args
-        # implement different shared Nix groups leter, use
-        # gzshared for now
-        bc = "/scripts/get_results -g gzshared"
-        if args['pass']:
-            bc += " -p "
-        if args['fail']:
-            bc += " -f "
-        if args['inc']:
-            bc += " -i "
-        if args['s']:
-            bc += " -s " + args['s'][0]
-        if args['S']:
-            bc += " -S " + args['S'][0]
-        if args['e']:
-            bc += " -e " + args['e'][0]
-        if args['E']:
-            bc += " -E " + args['E'][0]
-        if args['td']:
-            bc += " -T "
+            if args['make_box_plots']:
+                plot_cmd = os.environ['PV_SRC_DIR'] + "/modules/makeboxplots.py"
+                gr_cmd = os.environ['PV_SRC_DIR'] + bc + " -T -l " + results_dir + " | " + plot_cmd
+            else:
+                gr_cmd = os.environ['PV_SRC_DIR'] + bc + " -l " + results_dir
 
-        if args['make_box_plots']:
-            plot_cmd = os.environ['PV_SRC_DIR'] + "/modules/makeboxplots.py"
-            gr_cmd = os.environ['PV_SRC_DIR'] + bc + " -T -l " + result_location + " | " + plot_cmd
-        else:
-            gr_cmd = os.environ['PV_SRC_DIR'] + bc + " -l " + result_location
-
-        if args['verbose']:
-            print "Use command:"
-            print gr_cmd
-        gr_output = subprocess.check_output(gr_cmd, shell=True)
-        print "\n" + gr_output
+            if args['verbose']:
+                print "Use command:"
+                print gr_cmd
+            gr_output = subprocess.check_output(gr_cmd, shell=True)
+            print "\n" + gr_output
 
 
 if __name__ == "__main__":

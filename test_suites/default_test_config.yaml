@@ -4,30 +4,26 @@
 
 # NOTE - all CAPS variable are env vars
 
-#    Each test entiry can be re-defined by a users test config
+#    Each entry can be re-defined by the users test config
 #    file with defaults inherited from this file.
 #    In theory, the entire default file can be used, but it's recommended
 #    at least changing the name, location, and run:cmd sub-elements
-#    and removing everything else you don't need.
+#    and then removing everything else you don't need.
 #
 
 # for YAML formatting issues try: http://yaml-online-parser.appspot.com
     
-#    All values are available through:
-#     -   YamlTestConfig class interface 
-
- 
 # A new named stanza is needed for each new test,
-# but you only need to change what is different from the
+# but you only need to change what's different from the
 # this default test_config file
 
-# Default testSuite override. Change the default file to that's used. 
-# Uncomment and place in User defined testSuite with
+# Default testSuite override. Change even the default file that's used. 
+# Uncomment and place in user defined testSuite with
 # a fully qualified path/name or just name of the file.
 # DefaultTestSuite: default_test_suite.yaml
 
-# UNIQUE test/job identifier. Any string will do.
-UniqueTestName:
+# Unique (to the test suite being used) test/job identifier. Any string will do.
+UniqueTestId:
 
   name: TestName
 
@@ -118,15 +114,15 @@ UniqueTestName:
     epilog_script: "" 
 
     # Script that contains the logic that examines the job log 
-    # to see if the test passed or failed.  chk_pf reports
+    # to see if the test passed or failed.  chklg reports
     # a fail if there are any "fail" matches with the
     # pass_fail_regex, OR it can report pass if at least one "pass"
-    # is matched with the regex, otherwise unknown is reported.
+    # is matched, otherwise unknown is reported.
     # DO NOT change at this time!
     pass_fail_logic: chklg
 
-  # the LDMS tool will use these settings 
-  # this tool can generate a great deal of data!
+  # LDMS tool will use these settings.
+  # This tool can generate a great deal of data!
   ldms:
     # used to set env var LDMS_HOME
     install_dir : "/usr/projects/hpctools/ldms"

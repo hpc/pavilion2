@@ -21,7 +21,6 @@ class BaseJobController():
     def now(self):
         return datetime.datetime.now().strftime("%m-%d-%YT%H:%M:%S:%f")
 
-
     def __init__(self, name, configs, job_log_file, job_variation):
 
         self.name = name
@@ -50,7 +49,6 @@ class BaseJobController():
         os.environ['GZ_TEST_PARAMS'] = self.configs['run']['test_args']
         os.environ['PV_TEST_ARGS'] = self.configs['run']['test_args']
 
-
     def setup_working_space(self):
 
         ws_path = self.configs['working_space']['path']
@@ -75,7 +73,6 @@ class BaseJobController():
             print 'Working Space: %s' % os.environ['PV_RUNHOME']
             self.logger.info('WS for %s: ' % self.lh + os.environ['PV_RUNHOME'])
             return
-
 
         # now setup and do the move
         os.environ['PV_RUNHOME'] = ws + "/" + self.name + "__" + run_cmd + "." + self.now()
@@ -152,7 +149,7 @@ class BaseJobController():
     def build(self):
         # call the command that builds the users test/job
         bld_cmd = self.configs['source_location'] + "/" + self.configs['build']['cmd']
-        self.logger.info(self.lh + ': start build command: '+ bld_cmd)
+        self.logger.info(self.lh + ': start build command: ' + bld_cmd)
         os.system(bld_cmd)
         self.logger.info(self.lh + '%s build command complete ' % bld_cmd)
 

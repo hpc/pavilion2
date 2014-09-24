@@ -5,6 +5,7 @@ import os
 from yaml import load, YAMLError
 import json
 import logging
+from testEntry import TestEntry
 
 
 def recurse(x):
@@ -63,12 +64,13 @@ class YamlTestConfig():
         my_name = self.__class__.__name__
         self.logger = logging.getLogger('pth.' + my_name)
 
-        # unless overridden in the user's test suite config file the default config file
-        # is found in the same directory
+
+        # Unless defined otherwise in the user's test suite config file the default
+        #  config file is found in the same directory.
         test_suite_dir = os.path.dirname(os.path.realpath(ucf)) + "/"
         self.dcf = test_suite_dir + "default_test_config.yaml"
 
-        # load the user test suite (or config files
+        # load the user test suite
         try:
             fo = open(ucf)
             f1 = fo.read()
@@ -83,6 +85,8 @@ class YamlTestConfig():
             print "Unexpected error: (%s)" % sys.exc_info()[0]
         finally:
             fo.close()
+
+        print "User testSuite -> " + ucf
 
         if "DefaultTestSuite" in self.user_config_doc:
             df = self.user_config_doc['DefaultTestSuite']
@@ -106,10 +110,21 @@ class YamlTestConfig():
             print "  Check your 'DefaultFile' entry in your testSuite config file"
             self.logger.error('Error: Default test configuration file (%s) not found', self.dcf)
             sys.exit()
-           
-    def bad_type(self, msg):
-        print msg, "is bad" 
-         
+
+        self.ecf = self.get_effective_config_file()
+
+    def get_result_locations(self):
+        rl = []
+        for k, v in self.ecf.iteritems():
+            if type(v) is not dict:
+                continue
+            te = TestEntry(k, v, None)
+            res_loc = te.get_results_location()
+            # no need to repeat the location
+            if res_loc not in rl:
+                rl.append(res_loc)
+        return rl
+
     def get_default_test_config(self):
         return self.default_config_doc
     
@@ -133,27 +148,27 @@ class YamlTestConfig():
         # get a copy of the default configuration for a test 
         dk, default_config = self.default_config_doc.items()[0]
         
-        # then, for each new test in the user_config_doc
-        # override the defaults and create an updated test entry
+        # then, for each new test/stanza in the user_config_doc
+        # merge with the default entry (overriding the defaults)
         new_dict = {}
-        for test_name, v in self.user_config_doc.items():
+        for test_id, v in self.user_config_doc.items():
+            # only use "good" entries
+            if type(v) is dict:
+                if not TestEntry.check_valid(v):
+                    print ", invalid entry (%s) skipping!" % test_id
+                    continue
             tmp_config = default_config.copy()
-            #print "dc:"
-            #print tmp_config
-            #print "uc (%s):" % test_name
-            #print self.user_config_doc[test_name]
-            #print "ec:"
 
             # merge the user dictionary with the default configuration. Tried
-            # other dict methods ( "+", chain, update) and all did not work with nested dict.
-            new_dict[test_name] = merge(tmp_config,self.user_config_doc[test_name])
-            #print new_dict[test_name]
+            # other dict methods ( "+", chain, update) and these did not work with nested dict.
+            new_dict[test_id] = merge(tmp_config, self.user_config_doc[test_id])
+
         return new_dict
         
     def show_effective_config_file(self):
         """ Display the effective config file """
-        ecf = self.get_effective_config_file()
-        print json.dumps(ecf, sort_keys=True, indent=4)
+        #ecf = self.get_effective_config_file()
+        print json.dumps(self.ecf, sort_keys=True, indent=4)
 
     
     # this gets called if it's run as a script/program
@@ -179,17 +194,7 @@ if __name__ == '__main__':
     print "\nDefault test suite configuration (dict style):"
     dtc = x.get_default_test_config()
     print dtc
-    
-    #print "\nCheck for valid types in new effective config"
-#    f = lambda x: True if type(new_config[x]) == type(dtc[x]) else bad_type(new_config[x])
-#    [ x for x in new_config.viewvalues() if x in dtc.viewvalues() ]
-    #print type(new_config)
-    #print type(dtc)
-    f = lambda x: x.bad_type(x)
-#    { x for x in dtc.iteritems()  }
-#    [ v for k,v in new_config.iteritems() if k in new_config.iterkeys() ]
-    fd = {}
-    #fd = flatten_dict(new_config)
-    #nd = [ (k,v) for k,v in fd.iteritems() ]
+
+    #f = lambda x: x.bad_type(x)
 
     sys.exit()
