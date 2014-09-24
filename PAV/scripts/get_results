@@ -178,6 +178,7 @@ if ( "$opt{g}" ne "") {
   @grps = split(/ /, $tg);
 }
 
+
 my $group;
 foreach $group (@grps) {
   unless ( $opt{a} ) {
@@ -221,7 +222,10 @@ foreach $group (@grps) {
   my $ld;
   my $log_directory;
   @lfs = ();
-  foreach $_ (`$cmd`) {
+  my $cres = `$cmd`;
+  @results = split /^/m, $cres;
+
+  foreach (@results) {
     chomp;
     $params = "";
     my $nnodes;

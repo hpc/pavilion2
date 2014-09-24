@@ -254,14 +254,15 @@ foreach $d (@dirlist) {
 }
 
 
-if ( $opts{v} ) { print "dir res list: $res\n"; }
+if ( $opts{v} ) { print "dir res list:\n$res\n"; }
 
 my $res2;
 my @tmp;
 my $entry;
 my $cmd;
-my @complete_dirlist = split( "\n", $res );
+my @complete_dirlist = split /^/, $res;
 foreach $d (@complete_dirlist) {
+    chomp $d;
     if ( $opts{v} ) { print "Exploring $d\n"; }
     if ( $opts{j} ne "" ) {
        my $jid = "_" . $opts{j} . "_";
@@ -271,27 +272,16 @@ foreach $d (@complete_dirlist) {
     }
     $tmp = `$cmd`;
 
-
     my @tdirs = split( ' ', $tmp );
-   
     foreach $entry (@tdirs) {
+      if ( $opts{v} ) { print "check entry - $d/$entry\n"; }
       chomp $entry;
       # at this point all the test specific directories are collected
       # put in a couple of checks to make sure we don't have bogus dirs
       unless (-d "$d/$entry") {next;}
-      my ($junk, $dateTime) = split /\./, $entry;
-      if ( $dateTime eq "" ) {next;}
-      my ($cal, $tzTime) = split /T/, $dateTime;
-      my ($yr, $mo, $day) = split /-/, $cal;
-      my ($entryTime, $tz) = split /-/, $tzTime; 
-      ($hr, $min, $sec) = split /:/, $entryTime;
-      my $testTime = timelocal( $sec, $min, $hr, $day, $mo - 1, $yr - 1900 );
-      if (( $testTime >= $sd) && ( $testTime <= $ed ) ) {
-        if ( $opts{v} ) { print "add $d/$entry to final results\n"; }
-        print "$d/$entry\n";
-      }
+      if ( $opts{v} ) { print "add $d/$entry to final results\n"; }
+      print "$d/$entry\n";
     }
-
 }
 
 exit;
