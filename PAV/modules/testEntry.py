@@ -22,18 +22,20 @@ class TestEntry():
 
     this_dict = {}
     
-    def __init__(self, name, values, args):
+    def __init__(self, uid, values, args):
 
         my_name = self.__class__.__name__
-        self.name = name
+        self.id = uid
+        self.name = values['name']
         self.eff_nodes = 1
         self.eff_ppn = None
-        self.this_dict[name] = values
+        self.this_dict[uid] = values
+        handle = self.id + "-" + self.name
         if args:
             if args['verbose']:
-                print "Process test suite entry: " + name
+                print "Process test suite entry: " + handle
         self.logger = logging.getLogger('pth.' + my_name)
-        self.logger.info('Process %s ' % name)
+        self.logger.info('Process %s ' % handle)
 
     @staticmethod
     def check_valid(adict):
@@ -53,22 +55,25 @@ class TestEntry():
             return False
 
     def get_results_location(self):
-        return self.this_dict[self.name]['results']['root']
+        return self.this_dict[self.id]['results']['root']
 
     #@classmethod
     #def get_test_type(cls, params):
     def get_type(self):
         #return params['run']['scheduler']
-        return self.this_dict[self.name]['run']['scheduler']
+        return self.this_dict[self.id]['run']['scheduler']
 
     def get_count(self):
-        return int(self.this_dict[self.name]['run']['count'])
+        return int(self.this_dict[self.id]['run']['count'])
 
     def get_values(self):
-        return self.this_dict[self.name]
+        return self.this_dict[self.id]
 
     def get_name(self):
         return self.name
+
+    def get_id(self):
+        return self.id
 
     def set_ppn(self, ppn):
         self.eff_ppn = ppn
@@ -91,8 +96,8 @@ class TestEntry():
     # figure out all the variations for this test
     # and return list of "new" choices.
 
-        l1 = str(self.this_dict[self.name]['moab']['num_nodes'])
-        l2 = str(self.this_dict[self.name]['moab']['procs_per_node'])
+        l1 = str(self.this_dict[self.id]['moab']['num_nodes'])
+        l2 = str(self.this_dict[self.id]['moab']['procs_per_node'])
 
         nodes = l1.split(',')
         ppn = l2.split(',')
@@ -100,9 +105,9 @@ class TestEntry():
         tv = []
 
         for n,p in itertools.product(nodes,ppn):
-            # actually create a new test entry object that has just the single
+            # actually create a NEW test entry object that has just the single
             # combination of nodes X ppn
-            new_te = TestEntry(self.name, self.this_dict[self.name], None)
+            new_te = TestEntry(self.id, self.this_dict[self.id], None)
             new_te.set_nnodes(n)
             new_te.set_ppn(p)
             #print "build a new one with " + p + " procs per node"

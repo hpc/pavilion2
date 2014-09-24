@@ -64,7 +64,6 @@ class YamlTestConfig():
         my_name = self.__class__.__name__
         self.logger = logging.getLogger('pth.' + my_name)
 
-
         # Unless defined otherwise in the user's test suite config file the default
         #  config file is found in the same directory.
         test_suite_dir = os.path.dirname(os.path.realpath(ucf)) + "/"

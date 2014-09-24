@@ -53,7 +53,7 @@ class RawJobController(BaseJobController):
         text_file.write("{}\n".format("cleanup complete"))
         text_file.close()
 
-        print "<end>" , self.now()
+        print "<end>", self.now()
 
         # The trend_data file needs to be placed in the results dir
         # for Gazebo compatibility

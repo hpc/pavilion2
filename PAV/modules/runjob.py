@@ -68,7 +68,7 @@ def load_jcmod(eid, params):
     return class_
 
 
-def build_results_dir(params, name):
+def build_results_dir(params):
 
     """ function to create the final result directory for a job/test.
         Intent is to make backwards compatible with Gazebo.
@@ -77,6 +77,7 @@ def build_results_dir(params, name):
     lh = params['log_handle']
 
     root_result_dir = params['results']['root']
+    name = params['name']
     new_dir = root_result_dir + "/gzshared/"
     date_parts = datetime.datetime.now().strftime("%Y/%Y-%m/%Y-%m-%d/")
     target = platform.uname()[1].split(".", 1)[0]
@@ -131,7 +132,8 @@ def main(args):
 
     # This handle "name(pid)" can be used to follow all activity of this
     # specific job thread in the pth.log file
-    logger_name = entry_id + "(" + str(os.getpid()) + ")"
+    test_name = params['name']
+    logger_name = entry_id + "-" + test_name + "(" + str(os.getpid()) + ")"
     params['log_handle'] = logger_name
     lh = params['log_handle']
 
@@ -140,10 +142,10 @@ def main(args):
     logger.info(lh + ": loaded %s jobcontroller " % params['run']['scheduler'])
 
     # all STDOUT and STDERR from job directed to its own log file
-    results_dir = build_results_dir(params, entry_id)
+    results_dir = build_results_dir(params)
     os.environ["PV_JOB_RESULTS_LOG_DIR"] = results_dir
 
-    logfile = results_dir + "/" + entry_id + ".log"
+    logfile = results_dir + "/" + test_name + ".log"
     os.environ["PV_JOB_RESULTS_LOG"] = logfile
     logger.info(lh + ": logfile -> %s" % logfile)
 

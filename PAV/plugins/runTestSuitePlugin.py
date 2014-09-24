@@ -33,8 +33,10 @@ class RunTestSuite(IPlugin):
         js_var = json.dumps(var)
         params = my_te.get_values()
         js_params = json.dumps(params)
-        self.logger.info('dispatch: %s, variation: (%s x %s)' % (my_te.name, n, p))
-        args = ["python", "./modules/runjob.py", my_te.name, js_params, js_var]
+        uid = my_te.get_id()
+        lh = uid + "-" + my_te.get_name()
+        self.logger.info('dispatch: %s, variation: (%s x %s)' % (lh, n, p))
+        args = ["python", "./modules/runjob.py", uid, js_params, js_var]
         subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
 
 
@@ -67,12 +69,6 @@ class RunTestSuite(IPlugin):
                 if args['verbose']:
                     print "User test suite:"
                     print "  %s" % utc
-
-                #for uid, elem in utc.iteritems():
-                #    if type(elem) is dict:
-                #        if not TestEntry.check_valid(elem):
-                #            print ", invalid entry (%s) skipping!" % uid
-                #            continue
 
                 # get the "merged" test stanza for each test in the test suite
                 my_test_suite = tc.get_effective_config_file()

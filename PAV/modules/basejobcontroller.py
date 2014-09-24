@@ -21,15 +21,18 @@ class BaseJobController():
     def now(self):
         return datetime.datetime.now().strftime("%m-%d-%YT%H:%M:%S:%f")
 
-    def __init__(self, name, configs, job_log_file, job_variation):
+    def __init__(self, uid, configs, job_log_file, job_variation):
 
-        self.name = name
+        self.uid = uid
+        self.name = configs['name']
         self.configs = configs
         self.job_log_file = job_log_file
         self.job_variation = job_variation
         self.lh = self.configs['log_handle']
 
         self.logger = logging.getLogger('pth.runjob.' + self.__class__.__name__)
+
+        print "init of bjc"
 
         # verify command is executable early on
         mycmd = self.configs['source_location'] + "/" + self.configs['run']['cmd']
