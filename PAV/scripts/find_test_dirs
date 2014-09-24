@@ -287,13 +287,11 @@ foreach $d (@complete_dirlist) {
       ($hr, $min, $sec) = split /:/, $entryTime;
       my $testTime = timelocal( $sec, $min, $hr, $day, $mo - 1, $yr - 1900 );
       if (( $testTime >= $sd) && ( $testTime <= $ed ) ) {
-      if ( $opts{v} ) { print "add $entry to result\n"; }
-        $res2 .= "$d/$entry\n";
+        if ( $opts{v} ) { print "add $d/$entry to final results\n"; }
+        print "$d/$entry\n";
       }
     }
 
 }
-$res2 =~ s/\n\n/\n/g;
-print "$res2";
 
 exit;
