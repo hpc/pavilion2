@@ -9,8 +9,16 @@ To Build a src distribution tar file:
   - tar file placed in "dist" directory
 
 File Structure:
- - all source under the PAV directory
-   - plugins for new commands
-   - scripts for non python tools
-   - modules for all custom built python src
-   - special-pkgs for location to place packages
+   - all source under the PAV directory
+   - PLUGINS sub-dir for new commands
+   - SCRIPTS sub-dir for non python tools
+   - MODULES sub-dir for all custom built python src
+   - SPECIAL-PKGS sub-dir for other used Python packages
+
+Collaboration tips:
+
+  - add new features (sub-commands) to the plugins directory or
+    append a new path to the ENV variable PV_PLUGIN_DIR and place code there.
+  - all remaining support code add to the modules directory or append to the
+    ENV variable PV_SRC_DIR and place code there.
+

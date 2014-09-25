@@ -118,7 +118,7 @@ class GetResults(IPlugin):
                 gr_cmd = os.environ['PV_SRC_DIR'] + bc + " -l " + results_dir
 
             if args['verbose']:
-                print "Use command:"
+                print "Using command:"
                 print gr_cmd
             gr_output = subprocess.check_output(gr_cmd, shell=True)
             print "\n" + gr_output

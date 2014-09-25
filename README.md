@@ -3,19 +3,19 @@ Pavilion
 
 Pavilion is a software framework for running and analyzing jobs/tests targeting HPC systems.
 
-- This tree all Python 2.7 based
+- Code all Python 2.7 based
 
 Usage:
 ```sh
-    module load python-epd  # on lanl toss systems to get required modules
-    cd $INSTALL_DIR
-    "./pth -h"
+    set the ENV variable PV_SRC_DIR to point to the install location with "/PAV" at the end. 
+    cd $PV_SRC_DIR
+    run "./pth -h"
 ```
 
 Version
 ====
 
-0.2X
+0.3X
 
 ====
 
@@ -38,5 +38,3 @@ Project goals:
    - Open source and managed thru git  
    - No extra files necessary to be placed into users test/job directory to hook into Pavilion
    - Only one command needed to run cli. Sub commands under "pth" umbrella  
-   - Separate system config and master config files to isolate hardware specifics 
-   - Unit testing throughout
