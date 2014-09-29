@@ -69,8 +69,7 @@ class MoabJobController(BaseJobController):
         # print the common log settings here right after the job is started
         self.save_common_settings()
 
-        # save some info so that the msub script can run some code later on.
-        # I know of no other way to get info to the msub script.
+        # store some info into ENV variables that jobs may need to use later on.
         self.setup_job_info()
 
         # setup unique Moab stdout and stderr file names

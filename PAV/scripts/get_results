@@ -152,8 +152,8 @@ $activeJobs = `$PH/scripts/pvjobs | grep -i $me | awk '{ print \$1 }' | xargs `;
 print "\n *** Job Summary ***\n";
 print " From: $start through $end \n";
 unless ( $opt{a} ) {
-  print "\tAnalysis between $start and $end \n";
-  print "\tOutput format: testName-[run Script].numberPEs(test parameters) - results, [avg. run time]\n";
+  print "\t Analysis between $start and $end \n";
+  print "\t Output format: testName-[run Script].numberPEs(test parameters) - results, [avg. run time]\n";
 }
 
 # determine where to search 
@@ -161,7 +161,7 @@ my $cmd;
 # specify alternate dirs to search for logs.
 # will only work for the parent of directories with the form
 # <testName>_<Id>_<SegName>.date
-print "\tresults directory -> $opt{l}\n\n";
+print "\t results directory -> $opt{l}\n\n";
 $res_dir = $opt{l};
 $cmd = "find $opt{l} -type d -maxdepth 1 -mindepth 1";
 

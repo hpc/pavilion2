@@ -174,7 +174,6 @@ if ( $opts{a} ) {
 }
 chomp($startdate);
 
-
 ($hr, $min, $sec) = 0;
 $cal = "";
 $time ="";
@@ -260,10 +259,10 @@ my $res2;
 my @tmp;
 my $entry;
 my $cmd;
-my @complete_dirlist = split /^/, $res;
-foreach $d (@complete_dirlist) {
+for (split /^/, $res) {
+    my $d = $_;
     chomp $d;
-    if ( $opts{v} ) { print "Exploring $d\n"; }
+    if ( $opts{v} ) { print "Explore directory $d\n"; }
     if ( $opts{j} ne "" ) {
        my $jid = "_" . $opts{j} . "_";
        $cmd = "/bin/ls $d | grep $jid | xargs";
@@ -274,13 +273,36 @@ foreach $d (@complete_dirlist) {
 
     my @tdirs = split( ' ', $tmp );
     foreach $entry (@tdirs) {
-      if ( $opts{v} ) { print "check entry - $d/$entry\n"; }
-      chomp $entry;
+      if ( $opts{v} ) { print "  check - $entry\n"; }
+
+      my ($junk, $dateTime) = split /\./, $entry;
+      my ($cal, $entryTime) = split /T/, $dateTime;
+      my ($yr, $mo, $day) = split /-/, $cal;
+      my ($hr, $min, $sec, $msec) = split /:/, $entryTime;
+      #print "$hr, $min, $sec, $msec \n";
+      if ($sec < 60) {
+        my $testTime = timelocal( $sec, $min, $hr, $day, $mo - 1, $yr - 1900 );
+        #print "$testTime\n";
+        if (( $testTime >= $sd) && ( $testTime <= $ed ) ) {
+          if ( $opts{v} ) { print "add $d/$entry to final results\n"; }
+          print "$d/$entry\n";
+        }
+      }
+    }
+
+}
+
+
+
+
+
+{
+    {
+      #chomp $entry;
       # at this point all the test specific directories are collected
       # put in a couple of checks to make sure we don't have bogus dirs
-      unless (-d "$d/$entry") {next;}
-      if ( $opts{v} ) { print "add $d/$entry to final results\n"; }
-      print "$d/$entry\n";
+      #unless (-d "$_/$entry") {next;}
+      #if ( $dateTime eq "" ) {next;}
     }
 }
 

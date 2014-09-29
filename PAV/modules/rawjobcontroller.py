@@ -17,7 +17,7 @@ class RawJobController(BaseJobController):
         # print the common log settings here right after the job is started
         self.save_common_settings()
 
-        # save some info so that scripts may use later on.
+        # store some info into ENV variables that jobs may need to use later on.
         self.setup_job_info()
 
         # build the exact command to run

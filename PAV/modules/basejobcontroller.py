@@ -118,14 +118,12 @@ class BaseJobController():
             self.logger.info(self.lh + " failed copying data to working space!, skipping job: " + self.name +
                                        "(Hint: check the job logfile)")
 
-
     def __str__(self):
         return 'instantiated %s object' % self.name
 
     # return the full path to where the logfile is located
     def get_results_directory(self):
         return os.path.dirname(self.job_log_file)
-
 
     # Print all the pertinent run data to the the job log file for later analysis.
     # Most of the <xxxx> stuff is for Gazebo backward compatibility
@@ -177,7 +175,7 @@ class BaseJobController():
 
         os.environ['GZ_RUNHOME'] = os.environ['PV_RUNHOME']
 
-        os.environ['GZ_LOG_FILE'] = os.environ["PV_JOB_RESULTS_LOG"]
+        os.environ['GZ_LOGFILE'] = os.environ["PV_JOB_RESULTS_LOG"]
 
         os.environ['PV_TEST_ARGS'] = self.configs['run']['test_args']
         os.environ['GZ_TEST_PARAMS'] = os.environ['PV_TEST_ARGS']

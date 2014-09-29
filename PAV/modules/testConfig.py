@@ -75,11 +75,13 @@ class YamlTestConfig():
             f1 = fo.read()
             self.user_config_doc = load(f1)
         except EnvironmentError, err:
-            print "Error: config file (%s) not found" % err
+            print "*** Error: config file (%s) not found" % err
+            self.logger.error('*** No configuration file found', err)
             sys.exit()
         except YAMLError, exc:
-            print "Error in configuration file: ", exc
-            self.logger.error('Error in configuration file', exc)
+            print "\n*** Error in configuration file: ", exc
+            print "*** Check for spaces after every ':' "
+            self.logger.error('*** Error in configuration file', exc)
         except:
             print "Unexpected error: (%s)" % sys.exc_info()[0]
         finally:

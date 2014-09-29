@@ -90,7 +90,6 @@ def run_cleanup():
             print [p.returncode, errors, output]
             print "Failure copying job results to the output directory:  (Hint: check the job's logfile) "
 
-
         # remove the working space only if it was created
         if os.environ['PV_WS']:
             #print "Remove WS - %s " % os.environ['PV_RUNHOME']
@@ -101,7 +100,7 @@ def main():
 
     #cmd1 = "cd " + os.environ['PV_RUNHOME'] + "; " + "ls -l"
     cmd = "cd " + os.environ['PV_RUNHOME'] + "; " + \
-            os.environ['PV_SRC_DIR'] + "/scripts/mytime " + os.environ['USER_CMD']
+        os.environ['PV_SRC_DIR'] + "/scripts/mytime " + os.environ['USER_CMD']
 
     nodes = get_moab_node_list()
     job_log_file = os.environ["PV_JOB_RESULTS_LOG"]
@@ -113,7 +112,7 @@ def main():
             sys.stderr = lf
 
             print "<nodes> " + nodes + "\n"
-            print "moab_job_hander: "
+            print "moab_job_handler: "
 
             # start LDMS here if requested!  If the start command is
             # defined, then it's a go!

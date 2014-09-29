@@ -87,7 +87,7 @@ def build_results_dir(params):
     now = datetime.datetime.now()
     ld = name + "__" + params['run']['cmd'].split(".", 1)[0] + \
          "__" + pid + "__" + target  \
-         + "." + now.strftime('%Y-%m-%dT%H:%M:%S%f')
+         + "." + now.strftime('%Y-%m-%dT%H:%M:%S:%f')
     new_dir += ld
 
     logger.info("Make log directory: " + new_dir)
