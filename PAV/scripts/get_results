@@ -62,7 +62,7 @@ use File::Basename;
 use Sys::Hostname;
 our $host = hostname;
 
-my $PH = $ENV{'PV_SRC_DIR'};
+my $PH = "$ENV{'PVINSTALL'}/PAV";
 
 use Getopt::Std;
 our %opt;

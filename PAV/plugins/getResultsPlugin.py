@@ -108,14 +108,16 @@ class GetResults(IPlugin):
                 bc += " -e " + args['e'][0]
             if args['E']:
                 bc += " -E " + args['E'][0]
+            if args['t']:
+                bc += " -t " + args['t'][0]
             if args['td']:
                 bc += " -T "
 
             if args['make_box_plots']:
-                plot_cmd = os.environ['PV_SRC_DIR'] + "/modules/makeboxplots.py"
-                gr_cmd = os.environ['PV_SRC_DIR'] + bc + " -T -l " + results_dir + " | " + plot_cmd
+                plot_cmd = os.environ['PVINSTALL'] + "/PAV/modules/makeboxplots.py"
+                gr_cmd = os.environ['PVINSTALL'] + "/PAV" + bc + " -T -l " + results_dir + " | " + plot_cmd
             else:
-                gr_cmd = os.environ['PV_SRC_DIR'] + bc + " -l " + results_dir
+                gr_cmd = os.environ['PVINSTALL'] + "/PAV" + bc + " -l " + results_dir
 
             if args['verbose']:
                 print "Using command:"

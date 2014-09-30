@@ -27,7 +27,7 @@ UniqueTestId:
 
   name: TestName
 
-  # uri of test  
+  # uri of test, probably a directory name  
   source_location: HOME
         
   # Build Section  
@@ -38,14 +38,14 @@ UniqueTestId:
         
   # Run Section 
   run:
-     cmd: 'runme'
-     # select one scheduler type, or make a new one  
-     # choices can be moab, slurm, torque, none  
-     scheduler: 'moab'
-     # user specified test specific argument string
-     test_args: '' 
-     # number of times to repeat
-     count: 1
+    cmd: 'runme'
+    # select one scheduler type, or make a new one  
+    # choices can be moab, slurm, torque, none  
+    scheduler: 'moab'
+    # user specified test specific argument string
+    test_args: '' 
+    # number of times to repeat
+    count: 1
 
   # Optional scheduler section needed if defined in the "run" section
   moab:
@@ -91,7 +91,7 @@ UniqueTestId:
   # Results section
   results:
 
-    # The test handler places all results under this directory space.
+    # The test handler places all results (for this test) under this directory space.
     root: '/Users/cwi/pv_results'
 
     # Pass or Fail matching pattern

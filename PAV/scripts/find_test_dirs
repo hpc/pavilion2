@@ -72,7 +72,7 @@ use File::Basename;
 $pwd = dirname( abs_path("$0") );
 chomp($pwd);
 
-my $PH = $ENV{'PV_SRC_DIR'};
+my $PH = "$ENV{'PVINSTALL'}/PAV";
 
 use Time::Local;
 use Getopt::Std;

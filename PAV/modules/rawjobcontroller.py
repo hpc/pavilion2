@@ -22,7 +22,7 @@ class RawJobController(BaseJobController):
 
         # build the exact command to run
         cmd = "cd " + os.environ['PV_RUNHOME'] + "; " + \
-            os.environ['PV_SRC_DIR'] + "/scripts/mytime ./" + self.configs['run']['cmd']
+            os.environ['PVINSTALL'] + "/PAV/scripts/mytime ./" + self.configs['run']['cmd']
         print "\n ->  RawJobController: invoke %s" % cmd
 
         # Get any buffered output into the output file now

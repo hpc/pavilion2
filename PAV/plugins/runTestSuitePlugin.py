@@ -36,7 +36,8 @@ class RunTestSuite(IPlugin):
         uid = my_te.get_id()
         lh = uid + "-" + my_te.get_name()
         self.logger.info('dispatch: %s, variation: (%s x %s)' % (lh, n, p))
-        args = ["python", "./modules/runjob.py", uid, js_params, js_var]
+        runjob_cmd = os.environ['PVINSTALL'] + "/PAV/modules/runjob.py"
+        args = ["python", runjob_cmd, uid, js_params, js_var]
         subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
 
 

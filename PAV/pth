@@ -11,7 +11,6 @@ if sys.version_info[0] != 2 or sys.version_info[1] < 7:
 #import argparse
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "./special_pkgs"))
-#print sys.path
 
 # support creating Python style command line interfaces
 import argparse
@@ -38,9 +37,9 @@ global _debug
 
 # look for modules relative to where this program is located
 sys.path.append(os.path.join(os.path.dirname(__file__), "./modules"))
-os.environ['PV_SRC_DIR'] = os.getcwd()
-if os.environ.get('PV_SRC_DIR'):
-    sys.path.append(os.environ.get('PV_SRC_DIR'))
+#os.environ['PV_SRC_DIR'] = os.getcwd()
+#if os.environ.get('PV_SRC_DIR'):
+#    sys.path.append(os.environ.get('PV_SRC_DIR'))
 
 
 # stub foo sub-command implemented in the main
@@ -65,7 +64,7 @@ def main():
     parser_foo = subparser.add_parser('foo', help="foo help message")
     parser_foo.set_defaults(sub_cmds='foo')
 
-    print "Running from -> %s " % os.environ['PV_SRC_DIR']
+    print "Running from -> %s " % os.environ['PVINSTALL'] + "/PAV"
     print "Logging to -> %s" % master_log_file
 
     # Dynamic support for adding commands...
@@ -75,7 +74,8 @@ def main():
     plug_man = PluginManager()
     # Inform where to find plug-ins
     # User can add more places to look by setting ENV PV_PLUGIN_DIR
-    plugin_places = ['./plugins']
+    plugin_dir = os.environ['PVINSTALL'] + "/PAV" + "/plugins"
+    plugin_places = [plugin_dir]
     if os.environ.get('PV_PLUGIN_DIR'):
         plugin_places.append(os.environ.get('PV_PLUGIN_DIR'))
     plug_man.setPluginPlaces(plugin_places)

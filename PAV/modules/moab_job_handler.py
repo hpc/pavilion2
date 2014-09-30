@@ -13,7 +13,7 @@ import shutil
 import platform
 import datetime
 
-newpath = os.environ['PV_SRC_DIR'] + "/modules"
+newpath = os.environ['PVINSTALL'] + "/PAV/modules"
 sys.path.append(newpath)
 from basejobcontroller import BaseJobController
 from ldms import LDMS
@@ -100,7 +100,7 @@ def main():
 
     #cmd1 = "cd " + os.environ['PV_RUNHOME'] + "; " + "ls -l"
     cmd = "cd " + os.environ['PV_RUNHOME'] + "; " + \
-        os.environ['PV_SRC_DIR'] + "/scripts/mytime " + os.environ['USER_CMD']
+        os.environ['PVINSTALL'] + "/PAV/scripts/mytime " + os.environ['USER_CMD']
 
     nodes = get_moab_node_list()
     os.environ['PV_NODES'] = nodes
