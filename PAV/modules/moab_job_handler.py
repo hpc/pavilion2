@@ -75,7 +75,7 @@ def run_cleanup():
             files2copy = " --include " + os.environ['PV_SAVE_FROM_WS']
 
         # add the basics
-        files2copy += " --include '*.log' --include '*.stderr' --include '*.stdout' --exclude='*' "
+        files2copy += " --include '*.log' --include '*.std*' --exclude='*' "
 
         # finalize complete command
         cmd = "rsync -ar " + files2copy + " " + from_loc + " " + to_loc
@@ -103,6 +103,8 @@ def main():
         os.environ['PV_SRC_DIR'] + "/scripts/mytime " + os.environ['USER_CMD']
 
     nodes = get_moab_node_list()
+    os.environ['PV_NODES'] = nodes
+    os.environ['GZ_NODES'] = os.environ['PV_NODES']
     job_log_file = os.environ["PV_JOB_RESULTS_LOG"]
 
     with open(job_log_file, 'a') as lf:
