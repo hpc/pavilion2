@@ -110,3 +110,9 @@ Examples:
 Querying Data:
   Trend data can be viewed using the get_results command 
 with the "-T" option. Data is harvested from the log file in the test results directory.
+
+
+Other usage tips:
+----------------
+
+As Pavilion does its work an output log is being generated in /tmp/${USER}/pth.log

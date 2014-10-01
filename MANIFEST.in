@@ -8,4 +8,5 @@ include PAV/scripts/*
 include docs/*.txt
 recursive-include PAV/ README.* 
 exclude PAV/special_pkgs/mock.*
+exclude PAV/wasteland/*
 exclude test 

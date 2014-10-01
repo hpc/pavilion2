@@ -10,6 +10,7 @@ import json
 import logging
 import errno
 import platform
+import getpass
 
 
 def convert(inp):
@@ -118,7 +119,10 @@ def main(args):
 
     logger = logging.getLogger('pth.runjob')
     logger.setLevel(logging.DEBUG)
-    fh = logging.FileHandler(filename='/tmp/pth.log')
+    me = getpass.getuser()
+    master_log_dir = '/tmp/' + me
+    master_log_file = master_log_dir + '/pth.log'
+    fh = logging.FileHandler(filename=master_log_file)
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     fh.setFormatter(formatter)
     logger.addHandler(fh)

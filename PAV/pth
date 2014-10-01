@@ -3,6 +3,7 @@
 
 import sys
 import os
+import getpass
 
 if sys.version_info[0] != 2 or sys.version_info[1] < 7:
     sys.exit("Python 2.7 is required to run Pavilion")
@@ -20,7 +21,11 @@ from yapsy.PluginManager import PluginManager
 
 # set up logging
 import logging
-master_log_file = '/tmp/pth.log'
+me = getpass.getuser()
+master_log_dir = '/tmp/' + me
+master_log_file = master_log_dir + '/pth.log'
+if not os.path.exists(master_log_dir):
+    os.makedirs(master_log_dir)
 
 logger = logging.getLogger('pth')
 logger.setLevel(logging.DEBUG)
@@ -30,7 +35,7 @@ fh.setFormatter(formatter)
 logger.addHandler(fh)
 
 logy = logging.getLogger('yapsy')
-logy.setLevel(logging.DEBUG)
+logy.setLevel(logging.INFO)
 logy.addHandler(fh)
 
 global _debug
