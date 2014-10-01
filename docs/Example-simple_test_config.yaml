@@ -1,0 +1,44 @@
+# YAML        
+
+
+# for YAML formatting issues try: http://yaml-online-parser.appspot.com
+    
+# A new named stanza is needed for each new test,
+# but you only need to change what's different from the
+# this default test_config file
+
+# Default testSuite override. Change even the default file that's used. 
+# Uncomment and place in user defined testSuite with
+# a fully qualified path/name or just name of the file.
+# DefaultTestSuite: default_test_suite.yaml
+
+# Unique (to the test suite being used) test/job identifier. Any string will do.
+Id1:
+
+  name: myTest 
+
+  # uri of test, probably a directory name  
+  source_location: /usr/me/tests/myTest 
+        
+  # Run Section 
+  run:
+    cmd: 'runme'
+    scheduler: 'moab'
+
+  # Scheduler section needed if defined in the "run" section
+  moab:
+    # comma separated list of values, or range 
+    num_nodes: 1
+    # comma separated list of values, or range 
+    procs_per_node: 16
+    # time in hr::min::secs
+    time_limit: 01:00:00
+
+  # Results section
+  results:
+
+    # The test handler places all results (for this test) under this directory space.
+    root: '/usr/me/results/'
+
+  time:
+    tz: 'US/Mountain'
