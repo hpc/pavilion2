@@ -40,7 +40,6 @@ class RunTestSuite(IPlugin):
         args = ["python", runjob_cmd, uid, js_params, js_var]
         subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
 
-
     # build the sub-command argument list
     def add_parser_info(self, subparser): 
         parser_rts = subparser.add_parser("run_test_suite", help="run each test in the test suite")
