@@ -10,11 +10,11 @@ To Build a src distribution tar file:
 
 File Structure:
 --------------
-   - all source under the PAV directory
+   - all code under the PAV directory
    - PLUGINS sub-dir for new commands
-   - SCRIPTS sub-dir for non python tools
+   - SCRIPTS sub-dir for support scripts 
    - MODULES sub-dir for all custom built python src
-   - SPECIAL-PKGS sub-dir for other used Python packages
+   - SPECIAL-PKGS sub-dir for non-core Python packages
 
 Collaboration tips:
 ------------------
@@ -112,7 +112,13 @@ Querying Data:
 with the "-T" option. Data is harvested from the log file in the test results directory.
 
 
-Other usage tips:
+Debug Tips:
 ----------------
 
 As Pavilion does its work an output log is being generated in /tmp/${USER}/pth.log
+
+
+Utility Scripts:
+---------------
+
+pvjobs - show what jobs are present on Moab systems.

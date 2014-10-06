@@ -29,6 +29,7 @@ class LDMS():
         self.metric_list = str(params['ldms']['metric_list'])
 
         self.output_dir = self.create_output_dir()
+        self.build_start_cmd()
 
     def create_output_dir(self):
         # This dir must be created before LDMS can start and should
@@ -54,27 +55,27 @@ class LDMS():
 
         print "Created ldms metrics dir: " + output_dir
 
+        os.environ['LDMS_OUTPUT_DIR'] = output_dir
         return output_dir
 
-    def get_output_dir(self):
-        return self.output_dir
-
-    def get_start_cmd(self):
+    def build_start_cmd(self):
         full_cmd = self.install_dir + "/" + self.start_cmd
         full_cmd += " -f " + str(self.freq)
         full_cmd += " -m " + self.metric_list
         full_cmd += " -s " + self.output_dir
-        return full_cmd
+        os.environ['LDMS_START_CMD'] = full_cmd
 
     # define some static methods for LDMS job control
 
     @staticmethod
-    def start(cmd):
+    def start():
         # start and don't wait. Report success or fail in the log(s).
-        outfile = LDMS.get_output_dir() + "ldms.out"
+        outfile = os.environ['LDMS_OUTPUT_DIR'] + "/ldms.out"
+        print "  starting LDMS with: \n    " + os.environ['LDMS_START_CMD']
+
+        text_file = open(outfile, "w")
         try:
-            output = subprocess.check_output(cmd, stdout=outfile, shell=True)
-            print output
+            subprocess.Popen(os.environ['LDMS_START_CMD'], stdout=text_file, stdin=open(os.devnull), shell=True)
         except subprocess.CalledProcessError as e:
             ret = e.returncode
             if ret in (1, 2):
@@ -91,8 +92,6 @@ class LDMS():
     @staticmethod
     def stop(jid):
         pass
-
-
 
 if __name__ == "__main__":
     print LDMS.__doc__
