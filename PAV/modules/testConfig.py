@@ -88,12 +88,6 @@ class YamlTestConfig():
                 rl.append(res_loc)
         return rl
 
-    def get_default_test_config(self):
-        return self.default_config_doc
-
-    def get_user_test_config(self):
-        return self.user_config_doc
-
     def show_user_test_config(self):
         """
         Display the users test config file
@@ -161,7 +155,7 @@ if __name__ == '__main__':
     print new_config
 
     print "\nDefault test suite configuration (dict style):"
-    dtc = x.get_default_test_config()
+    dtc = x.default_config_doc
     print dtc
 
     #f = lambda x: x.bad_type(x)

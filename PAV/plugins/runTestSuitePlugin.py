@@ -58,7 +58,7 @@ class RunTestSuite(IPlugin):
         """
         # Build the test configuration
         tc = YamlTestConfig(args['testSuite'])
-        utc = tc.get_user_test_config()
+        utc = tc.user_config_doc
 
         if args['verbose']:
             print "Command args -> %s" % args
