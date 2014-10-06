@@ -69,24 +69,7 @@ class YamlTestConfig():
         test_suite_dir = os.path.dirname(os.path.realpath(ucf)) + "/"
         self.dcf = test_suite_dir + "default_test_config.yaml"
 
-        # load the user test suite
-        try:
-            fo = open(ucf)
-            f1 = fo.read()
-            self.user_config_doc = load(f1)
-        except EnvironmentError, err:
-            print "*** Error: config file (%s) not found" % err
-            self.logger.error('*** No configuration file found', err)
-            sys.exit()
-        except YAMLError, exc:
-            print "\n*** Error in configuration file: ", exc
-            print "*** Check for spaces after every ':' "
-            self.logger.error('*** Error in configuration file', exc)
-        except:
-            print "Unexpected error: (%s)" % sys.exc_info()[0]
-        finally:
-            fo.close()
-
+        self.user_config_doc = self.load_test_config(ucf)
         print "User testSuite -> " + ucf
 
         if "DefaultTestSuite" in self.user_config_doc:
@@ -98,21 +81,26 @@ class YamlTestConfig():
         print "Default testSuite -> " + self.dcf
         self.logger.info('Using default test config file: %s ' % self.dcf)
 
-        # load the proper default test suite (or config file)
-        try:
-            with open(self.dcf, 'r') as f2:
-                try:
-                    self.default_config_doc = load(f2)
-                # if there is an error in the file, try to show where
-                except YAMLError, exc:
-                    print "Error in configuration file:", exc
-        except:
-            print "  Error: Default testSuite configuration file (%s) not found" % self.dcf
-            print "  Check your 'DefaultFile' entry in your testSuite config file"
-            self.logger.error('Error: Default test configuration file (%s) not found', self.dcf)
-            sys.exit()
-
+        self.default_config_doc = self.load_test_config(self.dcf)
         self.ecf = self.get_effective_config_file()
+
+    
+
+    def load_test_config(self, config_name):
+        try:
+            with open(config_name) as config_file:
+                file_contents = config_file.read()
+                return load(file_contents)
+        except EnvironmentError as err:
+            error_message = "Error processing file: {0}\n".format(config_name)
+            error_message += "I/O Error({0}): {1}.".format(err.errno, 
+                                                           err.strerror)
+            self.logger.error(error_message)
+            sys.exit(error_message)
+        except YAMLError as err:
+            error_message = "YAML Error: {0}".format(err)
+            self.logger.error(error_message)
+            sys.exit(error_message)
 
     def get_result_locations(self):
         rl = []
