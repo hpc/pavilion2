@@ -69,7 +69,7 @@ class YamlTestConfig():
         test_suite_dir = os.path.dirname(os.path.realpath(ucf)) + "/"
         self.dcf = test_suite_dir + "default_test_config.yaml"
 
-        self.user_config_doc = self.load_test_config(ucf)
+        self.user_config_doc = self.load_config_file(ucf)
         print "User testSuite -> " + ucf
 
         if "DefaultTestSuite" in self.user_config_doc:
@@ -81,12 +81,12 @@ class YamlTestConfig():
         print "Default testSuite -> " + self.dcf
         self.logger.info('Using default test config file: %s ' % self.dcf)
 
-        self.default_config_doc = self.load_test_config(self.dcf)
+        self.default_config_doc = self.load_config_file(self.dcf)
         self.ecf = self.get_effective_config_file()
 
     
 
-    def load_test_config(self, config_name):
+    def load_config_file(self, config_name):
         try:
             with open(config_name) as config_file:
                 file_contents = config_file.read()
