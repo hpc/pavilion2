@@ -28,13 +28,14 @@ def flatten_dict(d):
                     yield key + "." + subkey, subvalue
             else:
                 yield key, value
-                
     return dict(items())
 
 
-# Recursive function to merge nested dictionaries
-# with obj_2 winning conflicts
 def merge(obj_1, obj_2):
+    """
+    Recursive function to merge nested dictionaries
+    with obj_2 winning conflicts
+    """
     if isinstance(obj_1, dict) and isinstance(obj_2, dict):
         result = {}
         for key, value in obj_1.iteritems():
@@ -49,23 +50,20 @@ def merge(obj_1, obj_2):
     if isinstance(obj_1, list) and isinstance(obj_2, list):
         return obj_1 + obj_2
     return obj_2
-            
+
 
 class YamlTestConfig():
-    """ class to manipulate test suite config files being used """
-    
-    # define class vars here --
-    default_config_doc = None
-    user_config_doc = None
-    dcf = None
-    
+    """
+    class to manipulate test suite config files being used
+    """
+
     def __init__(self, ucf="../test_suites/user_test_config.yaml"):
 
         my_name = self.__class__.__name__
         self.logger = logging.getLogger('pth.' + my_name)
 
-        # Unless defined otherwise in the user's test suite config file the default
-        #  config file is found in the same directory.
+        # Unless defined otherwise in the user's test suite config file the 
+        # default config file is found in the same directory.
         test_suite_dir = os.path.dirname(os.path.realpath(ucf)) + "/"
         self.dcf = test_suite_dir + "default_test_config.yaml"
 
@@ -84,7 +82,7 @@ class YamlTestConfig():
         self.default_config_doc = self.load_config_file(self.dcf)
         self.ecf = self.get_effective_config_file()
 
-    
+
 
     def load_config_file(self, config_name):
         try:
@@ -116,27 +114,31 @@ class YamlTestConfig():
 
     def get_default_test_config(self):
         return self.default_config_doc
-    
+
     def get_user_test_config(self):
         return self.user_config_doc
-    
+
     def show_user_test_config(self):
-        """ Display the users test config file """
+        """
+        Display the users test config file
+        """
         print json.dumps(self.user_config_doc, sort_keys=True, indent=4)
 
     def show_default_config(self):
-        """ Display the system default test config file """
-        print json.dumps(self.default_config_doc, sort_keys=True, indent=4)
-       
-    def get_effective_config_file(self):
-        """ 
-            Return the complete test suite file to be used for this test
-            after it is folded in with the default configuration
         """
-        
+        Display the system default test config file
+        """
+        print json.dumps(self.default_config_doc, sort_keys=True, indent=4)
+
+    def get_effective_config_file(self):
+        """
+        Return the complete test suite file to be used for this test
+        after it is folded in with the default configuration
+        """
+
         # get a copy of the default configuration for a test 
         dk, default_config = self.default_config_doc.items()[0]
-        
+
         # then, for each new test/stanza in the user_config_doc
         # merge with the default entry (overriding the defaults)
         new_dict = {}
@@ -153,26 +155,28 @@ class YamlTestConfig():
             new_dict[test_id] = merge(tmp_config, self.user_config_doc[test_id])
 
         return new_dict
-        
+
     def show_effective_config_file(self):
-        """ Display the effective config file """
+        """
+        Display the effective config file
+        """
         #ecf = self.get_effective_config_file()
         print json.dumps(self.ecf, sort_keys=True, indent=4)
 
-    
+
     # this gets called if it's run as a script/program
 if __name__ == '__main__':
-    
+
     # instantiate a class to handle the config files
     x = YamlTestConfig()
 
     print "-------"
     print "\nMy test suite configuration:"
     x.show_user_test_config()
-    
+
     print "\nDefault test suite configuration (yaml style):"
     x.show_default_config()
-    
+
     print "\nEffective test suite configuration (yaml style):"
     x.show_effective_config_file()
 

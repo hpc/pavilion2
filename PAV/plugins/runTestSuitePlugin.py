@@ -50,12 +50,12 @@ class RunTestSuite(IPlugin):
         parser_rts.set_defaults(sub_cmds='run_test_suite')
         return 'run_test_suite'
 
-    # Every plug-in(command) class MUST have a method by the name "cmd"
-    # so that it can called when it's selected
     def cmd(self, args):
-
-        # Use the default (or master) test suite configuration from the same directory
-        #dts = os.path.dirname(os.path.realpath(args['testSuite'])) + "/default_test_config.yaml"
+        """
+        Every class to be used as a plugin (subcommand) MUST have a method
+        by the name of cmd. This is executed when the given subcommand
+        is executed.
+        """
         # Build the test configuration
         tc = YamlTestConfig(args['testSuite'])
         utc = tc.get_user_test_config()
@@ -70,8 +70,8 @@ class RunTestSuite(IPlugin):
         # get the "merged" test stanza for each test in the test suite
         my_test_suite = tc.get_effective_config_file()
 
-        # Process and launch a new test for each test entry (stanza) in the test suite
-        # and its variations here.
+        # Process and launch a new test for each test entry (stanza)
+        # in the test suite and its variations.
         for entry_id, params in my_test_suite.iteritems():
 
             # This just defines where to find a different DTS, so
