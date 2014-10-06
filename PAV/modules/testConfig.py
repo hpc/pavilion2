@@ -61,6 +61,12 @@ class YamlTestConfig():
 
 
     def load_config_file(self, config_name):
+        """
+        Attempt to load a configuration file by the given name. Returns
+        the loaded contents of the YAML file. On error should system
+        exit since it doesn't make sense to continue with broken
+        configuration.
+        """
         try:
             with open(config_name) as config_file:
                 file_contents = config_file.read()
