@@ -146,8 +146,8 @@ chomp($start);
 #$jobsRunning = `$GH/gzjobs | grep -i $me | grep running | awk '{ print \$1 }' | xargs `;
 #$activeJobs = `$GH/gzjobs | grep -i $me | awk '{ print \$1 }' | xargs `;
 $activeJobs = "";
-#$activeJobs = `$PH/scripts/pvjobs | grep -e "^[0-9]" | awk '{ print \$1 }' | xargs `;
-$activeJobs = `$PH/scripts/pvjobs | grep -i $me | awk '{ print \$1 }' | xargs `;
+#$activeJobs = `$PH/pvjobs | grep -e "^[0-9]" | awk '{ print \$1 }' | xargs `;
+$activeJobs = `$PH/pvjobs | grep -i $me | awk '{ print \$1 }' | xargs `;
 
 print "\n *** Job Summary ***\n";
 print " From: $start through $end \n";

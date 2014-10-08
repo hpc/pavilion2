@@ -1,4 +1,5 @@
 include PAV/pth
+include PAV/pv*
 recursive-include PAV/ *.py
 include test_suites/*.yaml
 include t1/*.bash

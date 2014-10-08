@@ -5,10 +5,10 @@ import sys
 import os
 import subprocess
 import re
-from basejobcontroller import BaseJobController
+from basejobcontroller import JobController
 
 
-class MoabJobController(BaseJobController):
+class MoabJobController(JobController):
     """ class to run a job using Moab """
 
     def is_moab_system(self):

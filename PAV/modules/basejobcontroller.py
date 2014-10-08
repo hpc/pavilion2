@@ -14,7 +14,7 @@ import json
 from subprocess import Popen, PIPE
 
 
-class BaseJobController():
+class JobController():
 
     """ class to define the common actions for any job type """
 
@@ -30,9 +30,10 @@ class BaseJobController():
         self.job_variation = job_variation
         self.lh = self.configs['log_handle']
 
-        self.logger = logging.getLogger('pth.runjob.' + self.__class__.__name__)
+        #self.logger = logging.getLogger('pth.runjob.' + self.__class__.__name__)
+        self.logger = logging.getLogger('pth.' + self.__class__.__name__)
 
-        print "init of bjc"
+        print "initialize job controller"
 
         # verify command is executable early on
         mycmd = self.configs['source_location'] + "/" + self.configs['run']['cmd']
@@ -197,7 +198,7 @@ class BaseJobController():
             files2copy = " --include " + os.environ['PV_SAVE_FROM_WS']
 
         # add the basics
-        files2copy += " --include '*.log' --include '*.stderr' --include '*.stdout' --exclude='*' "
+        files2copy += " --include '*.log' --include '*.std*' --exclude='*' "
 
         # finalize complete command
         cmd = "rsync -ar " + files2copy + " " + from_loc + " " + to_loc

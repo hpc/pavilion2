@@ -15,7 +15,7 @@ import datetime
 
 newpath = os.environ['PVINSTALL'] + "/PAV/modules"
 sys.path.append(newpath)
-from basejobcontroller import BaseJobController
+from basejobcontroller import JobController
 from ldms import LDMS
 
 
@@ -116,11 +116,10 @@ def main():
             print "<nodes> " + nodes + "\n"
             print "moab_job_handler: "
 
-            # start LDMS here if requested!  If the start command is
-            # defined, then it's a go!
+            # start LDMS here if requested!  The start command ought to be
+            # defined, so let's go!
             if os.environ['LDMS_START_CMD']:
-                print "  start ldms with: \n    " + os.environ['LDMS_START_CMD']
-                LDMS.start(os.environ['LDMS_START_CMD'])
+                LDMS.start()
 
             print "  start job with: \n    " + cmd
             lf.flush()
@@ -146,7 +145,7 @@ def main():
 
             # The trend_data file needs to be placed in the results dir
             # for Gazebo compatibility
-            BaseJobController.process_trend_data()
+            JobController.process_trend_data()
 
 
 # this gets called if it's run as a script/program

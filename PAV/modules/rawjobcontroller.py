@@ -3,10 +3,10 @@
 
 import sys,os
 import subprocess
-from basejobcontroller import BaseJobController
+from basejobcontroller import JobController
 
 
-class RawJobController(BaseJobController):
+class RawJobController(JobController):
     """ class to run a test using no scheduler or special launcher """
 
     def start(self):
@@ -57,7 +57,7 @@ class RawJobController(BaseJobController):
 
         # The trend_data file needs to be placed in the results dir
         # for Gazebo compatibility
-        BaseJobController.process_trend_data()
+        JobController.process_trend_data()
     
 # this gets called if it's run as a script/program
 if __name__ == '__main__':

@@ -44,14 +44,13 @@ class TestEntry():
 
         #print data
         needed = set(["source_location", "name", "run.cmd"])
-        seen = set()
-        for key, value in data.iteritems():
-            seen.add(key)
+        seen = set(data.keys())
 
         if needed.issubset(seen):
             return True
         else:
-            print "Error: missing at least one of %s" % needed,
+            missing = ", ".join(needed - seen)
+            print "Error: missing the following necessary keys: %s" % missing,
             return False
 
     def get_results_location(self):

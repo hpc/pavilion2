@@ -91,11 +91,10 @@ class RunTestSuite(IPlugin):
                 test_variants = te.get_test_variations()
                 for test_entry in test_variants:
                     # initialize a unique LDMS for each job, if requested
+                    os.environ['LDMS_START_CMD'] = ''
                     if args['ldms']:
-                        my_ldms = LDMS(te)
-                        os.environ['LDMS_START_CMD'] = my_ldms.get_start_cmd()
-                    else:
-                        os.environ['LDMS_START_CMD'] = ''
+                        LDMS(te)
+
                     for _ in range(te.get_run_times()):
                         self.job_dispatcher(test_entry)
             else:
