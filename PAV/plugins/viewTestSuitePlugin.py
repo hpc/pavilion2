@@ -47,10 +47,10 @@ class ViewTestSuite(IPlugin):
             if args['dict']:
                 
                 print "\nUser test suite configuration (dict style):"
-                print tc.get_user_test_config()
+                print tc.user_config_doc
                 
                 print "\nDefault test suite configuration (dict style):"
-                print tc.get_default_test_config()
+                print tc.default_config_doc
   
                 print "\nEffective test configuration (dict style, combined User and Default):"
                 print tc.get_effective_config_file()

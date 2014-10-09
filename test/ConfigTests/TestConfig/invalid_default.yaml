@@ -1,0 +1,26 @@
+# User test config  (YAML format)
+#  
+DefaultTestSuite: 'y.yaml'
+Test4:
+  source_location: ''
+  name: test4-rt
+  run:
+    cmd: 'rt4'
+    scheduler: moab 
+    test_args: "10 1024"
+  moab:
+    num_nodes: "2,4"
+    procs_per_node: 16 
+    time_limit: 00:05:00
+
+HW-raw:
+  source_location: ''
+  name: test4-raw
+  run:
+    cmd: 'iPassed'
+    scheduler: raw 
+  working_space:
+    copy_to_ws: "iPassed iFailed"
+    save_from_ws: "stdout"
+
+

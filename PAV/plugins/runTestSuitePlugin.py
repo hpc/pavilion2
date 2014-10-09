@@ -1,4 +1,4 @@
-#!python
+#!/usr/bin/env python
 
 """ plug-in that implements the run_test_suite command 
 """
@@ -50,65 +50,56 @@ class RunTestSuite(IPlugin):
         parser_rts.set_defaults(sub_cmds='run_test_suite')
         return 'run_test_suite'
 
-    # Every plug-in(command) class MUST have a method by the name "cmd"
-    # so that it can called when it's selected
     def cmd(self, args):
+        """
+        Every class to be used as a plugin (subcommand) MUST have a method
+        by the name of cmd. This is executed when the given subcommand
+        is executed.
+        """
+        # Build the test configuration
+        tc = YamlTestConfig(args['testSuite'])
+        utc = tc.user_config_doc
 
         if args['verbose']:
             print "Command args -> %s" % args
-            print "TestSuite search path -> " + os.path.dirname(os.path.realpath(args['testSuite']))
-        
-        try:
-            with open(args['testSuite']) as af:
+            print "TestSuite search path -> " + os.path.dirname(
+                os.path.realpath(args['testSuite']))
+            print "User test suite:"
+            print "  %s" % utc
 
-                # Use the default (or master) test suite configuration from the same directory
-                #dts = os.path.dirname(os.path.realpath(args['testSuite'])) + "/default_test_config.yaml"
-                # Build the test configuration
-                tc = YamlTestConfig(args['testSuite'])
-                utc = tc.get_user_test_config()
-                if args['verbose']:
-                    print "User test suite:"
-                    print "  %s" % utc
+        # get the "merged" test stanza for each test in the test suite
+        my_test_suite = tc.get_effective_config_file()
 
-                # get the "merged" test stanza for each test in the test suite
-                my_test_suite = tc.get_effective_config_file()
+        # Process and launch a new test for each test entry (stanza)
+        # in the test suite and its variations.
+        for entry_id, params in my_test_suite.iteritems():
 
-                # Process and launch a new test for each test entry (stanza) in the test suite
-                # and its variations here.
-                for entry_id, params in my_test_suite.iteritems():
+            # This just defines where to find a different DTS, so
+            # skip this entry.
+            if "DefaultTestSuite" in entry_id:
+                continue
 
-                    # This just defines where to find a different DTS, so
-                    # skip this entry.
-                    if "DefaultTestSuite" in entry_id:
-                        continue
+            te = TestEntry(entry_id, params, args)
 
-                    te = TestEntry(entry_id, params, args)
+            test_type = te.get_type()
+            #print "my test type -> " + test_type
 
-                    test_type = te.get_type()
-                    #print "my test type -> " + test_type
+            test_variants = [None]
+            # get list of "new" test entries
+            # launch a new process for each test variation or count
+            if "moab" in test_type:
+                test_variants = te.get_test_variations()
+                for test_entry in test_variants:
+                    # initialize a unique LDMS for each job, if requested
+                    os.environ['LDMS_START_CMD'] = ''
+                    if args['ldms']:
+                        LDMS(te)
 
-                    test_variants = [None]
-                    # get list of "new" test entries
-                    # launch a new process for each test variation or count
-                    if "moab" in test_type:
-                        test_variants = te.get_test_variations()
-                        for test_entry in test_variants:
-
-                            # initialize a unique LDMS for each job, if requested
-                            os.environ['LDMS_START_CMD'] = ''
-                            if args['ldms']:
-                                LDMS(te)
-
-                            for _ in range(te.get_run_times()):
-                                self.job_dispatcher(test_entry)
-                    else:
-                        for _ in range(te.get_run_times()):
-                            self.job_dispatcher(te)
-
-        except EnvironmentError as err:
-            print "  Error: could not access test suite %s" % args['testSuite']
-            sys.exit()
-        
+                    for _ in range(te.get_run_times()):
+                        self.job_dispatcher(test_entry)
+            else:
+                for _ in range(te.get_run_times()):
+                    self.job_dispatcher(te)
 
 if __name__ == "__main__":
     print RunTestSuite.__doc__
