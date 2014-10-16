@@ -1,8 +1,10 @@
 #!python
 
 import sys
+import os
 import logging
 import itertools
+from ldms import LDMS
 
 
 def flatten_dict(d):
@@ -30,12 +32,12 @@ class TestEntry():
         self.eff_nodes = 1
         self.eff_ppn = None
         self.this_dict[uid] = values
-        handle = self.id + "-" + self.name
+        self.handle = self.id + "-" + self.name
         if args:
             if args['verbose']:
-                print "Process test suite entry: " + handle
+                print "Process test suite entry: " + self.handle
         self.logger = logging.getLogger('pth.' + my_name)
-        self.logger.info('Process %s ' % handle)
+        self.logger.info('Process %s ' % self.handle)
 
     @staticmethod
     def check_valid(adict):
@@ -86,14 +88,28 @@ class TestEntry():
     def get_nnodes(self):
         return self.eff_nodes
 
-    def get_run_times(self):
+    def get_run_count(self):
         # for now this is as simple as the count, but with a more complex submit
         # strategy (like Gazebo's testMgr) this can be enhanced.
         return self.get_count()
 
+    def room_to_run(self,args):
+        # scheduler specific implementation
+        False
+
+    def prep_ldms(self):
+        """
+        the LDMS tool will start only if the start CMD is defined.
+        """
+        self.logger.info('LDMS not supported for this job (%s) type' % self.handle)
+        pass
+
+
+class MoabTestEntry(TestEntry):
+
     def get_test_variations(self):
-    # figure out all the variations for this test
-    # and return list of "new" choices.
+        # figure out all the variations for this test
+        # and return list of "new" choices.
 
         l1 = str(self.this_dict[self.id]['moab']['num_nodes'])
         l2 = str(self.this_dict[self.id]['moab']['procs_per_node'])
@@ -103,7 +119,7 @@ class TestEntry():
 
         tv = []
 
-        for n,p in itertools.product(nodes,ppn):
+        for n, p in itertools.product(nodes, ppn):
             # actually create a NEW test entry object that has just the single
             # combination of nodes X ppn
             new_te = TestEntry(self.id, self.this_dict[self.id], None)
@@ -118,17 +134,45 @@ class TestEntry():
 
         return tv
 
+    def room_to_run(self, args):
+        """
+        Check a water mark or system utilization
+        so as to not overrun the system.
+        """
 
-class MoabTestEntry(TestEntry):
+        # just something for now!
+        active_jobs = 1
+        # args w and p should be exclusive, w is first check
+        if args['w']:
+            if active_jobs < int(args['w'][0]):
+                return True
+        else:
+            if active_jobs < 100:
+                return True
 
-    def get_test_variations(self):
-        pass
+        self.logger.info('(%s) Active jobs exceed water mark, no job launched' % self.handle)
+        return False
+
+    def prep_ldms(self):
+
+        self.logger.info('setup LDMS for this job (%s) type' % self.handle)
+        LDMS(self)
 
 
 class RawTestEntry(TestEntry):
 
     def get_test_variations(self):
-        pass
+        # for now, return list of just myself
+
+        nl = []
+        nl.append(self)
+        return nl
+
+    def room_to_run(self, args):
+
+        # just let er rip for now.  Maybe create a way to throttle number
+        # of "jobs" allowed to run...
+        return True
 
     
 # this gets called if it's run as a script/program

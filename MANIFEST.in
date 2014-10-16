@@ -1,13 +1,13 @@
 include PAV/pth
 include PAV/pv*
 recursive-include PAV/ *.py
+include docs/*.txt
 include test_suites/*.yaml
-include t1/*.bash
-include t1/i*
 include PAV/plugins/*.yapsy-plugin
 include PAV/scripts/*
-include docs/*.txt
+include t1/*.bash
+include t1/i*
 recursive-include PAV/ README.* 
+recursive-include test/ *
 exclude PAV/special_pkgs/mock.*
 exclude PAV/wasteland/*
-exclude test 

@@ -58,8 +58,6 @@ class YamlTestConfig():
         self.default_config_doc = self.load_config_file(self.dcf)
         self.ecf = self.get_effective_config_file()
 
-
-
     def load_config_file(self, config_name):
         """
         Attempt to load a configuration file by the given name. Returns
