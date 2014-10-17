@@ -12,6 +12,7 @@ import logging
 import shutil
 import json
 from subprocess import Popen, PIPE
+import getpass
 
 
 class JobController():
@@ -30,8 +31,16 @@ class JobController():
         self.job_variation = job_variation
         self.lh = self.configs['log_handle']
 
-        #self.logger = logging.getLogger('pth.runjob.' + self.__class__.__name__)
+        # setup logging same as in pth
+        me = getpass.getuser()
+        master_log_dir = '/tmp/' + me
+        master_log_file = master_log_dir + '/pth.log'
         self.logger = logging.getLogger('pth.' + self.__class__.__name__)
+        self.logger.setLevel(logging.DEBUG)
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        fh = logging.FileHandler(filename=master_log_file)
+        fh.setFormatter(formatter)
+        self.logger.addHandler(fh)
 
         print "initialize job controller"
 
@@ -43,7 +52,7 @@ class JobController():
             self.logger.error('%s %s not executable, returning!' % (self.lh + ":", mycmd))
             raise RuntimeError('some error message')
 
-        self.logger.info(self.lh + " : init phase ")
+        self.logger.info(self.lh + " : init phase")
 
         # common global env params for this job
         os.environ['PV_TESTNAME'] = self.name

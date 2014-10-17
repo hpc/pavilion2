@@ -58,20 +58,22 @@ UniqueTestId:
 
     # comma separated list of values, or range 
     num_nodes: 1
-    # queue to submit jobs against
-    queue: '' 
+    # queue to submit jobs against (optional)
+    queue: "" 
+    # reservation to submit jobs against (optional)
+    reservation: "" 
     # comma separated list of values, or range 
     procs_per_node: 16
     # time in hr::min::secs
     time_limit: 01:00:00
-    # free formatted string added to msub invocation line
+    # free formatted string added to msub invocation line (optional)
     msub_args:
-    # optional target segment, will be added to feature argument
+    # target segment, will be added to feature argument (optional)
     target_seg: "" 
-    # optional list of nodes to target 
+    # optional list of nodes to target (not yet implemented) 
     node_list: "" 
-    # optional. Percent of cluster consumed by this particular test in this
-    # test suite of jobs. Noralization will occurr. 
+    # Percent of cluster consumed by this particular test in this
+    # test suite of jobs. Noralization will occurr. (optional)
     percent: ""
     
 

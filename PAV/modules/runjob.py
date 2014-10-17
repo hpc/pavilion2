@@ -175,7 +175,7 @@ def main(args):
                 print "<build-end> ", now()
 
             logger.info(lh + " starting")
-            print "<start>" , now()
+            print "<start>", now()
             this_job.start()
             #print "<end>" , now()
             logger.info(lh + ' Submit completed ')

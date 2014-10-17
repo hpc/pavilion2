@@ -4,7 +4,6 @@
 """
 
 import os
-import sys
 import subprocess
 import json
 import logging
@@ -13,7 +12,6 @@ import time
 from yapsy.IPlugin import IPlugin
 from testConfig import YamlTestConfig
 from testEntry import TestEntry, MoabTestEntry, RawTestEntry
-from ldms import LDMS
 
 
 class RunTestSuite(IPlugin):
@@ -106,29 +104,17 @@ class RunTestSuite(IPlugin):
                 # i.e. , te = MoabTestEntry(...)
                 te = globals()[object_name](entry_id, params, args)
 
-                #test_type = te.get_type()
-                #print "my test type -> " + test_type
-
-                #test_variants = [None]
-                # get list of "new" test entries
                 # launch a new process for each test variation or count
-                #test_variants = te.get_test_variations()
-                #if "moab" in test_type:
-                    #test_variants = te.get_test_variations()
                 for test_entry in te.get_test_variations():
                     # support w argument for now, add p later
                     if (args['w'] and te.room_to_run(args)) or not args['w']:
                         # initialize a unique LDMS for each job, if requested
                         os.environ['LDMS_START_CMD'] = ''
                         if args['ldms']:
-                            #LDMS(te)
                             te.prep_ldms()
 
                         for _ in range(te.get_run_count()):
                             self.job_dispatcher(test_entry)
-                #else:
-                #    for _ in range(te.get_run_count()):
-                #        self.job_dispatcher(te)
 
             submit_again = RunTestSuite.submit_delay(args)
 

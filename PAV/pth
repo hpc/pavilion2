@@ -69,7 +69,7 @@ def main():
     parser_foo = subparser.add_parser('foo', help="foo help message")
     parser_foo.set_defaults(sub_cmds='foo')
 
-    print "Running from -> %s " % os.environ['PVINSTALL'] + "/PAV"
+    print "Running from -> %s" % os.environ['PVINSTALL'] + "/PAV"
     print "Logging to -> %s" % master_log_file
 
     # Dynamic support for adding commands...

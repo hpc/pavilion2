@@ -1,10 +1,11 @@
 #!python
 
 import sys
-import os
 import logging
 import itertools
 from ldms import LDMS
+import subprocess
+import getpass
 
 
 def flatten_dict(d):
@@ -125,23 +126,46 @@ class MoabTestEntry(TestEntry):
             new_te = TestEntry(self.id, self.this_dict[self.id], None)
             new_te.set_nnodes(n)
             new_te.set_ppn(p)
-            #print "build a new one with " + p + " procs per node"
             tv.append(new_te)
-            #print new_te.get_name()
-            #print new_te
-            #print i
-            #tv.append(i)
 
         return tv
 
+    @staticmethod
+    def get_active_jobs(self):
+        """
+        Find the number of jobs queued or running on the system.
+        implement:  `mdiag -j | grep $me | wc -l`
+        """
+        me = getpass.getuser()
+
+        cat = subprocess.Popen(['mdiag', '-j'],
+                               stdout=subprocess.PIPE,
+                               )
+
+        grep = subprocess.Popen(['grep', me],
+                                stdin=cat.stdout,
+                                stdout=subprocess.PIPE,
+                                )
+
+        cut = subprocess.Popen(['wc', '-l'],
+                               stdin=grep.stdout,
+                               stdout=subprocess.PIPE,
+                               )
+
+        end_of_pipe = cut.stdout
+
+        for line in end_of_pipe:
+            #print 'active_jobs: ', line.strip()
+            return int(line.strip())
+
     def room_to_run(self, args):
         """
-        Check a water mark or system utilization
+        Check system utilization
         so as to not overrun the system.
         """
 
-        # just something for now!
-        active_jobs = 1
+        active_jobs = self.get_active_jobs()
+
         # args w and p should be exclusive, w is first check
         if args['w']:
             if active_jobs < int(args['w'][0]):

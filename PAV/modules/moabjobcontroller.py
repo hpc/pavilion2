@@ -20,7 +20,7 @@ class MoabJobController(JobController):
     # .. some setup and let the msub command fly ...
     def start(self):
 
-        # Get any buffered output into the output file now
+        # Stuff any buffered output into the output file now
         # so that the the order doesn't look all mucked up
         sys.stdout.flush()
 
@@ -40,6 +40,10 @@ class MoabJobController(JobController):
         ts = ''
         if self.configs['moab']['target_seg']:
             ts = self.configs['moab']['target_seg']
+
+        reservation = ''
+        if self.configs['moab']['reservation']:
+            reservation = self.configs['moab']['reservation']
 
         # accounting file? or just log it?
 
@@ -81,6 +85,8 @@ class MoabJobController(JobController):
         msub_cmd += "-l nodes=" + nnodes + ",walltime=" + time_lim
         if ts:
             msub_cmd += ",feature=" + ts
+        if reservation:
+            msub_cmd += ",advres=" + reservation
 
         run_cmd = os.environ['PV_RUNHOME'] + "/" + self.configs['run']['cmd']
         os.environ['USER_CMD'] = run_cmd
@@ -103,7 +109,7 @@ class MoabJobController(JobController):
             fake_job_cmd = os.environ['PVINSTALL'] + "/PAV/modules/moab_job_handler.py"
             p = subprocess.Popen(fake_job_cmd, stdout=self.job_log_file, stderr=self.job_log_file, shell=True)
             # wait for the subprocess to finish
-            (output,errors) = p.communicate()
+            (output, errors) = p.communicate()
             if p.returncode or errors:
                 print "Error: something went wrong!"
                 print [p.returncode, errors, output]
