@@ -42,14 +42,14 @@ class JobController():
         fh.setFormatter(formatter)
         self.logger.addHandler(fh)
 
-        print "initialize job controller"
+        #print "initialize job controller"
 
         # verify command is executable early on
         mycmd = self.configs['source_location'] + "/" + self.configs['run']['cmd']
         is_exec = os.access(mycmd, os.X_OK)
         if not is_exec:
-            print self.configs['run']['cmd'] + " command not executable, returning!"
-            self.logger.error('%s %s not executable, returning!' % (self.lh + ":", mycmd))
+            print mycmd + " command not executable, skipping!"
+            self.logger.error('%s %s not executable, skipping!' % (self.lh + ":", mycmd))
             raise RuntimeError('some error message')
 
         self.logger.info(self.lh + " : init phase")

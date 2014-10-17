@@ -42,7 +42,7 @@ class TestEntry():
 
     @staticmethod
     def check_valid(adict):
-        # minimal keys necessary to process this test/stanza any further
+        # minimal key/values necessary to process this test entry (stanza) any further
         data = flatten_dict(adict)
 
         #print data
@@ -50,17 +50,19 @@ class TestEntry():
         seen = set(data.keys())
 
         if needed.issubset(seen):
+            for k in needed:
+                if not data[k]:
+                    print "Error: value must be defined for key: (%s)" % k,
+                    return False
             return True
         else:
             missing = ", ".join(needed - seen)
-            print "Error: missing the following necessary keys: %s" % missing,
+            print "Error: missing the following necessary keys: (%s)" % missing,
             return False
 
     def get_results_location(self):
         return self.this_dict[self.id]['results']['root']
 
-    #@classmethod
-    #def get_test_type(cls, params):
     def get_type(self):
         #return params['run']['scheduler']
         return self.this_dict[self.id]['run']['scheduler']

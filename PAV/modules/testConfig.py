@@ -56,7 +56,7 @@ class YamlTestConfig():
         self.logger.info('Using default test config file: %s ' % self.dcf)
 
         self.default_config_doc = self.load_config_file(self.dcf)
-        self.ecf = self.get_effective_config_file()
+        self.ecf = self.create_effective_config_file()
 
     def load_config_file(self, config_name):
         """
@@ -104,7 +104,7 @@ class YamlTestConfig():
         """
         print json.dumps(self.default_config_doc, sort_keys=True, indent=4)
 
-    def get_effective_config_file(self):
+    def create_effective_config_file(self):
         """
         Return the complete test suite file to be used for this test
         after it is folded in with the default configuration
@@ -113,7 +113,7 @@ class YamlTestConfig():
         # get a copy of the default configuration for a test 
         dk, default_config = self.default_config_doc.items()[0]
 
-        # then, for each new test/stanza in the user_config_doc
+        # then, for each new test entry (stanza) in the user_config_doc
         # merge with the default entry (overriding the defaults)
         new_dict = {}
         for test_id, v in self.user_config_doc.items():
@@ -129,6 +129,9 @@ class YamlTestConfig():
             new_dict[test_id] = merge(tmp_config, self.user_config_doc[test_id])
 
         return new_dict
+
+    def get_effective_config_file(self):
+        return self.ecf
 
     def show_effective_config_file(self):
         """
