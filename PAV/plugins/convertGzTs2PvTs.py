@@ -2,7 +2,8 @@
 """ skeleton example plug-in that implements a new command 
 """
 
-import sys,os
+import sys
+import os
 import subprocess
 import logging
 
@@ -26,8 +27,8 @@ my_dict = {
 class Switch(object):
     value = None
 
-    def __new__(class_, value):
-        class_.value = value
+    def __new__(cls, value):
+        cls.value = value
         return True
 
 
@@ -45,7 +46,7 @@ class gzts2pvtsPlugin(IPlugin):
         # To log output from this class to to the
         # main (pth) log file you tack it's name onto the pth name space
         self.logger = logging.getLogger('pth.' + my_name)
-        self.logger.info('created instance of plugin: %s'% my_name)
+        self.logger.info('created instance of plugin: %s' % my_name)
 
     # Every plugin class MUST have a method by the name "add_parser_info"
     # and must return the name of the this sub-command
@@ -62,7 +63,7 @@ class gzts2pvtsPlugin(IPlugin):
         # parser_gzts2pvts.add_argument('-v', default='testparentdirectory',
         #  help='test parent directory under which all tests are subdirectories of')
         parser_gzts2pvts.set_defaults(sub_cmds='gzts2pvts')
-        return ('gzts2pvts')
+        return 'gzts2pvts'
 
     # Every plugin class MUST have a method by the name "cmd"
     # It will get invoked when sub-command is selected
@@ -120,7 +121,6 @@ class gzts2pvtsPlugin(IPlugin):
         except IOError:
             print "Error: opening I/O file, exiting!"
             sys.exit()
-
 
 # example gazebo input line:
 # name:=mem-gf-bynuma nodes:=1 pes:=24  tl:=00:30:30 pl:="30 128 56 24 " count:=1 nl:=mu0121 pct:=20
@@ -261,5 +261,5 @@ class gzts2pvtsPlugin(IPlugin):
         print "\nNew Test Suite written to -> " + pvoutputfile
 
 
-if __name__=="__main__":
+if __name__ == "__main__":
     print gzts2pvtsPlugin.__doc__

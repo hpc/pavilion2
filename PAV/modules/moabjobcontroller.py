@@ -11,7 +11,8 @@ from basejobcontroller import JobController
 class MoabJobController(JobController):
     """ class to run a job using Moab """
 
-    def is_moab_system(self):
+    @staticmethod
+    def is_moab_system():
         if os.path.isfile("/etc/toss-release"):
             return True
         else:
@@ -93,13 +94,14 @@ class MoabJobController(JobController):
 
         msub_cmd += " " + os.environ['PVINSTALL'] + "/PAV/modules/moab_job_handler.py"
 
-        if self.is_moab_system():
+        if MoabJobController.is_moab_system():
             self.logger.info(self.lh + " : " + msub_cmd)
             # call to invoke real Moab command
             output = subprocess.check_output(msub_cmd, shell=True)
             # Finds the jobid in the output from msub. The job id can either
             # be just a number or Moab.number.
-            match = re.search("^((Moab.)?(\d+))[\r]?$",  output, re.IGNORECASE|re.MULTILINE)
+            match = re.search("^((Moab.)?(\d+))[\r]?$",  output, re.IGNORECASE | re.MULTILINE)
+            jid = 0
             if match.group(1):
                 jid = match.group(1)
             print "<JobID> " + str(jid)
@@ -118,8 +120,4 @@ class MoabJobController(JobController):
     
 # this gets called if it's run as a script/program
 if __name__ == '__main__':
-    
-    # instantiate a class to handle the config files
-    mjc = MoabJobController()
-
     sys.exit()

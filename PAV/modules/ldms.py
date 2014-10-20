@@ -4,7 +4,6 @@
 """
 
 import os
-import sys
 import subprocess
 import datetime
 import logging
@@ -83,7 +82,6 @@ class LDMS():
             elif ret in (3, 4, 5):
                 print("the command failed very much")
             pass
-
 
     @staticmethod
     def status(jid):

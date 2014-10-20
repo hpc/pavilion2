@@ -19,7 +19,8 @@ class JobController():
 
     """ class to define the common actions for any job type """
 
-    def now(self):
+    @staticmethod
+    def now():
         return datetime.datetime.now().strftime("%m-%d-%YT%H:%M:%S:%f")
 
     def __init__(self, uid, configs, job_log_file, job_variation):
@@ -88,7 +89,7 @@ class JobController():
             return
 
         # now setup and do the move
-        os.environ['PV_RUNHOME'] = ws + "/" + self.name + "__" + run_cmd + "." + self.now()
+        os.environ['PV_RUNHOME'] = ws + "/" + self.name + "__" + run_cmd + "." + JobController.now()
 
         print 'Working Space: %s' % os.environ['PV_RUNHOME']
 
@@ -111,7 +112,7 @@ class JobController():
             from_loc = src_dir + "/"
             if exclude_ws:
                 cmd = "rsync -a --exclude '" + \
-                      exclude_ws  + "' --exclude '*.[ocfh]' --exclude '*.bck' --exclude '*.tar' "
+                      exclude_ws + "' --exclude '*.[ocfh]' --exclude '*.bck' --exclude '*.tar' "
             else:
                 cmd = "rsync -a --exclude '*.[ocfh]' --exclude '*.bck' --exclude '*.tar' "
             cmd += from_loc + " " + to_loc
@@ -139,7 +140,6 @@ class JobController():
     # Most of the <xxxx> stuff is for Gazebo backward compatibility
     def save_common_settings(self):
 
-        obj_name = self.__class__.__name__
         print "#\n#  --- job: ", self.name, "-------"
         print "<rmgr> " + self.configs['run']['scheduler']
         print "<nix_pid> " + str(os.getpid())
@@ -246,7 +246,6 @@ class JobController():
                 out_file.write(match.group(2) + "\n")
 
         out_file.close()
-
 
 
 # this gets called if it's run as a script/program

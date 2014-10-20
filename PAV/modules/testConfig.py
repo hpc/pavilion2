@@ -7,6 +7,7 @@ import json
 import logging
 from testEntry import TestEntry
 
+
 def merge(obj_1, obj_2):
     """
     Recursive function to merge nested dictionaries

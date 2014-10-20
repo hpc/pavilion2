@@ -15,4 +15,4 @@ config = {
     'name': 'pavilion'
 }
 
-setup(**config)
+setup(**config, requires=['yapsy'])

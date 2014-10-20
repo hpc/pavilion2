@@ -24,6 +24,8 @@ def convert(inp):
         return inp
 
 from contextlib import contextmanager
+
+
 @contextmanager
 def stdout_redirected(new_stdout):
     save_stdout = sys.stdout
@@ -50,7 +52,7 @@ def load_jcmod(eid, params):
 
     # build with a known naming convention
     module_name = params['run']['scheduler'] + "jobcontroller"
-    class_name_Cc = params['run']['scheduler'].title() + "JobController"
+    class_name_cc = params['run']['scheduler'].title() + "JobController"
 
     sys.path.append("/modules")
 
@@ -65,7 +67,7 @@ def load_jcmod(eid, params):
         return
 
     # get a reference to the JobController class
-    class_ = getattr(mh, class_name_Cc)
+    class_ = getattr(mh, class_name_cc)
     return class_
 
 
@@ -84,11 +86,10 @@ def build_results_dir(params):
     target = platform.uname()[1].split(".", 1)[0]
     new_dir = new_dir + date_parts + target + "/" + name + "/"
     pid = str(os.getpid())
-    my_timezone = params['time']['tz']
-    now = datetime.datetime.now()
+    results_now = datetime.datetime.now()
     ld = name + "__" + params['run']['cmd'].split(".", 1)[0] + \
-         "__" + pid + "__" + target  \
-         + "." + now.strftime('%Y-%m-%dT%H:%M:%S:%f')
+        "__" + pid + "__" + target  \
+        + "." + results_now.strftime('%Y-%m-%dT%H:%M:%S:%f')
     new_dir += ld
 
     logger.info("Make log directory: " + new_dir)
@@ -131,8 +132,6 @@ def main(args):
     params = convert(params)
     entry_id = args[1]
     variation = json.loads(args[3])
-
-    #signal(SIGPIPE,SIG_DFL)
 
     # This handle "name(pid)" can be used to follow all activity of this
     # specific job thread in the pth.log file
@@ -179,8 +178,6 @@ def main(args):
             this_job.start()
             #print "<end>" , now()
             logger.info(lh + ' Submit completed ')
-
-
 
 
 # this gets called if it's run as a script from the shell

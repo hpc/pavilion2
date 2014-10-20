@@ -1,7 +1,8 @@
 #!python
 """  Implementation raw Job Control mechanism  """
 
-import sys,os
+import sys
+import os
 import subprocess
 from basejobcontroller import JobController
 

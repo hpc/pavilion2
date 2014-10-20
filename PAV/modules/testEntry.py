@@ -21,7 +21,9 @@ def flatten_dict(d):
 
 
 class TestEntry():
-    """ class to manipulate a specific test entry in the test suite """
+    """
+    class to manipulate a specific test entry in the test suite
+    """
 
     this_dict = {}
     
@@ -45,8 +47,8 @@ class TestEntry():
         # minimal key/values necessary to process this test entry (stanza) any further
         data = flatten_dict(adict)
 
-        #print data
-        needed = set(["source_location", "name", "run.cmd"])
+        # create a needed set literal
+        needed = {"source_location", "name", "run.cmd"}
         seen = set(data.keys())
 
         if needed.issubset(seen):
@@ -96,9 +98,9 @@ class TestEntry():
         # strategy (like Gazebo's testMgr) this can be enhanced.
         return self.get_count()
 
-    def room_to_run(self,args):
-        # scheduler specific implementation
-        False
+    def room_to_run(self, args):
+        # must be overridden by specific scheduler implementation
+        return False
 
     def prep_ldms(self):
         """
@@ -133,7 +135,7 @@ class MoabTestEntry(TestEntry):
         return tv
 
     @staticmethod
-    def get_active_jobs(self):
+    def get_active_jobs():
         """
         Find the number of jobs queued or running on the system.
         implement:  `mdiag -j | grep $me | wc -l`
@@ -166,7 +168,7 @@ class MoabTestEntry(TestEntry):
         so as to not overrun the system.
         """
 
-        active_jobs = self.get_active_jobs()
+        active_jobs = MoabTestEntry.get_active_jobs()
 
         # args w and p should be exclusive, w is first check
         if args['w']:
@@ -190,8 +192,7 @@ class RawTestEntry(TestEntry):
     def get_test_variations(self):
         # for now, return list of just myself
 
-        nl = []
-        nl.append(self)
+        nl = [self]
         return nl
 
     def room_to_run(self, args):

@@ -8,8 +8,6 @@ import getpass
 if sys.version_info[0] != 2 or sys.version_info[1] < 7:
     sys.exit("Python 2.7 is required to run Pavilion")
 
-# support creating Python style command line interfaces
-#import argparse
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "./special_pkgs"))
 
@@ -38,13 +36,8 @@ logy = logging.getLogger('yapsy')
 logy.setLevel(logging.INFO)
 logy.addHandler(fh)
 
-global _debug
-
 # look for modules relative to where this program is located
 sys.path.append(os.path.join(os.path.dirname(__file__), "./modules"))
-#os.environ['PV_SRC_DIR'] = os.getcwd()
-#if os.environ.get('PV_SRC_DIR'):
-#    sys.path.append(os.environ.get('PV_SRC_DIR'))
 
 
 # stub foo sub-command implemented in the main
