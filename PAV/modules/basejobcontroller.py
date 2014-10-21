@@ -51,11 +51,13 @@ class JobController():
         if not is_exec:
             print mycmd + " command not executable, skipping!"
             self.logger.error('%s %s not executable, skipping!' % (self.lh + ":", mycmd))
-            raise RuntimeError('some error message')
+            raise RuntimeError('command not executable')
 
         self.logger.info(self.lh + " : init phase")
 
-        # common global env params for this job
+        # Define commonly used  global env variables for this job/test.
+        # GZ_ vars for backwards compatibility with Gazebo, but to be
+        # removed sometime down the road.
         os.environ['PV_TESTNAME'] = self.name
         os.environ['GZ_TESTNAME'] = self.name
         os.environ['PV_TESTEXEC'] = self.configs['run']['cmd']
@@ -71,7 +73,7 @@ class JobController():
 
         exclude_ws = ''
         if ws_path:
-            # it's either a relative path from the src directory
+            # it's either a relative path to the src directory
             # or it's an absolute one.
             if '/' in ws_path[0]:
                 ws = ws_path
@@ -80,6 +82,7 @@ class JobController():
                 exclude_ws = ws_path
 
         # working space is null, so run from source directory
+        # and no further work necessary.
         else:
             os.environ['PV_WS'] = ""
             os.environ['PV_RUNHOME'] = src_dir
@@ -97,8 +100,10 @@ class JobController():
 
         try:
             os.makedirs(os.environ['PV_RUNHOME'], 0o775)
-        except:
+        except OSError:
             print "Error, could not create: ", ws, sys.exc_info()[0]
+            self.logger.error(self.lh + " Can't create temporary work space, skipping test!")
+            return
 
         to_loc = os.environ['PV_RUNHOME']
         os.environ['PV_WS'] = to_loc

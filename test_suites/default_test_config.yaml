@@ -108,6 +108,7 @@ UniqueId:
     # path to working space.
     # PV_WS will contain this string at run time.
     path: 'pv_ws' 
+    #path: '/pv_ws' 
     # comma separated list of files to copy to the working space before
     # the test is launched. If left blank then everthing but, *.[ocfh],
     # *.bck, and *.tar files will be copied.
