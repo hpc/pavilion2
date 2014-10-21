@@ -7,15 +7,16 @@ Pavilion is a software framework for running and analyzing jobs/tests targeting 
 
 Usage:
 ```sh
-    set the ENV variable PV_SRC_DIR to point to the install location with "/PAV" at the end. 
-    cd $PV_SRC_DIR
-    run "./pth -h"
+    set the ENV variable PVINSTALL to point to the installation directory 
+    (for example - "setenv PVINSTALL /users/me/pavilion")
+    add to your search path this directory plus "/PAV"
+    (for example - "setenv PATH ${PVINSTALL}/PAV:${PATH}")
+    run the tool - "pth -h"
 ```
-
 Version
 ====
 
-0.3X
+0.4X
 
 ====
 
