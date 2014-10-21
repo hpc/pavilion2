@@ -81,11 +81,11 @@ class gzts2pvtsPlugin(IPlugin):
         #  no inputfile
 
         if gzinputfile == "inputfile":
-            print "Error: An inputfile is necessary input, please provide one with the -i flag, exiting."
+            print "Error: An inputfile is necessary, please provide one with the -i argument, exiting."
             sys.exit()
 
         # handle input case 2]
-        #  no outputfile is specified, place input filename with .yaml extension in home directory
+        #  no outputfile specified, create an input-filename with .yaml extension in the home directory
         if pvoutputfile == "~/inputfile.yaml":
             homedir = os.environ.get('HOME')    # why? because opening a file with ~/filename doesn't work
             pvoutputfile = homedir + "/" + os.path.basename(gzinputfile) + ".yaml"
