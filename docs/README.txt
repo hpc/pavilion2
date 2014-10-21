@@ -1,12 +1,6 @@
 Pavilion Test Harness 
 
-Built and tested on Python 2.7
-
-To Build a src distribution tar file:
-  - edit the setup.py file appropriately
-  - add files to include in MANIFEST.in file
-  - from this directory run -> "python setup.py sdist"
-  - tar file placed in "dist" directory
+Built and tested with Python 2.7
 
 File Structure:
 --------------
@@ -27,36 +21,36 @@ Collaboration tips:
 Getting Started:
 ---------------
 
- -  set ENV var PVINSTALL to the installation directory of Pavilion
+ -  set nix environment variable PVINSTALL to the installation directory of Pavilion
  -  set PATH to include $PVINSTALL/PAV 
 
   At this point you should be able to run "pth -h"
 
  - Pavilion is centered around the idea of a user defined test suite. Therefore, you need to create a user
-   test suite config file with at least one test (or job) stanza in it.  Some examples exist in the docs directory.
+   test suite config file with at least one test (or job) stanza in it.  An example exists in the docs directory.
    You only need to define what is different from the default test suite config file because the user
    test suite config file will inherit everything that is not explicity changed from the default config file. 
    This is basic YAML, where a new test stanza is defined when a new id is encountered at the begining of a new line.
 
    So.... the recommended approach to this is:
-     1) Create a directory someplace to place your test_suite config files.
-     2) Copy the Example default test_suite to this directory, and name it
-        default_test_config.yaml. Tweak it only where appropriate (like your results root directory).
+     1) create a directory someplace to place your test_suite config files.
+     2) copy the Example default test_suite to this directory and name it
+        default_test_config.yaml. Tweak it only where appropriate (like the results root directory).
      3) cd to this directory.
      4) copy the default config file to a new file (for example, my-test-config-suite.yaml) 
      5) strip all the entries from this new file down to only the specific entires you need changed.
-        Only the id, name, source_location, and run:cmd parts are required to be in each stanza! 
+        Only the id, name, source_location, and run:cmd parts are required to be in each new stanza. 
      6) At this point you should have at least two files in this directory.  The default one (the
-        exact  name is important) and your new one (the name is not important).
+        exact name is important) and your new one (the name is not important).
 
-  - Use "pth view_test_suite ./my-test-config-suite.yaml" to see how your new test suite
+  - Type "pth view_test_suite ./my-test-config-suite.yaml" to see how your new test suite
     file is "folded" with the default file.  Add some more test stanzas and try again.
 
-  - Use "pth run_test_suite ./my-test-config_suite.yaml" to run your defined jobs. 
+  - Type "pth run_test_suite ./my-test-config_suite.yaml" to run your defined jobs. 
     Hint: making sure your jobs work without Pavilion will save you time debugging problems.
 
-  - Use "pth get_results ./my-test-config_suite.yaml" to view your results. Note the i, p, and
-    f parameters to this command.  There are very helpful if showing where the actual
+  - Type "pth get_results ./my-test-config_suite.yaml" to view your results. Note the i, p, and
+    f flags to this command.  There are very helpful if you want to show where the actual
     result data resides. 
 
   
@@ -65,19 +59,19 @@ Gazebo transition tips:
   - A Gazebo test suite can be converted to a Pavilion test suite using the "gzts2pvts"
     sub-command under "pth". Make sure you place this new file in the same directory as the default_test_config.yaml file.
     Edit this file as necessary, it may require some cleanup if the "gzts2pvts" couldn't figure out all the parts.
-    If you run this on a system where you were using Gazebo it may be able to discover more of its parts.
+    If you run this on a system where you were using Gazebo it may be able to discover more of its pieces.
 
   - There is no more $GZ_TMPLOGDIR. This directory used to reside under the working_space (which still exists) and any files
     placed there were copied to the final results directory. Now, If you want other data saved to the final results directory
-    you can either place it there ($PV_JOB_RESULTS_LOG_DIR) from the start OR any files listed in the working_space:save_from_ws   
-    section will be moved there at job finalization.
+    you can either place it there directly ($PV_JOB_RESULTS_LOG_DIR) OR any files listed in the working_space:save_from_ws   
+    section of the test suite will be moved there at job end.
 
 
 Output data standardization (trend data):
-----------------------------------
+-----------------------------------------
 
-Specific test/job related values can be recorded and analyzed if they are save as trend data.
-Trend data is important result information that is printing as a separate line to STDOUT.
+Specific test/job related values can be recorded and analyzed if they are saved as trend data.
+Trend data is important result information that is printed as a separate line to STDOUT.
 Multiple trend data values can be saved for every test run. This data is determined by the
 application developer.
 
@@ -108,8 +102,8 @@ Examples:
 
 
 Querying Data:
-  Trend data can be viewed using the get_results command 
-with the "-T" option. Data is harvested from the log file in the test results directory.
+ Trend data can be viewed using the get_results sub-command with the "-T" option.
+ Data is harvested from the log files in the test results directory.
 
 
 Debug Tips:
@@ -122,3 +116,13 @@ Utility Scripts:
 ---------------
 
 pvjobs - show what jobs are present on Moab systems.
+
+
+----------------
+
+To Build a src distribution tar file:
+  - edit the setup.py file appropriately
+  - add files to include in the MANIFEST.in file
+  - from this directory run -> "python setup.py sdist"
+  - the tar file placed in "dist" directory
+
