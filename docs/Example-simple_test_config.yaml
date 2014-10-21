@@ -13,6 +13,7 @@
 # DefaultTestSuite: default_test_suite.yaml
 
 # Unique (to the test suite being used) test/job identifier. Any string will do.
+# Do Not add a value to the right side of this id!
 Id1:
 
   name: myTest 

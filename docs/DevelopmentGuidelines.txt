@@ -4,9 +4,8 @@ Pavilion guidlines to follow for cohesive team product development.
 -------
 
 1.1 Define requirements (Mostly Finished)
-1.2 Expand (flesh out) requirements in Design Specification
-1.3 Implement functionality and refine Design Spec as needed 
-1.4 Follow coding and code processes as stated in steps 2 & 3
+1.2 Detail requirements in a Design Specification
+1.3 Follow coding and code processes as stated below for Design Spec.  
 
 
 2. Coding - Generally being developed in Python. However, in cases where a shell script or other language makes sense, use it.
@@ -30,7 +29,7 @@ Pavilion guidlines to follow for cohesive team product development.
 
 3.1.2  Team development with Git - http://blog.ericbmerritt.com/2011/12/05/team-development-with-git.html
 
-3.2 Directory Structure <INSTALL_DIR>/PAV, test, docs, man, README's, etc.
+3.2 Directory Structure <INSTALL_DIR>/PAV
 
 3.2.1 All source code under the PAV directory
 
