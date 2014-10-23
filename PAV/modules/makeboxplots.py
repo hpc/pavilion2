@@ -12,7 +12,7 @@ import re
 
 print "Making box plots with data from:"
 for line in sys.stdin:
-    searchObj = re.search(r'jid\(', line, re.M|re.I)
+    searchObj = re.search(r'jid\(', line, re.M | re.I)
     if searchObj:
         # Should do work here, see correct output above
         print line,  # this line for debug purposes

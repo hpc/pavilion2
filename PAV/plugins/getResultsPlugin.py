@@ -27,9 +27,9 @@ class GetResults(IPlugin):
     # Every plugin class MUST have a method by the name "add_parser_info"
     # and must return the name of the the sub-command
 
-    def add_parser_info(self, subparser): 
+    def add_parser_info(self, subparser):
         parser_gr = subparser.add_parser("get_results", help="summarize test results")
-        #parser_gr.add_argument('testSuite', help='test-suite-config-file')
+        # parser_gr.add_argument('testSuite', help='test-suite-config-file')
         parser_gr.add_argument('-s', nargs=1, metavar='<date>', help="start date (yyyy-mm-dd), default 15 days ago")
         parser_gr.add_argument('-S', nargs=1, metavar='<time>', help="start time (HH:MM:SS), default is at 00:00:00")
 
@@ -48,6 +48,10 @@ class GetResults(IPlugin):
 
         parser_gr.add_argument('-bp', '--make-box-plots', action="store_true",
                                help='create box plots from the selected set of test results and trend data values')
+
+        parser_gr.add_argument('-bl', '--make-baselines', action="store_true",
+                               help='create base line averages from the selected set'
+                                    ' of test results and trend data values')
 
         parser_gr.set_defaults(sub_cmds='get_results')
         return 'get_results'
@@ -74,9 +78,10 @@ class GetResults(IPlugin):
 
         # *** need to handle ALL result locations here!
         res_loc_list = tc.get_result_locations()
-        #print res_loc_list
+        # print res_loc_list
         for results_dir in res_loc_list:
             print "\nFor results location: %s " % results_dir
+            os.environ['pv_result_root'] = results_dir
 
             try:
                 if os.access(results_dir, os.R_OK) is False:
@@ -90,7 +95,7 @@ class GetResults(IPlugin):
                 sys.exit()
 
             # call something here that gets the results
-            self.logger.debug('invoke get_results on %s' % results_dir)
+            self.logger.debug('get_results from %s' % results_dir)
             # add in all the possible args
             # implement different shared Nix groups later, using gzshared for now
             bc = "/scripts/get_results -g gzshared"
@@ -116,6 +121,11 @@ class GetResults(IPlugin):
             if args['make_box_plots']:
                 plot_cmd = os.environ['PVINSTALL'] + "/PAV/modules/makeboxplots.py"
                 gr_cmd = os.environ['PVINSTALL'] + "/PAV" + bc + " -T -l " + results_dir + " | " + plot_cmd
+            elif args['make_baselines']:
+                bl1_cmd = os.environ['PVINSTALL'] + "/PAV/modules/makebaselines.py"
+                bl2_cmd = os.environ['PVINSTALL'] + "/PAV/scripts/mkBaselines"
+                gr_cmd = os.environ['PVINSTALL'] + "/PAV" + bc + " -T -l " + results_dir + " | " +\
+                    bl1_cmd + " | " + bl2_cmd
             else:
                 gr_cmd = os.environ['PVINSTALL'] + "/PAV" + bc + " -l " + results_dir
 

@@ -58,12 +58,15 @@ class JobController():
         # Define commonly used  global env variables for this job/test.
         # GZ_ vars for backwards compatibility with Gazebo, but to be
         # removed sometime down the road.
+
         os.environ['PV_TESTNAME'] = self.name
         os.environ['GZ_TESTNAME'] = self.name
         os.environ['PV_TESTEXEC'] = self.configs['run']['cmd']
         os.environ['GZ_TESTEXEC'] = self.configs['run']['cmd']
         os.environ['GZ_TEST_PARAMS'] = self.configs['run']['test_args']
         os.environ['PV_TEST_ARGS'] = self.configs['run']['test_args']
+
+        #raise RuntimeError("Could not create working space")
 
     def setup_working_space(self):
 
