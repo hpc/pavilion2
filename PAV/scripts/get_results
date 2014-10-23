@@ -153,7 +153,7 @@ print "\n *** Job Summary ***\n";
 print " From: $start through $end \n";
 unless ( $opt{a} ) {
   print "\t Analysis between $start and $end \n";
-  print "\t Output format: testName-[run Script].numberPEs(test parameters) - results, [avg. run time]\n";
+  print "\t Output format: testName-.numCoresXnumPEs(test parameters) - results, [avg. run time]\n";
 }
 
 # determine where to search 
