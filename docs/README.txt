@@ -116,13 +116,3 @@ Utility Scripts:
 ---------------
 
 pvjobs - show what jobs are present on Moab systems.
-
-
-----------------
-
-To Build a src distribution tar file:
-  - edit the setup.py file appropriately
-  - add files to include in the MANIFEST.in file
-  - from this directory run -> "python setup.py sdist"
-  - the tar file placed in "dist" directory
-
