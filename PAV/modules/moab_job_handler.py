@@ -52,53 +52,11 @@ def get_moab_node_list():
         return platform.node()
 
 
-def run_epilog():
-
-        if os.environ['PV_ES']:
-        # run an epilog script if defined in the test config
-            es = os.environ['PV_ES']
-            print "starting epilog script" + str(es)
-            os.system(es)
-            print "epilog script complete"
-
-
-def run_cleanup():
-
-        print "start cleanup:"
-
-        # Save the necessary files from the RUNHOME directory
-        from_loc = os.environ['PV_RUNHOME'] + "/"
-        to_loc = os.environ["PV_JOB_RESULTS_LOG_DIR"]
-
-        files2copy = ''
-        if os.environ['PV_SAVE_FROM_WS']:
-            files2copy = " --include " + os.environ['PV_SAVE_FROM_WS']
-
-        # add the basics
-        files2copy += " --include '*.log' --include '*.std*' --exclude='*' "
-
-        # finalize complete command
-        cmd = "rsync -ar " + files2copy + " " + from_loc + " " + to_loc
-
-        print "cmd -> " + cmd
-
-        # do it
-        p = Popen(cmd, stdout=PIPE, stderr=PIPE, shell=True)
-        output, errors = p.communicate()
-
-        if p.returncode or errors:
-            print [p.returncode, errors, output]
-            print "Failure copying job results to the output directory:  (Hint: check the job's logfile) "
-
-        # remove the working space only if it was created
-        if os.environ['PV_WS']:
-            #print "Remove WS - %s " % os.environ['PV_RUNHOME']
-            shutil.rmtree(os.environ['PV_RUNHOME'])
-
-
 def main():
-
-    #cmd1 = "cd " + os.environ['PV_RUNHOME'] + "; " + "ls -l"
+    """
+      Routine called by msub that calls the user's job script/program.
+      Will also start LDMS if requested.
+    """
     cmd = "cd " + os.environ['PV_RUNHOME'] + "; " + \
         os.environ['PVINSTALL'] + "/PAV/scripts/mytime " + os.environ['USER_CMD']
 
@@ -135,9 +93,9 @@ def main():
             pcf = os.environ["PV_JOB_RESULTS_LOG_DIR"] + "/post_complete"
             text_file = open(pcf, "w")
             text_file.write("{}\n".format("command complete"))
-            run_epilog()
+            JobController.run_epilog()
             text_file.write("{}\n".format("epilog complete"))
-            run_cleanup()
+            JobController.cleanup()
             text_file.write("{}\n".format("cleanup complete"))
             text_file.close()
 

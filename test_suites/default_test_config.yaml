@@ -40,7 +40,7 @@
 UniqueId:
 
   # whatever you want to call your test/job.
-  # PV_TESTNAME will contain this string at run time.
+  # ENV variable PV_TESTNAME will contain this string at run time.
   name: TestName
 
   # uri of test, probably a directory name  
@@ -63,7 +63,7 @@ UniqueId:
     # framework.
     scheduler: 'moab'
     # user specified test specific argument string
-    # PV_TEST_ARGS will contain this string at run time.
+    # ENV variable PV_TEST_ARGS will contain this string at run time.
     test_args: '' 
     # number of times to repeat this section
     count: 1
@@ -106,15 +106,15 @@ UniqueId:
 
   working_space:
     # path to working space.
-    # PV_WS will contain this string at run time.
+    # ENV variable PV_WS will contain the full working space path at run time.
     path: 'pv_ws' 
     #path: '/pv_ws' 
     # comma separated list of files to copy to the working space before
-    # the test is launched. If left blank then everthing but, *.[ocfh],
-    # *.bck, and *.tar files will be copied.
+    # the test is launched.
+    #  *.[ocfh], *.bck, and *.tar files are never copied.
     copy_to_ws: ''
     # comma separated list of files to copy to the results directory after
-    # the job completes. By default *.log, *.std* files will be copied.
+    # the job completes. *.log and *.std* files will always copied.
     save_from_ws: ''
     no_copy: '*.c,*.o,*.h'
 
@@ -122,8 +122,10 @@ UniqueId:
   # Results section
   results:
 
-    # The test handler places all results (for this test) under this directory space.
-    # PV_JOB_RESULTS_LOG_DIR will contain this string at run time.
+    # The test handler places all results (for this test) under a dynamically
+    # created directory. The name for this directory is stored in the
+    # ENV variable PV_JOB_RESULTS_LOG_DIR, under the root directory stored in
+    # the ENV variable PV_RESULT_ROOT 
     root: '/Users/cwi/pv_results'
 
     # Pass or Fail matching pattern.

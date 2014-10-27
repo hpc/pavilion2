@@ -81,7 +81,7 @@ class GetResults(IPlugin):
         # print res_loc_list
         for results_dir in res_loc_list:
             print "\nFor results location: %s " % results_dir
-            os.environ['pv_result_root'] = results_dir
+            os.environ['PV_RESULT_ROOT'] = results_dir
 
             try:
                 if os.access(results_dir, os.R_OK) is False:

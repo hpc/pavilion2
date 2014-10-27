@@ -1,4 +1,4 @@
-include Copyright.txt 
+include / Copyright.txt 
 include PAV/pth
 include PAV/pv*
 recursive-include PAV/ *.py

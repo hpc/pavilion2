@@ -11,8 +11,20 @@ import datetime
 import logging
 import shutil
 import json
+import glob
 from subprocess import Popen, PIPE
 import getpass
+
+
+def copy_file(src, dest):
+    try:
+        shutil.copy(src, dest)
+    # eg. src and dest are the same file
+    except shutil.Error as e:
+        print('Error: %s' % e)
+    # eg. source or destination doesn't exist
+    except IOError as e:
+        print('Error: %s' % e.strerror)
 
 
 class JobController():
@@ -66,6 +78,7 @@ class JobController():
         os.environ['GZ_TEST_PARAMS'] = self.configs['run']['test_args']
         os.environ['PV_TEST_ARGS'] = self.configs['run']['test_args']
 
+        #self.setup_working_space()
         #raise RuntimeError("Could not create working space")
 
     def setup_working_space(self):
@@ -175,14 +188,15 @@ class JobController():
     def query(self):
         pass
 
-    def run_epilog(self):
-        es = self.configs['results']['epilog_script']
+    @staticmethod
+    def run_epilog():
 
+        if os.environ['PV_ES']:
         # run an epilog script if defined in the test config
-        if es:
-            self.logger.info(self.lh + ': start epilog script: ' + es)
+            es = os.environ['PV_ES']
+            print "- Run epilog script: " + str(es)
             os.system(es)
-            self.logger.info(self.lh + '%s epilog script complete' % es)
+            print "- epilog script complete"
 
     def setup_job_info(self):
 
@@ -198,45 +212,36 @@ class JobController():
         os.environ['PV_TEST_ARGS'] = self.configs['run']['test_args']
         os.environ['GZ_TEST_PARAMS'] = os.environ['PV_TEST_ARGS']
 
-    def cleanup(self):
+    @staticmethod
+    def cleanup():
 
-        self.logger.info(self.lh + ': start cleanup')
+        print '- Start WS cleanup:'
 
         sys.stdout.flush()
         sys.stderr.flush()
 
-        # Save the necessary files from the RUNHOME directory
+        # Save the files from the RUNHOME, a.k.a. WS directory
         from_loc = os.environ['PV_RUNHOME'] + "/"
         to_loc = os.environ["PV_JOB_RESULTS_LOG_DIR"]
 
-        files2copy = ''
-        #if (self.configs['working_space']['save_from_ws']):
+        #print '  files in :' + from_loc
+        #print '  copy to  :' + to_loc
+
+        # user defined files in the test suite config file?
         if os.environ['PV_SAVE_FROM_WS']:
-            files2copy = " --include " + os.environ['PV_SAVE_FROM_WS']
+            no_spaces_str = "".join(os.environ['PV_SAVE_FROM_WS'].split())
+            for file_type in no_spaces_str.split(","):
+                print "  look for: " + file_type
+                for file2save in glob.glob(os.path.join(from_loc, file_type)):
+                    print "  saving: " + file2save
+                    copy_file(file2save, to_loc)
 
-        # add the basics
-        files2copy += " --include '*.log' --include '*.std*' --exclude='*' "
-
-        # finalize complete command
-        cmd = "rsync -ar " + files2copy + " " + from_loc + " " + to_loc
-
-        self.logger.debug('%s : %s' % (self.lh, cmd))
-
-        # do it
-        p = Popen(cmd, stdout=PIPE, stderr=PIPE, shell=True)
-        output, errors = p.communicate()
-
-        if p.returncode or errors:
-            print "Error: failure copying job results the output directory!"
-            print [p.returncode, errors, output]
-            self.logger.info(self.lh + " failure copying job results to the output directory: " + self.name +
-                                       "(Hint: check the job's logfile)")
-
-        # remove the working space if it was created
-        #if self.configs['working_space']['path']:
+        # remove the working space ONLY if it was created
         if os.environ['PV_WS']:
-            self.logger.info('%s : remove WS - %s ' % (self.lh, os.environ['PV_RUNHOME']))
+            print '- remove WS: %s ' % os.environ['PV_RUNHOME']
             shutil.rmtree(os.environ['PV_RUNHOME'])
+
+        print '- WS cleanup complete'
 
     @staticmethod
     def process_trend_data():
