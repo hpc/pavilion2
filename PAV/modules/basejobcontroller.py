@@ -61,9 +61,9 @@ class JobController():
         mycmd = self.configs['source_location'] + "/" + self.configs['run']['cmd']
         is_exec = os.access(mycmd, os.X_OK)
         if not is_exec:
-            print mycmd + " command not executable, skipping!"
-            self.logger.error('%s %s not executable, skipping!' % (self.lh + ":", mycmd))
-            raise RuntimeError('command not executable')
+            print mycmd + " Run command not executable!"
+            self.logger.error('%s %s not executable' % (self.lh + ":", mycmd))
+            raise RuntimeError('Run command not executable')
 
         self.logger.info(self.lh + " : init phase")
 
@@ -78,8 +78,7 @@ class JobController():
         os.environ['GZ_TEST_PARAMS'] = self.configs['run']['test_args']
         os.environ['PV_TEST_ARGS'] = self.configs['run']['test_args']
 
-        #self.setup_working_space()
-        #raise RuntimeError("Could not create working space")
+        self.setup_working_space()
 
     def setup_working_space(self):
 
@@ -97,14 +96,14 @@ class JobController():
                 ws = src_dir + "/" + ws_path
                 exclude_ws = ws_path
 
-        # working space is null, so run from source directory
-        # and no further work necessary.
+        # Working space is null, thus directed to run directly from the source directory
+        # so no further work necessary.
         else:
             os.environ['PV_WS'] = ""
             os.environ['PV_RUNHOME'] = src_dir
             print os.environ['PV_RUNHOME']
             print 'Working Space: %s' % os.environ['PV_RUNHOME']
-            self.logger.info('WS for %s: ' % self.lh + os.environ['PV_RUNHOME'])
+            self.logger.info('Working Space for %s: ' % self.lh + os.environ['PV_RUNHOME'])
             return
 
         # now setup and do the move
@@ -112,14 +111,13 @@ class JobController():
 
         print 'Working Space: %s' % os.environ['PV_RUNHOME']
 
-        self.logger.info(self.lh + " : " + 'Create WS - ' + os.environ['PV_RUNHOME'])
-
+        self.logger.info(self.lh + " : " + 'Create temporary Working Space - ' + os.environ['PV_RUNHOME'])
         try:
             os.makedirs(os.environ['PV_RUNHOME'], 0o775)
         except OSError:
             print "Error, could not create: ", ws, sys.exc_info()[0]
-            self.logger.error(self.lh + " Can't create temporary work space, skipping test!")
-            return
+            #self.logger.error(self.lh + " Error, Failed to create working space (WS)")
+            raise RuntimeError("Can't create temporary work space (WS)")
 
         to_loc = os.environ['PV_RUNHOME']
         os.environ['PV_WS'] = to_loc

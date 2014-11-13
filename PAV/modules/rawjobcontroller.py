@@ -13,7 +13,7 @@ class RawJobController(JobController):
     def start(self):
 
         # create own unique working space for this run
-        self.setup_working_space()
+        #self.setup_working_space()
 
         # print the common log settings here right after the job is started
         self.save_common_settings()

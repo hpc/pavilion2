@@ -161,8 +161,12 @@ def main(args):
             try:
             # instantiate job controller object
                 this_job = jc(entry_id, params, lf, variation)
+            except RuntimeError, err:
+                logger.error(lh + "Error: skipping job! " + err.message)
+                return
             except:
-                logging.error(lh + ' failed to instantiate job object, exiting job ')
+                logger.error(lh + 'Error: failed to instantiate job object, skipping job! ')
+                print "Error: ", sys.exc_info()[0]
                 return
 
             # do what every job has to do

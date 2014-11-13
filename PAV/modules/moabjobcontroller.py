@@ -69,7 +69,7 @@ class MoabJobController(JobController):
         print "<npes> " + str(pes)
 
         # create working space here so that each msub run gets its own
-        self.setup_working_space()
+        #self.setup_working_space()
 
         # print the common log settings here right after the job is started
         self.save_common_settings()

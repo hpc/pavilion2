@@ -47,7 +47,7 @@ class TestEntry():
         # minimal key/values necessary to process this test entry (stanza) any further
         data = flatten_dict(adict)
 
-        # create a needed set literal
+        # define the required set of elements
         needed = {"source_location", "name", "run.cmd"}
         seen = set(data.keys())
 
