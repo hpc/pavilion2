@@ -45,7 +45,7 @@ $gname =~ s/\s//g;
 
 # get "gz" groups to which specified user belongs
 if (( $opts{u} ) && (! $opts{g} )) {
-   $grplist = `grep $user /etc/group | grep gz | gawk -F: '{print \$1}' | xargs`;
+   $grplist = `grep $user /etc/group | grep gz | awk -F: '{print \$1}' | xargs`;
    chop($grplist);
    if ( $opts{t} ) {
       print "User $user belongs to the following groups: \n\t$grplist\n";

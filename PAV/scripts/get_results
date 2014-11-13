@@ -97,57 +97,59 @@ chomp $me;
 # print usage if h option set
 if ($opt{h}) { usage(); exit; }
 
-my $today = `date '+%Y-%m-%d'`;
+my $today = `date -u '+%Y-%m-%d'`;
 chomp $today;
 my $d;
 
-if (( "$opt{E}" ne "" ) || ( "$opt{e}" ne "" ))  {
+my $endTime, $endDate;
+my $startTime, $startDate;
 
-  if ( "$opt{e}" ne "" ) {
-    $d = `date '+%Y-%m-%d' -d "$opt{e}"`;
-  } else {
-    $d = $today;
-  }
+if ( $opt{E} ne "" ) {
+  $endTime = $opt{E};
+} else {
+  $endTime = "23:59:59";
+}
 
-  if ( "$opt{E}" ne "" ) {
-    $end = `date '+%Y-%m-%d %H:%M:%S' -d "$d $opt{E}"`;
-  } else {
-    $end = `date '+%Y-%m-%d %H:%M:%S' -d "$d 23:59:59"`;
-  }
+if ( $opt{e} ne "" ) {
+  $endDate = $opt{e};
+} else {
+  $endDate = $today;
 }
-# catch bogus entries
-if ( $end eq "") {
-    $end = `date '+%Y-%m-%d %H:%M:%S' -d "$d 23:59:59"`;
-}
+
+chomp($endDate);
+$end = $endDate . " " . $endTime;
 chomp($end);
 
-if (( "$opt{S}" ne "" ) || ( "$opt{s}" ne "" ))  {
+if ( $opt{S} ne "" ) {
+  $startTime = $opt{S};
+} else {
+  $startTime = "00:00:00";
+}
 
-  if ( "$opt{s}" ne "" ) {
-    $d = `date '+%Y-%m-%d' -d "$opt{s}"`;
+if ( $opt{s} ne "" ) {
+  $startDate = $opt{s};
+} else {
+  if ( $opt{S} ne "" ) {
+    $startDate = $today;
   } else {
-    $d = $today;
-  }
-
-  if ( "$opt{S}" ne "" ) {
-    $start = `date '+%Y-%m-%d %H:%M:%S' -d "$d $opt{S}"`;
-  } else {
-    $start = `date '+%Y-%m-%d %H:%M:%S' -d "$d 00:00:00"`;
+    $startDate = `$PH/scripts/defaultDaysAgo.py`; 
   }
 }
 
-# catch bogus entries
-if ($start eq "" ) {
-    $start = `date -I -d "15 days ago"`;
-}
+chomp($startDate);
+$start = $startDate . " " . $startTime;
 chomp($start);
 
 #get the job id's of the all my jobs in progress
 #$jobsRunning = `$GH/gzjobs | grep -i $me | grep running | awk '{ print \$1 }' | xargs `;
 #$activeJobs = `$GH/gzjobs | grep -i $me | awk '{ print \$1 }' | xargs `;
-$activeJobs = "";
 #$activeJobs = `$PH/pvjobs | grep -e "^[0-9]" | awk '{ print \$1 }' | xargs `;
-$activeJobs = `$PH/pvjobs | grep -i $me | awk '{ print \$1 }' | xargs `;
+
+# Only call this if on a Moab based system
+my $cmd_exists = `which mdiag`;
+if ($string =~ m/mdiag/) {
+  $activeJobs = `$PH/pvjobs | grep -i $me | awk '{ print \$1 }' | xargs `;
+}
 
 print "\n *** Job Summary ***\n";
 print " From: $start through $end \n";
@@ -307,7 +309,7 @@ foreach $group (@grps) {
     # get the real moab jobid 
     $testjid = "";
     if ( -r "$lf" ) {
-        $testjid = `grep -m 1 "<JobID>" '$lf' | gawk '{ print \$2 }'`;
+        $testjid = `grep -m 1 "<JobID>" '$lf' | awk '{ print \$2 }'`;
         chomp($testjid);
         print "my moab job id : $testjid\n" if ($opt{v});
     }
@@ -335,7 +337,7 @@ foreach $group (@grps) {
     # get number of pe's this test ran on
     $pes = "";
     if ( -r "$lf" ) {
-        $pes = `grep -m 1 "<npes>" '$lf' | gawk '{ print \$2 }'`;
+        $pes = `grep -m 1 "<npes>" '$lf' | awk '{ print \$2 }'`;
         chomp($pes);
     }
 
@@ -343,13 +345,13 @@ foreach $group (@grps) {
     if ( -r "$lf" ) {
         # get specific test parameters this test ran with
         $params = "";
-        $params = `grep -m 1 "<params>" $lf | gawk -F"> "  '{ print \$2 }'`;
+        $params = `grep -m 1 "<params>" $lf | awk -F"> "  '{ print \$2 }'`;
         chomp($params);
 
         # get number of nodes that were used
         my $tmp;
         my @nnodes = ();
-        $tmp = `grep -m 1 "<nodes> " $lf | gawk -F"> "  '{ print \$2 }'`;
+        $tmp = `grep -m 1 "<nodes> " $lf | awk -F"> "  '{ print \$2 }'`;
         chomp($tmp);
         @nnodes = split(" ", $tmp);
         $nnodes = @nnodes;
@@ -357,7 +359,7 @@ foreach $group (@grps) {
         if ( $opt{a} ) {
           # get earliest start time of any test 
           my $thisStart = "";
-          $thisStart = `grep -m 1 "<start>" $lf | gawk -F"> "  '{ print \$2 }'`;
+          $thisStart = `grep -m 1 "<start>" $lf | awk -F"> "  '{ print \$2 }'`;
           chomp($thisStart);
           if ($thisStart ne "") {
             if ($earliestStart eq "" ) {
@@ -372,7 +374,7 @@ foreach $group (@grps) {
 
           # get latest end time of any test 
           my $thisEnd = "";
-          $thisEnd = `grep -m 1 "<end>" $lf | gawk -F"> "  '{ print \$2 }'`;
+          $thisEnd = `grep -m 1 "<end>" $lf | awk -F"> "  '{ print \$2 }'`;
           chomp($thisEnd);
           if ($latestEnd  eq "" ) {
             $latestEnd = $thisEnd;
@@ -384,7 +386,7 @@ foreach $group (@grps) {
 print "my latest end is $latestEnd\n";
 
         }
-#my $tT = `tail -5 $lf | grep real | gawk '{ print \$2 }'`;
+#my $tT = `tail -5 $lf | grep real | awk '{ print \$2 }'`;
 #chomp $tT;
 #my $nnn = $pes/16;
 #   print " adding in $nnn * $tT secs \n";
@@ -440,7 +442,7 @@ print "my latest end is $latestEnd\n";
             print LF $status;
 
             # find real cpu time to be used for averages 
-            $treal{$tn}{$testCU} = `tail -20 $lf | grep ^real | gawk '{ print \$2 }'`;
+            $treal{$tn}{$testCU} = `tail -20 $lf | grep ^real | awk '{ print \$2 }'`;
             chomp($treal{$tn}{$testCU});
 
             print "--> $tn: $treal{$tn}{$testCU} secs of real time used\n" if ($opt{v});
@@ -470,7 +472,7 @@ print "my latest end is $latestEnd\n";
             print LF $status;
 
             # find real cpu time to be used for averages
-            $treal{$tn}{$testCU} = `tail -5 $lf | grep real | gawk '{ print \$2 }'`;
+            $treal{$tn}{$testCU} = `tail -5 $lf | grep real | awk '{ print \$2 }'`;
             chomp($treal{$tn}{$testCU});
             if (exists $totalRealtime{$tn}{$testCU}) {
               $totalRealtime{$tn}{$testCU} = $totalRealtime{$tn}{$testCU} + $treal{$tn}{$testCU};
@@ -487,7 +489,7 @@ print "my latest end is $latestEnd\n";
             print LF $status;
 
             # find real cpu time to be used for averages
-            $treal{$tn}{$testCU} = `tail -5 $lf | grep real | gawk '{ print \$2 }'`;
+            $treal{$tn}{$testCU} = `tail -5 $lf | grep real | awk '{ print \$2 }'`;
             chomp($treal{$tn}{$testCU});
             if (exists $totalRealtime{$tn}{$testCU}) {
               $totalRealtime{$tn}{$testCU} = $totalRealtime{$tn}{$testCU} + $treal{$tn}{$testCU};
