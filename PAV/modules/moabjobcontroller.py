@@ -6,6 +6,7 @@ import os
 import subprocess
 import re
 from basejobcontroller import JobController
+from helperutilities import which
 
 
 class MoabJobController(JobController):
@@ -13,7 +14,8 @@ class MoabJobController(JobController):
 
     @staticmethod
     def is_moab_system():
-        if os.path.isfile("/etc/toss-release"):
+        #if os.path.isfile("/etc/toss-release"):
+        if which("mdiag"):
             return True
         else:
             return False
