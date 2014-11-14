@@ -1,16 +1,21 @@
 #!/usr/bin/env python
 
-"""
-  print the date 15 days ago
-"""
-
+import sys
 import datetime
 
-today = datetime.date.today()
-#print 'Today    :', today
+"""
+  print the date 'arg' days ago, default to 15
+  Created for a Perl script to call...
+  author: C. Idler
+"""
 
-delta_day = datetime.timedelta(days=15)
+try:
+  days_ago = int(sys.argv[1])
+except ValueError:
+  # arg supplied not an int
+  days_ago = 15
+except IndexError:
+  # no arg supplied
+  days_ago = 15
 
-daysago = today - delta_day
-#print 'Daysago:', daysago 
-print daysago 
+print datetime.date.today() - datetime.timedelta(days=days_ago) 
