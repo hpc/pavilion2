@@ -9,7 +9,7 @@ from yapsy.IPlugin import IPlugin
 from testConfig import YamlTestConfig
 import subprocess
 import logging
-from testEntry import TestEntry
+#from testEntry import TestEntry
 
 
 class GetResults(IPlugin):
@@ -38,13 +38,14 @@ class GetResults(IPlugin):
 
         parser_gr.add_argument('-t', nargs=1, metavar='<string>', help="test name string to match")
 
-        parser_gr.add_argument('-f', '--fail', help="locate failed test directories", action="store_true")
-        parser_gr.add_argument('-i', '--inc', help="locate 'incomplete' test directories", action="store_true")
-        parser_gr.add_argument('-p', '--pass', help="locate passing test directories", action="store_true")
+        parser_gr.add_argument('-f', '--fail', help="locate/show failed test directories", action="store_true")
+        parser_gr.add_argument('-i', '--inc', help="locate/show 'incomplete' test directories", action="store_true")
+        parser_gr.add_argument('-p', '--pass', help="locate/show passing test directories", action="store_true")
         parser_gr.add_argument('-T', '--td', help="display trend data", action="store_true")
 
         parser_gr.add_argument('-ts', nargs=1, metavar='<file>',
-                               help="test suite to read results path (root) from, defaults to default_test_config.yaml")
+                               help="test suite to determine results path (root) from, defaults \
+                                to default_test_config.yaml")
 
         parser_gr.add_argument('-bp', '--make-box-plots', action="store_true",
                                help='create box plots from the selected set of test results and trend data values')

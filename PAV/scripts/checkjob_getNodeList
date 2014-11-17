@@ -47,21 +47,21 @@ my $ptr;
                last;
             }
 
-            # as soon as we get here process until next blank line
+            # when we get here process until next blank line
             my $thisline;
             while ($thisline = $lines[$ptr++]) {
                last if ($thisline =~ /^\s+$\n/);
 
-               if ($thisline =~ /-/) {
-               # handle this type of thing
-               # or this  (*24 1442,1444,1556,1576 mu)
-               # loa 059-060,047-050,041-042 *16
-                 $nodelist .= &get_from_type_A($thisline);
+               if ($thisline =~ /[\-*]/) {
+                   # handle this type of thing (loa 059-060,047-050,041-042 *16)
+                   # OR
+                   # handle this type of thing (*16 306,310,198,250,242,265,218,235 ml)
+                   $nodelist .= &get_from_type_A($thisline);
                } else {
-               # handle this type of thing
-               # [loa041:16][loa042:16][loa047:16][loa048:16][loa049:16][loa050:16]
-                 $nodelist .= &get_from_type_B($thisline);
-               }
+                   # handle this type of thing
+                   # [loa041:16][loa042:16][loa047:16][loa048:16][loa049:16][loa050:16]
+                   $nodelist .= &get_from_type_B($thisline);
+                }
             }
 
         my @nodelist = split (/ /, $nodelist); 
@@ -86,14 +86,14 @@ my $ptr;
 
     my $fdl = "%0" . $mnd . "d";
 
-         $line =~ s/\*[0-9]+//g;
+         $line =~ s/\*[0-9]+\s*//g;
          $line =~ s/\]\[/ /g;
          $line =~ s/\[/ /g;
          $line =~ s/\]/ /g;
-         #$line =~ /^\s*(\w+)\s*/;
-         $line =~ /\s*(\w+)\s*/;
+         $line =~ s/\s*([a-zA-Z]+)\s*//g;
+
          $cu = $1;
-         @vals = split(",", $');
+         @vals = split(",", $line);
          foreach $range (@vals) {
            if ( $range =~ /-/) {
              ($startnum,$endnum) = split("-", $range);
@@ -124,8 +124,9 @@ my $ptr;
                $line =~ s/\[/ /g;
                $line =~ s/\]/ /g;
                $line =~ s/\:[0-9]+//g;
-               return "$line";
+               return $line;
   }
+
 
 exit
 
