@@ -35,23 +35,25 @@ Getting Started:
 
    So.... the recommended approach to this is:
      1) create a directory someplace to place your test_suite config files.
-     2) copy the Example default test_suite to this directory and name it
-        default_test_config.yaml. Tweak it only where appropriate (like the results root directory).
+     2) copy the Example default test suite to this directory and name it
+        default_test_config.yaml. Tweak it only where appropriate.
+        HINT : quite possibly only the results root directory definition may need to change.
      3) cd to this directory.
-     4) copy the default config file to a new file (for example, my-test-config-suite.yaml) 
+     4) copy the default config file to a new file (for example, my_test_config_suite.yaml) 
      5) strip all the entries from this new file down to only the specific entires you need changed.
         Only the id, name, source_location, and run:cmd parts are required to be in each new stanza. 
+        The id must be unique for each stanza.
      6) At this point you should have at least two files in this directory.  The default one (the
         exact name is important) and your new one (the name is not important).
 
   - Type "pth view_test_suite ./my-test-config-suite.yaml" to see how your new test suite
-    file is "folded" with the default file.  Add some more test stanzas and try again.
+    file is "folded" with the default file.  Add as may test stanzas as needed.
 
-  - Type "pth run_test_suite ./my-test-config_suite.yaml" to run your defined jobs. 
+  - Type "pth run_test_suite ./my-test-config_suite.yaml" to run your defined tests. 
     Hint: making sure your jobs work without Pavilion will save you time debugging problems.
 
-  - Type "pth get_results ./my-test-config_suite.yaml" to view your results. Note the i, p, and
-    f flags to this command.  There are very helpful if you want to show where the actual
+  - Type "pth get_results ./my-test-config_suite.yaml" to view your results. Notice the i, p, and
+    f flags to this command.  There are very helpful if you want to see where the actual
     result data resides. 
 
   
@@ -110,7 +112,7 @@ Querying Data:
 Debug Tips:
 ----------------
 
-As Pavilion does its work an output log is being generated in /tmp/${USER}/pth.log
+As Pavilion runs an output log is being generated/accumulated into /tmp/${USER}/pth.log
 
 
 Utility Scripts:

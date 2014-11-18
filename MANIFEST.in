@@ -3,6 +3,7 @@ include PAV/pth
 include PAV/pv*
 recursive-include PAV/ *.py
 include docs/*.txt
+include docs/*.yaml
 include test_suites/*.yaml
 include PAV/plugins/*.yapsy-plugin
 include PAV/scripts/*

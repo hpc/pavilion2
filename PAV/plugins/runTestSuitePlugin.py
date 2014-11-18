@@ -97,6 +97,9 @@ class RunTestSuite(IPlugin):
                 # Don't process the DTS definition
                 if "DefaultTestSuite" in entry_id:
                     continue
+                # Don't process include directive
+                if "IncludeTestSuite" in entry_id:
+                    continue
 
                 # instantiate a new object for each test Entry type  ( raw, Moab, etc. )
                 scheduler_type = params['run']['scheduler'].capitalize()

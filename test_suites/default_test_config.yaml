@@ -1,14 +1,14 @@
 # YAML        
 
-#   Default test configuration file, vers. 0.4 
+#   Default test configuration file, vers. 0.5 
 
 # --------  Basic Instructions -------------
 
-# This file contains what a single entry in a user test suite 
-# CAN look like. Each entry in the user test suite will inherit
-# its parts from this file. Thus, if you want to effect all the
-# entries in the user test suite, change this file, otherwise change
-# only the appropriate parts of the user test suite.
+# This file contains what a complete single stanza in a user test suite 
+# will contain. Each stanza (test entry) in the user test suite will inherit
+# each of its components from this file, unless re-defined.
+# Therefore, if you want to effect all the entries during run,
+# change this file, otherwise change only the appropriate parts of the user test suite.
 
 # NOTE
 #  - All variables in CAPS are nix environment vars
@@ -24,16 +24,34 @@
 #
 
 # for YAML formatting issues try: http://yaml-online-parser.appspot.com
+
+# It is HIGHLY recommended that you make a copy of this file and tweak it as
+# needed and make this new file the default_test_config.yaml file.
     
 
-# ---------- Section begin -------------------------------
+# ---------- Special Directives Section -------------------------------
 
-# Default testSuite override.
-# The software will look for the default file in the same directory as the
-# user defined test suite. However, to use a different one 
-# add/modify this entry in the user test suite file.
-# Use a fully qualified path/name and file.
-# DefaultTestSuite: /mydir/test_suites/default_test_suite.yaml
+# These are examples of reserved directives that can be added to the user test suite.
+# DO NOT use them in the default config file(s).
+
+# Override the default testSuite.
+#
+# Pavilion looks for the default test file definition in the same directory as the
+# user test suite, given as the input argument.
+# To use a different default file, place this directive 
+# in the user test suite file. Use a fully qualified path/name and file.
+# DefaultTestSuite: new_default_test_suite.yaml
+#
+# Include other test suites to create a "Super" test suite
+# 
+# To build up a test suite from multiple files, include a comma seperated list of 
+# file names including the relative path to the main file, with this directive.
+# Two levels deep are supported.
+# IncludeTestSuite: [ first_test_suite.yaml, second_test_suite, ...] 
+
+
+
+# ------------ Test Stanza Definition ---------------------
 
 # Unique (to the test suite being used) test/job identifier. Any string will do.
 # DO NOT add a value to right side of the ":"

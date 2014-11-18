@@ -61,15 +61,20 @@ class YamlTestConfig():
 
     def load_config_file(self, config_name):
         """
-        Attempt to load a configuration file by the given name. Returns
-        the loaded contents of the YAML file. On error should system
-        exit since it doesn't make sense to continue with broken
-        configuration.
+        Load the YAML configuration file(s) with the given name. Returns
+        the loaded contents as a dict.
         """
         try:
-            with open(config_name) as config_file:
-                file_contents = config_file.read()
-                return load(file_contents)
+            # Support test_suites that include other test_suites.
+            # Could be recursive, but two levels for now.
+            cfg = load(open(config_name))
+            for inc in cfg.get("IncludeTestSuite", []):
+                inc_cfg = (load(open(inc)))
+                for inc2 in inc_cfg.get("IncludeTestSuite", []):
+                    inc_cfg.update(load(open(inc2)))
+                cfg.update(inc_cfg)
+            return cfg
+
         except EnvironmentError as err:
             error_message = "Error processing file: {0}\n".format(config_name)
             error_message += "I/O Error({0}): {1}.".format(err.errno, 
