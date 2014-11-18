@@ -147,7 +147,7 @@ chomp($start);
 
 # Only call this if on a Moab based system
 my $cmd_exists = `which mdiag`;
-if ($string =~ m/mdiag/) {
+if ($cmd_exists =~ m/mdiag/) {
   $activeJobs = `$PH/pvjobs | grep -i $me | awk '{ print \$1 }' | xargs `;
 }
 
