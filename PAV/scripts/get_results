@@ -151,11 +151,12 @@ if ($cmd_exists =~ m/mdiag/) {
   $activeJobs = `$PH/pvjobs | grep -i $me | awk '{ print \$1 }' | xargs `;
 }
 
-print "\n *** Job Summary ***\n";
-print " From: $start through $end \n";
+print "\n  --------------------------------------------------------------------  \n\n";
+print "  *** Job Summary (results root directory -> $opt{l}) ***\n";
+print "  From: $start through $end \n";
 unless ( $opt{a} ) {
-  print "\t Analysis between $start and $end \n";
-  print "\t Output format: testName-.numCoresXnumPEs(test parameters) - results, [avg. run time]\n";
+  #print "\t Analysis between $start and $end \n";
+  print "    Output format: testName.numNodesXnumCores(test arguments) - results, [avg. run time]\n\n\n";
 }
 
 # determine where to search 
@@ -163,7 +164,7 @@ my $cmd;
 # specify alternate dirs to search for logs.
 # will only work for the parent of directories with the form
 # <testName>_<Id>_<SegName>.date
-print "\t results directory -> $opt{l}\n\n";
+#print "    results root directory -> $opt{l}\n\n";
 $res_dir = $opt{l};
 $cmd = "find $opt{l} -type d -maxdepth 1 -mindepth 1";
 
@@ -184,7 +185,7 @@ if ( "$opt{g}" ne "") {
 my $group;
 foreach $group (@grps) {
   unless ( $opt{a} ) {
-    print "\ngroup: $group" ;
+    print "  group: $group" ;
   }
   if ($opt{l}) {
     $cmd = qq($PH/scripts/find_test_dirs -d $res_dir -s "$start" -e "$end" -g $group);
@@ -281,7 +282,8 @@ foreach $group (@grps) {
     # HW-raw__iPassed__109958__ml-fey1.  This number is NOT the  moab jobid in Pavililion!
     # make sure all four parts are present (testname, run script, pid, segment name)
     if ( $arrlen == 4 ) {
-      $testCU   = $tmpstr1[3];
+      my @fields = split /-/, $tmpstr1[3];
+      $testCU = $fields[0];
       $testName = $tmpstr1[0];
       $testpid  = $tmpstr1[2];
     } else {
@@ -537,7 +539,7 @@ print "my latest end is $latestEnd\n";
       printf ($format_str, "Test", "Total", "Passed", "Failed", "Unknown", "Avg. Run Time");
       printf ($format_str, "=================", "======", "======", "======", "======", "=============");
     } else {
-      print "\n  segment: $cu\n";
+      print "\n    segment: $cu\n";
     }
     foreach $kt ( sort( keys(%totalThisTest) ) ) {
       my $realAvg = 0;
@@ -611,13 +613,13 @@ print "my latest end is $latestEnd\n";
 #      printf (" %s %4.2f hrs.\n", "Cumulative Wall Clock Run Time:", $tmpCalc);
       print "Last test started at: $latestEnd\n";
     } else {
-      print " Results: Tests Evaluated = $totalTests, Passed = $totalTestsPassed  \n";
+      print " Results: Tests evaluated = $totalTests, Passed = $totalTestsPassed  \n";
     }
   }
-  print "\n  --------------------------------------------------------------------  \n";
+  #print "\n  --------------------------------------------------------------------  \n";
 } # each group loop
 
-print "\n";
+#print "\n";
 
 exit;
 

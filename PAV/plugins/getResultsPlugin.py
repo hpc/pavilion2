@@ -81,7 +81,7 @@ class GetResults(IPlugin):
         res_loc_list = tc.get_result_locations()
         # print res_loc_list
         for results_dir in res_loc_list:
-            print "\nFor results location: %s " % results_dir
+            #print "\nFor results location: %s " % results_dir
             os.environ['PV_RESULT_ROOT'] = results_dir
 
             try:

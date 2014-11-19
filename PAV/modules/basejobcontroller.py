@@ -166,7 +166,7 @@ class JobController():
         print "<testExec> " + self.configs['run']['cmd']
         print "<user> " + os.getenv('USER')
         print "<params> " + os.environ['PV_TEST_ARGS']
-        print "<segName> " + "theTargetSeg"
+        #print "<segName> " + "theTargetSeg"
         sys.stdout.flush()
 
         # save the test config

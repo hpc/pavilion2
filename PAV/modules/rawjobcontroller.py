@@ -3,6 +3,7 @@
 
 import sys
 import os
+import platform
 import subprocess
 from basejobcontroller import JobController
 
@@ -20,6 +21,12 @@ class RawJobController(JobController):
 
         # store some info into ENV variables that jobs may need to use later on.
         self.setup_job_info()
+
+        # what nodes(s) are this job running on...
+        nodes = platform.node().partition('.')[0]
+        os.environ['PV_NODES'] = nodes
+        os.environ['GZ_NODES'] = os.environ['PV_NODES']
+        print "<nodes> " + nodes + "\n"
 
         # build the exact command to run
         cmd = "cd " + os.environ['PV_RUNHOME'] + "; " + \
