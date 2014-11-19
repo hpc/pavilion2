@@ -44,7 +44,7 @@ class YamlTestConfig():
         test_suite_dir = os.path.dirname(os.path.realpath(ucf)) + "/"
         self.dcf = test_suite_dir + "default_test_config.yaml"
 
-        print "Load user testSuite -> " + ucf
+        print "User test suite file -> " + ucf
         self.user_config_doc = self.load_config_file(ucf)
 
         if "DefaultTestSuite" in self.user_config_doc:
@@ -53,7 +53,7 @@ class YamlTestConfig():
                 self.dcf = test_suite_dir + df
             else:
                 self.dcf = df
-        print "Load default testSuite -> " + self.dcf
+        print "Default test suite config file -> " + self.dcf
         self.logger.info('Using default test config file: %s ' % self.dcf)
 
         self.default_config_doc = self.load_config_file(self.dcf)
@@ -67,16 +67,22 @@ class YamlTestConfig():
         try:
             # Support test_suites that include other test_suites.
             # Could be recursive, but two levels for now.
-            cfg = load(open(config_name))
+            config_file_base_dir = os.path.dirname(config_name)
+            fn = config_name
+            cfg = load(open(fn))
             for inc in cfg.get("IncludeTestSuite", []):
-                inc_cfg = (load(open(inc)))
+                fn = config_file_base_dir + "/" + inc
+                print "  Included test suite ->  " + fn
+                inc_cfg = (load(open(fn)))
                 for inc2 in inc_cfg.get("IncludeTestSuite", []):
-                    inc_cfg.update(load(open(inc2)))
+                    fn = config_file_base_dir + "/" + inc2
+                    print "    Included test suite ->  " + fn
+                    inc_cfg.update(load(open(fn)))
                 cfg.update(inc_cfg)
             return cfg
 
         except EnvironmentError as err:
-            error_message = "Error processing file: {0}\n".format(config_name)
+            error_message = "Error processing file: {0}\n".format(fn)
             error_message += "I/O Error({0}): {1}.".format(err.errno, 
                                                            err.strerror)
             self.logger.error(error_message)

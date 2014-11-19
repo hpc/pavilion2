@@ -44,8 +44,8 @@
 #
 # Include other test suites to create a "Super" test suite
 # 
-# To build up a test suite from multiple files, include a comma seperated list of 
-# file names including the relative path to the main file, with this directive.
+# To build up a test suite from multiple files, include a comma separated list of 
+# file names including the relative path to the main user file.
 # Two levels deep are supported.
 # IncludeTestSuite: [ first_test_suite.yaml, second_test_suite, ...] 
 
