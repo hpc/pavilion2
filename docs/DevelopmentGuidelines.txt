@@ -1,49 +1,41 @@
 Pavilion guidlines to follow for cohesive team product development.
 
-1. General
--------
+1. Code - Generally being developed in Python. However, in cases where a shell script or other language makes sense, use it.
 
-1.1 Define initial requirements (Done) 
-1.2 Detail requirements in a Design Specification (In progress)
-1.3 Follow coding and code processes as stated below for Design Spec (In progress) 
-
-
-2. Coding - Generally being developed in Python. However, in cases where a shell script or other language makes sense, use it.
-
-2.1 Style
+1.1 Style
 
   Idiomatic Python - http://python.net/~goodger/projects/pycon/2007/idiomatic/handout.html
 
-2.2 Language References 
+1.2 Language References 
 
  - http://www.greenteapress.com/thinkpython/thinkpython.pdf (nice, but more introductory)
  - http://www.diveintopython3.net
 
 
-3. Coding Process/Philosphy
+2. Coding Process/Philosphy
 -------
 
-3.1 Code Sharing 
+2.1 Code Sharing 
 
-3.1.1  Stored at git.lanl.gov/cwi/pavilion (to be move to github asap)
+2.1.1  Stored at git.lanl.gov/cwi/pavilion (to be move to github asap)
 
-3.1.2  Team development with Git - http://blog.ericbmerritt.com/2011/12/05/team-development-with-git.html
+2.1.2  Team development with Git - http://blog.ericbmerritt.com/2011/12/05/team-development-with-git.html
 
-3.2 Directory Structure <INSTALL_DIR>/PAV
+2.2 Directory Structure <INSTALL_DIR>/PAV
 
-3.2.1 All source code under the PAV directory
+2.2.1 All source code under the PAV directory
 
-3.2.1 Add new sub-commands in Plugins, with all "new" support code added to modules directory, under PAV.  
+2.2.1 Add new sub-commands in Plugins, with all "new" support code added to modules directory, under PAV.  
 
-3.2.2 External packages (outside of the standard Python distro) collected under special_pkgs directory, under PAV 
+2.2.2 External packages (outside of the standard Python distro) collected under special_pkgs directory, under PAV 
 
-3.3 Unit or Self testing to be used to verify correctness of code before any new release in test directory.
+2.3 Unit or Self testing to be used to verify correctness of code before any new release in test directory.
 
-3.4 Use setting up and using Virtual Environments to improve development process 
+2.4 Use setting up and using Virtual Environments to improve development process 
 
  - http://jeffknupp.com/blog/2014/02/04/starting-a-python-project-the-right-way/ 
 
-4. Adding new features (please do!)
+3. Adding new features (please do!)
 
  - If you want to add a new sub-command it gets placed in the plugins directory under PAV.
    Use one of the existing ones from the plugins directory as an example.
@@ -52,11 +44,12 @@ Pavilion guidlines to follow for cohesive team product development.
    consider addition a new stanza/section to the default config YAML. A new scheduler of some type would probably
    be a case for this. Both Moab and LDMS use this method. 
 
-5. Suggestions/Constructive Ideas
+4. Suggestions/Constructive Ideas
 
- - We would love to have new features added to this product. Support for new schedulers, new results analysis tools, more unit
-   testing, etc. Also, if you see code that you feel you can make better (I'm sure there is a place or two) have at it. Let us
-   know what you are up by sending e-mail to gazebo@lanl.gov. Of course, once this is open source you can do what you want, but 
-   we will probably maintain some control over the core software.
+ - Please add new features to this software. Especially support for new schedulers, new results analysis tools, and
+   more unit testing. Also, if you see code that you feel you can improve, have at it. Let us know what you are up by
+   sending e-mail to gazebo@lanl.gov and note Pavilion in the subject line.  Code changes and updates to the main trunk of
+   the source will be subject to a review for appropriateness.
 
-Thanks!
+Thanks,
+The Pavilion Development Team

@@ -1,4 +1,4 @@
-Pavilion Test Harness 
+Pavilion HPC Testing Framework 
 
 Built and tested with Python 2.7
 
