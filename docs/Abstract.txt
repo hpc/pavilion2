@@ -10,7 +10,7 @@ during production. To efficiently use a set of tests that may have very differen
 a framework is needed that can wrap or bundle all these tests and produce a common set of interpretable results. 
   This software, called Pavilion, is such a framework. Many of its underlying ideas come from a prior framework
 developed between 2007 and 2013. Lessons learned, new feature requests that the old framework couldn't employ, and adaptable
-good ideas are all criteria being used in this new framework.  Two new design ideas that are forefront in the
+good ideas are all criteria being used in this new framework.  Two principle ideas that are forefront in the
 design are the ability to support schedulers in addition to Moab and a structure that lends itself to team collaboration.
 The framework itself does not contain any specific tests, but will be the mechanism for running and then quickly
 analyzing the results of any set of incorporated tests.
