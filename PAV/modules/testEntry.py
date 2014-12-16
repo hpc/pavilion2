@@ -99,13 +99,14 @@ class TestEntry():
         return self.get_count()
 
     def room_to_run(self, args):
-        # must be overridden by specific scheduler implementation
+
+        # Determined by specific scheduler implementation,
+        # otherwise False, there is no room
         return False
 
     def prep_ldms(self):
-        """
-        the LDMS tool will start only if the start CMD is defined.
-        """
+
+        # must be overridden by specific scheduler implementation
         self.logger.info('LDMS not supported for this job (%s) type' % self.handle)
         pass
 
@@ -182,6 +183,8 @@ class MoabTestEntry(TestEntry):
         return False
 
     def prep_ldms(self):
+
+        """ starts LDMS, since it works under Moab """
 
         self.logger.info('setup LDMS for this job (%s) type' % self.handle)
         LDMS(self)
