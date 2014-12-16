@@ -188,13 +188,18 @@ class JobController():
 
     @staticmethod
     def run_epilog():
-
-        if os.environ['PV_ES']:
         # run an epilog script if defined in the test config
-            es = os.environ['PV_ES']
-            print "- Run epilog script: " + str(es)
-            os.system(es)
-            print "- epilog script complete"
+
+        try:
+            if os.environ['PV_ES']:
+            # run an epilog script if defined in the test config
+                es = os.environ['PV_ES']
+                print "- Run epilog script: " + str(es)
+                os.system(es)
+                print "- epilog script complete"
+        except KeyError, e:
+                #print 'I got a KeyError - no: "%s"' % str(e)
+                pass
 
     def setup_job_info(self):
 
@@ -225,19 +230,27 @@ class JobController():
         #print '  files in :' + from_loc
         #print '  copy to  :' + to_loc
 
-        # user defined files in the test suite config file?
-        if os.environ['PV_SAVE_FROM_WS']:
-            no_spaces_str = "".join(os.environ['PV_SAVE_FROM_WS'].split())
-            for file_type in no_spaces_str.split(","):
-                print "  look for: " + file_type
-                for file2save in glob.glob(os.path.join(from_loc, file_type)):
-                    print "  saving: " + file2save
-                    copy_file(file2save, to_loc)
+        # save explicitly defined files in the test suite config file
+        try:
+            if os.environ['PV_SAVE_FROM_WS']:
+                no_spaces_str = "".join(os.environ['PV_SAVE_FROM_WS'].split())
+                for file_type in no_spaces_str.split(","):
+                    print "  look for: " + file_type
+                    for file2save in glob.glob(os.path.join(from_loc, file_type)):
+                        print "  saving: " + file2save
+                        copy_file(file2save, to_loc)
+        except KeyError, e:
+            #print 'I got a KeyError - no: "%s"' % str(e)
+            pass
 
         # remove the working space ONLY if it was created
-        if os.environ['PV_WS']:
-            print '- remove WS: %s ' % os.environ['PV_RUNHOME']
-            shutil.rmtree(os.environ['PV_RUNHOME'])
+        try:
+            if os.environ['PV_WS']:
+                print '- remove WS: %s ' % os.environ['PV_RUNHOME']
+                shutil.rmtree(os.environ['PV_RUNHOME'])
+        except KeyError, e:
+            #print 'I got a KeyError - no: "%s"' % str(e)
+            pass
 
         print '- WS cleanup complete'
 
@@ -261,5 +274,4 @@ class JobController():
 
 # this gets called if it's run as a script/program
 if __name__ == '__main__':
-
     sys.exit()
