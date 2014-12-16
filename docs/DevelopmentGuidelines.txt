@@ -1,4 +1,7 @@
-Pavilion guidlines to follow for cohesive team product development.
+Pavilion HPC Testing Framework
+
+Guidlines to follow for cohesive team product development.
+
 
 1. Code - Generally being developed in Python. However, in cases where a shell script or other language makes sense, use it.
 
