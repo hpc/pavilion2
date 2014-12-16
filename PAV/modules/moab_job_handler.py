@@ -35,21 +35,16 @@ def stdout_redirected(new_stdout):
 
 def get_moab_node_list():
 
-    os.environ['RMGR'] = ''
-    jid = ''
     if "SLURM_JOBID" in os.environ:
-        jid = os.environ.get("SLURM_JOBID")
-        os.environ['RMGR'] = 'SLURM'
-    if "PBS_JOBID" in os.environ:
-        jid = os.environ.get("PBS_JOBID")
-        os.environ['RMGR'] = 'CLE'
-    if jid:
-        os.environ['PV_JOBID'] = jid
-        output = subprocess.check_output(os.environ['PVINSTALL'] + "/PAV/scripts/getNodeList", shell=True)
+        os.environ['PV_JOBID'] = os.environ.get("SLURM_JOBID")
+        output = subprocess.check_output(os.environ['PVINSTALL'] + "/PAV/scripts/getSLURMNodeList", shell=True)
         nodes = output.replace('\n', " ")
-        return str(nodes)
+    elif "PBS_JOBID" in os.environ:
+        output = subprocess.check_output(os.environ['PVINSTALL'] + "/PAV/scripts/getCLENodeList", shell=True)
+        nodes = output.replace('\n', " ")
     else:
-        return platform.node()
+        nodes = platform.node()
+    return str(nodes)
 
 
 def main():
@@ -76,8 +71,13 @@ def main():
 
             # start LDMS here if requested!  The start command ought to be
             # defined, so let's go!
-            if os.environ['LDMS_START_CMD']:
-                LDMS.start()
+            try:
+                if os.environ['LDMS_START_CMD']:
+                    print "start ldms! "
+                    LDMS.start()
+            except KeyError, e:
+                #print 'I got a KeyError - no: "%s"' % str(e)
+                pass
 
             print "  start job with: \n    " + cmd
             lf.flush()

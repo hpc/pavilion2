@@ -1,5 +1,5 @@
 #!/bin/bash
-job_id=$BATCH_JOBID
+job_id=`echo $PBS_JOBID | sed 's/[.].*$//' | sed 's/\]\[//g'`
 
 # Find the reservation ID by searching apstat output for our job ID
 # apstat -r sometimes will not list the current job, so retry until it does

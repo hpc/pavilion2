@@ -1,0 +1,19 @@
+#!/bin/tcsh
+
+
+# set up internationalization 
+# set all locale categories to ISO C 
+setenv LC_ALL C
+
+set nl = `${PVINSTALL}/PAV/scripts/getCleNids`
+if ( "$nl" == "" ) then
+  # just try again if empty
+  set nl = `${PVINSTALL}/PAV/scripts/getCleNids`
+endif
+set nodes = `echo $nl | gawk '{ for ( i=1 ; i <= NF ; i++ ) print $i }' | grep nid | tr '\n' ' ' `
+
+echo "$nodes"
+
+# End of script
+exit
+
