@@ -111,9 +111,9 @@ class RunTestSuite(IPlugin):
                 for test_entry in te.get_test_variations():
                     # support w argument for now, add p later
                     if (args['w'] and te.room_to_run(args)) or not args['w']:
-                        # initialize a unique LDMS for each job, if requested
+                        # initialize a unique LDMS for each job
                         os.environ['LDMS_START_CMD'] = ''
-                        if args['ldms']:
+                        if args['ldms'] | (params['ldms']['state'] == 'on'):
                             te.prep_ldms()
 
                         for _ in range(te.get_run_count()):
