@@ -308,7 +308,7 @@ foreach $group (@grps) {
       print NL "$_\n";
     }
 
-    # get the real moab jobid 
+    # get the jobid 
     $testjid = "";
     if ( -r "$lf" ) {
         $testjid = `grep -m 1 "<JobID>" '$lf' | awk '{ print \$2 }'`;
@@ -317,9 +317,12 @@ foreach $group (@grps) {
     }
 
     # skip if this test is currently running
-    print "my active jobs - $activeJobs\n" if ($opt{v});
-    if ( $activeJobs =~ /\b$testjid\b/ )  {
-        print "skipping active job $testjid\n" if ($opt{v});
+    #print "active job(s) - $activeJobs\n";
+    #print "testjid - $testjid\n";
+
+    print "my active job(s) - $activeJobs\n" if ($opt{v});
+    if ( $activeJobs =~ m/$testjid/ )  {
+        print "\nskipping active job $testjid\n" if ($opt{v});
         next;
     }
 
