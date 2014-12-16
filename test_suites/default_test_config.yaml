@@ -178,7 +178,10 @@ UniqueId:
   # This tool can generate a great deal of data!
   ldms:
     # used to set env var LDMS_HOME
-    install_dir : "/usr/projects/hpctools/ldms"
+    install_dir: "/usr/projects/hpctools/ldms"
+    # Turn on or off ( "-m" flag wil turn on for all apps/test
+    # in the test suite.) 
+    state: off
     # command to start up processes on nodes
     start_cmd: startJobNodesLDMSD
     # root directory where all output will go 
