@@ -16,10 +16,10 @@ alias msg 'echo "`date --iso-8601=seconds`" ${sn}: '
 # get list of nodes in use dependent on resource manager being used 
 if ( ${RMGR} == "CLE" ) then
 
-      set nl = `./getCleNids`
+      set nl = `${PVINSTALL}/PAV/scripts/getCleNids`
       if ( "$nl" == "" ) then
         # just try again if empty
-        set nl = `./getCleNids`
+        set nl = `${PVINSTALL}/PAV/scripts/getCleNids`
       endif
       set nodes = `echo $nl | gawk '{ for ( i=1 ; i <= NF ; i++ ) print $i }' | grep nid | tr '\n' ' ' `
 
