@@ -199,6 +199,7 @@ class JobController():
                 print "- epilog script complete"
         except KeyError, e:
                 #print 'I got a KeyError - no: "%s"' % str(e)
+                print "- No epilog script configured"
                 pass
 
     def setup_job_info(self):
@@ -235,7 +236,7 @@ class JobController():
             if os.environ['PV_SAVE_FROM_WS']:
                 no_spaces_str = "".join(os.environ['PV_SAVE_FROM_WS'].split())
                 for file_type in no_spaces_str.split(","):
-                    print "  look for: " + file_type
+                    print "  save files like: " + file_type
                     for file2save in glob.glob(os.path.join(from_loc, file_type)):
                         print "  saving: " + file2save
                         copy_file(file2save, to_loc)
