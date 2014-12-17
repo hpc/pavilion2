@@ -91,7 +91,7 @@ class SlurmJobController(JobController):
 
         # Executable is slurm_job_handler.py which is just the wrapper to call the
         # actual application executable. Look at moab_job_handler.py to see what is
-        # being collected and printed to the output log. 
+        # being collected and printed to the output log.
         slurm_cmd += " " + os.environ['PVINSTALL'] + "/PAV/modules/slurm_job_handler.py"
 
         if SlurmJobController.is_slurm_system():
