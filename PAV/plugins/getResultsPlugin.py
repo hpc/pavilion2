@@ -42,6 +42,7 @@ class GetResults(IPlugin):
         parser_gr.add_argument('-i', '--inc', help="locate/show 'incomplete' test directories", action="store_true")
         parser_gr.add_argument('-p', '--pass', help="locate/show passing test directories", action="store_true")
         parser_gr.add_argument('-T', '--td', help="display trend data", action="store_true")
+        parser_gr.add_argument('-v', '--verbose', help="show work", action="store_true")
 
         parser_gr.add_argument('-ts', nargs=1, metavar='<file>',
                                help="test suite to determine results path (root) from, defaults \
@@ -104,6 +105,8 @@ class GetResults(IPlugin):
                 bc += " -p "
             if args['fail']:
                 bc += " -f "
+            if args['verbose']:
+                bc += " -v "
             if args['inc']:
                 bc += " -i "
             if args['s']:
