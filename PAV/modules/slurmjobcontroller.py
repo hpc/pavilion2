@@ -7,8 +7,8 @@
 
      Environment vars that start with PV_ and any print
      statements with "<>" need to be left in, but with
-     appropriate values, of course. These items will be
-     added to the job output log file and are needed by
+     appropriate values of course. These items will be
+     added to the job's log file and are thus needed by
      Pavilion for job analysis.
 
 """
@@ -38,26 +38,23 @@ class SlurmJobController(JobController):
         # so that the the order doesn't look all mucked up
         sys.stdout.flush()
 
-        slurm_cmd = " "
+        slurm_cmd = "sbatch"
 
         # handle optionally specified queue
         if self.configs['slurm']['queue']:
             slurm_cmd += self.configs['slurm'][''] + " "
 
         # add test name
-        slurm_cmd += "-N " + self.name + " "
+        slurm_cmd += " -J " + self.name
 
         # get time limit, if specified
-        time_lim = self.configs['slurm']['']
+        time_lim = self.configs['slurm']['time']
+        slurm_cmd += " -t " + time_lim
 
-        # get target segment, if specified
-        ts = ''
+        # add in a target segment (partition in Slurm vernacular), if specified
         if self.configs['slurm']['target_seg']:
             ts = self.configs['slurm']['target_seg']
-
-        reservation = ''
-        if self.configs['slurm']['reservation']:
-            reservation = self.configs['slurm']['reservation']
+            slurm_cmd += " -p " + ts
 
         # variation passed as arg0 - nodes, arg1, ppn
         nnodes = str(self.job_variation[0])
@@ -70,8 +67,10 @@ class SlurmJobController(JobController):
         self.logger.info(self.lh + " : npes=" + str(pes))
         os.environ['PV_PESPERNODE'] = ppn
 
+        # number of nodes to allocate
         os.environ['PV_NNODES'] = nnodes
         print "<nnodes> " + nnodes
+        slurm_cmd += " -N " + nnodes
 
         os.environ['PV_NPES'] = str(pes)
         print "<npes> " + str(pes)
@@ -83,19 +82,16 @@ class SlurmJobController(JobController):
         self.setup_job_info()
 
         # setup unique Slurm stdout and stderr file names
-        se = os.environ['PV_JOB_RESULTS_LOG_DIR'] + "/drm.stderr"
-        so = os.environ['PV_JOB_RESULTS_LOG_DIR'] + "/drm.stdout"
-        slurm_cmd += "-o " + so + " -e " + se + " "
-
-        slurm_cmd += "-l nodes=" + nnodes + ",walltime=" + time_lim
-        if ts:
-            slurm_cmd += ",feature=" + ts
-        if reservation:
-            slurm_cmd += ",advres=" + reservation
+        se = os.environ['PV_JOB_RESULTS_LOG_DIR'] + "/sterr-%j.out"
+        so = os.environ['PV_JOB_RESULTS_LOG_DIR'] + "/stdout-%j.out"
+        slurm_cmd += "-o " + so + " -e " + se
 
         run_cmd = os.environ['PV_RUNHOME'] + "/" + self.configs['run']['cmd']
         os.environ['USER_CMD'] = run_cmd
 
+        # Executable is slurm_job_handler.py which is just the wrapper to call the
+        # actual application executable. Look at moab_job_handler.py to see what is
+        # being collected and printed to the output log. 
         slurm_cmd += " " + os.environ['PVINSTALL'] + "/PAV/modules/slurm_job_handler.py"
 
         if SlurmJobController.is_slurm_system():
