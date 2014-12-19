@@ -36,7 +36,9 @@ class GetResults(IPlugin):
         parser_gr.add_argument('-e', nargs=1, metavar='<date>', help="end date (yyyy-mm-dd), default today")
         parser_gr.add_argument('-E', nargs=1, metavar='<time>', help="start time (HH:MM:SS), default is at 23:59:59")
 
-        parser_gr.add_argument('-t', nargs=1, metavar='<string>', help="test name string to match")
+        parser_gr.add_argument('-t', nargs=1, metavar='<string>', help="test name to match on")
+
+        parser_gr.add_argument('-u', nargs=1, metavar='<segment_name>', help="target segment to match on")
 
         parser_gr.add_argument('-f', '--fail', help="locate/show failed test directories", action="store_true")
         parser_gr.add_argument('-i', '--inc', help="locate/show 'incomplete' test directories", action="store_true")
@@ -119,6 +121,8 @@ class GetResults(IPlugin):
                 bc += " -E " + args['E'][0]
             if args['t']:
                 bc += " -t " + args['t'][0]
+            if args['u']:
+                bc += " -u " + args['u'][0]
             if args['td']:
                 bc += " -T "
 
