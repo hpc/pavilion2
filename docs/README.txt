@@ -21,9 +21,9 @@ Collaboration tips:
 Getting Started:
 ---------------
 
- -  set nix environment variable PVINSTALL to the installation directory of Pavilion
- -  set PATH to include $PVINSTALL/PAV 
- -  Pavilion runs at version 2.7 of Python, so make sure that is early in your PATH too.
+ -  set *nix environment variable PVINSTALL to the install directory of Pavilion
+ -  add $PVINSTALL/PAV to the PATH variable
+ -  Pavilion runs at version 2.7 of Python, so add the python bin to PATH.
 
   At this point you should be able to run "pth -h"
 
