@@ -388,7 +388,6 @@ foreach $group (@grps) {
               $latestEnd = $thisEnd;
             }
           }
-print "my latest end is $latestEnd\n";
 
         }
 #my $tT = `tail -5 $lf | grep real | awk '{ print \$2 }'`;
@@ -434,17 +433,17 @@ print "my latest end is $latestEnd\n";
     #  the test has been counted, but the results would be bogus anyway
     my $status;
 
-    open(LF, ">$log_directory/RESULTS");
+    open(RF, ">$log_directory/RESULTS");
     if ( -e $lf ) {
           # run the chklg command
           $status = qx/$cmd/;
         print " --> $status " if ($opt{v});
-        if ( ( $status =~ /=> PASS/ )  || ( $status =~ /=>\(P\)/ ) ){
+        if ( $status =~ /=PASS/ ) {
             $totalTestsPassed++;
             $passed{$tn}{$testCU}++;
 
             # leave some cruft around which may speed later analysis runs
-            print LF $status;
+            print RF $status;
 
             # find real cpu time to be used for averages 
             $treal{$tn}{$testCU} = `tail -20 $lf | grep ^real | awk '{ print \$2 }'`;
@@ -459,22 +458,22 @@ print "my latest end is $latestEnd\n";
             }
             push( @{ $passedTests{$tn}{$testCU} }, "$_" ) if ($opt{p});
         }
-        elsif ( ( $status =~ /=> FAIL/ ) || ( $status =~ /=>\(F\)/ ) ) {    # test failed, save the failing log directory name
+        elsif ( $status =~ /=FAIL/ ) {    # test failed, save the failing log directory name
             # stored values are references to arrays
             $totalTestsFailed++;
             push( @{ $failedTests{$tn}{$testCU} }, "$_" );
             $failed{$tn}{$testCU}++;
 
             # leave some cruft around which may speed later analysis runs
-            print LF $status;
+            print RF $status;
         }
-        elsif ( $status =~ /UNDEF/ ){    # test finished but no pass or fail indication 
+        elsif ( $status =~ /=UNDEF/ ){    # test finished but no pass or fail indication 
             push( @{ $undefTests{$tn}{$testCU} }, "$_" );
             $totalTestsUndef++;
             $undef{$tn}{$testCU}++;
 
             # leave some cruft around which may speed later analysis runs
-            print LF $status;
+            print RF $status;
 
             # find real cpu time to be used for averages
             $treal{$tn}{$testCU} = `tail -5 $lf | grep real | awk '{ print \$2 }'`;
@@ -485,13 +484,13 @@ print "my latest end is $latestEnd\n";
               $totalRealtime{$tn}{$testCU} = $treal{$tn}{$testCU};
             }
         }
-        elsif ( $status =~ /LEARN/ ){    # test finished but in learning mode 
+        elsif ( $status =~ /=LEARN/ ){    # test finished but in learning mode 
             push( @{ $undefTests{$tn}{$testCU} }, "$_" );
             $totalTestsUndef++;
             $undef{$tn}{$testCU}++;
 
             # leave some cruft around which may speed later analysis runs
-            print LF $status;
+            print RF $status;
 
             # find real cpu time to be used for averages
             $treal{$tn}{$testCU} = `tail -5 $lf | grep real | awk '{ print \$2 }'`;
@@ -508,7 +507,7 @@ print "my latest end is $latestEnd\n";
             $foobar{$tn}{$testCU}++;
 
             # leave some cruft around which may speed later analysis runs
-            print LF $status;
+            print RF $status;
         }
     } else {  # no test output log, save the failing log directory name
         push( @{ $foobarTests{$tn}{$testCU} }, "$_" );
@@ -519,9 +518,9 @@ print "my latest end is $latestEnd\n";
         $status = " $testName:$testjid => INCOMPLETE, no output log exists\n";
 
         # leave some cruft around which may speed later analysis runs
-        print LF $status;
+        print RF $status;
     }
-    close(LF);
+    close(RF);
 
     }
   }

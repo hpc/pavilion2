@@ -89,9 +89,11 @@ our $learning   = 0;
 my $fileSystem = "";
 our $end = "";
 my $jobNotFinished = 0;
+my $noResultFound = 1;
 
-open( RESULT, "<$logFile" ) or die "$prog: Failed to open $logFile: $!\n";
+open( LF, "<$logFile" ) or die "$prog: Failed to open $logFile: $!\n";
 
+# post_complete file exists only when job is finished
 my $bd = dirname($logFile);
 unless ( -e "$bd/post_complete" ) {
   $jobNotFinished = 1;
@@ -111,13 +113,7 @@ if ($opt{v}) { print "$prog: examining log: $logFile \n"; }
 
 my $resultsStr = "";
 my $failedResultsStr = "";
-while (<RESULT>) {
-
-    #       print "DEBUGGING: input=$_\n";
-    #        chop( $_  );
-    #        if( /(.*) file write\/read testing/i ){ $fileSystem = $1; }
-
-    #      if ($opt_v) { print "$_"; }
+while (<LF>) {
 
     if (/^<testName>/) {
         @tmp = split ' ', $_;
@@ -130,67 +126,71 @@ while (<RESULT>) {
         next;
     }
 
-     # except both result and results, save and print remaining info on line
-     if (/<result\w{0,1}>\s*(.+)/){
-        $resultsStr = $1;
-        chomp($resultsStr);
-        if ($opt{v}) { print " --> $prog: found -> $_\n"; }
-        if ($resultsStr =~ /LEARN/i) {
-         $learning = 1;
-        } else {
-        # if test has both pass and fail results save the last msg 
-          if ($resultsStr =~ /PASS/i) {
-            $passed = 1;
-          }
-          if ($resultsStr =~ /FAIL/i) {
-            $failedResultsStr = $resultsStr;
-            $failed = 1;
-          }
-
-        }
-        next;
-    }
-
     if( /^<end> (\S+)/ ) {
        $end = $1;
        next;
     }
-}
 
-# if fail exists in results file, fail and we are done
-if ( $failed == 1 ) {
-        print "\t$dt $tn:$jid =>(F) $failedResultsStr\n";
-        $exitCode = 1;
+    # except both result and results
+    if (/<result\w{0,1}>\s*(.+)/){
+        $resultsStr = $1;
+        chomp($resultsStr);
+        if ($opt{v}) { print " --> $prog: found -> $_\n"; }
+        if ($resultsStr =~ /LEARN/i) {
+            print "  Matched =>(L)\n";
+            $learning = 1;
+            $noResultFound = 0;
+            next;
+        }
+        if ($resultsStr =~ /PASS/i) {
+            print "  Matched =>(P), $resultsStr\n";
+            $passed = 1;
+            $noResultFound = 0;
+            next;
+        }
+        if ($resultsStr =~ /FAIL/i) {
+            $failedResultsStr = $resultsStr;
+            print "  Matched =>(F), $failedResultsStr\n";
+            $failed = 1;
+            $noResultFound = 0;
+        }
+        next;
+    }
+} 
 
-} elsif ( $jobNotFinished ) {
+#  end of file parsing
+
+if ( $noResultFound ) {
+  # got here and not pass, fail, or even learning, so decide
+  # if it just didn't start or finish, or did finish
+  # but did not contain any explicit results.
+
+  # maybe the job itself died for some reason
+    if ( $jobNotFinished ) {
       # no post complete file, job died or maybe still running
-        print "\t$dt $tn:$jid => INCOMPLETE\n";
-        $exitCode = 1;
+        print "  No Match =>(I), INCOMPLETE, job did not finish\n";
+    } else {
+        # it must have ran, but no explicit results, so default to undefined 
+        print "  No Match =>(U), UNKNOWN, no explicit pass/fail results in output\n";
+    }
 
-} elsif ( $passed == 0 ) {
-    # pass never found, hmmm, do a bit more checking
-
-    # could be in the learning mode
-    if ($learning)  {
-        print "\t$dt $tn:$jid => LEARNING MODE\n";
-        $exitCode = 1;
-    }
-    # so no Fail or Pass, now what?
-    elsif (( $jid == "") || ($end == ""))  {
-        # doesn't look like it finished 
-        print "\t$dt $tn:$jid => INCOMPLETE\n";
-        $exitCode = 0;
-    }
-    else {
-        # it ran, but no explicit results, so default to undefined 
-        print "\t$dt $tn:$jid => UNDEF, no explicit results in output\n";
-        $exitCode = 1;
-    }
+    print "  $dt $tn:$jid :: RESULT=UNDEFINED\n";
 } else {
-    # a good one, only the word pass exists in the results
-    print "\t$dt $tn:$jid =>(P) $resultsStr\n";
-    $exitCode = 0;
+
+  # it's a failing test if any result shows a failure,
+  # otherwise it must have a pass to indicate pass
+
+  if ( $failed )  {
+    print "  $dt $tn:$jid :: RESULT=FAILED\n";
+  } elsif ( $passed ) {
+    print "  $dt $tn:$jid :: RESULT=PASSED\n";
+  } elsif ( $learning ) {
+    print "  $dt $tn:$jid :: RESULT=LEARNING\n";
+  }
+
 }
 
-close(RESULT);
-exit($exitCode);
+
+close(LF);
+
+exit;
