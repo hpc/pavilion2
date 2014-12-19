@@ -6,7 +6,7 @@ include docs/*.txt
 include docs/*.yaml
 include test_suites/*.yaml
 include PAV/plugins/*.yapsy-plugin
-include PAV/scripts/*
+recursive-include PAV/scripts/ *
 include t1/*.bash
 include t1/i*
 recursive-include PAV/ README.* 
