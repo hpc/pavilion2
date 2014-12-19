@@ -321,7 +321,7 @@ foreach $group (@grps) {
     #print "testjid - $testjid\n";
 
     print "my active job(s) - $activeJobs\n" if ($opt{v});
-    if ( $activeJobs =~ m/$testjid/ )  {
+    if (($testjid) && ( $activeJobs =~ m/$testjid/ ))  {
         print "\nskipping active job $testjid\n" if ($opt{v});
         next;
     }
