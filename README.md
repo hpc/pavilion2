@@ -16,7 +16,7 @@ Usage:
 Version
 ====
 
-0.4X
+0.5X
 
 ====
 
@@ -26,6 +26,7 @@ Collaboration tips:
     append new path to the ENV variable PV_PLUGIN_DIR and place code there.
   - all remaining support code add to the modules directory or append to the
     ENV variable PV_SRC_DIR and place code there.
+  - add support scripts in other languages to the scripts directory
 
 ====
 
@@ -39,3 +40,9 @@ Project goals:
    - Open source and managed thru git  
    - No extra files necessary to be placed into users test/job directory to hook into Pavilion
    - Only one command needed to run cli. Sub commands under "pth" umbrella  
+
+====
+
+See the README.txt file in the docs directory for more detailed information
+
+
