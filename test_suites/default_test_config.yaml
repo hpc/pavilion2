@@ -155,6 +155,7 @@ UniqueId:
     # The test handler will try to match "<td> name value [units]"
     # to discover any special result data  (a.k.a - trend data).
     # The "units" component is optional.
+    # DO NOT change at this time!
     trend_data_regex: <td>\s+(.*)
 
     # A Script called at the end of the test/job.
@@ -191,6 +192,16 @@ UniqueId:
     # comman separated list of plugin sampler names (all coming soon),
     # will be skipped if not supported
     metric_list: "meminfo,vmstat"
+
+  # Splunk configuration setup
+  splunk:
+    # Turn on or off
+    # If on, creates a Splunk data file in the job/app result directory 
+    # and concatenates, or creates if necessary, this data to the
+    # global splunk data file.
+    state: off 
+    # Define the location of the global splunk data file
+    global_data_file: '/Users/cwi/pv_results/splunkdata.log'
     
   time:
     tz: 'US/Mountain'
