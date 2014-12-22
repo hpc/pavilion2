@@ -117,20 +117,25 @@ pvjobs - show what jobs are present on Moab systems.
 Outstanding Issues:
 ------------------
 
-Listed here are a number of issues/features that need development help
+Interested in collaborating? Listed here are a number of issues/features that need work. 
 
-1. Elegant way to build on the fly with various libs/compilers and crate and
-unique namine convention to differentiate between tests/apps/jobs.
+1. Elegant way to handle building on the fly with various libs/compilers and then create a
+unique naming convention to differentiate between these variations.
 
-2. Handle Node/PE variations using a given range and step of values in addtion to
+2. Handle Node/PE combinations using a range and step of values in addtion to
 just the comma separated list of numbers supported now.
 
-3. The whole Slurm scheduler job handling needs to be developed, a skeleton exists.
+3. The whole Slurm scheduler job handling code needs to be developed, a skeleton exists.
 
-4. Handling the correct JobId value. Historically the Moab job id was written to the
+4. Saving the correct JobId value. Historically the Moab job id was written to the
 log file. How should this be handled universally for all scheduler types?  The unix
 process id is placed in the log file already.
 
 5. Ditto for handling what Moab referred to as the segment name. A cluster can have 
 multiple parts that can be targeted due to different features for the part.  Does target
 cluster make sense still. 
+
+6. Alaways could use some code refactoring.
+
+7. Much in the way of handling all the posible error conditions that may arise if the test suite is
+configure wrong. Love to see more unit testing here.
