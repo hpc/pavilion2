@@ -4,19 +4,12 @@ Built and tested with Python 2.7
 
 File Structure:
 --------------
-   - all code under the PAV directory
-   - PLUGINS sub-dir for new commands
-   - SCRIPTS sub-dir for support scripts 
-   - MODULES sub-dir for all custom built python src
-   - SPECIAL-PKGS sub-dir for non-core Python packages
 
-Collaboration tips:
-------------------
-
-  - add new features (sub-commands) to the plugins directory or
-    append a new path to the ENV variable PV_PLUGIN_DIR and place code there.
-  - all new remaining support code add to the modules directory
-  - support scripts in other languages place in the scripts directory
+   - all code resides under the PAV directory
+     - PLUGINS sub-dir for new commands
+     - SCRIPTS sub-dir for support scripts 
+     - MODULES sub-dir for all custom built python src
+     - SPECIAL-PKGS sub-dir for non-core Python packages
 
 Getting Started:
 ---------------
@@ -119,3 +112,25 @@ Utility Scripts:
 ---------------
 
 pvjobs - show what jobs are present on Moab systems.
+
+
+Outstanding Issues:
+------------------
+
+Listed here are a number of issues/features that need development help
+
+1. Elegant way to build on the fly with various libs/compilers and crate and
+unique namine convention to differentiate between tests/apps/jobs.
+
+2. Handle Node/PE variations using a given range and step of values in addtion to
+just the comma separated list of numbers supported now.
+
+3. The whole Slurm scheduler job handling needs to be developed, a skeleton exists.
+
+4. Handling the correct JobId value. Historically the Moab job id was written to the
+log file. How should this be handled universally for all scheduler types?  The unix
+process id is placed in the log file already.
+
+5. Ditto for handling what Moab referred to as the segment name. A cluster can have 
+multiple parts that can be targeted due to different features for the part.  Does target
+cluster make sense still. 
