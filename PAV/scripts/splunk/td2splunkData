@@ -94,8 +94,8 @@ our %opt;
   # The splunkdata.log file is the file that Splunk is indexing.
   my @arr = glob("$ldir/*.splunkdata");
   if ( @arr > 0 ) {
-    if ( $ENV{'PV_RESULT_ROOT'} ) {
-      `cat $arr[0] >> $ENV{'PV_RESULT_ROOT'}/splunkdata.log`;
+    if ( $ENV{'GLOBAL_SPLUNK_DATA_LOG'} ) {
+      `cat $arr[0] >> $ENV{'GLOBAL_SPLUNK_DATA_LOG'}`;
     }
     print ".splunkdata file exits, no more work to do!\n";
     exit;
@@ -109,16 +109,16 @@ our %opt;
   open( SD, ">$ldir/my.splunkdata") or die "$prog: Failed to open splunk data file $!\n";
 
   # these next lines will only work in the context of a Pavilion job, so unless the
-  # PV_RESULT_ROOT is defined don't try to run this.
-  if ( $ENV{'PV_RESULT_ROOT'} ) {
-    open( RF, ">>$ENV{'PV_RESULT_ROOT'}/splunkdata.log");
+  # data file is defined don't try to run this.
+  if ( $ENV{'GLOBAL_SPLUNK_DATA_LOG'} ) {
+    open( RF, ">>$ENV{'GLOBAL_SPLUNK_DATA_LOG'}");
   }
 
   my $resrecord = "";
-  my $date = "";
-  my $time = "";
-  my $edate = "";
-  my $etime = "";
+  our $date = "";
+  our $time = "";
+  our $edate = "";
+  our $etime = "";
   my $tn = "";
   my $mn = "";
   my $pl = "";
@@ -199,6 +199,16 @@ our %opt;
          next;
       }
 
+      # get end time to use in splunk data 
+      if( /^<end> / ) {
+         my $end = $';
+         chomp $end;
+         ($edate, $etime) = split("T", $end); 
+         $etime =~ s/-.*//;
+         $edate =~ s/^\s+//;
+         next;
+      }
+
       # get results  
       # save the first pass, unless a fail then save the first one of those 
       if (/<result\w{0,1}>\s*(.+)/){
@@ -245,22 +255,11 @@ our %opt;
 
       if ( /<sftd>\s+(.*)/ ) {
         print SD "$1\n";
-        if ( $ENV{'PV_RESULT_ROOT'} ) {
+        if ( $ENV{'GLOBAL_SPLUNK_DATA_LOG'} ) {
           print RF "$1\n";
         }
         next;
       }
-
-
-      # get end time to use in splunk data 
-      if( /^<end> / ) {
-         my $end = $';
-         chomp $end;
-         ($edate, $etime) = split("T", $end); 
-         $etime =~ s/-.*//;
-         next;
-      }
-
     } 
 
     # no dashes in values
@@ -275,7 +274,7 @@ our %opt;
     print SD $resrecord;
     close( LOG );
     close( SD );
-    if ( $ENV{'PV_RESULT_ROOT'} ) {
+    if ( $ENV{'GLOBAL_SPLUNK_DATA_LOG'} ) {
       print RF $resrecord;
       close( RF );
     }

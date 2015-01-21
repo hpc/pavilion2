@@ -100,6 +100,7 @@ def main():
             text_file.close()
 
             print "<end>", now()
+            lf.flush()
 
             # The trend_data file needs to be placed in the results dir
             # for Gazebo compatibility

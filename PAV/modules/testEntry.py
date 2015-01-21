@@ -54,7 +54,7 @@ class TestEntry():
         if needed.issubset(seen):
             for k in needed:
                 if not data[k]:
-                    print "Error: value must be defined for key: (%s)" % k,
+                    print "Error: test suite key (%s) must be defined" % k,
                     return False
             return True
         else:

@@ -75,8 +75,12 @@ class JobController():
         os.environ['GZ_TESTNAME'] = self.name
         os.environ['PV_TESTEXEC'] = self.configs['run']['cmd']
         os.environ['GZ_TESTEXEC'] = self.configs['run']['cmd']
-        os.environ['GZ_TEST_PARAMS'] = self.configs['run']['test_args']
-        os.environ['PV_TEST_ARGS'] = self.configs['run']['test_args']
+        pt = type(self.configs['run']['test_args'])
+        try:
+            os.environ['GZ_TEST_PARAMS'] = self.configs['run']['test_args']
+            os.environ['PV_TEST_ARGS'] = self.configs['run']['test_args']
+        except:
+            raise TypeError('test_args value problem, is it a string?')
 
         self.setup_working_space()
 
@@ -216,6 +220,14 @@ class JobController():
         os.environ['PV_TEST_ARGS'] = self.configs['run']['test_args']
         os.environ['GZ_TEST_PARAMS'] = os.environ['PV_TEST_ARGS']
 
+        try:
+            if self.configs['splunk']['state']:
+                os.environ['SPLUNK_DATA_LOG'] = str(self.configs['splunk']['global_data_file'])
+        except KeyError, e:
+            print 'basejobcontroller:setup_job_info, Splunk config error - no: "%s"' % str(e)
+            pass
+
+
     @staticmethod
     def cleanup():
 
@@ -271,6 +283,17 @@ class JobController():
                 out_file.write(match.group(2) + "\n")
 
         out_file.close()
+
+        # generate Splunk data file(s) (if configured on in test suite file)
+        try:
+            if os.environ['SPLUNK_DATA_LOG']:
+                log_dir = os.environ['PV_JOB_RESULTS_LOG_DIR']
+                cmd = os.environ['PVINSTALL'] + "/PAV/scripts/splunk/td2splunkData " + log_dir
+                os.system(cmd)
+        except KeyError, e:
+            # Never set up properly so just move on...
+            #print 'basejobcontroller:process_trend_data, KeyError - no: "%s"' % str(e)
+            pass
 
 
 # this gets called if it's run as a script/program
