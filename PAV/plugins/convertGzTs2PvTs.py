@@ -54,10 +54,10 @@ class gzts2pvtsPlugin(IPlugin):
     def add_parser_info(self, subparser): 
         parser_gzts2pvts = subparser.add_parser("gzts2pvts",
                                                 help="convert Gazebo test suite to Pavilion test suite")
-        parser_gzts2pvts.add_argument('-i', default='inputfile',
+        parser_gzts2pvts.add_argument('-i', default='no_file',
                                       help='input file in gazebo test suite format')
         parser_gzts2pvts.add_argument('-o', default='~/inputfile.yaml',
-                                      help='output file in pavilion test suite format')
+                                      help='output file or path')
         parser_gzts2pvts.add_argument('-d', default='~/testparentdirectory',
                                       help='test parent directory under which all tests are subdirectories of')
         # parser_gzts2pvts.add_argument('-v', default='testparentdirectory',
@@ -80,15 +80,22 @@ class gzts2pvtsPlugin(IPlugin):
         # handle input case 1]
         #  no inputfile
 
-        if gzinputfile == "inputfile":
-            print "Error: An inputfile is necessary, please provide one with the -i argument, exiting."
+        if gzinputfile == "no_file":
+            print "Error: An input file is necessary, please provide one with the -i argument, exiting."
             sys.exit()
 
         # handle input case 2]
-        #  no outputfile specified, create an input-filename with .yaml extension in the home directory
+        #  no outputfile specified, use input-filename with .yaml extension in the home directory
         if pvoutputfile == "~/inputfile.yaml":
-            homedir = os.environ.get('HOME')    # why? because opening a file with ~/filename doesn't work
-            pvoutputfile = homedir + "/" + os.path.basename(gzinputfile) + ".yaml"
+            out_dir = os.environ.get('HOME')    # why? because opening a file with ~/filename doesn't work
+            pvoutputfile = out_dir + "/" + os.path.basename(gzinputfile) + ".yaml"
+
+        elif os.path.isdir(pvoutputfile):
+            out_dir = pvoutputfile
+            pvoutputfile = out_dir + "/" + os.path.basename(gzinputfile) + ".yaml"
+
+        elif os.path.isfile(pvoutputfile):
+            pass  # we are good to go
 
         # handle input case 3]
         #  no testparentdirectory is specified.  Testparentdirectory is necessary to get
