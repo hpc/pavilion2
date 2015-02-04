@@ -55,13 +55,12 @@ class gzts2pvtsPlugin(IPlugin):
         parser_gzts2pvts = subparser.add_parser("gzts2pvts",
                                                 help="convert Gazebo test suite to Pavilion test suite")
         parser_gzts2pvts.add_argument('-i', default='no_file',
-                                      help='input file in gazebo test suite format')
+                                      help='input file in Gazebo test suite format')
         parser_gzts2pvts.add_argument('-o', default='~/inputfile.yaml',
                                       help='output file or path')
         parser_gzts2pvts.add_argument('-d', default='~/testparentdirectory',
-                                      help='test parent directory under which all tests are subdirectories of')
-        # parser_gzts2pvts.add_argument('-v', default='testparentdirectory',
-        #  help='test parent directory under which all tests are subdirectories of')
+                                      help='Gazebo parent directory, will use GZHOME if defined')
+
         parser_gzts2pvts.set_defaults(sub_cmds='gzts2pvts')
         return 'gzts2pvts'
 
@@ -85,7 +84,7 @@ class gzts2pvtsPlugin(IPlugin):
             sys.exit()
 
         # handle input case 2]
-        #  no outputfile specified, use input-filename with .yaml extension in the home directory
+        #  no output file specified, use input-filename with .yaml extension in the home directory
         if pvoutputfile == "~/inputfile.yaml":
             out_dir = os.environ.get('HOME')    # why? because opening a file with ~/filename doesn't work
             pvoutputfile = out_dir + "/" + os.path.basename(gzinputfile) + ".yaml"
@@ -106,20 +105,18 @@ class gzts2pvtsPlugin(IPlugin):
             gzhome = os.environ.get('GZHOME')
             # print "gzhome is ", gzhome
             if gzhome:
-                if args['verbose']:
-                    print "GZHOME is not empty ", gzhome
-                    print "Using a test parent directory of " + gzhome
+                print "Using a test parent directory of " + gzhome
             else:
                 testparentdir = "/REQUIRED"
                 gzhome = testparentdir
                 if args['verbose']:
-                    print "Warning: GZHOME environment variable is empty "
+                    print "Notice: GZHOME environment variable not defined "
                     print "Cannot determine a test parent directory, continuing."
         else:
             gzhome = testparentdir
 
         if args['verbose']:
-            print "Converting %s gazebo test suite " % gzinputfile
+            print "Converting %s Gazebo test suite " % gzinputfile
             print " to %s that's in Pavilion test suite format " % pvoutputfile
 
         try:
