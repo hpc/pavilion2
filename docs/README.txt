@@ -37,45 +37,45 @@ Getting Started:
         Only the id, name, source_location, and run:cmd parts are required to be in each new stanza. 
         The id must be unique for each stanza.
      6) At this point you should have at least two files in this directory.  The default one (the
-        exact name is important) and your new one (the name is not important).
+        exact name is important) and your new one (the name is not important, but should end with ".yaml").
 
   - Type "pth view_test_suite ./my-test-config-suite.yaml" to see how your new test suite
     file is "folded" with the default file.  Add as may test stanzas as needed.
 
-  - Type "pth run_test_suite ./my-test-config_suite.yaml" to run your defined tests. 
-    Hint: making sure your jobs work without Pavilion will save you time debugging problems.
+  - Type "pth run_test_suite ./my-test-config_suite.yaml" to run each test in the test suite. 
+    Hint: making sure your jobs/tests work without Pavilion will save you time debugging problems.
 
-  - Type "pth get_results ./my-test-config_suite.yaml" to view your results. Notice the i, p, and
+  - Type "pth get_results -ts ./my-test-config_suite.yaml" to view your results. Notice the i, p, and
     f flags to this command.  There are very helpful if you want to see where the actual
     result data resides. 
 
   
-Gazebo transition tips:
+Gazebo transition tips (for former users of Gazebo):
 
   - A Gazebo test suite can be converted to a Pavilion test suite using the "gzts2pvts"
-    sub-command under "pth". Make sure you place this new file in the same directory as the default_test_config.yaml file.
-    Edit this file as necessary, it may require some cleanup if the "gzts2pvts" couldn't figure out all the parts.
-    If you run this on a system where you were using Gazebo it may be able to discover more of its pieces.
+    sub-command under "pth". Place this new converted file in the same directory as the default_test_config.yaml file.
+    Edit it as needed, it may require some cleanup if the "gzts2pvts" couldn't figure out all the sub-parts.
+    If you run this on a system where you had Gazebo configured and running it may be able to discover more of its parts.
 
-  - There is no more $GZ_TMPLOGDIR. This directory used to reside under the working_space (which still exists) and any files
+  - There is no more $GZ_TMPLOGDIR. This directory used to reside under the working_space where, by default, any files
     placed there were copied to the final results directory. Now, If you want other data saved to the final results directory
-    you can either place it there directly ($PV_JOB_RESULTS_LOG_DIR) OR any files listed in the working_space:save_from_ws   
-    section of the test suite will be moved there at job end.
+    your run script can either place it there directly ($PV_JOB_RESULTS_LOG_DIR) OR any files listed in the
+    working_space:save_from_ws section of the test suite will be moved there at job completion.
 
 
 Output data standardization (trend data):
 -----------------------------------------
 
-Specific test/job related values can be recorded and analyzed if they are saved as trend data.
-Trend data is important result information that is printed as a separate line to STDOUT.
-Multiple trend data values can be saved for every test run. This data is determined by the
-application developer.
+Specific test/job related values can be efficiently analyzed if they are saved as trend data.
+Trend data is important result information that is printed as a separate line to STDOUT by the users
+run script and/or application. Multiple trend data values can be saved for every test run. This data is
+obviously unique to each application and is determined by the application developer.
 
 Syntax:
 <td> name value [units]
 
 Explanation:
-<td> - tag or marker used by the result parser.
+<td> - tag or marker used by the result parser. 
 name - char string, up to 32 chars. Name of the trend data item.   
 value - char string, up to 64 chars
 units - char string, up to 24 chars.
@@ -84,9 +84,9 @@ Rules:
 - One name value entry per line.
 - The units field is optional.
 - The <td> tag must start at the beginning of the line.
-- Another line with a duplicate name entry will be ignored.
+- Another line with a duplicate name  will be ignored.
 - A Maximum of 4k entries are allowed per test. 
-- No spaces are allowed in either the name or value. 
+- No spaces are allowed in either the name or value field. 
 - Underlines are recommended as opposed to dashes in the name field. 
 
 Examples:
@@ -97,19 +97,19 @@ Examples:
 <td> phase_2_data 8200 
 
 
-Querying Data:
+Querying Data Tip:
  Trend data can be viewed using the get_results sub-command with the "-T" option.
  Data is harvested from the log files in the test results directory.
 
 
-Debug Tips:
+Debugging Tips:
 ----------------
 
-As Pavilion runs an output log is being generated/accumulated into /tmp/${USER}/pth.log
+As Pavilion runs an output log is being generated into /tmp/${USER}/pth.log
 
 
-Utility Scripts:
----------------
+Handy Stand-alone Utility Scripts:
+---------------------------------
 
 pvjobs - show what jobs are present on Moab systems.
 
@@ -117,10 +117,10 @@ pvjobs - show what jobs are present on Moab systems.
 Outstanding Issues:
 ------------------
 
-Interested in collaborating? Listed here are a number of issues/features that need work. 
+Interested in collaborating? Listed here are a number of issues/features that need development work. 
 
-1. Elegant way to handle building on the fly with various libs/compilers and then create a
-unique naming convention to differentiate between these variations.
+1. Elegant way to handle building binaries on-the-fly with various libs/compilers and then create a
+unique name to differentiate between these variations.
 
 2. Handle Node/PE combinations using a range and step of values in addtion to
 just the comma separated list of numbers supported now.
@@ -135,7 +135,7 @@ process id is placed in the log file already.
 multiple parts that can be targeted due to different features for the part.  Does target
 cluster make sense still. 
 
-6. Alaways could use some code refactoring.
+6. Could always use some code refactoring or just general code reviewing.
 
 7. Much in the way of handling all the posible error conditions that may arise if the test suite is
-configure wrong. Love to see more unit testing here.
+configure wrong. Much more unit testing here.

@@ -2,13 +2,13 @@ Pavilion (Gazebo-II) Testing Framework
 
  Functional Requirements/Goals
 
- ver. 1.7
+ ver. 1.8
 
- - This is the basic wish list (not in any particular priority) for what is desired
+ - This is the basic wish list (not in any particular priority) for what's desired
    in Pavilion.
 
 
-1. Functionality that exists in current version of Gazebo that is to be continued.
+1. Functionality that exists in current version of Gazebo that's to be continued.
 -----------
 
 1.1 Run as a user process.  Gracefully handles permissions to support multiple users running out of the same
@@ -26,7 +26,7 @@ Pavilion (Gazebo-II) Testing Framework
 
 
 
-2. Feature exists in some form in Gazebo, but needs improvements/enhancements
+2. Features that exist in some form in Gazebo, but need improvements/enhancements.
 ---------
 
 2.1 Support for Moab and other schedulers/resource manager combinations.
