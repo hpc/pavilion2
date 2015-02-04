@@ -45,6 +45,7 @@ def makesingleboxplot(thisdirname, subdirname, thisfilename):
         thisnode=[]
         del thisnode[:]
         tud,jud,tid,mname,pname2,nodename,trest = line.split(' ',6)
+
         nfile = thisdirname + "/" + ''.join(nodename)
         if firsttime < 1:
 
@@ -62,29 +63,47 @@ def makesingleboxplot(thisdirname, subdirname, thisfilename):
             segname.append( "%d" % nlen )
             # segname.append( len( nodename ) - firstdigit + 1 )
             segname.append( 'd' )
-            # print trest
+            # print "trest is ", trest
             trestlen = len( trest )
             spdigit = -1
             spdigit = trest.find(' ')
+            # spdigit = ".join(trest).find(' ')
+
             valstring = []
-            if spdigit > -1:
-                for j in xrange( 0, spdigit - 1):
-                    valstring.append( trest[j] )
-            else:
-                valstring = trest
+            # if spdigit > -1:
+                # for j in xrange( 0, spdigit - 1):
+                # for j in xrange( 0, spdigit ):
+                    # valstring.append( trest[j] )
+            # else:
+                # valstring = trest
+            valstring = trest.split()[0]
 
             # print "valstring is ", valstring
-            if spdigit > 0:
-                print "spdigit is not 0, can make units string"
-                for j in xrange( spdigit + 1, trestlen - 1 ):
-                    ylabelunits.append( trest[j] )
+            # if spdigit > 0:
+                # print "spdigit is not 0, can make units string ", spdigit
+                # for j in xrange( spdigit + 1, trestlen - 1 ):
+                    # ylabelunits.append( trest[j] )
 
-            idecpoint = valstring.find( '.')
+                # print "ylabelunits is ", ylabelunits
+
+            if len( trest.split() ) > 1:
+                ylabelunits = trest.split()[1]
+                # print "ylabelunits is ", ylabelunits
+            # idecpoint = valstring.find( '.')
+            # idecpoint = str(valstring).find( '.')
             ivallen = len( valstring )
-            iseform = valstring.find( 'e' )
+            idecpoint = -1
+            for j in xrange( 0, ivallen ):
+                if valstring[j] == '.':
+                    idecpoint = j
+                    break
+
+            iseform = str(valstring).find( 'e' )
             decdigits = 2
+            # print " idecpoint ", idecpoint, " ivallen ", ivallen, " iseform ", iseform,  " decdigits ", decdigits
             if idecpoint > -1:
-                decdigits = decdigits + ivallen - idecpoint - 2
+                # decdigits = decdigits + ivallen - idecpoint - 2
+                decdigits = ivallen - idecpoint + 1
 
             if iseform > -1:
                 vfmtstring = "%%.%de %%.%de %%.%de %%.%de " % (decdigits, decdigits, decdigits - 2, decdigits - 2)
@@ -97,8 +116,27 @@ def makesingleboxplot(thisdirname, subdirname, thisfilename):
         if tnode > maxnodeint:
             maxnodeint = tnode
 
+
+        t2restlen = len( trest )
+        vspdigit = -1
+        vspdigit = trest.find(' ')
+
+
+        tvalstring = []
+        if vspdigit > -1:
+                # for j in xrange( 0, spdigit - 1):
+            for j in xrange( 0, vspdigit ):
+                tvalstring.append( trest[j] )
+        else:
+            tvalstring = trest
         nodefile = open( nfile, "a" )
-        print >> nodefile, trest,
+
+        # print "printing to file ", nfile, " ", trest.split()[0]
+        # print >> nodefile, trest,
+        # print >> nodefile, ''.join( tvalstring )
+        print >> nodefile, trest.split()[0]
+
+        # print >> nodefile, str( tvalstring )
         nodefile.close()
 
 
@@ -114,7 +152,7 @@ def makesingleboxplot(thisdirname, subdirname, thisfilename):
     if len( ylabelunits) < 1:
         ytitle = "Performance (MB/sec)"
     else:
-        ytitle = "Performance " + ylabelunits
+        ytitle = "Performance " + "(" + str(ylabelunits) + ")"
 
     ctitle = subdirname +  " Performance Boxplot"
 
@@ -170,6 +208,7 @@ def makesingleboxplot(thisdirname, subdirname, thisfilename):
     # for i in nodetable:
         # print i
 
+    # print "tablefmtstring ", tablefmtstring
     tablename = thisdirname + "/FinalDataTable.txt"
     tablefile = open( tablename, "w" )
     for i in nodetable:
@@ -270,7 +309,17 @@ def main():
     # print "Making box plots with data from:"
     for line in sys.stdin:
         searchObj = re.search(r'jid\(', line, re.M|re.I)
-        isreportable = line.find( "+" )
+        # isreportable = line.find( "+" )
+        isreportable = -1
+        nwords = len( line.split() )
+        if nwords > 4:
+            isreportable = line.split()[3].find( '+' )
+            # print " wordis ", line.split()[3], " is ", isreportable
+
+            wlen = len( line.split()[3] )
+            if wlen - isreportable  < 2:
+                isreportable = -1
+            # print " wordis ", line.split()[3], " is ", isreportable
         if searchObj and isreportable  > 1:
             # if searchObj:
             # Should do work here, see correct output above
@@ -285,10 +334,14 @@ def main():
                     tname.append(  "-" )
                 else:
                     tname.append( line[i])
-
+            firstrep = 0
             for i in xrange(jidx, len( line ) - 1 ):
                 if line[i] == '+':
-                    restline.append( " " )
+                    if firstrep == 0:
+                        restline.append( " " )
+                        firstrep = 1
+                    else:
+                        restline.append(  line[i])
                 else:
                     restline.append(  line[i])
 
