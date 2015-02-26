@@ -200,18 +200,18 @@ def makesingleboxplot(thisdirname, subdirname, thisfilename):
 
 	# Begin processing a list of files in the current directory, complicated list of lists
     chtodir = "cd " + thisdirname
-    os.system( chtodir )
+    os.system(chtodir)
     # print "issued command ", chtodir
 
-    fstring = ''.join(segname) # "wf%03d"
-    maxnodenum = maxnodeint + 1 #  620
+    fstring = ''.join(segname)  # "wf%03d"
+    maxnodenum = maxnodeint + 1  # 620
     # print maxnodeint
     if len( ylabelunits) < 1:
         ytitle = "Performance (MB/sec)"
     else:
         ytitle = "Performance " + "(" + str(ylabelunits) + ")"
 
-    ctitle = subdirname +  " Performance Boxplot"
+    ctitle = subdirname + " Performance Boxplot"
 
     fname={}
     dlist=[]
@@ -227,12 +227,12 @@ def makesingleboxplot(thisdirname, subdirname, thisfilename):
         # print fname[x]
 
         # if  os.path.isfile(fname[x]) :
-        if  os.path.isfile( thisdirname + "/" + fname[x]) :
+        if os.path.isfile( thisdirname + "/" + fname[x]):
             nticks += 1
             dlist.append( loadtxt( thisdirname + "/" + fname[x]) )
             nnum.append( x )
-            if ( x % 2 ) == 0 :
-                tmarks.append( "%d" % (x) )
+            if (x % 2) == 0:
+                tmarks.append("%d" % (x))
             else:
                 tmarks.append('')
     # print "Dlistlength is ",  len(dlist )
@@ -257,23 +257,23 @@ def makesingleboxplot(thisdirname, subdirname, thisfilename):
 
     dstds=[]
     for j in dlist:
-        dstds.append( j.std() )
+        dstds.append(j.std())
 
     nodetable=[]
-    nodetable = zip( nnum, dsamps, dmeans, dstds, dmins, dmaxs )
+    nodetable = zip(nnum, dsamps, dmeans, dstds, dmins, dmaxs)
     # print nodetable
     # for i in nodetable:
         # print i
 
     # print "tablefmtstring ", tablefmtstring
     tablename = thisdirname + "/FinalDataTable.txt"
-    tablefile = open( tablename, "w" )
+    tablefile = open(tablename, "w")
     for i in nodetable:
         # print >> tablefile, i
         # print >> tablefile, '%d %d %24f %.4f %.2f %.2f', i
         # print >> tablefile, '%d %d %.4f %.4f %.2f %.2f', i[0], i[1], i[2], i[3], i[4], i[5]
         # tablefile.write( '%d %d %.4f %.4f %.2f %.2f\n' % ( i[0], i[1], i[2], i[3], i[4], i[5] ))
-        tablefile.write( tablefmtstring % ( i[0], i[1], i[2], i[3], i[4], i[5] ))
+        tablefile.write( tablefmtstring % (i[0], i[1], i[2], i[3], i[4], i[5]))
     tablefile.close()
 
 
@@ -285,19 +285,19 @@ def makesingleboxplot(thisdirname, subdirname, thisfilename):
     xtickmarks=[]
 
     # try to add a null tick mark at beginning
-    xtickmarks.append( '' )
+    xtickmarks.append('')
     # end try
 
     for i, v in nodemeans:
         #	xname = "mu%04d" % (i)
-        xname = fstring % (i)
-        xtickmarks.append( xname )
+        xname = fstring % i
+        xtickmarks.append(xname)
 
-    dlist.sort(key=lambda a: a.mean() )
+    dlist.sort(key=lambda a: a.mean())
     plt.figure()
     # boxplot(multidata)
     # print dlist
-    if len( dlist ) < 1:
+    if len(dlist) < 1:
         return 0
 
     # break
@@ -332,8 +332,7 @@ def makesingleboxplot(thisdirname, subdirname, thisfilename):
     # show()
     plotname = thisdirname + "/" + subdirname + "Boxplot.png"
     # plt.savefig('BoxplotGraph.png', dpi=150 )
-    plt.savefig(plotname, dpi=150 )
-
+    plt.savefig(plotname, dpi=150)
 
     return nnodes
 
@@ -345,7 +344,8 @@ def main():
     # root = os.environ['HOME']
     # else:
     # root = self.output_dir_roo
-    root = "/usr/projects/splunk/results/prr/wf"
+    root = os.environ['PV_RESULT_ROOT']
+    #root = "/usr/projects/splunk/results/prr/wf"
     output_dir = root + "/Boxplots/" + sub_dir
 
     # self.logger.info(self.lh + " Make Boxplots directory: " + output_dir)
@@ -358,11 +358,11 @@ def main():
         output_dir = ''
         pass
 
-    print "Created Boxplots dir: " + output_dir
+    print "Boxplots dir -> " + output_dir
+    print "  View hint: 'find Boxplots_dir -name \*.png -exec showimage {} \;'"
     AllDataFile = output_dir + "/AllDataFile.txt"
 
-
-    prelimout = open( AllDataFile, "w" )
+    prelimout = open(AllDataFile, "w")
     # print "Making box plots with data from:"
     for line in sys.stdin:
         searchObj = re.search(r'jid\(', line, re.M|re.I)
@@ -374,10 +374,10 @@ def main():
             # print " wordis ", line.split()[3], " is ", isreportable
 
             wlen = len( line.split()[3] )
-            if wlen - isreportable  < 2:
+            if wlen - isreportable < 2:
                 isreportable = -1
             # print " wordis ", line.split()[3], " is ", isreportable
-        if searchObj and isreportable  > 1:
+        if searchObj and isreportable > 1:
             # if searchObj:
             # Should do work here, see correct output above
             # print line,  # this line for debug purpose
@@ -385,45 +385,45 @@ def main():
             restline= []
             newline= []
 
-            jidx = line.find( " jid(" )
+            jidx = line.find(" jid(")
             for i in xrange(0,jidx ):
                 if line[i] == ' ':
-                    tname.append(  "-" )
+                    tname.append("-")
                 else:
-                    tname.append( line[i])
+                    tname.append(line[i])
             firstrep = 0
-            for i in xrange(jidx, len( line ) - 1 ):
+            for i in xrange(jidx, len(line) - 1):
                 if line[i] == '+':
                     if firstrep == 0:
-                        restline.append( " " )
+                        restline.append(" ")
                         firstrep = 1
                     else:
-                        restline.append(  line[i])
+                        restline.append(line[i])
                 else:
-                    restline.append(  line[i])
+                    restline.append(line[i])
 
             print >> prelimout, ''.join(tname), ''.join(restline)
     prelimout.close()
 
-    alltests = open( AllDataFile , "r" )
+    alltests = open(AllDataFile, "r")
     for line in alltests:
         thisname=[]
         del thisname[:]
 
-        jidx = line.find( " jid(" )
-        for i in xrange(1,jidx - 1 ):
+        jidx = line.find(" jid(")
+        for i in xrange(1,jidx - 1):
             if line[i] == '.':
                 break
             else:
                 thisname.append( line[i])
 
-        tud,jud,tid,pname,pname2,trest = line.split(' ', 5)
+        tud, jud, tid, pname, pname2, trest = line.split(' ', 5)
         tdirectory = output_dir + "/" + ''.join(thisname) + "-" + ''.join(pname2)
         if not os.path.isdir(tdirectory):
             mkdircmd = "mkdir " + tdirectory
             os.system( mkdircmd )
         thisfname = tdirectory + "/TableRes.txt"
-        thisfile = open( thisfname, "a" )
+        thisfile = open(thisfname, "a")
         print >> thisfile, line,
         thisfile.close()
 
@@ -431,7 +431,7 @@ def main():
 
     # [subdirList[0] for subdirList in os.walk(output_dir)]
     # subdirList = os.listdir( output_dir )
-    subdirList = get_subdirectories( output_dir)
+    subdirList = get_subdirectories(output_dir)
     ndone = 0
     ntodo = len( subdirList )
     print "Start Processing Directory List ", subdirList
