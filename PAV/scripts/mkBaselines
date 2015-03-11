@@ -99,7 +99,7 @@ chomp $today;
     chomp $_;
     next unless /\)/;
 #print "-> $_ \n";
-    my @tmpstr = split( /\) /, $_ );
+    my @tmpstr = split( /\) /, $_, 2);
     my $testname = $tmpstr[0];
     $testname =~ s/\t//;
     $tmpstr[1] =~ s/^\s+//; #remove leading spaces
