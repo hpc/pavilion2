@@ -66,9 +66,6 @@ import errno
 import platform
 import getpass
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '$PVINSTALL'))
-import config
-
 
 def convert(inp):
     if isinstance(inp, dict):
@@ -175,21 +172,18 @@ def main(args):
         is now directed to a corresponding log file.
     """
 
-    logger = logging.getLogger('pth.runjob')
-    logger.setLevel(logging.DEBUG)
-    me = getpass.getuser()
-    #master_log_dir = '/tmp/' + me
-    #master_log_file = master_log_dir + '/pth.log'
-    # master_log_file defined in config.py
-    fh = logging.FileHandler(filename = master_log_file)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    fh.setFormatter(formatter)
-    logger.addHandler(fh)
-
     params = json.loads(args[2])
     params = convert(params)
     entry_id = args[1]
     variation = json.loads(args[3])
+    ml_file = args[4]
+
+    logger = logging.getLogger('pth.runjob')
+    logger.setLevel(logging.DEBUG)
+    fh = logging.FileHandler(filename = ml_file)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    fh.setFormatter(formatter)
+    logger.addHandler(fh)
 
     # This handle "name(pid)" can be used to follow all activity of this
     # specific job thread in the pth.log file
@@ -246,5 +240,4 @@ def main(args):
 
 # this gets called if it's run as a script from the shell
 if __name__ == '__main__':
-    #sys.exit(main(sys.argv[1:]))
     sys.exit(main(sys.argv))

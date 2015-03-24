@@ -58,6 +58,7 @@
 """
 
 import os
+import sys
 import subprocess
 import json
 import logging
@@ -67,11 +68,15 @@ from yapsy.IPlugin import IPlugin
 from testConfig import YamlTestConfig
 from testEntry import TestEntry, MoabTestEntry, RawTestEntry
 
+sys.path.append(os.environ['PVINSTALL'])
+from config import master_log_file
+
 
 class RunTestSuite(IPlugin):
     """ This implements the plug-in, or command, to run a suite of tests as
         defined in the user's test suite configuration file.
     """
+
 
     def __init__(self):
         #print sys.path
@@ -90,7 +95,7 @@ class RunTestSuite(IPlugin):
         lh = uid + "-" + my_te.get_name()
         self.logger.info('dispatch: %s, variation: (%s x %s)' % (lh, n, p))
         runjob_cmd = os.environ['PVINSTALL'] + "/PAV/modules/runjob.py"
-        args = ["python", runjob_cmd, uid, js_params, js_var]
+        args = ["python", runjob_cmd, uid, js_params, js_var, master_log_file]
         subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
 
     # build the sub-command argument list

@@ -168,7 +168,7 @@ def main():
     if args['sub_cmds'] == 'foo':
         foo()
     else:
-        # invoke the cmd method of the object that corresponds to
+        # invoke the cmd method of the object (plugin) that corresponds to
         # the command selected
         getattr(func_map[args['sub_cmds']], 'cmd')(args)
 

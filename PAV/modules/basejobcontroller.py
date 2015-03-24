@@ -70,8 +70,8 @@ import glob
 from subprocess import Popen, PIPE
 import getpass
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '$PVINSTALL'))
-import config
+sys.path.append(os.environ['PVINSTALL'])
+from config import master_log_file
 
 
 def copy_file(src, dest):
@@ -103,9 +103,6 @@ class JobController():
         self.lh = self.configs['log_handle']
 
         # setup logging same as in pth
-        me = getpass.getuser()
-        #master_log_dir = '/tmp/' + me
-        #master_log_file = master_log_dir + '/pth.log'
         self.logger = logging.getLogger('pth.' + self.__class__.__name__)
         self.logger.setLevel(logging.DEBUG)
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')

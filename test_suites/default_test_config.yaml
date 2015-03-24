@@ -182,9 +182,10 @@ UniqueId:
     # the user has write priviledges.
     # ENV variable PV_WS will contain the full path name of the working space at run time.
     path: 'pv_ws' 
-    # comma separated list of extra files to copy from the test/src directory
+    # comma separated list of extra files or dirs to copy from the test/src directory
     # to the working space before the test is launched.
     # By default, ALL files are copied except for *.[ocfh], *.bck, and *.tar files.
+    # Basically it's the command "rsync -a src dst".
     copy_to_ws: ''
     # comma separated list of files to copy from the working space to the
     # results directory after the job completes.
@@ -205,11 +206,12 @@ UniqueId:
     # DO NOT use ENV parameters in this path ($HOME for instance)
     root: '/Users/cwi/pv_results'
 
-    # Pass or Fail matching pattern.
+    # Pass or Fail matching pattern, not case sensitive.
     # The test handler will try to match "<result> pass" or
-    # <result> fail" to determine if the test passed or failed.
+    # <result> fail" in the jobs output to determine if the
+    # test passed or failed.
     # If multiple "results" are present any fail
-    # will constitute a failure. See pass_fail_logic.
+    # will constitute a failure. See pass_fail_logic description.
     pass_fail_regex: '<result\w{0,1}>\s*(.+)'
 
     # Trend Data matching pattern.
@@ -219,13 +221,13 @@ UniqueId:
     # DO NOT change at this time!
     trend_data_regex: '^<td>\s+(.*)'
 
-    # A Script called at the end of the test/job.
-    # By default, the test harness requires an entry in the job output
-    # (see pass or faile matching pattern) located at the beginning of a line
-    # followed by a pass or fail. Of course, there are many ways to provide this,
-    # but if it's not added by the job itself this may be a convient way to post-process 
+    # Optional script called at the end of the test/job.
+    # By default, the test harness requires a line in the job standard output
+    # to signifiy pass or fail
+    # Of course, there are many ways to provide this, but if it's not added by the core
+    # program itself this may be a convient way to post-process 
     # the results and add this entry.
-    # *** If defined, make sure it's executable  
+    # *** If defined, make sure it's executable!
     epilog_script: "" 
 
     # Script that contains the logic that examines the job log 
