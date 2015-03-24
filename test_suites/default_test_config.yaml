@@ -54,27 +54,27 @@
 #  ###################################################################
 
 
-#   Default test configuration file, vers. 0.5 
+#   Default test configuration file, vers. 0.6 
 
 # --------  Basic Instructions -------------
 
 # This file contains what a complete single stanza in a user test suite 
-# will contain. Each stanza (test entry) in the user test suite will inherit
-# each of its components from this file, unless re-defined.
-# Therefore, if you want to effect all the entries during run,
+# will contain. Each stanza (test entry), of which there can be as many as
+# wanted in the user test suite, will inherit each of its components
+# from this configuration, unless re-defined.
+# Therefore, if you want to effect all the entries during all runs,
 # change this file, otherwise change only the appropriate parts of the user test suite.
 
 # NOTE
 #  - All variables in CAPS are nix environment vars
 #  - Lines with a "#" are comments.
 
-# A new named stanza or section is needed for each new test,
-# but you only need to define what's different from the
+# For each new test stanza, only define what's different from the
 # this default test_config file. Simply ommit the part(s) you want to
 # inherit.
-# In theory, ever part of the default file can be re-used, but it's necessary to 
-# at least changing the Id, name, location, and run:cmd sub-elements for each
-# new test.
+# In theory, ever part of the default file could be re-used, in practice it's
+# necessary to at least changing the Id, name, location, and run:cmd sub-elements
+# for each new test.
 #
 
 # for YAML formatting issues try: http://yaml-online-parser.appspot.com
@@ -156,7 +156,7 @@ UniqueId:
     reservation: "" 
     # comma separated list of values, or range 
     procs_per_node: 16
-    # time in hr::min::secs
+    # time in hr:min:secs
     time_limit: 01:00:00
     # free formatted string added to msub invocation line (optional)
     msub_args:
@@ -171,22 +171,26 @@ UniqueId:
 
   # Working space section
   # By default each job will be copied to and run from a temporary "working space".
-  # This keeps subsequent jobs from colliding with one another.
+  # This keeps simultaneous jobs from colliding with one another.
   # If path is left null ("") then this is not done, otherwise
-  # it will be set relative to the source directory or can be 
+  # it will be set relative to the test's source directory or can be 
   # a fully specified directory.
 
   working_space:
-    # path to working space.
-    # ENV variable PV_WS will contain the full working space path at run time.
+    # At run time the src test directory is copied to this directory and then run from this location.
+    # By default this is placed under the src test directory, but can be located anywhere that 
+    # the user has write priviledges.
+    # ENV variable PV_WS will contain the full path name of the working space at run time.
     path: 'pv_ws' 
-    #path: '/pv_ws' 
-    # comma separated list of files to copy to the working space before
-    # the test is launched.
-    #  *.[ocfh], *.bck, and *.tar files are never copied.
+    # comma separated list of extra files to copy from the test/src directory
+    # to the working space before the test is launched.
+    # By default, ALL files are copied except for *.[ocfh], *.bck, and *.tar files.
     copy_to_ws: ''
-    # comma separated list of files to copy to the results directory after
-    # the job completes. *.log and *.std* files will always copied.
+    # comma separated list of files to copy from the working space to the
+    # results directory after the job completes.
+    # This list is for the user to define extra files that are unique to this job that
+    # they want to save. 
+    # Basically it's the Unix command "cp src dst". 
     save_from_ws: ''
     no_copy: '*.c,*.o,*.h'
 
@@ -194,15 +198,18 @@ UniqueId:
   # Results section
   results:
 
-    # The test handler places all results (for this test) under a dynamically
-    # created directory. The name for this directory is stored in the
-    # ENV variable PV_JOB_RESULTS_LOG_DIR, under the root directory stored in
-    # the ENV variable PV_RESULT_ROOT 
+    # The test handler places all results under a root result
+    # directory, defined here. Its value is stored in
+    # the ENV variable PV_RESULT_ROOT at run time. When get_results is used 
+    # any result data found (i.e. from other test runs) in this space will be examined too.
+    # DO NOT use ENV parameters in this path ($HOME for instance)
     root: '/Users/cwi/pv_results'
 
     # Pass or Fail matching pattern.
     # The test handler will try to match "<result> pass" or
     # <result> fail" to determine if the test passed or failed.
+    # If multiple "results" are present any fail
+    # will constitute a failure. See pass_fail_logic.
     pass_fail_regex: '<result\w{0,1}>\s*(.+)'
 
     # Trend Data matching pattern.
@@ -210,7 +217,7 @@ UniqueId:
     # to discover any special result data  (a.k.a - trend data).
     # The "units" component is optional.
     # DO NOT change at this time!
-    trend_data_regex: <td>\s+(.*)
+    trend_data_regex: '^<td>\s+(.*)'
 
     # A Script called at the end of the test/job.
     # By default, the test harness requires an entry in the job output
@@ -223,8 +230,8 @@ UniqueId:
 
     # Script that contains the logic that examines the job log 
     # to see if the test passed or failed.  chklg reports
-    # a fail if there are any "fail" matches with the
-    # pass_fail_regex, OR it can report pass if at least one "pass"
+    # a fail if there are any "fail" matches against the
+    # pass_fail_regex, otherwise it reports a pass if at least one "pass"
     # is matched, otherwise unknown is reported.
     # DO NOT change at this time!
     pass_fail_logic: chklg

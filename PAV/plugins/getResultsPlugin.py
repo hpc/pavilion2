@@ -125,7 +125,9 @@ class GetResults(IPlugin):
         if args['ts']:
             dts = str(args['ts'][0])
         else:
-            dts = os.getcwd() + "/" + "../test_suites" + "/default_test_config.yaml"
+            dts = os.getcwd() + "/default_test_config.yaml"
+            # change per Ben request... need to test...
+            #dts = os.getcwd() + "/" + "../test_suites" + "/default_test_config.yaml"
 
         tc = YamlTestConfig(dts)
 

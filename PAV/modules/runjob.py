@@ -66,6 +66,9 @@ import errno
 import platform
 import getpass
 
+sys.path.append(os.path.join(os.path.dirname(__file__), '$PVINSTALL'))
+import config
+
 
 def convert(inp):
     if isinstance(inp, dict):
@@ -175,9 +178,10 @@ def main(args):
     logger = logging.getLogger('pth.runjob')
     logger.setLevel(logging.DEBUG)
     me = getpass.getuser()
-    master_log_dir = '/tmp/' + me
-    master_log_file = master_log_dir + '/pth.log'
-    fh = logging.FileHandler(filename=master_log_file)
+    #master_log_dir = '/tmp/' + me
+    #master_log_file = master_log_dir + '/pth.log'
+    # master_log_file defined in config.py
+    fh = logging.FileHandler(filename = master_log_file)
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     fh.setFormatter(formatter)
     logger.addHandler(fh)

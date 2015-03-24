@@ -71,6 +71,7 @@ Getting Started:
  -  set *nix environment variable PVINSTALL to the install directory of Pavilion
  -  add $PVINSTALL/PAV to the PATH variable
  -  Pavilion runs at version 2.7 of Python, so add the python bin to PATH.
+ -  define Pavilion master_log_file value in the config.py file in PVINSTALL directory.
 
   At this point you should be able to run "pth -h"
 
@@ -121,7 +122,7 @@ Output data standardization (trend data):
 -----------------------------------------
 
 Specific test/job related values can be efficiently analyzed if they are saved as trend data.
-Trend data is important result information that is printed as a separate line to STDOUT by the users
+Trend data is important result information that is printed as a separate line to STDOUT by the
 run script and/or application. Multiple trend data values can be saved for every test run. This data is
 obviously unique to each application and is determined by the application developer.
 
@@ -129,10 +130,22 @@ Syntax:
 <td> name value [units]
 
 Explanation:
-<td> - tag or marker used by the result parser. 
-name - char string, up to 32 chars. Name of the trend data item.   
+<td> - tag used by the result parser. 
+name - char string, up to 32 chars. Name of the value of
+  interest. Referred to in Pavilion parlance as trend data.   
+  Note - If name is followed by a "+" (no spaces) with a node name
+  attached then an automated tool is available to create boxplots 
+  for that that node. ( see get_results "-bp" argument )
 value - char string, up to 64 chars
 units - char string, up to 24 chars.
+
+Hints for viewing boxplots:
+ To view from a machine with showimage tool
+ - in Boxplots directory of appropriate date run ...
+ examples -
+ find . -name \*.png -exec showimage {} \;
+ or
+ find  /tmp/Boxplots-02-24-2015T09:14:18:691101/ -name \*.png -exec showimage {} \;
 
 Rules:
 - One name value entry per line.
@@ -150,16 +163,15 @@ Examples:
 <td> phase_1_data 4700 
 <td> phase_2_data 8200 
 
-
 Querying Data Tip:
- Trend data can be viewed using the get_results sub-command with the "-T" option.
+ Trend data can be culled using the get_results sub-command with the "-T" option.
  Data is harvested from the log files in the test results directory.
 
 
 Debugging Tips:
 ----------------
 
-As Pavilion runs an output log is being generated into /tmp/${USER}/pth.log
+As Pavilion runs an output log is being generated to /tmp/${USER}/pth.log
 
 
 Handy Stand-alone Utility Scripts:
@@ -179,9 +191,9 @@ unique name to differentiate between these variations.
 2. Handle Node/PE combinations using a range and step of values in addtion to
 just the comma separated list of numbers supported now.
 
-3. The whole Slurm scheduler job handling code needs to be developed, a skeleton exists.
+3. The Slurm scheduler job handling code needs to be developed, a skeleton exists.
 
-4. Saving the correct JobId value. Historically the Moab job id was written to the
+4. Better way for saving the correct JobId value. Historically the Moab job id was written to the
 log file. How should this be handled universally for all scheduler types?  The unix
 process id is placed in the log file already.
 
@@ -192,4 +204,6 @@ cluster make sense still.
 6. Could always use some code refactoring or just general code reviewing.
 
 7. Much in the way of handling all the posible error conditions that may arise if the test suite is
-configure wrong. Much more unit testing here.
+configure wrong. Much more unit testing needed here.
+
+8. Addition of Data analytic and Machine learning tools.
