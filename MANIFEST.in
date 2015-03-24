@@ -1,6 +1,6 @@
 include / Copyright.txt 
+include / config.py
 include PAV/pth
-include PAV/config.py
 include PAV/pv*
 recursive-include PAV/ *.py
 include docs/*.txt
