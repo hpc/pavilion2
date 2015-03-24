@@ -136,11 +136,18 @@ class YamlTestConfig():
                 cfg.update(inc_cfg)
             return cfg
 
+        except AttributeError:
+            error_message = " Badly formatted Include line in {0}\n".format(fn)
+            self.logger.error(error_message)
+            error_message += "  -> " + cfg
+            sys.exit(error_message)
+
         except EnvironmentError as err:
-            error_message = "Error processing file: {0}\n".format(fn)
+            error_message = "Error processing item: {0}\n".format(fn)
+            self.logger.error(error_message)
             error_message += "I/O Error({0}): {1}.".format(err.errno, 
                                                            err.strerror)
-            self.logger.error(error_message)
+            error_message += " Hint: entires are comma separated."
             sys.exit(error_message)
         except YAMLError as err:
             error_message = "YAML Error: {0}".format(err)
