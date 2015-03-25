@@ -64,7 +64,6 @@ import json
 import logging
 import errno
 import platform
-import getpass
 
 
 def convert(inp):

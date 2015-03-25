@@ -147,8 +147,8 @@ class YamlTestConfig():
             self.logger.error(error_message)
             error_message += "I/O Error({0}): {1}.".format(err.errno, 
                                                            err.strerror)
-            error_message += " Hint: entries are comma separated."
             sys.exit(error_message)
+
         except YAMLError as err:
             error_message = "YAML Error: {0}".format(err)
             self.logger.error(error_message)

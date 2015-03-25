@@ -77,7 +77,6 @@ class RunTestSuite(IPlugin):
         defined in the user's test suite configuration file.
     """
 
-
     def __init__(self):
         #print sys.path
         my_name = self.__class__.__name__
@@ -96,7 +95,11 @@ class RunTestSuite(IPlugin):
         self.logger.info('dispatch: %s, variation: (%s x %s)' % (lh, n, p))
         runjob_cmd = os.environ['PVINSTALL'] + "/PAV/modules/runjob.py"
         args = ["python", runjob_cmd, uid, js_params, js_var, master_log_file]
-        subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
+        p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
+        output, errors = p.communicate()
+        if p.returncode or errors:
+            print "Error: Job failed to run! "
+            print [errors, output]
 
     # build the sub-command argument list
     def add_parser_info(self, subparser): 

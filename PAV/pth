@@ -121,7 +121,7 @@ def main():
     func_map = {}
     
     # construct main input arguments
-    parser = argparse.ArgumentParser(prog="Pavilion")
+    parser = argparse.ArgumentParser(prog="pth")
     subparser = parser.add_subparsers(title="commands", help='sub-commands')
     parser.add_argument("-v", "--verbose", help="provide verbose output", action="store_true")
     parser_foo = subparser.add_parser('foo', help="foo help message")

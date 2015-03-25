@@ -83,7 +83,7 @@ class GetResults(IPlugin):
 
     def add_parser_info(self, subparser):
         parser_gr = subparser.add_parser("get_results", help="summarize test results")
-        # parser_gr.add_argument('testSuite', help='test-suite-config-file')
+        #parser_gr.add_argument('testSuite', help='test-suite-config-file')
         parser_gr.add_argument('-s', nargs=1, metavar='<date>', help="start date (yyyy-mm-dd), default 15 days ago")
         parser_gr.add_argument('-S', nargs=1, metavar='<time>', help="start time (HH:MM:SS), default is at 00:00:00")
 
@@ -101,8 +101,8 @@ class GetResults(IPlugin):
         parser_gr.add_argument('-v', '--verbose', help="show work", action="store_true")
 
         parser_gr.add_argument('-ts', nargs=1, metavar='<file>',
-                               help="test suite to determine results path (root) from, defaults \
-                                to default_test_config.yaml")
+                               help='test suite to acquire results path (root) from,'
+                                    ' else will look in current directory for default test suite')
 
         parser_gr.add_argument('-bp', '--make-box-plots', action="store_true",
                                help='create box plots from the selected set of test results and trend data values')
@@ -121,13 +121,12 @@ class GetResults(IPlugin):
         if args['verbose']:
             print "Command args -> %s" % args
 
-        # see if user wants to use a specified test_suite
+        # is test_suite specified?
         if args['ts']:
             dts = str(args['ts'][0])
         else:
+            print "Will look for default_test_config.yaml in current working directory ..."
             dts = os.getcwd() + "/default_test_config.yaml"
-            # change per Ben request... need to test...
-            #dts = os.getcwd() + "/" + "../test_suites" + "/default_test_config.yaml"
 
         tc = YamlTestConfig(dts)
 
