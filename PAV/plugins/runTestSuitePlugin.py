@@ -68,9 +68,6 @@ from yapsy.IPlugin import IPlugin
 from testConfig import YamlTestConfig
 from testEntry import TestEntry, MoabTestEntry, RawTestEntry
 
-sys.path.append(os.environ['PVINSTALL'])
-from config import master_log_file
-
 
 class RunTestSuite(IPlugin):
     """ This implements the plug-in, or command, to run a suite of tests as
@@ -94,6 +91,7 @@ class RunTestSuite(IPlugin):
         lh = uid + "-" + my_te.get_name()
         self.logger.info('dispatch: %s, variation: (%s x %s)' % (lh, n, p))
         runjob_cmd = os.environ['PVINSTALL'] + "/PAV/modules/runjob.py"
+        master_log_file = os.environ['PV_LOG']
         args = ["python", runjob_cmd, uid, js_params, js_var, master_log_file]
         p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
         output, errors = p.communicate()
@@ -154,7 +152,7 @@ class RunTestSuite(IPlugin):
         # Process and launch each test entry (stanza) from the test suite.
         submit_again = True
         while submit_again:
-            for entry_id, params in my_test_suite.iteritems():
+            for entry_id, test_suite_entry in my_test_suite.iteritems():
 
                 # Don't process the DTS definition
                 if "DefaultTestSuite" in entry_id:
@@ -163,19 +161,21 @@ class RunTestSuite(IPlugin):
                 if "IncludeTestSuite" in entry_id:
                     continue
 
-                # instantiate a new object for each test Entry type  ( raw, Moab, etc. )
-                scheduler_type = params['run']['scheduler'].capitalize()
+                # instantiate a new object for each test Entry type  ( Raw, Moab, etc. )
+                scheduler_type = test_suite_entry['run']['scheduler'].capitalize()
                 object_name = scheduler_type + "TestEntry"
                 # i.e. , te = MoabTestEntry(...)
-                te = globals()[object_name](entry_id, params, args)
+                # args are the list of arguments supplied to pth command
+                te = globals()[object_name](entry_id, test_suite_entry, args)
 
+                # print args
                 # launch a new process for each test variation or count
                 for test_entry in te.get_test_variations():
                     # support w argument for now, add p later
                     if (args['w'] and te.room_to_run(args)) or not args['w']:
                         # initialize a unique LDMS for each job
                         os.environ['LDMS_START_CMD'] = ''
-                        if args['ldms'] | (params['ldms']['state'] == 'on'):
+                        if args['ldms'] | (test_suite_entry['ldms']['state'] == 'on'):
                             te.prep_ldms()
 
                         for _ in range(te.get_run_count()):

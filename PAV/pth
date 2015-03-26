@@ -68,21 +68,20 @@ import argparse
 # support for dynamically loading new features/commands from a "plugins" directory
 from yapsy.PluginManager import PluginManager
 
-sys.path.append(os.path.join(os.path.dirname(__file__), os.environ['PVINSTALL']))
 
+# initialize and set up the pavilion log file
+me = getpass.getuser()
+mlf = "/tmp/" + me + "/pth.log"
+master_log_file = os.getenv('PV_LOG', mlf)
+os.environ['PV_LOG'] = master_log_file
 try:
-    from config import master_log_file
-    # master log file defined in config.py
     if not os.path.exists(os.path.dirname(master_log_file)):
         os.makedirs(os.path.dirname(master_log_file))
-except ImportError:
-    sys.exit("Error: no master_log_file defined in config.py file, exiting!")
 except OSError:
-    sys.exit("Error: badly formatted master_log_file value (needs a path) in config.py, exiting!")
+    sys.exit("Error: badly formatted master_log_file value (needs a path), exiting!")
 
 # set up logging
 import logging
-me = getpass.getuser()
 
 logger = logging.getLogger('pth')
 logger.setLevel(logging.DEBUG)
@@ -124,11 +123,13 @@ def main():
     parser = argparse.ArgumentParser(prog="pth")
     subparser = parser.add_subparsers(title="commands", help='sub-commands')
     parser.add_argument("-v", "--verbose", help="provide verbose output", action="store_true")
+    #parser = argparse.ArgumentParser(description='Demo')
+
     parser_foo = subparser.add_parser('foo', help="foo help message")
     parser_foo.set_defaults(sub_cmds='foo')
 
-    print "Running from -> %s" % os.environ['PVINSTALL'] + "/PAV"
-    print "Logging to -> %s" % master_log_file
+    print "  Running from -> %s" % os.environ['PVINSTALL'] + "/PAV"
+    print "  Logging to -> %s" % master_log_file
 
     # Dynamic support for adding commands...
     # Find and load the sub-commands (plug-ins) and their arguments
@@ -145,7 +146,7 @@ def main():
     # Load all the plug-ins
     logger.info('Loading plugins')
     plug_man.collectPlugins()
-    
+
     # create a hash that maps all sub-commands to their respective function call
     for pluginInfo in plug_man.getAllPlugins():
                     
@@ -164,7 +165,7 @@ def main():
 
     # Process sub-commands, most of which should be found
     # in the plug-ins directory.
-    print "Invoke command: -> " + args['sub_cmds']
+    print "  Invoke command: -> " + args['sub_cmds']
     if args['sub_cmds'] == 'foo':
         foo()
     else:

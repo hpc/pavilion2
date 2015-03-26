@@ -127,6 +127,12 @@ class TestEntry():
     def get_count(self):
         return int(self.this_dict[self.id]['run']['count'])
 
+    def set_arg_str(self, arg):
+        self.arg_str = arg
+
+    def get_arg_str(self):
+        return self.arg_str
+
     def get_values(self):
         return self.this_dict[self.id]
 
@@ -189,6 +195,31 @@ class MoabTestEntry(TestEntry):
             tv.append(new_te)
 
         return tv
+
+    def get_test_variationsII(self):
+        # figure out all the variations for this test
+        # and return list of "new" choices.
+
+        l1 = str(self.this_dict[self.id]['moab']['num_nodes'])
+        l2 = str(self.this_dict[self.id]['moab']['procs_per_node'])
+
+        nodes = l1.split(',')
+        ppn = l2.split(',')
+        #as = l3.
+
+        tv = []
+
+        for n, p, ars in itertools.product(nodes, ppn, [1, 2]):
+            # actually create a NEW test entry object that has just the single
+            # combination of nodes X ppn
+            new_te = TestEntry(self.id, self.this_dict[self.id], None)
+            new_te.set_nnodes(n)
+            new_te.set_ppn(p)
+            new_te.set_arg_str(ars)
+            tv.append(new_te)
+
+        return tv
+
 
     @staticmethod
     def get_active_jobs():

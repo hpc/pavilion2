@@ -70,8 +70,10 @@ Getting Started:
 
  -  set *nix environment variable PVINSTALL to the install directory of Pavilion
  -  add $PVINSTALL/PAV to the PATH variable
- -  Pavilion runs at version 2.7 of Python, so add the python bin to PATH.
- -  define Pavilion master_log_file value in the config.py file in PVINSTALL directory.
+ -  Pavilion runs at version 2.7 of Python, so if necessary, add the correct python bin early
+    into the PATH search sequence.
+ -  set the Pavilion output log environment variable PV_LOG, if not set will default
+    to /tmp/$USER/pth.log.
 
   At this point you should be able to run "pth -h"
 
@@ -79,20 +81,20 @@ Getting Started:
    test suite config file with at least one test (or job) stanza in it.  An example exists in the docs directory.
    You only need to define what is different from the default test suite config file because the user
    test suite config file will inherit everything that is not explicity changed from the default config file. 
-   This is basic YAML, where a new test stanza is defined when a new id is encountered at the begining of a new line.
+   This is basic YAML, a new test stanza is defined when a new id is encountered at the begining of a new line.
 
    So.... the recommended approach to this is:
      1) create a directory someplace to place your test_suite config files.
      2) copy the Example default test suite to this directory and name it
         default_test_config.yaml. Tweak it only where appropriate.
-        HINT : quite possibly only the results root directory definition may need to change.
+        HINT : quite possibly only the root results directory definition may need to change.
      3) cd to this directory.
      4) copy the default config file to a new file (for example, my_test_config_suite.yaml) 
      5) strip all the entries from this new file down to only the specific entires you need changed.
         Only the id, name, source_location, and run:cmd parts are required to be in each new stanza. 
         The id must be unique for each stanza.
      6) At this point you should have at least two files in this directory.  The default one (the
-        exact name is important) and your new one (the name is not important, but should end with ".yaml").
+        exact name IS important) and your new one (this name is NOT important, but should end with ".yaml").
 
   - Type "pth view_test_suite ./my-test-config-suite.yaml" to see how your new test suite
     file is "folded" with the default file.  Add as may test stanzas as needed.
@@ -101,7 +103,7 @@ Getting Started:
     Hint: making sure your jobs/tests work without Pavilion will save you time debugging problems.
 
   - Type "pth get_results -ts ./my-test-config_suite.yaml" to view your results. Notice the i, p, and
-    f flags to this command.  There are very helpful if you want to see where the actual
+    f flags for this command.  There are very helpful if you want to see where the actual
     result data resides. 
 
   
@@ -171,7 +173,8 @@ Querying Data Tip:
 Debugging Tips:
 ----------------
 
-As Pavilion runs an output log is being generated to /tmp/${USER}/pth.log
+As Pavilion runs an output log is being generated. It will default to
+/tmp/$USER/pth.log, but can be changed by defining the env variable PV_LOG. 
 
 
 Handy Stand-alone Utility Scripts:
@@ -180,16 +183,17 @@ Handy Stand-alone Utility Scripts:
 pvjobs - show what jobs are present on Moab systems.
 
 
-Outstanding Issues:
+Outstanding Items:
 ------------------
 
-Interested in collaborating? Listed here are a number of issues/features that need development work. 
+Interested in collaborating?  Fresh ideas, code improvements, new plugins, etc. are welcome.
+
 
 1. Elegant way to handle building binaries on-the-fly with various libs/compilers and then create a
 unique name to differentiate between these variations.
 
 2. Handle Node/PE combinations using a range and step of values in addtion to
-just the comma separated list of numbers supported now.
+just the comma separated list of numbers that are supported now.
 
 3. The Slurm scheduler job handling code needs to be developed, a skeleton exists.
 
@@ -204,6 +208,6 @@ cluster make sense still.
 6. Could always use some code refactoring or just general code reviewing.
 
 7. Much in the way of handling all the posible error conditions that may arise if the test suite is
-configure wrong. Much more unit testing needed here.
+configured wrong. Much more unit testing needed here and overall.
 
 8. Addition of Data analytic and Machine learning tools.

@@ -68,10 +68,6 @@ import shutil
 import json
 import glob
 from subprocess import Popen, PIPE
-import getpass
-
-sys.path.append(os.environ['PVINSTALL'])
-from config import master_log_file
 
 
 def copy_file(src, dest):
@@ -106,8 +102,8 @@ class JobController():
         self.logger = logging.getLogger('pth.' + self.__class__.__name__)
         self.logger.setLevel(logging.DEBUG)
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        # master log file defined in config.py
-        fh = logging.FileHandler(filename = master_log_file)
+        master_log_file = os.environ['PV_LOG']
+        fh = logging.FileHandler(filename=master_log_file)
         fh.setFormatter(formatter)
         self.logger.addHandler(fh)
 
@@ -276,7 +272,7 @@ class JobController():
         os.environ['PV_TEST_ARGS'] = self.configs['run']['test_args']
         os.environ['GZ_TEST_PARAMS'] = os.environ['PV_TEST_ARGS']
 
-        os.environ['TD_REGX'] = self.configs['results']['trend_data_regex']
+        #os.environ['TD_REGX'] = self.configs['results']['trend_data_regex']
 
         try:
             if self.configs['splunk']['state']:
@@ -336,7 +332,7 @@ class JobController():
         lf = open(os.environ["PV_JOB_RESULTS_LOG"], 'r')
 
         for line in lf:
-            td_regex = os.environ['TD_REGX']
+            #td_regex = os.environ['TD_REGX']
             #match = re.search(td_regex, line, re.IGNORECASE)
             match = re.search("^(<td>\s+(.*))", line, re.IGNORECASE)
             if match:
