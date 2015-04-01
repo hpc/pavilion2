@@ -73,14 +73,20 @@ def merge(obj_1, obj_2):
         for key, value in obj_1.iteritems():
             if key not in obj_2:
                 result[key] = value
+                #print "adding key: %s, val: %s, to eff entry" % (key, value)
             else:
                 result[key] = merge(value, obj_2[key])
         for key, value in obj_2.iteritems():
             if key not in obj_1:
                 result[key] = value
+                #print "adding key: %s, val: %s, to eff entry" % (key, value)
         return result
     if isinstance(obj_1, list) and isinstance(obj_2, list):
-        return obj_1 + obj_2
+        #print "combining objects"
+        #print obj_1
+        #print obj_2
+        #return obj_1 + obj_2
+        return obj_2
     return obj_2
 
 
@@ -92,7 +98,7 @@ class YamlTestConfig():
     def __init__(self, ucf="../test_suites/user_test_config.yaml"):
 
         my_name = self.__class__.__name__
-        self.logger = logging.getLogger('pth.' + my_name)
+        self.logger = logging.getLogger('pav.' + my_name)
 
         # Unless defined otherwise in the user's test suite config file the 
         # default config file is found in the same directory.

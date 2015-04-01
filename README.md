@@ -11,7 +11,7 @@ Usage:
     (for example - "setenv PVINSTALL /users/me/pavilion")
     add to your search path this directory plus "/PAV"
     (for example - "setenv PATH ${PVINSTALL}/PAV:${PATH}")
-    run the tool - "pth -h"
+    run the tool - "pav -h"
 ```
 Version
 ====
@@ -39,7 +39,7 @@ Project goals:
    - Development adheres to a well know set of developemnt and coding principles
    - Open source and managed thru git  
    - No extra files necessary to be placed into users test/job directory to hook into Pavilion
-   - Only one command needed to run cli. Sub commands under "pth" umbrella  
+   - Only one command needed to run cli. Sub commands under "pav" umbrella  
 
 ====
 

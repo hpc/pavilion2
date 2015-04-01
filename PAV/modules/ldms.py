@@ -67,7 +67,7 @@ class LDMS():
 
     def __init__(self, my_te):
         my_name = self.__class__.__name__
-        self.logger = logging.getLogger('pth.' + my_name)
+        self.logger = logging.getLogger('pav.' + my_name)
         self.logger.info('initialize %s to run: ' % my_name)
 
         self.pid = str(os.getpid())

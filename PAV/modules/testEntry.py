@@ -61,6 +61,8 @@ import itertools
 from ldms import LDMS
 import subprocess
 import getpass
+import copy
+
 
 
 def flatten_dict(d):
@@ -80,21 +82,24 @@ class TestEntry():
     class to manipulate a specific test entry in the test suite
     """
 
-    this_dict = {}
+    #this_dict = {}
     
-    def __init__(self, uid, values, args):
+    def __init__(self, nid, values, args):
+
+        self.this_dict = {}
 
         my_name = self.__class__.__name__
-        self.id = uid
+        self.id = nid
+        #print "initializing: " + str(self.id)
         self.name = values['name']
         self.eff_nodes = 1
         self.eff_ppn = None
-        self.this_dict[uid] = values
+        self.this_dict[self.id] = values
         self.handle = self.id + "-" + self.name
         if args:
             if args['verbose']:
                 print "Process test suite entry: " + self.handle
-        self.logger = logging.getLogger('pth.' + my_name)
+        self.logger = logging.getLogger('pav.' + my_name)
         self.logger.info('Process %s ' % self.handle)
 
     @staticmethod
@@ -128,10 +133,10 @@ class TestEntry():
         return int(self.this_dict[self.id]['run']['count'])
 
     def set_arg_str(self, arg):
-        self.arg_str = arg
+        self.this_dict[self.id]['run']['test_args'] = arg
 
     def get_arg_str(self):
-        return self.arg_str
+        return self.this_dict[self.id]['run']['test_args']
 
     def get_values(self):
         return self.this_dict[self.id]
@@ -154,10 +159,19 @@ class TestEntry():
     def get_nnodes(self):
         return self.eff_nodes
 
+    def set_num_nodes(self, nn):
+        pass
+
+    def get_num_nodes(self):
+        pass
+
     def get_run_count(self):
         # for now this is as simple as the count, but with a more complex submit
         # strategy (like Gazebo's testMgr) this can be enhanced.
-        return self.get_count()
+        try:
+            return int(self.this_dict[self.id]['run']['count'])
+        except AttributeError:
+            return int(1)
 
     def room_to_run(self, args):
 
@@ -174,7 +188,22 @@ class TestEntry():
 
 class MoabTestEntry(TestEntry):
 
-    def get_test_variations(self):
+    def set_num_nodes(self, nn):
+        self.this_dict[self.id]['moab']['num_nodes'] = nn
+
+    def get_num_nodes(self):
+        return self.this_dict[self.id]['moab']['num_nodes']
+
+    def set_procs_per_node(self, ppn):
+        self.this_dict[self.id]['moab']['procs_per_node'] = ppn
+
+    def get_procs_per_node(self):
+        return self.this_dict[self.id]['moab']['procs_per_node']
+
+    def get_values(self):
+        return self.this_dict[self.id]
+
+    def get_test_variationsOrig(self):
         # figure out all the variations for this test
         # and return list of "new" choices.
 
@@ -187,7 +216,7 @@ class MoabTestEntry(TestEntry):
         tv = []
 
         for n, p in itertools.product(nodes, ppn):
-            # actually create a NEW test entry object that has just the single
+            # Actually create a NEW test entry object that has just the single
             # combination of nodes X ppn
             new_te = TestEntry(self.id, self.this_dict[self.id], None)
             new_te.set_nnodes(n)
@@ -196,28 +225,75 @@ class MoabTestEntry(TestEntry):
 
         return tv
 
-    def get_test_variationsII(self):
-        # figure out all the variations for this test
-        # and return list of "new" choices.
+    def get_test_variations(self):
+        """
+        Figure out all the variations for this test
+        and return a list of "new" test entries.
 
-        l1 = str(self.this_dict[self.id]['moab']['num_nodes'])
-        l2 = str(self.this_dict[self.id]['moab']['procs_per_node'])
-
-        nodes = l1.split(',')
-        ppn = l2.split(',')
-        #as = l3.
+        """
 
         tv = []
+        i = 1
 
-        for n, p, ars in itertools.product(nodes, ppn, [1, 2]):
-            # actually create a NEW test entry object that has just the single
-            # combination of nodes X ppn
-            new_te = TestEntry(self.id, self.this_dict[self.id], None)
-            new_te.set_nnodes(n)
-            new_te.set_ppn(p)
-            new_te.set_arg_str(ars)
+        # grab the fields that may have multiple choices from the
+        # original "seed" test entry
+        l1 = self.this_dict[self.id]['moab']['num_nodes']
+        #print "my_n_type: "
+        #print type(l1)
+
+        if isinstance(l1, int):
+            l1 = [l1]
+        elif isinstance(l1, str):
+            l1 = l1.split(',')
+        l2 = self.this_dict[self.id]['moab']['procs_per_node']
+        if isinstance(l2, int):
+            l2 = [l2]
+        elif isinstance(l1, str):
+            l2 = l2.split(',')
+        try:
+            l3 = self.this_dict[self.id]['run']['test_args']
+            if isinstance(l3, str):
+                l3 = [l3]
+        except KeyError:
+            l3 = ['']
+
+        original_test_dict = self.this_dict[self.id]
+        #print "effective test suite:"
+        #print original_test_dict
+        print ""
+
+
+        my_prod = itertools.product(l1, l2, l3)
+        combinations = list(my_prod).__len__()
+        #print combinations
+
+        for n, p, a in itertools.product(l1, l2, l3):
+            # Actually create a NEW test entry object that has just a single
+            # combination of nodes X ppn X arg_string
+
+            # generate a new id for each variant, but use the original test entry
+            # to populate the new one, changing only the appropriate pieces
+            if combinations == 1:
+                my_new_id = self.id
+                new_test_dict = original_test_dict
+            else:
+                my_new_id = self.id + "-variation" + str(i)
+                new_test_dict = copy.deepcopy(original_test_dict)
+                #print "Generate new moab test entry (" + my_new_id + ")"
+
+            #print "my_n_type: "
+            #print type(n)
+
+            new_te = MoabTestEntry(my_new_id, new_test_dict, None)
+            new_te.set_num_nodes(str(n))
+            new_te.set_procs_per_node(str(p))
+            new_te.set_arg_str(str(a))
             tv.append(new_te)
+            #print new_te.this_dict[my_new_id]
+            i += 1
 
+        #for e in tv:
+            #print e.this_dict[e.get_id()]
         return tv
 
 

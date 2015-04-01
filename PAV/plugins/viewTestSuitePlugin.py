@@ -72,8 +72,8 @@ class ViewTestSuite(IPlugin):
         my_name = self.__class__.__name__
 
         # If you want the log output from this class to reside in the
-        # main (pth) log file you tack it's name onto the pth name space
-        self.logger = logging.getLogger('pth.' + my_name)
+        # main (pav) log file you tack it's name onto the pav name space
+        self.logger = logging.getLogger('pav.' + my_name)
         self.logger.info('created instance of plugin: %s'% my_name)
 
     # Every plugin class MUST have a method by the name "add_parser_info

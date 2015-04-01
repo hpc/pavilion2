@@ -71,7 +71,7 @@ from yapsy.PluginManager import PluginManager
 
 # initialize and set up the pavilion log file
 me = getpass.getuser()
-mlf = "/tmp/" + me + "/pth.log"
+mlf = "/tmp/" + me + "/pav.log"
 master_log_file = os.getenv('PV_LOG', mlf)
 os.environ['PV_LOG'] = master_log_file
 try:
@@ -83,7 +83,7 @@ except OSError:
 # set up logging
 import logging
 
-logger = logging.getLogger('pth')
+logger = logging.getLogger('pav')
 logger.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 # master log file define in config.py
@@ -120,7 +120,7 @@ def main():
     func_map = {}
     
     # construct main input arguments
-    parser = argparse.ArgumentParser(prog="pth")
+    parser = argparse.ArgumentParser(prog="pav")
     subparser = parser.add_subparsers(title="commands", help='sub-commands')
     parser.add_argument("-v", "--verbose", help="provide verbose output", action="store_true")
     #parser = argparse.ArgumentParser(description='Demo')

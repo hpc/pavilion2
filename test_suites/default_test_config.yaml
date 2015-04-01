@@ -136,6 +136,8 @@ UniqueId:
     scheduler: 'moab'
     # user specified test specific argument string
     # ENV variable PV_TEST_ARGS will contain this string at run time.
+    # This entry must be a string or it can be a 
+    # list "[]" of comma separated strings to try variations.
     test_args: '' 
     # number of times to repeat this section
     count: 1
@@ -148,13 +150,17 @@ UniqueId:
     # tried by by the scheduler where it makes sense. A "none"
     # choice simply invokes the run command once
 
-    # comma separated list of values, or range 
-    num_nodes: 1
+    # Number of nodes to allocate for this test.
+    # This entry must be an integer or it can be a
+    # list "[]" of comma separated integers to try variations.
+    num_nodes:  [ 1, 2 ]
     # queue to submit jobs against (optional)
     queue: "" 
     # reservation to submit jobs against (optional)
     reservation: "" 
-    # comma separated list of values, or range 
+    # Number of processors defined per node for this test 
+    # This entry must be an integer or it can be a 
+    # list "[]" of comma separated integers to try variations.
     procs_per_node: 16
     # time in hr:min:secs
     time_limit: 01:00:00

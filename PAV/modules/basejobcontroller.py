@@ -98,8 +98,8 @@ class JobController():
         self.job_variation = job_variation
         self.lh = self.configs['log_handle']
 
-        # setup logging same as in pth
-        self.logger = logging.getLogger('pth.' + self.__class__.__name__)
+        # setup logging same as in pav
+        self.logger = logging.getLogger('pav.' + self.__class__.__name__)
         self.logger.setLevel(logging.DEBUG)
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         master_log_file = os.environ['PV_LOG']
@@ -131,6 +131,9 @@ class JobController():
         try:
             os.environ['GZ_TEST_PARAMS'] = self.configs['run']['test_args']
             os.environ['PV_TEST_ARGS'] = self.configs['run']['test_args']
+            #os.environ['PV_TEST_ARGS'] = "is a string"
+            #os.environ['GZ_TEST_PARAMS'] = "is a string"
+
         except:
             raise TypeError('test_args value problem, is it a string?')
 

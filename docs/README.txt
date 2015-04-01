@@ -73,9 +73,9 @@ Getting Started:
  -  Pavilion runs at version 2.7 of Python, so if necessary, add the correct python bin early
     into the PATH search sequence.
  -  set the Pavilion output log environment variable PV_LOG, if not set will default
-    to /tmp/$USER/pth.log.
+    to /tmp/$USER/pav.log.
 
-  At this point you should be able to run "pth -h"
+  At this point you should be able to run "pav -h"
 
  - Pavilion is centered around the idea of a user defined test suite. Therefore, you need to create a user
    test suite config file with at least one test (or job) stanza in it.  An example exists in the docs directory.
@@ -96,13 +96,13 @@ Getting Started:
      6) At this point you should have at least two files in this directory.  The default one (the
         exact name IS important) and your new one (this name is NOT important, but should end with ".yaml").
 
-  - Type "pth view_test_suite ./my-test-config-suite.yaml" to see how your new test suite
+  - Type "pav view_test_suite ./my-test-config-suite.yaml" to see how your new test suite
     file is "folded" with the default file.  Add as may test stanzas as needed.
 
-  - Type "pth run_test_suite ./my-test-config_suite.yaml" to run each test in the test suite. 
+  - Type "pav run_test_suite ./my-test-config_suite.yaml" to run each test in the test suite. 
     Hint: making sure your jobs/tests work without Pavilion will save you time debugging problems.
 
-  - Type "pth get_results -ts ./my-test-config_suite.yaml" to view your results. Notice the i, p, and
+  - Type "pav get_results -ts ./my-test-config_suite.yaml" to view your results. Notice the i, p, and
     f flags for this command.  There are very helpful if you want to see where the actual
     result data resides. 
 
@@ -110,7 +110,7 @@ Getting Started:
 Gazebo transition tips (for former users of Gazebo):
 
   - A Gazebo test suite can be converted to a Pavilion test suite using the "gzts2pvts"
-    sub-command under "pth". Place this new converted file in the same directory as the default_test_config.yaml file.
+    sub-command under "pav". Place this new converted file in the same directory as the default_test_config.yaml file.
     Edit it as needed, it may require some cleanup if the "gzts2pvts" couldn't figure out all the sub-parts.
     If you run this on a system where you had Gazebo configured and running it may be able to discover more of its parts.
 
@@ -174,7 +174,7 @@ Debugging Tips:
 ----------------
 
 As Pavilion runs an output log is being generated. It will default to
-/tmp/$USER/pth.log, but can be changed by defining the env variable PV_LOG. 
+/tmp/$USER/pav.log, but can be changed by defining the env variable PV_LOG. 
 
 
 Handy Stand-alone Utility Scripts:

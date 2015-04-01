@@ -129,7 +129,7 @@ def build_results_dir(params):
     """ function to create the final result directory for a job/test.
         Intent is to make backwards compatible with Gazebo.
     """
-    logger = logging.getLogger('pth.runjob.build_results_dir')
+    logger = logging.getLogger('pav.runjob.build_results_dir')
     lh = params['log_handle']
 
     root_result_dir = params['results']['root']
@@ -177,7 +177,7 @@ def main(args):
     variation = json.loads(args[3])
     ml_file = args[4]
 
-    logger = logging.getLogger('pth.runjob')
+    logger = logging.getLogger('pav.runjob')
     logger.setLevel(logging.DEBUG)
     fh = logging.FileHandler(filename = ml_file)
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -185,7 +185,7 @@ def main(args):
     logger.addHandler(fh)
 
     # This handle "name(pid)" can be used to follow all activity of this
-    # specific job thread in the pth.log file
+    # specific job thread in the pav.log file
     test_name = params['name']
     logger_name = entry_id + "-" + test_name + "(" + str(os.getpid()) + ")"
     params['log_handle'] = logger_name
@@ -206,11 +206,11 @@ def main(args):
     with open(logfile, "w+") as lf:
         with stdout_redirected(lf):
 
-            #redirect STDERR to the same file
+            # redirect STDERR to the same file
             sys.stderr = lf
 
             try:
-            # instantiate job controller object
+                # instantiate job controller object
                 print params
                 this_job = jc(entry_id, params, lf, variation)
             except RuntimeError, err:

@@ -106,15 +106,19 @@ class MoabJobController(JobController):
 
         # accounting file? or just log it?
 
-        # variation passed as arg0 - nodes, arg1, ppn
-        nnodes = str(self.job_variation[0])
-        ppn = str(self.job_variation[1])
+        # variation passed as arg0 - nodes, arg1 - ppn
+        nnodes = str(self.configs['moab']['num_nodes'])
+        #nnodes = str(self.job_variation[0])
+        #ppn = str(self.job_variation[1])
+        ppn = str(self.configs['moab']['procs_per_node'])
 
         self.logger.info(self.lh + " : nnodes=" + nnodes)
+        self.logger.info(self.lh + " : ppn=" + ppn)
+        self.logger.info(self.lh + " : args=" + str(self.configs['run']['test_args']))
 
         pes = int(ppn) * int(nnodes)
-
         self.logger.info(self.lh + " : npes=" + str(pes))
+
         os.environ['GZ_PESPERNODE'] = ppn
         os.environ['PV_PESPERNODE'] = ppn
 

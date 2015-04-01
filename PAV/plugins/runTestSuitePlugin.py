@@ -77,10 +77,13 @@ class RunTestSuite(IPlugin):
     def __init__(self):
         #print sys.path
         my_name = self.__class__.__name__
-        self.logger = logging.getLogger('pth.' + my_name)
+        self.logger = logging.getLogger('pav.' + my_name)
         self.logger.info('created instance of plugin: %s' % my_name)
 
-    def job_dispatcher(self, my_te):
+    def job_dispatcher(self, my_te, in_args):
+        #print "dispatch " + my_te.get_id() + " : "
+        #print my_te.this_dict[my_te.get_id()]
+        #print ""
         n = str(my_te.get_nnodes())
         p = str(my_te.get_ppn())
         var = (n,p)
@@ -89,15 +92,16 @@ class RunTestSuite(IPlugin):
         js_params = json.dumps(params)
         uid = my_te.get_id()
         lh = uid + "-" + my_te.get_name()
-        self.logger.info('dispatch: %s, variation: (%s x %s)' % (lh, n, p))
+        self.logger.info('dispatch: %s, variation: (%s)' % (lh, my_te.get_id()))
         runjob_cmd = os.environ['PVINSTALL'] + "/PAV/modules/runjob.py"
         master_log_file = os.environ['PV_LOG']
         args = ["python", runjob_cmd, uid, js_params, js_var, master_log_file]
         p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
-        output, errors = p.communicate()
-        if p.returncode or errors:
-            print "Error: Job failed to run! "
-            print [errors, output]
+        if in_args['serial']:
+            output, errors = p.communicate()
+            if p.returncode or errors:
+                print "job_dispatcher: Error: Job failed to run! "
+                print [p.returncode, errors, output]
 
     # build the sub-command argument list
     def add_parser_info(self, subparser): 
@@ -109,6 +113,7 @@ class RunTestSuite(IPlugin):
         parser_rts.add_argument('-m', "--ldms",
                                 help="start LDMS metrics. Within Moab allocation only", action="store_true")
         #parser_rts.add_argument('-p', nargs=1, metavar='<val>', help="fill host to this percent usage (DRM specific)")
+        parser_rts.add_argument('-s', "--serial", help="run jobs serially, default mode is parallel", action="store_true")
         parser_rts.add_argument('-w', nargs=1, metavar='<count>',
                                 help="don't submit if <count> of my jobs running or queued (DRM specific)")
         parser_rts.set_defaults(sub_cmds='run_test_suite')
@@ -162,10 +167,14 @@ class RunTestSuite(IPlugin):
                     continue
 
                 # instantiate a new object for each test Entry type  ( Raw, Moab, etc. )
-                scheduler_type = test_suite_entry['run']['scheduler'].capitalize()
+                try:
+                    scheduler_type = test_suite_entry['run']['scheduler'].capitalize()
+                except AttributeError:
+                    scheduler_type = "Raw"
                 object_name = scheduler_type + "TestEntry"
                 # i.e. , te = MoabTestEntry(...)
-                # args are the list of arguments supplied to pth command
+                # args are the list of arguments supplied to pav command
+                #print object_name
                 te = globals()[object_name](entry_id, test_suite_entry, args)
 
                 # print args
@@ -175,11 +184,13 @@ class RunTestSuite(IPlugin):
                     if (args['w'] and te.room_to_run(args)) or not args['w']:
                         # initialize a unique LDMS for each job
                         os.environ['LDMS_START_CMD'] = ''
-                        if args['ldms'] | (test_suite_entry['ldms']['state'] == 'on'):
+                        if args['ldms'] or ('ldms' in test_suite_entry and test_suite_entry['ldms']['state'] == 'on'):
                             te.prep_ldms()
 
                         for _ in range(te.get_run_count()):
-                            self.job_dispatcher(test_entry)
+                            #print "dispatch with:"
+                            #print test_entry.get_id()
+                            self.job_dispatcher(test_entry, args)
 
             submit_again = RunTestSuite.submit_delay(args)
 

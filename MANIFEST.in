@@ -1,5 +1,6 @@
 include / Copyright.txt 
 include PAV/pth
+include PAV/pav
 include PAV/pv*
 recursive-include PAV/ *.py
 include docs/*.txt
