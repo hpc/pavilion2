@@ -112,8 +112,8 @@ class SlurmJobController(JobController):
             slurm_cmd += " -p " + ts
 
         # variation passed as arg0 - nodes, arg1, ppn
-        nnodes = str(self.job_variation[0])
-        ppn = str(self.job_variation[1])
+        nnodes = str(self.configs['slurm']['num_nodes'])
+        ppn = str(self.configs['slurm']['procs_per_node'])
 
         self.logger.info(self.lh + " : nnodes=" + nnodes)
 

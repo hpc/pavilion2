@@ -83,11 +83,6 @@ class RunTestSuite(IPlugin):
     def job_dispatcher(self, my_te, in_args):
         #print "dispatch " + my_te.get_id() + " : "
         #print my_te.this_dict[my_te.get_id()]
-        #print ""
-        n = str(my_te.get_nnodes())
-        p = str(my_te.get_ppn())
-        var = (n,p)
-        js_var = json.dumps(var)
         params = my_te.get_values()
         js_params = json.dumps(params)
         uid = my_te.get_id()
@@ -95,7 +90,7 @@ class RunTestSuite(IPlugin):
         self.logger.info('dispatch: %s, variation: (%s)' % (lh, my_te.get_id()))
         runjob_cmd = os.environ['PVINSTALL'] + "/PAV/modules/runjob.py"
         master_log_file = os.environ['PV_LOG']
-        args = ["python", runjob_cmd, uid, js_params, js_var, master_log_file]
+        args = ["python", runjob_cmd, uid, js_params, master_log_file]
         p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
         if in_args['serial']:
             output, errors = p.communicate()

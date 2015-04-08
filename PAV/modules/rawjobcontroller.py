@@ -83,6 +83,8 @@ class RawJobController(JobController):
         os.environ['GZ_NODES'] = os.environ['PV_NODES']
         print "<nodes> " + nodes + "\n"
 
+        self.logger.info(self.lh + " : args=" + str(self.configs['run']['test_args']))
+
         # build the exact command to run
         cmd = "cd " + os.environ['PV_RUNHOME'] + "; " + \
             os.environ['PVINSTALL'] + "/PAV/scripts/mytime ./" + self.configs['run']['cmd']

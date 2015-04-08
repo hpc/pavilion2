@@ -142,8 +142,8 @@ value - char string, up to 64 chars
 units - char string, up to 24 chars.
 
 Hints for viewing boxplots:
- To view from a machine with showimage tool
- - in Boxplots directory of appropriate date run ...
+ To view from a machine with the showimage ( or xview on the Cray) tool
+ - in the Boxplots directory of appropriate date run ...
  examples -
  find . -name \*.png -exec showimage {} \;
  or

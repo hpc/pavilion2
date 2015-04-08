@@ -81,8 +81,6 @@ class TestEntry():
     """
     class to manipulate a specific test entry in the test suite
     """
-
-    #this_dict = {}
     
     def __init__(self, nid, values, args):
 
@@ -179,6 +177,12 @@ class TestEntry():
         # otherwise False, there is no room
         return False
 
+    def get_test_variations(self):
+        # stub, most likely different for each controller type
+
+        nl = [self]
+        return nl
+
     def prep_ldms(self):
 
         # must be overridden by specific scheduler implementation
@@ -200,30 +204,8 @@ class MoabTestEntry(TestEntry):
     def get_procs_per_node(self):
         return self.this_dict[self.id]['moab']['procs_per_node']
 
-    def get_values(self):
-        return self.this_dict[self.id]
-
-    def get_test_variationsOrig(self):
-        # figure out all the variations for this test
-        # and return list of "new" choices.
-
-        l1 = str(self.this_dict[self.id]['moab']['num_nodes'])
-        l2 = str(self.this_dict[self.id]['moab']['procs_per_node'])
-
-        nodes = l1.split(',')
-        ppn = l2.split(',')
-
-        tv = []
-
-        for n, p in itertools.product(nodes, ppn):
-            # Actually create a NEW test entry object that has just the single
-            # combination of nodes X ppn
-            new_te = TestEntry(self.id, self.this_dict[self.id], None)
-            new_te.set_nnodes(n)
-            new_te.set_ppn(p)
-            tv.append(new_te)
-
-        return tv
+    #def get_values(self):
+    #   return self.this_dict[self.id]
 
     def get_test_variations(self):
         """
@@ -238,8 +220,6 @@ class MoabTestEntry(TestEntry):
         # grab the fields that may have multiple choices from the
         # original "seed" test entry
         l1 = self.this_dict[self.id]['moab']['num_nodes']
-        #print "my_n_type: "
-        #print type(l1)
 
         if isinstance(l1, int):
             l1 = [l1]
@@ -261,7 +241,6 @@ class MoabTestEntry(TestEntry):
         #print "effective test suite:"
         #print original_test_dict
         print ""
-
 
         my_prod = itertools.product(l1, l2, l3)
         combinations = list(my_prod).__len__()
@@ -289,13 +268,12 @@ class MoabTestEntry(TestEntry):
             new_te.set_procs_per_node(str(p))
             new_te.set_arg_str(str(a))
             tv.append(new_te)
-            #print new_te.this_dict[my_new_id]
+            #print new_te.this_dict[my_new_id],
             i += 1
 
         #for e in tv:
             #print e.this_dict[e.get_id()]
         return tv
-
 
     @staticmethod
     def get_active_jobs():
@@ -354,11 +332,71 @@ class MoabTestEntry(TestEntry):
 
 class RawTestEntry(TestEntry):
 
-    def get_test_variations(self):
-        # for now, return list of just myself
+    def set_num_nodes(self, nn):
+        self.this_dict[self.id]['raw']['num_nodes'] = nn
 
-        nl = [self]
-        return nl
+    def get_num_nodes(self):
+        return self.this_dict[self.id]['raw']['num_nodes']
+
+    def get_test_variations(self):
+        """
+        Figure out all the variations for this test
+        and return a list of "new" test entries.
+
+        """
+
+        tv = []
+        i = 1
+
+        # grab the fields that may have multiple choices from the
+        # original "seed" test entry
+        try:
+            l1 = self.this_dict[self.id]['raw']['num_nodes']
+        except TypeError:
+            l1 = 1
+
+        if isinstance(l1, int):
+            l1 = [l1]
+        elif isinstance(l1, str):
+            l1 = l1.split(',')
+        try:
+            l2 = self.this_dict[self.id]['run']['test_args']
+            if isinstance(l2, str):
+                l2 = [l2]
+        except KeyError:
+            l2 = ['']
+
+        original_test_dict = self.this_dict[self.id]
+        #print "effective test suite:"
+        #print original_test_dict
+        print ""
+
+        my_prod = itertools.product(l1, l2)
+        combinations = list(my_prod).__len__()
+        #print combinations
+
+        for n, a in itertools.product(l1, l2):
+            # Actually create a NEW test entry object each with its own arg_string
+
+            # generate a new id for each variant, but use the original test entry
+            # to populate the new one, changing only the appropriate pieces
+            if combinations == 1:
+                my_new_id = self.id
+                new_test_dict = original_test_dict
+            else:
+                my_new_id = self.id + "-variation" + str(i)
+                new_test_dict = copy.deepcopy(original_test_dict)
+                #print "Generate new moab test entry (" + my_new_id + ")"
+
+            new_te = MoabTestEntry(my_new_id, new_test_dict, None)
+            new_te.set_arg_str(str(a))
+            tv.append(new_te)
+            #print new_te.this_dict[my_new_id],
+            i += 1
+
+        #for e in tv:
+            #print e.this_dict[e.get_id()]
+        return tv
 
     def room_to_run(self, args):
 

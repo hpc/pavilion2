@@ -416,6 +416,7 @@ foreach $group (@grps) {
         chomp $td;
         print "\n\t$tn jid($testjid) $testTime $td";
       }
+      print "\n"; 
       next;
     } else {
       # examine the log file for passed or fail
@@ -446,7 +447,7 @@ foreach $group (@grps) {
             print RF $status;
 
             # find real cpu time to be used for averages 
-            $treal{$tn}{$testCU} = `tail -20 $lf | grep ^real | awk '{ print \$2 }'`;
+            $treal{$tn}{$testCU} = `tail -100 $lf | grep ^real | awk '{ print \$2 }'`;
             chomp($treal{$tn}{$testCU});
 
             print "--> $tn: $treal{$tn}{$testCU} secs of real time used\n" if ($opt{v});

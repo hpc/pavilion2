@@ -173,6 +173,10 @@ UniqueId:
     # Percent of cluster consumed by this particular test in this
     # test suite of jobs. Noralization will occurr. (optional)
     percent: ""
+
+  raw:
+    # Mostly a placeholder
+    num_nodes: 1
     
 
   # Working space section

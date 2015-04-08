@@ -170,16 +170,14 @@ def main(args):
         There may be no terminal associated with this program so all output from the job
         is now directed to a corresponding log file.
     """
-
+    entry_id = args[1]
     params = json.loads(args[2])
     params = convert(params)
-    entry_id = args[1]
-    variation = json.loads(args[3])
-    ml_file = args[4]
+    ml_file = args[3]
 
     logger = logging.getLogger('pav.runjob')
     logger.setLevel(logging.DEBUG)
-    fh = logging.FileHandler(filename = ml_file)
+    fh = logging.FileHandler(filename=ml_file)
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     fh.setFormatter(formatter)
     logger.addHandler(fh)
@@ -212,7 +210,7 @@ def main(args):
             try:
                 # instantiate job controller object
                 print params
-                this_job = jc(entry_id, params, lf, variation)
+                this_job = jc(entry_id, params, lf)
             except RuntimeError, err:
                 logger.error(lh + "Error: skipping job! " + err.message)
                 return

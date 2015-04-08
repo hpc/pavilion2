@@ -89,13 +89,14 @@ class JobController():
     def now():
         return datetime.datetime.now().strftime("%m-%d-%YT%H:%M:%S:%f")
 
-    def __init__(self, uid, configs, job_log_file, job_variation):
+    #def __init__(self, uid, configs, job_log_file, job_variation):
+    def __init__(self, uid, configs, job_log_file):
 
         self.uid = uid
         self.name = configs['name']
         self.configs = configs
         self.job_log_file = job_log_file
-        self.job_variation = job_variation
+        #self.job_variation = job_variation
         self.lh = self.configs['log_handle']
 
         # setup logging same as in pav
