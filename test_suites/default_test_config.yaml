@@ -180,30 +180,33 @@ UniqueId:
     
 
   # Working space section
-  # By default each job will be copied to and run from a temporary "working space".
+  # By default each test source  will be copied to and run from a temporary "working space".
   # This keeps simultaneous jobs from colliding with one another.
-  # If path is left null ("") then this is not done, otherwise
+  # If path is left null ('') then this is not done, otherwise
   # it will be set relative to the test's source directory or can be 
   # a fully specified directory.
 
   working_space:
-    # At run time the src test directory is copied to this directory and then run from this location.
+    # Path to copy to...
+    # At run time the src test directory files(s) are copied to this directory.
     # By default this is placed under the src test directory, but can be located anywhere that 
     # the user has write priviledges.
-    # ENV variable PV_WS will contain the full path name of the working space at run time.
+    # The ENV variable PV_WS will contain the full path name of this working space at run time.
+    # If set to null '', then no copy is performed.
     path: 'pv_ws' 
-    # comma separated list of extra files or dirs to copy from the test/src directory
+    # Copy to Working Space
+    # Comma separated list of specific files or dirs to copy from the test/src directory
     # to the working space before the test is launched.
-    # By default, ALL files are copied except for *.[ocfh], *.bck, and *.tar files.
+    # Otherwise, ALL files are copied except for *.[ocfh], *.bck, and *.tar files.
     # Basically it's the command "rsync -a src dst".
     copy_to_ws: ''
-    # comma separated list of files to copy from the working space to the
-    # results directory after the job completes.
+    # Save from the Working Space
+    # Comma separated list of files to copy from the working space to the
+    # final results directory after the job completes.
     # This list is for the user to define extra files that are unique to this job that
-    # they want to save. 
+    # they want to save. Default is to copy NO files.
     # Basically it's the Unix command "cp src dst". 
     save_from_ws: ''
-    no_copy: '*.c,*.o,*.h'
 
 
   # Results section
@@ -211,7 +214,7 @@ UniqueId:
 
     # The test handler places all results under a root result
     # directory, defined here. Its value is stored in
-    # the ENV variable PV_RESULT_ROOT at run time. When get_results is used 
+    # the ENV variable PV_RESULT_ROOT at run time. When "pav get_results" is used 
     # any result data found (i.e. from other test runs) in this space will be examined too.
     # DO NOT use ENV parameters in this path ($HOME for instance)
     root: '/Users/cwi/pv_results'

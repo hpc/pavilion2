@@ -162,18 +162,20 @@ class RunTestSuite(IPlugin):
                     continue
 
                 # instantiate a new object for each test Entry type  ( Raw, Moab, etc. )
+                # i.e. , te = MoabTestEntry(...)
                 try:
-                    scheduler_type = test_suite_entry['run']['scheduler'].capitalize()
+                    st = test_suite_entry['run']['scheduler']
+                    scheduler_type = st.capitalize()
                 except AttributeError:
                     scheduler_type = "Raw"
-                object_name = scheduler_type + "TestEntry"
-                # i.e. , te = MoabTestEntry(...)
-                # args are the list of arguments supplied to pav command
-                #print object_name
-                te = globals()[object_name](entry_id, test_suite_entry, args)
 
+                object_name = scheduler_type + "TestEntry"
+                try:
+                    te = globals()[object_name](entry_id, test_suite_entry, args)
+                except KeyError:
+                    raise ValueError(st + " scheduler type not supported (check the test entry), exiting!")
                 # print args
-                # launch a new process for each test variation or count
+                # launch a new process for each test variation and/or count
                 for test_entry in te.get_test_variations():
                     # support w argument for now, add p later
                     if (args['w'] and te.room_to_run(args)) or not args['w']:
