@@ -93,7 +93,12 @@ class MoabJobController(JobController):
         msub_cmd += "-N " + self.name + " "
 
         # get time limit, if specified
-        time_lim = self.configs['moab']['time_limit']
+        time_lim = ''
+        try:
+            time_lim = str(self.configs['moab']['time_limit'])
+            self.logger.info(self.lh + " : time limit = " + time_lim)
+        except TypeError:
+            self.logger.info(self.lh + " Error: time limit value, test suite entry may need quotes")
 
         # get target segment, if specified
         ts = ''
@@ -145,7 +150,9 @@ class MoabJobController(JobController):
         so = os.environ['PV_JOB_RESULTS_LOG_DIR'] + "/drm.stdout"
         msub_cmd += "-o " + so + " -e " + se + " "
 
-        msub_cmd += "-l nodes=" + nnodes + ",walltime=" + time_lim
+        msub_cmd += "-l nodes=" + nnodes
+        if time_lim:
+            msub_cmd += ",walltime=" + time_lim
         if ts:
             msub_cmd += ",feature=" + ts
         if reservation:

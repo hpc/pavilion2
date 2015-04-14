@@ -220,7 +220,6 @@ class YamlTestConfig():
         #ecf = self.get_effective_config_file()
         print json.dumps(self.ecf, sort_keys=True, indent=4)
 
-
     # this gets called if it's run as a script/program
 if __name__ == '__main__':
 

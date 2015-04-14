@@ -103,20 +103,29 @@ class TestEntry():
     @staticmethod
     def check_valid(adict):
         # minimal key/values necessary to process this test entry (stanza) any further
+        #
         data = flatten_dict(adict)
 
         # define the required set of elements
         needed = {"source_location", "name", "run.cmd"}
-        seen = set(data.keys())
+        set_of_keys_supplied = set(data.keys())
 
-        if needed.issubset(seen):
+        if needed.issubset(set_of_keys_supplied):
             for k in needed:
+                # no null values allowed
                 if not data[k]:
-                    print "Error: test suite key (%s) must be defined" % k,
+                    print "Error: test suite value for key (%s) must be defined" % k,
+                    return False
+                elif "__" in data[k]:
+                    print "Error: test suite value for key (%s) cannot contain a double underscore" % k,
+                    return False
+                elif " " in data[k]:
+                    print "Error: test suite value for key (%s) cannot contain a space" % k,
                     return False
             return True
         else:
-            missing = ", ".join(needed - seen)
+            # no missing keys from "needed" set allowed
+            missing = ", ".join(needed - set_of_keys_supplied)
             print "Error: missing the following necessary keys: (%s)" % missing,
             return False
 

@@ -113,6 +113,7 @@ UniqueId:
 
   # whatever you want to call your test/job.
   # ENV variable PV_TESTNAME will contain this string at run time.
+  # DO NOT USE any double under scores "__" in this name!
   name: TestName
 
   # uri of test, probably a directory name  
@@ -128,6 +129,7 @@ UniqueId:
   # Run Section 
   run:
     # an executable file name
+    # DO NOT USE any double under scores "__" in this name!
     cmd: 'runme'
     # select one scheduler type  
     # choices currently are moab and raw  
@@ -163,7 +165,8 @@ UniqueId:
     # list "[]" of comma separated integers to try variations.
     procs_per_node: 16
     # time in hr:min:secs
-    time_limit: 01:00:00
+    # This SHOULD be quoted
+    time_limit: "01:00:00"
     # free formatted string added to msub invocation line (optional)
     msub_args:
     # target segment, will be added to feature argument (optional)
