@@ -249,7 +249,7 @@ class MoabTestEntry(TestEntry):
         original_test_dict = self.this_dict[self.id]
         #print "effective test suite:"
         #print original_test_dict
-        print ""
+        #print ""
 
         my_prod = itertools.product(l1, l2, l3)
         combinations = list(my_prod).__len__()
@@ -378,7 +378,7 @@ class RawTestEntry(TestEntry):
         original_test_dict = self.this_dict[self.id]
         #print "effective test suite:"
         #print original_test_dict
-        print ""
+        #print ""
 
         my_prod = itertools.product(l1, l2)
         combinations = list(my_prod).__len__()

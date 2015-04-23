@@ -4,7 +4,7 @@ Pavilion HPC Testing Framework
 
 
   High Performance Computing clusters require a diverse set of tests to verify that they meet their intended 
-performance, stability, and functional design objectives.  This testing takes place over the entire lifecycle of a system 
+performance, stability, and functional design objectives.  This testing takes place over the entire life-cycle of a system 
 with an emphasis on testing before, and after, it's shipped to the customer and after significant system changes.
 To efficiently use a set of tests that may have very different setup, user interface, and result footprints
 a framework is needed that can control and bundle all these tests and quickly produce a common set of interpretable results. 
@@ -13,4 +13,4 @@ developed at LANL between 2007 and 2013. Lessons learned, new feature requests t
 adaptable good ideas are all embodied into this new framework.  Two principle components that are forefront in Pavilion's 
 design are the ability to support schedulers other than just Moab and a structure that lends itself to team collaboration.
 The framework itself does not contain any specific tests, but is a mechanism for running and then quickly analyzing the
-output data of any set of incorporporated tests.
+output data of any set of incorporated tests.

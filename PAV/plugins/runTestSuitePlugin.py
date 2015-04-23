@@ -122,7 +122,10 @@ class RunTestSuite(IPlugin):
         """
         try:
             if args['D']:
-                time.sleep(int(args['D'][0]))
+                secs_to_sleep = int(args['D'][0])
+                time.sleep(secs_to_sleep)
+                sys.stdout.write('\rRunning in continuous mode with a delay of %s seconds...' % secs_to_sleep)
+                sys.stdout.flush()
                 return True
         except:
             raise ValueError("Error: invalid delay time argument!")
