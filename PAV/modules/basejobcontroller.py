@@ -307,12 +307,20 @@ class JobController():
                 no_spaces_str = "".join(os.environ['PV_SAVE_FROM_WS'].split())
                 for file_type in no_spaces_str.split(","):
                     print "  save files like: " + file_type
-                    for file2save in glob.glob(os.path.join(from_loc, file_type)):
-                        print "  saving: " + file2save
-                        copy_file(file2save, to_loc)
+                    save_it = glob.glob(os.path.join(from_loc, file_type))
+                    if not save_it:
+                        print "  Warning!, no files like %s found in %s" % (file_type, from_loc)
+                    else:
+                        for file2save in save_it:
+                            print "  saving: " + file2save
+                            copy_file(file2save, to_loc)
         except KeyError, e:
-            #print 'I got a KeyError - no: "%s"' % str(e)
+            print 'I got a KeyError -  "%s"' % str(e)
             pass
+        except:
+            print 'Warning!, copy failed!'
+            pass
+
 
         # remove the working space ONLY if it was created
         try:
