@@ -166,6 +166,7 @@ class RunTestSuite(IPlugin):
 
                 # instantiate a new object for each test Entry type  ( Raw, Moab, etc. )
                 # i.e. , te = MoabTestEntry(...)
+
                 try:
                     st = test_suite_entry['run']['scheduler']
                     scheduler_type = st.capitalize()
@@ -176,7 +177,7 @@ class RunTestSuite(IPlugin):
                 try:
                     te = globals()[object_name](entry_id, test_suite_entry, args)
                 except KeyError:
-                    raise ValueError(st + " scheduler type not supported (check the test entry), exiting!")
+                    raise ValueError(scheduler_type + " scheduler type not supported (check the test entry), exiting!")
                 # print args
                 # launch a new process for each test variation and/or count
                 for test_entry in te.get_test_variations():
