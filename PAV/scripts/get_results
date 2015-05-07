@@ -570,31 +570,63 @@ foreach $group (@grps) {
             printf ("\t%s, [%4.2f secs]\n", "$kt - total_runs:$totalThisTest{$kt}{$cu}, passed:$passed{$kt}{$cu}, failed:$failed{$kt}{$cu}, undefined:$undef{$kt}{$cu}, incomplete:$foobar{$kt}{$cu}", $realAvg);
           }
         }
+
+        my @new_list = ();
         if ( ($opt{f}) && ( exists $failedTests{$kt}{$cu} ) ) {
             print "\t failing: \n";
             foreach $val ( @{ $failedTests{$kt}{$cu} } ) {
-                print "\t  $val\n";
+                $val = "\t $val\n";
+                # crate a new list to be sorted by time
+                push @new_list, $val;
+            }
+            my @new_sorted_list = sort { substr($a, -26) cmp substr($b, -26)  } @new_list;
+            foreach $sl ( @new_sorted_list) {
+                print $sl;
             }
         }
+
         if ( ($opt{p}) && ( exists $passedTests{$kt}{$cu} ) ) {
+            @new_list = ();
             print "\t passing:  \n";
             foreach $val ( @{ $passedTests{$kt}{$cu} } ) {
-                print "\t  $val\n";
+                $val = "\t $val\n";
+                # crate a new list to be sorted by time
+                push @new_list, $val;
+            }
+            my @new_sorted_list = sort { substr($a, -26) cmp substr($b, -26)  } @new_list;
+            foreach $sl ( @new_sorted_list) {
+                print $sl;
             }
         }
+ 
         if ($opt{i}) {
           if  ( exists $undefTests{$kt}{$cu} ) {
+            @new_list = ();
             print "\t undefined:  \n";
             foreach $val ( @{ $undefTests{$kt}{$cu} } ) {
-                print "\t  $val\n";
+                $val = "\t $val\n";
+                # crate a new list to be sorted by time
+                push @new_list, $val;
+            }
+            my @new_sorted_list = sort { substr($a, -26) cmp substr($b, -26)  } @new_list;
+            foreach $sl ( @new_sorted_list) {
+                print $sl;
             }
           }
           if  ( exists $foobarTests{$kt}{$cu} ) {
+            @new_list = ();
             print "\t incomplete:  \n";
             foreach $val ( @{ $foobarTests{$kt}{$cu} } ) {
-                print "\t  $val\n";
+                $val = "\t $val\n";
+                # crate a new list to be sorted by time
+                push @new_list, $val;
+            }
+            my @new_sorted_list = sort { substr($a, -26) cmp substr($b, -26)  } @new_list;
+            foreach $sl ( @new_sorted_list) {
+                print $sl;
             }
           }
+
         }
     }
   }
