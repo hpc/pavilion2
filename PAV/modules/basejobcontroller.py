@@ -207,6 +207,7 @@ class JobController():
             print [p.returncode, errors, output]
             self.logger.info(self.lh + " failed copying data to working space!, skipping job: " + self.name +
                                        "(Hint: check the job logfile)")
+            #self.logger.info(self.lh + p.returncode + errors + output)
 
     def __str__(self):
         return 'instantiated %s object' % self.name
