@@ -98,13 +98,14 @@ class RunTestSuite(IPlugin):
                 print "job_dispatcher: Error: Job failed to run! "
                 print [p.returncode, errors, output]
 
+
     # build the sub-command argument list
     def add_parser_info(self, subparser): 
         parser_rts = subparser.add_parser("run_test_suite", help="run each test in the test suite")
         parser_rts.add_argument('testSuite', help='test-suite-config-file')
         parser_rts.add_argument('-d', "--debug", help="don't run, show what would be done", action="store_true")
         parser_rts.add_argument('-D', nargs=1, metavar='<secs>',
-                                help="submit again after delaying this many <secs>")
+                               help="submit again after delaying this many <secs> - NOT WORKING YET!")
         parser_rts.add_argument('-m', "--ldms",
                                 help="start LDMS metrics. Within Moab allocation only", action="store_true")
         #parser_rts.add_argument('-p', nargs=1, metavar='<val>', help="fill host to this percent usage (DRM specific)")
@@ -178,11 +179,12 @@ class RunTestSuite(IPlugin):
                     te = globals()[object_name](entry_id, test_suite_entry, args)
                 except KeyError:
                     raise ValueError(scheduler_type + " scheduler type not supported (check the test entry), exiting!")
-                # print args
-                # launch a new process for each test variation and/or count
-                for test_entry in te.get_test_variations():
-                    # support w argument for now, add p later
-                    if (args['w'] and te.room_to_run(args)) or not args['w']:
+
+                # If user specifies a max level of jobs to queue and run (watermark) then
+                # don't launch a new set if this level is reached.
+                if (args['w'] and te.room_to_run(args)) or not args['w']:
+                    # launch a new process for each test variation and/or count
+                    for test_entry in te.get_test_variations():
                         # initialize a unique LDMS for each job
                         os.environ['LDMS_START_CMD'] = ''
                         if args['ldms'] or ('ldms' in test_suite_entry and test_suite_entry['ldms']['state'] == 'on'):
