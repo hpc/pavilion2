@@ -109,6 +109,10 @@ class MoabJobController(JobController):
         if self.configs['moab']['reservation']:
             reservation = self.configs['moab']['reservation']
 
+        node_list = ''
+        if self.configs['moab']['node_list']:
+            node_list = self.configs['moab']['node_list']
+
         # accounting file? or just log it?
 
         # variation passed as arg0 - nodes, arg1 - ppn
@@ -150,7 +154,10 @@ class MoabJobController(JobController):
         so = os.environ['PV_JOB_RESULTS_LOG_DIR'] + "/drm.stdout"
         msub_cmd += "-o " + so + " -e " + se + " "
 
-        msub_cmd += "-l nodes=" + nnodes
+        if node_list:
+            msub_cmd += "-l nodes=" + node_list
+        else:
+            msub_cmd += "-l nodes=" + nnodes
         if time_lim:
             msub_cmd += ",walltime=" + time_lim
         if ts:
