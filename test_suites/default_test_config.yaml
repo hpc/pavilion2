@@ -171,7 +171,9 @@ UniqueId:
     msub_args:
     # target segment, will be added to feature argument (optional)
     target_seg: "" 
-    # optional list of nodes to target (not yet implemented) 
+    # optional list of nodes to target 
+    # Uses defined string to populate '-l nodes=<node_list>' on msub line
+    # Overrides number of nodes requested.
     node_list: "" 
     # Percent of cluster consumed by this particular test in this
     # test suite of jobs. Noralization will occurr. (optional)
