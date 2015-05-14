@@ -187,7 +187,8 @@ class RunTestSuite(IPlugin):
                     for test_entry in te.get_test_variations():
                         # initialize a unique LDMS for each job
                         os.environ['LDMS_START_CMD'] = ''
-                        if args['ldms'] or ('ldms' in test_suite_entry and test_suite_entry['ldms']['state'] == 'on'):
+                        if args['ldms'] or ('ldms' in test_suite_entry and test_suite_entry['ldms']['state']):
+                            #print test_suite_entry['ldms']['state']
                             te.prep_ldms()
 
                         for _ in range(te.get_run_count()):
