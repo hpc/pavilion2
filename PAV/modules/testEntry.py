@@ -325,9 +325,9 @@ class MoabTestEntry(TestEntry):
             if active_jobs < int(args['w'][0]):
                 return True
         else:
-            if active_jobs < 100:
+            if active_jobs < 200:
                 return True
-
+        print " ** active jobs exceed watermark, no jobs launched "
         self.logger.info('(%s) Active jobs exceed water mark, no job launched' % self.handle)
         return False
 
