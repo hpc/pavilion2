@@ -160,7 +160,7 @@ chomp $today;
        }
      }
 
-    } # end process common aggreate values
+    } # end process common aggregate values
 
   } # end read line
 
@@ -181,7 +181,7 @@ foreach my $tn (sort keys %tdVal) {
     while (my ($key, $value) = each %{$aggTotal{$tn} } ) {
       my $avg = $value / $numVals{$tn}{$key};
       $MeanDynName{$tn}{$key} = $avg;
-      #print "\t avg_aggreate_$key = $avg (entries - $numVals{$tn}{$key}, min - $minaggTotal{$tn}{$key}, max - $maxaggTotal{$tn}{$key})\n";
+      #print "\t avg_aggregate_$key = $avg (entries - $numVals{$tn}{$key}, min - $minaggTotal{$tn}{$key}, max - $maxaggTotal{$tn}{$key})\n";
     }
 
     # calc standard Devs
@@ -203,7 +203,7 @@ foreach my $tn (sort keys %tdVal) {
       $stdev = sqrt( $VarDynName{$tn}{$k} / $numVals{$tn}{$k});
       #print " Variance - $VarDynName{$tn}{$k}, stDev - $stdev\n";
       #print "\t $k = $MeanDynName{$tn}{$k} $tdUnits{$tn}{$k} (entries - $numVals{$tn}{$k}, min - $min{$tn}{$k}, max - $max{$tn}{$k}, stDev - $stdev)\n";
-      print "\t avg_aggreate_$k = $MeanDynName{$tn}{$k} (entries - $numVals{$tn}{$k}, min - $minaggTotal{$tn}{$k}, max - $maxaggTotal{$tn}{$k}, stDev - $stdev)\n";
+      print "\t avg_aggregate_$k = $MeanDynName{$tn}{$k} (entries - $numVals{$tn}{$k}, min - $minaggTotal{$tn}{$k}, max - $maxaggTotal{$tn}{$k}, stDev - $stdev)\n";
     }
 
 
