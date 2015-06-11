@@ -632,7 +632,8 @@ foreach $group (@grps) {
   }
 
 #  my $tmpCalc = $CumTotalTime/3600;
-  if (( "$opt{t}" eq "" ) && ( !$opt{T} )) {
+#  if (( "$opt{t}" eq "" ) && ( !$opt{T} )) {
+  if ( !$opt{T} ) {
       print "\n\n";
     if ( $opt{a} ) {
       # combine total of undef and foobar tests for reporting 
