@@ -169,24 +169,30 @@ def makesingleboxplot(thisdirname, subdirname, thisfilename):
             tablefmtstring = tablefmtstring + vfmtstring
             # print tablefmtstring
             # print  segname
-        tnode = int( nodename[firstdigit:] )
+        #tnode = int( nodename[firstdigit:] )
+        #sepdigit = re.search("\D", ''.join(nodename[firstdigit:]))
+        sepdigit = re.search("\D", ''.join(nodename[firstdigit:]))
+        if sepdigit:
+            sepdigit = sepdigit.start()
+            tnode = int(nodename[firstdigit:firstdigit+sepdigit-1])
+        else:
+            tnode = int(nodename[firstdigit:])
+
         if tnode > maxnodeint:
             maxnodeint = tnode
 
-
-        t2restlen = len( trest )
+        t2restlen = len(trest)
         vspdigit = -1
         vspdigit = trest.find(' ')
-
 
         tvalstring = []
         if vspdigit > -1:
                 # for j in xrange( 0, spdigit - 1):
-            for j in xrange( 0, vspdigit ):
-                tvalstring.append( trest[j] )
+            for j in xrange(0, vspdigit):
+                tvalstring.append(trest[j])
         else:
             tvalstring = trest
-        nodefile = open( nfile, "a" )
+        nodefile = open(nfile, "a")
 
         # print "printing to file ", nfile, " ", trest.split()[0]
         # print >> nodefile, trest,
@@ -359,7 +365,7 @@ def main():
         pass
 
     print "Boxplots dir -> " + output_dir
-    print "  View hint: 'find Boxplots_dir -name \*.png -exec showimage {} \;'"
+    print "  View hint: 'find <Boxplots_dir> -name \*.png -exec display {} \;'"
     AllDataFile = output_dir + "/AllDataFile.txt"
 
     prelimout = open(AllDataFile, "w")
