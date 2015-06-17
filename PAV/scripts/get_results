@@ -447,7 +447,7 @@ foreach $group (@grps) {
             print RF $status;
 
             # find real cpu time to be used for averages 
-            $treal{$tn}{$testCU} = `tail -100 $lf | grep ^real | awk '{ print \$2 }'`;
+            $treal{$tn}{$testCU} = `tac $lf | grep -m 1 ^real | awk '{ print \$2 }'`;
             chomp($treal{$tn}{$testCU});
 
             print "--> $tn: $treal{$tn}{$testCU} secs of real time used\n" if ($opt{v});
