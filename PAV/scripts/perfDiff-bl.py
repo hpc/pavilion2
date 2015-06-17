@@ -156,16 +156,12 @@ def main():
             r2 = ResultLine(p2)
             print "\t\tPercent Diffs : " + calc_diff(r1, r2) + "\n"
 
-    # Tried this zip to fold the data lines together, but only does by position as far as I can tell, so
-    # it potentially mixes up data lines if they are not in the correct order.
+    # Tried zip to fold the data lines together, but it only goes by position as far as I can tell, so
+    # it potentially mixes up data lines if they are not in the correct order or if one is missing.
     # print "\n" + k + ":"
     # for v1, v2 in zip(file1_dict[k], file2_dict[k]):
     #   if isinstance(v1, str) and isinstance(v2, str) and (not v1.isspace()):
-    #       print "> " + v1,
-    #       print "< " + v2,
-    #      r1 = ResultLine(v1)
-    #      r2 = ResultLine(v2)
-    #     print "\t\tPercent Diffs : " + calc_diff(r1, r2) + "\n"
+    #       ... same stuff as before starting with print
 
 if __name__ == "__main__":
     main()
