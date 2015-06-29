@@ -80,7 +80,8 @@ class ViewTestSuite(IPlugin):
     # and must return the name of the this sub-command
 
     def add_parser_info(self, subparser): 
-        parser_rts = subparser.add_parser("view_test_suite", help="view test suite config files")
+        parser_rts = subparser.add_parser("view_test_suite",
+                                          help="view test suite config files (user, default, and combined)")
         parser_rts.add_argument('testSuite', help='test-suite-config-file')
         parser_rts.add_argument('-d', "--dict", help='show in dictionary format (yaml default)', action="store_true")
         parser_rts.set_defaults(sub_cmds='view_test_suite')

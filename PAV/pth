@@ -72,6 +72,7 @@ from yapsy.PluginManager import PluginManager
 # initialize and set up the pavilion log file
 me = getpass.getuser()
 mlf = "/tmp/" + me + "/pav.log"
+# ++ PV_LOG : Master log file
 master_log_file = os.getenv('PV_LOG', mlf)
 os.environ['PV_LOG'] = master_log_file
 try:
@@ -124,9 +125,8 @@ def main():
     subparser = parser.add_subparsers(title="commands", help='sub-commands')
     parser.add_argument("-v", "--verbose", help="provide verbose output", action="store_true")
     #parser = argparse.ArgumentParser(description='Demo')
-
-    parser_foo = subparser.add_parser('foo', help="foo help message")
-    parser_foo.set_defaults(sub_cmds='foo')
+    #parser_foo = subparser.add_parser('foo', help="foo help message")
+    #parser_foo.set_defaults(sub_cmds='foo')
 
     print "  Running from -> %s" % os.environ['PVINSTALL'] + "/PAV"
     print "  Logging to -> %s" % master_log_file
@@ -138,8 +138,10 @@ def main():
     plug_man = PluginManager()
     # Inform where to find plug-ins
     # User can add more places to look by setting ENV PV_PLUGIN_DIR
+    # ++ PVINSTALL : Installation root of Pavilion
     plugin_dir = os.environ['PVINSTALL'] + "/PAV" + "/plugins"
     plugin_places = [plugin_dir]
+    # ++ PV_PLUGIN_DIR : Path where Pavilion searches for addition plugins (commands)
     if os.environ.get('PV_PLUGIN_DIR'):
         plugin_places.append(os.environ.get('PV_PLUGIN_DIR'))
     plug_man.setPluginPlaces(plugin_places)

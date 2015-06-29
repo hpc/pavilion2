@@ -124,12 +124,14 @@ class JobController():
         # GZ_ vars for backwards compatibility with Gazebo, but to be
         # removed sometime down the road.
 
+        # ++ PV_TESTNAME : Name of job/test
         os.environ['PV_TESTNAME'] = self.name
         os.environ['GZ_TESTNAME'] = self.name
         os.environ['PV_TESTEXEC'] = self.configs['run']['cmd']
         os.environ['GZ_TESTEXEC'] = self.configs['run']['cmd']
         pt = type(self.configs['run']['test_args'])
         try:
+            # ++ PV_TEST_ARGS : Test arguments for job extracted from test suite
             os.environ['GZ_TEST_PARAMS'] = self.configs['run']['test_args']
             os.environ['PV_TEST_ARGS'] = self.configs['run']['test_args']
             #os.environ['PV_TEST_ARGS'] = "is a string"
@@ -159,6 +161,7 @@ class JobController():
         # Working space is null, thus directed to run directly from the source directory
         # so no further work necessary.
         else:
+            # ++ PV_WS : Path where job is run from at run time  (see PV_RUNHOME)
             os.environ['PV_WS'] = ""
             os.environ['PV_RUNHOME'] = src_dir
             print os.environ['PV_RUNHOME']

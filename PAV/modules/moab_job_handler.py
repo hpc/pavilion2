@@ -90,6 +90,7 @@ def stdout_redirected(new_stdout):
 def get_moab_node_list():
 
     if "SLURM_JOBID" in os.environ:
+        # ++ PV_JOBID : Job Id allocated to this job by the "scheduler"
         os.environ['PV_JOBID'] = os.environ.get("SLURM_JOBID")
         output = subprocess.check_output(os.environ['PVINSTALL'] + "/PAV/scripts/getSLURMNodeList", shell=True)
         nodes = output.replace('\n', " ")
@@ -110,6 +111,7 @@ def main():
         os.environ['PVINSTALL'] + "/PAV/scripts/mytime " + os.environ['USER_CMD']
 
     nodes = get_moab_node_list()
+    # ++ PV_NODES : List of node names allocated to this job
     os.environ['PV_NODES'] = nodes
     os.environ['GZ_NODES'] = os.environ['PV_NODES']
     job_log_file = os.environ["PV_JOB_RESULTS_LOG"]

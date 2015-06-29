@@ -128,13 +128,16 @@ class MoabJobController(JobController):
         pes = int(ppn) * int(nnodes)
         self.logger.info(self.lh + " : npes=" + str(pes))
 
+        # ++ PV_PESPERNODE : Number of cores per node
         os.environ['GZ_PESPERNODE'] = ppn
         os.environ['PV_PESPERNODE'] = ppn
 
+        # ++ PV_NNODES : Number of nodes allocated for this job
         os.environ['GZ_NNODES'] = nnodes
         os.environ['PV_NNODES'] = nnodes
         print "<nnodes> " + nnodes
 
+        # ++ PV_NPES : Number of pe's allocated for this job
         os.environ['PV_NPES'] = str(pes)
         os.environ['GZ_NPES'] = os.environ['PV_NPES']
         print "<npes> " + str(pes)
@@ -150,6 +153,7 @@ class MoabJobController(JobController):
 
         # setup unique Moab stdout and stderr file names
         # Handle differences between moab-slurm, moab-cle, etc. ??
+        # ++ PV_JOB_RESULTS_LOG_DIR : Path where results for this job are placed
         se = os.environ['PV_JOB_RESULTS_LOG_DIR'] + "/drm.stderr"
         so = os.environ['PV_JOB_RESULTS_LOG_DIR'] + "/drm.stdout"
         msub_cmd += "-o " + so + " -e " + se + " "
@@ -165,6 +169,7 @@ class MoabJobController(JobController):
         if reservation:
             msub_cmd += ",advres=" + reservation
 
+        # ++ PV_RUNHOME : Path where this job is run from
         run_cmd = os.environ['PV_RUNHOME'] + "/" + self.configs['run']['cmd']
         os.environ['USER_CMD'] = run_cmd
 
