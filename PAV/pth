@@ -138,7 +138,7 @@ def main():
     plug_man = PluginManager()
     # Inform where to find plug-ins
     # User can add more places to look by setting ENV PV_PLUGIN_DIR
-    # ++ PVINSTALL : Installation root of Pavilion
+    # ++ PVINSTALL : Installation root of Pavilion (actually set by the user)
     plugin_dir = os.environ['PVINSTALL'] + "/PAV" + "/plugins"
     plugin_places = [plugin_dir]
     # ++ PV_PLUGIN_DIR : Path where Pavilion searches for addition plugins (commands)
