@@ -87,7 +87,7 @@ class MoabJobController(JobController):
 
         # handle optionally specified queue
         if self.configs['moab']['queue']:
-            msub_cmd += self.configs['moab']['queue'] + " "
+            msub_cmd += "-q " + self.configs['moab']['queue'] + " "
 
         # add test name
         msub_cmd += "-N " + self.name + " "
