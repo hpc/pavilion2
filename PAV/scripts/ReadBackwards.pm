@@ -3,6 +3,8 @@
 # Copyright (C) 2003 by Uri Guttman. All rights reserved.
 # mail bugs, comments and feedback to uri@stemsystems.com
 
+# Simply removed the "File::" before the package name from the origianl, cwi
+
 package ReadBackwards ;
 
 use strict ;

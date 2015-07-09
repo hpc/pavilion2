@@ -58,7 +58,10 @@
 #
 #
 
+use lib "$ENV{'PVINSTALL'}/PAV/scripts";
+
 use File::Basename;
+use ReadBackwards;
 use Sys::Hostname;
 our $host = hostname;
 
@@ -447,7 +450,18 @@ foreach $group (@grps) {
             print RF $status;
 
             # find real cpu time to be used for averages 
-            $treal{$tn}{$testCU} = `tac $lf | grep -m 1 ^real | awk '{ print \$2 }'`;
+            #$treal{$tn}{$testCU} = `tac $lf | grep -m 1 ^real | awk '{ print \$2 }'`;
+            # dang, tac's not everywhere, so let's use this...
+            my $fh = ReadBackwards->new($lf) or die "can't read file: $!\n";
+            while ( defined($line = $fh->readline) ) {
+              if ( $line =~ /^real\s+(\d+\.\d+)/) {
+                chomp $1;
+                $treal{$tn}{$testCU} = $1;
+                #print "matched $1\n";
+                last;
+              }
+            }
+
             chomp($treal{$tn}{$testCU});
 
             print "--> $tn: $treal{$tn}{$testCU} secs of real time used\n" if ($opt{v});
