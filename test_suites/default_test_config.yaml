@@ -118,6 +118,9 @@ UniqueId:
 
   # uri of test, probably a directory name  
   source_location: HOME
+  source:
+    root: ''
+    rpath: ''
         
   # Build Section.  
   build:
@@ -185,11 +188,9 @@ UniqueId:
     
 
   # Working space section
-  # By default each test source  will be copied to and run from a temporary "working space".
-  # This keeps simultaneous jobs from colliding with one another.
-  # If path is left null ('') then this is not done, otherwise
-  # it will be set relative to the test's source directory or can be 
-  # a fully specified directory.
+  # By default the test source tree is copied to and run from a temporary "working space".
+  # This keeps simultaneous running jobs from colliding with one another.
+  # This step can be ignored if the nocopy flag is set to True. 
 
   working_space:
     # Path to copy to...
@@ -197,12 +198,17 @@ UniqueId:
     # By default this is placed under the src test directory, but can be located anywhere that 
     # the user has write priviledges.
     # The ENV variable PV_WS will contain the full path name of this working space at run time.
-    # If set to null '', then no copy is performed.
     path: 'pv_ws' 
-    # Copy to Working Space
+    nocopy: False
+    # Define the root of the working space directory if you want it to be something other 
+    # than the default (the source location).
+    root: ''
+    # Override the added path component to the working space root. Default is "pv_ws".
+    rpath: 'pv_ws'
+    # Override files to copy to the Working Space
+    # By default, ALL files are copied except for *.[ocfh], *.bck, and *.tar files.
     # Comma separated list of specific files or dirs to copy from the test/src directory
     # to the working space before the test is launched.
-    # Otherwise, ALL files are copied except for *.[ocfh], *.bck, and *.tar files.
     # Basically it's the command "rsync -a src dst".
     copy_to_ws: ''
     # Save from the Working Space

@@ -62,6 +62,7 @@ from ldms import LDMS
 import subprocess
 import getpass
 import copy
+from os.path import expanduser
 
 
 
@@ -108,6 +109,7 @@ class TestEntry():
 
         # define the required set of elements
         needed = {"source_location", "name", "run.cmd"}
+        #needed = {"source.rpath", "name", "run.cmd"}
         set_of_keys_supplied = set(data.keys())
 
         if needed.issubset(set_of_keys_supplied):
@@ -131,6 +133,53 @@ class TestEntry():
 
     def get_results_location(self):
         return self.this_dict[self.id]['results']['root']
+
+    # derive the location of the test source directory from the test suite file
+    def get_source_location(self):
+        sl = ''
+        # if the root is null use the users home directory
+        if self.this_dict[self.id]['source']['root']:
+            root = self.this_dict[self.id]['source']['root']
+        else:
+            root = expanduser("~")
+        root = root.rstrip('/')
+        # add on a relative path component if it's defined
+        if self.this_dict[self.id]['source']['rpath']:
+            rpath = self.this_dict[self.id]['source']['rpath']
+            if '/' in rpath[0]:
+                sl = root + rpath
+            else:
+                sl = root + "/" + rpath
+        else:
+            sl = root
+
+        return sl
+
+    # derive the location (working space) to run this job/test from
+    def get_ws_location(self):
+        wsl = ''
+        if self.this_dict[self.id]['working_space']['nocopy']:
+            return wsl
+        # if the root is null use the location of the source
+        if self.this_dict[self.id]['working_space']['root']:
+            root = self.this_dict[self.id]['working_space']['root']
+        else:
+            root = self.get_source_location()
+        root = root.rstrip('/')
+        # add the relative path component. Gonna force this to be 'pv_ws'
+        # unless it's overridden.
+        if self.this_dict[self.id]['working_space']['rpath']:
+            rpath = self.this_dict[self.id]['working_space']['rpath']
+            if '/' in rpath[0]:
+                wsl = root + rpath
+            else:
+                wsl = root + "/" + rpath
+        else:
+            wsl = root + "/pv_ws"
+
+        return wsl
+
+
 
     def get_type(self):
         #return params['run']['scheduler']
