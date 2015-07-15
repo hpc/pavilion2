@@ -70,7 +70,7 @@ use Getopt::Std;
 our %opt;
 $opt{t} = "";
 # setup arguments as switches or ones that require strings  
-getopts( "t", \%opt);
+getopts( "tv", \%opt);
 
 my $tn;
 my $me = `whoami`;
@@ -98,7 +98,8 @@ chomp $today;
   while (<STDIN>) {
     chomp $_;
     next unless /\)/;
-#print "-> $_ \n";
+print "For input -> $_ \n" if ($opt{v});
+    next if ($_ =~ /\*+/);
     my @tmpstr = split( /\) /, $_, 2);
     my $testname = $tmpstr[0];
     $testname =~ s/\t//;
@@ -106,9 +107,11 @@ chomp $today;
     $tmpstr =~ s/\s+$//; #remove trailing spaces
     my @tdstuff = split( " ", $tmpstr[1]);
     chomp $tdstuff[1];
+print "  is '$tdstuff[1]' numeric? \n" if ($opt{v});
+    next if ($tdstuff[1] eq '');
     next unless is_numeric($tdstuff[1]);
      #  tdstuff[0] = trend data name,  tdstuff[1] = trend data value
-#print "  add - $testname) $tdstuff[0] - $tdstuff[1]\n";
+print "  then add - $testname) $tdstuff[0] - $tdstuff[1]\n" if ($opt{v});
     $tdVal{$testname}{$tdstuff[0]} += $tdstuff[1]; 
     push ( @{$tdValList{$testname}{$tdstuff[0]} }, $tdstuff[1]);
 
@@ -172,9 +175,10 @@ my $avg = 0;
 foreach my $tn (sort keys %tdVal) {
     print "$tn):\n";
 
-    # calculate Means
+    # calculate Mean
     while (my ($key, $value) = each %{$tdVal{$tn} } ) {
         my $mean  = $value / $numVals{$tn}{$key};
+        #print (" my key, val - $key, $value\n");
         $MeanFixedName{$tn}{$key} = $mean;
         #print "\t $key = $mean $tdUnits{$tn}{$key} (entries - $numVals{$tn}{$key}, min - $min{$tn}{$key}, max - $max{$tn}{$key}, stDev - $stdev)\n";
     }
@@ -184,7 +188,7 @@ foreach my $tn (sort keys %tdVal) {
       #print "\t avg_aggregate_$key = $avg (entries - $numVals{$tn}{$key}, min - $minaggTotal{$tn}{$key}, max - $maxaggTotal{$tn}{$key})\n";
     }
 
-    # calc standard Devs
+    # calc Standard Dev
     foreach my $k (sort keys %{$tdVal{$tn} } ) {
       foreach $val (@{$tdValList{$tn}{$k} }) {
         #print (" my val - $val\n");
@@ -192,7 +196,8 @@ foreach my $tn (sort keys %tdVal) {
       }
       $stdev = sqrt( $VarFixedName{$tn}{$k} / $numVals{$tn}{$k});
       #print " Variance - $VarFixedName{$tn}{$k}, stDev - $stdev\n";
-      print "\t $k = $MeanFixedName{$tn}{$k} $tdUnits{$tn}{$k} (entries - $numVals{$tn}{$k}, min - $min{$tn}{$k}, max - $max{$tn}{$k}, stDev - $stdev)\n";
+      #print "\t $k = $MeanFixedName{$tn}{$k} $tdUnits{$tn}{$k} (entries - $numVals{$tn}{$k}, min - $min{$tn}{$k}, max - $max{$tn}{$k}, stDev - $stdev)\n";
+      printf "\t %s = %.2f %s (entries - %d, min - %.2f, max - %.2f, stDev - %.2f\n", $k, $MeanFixedName{$tn}{$k}, $tdUnits{$tn}{$k}, $numVals{$tn}{$k}, $min{$tn}{$k}, $max{$tn}{$k}, $stdev;
     }
 
     foreach my $k (sort keys %{$aggTotal{$tn} } ) {
@@ -203,7 +208,8 @@ foreach my $tn (sort keys %tdVal) {
       $stdev = sqrt( $VarDynName{$tn}{$k} / $numVals{$tn}{$k});
       #print " Variance - $VarDynName{$tn}{$k}, stDev - $stdev\n";
       #print "\t $k = $MeanDynName{$tn}{$k} $tdUnits{$tn}{$k} (entries - $numVals{$tn}{$k}, min - $min{$tn}{$k}, max - $max{$tn}{$k}, stDev - $stdev)\n";
-      print "\t avg_aggregate_$k = $MeanDynName{$tn}{$k} (entries - $numVals{$tn}{$k}, min - $minaggTotal{$tn}{$k}, max - $maxaggTotal{$tn}{$k}, stDev - $stdev)\n";
+      #print "\t avg_aggregate_$k = $MeanDynName{$tn}{$k} (entries - $numVals{$tn}{$k}, min - $minaggTotal{$tn}{$k}, max - $maxaggTotal{$tn}{$k}, stDev - $stdev)\n";
+      printf "\t avg_aggregate_%s = %.2f (entries - %d, min - %.2f, max - %.2f, stDev - %.2f\n", $k, $MeanDynName{$tn}{$k}, $numVals{$tn}{$k}, $minaggTotal{$tn}{$k}, $maxaggTotal{$tn}{$k}, $stdev;
     }
 
 
@@ -211,6 +217,7 @@ foreach my $tn (sort keys %tdVal) {
 
 # subroutine that returns true if item is an integer, float, etc.  Works on sci-notation too)
 sub is_numeric {
+  #print "is_numeric: checking -> $_[0]\n";
 no warnings;
 use warnings FATAL => 'numeric';
 return defined eval { $_[ 0] == 0 };
@@ -221,6 +228,7 @@ sub usage {
     print "\n\n";
     print "usage: $0 \n";
     print "              -h help \n";
+    print "              -v verbose processing info \n";
     print "\n\n";
 
 }
