@@ -77,9 +77,9 @@ Getting Started:
 
   At this point you should be able to run "pav -h"
 
- - Pavilion is centered around the idea of a user defined test suite. Therefore, you need to create a user
+ - Pavilion is driven by a user defined test suite. Therefore, you need to create a user
    test suite config file with at least one test (or job) stanza in it.  An example exists in the docs directory.
-   You only need to define what is different from the default test suite config file because the user
+   For each new job/test one only need to define what is different from the default test suite config file because the user
    test suite config file will inherit everything that is not explicity changed from the default config file. 
    This is basic YAML, a new test stanza is defined when a new id is encountered at the begining of a new line.
 
@@ -120,18 +120,33 @@ Gazebo transition tips (for former users of Gazebo):
     working_space:save_from_ws section of the test suite will be moved there at job completion.
 
 
-Output data standardization (trend data):
------------------------------------------
+Job Output Data standardization:
+---------------------------------
 
-Specific test/job related values can be efficiently analyzed if they are saved as trend data.
-Trend data is important result information that is printed as a separate line to STDOUT by the
-run script and/or application. Multiple trend data values can be saved for every test run. This data is
-obviously unique to each application and is determined by the application developer.
+Pavilion interacts with test output via two basic pieces of data, results and trend data.  This data is simply printed
+as a separate line to STDOUT by the job's run script and/or application.  
 
-Syntax:
+1) Results
+
+To determine if a job passed for failed it must supply a pass/fail indicator and an optional summary reason.
+
+Syntax -
+<results> Pass|Fail, [reason]
+
+Explanation - 
+Pass/Fail - determined by individual test/job
+reason - optional string (one line) summarizing pass or fail reason 
+
+2) Trend data
+
+Specific test/job related values are efficiently analyzed if they are reported as trend data.
+Multiple trend data values can be saved for every test run. This data is
+obviously unique to each application and is determined by the test/app developer.
+
+Syntax -
 <td> name value [units]
 
-Explanation:
+Explanation - 
 <td> - tag used by the result parser. 
 name - char string, up to 32 chars. Name of the value of
   interest. Referred to in Pavilion parlance as trend data.   
@@ -139,7 +154,7 @@ name - char string, up to 32 chars. Name of the value of
   attached then an automated tool is available to create boxplots 
   for that that node. ( see get_results "-bp" argument )
 value - char string, up to 64 chars
-units - char string, up to 24 chars.
+units - optional char string, up to 24 chars.
 
 Hints for viewing boxplots:
  To view from a machine with the showimage ( or xview on the Cray) tool
@@ -180,7 +195,7 @@ As Pavilion runs an output log is being generated. It will default to
 Handy Stand-alone Utility Scripts:
 ---------------------------------
 
-pvjobs - show what jobs are present on Moab systems.
+pvjobs - show job state on Moab systems.
 
 
 Outstanding Items:
