@@ -200,7 +200,7 @@ class YamlTestConfig():
             # only use "good" entries
             if type(v) is dict:
                 if not TestEntry.check_valid(v):
-                    print ", skipping (%s) due to invalid entry" % test_id
+                    print ", skipping stanza (%s) due to invalid entry" % test_id
                     continue
             tmp_config = default_config.copy()
 
