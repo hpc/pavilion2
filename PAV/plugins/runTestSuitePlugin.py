@@ -183,6 +183,7 @@ class RunTestSuite(IPlugin):
                 # If user specifies a max level of jobs to queue and run (watermark) then
                 # don't launch a new set if this level is reached.
                 if (args['w'] and te.room_to_run(args)) or not args['w']:
+                    #print "plenty of room to run"
                     # launch a new process for each test variation and/or count
                     for test_entry in te.get_test_variations():
                         # initialize a unique LDMS for each job
