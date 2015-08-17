@@ -172,7 +172,7 @@ UniqueId:
     time_limit: "01:00:00"
     # free formatted string added to msub invocation line (optional)
     msub_args:
-    # target segment, will be added to feature argument (optional)
+    # target segment, added as a feature component to the "-l" argument (optional)
     target_seg: "" 
     # optional list of nodes to target 
     # Uses defined string to populate '-l nodes=<node_list>' on msub line

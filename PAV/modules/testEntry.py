@@ -334,10 +334,11 @@ class MoabTestEntry(TestEntry):
         return tv
 
     @staticmethod
-    def get_active_jobs():
+    def get_active_jobs(ts):
         """
         Find the number of jobs queued or running on the system.
         implement:  `mdiag -j | grep $me | wc -l`
+        Possibly use a target segment, or partition also
         """
         me = getpass.getuser()
 
@@ -349,6 +350,12 @@ class MoabTestEntry(TestEntry):
                                 stdin=cat.stdout,
                                 stdout=subprocess.PIPE,
                                 )
+
+        if ts:
+            grep = subprocess.Popen(['grep', ts],
+                                    stdin=cat.stdout,
+                                    stdout=subprocess.PIPE,
+                                    )
 
         cut = subprocess.Popen(['wc', '-l'],
                                stdin=grep.stdout,
@@ -367,7 +374,11 @@ class MoabTestEntry(TestEntry):
         so as to not overrun the system.
         """
 
-        active_jobs = MoabTestEntry.get_active_jobs()
+        t_seg = ''
+        if self.this_dict[self.id]['moab']['target_seg']:
+            t_seg = self.this_dict[self.id]['moab']['target_seg']
+
+        active_jobs = MoabTestEntry.get_active_jobs(t_seg)
 
         # args w and p should be exclusive, w is first check
         if args['w']:
