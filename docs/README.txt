@@ -144,7 +144,7 @@ Multiple trend data values can be saved for every test run. This data is
 obviously unique to each application and is determined by the test/app developer.
 
 Syntax -
-<td> name value [units]
+<td> name[+target_item] value [units]
 
 Explanation - 
 <td> - tag used by the result parser. 
@@ -155,6 +155,10 @@ name - char string, up to 32 chars. Name of the value of
   for that that node. ( see get_results "-bp" argument )
 value - char string, up to 64 chars
 units - optional char string, up to 24 chars.
+target_item - trend data is associtated with the test that produced it. To provide more specific association, 
+  for example, to a node name, add this string to the end of the trend_data name field. The "+" is a reserved
+  character! 
+  ex. "<td> flop_rate+node005 743.2 Gflops"
 
 Hints for viewing boxplots:
  To view from a machine with the showimage ( or xview on the Cray) tool
