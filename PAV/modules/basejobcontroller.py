@@ -280,8 +280,10 @@ class JobController():
         os.environ['PV_TEST_ARGS'] = self.configs['run']['test_args']
         os.environ['GZ_TEST_PARAMS'] = os.environ['PV_TEST_ARGS']
 
+        # When supported will be uncommented 
         #os.environ['TD_REGX'] = self.configs['results']['trend_data_regex']
 
+        # Support for a Splunk data log or file
         try:
             if self.configs['splunk']['state']:
                 os.environ['SPLUNK_DATA_LOG'] = str(self.configs['splunk']['global_data_file'])
