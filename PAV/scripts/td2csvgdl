@@ -102,6 +102,7 @@ our %opt;
   my $sn = "";
   my $job_id = "";
   my $td_name;
+  my $td_names;
   my $td_vals;
   my %td = ();
   my $td_val;
@@ -218,7 +219,7 @@ our %opt;
 
         # add trend data name values to list, however skip duplicate names
         unless (exists $td{$td_name}) {
-          $td_name .= $td_name . ","; 
+          $td_names .= $td_name . ","; 
           $td_vals .= $td_val . ","; 
           $td{$td_name} = 1;
         }
@@ -227,28 +228,26 @@ our %opt;
 
     } 
 
-    # no dashes in values
     chop $td_list;
-
     chop $td_vals;
-    chop $td_name;
+    chop $td_names;
     chop $nl;
     # put together the result line or record
       if ($mn ne "") {
         $resrecord = qq($date,$time,$edate,$etime,$tn,$job_id,$mn,$sn,$nn,$nc,"$pl",$results,$td_vals,"$nl"\n);
-        $hdr = qq(date,time,EndDate,EndTime,TestName,JobId,MachineName,SegmentName,NumNodes,NumCores,ParamList,Results,$td_name,NodeList\n);
+        $hdr = qq(date,time,EndDate,EndTime,TestName,JobId,MachineName,SegmentName,NumNodes,NumCores,ParamList,Results,$td_names,NodeList\n);
       } else{
         $resrecord = qq($date,$time,$edate,$etime,$tn,$job_id,$sn,$nn,$nc,"$pl",$results,$td_vals,"$nl"\n);
-        $hdr = qq(date,time,EndDate,EndTime,TestName,JobId,SegmentName,NumNodes,NumCores,ParamList,Results,$td_name,NodeList\n);
+        $hdr = qq(date,time,EndDate,EndTime,TestName,JobId,SegmentName,NumNodes,NumCores,ParamList,Results,$td_names,NodeList\n);
       }
 
     # create handle where to place results in csv format  
-    my $of = $tn . "_results.csv";
+    my $of = "test" . "_results.csv";
     open( OFILE, ">>$ofd/$of") or die "$prog: Failed to open $tn target data csv file, $!\n";
     print OFILE $resrecord;
     close( OFILE );
     # header file lines should correspond one for one with data lines, thus catenation
-    my $hof = $tn . "_header.csv";
+    my $hof = "test_result" . "_headers.csv";
     open( HFILE, ">>$ofd/$hof") or die "$prog: Failed to open $tn target header csv file, $!\n";
     print HFILE $hdr;
     close( HFILE );
