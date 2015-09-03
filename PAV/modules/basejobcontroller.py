@@ -81,7 +81,7 @@ def copy_file(src, dest):
         print('Error: %s' % e.strerror)
 
 
-class JobController():
+class JobController:
 
     """ class to define the common actions for any job type """
 
@@ -286,7 +286,7 @@ class JobController():
         # Support for a Splunk data log or file
         try:
             if self.configs['splunk']['state']:
-                os.environ['SPLUNK_DATA_LOG'] = str(self.configs['splunk']['global_data_file'])
+                os.environ['SPLUNK_GDL'] = str(self.configs['splunk']['global_data_file'])
         except KeyError, e:
             print 'basejobcontroller:setup_job_info, Splunk config error - no: "%s"' % str(e)
             pass
@@ -339,11 +339,11 @@ class JobController():
 
         print '- WS cleanup complete'
 
-    @staticmethod
-    def process_trend_data():
+    @classmethod
+    def generate_trend_data_file(cls):
 
         # slurp up the trend data from the log file and place it in a file
-        # called trend_data in the results dir
+        # called trend_data in the local results dir
         tdf = os.environ["PV_JOB_RESULTS_LOG_DIR"] + "/trend_data"
         out_file = open(tdf, "w")
 
@@ -358,9 +358,19 @@ class JobController():
 
         out_file.close()
 
-        # generate Splunk data file(s) (if configured on in test suite file)
+    @staticmethod
+    def process_trend_data():
+
+        # collect the trend data into a single file
+        JobController.generate_trend_data_file()
+
+        # add to the global CSV results
+        cmd = os.environ['PVINSTALL'] + "/PAV/scripts/td2csvgdl"
+        os.system(cmd)
+
+        # generate the Splunk data file(s)
         try:
-            if os.environ['SPLUNK_DATA_LOG']:
+            if os.environ['SPLUNK_GDL']:
                 log_dir = os.environ['PV_JOB_RESULTS_LOG_DIR']
                 cmd = os.environ['PVINSTALL'] + "/PAV/scripts/splunk/td2splunkData " + log_dir
                 os.system(cmd)
