@@ -55,16 +55,11 @@
 
 
 #
-# This script will transforms logfile trenddata "<td>" into
-# data meant for Splunk consumption. 
-
-# The results are saved into a file called my.splunkdata 
-#
+# This script will transforms logfile trenddata "<td>" into a global CSV results file. 
 
 use File::Basename;
 use Pod::Usage;
 use Getopt::Std;
-
 
 (my $prog = $0) =~ s/.*\///;
 
@@ -84,35 +79,15 @@ our %opt;
   # print help if requested
   if ( $opt{h}) { usage(); exit; }
 
-  # input:  directory to read from and write to
-  my $ldir = shift;
-  chomp $ldir;
+  my $jlf = $ENV{'PV_JOB_RESULTS_LOG'};
+  chomp $jlf;
+  my $ofd = $ENV{'PV_RESULT_ROOT'};
+  chomp $ofd;
 
-  # If a splunkdata file exists in the job output dir, catenate it to the end of 
-  # the global splunkdata.log file in the results space and exit.
-  # The splunkdata.log file is the file that Splunk is indexing.
-  my @arr = glob("$ldir/*.splunkdata");
-  if ( @arr > 0 ) {
-    if ( $ENV{'SPLUNK_GDL'} ) {
-      `cat $arr[0] >> $ENV{'SPLUNK_GDL'}`;
-    }
-    print ".splunkdata file exits, no more work to do!\n";
-    exit;
-  }
+  # read from the logfile
+  open( LOG, "<$jlf") or die "$prog: Failed to open job log file $jlf, $!\n";
 
-  # read from existing logfile
-  my @lf = glob("$ldir/*.log");
-  open( LOG, "<$lf[0]") or die "$prog: Failed to open log file $lf[0], $!\n";
-
-  # create handle for test specific local copy of the splunk data
-  open( SD, ">$ldir/my.splunkdata") or die "$prog: Failed to open splunk data file $!\n";
-
-  # these next lines will only work in the context of a Pavilion job, so unless the
-  # data file is defined don't try to run this.
-  if ( $ENV{'SPLUNK_GDL'} ) {
-    open( RF, ">>$ENV{'SPLUNK_GDL'}");
-  }
-
+  my $hdr = "";
   my $resrecord = "";
   our $date = "";
   our $time = "";
@@ -127,6 +102,7 @@ our %opt;
   my $sn = "";
   my $job_id = "";
   my $td_name;
+  my $td_vals;
   my %td = ();
   my $td_val;
   my $td_units;
@@ -228,11 +204,7 @@ our %opt;
       # <td> standard trend data which is formatted as "name value [units]"
       #    is included with the common data in the output record.
       #
-      # <sftd> splunk-formatted trend-data.  Each of these lines are
-      #     added as is into the splunk data file(s) as separate records EXCLUDING
-      #     the common output data.
 
-      # re-format trend data into splunk key-value pair data 
       if ( /<td>\s+(.*)/ ) {
         $td_name = "";
         $td_val = "";
@@ -246,37 +218,41 @@ our %opt;
 
         # add trend data name values to list, however skip duplicate names
         unless (exists $td{$td_name}) {
-          $td_list .= $td_name . "=" . $td_val . " "; 
+          $td_name .= $td_name . ","; 
+          $td_vals .= $td_val . ","; 
           $td{$td_name} = 1;
         }
         next;
       }
 
-      if ( /<sftd>\s+(.*)/ ) {
-        print SD "$1\n";
-        if ( $ENV{'SPLUNK_GDL'} ) {
-          print RF "$1\n";
-        }
-        next;
-      }
     } 
 
     # no dashes in values
     chop $td_list;
 
+    chop $td_vals;
+    chop $td_name;
+    chop $nl;
     # put together the result line or record
       if ($mn ne "") {
-        $resrecord = qq($date $time EndDate=$edate EndTime=$etime TestName=$tn JobId=$job_id MachineName=$mn SegmentName=$sn NumNodes=$nn NumCores=$nc ParamList="$pl" Results=$results $td_list NodeList="$nl"\n);
-      } else {
-        $resrecord = qq($date $time EndDate=$edate EndTime=$etime TestName=$tn JobId=$job_id SegmentName=$sn NumNodes=$nn NumCores=$nc ParamList="$pl" Results=$results $td_list NodeList="$nl"\n);
+        $resrecord = qq($date,$time,$edate,$etime,$tn,$job_id,$mn,$sn,$nn,$nc,"$pl",$results,$td_vals,"$nl"\n);
+        $hdr = qq(date,time,EndDate,EndTime,TestName,JobId,MachineName,SegmentName,NumNodes,NumCores,ParamList,Results,$td_name,NodeList\n);
+      } else{
+        $resrecord = qq($date,$time,$edate,$etime,$tn,$job_id,$sn,$nn,$nc,"$pl",$results,$td_vals,"$nl"\n);
+        $hdr = qq(date,time,EndDate,EndTime,TestName,JobId,SegmentName,NumNodes,NumCores,ParamList,Results,$td_name,NodeList\n);
       }
-    print SD $resrecord;
+
+    # create handle where to place results in csv format  
+    my $of = $tn . "_results.csv";
+    open( OFILE, ">>$ofd/$of") or die "$prog: Failed to open $tn target data csv file, $!\n";
+    print OFILE $resrecord;
+    close( OFILE );
+    # header file lines should correspond one for one with data lines, thus catenation
+    my $hof = $tn . "_header.csv";
+    open( HFILE, ">>$ofd/$hof") or die "$prog: Failed to open $tn target header csv file, $!\n";
+    print HFILE $hdr;
+    close( HFILE );
     close( LOG );
-    close( SD );
-    if ( $ENV{'SPLUNK_GDL'} ) {
-      print RF $resrecord;
-      close( RF );
-    }
 
 exit (0);
 
