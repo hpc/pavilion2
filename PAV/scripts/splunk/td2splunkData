@@ -263,6 +263,7 @@ our %opt;
 
     # no dashes in values
     chop $td_list;
+    chop $nl;
 
     # put together the result line or record
       if ($mn ne "") {
