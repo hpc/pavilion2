@@ -54,8 +54,6 @@
 
 Pavilion HPC Testing Framework 
 
-  Abstract
-
 
   High Performance Computing clusters require a diverse set of methods to verify that they meet their intended 
 performance, stability, and functional design objectives.  One method, testing, takes place over the entire life-cycle of a system 
