@@ -133,6 +133,7 @@ def build_results_dir(params):
     lh = params['log_handle']
 
     root_result_dir = params['results']['root']
+    os.environ["PV_RESULT_ROOT"] = root_result_dir
     name = params['name']
     new_dir = root_result_dir + "/gzshared/"
     date_parts = datetime.datetime.now().strftime("%Y/%Y-%m/%Y-%m-%d/")
