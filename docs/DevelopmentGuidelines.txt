@@ -1,6 +1,5 @@
 Pavilion HPC Testing Framework
 
-
 #  ###################################################################
 #
 #  Disclaimer and Notice of Copyright 
@@ -25,14 +24,15 @@ Pavilion HPC Testing Framework
 #  Additionally, redistribution and use in source and binary 
 #  forms, with or without modification, are permitted provided 
 #  that the following conditions are met:
-#  -  Redistributions of source code must retain the 
+#
+#  1. Redistributions of source code must retain the 
 #     above copyright notice, this list of conditions 
 #     and the following disclaimer. 
-#  -  Redistributions in binary form must reproduce the 
+#  2. Redistributions in binary form must reproduce the 
 #     above copyright notice, this list of conditions 
 #     and the following disclaimer in the documentation 
 #     and/or other materials provided with the distribution. 
-#  -  Neither the name of Los Alamos National Security, LLC, 
+#  3. Neither the name of Los Alamos National Security, LLC, 
 #     Los Alamos National Laboratory, LANL, the U.S. Government, 
 #     nor the names of its contributors may be used to endorse 
 #     or promote products derived from this software without 
@@ -75,7 +75,7 @@ Guidlines to follow for cohesive team product development.
 
 2.1 Code Sharing 
 
-2.1.1  Stored at git.lanl.gov/cwi/pavilion (to be move to github asap)
+2.1.1  To be stored github
 
 2.1.2  Team development with Git - http://blog.ericbmerritt.com/2011/12/05/team-development-with-git.html
 

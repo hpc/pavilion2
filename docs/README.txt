@@ -24,14 +24,15 @@ Pavilion HPC Testing Framework
 #  Additionally, redistribution and use in source and binary 
 #  forms, with or without modification, are permitted provided 
 #  that the following conditions are met:
-#  -  Redistributions of source code must retain the 
+#
+#  1. Redistributions of source code must retain the 
 #     above copyright notice, this list of conditions 
 #     and the following disclaimer. 
-#  -  Redistributions in binary form must reproduce the 
+#  2. Redistributions in binary form must reproduce the 
 #     above copyright notice, this list of conditions 
 #     and the following disclaimer in the documentation 
 #     and/or other materials provided with the distribution. 
-#  -  Neither the name of Los Alamos National Security, LLC, 
+#  3. Neither the name of Los Alamos National Security, LLC, 
 #     Los Alamos National Laboratory, LANL, the U.S. Government, 
 #     nor the names of its contributors may be used to endorse 
 #     or promote products derived from this software without 
@@ -53,13 +54,12 @@ Pavilion HPC Testing Framework
 #
 #  ###################################################################
 
-
 Built and tested with Python 2.7
 
 File Structure:
 --------------
 
-   - all code resides under the PAV directory
+   - all code resides under the $PVINSTALL/PAV directory
      - PLUGINS sub-dir for new commands
      - SCRIPTS sub-dir for support scripts 
      - MODULES sub-dir for all custom built python src
@@ -84,7 +84,7 @@ Getting Started:
    This is basic YAML, a new test stanza is defined when a new id is encountered at the begining of a new line.
 
    So.... the recommended approach to this is:
-     1) create a directory someplace to place your test_suite config files.
+     1) create a directory for the test_suite config files.
      2) copy the Example default test suite to this directory and name it
         default_test_config.yaml. Tweak it only where appropriate.
         HINT : quite possibly only the root results directory definition may need to change.
@@ -92,12 +92,12 @@ Getting Started:
      4) copy the default config file to a new file (for example, my_test_config_suite.yaml) 
      5) strip all the entries from this new file down to only the specific entires you need changed.
         Only the id, name, source_location, and run:cmd parts are required to be in each new stanza. 
-        The id must be unique for each stanza.
-     6) At this point you should have at least two files in this directory.  The default one (the
+        The id (left most component) must be unique for each stanza.
+     6) At this point there should be at least two files in this directory.  The default one (the
         exact name IS important) and your new one (this name is NOT important, but should end with ".yaml").
 
   - Type "pav view_test_suite ./my-test-config-suite.yaml" to see how your new test suite
-    file is "folded" with the default file.  Add as may test stanzas as needed.
+    file is "meshed" with the default file.  Add as may test stanzas as needed.
 
   - Type "pav run_test_suite ./my-test-config_suite.yaml" to run each test in the test suite. 
     Hint: making sure your jobs/tests work without Pavilion will save you time debugging problems.
@@ -120,7 +120,7 @@ Gazebo transition tips (for former users of Gazebo):
     working_space:save_from_ws section of the test suite will be moved there at job completion.
 
 
-Job Output Data standardization:
+Job Output Data standards:
 ---------------------------------
 
 Pavilion interacts with test output via two basic pieces of data, results and trend data.  This data is simply printed
@@ -187,6 +187,21 @@ Examples:
 Querying Data Tip:
  Trend data can be culled using the get_results sub-command with the "-T" option.
  Data is harvested from the log files in the test results directory.
+
+Output data:
+----------------
+
+- For each stanza in the test suite, used as input to the run_test_suite command, a test specific output directory
+will be created under the results:root directory, defined by the test suite. A number of files will always be automatically
+placed here. A couple of these files will be the job-name.log file which is a combination of some Pavilion header and footer
+info and the STDIO of the job/test and the test_config.txt file which is a view of the meshed default test suite and the user
+defined test suite used.
+
+- Directly underneath the results:root directory will be two csv files that contain a synopsis (data and corresponding headers)
+of the job/test results. If the splunk directive is turned on in the test suite a similar file, but in key=value format is also
+generated. 
+
+- As Pavilion runs it generates a log file. (see Debugging Tips below)
 
 
 Debugging Tips:
