@@ -135,14 +135,17 @@ def main():
 
     # For each test_type compare like trend data vales to see any differences
     for k in file1_dict.keys():
+        #print "DP:: check key: " + k
         # If the second file does not have a like test_type, there is no reason to compare values.
         # If the first file does not have a matching test_type then it won't even exist to loop on.
         if k not in file2_dict:
             del (file1_dict[k])
             continue
 
+        #print "DP:: separate data line: "
+
         # stmt to help understand what is being picked off of the data line
-        # print list([x.split(' ', 2)[1] for x in file1_dict[k] for y in file2_dict[k]])
+        #print list([x.split(' ', 2)[1] for x in file1_dict[k] for y in file2_dict[k]])
 
         # Fold all the corresponding data lines together with this fancy iterable stmt
         merged_list = [(x, y) for x in file1_dict[k] for y in file2_dict[k] if x.split(' ', 2)[1] == y.split(' ', 2)[1]]
