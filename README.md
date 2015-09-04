@@ -37,6 +37,8 @@ Usage:
 
 Version 1.0.0
 
+> Verified to work with Moab scheduler thus far. Development needed for Slurm, Raw, etc.
+
 
 Collaboration tips:
 
