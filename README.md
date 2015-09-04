@@ -1,4 +1,4 @@
-Pavilion
+#Pavilion
 =========
 
 Disclaimer and Notice of Copyright 
@@ -21,7 +21,7 @@ All rights reserved.
 
 
 Pavilion is a software framework for running and analyzing jobs/tests targeting HPC systems.
->> Python 2.7 based
+> Python 2.7 based
 
 
 Usage:
@@ -32,7 +32,7 @@ Usage:
     (for example - "setenv PATH ${PVINSTALL}/PAV:${PATH}")
     run the tool - "pav -h"
 ```
-Version
+###Version
 ====
 
 1.X
