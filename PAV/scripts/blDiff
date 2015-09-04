@@ -86,9 +86,11 @@ class ResultLine():
         if m_max:
             self.max = m_max.group(1)
             # print " save this max - " + self.max
-        m_std = re.match(".*stDev - (.*)\)", data_str)
+        m_std = re.match(".*stDev - (.*)", data_str)
+        #print "m_std matched " + str(m_std)
         if m_std:
             self.std = m_std.group(1)
+            #print " matched this stDev - " + self.std
 
 
 # calculate differentials of data in baseline results
@@ -123,7 +125,7 @@ def calc_diff(res1, res2):
         std_diff = 0
     std_diff = abs(round(std_diff, 1))
 
-    return "mean - " + str(avg_diff) + "\tmin - " + str(min_diff) + "\tmax - " + str(max_diff) + "\tstdDev - "\
+    return "mean: " + str(avg_diff) + "\tmin: " + str(min_diff) + "\tmax: " + str(max_diff) + "\tstdDev: "\
            + str(std_diff)
 
 
@@ -140,18 +142,25 @@ def load_bl_file(name, opt):
     with open(name, 'r') as in_file:
         test_type = None
         for line in in_file:
-            if opt.verbose:
-                print "scan line -> " + line,
             if isinstance(line, str):
+                # don't collect node name values
+                if "+" in line:
+                    continue
                 m = re.match("(^.*\)):", line)
                 # new key found
                 if m:
                     test_type = m.group(1)
                     if opt.verbose:
-                        print " * matched test type - " + line,
+                        ff = " from " + name
+                        nl = line.rstrip()
+                        print "- collected test type -> " + nl,
+                        print ff
                 # else, add each line (ignore empty lines) as elements of this latest key
                 elif test_type:
-                    if line.strip():
+                    line = line.rstrip()
+                    if line:
+                        if opt.verbose:
+                            print "  data -> " + line
                         data_dict.setdefault(test_type, []).append(line)
 
     return data_dict
@@ -182,16 +191,16 @@ def main():
     print " file2 < " + sys.argv[2]
     print "\n ------------"
 
-    # Read em in and make dictionaries
+    # Read em in and make dictionaries of each
     file1_dict = load_bl_file(file1, options)
     file2_dict = load_bl_file(file2, options)
-    print "\n ------------"
+    print "\n Files loaded!"
 
     # For each test_type compare like trend data vales to see any differences
     for k in file1_dict.keys():
         #print "DP:: check key: " + k
         # If the second file does not have a like test_type, there is no reason to compare values.
-        # If the first file does not have a matching test_type then it won't even exist to loop on.
+        # If the first file does not have the matching test_type then it won't even exist to loop on.
         if k not in file2_dict:
             del (file1_dict[k])
             continue
@@ -207,11 +216,11 @@ def main():
         # Display the results
         print "\n" + k + ":"
         for p1, p2 in merged_list:
-            print "> " + p1,
-            print "< " + p2,
+            print "> " + p1
+            print "< " + p2
             r1 = ResultLine(p1)
             r2 = ResultLine(p2)
-            print "\t\tPercent Diffs : " + calc_diff(r1, r2) + "\n"
+            print "\t\tPercent Diffs -> " + calc_diff(r1, r2) + "\n"
 
     # Tried zip to fold the data lines together, but it only goes by position as far as I can tell, so
     # it potentially mixes up data lines if they are not in the correct order or if one is missing.
