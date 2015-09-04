@@ -32,12 +32,9 @@ Usage:
     (for example - "setenv PATH ${PVINSTALL}/PAV:${PATH}")
     run the tool - "pav -h"
 ```
-###Version
-====
 
-1.X
+Version 1.0.0
 
-====
 
 Collaboration tips:
 
@@ -55,7 +52,7 @@ Project goals:
    - Modular to encourage collaboration  
    - Simple to add tests, but highly configurable
    - Backward compatible (where reasonable) to the Gazebo test framework
-   - Development adheres to a well know set of developemnt and coding principles
+   - Development adheres to a well know set of developement and coding principles
    - Open source and managed thru git  
    - No extra files necessary to be placed into users test/job directory to hook into Pavilion
    - Only one command needed to run cli. Sub commands under "pav" umbrella  
