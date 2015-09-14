@@ -101,6 +101,15 @@ def get_moab_node_list():
         nodes = platform.node()
     return str(nodes)
 
+def get_segment_name():
+    """
+    get the name of the target system that this job is running on
+
+    """
+    hn = platform.node().split(".")[0]
+    sn = hn.split("-")[0]
+    return sn
+
 
 def main():
     """
@@ -121,6 +130,9 @@ def main():
 
             #redirect STDERR to the same file
             sys.stderr = lf
+
+            sn = get_segment_name()
+            print "<segName> " + sn
 
             print "<nodes> " + nodes + "\n"
             print "moab_job_handler: "
