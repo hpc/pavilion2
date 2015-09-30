@@ -58,7 +58,6 @@
 #
 # original author: Craig Idler
 
-#require "getopts.pl";
 use File::Basename;
 use Sys::Hostname;
 our $host = hostname;
