@@ -57,6 +57,7 @@
 
 #
 # This script will transforms logfile trenddata "<td>" into a global CSV results file. 
+# td2csvgdl - trend data to csv global data log.
 
 use File::Basename;
 use Pod::Usage;
@@ -102,17 +103,18 @@ our %opt;
   my $nn = "";
   my $sn = "";
   my $job_id = "";
-  my $td_name;
-  my $td_names;
-  my $td_vals;
   my %td = ();
+  my $td_name;
+  my @td_names;
   my $td_val;
-  my $td_units;
+  my @td_vals;
+  my $td_unit;
+  my @td_units;
   my $td_list = "";
   my $results = "unknown";
 
   while( <LOG> ) {
-#       print "DEBUGGING: input=$_\n";
+#        print "DEBUGGING: input=$_\n";
 #        chop( $_  );
 
       # extract target machine name
@@ -171,6 +173,7 @@ our %opt;
       if( /^<start> / ) {
          my $start = $';
          chomp $start;
+         $start =~ s/^\s+//;
          ($date, $time) = split("T", $start); 
          $time =~ s/-.*//;
          next;
@@ -210,49 +213,76 @@ our %opt;
       if ( /<td>\s+(.*)/ ) {
         $td_name = "";
         $td_val = "";
-        $td_units = "";
+        $td_unit = "";
 
         my @td = split(" ", $1);
         $td_name = $td[0];
         $td_name =~ s/-/_/g; # no "-"s allowed in std. trend data
         $td_val = $td[1];
-        $td_units = $td[2];
+        $td_unit = $td[2];
 
-        # add trend data name values to list, however skip duplicate names
+        # add trend data names, values, and units to list, however skip duplicate names
         unless (exists $td{$td_name}) {
-          $td_names .= $td_name . ","; 
-          $td_vals .= $td_val . ","; 
+          push (@td_names, $td_name); 
+          push (@td_vals, $td_val); 
+          push (@td_units, $td_unit); 
           $td{$td_name} = 1;
         }
         next;
       }
 
     } 
-
-    chop $td_list;
-    chop $td_vals;
-    chop $td_names;
-    chop $nl;
-    # put together the result line or record
-      if ($mn ne "") {
-        $resrecord = qq($date,$time,$edate,$etime,$tn,$job_id,$mn,$sn,$nn,$nc,"$pl",$results,$td_vals,"$nl"\n);
-        $hdr = qq(date,time,EndDate,EndTime,TestName,JobId,MachineName,SegmentName,NumNodes,NumCores,ParamList,Results,$td_names,NodeList\n);
-      } else{
-        $resrecord = qq($date,$time,$edate,$etime,$tn,$job_id,$sn,$nn,$nc,"$pl",$results,$td_vals,"$nl"\n);
-        $hdr = qq(date,time,EndDate,EndTime,TestName,JobId,SegmentName,NumNodes,NumCores,ParamList,Results,$td_names,NodeList\n);
-      }
-
-    # create handle where to place results in csv format  
-    my $of = "test" . "_results.csv";
-    open( OFILE, ">>$ofd/$of") or die "$prog: Failed to open $tn target data csv file, $!\n";
-    print OFILE $resrecord;
-    close( OFILE );
-    # header file lines should correspond one for one with data lines, thus catenation
-    my $hof = "test_result" . "_headers.csv";
-    open( HFILE, ">>$ofd/$hof") or die "$prog: Failed to open $tn target header csv file, $!\n";
-    print HFILE $hdr;
-    close( HFILE );
     close( LOG );
+
+
+    # Initialize new result csv file
+    my $of = "test_results.csv";
+    my $tf = $ofd . "/" . $of;
+    unless (-e $tf) {
+      $hdr = qq(StartDate,StartTime,EndDate,EndTime,TestName,JobId,SegmentName,NumNodes,NumCores,Params,Results,tdName,tdVal,tdUnits,Node\n);
+      open( OFILE, ">$ofd/$of") or die "$prog: Failed to open $tn target data csv file, $!\n";
+      print OFILE $hdr;
+      close( OFILE );
+    }
+
+    # Update the csv file, one line per trend data entry 
+    open( OFILE, ">>$ofd/$of") or die "$prog: Failed to open $tn target data csv file, $!\n";
+
+    my $node_name;
+    if ( $nn == 1 ) { 
+      $node_name = chomp($nl);
+    } else {
+      $node_name = "multi";
+    }
+
+    my $tdn = "";
+    my $tdv = "";
+    my $tdu = "";
+    if ( @td_names ) {
+      my $i = 0;
+      foreach (@td_names) {
+        # a special case exists where the node name may be catenated to the trenddata name with a "+". In
+        # this case separate the two parts and set the node name to the second part.
+        my @parts = split(/\+/, $td_names[$i]);
+        if ( scalar @parts == 2 ) {
+          $tdn = $parts[0];
+          $node_name = $parts[1]
+        } else {
+          $tdn = $td_names[$i];
+        }
+        $tdv = $td_vals[$i];
+        $tdu = $td_units[$i];
+        $resrecord = qq($date,$time,$edate,$etime,$tn,$job_id,$sn,$nn,$nc,"$pl",$results,$tdn,$tdv,$tdu,$node_name\n);
+        print OFILE $resrecord;
+        $i++;
+      }
+    } else {
+      # just in case there were no trend data name/values
+      $resrecord = qq($date,$time,$edate,$etime,$tn,$job_id,$sn,$nn,$nc,"$pl",$results,$tdn,$tdv,$tdu,"$node_name"\n);
+      print OFILE $resrecord;
+    }
+    close( OFILE );
+
 
 exit (0);
 
