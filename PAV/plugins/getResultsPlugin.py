@@ -111,6 +111,11 @@ class GetResults(IPlugin):
                                help='create base line averages from the selected set'
                                     ' of test results and trend data values')
 
+        parser_gr.add_argument('-lc', '--show-linecharts', action="store_true",
+                               help='show line charts and data from the selected set'
+                                    ' of test results and trend data values. Presently only supports'
+                                    ' end and start date args, not time arguments')
+
         parser_gr.set_defaults(sub_cmds='get_results')
         return 'get_results'
 
@@ -184,6 +189,14 @@ class GetResults(IPlugin):
             if args['make_box_plots']:
                 plot_cmd = os.environ['PVINSTALL'] + "/PAV/modules/makeboxplots.py"
                 gr_cmd = os.environ['PVINSTALL'] + "/PAV" + bc + " -T -l " + results_dir + " | " + plot_cmd
+            elif args['show_linecharts']:
+                gr_cmd = os.environ['PVINSTALL'] + "/PAV/scripts/showtd " + results_dir + "/test_results.csv"
+                if args['t']:
+                    gr_cmd += " -t " + args['t'][0]
+                if args['s']:
+                    gr_cmd += " -s " + args['s'][0]
+                if args['e']:
+                    gr_cmd += " -e " + args['e'][0]
             elif args['make_baselines']:
                 bl1_cmd = os.environ['PVINSTALL'] + "/PAV/modules/makebaselines.py"
                 bl2_cmd = os.environ['PVINSTALL'] + "/PAV/scripts/mkBaselines"
