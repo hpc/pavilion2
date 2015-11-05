@@ -14,6 +14,7 @@ import matplotlib.dates as mdates
 import numpy as np
 from tabulate import tabulate
 from optparse import OptionParser
+import re
 
 xDatesTimes = []
 test_names = []
@@ -112,7 +113,7 @@ def prepare_plot(test_name, date_arr, name, min_arr, max_arr, mean_arr):
     plt.xlabel('date')
 
     plt.grid(True)
-    plt.draw()  # Draws, but does not block
+    # plt.draw()  # Draws, but does not block
 
 
 def print_table(name, my_units, date_arr, min_arr, max_arr, mean_arr):
@@ -253,7 +254,15 @@ for test in test_names:
     for td_name in sorted(yValMin.keys()):
         print_table(td_name, units[td_name], xDates, yValMin[td_name], yValMax[td_name], yValMean[td_name])
         prepare_plot(test, dates, td_name, yValMin[td_name], yValMax[td_name], yValMean[td_name])
+        # these two lines below appear to be either/or but not both??
         plt.show()
+        # fig = plt.gcf()
+        new_name = re.sub(r'\(', '-', test)
+        new_name = re.sub(r'\)', '', new_name)
+        new_name = re.sub(r' ', '', new_name)
+        new_name = re.sub(r'\"', '', new_name)
+        figure_name = "/tmp/" + new_name + "-" + td_name + ".png"
+        # fig.savefig(figure_name)
 
 
 
