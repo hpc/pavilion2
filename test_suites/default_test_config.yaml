@@ -140,10 +140,8 @@ UniqueId:
     # Consider adding a new type if you want to contribute to this
     # framework.
     scheduler: 'moab'
-    # user specified test specific argument string
-    # ENV variable PV_TEST_ARGS will contain this string at run time.
-    # This entry must be a string or it can be a 
-    # list "[]" of comma separated strings to try variations.
+    # User specified test specific argument string
+    # The ENV variable PV_TEST_ARGS will contain this string at run time.
     test_args: '' 
     # number of times to repeat this section
     count: 1
