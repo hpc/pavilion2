@@ -114,7 +114,7 @@ class GetResults(IPlugin):
         parser_gr.add_argument('-lc', '--show-linecharts', action="store_true",
                                help='show line charts and data from the selected set'
                                     ' of test results and trend data values. Presently only supports'
-                                    ' end and start date args, not time arguments')
+                                    ' "s", "e", and "t" arguments')
 
         parser_gr.set_defaults(sub_cmds='get_results')
         return 'get_results'
@@ -144,7 +144,7 @@ class GetResults(IPlugin):
         res_loc_list = tc.get_result_locations()
         # print res_loc_list
         for results_dir in res_loc_list:
-            #print "\nFor results location: %s " % results_dir
+            # print "\nFor results location: %s " % results_dir
             os.environ['PV_RESULT_ROOT'] = results_dir
 
             try:
