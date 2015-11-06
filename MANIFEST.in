@@ -5,6 +5,7 @@ include PAV/pv*
 recursive-include PAV/ *.py
 include docs/*.txt
 include docs/*.yaml
+include docs/*.docx
 include test_suites/*.yaml
 include PAV/plugins/*.yapsy-plugin
 recursive-include PAV/scripts/ *
