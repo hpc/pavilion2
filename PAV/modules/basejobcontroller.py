@@ -108,7 +108,7 @@ class JobController:
         fh.setFormatter(formatter)
         self.logger.addHandler(fh)
 
-        #print "initialize job controller"
+        # print "initialize job controller"
 
         # verify command is executable early on
         mycmd = self.configs['source_location'] + "/" + self.configs['run']['cmd']
@@ -179,7 +179,7 @@ class JobController:
             os.makedirs(os.environ['PV_RUNHOME'], 0o775)
         except OSError:
             print "Error, could not create: ", ws, sys.exc_info()[0]
-            #self.logger.error(self.lh + " Error, Failed to create working space (WS)")
+            # self.logger.error(self.lh + " Error, Failed to create working space (WS)")
             raise RuntimeError("Can't create temporary work space (WS)")
 
         to_loc = os.environ['PV_RUNHOME']
@@ -210,7 +210,7 @@ class JobController:
             print [p.returncode, errors, output]
             self.logger.info(self.lh + " failed copying data to working space!, skipping job: " + self.name +
                                        "(Hint: check the job logfile)")
-            #self.logger.info(self.lh + p.returncode + errors + output)
+            # self.logger.info(self.lh + p.returncode + errors + output)
 
     def __str__(self):
         return 'instantiated %s object' % self.name
@@ -230,7 +230,7 @@ class JobController:
         print "<testExec> " + self.configs['run']['cmd']
         print "<user> " + os.getenv('USER')
         print "<params> " + os.environ['PV_TEST_ARGS']
-        #print "<segName> " + "theTargetSeg"
+        # print "<segName> " + "theTargetSeg"
         sys.stdout.flush()
 
         # save the test config
@@ -256,13 +256,13 @@ class JobController:
 
         try:
             if os.environ['PV_ES']:
-            # run an epilog script if defined in the test config
+                # run an epilog script if defined in the test config
                 es = os.environ['PV_ES']
                 print "- Run epilog script: " + str(es)
                 os.system(es)
                 print "- epilog script complete"
         except KeyError, e:
-                #print 'I got a KeyError - no: "%s"' % str(e)
+                # print 'I got a KeyError - no: "%s"' % str(e)
                 print "- No epilog script configured"
                 pass
 
@@ -280,8 +280,8 @@ class JobController:
         os.environ['PV_TEST_ARGS'] = self.configs['run']['test_args']
         os.environ['GZ_TEST_PARAMS'] = os.environ['PV_TEST_ARGS']
 
-        # When supported will be uncommented 
-        #os.environ['TD_REGX'] = self.configs['results']['trend_data_regex']
+        # Uncomment when supported!
+        # os.environ['TD_REGX'] = self.configs['results']['trend_data_regex']
 
         # Support for a Splunk data log or file
         try:
@@ -290,7 +290,6 @@ class JobController:
         except KeyError, e:
             print 'basejobcontroller:setup_job_info, Splunk config error - no: "%s"' % str(e)
             pass
-
 
     @staticmethod
     def cleanup():
@@ -304,8 +303,8 @@ class JobController:
         from_loc = os.environ['PV_RUNHOME'] + "/"
         to_loc = os.environ["PV_JOB_RESULTS_LOG_DIR"]
 
-        #print '  files in :' + from_loc
-        #print '  copy to  :' + to_loc
+        # print '  files in :' + from_loc
+        # print '  copy to  :' + to_loc
 
         # save explicitly defined files in the test suite config file
         try:
@@ -327,14 +326,13 @@ class JobController:
             print 'Warning!, copy failed!'
             pass
 
-
         # remove the working space ONLY if it was created
         try:
             if os.environ['PV_WS']:
                 print '- remove WS: %s ' % os.environ['PV_RUNHOME']
                 shutil.rmtree(os.environ['PV_RUNHOME'])
         except KeyError, e:
-            #print 'I got a KeyError - no: "%s"' % str(e)
+            # print 'I got a KeyError - no: "%s"' % str(e)
             pass
 
         print '- WS cleanup complete'
@@ -350,8 +348,8 @@ class JobController:
         lf = open(os.environ["PV_JOB_RESULTS_LOG"], 'r')
 
         for line in lf:
-            #td_regex = os.environ['TD_REGX']
-            #match = re.search(td_regex, line, re.IGNORECASE)
+            # td_regex = os.environ['TD_REGX']
+            # match = re.search(td_regex, line, re.IGNORECASE)
             match = re.search("^(<td>\s+(.*))", line, re.IGNORECASE)
             if match:
                 out_file.write(match.group(2) + "\n")
@@ -376,7 +374,7 @@ class JobController:
                 os.system(cmd)
         except KeyError, e:
             # Never set up properly so just move on...
-            #print 'basejobcontroller:process_trend_data, KeyError - no: "%s"' % str(e)
+            # print 'basejobcontroller:process_trend_data, KeyError - no: "%s"' % str(e)
             pass
 
 
