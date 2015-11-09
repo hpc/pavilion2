@@ -103,7 +103,7 @@ chomp $me;
 # print usage if h option set
 if ($opt{h}) { usage(); exit; }
 
-my $today = `date -u '+%Y-%m-%d'`;
+my $today = `date '+%Y-%m-%d'`;
 chomp $today;
 my $d;
 
