@@ -59,6 +59,8 @@
 # Application that is called by msub.
 """
 
+# Template Begin, do not remove this line!
+
 import sys
 import os
 from subprocess import Popen, PIPE
@@ -100,6 +102,7 @@ def get_moab_node_list():
     else:
         nodes = platform.node()
     return str(nodes)
+
 
 def get_segment_name():
     """
@@ -147,6 +150,7 @@ def main():
                 #print 'I got a KeyError - no: "%s"' % str(e)
                 pass
 
+            print "<start>", now()
             print "  start job with: \n    " + cmd
             lf.flush()
 
