@@ -350,7 +350,9 @@ class JobController:
         for line in lf:
             # td_regex = os.environ['TD_REGX']
             # match = re.search(td_regex, line, re.IGNORECASE)
-            match = re.search("^(<td>\s+(.*))", line, re.IGNORECASE)
+            match_str = "(<td>\s+(.*))"
+            match = re.search(match_str, line, re.IGNORECASE)
+            # match = re.search("^(<td>\s+(.*))", line, re.IGNORECASE)
             if match:
                 out_file.write(match.group(2) + "\n")
 
