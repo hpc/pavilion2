@@ -194,14 +194,11 @@ UniqueId:
   working_space:
     # Path to copy to...
     # At run time the src test directory files(s) are copied to this directory.
-    # By default this is placed under the src test directory, but can be located anywhere that 
-    # the user has write priviledges.
-    # The ENV variable PV_WS will contain the full path name of this working space at run time.
+    # By default this is placed under the src test directory, but if qualified with a full
+    # path will be placed there.
+    # The ENV variable PV_WS will contain the full path of this working space at run time.
     path: 'pv_ws' 
     nocopy: False
-    # Define the root of the working space directory if you want it to be something other 
-    # than the default (the source location).
-    root: ''
     # Override the added path component to the working space root. Default is "pv_ws".
     rpath: 'pv_ws'
     # Override files to copy to the Working Space
