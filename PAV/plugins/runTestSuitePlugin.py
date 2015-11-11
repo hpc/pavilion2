@@ -174,6 +174,8 @@ class RunTestSuite(IPlugin):
                 except AttributeError:
                     scheduler_type = "Raw"
 
+                # There needs to be this type of scheduler object implemented to support this
+                # See the testEntry.py file for examples
                 object_name = scheduler_type + "TestEntry"
                 try:
                     te = globals()[object_name](entry_id, test_suite_entry, args)
@@ -183,7 +185,7 @@ class RunTestSuite(IPlugin):
                 # If user specifies a max level of jobs to queue and run (watermark) then
                 # don't launch a new set if this level is reached.
                 if (args['w'] and te.room_to_run(args)) or not args['w']:
-                    #print "plenty of room to run"
+                    # print "plenty of room to run"
                     # launch a new process for each test variation and/or count
                     for test_entry in te.get_test_variations():
                         # initialize a unique LDMS for each job
