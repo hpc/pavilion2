@@ -80,7 +80,7 @@ class ShowEnv(IPlugin):
     # and must return the name of the this sub-command
 
     def add_parser_info(self, subparser): 
-        parser_rts = subparser.add_parser("show_env", help="show ENV parameters setup by Pavilion")
+        parser_rts = subparser.add_parser("show_env", help="show ENV variables setup and/or used by Pavilion")
         parser_rts.set_defaults(sub_cmds='show_env')
         return 'show_env'
 

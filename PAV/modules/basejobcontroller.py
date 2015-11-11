@@ -89,7 +89,7 @@ class JobController:
     def now():
         return datetime.datetime.now().strftime("%m-%d-%YT%H:%M:%S:%f")
 
-    #def __init__(self, uid, configs, job_log_file, job_variation):
+
     def __init__(self, uid, configs, job_log_file):
 
         self.uid = uid
@@ -134,9 +134,6 @@ class JobController:
             # ++ PV_TEST_ARGS : Test arguments for job extracted from test suite
             os.environ['GZ_TEST_PARAMS'] = self.configs['run']['test_args']
             os.environ['PV_TEST_ARGS'] = self.configs['run']['test_args']
-            #os.environ['PV_TEST_ARGS'] = "is a string"
-            #os.environ['GZ_TEST_PARAMS'] = "is a string"
-
         except:
             raise TypeError('test_args value problem, is it a string?')
 
@@ -329,13 +326,17 @@ class JobController:
         # remove the working space ONLY if it was created
         try:
             if os.environ['PV_WS']:
-                print '- remove WS: %s ' % os.environ['PV_RUNHOME']
-                shutil.rmtree(os.environ['PV_RUNHOME'])
+                # ++ PV_SAVE_WS : Will not remove Working Space if this ENV variable set to 1
+                if "PV_SAVE_WS" in os.environ:
+                    print '- PV_SAVE_WS flag set, not removing %s ' % os.environ['PV_RUNHOME']
+                else:
+                    print '- remove WS: %s ' % os.environ['PV_RUNHOME']
+                    shutil.rmtree(os.environ['PV_RUNHOME'])
         except KeyError, e:
             # print 'I got a KeyError - no: "%s"' % str(e)
             pass
 
-        print '- WS cleanup complete'
+        print '- Working Space cleanup complete'
 
     @classmethod
     def generate_trend_data_file(cls):
