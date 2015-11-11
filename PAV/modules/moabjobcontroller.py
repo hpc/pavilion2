@@ -68,6 +68,44 @@ from helperutilities import which
 class MoabJobController(JobController):
     """ class to run a job using Moab """
 
+    def setup_msub_cmd(self, user_script):
+        """
+        create dynamic moab_job_handler script if users script contains msub
+        DW directives.
+        """
+
+        fixed_cmd = os.environ['PVINSTALL'] + "/PAV/modules/moab_job_handler.py"
+        my_moab_wrapper_text = ""
+
+        # if DataWarp directives exist in the user script build new wrapper script on the fly
+        with open(user_script) as f:
+            match = re.findall('^#DW\s.+', f.read(), re.MULTILINE)
+            if match:
+                first_line = "#!/usr/bin/env python"
+                my_moab_wrapper_text += first_line + "\n"
+                for md in match:
+                    self.logger.info(self.lh + " : adding directive: " + str(md))
+                    my_moab_wrapper_text += md + "\n"
+
+                with open(fixed_cmd, 'r') as fc:
+                    for li in fc:
+                        if 'Template' in li:
+                            for next_line in fc:  # here are the lines we want
+                                my_moab_wrapper_text += next_line
+
+                my_home_dir = os.path.expanduser("~")
+                my_moab_wrapper = my_home_dir + "/my_moab_wrapper" + ".py"
+                mw = open(my_moab_wrapper, "w")
+                mw.write(my_moab_wrapper_text)
+                mw.close()
+                dyn_cmd = " " + my_moab_wrapper
+
+            else:
+                dyn_cmd = fixed_cmd
+
+        return dyn_cmd
+
+
     @staticmethod
     def is_moab_system():
         #if os.path.isfile("/etc/toss-release"):
@@ -173,9 +211,11 @@ class MoabJobController(JobController):
         run_cmd = os.environ['PV_RUNHOME'] + "/" + self.configs['run']['cmd']
         os.environ['USER_CMD'] = run_cmd
 
-        msub_cmd += " " + os.environ['PVINSTALL'] + "/PAV/modules/moab_job_handler.py"
+        # msub_cmd += " " + os.environ['PVINSTALL'] + "/PAV/modules/moab_job_handler.py"
 
         if MoabJobController.is_moab_system():
+            msub_wrapper_script = self.setup_msub_cmd(run_cmd)
+            msub_cmd += " " + msub_wrapper_script
             self.logger.info(self.lh + " : " + msub_cmd)
             # call to invoke real Moab command
             output = subprocess.check_output(msub_cmd, shell=True)
