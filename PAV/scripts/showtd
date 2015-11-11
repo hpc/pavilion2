@@ -86,8 +86,8 @@ def prepare_plot(test_name, date_arr, name, min_arr, max_arr, mean_arr):
     # print "    {0}:\n\t    {1}\n\tmin {2}\n\tmean{3}\n\tmax {4}".format(name, xDates, min_arr, mean_arr, max_arr)
     # print "Date array -> " + str(date_arr)
     plt.plot_date(date_arr, max_arr, marker='o', color='r', linestyle='-', label='Max')
-    plt.plot_date(date_arr, min_arr, marker='*', color='g', linestyle='-', label='Min')
     plt.plot_date(date_arr, mean_arr, marker='x', color='b', linestyle='-', label='Mean')
+    plt.plot_date(date_arr, min_arr, marker='*', color='g', linestyle='-', label='Min')
 
     # decrease the font size of the line legend and place it low center
     font_p = FontProperties()
