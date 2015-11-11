@@ -400,9 +400,11 @@ class MoabTestEntry(TestEntry):
 
 
 class RawTestEntry(TestEntry):
+    """ simple enough, just launch this executable once
+    """
 
-    def set_num_nodes(self, nn):
-        self.this_dict[self.id]['raw']['num_nodes'] = nn
+    def set_num_nodes(self):
+        self.this_dict[self.id]['raw']['num_nodes'] = 1
 
     def get_num_nodes(self):
         return self.this_dict[self.id]['raw']['num_nodes']
@@ -411,60 +413,37 @@ class RawTestEntry(TestEntry):
         """
         Figure out all the variations for this test
         and return a list of "new" test entries.
-
         """
 
         tv = []
         i = 1
 
-        # grab the fields that may have multiple choices from the
-        # original "seed" test entry
+        # make it a list if isn't already one
         try:
-            l1 = self.this_dict[self.id]['raw']['num_nodes']
-        except TypeError:
-            l1 = 1
-
-        if isinstance(l1, int):
-            l1 = [l1]
-        elif isinstance(l1, str):
-            l1 = l1.split(',')
-        try:
-            l2 = self.this_dict[self.id]['run']['test_args']
-            if isinstance(l2, str):
-                l2 = [l2]
+            ta = self.this_dict[self.id]['run']['test_args']
+            test_args = ta
+            if isinstance(ta, str):
+                test_args = [ta]
         except KeyError:
-            l2 = ['']
+            test_args = ['']
 
         original_test_dict = self.this_dict[self.id]
-        #print "effective test suite:"
-        #print original_test_dict
-        #print ""
 
-        my_prod = itertools.product(l1, l2)
-        combinations = list(my_prod).__len__()
-        #print combinations
-
-        for n, a in itertools.product(l1, l2):
-            # Actually create a NEW test entry object each with its own arg_string
-
-            # generate a new id for each variant, but use the original test entry
-            # to populate the new one, changing only the appropriate pieces
+        combinations = test_args.__len__()
+        for ta in test_args:
             if combinations == 1:
                 my_new_id = self.id
                 new_test_dict = original_test_dict
             else:
                 my_new_id = self.id + "-variation" + str(i)
                 new_test_dict = copy.deepcopy(original_test_dict)
-                #print "Generate new moab test entry (" + my_new_id + ")"
 
-            new_te = MoabTestEntry(my_new_id, new_test_dict, None)
-            new_te.set_arg_str(str(a))
+            new_te = RawTestEntry(my_new_id, new_test_dict, None)
+            new_te.set_num_nodes()
+            new_te.set_arg_str(str(ta))
             tv.append(new_te)
-            #print new_te.this_dict[my_new_id],
             i += 1
 
-        #for e in tv:
-            #print e.this_dict[e.get_id()]
         return tv
 
     def room_to_run(self, args):
