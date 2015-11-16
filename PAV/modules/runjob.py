@@ -230,6 +230,7 @@ def main(args):
                 print "<build-end> ", now()
 
             logger.info(lh + " starting")
+            logger.info(lh + " details=" + str(this_job.configs))
             #print "<start>", now()
             this_job.start()
             #print "<end>" , now()
