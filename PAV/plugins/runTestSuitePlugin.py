@@ -66,7 +66,7 @@ import time
 
 from yapsy.IPlugin import IPlugin
 from testConfig import YamlTestConfig
-from testEntry import TestEntry, MoabTestEntry, RawTestEntry
+from testEntry import TestEntry, MoabTestEntry, RawTestEntry, SlurmTestEntry
 
 
 class RunTestSuite(IPlugin):

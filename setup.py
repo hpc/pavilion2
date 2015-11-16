@@ -9,7 +9,7 @@ config = {
     'author': 'DOE',
     'download_url': 'https://github.com/losalamos/Pavilion',
     'author_email': 'cwi@lanl.gov',
-    'version': '1.0.9',
+    'version': '1.1.0',
     'packages': ['PAV'],
     'packages': ['test'],
     'name': 'pavilion'
