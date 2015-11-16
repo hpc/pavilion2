@@ -16,9 +16,10 @@ Usage:
     run the tool - "pav -h"
 ```
 
-Version 1.0.0
+Version 1.1.0
 
-> Verified to work with Moab scheduler thus far. Development needed for Slurm, Raw, etc.
+> Verified to work with Moab scheduler thus far. 
+> Support for both for Slurm and Raw now in 1.1.0.
 
 
 Collaboration tips:
