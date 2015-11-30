@@ -89,7 +89,6 @@ class JobController:
     def now():
         return datetime.datetime.now().strftime("%m-%d-%YT%H:%M:%S:%f")
 
-
     def __init__(self, uid, configs, job_log_file):
 
         self.uid = uid
@@ -193,7 +192,7 @@ class JobController:
                 cmd = "rsync -a --exclude '" + \
                       exclude_ws + "' --exclude '*.[ocfh]' --exclude '*.bck' --exclude '*.tar' "
             else:
-                cmd = "rsync -a --exclude '*.[ocfh]' --exclude '*.bck' --exclude '*.tar' "
+                cmd = "rsync -a --exclude '*.[ocfh]' --exclude 'pv_ws' --exclude '*.bck' --exclude '*.tar' "
             cmd += from_loc + " " + to_loc
 
         self.logger.debug('%s : %s' % (self.lh, cmd))
