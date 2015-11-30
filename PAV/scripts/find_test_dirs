@@ -1,6 +1,5 @@
 #!/usr/bin/perl
 
-
 #  ###################################################################
 #
 #  Disclaimer and Notice of Copyright 
@@ -56,6 +55,7 @@
 #  ###################################################################
 
 # script to create a list of all test directories in a given date range
+
 
 $| = 1;    # disable buffered I/O
 my $prog;
@@ -256,7 +256,7 @@ foreach $d (@dirlist) {
 }
 
 
-if ( $opts{v} ) { print "dir res list:\n$res\n"; }
+if ( $opts{v} ) { print "result directory candidates:\n$res\n"; }
 
 my $res2;
 my @tmp;
@@ -276,20 +276,22 @@ for (split /^/, $res) {
 
     my @tdirs = split( ' ', $tmp );
     foreach $entry (@tdirs) {
-      if ( $opts{v} ) { print "  check - $entry\n"; }
+      if ( $opts{v} ) { print "  checking - $entry\n"; }
 
       my ($junk, $dateTime) = split /\./, $entry;
       my ($cal, $entryTime) = split /T/, $dateTime;
       my ($yr, $mo, $day) = split /-/, $cal;
       my ($hr, $min, $sec, $msec) = split /:/, $entryTime;
       #print "$hr, $min, $sec, $msec \n";
-      if ($sec < 60) {
+      if (length $sec && $sec < 60 ) {
         my $testTime = timelocal( $sec, $min, $hr, $day, $mo - 1, $yr - 1900 );
         #print "$testTime\n";
         if (( $testTime >= $sd) && ( $testTime <= $ed ) ) {
-          if ( $opts{v} ) { print "add $d/$entry to final results\n"; }
+          if ( $opts{v} ) { print "  add $d/$entry to final results\n"; }
           print "$d/$entry\n";
         }
+      } else {
+        if ( $opts{v} ) { print "  skipping $entry, NOT a valid result directory.\n"; }
       }
     }
 
