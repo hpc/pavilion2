@@ -71,7 +71,7 @@ import argparse
 from yapsy.PluginManager import PluginManager
 
 
-# initialize and set up the pavilion log file
+# initialize and set up the pavilion master log file
 me = getpass.getuser()
 mlf = "/tmp/" + me + "/pav.log"
 # ++ PV_LOG : Master log file
@@ -88,11 +88,11 @@ import logging
 logger = logging.getLogger('pav')
 logger.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-# master log file define in config.py
+# make sure we can write to the master log file
 try:
     fh = logging.FileHandler(filename = master_log_file)
 except IOError:
-    sys.exit("Error: no permission to write to master_log_file defined in config.py, exiting!")
+    sys.exit("Error: no permission to write to master_log_file, exiting!")
 
 
 fh.setFormatter(formatter)
