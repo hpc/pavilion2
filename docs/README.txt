@@ -87,14 +87,14 @@ Getting Started:
      1) create a directory for the test_suite config files.
      2) copy the Example default test suite to this directory and name it
         default_test_config.yaml. Tweak it only where appropriate.
-        HINT : quite possibly only the root results directory definition may need to change.
+        HINT : quite possibly only the results root directory and working space paths may need to change.
      3) cd to this directory.
      4) copy the default config file to a new file (for example, my_test_config_suite.yaml) 
      5) strip all the entries from this new file down to only the specific entires you need changed.
         Only the id, name, source_location, and run:cmd parts are required to be in each new stanza. 
-        The id (left most component) must be unique for each stanza.
+        The id (left most component) must be unique for each stanza. Do NOT leave new fields blank.
      6) At this point there should be at least two files in this directory.  The default one (the
-        exact name IS important) and your new one (this name is NOT important, but should end with ".yaml").
+        exact name IS important) and your new one (it's name is NOT important, but should end with ".yaml").
 
   - Type "pav view_test_suite ./my-test-config-suite.yaml" to see how your new test suite
     file is "meshed" with the default file.  Add as may test stanzas as needed.
@@ -139,15 +139,15 @@ reason - optional string (one line) summarizing pass or fail reason
 
 2) Trend data
 
-Specific test/job related values are efficiently analyzed if they are reported as trend data.
+Specific test/job related values are analyzed if they are reported as trend data.
 Multiple trend data values can be saved for every test run. This data is
-obviously unique to each application and is determined by the test/app developer.
+obviously unique to each application and is determined by the test developer.
 
 Syntax -
 <td> name[+target_item] value [units]
 
 Explanation - 
-<td> - tag used by the result parser. 
+<td> - tag, or reserved name, used by the result parser. 
 name - char string, up to 32 chars. Name of the value of
   interest. Referred to in Pavilion parlance as trend data.   
   Note - If name is followed by a "+" (no spaces) with a node name
@@ -156,7 +156,7 @@ name - char string, up to 32 chars. Name of the value of
 value - char string, up to 64 chars
 units - optional char string, up to 24 chars.
 target_item - trend data is associtated with the test that produced it. To provide more specific association, 
-  for example, to a node name, add this string to the end of the trend_data name field. The "+" is a reserved
+  for example, to a node name, add a string to the end of the trend_data name field. The "+" is a reserved
   character! 
   ex. "<td> flop_rate+node005 743.2 Gflops"
 
