@@ -240,7 +240,7 @@ foreach $group (@grps) {
     my $nnodes;
 
     print "\n\nNEW SEARCH  \n" if ($opt{v});
-    print " looking in $_\n" if ($opt{v});
+    print " looking in: $_\n" if ($opt{v});
 
     # skip null strings
     next if ( $_ eq "" );
@@ -319,14 +319,14 @@ foreach $group (@grps) {
     if ( -r "$lf" ) {
         $testjid = `grep -m 1 "<JobID>" '$lf' | awk '{ print \$2 }'`;
         chomp($testjid);
-        print "my moab job id : $testjid\n" if ($opt{v});
+        print "  --> job id : $testjid" if ($opt{v});
     }
 
     # skip if this test is currently running
     #print "active job(s) - $activeJobs\n";
     #print "testjid - $testjid\n";
 
-    print "my active job(s) - $activeJobs\n" if ($opt{v});
+    #print "my active job(s) - $activeJobs\n" if ($opt{v});
     if (($testjid) && ( $activeJobs =~ m/$testjid/ ))  {
         print "\nskipping active job $testjid\n" if ($opt{v});
         next;
@@ -338,7 +338,7 @@ foreach $group (@grps) {
       unless ( -r $tf[0] ) {
 	next;
       }
-      print "\n\nchecking: $tf[0]" if ($opt{v});
+      print "checking: $tf[0]" if ($opt{v});
     } else {
       if ( $lf ne "") {
         print "\n checking: $lf \n" if ($opt{v});
@@ -444,7 +444,7 @@ foreach $group (@grps) {
     if ( -e $lf ) {
           # run the chklg command
           $status = qx/$cmd/;
-        print " --> $status " if ($opt{v});
+        print "  --> $status " if ($opt{v});
         if ( $status =~ /=PASS/ ) {
             $totalTestsPassed++;
             $passed{$tn}{$testCU}++;
@@ -467,7 +467,7 @@ foreach $group (@grps) {
 
             chomp($treal{$tn}{$testCU});
 
-            print "--> $tn: $treal{$tn}{$testCU} secs of real time used\n" if ($opt{v});
+            print " --> $tn: $treal{$tn}{$testCU} secs of real time used\n" if ($opt{v});
             if (exists $totalRealtime{$tn}{$testCU}) { 
               $totalRealtime{$tn}{$testCU} = $totalRealtime{$tn}{$testCU} + $treal{$tn}{$testCU};
 #print "\nDebug1: total time so far - $totalRealtime{$tn}{$testCU}, num tests passed - $passed{$tn}{$testCU}\n";
