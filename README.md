@@ -13,14 +13,14 @@ Usage:
     (for example - "setenv PVINSTALL /users/me/pavilion")
     add to your search path this directory plus "/PAV"
     (for example - "setenv PATH ${PVINSTALL}/PAV:${PVINSTALL}/PAV/scripts:${PATH}")
-    create own default and test specific config files. See examples in $PVINSTALL dir
+    create own default and test specific config files. See examples in $PVINSTALL/docs dir
     run the tool - "pav -h"
 ```
 
 Version 1.1.2
 
 > Verified to work with Moab scheduler thus far. 
-> Support for both for Slurm and Raw now in 1.1.0.
+> Support for both for Slurm and Raw in version 1.1.0.
 
 
 Collaboration tips:
