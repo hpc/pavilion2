@@ -52,5 +52,6 @@
 #
 #  ###################################################################
 
-This directory contians code that is intended to be a sub-command to the Pavilion CLI. They're located in this
-directory merely by convention so the main Pavilion knows where to look for these special Yapsy related files/programs.
+This directory contains code that is intended to be a sub-command(s) to the Pavilion CLI.
+It's located here merely by convention so the Pavilion knows where to look for these
+special Yapsy related files/programs.
