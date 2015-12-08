@@ -158,7 +158,7 @@ class JobController:
         # so no further work necessary.
         else:
             # ++ PV_WS : Path where job is run from at run time  (see PV_RUNHOME)
-            os.environ['PV_WS'] = ""
+            os.environ['PV_WS'] = src_dir
             os.environ['PV_RUNHOME'] = src_dir
             print os.environ['PV_RUNHOME']
             print 'Working Space: %s' % os.environ['PV_RUNHOME']
