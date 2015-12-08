@@ -52,6 +52,42 @@
 #
 #  ###################################################################
 
-This directory contains various utility or helper scripts that are either called by Pavilion or are stand-alone tools useful for others tasks (such as file analysis).
+This directory contains various scripts that are either called by Pavilion core code or are stand-alone utilities useful for others tasks (such as file analysis).
+ 
+As many of these utility scripts are specific to LANL these are not included in the git repo.
 
 Feel free to make new ones, improve, or re-write these.
+
+
+-- list as of 12/8/2015 ----
+
+ReadBackwards.pm - core script used by get_results to read files from the end.
+blDiff - utility that shows delta between like tests in two different baseline data files
+checkjob_getNodeList - utility used to find nodes allocated to a Moab job if given the jobid. 
+chklg - core logic used by get_results to determine pass/fail/unknown/undefined status from output in log file.
+cleanupWS - old Gazebo utility (not ported to Pavilon yet) used to clean up old working spaces.
+defaultDaysAgo.py - core script called by get_results 
+find_test_dirs - core script used by get_results to find the list of result directories to analyze. 
+findgrep - utility that can be used to recursivily find strings in files starting at some given level.
+fmp - utility that is the beginnings of replacement for jobFailAnal. Probably should be renamed to when working.
+getCLENodeList - core script used to find what nodes were allocated to this job run on Cray systems.
+getCleNids - core script called by getCLENodeList
+getNodeCoverage - utility that will tabulate job run time on each compute node over a give range of time. 
+getNodeList - core script called by Pavilion to find what nodes were allocated to this job run.
+getSLURMNodeList - core script used to find what nodes were alloacated to this job run.
+get_results - core script called by Pavilion ported from Gazebo that summaries test result data.
+get_results-with-expanded-time-summary - same as get_results, but time reported in min/mean/max. To be switched to someday.
+jobFailAnal - very simple knowledge based utility to find common failure strings in files in result directories.
+jobReportcsv - utility to generate a basic csv list of common information of all tests starting at a specific date.
+listgrp - core script used by get_results and find_test_dirs. 
+mk-tpl - utility often used after a set of test runs that creates a specific format of report summary and data.  
+mkBaselines - core script used by get_results to create a baseline of all trend data values.
+mytime - core script used to time program runs.
+pv_testMgr - utility used to continually launch pavilion tests/jobs
+showtd - core script used by get_results to display trend data in graphical and table format.
+splunk - directory that contains a core script that is called by pavilion to generate the my.splunkdata file is the results directory
+sysStatChanges - utility used to read output from sysStat script and summarize changes to the node availability. 
+tabulate.py - python module used by showtd to support displaying tabular data.
+td2csvgdl - core script used by Pavilion to generate running csv file of all trend data. See test_results.csv in results root dir.
+xexec - directory containing multi-purpose HPC system testing tool.
+
