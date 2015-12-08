@@ -46,7 +46,7 @@ foreach t ( /tmp/pav*dirs.out )
 
       # CAUTION: some of these are very specific to current format and path length
       #          might need some tweaking if anything is different
-      setenv QQ_NAM `echo $d | cut -d "/" -f 10`
+      setenv QQ_NAM `echo $d | rev | cut -d "/" -f 2 | rev`
       setenv QQ_JID `grep "<JobID" $d/*.log | cut -d " " -f 2`
       setenv QQ_NN `grep "<nnodes>" $d/*.log | cut -d " " -f 2`
       setenv QQ_SUBD `echo $d | cut -d "." -f 2 | cut -d "T" -f 1`
