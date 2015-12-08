@@ -129,6 +129,8 @@ class YamlTestConfig():
             # Support test_suites that include other test_suites.
             # Could be recursive, but two levels for now.
             config_file_base_dir = os.path.dirname(config_name)
+            if not config_file_base_dir:
+                config_file_base_dir = "."
             fn = config_name
             cfg = load(open(fn))
             for inc in cfg.get("IncludeTestSuite", []):
