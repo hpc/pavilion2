@@ -99,6 +99,7 @@ class GetResults(IPlugin):
         parser_gr.add_argument('-p', '--pass', help="locate/show passing test directories", action="store_true")
         parser_gr.add_argument('-T', '--td', help="display trend data", action="store_true")
         parser_gr.add_argument('-v', '--verbose', help="show work", action="store_true")
+        parser_gr.add_argument('-x', '--xtime', help="show enhanced run time fields", action="store_true")
 
         parser_gr.add_argument('-ts', nargs=1, metavar='<file>',
                                help='test suite to acquire results path (root) from,'
@@ -183,6 +184,8 @@ class GetResults(IPlugin):
                 bc += " -t " + args['t'][0]
             if args['u']:
                 bc += " -u " + args['u'][0]
+            if args['xtime']:
+                bc += " -x "
             if args['td']:
                 bc += " -T "
 

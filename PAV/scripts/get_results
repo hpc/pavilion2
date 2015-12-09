@@ -80,8 +80,9 @@ $opt{e} = "";
 $opt{S} = "";
 $opt{E} = "";
 $opt{g} = "";
+$opt{x} = "";
 # setup arguments as switches or ones that require strings  
-getopts( "g:t:u:l:s:S:e:E:apfhivT", \%opt);
+getopts( "g:t:u:l:s:S:e:E:apfhivxT", \%opt);
 
 my $jobsRunning = "";
 my $activeJobs = "";
@@ -160,10 +161,15 @@ if ($cmd_exists =~ m/mdiag/) {
 print "\n  --------------------------------------------------------------------  \n\n";
 print "  *** Job Summary (results root directory -> $opt{l}) ***\n";
 print "  From: $start through $end \n";
-unless ( $opt{a} ) {
-  #print "\t Analysis between $start and $end \n";
-  print "    Output format: testName.numNodesXnumCores(test arguments) - results, [avg. run time]\n\n\n";
+unless ( $opt{a} || $opt{T}) {
+  if ( $opt{x} ) {
+    print "    Output format: testName.numNodesXnumCores(test arguments) - results, [min, mean, max run time in secs]\n";
+  } else {
+    print "    Output format: testName.numNodesXnumCores(test arguments) - results, [Avg. run time in secs]\n";
+  }
 }
+
+print "\n";
 
 # determine where to search 
 my $cmd;
@@ -217,6 +223,8 @@ foreach $group (@grps) {
   my %foobarTests = ();
   my %seen = ();
   our %totalRealtime = ();
+  our %maxJobtime = ();
+  our %minJobtime = ();
   our $CumTotalTime = 0;
   our $totalNodeHrs;
   my @my_cus = ();
@@ -470,9 +478,17 @@ foreach $group (@grps) {
             print " --> $tn: $treal{$tn}{$testCU} secs of real time used\n" if ($opt{v});
             if (exists $totalRealtime{$tn}{$testCU}) { 
               $totalRealtime{$tn}{$testCU} = $totalRealtime{$tn}{$testCU} + $treal{$tn}{$testCU};
+              if ($maxJobtime{$tn}{$testCU} < $treal{$tn}{$testCU}) {
+                  $maxJobtime{$tn}{$testCU} = $treal{$tn}{$testCU};
+              }
+              if ($minJobtime{$tn}{$testCU} > $treal{$tn}{$testCU}) {
+                  $minJobtime{$tn}{$testCU} = $treal{$tn}{$testCU};
+              }
 #print "\nDebug1: total time so far - $totalRealtime{$tn}{$testCU}, num tests passed - $passed{$tn}{$testCU}\n";
             } else {
               $totalRealtime{$tn}{$testCU} = $treal{$tn}{$testCU};
+              $maxJobtime{$tn}{$testCU} = $treal{$tn}{$testCU};
+              $minJobtime{$tn}{$testCU} = $treal{$tn}{$testCU};
             }
             push( @{ $passedTests{$tn}{$testCU} }, "$_" ) if ($opt{p});
         }
@@ -584,7 +600,11 @@ foreach $group (@grps) {
              $format_str = "%-" . $max_name_len . "s %10d %8d %8d %8d %16.2f\n";
             printf ($format_str, $kt, $totalThisTest{$kt}{$cu}, $passed{$kt}{$cu}, $failed{$kt}{$cu}, ($undef{$kt}{$cu} + $foobar{$kt}{$cu}), $realAvg);
           } else {
-            printf ("\t%s, [%4.2f secs]\n", "$kt - total_runs:$totalThisTest{$kt}{$cu}, passed:$passed{$kt}{$cu}, failed:$failed{$kt}{$cu}, undefined:$undef{$kt}{$cu}, incomplete:$foobar{$kt}{$cu}", $realAvg);
+            if ( $opt{x} ) {
+              printf ("\t%s, [%4.2f, %4.2f, %4.2f]\n", "$kt - total_runs:$totalThisTest{$kt}{$cu}, passed:$passed{$kt}{$cu}, failed:$failed{$kt}{$cu}, undefined:$undef{$kt}{$cu}, incomplete:$foobar{$kt}{$cu}", $minJobtime{$kt}{$cu}, $realAvg, $maxJobtime{$kt}{$cu});
+            } else {
+              printf ("\t%s, [%4.2f secs]\n", "$kt - total_runs:$totalThisTest{$kt}{$cu}, passed:$passed{$kt}{$cu}, failed:$failed{$kt}{$cu}, undefined:$undef{$kt}{$cu}, incomplete:$foobar{$kt}{$cu}", $realAvg);
+            }
           }
         }
 
