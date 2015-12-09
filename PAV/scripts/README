@@ -52,14 +52,15 @@
 #
 #  ###################################################################
 
-This directory contains various scripts that are either called by Pavilion core code or are stand-alone utilities useful for others tasks (such as file analysis).
+This directory contains various scripts that are either called by Pavilion core code
+or are stand-alone utilities useful for others tasks (such as file analysis).
  
-As many of these utility scripts are specific to LANL these are not included in the git repo.
+Some of these utility scripts are specific to LANL thus are not included in the git repo.
 
 Feel free to make new ones, improve, or re-write these.
 
 
--- list as of 12/8/2015 ----
+-- list as of 12/9/2015 ----
 
 ReadBackwards.pm - core script used by get_results to read files from the end.
 blDiff - utility that shows delta between like tests in two different baseline data files
@@ -86,7 +87,9 @@ mytime - core script used to time program runs.
 pv_testMgr - utility used to continually launch pavilion tests/jobs
 showtd - core script used by get_results to display trend data in graphical and table format.
 splunk - directory that contains a core script that is called by pavilion to generate the my.splunkdata file is the results directory
-sysStatChanges - utility used to read output from sysStat script and summarize changes to the node availability. 
+sysStatChanges - utility used to read output from sysState script and summarize changes to the node availability. 
+sysTimeline - utility used to read output from sysState script and output in colum format actual state changes
+sysState - tcsh script typically called by cron to record status of up/down nodes on a Cray system.
 tabulate.py - python module used by showtd to support displaying tabular data.
 td2csvgdl - core script used by Pavilion to generate running csv file of all trend data. See test_results.csv in results root dir.
 xexec - directory containing multi-purpose HPC system testing tool.
