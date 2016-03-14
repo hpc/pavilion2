@@ -1,0 +1,9 @@
+[Core]
+Name = showEnv 
+Module = showEnvPlugin 
+
+[Documentation]
+Author = Craig Idler 
+Version = 0.1
+Website = http://pavilion.org
+Description = Display all ENV params made available to Pavilion users 

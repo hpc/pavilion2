@@ -1,0 +1,826 @@
+#!/usr/bin/perl -w
+
+#  ###################################################################
+#
+#  Disclaimer and Notice of Copyright 
+#  ==================================
+#
+#  Copyright (c) 2015, Los Alamos National Security, LLC
+#  All rights reserved.
+#
+#  Copyright 2015. Los Alamos National Security, LLC. 
+#  This software was produced under U.S. Government contract 
+#  DE-AC52-06NA25396 for Los Alamos National Laboratory (LANL), 
+#  which is operated by Los Alamos National Security, LLC for 
+#  the U.S. Department of Energy. The U.S. Government has rights 
+#  to use, reproduce, and distribute this software.  NEITHER 
+#  THE GOVERNMENT NOR LOS ALAMOS NATIONAL SECURITY, LLC MAKES 
+#  ANY WARRANTY, EXPRESS OR IMPLIED, OR ASSUMES ANY LIABILITY 
+#  FOR THE USE OF THIS SOFTWARE.  If software is modified to 
+#  produce derivative works, such modified software should be 
+#  clearly marked, so as not to confuse it with the version 
+#  available from LANL.
+#
+#  Additionally, redistribution and use in source and binary 
+#  forms, with or without modification, are permitted provided 
+#  that the following conditions are met:
+#
+#  1. Redistributions of source code must retain the 
+#     above copyright notice, this list of conditions 
+#     and the following disclaimer. 
+#  2. Redistributions in binary form must reproduce the 
+#     above copyright notice, this list of conditions 
+#     and the following disclaimer in the documentation 
+#     and/or other materials provided with the distribution. 
+#  3. Neither the name of Los Alamos National Security, LLC, 
+#     Los Alamos National Laboratory, LANL, the U.S. Government, 
+#     nor the names of its contributors may be used to endorse 
+#     or promote products derived from this software without 
+#     specific prior written permission.
+#   
+#  THIS SOFTWARE IS PROVIDED BY LOS ALAMOS NATIONAL SECURITY, LLC 
+#  AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, 
+#  INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF 
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. 
+#  IN NO EVENT SHALL LOS ALAMOS NATIONAL SECURITY, LLC OR CONTRIBUTORS 
+#  BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, 
+#  OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, 
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, 
+#  OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY 
+#  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR 
+#  TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT 
+#  OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY 
+#  OF SUCH DAMAGE.
+#
+#  ###################################################################
+
+($prog = $0) =~ s/.*\///;
+
+select((select(STDOUT), $| = 1)[0]);
+select((select(STDERR), $| = 1)[0]);
+
+use 5.005;					# for 'qr//'
+use bytes;
+use Pod::Usage;
+use Getopt::Long;
+use File::Find ();
+use POSIX qw(tmpnam);
+use Text::ParseWords;
+use Fcntl qw(:DEFAULT :flock);
+
+use vars qw /*name *prune/;
+*name   = *File::Find::name;
+*prune  = *File::Find::prune;
+
+my @CVS_excludes = (
+   '*/RCS',
+   '*/SCCS',
+   '*/CVS',
+   '*/.git',
+   '*/.svn',
+);
+
+my @CVS_headers = (
+   '\$(Head)?URL:\s.*\s\$',
+   '\$Header:\s.*\s\$',
+   '\$Id:\s.*\s\$',
+);
+our $cvs_headers = join('|', @CVS_headers);
+$cvs_headers = qr/($cvs_headers)/s;
+   
+$ENV{'PATH'} = '/bin:/usr/bin:/usr/sbin';
+
+pod2usage("$prog: no pattern specified.") unless (@ARGV);
+
+our @Paths = ();
+ARG:while (scalar(@ARGV)) {
+   my $path = $ARGV[0];
+   if ($path eq '-') {
+      shift(@ARGV); last ARG;			# dir processing done
+   } elsif ($path eq '--') {
+      last ARG;					# dir processing done
+   } elsif (-d $path) {
+      1 while $path =~ s/^(.+)\/$/$1/;		# remove trailing '/'s if any
+      $path .= '/';
+      push(@Paths, $path)
+	 unless (grep(/\Q$path\E/, @Paths));
+      shift(@ARGV); next ARG;
+   } elsif (-e $path) {
+      die "$prog: path '$path' is not a directory ... croaking\n";
+   } elsif (! scalar(glob($path))) {
+      die "$prog: glob '$path' expands to nothing ... croaking\n";
+   }
+   last ARG;
+}
+@Paths = ('./') unless (scalar(@Paths));
+
+our @Opt_x = ();
+our (
+   $opt_C,				# CVS exclude
+   $opt_M,				# less(1) options
+   $opt_N,				# not
+   $opt_P,				# parallel width
+   $opt_V,				# vim(1) options
+   $opt_c,				# context
+   $opt_e,				# exact
+   $opt_h,				# help
+   $opt_i,				# ignore case
+   $opt_l,				# xdev
+   $opt_m,				# less(1)
+   $opt_man,				# man
+   @Opt_n,				# name
+   @Opt_p,				# prune
+   $opt_v,				# vim(1)
+   $opt_x,				# exec
+   $opt_z				# zipped
+);
+
+&Getopt::Long::config(
+   'bundling',				# allow option bundling
+   'require_order'			# don't mix non-options with options
+);
+
+pod2usage(2) unless &GetOptions(
+   'C|cvs-exclude'	=> \$opt_C,
+   'M=s'		=> \$opt_M,
+   'V=s'		=> \$opt_V,
+   'c|context:i'	=> \$opt_c,
+   'e|exact'		=> \$opt_e,
+   'h|help'		=> \$opt_h,
+   'i|ic'		=> \$opt_i,
+   'l|local|xdev'	=> \$opt_l,
+   'm|more|less'	=> \$opt_m,
+   'man'		=> \$opt_man,
+   'n|name=s@'		=> \@Opt_n,
+   'N|not'		=> \$opt_N,
+   'P:i'		=> \$opt_P,
+   'p|prune=s@'		=> \@Opt_p,
+   'v|vim'		=> \$opt_v,
+   'x|exec'		=> \&ExecArgs,
+   'z|zipped'		=> \$opt_z,
+);
+
+pod2usage(1) if ($opt_h);
+if ($opt_man) {				# print the man page
+   $ENV{'PATH'} = '/bin:/usr/bin';
+   if ($< && $>) {			# no root privs
+      pod2usage(-verbose => 2);
+   } else {
+      my $id = getpwnam("nobody") || getpwnam("nouser") || -2;
+      eval {
+	 $> = $id;			# drop euid first
+	 $< = $id;			# drop ruid
+      };
+      if (!$@ && $< && $>) {		# success!
+	 pod2usage(-verbose => 2)
+      } else {				# failure!
+	 pod2usage(1);
+      }
+   }
+}
+
+$opt_m = 1 if (defined($opt_M));
+$opt_v = 1 if (defined($opt_V));
+
+pod2usage(qq|$prog: option '-c' cannot be used with option '-m'.|)
+   if (defined($opt_c) && $opt_m);
+pod2usage(qq|$prog: option '-c' cannot be used with option '-v'.|)
+   if (defined($opt_c) && $opt_v);
+pod2usage(qq|$prog: option '-c' cannot be used with option '-x'.|)
+   if (defined($opt_c) && $opt_x);
+pod2usage(qq|$prog: option '-c' cannot be used with option '-N'.|)
+   if (defined($opt_c) && $opt_N);
+pod2usage(qq|$prog: option '-m' cannot be used with option '-v'.|)
+   if ($opt_m && $opt_v);
+pod2usage(qq|$prog: option '-m' cannot be used with option '-x'.|)
+   if ($opt_m && $opt_x);
+pod2usage(qq|$prog: option '-v' cannot be used with option '-x'.|)
+   if ($opt_v && $opt_x);
+
+pod2usage("$prog: no pattern specified.") unless (@ARGV);
+
+$PMAX = 4;
+if (defined($opt_P)) {
+   $opt_P = $PMAX unless ($opt_P > 0);
+} else {
+   $opt_P = $PMAX;
+}
+
+# Instantiate signal handlers
+$SIG{'PIPE'} = 'IGNORE';
+$SIG{'HUP'}  = \&parent_signal_handler;
+$SIG{'INT'}  = \&parent_signal_handler;
+$SIG{'TERM'}  = \&parent_signal_handler;
+
+our %RUNpids = ();
+our $b = ( $opt_e ? '\b' : '');
+our $contextwords  = '';
+
+our @LessCmd = ('-+i');
+our @VimCmd = ('-c', ':set title');
+
+if ($opt_i) {
+   push (@LessCmd, '-I'); 
+   push (@VimCmd, '-c', ':set ignorecase');
+} else {
+   push (@VimCmd, '-c', ':set noignorecase');
+}
+
+our $lesscmd = '+/';
+our $vimcmd = '/';
+our ($word, @WORDS);
+foreach $word (@ARGV) {
+   $word = quotemeta($word);		# protect non-word delimeters
+   push(@WORDS,$word);
+   $contextwords .= "$b$word$b|";
+
+# swap the following two if you have a modern 'less' everywhere
+#   $lesscmd .= "$word|";
+   $lesscmd .= ($opt_e ? "\\b$word\\b|" : "$word|");
+
+   $vimcmd .= ($opt_e ? "\\<$word\\>\\|" : "$word\\|");
+}
+
+pod2usage("$prog: no pattern specified.") unless (@WORDS);
+
+chop($lesscmd);
+push(@LessCmd,$lesscmd);
+@LessCmd = () if defined($opt_N);
+@LessCmd = &Text::ParseWords::shellwords($opt_M) if (defined($opt_M));
+
+$vimcmd =~ s/^(.*)\\\|$/$1/;
+push(@VimCmd,'-c', "$vimcmd");
+@VimCmd = () if defined($opt_N);
+@VimCmd = &Text::ParseWords::shellwords($opt_V) if (defined($opt_V));
+
+chop($contextwords);
+
+our $opt_n = '.*';
+if (@Opt_n) {
+   $opt_n = join ('|', map { quotemeta } @Opt_n);
+   $opt_n =~ s/\\\*/.*/go;				# allow '*' wildcards
+   $opt_n =~ s/\\\?/./go;				# allow '?' wildcards
+}
+
+push (@Opt_p, @CVS_excludes) if ($opt_C);		# CVS excludes
+
+our $opt_p = '';
+if (@Opt_p) {
+   foreach $prunepath (@Opt_p) {
+
+# replace any trailing '/' with '\z' in $prunepath since this certainly
+# will never be matched (File::Find never returns directory names with a
+# trailing '/').
+      $prunepath =~ s/^(.*)\/$/$1\\z/;
+      $opt_p .= quotemeta($prunepath) . '|';
+   }
+   chop $opt_p;
+   $opt_p =~ s/\\\*/.*/go;				# allow '*' wildcards
+   $opt_p =~ s/\\\?/./go;				# allow '?' wildcards
+   $opt_p =~ s/\\\\z/\\z/go;				# permit '\z'
+}
+
+# VARS containing precompiled regexps
+$opt_n = qr/\b($opt_n)\b/s;
+$opt_p = qr/^($opt_p)\z/;
+if ($opt_i) {
+   @WORDS = map { qr/$b$_$b/i } @WORDS;
+   $contextwords = qr/($contextwords)/io;
+} else {
+   @WORDS = map { qr/$b$_$b/} @WORDS;
+   $contextwords = qr/($contextwords)/o;
+}
+
+our $gpid = undef;
+
+our $cols = `tput cols` || 80;
+our $dirsz = $cols - length("Searching ... ");
+
+do {$tty = tmpnam() }
+   until sysopen(TTY, $tty, O_RDWR|O_EXCL|O_CREAT); 
+
+# Traverse desired filesystems
+if ($opt_l) {
+   File::Find::find({wanted => \&lwanted,
+			  follow_skip => 1,
+			  no_chdir => 1 },
+			  @Paths);
+} else {
+   File::Find::find({wanted => \&wanted,
+			  follow_skip => 1,
+			  no_chdir => 1 },
+			  @Paths);
+}
+
+while ( %RUNpids ) {
+   &ReapChildren(\%RUNpids);
+}
+
+print STDERR "\r" . " " x $cols . "\r";
+
+if (-e $tty) {
+   unlink($tty) || die "$prog: unable to unlink $tty: $!\n";
+}
+
+exit;
+
+sub lwanted {
+   my ($dev,$ino,$mode,$nlink,$uid,$gid);
+
+   /$opt_p/ &&
+   ($File::Find::prune = 1)
+   ||
+   (($dev,$ino,$mode,$nlink,$uid,$gid) = lstat($_)) &&
+   !($File::Find::prune |= (($dev != $File::Find::topdev) ? 1 : 0)) &&
+   -d _ &&
+   $RUNpids{&grepfiles($name)}++;
+   while ((scalar keys %RUNpids) > $opt_P) {
+      &ReapChildren(\%RUNpids);
+   }
+}
+
+sub wanted {
+   my ($dev,$ino,$mode,$nlink,$uid,$gid);
+
+   /$opt_p/ &&
+   ($File::Find::prune = 1)
+   ||
+   (($dev,$ino,$mode,$nlink,$uid,$gid) = lstat($_)) &&
+   -d _ &&
+   $RUNpids{&grepfiles($name)}++;
+   while ((scalar keys %RUNpids) > $opt_P) {
+      &ReapChildren(\%RUNpids);
+   }
+}
+
+sub grepfiles ($) {
+   my $dir = $_[0];
+   my $filename = '';
+   my $ppid;
+
+   if ($ppid = fork) {				# parent
+      return $ppid;
+   } elsif ( defined $ppid ) {			# child
+      local (*DIR, *TEXTFILE);
+      local $SIG{'HUP'}  = \&child_signal_handler;
+      local $SIG{'INT'}  = \&child_signal_handler;
+      local $SIG{'TERM'}  = \&child_signal_handler;
+
+      opendir(DIR,$dir) || exit -1;
+
+      my $d = $dir;
+      $d = "..." . substr($dir,-$dirsz) if (length($dir) > $dirsz);
+      &print_SH("Searching $d ");
+
+F:    foreach $filename (sort grep { /$opt_n/ && (-l "$dir/$_" || -f _) }
+	 readdir(DIR)) {
+	 my $file = "$dir/$filename";
+	 our $zipped = ($filename =~ /.*\.(z|Z|gz)$/o ? $opt_z : 0);
+	 our $bzipped = ($filename =~ /.*\.bz2$/o ? $opt_z : 0);
+	 next F unless (-T $file || $zipped || $bzipped);
+	 if (! ($zipped || $bzipped)) {
+	    unless (open(TEXTFILE, $file)) {
+	       &print_SH("$prog: can't open $file: $!\n");
+	       next F;
+	    }
+	 } else {
+	    my $uncompress = ($zipped ? 'gzip' : 'bzip2');
+	    my $p = open(TEXTFILE,"-|");
+	    if (! $p) {				# child
+	       $SIG{'PIPE'} = 'DEFAULT';
+	       exec $uncompress, '-d', '-c', $file ||
+		  die "$prog: can't exec $uncompress: $!\n";
+	    } else {				# parent
+	       if (-B TEXTFILE) {
+		  close(TEXTFILE);
+		  next F;
+	       }
+	    }
+	 }
+
+	 if ($opt_N) {
+	    foreach $word (@WORDS) {
+	       if (grep(/$word/,<TEXTFILE>)) {
+		  close(TEXTFILE);
+		  next F;
+	       }
+	    }
+	    close(TEXTFILE);
+	    sysopen(TTY, $tty, O_RDONLY) ||
+	       die "$prog: unable to open '$tty': $!\n";
+	    die "$prog: flock failure: $!\n" unless flock(TTY, LOCK_EX);
+	    print STDERR "\r" . " " x $cols . "\r";
+	    print STDOUT "$file\n";
+	    &more($file) if ($opt_m);			# less the file
+	    &vim($file) if ($opt_v);			# vi the file
+	    &xec($file) if ($opt_x);			# exec cmd on file
+	    flock(TTY, LOCK_UN);
+	    close(TTY);
+	    next F;
+	 } else {
+	    while (<TEXTFILE>) {
+	       next if ($opt_C && /$cvs_headers/);
+	       foreach $word (@WORDS) {
+		  if (/$word/) {
+		     sysopen(TTY, $tty, O_RDONLY) ||
+			die "$prog: unable to open '$tty': $!\n";
+		     die "$prog: flock failure: $!\n"
+			unless flock(TTY, LOCK_EX);
+		     print STDERR "\r" . " " x $cols . "\r";
+		     print STDOUT "$file\n";
+		     &cgrep($file) if defined($opt_c);	# cgrep the file
+		     close(TEXTFILE);
+		     &more($file) if ($opt_m);		# less the file
+		     &vim($file) if ($opt_v);		# vi the file
+		     &xec($file) if ($opt_x);		# exec cmd on file
+		     flock(TTY, LOCK_UN);
+		     close(TTY);
+		     next F;
+		  }
+	       }
+	    }
+	 }
+      }
+      closedir(DIR);
+      exit 0;
+   } else {
+      die "$prog: fork: $!\n";
+   }
+}
+
+sub cgrep ($) {
+   my $filename = $_[0];
+   my @Context = ();
+   $. = 0;
+
+   if (exists $ENV{'FINDGREP_COLORS'}) {
+      use Term::ANSIColor;
+      $Term::ANSIColor::EACHLINE = "\n";		# line delimiter
+   }
+
+   $ENV{'PATH'} = '/bin:/usr/bin:/usr/sbin';
+   if ($zipped) {
+      local $SIG{'PIPE'} = 'DEFAULT';
+      open(TEXTFILE,"-|") || exec 'gzip', '-d', '-c', "$filename";
+      local $SIG{'PIPE'} = 'IGNORE';
+   } elsif ($bzipped) {
+      local $SIG{'PIPE'} = 'DEFAULT';
+      open(TEXTFILE,"-|") || exec 'bzip2', '-d', '-c', "$filename";
+      local $SIG{'PIPE'} = 'IGNORE';
+   } else {
+      seek(TEXTFILE,0,0);
+   }
+   
+   $_ = <TEXTFILE>;
+   push(@Context," $.:\t$_");
+   
+   for (1 .. $opt_c) {
+      unshift(@Context,"  ~\n");
+      $_ = <TEXTFILE>;
+      $_ = (defined($_) ? " $.:\t$_" : "  ~\n");
+      push(@Context,$_);
+   }
+   
+   eval <<EOT;
+      my \$seq = 0;
+      while(\$Context[\$opt_c]) {
+	 if ((\$Context[\$opt_c] =~ /^\\s\\d+:.*\$contextwords/) &&
+	    !(\$opt_C && (\$Context[\$opt_c] =~ /^\\s\\d+:.*\$cvs_headers/))) {
+	    print STDOUT "------\n" if (\$seq++ && \$opt_c);
+	    if (exists \$ENV{'FINDGREP_COLORS'}) {
+	       \$Context[\$opt_c] =~
+		  s/\$contextwords/\&colored(\$1, 'red')/ge;
+	    }
+	    for my \$index (\$opt_c .. \$#Context) {	# this case is met if
+	       \$Context[\$index] = "  ~\n"		# the context of your
+		  unless (defined(\$Context[\$index]));	# pattern runs past EOF
+	    }
+	    print STDOUT \@Context;
+	    if (exists \$ENV{'FINDGREP_COLORS'}) {
+	       \$Context[\$opt_c] =~
+		  s/\$contextwords/\&colored(\$1, 'reset')/ge;
+	    }
+	 }
+	 \$_ = <TEXTFILE> if \$_;
+	 \$_ = " \$.:\t\$_" if \$_;
+	 shift(\@Context);
+	 push(\@Context,\$_);
+      }
+EOT
+ 
+   print STDOUT "\n";
+
+}
+
+sub more ($) {
+   my $filename = $_[0];
+   $ENV{'PATH'} = '/bin:/usr/bin';
+
+   if ($gpid = fork ) {
+      waitpid($gpid,0); my $rc = $?;
+      select(undef, undef, undef, 0.5);
+      return $rc;
+   } elsif (defined $gpid) {
+
+      local $SIG{'HUP'}  = \&child_signal_handler;
+      local $SIG{'INT'}  = \&child_signal_handler;
+      local $SIG{'TERM'}  = \&child_signal_handler;
+
+      my @Opts = @LessCmd;
+      push(@Opts,"-P\Q$filename\E?pb (\%pb\\%)");
+      exec { 'less' } 'less', @Opts, '--', $filename;
+   } else {
+      die "$prog: fork [more]: $!\n";
+   }
+}
+
+sub vim ($) {
+   my $filename = $_[0];
+   $ENV{'PATH'}  = '/usr/bin';
+
+   if ($gpid = fork ) {
+      waitpid($gpid,0); my $rc = $?;
+      select(undef, undef, undef, 0.5);
+      return $rc;
+   } elsif (defined $gpid) {
+
+      local $SIG{'HUP'}  = \&child_signal_handler;
+      local $SIG{'INT'}  = \&child_signal_handler;
+      local $SIG{'TERM'}  = \&child_signal_handler;
+
+      my @Opts = @VimCmd;
+      push(@Opts, '-c', ':set nocompatible') if ($zipped || $bzipped);
+      push(@Opts, '-c', ":set titlestring=\Q$filename\E");
+      exec { 'vim' } 'vim', @Opts, '--', $filename;
+   } else {
+      die "$prog: fork [vim]: $!\n";
+   }
+}
+
+sub xec ($) {
+   my $filename = $_[0];
+
+   if ($gpid = fork ) {
+      waitpid($gpid,0); my $rc = $?;
+      select(undef, undef, undef, 0.5);
+      return $rc;
+   } elsif (defined $gpid) {
+
+      local $SIG{'HUP'}  = \&child_signal_handler;
+      local $SIG{'INT'}  = \&child_signal_handler;
+      local $SIG{'TERM'}  = \&child_signal_handler;
+
+      my @Cmd = @Opt_x;
+      grep($_ =~ s/\{\}/$filename/,@Cmd);
+      exec { $Cmd[0] } @Cmd;
+   } else {
+      die "$prog: fork [xec]: $!\n";
+   }
+}
+
+sub print_SH ($) {
+   my $str = $_[0];
+
+   if (sysopen(TTY, $tty, O_RDONLY)) {			# success
+      if (flock(TTY, LOCK_SH|LOCK_NB)) {		# success
+	 print STDERR "\r" . " " x $cols . "\r$str";
+	 flock(TTY, LOCK_UN);
+      }
+      close(TTY);
+   }
+}
+
+sub parent_signal_handler {
+   my $nal = $_[0];
+   local $SIG{$nal} = 'IGNORE';				# parent ignores signal
+
+   kill $nal => -$$;					# kill my process group
+   print STDERR "\r" . " " x $cols . "\r";
+   unlink($tty) if (-e $tty);
+   exit -1;
+}
+
+sub child_signal_handler {
+   my $nal = $_[0];
+
+   use POSIX qw(ctermid);
+   my $termid = POSIX::ctermid();
+
+   kill 9, $gpid if (defined($gpid));
+   closedir(DIR);
+   close STDOUT; close STDERR;
+   exec { 'stty' } 'stty', '-F', $termid, 'sane';
+}
+
+sub ReapChildren ($) {
+   my $href = $_[0];
+   use POSIX ":sys_wait_h";
+
+   foreach my $pids (keys %$href) {
+      if ( waitpid($pids,&WNOHANG) > 0 ) {
+	 delete $href->{$pids};
+      }
+   }
+}
+
+sub ExecArgs {
+   my $argv;
+   while (@ARGV && ($argv = shift(@ARGV)) ne ';') {
+      push(@Opt_x,$argv);
+   }
+   pod2usage("$prog: '-x' specified without a cmd to execute!") unless @Opt_x;
+   $opt_x = 1;
+}
+
+# Documentation
+
+=head1 NAME
+
+B<findgrep> - locate files that contain one or more patterns
+
+=head1 SYNOPSIS
+
+B<findgrep> [B<-h>] [B<--man>]
+
+B<findgrep> [B<path> [B<path>]] [B<-CeilmNvz>] [B<-P>[I<#>]] [B<-c>[I<#>]]
+S<[B<-n> I<name>]> S<[B<-p> I<dir>]> S<[B<-x> I<cmd ;>]> S<[B<-MV> I<opt>]>
+B<pattern> [B<pattern>]
+
+=head1 DESCRIPTION
+
+B<findgrep> uses the File::Find module to recursively locate directories
+beneath B<path>.  When encountering one, B<findgrep> will print its name to
+STDERR and then fork a child process to locate the files therein
+containing B<pattern> (a maximum of 4 children are permitted at any given
+time, overridden by B<-P>I<#>).  File names containing matches are printed to
+STDOUT and then the child proceeds to execute any post-processing requests
+on the file.
+
+
+=head1 OPTIONS
+
+=head2 General Options
+
+=over 4
+
+=item B<-h,--help>
+
+Show command usage and exit.
+
+=item B<--man>
+
+Print the findgrep(1) manpage and exit.
+
+=item B<path>
+
+Begin the search rooted at B<path> (default: F<./>).
+
+=back
+
+=head2 Search Options
+
+=over 4 
+
+=item B<-C,--cvs-exclude>
+
+Prune all RCS, SCCS, CVS, git and svn subdirectories of B<path> from the
+search (equivalent to B<-p> I<"*/RCS"> B<-p> I<"*/SCCS"> B<-p> I<"*/CVS">
+B<-p> I<"*/.git"> B<-p> I<"*/.svn">).
+
+=item B<-e,--exact>
+
+Exactly match B<pattern> on word boundaries.
+
+=item B<-i,--ic>
+
+Ignore case of B<pattern> and text.
+
+=item B<-l,--local,--xdev>
+
+Local search only (not crossing mount points).
+
+=item B<-N,--not>
+
+Locate files not containing B<pattern>.
+
+=item B<-n,--name> I<name>
+
+Name specific filenames to search within (wildcards permitted).  Multiple
+instances of B<-n> may be specified.
+
+=item B<-p,--prune> I<dir>
+
+Prune I<dir> from search (wildcards permitted).  Multiple instances of
+B<-p> may be specified.
+
+=item B<-z,--zipped>
+
+Include (g)zipped/compressed/bzip2 text files in the search.
+
+=back
+
+=head2 Post-processing Options
+
+=over 4
+
+=item B<-c,--context> [I<#>]
+
+Print I<#> lines of context surrounding the one containing B<pattern>
+(default: 0).  If B<-C,--cvs-exclude> is additionally used with this
+option, version control headers are omitted from the output stream.
+
+=item B<-m,--more,--less>
+
+Page the file containing B<pattern> with less(1).
+
+=item B<-v,--vim>
+
+Edit the file containing B<pattern> with vim(1).
+
+=item B<-x,--exec> I<cmd ;>
+
+Execute I<cmd> on the file containing B<pattern> where I<cmd> is terminated
+with a semicolon (I<;>) separated by whitespace.  Be sure to protect this
+from shell interpretation if yours does something special with semicolons!
+
+=item B<-M> I<opt>
+
+Pass the following option directly to less(1) (implies B<-m>).
+
+=item B<-V> I<opt>
+
+Pass the following option directly to vim(1) (implies B<-v>).
+
+=back
+
+=head1 EXAMPLES
+
+   % findgrep -c xyzzy
+
+Locate files containing "xyzzy" rooted in the current working directory,
+printing their names on STDOUT and 0 lines of context surrounding the match
+in each file.
+
+   % findgrep /usr/include /usr/local/include --less "define UINT_MAX"
+
+Locate files containing "define UINT_MAX" rooted from /usr/include and
+/usr/local/include, printing their names on STDOUT and then paging through
+the file with less(1).
+
+   % findgrep /etc -V '-c ":%s/foo/bar/g" -c ":wq!"' foo
+
+Locate files containing "foo", rooted from /etc, printing their names on
+STDOUT and then issuing vim(1) commands to globally substitute "foo" with
+"bar" and write out the change.
+
+   % findgrep /var/log -ezn messages\* -x ls -l {} \; su
+
+Locate files named "messages*", containing the exact phrase "su", rooted
+from /var/log, printing their names on STDOUT and then issuing "ls -l" on
+each file found.  Include compressed text files in the search.
+
+   % findgrep -p ./RCS amd.n
+
+Locate files containing "amd.n" rooted from the current working directory,
+pruning the directory named ./RCS from the search.  Specifying a prune path
+of "-p \*/RCS" would not only eliminate ./RCS from the search, but also any
+other subdirectory of "./" containing an RCS directory.
+
+   % findgrep /usr/include - /usr/include
+
+Locate files containing "/usr/include" rooted from /usr/include, printing
+their names on STDOUT.  If the single dash is omitted, B<findgrep> would
+issue the usage statment and exit since the B<pattern> would be considered
+to be another B<path> (see the B<CAVEATS> section below).
+
+   % findgrep -c -- -c
+
+Locate files containing "-c" rooted in the current working directory,
+printing their names on STDOUT and 0 lines of context surrounding the match
+in each file (see the B<CAVEATS> section below).
+
+=head1 ENVIRONMENT
+
+If the environment variable B<FINDGREP_COLORS> is set to any value,
+B<findgrep> will color B<pattern> in any contextual output (i.e. that
+obtained by specifying B<-c,--context> on the command line).
+
+=head1 CAVEATS
+
+B<findgrep> will send your system into a frenzy if you have a slow
+CPU/disk.  Set the B<-P>I<#> flag accordingly.
+
+Sometimes you might want to search for a B<pattern> that turns out to be
+the name of a directory, and thus processed by B<findgrep>.  To avoid this,
+terminate directory proccessing with a single dash (B<->).  You can jump
+immediately to the pattern specification with a double dash (B<-->).
+
+=head1 SEE ALSO
+
+File::Find(3), compress(1), find(1), grep(1), gzip(1), less(1), vim(1)
+
+=head1 AUTHOR
+
+Daryl W. Grunau <dwg@lanl.gov>
+
+=cut
