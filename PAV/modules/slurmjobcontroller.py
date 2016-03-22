@@ -85,8 +85,9 @@ class SlurmJobController(JobController):
         slurm_cmd = "sbatch"
 
         # specified nodenames
-        length_of_node_list = 0
+        length_of_node_list = -1
         if 'node_list' in self.configs['slurm']:
+            length_of_node_list = 0
             node_list = str(self.configs['slurm']['node_list'])
             slurm_cmd += ' -w ' + node_list
             # need the count of nodes or sbatch complains, you can use nnodes internally though
@@ -105,6 +106,13 @@ class SlurmJobController(JobController):
 
         # add test name
         slurm_cmd += " -J " + self.name
+
+        # reservation
+        if "reservation" in self.configs['slurm']: 
+            reservation = self.configs['slurm']['reservation']
+            slurm_cmd += " --reservation=" + reservation
+            print "<reservation> " + reservation
+            self.logger.info(self.lh + " : reservation=" + reservation)
 
         # get time limit, if specified
         time_lim = self.configs['slurm']['time_limit']
@@ -131,7 +139,7 @@ class SlurmJobController(JobController):
         self.logger.info(self.lh + " : npes=" + str(pes))
 
         # number of nodes to allocate must be == length of node list
-        if not length_of_node_list == int(nnodes):
+        if not ( length_of_node_list == -1 or length_of_node_list == int(nnodes) ):
             print "Error: node_list and num_nodes do not agree!"
 
         slurm_cmd += " -N " + nnodes
