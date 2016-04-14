@@ -134,11 +134,17 @@ class YamlTestConfig():
             fn = config_name
             cfg = load(open(fn))
             for inc in cfg.get("IncludeTestSuite", []):
-                fn = config_file_base_dir + "/" + inc
+                if inc[0] == "/":
+                    fn = inc
+                else:
+                    fn = config_file_base_dir + "/" + inc
                 print "  Included test suite ->  " + fn
                 inc_cfg = (load(open(fn)))
                 for inc2 in inc_cfg.get("IncludeTestSuite", []):
-                    fn = config_file_base_dir + "/" + inc2
+                    if inc2[0] == "/":
+                        fn = inc2
+                    else:
+                        fn = config_file_base_dir + "/" + inc2
                     print "    Included test suite ->  " + fn
                     inc_cfg.update(load(open(fn)))
                 cfg.update(inc_cfg)
