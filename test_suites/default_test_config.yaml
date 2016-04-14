@@ -181,6 +181,34 @@ UniqueId:
     # test suite of jobs. Noralization will occurr. (optional)
     percent: ""
 
+  # Optional scheduler section needed if defined in the "run" section
+  slurm:
+    # Parameter(s) provided to sbatch command 
+    # This section is used if this scheduler chosen for this test.
+    # All combinations of <num_nodes> and <procs_per_node> will be
+    # tried by by the scheduler where it makes sense. A "none"
+    # choice simply invokes the run command once
+
+    # Number of nodes to allocate for this test.
+    # This entry must be an integer or it can be a
+    # list "[]" of comma separated integers to try variations.
+    num_nodes:  [ 1, 2 ]
+    # reservation to submit jobs against (optional)
+    reservation: "" 
+    # Number of processors defined per node for this test 
+    # This entry must be an integer or it can be a 
+    # list "[]" of comma separated integers to try variations.
+    procs_per_node: 16
+    # time in hr:min:secs
+    # This SHOULD be quoted
+    time_limit: "01:00:00"
+    # target segment, added as a feature component to the "-l" argument (optional)
+    target_seg: "" 
+    # optional list of nodes to target 
+    # Uses defined string to populate '-l nodes=<node_list>' on msub line
+    # Overrides number of nodes requested.
+    node_list: "" 
+
   raw:
     # Mostly a placeholder
     num_nodes: 1

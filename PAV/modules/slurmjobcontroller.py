@@ -86,7 +86,7 @@ class SlurmJobController(JobController):
 
         # specified nodenames
         length_of_node_list = -1
-        if 'node_list' in self.configs['slurm']:
+        if 'node_list' in self.configs['slurm'] and self.configs['slurm']['node_list']:
             length_of_node_list = 0
             node_list = str(self.configs['slurm']['node_list'])
             slurm_cmd += ' -w ' + node_list
@@ -108,7 +108,7 @@ class SlurmJobController(JobController):
         slurm_cmd += " -J " + self.name
 
         # reservation
-        if "reservation" in self.configs['slurm']: 
+        if "reservation" in self.configs['slurm'] and self.configs['slurm']['reservation']: 
             reservation = self.configs['slurm']['reservation']
             slurm_cmd += " --reservation=" + reservation
             print "<reservation> " + reservation
@@ -119,7 +119,7 @@ class SlurmJobController(JobController):
         slurm_cmd += " -t " + time_lim
 
         # add in a target segment (partition in Slurm vernacular), if specified
-        if 'target_seg' in self.configs['slurm']:
+        if 'target_seg' in self.configs['slurm'] and self.configs['slurm']['target_seg']:
             slurm_cmd += " -p " + str(self.configs['slurm']['target_seg'])
             print "<target_seg> " + str( self.configs['slurm']['target_seg'] )
 
