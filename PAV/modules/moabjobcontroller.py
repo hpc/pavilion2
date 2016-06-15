@@ -151,6 +151,14 @@ class MoabJobController(JobController):
         if self.configs['moab']['node_list']:
             node_list = self.configs['moab']['node_list']
 
+        machine_type = ''
+        if self.configs['moab']['machine_type']:
+            machine_type = self.configs['moab']['machine_type']
+
+        os_type = ''
+        if self.configs['moab']['os']:
+            os_type = self.configs['moab']['os']
+
         # accounting file? or just log it?
 
         # variation passed as arg0 - nodes, arg1 - ppn
@@ -200,6 +208,10 @@ class MoabJobController(JobController):
             msub_cmd += "-l nodes=" + node_list
         else:
             msub_cmd += "-l nodes=" + nnodes
+        if machine_type:
+            msub_cmd += ":" + machine_type
+        if os_type:
+            msub_cmd += ",os=" + os_type
         if time_lim:
             msub_cmd += ",walltime=" + time_lim
         if ts:
