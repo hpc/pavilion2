@@ -121,7 +121,9 @@ class SlurmJobController(JobController):
         # add in a target segment (partition in Slurm vernacular), if specified
         if 'target_seg' in self.configs['slurm'] and self.configs['slurm']['target_seg']:
             slurm_cmd += " -p " + str(self.configs['slurm']['target_seg'])
-            print "<target_seg> " + str( self.configs['slurm']['target_seg'] )
+            print "<segName> " + str( self.configs['slurm']['target_seg'] )
+        else:
+            print "<segName> DEFAULT"
 
         nnodes = str(self.configs["slurm"]["num_nodes"])
         os.environ['PV_NNODES'] = nnodes
@@ -170,10 +172,10 @@ class SlurmJobController(JobController):
 
             output = subprocess.check_output(slurm_cmd, shell=True)
             # Finds the jobid in the output.
-            match = re.search("^((Slurm.)?(\d+))[\r]?$",  output, re.IGNORECASE | re.MULTILINE)
             jid = 0
-            if match.group(1):
-                jid = match.group(1)
+            if not output is None and "job" in output:
+                    # "Submitted batch job JID"
+                    jid = output.split(" ")[3]
             print "<JobID> " + str(jid)
 
         else:

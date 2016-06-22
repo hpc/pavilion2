@@ -122,6 +122,7 @@ def main():
                 #print 'I got a KeyError - no: "%s"' % str(e)
                 pass
 
+            print "<start>", now()
             print "  start job with: \n    " + cmd
             lf.flush()
 
