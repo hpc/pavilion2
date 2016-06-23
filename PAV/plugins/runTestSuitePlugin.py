@@ -153,6 +153,11 @@ class RunTestSuite(IPlugin):
         # get the "merged" test stanza for each test in the test suite
         my_test_suite = tc.get_effective_config_file()
 
+        # if we are running in debug mode we are then done because we do not need
+        # to submit anything
+        if args['debug']:
+            return
+
         # Process and launch each test entry (stanza) from the test suite.
         submit_again = True
         while submit_again:
