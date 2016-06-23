@@ -230,7 +230,16 @@ class MoabJobController(JobController):
             msub_cmd += " " + msub_wrapper_script
             self.logger.info(self.lh + " : " + msub_cmd)
             # call to invoke real Moab command
-            output = subprocess.check_output(msub_cmd, shell=True)
+            try:
+               output = subprocess.check_output(msub_cmd, shell=True, stderr=subprocess.STDOUT)
+            except subprocess.CalledProcessError as e:
+               self.logger.info(self.lh + " : msub exit status:" + str(e.returncode))
+               print "msub exit status:" + str(e.returncode)
+               self.logger.info(self.lh + " : msub output:" + e.output)
+               print "msub output:" + e.output
+               sys.stdout.flush()
+               raise
+
             # Finds the jobid in the output from msub. The job id can either
             # be just a number or Moab.number.
             match = re.search("^((Moab.)?(\d+))[\r]?$",  output, re.IGNORECASE | re.MULTILINE)
