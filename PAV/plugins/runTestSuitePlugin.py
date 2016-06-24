@@ -63,10 +63,83 @@ import subprocess
 import json
 import logging
 import time
+import itertools
 
 from yapsy.IPlugin import IPlugin
 from testConfig import YamlTestConfig
 from testEntry import TestEntry, MoabTestEntry, RawTestEntry, SlurmTestEntry
+
+
+def expansion (initial_arguements, initial_restrictions):
+    list_of_lists=[]
+    my_list=[]
+    temp_list=[]
+    temp_string=""
+    return_list_of_strings=[]
+    ## Definitions of variables ## {{{
+    #   lists_of_lists will store the lists arguements passed in
+    #   my_list will store all the combinations of the lists passed in
+    #   temp_list will store the complete array of arguements after 
+    #       expansion, but will not keep previous data
+    #   temp_string will store the complete string of arguements
+    #       but will not keep previous data
+    #   return_list_of_strings hold all complete and valid arguement 
+    #       strings to be returned.
+    ## }}}
+    ## Code ##{{{
+    #   Check if the user has passed in a list of other than one 
+    #       dimension
+    #       Then create a string of all arguements
+    #       Check if any of the restrictions are met, whether they are
+    #           one dimensional or two,
+    #           returns an empty string if they are
+    #           returns the string of all arguements if they are not
+    #   If the arguement list is not single dimensional list
+    #       Then create every combination of the intial_arguements
+    #       For each combination,
+    #           Check if any of the restrictions are met, whether they 
+    #           are one dimensional or two,
+    #       returns the list of all strings of all arguement 
+    #           combinations that are not restricted
+    ## }}}
+    if (all((type(arguement) != list) for arguement in initial_arguements)):
+        for iterator in initial_arguements:
+            temp_string=str(iterator)
+            if ( (any (((type(restrictions) != list) 
+                and (restrictions in temp_string)) 
+                for restrictions in initial_restrictions) ) 
+                or ( (any((type(restrictions) == list) 
+                for restrictions in initial_restrictions)) 
+                and (any ((all ((restriction in temp_string) 
+                for restriction in restrictions)) 
+                for restrictions in initial_restrictions)) )): 
+                pass
+            else:
+                return_list_of_strings.append(temp_string)
+    else:
+        for arguement in initial_arguements:
+            list_of_lists.append(arguement)
+        my_list=list(itertools.product(*list_of_lists))
+        for i in my_list:
+            for j in i:
+                temp_list.append(j)
+            for iterator in temp_list:
+                temp_string+=iterator+" "
+            if ( (any (((type(restrictions) != list) 
+                and (restrictions in temp_string)) 
+                for restrictions in initial_restrictions) ) 
+                or ( (any((type(restrictions) == list) 
+                for restrictions in initial_restrictions)) 
+                and (any ((all ((restriction in temp_string) 
+                for restriction in restrictions)) 
+                for restrictions in initial_restrictions)) )): 
+                pass
+            else:
+                return_list_of_strings.append(temp_string)
+            temp_list=[ ]
+            temp_string=""
+    return return_list_of_strings
+
 
 
 class RunTestSuite(IPlugin):
@@ -177,6 +250,8 @@ class RunTestSuite(IPlugin):
                 # There needs to be this type of scheduler object implemented to support this
                 # See the testEntry.py file for examples
                 object_name = scheduler_type + "TestEntry"
+		restrictions_list=[]
+		args=expansion(args, restrictions_list)
                 try:
                     te = globals()[object_name](entry_id, test_suite_entry, args)
                 except KeyError:
