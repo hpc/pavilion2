@@ -86,6 +86,7 @@ class SlurmJobController(JobController):
 
         # specified nodenames
         length_of_node_list = -1
+        node_list = ''
         if 'node_list' in self.configs['slurm'] and self.configs['slurm']['node_list']:
             length_of_node_list = 0
             node_list = str(self.configs['slurm']['node_list'])
@@ -144,7 +145,8 @@ class SlurmJobController(JobController):
         if not ( length_of_node_list == -1 or length_of_node_list == int(nnodes) ):
             print "Error: node_list and num_nodes do not agree!"
 
-        slurm_cmd += " -N " + nnodes
+        if not node_list:
+            slurm_cmd += " -N " + nnodes
 
         # print the common log settings here right after the job is started
         self.save_common_settings()
