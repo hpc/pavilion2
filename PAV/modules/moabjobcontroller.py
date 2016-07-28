@@ -124,7 +124,7 @@ class MoabJobController(JobController):
         msub_cmd = "msub -V "
 
         # handle optionally specified queue
-        if self.configs['moab']['queue']:
+        if 'queue' in self.configs['moab'] and self.configs['moab']['queue']:
             msub_cmd += "-q " + self.configs['moab']['queue'] + " "
 
         # add test name
@@ -140,16 +140,24 @@ class MoabJobController(JobController):
 
         # get target segment, if specified
         ts = ''
-        if self.configs['moab']['target_seg']:
+        if 'target_seg' in self.configs['moab'] and self.configs['moab']['target_seg']:
             ts = self.configs['moab']['target_seg']
 
         reservation = ''
-        if self.configs['moab']['reservation']:
+        if 'reservation' in self.configs['moab'] and self.configs['moab']['reservation']:
             reservation = self.configs['moab']['reservation']
 
         node_list = ''
-        if self.configs['moab']['node_list']:
+        if 'node_list' in self.configs['moab'] and self.configs['moab']['node_list']:
             node_list = self.configs['moab']['node_list']
+
+        machine_type = ''
+        if 'machine_type' in self.configs['moab'] and self.configs['moab']['machine_type']:
+            machine_type = self.configs['moab']['machine_type']
+
+        os_type = ''
+        if 'os' in self.configs['moab'] and self.configs['moab']['os']:
+            os_type = self.configs['moab']['os']
 
         # accounting file? or just log it?
 
@@ -200,6 +208,10 @@ class MoabJobController(JobController):
             msub_cmd += "-l nodes=" + node_list
         else:
             msub_cmd += "-l nodes=" + nnodes
+        if machine_type:
+            msub_cmd += ":" + machine_type
+        if os_type:
+            msub_cmd += ",os=" + os_type
         if time_lim:
             msub_cmd += ",walltime=" + time_lim
         if ts:
@@ -218,7 +230,16 @@ class MoabJobController(JobController):
             msub_cmd += " " + msub_wrapper_script
             self.logger.info(self.lh + " : " + msub_cmd)
             # call to invoke real Moab command
-            output = subprocess.check_output(msub_cmd, shell=True)
+            try:
+               output = subprocess.check_output(msub_cmd, shell=True, stderr=subprocess.STDOUT)
+            except subprocess.CalledProcessError as e:
+               self.logger.info(self.lh + " : msub exit status:" + str(e.returncode))
+               print "msub exit status:" + str(e.returncode)
+               self.logger.info(self.lh + " : msub output:" + e.output)
+               print "msub output:" + e.output
+               sys.stdout.flush()
+               raise
+
             # Finds the jobid in the output from msub. The job id can either
             # be just a number or Moab.number.
             match = re.search("^((Moab.)?(\d+))[\r]?$",  output, re.IGNORECASE | re.MULTILINE)

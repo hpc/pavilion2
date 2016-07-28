@@ -180,6 +180,11 @@ UniqueId:
     # Percent of cluster consumed by this particular test in this
     # test suite of jobs. Noralization will occurr. (optional)
     percent: ""
+    # the type of machine to run on (eg: KNL)
+    machine_type: ""
+    # os allows specification of the os (eg: -l nodes=4:KNL,os=OSSTUFF)
+    os: ""
+
 
   # Optional scheduler section needed if defined in the "run" section
   slurm:

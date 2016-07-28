@@ -8,8 +8,8 @@ config = {
     'long_description': 'Software framework and tools for testing and analyzing HPC system health',
     'author': 'DOE',
     'download_url': 'https://github.com/losalamos/Pavilion',
-    'author_email': 'cwi@lanl.gov',
-    'version': '1.1.5',
+    'author_email': 'dejager@lanl.gov',
+    'version': '1.1.6',
     'packages': ['PAV', 'test'],
     'name': 'pavilion'
 }
