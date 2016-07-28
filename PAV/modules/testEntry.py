@@ -262,6 +262,12 @@ class SlurmTestEntry(TestEntry):
     def get_procs_per_node(self):
         return self.this_dict[self.id]['slurm']['procs_per_node']
 
+    def set_node_list(self, nl):
+        self.this_dict[self.id]['slurm']['node_list'] = nl
+
+    def get_node_list(self):
+        return self.this_dict[self.id]['slurm']['node_list']
+
     # def get_values(self):
     #   return self.this_dict[self.id]
 
@@ -288,6 +294,7 @@ class SlurmTestEntry(TestEntry):
             l2 = [l2]
         elif isinstance(l2, str):
             l2 = l2.split(',')
+
         try:
             l3 = self.this_dict[self.id]['run']['test_args']
             if isinstance(l3, str):
@@ -295,16 +302,24 @@ class SlurmTestEntry(TestEntry):
         except KeyError:
             l3 = ['']
 
+        try:
+            l4 = self.this_dict[self.id]['slurm']['node_list']
+            if isinstance(l4, str):
+                l4 = [l4]
+        except KeyError:
+            l4 = ['']
+
+
         original_test_dict = self.this_dict[self.id]
         # print "effective test suite:"
         # print original_test_dict
         # print ""
 
-        my_prod = itertools.product(l1, l2, l3)
+        my_prod = itertools.product(l1, l2, l3, l4)
         combinations = list(my_prod).__len__()
         # print combinations
 
-        for n, p, a in itertools.product(l1, l2, l3):
+        for n, p, a, l in itertools.product(l1, l2, l3, l4):
             # Actually create a NEW test entry object that has just a single
             # combination of nodes X ppn X arg_string
 
@@ -325,6 +340,7 @@ class SlurmTestEntry(TestEntry):
             new_te.set_num_nodes(str(n))
             new_te.set_procs_per_node(str(p))
             new_te.set_arg_str(str(a))
+            new_te.set_node_list(str(l))
             tv.append(new_te)
             # print new_te.this_dict[my_new_id],
             i += 1

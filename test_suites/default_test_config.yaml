@@ -210,9 +210,12 @@ UniqueId:
     # target segment, added as a feature component to the "-l" argument (optional)
     target_seg: "" 
     # optional list of nodes to target 
-    # Uses defined string to populate '-l nodes=<node_list>' on msub line
+    # Uses defined string to populate '-w <node_list>' on sbatch line
+    # This can also be a list
+    # For example nodelist: ['ca002','ca003','ca005']
+    # This will launch 3 jobs. One on ca002, one on ca003, and one on ca005
     # Overrides number of nodes requested.
-    node_list: "" 
+    node_list: ['']
 
   raw:
     # Mostly a placeholder
