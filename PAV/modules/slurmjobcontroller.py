@@ -170,7 +170,16 @@ class SlurmJobController(JobController):
             self.logger.info(self.lh + " : " + slurm_cmd)
             # call to invoke real Slurm command
 
-            output = subprocess.check_output(slurm_cmd, shell=True)
+            try:
+                output = subprocess.check_output(slurm_cmd, shell=True)
+            except subprocess.CalledProcessError as e:
+               self.logger.info(self.lh + " : sbatch exit status:" + str(e.returncode))
+               print "sbatch exit status:" + str(e.returncode)
+               self.logger.info(self.lh + " : sbatch output:" + e.output)
+               print "sbatch output:" + e.output
+               sys.stdout.flush()
+               raise
+
             # Finds the jobid in the output.
             jid = 0
             if not output is None and "job" in output:
