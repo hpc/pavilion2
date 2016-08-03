@@ -88,7 +88,7 @@ class GetResults(IPlugin):
         parser_gr.add_argument('-S', nargs=1, metavar='<time>', help="start time (HH:MM:SS), default is at 00:00:00")
 
         parser_gr.add_argument('-e', nargs=1, metavar='<date>', help="end date (yyyy-mm-dd), default today")
-        parser_gr.add_argument('-E', nargs=1, metavar='<time>', help="start time (HH:MM:SS), default is at 23:59:59")
+        parser_gr.add_argument('-E', nargs=1, metavar='<time>', help="end time (HH:MM:SS), default is at 23:59:59")
 
         parser_gr.add_argument('-t', nargs=1, metavar='<string>', help="test name to match on")
 
