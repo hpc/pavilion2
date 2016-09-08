@@ -154,10 +154,14 @@ class MoabJobController(JobController):
         machine_type = ''
         if 'machine_type' in self.configs['moab'] and self.configs['moab']['machine_type']:
             machine_type = self.configs['moab']['machine_type']
+        # ++ PV_MACHINETYPE : The type of machine requested from moab
+        os.environ['PV_MACHINETYPE'] = machine_type
 
         os_type = ''
         if 'os' in self.configs['moab'] and self.configs['moab']['os']:
             os_type = self.configs['moab']['os']
+        # ++ PV_OS : The os type requested from moab
+        os.environ['PV_OS'] = os_type
 
         # accounting file? or just log it?
 
