@@ -68,6 +68,8 @@ import subprocess
 import shutil
 import platform
 import datetime
+import time
+import random
 
 newpath = os.environ['PVINSTALL'] + "/PAV/modules"
 sys.path.append(newpath)
@@ -91,16 +93,34 @@ def stdout_redirected(new_stdout):
 
 def get_moab_node_list():
 
-    if "SLURM_JOBID" in os.environ:
-        # ++ PV_JOBID : Job Id allocated to this job by the "scheduler"
-        os.environ['PV_JOBID'] = os.environ.get("SLURM_JOBID")
-        output = subprocess.check_output(os.environ['PVINSTALL'] + "/PAV/scripts/getSLURMNodeList", shell=True)
-        nodes = output.replace('\n', " ")
-    elif "PBS_JOBID" in os.environ:
-        output = subprocess.check_output(os.environ['PVINSTALL'] + "/PAV/scripts/getCLENodeList", shell=True)
-        nodes = output.replace('\n', " ")
-    else:
-        nodes = platform.node()
+    checkjobAttempts = 0
+
+    while True:
+        try:
+            if "SLURM_JOBID" in os.environ:
+                # ++ PV_JOBID : Job Id allocated to this job by the "scheduler"
+                os.environ['PV_JOBID'] = os.environ.get("SLURM_JOBID")
+                output = subprocess.check_output(os.environ['PVINSTALL'] + "/PAV/scripts/getSLURMNodeList", shell=True)
+                nodes = output.replace('\n', " ")
+            elif "PBS_JOBID" in os.environ:
+                output = subprocess.check_output(os.environ['PVINSTALL'] + "/PAV/scripts/getCLENodeList", shell=True)
+                nodes = output.replace('\n', " ")
+            else:
+                nodes = platform.node()
+            break
+        except subprocess.CalledProcessError:
+            # we did not have a sucessful call to checkjob so we will try again unless we have alredy tried 4 times
+            checkjobAttempts += 1
+            print "checkjob attempt " + str(checkjobAttempts) + " failed"
+            if 6 <= checkjobAttempts:
+                raise
+
+            # sleep for a bit in case a bunch of jobs were launched at once
+            time.sleep(random.uniform(4,16))
+        except Exception as e:
+            print "Unknown Exception: " + type(e) + " " + e
+            raise
+
     return str(nodes)
 
 
@@ -119,18 +139,18 @@ def main():
       Routine called by msub that calls the user's job script/program.
       Will also start LDMS if requested.
     """
-    cmd = "cd " + os.environ['PV_RUNHOME'] + "; " + \
-        os.environ['PVINSTALL'] + "/PAV/scripts/mytime " + os.environ['USER_CMD']
-
-    nodes = get_moab_node_list()
-    # ++ PV_NODES : List of node names allocated to this job
-    os.environ['PV_NODES'] = nodes
-    os.environ['GZ_NODES'] = os.environ['PV_NODES']
     job_log_file = os.environ["PV_JOB_RESULTS_LOG"]
 
     with open(job_log_file, 'a') as lf:
         with stdout_redirected(lf):
+            cmd = "cd " + os.environ['PV_RUNHOME'] + "; " + \
+               os.environ['PVINSTALL'] + "/PAV/scripts/mytime " + os.environ['USER_CMD']
 
+            nodes = get_moab_node_list()
+            # ++ PV_NODES : List of node names allocated to this job
+            os.environ['PV_NODES'] = nodes
+            os.environ['GZ_NODES'] = os.environ['PV_NODES']
+ 
             #redirect STDERR to the same file
             sys.stderr = lf
 

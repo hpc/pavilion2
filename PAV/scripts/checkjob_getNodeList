@@ -78,7 +78,7 @@ else { die "Bad data, exiting.\n"; }
 my $myjobid = shift; 
 if (!defined $myjobid) {
   print "ERROR: no job id entered, exiting!\n";
-  exit;
+  exit(1);
 }
 
 my $mm = `which checkjob`;
@@ -92,6 +92,9 @@ my $ptr;
 #   print "begin - nodelist: $nodelist\n";
 
             my $output = `$MDIAG`;
+            if (0 != $?) {
+                exit(1);
+            }
             my @lines = split "\n",$output;
             for ( my $res=0; $res<@lines; $res++ ) {
                next if (! ( $lines[$res] =~ /Allocated Nodes:/ ));

@@ -79,6 +79,9 @@ if ( ${RMGR} == "CLE" ) then
 else
 
    set nodes = `${PVINSTALL}/PAV/scripts/checkjob_getNodeList ${PV_JOBID}`
+   if (0 != $?) then
+      exit 1
+   endif
    echo "$nodes" | gawk '{ for ( i=1 ; i <= NF ; i++ ) print $i }'
 
 
