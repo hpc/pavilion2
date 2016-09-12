@@ -68,6 +68,7 @@ import shutil
 import json
 import glob
 from subprocess import Popen, PIPE
+import subprocess
 
 
 def copy_file(src, dest):
@@ -238,9 +239,19 @@ class JobController:
 
     def build(self):
         # call the command that builds the users test/job
-        bld_cmd = self.configs['source_location'] + "/" + self.configs['build']['cmd']
+        bld_cmd = "cd " + os.environ['PV_RUNHOME'] + "; " + \
+            os.environ['PV_RUNHOME'] + "/" + self.configs['build']['cmd']
         self.logger.info(self.lh + ': start build command: ' + bld_cmd)
-        os.system(bld_cmd)
+        try:
+            output = subprocess.check_output(bld_cmd, shell=True, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            self.logger.info(self.lh + " : build exit status:" + str(e.returncode))
+            print "build exit status:" + str(e.returncode)
+            self.logger.info(self.lh + " : build output:" + e.output)
+            print "build output:" + e.output
+            sys.stdout.flush()
+            raise
+
         self.logger.info(self.lh + '%s build command complete ' % bld_cmd)
 
     def query(self):
