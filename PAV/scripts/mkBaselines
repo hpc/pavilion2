@@ -112,6 +112,8 @@ print "  is '$tdstuff[1]' numeric? \n" if ($opt{v});
     next unless is_numeric($tdstuff[1]);
      #  tdstuff[0] = trend data name,  tdstuff[1] = trend data value
 print "  then add - $testname) $tdstuff[0] - $tdstuff[1]\n" if ($opt{v});
+if ( $tdstuff[0] =~ /(.+)\+(.+)/ )  {
+    $tdstuff[0] = $1;}
     $tdVal{$testname}{$tdstuff[0]} += $tdstuff[1]; 
     push ( @{$tdValList{$testname}{$tdstuff[0]} }, $tdstuff[1]);
 
@@ -138,32 +140,35 @@ print "  then add - $testname) $tdstuff[0] - $tdstuff[1]\n" if ($opt{v});
       $numVals{$testname}{$tdstuff[0]} = 1; 
     }
 
-    # process the average of a common set of trend data names
-    if ( $tdstuff[0] =~ /(.+)\+(.+)/ )  {
-     chomp $1; # common part before the "+" sign
-     chomp $2; # unique part after the "+" sign
-     #print "com - $1, diff - $2\n";
-     $numVals{$testname}{$1} += 1; 
-     $aggTotal{$testname}{$1} += $tdstuff[1];  
-     push ( @{$aggTotalList{$testname}{$1} }, $tdstuff[1]);
 
 
-     if (! defined $minaggTotal{$testname}{$1}) {
-           $minaggTotal{$testname}{$1} = $tdstuff[1];
-     } else {
-       if ($minaggTotal{$testname}{$1} > $tdstuff[1]) {
-           $minaggTotal{$testname}{$1} = $tdstuff[1];
-       }
-     }
-     if (! defined $maxaggTotal{$testname}{$1}) {
-           $maxaggTotal{$testname}{$1} = $tdstuff[1];
-     } else {
-       if ($maxaggTotal{$testname}{$1} < $tdstuff[1]) {
-           $maxaggTotal{$testname}{$1} = $tdstuff[1];
-       }
-     }
-
-    } # end process common aggregate values
+# Edited out by cstorer
+#    # process the average of a common set of trend data names
+#    if ( $tdstuff[0] =~ /(.+)\+(.+)/ )  {
+#     chomp $1; # common part before the "+" sign
+#     chomp $2; # unique part after the "+" sign
+#     #print "com - $1, diff - $2\n";
+#     $numVals{$testname}{$1} += 1; 
+#     $aggTotal{$testname}{$1} += $tdstuff[1];  
+#     push ( @{$aggTotalList{$testname}{$1} }, $tdstuff[1]);
+#
+#
+#     if (! defined $minaggTotal{$testname}{$1}) {
+#           $minaggTotal{$testname}{$1} = $tdstuff[1];
+#     } else {
+#       if ($minaggTotal{$testname}{$1} > $tdstuff[1]) {
+#           $minaggTotal{$testname}{$1} = $tdstuff[1];
+#       }
+#     }
+#     if (! defined $maxaggTotal{$testname}{$1}) {
+#           $maxaggTotal{$testname}{$1} = $tdstuff[1];
+#     } else {
+#       if ($maxaggTotal{$testname}{$1} < $tdstuff[1]) {
+#           $maxaggTotal{$testname}{$1} = $tdstuff[1];
+#       }
+#     }
+#
+#    } # end process common aggregate values
 
   } # end read line
 
@@ -198,6 +203,7 @@ foreach my $tn (sort keys %tdVal) {
       #print " Variance - $VarFixedName{$tn}{$k}, stDev - $stdev\n";
       #print "\t $k = $MeanFixedName{$tn}{$k} $tdUnits{$tn}{$k} (entries - $numVals{$tn}{$k}, min - $min{$tn}{$k}, max - $max{$tn}{$k}, stDev - $stdev)\n";
       printf "\t %s = %.2f %s (entries - %d, min - %.2f, max - %.2f, stDev - %.2f\n", $k, $MeanFixedName{$tn}{$k}, $tdUnits{$tn}{$k}, $numVals{$tn}{$k}, $min{$tn}{$k}, $max{$tn}{$k}, $stdev;
+      
     }
 
     foreach my $k (sort keys %{$aggTotal{$tn} } ) {
