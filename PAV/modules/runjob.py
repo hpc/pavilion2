@@ -141,7 +141,7 @@ def build_results_dir(params):
     new_dir = new_dir + date_parts + target + "/" + name + "/"
     pid = str(os.getpid())
     results_now = datetime.datetime.now()
-    ld = name + "__" + params['run']['cmd'].split(".", 1)[0] + \
+    ld = name + "__" + (params['run']['cmd'].split(".", 1)[0]).split("/",1)[0] + \
         "__" + pid + "__" + target  \
         + "." + results_now.strftime('%Y-%m-%dT%H:%M:%S:%f')
     new_dir += ld

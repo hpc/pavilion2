@@ -167,7 +167,7 @@ class JobController:
             return
 
         # now setup and do the move
-        os.environ['PV_RUNHOME'] = ws + "/" + self.name + "__" + run_cmd + "." + JobController.now()
+        os.environ['PV_RUNHOME'] = ws + "/" + self.name + "__" + run_cmd.split("/",1)[0] + "." + JobController.now()
 
         print 'Working Space: %s' % os.environ['PV_RUNHOME']
 
