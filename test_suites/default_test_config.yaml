@@ -142,7 +142,15 @@ UniqueId:
     scheduler: 'moab'
     # User specified test specific argument string
     # The ENV variable PV_TEST_ARGS will contain this string at run time.
-    test_args: '' 
+    # This can be two dimensional where all the combinations of the lists will
+    # be used. For example [['a', 'b'], ['c', 'd']] will exand to:
+    # ['a c', 'a d', 'b c', 'b d']
+    test_args: ['']
+    # restrictions on the test arguments this is a list of sets that you want to
+    # exclude. For example: ['a c', 'b d'] will cause the list from the example
+    # above to be ['a d', 'b c']
+    # an empty string will block all arguments
+    test_args_restrictions: ['']
     # number of times to repeat this section
     count: 1
 

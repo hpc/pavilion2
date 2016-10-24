@@ -245,7 +245,6 @@ class RunTestSuite(IPlugin):
 
                 # instantiate a new object for each test Entry type  ( Raw, Moab, etc. )
                 # i.e. , te = MoabTestEntry(...)
-
                 try:
                     st = test_suite_entry['run']['scheduler']
                     scheduler_type = st.capitalize()
@@ -255,8 +254,12 @@ class RunTestSuite(IPlugin):
                 # There needs to be this type of scheduler object implemented to support this
                 # See the testEntry.py file for examples
                 object_name = scheduler_type + "TestEntry"
-		restrictions_list=[]
-		args=expansion(args, restrictions_list)
+
+                test_args_restrictions = []
+                if 'test_args_restrictions' in test_suite_entry['run'] and test_suite_entry['run']['test_args_restrictions']:
+                    test_args_restrictions = test_suite_entry['run']['test_args_restrictions']
+                test_suite_entry['run']['test_args']=expansion(test_suite_entry['run']['test_args'], test_args_restrictions)
+
                 try:
                     te = globals()[object_name](entry_id, test_suite_entry, args)
                 except KeyError:
