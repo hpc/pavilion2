@@ -150,7 +150,7 @@ UniqueId:
     # exclude. For example: ['a c', 'b d'] will cause the list from the example
     # above to be ['a d', 'b c']
     # an empty string will block all arguments
-    test_args_restrictions: ['']
+    test_args_restrictions: []
     # number of times to repeat this section
     count: 1
 
