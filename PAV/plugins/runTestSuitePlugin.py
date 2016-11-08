@@ -76,6 +76,11 @@ def expansion (initial_arguements, initial_restrictions):
     temp_list=[]
     temp_string=""
     return_list_of_strings=[]
+
+    # check to see if inital arguments in an array. if not we can just return it
+    if (not isinstance(initial_arguements, list)):
+        return initial_arguements
+
     ## Definitions of variables ## {{{
     #   lists_of_lists will store the lists arguements passed in
     #   my_list will store all the combinations of the lists passed in

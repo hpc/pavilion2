@@ -299,6 +299,8 @@ class SlurmTestEntry(TestEntry):
             l3 = self.this_dict[self.id]['run']['test_args']
             if isinstance(l3, str):
                 l3 = [l3]
+            elif 0 == len(l3):
+                l3 = ['']
         except KeyError:
             l3 = ['']
 
@@ -446,6 +448,8 @@ class MoabTestEntry(TestEntry):
             l3 = self.this_dict[self.id]['run']['test_args']
             if isinstance(l3, str):
                 l3 = [l3]
+            elif 0 == len(l3):
+                l3 = ['']
         except KeyError:
             l3 = ['']
 
