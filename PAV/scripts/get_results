@@ -686,7 +686,7 @@ foreach $group (@grps) {
 #      printf (" %s %4.2f hrs.\n", "Cumulative Wall Clock Run Time:", $tmpCalc);
       print "Last test started at: $latestEnd\n";
     } else {
-      print " Results: Tests evaluated = $totalTests, Passed = $totalTestsPassed  \n";
+      print " Results: Tests evaluated = $totalTests, Passed = $totalTestsPassed, Failed = $totalTestsFailed, Undefined = $totalTestsUndef, Incomplete = $totalTestsfoobar\n";
     }
   }
   #print "\n  --------------------------------------------------------------------  \n";
