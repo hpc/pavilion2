@@ -212,6 +212,7 @@ class MoabJobController(JobController):
             msub_cmd += "-l nodes=" + node_list
         else:
             msub_cmd += "-l nodes=" + nnodes
+        msub_cmd += ":ppn=" + ppn
         if machine_type:
             msub_cmd += ":" + machine_type
         if os_type:
