@@ -190,6 +190,8 @@ class RunTestSuite(IPlugin):
         parser_rts.add_argument('-s', "--serial", help="run jobs serially, default mode is parallel", action="store_true")
         parser_rts.add_argument('-w', nargs=1, metavar='<count>',
                                 help="don't submit if <count> of my jobs running or queued (DRM specific)")
+        parser_rts.add_argument('-t', "--test", type=str, metavar='<test>', action='append',
+                                help="only run <test> in test file. Multiple may be specified.")
         parser_rts.set_defaults(sub_cmds='run_test_suite')
         return 'run_test_suite'
 
@@ -247,6 +249,12 @@ class RunTestSuite(IPlugin):
                 # Don't process include directive
                 if "IncludeTestSuite" in entry_id:
                     continue
+                # Don't process it it is not in the test list (if a test list is specified)
+                if args['test']:
+                    if entry_id not in args['test']:
+                        if args['verbose']:
+                            print "Skipping %s" % entry_id
+                        continue
 
                 # instantiate a new object for each test Entry type  ( Raw, Moab, etc. )
                 # i.e. , te = MoabTestEntry(...)
