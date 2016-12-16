@@ -163,6 +163,10 @@ class MoabJobController(JobController):
         # ++ PV_OS : The os type requested from moab
         os.environ['PV_OS'] = os_type
 
+        msub_args = ''
+        if 'msub_args' in self.configs['moab'] and self.configs['moab']['msub_args']:
+            msub_args = self.configs['moab']['msub_args']
+        
         # accounting file? or just log it?
 
         # variation passed as arg0 - nodes, arg1 - ppn
@@ -223,6 +227,8 @@ class MoabJobController(JobController):
             msub_cmd += ",feature=" + ts
         if reservation:
             msub_cmd += ",advres=" + reservation
+        if msub_args:
+            msub_cmd += " " + msub_args
 
         # ++ PV_RUNHOME : Path where this job is run from
         run_cmd = os.environ['PV_RUNHOME'] + "/" + self.configs['run']['cmd']
