@@ -108,6 +108,9 @@ class GetResults(IPlugin):
         parser_gr.add_argument('-bp', '--make-box-plots', action="store_true",
                                help='create box plots from the selected set of test results and trend data values')
 
+        parser_gr.add_argument('-ap', '--make-abx-plots', action="store_true",
+                               help='create abbreviated box plots from the selected set of test results and trend data values')
+ 
         parser_gr.add_argument('-bl', '--make-baselines', action="store_true",
                                help='create base line averages from the selected set'
                                     ' of test results and trend data values')
@@ -191,6 +194,9 @@ class GetResults(IPlugin):
 
             if args['make_box_plots']:
                 plot_cmd = os.environ['PVINSTALL'] + "/PAV/modules/makeboxplots.py"
+                gr_cmd = os.environ['PVINSTALL'] + "/PAV" + bc + " -T -l " + results_dir + " | " + plot_cmd
+            elif args['make_abx_plots']:
+                plot_cmd = os.environ['PVINSTALL'] + "/PAV/modules/mkabrevboxplots.py"
                 gr_cmd = os.environ['PVINSTALL'] + "/PAV" + bc + " -T -l " + results_dir + " | " + plot_cmd
             elif args['show_linecharts']:
                 gr_cmd = os.environ['PVINSTALL'] + "/PAV/scripts/showtd " + results_dir + "/test_results.csv"

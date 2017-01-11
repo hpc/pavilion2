@@ -300,6 +300,34 @@ def makesingleboxplot(thisdirname, subdirname, thisfilename):
         xtickmarks.append(xname)
 
     dlist.sort(key=lambda a: a.mean())
+
+	 # start of fix to abbreviate the list size here
+
+    tnodes = len( dlist )
+    htnodes = int( tnodes / 2 )
+    hstart = htnodes - 20
+    hend = htnodes + 20  
+    hbest = tnodes - 40
+    adlist=[]    
+    axtickmarks=[]    
+    # axtickmarks.append('')    
+    i = 0 
+    for n in dlist:
+        if i < 900:
+            adlist.append( n )
+            axtickmarks.append( xtickmarks[i] )
+        if i >= hstart:
+            if i <= hend:
+                adlist.append( n )
+                axtickmarks.append( xtickmarks[i] )
+        if i >= hbest:
+            adlist.append( n )
+            axtickmarks.append( xtickmarks[i] )
+        i = i + 1
+	
+	     
+
+	 # start of fix to abbreviate the list size here
     plt.figure()
     # boxplot(multidata)
     # print dlist
@@ -307,7 +335,8 @@ def makesingleboxplot(thisdirname, subdirname, thisfilename):
         return 0
 
     # break
-    plt.boxplot(dlist)
+    # plt.boxplot(dlist)
+    plt.boxplot(adlist)
     # boxplot(hpldata2)
     plt.xlabel('Node')
     # ylabel('Performance (GFlops)')
@@ -315,7 +344,8 @@ def makesingleboxplot(thisdirname, subdirname, thisfilename):
     # title("Mustang Quarantined HPL with Proper Affinities Set Performance Variation")
     plt.title(ctitle)
 
-    nnodes = len( dlist )
+    # nnodes = len( dlist )
+    nnodes = len( adlist )
 
     adjustedwidth = nnodes / 100.0 * 10.0 ;
     if adjustedwidth < 10.0:
@@ -324,12 +354,12 @@ def makesingleboxplot(thisdirname, subdirname, thisfilename):
     # print 'Nodes collected for ', nnodes, ' adjusted width is ', adjustedwidth
 
     ticktable=[]
-    for k in xtickmarks:
+    for k in axtickmarks:
         ticktable.append( k )
 
 
-    plt.xticks( range( len( xtickmarks)), rotation=90, fontsize=6 )
-    plt.xticks( range( len( ticktable)), xtickmarks,  rotation=90, fontsize=6 )
+    plt.xticks( range( len( axtickmarks)), rotation=90, fontsize=6 )
+    plt.xticks( range( len( ticktable)), axtickmarks,  rotation=90, fontsize=6 )
 
     fig = matplotlib.pyplot.gcf()
     # fig.set_size_inches(10.0,7.0)
