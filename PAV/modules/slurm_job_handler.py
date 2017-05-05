@@ -82,7 +82,7 @@ def stdout_redirected(new_stdout):
 def get_node_list():
     if "SLURM_JOBID" in os.environ:
         os.environ['PV_JOBID'] = os.environ.get("SLURM_JOBID")
-        output = subprocess.check_output("hostlist -e $SLURM_NODELIST", shell=True)
+        output = subprocess.check_output("scontrol show hostnames \"$SLURM_NODELIST\" | tr '\n' ','", shell=True)
         nodes = output.replace('\n', "")
         nodes = nodes.replace(',', " ")
     else:
