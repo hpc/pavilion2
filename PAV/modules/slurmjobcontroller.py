@@ -114,6 +114,13 @@ class SlurmJobController(JobController):
             slurm_cmd += " --reservation=" + reservation
             print "<reservation> " + reservation
             self.logger.info(self.lh + " : reservation=" + reservation)
+            
+        # constraint
+        if "constraint" in self.configs['slurm'] and self.configs['slurm']['constraint']: 
+            constraint = self.configs['slurm']['constraint']
+            slurm_cmd += " --constraint=" + constraint
+            print "<constraint> " + constraint
+            self.logger.info(self.lh + " : constraint=" + constraint)
 
         # get time limit, if specified
         time_lim = self.configs['slurm']['time_limit']

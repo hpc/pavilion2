@@ -224,6 +224,12 @@ UniqueId:
     # This will launch 3 jobs. One on ca002, one on ca003, and one on ca005
     # Overrides number of nodes requested.
     node_list: ['']
+    # optional constratant to launch the job with. Can be used to set knl modes
+    # For example: quad,cache
+    constraint: ""
+    # optional partition to request.
+    # For example: knl
+    partition: ""
 
   raw:
     # Mostly a placeholder
