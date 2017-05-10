@@ -180,7 +180,7 @@ class SlurmJobController(JobController):
             # call to invoke real Slurm command
 
             try:
-                output = subprocess.check_output(slurm_cmd, shell=True)
+                output = subprocess.check_output(slurm_cmd, shell=True, stderr=subprocess.STDOUT)
             except subprocess.CalledProcessError as e:
                self.logger.info(self.lh + " : sbatch exit status:" + str(e.returncode))
                print "sbatch exit status:" + str(e.returncode)
