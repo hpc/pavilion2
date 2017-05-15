@@ -123,8 +123,17 @@ class SlurmJobController(JobController):
             self.logger.info(self.lh + " : constraint=" + constraint)
 
         # get time limit, if specified
-        time_lim = self.configs['slurm']['time_limit']
-        slurm_cmd += " -t " + time_lim
+        if "time_limit" in self.configs['slurm'] and self.configs['slurm']['time_limit']: 
+            try:
+                time_lim = self.configs['slurm']['time_limit']
+                self.logger.info(self.lh + " : time limit = " + time_lim)
+
+                slurm_cmd += " -t " + time_lim
+            except TypeError:
+                self.logger.info(self.lh + " Error: time limit value, test suite entry may need quotes")
+                print " Error: time limit value, test suite entry may need quotes"
+                raise
+
 
         # add in a target segment (partition in Slurm vernacular), if specified
         if 'target_seg' in self.configs['slurm'] and self.configs['slurm']['target_seg']:
