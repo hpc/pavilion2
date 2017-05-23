@@ -151,6 +151,7 @@ class SlurmJobController(JobController):
         os.environ['PV_PESPERNODE'] = ppn
         print "<ppn> " + ppn
         self.logger.info(self.lh + " : ppn=" + ppn)
+        slurm_cmd += " --ntasks-per-node " + ppn
 
         pes = int(ppn) * int(nnodes)
         os.environ['PV_NPES'] = str(pes)
