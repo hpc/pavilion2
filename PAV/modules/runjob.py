@@ -221,6 +221,9 @@ def main(args):
                 print "  --> ", sys.exc_info()[1]
                 return
 
+            # setup the enviroment for the job
+            this_job.setup_job_info()
+
             # do what every job has to do
             if params['build']['build_before_run_flag']:
                 logger.info(lh + " build-start ")

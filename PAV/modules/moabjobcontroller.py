@@ -202,9 +202,6 @@ class MoabJobController(JobController):
         # print the common log settings here right after the job is started
         self.save_common_settings()
 
-        # store some info into ENV variables that jobs may need to use later on.
-        self.setup_job_info()
-
         # setup unique Moab stdout and stderr file names
         # Handle differences between moab-slurm, moab-cle, etc. ??
         # ++ PV_JOB_RESULTS_LOG_DIR : Path where results for this job are placed

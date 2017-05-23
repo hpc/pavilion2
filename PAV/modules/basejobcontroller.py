@@ -244,6 +244,7 @@ class JobController:
         self.logger.info(self.lh + ': start build command: ' + bld_cmd)
         try:
             output = subprocess.check_output(bld_cmd, shell=True, stderr=subprocess.STDOUT)
+            print output
         except subprocess.CalledProcessError as e:
             self.logger.info(self.lh + " : build exit status:" + str(e.returncode))
             print "build exit status:" + str(e.returncode)

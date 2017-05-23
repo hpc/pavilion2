@@ -167,9 +167,6 @@ class SlurmJobController(JobController):
         # print the common log settings here right after the job is started
         self.save_common_settings()
 
-        # store some info into ENV variables that jobs may need to use later on.
-        self.setup_job_info()
-
         # setup unique Slurm stdout and stderr file names
         se = os.environ['PV_JOB_RESULTS_LOG_DIR'] + "/slurm-%j.out"
         so = os.environ['PV_JOB_RESULTS_LOG_DIR'] + "/slurm-%j.out"
