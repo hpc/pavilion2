@@ -200,7 +200,9 @@ do {
 
       # Check to see if jobs are queued or running
       # Sometimes this area needs to be tweaked to work on different archs.
-      $inUse = `mdiag -j | grep $me | wc -l`;
+      #$inUse = `mdiag -j | grep $me | wc -l`;
+      $inUse = `squeue -u $me | wc -l`;
+      $inUse -= 1;
       
       # If more than waterMark (-w) jobs running or queued try again later.
       # Used as a safety valve so that not to many will get stuffed 
