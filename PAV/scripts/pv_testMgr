@@ -62,7 +62,7 @@ use File::Basename;
 use Getopt::Std;
 # Example usage and meaning: 
 
-# "nohup atc_testMgr -C my_test_suite.yaml -D 30 -w 4 &"
+# "nohup pav_testMgr -C my_test_suite.yaml -D 30 -w 4 &"
 #
 # - Submit a new set of jobs defined by the test suite every 30 minutes,
 #   only if less than 4 of my jobs already queued or running. 
@@ -73,7 +73,7 @@ unless (exists( $ENV{PVINSTALL})) {
 }
 my $PH = $ENV{PVINSTALL};
 unless (exists($ENV{PATH})) {
-  $ENV{PATH}="/bin:/usr/bin:/usr/X11R6/bin:$PH/PAV:/opt/MOAB/bin:.";
+  $ENV{PATH}="$PH/PAV:/usr/lib64/qt-3.3/bin:/usr/local/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/sbin:.";
 }
 $ENV{G}="$PH";
 my $USER = $ENV{USER};
@@ -81,7 +81,7 @@ my $USER = $ENV{USER};
 my $pwd = dirname(abs_path("$0")); chomp($pwd);
 
 use strict;
-my $log = "$ENV{HOME}/pv_testMgr.log.$USER";
+my $log = "$ENV{PV_LOG}/pv_testMgr.log.$USER";
 my $me = `whoami`; chop $me;
 my $count = 1;
 our $secs_to_wait;
@@ -131,7 +131,7 @@ unless ($opt{C}) {
       print "NOTICE - killing running version of $0 (process id $oldProcID)\n";
       `kill -9 $oldProcID`;
     } else {
-      print "WARNING - instance of $0 is running, quiting!\n";
+      print "WARNING - instance of $0 is running, quitting!\n";
       exit;
     }
   }
@@ -231,10 +231,10 @@ do {
   # we can only sleep after all the segments have been checked
     if ($continuous) { `sleep $sleepTime`; } 
 
-    # Exit if flag file created -- allows another user using same GZHOME to end testMgr.
+    # Exit if flag file created -- allows another user using same PV_HOME to end testMgr.
     # Special file must be created manually by "other" user.
     # This is menat to be a special undocumented feature.
-    my $exit_flag_file = "$ENV{'HOME'}/pv_exit_testMgr";
+    my $exit_flag_file = "$ENV{'PV_LOG'}/pv_exit_testMgr";
     if (-e $exit_flag_file ) {
       $continuous = 0;
       unlink($exit_flag_file);
