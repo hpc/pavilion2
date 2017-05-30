@@ -346,6 +346,8 @@ class JobController:
         except KeyError, e:
             # print 'I got a KeyError - no: "%s"' % str(e)
             pass
+        except Exception, e:
+            print "shutil.rmtree() Exception: \"%s\"" % str(e)
 
         print '- Working Space cleanup complete'
 
