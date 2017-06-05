@@ -215,7 +215,7 @@ UniqueId:
     # time in hr:min:secs
     # This SHOULD be quoted
     time_limit: "01:00:00"
-    # target segment, added as a feature component to the "-l" argument (optional)
+    # target segment (partition in Slurm vernacular)
     target_seg: "" 
     # optional list of nodes to target 
     # Uses defined string to populate '-w <node_list>' on sbatch line
@@ -227,9 +227,6 @@ UniqueId:
     # optional constratant to launch the job with. Can be used to set knl modes
     # For example: quad,cache
     constraint: ""
-    # optional partition to request.
-    # For example: knl
-    partition: ""
 
   raw:
     # Mostly a placeholder
