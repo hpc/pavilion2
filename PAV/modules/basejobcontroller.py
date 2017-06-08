@@ -110,6 +110,9 @@ class JobController:
 
         # print "initialize job controller"
 
+        # ++ PV_SOURCE_LOCATION : Original source location (global not working directory)
+        os.environ['PV_SOURCE_LOCATION'] = self.configs['source_location']
+
         # verify command is executable early on
         mycmd = self.configs['source_location'] + "/" + self.configs['run']['cmd']
         is_exec = os.access(mycmd, os.X_OK)
