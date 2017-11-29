@@ -250,7 +250,8 @@ our %opt;
 
     my $node_name;
     if ( $nn == 1 ) { 
-      $node_name = chomp($nl);
+      $node_name = $nl;
+      $node_name =~ s/,$//;
     } else {
       $node_name = "multi";
     }
