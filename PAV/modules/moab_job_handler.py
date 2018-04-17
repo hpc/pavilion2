@@ -74,6 +74,8 @@ from contextlib import contextmanager
 
 #from PAV.modules.basejobcontroller import JobController
 #from PAV.modules.ldms import LDMS
+newpath = os.environ['PVINSTALL'] + "/PAV/modules"
+sys.path.append(newpath)
 from basejobcontroller import JobController
 from ldms import LDMS
 
