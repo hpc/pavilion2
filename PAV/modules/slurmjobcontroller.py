@@ -63,6 +63,7 @@ import subprocess
 import re
 from basejobcontroller import JobController
 from helperutilities import which
+from basejobcontroller import JobException
 
 
 class SlurmJobController(JobController):
@@ -186,14 +187,13 @@ class SlurmJobController(JobController):
             # call to invoke real Slurm command
 
             try:
-                output = subprocess.check_output(slurm_cmd, shell=True, stderr=subprocess.STDOUT)
+                output = subprocess.check_output(slurm_cmd, shell=True,
+                                                 stderr=subprocess.STDOUT)
             except subprocess.CalledProcessError as e:
-               self.logger.info(self.lh + " : sbatch exit status:" + str(e.returncode))
-               print "sbatch exit status:" + str(e.returncode)
+               self.logger.info(self.lh + " : sbatch exit status:" +
+                                str(e.returncode))
                self.logger.info(self.lh + " : sbatch output:" + e.output)
-               print "sbatch output:" + e.output
-               sys.stdout.flush()
-               raise
+               raise JobException(e.returncode, e.output)
 
             # Finds the jobid in the output.
             jid = 0

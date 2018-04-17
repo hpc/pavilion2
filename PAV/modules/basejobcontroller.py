@@ -82,8 +82,17 @@ def copy_file(src, dest):
         print('Error: %s' % e.strerror)
 
 
-class JobController:
 
+class JobException(Exception):
+    def __init__(self, exit_code, output):
+        super(JobException, self).__init__(output)
+        self.err_code = exit_code
+        self.err_str = os.strerror(exit_code)
+        self.msg = output
+
+
+
+class JobController(object):
     """ class to define the common actions for any job type """
 
     @staticmethod

@@ -69,6 +69,11 @@ from yapsy.IPlugin import IPlugin
 from testConfig import YamlTestConfig
 from testEntry import TestEntry, MoabTestEntry, RawTestEntry, SlurmTestEntry
 
+## Assumes ../modules is in sys.path. Better if packaged, then looks like:
+#from .. import runjob
+import runjob
+from basejobcontroller import JobException
+
 
 def expansion (initial_arguements, initial_restrictions):
     list_of_lists=[]
@@ -168,13 +173,11 @@ class RunTestSuite(IPlugin):
         self.logger.info('dispatch: %s, variation: (%s)' % (lh, my_te.get_id()))
         runjob_cmd = os.environ['PVINSTALL'] + "/PAV/modules/runjob.py"
         master_log_file = os.environ['PV_LOG']
-        args = ["python", runjob_cmd, uid, js_params, master_log_file]
-        p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
-        if in_args['serial']:
-            output, errors = p.communicate()
-            if p.returncode or errors:
-                print "job_dispatcher: Error: Job failed to run! "
-                print [p.returncode, errors, output]
+        try: 
+            runjob.main([runjob_cmd, uid, js_params, master_log_file])
+        except JobException as e:
+            print "\nERROR (" + str(e.err_code) + "): " + e.err_str + \
+                "\n" + e.msg
 
 
     # build the sub-command argument list
