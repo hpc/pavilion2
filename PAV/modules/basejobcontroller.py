@@ -127,7 +127,7 @@ class JobController(object):
         is_exec = os.access(mycmd, os.X_OK)
         if not is_exec:
             print mycmd + " Run command not executable!"
-            self.logger.error('%s %s not executable' % (self.lh + ":", mycmd))
+            self.logger.error(self.lh + ": " + mycmd + " not executable")
             raise RuntimeError('Run command not executable')
 
         self.logger.info(self.lh + " : init phase")
@@ -141,7 +141,7 @@ class JobController(object):
         os.environ['GZ_TESTNAME'] = self.name
         os.environ['PV_TESTEXEC'] = self.configs['run']['cmd']
         os.environ['GZ_TESTEXEC'] = self.configs['run']['cmd']
-        pt = type(self.configs['run']['test_args'])
+        #pt = type(self.configs['run']['test_args'])
         try:
             # ++ PV_TEST_ARGS : Test arguments for job extracted from test suite
             os.environ['GZ_TEST_PARAMS'] = self.configs['run']['test_args']
@@ -179,11 +179,14 @@ class JobController(object):
             return
 
         # now setup and do the move
-        os.environ['PV_RUNHOME'] = ws + "/" + self.name + "__" + run_cmd.split("/",1)[0] + "." + JobController.now()
+        os.environ['PV_RUNHOME'] = ws + "/" + self.name + "__" + \
+                                   run_cmd.split("/", 1)[0] + "." + \
+                                   JobController.now()
 
         print 'Working Space: %s' % os.environ['PV_RUNHOME']
 
-        self.logger.info(self.lh + " : " + 'Create temporary Working Space - ' + os.environ['PV_RUNHOME'])
+        self.logger.info(self.lh + " : " + 'Create temporary Working Space - '
+                         + os.environ['PV_RUNHOME'])
         try:
             os.makedirs(os.environ['PV_RUNHOME'], 0o775)
         except OSError:
@@ -203,12 +206,14 @@ class JobController(object):
             from_loc = src_dir + "/"
             if exclude_ws:
                 cmd = "rsync -a --exclude '" + \
-                      exclude_ws + "' --exclude '*.[ocfh]' --exclude '*.bck' --exclude '*.tar' "
+                      exclude_ws + "' --exclude '*.[ocfh]' --exclude" + \
+                      " '*.bck' --exclude '*.tar' "
             else:
-                cmd = "rsync -a --exclude '*.[ocfh]' --exclude 'pv_ws' --exclude '*.bck' --exclude '*.tar' "
+                cmd = "rsync -a --exclude '*.[ocfh]' --exclude 'pv_ws'" + \
+                      " --exclude '*.bck' --exclude '*.tar' "
             cmd += from_loc + " " + to_loc
 
-        self.logger.debug('%s : %s' % (self.lh, cmd))
+        self.logger.debug(self.lh + " : " + cmd)
 
         # run the command
         p = Popen(cmd, stdout=PIPE, stderr=PIPE, shell=True)
@@ -217,8 +222,9 @@ class JobController(object):
         if p.returncode or errors:
             print "Error: failed copying data to working space!"
             print [p.returncode, errors, output]
-            self.logger.info(self.lh + " failed copying data to working space!, skipping job: " + self.name +
-                                       "(Hint: check the job logfile)")
+            self.logger.info(self.lh + " failed copying data to working space!"
+                             + "skipping job: " + self.name +
+                             "(Hint: check the job logfile)")
             # self.logger.info(self.lh + p.returncode + errors + output)
 
     def __str__(self):
@@ -281,10 +287,9 @@ class JobController(object):
                 print "- Run epilog script: " + str(es)
                 os.system(es)
                 print "- epilog script complete"
-        except KeyError, e:
-                # print 'I got a KeyError - no: "%s"' % str(e)
-                print "- No epilog script configured"
-                pass
+        except KeyError:
+            # print 'I got a KeyError - no: "%s"' % str(e)
+            print "- No epilog script configured"
 
     def setup_job_info(self):
 
@@ -309,7 +314,6 @@ class JobController(object):
                 os.environ['SPLUNK_GDL'] = str(self.configs['splunk']['global_data_file'])
         except KeyError, e:
             print 'basejobcontroller:setup_job_info, Splunk config error - no: "%s"' % str(e)
-            pass
 
     @staticmethod
     def cleanup():
@@ -341,10 +345,8 @@ class JobController(object):
                             copy_file(file2save, to_loc)
         except KeyError, e:
             print 'I got a KeyError -  "%s"' % str(e)
-            pass
         except:
             print 'Warning!, copy failed!'
-            pass
 
         # remove the working space ONLY if it was created
         try:
@@ -376,7 +378,7 @@ class JobController(object):
         for line in lf:
             # td_regex = os.environ['TD_REGX']
             # match = re.search(td_regex, line, re.IGNORECASE)
-            match_str = "(<td>\s+(.*))"
+            match_str = r"(<td>\s+(.*))"
             match = re.search(match_str, line, re.IGNORECASE)
             # match = re.search("^(<td>\s+(.*))", line, re.IGNORECASE)
             if match:
@@ -400,7 +402,7 @@ class JobController(object):
                 log_dir = os.environ['PV_JOB_RESULTS_LOG_DIR']
                 cmd = os.environ['PVINSTALL'] + "/PAV/scripts/splunk/td2splunkData " + log_dir
                 os.system(cmd)
-        except KeyError, e:
+        except KeyError:
             # Never set up properly so just move on...
             # print 'basejobcontroller:process_trend_data, KeyError - no: "%s"' % str(e)
             pass

@@ -61,8 +61,8 @@ import sys
 import os
 import subprocess
 import re
-from basejobcontroller import JobController
-from helperutilities import which
+from PAV.modules.basejobcontroller import JobController
+from PAV.modules.helperutilities import which
 
 
 class MoabJobController(JobController):
@@ -79,7 +79,7 @@ class MoabJobController(JobController):
 
         # if DataWarp directives exist in the user script build new wrapper script on the fly
         with open(user_script) as f:
-            match = re.findall('^#DW\s.+', f.read(), re.MULTILINE)
+            match = re.findall(r'^#DW\s.+', f.read(), re.MULTILINE)
             if match:
                 first_line = "#!/usr/bin/env python"
                 my_moab_wrapper_text += first_line + "\n"
@@ -109,10 +109,9 @@ class MoabJobController(JobController):
     @staticmethod
     def is_moab_system():
         #if os.path.isfile("/etc/toss-release"):
-        if which("mdiag"):
+        if which("mdiag") is not None:
             return True
-        else:
-            return False
+        return False
 
     # .. some setup and let the msub command fly ...
     def start(self):
@@ -239,18 +238,19 @@ class MoabJobController(JobController):
             self.logger.info(self.lh + " : " + msub_cmd)
             # call to invoke real Moab command
             try:
-               output = subprocess.check_output(msub_cmd, shell=True, stderr=subprocess.STDOUT)
+                output = subprocess.check_output(msub_cmd, shell=True, stderr=subprocess.STDOUT)
             except subprocess.CalledProcessError as e:
-               self.logger.info(self.lh + " : msub exit status:" + str(e.returncode))
-               print "msub exit status:" + str(e.returncode)
-               self.logger.info(self.lh + " : msub output:" + e.output)
-               print "msub output:" + e.output
-               sys.stdout.flush()
-               raise
+                self.logger.info(self.lh + " : msub exit status:" + str(e.returncode))
+                print "msub exit status:" + str(e.returncode)
+                self.logger.info(self.lh + " : msub output:" + e.output)
+                print "msub output:" + e.output
+                sys.stdout.flush()
+                raise
 
             # Finds the jobid in the output from msub. The job id can either
             # be just a number or Moab.number.
-            match = re.search("^((Moab.)?(\d+))[\r]?$",  output, re.IGNORECASE | re.MULTILINE)
+            match = re.search(r"^((Moab.)?(\d+))[\r]?$",
+                              output, re.IGNORECASE | re.MULTILINE)
             jid = 0
             if match.group(1):
                 jid = match.group(1)
@@ -259,7 +259,8 @@ class MoabJobController(JobController):
         else:
             # fake-out section to run on basic unix system
             fake_job_cmd = os.environ['PVINSTALL'] + "/PAV/modules/moab_job_handler.py"
-            p = subprocess.Popen(fake_job_cmd, stdout=self.job_log_file, stderr=self.job_log_file, shell=True)
+            p = subprocess.Popen(fake_job_cmd, stdout=self.job_log_file,
+                                 stderr=self.job_log_file, shell=True)
             # wait for the subprocess to finish
             (output, errors) = p.communicate()
             if p.returncode or errors:
@@ -267,7 +268,7 @@ class MoabJobController(JobController):
                 print [p.returncode, errors, output]
                 self.logger.info(self.lh + " run error: " + errors)
 
-    
+
 # this gets called if it's run as a script/program
 if __name__ == '__main__':
     sys.exit()

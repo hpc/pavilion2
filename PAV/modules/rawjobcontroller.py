@@ -60,7 +60,7 @@ import sys
 import os
 import platform
 import subprocess
-from basejobcontroller import JobController
+from PAV.modules.basejobcontroller import JobController
 
 
 class RawJobController(JobController):

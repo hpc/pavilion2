@@ -57,9 +57,11 @@
 
 ''' a test of how to deamonize a program  '''
 
-import daemon
+import sys
+import os
 import time
-import sys,os
+import daemon
+
 
 def do_something():
     print sys.argv
@@ -77,7 +79,8 @@ def main():
     except:
         print "Error, can't open log file td.log"
     #print dir(daemon)
-    with daemon.DaemonContext(working_directory=here, pidfile='/tmp/td.pid', stdout=log, stderr=log):
+    with daemon.DaemonContext(working_directory=here, pidfile='/tmp/td.pid',
+                              stdout=log, stderr=log):
         do_something()
 
 if __name__ == "__main__":

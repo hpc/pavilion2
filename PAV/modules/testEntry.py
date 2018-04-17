@@ -58,11 +58,12 @@
 import sys
 import logging
 import itertools
-from ldms import LDMS
 import subprocess
 import getpass
 import copy
 from os.path import expanduser
+
+from PAV.modules.ldms import LDMS
 
 
 def flatten_dict(d):
@@ -77,7 +78,7 @@ def flatten_dict(d):
     return dict(items())
 
 
-class TestEntry():
+class TestEntry(object):
     """
     class to manipulate a specific test entry in the test suite
     """
@@ -98,7 +99,7 @@ class TestEntry():
             if args['verbose']:
                 print "Process test suite entry: " + self.handle
         self.logger = logging.getLogger('pav.' + my_name)
-        self.logger.info('Process %s ' % self.handle)
+        self.logger.info("Process " + self.handle)
 
     @staticmethod
     def check_valid(adict):
@@ -118,10 +119,12 @@ class TestEntry():
                     print "Error: test suite value for key (%s) must be defined" % k,
                     return False
                 elif "__" in data[k]:
-                    print "Error: test suite value for key (%s) cannot contain a double underscore" % k,
+                    print "Error: test suite value for key (" + k + \
+                        ") cannot contain a double underscore",
                     return False
                 elif " " in data[k]:
-                    print "Error: test suite value for key (%s) cannot contain a space" % k,
+                    print "Error: test suite value for key (" + k + \
+                        ") cannot contain a space",
                     return False
             return True
         else:
@@ -227,7 +230,7 @@ class TestEntry():
         except AttributeError:
             return int(1)
 
-    def room_to_run(self, args):
+    def room_to_run(self, _):
 
         # Determined by specific scheduler implementation,
         # otherwise False, there is no room
@@ -242,8 +245,7 @@ class TestEntry():
     def prep_ldms(self):
 
         # must be overridden by specific scheduler implementation
-        self.logger.info('LDMS not supported for this job (%s) type' % self.handle)
-        pass
+        self.logger.info('LDMS not supported for this job (' + self.handle + ') type')
 
 # BC added SlurmTestEntry
 
@@ -299,7 +301,7 @@ class SlurmTestEntry(TestEntry):
             l3 = self.this_dict[self.id]['run']['test_args']
             if isinstance(l3, str):
                 l3 = [l3]
-            elif 0 == len(l3):
+            elif len(l3) == 0:
                 l3 = ['']
         except KeyError:
             l3 = ['']
@@ -352,23 +354,23 @@ class SlurmTestEntry(TestEntry):
         return tv
 
     @staticmethod
-    def get_active_jobs(ts):
+    def get_active_jobs():
 
         me = getpass.getuser()
 
         cat = subprocess.Popen(['squeue'],
                                stdout=subprocess.PIPE,
-                               )
+                              )
 
         grep = subprocess.Popen(['grep', me],
                                 stdin=cat.stdout,
                                 stdout=subprocess.PIPE,
-                                )
+                               )
 
         cut = subprocess.Popen(['wc', '-l'],
                                stdin=grep.stdout,
                                stdout=subprocess.PIPE,
-                               )
+                              )
 
         end_of_pipe = cut.stdout
 
@@ -392,14 +394,14 @@ class SlurmTestEntry(TestEntry):
             if active_jobs < 100:
                 return True
 
-        self.logger.info('(%s) Active jobs exceed water mark, no job launched' % self.handle)
+        self.logger.info('(' + self.handle + ') Active jobs exceed water mark, no job launched')
         return False
 
     def prep_ldms(self):
 
         """ starts LDMS, since it works under Moab """
 
-        self.logger.info('setup LDMS for this job (%s) type' % self.handle)
+        self.logger.info('setup LDMS for this job (' + self.handle + ') type')
         LDMS(self)
 
 # -------------------------------------------
@@ -448,7 +450,7 @@ class MoabTestEntry(TestEntry):
             l3 = self.this_dict[self.id]['run']['test_args']
             if isinstance(l3, str):
                 l3 = [l3]
-            elif 0 == len(l3):
+            elif len(l3) == 0:
                 l3 = ['']
         except KeyError:
             l3 = ['']
@@ -492,7 +494,7 @@ class MoabTestEntry(TestEntry):
         return tv
 
     @staticmethod
-    def get_active_jobs(ts):
+    def get_active_jobs(ts=None):
         """
         Find the number of jobs queued or running on the system.
         implement:  `mdiag -j | grep $me | wc -l`
@@ -502,23 +504,23 @@ class MoabTestEntry(TestEntry):
 
         cat = subprocess.Popen(['mdiag', '-j'],
                                stdout=subprocess.PIPE,
-                               )
+                              )
 
         grep = subprocess.Popen(['grep', me],
                                 stdin=cat.stdout,
                                 stdout=subprocess.PIPE,
-                                )
+                               )
 
         if ts:
             grep = subprocess.Popen(['grep', ts],
                                     stdin=cat.stdout,
                                     stdout=subprocess.PIPE,
-                                    )
+                                   )
 
         cut = subprocess.Popen(['wc', '-l'],
                                stdin=grep.stdout,
                                stdout=subprocess.PIPE,
-                               )
+                              )
 
         end_of_pipe = cut.stdout
 
@@ -546,14 +548,14 @@ class MoabTestEntry(TestEntry):
             if active_jobs < 200:
                 return True
         print " ** active jobs exceed watermark, no jobs launched "
-        self.logger.info('(%s) Active jobs exceed water mark, no job launched' % self.handle)
+        self.logger.info('(' + self.handle + ') Active jobs exceed water mark, no job launched')
         return False
 
     def prep_ldms(self):
 
         """ starts LDMS, since it works under Moab """
 
-        self.logger.info('setup LDMS for this job (%s) type' % self.handle)
+        self.logger.info('setup LDMS for this job (' + self.handle + ') type')
         LDMS(self)
 
 
@@ -561,7 +563,7 @@ class RawTestEntry(TestEntry):
     """ simple enough, just launch this executable once
     """
 
-    def set_num_nodes(self):
+    def set_num_nodes(self, _):
         self.this_dict[self.id]['raw']['num_nodes'] = 1
 
     def get_num_nodes(self):
@@ -604,13 +606,13 @@ class RawTestEntry(TestEntry):
 
         return tv
 
-    def room_to_run(self, args):
+    def room_to_run(self, _):
 
         # just let er rip for now.  Maybe create a way to throttle number
         # of "jobs" allowed to run...
         return True
 
-    
+
 # this gets called if it's run as a script/program
 if __name__ == '__main__':
     sys.exit()

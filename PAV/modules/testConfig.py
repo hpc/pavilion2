@@ -57,10 +57,10 @@
 
 import sys
 import os
-from yaml import load, YAMLError
 import json
 import logging
-from testEntry import TestEntry
+from yaml import load, YAMLError
+from PAV.modules.testEntry import TestEntry
 
 
 def merge(obj_1, obj_2):
@@ -90,7 +90,7 @@ def merge(obj_1, obj_2):
     return obj_2
 
 
-class YamlTestConfig():
+class YamlTestConfig(object):
     """
     class to manipulate test suite config files being used
     """
@@ -115,7 +115,7 @@ class YamlTestConfig():
             else:
                 self.dcf = df
         print "  Default test suite config file -> " + self.dcf
-        self.logger.info('Using default test config file: %s ' % self.dcf)
+        self.logger.info('Using default test config file: ' + self.dcf)
 
         self.default_config_doc = self.load_config_file(self.dcf)
         self.ecf = self.create_effective_config_file()
@@ -171,7 +171,7 @@ class YamlTestConfig():
     def get_result_locations(self):
         rl = []
         for k, v in self.ecf.iteritems():
-            if type(v) is not dict:
+            if not isinstance(v, dict):
                 continue
             te = TestEntry(k, v, None)
             res_loc = te.get_results_location()
@@ -199,14 +199,14 @@ class YamlTestConfig():
         """
 
         # get a copy of the default configuration for a test 
-        dk, default_config = self.default_config_doc.items()[0]
+        _, default_config = self.default_config_doc.items()[0]
 
         # then, for each new test entry (stanza) in the user_config_doc
         # merge with the default entry (overriding the defaults)
         new_dict = {}
         for test_id, v in self.user_config_doc.items():
             # only use "good" entries
-            if type(v) is dict:
+            if isinstance(v, dict):
                 if not TestEntry.check_valid(v):
                     print ", skipping stanza (%s) due to invalid entry" % test_id
                     continue

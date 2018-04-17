@@ -60,10 +60,9 @@
 import sys
 import os
 import subprocess
-import re
-from basejobcontroller import JobController
-from helperutilities import which
-from basejobcontroller import JobException
+#import re
+from PAV.modules.basejobcontroller import JobController, JobException
+from PAV.modules.helperutilities import which
 
 
 class SlurmJobController(JobController):
@@ -71,10 +70,9 @@ class SlurmJobController(JobController):
 
     @staticmethod
     def is_slurm_system():
-        if which("sinfo"):
+        if which("sinfo") is not None:
             return True
-        else:
-            return False
+        return False
 
     # .. some setup and let the run command fly ...
     def start(self):
@@ -99,7 +97,9 @@ class SlurmJobController(JobController):
                 for sublist in node_list.split("[")[1].split("]")[0].split(","):
                     # is it a range?
                     if "-" in sublist:
-                        length_of_node_list = length_of_node_list + int(sublist.split("-")[1]) - int(sublist.split("-")[0]) + 1
+                        length_of_node_list = length_of_node_list + \
+                                              int(sublist.split("-")[1]) - \
+                                              int(sublist.split("-")[0]) + 1
                     else:
                         length_of_node_list += 1
             else:
@@ -131,7 +131,8 @@ class SlurmJobController(JobController):
 
                 slurm_cmd += " -t " + time_lim
             except TypeError:
-                self.logger.info(self.lh + " Error: time limit value, test suite entry may need quotes")
+                self.logger.info(self.lh + " Error: time limit value, " +
+                                 "test suite entry may need quotes")
                 print " Error: time limit value, test suite entry may need quotes"
                 raise
 
@@ -139,7 +140,7 @@ class SlurmJobController(JobController):
         # add in a target segment (partition in Slurm vernacular), if specified
         if 'target_seg' in self.configs['slurm'] and self.configs['slurm']['target_seg']:
             slurm_cmd += " -p " + str(self.configs['slurm']['target_seg'])
-            print "<segName> " + str( self.configs['slurm']['target_seg'] )
+            print "<segName> " + str(self.configs['slurm']['target_seg'])
         else:
             print "<segName> DEFAULT"
 
@@ -159,7 +160,7 @@ class SlurmJobController(JobController):
         self.logger.info(self.lh + " : npes=" + str(pes))
 
         # number of nodes to allocate must be == length of node list
-        if not ( length_of_node_list == -1 or length_of_node_list == int(nnodes) ):
+        if not (length_of_node_list == -1 or length_of_node_list == int(nnodes)):
             print "Error: node_list and num_nodes do not agree!"
 
         if not node_list:
@@ -190,22 +191,24 @@ class SlurmJobController(JobController):
                 output = subprocess.check_output(slurm_cmd, shell=True,
                                                  stderr=subprocess.STDOUT)
             except subprocess.CalledProcessError as e:
-               self.logger.info(self.lh + " : sbatch exit status:" +
-                                str(e.returncode))
-               self.logger.info(self.lh + " : sbatch output:" + e.output)
-               raise JobException(e.returncode, e.output)
+                self.logger.info(self.lh + " : sbatch exit status:" +
+                                 str(e.returncode))
+                self.logger.info(self.lh + " : sbatch output:" + e.output)
+                raise JobException(e.returncode, e.output)
 
             # Finds the jobid in the output.
             jid = 0
             if not output is None and "job" in output:
-                    # "Submitted batch job JID"
-                    jid = output.split(" ")[3]
+                # "Submitted batch job JID"
+                jid = output.split(" ")[3]
             print "<JobID> " + str(jid)
 
         else:
             # fake-out section to run on basic unix system
-            fake_job_cmd = os.environ['PVINSTALL'] + "/PAV/modules/slurm_job_handler.py"
-            p = subprocess.Popen(fake_job_cmd, stdout=self.job_log_file, stderr=self.job_log_file, shell=True)
+            fake_job_cmd = os.environ['PVINSTALL'] + \
+                           "/PAV/modules/slurm_job_handler.py"
+            p = subprocess.Popen(fake_job_cmd, stdout=self.job_log_file,
+                                 stderr=self.job_log_file, shell=True)
             # wait for the subprocess to finish
             (output, errors) = p.communicate()
             if p.returncode or errors:
