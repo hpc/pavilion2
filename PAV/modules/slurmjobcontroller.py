@@ -61,8 +61,11 @@ import sys
 import os
 import subprocess
 #import re
-from PAV.modules.basejobcontroller import JobController, JobException
-from PAV.modules.helperutilities import which
+
+#from PAV.modules.basejobcontroller import JobController, JobException
+#from PAV.modules.helperutilities import which
+from basejobcontroller import JobController, JobException
+from helperutilities import which
 
 
 class SlurmJobController(JobController):

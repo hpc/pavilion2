@@ -60,7 +60,9 @@ import os
 import json
 import logging
 from yaml import load, YAMLError
-from PAV.modules.testEntry import TestEntry
+
+#from PAV.modules.testEntry import TestEntry
+from testEntry import TestEntry
 
 
 def merge(obj_1, obj_2):

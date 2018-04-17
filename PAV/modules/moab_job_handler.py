@@ -72,10 +72,10 @@ import time
 import random
 from contextlib import contextmanager
 
-#newpath = os.environ['PVINSTALL'] + "/PAV/modules"
-#sys.path.append(newpath)
-from PAV.modules.basejobcontroller import JobController
-from PAV.modules.ldms import LDMS
+#from PAV.modules.basejobcontroller import JobController
+#from PAV.modules.ldms import LDMS
+from basejobcontroller import JobController
+from ldms import LDMS
 
 
 def now():

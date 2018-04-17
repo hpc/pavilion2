@@ -63,7 +63,8 @@ import getpass
 import copy
 from os.path import expanduser
 
-from PAV.modules.ldms import LDMS
+#from PAV.modules.ldms import LDMS
+from ldms import LDMS
 
 
 def flatten_dict(d):

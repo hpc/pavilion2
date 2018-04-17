@@ -62,10 +62,10 @@ import platform
 import datetime
 from contextlib import contextmanager
 
-#newpath = os.environ['PVINSTALL'] + "/PAV/modules"
-#sys.path.append(newpath)
-from PAV.modules.basejobcontroller import JobController
-from PAV.modules.ldms import LDMS
+#from PAV.modules.basejobcontroller import JobController
+#from PAV.modules.ldms import LDMS
+from basejobcontroller import JobController
+from ldms import LDMS
 
 def now():
     return " " + datetime.datetime.now().strftime("%m-%d-%YT%H:%M:%S")

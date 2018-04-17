@@ -61,8 +61,11 @@ import sys
 import os
 import subprocess
 import re
-from PAV.modules.basejobcontroller import JobController
-from PAV.modules.helperutilities import which
+
+#from PAV.modules.basejobcontroller import JobController
+#from PAV.modules.helperutilities import which
+from basejobcontroller import JobController
+from helperutilities import which
 
 
 class MoabJobController(JobController):
