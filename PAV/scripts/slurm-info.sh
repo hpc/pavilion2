@@ -1,3 +1,4 @@
+#!/bin/sh
 ## Library of functions to determine SLURM state
 
 shopt -s nullglob
@@ -9,7 +10,7 @@ default_QOS=hpctest
 default_RESERVATION=
 DST_RESERVATION=PreventMaint
 default_FEATURES=
-KNL_FEATURES="quad cache"
+KNL_FEATURES="quad,cache"
 
 
 function onDST() {
@@ -41,7 +42,7 @@ function get_features() {
 }
 
 
-
+#FIXME duplicate function
 function get_node_sequence() {
     ## Given a SLURM-style node listing and an optional list of excluded nodes,
     ##  return a space-separated list of node hostnames
@@ -94,12 +95,12 @@ function slurm_list_to_sequence() {
 }
 
 
-function get_slurm_state() {
+function get_slurm_state() (
     ## Discover the current usability of a cluster partition,
     ##  return a sequence of cluster size, availability, allocated, and
     ##  an available-node list
     local partition=${1:-$default_PARTITION}
-    
+
     local s_idx=4
     local l_idx=6
     if isCray; then
@@ -107,16 +108,16 @@ function get_slurm_state() {
 	l_idx=9
     fi
     local size=$(sinfo | grep $partition | \
-                     awk "{ print \$$s_idx }" | paste -sd+ - | bc)
-    local avail=$(sinfo | grep $partition | \
-                     grep -v alloc | grep -v down | grep -v "maint\*" | \
-                     awk "{ print \$$s_idx }" | paste -sd+ - | bc)
-    local list=$(sinfo | grep $partition | \
-                     grep -v alloc | grep -v down | grep -v "maint\*" | \
-                     awk "{ print \$$l_idx }" | paste -sd, -)
-    local allocd=$(sinfo | grep $partition | \
-                       grep alloc | grep -v down | grep -v "maint\*" | \
-                       awk "{ print \$$s_idx }" | paste -sd+ - | bc)
+        awk "{ print \$$s_idx }" | paste -sd+ - | bc)
+    local avail=$(sinfo | grep $partition | grep -v alloc | \
+	grep -v down | grep -v "maint\*" | \
+        awk "{ print \$$s_idx }" | paste -sd+ - | bc)
+    local list=$(sinfo | grep $partition | grep -v alloc | \
+	grep -v down | grep -v "maint\*" | \
+        awk "{ print \$$l_idx }" | paste -sd, -)
+    local allocd=$(sinfo | grep $partition | grep alloc | \
+	grep -v down | grep -v "maint\*" | \
+        awk "{ print \$$s_idx }" | paste -sd+ - | bc)
 
     if [[ "$size" == "" ]] || [ "$size" -lt "1" ]; then
 	size=0
@@ -124,9 +125,12 @@ function get_slurm_state() {
     if [[ "$avail" == "" ]] || [ "$avail" -lt "1" ]; then
         exit 16  # EBUSY
     fi
+    if [[ "$allocd" == "" ]] || [ "$allocd" -lt "1" ]; then
+        allocd=0
+    fi
     echo $size $avail $allocd "$list"
     exit 0
-}
+)
 
 
 function nodes_status() {
@@ -168,27 +172,21 @@ function nodes_status() {
     local size=$(echo $state | cut -d ' ' -f 1)
     local avail=$(echo $state | cut -d ' ' -f 2)
     local allocd=$(echo $state | cut -d ' ' -f 3)
-    local list=$(echo $state | cut -d ' ' -f 4)
-    
-    local available_nodes=($(get_node_sequence "$list" "$excludes"))
-    local num_nodes=${#available_nodes[@]}
-    
+    local list=$(echo "$state" | cut -d ' ' -f 4)
     local immediate=""
     if onDST; then
         immediate="-I"
     fi
-
     local magnitude=$(printf %.0f $(echo "l($size)/l(10)" | bc -l))
     if isCray; then
 	magnitude=5
     fi
-
     local fe=$(hostname)
     local sys=${fe%-*}
     for idx in $(slurm_list_to_sequence "$list"); do
         local node_id=$(printf ${sys}%0${magnitude}d $idx)
         echo -n "$node_id "
-        salloc -w $node_id $slurm_args $immediate echo -n 'OK' 2>/dev/null
+        #salloc -w $node_id $slurm_args $immediate echo -n 'OK' #2>/dev/null
         echo
     done
 }
@@ -200,5 +198,12 @@ function bad_nodes() {
 
 
 function good_nodes() {
-    nodes_status $@ | grep OK
+    nodes_status $@ #| grep OK
 }
+
+
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    state=$(get_slurm_state $@)
+    good_nodes $@
+    echo "$(good_nodes $@ | wc -l)/$(echo $state | cut -d ' ' -f 1) nodes"
+fi

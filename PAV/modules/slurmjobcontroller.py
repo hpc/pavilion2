@@ -60,9 +60,35 @@
 import sys
 import os
 import subprocess
+
+import signal
 import re
-from basejobcontroller import JobController
+
+#from PAV.modules.basejobcontroller import JobController, JobException
+#from PAV.modules.helperutilities import which
+from basejobcontroller import JobController, JobException
 from helperutilities import which
+
+
+class TimeoutExpired(subprocess.CalledProcessError)
+
+def check_output_timed(*popenargs, **kwargs):
+    timeout = kwargs.pop('timeout', None)
+    kwargs['stdout']=subprocess.PIPE
+    kwargs['preexec_fn']=os.setsid
+    with subprocess.Popen(*popenargs, **kwargs) as process:
+        try:
+            output = process.communicate(timeout=timeout)[0]
+        except TimeoutExpired:
+            os.killpg(process.pid, signal.SIGINT) # kill whole process group
+            output = process.communicate()[0]
+            raise TimeoutExpired(timeout, process.args, output=output)
+        retcode = process.poll()
+        if retcode:
+            raise subprocess.CalledProcessError(retcode, process.args,
+                                                output=output)
+        return output
+
 
 
 class SlurmJobController(JobController):
@@ -130,18 +156,34 @@ class SlurmJobController(JobController):
             print "<segName> DEFAULT"
  
         # reservation
+        reservation = ""
         if "reservation" in self.configs['slurm'] and self.configs['slurm']['reservation']: 
             reservation = self.configs['slurm']['reservation']
+        if reservation == "":
+            query = os.environ['PVINSTALL'] + "/PAV/scripts/getres.slurm.sh"
+            reservation = subprocess.check_output(query, shell=True).strip()
+        if reservation != "":
             slurm_cmd += " --reservation=" + reservation
             print "<reservation> " + reservation
             self.logger.info(self.lh + " : reservation=" + reservation)
-            
+
         # constraint
+        constraint = ""
         if "constraint" in self.configs['slurm'] and self.configs['slurm']['constraint']: 
             constraint = self.configs['slurm']['constraint']
+        if constraint == "":
+            query = os.environ['PVINSTALL'] + \
+                "/PAV/scripts/getfeat.slurm.sh " + partition
+            constraint = subprocess.check_output(query, shell=True).strip()
+        if constraint != "":
             slurm_cmd += " --constraint=" + constraint
             print "<constraint> " + constraint
             self.logger.info(self.lh + " : constraint=" + constraint)
+
+        # immediacy for DST testing
+        query = os.environ['PVINSTALL'] + "/PAV/scripts/onDST.sh"
+        if subprocess.check_output(query, shell=True) == "true":
+             slurm_cmd += " -I"
 
         # get time limit, if specified
         if "time_limit" in self.configs['slurm'] and self.configs['slurm']['time_limit']: 
@@ -157,6 +199,12 @@ class SlurmJobController(JobController):
 
 
         nnodes = str(self.configs["slurm"]["num_nodes"])
+        if nnodes == "all":
+            query =  os.environ['PVINSTALL'] + \
+                "/PAV/scripts/getavailsize.slurm.sh " + partition
+            nnodes = subprocess.check_output(query, shell=True).strip()
+            nnodes = int(nnodes)
+            # FIXME detect 'Required node not available (down, drained or reserved)'
         os.environ['PV_NNODES'] = nnodes
         print "<nnodes> " + nnodes
         self.logger.info(self.lh + " : nnodes=" + nnodes)
@@ -201,7 +249,14 @@ class SlurmJobController(JobController):
             # call to invoke real Slurm command
 
             try:
-                output = subprocess.check_output(slurm_cmd, shell=True, stderr=subprocess.STDOUT)
+                # 60 sec timeout on sbatch submission
+                output = check_output_timed(slurm_cmd, shell=True,
+                                            stderr=subprocess.STDOUT,
+                                            timeout=60)
+            except TimeoutExpired as e:
+                self.logger.info(self.lh + " : sbatch timeout")
+                self.logger.info(self.lh + " : sbatch output:" + e.output)
+                raise JobException(62, e.output)  # ETIME
             except subprocess.CalledProcessError as e:
                self.logger.info(self.lh + " : sbatch exit status:" + str(e.returncode))
                print "sbatch exit status:" + str(e.returncode)
