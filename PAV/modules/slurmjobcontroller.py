@@ -112,16 +112,37 @@ class SlurmJobController(JobController):
         # add test name
         slurm_cmd += " -J " + self.name
 
+        # add in a target segment (partition in Slurm vernacular), if specified
+        partition = "";
+        if 'target_seg' in self.configs['slurm'] and self.configs['slurm']['target_seg']:
+            partition = str(self.configs['slurm']['target_seg'])
+            slurm_cmd += " -p " + partition
+            print "<segName> " + partition
+        else:
+            print "<segName> DEFAULT"
+
         # reservation
         if "reservation" in self.configs['slurm'] and self.configs['slurm']['reservation']: 
             reservation = self.configs['slurm']['reservation']
+        if reservation == "":
+            reservation = subprocess.check_output(
+                os.environ['PVINSTALL'] + "/PAV/scripts/getres.slurm.sh",
+                shell=True)
+        if reservation != "":
             slurm_cmd += " --reservation=" + reservation
             print "<reservation> " + reservation
             self.logger.info(self.lh + " : reservation=" + reservation)
+
             
         # constraint
         if "constraint" in self.configs['slurm'] and self.configs['slurm']['constraint']: 
             constraint = self.configs['slurm']['constraint']
+        if constraint == "":
+            constraint = subprocess.check_output(
+                os.environ['PVINSTALL'] + "/PAV/scripts/getfeat.slurm.sh "
+                + partition, shell=True)
+        if constraint != "":
+            #FIXME handle multiple
             slurm_cmd += " --constraint=" + constraint
             print "<constraint> " + constraint
             self.logger.info(self.lh + " : constraint=" + constraint)
@@ -140,14 +161,11 @@ class SlurmJobController(JobController):
                 raise
 
 
-        # add in a target segment (partition in Slurm vernacular), if specified
-        if 'target_seg' in self.configs['slurm'] and self.configs['slurm']['target_seg']:
-            slurm_cmd += " -p " + str(self.configs['slurm']['target_seg'])
-            print "<segName> " + str(self.configs['slurm']['target_seg'])
-        else:
-            print "<segName> DEFAULT"
-
         nnodes = str(self.configs["slurm"]["num_nodes"])
+        if nnodes == "all":
+            nnodes = subprocess.check_output(
+                os.environ['PVINSTALL'] + "/PAV/scripts/getavailsize.slurm.sh "
+                + partition, shell=True)
         os.environ['PV_NNODES'] = nnodes
         print "<nnodes> " + nnodes
         self.logger.info(self.lh + " : nnodes=" + nnodes)
