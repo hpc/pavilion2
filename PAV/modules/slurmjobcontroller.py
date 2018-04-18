@@ -60,11 +60,8 @@
 import sys
 import os
 import subprocess
-#import re
-
-#from PAV.modules.basejobcontroller import JobController, JobException
-#from PAV.modules.helperutilities import which
-from basejobcontroller import JobController, JobException
+import re
+from basejobcontroller import JobController
 from helperutilities import which
 
 
@@ -73,9 +70,10 @@ class SlurmJobController(JobController):
 
     @staticmethod
     def is_slurm_system():
-        if which("sinfo") is not None:
+        if which("sinfo"):
             return True
-        return False
+        else:
+            return False
 
     # .. some setup and let the run command fly ...
     def start(self):
@@ -100,9 +98,7 @@ class SlurmJobController(JobController):
                 for sublist in node_list.split("[")[1].split("]")[0].split(","):
                     # is it a range?
                     if "-" in sublist:
-                        length_of_node_list = length_of_node_list + \
-                                              int(sublist.split("-")[1]) - \
-                                              int(sublist.split("-")[0]) + 1
+                        length_of_node_list = length_of_node_list + int(sublist.split("-")[1]) - int(sublist.split("-")[0]) + 1
                     else:
                         length_of_node_list += 1
             else:
@@ -112,60 +108,38 @@ class SlurmJobController(JobController):
         # add test name
         slurm_cmd += " -J " + self.name
 
-        # add in a target segment (partition in Slurm vernacular), if specified
-        partition = "";
-        if 'target_seg' in self.configs['slurm'] and self.configs['slurm']['target_seg']:
-            partition = str(self.configs['slurm']['target_seg'])
-            slurm_cmd += " -p " + partition
-            print "<segName> " + partition
-        else:
-            print "<segName> DEFAULT"
-
         # reservation
         if "reservation" in self.configs['slurm'] and self.configs['slurm']['reservation']: 
             reservation = self.configs['slurm']['reservation']
-        if reservation == "":
-            reservation = subprocess.check_output(
-                os.environ['PVINSTALL'] + "/PAV/scripts/getres.slurm.sh",
-                shell=True)
-        if reservation != "":
             slurm_cmd += " --reservation=" + reservation
             print "<reservation> " + reservation
             self.logger.info(self.lh + " : reservation=" + reservation)
 
-            
-        # constraint
-        if "constraint" in self.configs['slurm'] and self.configs['slurm']['constraint']: 
-            constraint = self.configs['slurm']['constraint']
-        if constraint == "":
-            constraint = subprocess.check_output(
-                os.environ['PVINSTALL'] + "/PAV/scripts/getfeat.slurm.sh "
-                + partition, shell=True)
-        if constraint != "":
-            #FIXME handle multiple
-            slurm_cmd += " --constraint=" + constraint
-            print "<constraint> " + constraint
-            self.logger.info(self.lh + " : constraint=" + constraint)
-
         # get time limit, if specified
-        if "time_limit" in self.configs['slurm'] and self.configs['slurm']['time_limit']: 
-            try:
-                time_lim = self.configs['slurm']['time_limit']
-                self.logger.info(self.lh + " : time limit = " + time_lim)
+        time_lim = self.configs['slurm']['time_limit']
+        slurm_cmd += " -t " + time_lim
 
-                slurm_cmd += " -t " + time_lim
-            except TypeError:
-                self.logger.info(self.lh + " Error: time limit value, " +
-                                 "test suite entry may need quotes")
-                print " Error: time limit value, test suite entry may need quotes"
-                raise
-
+        # partition just cause 
+        if 'partition' in self.configs['slurm'] and self.configs['slurm']['partition']:
+            slurm_cmd += " -p " + str(self.configs['slurm']['partition'])
+            print "<partition> " + str( self.configs['slurm']['partition'])
+        else:
+            print "<partition>  DEFAULT"
+        # qos
+        if 'qos' in self.configs['slurm'] and self.configs['slurm']['qos']:
+            slurm_cmd += " --qos=" + str(self.configs['slurm']['qos'])
+            print "<qos> " + str( self.configs['slurm']['qos'] ) 
+        else: 
+            print "<qos> DEFAULT" 
+ 
+        # add in a target segment (partition in Slurm vernacular), if specified
+        if 'target_seg' in self.configs['slurm'] and self.configs['slurm']['target_seg']:
+            slurm_cmd += " -p " + str(self.configs['slurm']['target_seg'])
+            print "<segName> " + str( self.configs['slurm']['target_seg'] )
+        else:
+            print "<segName> DEFAULT"
 
         nnodes = str(self.configs["slurm"]["num_nodes"])
-        if nnodes == "all":
-            nnodes = subprocess.check_output(
-                os.environ['PVINSTALL'] + "/PAV/scripts/getavailsize.slurm.sh "
-                + partition, shell=True)
         os.environ['PV_NNODES'] = nnodes
         print "<nnodes> " + nnodes
         self.logger.info(self.lh + " : nnodes=" + nnodes)
@@ -181,7 +155,7 @@ class SlurmJobController(JobController):
         self.logger.info(self.lh + " : npes=" + str(pes))
 
         # number of nodes to allocate must be == length of node list
-        if not (length_of_node_list == -1 or length_of_node_list == int(nnodes)):
+        if not ( length_of_node_list == -1 or length_of_node_list == int(nnodes) ):
             print "Error: node_list and num_nodes do not agree!"
 
         if not node_list:
@@ -189,6 +163,9 @@ class SlurmJobController(JobController):
 
         # print the common log settings here right after the job is started
         self.save_common_settings()
+
+        # store some info into ENV variables that jobs may need to use later on.
+        self.setup_job_info()
 
         # setup unique Slurm stdout and stderr file names
         se = os.environ['PV_JOB_RESULTS_LOG_DIR'] + "/slurm-%j.out"
@@ -209,27 +186,26 @@ class SlurmJobController(JobController):
             # call to invoke real Slurm command
 
             try:
-                output = subprocess.check_output(slurm_cmd, shell=True,
-                                                 stderr=subprocess.STDOUT)
+                output = subprocess.check_output(slurm_cmd, shell=True)
             except subprocess.CalledProcessError as e:
-                self.logger.info(self.lh + " : sbatch exit status:" +
-                                 str(e.returncode))
-                self.logger.info(self.lh + " : sbatch output:" + e.output)
-                raise JobException(e.returncode, e.output)
+               self.logger.info(self.lh + " : sbatch exit status:" + str(e.returncode))
+               print "sbatch exit status:" + str(e.returncode)
+               self.logger.info(self.lh + " : sbatch output:" + e.output)
+               print "sbatch output:" + e.output
+               sys.stdout.flush()
+               raise
 
             # Finds the jobid in the output.
             jid = 0
             if not output is None and "job" in output:
-                # "Submitted batch job JID"
-                jid = output.split(" ")[3]
+                    # "Submitted batch job JID"
+                    jid = output.split(" ")[3]
             print "<JobID> " + str(jid)
 
         else:
             # fake-out section to run on basic unix system
-            fake_job_cmd = os.environ['PVINSTALL'] + \
-                           "/PAV/modules/slurm_job_handler.py"
-            p = subprocess.Popen(fake_job_cmd, stdout=self.job_log_file,
-                                 stderr=self.job_log_file, shell=True)
+            fake_job_cmd = os.environ['PVINSTALL'] + "/PAV/modules/slurm_job_handler.py"
+            p = subprocess.Popen(fake_job_cmd, stdout=self.job_log_file, stderr=self.job_log_file, shell=True)
             # wait for the subprocess to finish
             (output, errors) = p.communicate()
             if p.returncode or errors:
