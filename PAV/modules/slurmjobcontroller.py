@@ -62,7 +62,7 @@ import os
 import subprocess
 
 import signal
-import re
+#import re
 
 #from PAV.modules.basejobcontroller import JobController, JobException
 #from PAV.modules.helperutilities import which
@@ -71,6 +71,8 @@ from helperutilities import which
 
 
 class TimeoutExpired(subprocess.CalledProcessError)
+
+ETIME = 62  ## errno
 
 def check_output_timed(*popenargs, **kwargs):
     timeout = kwargs.pop('timeout', None)
@@ -134,26 +136,32 @@ class SlurmJobController(JobController):
         # add test name
         slurm_cmd += " -J " + self.name
 
-        # partition just cause 
+        # partition just cause
+        partition = ""
         if 'partition' in self.configs['slurm'] and self.configs['slurm']['partition']:
-            slurm_cmd += " -p " + str(self.configs['slurm']['partition'])
-            print "<partition> " + str( self.configs['slurm']['partition'])
+            partition = str(self.configs['slurm']['partition'])
+            slurm_cmd += " -p " + partition
+            print "<partition> " + partition
+        # add in a target segment (partition in Slurm vernacular), if specified
+        elif 'target_seg' in self.configs['slurm'] and self.configs['slurm']['target_seg']:
+            partition = str(self.configs['slurm']['target_seg'])
+            slurm_cmd += " -p " + partition
+            print "<segName> " + partition
         else:
             print "<partition>  DEFAULT"
 
         # qos
+        qos = ""
         if 'qos' in self.configs['slurm'] and self.configs['slurm']['qos']:
-            slurm_cmd += " --qos=" + str(self.configs['slurm']['qos'])
-            print "<qos> " + str( self.configs['slurm']['qos'] ) 
+            qos = str(self.configs['slurm']['qos'])
+        if qos == "":
+            query = os.environ['PVINSTALL'] + "/PAV/scripts/getqos.slurm.sh"
+            qos = subprocess.check_output(query, shell=True).strip()
+        if qos != "":
+            slurm_cmd += " --qos=" + qos
+            print "<qos> " + qos
         else: 
             print "<qos> DEFAULT" 
-
-        # add in a target segment (partition in Slurm vernacular), if specified
-        if 'target_seg' in self.configs['slurm'] and self.configs['slurm']['target_seg']:
-            slurm_cmd += " -p " + str(self.configs['slurm']['target_seg'])
-            print "<segName> " + str( self.configs['slurm']['target_seg'] )
-        else:
-            print "<segName> DEFAULT"
  
         # reservation
         reservation = ""
@@ -204,7 +212,6 @@ class SlurmJobController(JobController):
                 "/PAV/scripts/getavailsize.slurm.sh " + partition
             nnodes = subprocess.check_output(query, shell=True).strip()
             nnodes = int(nnodes)
-            # FIXME detect 'Required node not available (down, drained or reserved)'
         os.environ['PV_NNODES'] = nnodes
         print "<nnodes> " + nnodes
         self.logger.info(self.lh + " : nnodes=" + nnodes)
@@ -256,14 +263,11 @@ class SlurmJobController(JobController):
             except TimeoutExpired as e:
                 self.logger.info(self.lh + " : sbatch timeout")
                 self.logger.info(self.lh + " : sbatch output:" + e.output)
-                raise JobException(62, e.output)  # ETIME
+                raise JobException(ETIME, e.output)
             except subprocess.CalledProcessError as e:
                self.logger.info(self.lh + " : sbatch exit status:" + str(e.returncode))
-               print "sbatch exit status:" + str(e.returncode)
                self.logger.info(self.lh + " : sbatch output:" + e.output)
-               print "sbatch output:" + e.output
-               sys.stdout.flush()
-               raise
+               raise JobException(e.returncode, e.output)
 
             # Finds the jobid in the output.
             jid = 0
