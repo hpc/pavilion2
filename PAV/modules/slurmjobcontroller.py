@@ -108,36 +108,53 @@ class SlurmJobController(JobController):
         # add test name
         slurm_cmd += " -J " + self.name
 
-        # reservation
-        if "reservation" in self.configs['slurm'] and self.configs['slurm']['reservation']: 
-            reservation = self.configs['slurm']['reservation']
-            slurm_cmd += " --reservation=" + reservation
-            print "<reservation> " + reservation
-            self.logger.info(self.lh + " : reservation=" + reservation)
-
-        # get time limit, if specified
-        time_lim = self.configs['slurm']['time_limit']
-        slurm_cmd += " -t " + time_lim
-
         # partition just cause 
         if 'partition' in self.configs['slurm'] and self.configs['slurm']['partition']:
             slurm_cmd += " -p " + str(self.configs['slurm']['partition'])
             print "<partition> " + str( self.configs['slurm']['partition'])
         else:
             print "<partition>  DEFAULT"
+
         # qos
         if 'qos' in self.configs['slurm'] and self.configs['slurm']['qos']:
             slurm_cmd += " --qos=" + str(self.configs['slurm']['qos'])
             print "<qos> " + str( self.configs['slurm']['qos'] ) 
         else: 
             print "<qos> DEFAULT" 
- 
+
         # add in a target segment (partition in Slurm vernacular), if specified
         if 'target_seg' in self.configs['slurm'] and self.configs['slurm']['target_seg']:
             slurm_cmd += " -p " + str(self.configs['slurm']['target_seg'])
             print "<segName> " + str( self.configs['slurm']['target_seg'] )
         else:
             print "<segName> DEFAULT"
+ 
+        # reservation
+        if "reservation" in self.configs['slurm'] and self.configs['slurm']['reservation']: 
+            reservation = self.configs['slurm']['reservation']
+            slurm_cmd += " --reservation=" + reservation
+            print "<reservation> " + reservation
+            self.logger.info(self.lh + " : reservation=" + reservation)
+            
+        # constraint
+        if "constraint" in self.configs['slurm'] and self.configs['slurm']['constraint']: 
+            constraint = self.configs['slurm']['constraint']
+            slurm_cmd += " --constraint=" + constraint
+            print "<constraint> " + constraint
+            self.logger.info(self.lh + " : constraint=" + constraint)
+
+        # get time limit, if specified
+        if "time_limit" in self.configs['slurm'] and self.configs['slurm']['time_limit']: 
+            try:
+                time_lim = self.configs['slurm']['time_limit']
+                self.logger.info(self.lh + " : time limit = " + time_lim)
+
+                slurm_cmd += " -t " + time_lim
+            except TypeError:
+                self.logger.info(self.lh + " Error: time limit value, test suite entry may need quotes")
+                print " Error: time limit value, test suite entry may need quotes"
+                raise
+
 
         nnodes = str(self.configs["slurm"]["num_nodes"])
         os.environ['PV_NNODES'] = nnodes
@@ -148,6 +165,7 @@ class SlurmJobController(JobController):
         os.environ['PV_PESPERNODE'] = ppn
         print "<ppn> " + ppn
         self.logger.info(self.lh + " : ppn=" + ppn)
+        slurm_cmd += " --ntasks-per-node " + ppn
 
         pes = int(ppn) * int(nnodes)
         os.environ['PV_NPES'] = str(pes)
@@ -163,9 +181,6 @@ class SlurmJobController(JobController):
 
         # print the common log settings here right after the job is started
         self.save_common_settings()
-
-        # store some info into ENV variables that jobs may need to use later on.
-        self.setup_job_info()
 
         # setup unique Slurm stdout and stderr file names
         se = os.environ['PV_JOB_RESULTS_LOG_DIR'] + "/slurm-%j.out"
@@ -186,7 +201,7 @@ class SlurmJobController(JobController):
             # call to invoke real Slurm command
 
             try:
-                output = subprocess.check_output(slurm_cmd, shell=True)
+                output = subprocess.check_output(slurm_cmd, shell=True, stderr=subprocess.STDOUT)
             except subprocess.CalledProcessError as e:
                self.logger.info(self.lh + " : sbatch exit status:" + str(e.returncode))
                print "sbatch exit status:" + str(e.returncode)
