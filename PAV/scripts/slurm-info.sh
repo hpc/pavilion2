@@ -118,11 +118,14 @@ function get_slurm_state() {
                        grep alloc | grep -v down | grep -v "maint\*" | \
                        awk "{ print \$$s_idx }" | paste -sd+ - | bc)
 
+    if [[ "$size" == "" ]] || [ "$size" -lt "1" ]; then
+	size=0
+    fi
     if [[ "$avail" == "" ]] || [ "$avail" -lt "1" ]; then
-        return 16  # EBUSY
+        exit 16  # EBUSY
     fi
     echo $size $avail $allocd "$list"
-    return 0
+    exit 0
 }
 
 
@@ -153,8 +156,8 @@ function nodes_status() {
         slurm_args="$slurm_args --qos=$qos"
     fi
 
-    local state = ($(get_slurm_state $partition))
-    local retval = $?
+    local state=$(get_slurm_state $partition)
+    local retval=$?
     if [ "$retval" -ne "0" ]; then
     	if [ "$quiet" -ne "0" ]; then
 	    echo "ERROR: too few nodes available"
@@ -162,10 +165,10 @@ function nodes_status() {
 	fi
 	exit $retval
     fi
-    local size = state[0]
-    local avail = state[1]
-    local allocd = state[2]
-    local list = state[3]
+    local size=$(echo $state | cut -d ' ' -f 1)
+    local avail=$(echo $state | cut -d ' ' -f 2)
+    local allocd=$(echo $state | cut -d ' ' -f 3)
+    local list=$(echo $state | cut -d ' ' -f 4)
     
     local available_nodes=($(get_node_sequence "$list" "$excludes"))
     local num_nodes=${#available_nodes[@]}

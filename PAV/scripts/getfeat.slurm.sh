@@ -1,6 +1,6 @@
 #!/bin/sh
 
-source slurm-info.sh
+source $(dirname $BASH_SOURCE)/slurm-info.sh
 
-local partition=${1:-default_PARTITION}
+partition=${1:-$default_PARTITION}
 get_features $partition

@@ -1,5 +1,5 @@
 #!/bin/sh
 
-source slurm-info.sh
+source $(dirname $BASH_SOURCE)/slurm-info.sh
 
 get_reservation
