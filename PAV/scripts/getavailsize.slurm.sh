@@ -10,4 +10,4 @@ if [ "$retval" -ne "0" ]; then
     sinfo | grep $partition | grep -v alloc | grep -v down
     exit $retval
 fi
-echo $state | cut -d ' ' -f 1
+echo $state | cut -d ' ' -f 2

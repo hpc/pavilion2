@@ -42,10 +42,9 @@ function get_features() {
 }
 
 
-#FIXME duplicate function
-function get_node_sequence() {
+function slurm_list_to_sequence() {
     ## Given a SLURM-style node listing and an optional list of excluded nodes,
-    ##  return a space-separated list of node hostnames
+    ##  return a space-separated list of node numbers
     local nlist=$1
     local excluded=$2
 
@@ -72,26 +71,6 @@ function get_node_sequence() {
 	partial=${partial#$current}
     done
     echo $node_list
-}
-
-
-function slurm_list_to_sequence() {
-    ## Given a SLURM-style node listing, return the sequence of node numbers
-    local slist=${1#*[}
-    slist=${slist%]*}
-    slist=$(echo "$slist" | sed 's/,/ /g' |
-                sed 's/\([0-9]*\)-\([0-9]*\)/\1:\2/g')
-    local nlist=""    
-    for node in $slist; do
-	if [[ "$node" == *":"* ]]; then
-	    first=${node%:*}
-	    last=${node#*:}
-	    nlist="$nlist $(seq -s ' ' $first $last)"
-	else
-	    nlist="$nlist $node"
-	fi
-    done
-    echo $nlist
 }
 
 

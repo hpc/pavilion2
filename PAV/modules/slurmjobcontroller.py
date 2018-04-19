@@ -60,9 +60,9 @@
 import sys
 import os
 import subprocess
-
-import signal
 #import re
+
+import subprocess32
 
 #from PAV.modules.basejobcontroller import JobController, JobException
 #from PAV.modules.helperutilities import which
@@ -70,27 +70,7 @@ from basejobcontroller import JobController, JobException
 from helperutilities import which
 
 
-class TimeoutExpired(subprocess.CalledProcessError)
-
 ETIME = 62  ## errno
-
-def check_output_timed(*popenargs, **kwargs):
-    timeout = kwargs.pop('timeout', None)
-    kwargs['stdout']=subprocess.PIPE
-    kwargs['preexec_fn']=os.setsid
-    with subprocess.Popen(*popenargs, **kwargs) as process:
-        try:
-            output = process.communicate(timeout=timeout)[0]
-        except TimeoutExpired:
-            os.killpg(process.pid, signal.SIGINT) # kill whole process group
-            output = process.communicate()[0]
-            raise TimeoutExpired(timeout, process.args, output=output)
-        retcode = process.poll()
-        if retcode:
-            raise subprocess.CalledProcessError(retcode, process.args,
-                                                output=output)
-        return output
-
 
 
 class SlurmJobController(JobController):
@@ -191,7 +171,7 @@ class SlurmJobController(JobController):
         # immediacy for DST testing
         query = os.environ['PVINSTALL'] + "/PAV/scripts/onDST.sh"
         if subprocess.check_output(query, shell=True) == "true":
-             slurm_cmd += " -I"
+            slurm_cmd += " -I"
 
         # get time limit, if specified
         if "time_limit" in self.configs['slurm'] and self.configs['slurm']['time_limit']: 
@@ -205,13 +185,11 @@ class SlurmJobController(JobController):
                 print " Error: time limit value, test suite entry may need quotes"
                 raise
 
-
         nnodes = str(self.configs["slurm"]["num_nodes"])
         if nnodes == "all":
             query =  os.environ['PVINSTALL'] + \
                 "/PAV/scripts/getavailsize.slurm.sh " + partition
             nnodes = subprocess.check_output(query, shell=True).strip()
-            nnodes = int(nnodes)
         os.environ['PV_NNODES'] = nnodes
         print "<nnodes> " + nnodes
         self.logger.info(self.lh + " : nnodes=" + nnodes)
@@ -228,7 +206,8 @@ class SlurmJobController(JobController):
         self.logger.info(self.lh + " : npes=" + str(pes))
 
         # number of nodes to allocate must be == length of node list
-        if not ( length_of_node_list == -1 or length_of_node_list == int(nnodes) ):
+        if not (length_of_node_list == -1 or
+                length_of_node_list == int(nnodes)):
             print "Error: node_list and num_nodes do not agree!"
 
         if not node_list:
@@ -253,27 +232,27 @@ class SlurmJobController(JobController):
         if SlurmJobController.is_slurm_system():
 
             self.logger.info(self.lh + " : " + slurm_cmd)
+            print "SLURM command: " + slurm_cmd
             # call to invoke real Slurm command
-
             try:
                 # 60 sec timeout on sbatch submission
-                output = check_output_timed(slurm_cmd, shell=True,
-                                            stderr=subprocess.STDOUT,
-                                            timeout=60)
-            except TimeoutExpired as e:
+                output = subprocess32.check_output(slurm_cmd, shell=True,
+                                                   stderr=subprocess32.STDOUT,
+                                                   timeout=60)
+            except subprocess32.TimeoutExpired as e:
                 self.logger.info(self.lh + " : sbatch timeout")
                 self.logger.info(self.lh + " : sbatch output:" + e.output)
                 raise JobException(ETIME, e.output)
-            except subprocess.CalledProcessError as e:
-               self.logger.info(self.lh + " : sbatch exit status:" + str(e.returncode))
-               self.logger.info(self.lh + " : sbatch output:" + e.output)
-               raise JobException(e.returncode, e.output)
+            except subprocess32.CalledProcessError as e:
+                self.logger.info(self.lh + " : sbatch exit status:" + str(e.returncode))
+                self.logger.info(self.lh + " : sbatch output:" + e.output)
+                raise JobException(e.returncode, e.output)
 
             # Finds the jobid in the output.
             jid = 0
             if not output is None and "job" in output:
-                    # "Submitted batch job JID"
-                    jid = output.split(" ")[3]
+                # "Submitted batch job JID"
+                jid = output.split(" ")[3]
             print "<JobID> " + str(jid)
 
         else:
