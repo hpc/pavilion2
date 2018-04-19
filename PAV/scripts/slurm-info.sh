@@ -6,7 +6,8 @@ shopt -s nullglob
 # Globals
 default_PARTITION=standard
 KNL_PARTITION=knl
-default_QOS=hpctest
+default_QOS=
+DST_QOS=high
 default_RESERVATION=
 DST_RESERVATION=PreventMaint
 default_FEATURES=
@@ -38,6 +39,15 @@ function get_features() {
         echo $KNL_FEATURES
     else
         echo $default_FEATURES
+    fi
+}
+
+
+function get_qos() {
+    if onDST; then
+        echo $DST_QOS
+    else
+        echo $default_QOS
     fi
 }
 
@@ -115,7 +125,7 @@ function get_slurm_state() (
 function nodes_status() {
     ## Discovers and confirms up-status of available nodes
     local partition=${1:-$default_PARTITION}
-    local qos=${2:-$default_QOS}
+    local qos=${2:-$(get_qos)}
     local reservation=${3:-$(get_reservation)}
     local features=${4:-"$(get_features)"}
     local excludes=$5
