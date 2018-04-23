@@ -3,53 +3,19 @@
 
 shopt -s nullglob
 
-# Globals
-default_PARTITION=standard
-KNL_PARTITION=knl
-default_QOS=
-DST_QOS=high
-default_RESERVATION=
-DST_RESERVATION=PreventMaint
-default_FEATURES=
-KNL_FEATURES="quad,cache"
-
-
-function onDST() {
-    grep "DST Underway" /etc/motd >/dev/null && return 0 || return 1
-}
-
-
-function isCray() {
-    [[ -f /etc/opt/cray/release/cle-release ]] && return 0 || return 1
-}
-
-
-function get_reservation() {
-    if onDST; then
-        echo $DST_RESERVATION
-    else
-        echo $default_RESERVATION
-    fi
-}
-
-
-function get_features() {
-    local partition=${1:-$default_PARTITION}
-    if [[ "$partition" == "$KNL_PARTITION" ]]; then
-        echo $KNL_FEATURES
-    else
-        echo $default_FEATURES
-    fi
-}
-
-
-function get_qos() {
-    if onDST; then
-        echo $DST_QOS
-    else
-        echo $default_QOS
-    fi
-}
+local_info=$(dirname $BASH_SOURCE)/site/slurm_info.local.sh
+if [ -f $local_info ]; then
+    source $local_info
+    PARTITON=$(get_partition)
+    QOS=$(get_qos)
+    RESERVATION=$(get_reservation)
+    FEATURES="$(get_features)"
+else
+    PARTITION=
+    QOS=
+    RESERVATION=
+    FEATURES=
+fi
 
 
 function slurm_list_to_sequence() {
@@ -88,7 +54,7 @@ function get_slurm_state() (
     ## Discover the current usability of a cluster partition,
     ##  return a sequence of cluster size, availability, allocated, and
     ##  an available-node list
-    local partition=${1:-$default_PARTITION}
+    local partition=${1:-$PARTITION}
 
     local s_idx=4
     local l_idx=6
@@ -124,10 +90,10 @@ function get_slurm_state() (
 
 function nodes_status() {
     ## Discovers and confirms up-status of available nodes
-    local partition=${1:-$default_PARTITION}
-    local qos=${2:-$(get_qos)}
-    local reservation=${3:-$(get_reservation)}
-    local features=${4:-"$(get_features)"}
+    local partition=${1:-$PARTITION}
+    local qos=${2:-$QOS}
+    local reservation=${3:-$RESERVATION}
+    local features=${4:-"$FEATURES"}
     local excludes=$5
     local quiet=${6:-0}
 
@@ -191,6 +157,7 @@ function good_nodes() {
 }
 
 
+## if called, not sourced
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     state=$(get_slurm_state $@)
     good_nodes $@
