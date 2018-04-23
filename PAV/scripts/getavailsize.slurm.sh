@@ -2,7 +2,7 @@
 
 source $(dirname $BASH_SOURCE)/slurm-info.sh
 
-partition=${1:-$default_PARTITION}
+partition=${1:-$PARTITION}
 state=$(get_slurm_state $partition)
 retval=$?
 if [ "$retval" -ne "0" ]; then
