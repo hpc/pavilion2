@@ -564,7 +564,7 @@ class RawTestEntry(TestEntry):
     """ simple enough, just launch this executable once
     """
 
-    def set_num_nodes(self, _):
+    def set_num_nodes(self, unused=0):
         self.this_dict[self.id]['raw']['num_nodes'] = 1
 
     def get_num_nodes(self):
