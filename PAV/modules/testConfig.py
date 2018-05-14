@@ -57,9 +57,13 @@
 
 import sys
 import os
+import re
 import json
 import logging
+import subprocess
 from yaml import load, YAMLError
+
+import traceback
 
 #from PAV.modules.testEntry import TestEntry
 from testEntry import TestEntry
@@ -92,12 +96,44 @@ def merge(obj_1, obj_2):
     return obj_2
 
 
+def load_metaconfig(cfg_script):
+    # Load a dict from a script that produces key=value pairs
+    if cfg_script is not None:
+        query = os.environ['PVINSTALL'] + "/PAV/" + cfg_script
+        if os.path.exists(query):
+            vars_str = subprocess.check_output(query, shell=True).strip()
+            return {k:v.strip('"')
+                    for k,v in re.findall(r'(\S+)=(".*?"|\S+)', vars_str)}
+    return {}
+
+def decode_metavalue(value, cfg_script="scripts/site/metaconfig.sh"):
+    # Substitute instances of @{KEY} with the associated value in a string
+    var_cfg = load_metaconfig(cfg_script)
+    for varkey, varval in var_cfg.iteritems():
+        encodedvar = "@{" + varkey + "}"
+        if encodedvar in value:
+            value = value.replace(encodedvar, varval)
+    return value
+
+def decode_metaconfig(cfg, cfg_script="scripts/site/metaconfig.sh"):
+    # Substitute instances of @{KEY} with the associated value throughout a dict
+    var_cfg = load_metaconfig(cfg_script)
+    for key, value in cfg.iteritems():
+        for varkey, varval in var_cfg.iteritems():
+            encodedvar = "@{" + varkey + "}"
+            if encodedvar in value:
+                cfg[key] = value.replace(encodedvar, varval)
+    return cfg
+
+
+
 class YamlTestConfig(object):
     """
     class to manipulate test suite config files being used
     """
 
-    def __init__(self, ucf="../test_suites/user_test_config.yaml"):
+    def __init__(self, ucf="../test_suites/user_test_config.yaml",
+                 ccf="scripts/site/metaconfig.sh"):
 
         my_name = self.__class__.__name__
         self.logger = logging.getLogger('pav.' + my_name)
@@ -118,11 +154,11 @@ class YamlTestConfig(object):
                 self.dcf = df
         print "  Default test suite config file -> " + self.dcf
         self.logger.info('Using default test config file: ' + self.dcf)
-
-        self.default_config_doc = self.load_config_file(self.dcf)
+        
+        self.default_config_doc = self.load_config_file(self.dcf, ccf)
         self.ecf = self.create_effective_config_file()
 
-    def load_config_file(self, config_name):
+    def load_config_file(self, config_name, cfg_script=None):
         """
         Load the YAML configuration file(s) with the given name. Returns
         the loaded contents as a dict.
@@ -150,7 +186,7 @@ class YamlTestConfig(object):
                     print "    Included test suite ->  " + fn
                     inc_cfg.update(load(open(fn)))
                 cfg.update(inc_cfg)
-            return cfg
+            return decode_metaconfig(cfg, cfg_script)
 
         except AttributeError:
             error_message = " Badly formatted Include line in {0}\n".format(fn)

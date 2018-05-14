@@ -70,6 +70,8 @@ import glob
 from subprocess import Popen, PIPE
 import subprocess
 
+from testConfig import decode_metavalue
+
 
 def copy_file(src, dest):
     try:
@@ -311,7 +313,8 @@ class JobController(object):
         # Support for a Splunk data log or file
         try:
             if self.configs['splunk']['state']:
-                os.environ['SPLUNK_GDL'] = str(self.configs['splunk']['global_data_file'])
+                os.environ['SPLUNK_GDL'] = decode_metavalue(self.configs['splunk']['global_data_file'])
+                print '<global data file> ' + os.environ['SPLUNK_GDL']
         except KeyError, e:
             print 'basejobcontroller:setup_job_info, Splunk config error - no: "%s"' % str(e)
 
