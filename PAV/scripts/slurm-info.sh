@@ -6,12 +6,14 @@ shopt -s nullglob
 local_info=$(dirname $BASH_SOURCE)/site/slurm_info.local.sh
 if [ -f $local_info ]; then
     source $local_info
-    PARTITON=$(get_partition)
+    PARTITION=$(get_partition)
+    ACCOUNT=$(get_account)
     QOS=$(get_qos)
     RESERVATION=$(get_reservation)
     FEATURES="$(get_features)"
 else
     PARTITION=
+    ACCOUNT=
     QOS=
     RESERVATION=
     FEATURES=
@@ -91,17 +93,19 @@ function get_slurm_state() (
 function nodes_status() {
     ## Discovers and confirms up-status of available nodes
     local partition=${1:-$PARTITION}
-    local qos=${2:-$QOS}
-    local reservation=${3:-$RESERVATION}
-    local features=${4:-"$FEATURES"}
-    local excludes=$5
-    local quiet=${6:-0}
+    local account=${2:-$ACCOUNT}
+    local qos=${3:-$QOS}
+    local reservation=${4:-$RESERVATION}
+    local features=${5:-"$FEATURES"}
+    local excludes=$6
+    local quiet=${7:-0}
 
     local slurm_args=""
     if [[ "$partition" != "" ]]; then
         slurm_args="$slurm_args --partition=$partition"
-    else
-        partition=$default_PARTITION
+    fi
+    if [[ "$account" != "" ]]; then
+        slurm_args="$slurm_args --account=$account"
     fi
     if [[ "$features" != "" ]]; then
         for feature in $features; do

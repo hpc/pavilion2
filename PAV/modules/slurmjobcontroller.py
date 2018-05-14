@@ -128,7 +128,20 @@ class SlurmJobController(JobController):
             slurm_cmd += " -p " + partition
             print "<segName> " + partition
         else:
-            print "<partition>  DEFAULT"
+            print "<partition> DEFAULT"
+
+        # account
+        account = ""
+        if 'account' in self.configs['slurm'] and self.configs['slurm']['account']:
+            account = str(self.configs['slurm']['account'])
+        if account == "":
+            query = os.environ['PVINSTALL'] + "/PAV/scripts/getaccount.slurm.sh"
+            account = subprocess.check_output(query, shell=True).strip()
+        if account != "":
+            slurm_cmd += " -A " + account
+            print "<account> " + account
+        else: 
+            print "<account> DEFAULT" 
 
         # qos
         qos = ""
