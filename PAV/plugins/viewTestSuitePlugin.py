@@ -98,7 +98,10 @@ class ViewTestSuite(IPlugin):
         if (os.path.isfile(args['testSuite'])):
             with open(args['testSuite']) as file:
                 # Build the test configuration
-                tc = YamlTestConfig(args['testSuite'])
+                try:
+                    tc = YamlTestConfig(args['testSuite'], testname=args['testname'], hostname=args['name'], modelist=args['mode'])
+                except:
+                    tc = YamlTestConfig("", testname=args['testname'], hostname=args['name'], modelist=args['mode'])
                 
             if args['dict']:
                 

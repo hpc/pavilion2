@@ -78,12 +78,21 @@ def merge(obj_1, obj_2):
         result = {}
         for key, value in obj_1.iteritems():
             if key not in obj_2:
+                if key == "UniqueId":
+                    for key1, value1 in obj_2.iteritems():
+                        result[key1] = merge( obj_1["UniqueId"], obj_2[key1] )
                 result[key] = value
                 #print "adding key: %s, val: %s, to eff entry" % (key, value)
             else:
-                result[key] = merge(value, obj_2[key])
+                if isinstance( value, dict ) and isinstance( obj_2[key], dict ):
+                    result[key] = merge( value, obj_2[key] )
+                elif isinstance(value, int) and isinstance(obj_2[key], int) and value < obj_2[key]:
+                    error_message = "Value provided {} is greater than the allowed value {}.".format( obj_2[key], value )
+                    sys.exit( error_message )
+                else:
+                    result[key] = merge(value, obj_2[key])
         for key, value in obj_2.iteritems():
-            if key not in obj_1:
+            if key not in result.keys():
                 result[key] = value
                 #print "adding key: %s, val: %s, to eff entry" % (key, value)
         return result
@@ -95,6 +104,23 @@ def merge(obj_1, obj_2):
         return obj_2
     return obj_2
 
+def modify_dict( master_dict, replacement_key, replacement_val ):
+    """
+    Takes a custom parameter modifying dictionary created by decompose_str()
+    and uses it to find the appropriate entry in the master configuration
+    directory and modifies the value to the new value.
+    """
+    if not isinstance( replacement_val, dict ) and not isinstance( replacement_val, list ):
+        master_dict[replacement_key] = replacement_val
+        return master_dict
+    elif replacement_key not in master_dict.keys():
+        error_message = "Custom parameter was not found in the configuration."
+        sys.exit(error_message)
+    else:
+        master_dict[replacement_key] = modify_dict( master_dict[replacement_key],
+                                                    replacement_val.keys()[0],
+                                                    replacement_val.values()[0] )
+        return master_dict
 
 def load_metaconfig(cfg_script):
     # Load a dict from a script that produces key=value pairs
@@ -132,31 +158,165 @@ class YamlTestConfig(object):
     class to manipulate test suite config files being used
     """
 
-    def __init__(self, ucf="../test_suites/user_test_config.yaml",
-                 ccf="scripts/site/metaconfig.sh"):
+    def __init__(self, ucf="../test_suites/blank.yaml",
+                 ccf="scripts/site/metaconfig.sh", testname="",
+                 hostname="", modelist=[]):
 
         my_name = self.__class__.__name__
         self.logger = logging.getLogger('pav.' + my_name)
 
         # Unless defined otherwise in the user's test suite config file the 
         # default config file is found in the same directory.
+        if ucf == None: ucf = "../test_suites/blank.yaml"
         test_suite_dir = os.path.dirname(os.path.realpath(ucf)) + "/"
         self.dcf = test_suite_dir + "default_test_config.yaml"
+        if len(ucf) >= 5 and ucf[-5:] != ".yaml":
+            ucf += ".yaml"
 
-        print "  User test suite file -> " + ucf
+        print "  User config file -> %s" % ucf
         self.user_config_doc = self.load_config_file(ucf)
 
-        if "DefaultTestSuite" in self.user_config_doc:
+        if not isinstance( self.user_config_doc, dict ):
+            error_msg = "Loaded test config %s is of the wrong type." % ucf
+            error_msg += "\nThe type is %s." % type( self.user_config_doc )
+            self.logger.error( error_msg )
+            sys.exit( error_msg )
+
+        tmp_cfg = self.extract_nested_tests( self.user_config_doc )
+
+        if tmp_cfg != {'UniqueId': None}:
+            self.user_config_doc = tmp_cfg
+
+        expanded_config = {}
+
+        for testname, test in self.user_config_doc.iteritems():
+            while True:
+                test_key, test_val = self.find_expansions(test)
+                print test_key, test_val
+                if test_val == ["empty"] and test_key == "empty":
+                    break
+                elif test_val == []:
+                    continue
+                for variant in test_val:
+                    expanded_config[testname + '-' + variant] = modify_dict( test, test_key, variant )
+            if test_val == ["empty"] and test_key == "empty":
+                break
+
+            self.user_config_doc['testname'] = expanded_config
+
+        if "PAV_CFG_ROOT" in os.environ.keys():
+            self.cfg_root = os.environ['PAV_CFG_ROOT']
+            print "  Configuration root: " + self.cfg_root
+
+            if self.cfg_root[-1] != '/':
+                self.cfg_root += '/'
+
+            self.dcf = self.cfg_root + 'default_test_config.yaml'
+
+            print "  Default test suite config file -> " + self.dcf
+            self.logger.info('Using default test config file: %s ' % self.dcf)
+    
+            self.default_config_doc = self.load_config_file(self.dcf)
+
+            # Check for host-specific .yaml file
+            if hostname != "":
+                self.host=hostname
+            else:
+                hostname = subprocess.Popen( ['/usr/projects/hpcsoft/utilities/bin/sys_name'],
+                                              stdout=subprocess.PIPE, )
+
+                for line in hostname.stdout:
+                    self.host = line.strip()
+
+            self.host = self.cfg_root + 'hosts/' + self.host + '.yaml'
+
+            if not os.path.isfile( self.host ):
+                error_message = "Host file {} does not exist.\n".format( self.host )
+                self.logger.error( error_message )
+                sys.exit( error_message )
+
+            print "  Default test suite host config file -> " + self.host
+            self.logger.info('Using default test host config file: %s ' % self.host)
+            self.host_config_doc = self.load_config_file(self.host)
+
+            self.default_config_doc = merge(self.default_config_doc, self.host_config_doc)
+
+            # Check for mode-specific .yaml file
+            if modelist != []:
+                self.mode = modelist
+            else:
+                self.mode = [ "standard" ]
+
+            for mode in self.mode:
+                mode = self.cfg_root + 'modes/' + mode + '.yaml'
+    
+                if not os.path.isfile( mode ):
+                    error_message = "Mode file {} does not exist.\n".format( mode )
+                    self.logger.error( error_message )
+                    sys.exit( error_message )
+    
+                print "  Default test suite mode config file -> " + mode
+                self.logger.info('Using default test mode config file: %s ' % mode)
+                self.mode_config_doc = self.load_config_file(mode)
+    
+                self.default_config_doc = merge( self.default_config_doc, self.mode_config_doc )
+
+            # Check for test-specific .yaml file
+            if testname != "":
+                self.test = testname
+            else:
+                self.test = ucf.split('.')[0]
+
+            self.test = self.cfg_root + 'tests/' + self.test.split('.')[0] + '.yaml'
+
+            if testname != "":
+                if not os.path.isfile( self.test ):
+                    error_message = "Test file {} does not exist. Skipping default test config.\n".format( self.test )
+                    self.logger.info( error_message )
+                else:
+                    print "  Default test suite test config file -> " + self.test
+                    self.logger.info('Using default test test config file: %s ' % self.test)
+                    self.test_config_doc = self.load_config_file(self.test)
+    
+                    test_dict = {}
+    
+                    for test_key, test_val in self.test_config_doc.iteritems():
+                        test_dict[test_key] = ( merge( self.default_config_doc['UniqueId'], test_val ) )
+    
+                    self.default_config_doc = test_dict
+
+            self.ecf = {}
+
+            if self.user_config_doc != {}:
+                for subtestname, subtest in self.user_config_doc.iteritems():
+                    self.ecf[ subtestname ] = merge( self.default_config_doc[self.default_config_doc.keys()[0]], self.user_config_doc[ subtestname ] )
+            else:
+                self.ecf = self.default_config_doc
+
+        elif "DefaultTestSuite" in self.user_config_doc:
             df = self.user_config_doc['DefaultTestSuite']
             if "/" not in df:
                 self.dcf = test_suite_dir + df
             else:
                 self.dcf = df
-        print "  Default test suite config file -> " + self.dcf
-        self.logger.info('Using default test config file: ' + self.dcf)
-        
-        self.default_config_doc = self.load_config_file(self.dcf, ccf)
-        self.ecf = self.create_effective_config_file()
+            print "  Default test suite config file -> " + self.dcf
+            self.logger.info('Using default test config file: ' + self.dcf)
+            
+            self.default_config_doc = self.load_config_file(self.dcf, ccf)
+            self.ecf = self.create_effective_config_file()
+
+        elif os.path.isfile( self.dcf ):
+            print "  Default test suite config file -> " + self.dcf
+            self.logger.info('Using default test config file: ' + self.dcf)
+            
+            self.default_config_doc = self.load_config_file(self.dcf)
+            self.ecf = self.create_effective_config_file()
+
+        else:
+            error_msg = "Did not find a default configuration file."
+            print error_msg
+            self.logger.error(error_msg)
+            sys.exit(1)
 
     def load_config_file(self, config_name, cfg_script=None):
         """
@@ -171,6 +331,7 @@ class YamlTestConfig(object):
                 config_file_base_dir = "."
             fn = config_name
             cfg = load(open(fn))
+            if cfg == None: return {}
             for inc in cfg.get("IncludeTestSuite", []):
                 if inc[0] == "/":
                     fn = inc
@@ -230,19 +391,29 @@ class YamlTestConfig(object):
         """
         print json.dumps(self.default_config_doc, sort_keys=True, indent=4)
 
-    def create_effective_config_file(self):
+    def create_effective_config_file(self, override_cf="", default_cf=""):
         """
         Return the complete test suite file to be used for this test
         after it is folded in with the default configuration
         """
 
+        if override_cf == "":
+            override_cf=self.user_config_doc
+        else:
+            override_cf=self.load_config_file( override_cf )
+
+        if default_cf == "":
+            default_cf=self.default_config_doc
+        else:
+            default_cf=self.load_config_file( default_cf )
+
         # get a copy of the default configuration for a test 
-        _, default_config = self.default_config_doc.items()[0]
+        _, default_config = default_cf.items()[0]
 
         # then, for each new test entry (stanza) in the user_config_doc
         # merge with the default entry (overriding the defaults)
         new_dict = {}
-        for test_id, v in self.user_config_doc.items():
+        for test_id, v in override_cf.items():
             # only use "good" entries
             if isinstance(v, dict):
                 if not TestEntry.check_valid(v):
@@ -252,7 +423,7 @@ class YamlTestConfig(object):
 
             # merge the user dictionary with the default configuration. Tried
             # other dict methods ( "+", chain, update) and these did not work with nested dict.
-            new_dict[test_id] = merge(tmp_config, self.user_config_doc[test_id])
+            new_dict[test_id] = merge(tmp_config, override_cf[test_id])
 
         return new_dict
 
@@ -265,6 +436,62 @@ class YamlTestConfig(object):
         """
         #ecf = self.get_effective_config_file()
         print json.dumps(self.ecf, sort_keys=True, indent=4)
+
+    def extract_nested_tests( self, test_suite ):
+        """
+        This method should recursively check for the 'IncludeTestSuite' key in each
+        successive test suite and expand it into a single test suite.
+        """
+        if not isinstance( test_suite, dict ):
+            error_msg = "Loaded test suite is not well-formed."
+            self.logger.error( error_msg )
+            sys.exit(error_msg)
+    
+        ret_dict = {}
+    
+        if "IncludeTestSuite" in test_suite.keys():
+            for testfile in test_suite['IncludeTestSuite']:
+                if len(testfile) >= 5 and testfile[-5:] != ".yaml":
+                    testfile += ".yaml"
+                elif len(testfile) < 5:
+                    testfile += ".yaml"
+                try:
+                    ret_dict[testfile[:-6]] = self.load_config_file(testfile)
+                    tmp_dict = self.extract_nested_tests( ret_dict[testfile[:-6]] )
+                    if tmp_dict != {}:
+                        for testname, test in tmp_dict.iteritems():
+                            ret_dict[testname] = test
+                        del ret_dict[testfile[:-6]]
+                except:
+                    error_msg = "Test file included by 'IncludeTestSuite' key could not be loaded."
+                    self.logger.error( error_msg )
+                    sys.exit(error_msg)
+    
+        return ret_dict
+
+    def find_expansions( self, test ):
+        """
+        This function will crawl through a test and try to find lists that need to be
+        expanded into individual tests.
+        """
+
+        if not isinstance( test, dict ):
+            error_msg = "Object provided to find_expansions function is not of type dict."
+            self.logger.error( error_msg )
+            sys.exit( error_msg )
+
+        for t_key, t_val in test.iteritems():
+            if isinstance( t_val, dict ):
+                name, target = self.find_expansions( t_val )
+                if target == ["empty"]:
+                    return "empty", ["empty"]
+                else:
+                    ret_key = t_key + '.' + name
+                    return ret_key, target
+            elif isinstance( t_val, list ) and len( t_val ) != 0:
+                return t_key, t_val
+            else:
+                return "empty", ["empty"]
 
     # this gets called if it's run as a script/program
 if __name__ == '__main__':
