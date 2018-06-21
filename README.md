@@ -1,10 +1,8 @@
 # Pavilion
-=========
 
 LA-CC-15-041
 
-Pavilion is a software framework for running and analyzing jobs/tests targeting HPC systems.
-> Python 2.7 based
+Pavilion is a Python 2.7-based software framework for running and analyzing jobs/tests targeting HPC systems.
 
 
 ## Usage
@@ -50,6 +48,7 @@ location than that specified in the pre-generated test configs in the PreventMai
 ## Version 1.1.2
 
 > Verified to work with Moab scheduler thus far. 
+
 > Support for both for Slurm and Raw in version 1.1.0.
 
 
