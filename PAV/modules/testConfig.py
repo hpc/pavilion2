@@ -173,7 +173,14 @@ class YamlTestConfig(object):
         if len(ucf) >= 5 and ucf[-5:] != ".yaml":
             ucf += ".yaml"
 
-        print "  User config file -> %s" % ucf
+        if os.path.isfile(ucf):
+            info_msg = "Using %s user config file." % ucf
+            self.logger.info( info_msg )
+        else:
+            error_msg = "User config file %s not found." % ucf
+            self.logger.error( error_msg )
+            sys.exit( error_msg )
+
         self.user_config_doc = self.load_config_file(ucf)
 
         if not isinstance( self.user_config_doc, dict ):
@@ -184,7 +191,7 @@ class YamlTestConfig(object):
 
         tmp_cfg = self.extract_nested_tests( self.user_config_doc )
 
-        if tmp_cfg != {'UniqueId': None}:
+        if tmp_cfg != {'UniqueId': None} and "PAV_CFG_ROOT" in os.environ.keys():
             self.user_config_doc = tmp_cfg
 
         expanded_config = {}
@@ -192,7 +199,6 @@ class YamlTestConfig(object):
         for testname, test in self.user_config_doc.iteritems():
             while True:
                 test_key, test_val = self.find_expansions(test)
-                print test_key, test_val
                 if test_val == ["empty"] and test_key == "empty":
                     break
                 elif test_val == []:
@@ -310,7 +316,9 @@ class YamlTestConfig(object):
             self.logger.info('Using default test config file: ' + self.dcf)
             
             self.default_config_doc = self.load_config_file(self.dcf)
-            self.ecf = self.create_effective_config_file()
+            self.ecf = {}
+            for subtestname, subtest in self.user_config_doc.iteritems():
+                self.ecf[subtestname] = merge( self.default_config_doc[self.default_config_doc.keys()[0]], self.user_config_doc[subtestname] )
 
         else:
             error_msg = "Did not find a default configuration file."
