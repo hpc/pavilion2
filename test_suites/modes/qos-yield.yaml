@@ -1,0 +1,14 @@
+# YAML
+#
+# Sets the QOS to 'yield'.
+
+UniqueId:
+  name: "tmp"
+
+  source_location: "/tmp"
+
+  run:
+    cmd: "tmp"
+
+  slurm:
+    qos: yield

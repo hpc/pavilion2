@@ -1,0 +1,19 @@
+# YAML
+# 
+# Runs the helloFORTRAN test in pavilion.
+
+helloFORTRAN:
+  name: helloFORTRAN
+  source_location: '/usr/projects/hpctools/PAV_PRETEAM/test_src/helloFORTRAN'
+
+  run:
+    cmd: 'run_it.sh'
+
+  slurm:
+    num_nodes: [ 1 ]
+    procs_per_node: 1
+    time_limit: "00:10:00"
+
+  working_space:
+    copy_to_ws: '*'
+    save_from_ws: '*.out, *.log, my.splunkdata'

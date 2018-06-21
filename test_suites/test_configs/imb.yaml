@@ -1,0 +1,93 @@
+# YAML
+#
+# This can be used in conjunction with mode and host files
+# to run the IMB tests.
+
+pingpong:
+  name: pingpong
+
+  source_location: /users/sly/git/tmp-imb
+
+  run:
+    cmd: 'runIMB.sh'
+    scheduler: slurm
+    test_args: "target=IMB-MPI1 imbtest=pingpong"
+
+  slurm:
+    num_nodes: [ 1 ]
+    time_limit: 08:00:00
+
+  splunk:
+    state: off
+
+sendrecv:
+  name: sendrecv
+
+#  source_location: /usr/projects/hpctools/PAV_PRETEAM/test_src/IMB
+  source_location: /users/sly/git/tmp-imb
+
+  run:
+    cmd: 'runIMB.sh'
+    scheduler: slurm
+    test_args: "target=IMB-MPI1 imbtest=sendrecv"
+
+  slurm:
+    num_nodes: [ 1, 2]
+    time_limit: 08:00:00
+
+  splunk:
+    state: off
+
+alltoall:
+  name: alltoall
+
+#  source_location: /usr/projects/hpctools/PAV_PRETEAM/test_src/IMB
+  source_location: /users/sly/git/tmp-imb
+
+  run:
+    cmd: 'runIMB.sh'
+    scheduler: slurm
+    test_args: "target=IMB-MPI1 imbtest=alltoall"
+
+  slurm:
+    num_nodes: [ 1, 2]
+    time_limit: 08:00:00
+
+  splunk:
+    state: off
+
+reduce:
+  name: reduce
+
+#  source_location: /usr/projects/hpctools/PAV_PRETEAM/test_src/IMB
+  source_location: /users/sly/git/tmp-imb
+
+  run:
+    cmd: 'runIMB.sh'
+    scheduler: slurm
+    test_args: "target=IMB-MPI1 imbtest=reduce"
+
+  slurm:
+    num_nodes: [ 1, 2]
+    time_limit: 08:00:00
+
+  splunk:
+    state: off
+
+allreduce:
+  name: allreduce
+
+#  source_location: /usr/projects/hpctools/PAV_PRETEAM/test_src/IMB
+  source_location: /users/sly/git/tmp-imb
+
+  run:
+    cmd: 'runIMB.sh'
+    scheduler: slurm
+    test_args: "target=IMB-MPI1 imbtest=allreduce"
+
+  slurm:
+    num_nodes: [ 1, 2]
+    time_limit: 08:00:00
+
+  splunk:
+    state: off

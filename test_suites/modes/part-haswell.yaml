@@ -1,0 +1,14 @@
+# YAML
+#
+# Specifies the partition to be used as 'haswell'.
+
+UniqueId:
+  name: "tmp"
+
+  source_location: "/tmp"
+
+  run:
+    cmd: "tmp"
+
+  slurm:
+    partition: haswell

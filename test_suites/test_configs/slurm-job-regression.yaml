@@ -1,0 +1,15 @@
+slurm-job-regression:
+  name: slurm-job-regression
+  source_location: '/usr/projects/hpctest/pavilion/test_src/slurm-job-regression'
+
+  run:
+    cmd: 'runit'
+    scheduler: 'raw'
+    count: 1
+
+  working_space:
+    copy_to_ws: '*'
+    save_from_ws: '*'
+
+  results:
+    root: '/usr/projects/hpctest/pavilion/results'

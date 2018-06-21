@@ -1,0 +1,14 @@
+# YAML
+#
+# Specifies the account to be used as 'hpcdev'.
+
+UniqueId:
+  name: "tmp"
+
+  source_location: "/tmp"
+
+  run:
+    cmd: "tmp"
+
+  slurm:
+    account: hpcdev

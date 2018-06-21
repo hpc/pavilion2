@@ -1,0 +1,14 @@
+# YAML
+#
+# Sets the reservation to 'prevent-maint'.
+
+UniqueId:
+  name: "tmp"
+
+  source_location: "/tmp"
+
+  run:
+    cmd: "tmp"
+
+  slurm:
+    reservation: prevent-maint

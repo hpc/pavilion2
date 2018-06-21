@@ -1,0 +1,40 @@
+slurm-expectests:
+  name: slurm-expectests
+  source_location: /usr/projects/hpctest/pavilion/test_src/slurm-expectests
+
+  run:
+    cmd: 'runit.sh'
+    scheduler: raw
+    count: 1
+    test_args: [ "test_type=srun",   
+       "test_type=scontrol",
+       "test_type=sinfo",
+       "test_type=squeue",
+       "test_type=scancel",
+       "test_type=otherfunctions",
+       "test_type=smap",
+       "test_type=sacct",
+       "test_type=sbcast",
+       "test_type=salloc",
+       "test_type=sattach",
+       "test_type=sbatch",
+       "test_type=strigger",
+       "test_type=sacctmgr",
+       "test_type=sreport",
+       "test_type=sstat",
+       "test_type=sprio",
+       "test_type=sdiag",
+       "test_type=jobarray",
+       "test_type=smd",
+       "test_type=epilogprolog",
+       "test_type=sgather",
+       "test_type=burstbuffer",
+       "test_type=cray", 
+       "test_type=preemption" ],
+       [ "SLURM_RESERVATION=PreventMaint" ], [ "SALLOC_RESERVATION=PreventMaint" ], [ "SBATCH_RESERVATION=PreventMaint" ] 
+
+
+  working_space:
+#    path: '/lustre/ttscratch1/hpctest/workingspace'
+    copy_to_ws: '.'
+    save_from_ws: '.'

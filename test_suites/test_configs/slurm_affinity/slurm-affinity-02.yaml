@@ -1,0 +1,16 @@
+slurm-affinity-2:
+  name: slurm-affinity-2
+  source_location: '/usr/projects/hpctest/pavilion/test_src/slurm-affinity'
+
+  run:
+    cmd: 'runit'
+    test_args: '--test 2'
+    scheduler: 'raw'
+    count: 1
+
+  working_space:
+    copy_to_ws: '*'
+    save_from_ws: '*'
+
+  results:
+    root: '/usr/projects/hpctest/pavilion/results'

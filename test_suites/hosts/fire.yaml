@@ -1,0 +1,17 @@
+# YAML
+#
+# This file will be the host-specific file for the Fire cluster.
+# Host specific restrictions can be found at:
+# https://hpc.lanl.gov/scheduling_policies
+#
+# QOS options are: standard, interactive, standby, dev, long, large, high
+
+UniqueId:
+
+  slurm:
+    num_nodes: 1104
+    procs_per_node: 36
+    time_limit: "48:00:00"
+    partition: any
+    account: hpctest
+    qos: standard

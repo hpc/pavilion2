@@ -1,0 +1,17 @@
+# YAML
+#
+# This file will be the host-specific file for the Wolf cluster.
+# Host specific restrictions can be found at:
+# https://hpc.lanl.gov/scheduling_policies
+#
+# QOS options are: standard, interactive, standby, long, large, high
+
+UniqueId:
+
+  slurm:
+    num_nodes: 616
+    procs_per_node: 16
+    time_limit: "332:00:00"
+    partition: any
+    account: hpctest
+    qos: standard

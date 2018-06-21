@@ -1,0 +1,15 @@
+slurm-job-chaining:
+  name: slurm-job-chaining
+  source_location: '/usr/projects/hpctest/pavilion/test_src/slurm-job-chaining'
+
+  run:
+    cmd: 'runit'
+    scheduler: 'slurm'
+    count: 1
+
+  working_space:
+    copy_to_ws: '*'
+    save_from_ws: '*'
+
+  results:
+    root: '/usr/projects/hpctest/pavilion/results'

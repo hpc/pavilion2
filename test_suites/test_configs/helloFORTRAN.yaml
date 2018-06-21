@@ -1,0 +1,38 @@
+# YAML file for helloFORTRAN
+
+# this is the yaml file for running helloFORTRAN  under
+# pavilion -- note the same test can be run manually WITHOUT
+# the use of pavilion (also this file depends on the file
+# default_test_config.yaml to be in the same directory as this)
+
+helloFORTRAN:
+  name: helloFORTRAN
+  source_location: '/usr/projects/hpctest/pavilion/test_src/helloFORTRAN'
+
+#  build:  # not used -- no separate build -- part of main script
+#  cmd:
+#  build_before_run_flag:
+
+  run:
+    cmd: 'run_it.sh'
+    scheduler: 'slurm'
+    test_args: []
+
+  slurm:
+    num_nodes: [ 1 ] 
+#    reservation: "PreventMaint"
+    procs_per_node: 1
+    time_limit: "00:10:00"
+
+  working_space:
+    path: '/usr/projects/hpctest/pavilion/workingspace/pv_ws'
+    copy_to_ws: '*'
+    save_from_ws: '*.out, *.log, my.splunkdata'
+
+  results:
+    root: '/usr/projects/hpctest/pavilion/results'
+    pass_fail_regex: '<result\w{0,1}>\s*(.+)'
+    trend_data_regex: '^<td>\s+(.*)'
+
+  splunk:
+    state: on

@@ -1,0 +1,27 @@
+# YAML
+#
+# Runs the helloC test in pavilion.
+
+helloC:
+  name: helloC
+  source_location: '/users/sly/git/tmp-helloC'
+
+  run:
+    cmd: 'run_it.sh'
+
+  slurm:
+    num_nodes: [ 1 ]
+    procs_per_node: 1
+    time_limit: "00:10:00"
+
+  working_space:
+    copy_to_ws: '*'
+    save_from_ws: '*.out, *.log, my.splunkdata'
+
+  results:
+    root: '/usr/projects/hpctest/pavilion/results'
+    pass_fail_regex: '<result\w{0,1}>\s*(.+)'
+    trend_data_regex: '^<td>\s+(.*)'
+
+  splunk:
+    state: on

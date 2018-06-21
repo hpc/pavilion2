@@ -1,0 +1,15 @@
+# YAML
+#
+# Runs the sbatch test in pavilion.
+
+sbatch:
+  name: sbatch
+  source_location: '/usr/projects/hpctools/PAV_PRETEAM/test_src/sbatch-hostname'
+
+  run:
+    cmd: 'run_sbatch_hostname'
+    scheduler: 'raw'
+
+  working_space:
+    copy_to_ws: '*'
+    save_from_ws: '*.out, *.log, my.splunkdata'
