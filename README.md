@@ -6,19 +6,26 @@ Pavilion is a Python 2.7-based software framework for running and analyzing jobs
 
 
 ## Usage
+
+Set the ENV variable PVINSTALL to point to the installation directory.
 ```sh
-    set the ENV variable PVINSTALL to point to the installation directory 
-    (for example - "setenv PVINSTALL /users/me/pavilion")
-    add to your search path this directory plus "/PAV"
-    (for example - "setenv PATH ${PVINSTALL}/PAV:${PVINSTALL}/PAV/scripts:${PATH}")
-    create own default and test specific config files. See examples in $PVINSTALL/docs dir
-    run the tool - "pav -h"
+setenv PVINSTALL /users/me/pavilion
 ```
+
+Add the PAV sub-directory to your Path.
+```bash
+setenv PATH ${PVINSTALL}/PAV:${PVINSTALL}/PAV/scripts:${PATH}
+```
+
+Create your own default and test specific test config files. See examples in $PVINSTALL/docs directory.
+
+Help with running the tool can be accessed by running `pav -h`.
 
 ## Alternative execution method
 
 An alternative run method has been added (06/21/18):
-set the required environment variables:
+
+First, set the required environment variables:
 ```bash
 export PVINSTALL=/path/to/repository
 export PAV_CFG_ROOT=$PVINSTALL/test_suites
