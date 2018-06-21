@@ -7,7 +7,7 @@ Pavilion is a software framework for running and analyzing jobs/tests targeting 
 > Python 2.7 based
 
 
-Usage:
+## Usage
 ```sh
     set the ENV variable PVINSTALL to point to the installation directory 
     (for example - "setenv PVINSTALL /users/me/pavilion")
@@ -47,13 +47,13 @@ pav -n wolf -m prevent-maint -t imb -c *.slurm.num_nodes=all -c allreduce.source
 This will run the Intel MPI Benchmark test suite on Wolf using all available nodes with a different source
 location than that specified in the pre-generated test configs in the PreventMaint reservation.
 
-Version 1.1.2
+## Version 1.1.2
 
 > Verified to work with Moab scheduler thus far. 
 > Support for both for Slurm and Raw in version 1.1.0.
 
 
-Collaboration tips:
+## Collaboration tips:
 
   - add new features (sub-commands) to the plugins directory or
     append new path to the ENV variable PV_PLUGIN_DIR and place code there.
@@ -61,9 +61,7 @@ Collaboration tips:
     ENV variable PV_SRC_DIR and place code there.
   - add support scripts in other languages to the scripts directory
 
-====
-
-Project goals:
+## Project goals:
 
    - Support multiple schedulers/resource managers 
    - Modular to encourage collaboration  
@@ -73,7 +71,5 @@ Project goals:
    - Open source and managed thru git  
    - No extra files necessary to be placed into users test/job directory to hook into Pavilion
    - Only one command needed to run cli. Sub commands under "pav" umbrella  
-
-====
 
 See the README.txt file in the docs directory for more detailed information
