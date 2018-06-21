@@ -31,6 +31,7 @@ export PVINSTALL=/path/to/repository
 export PAV_CFG_ROOT=$PVINSTALL/test_suites
 export PATH=$PATH:$PVINSTALL/PAV
 ```
+
 This allows for the user to employ pre-existing test configurations.
 
 From the command line, the machine, test, and modes can be specified.
@@ -44,9 +45,10 @@ In addition, custom modifications can be specified in the command line call.  Th
 ```
 
 Multiple custom modifications can be specified per command line call.
+
 An example command line call that uses all of these is:
 ```bash
-pav -n wolf -m prevent-maint -t imb -c *.slurm.num_nodes=all -c allreduce.source_location=/test/location run_test_suite
+pav -n wolf -m res-PreventMaint -t imb -c *.slurm.num_nodes=all -c allreduce.source_location=/test/location run_test_suite
 ```
 
 This will run the Intel MPI Benchmark test suite on Wolf using all available nodes with a different source
@@ -54,9 +56,8 @@ location than that specified in the pre-generated test configs in the PreventMai
 
 ## Version 1.1.2
 
-> Verified to work with Moab scheduler thus far. 
-
-> Support for both for Slurm and Raw in version 1.1.0.
+- Verified to work with Moab scheduler thus far. 
+- Support for both for Slurm and Raw in version 1.1.0.
 
 
 ## Collaboration tips:
