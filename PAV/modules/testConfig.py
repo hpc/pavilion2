@@ -158,7 +158,7 @@ class YamlTestConfig(object):
     class to manipulate test suite config files being used
     """
 
-    def __init__(self, ucf="../test_suites/blank.yaml",
+    def __init__(self, ucf=os.path.join(os.path.dirname(os.path.abspath(__file__)),'../../test_suites/blank.yaml'),
                  ccf="scripts/site/metaconfig.sh", testname="",
                  hostname="", modelist=[]):
 
@@ -167,7 +167,7 @@ class YamlTestConfig(object):
 
         # Unless defined otherwise in the user's test suite config file the 
         # default config file is found in the same directory.
-        if ucf == None: ucf = "../test_suites/blank.yaml"
+        if ucf == None: ucf = os.path.join(os.path.dirname(os.path.abspath(__file__)),'../../test_suites/blank.yaml')
         test_suite_dir = os.path.dirname(os.path.realpath(ucf)) + "/"
         self.dcf = test_suite_dir + "default_test_config.yaml"
         if len(ucf) >= 5 and ucf[-5:] != ".yaml":
@@ -251,7 +251,7 @@ class YamlTestConfig(object):
             if modelist != []:
                 self.mode = modelist
             else:
-                self.mode = [ "standard" ]
+                self.mode = [ "qos-standard" ]
 
             for mode in self.mode:
                 mode = self.cfg_root + 'modes/' + mode + '.yaml'

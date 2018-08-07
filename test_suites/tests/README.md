@@ -10,5 +10,6 @@ tests include:
 - [imb](https://software.intel.com/en-us/imb-user-guide): Requires modification to test.
 - lustre-mount
 - sbatch: Not currently tested.
+- [snap](https://github.com/lanl/snap): Still in testing.
 - stream: Not currently tested.
 - supermagic: Requires modification to test.

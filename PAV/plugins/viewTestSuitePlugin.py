@@ -82,7 +82,7 @@ class ViewTestSuite(IPlugin):
     def add_parser_info(self, subparser): 
         parser_rts = subparser.add_parser("view_test_suite",
                                           help="view test suite config files (user, default, and combined)")
-        parser_rts.add_argument('testSuite', help='test-suite-config-file')
+        parser_rts.add_argument('testSuite', help='test-suite-config-file', nargs='?')
         parser_rts.add_argument('-d', "--dict", help='show in dictionary format (yaml default)', action="store_true")
         parser_rts.set_defaults(sub_cmds='view_test_suite')
         return ('view_test_suite')
@@ -94,41 +94,31 @@ class ViewTestSuite(IPlugin):
         if args['verbose']:
             print "Command args -> %s" % args
             #print "input test suite file -> %s\n" % args['testSuite']
-        
-        if (os.path.isfile(args['testSuite'])):
-            with open(args['testSuite']) as file:
-                # Build the test configuration
-                try:
-                    tc = YamlTestConfig(args['testSuite'], testname=args['testname'], hostname=args['name'], modelist=args['mode'])
-                except:
-                    tc = YamlTestConfig("", testname=args['testname'], hostname=args['name'], modelist=args['mode'])
-                
-            if args['dict']:
-                
-                print "\nUser test suite configuration (dict style):"
-                print tc.user_config_doc
-                
-                print "\nDefault test suite configuration (dict style):"
-                print tc.default_config_doc
-  
-                print "\nEffective test configuration (dict style, combined User and Default):"
-                print tc.get_effective_config_file()
 
-            else:
+        tc = YamlTestConfig(args['testSuite'], testname=args['testname'], hostname=args['name'], modelist=args['mode'])
+                
+        if args['dict']:
+            
+            print "\nUser test suite configuration (dict style):"
+            print tc.user_config_doc
+            
+            print "\nDefault test suite configuration (dict style):"
+            print tc.default_config_doc
 
-                print "\nUser test suite configuration (yaml style):"
-                tc.show_user_test_config()
-    
-                print "\nDefault test suite configuration (yaml style):"
-                tc.show_default_config()
-    
-                print "\nEffective test suite configuration (yaml style, combined User and Default):"
-                tc.show_effective_config_file()
+            print "\nEffective test configuration (dict style, combined User and Default):"
+            print tc.get_effective_config_file()
 
         else:
-            print "  Error: could not find test suite %s" % args['testSuite']
-            sys.exit()
-        
+
+            print "\nUser test suite configuration (yaml style):"
+            tc.show_user_test_config()
+
+            print "\nDefault test suite configuration (yaml style):"
+            tc.show_default_config()
+
+            print "\nEffective test suite configuration (yaml style, combined User and Default):"
+            tc.show_effective_config_file()
+
 
 if __name__=="__main__":
     print ViewTestSuite.__doc__

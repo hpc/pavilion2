@@ -46,7 +46,7 @@ alltoall:
   run:
     cmd: 'runIMB.sh'
     scheduler: slurm
-    test_args: "target=IMB-MPI1 imbtest=alltoall"
+    test_args: "target=IMB-MPI1 imbtest=alltoall imbtest_options=mem;0.4"
 
   slurm:
     time_limit: 08:00:00
