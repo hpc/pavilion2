@@ -1,0 +1,9 @@
+[Core]
+Name = ListModeSuite 
+Module = listModeSuitePlugin
+
+[Documentation]
+Author = Nicholas C. Sly
+Version = 0.1
+Website = http://pavilion.org
+Description = Plugin to list mode suites
