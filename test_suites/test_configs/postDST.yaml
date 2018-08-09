@@ -1,3 +1,0 @@
-IncludeTestSuite: [ sbatch.yaml,slurm-job-chaining.yaml,slurm-job-regression.yaml,slurm-affnity-parallel.yaml,lustre-mount-test.yaml,supermagic.yaml ]
-
-# Needed: srun, salloc, ior, datawarp, hpl

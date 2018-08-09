@@ -1,9 +1,0 @@
-slurm-expectests:
-  name: slurm-expectests
-  source_location: /usr/projects/hpctest/pavilion/test_src/slurm-expectests
-
-  run:
-    cmd: 'runit.sh'
-    scheduler: raw
-    count: 1
-    test_args: [ "SLURM_RESERVATION=PreventMaint test_type=sreport" ]
