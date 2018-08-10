@@ -158,6 +158,7 @@ class YamlTestConfig(object):
     class to manipulate test suite config files being used
     """
 
+    # ++ PAV_CFG_ROOT : Root directory for pavilion test configurations
     def __init__(self, ucf=os.path.join(os.environ['PAV_CFG_ROOT'],'blank.yaml'),
                  ccf="scripts/site/metaconfig.sh", testname="",
                  hostname="", modelist=[]):

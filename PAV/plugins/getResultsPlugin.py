@@ -129,10 +129,22 @@ class GetResults(IPlugin):
 
         # is test_suite specified?
         if args['ts']:
-            dts = str(args['ts'][0])
+            if os.path.isfile( str(args['ts'][0] ) ):
+                dts = str(args['ts'][0])
+            elif os.path.isfile( os.path.join( os.environ["PAV_CFG_ROOT"], str(args['ts'][0]) ) ):
+                dts = os.path.join( os.environ["PAV_CFG_ROOT"], str(args['ts'][0]) )
+            else:
+                print "Test ", str(args['ts'][0]), " not found."
+                sys.exit(-1)
         else:
             print "Will look for default_test_config.yaml in current working directory ..."
-            dts = os.getcwd() + "/default_test_config.yaml"
+            if os.path.isfile( os.getcwd() + "/default_test_config.yaml" ):
+                dts = os.getcwd() + "/default_test_config.yaml"
+            elif os.path.isfile( os.path.join( os.environ["PAV_CFG_ROOT"], "default_test_config.yaml" ) ):
+                dts = os.path.join( os.environ["PAV_CFG_ROOT"], "default_test_config.yaml" )
+            else:
+                print "No default config was found in this directory or the $PAV_CFG_ROOT directory."
+                sys.exit(-1)
 
         tc = YamlTestConfig(dts)
 
