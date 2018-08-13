@@ -59,6 +59,7 @@
 
 import os,sys
 import logging
+from yaml import load
 from yapsy.IPlugin import IPlugin
 from testConfig import YamlTestConfig
 
@@ -94,10 +95,31 @@ class ListTestSuite(IPlugin):
 
             file_list.remove( 'README.md' )
 
-            test_list = [ v[:-5] for v in file_list ]
+            test_list = [ v[:-5] for v in sorted(file_list) ]
+
+            print ""
+            print "test name:"
+            print " - sub-test name"
+            print ""
+            print "To execute a specific subtest, run:"
+            print "pav -t [test name] run_test_suite -t [sub-test name]"
+            print ""
+            print "To execute all subtests in a test, run:"
+            print "pav -t [test name] run_test_suite"
+            print ""
+            print "------------------------------------------------------"
 
             for v in test_list:
-                print v
+                print ""
+                print v + ":"
+                cfg = load(open(os.path.join(
+                      os.environ['PAV_CFG_ROOT'], 'tests', v + ".yaml")))
+
+                keys = sorted(cfg.keys())
+                for key in keys:
+                    print " - " + key
+#                for key, val in cfg.iteritems():
+#                    print "  " + key
 
         else:
             print "No PAV_CFG_ROOT environment variable was found."
