@@ -203,6 +203,38 @@ class SlurmJobController(JobController):
             query =  os.environ['PVINSTALL'] + \
                 "/PAV/scripts/getavailsize.slurm.sh " + partition
             nnodes = subprocess.check_output(query, shell=True).strip()
+            if not (length_of_node_list == -1 or
+                    length_of_node_list == int(nnodes)):
+                self.logger.info( " Error: node_list and num_nodes do not agree!" )
+                print "Error: node_list and num_nodes do not agree!"
+                raise
+        elif '-' in nnodes:
+            # If the number of nodes is given as a range.
+            if len(nnodes.split('-')) > 2:
+                self.logger.info( " Error: The range of the number of nodes to use is malformed." )
+                print " Error: The range of the number of nodes to use is malformed."
+                raise
+            nnodes_min = int(nnodes.split('-')[0])
+            nnodes_max = int(nnodes.split('-')[1])
+            if nnodes_min > nnodes_max:
+                self.logger.info( " Error: Minimum number of nodes requested is greater than the maximum." )
+                print " Error: Minimum number of nodes requested is greater than the maximum."
+                raise
+            if nnodes_min == nnodes_max:
+                nnodes = str(nnodes_min)
+                if not (length_of_node_list == -1 or
+                        length_of_node_list == int(nnodes)):
+                    self.logger.info( " Error: node_list and num_nodes do not agree!" )
+                    print "Error: node_list and num_nodes do not agree!"
+                    raise
+            else:
+                if not (length_of_node_list == -1 or
+                       (length_of_node_list >= nnodes_min and
+                        length_of_node_list <= nnodes_max)):
+                    self.logger.info( " Error: node_list and num_nodes do not agree!" )
+                    print " Error: node_list and num_nodes do not agree!"
+                    raise
+
         os.environ['PV_NNODES'] = nnodes
         print "<nnodes> " + nnodes
         self.logger.info(self.lh + " : nnodes=" + nnodes)
@@ -213,15 +245,13 @@ class SlurmJobController(JobController):
         self.logger.info(self.lh + " : ppn=" + ppn)
         slurm_cmd += " --ntasks-per-node " + ppn
 
-        pes = int(ppn) * int(nnodes)
-        os.environ['PV_NPES'] = str(pes)
-        print "<npes> " + str(pes)
-        self.logger.info(self.lh + " : npes=" + str(pes))
-
-        # number of nodes to allocate must be == length of node list
-        if not (length_of_node_list == -1 or
-                length_of_node_list == int(nnodes)):
-            print "Error: node_list and num_nodes do not agree!"
+        if '-' not in nnodes:
+            pes = str( int(ppn) * int(nnodes) )
+        else:
+            pes = str( int(ppn) * int(nnodes_min) ) + '-' + str( int(ppn) * int(nnodes_max) )
+        os.environ['PV_NPES'] = pes
+        print "<npes> " + pes
+        self.logger.info(self.lh + " : npes=" + pes)
 
         if not node_list:
             slurm_cmd += " -N " + nnodes
@@ -234,6 +264,8 @@ class SlurmJobController(JobController):
         so = os.environ['PV_JOB_RESULTS_LOG_DIR'] + "/slurm-%j.out"
         slurm_cmd += " -o " + so + " -e " + se
 
+        print "<slurm_cmd> " + slurm_cmd
+
         run_cmd = os.environ['PV_RUNHOME'] + "/" + self.configs['run']['cmd']
         os.environ['USER_CMD'] = run_cmd
 
@@ -241,6 +273,8 @@ class SlurmJobController(JobController):
         # actual application executable. Look at moab_job_handler.py to see what is
         # being collected and printed to the output log.
         slurm_cmd += " " + os.environ['PVINSTALL'] + "/PAV/modules/slurm_job_handler.py"
+
+        print "<slurm_cmd> " + slurm_cmd
 
         if SlurmJobController.is_slurm_system():
 
