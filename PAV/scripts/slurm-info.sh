@@ -64,17 +64,22 @@ function get_slurm_state() (
 	s_idx=7
 	l_idx=9
     fi
-    local size=$(sinfo | grep $partition | \
-        awk "{ print \$$s_idx }" | paste -sd+ - | bc)
-    local avail=$(sinfo | grep $partition | grep -v alloc | \
-	grep -v down | grep -v "maint\*" | \
-        awk "{ print \$$s_idx }" | paste -sd+ - | bc)
-    local list=$(sinfo | grep $partition | grep -v alloc | \
-	grep -v down | grep -v "maint\*" | \
-        awk "{ print \$$l_idx }" | paste -sd, -)
-    local allocd=$(sinfo | grep $partition | grep alloc | \
-	grep -v down | grep -v "maint\*" | \
-        awk "{ print \$$s_idx }" | paste -sd+ - | bc)
+    local size=$(sinfo -a -o '%P %.6D' | grep $partition | \
+        awk "{ print \$2 }" | paste -sd+ - | bc)
+    local unavail=$(sinfo -SN -Ro '%P %.16n %.6t' | grep $partition | \
+        grep -v alloc | grep -v "maint\*" | wc -l)
+    local avail=$(sinfo -SN -o '%P %.6D %.6t %N' | grep $partition | \
+        grep -v alloc | grep -v down | grep -v drain | grep -v "maint\*" | \
+        awk "{ print \$2 }" | paste -sd+ - | bc)
+    avail=$(echo "$avail-$unavail" | bc)
+    local bad_list=$(sinfo -SN -Ro '%P %.16n %.6t' | grep $partition | \
+        grep -v alloc | grep -v "maint\*" | awk "{ print \$2 }" | paste -sd, -)
+    local list=$(sinfo -SN -o '%P %.6D %.6t %N' | grep $partition | \
+        grep -v alloc | grep -v down | grep -v "maint\*" | \
+        awk "{ print \$4 }" | paste -sd, -)
+    local allocd=$(sinfo -SN -o '%P %.6D %.6t %N' | grep $partition | \
+        grep alloc | grep -v down | grep -v "maint\*" | \
+        awk "{ print \$2 }" | paste -sd+ - | bc)
 
     if [[ "$size" == "" ]] || [ "$size" -lt "1" ]; then
 	size=0
