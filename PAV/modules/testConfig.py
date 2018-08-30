@@ -328,7 +328,8 @@ class YamlTestConfig(object):
             sys.exit(1)
 
         for test in range(0, len(self.ecf)):
-            if 'run' in self.ecf[test].keys()
+            print self.ecf[test]
+            if isinstance(self.ecf[test], dict) and 'run' in self.ecf[test].keys()
                and 'test_args' in self.ecf[test]['run'].keys()
                and isinstance(self.ecf[test]['run']['test_args'], list):
                 self.ecf[test]['run']['test_args'] = " ".join(self.ecf[test]['run']['test_args'])
