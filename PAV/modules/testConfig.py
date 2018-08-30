@@ -327,7 +327,7 @@ class YamlTestConfig(object):
             self.logger.error(error_msg)
             sys.exit(1)
 
-        for test in self.ecf.keys():
+        for test in range(0, len(self.ecf)):
             if 'run' in self.ecf[test].keys()
                and 'test_args' in self.ecf[test]['run'].keys()
                and isinstance(self.ecf[test]['run']['test_args'], list):
