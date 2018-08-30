@@ -327,6 +327,13 @@ class YamlTestConfig(object):
             self.logger.error(error_msg)
             sys.exit(1)
 
+        for test in self.ecf.keys():
+            if 'run' in self.ecf[test].keys()
+               and 'test_args' in self.ecf[test]['run'].keys()
+               and isinstance(self.ecf[test]['run']['test_args'], list):
+                self.ecf[test]['run']['test_args'] = " ".join(self.ecf[test]['run']['test_args'])
+                        
+
     def load_config_file(self, config_name, cfg_script=None):
         """
         Load the YAML configuration file(s) with the given name. Returns
