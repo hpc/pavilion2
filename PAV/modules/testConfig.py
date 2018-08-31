@@ -110,7 +110,12 @@ def modify_dict( master_dict, replacement_key, replacement_val ):
     and uses it to find the appropriate entry in the master configuration
     directory and modifies the value to the new value.
     """
-    if not isinstance( replacement_val, dict ) and not isinstance( replacement_val, list ):
+    if not isinstance( master_dict, dict ) or \
+       ( isinstance( master_dict, dict ) and \
+         len( master_dict ) == 1 and \
+         master_dict.vals() == [ null ] ):
+        return None
+    elif not isinstance( replacement_val, dict ) and not isinstance( replacement_val, list ):
         master_dict[replacement_key] = replacement_val
         return master_dict
     elif replacement_key not in master_dict.keys():
@@ -327,11 +332,11 @@ class YamlTestConfig(object):
             self.logger.error(error_msg)
             sys.exit(1)
 
-        for test in range(0, len(self.ecf)):
-            print self.ecf[test]
-            if isinstance(self.ecf[test], dict) and 'run' in self.ecf[test].keys()
-               and 'test_args' in self.ecf[test]['run'].keys()
-               and isinstance(self.ecf[test]['run']['test_args'], list):
+        for test in self.ecf:
+            if isinstance(self.ecf[test], dict) and \
+               'run' in self.ecf[test].keys() and \
+               'test_args' in self.ecf[test]['run'].keys() and \
+               isinstance(self.ecf[test]['run']['test_args'], list):
                 self.ecf[test]['run']['test_args'] = " ".join(self.ecf[test]['run']['test_args'])
                         
 

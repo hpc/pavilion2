@@ -85,7 +85,12 @@ def modify_dict( master_dict, replacement_key, replacement_val ):
     and uses it to find the appropriate entry in the master configuration
     directory and modifies the value to the new value.
     """
-    if not isinstance( replacement_val, dict ) and not isinstance( replacement_val, list ):
+    if not isinstance( master_dict, dict ) or \
+       ( isinstance( master_dict, dict ) and \
+         len( master_dict ) == 1 and \
+         master_dict.vals() == [ null ] ):
+        return None
+    elif not isinstance( replacement_val, dict ) and not isinstance( replacement_val, list ):
         master_dict[replacement_key] = replacement_val
         return master_dict
     elif replacement_key not in master_dict.keys():
