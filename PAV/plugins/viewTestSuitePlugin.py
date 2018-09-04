@@ -58,9 +58,49 @@
 """
 
 import os,sys
+import json
 import logging
 from yapsy.IPlugin import IPlugin
 from testConfig import YamlTestConfig
+
+def decompose_str( in_str ):
+    """
+    Function to take a string of the form key1.key2.key3.key4=res1 and return
+    a nested dictionary.
+    """
+    if '.' in in_str:
+        str_list = in_str.split('.')
+        return { str_list[0] : decompose_str('.'.join(str_list[1:]) ) }
+    elif '=' in in_str:
+        key, val = in_str.split('=')
+        return { key : val }
+    else:
+        error_message = "Custom parameter was malformed.\n Appropriate format is:\n" + \
+                        "-c key1.key2.key3.key4=value."
+        sys.exit(error_message)
+
+def modify_dict( master_dict, replacement_key, replacement_val ):
+    """
+    Takes a custom parameter modifying dictionary created by decompose_str()
+    and uses it to find the appropriate entry in the master configuration
+    directory and modifies the value to the new value.
+    """
+    if not isinstance( master_dict, dict ) or \
+       ( isinstance( master_dict, dict ) and \
+         len( master_dict ) == 1 and \
+         master_dict.vals() == [ null ] ):
+        return None
+    elif not isinstance( replacement_val, dict ) and not isinstance( replacement_val, list ):
+        master_dict[replacement_key] = replacement_val
+        return master_dict
+    elif replacement_key not in master_dict.keys():
+        error_message = "Custom parameter was not found in the configuration."
+        sys.exit(error_message)
+    else:
+        master_dict[replacement_key] = modify_dict( master_dict[replacement_key],
+                                                    replacement_val.keys()[0],
+                                                    replacement_val.values()[0] )
+        return master_dict
 
 
 class ViewTestSuite(IPlugin):
@@ -82,7 +122,7 @@ class ViewTestSuite(IPlugin):
     def add_parser_info(self, subparser): 
         parser_rts = subparser.add_parser("view_test_suite",
                                           help="view test suite config files (user, default, and combined)")
-        parser_rts.add_argument('testSuite', help='test-suite-config-file')
+        parser_rts.add_argument('testSuite', help='test-suite-config-file', nargs='?')
         parser_rts.add_argument('-d', "--dict", help='show in dictionary format (yaml default)', action="store_true")
         parser_rts.set_defaults(sub_cmds='view_test_suite')
         return ('view_test_suite')
@@ -94,38 +134,63 @@ class ViewTestSuite(IPlugin):
         if args['verbose']:
             print "Command args -> %s" % args
             #print "input test suite file -> %s\n" % args['testSuite']
-        
-        if (os.path.isfile(args['testSuite'])):
-            with open(args['testSuite']) as file:
-                # Build the test configuration
-                tc = YamlTestConfig(args['testSuite'])
-                
-            if args['dict']:
-                
-                print "\nUser test suite configuration (dict style):"
-                print tc.user_config_doc
-                
-                print "\nDefault test suite configuration (dict style):"
-                print tc.default_config_doc
-  
-                print "\nEffective test configuration (dict style, combined User and Default):"
-                print tc.get_effective_config_file()
 
-            else:
+        tc = YamlTestConfig(args['testSuite'], testname=args['testname'], hostname=args['name'], modelist=args['mode'])
+                
+        if args['dict']:
+            
+            print "\nUser test suite configuration (dict style):"
+            print tc.user_config_doc
+            
+            print "\nDefault test suite configuration (dict style):"
+            print tc.default_config_doc
 
-                print "\nUser test suite configuration (yaml style):"
-                tc.show_user_test_config()
-    
-                print "\nDefault test suite configuration (yaml style):"
-                tc.show_default_config()
-    
-                print "\nEffective test suite configuration (yaml style, combined User and Default):"
-                tc.show_effective_config_file()
+            print "\nEffective test configuration (dict style, combined User and Default):"
+
+            # Check if custom arguments are specified to change individual parameters
+            my_test_suite = tc.get_effective_config_file()
+            if args['custom'] != []:
+                custom_list = []
+                for custom in args['custom']:
+                    if custom[0] == '*':
+                        for key, val in my_test_suite.iteritems():
+                            self.logger.info('Expanding custom parameter to %s' % (key + custom[1:]))
+                            custom_list.append( key + custom[1:] )
+                for custom in custom_list:
+                    if '.' in custom:
+                        custom_dict = decompose_str( custom )
+                        modify_dict( my_test_suite, custom_dict.keys()[0], custom_dict.values()[0] )
+                    else:
+                        my_test_suite[ custom.split('=')[0] ] = custom.split('=')[1]
+            print my_test_suite
 
         else:
-            print "  Error: could not find test suite %s" % args['testSuite']
-            sys.exit()
-        
+
+            print "\nUser test suite configuration (yaml style):"
+            tc.show_user_test_config()
+
+            print "\nDefault test suite configuration (yaml style):"
+            tc.show_default_config()
+
+            print "\nEffective test suite configuration (yaml style, combined User and Default):"
+
+            # Check if custom arguments are specified to change individual parameters
+            my_test_suite = tc.get_effective_config_file()
+            if args['custom'] != []:
+                custom_list = []
+                for custom in args['custom']:
+                    if custom[0] == '*':
+                        for key, val in my_test_suite.iteritems():
+                            self.logger.info('Expanding custom parameter to %s' % (key + custom[1:]))
+                            custom_list.append( key + custom[1:] )
+                for custom in custom_list:
+                    if '.' in custom:
+                        custom_dict = decompose_str( custom )
+                        modify_dict( my_test_suite, custom_dict.keys()[0], custom_dict.values()[0] )
+                    else:
+                        my_test_suite[ custom.split('=')[0] ] = custom.split('=')[1]
+            print json.dumps( my_test_suite, sort_keys=True, indent=4)
+
 
 if __name__=="__main__":
     print ViewTestSuite.__doc__

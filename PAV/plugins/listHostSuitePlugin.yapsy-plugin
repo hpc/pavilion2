@@ -1,0 +1,9 @@
+[Core]
+Name = ListHostSuite 
+Module = listHostSuitePlugin
+
+[Documentation]
+Author = Nicholas C. Sly
+Version = 0.1
+Website = http://pavilion.org
+Description = Plugin to list host suites
