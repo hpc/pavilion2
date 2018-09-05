@@ -64,6 +64,7 @@ import json
 import logging
 import errno
 import platform
+from contextlib import contextmanager
 
 
 def convert(inp):
@@ -73,10 +74,7 @@ def convert(inp):
         return [convert(element) for element in inp]
     elif isinstance(inp, unicode):
         return inp.encode('utf-8')
-    else:
-        return inp
-
-from contextlib import contextmanager
+    return inp
 
 
 @contextmanager
@@ -141,9 +139,10 @@ def build_results_dir(params):
     new_dir = new_dir + date_parts + target + "/" + name + "/"
     pid = str(os.getpid())
     results_now = datetime.datetime.now()
-    ld = name + "__" + (params['run']['cmd'].split(".", 1)[0]).split("/",1)[0] + \
-        "__" + pid + "__" + target  \
-        + "." + results_now.strftime('%Y-%m-%dT%H:%M:%S:%f')
+    ld = name + "__" + \
+         (params['run']['cmd'].split(".", 1)[0]).split("/", 1)[0] + \
+         "__" + pid + "__" + target \
+         + "." + results_now.strftime('%Y-%m-%dT%H:%M:%S:%f')
     new_dir += ld
 
     logger.info("Make log directory: " + new_dir)
@@ -152,10 +151,11 @@ def build_results_dir(params):
         os.makedirs(new_dir, 0o775)
     except OSError as e:
         if e.errno == errno.EEXIST:
-            logger.info(lh + " Error, somehow log directory exists!, skipping job! : \n\t" + new_dir)
-            pass
+            logger.info(lh + " Error, somehow log directory exists!" +
+                        " skipping job! : \n\t" + new_dir)
         else:
-            logger.info(lh + " Error, cannot create log directory, skipping job! : \n\t" + new_dir)
+            logger.info(lh + " Error, cannot create log directory," +
+                        " skipping job! : \n\t" + new_dir)
             raise
 
     return new_dir
@@ -164,9 +164,8 @@ def build_results_dir(params):
 def now():
     return " " + datetime.datetime.now().strftime("%m-%d-%YT%H:%M:%S")
 
-        
-def main(args):
 
+def main(args):
     """ performs the task of running the job defined by the args sent to this handler.
         There may be no terminal associated with this program so all output from the job
         is now directed to a corresponding log file.
@@ -216,7 +215,8 @@ def main(args):
                 logger.error(lh + "Error: skipping job! " + err.message)
                 return
             except:
-                logger.error(lh + 'Error: job start problem, skipping job! (Hint: look in job output log)')
+                logger.error(lh + 'Error: job start problem, skipping job!' +
+                             ' (Hint: look in job output log)')
                 print "Error: ", sys.exc_info()[0]
                 print "  --> ", sys.exc_info()[1]
                 return

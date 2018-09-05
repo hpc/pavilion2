@@ -69,6 +69,50 @@ from yapsy.IPlugin import IPlugin
 from testConfig import YamlTestConfig
 from testEntry import TestEntry, MoabTestEntry, RawTestEntry, SlurmTestEntry
 
+## Assumes ../modules is in sys.path. Better if packaged, then looks like:
+#from .. import runjob
+import runjob
+from basejobcontroller import JobException
+
+def decompose_str( in_str ):
+    """
+    Function to take a string of the form key1.key2.key3.key4=res1 and return
+    a nested dictionary.
+    """
+    if '.' in in_str:
+        str_list = in_str.split('.')
+        return { str_list[0] : decompose_str('.'.join(str_list[1:]) ) }
+    elif '=' in in_str:
+        key, val = in_str.split('=')
+        return { key : val }
+    else:
+        error_message = "Custom parameter was malformed.\n Appropriate format is:\n" + \
+                        "-c key1.key2.key3.key4=value."
+        sys.exit(error_message)
+
+def modify_dict( master_dict, replacement_key, replacement_val ):
+    """
+    Takes a custom parameter modifying dictionary created by decompose_str()
+    and uses it to find the appropriate entry in the master configuration
+    directory and modifies the value to the new value.
+    """
+    if not isinstance( master_dict, dict ) or \
+       ( isinstance( master_dict, dict ) and \
+         len( master_dict ) == 1 and \
+         master_dict.vals() == [ null ] ):
+        return None
+    elif not isinstance( replacement_val, dict ) and not isinstance( replacement_val, list ):
+        master_dict[replacement_key] = replacement_val
+        return master_dict
+    elif replacement_key not in master_dict.keys():
+        error_message = "Custom parameter was not found in the configuration."
+        sys.exit(error_message)
+    else:
+        master_dict[replacement_key] = modify_dict( master_dict[replacement_key],
+                                                    replacement_val.keys()[0],
+                                                    replacement_val.values()[0] )
+        return master_dict
+
 
 def expansion (initial_arguements, initial_restrictions):
     list_of_lists=[]
@@ -168,19 +212,17 @@ class RunTestSuite(IPlugin):
         self.logger.info('dispatch: %s, variation: (%s)' % (lh, my_te.get_id()))
         runjob_cmd = os.environ['PVINSTALL'] + "/PAV/modules/runjob.py"
         master_log_file = os.environ['PV_LOG']
-        args = ["python", runjob_cmd, uid, js_params, master_log_file]
-        p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
-        if in_args['serial']:
-            output, errors = p.communicate()
-            if p.returncode or errors:
-                print "job_dispatcher: Error: Job failed to run! "
-                print [p.returncode, errors, output]
+        try: 
+            runjob.main([runjob_cmd, uid, js_params, master_log_file])
+        except JobException as e:
+            print "\nERROR (" + str(e.err_code) + "): " + e.err_str + \
+                "\n" + e.msg
 
 
     # build the sub-command argument list
     def add_parser_info(self, subparser): 
         parser_rts = subparser.add_parser("run_test_suite", help="run each test in the test suite")
-        parser_rts.add_argument('testSuite', help='test-suite-config-file')
+        parser_rts.add_argument('testSuite', help='test-suite-config-file', nargs='?')
         parser_rts.add_argument('-d', "--debug", help="don't run, show what would be done", action="store_true")
         parser_rts.add_argument('-D', nargs=1, metavar='<secs>',
                                help="submit again after delaying this many <secs> - NOT WORKING YET!")
@@ -220,18 +262,32 @@ class RunTestSuite(IPlugin):
         is executed.
         """
         # Build the test configuration
-        tc = YamlTestConfig(args['testSuite'])
-        utc = tc.user_config_doc
+        tc = YamlTestConfig(args['testSuite'], testname=args['testname'], hostname=args['name'], modelist=args['mode'])
 
         if args['verbose']:
             print "Command args -> %s" % args
-            print "TestSuite search path -> " + os.path.dirname(
-                os.path.realpath(args['testSuite']))
-            print "User test suite:"
-            print "  %s" % utc
+            #print "TestSuite search path -> " + os.path.dirname(
+            #    os.path.realpath(args['testSuite']))
+            # print "User test suite:"
+            # print "  %s" % utc
 
         # get the "merged" test stanza for each test in the test suite
         my_test_suite = tc.get_effective_config_file()
+
+        # Check if custom arguments are specified to change individual parameters
+        if args['custom'] != []:
+            custom_list = []
+            for custom in args['custom']:
+                if custom[0] == '*':
+                    for key, val in my_test_suite.iteritems():
+                        self.logger.info('Expanding custom parameter to %s' % (key + custom[1:]))
+                        custom_list.append( key + custom[1:] )
+            for custom in custom_list:
+                if '.' in custom:
+                    custom_dict = decompose_str( custom )
+                    modify_dict( my_test_suite, custom_dict.keys()[0], custom_dict.values()[0] )
+                else:
+                    my_test_suite[ custom.split('=')[0] ] = custom.split('=')[1]
 
         # if we are running in debug mode we are then done because we do not need
         # to submit anything

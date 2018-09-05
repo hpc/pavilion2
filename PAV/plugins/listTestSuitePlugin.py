@@ -54,24 +54,76 @@
 #  ###################################################################
 
 
-import os
+""" plug-in to list the test suite configurations 
+"""
 
-# implement linux "which" command
-# FWIW, python 3.3 offers shutil.which()
-def which(program):
+import os,sys
+import logging
+from yaml import load
+from yapsy.IPlugin import IPlugin
+from testConfig import YamlTestConfig
 
-    def is_exe(fpath):
-        return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
 
-    fpath, _ = os.path.split(program)
-    if fpath:
-        if is_exe(program):
-            return program
-    else:
-        for path in os.environ["PATH"].split(os.pathsep):
-            path = path.strip('"')
-            exe_file = os.path.join(path, program)
-            if is_exe(exe_file):
-                return exe_file
+class ListTestSuite(IPlugin):
+    """ This implements the plug-in, or command, to view the available tests
+        in the directory $PAV_CFG_ROOT/tests/.
+    """
 
-    return None
+    def __init__(self):
+        my_name = self.__class__.__name__
+
+        # If you want the log output from this class to reside in the
+        # main (pav) log file you tack it's name onto the pav name space
+        self.logger = logging.getLogger('pav.' + my_name)
+        self.logger.info('created instance of plugin: %s'% my_name)
+
+    # Every plugin class MUST have a method by the name "add_parser_info
+    # and must return the name of the this sub-command
+
+    def add_parser_info(self, subparser): 
+        parser_rts = subparser.add_parser("list_test_suite",
+                                          help="list test suite configs")
+        parser_rts.set_defaults(sub_cmds='list_test_suite')
+        return ('list_test_suite')
+
+    # Every plug-in (command) MUST have a method by the name "cmd".
+    # It will be what is called when that command is selected.
+    def cmd(self, args):
+
+        if os.path.isdir( os.environ['PAV_CFG_ROOT'] ):
+            file_list = os.listdir( os.path.join( os.environ['PAV_CFG_ROOT'], 'tests' ) )
+
+            file_list.remove( 'README.md' )
+
+            test_list = [ v[:-5] for v in sorted(file_list) ]
+
+            print ""
+            print "test name:"
+            print " - sub-test name"
+            print ""
+            print "To execute a specific subtest, run:"
+            print "pav -t [test name] run_test_suite -t [sub-test name]"
+            print ""
+            print "To execute all subtests in a test, run:"
+            print "pav -t [test name] run_test_suite"
+            print ""
+            print "------------------------------------------------------"
+
+            for v in test_list:
+                print ""
+                print v + ":"
+                cfg = load(open(os.path.join(
+                      os.environ['PAV_CFG_ROOT'], 'tests', v + ".yaml")))
+
+                keys = sorted(cfg.keys())
+                for key in keys:
+                    print " - " + key
+#                for key, val in cfg.iteritems():
+#                    print "  " + key
+
+        else:
+            print "No PAV_CFG_ROOT environment variable was found."
+            sys.exit(-1)
+
+if __name__=="__main__":
+    print ListTestSuite.__doc__

@@ -60,9 +60,17 @@
 import sys
 import os
 import subprocess
-import re
-from basejobcontroller import JobController
+#import re
+
+import subprocess32
+
+#from PAV.modules.basejobcontroller import JobController, JobException
+#from PAV.modules.helperutilities import which
+from basejobcontroller import JobController, JobException
 from helperutilities import which
+
+
+ETIME = 62  ## errno
 
 
 class SlurmJobController(JobController):
@@ -108,19 +116,75 @@ class SlurmJobController(JobController):
         # add test name
         slurm_cmd += " -J " + self.name
 
+        # partition just cause
+        partition = ""
+        if 'partition' in self.configs['slurm'] and self.configs['slurm']['partition']:
+            partition = str(self.configs['slurm']['partition'])
+            slurm_cmd += " -p " + partition
+            print "<partition> " + partition
+        # add in a target segment (partition in Slurm vernacular), if specified
+        elif 'target_seg' in self.configs['slurm'] and self.configs['slurm']['target_seg']:
+            partition = str(self.configs['slurm']['target_seg'])
+            slurm_cmd += " -p " + partition
+            print "<segName> " + partition
+        else:
+            print "<partition> DEFAULT"
+
+        # account
+        account = ""
+        if 'account' in self.configs['slurm'] and self.configs['slurm']['account']:
+            account = str(self.configs['slurm']['account'])
+        if account == "":
+            query = os.environ['PVINSTALL'] + "/PAV/scripts/getaccount.slurm.sh"
+            account = subprocess.check_output(query, shell=True).strip()
+        if account != "":
+            slurm_cmd += " -A " + account
+            print "<account> " + account
+        else: 
+            print "<account> DEFAULT" 
+
+        # qos
+        qos = ""
+        if 'qos' in self.configs['slurm'] and self.configs['slurm']['qos']:
+            qos = str(self.configs['slurm']['qos'])
+        if qos == "":
+            query = os.environ['PVINSTALL'] + "/PAV/scripts/getqos.slurm.sh"
+            qos = subprocess.check_output(query, shell=True).strip()
+        if qos != "":
+            slurm_cmd += " --qos=" + qos
+            print "<qos> " + qos
+        else: 
+            print "<qos> DEFAULT" 
+ 
         # reservation
+        reservation = ""
         if "reservation" in self.configs['slurm'] and self.configs['slurm']['reservation']: 
             reservation = self.configs['slurm']['reservation']
+        if reservation == "":
+            query = os.environ['PVINSTALL'] + "/PAV/scripts/getres.slurm.sh"
+            reservation = subprocess.check_output(query, shell=True).strip()
+        if reservation != "":
             slurm_cmd += " --reservation=" + reservation
             print "<reservation> " + reservation
             self.logger.info(self.lh + " : reservation=" + reservation)
-            
+
         # constraint
+        constraint = ""
         if "constraint" in self.configs['slurm'] and self.configs['slurm']['constraint']: 
             constraint = self.configs['slurm']['constraint']
+        if constraint == "":
+            query = os.environ['PVINSTALL'] + \
+                "/PAV/scripts/getfeat.slurm.sh " + partition
+            constraint = subprocess.check_output(query, shell=True).strip()
+        if constraint != "":
             slurm_cmd += " --constraint=" + constraint
             print "<constraint> " + constraint
             self.logger.info(self.lh + " : constraint=" + constraint)
+
+        # immediacy for DST testing
+        query = os.environ['PVINSTALL'] + "/PAV/scripts/onDST.sh"
+        if subprocess.check_output(query, shell=True) == "true":
+            slurm_cmd += " -I"
 
         # get time limit, if specified
         if "time_limit" in self.configs['slurm'] and self.configs['slurm']['time_limit']: 
@@ -134,15 +198,43 @@ class SlurmJobController(JobController):
                 print " Error: time limit value, test suite entry may need quotes"
                 raise
 
-
-        # add in a target segment (partition in Slurm vernacular), if specified
-        if 'target_seg' in self.configs['slurm'] and self.configs['slurm']['target_seg']:
-            slurm_cmd += " -p " + str(self.configs['slurm']['target_seg'])
-            print "<segName> " + str( self.configs['slurm']['target_seg'] )
-        else:
-            print "<segName> DEFAULT"
-
         nnodes = str(self.configs["slurm"]["num_nodes"])
+        if nnodes == "all":
+            query =  os.environ['PVINSTALL'] + \
+                "/PAV/scripts/getavailsize.slurm.sh " + partition
+            nnodes = subprocess.check_output(query, shell=True).strip()
+            if not (length_of_node_list == -1 or
+                    length_of_node_list == int(nnodes)):
+                self.logger.info( " Error: node_list and num_nodes do not agree!" )
+                print "Error: node_list and num_nodes do not agree!"
+                raise
+        elif '-' in nnodes:
+            # If the number of nodes is given as a range.
+            if len(nnodes.split('-')) > 2:
+                self.logger.info( " Error: The range of the number of nodes to use is malformed." )
+                print " Error: The range of the number of nodes to use is malformed."
+                raise
+            nnodes_min = int(nnodes.split('-')[0])
+            nnodes_max = int(nnodes.split('-')[1])
+            if nnodes_min > nnodes_max:
+                self.logger.info( " Error: Minimum number of nodes requested is greater than the maximum." )
+                print " Error: Minimum number of nodes requested is greater than the maximum."
+                raise
+            if nnodes_min == nnodes_max:
+                nnodes = str(nnodes_min)
+                if not (length_of_node_list == -1 or
+                        length_of_node_list == int(nnodes)):
+                    self.logger.info( " Error: node_list and num_nodes do not agree!" )
+                    print "Error: node_list and num_nodes do not agree!"
+                    raise
+            else:
+                if not (length_of_node_list == -1 or
+                       (length_of_node_list >= nnodes_min and
+                        length_of_node_list <= nnodes_max)):
+                    self.logger.info( " Error: node_list and num_nodes do not agree!" )
+                    print " Error: node_list and num_nodes do not agree!"
+                    raise
+
         os.environ['PV_NNODES'] = nnodes
         print "<nnodes> " + nnodes
         self.logger.info(self.lh + " : nnodes=" + nnodes)
@@ -151,15 +243,15 @@ class SlurmJobController(JobController):
         os.environ['PV_PESPERNODE'] = ppn
         print "<ppn> " + ppn
         self.logger.info(self.lh + " : ppn=" + ppn)
+        slurm_cmd += " --ntasks-per-node " + ppn
 
-        pes = int(ppn) * int(nnodes)
-        os.environ['PV_NPES'] = str(pes)
-        print "<npes> " + str(pes)
-        self.logger.info(self.lh + " : npes=" + str(pes))
-
-        # number of nodes to allocate must be == length of node list
-        if not ( length_of_node_list == -1 or length_of_node_list == int(nnodes) ):
-            print "Error: node_list and num_nodes do not agree!"
+        if '-' not in nnodes:
+            pes = str( int(ppn) * int(nnodes) )
+        else:
+            pes = str( int(ppn) * int(nnodes_min) ) + '-' + str( int(ppn) * int(nnodes_max) )
+        os.environ['PV_NPES'] = pes
+        print "<npes> " + pes
+        self.logger.info(self.lh + " : npes=" + pes)
 
         if not node_list:
             slurm_cmd += " -N " + nnodes
@@ -172,6 +264,8 @@ class SlurmJobController(JobController):
         so = os.environ['PV_JOB_RESULTS_LOG_DIR'] + "/slurm-%j.out"
         slurm_cmd += " -o " + so + " -e " + se
 
+        print "<slurm_cmd> " + slurm_cmd
+
         run_cmd = os.environ['PV_RUNHOME'] + "/" + self.configs['run']['cmd']
         os.environ['USER_CMD'] = run_cmd
 
@@ -180,26 +274,32 @@ class SlurmJobController(JobController):
         # being collected and printed to the output log.
         slurm_cmd += " " + os.environ['PVINSTALL'] + "/PAV/modules/slurm_job_handler.py"
 
+        print "<slurm_cmd> " + slurm_cmd
+
         if SlurmJobController.is_slurm_system():
 
             self.logger.info(self.lh + " : " + slurm_cmd)
+            print "SLURM command: " + slurm_cmd
             # call to invoke real Slurm command
-
             try:
-                output = subprocess.check_output(slurm_cmd, shell=True, stderr=subprocess.STDOUT)
-            except subprocess.CalledProcessError as e:
-               self.logger.info(self.lh + " : sbatch exit status:" + str(e.returncode))
-               print "sbatch exit status:" + str(e.returncode)
-               self.logger.info(self.lh + " : sbatch output:" + e.output)
-               print "sbatch output:" + e.output
-               sys.stdout.flush()
-               raise
+                # 60 sec timeout on sbatch submission
+                output = subprocess32.check_output(slurm_cmd, shell=True,
+                                                   stderr=subprocess32.STDOUT,
+                                                   timeout=60)
+            except subprocess32.TimeoutExpired as e:
+                self.logger.info(self.lh + " : sbatch timeout")
+                self.logger.info(self.lh + " : sbatch output:" + e.output)
+                raise JobException(ETIME, e.output)
+            except subprocess32.CalledProcessError as e:
+                self.logger.info(self.lh + " : sbatch exit status:" + str(e.returncode))
+                self.logger.info(self.lh + " : sbatch output:" + e.output)
+                raise JobException(e.returncode, e.output)
 
             # Finds the jobid in the output.
             jid = 0
             if not output is None and "job" in output:
-                    # "Submitted batch job JID"
-                    jid = output.split(" ")[3]
+                # "Submitted batch job JID"
+                jid = output.split(" ")[3]
             print "<JobID> " + str(jid)
 
         else:

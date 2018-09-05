@@ -55,12 +55,15 @@
 
 import sys
 import os
-from subprocess import Popen, PIPE
+#from subprocess import Popen, PIPE
 import subprocess
-import shutil
+#import shutil
 import platform
 import datetime
+from contextlib import contextmanager
 
+#from PAV.modules.basejobcontroller import JobController
+#from PAV.modules.ldms import LDMS
 newpath = os.environ['PVINSTALL'] + "/PAV/modules"
 sys.path.append(newpath)
 from basejobcontroller import JobController
@@ -69,7 +72,6 @@ from ldms import LDMS
 def now():
     return " " + datetime.datetime.now().strftime("%m-%d-%YT%H:%M:%S")
 
-from contextlib import contextmanager
 @contextmanager
 def stdout_redirected(new_stdout):
     save_stdout = sys.stdout
@@ -82,7 +84,9 @@ def stdout_redirected(new_stdout):
 def get_node_list():
     if "SLURM_JOBID" in os.environ:
         os.environ['PV_JOBID'] = os.environ.get("SLURM_JOBID")
-        output = subprocess.check_output("scontrol show hostnames \"$SLURM_NODELIST\" | tr '\n' ','", shell=True)
+        output = subprocess.check_output("scontrol show hostnames " +
+                                         "\"$SLURM_NODELIST\" | tr '\n' ','",
+                                         shell=True)
         nodes = output.replace('\n', "")
         nodes = nodes.replace(',', " ")
     else:
@@ -118,7 +122,7 @@ def main():
                 if os.environ['LDMS_START_CMD']:
                     print "start ldms! "
                     LDMS.start()
-            except KeyError, e:
+            except KeyError:
                 #print 'I got a KeyError - no: "%s"' % str(e)
                 pass
 

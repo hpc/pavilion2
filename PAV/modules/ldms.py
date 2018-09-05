@@ -63,12 +63,12 @@ import datetime
 import logging
 
 
-class LDMS():
+class LDMS(object):
 
     def __init__(self, my_te):
         my_name = self.__class__.__name__
         self.logger = logging.getLogger('pav.' + my_name)
-        self.logger.info('initialize %s to run: ' % my_name)
+        self.logger.info('initialize ' + my_name + ' to run: ')
 
         self.pid = str(os.getpid())
         self.lh = my_name
@@ -104,7 +104,6 @@ class LDMS():
             print " Error creating metrics directory : \n\t" + output_dir
             self.logger.info(self.lh + " Error creating metrics directory : \n\t" + output_dir)
             output_dir = ''
-            pass
 
         print "Created ldms metrics dir: " + output_dir
 
@@ -128,14 +127,14 @@ class LDMS():
 
         text_file = open(outfile, "w")
         try:
-            subprocess.Popen(os.environ['LDMS_START_CMD'], stdout=text_file, stdin=open(os.devnull), shell=True)
+            subprocess.Popen(os.environ['LDMS_START_CMD'], stdout=text_file,
+                             stdin=open(os.devnull), shell=True)
         except subprocess.CalledProcessError as e:
             ret = e.returncode
             if ret in (1, 2):
                 print("the command failed")
             elif ret in (3, 4, 5):
                 print("the command failed very much")
-            pass
 
     @staticmethod
     def status(jid):

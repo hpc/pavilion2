@@ -63,14 +63,17 @@
 
 import sys
 import os
-from subprocess import Popen, PIPE
+#from subprocess import Popen, PIPE
 import subprocess
-import shutil
+#import shutil
 import platform
 import datetime
 import time
 import random
+from contextlib import contextmanager
 
+#from PAV.modules.basejobcontroller import JobController
+#from PAV.modules.ldms import LDMS
 newpath = os.environ['PVINSTALL'] + "/PAV/modules"
 sys.path.append(newpath)
 from basejobcontroller import JobController
@@ -80,7 +83,6 @@ from ldms import LDMS
 def now():
     return " " + datetime.datetime.now().strftime("%m-%d-%YT%H:%M:%S")
 
-from contextlib import contextmanager
 @contextmanager
 def stdout_redirected(new_stdout):
     save_stdout = sys.stdout
@@ -100,23 +102,28 @@ def get_moab_node_list():
             if "SLURM_JOBID" in os.environ:
                 # ++ PV_JOBID : Job Id allocated to this job by the "scheduler"
                 os.environ['PV_JOBID'] = os.environ.get("SLURM_JOBID")
-                output = subprocess.check_output(os.environ['PVINSTALL'] + "/PAV/scripts/getSLURMNodeList", shell=True)
+                output = subprocess.check_output(os.environ['PVINSTALL'] + \
+                                                 "/PAV/scripts/getSLURMNodeList",
+                                                 shell=True)
                 nodes = output.replace('\n', " ")
             elif "PBS_JOBID" in os.environ:
-                output = subprocess.check_output(os.environ['PVINSTALL'] + "/PAV/scripts/getCLENodeList", shell=True)
+                output = subprocess.check_output(os.environ['PVINSTALL'] +
+                                                 "/PAV/scripts/getCLENodeList",
+                                                 shell=True)
                 nodes = output.replace('\n', " ")
             else:
                 nodes = platform.node()
             break
         except subprocess.CalledProcessError:
-            # we did not have a sucessful call to checkjob so we will try again unless we have alredy tried 4 times
+            # we did not have a sucessful call to checkjob so we will try again
+            # unless we have already tried 4 times
             checkjobAttempts += 1
             print "checkjob attempt " + str(checkjobAttempts) + " failed"
-            if 6 <= checkjobAttempts:
+            if checkjobAttempts >= 6:
                 raise
 
             # sleep for a bit in case a bunch of jobs were launched at once
-            time.sleep(random.uniform(4,16))
+            time.sleep(random.uniform(4, 16))
         except Exception as e:
             print "Unknown Exception: " + type(e) + " " + e
             raise
@@ -150,7 +157,7 @@ def main():
             # ++ PV_NODES : List of node names allocated to this job
             os.environ['PV_NODES'] = nodes
             os.environ['GZ_NODES'] = os.environ['PV_NODES']
- 
+
             #redirect STDERR to the same file
             sys.stderr = lf
 
@@ -166,7 +173,7 @@ def main():
                 if os.environ['LDMS_START_CMD']:
                     print "start ldms! "
                     LDMS.start()
-            except KeyError, e:
+            except KeyError:
                 #print 'I got a KeyError - no: "%s"' % str(e)
                 pass
 

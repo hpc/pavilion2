@@ -131,6 +131,10 @@ def main():
     # construct main input arguments
     parser = argparse.ArgumentParser(prog="pav")
     subparser = parser.add_subparsers(title="commands", help='sub-commands')
+    parser.add_argument("-n", "--name", help="specifies the host machine name", action="store", default="")
+    parser.add_argument("-m", "--mode", help="specifies the mode", action="append", default=[])
+    parser.add_argument("-c", "--custom", help="customize test parameters", action="append", default=[])
+    parser.add_argument("-t", "--testname", help="specify test to be run", action="store", default="")
     parser.add_argument("-v", "--verbose", help="provide verbose output", action="store_true")
     #parser_foo = subparser.add_parser('foo', help="foo help message")
     #parser_foo.set_defaults(sub_cmds='foo')

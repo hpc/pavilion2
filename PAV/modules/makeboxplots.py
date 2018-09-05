@@ -73,12 +73,12 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-import logging
+#import logging
 
 
-def get_subdirectories( dir):
-    return [name for name in os.listdir( dir )
-        if os.path.isdir(os.path.join(dir, name))]
+def get_subdirectories(base):
+    return [name for name in os.listdir(base)
+            if os.path.isdir(os.path.join(base, name))]
 
 def makesingleboxplot(thisdirname, subdirname, thisfilename):
 
@@ -86,7 +86,7 @@ def makesingleboxplot(thisdirname, subdirname, thisfilename):
     maxnodeint = 1
     firsttime = 0
     firstdigit = 1
-    segname=[]
+    segname = []
     ylabelunits = []
     idecpoint = -1
     ivallen = 0
@@ -97,31 +97,31 @@ def makesingleboxplot(thisdirname, subdirname, thisfilename):
 
 
     thisdatafile = thisdirname + "/" + thisfilename
-    datafile = open( thisdatafile )
+    datafile = open(thisdatafile)
     for line in datafile:
-        thisnode=[]
+        thisnode = []
         del thisnode[:]
-        tud,jud,tid,mname,pname2,nodename,trest = line.split(' ',6)
+        tud, jud, tid, mname, pname2, nodename, trest = line.split(' ', 6)
 
         nfile = thisdirname + "/" + ''.join(nodename)
         if firsttime < 1:
 
-            firstdigit = re.search("\d", ''.join(nodename))
+            firstdigit = re.search(r"\d", ''.join(nodename))
             firstdigit = firstdigit.start()
             # print firstdigit, ''.join(nodename)
             firsttime = 1
-            for i in xrange( 0, firstdigit  ):
+            for i in xrange(0, firstdigit):
                 # segname[i] = nodename[i]
-                segname.append(  nodename[i] )
-            segname.append( '%' )
+                segname.append(nodename[i])
+            segname.append('%')
 
-            segname.append( '0' )
-            nlen = len( nodename ) - firstdigit
-            segname.append( "%d" % nlen )
-            # segname.append( len( nodename ) - firstdigit + 1 )
-            segname.append( 'd' )
+            segname.append('0')
+            nlen = len(nodename) - firstdigit
+            segname.append("%d" % nlen)
+            # segname.append(len(nodename) - firstdigit + 1)
+            segname.append('d')
             # print "trest is ", trest
-            trestlen = len( trest )
+            trestlen = len(trest)
             spdigit = -1
             spdigit = trest.find(' ')
             # spdigit = ".join(trest).find(' ')
@@ -143,35 +143,38 @@ def makesingleboxplot(thisdirname, subdirname, thisfilename):
 
                 # print "ylabelunits is ", ylabelunits
 
-            if len( trest.split() ) > 1:
+            if len(trest.split()) > 1:
                 ylabelunits = trest.split()[1]
                 # print "ylabelunits is ", ylabelunits
             # idecpoint = valstring.find( '.')
             # idecpoint = str(valstring).find( '.')
-            ivallen = len( valstring )
+            ivallen = len(valstring)
             idecpoint = -1
-            for j in xrange( 0, ivallen ):
+            for j in xrange(0, ivallen):
                 if valstring[j] == '.':
                     idecpoint = j
                     break
 
-            iseform = str(valstring).find( 'e' )
+            iseform = str(valstring).find('e')
             decdigits = 2
-            # print " idecpoint ", idecpoint, " ivallen ", ivallen, " iseform ", iseform,  " decdigits ", decdigits
             if idecpoint > -1:
                 # decdigits = decdigits + ivallen - idecpoint - 2
                 decdigits = ivallen - idecpoint + 1
 
             if iseform > -1:
-                vfmtstring = "%%.%de %%.%de %%.%de %%.%de " % (decdigits, decdigits, decdigits - 2, decdigits - 2)
+                vfmtstring = "%%.%de %%.%de %%.%de %%.%de " % \
+                             (decdigits, decdigits,
+                              decdigits - 2, decdigits - 2)
             else:
-                vfmtstring = "%%.%df %%.%df %%.%df %%.%df\n" % (decdigits, decdigits, decdigits - 2, decdigits - 2)
+                vfmtstring = "%%.%df %%.%df %%.%df %%.%df\n" % \
+                             (decdigits, decdigits,
+                              decdigits - 2, decdigits - 2)
             tablefmtstring = tablefmtstring + vfmtstring
             # print tablefmtstring
             # print  segname
         #tnode = int( nodename[firstdigit:] )
-        #sepdigit = re.search("\D", ''.join(nodename[firstdigit:]))
-        sepdigit = re.search("\D", ''.join(nodename[firstdigit:]))
+        #sepdigit = re.search(r"\D", ''.join(nodename[firstdigit:]))
+        sepdigit = re.search(r"\D", ''.join(nodename[firstdigit:]))
         if sepdigit:
             sepdigit = sepdigit.start()
             tnode = int(nodename[firstdigit:firstdigit+sepdigit-1])
@@ -212,31 +215,31 @@ def makesingleboxplot(thisdirname, subdirname, thisfilename):
     fstring = ''.join(segname)  # "wf%03d"
     maxnodenum = maxnodeint + 1  # 620
     # print maxnodeint
-    if len( ylabelunits) < 1:
+    if len(ylabelunits) < 1:
         ytitle = "Performance (MB/sec)"
     else:
         ytitle = "Performance " + "(" + str(ylabelunits) + ")"
 
     ctitle = subdirname + " Performance Boxplot"
 
-    fname={}
-    dlist=[]
-    hpldata=[]
-    tmarks=[]
-    tname=[]
-    nnum=[]
-    nticks=0
+    fname = {}
+    dlist = []
+    hpldata = []
+    tmarks = []
+    tname = []
+    nnum = []
+    nticks = 0
 
-    for x in range(1,maxnodenum):
+    for x in range(1, maxnodenum):
         fname[x] = fstring % (x)
         # print "x ", x
         # print fname[x]
 
         # if  os.path.isfile(fname[x]) :
-        if os.path.isfile( thisdirname + "/" + fname[x]):
+        if os.path.isfile(thisdirname + "/" + fname[x]):
             nticks += 1
-            dlist.append( loadtxt( thisdirname + "/" + fname[x]) )
-            nnum.append( x )
+            dlist.append(loadtxt(thisdirname + "/" + fname[x]))
+            nnum.append(x)
             if (x % 2) == 0:
                 tmarks.append("%d" % (x))
             else:
@@ -244,28 +247,28 @@ def makesingleboxplot(thisdirname, subdirname, thisfilename):
     # print "Dlistlength is ",  len(dlist )
     # print dlist
 
-    dmeans=[]
+    dmeans = []
     for j in dlist:
-        dmeans.append( j.mean() )
+        dmeans.append(j.mean())
 
 
-    dmins=[]
+    dmins = []
     for j in dlist:
-        dmins.append( j.min() )
+        dmins.append(j.min())
 
-    dmaxs=[]
+    dmaxs = []
     for j in dlist:
-        dmaxs.append( j.max() )
+        dmaxs.append(j.max())
 
-    dsamps=[]
+    dsamps = []
     for j in dlist:
-        dsamps.append( j.size )
+        dsamps.append(j.size)
 
-    dstds=[]
+    dstds = []
     for j in dlist:
         dstds.append(j.std())
 
-    nodetable=[]
+    nodetable = []
     nodetable = zip(nnum, dsamps, dmeans, dstds, dmins, dmaxs)
     # print nodetable
     # for i in nodetable:
@@ -279,16 +282,16 @@ def makesingleboxplot(thisdirname, subdirname, thisfilename):
         # print >> tablefile, '%d %d %24f %.4f %.2f %.2f', i
         # print >> tablefile, '%d %d %.4f %.4f %.2f %.2f', i[0], i[1], i[2], i[3], i[4], i[5]
         # tablefile.write( '%d %d %.4f %.4f %.2f %.2f\n' % ( i[0], i[1], i[2], i[3], i[4], i[5] ))
-        tablefile.write( tablefmtstring % (i[0], i[1], i[2], i[3], i[4], i[5]))
+        tablefile.write(tablefmtstring % (i[0], i[1], i[2], i[3], i[4], i[5]))
     tablefile.close()
 
 
-    nodemeans=[]
-    nodemeans = zip( nnum, dmeans )
+    nodemeans = []
+    nodemeans = zip(nnum, dmeans)
 
     # print nodemeans
     nodemeans.sort(key=lambda x: x[1])
-    xtickmarks=[]
+    xtickmarks = []
 
     # try to add a null tick mark at beginning
     xtickmarks.append('')
@@ -315,25 +318,25 @@ def makesingleboxplot(thisdirname, subdirname, thisfilename):
     # title("Mustang Quarantined HPL with Proper Affinities Set Performance Variation")
     plt.title(ctitle)
 
-    nnodes = len( dlist )
+    nnodes = len(dlist)
 
-    adjustedwidth = nnodes / 100.0 * 10.0 ;
+    adjustedwidth = nnodes / 100.0 * 10.0
     if adjustedwidth < 10.0:
         adjustedwidth = 10.0
 
     # print 'Nodes collected for ', nnodes, ' adjusted width is ', adjustedwidth
 
-    ticktable=[]
+    ticktable = []
     for k in xtickmarks:
-        ticktable.append( k )
+        ticktable.append(k)
 
 
-    plt.xticks( range( len( xtickmarks)), rotation=90, fontsize=6 )
-    plt.xticks( range( len( ticktable)), xtickmarks,  rotation=90, fontsize=6 )
+    plt.xticks(range(len(xtickmarks)), rotation=90, fontsize=6)
+    plt.xticks(range(len(ticktable)), xtickmarks, rotation=90, fontsize=6)
 
     fig = matplotlib.pyplot.gcf()
-    # fig.set_size_inches(10.0,7.0)
-    fig.set_size_inches(adjustedwidth,7.0)
+    # fig.set_size_inches(10.0, 7.0)
+    fig.set_size_inches(adjustedwidth, 7.0)
 
     # show()
     plotname = thisdirname + "/" + subdirname + "Boxplot.png"
@@ -362,10 +365,9 @@ def main():
         print " Error creating Boxplots directory : \n\t" + output_dir
         #    self.logger.info(self.lh + " Error creating Boxplots directory : \n\t" + output_dir)
         output_dir = ''
-        pass
 
     print "Boxplots dir -> " + output_dir
-    print "  View hint: 'find <Boxplots_dir> -name \*.png -exec display {} \;'"
+    print r"  View hint: 'find <Boxplots_dir> -name \*.png -exec display {} \;'"
     AllDataFile = output_dir + "/AllDataFile.txt"
 
     prelimout = open(AllDataFile, "w")
@@ -374,12 +376,12 @@ def main():
         searchObj = re.search(r'jid\(', line, re.M|re.I)
         # isreportable = line.find( "+" )
         isreportable = -1
-        nwords = len( line.split() )
+        nwords = len(line.split())
         if nwords > 4:
-            isreportable = line.split()[3].find( '+' )
+            isreportable = line.split()[3].find('+')
             # print " wordis ", line.split()[3], " is ", isreportable
 
-            wlen = len( line.split()[3] )
+            wlen = len(line.split()[3])
             if wlen - isreportable < 2:
                 isreportable = -1
             # print " wordis ", line.split()[3], " is ", isreportable
@@ -387,12 +389,12 @@ def main():
             # if searchObj:
             # Should do work here, see correct output above
             # print line,  # this line for debug purpose
-            tname= []
-            restline= []
-            newline= []
+            tname = []
+            restline = []
+            newline = []
 
             jidx = line.find(" jid(")
-            for i in xrange(0,jidx ):
+            for i in xrange(0, jidx):
                 if line[i] == ' ':
                     tname.append("-")
                 else:
@@ -413,21 +415,22 @@ def main():
 
     alltests = open(AllDataFile, "r")
     for line in alltests:
-        thisname=[]
+        thisname = []
         del thisname[:]
 
         jidx = line.find(" jid(")
-        for i in xrange(1,jidx - 1):
+        for i in xrange(1, jidx - 1):
             if line[i] == '.':
                 break
             else:
-                thisname.append( line[i])
+                thisname.append(line[i])
 
         tud, jud, tid, pname, pname2, trest = line.split(' ', 5)
-        tdirectory = output_dir + "/" + ''.join(thisname) + "-" + ''.join(pname2)
+        tdirectory = output_dir + "/" + ''.join(thisname) + \
+                     "-" + ''.join(pname2)
         if not os.path.isdir(tdirectory):
             mkdircmd = "mkdir " + tdirectory
-            os.system( mkdircmd )
+            os.system(mkdircmd)
         thisfname = tdirectory + "/TableRes.txt"
         thisfile = open(thisfname, "a")
         print >> thisfile, line,
@@ -439,17 +442,18 @@ def main():
     # subdirList = os.listdir( output_dir )
     subdirList = get_subdirectories(output_dir)
     ndone = 0
-    ntodo = len( subdirList )
+    ntodo = len(subdirList)
     print "Start Processing Directory List ", subdirList
     for dres in subdirList:
-        subdirname = ''.join( dres )
-        procthisdir = output_dir + "/" + ''.join( dres)
-        # procthisdir = ''.join( dres)
+        subdirname = ''.join(dres)
+        procthisdir = output_dir + "/" + ''.join(dres)
+        # procthisdir = ''.join(dres)
         # print "procdir is ", procthisdir
-        # if os.path.isdir( procthisdir ):
-        nodesfound = makesingleboxplot(procthisdir,subdirname, "TableRes.txt" )
-        print "Finished Processing Directory ", ndone, " Percent done ", (float(ndone + 1) / float(ntodo) ) * 100.0, \
-        " UniqueNodesFound ", nodesfound
+        # if os.path.isdir(procthisdir):
+        nodesfound = makesingleboxplot(procthisdir, subdirname, "TableRes.txt")
+        print "Finished Processing Directory ", ndone, " Percent done ", \
+            (float(ndone + 1) / float(ntodo)) * 100.0, \
+            " UniqueNodesFound ", nodesfound
         ndone += 1
 
 
@@ -461,4 +465,3 @@ if __name__ == '__main__':
     # pass entire command line to main except for the command name
     main()
     sys.exit()
-
