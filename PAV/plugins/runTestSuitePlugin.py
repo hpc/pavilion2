@@ -99,7 +99,7 @@ def modify_dict( master_dict, replacement_key, replacement_val ):
     if not isinstance( master_dict, dict ) or \
        ( isinstance( master_dict, dict ) and \
          len( master_dict ) == 1 and \
-         master_dict.vals() == [ null ] ):
+         master_dict.values() == [ None ] ):
         return None
     elif not isinstance( replacement_val, dict ) and not isinstance( replacement_val, list ):
         master_dict[replacement_key] = replacement_val
@@ -288,6 +288,15 @@ class RunTestSuite(IPlugin):
                     modify_dict( my_test_suite, custom_dict.keys()[0], custom_dict.values()[0] )
                 else:
                     my_test_suite[ custom.split('=')[0] ] = custom.split('=')[1]
+
+        # Remove all non-test entries
+        removals = []
+        for test in my_test_suite:
+            if my_test_suite[test] == None:
+                removals.append(test)
+
+        for test in removals:
+            del my_test_suite[test]
 
         # if we are running in debug mode we are then done because we do not need
         # to submit anything
