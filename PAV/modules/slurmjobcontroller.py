@@ -65,9 +65,7 @@ import subprocess
 import subprocess32
 
 #from PAV.modules.basejobcontroller import JobController, JobException
-#from PAV.modules.helperutilities import which
 from basejobcontroller import JobController, JobException
-from helperutilities import which
 
 
 ETIME = 62  ## errno
@@ -78,10 +76,12 @@ class SlurmJobController(JobController):
 
     @staticmethod
     def is_slurm_system():
-        if which("sinfo"):
-            return True
-        else:
-            return False
+        with open(os.devnull, 'w') as FNULL:
+            try:
+                subprocess.run(['sinfo'], stdout=FNULL).check_returncode()
+                return True
+            except subprocess.CalledProcessError:
+                return False
 
     # .. some setup and let the run command fly ...
     def start(self):
