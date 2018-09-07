@@ -80,10 +80,16 @@ def sym2ws(src, dest):
             os.symlink( src, os.path.join( dest, os.path.basename( src ) ) )
             return
 
-    for item in os.scandir( src ):
-        if item.is_dir():
-            os.mkdir(os.path.join(dest, item.name))
-            sym2ws(os.path.join(src, item.name), os.path.join(dest, item.name))
-        else:
-            os.symlink( os.path.join(src, item.name),
-                        os.path.join(dest, item.name) )
+    for dirp, dirn, filelist in os.walk( src ):
+        direc = dirp[(len(src)+1):]
+        if os.path.isdir( os.path.join( src, direc ) ) \
+          and not os.path.isdir( os.path.join( dest, direc ) ):
+            os.mkdir( os.path.join( dest, direc ) )
+
+        for item in filelist:
+            if os.path.isfile( os.path.join( src, direc, item ) ) \
+                   and not os.path.exists( os.path.join( dest, direc, item ) ):
+                os.symlink( os.path.join( src, direc, item ),
+                            os.path.join( dest, direc, item ) )
+
+    return
