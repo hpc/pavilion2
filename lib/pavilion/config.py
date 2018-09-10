@@ -1,4 +1,4 @@
-#  ###################################################################
+####################################################################
 #
 #  Disclaimer and Notice of Copyright
 #  ==================================
@@ -68,7 +68,7 @@ class VariableElem(yc.CategoryElem):
     def validate(self, value_dict):
         """Check for a single item, and force it into a dict."""
 
-        if issubclass(basestring, value_dict):
+        if isinstance(value_dict, basestring):
             value_dict = {None: value_dict}
 
         return super(VariableElem, self).validate(value_dict)
@@ -88,7 +88,7 @@ class TestSection(yc.YamlConfigLoader):
                    help_text="Path to the test source. It may be a directory, a tar file, "
                              "or a git URI. If it's a directory or file, the path is relative to "
                              "'$PAV_CONFIG/test_src' by default."),
-        yc.CategoryElem('vars', sub_elem=yc.ListElem(sub_elem=VariableElem),
+        yc.CategoryElem('vars', sub_elem=yc.ListElem(sub_elem=VariableElem()),
                         help_text="Variables for this test section. These can be inserted into "
                                   "strings anywhere else in the config through python .format "
                                   "syntax. The keys 'build', 'run', 'pav', and 'sched' are "
