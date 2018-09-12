@@ -78,7 +78,7 @@ class SlurmJobController(JobController):
     def is_slurm_system():
         with open(os.devnull, 'w') as FNULL:
             try:
-                subprocess.run(['sinfo'], stdout=FNULL).check_returncode()
+                subprocess.check_call(['sinfo'], stdout=FNULL)
                 return True
             except subprocess.CalledProcessError:
                 return False

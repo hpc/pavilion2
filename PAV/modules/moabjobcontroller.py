@@ -111,7 +111,7 @@ class MoabJobController(JobController):
     def is_moab_system():
         with open(os.devnull, 'w') as FNULL:
             try:
-                subprocess.run(['mdiag'], stdout=FNULL).check_returncode()
+                subprocess.check_call(['mdiag'], stdout=FNULL)
                 return True
             except subprocess.CalledProcessError:
                 return False
