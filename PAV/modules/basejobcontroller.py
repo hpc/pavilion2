@@ -144,7 +144,6 @@ class JobController(object):
         os.environ['GZ_TESTNAME'] = self.name
         os.environ['PV_TESTEXEC'] = self.configs['run']['cmd']
         os.environ['GZ_TESTEXEC'] = self.configs['run']['cmd']
-        #pt = type(self.configs['run']['test_args'])
         try:
             # ++ PV_TEST_ARGS : Test arguments for job extracted from test suite
             os.environ['GZ_TEST_PARAMS'] = self.configs['run']['test_args']
@@ -210,33 +209,6 @@ class JobController(object):
                     sym2ws( cpfile, to_loc )
         else:
             sym2ws( src_dir, to_loc )
-#        if files2copy:
-#            cmd = "cd " + src_dir + "; rsync -ar " + files2copy + " " + to_loc
-#        # general case is to copy all files except some known source file types
-#        else:
-#            from_loc = src_dir + "/"
-#            if exclude_ws:
-#                cmd = "rsync -a --exclude '" + \
-#                      exclude_ws + "' --exclude '*.[ocfh]' --exclude" + \
-#                      " '*.bck' --exclude '*.tar' "
-#            else:
-#                cmd = "rsync -a --exclude '*.[ocfh]' --exclude 'pv_ws'" + \
-#                      " --exclude '*.bck' --exclude '*.tar' "
-#            cmd += from_loc + " " + to_loc
-#
-#        self.logger.debug(self.lh + " : " + cmd)
-#
-#        # run the command
-#        p = Popen(cmd, stdout=PIPE, stderr=PIPE, shell=True)
-#        output, errors = p.communicate()
-#
-#        if p.returncode or errors:
-#            print "Error: failed copying data to working space!"
-#            print [p.returncode, errors, output]
-#            self.logger.info(self.lh + " failed copying data to working space!"
-#                             + "skipping job: " + self.name +
-#                             "(Hint: check the job logfile)")
-#            # self.logger.info(self.lh + p.returncode + errors + output)
 
     def __str__(self):
         return 'instantiated %s object' % self.name

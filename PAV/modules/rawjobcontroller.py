@@ -61,7 +61,6 @@ import os
 import platform
 import subprocess
 
-#from PAV.modules.basejobcontroller import JobController
 from basejobcontroller import JobController
 
 

@@ -60,11 +60,9 @@
 import sys
 import os
 import subprocess
-#import re
 
 import subprocess32
 
-#from PAV.modules.basejobcontroller import JobController, JobException
 from basejobcontroller import JobController, JobException
 
 

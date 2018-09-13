@@ -55,15 +55,11 @@
 
 import sys
 import os
-#from subprocess import Popen, PIPE
 import subprocess
-#import shutil
 import platform
 import datetime
 from contextlib import contextmanager
 
-#from PAV.modules.basejobcontroller import JobController
-#from PAV.modules.ldms import LDMS
 newpath = os.environ['PVINSTALL'] + "/PAV/modules"
 sys.path.append(newpath)
 from basejobcontroller import JobController
@@ -132,7 +128,6 @@ def main():
 
             # Call the command that runs the users test/job
             # This works with job_out_file = /users/cwi/mystdout
-            #subprocess.call(cmd1, stdout=job_out_file, shell=True)
 
             subprocess.call(cmd, stdout=lf, stderr=lf, shell=True)
 
