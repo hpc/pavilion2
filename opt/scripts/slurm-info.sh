@@ -26,29 +26,47 @@ function slurm_list_to_sequence() {
     local nlist=$1
     local excluded=$2
 
-    partial=${nlist#*[}
-    partial=${partial%]}
+    local machine=${nlist:0:2}
+    local digits=${nlist#"$machine"}
+    digits=${digits%%-*}
+    digits=${digits%%,*}
+    digits=${digits#[}
+    digits=$(echo -n $digits | wc -m)
+    local head=${nlist%%,$machine*}
 
-    while [[ "$partial" != "" ]]; do
-	partial=${partial#,}
-	current=${partial%%,*}
-	start=${current%-*}
-	end=${current#*-}
-	end=${end%,*}
-	for node in $(seq $start $end); do
-	    found=0
-	    for ex in $excluded; do
-		if [[ "$node" == "$ex" ]]; then
-		    found=1
+    while [[ "$head" != "" ]]; do
+	nlist=${nlist#"$head",}
+
+	local partial=${head#*[}
+	partial=${partial%]}
+
+	while [[ "$partial" != "" ]]; do
+	    partial=${partial#,}
+	    current=${partial%%,*}
+	    start=${current%-*}
+	    end=${current#*-}
+	    end=${end%,*}
+	    for node in $(seq $start $end); do
+		found=0
+		for ex in $excluded; do
+		    if [[ "$node" == "$ex" ]]; then
+			found=1
+		    fi
+		done
+		if [ "$found" -eq "0" ]; then
+		    node_list=$(printf "$node_list\n$machine%0${digits}d" $node)
 		fi
 	    done
-	    if [ "$found" -eq "0" ]; then
-		node_list="$node_list $node"
-	    fi
+	    partial=${partial#$current}
 	done
-	partial=${partial#$current}
+
+	local next=${nlist%%,"$machine"*}
+	if [[ "$next" == "$head" ]]; then
+	    break
+	fi
+	head=$next
     done
-    echo $node_list
+    echo $node_list | sort
 }
 
 
@@ -64,17 +82,26 @@ function get_slurm_state() (
 	s_idx=7
 	l_idx=9
     fi
-    local size=$(sinfo | grep $partition | \
-        awk "{ print \$$s_idx }" | paste -sd+ - | bc)
-    local avail=$(sinfo | grep $partition | grep -v alloc | \
-	grep -v down | grep -v "maint\*" | \
-        awk "{ print \$$s_idx }" | paste -sd+ - | bc)
-    local list=$(sinfo | grep $partition | grep -v alloc | \
-	grep -v down | grep -v "maint\*" | \
-        awk "{ print \$$l_idx }" | paste -sd, -)
-    local allocd=$(sinfo | grep $partition | grep alloc | \
-	grep -v down | grep -v "maint\*" | \
-        awk "{ print \$$s_idx }" | paste -sd+ - | bc)
+    local size=$(sinfo -a -o '%P %.6D' | grep $partition | \
+        awk "{ print \$2 }" | paste -sd+ - | bc)
+    local unavail=$(sinfo -SN -Ro '%P %.16n %.6t' | grep $partition | \
+        grep -v alloc | grep -v "maint\*" | wc -l)
+    local avail=$(sinfo -SN -o '%P %.6D %.6t %N' | grep $partition | \
+        grep -v alloc | grep -v down | grep -v drain | grep -v "maint\*" | \
+        awk "{ print \$2 }" | paste -sd+ - | bc)
+    avail=$(echo "$avail-$unavail" | bc)
+    local bad_list=$(sinfo -SN -Ro '%P %.16n %.6t' | grep -v "n/a" | \
+	grep $partition | grep -v alloc | grep -v "maint\*" | \
+	awk "{ print \$2 }" | sort)
+    local list=$(sinfo -SN -o '%P %.6D %.6t %N' | grep $partition | \
+        grep -v alloc | grep -v down | grep -v "maint\*" | \
+        awk "{ print \$4 }" | paste -sd, -)
+    local node_seq=$(slurm_list_to_sequence "$list")
+    list=$(echo $node_seq $bad_list | tr ' ' '\n' | \
+        sort | uniq -u | paste -sd, -)
+    local allocd=$(sinfo -SN -o '%P %.6D %.6t %N' | grep $partition | \
+        grep alloc | grep -v down | grep -v "maint\*" | \
+        awk "{ print \$2 }" | paste -sd+ - | bc)
 
     if [[ "$size" == "" ]] || [ "$size" -lt "1" ]; then
 	size=0
@@ -133,19 +160,12 @@ function nodes_status() {
     local allocd=$(echo $state | cut -d ' ' -f 3)
     local list=$(echo "$state" | cut -d ' ' -f 4)
     local immediate=""
-    if onDST; then
+    #if onDST; then
         immediate="-I"
-    fi
-    local magnitude=$(printf %.0f $(echo "l($size)/l(10)" | bc -l))
-    if isCray; then
-	magnitude=5
-    fi
-    local fe=$(hostname)
-    local sys=${fe%-*}
-    for idx in $(slurm_list_to_sequence "$list"); do
-        local node_id=$(printf ${sys}%0${magnitude}d $idx)
-        echo -n "$node_id "
-        #salloc -w $node_id $slurm_args $immediate echo -n 'OK' #2>/dev/null
+    #fi
+    for idx in $(echo $list | tr "," " "); do
+        echo -n "$idx "
+        salloc -w $idx $slurm_args $immediate echo -n 'OK' 2>/dev/null
         echo
     done
 }
