@@ -79,6 +79,7 @@
 
 import re
 import variables
+import config_format
 
 
 class ScanError(ValueError):
@@ -87,6 +88,9 @@ class ScanError(ValueError):
         self.message = message
         self.error_start = error_start
         self.error_end = error_end
+
+    def __str__(self):
+        return self.message
 
 
 class ParseError(ScanError):
@@ -99,8 +103,6 @@ class ResolveError(ValueError):
 
 def parse(string):
     tokens = tokenize(string)
-
-    print('tokenized:', tokens)
 
     return PavString(tokens)
 
@@ -129,7 +131,6 @@ def tokenize(string):
             pos = end
 
         end_str = match.group()
-        print(pos, end, end_str)
 
         # Process the non-text token (in most cases) that follows.
         if end_str == '[':
@@ -157,10 +158,19 @@ def tokenize(string):
 
             # Use the variable manager to parse the key and check for validity.
             try:
-                variables.VariableSetManager.parse_key(var_name)
+                var_set, var, index, sub_var = variables.VariableSetManager.parse_key(var_name)
             except KeyError as err:
                 raise ScanError("Invalid variable name '{}': {}."
                                 .format(var_name, err), pos, var_end)
+
+            # Var_set and index problems are caught in parse_key. Var and sub_var names are
+            # enforced here.
+            if var is not None and config_format.KEY_NAME_RE.match(var) is None:
+                raise ScanError("Invalid var name '{}' in var '{}'"
+                                .format(var, var_name), pos, var_end)
+            elif sub_var is not None and config_format.KEY_NAME_RE.match(sub_var) is None:
+                raise ScanError("Invalid sub_var name '{}' in var '{}'"
+                                .format(sub_var, var_name), pos, var_end)
 
             tokens.append(VariableToken(var_name, pos, var_end))
             pos = var_end + 1
@@ -173,7 +183,7 @@ def tokenize(string):
             tokens.append(TextToken(string[pos + 1], pos, pos+2))
             pos += 2
         else:
-            print(end_str)
+            # This should not be reachable.
             raise ScanError("Unknown scanning error at character {}.".format(end_str), pos, pos + 1)
 
     return tokens
@@ -232,7 +242,7 @@ class PavString(Token):
 
             if isinstance(token, SubStringStartToken):
                 # Start a new PavString if we're dropping into a sub string.
-                token = PavString(tokens)
+                token = PavString(tokens, is_substr=True)
                 last_token.next_token = token
                 # The we're consuming tokens from the list as we parse, so what's left is
                 # what was outside the sub string.
@@ -311,10 +321,8 @@ class PavString(Token):
 
         while token:
             if isinstance(token, TextToken):
-                print('token: ', token.text)
                 parts.append(token.text)
             elif isinstance(token, VariableToken):
-                print('token: ', token.var)
                 var_set, var, idx, sub_var = var_man.resolve_key(token.var)
 
                 if (var_set, var) in iter_vars and idx is None:
@@ -325,7 +333,6 @@ class PavString(Token):
                     parts.append(token.resolve(var_man))
 
             elif isinstance(token, PavString):
-                print('token: substr')
                 # We have a substring to resolve.
 
                 local_iter_vars = token.get_substr_vars(var_man, iter_vars)
@@ -380,11 +387,11 @@ class PavString(Token):
                         parts.append(token._separator)
 
             else:
+                # This should not be reachable.
                 raise ResolveError("Unknown token of type '{}' to resolve.".format(type(token)))
 
             token = token.next_token
 
-        print('parts', parts)
         return ''.join(parts)
 
 
