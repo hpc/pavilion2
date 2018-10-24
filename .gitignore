@@ -1,2 +1,3 @@
 *.pyc
 PAV/scripts/site
+.idea
