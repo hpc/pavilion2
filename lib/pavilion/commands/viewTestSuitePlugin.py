@@ -162,6 +162,16 @@ class ViewTestSuite(IPlugin):
                         modify_dict( my_test_suite, custom_dict.keys()[0], custom_dict.values()[0] )
                     else:
                         my_test_suite[ custom.split('=')[0] ] = custom.split('=')[1]
+
+            # Remove all non-test entries
+            removals = []
+            for test in my_test_suite:
+                if my_test_suite[test] == None:
+                    removals.append(test)
+
+            for test in removals:
+                del my_test_suite[test]
+
             print my_test_suite
 
         else:
@@ -189,6 +199,16 @@ class ViewTestSuite(IPlugin):
                         modify_dict( my_test_suite, custom_dict.keys()[0], custom_dict.values()[0] )
                     else:
                         my_test_suite[ custom.split('=')[0] ] = custom.split('=')[1]
+
+            # Remove all non-test entries
+            removals = []
+            for test in my_test_suite:
+                if my_test_suite[test] == None:
+                    removals.append(test)
+
+            for test in removals:
+                del my_test_suite[test]
+
             print json.dumps( my_test_suite, sort_keys=True, indent=4)
 
 

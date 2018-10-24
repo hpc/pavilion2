@@ -54,78 +54,42 @@
 #  ###################################################################
 
 
-"""  Implementation raw Job Control mechanism  """
-
-import sys
 import os
-import platform
-import subprocess
 
-from basejobcontroller import JobController
+def sym2ws(src, dest):
+    """ Function for copying an entire directory and file tree using
+        only symlinks in the appropriate structure.
 
+        Can also symlink a single file into the destination folder.
+    """
+    if not os.path.isdir( dest ):
+        print('Error: Destination path %s is not a directory.' % dest )
+        raise
 
-class RawJobController(JobController):
-    """ class to run a test using no scheduler or special launcher """
+    if not os.path.isabs( src ):
+        src = os.path.abspath( src )
 
-    def start(self):
+    if not os.path.isabs( dest ):
+        dest = os.path.abspath( dest )
 
-        # create own unique working space for this run
-        #self.setup_working_space()
+    if not os.path.isdir( src ):
+        if not os.path.isfile( src ):
+            print('Error: %s is neither a file nor directory.' % src )
+            raise
+        else:
+            os.symlink( src, os.path.join( dest, os.path.basename( src ) ) )
+            return
 
-        # print the common log settings here right after the job is started
-        self.save_common_settings()
+    for dirp, dirn, filelist in os.walk( src ):
+        direc = dirp[(len(src)+1):]
+        if os.path.isdir( os.path.join( src, direc ) ) \
+          and not os.path.isdir( os.path.join( dest, direc ) ):
+            os.mkdir( os.path.join( dest, direc ) )
 
-        # store some info into ENV variables that jobs may need to use later on.
-        self.setup_job_info()
+        for item in filelist:
+            if os.path.isfile( os.path.join( src, direc, item ) ) \
+                   and not os.path.exists( os.path.join( dest, direc, item ) ):
+                os.symlink( os.path.join( src, direc, item ),
+                            os.path.join( dest, direc, item ) )
 
-        # what nodes(s) are this job running on...
-        nodes = platform.node().partition('.')[0]
-        os.environ['PV_NODES'] = nodes
-        os.environ['GZ_NODES'] = os.environ['PV_NODES']
-        print "<nodes> " + nodes + "\n"
-
-        self.logger.info(self.lh + " : args=" + str(self.configs['run']['test_args']))
-
-        # build the exact command to run
-        cmd = "cd " + os.environ['PV_RUNHOME'] + "; " + \
-            os.environ['PVINSTALL'] + "/PAV/scripts/mytime ./" + self.configs['run']['cmd']
-        print "\n ->  RawJobController: invoke %s" % cmd
-
-        # Get any buffered output into the output file now
-        # so that the the order doesn't look all mucked up
-        sys.stdout.flush()
-
-        # Invoke the cmd and send the output to the file setup when
-        # the object was instantiated
-
-        self.logger.info(self.lh + " run: " + cmd)
-        p = subprocess.Popen(cmd, stdout=self.job_log_file, stderr=self.job_log_file, shell=True)
-        # wait for the subprocess to finish
-        output, errors = p.communicate()
-
-        if p.returncode or errors:
-            print "Error: something went wrong!"
-            print [p.returncode, errors, output]
-            self.logger.info(self.lh + " run error: " + errors)
-
-        # The post_complete file needs to be placed in the results dir
-        # for Gazebo compatibility
-        pcf = os.environ["PV_JOB_RESULTS_LOG_DIR"] + "/post_complete"
-        text_file = open(pcf, "w")
-        text_file.write("{}\n".format("command complete"))
-        self.run_epilog()
-        text_file.write("{}\n".format("epilog complete"))
-        self.cleanup()
-        text_file.write("{}\n".format("cleanup complete"))
-        text_file.close()
-
-        print "<end>", self.now()
-
-        # The trend_data file needs to be placed in the results dir
-        # for Gazebo compatibility
-        JobController.process_trend_data()
-    
-# this gets called if it's run as a script/program
-if __name__ == '__main__':
-
-    sys.exit()
+    return
