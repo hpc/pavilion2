@@ -76,11 +76,15 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
 
 
 PAV_CONFIG_SEARCH_DIRS = [
-    os.environ.get(['PAV_CONFIG_DIR'], './'),
+    './',
     os.path.join(os.environ['HOME'], '.pavilion'),
-    '/etc/pavilion',
-    '/opt/pavilion'
 ]
+if 'PAV_CONFIG_DIR' in os.environ:
+    PAV_CONFIG_SEARCH_DIRS.append(os.environ['PAV_CONFIG_DIR'])
+PAV_CONFIG_SEARCH_DIRS.extend([
+    '/etc/pavilion',
+    '/opt/pavilion',
+])
 
 
 def find_pavilion_config():
