@@ -471,5 +471,7 @@ class SubVariable:
     def get(self, sub_var):
         if sub_var in self.data:
             return self.data[sub_var]
+        elif sub_var is None:
+            raise KeyError("Variable has sub-values; one must be requested explicitly.")
         else:
             raise KeyError("Unknown sub_var: '{}'".format(sub_var))

@@ -189,7 +189,7 @@ class TestConfigurator(object):
         :param dict sched_vars: A
         """
 
-        self._logger = logging.getLogger('pav.' + 'bleh')
+        self._logger = logging.getLogger('pav.' + self.__class__.__name__)
 
         self.suite = test_cfg['suite']
         self.name = test_cfg['name']
@@ -199,7 +199,7 @@ class TestConfigurator(object):
 
         # Add the permutation and regular variables to the variable set, then remove them from
         # our config, as they're tracked separately.
-        self._var_man = variables.VariableSetManager(self.scheduler)
+        self._var_man = variables.VariableSetManager()
         if 'permutations' in test_cfg:
             self._var_man.add_var_set('per', test_cfg['permutations'])
         del test_cfg['permutations']
@@ -210,7 +210,7 @@ class TestConfigurator(object):
 
         self._var_man.add_var_set('sys', sys_vars)
         self._var_man.add_var_set('pav', pav_vars)
-        self._var_man.add_var_set(self.scheduler, sched_vars)
+        self._var_man.add_var_set('sched', sched_vars)
 
         # Parse all the strings in the config.
         self._config = self._parse_strings(test_cfg)

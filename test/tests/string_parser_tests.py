@@ -5,7 +5,6 @@ import traceback
 
 from pavilion import variables
 from pavilion import string_parser
-from pavilion.variables import VariableError
 
 class TestStringParser(unittest.TestCase):
 

@@ -52,14 +52,8 @@
 #  ###################################################################
 
 from __future__ import division, unicode_literals, print_function
-from collections import defaultdict
-from pavilion import string_parser, variables
 import dependencies.yaml_config as yc
-import json
-import logging
-import os
 import re
-import sys
 
 
 class TestConfigError(ValueError):
@@ -67,7 +61,7 @@ class TestConfigError(ValueError):
     pass
 
 
-KEY_NAME_RE = re.compile(r'^[a-z][a-z0-9_-]+$')
+KEY_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_-]+$')
 
 
 class VariableElem(yc.CategoryElem):
