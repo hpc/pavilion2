@@ -89,9 +89,8 @@ PAV_CONFIG_SEARCH_DIRS.extend([
 
 def find_pavilion_config():
     """Search for a pavilion.yaml configuration file. The first one found is used.
-    Directories are searched in this order: $PAV_CONFIG_DIR, $USER/.pavilion, /etc/pavilion/,
-                                            /opt/pavilion.
-    """
+    Directories are searched in this order: {}
+    """.format(PAV_CONFIG_SEARCH_DIRS)
 
     for config_dir in PAV_CONFIG_SEARCH_DIRS:
         path = os.path.join(config_dir, 'pavilion.yaml')

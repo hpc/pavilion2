@@ -101,8 +101,8 @@ class VariableSetManager:
     """This class manages the various sets of variables, provides complex key based lookups,
     manages conflict resolution, and so on."""
 
-    # The variable sets, in order of resolution priority.
-    VAR_SETS = ('var', 'per', 'sys', 'pav', 'sched')
+    # The variable sets, in order of resolution.
+    VAR_SETS = ('per', 'var', 'sys', 'pav', 'sched')
 
     def __init__(self):
         """Initialize the var set manager."""

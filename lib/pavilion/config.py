@@ -10,12 +10,16 @@ CONF_HOST = 'hosts'
 CONF_MODE = 'modes'
 CONF_TEST = 'tests'
 
+
+LOGGER = logging.getLogger('pav.' + __name__)
+
+
 def find_config(pav_config, conf_type, conf_name):
     """Search all of the known configuration directories for a config of the given
     type and name.
-    :param pav_config:
-    :param conf_type:
-    :param conf_name:
+    :param pav_config: The pavilion config data.
+    :param unicode conf_type: 'host', 'mode', or 'test'
+    :param conf_name: The name of the config (without a file extension).
     :return: The path to the first matching config found, or None if one wasn't found.
     """
     for conf_dir in pav_config.config_dirs:
@@ -27,10 +31,12 @@ def find_config(pav_config, conf_type, conf_name):
 
 
 def get_tests(pav_config, host, modes, tests):
-    """Get a dictionary of the test configs given a host, list of modes,
-    and a list of tests.
-    :param pav_config:
-    :param Union(str, None) host:
+    """Get a dictionary of raw test configs given a host, list of modes,
+    and a list of tests. Each of these configs will be lightly modified with a few extra variables
+    about their name, suite, and suite_file, as well as guaranteeing that they have 'variables' and
+    'permutations' sections.
+    :param pav_config: The pavilion config data
+    :param Union(str, None) host: The host the test is running on.
     :param list modes: A list (possibly empty) of modes to layer onto the test.
     :param list tests: A list (possibly empty) of tests to load. Each test can be either a
                        '<test_suite>.<test_name>', '<test_suite>', or '<test_suite>.*'. A test
@@ -151,6 +157,10 @@ def get_tests(pav_config, host, modes, tests):
                 test_cfg['name'] = test_suite_cfg
                 test_cfg['suite'] = test_suite
                 test_cfg['suite_path'] = test_suite_path
+                if 'variables' not in test_cfg:
+                    test_cfg['variables'] = dict()
+                if 'permutations' not in test_cfg:
+                    test_cfg['permutations'] = dict()
 
             all_tests[test_suite] = suite_tests
 
@@ -170,140 +180,161 @@ def get_tests(pav_config, host, modes, tests):
     return picked_tests
 
 
+# TODO: Write this function, maybe?
 def get_all_tests(pav_config):
     """Find all the tests within known config directories.
-    :param pav_config:
+    :param dict pav_config:
     :return:
     """
 
 
-class TestConfigurator(object):
+def resolve_permutations(raw_test_cfg, pav_vars, sys_vars):
+    """Resolve permutations for all used permutation variables, returning a variable manager for
+    each permuted version of the test config. We use this opportunity to populate the variable
+    manager with most other variable types as well.
+    :param dict raw_test_cfg: The raw test configuration dictionary.
+    :param dict pav_vars: The pavilion provided variable set.
+    :param dict sys_vars: The system plugin provided variable set.
+    :returns: The parsed, modified configuration, and a list of variable set managers,
+        one for each permutation. These will already contain all the var, sys, pav,
+        and (resolved) permutation (per) variable sets. The 'sched' variable set will have to
+        be added later.
+    :rtype: [variables.VariableSetManager]
+    :raises TestConfigError: When there are problems with variables or the permutations.
     """
+
+    base_var_man = variables.VariableSetManager()
+    try:
+        base_var_man.add_var_set('per', raw_test_cfg['permutations'])
+    except variables.VariableError as err:
+        raise TestConfigError("Error in permutations section: {}".format(err))
+
+    # We don't resolve variables within the variables section, so we remove those parts now.
+    del raw_test_cfg['permutations']
+    user_vars = raw_test_cfg['variables']
+    del raw_test_cfg['variables']
+
+
+    del raw_test_cfg['variables']
+    # Recursively make our configuration a little less raw, recursively parsing all string values
+    # into PavString objects.
+    test_cfg = _parse_strings(raw_test_cfg)
+
+    # We only want to permute over the permutation variables that are actually used.
+    # This also provides a convenient place to catch any problems with how those variables
+    # are used.
+    try:
+        used_per_vars = _get_used_per_vars(raw_test_cfg, base_var_man)
+    except RuntimeError as err:
+        raise TestConfigError("In suite file '{}' test name '{}': {}"
+                              .format(raw_test_cfg['suite'], raw_test_cfg['name'], err))
+
+    # Since per vars are the highest in resolution order, we can make things a bit faster
+    # by adding these after we find the used per vars.
+    try:
+        base_var_man.add_var_set('var', user_vars)
+    except variables.VariableError as err:
+        raise TestConfigError("Error in variables section: {}".format(err))
+
+    try:
+        base_var_man.add_var_set('sys', sys_vars)
+    except variables.VariableError as err:
+        raise TestConfigError("Error in sys variables: {}".format(err))
+
+    try:
+        base_var_man.add_var_set('pav', pav_vars)
+    except variables.VariableError as err:
+        raise TestConfigError("Error in pav variables: {}".format(err))
+
+    return test_cfg, base_var_man.get_permutations(used_per_vars)
+
+
+def _parse_strings(section):
+    """Parse all non-key strings in the given config section, and replace them with a PavString
+    object. This involves recursively walking any data-structures in the given section.
+    :param section: The config section to process.
+    :return: The original dict with the non-key strings replaced.
     """
 
-    def __init__(self, test_cfg, pav_vars, sys_vars, sched_vars):
-        """Create a new TestConfig object.
-        :param dict test_cfg: The raw test configuration.
-        :param dict pav_vars: The pavilion provided variables.
-        :param dict sys_vars: The system provided variables.
-        :param dict sched_vars: A
-        """
+    if isinstance(section, dict):
+        for key in section.keys():
+            section[key] = _parse_strings(section[key])
+        return section
+    elif isinstance(section, list):
+        for i in range(len(section)):
+            section[i] = _parse_strings(section[i])
+        return section
+    elif isinstance(section, unicode):
+        return string_parser.parse(section)
+    else:
+        # Should probably never happen (We're going to see this error a lot until we get a handle
+        # on strings vs unicode though).
+        raise RuntimeError("Invalid value type '{}' of value '{}'."
+                           .format(type(section), section))
 
-        self._logger = logging.getLogger('pav.' + self.__class__.__name__)
 
-        self.suite = test_cfg['suite']
-        self.name = test_cfg['name']
-        self._suite_path = test_cfg['suite_path']
-        self.subtitle = test_cfg.get('subtitle')
-        self.scheduler = test_cfg.get('scheduler')
+def _get_used_per_vars(component, var_man):
+    """Recursively get all the variables used by this test config, in canonical form.
+    :param component: A section of the configuration file to look for per vars in.
+    :param variables.VariableSetManager: The variable set manager.
+    :returns: A list of used 'per' variables names (Just the 'var' component).
+    :raises RuntimeError: For invalid sections.
+    """
 
-        # Add the permutation and regular variables to the variable set, then remove them from
-        # our config, as they're tracked separately.
-        self._var_man = variables.VariableSetManager()
-        if 'permutations' in test_cfg:
-            self._var_man.add_var_set('per', test_cfg['permutations'])
-        del test_cfg['permutations']
+    used_per_vars = set()
 
-        if 'variables' in test_cfg:
-            self._var_man.add_var_set('var', test_cfg['variables'])
-        del test_cfg['variables']
-
-        self._var_man.add_var_set('sys', sys_vars)
-        self._var_man.add_var_set('pav', pav_vars)
-        self._var_man.add_var_set('sched', sched_vars)
-
-        # Parse all the strings in the config.
-        self._config = self._parse_strings(test_cfg)
-
-        # Get all the used permutaiton vars for this config set.
-        self._used_per_vars = self._get_used_per_vars(self._config)
-
-    def _parse_strings(self, section):
-        """Parse all non-key strings in the given config section, and replace them with a PavString
-        object. This involves recursively walking any data-structures in the given section.
-        :param section: The config section to process.
-        :return: The original dict with the non-key strings replaced.
-        """
-
-        if isinstance(section, dict):
-            for key in section.keys():
-                section[key] = self._parse_strings(section[key])
-            return section
-        elif isinstance(section, list):
-            for i in range(len(section)):
-                section[i] = self._parse_strings(section[i])
-            return section
-        elif isinstance(section, unicode):
+    if isinstance(component, dict):
+        for key in component.keys():
             try:
-                return string_parser.parse(section)
-            except (string_parser.ScanError, string_parser.ParseError) as err:
-                raise TestConfigError("Bad string in '{}' test '{}': {}"
-                                      .format(self._suite_path, self.name, err))
-        else:
-            raise TestConfigError("Invalid value type in suite at '{}' test config '{}'. Type '{}'"
-                                  "of value '{}'.".format(self._suite_path, self.name,
-                                                          type(section), section))
+                used_per_vars = used_per_vars.union(_get_used_per_vars(component[key], var_man))
+            except KeyError:
+                pass
 
-    def _get_used_per_vars(self, section):
-        """Recursively get all the variables used by this test config, in canonical form."""
+    elif isinstance(component, list):
+        for i in range(len(component)):
+            try:
+                used_per_vars = used_per_vars.union(_get_used_per_vars(component[i], var_man))
+            except KeyError:
+                pass
 
-        used_per_vars = set()
+    elif isinstance(component, string_parser.PavString):
+        for var in component.variables:
+            var_set, var, idx, sub = var_man.resolve_key(var)
 
-        if isinstance(section, dict):
-            for key in section.keys():
-                used_per_vars = used_per_vars.union(self._get_used_per_vars(section[key]))
+            # Grab just 'per' vars.
+            # Also, if per variables are used by index, we just resolve that value normally rather
+            # than permuting over it.
+            if var_set == 'per' and idx is None :
+                used_per_vars.add(var)
+    else:
+        # This should be unreachable.
+        raise RuntimeError("Unknown config component type '{}' of '{}'"
+                           .format(type(component), component))
 
-        elif isinstance(section, list):
-            for i in range(len(section)):
-                used_per_vars = used_per_vars.union(self._get_used_per_vars(section[i]))
+    return used_per_vars
 
-        elif isinstance(section, string_parser.PavString):
-            for var in section.variables:
-                var_set, var, idx, sub = self._var_man.resolve_key(var)
 
-                if var_set == 'per':
-                    if idx is not None:
-                        raise TestConfigError("In suite '{}', test '{}', permutation variable "
-                                              "reference '{}' includes index."
-                                              .format(self._suite_path, self.name, var))
+def resolve_all_vars(component, var_man):
+    """Recursively resolve the given config component's variables, using a variable manager.
+    :param component: The config component to resolve.
+    :param var_man: A variable manager. (Presumably a permutation of the base var_man)
+    :return: The component, resolved.
+    """
 
-                    used_per_vars.add(var)
-        else:
-            raise TestConfigError("Invalid value type in suite at '{}' test config '{}'. Type '{}'"
-                                  "of value '{}'.".format(self._suite_path, self.name,
-                                                          type(section), section))
+    if isinstance(component, dict):
+        resolved_dict = {}
+        for key in component.keys():
+            resolved_dict[key] = resolve_all_vars(component[key], var_man)
+        return resolved_dict
 
-        return used_per_vars
+    elif isinstance(component, list):
+        resolved_list = []
+        for i in range(len(component)):
+            resolved_list.append(resolve_all_vars(component[i], var_man))
+        return resolved_list
 
-    @classmethod
-    def resolve(cls, component, var_man):
-        """Recursively resolve the given config component, using the given variable manager.
-        :param component: The config component to resolve.
-        :param var_man: A variable manager. (Presumably a permutation of the base var_man)
-        :return: The component, resolved.
-        """
-
-        if isinstance(component, dict):
-            resolved_dict = {}
-            for key in component.keys():
-                resolved_dict[key] = cls.resolve(component[key], var_man)
-            return resolved_dict
-
-        elif isinstance(component, list):
-            resolved_list = []
-            for i in range(len(component)):
-                resolved_list.append(cls.resolve(component[i], var_man))
-            return resolved_list
-
-        elif isinstance(component, string_parser.PavString):
-            return component.resolve(var_man)
-        else:
-            raise TestConfigError("Invalid value type ('{}') when resolving strings in suite '{}', "
-                                  "test '{}'.".format(type(component), self._suite_path, self.name))
-
-    def flatten(self):
-        """Resolve permutation variables, turning this TestConfig into a list of TestConfigs.
-        :returns: A list of TestConfigs
-        """
-
-        return self._var_man.get_permutations(self._get_used_per_vars(self._config))
+    elif isinstance(component, string_parser.PavString):
+        return component.resolve(var_man)
+    else:
+        raise TestConfigError("Invalid value type '{}' for '{}' when resolving strings."
+                              .format(type(component), component))

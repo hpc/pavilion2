@@ -114,8 +114,6 @@ class TestVariables(unittest.TestCase):
         self.assertRaises(KeyError, lambda: vsetm['var3.0.nope'])
         # Has subvar but none referenced
         self.assertRaises(KeyError, lambda: vsetm['var3.0'])
-        vsetm['var3.0']
-
 
         # Len of invalid key
         self.assertRaises(KeyError, lambda: vsetm.len('var', 'var99'))

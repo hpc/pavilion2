@@ -305,15 +305,17 @@ class PavString(Token):
 
         return sorted(local_iter_vars)
 
-    def resolve(self, var_man, iter_vars=None):
+    def resolve(self, var_man, _iter_vars=None):
         """
         :param variables.VariableSetManager var_man:
-        :param dict iter_vars:
-        :return:
+        :param dict _iter_vars: Variables that are being iterated over in the resolution of a
+            sub string.
+        :return: The string with all variables resolved.
+        :raises ResolveError:
         """
 
-        if iter_vars is None:
-            iter_vars = dict()
+        if _iter_vars is None:
+            _iter_vars = dict()
 
         token = self._root
 
@@ -325,9 +327,9 @@ class PavString(Token):
             elif isinstance(token, VariableToken):
                 var_set, var, idx, sub_var = var_man.resolve_key(token.var)
 
-                if (var_set, var) in iter_vars and idx is None:
+                if (var_set, var) in _iter_vars and idx is None:
                     # Resolve the substr var by the given index.
-                    parts.append(token.resolve(var_man, index=iter_vars[(var_set, var)]))
+                    parts.append(token.resolve(var_man, iter_index=_iter_vars[(var_set, var)]))
                 else:
                     # A single valued var, or one referenced directly by index.
                     parts.append(token.resolve(var_man))
@@ -335,22 +337,22 @@ class PavString(Token):
             elif isinstance(token, PavString):
                 # We have a substring to resolve.
 
-                local_iter_vars = token.get_substr_vars(var_man, iter_vars)
+                local_iter_vars = token.get_substr_vars(var_man, _iter_vars)
 
                 # This holds the current index for each var we're looping over.
-                iter_vars = iter_vars.copy()
+                _iter_vars = _iter_vars.copy()
                 # This holds the max iterations for each of those vars.
                 local_iter_vars_max = dict()
                 for iter_var in local_iter_vars:
                     local_iter_vars_max[iter_var] = var_man.len(*iter_var)
-                    iter_vars[iter_var] = 0
+                    _iter_vars[iter_var] = 0
 
                 done = False
 
                 # Now loop over all our local iter vars in sorted order (they needed to be in
                 # some consistent order).
                 while not done:
-                    part = token.resolve(var_man, iter_vars)
+                    part = token.resolve(var_man, _iter_vars)
                     parts.append(part)
 
                     # If there aren't any local iter vars, we're done now.
@@ -364,13 +366,13 @@ class PavString(Token):
                     inc_idx = 0
                     # Grab the first var to increment the index of, and do so.
                     iter_var = local_iter_vars[inc_idx]
-                    iter_vars[iter_var] += 1
+                    _iter_vars[iter_var] += 1
 
                     # Keep incrementing var indexs until we hit one that isn't over it's limit.
                     # This will cycle through all index combinations.
-                    while iter_vars[iter_var] >= local_iter_vars_max[iter_var]:
+                    while _iter_vars[iter_var] >= local_iter_vars_max[iter_var]:
                         # Reset this var, and switch to the next.
-                        iter_vars[iter_var] = 0
+                        _iter_vars[iter_var] = 0
                         inc_idx += 1
 
                         # If there isn't a next one, we're done.
@@ -380,7 +382,7 @@ class PavString(Token):
                         else:
                             # Otherwise, grab the next and increment it.
                             iter_var = local_iter_vars[inc_idx]
-                            iter_vars[iter_var] += 1
+                            _iter_vars[iter_var] += 1
 
                     # Only add the separator between values.
                     if not done and token._separator:
@@ -421,17 +423,17 @@ class VariableToken(Token):
 
         self.var = var
 
-    def resolve(self, var_man, index=None):
+    def resolve(self, var_man, iter_index=None):
         """Resolve any variables in this token using the variable manager.
-        :param variables.VariableSetManager var_man:
-        :param int index: The index to force for this variable, when it's being iterated over.
+        :param variables.VariableSetManager var_man: The variable manager to use for resolution.
+        :param int iter_index: The index to force for this variable, when it's being iterated over.
         :return:
         """
 
         var_set, var, idx, subvar = var_man.resolve_key(self.var)
 
-        if index is not None:
-            idx = index
+        if iter_index is not None:
+            idx = iter_index
 
         return var_man[(var_set, var, idx, subvar)]
 
