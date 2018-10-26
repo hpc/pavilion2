@@ -375,7 +375,7 @@ class PavString(Token):
                         _iter_vars[iter_var] = 0
                         inc_idx += 1
 
-                        # If there isn't a next one, we're done.
+                        # If there isn't a next one, completely done with all iterations.
                         if inc_idx >= len(local_iter_vars):
                             done = True
                             break
