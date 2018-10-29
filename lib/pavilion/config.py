@@ -214,7 +214,6 @@ def resolve_permutations(raw_test_cfg, pav_vars, sys_vars):
     user_vars = raw_test_cfg['variables']
     del raw_test_cfg['variables']
 
-
     del raw_test_cfg['variables']
     # Recursively make our configuration a little less raw, recursively parsing all string values
     # into PavString objects.
@@ -304,7 +303,7 @@ def _get_used_per_vars(component, var_man):
             # Grab just 'per' vars.
             # Also, if per variables are used by index, we just resolve that value normally rather
             # than permuting over it.
-            if var_set == 'per' and idx is None :
+            if var_set == 'per' and idx is None:
                 used_per_vars.add(var)
     else:
         # This should be unreachable.
