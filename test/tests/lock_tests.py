@@ -113,7 +113,13 @@ class TestConfig(unittest.TestCase):
         self.assertRaises(lockfile.TimeoutError, _acquire_lock, timeout=0.2)
         os.unlink(self.lock_path)
 
+        # This shouldn't cause an error, but should get logged.
+        with lockfile.LockFile(self.lock_path):
+            os.unlink(self.lock_path)
 
-
-
+        with lockfile.LockFile(self.lock_path):
+            os.unlink(self.lock_path)
+            lockfile.LockFile._create_lockfile(self.lock_path, 100, 'abcd')
+        # Remove our bad lockfile
+        os.unlink(self.lock_path)
 

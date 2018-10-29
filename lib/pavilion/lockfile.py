@@ -116,21 +116,25 @@ class LockFile(object):
         :raises RuntimeError: When we can't delete our own lockfile for some reason.
         """
 
-        try:
-            os.unlink(self._lock_path)
-        except OSError as err:
-            # There isn't really anything we can do in this case.
-            host, user, expiration, lock_id = self.read_lockfile()
+        # There isn't really anything we can do in this case.
+        host, user, expiration, lock_id = self.read_lockfile()
 
-            if lock_id == self._id:
-                LOGGER.warning("Lockfile '{}' could not be deleted: '{}'"
-                               .format(self._lock_path, err))
-            elif lock_id is None:
-                LOGGER.error("Lockfile '{}' mysteriously replaced with one from {}."
-                             .format(self._lock_path, (host, user)))
-            else:
-                LOGGER.error("Lockfile '{}' mysteriously disappeared."
-                             .format(self._lock_path))
+        if lock_id is not None and lock_id != self._id:
+            LOGGER.error("Lockfile '{}' mysteriously replaced with one from {}."
+                         .format(self._lock_path, (host, user)))
+        else:
+            try:
+                os.unlink(self._lock_path)
+            except OSError as err:
+                # There isn't really anything we can do in this case.
+                host, user, expiration, lock_id = self.read_lockfile()
+
+                if lock_id == self._id:
+                    LOGGER.warning("Lockfile '{}' could not be deleted: '{}'"
+                                   .format(self._lock_path, err))
+                else:
+                    LOGGER.error("Lockfile '{}' mysteriously disappeared."
+                                 .format(self._lock_path))
 
     @classmethod
     def _create_lockfile(cls, path, expires, lock_id, group_id=None):

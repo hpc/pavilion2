@@ -5,9 +5,19 @@
 
 from __future__ import unicode_literals, print_function, division
 
+import logging
+
+
+
 import os
 import sys
 import time
+
+log_dir = '/tmp/{}'.format(os.getlogin())
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir)
+logging.basicConfig(filename=os.path.join(log_dir, 'pavilion_tests.log'))
+
 package_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 sys.path.append(os.path.join(package_root, 'lib'))
 sys.path.append(os.path.join(package_root, 'lib', 'pavilion', 'dependencies'))

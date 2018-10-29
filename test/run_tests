@@ -13,7 +13,7 @@ logging_root = '/tmp/{user}'.format(user=os.getlogin())
 if not os.path.exists(logging_root):
     os.makedirs(logging_root)
 log_path = os.path.join(logging_root, 'pavilion_tests.log')
-logging.basicConfig(file=log_path)
+logging.basicConfig(filename=log_path)
 print("Setting logging to output to, log_path")
 
 # Setup our paths to the pavilion libraries.
