@@ -71,15 +71,15 @@ class TestConfig( unittest.TestCase ):
             testHeader.scheduler_macros = [ '-G 12', '-L testThing' ]
 
         with self.assertRaises( TypeError ):
-            testHeader = scriptcomposer.testHeader( shell_path=7,
+            testHeader = scriptcomposer.scriptHeader( shell_path=7,
                                                     scheduler_macros=testSched
                                                   )
 
         with self.assertRaises( TypeError ):
-            testHeader = scriptcomposer.testHeader( shell_path=testPath,
+            testHeader = scriptcomposer.scriptHeader( shell_path=testPath,
                                                     scheduler_macros=[
                                                     '-G 12', '-L testThing' ] )
 
         with self.assertRaises( TypeError ):
-            testHeader = scriptcomposer.testHeader( shell_path=12,
+            testHeader = scriptcomposer.scriptHeader( shell_path=12,
                                                     scheduler_macros=13 )

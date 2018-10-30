@@ -61,7 +61,7 @@ import os, datetime
 """
 
 
-class scriptHeader:
+class scriptHeader( object ):
     """Class to serve as a struct for the script header."""
 
     @property
@@ -76,8 +76,7 @@ class scriptHeader:
             error = "Shell Path must be of type 'str', not {}".format(
                     type( value ) )
             raise TypeError( error )
-        else:
-            print( "Successfully set the shell_path variable." )
+
         self._shell_path = value
 
     @property
@@ -96,8 +95,7 @@ class scriptHeader:
             error = "Scheduler Macro must be of type 'dict', not {}".format(
                     type( value ) )
             raise TypeError( error )
-        else:
-            print( "Successfully set the scheduler_macros variable." )
+
         self._scheduler_macros = value
 
     def __init__( self, shell_path=None, scheduler_macros=None ):
@@ -111,8 +109,6 @@ class scriptHeader:
         self.shell_path = shell_path
         self.scheduler_macros = scheduler_macros
 
-#        return self
-
     def reset( self ):
         """Function to reset the values of the internal variables back to
         None.
@@ -120,7 +116,7 @@ class scriptHeader:
         self.__init__()
 
 
-class scriptModules:
+class scriptModules( object ):
     """Class to serve as a struct for the script modules."""
 
     @property
@@ -213,7 +209,7 @@ class scriptModules:
     def reset( self ):
         self.__init__()
 
-class scriptEnvironment:
+class scriptEnvironment( object ):
     """Class to contain the environment variable changes for the script."""
 
     @property
@@ -259,7 +255,7 @@ class scriptEnvironment:
         self.__init__()
 
 
-class scriptCommands:
+class scriptCommands( object ):
     """Class to contain the script commands."""
 
     @property
@@ -288,7 +284,7 @@ class scriptCommands:
         self.__init__()
 
 
-class scriptPost:
+class scriptPost( object ):
     """Class to contain the post-script commands."""
 
     @property
@@ -318,7 +314,7 @@ class scriptPost:
         self.__init__()
 
 
-class scriptDetails:
+class scriptDetails( object ):
     """Class to contain the final details of the script."""
 
     @property
