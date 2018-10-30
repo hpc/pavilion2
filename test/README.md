@@ -27,5 +27,8 @@ class ConfigTests(unittest.TestCase):
 ```
 
 ### Test data
-Any data relevant to the test should go in the `tests/test_data/` directory, and should be 
+Any data relevant to the test should go in the `test_data/` directory, and should be 
 prefixed with the test module name. 
+
+Tests are assumed to run with the `${REPO_ROOT}/test/` directory as the working directory, so paths
+to test data can be relative to that.

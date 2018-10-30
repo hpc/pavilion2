@@ -1,0 +1,45 @@
+# This config just uses every possible option in the basic test section part of a config.
+
+inherits_from: something_else
+# unnecessary comment
+subtitle: 'subTITLE' # Also unnecessary
+scheduler: slurm
+
+variables:
+  fish: halibut
+  animal: squirrel
+  bird:
+    - 'eagle'
+    - 'mockingbird'
+    - 'woodpecker'
+  horse:
+    - {legs: 4, breed: arabian}
+    - {legs: 8, breed: asguardian}
+
+build:
+  source_location: /tmp/bleh
+  modules:
+    - gcc
+    - openmpi
+  env:
+    PATH: /tmp/
+    MPI_ROOT: /opt/mpi
+
+  # This takes a list, but a single item just makes a single item list.
+  extra_files: usr/bob/build.sh
+
+  cmds:
+    - 'echo "hello world"'
+    - 'touch "bleh"'
+
+run:
+  modules:
+    - gcc/3.2
+    - openmpi/17.5
+  env:
+    PATH: /tmp/bob
+    MPI_ROOT: /opt/mpi
+
+  cmds:
+    - 'true'
+    - 'false'
