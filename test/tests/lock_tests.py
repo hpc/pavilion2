@@ -64,7 +64,7 @@ class TestConfig(unittest.TestCase):
             with lockfile.LockFile(self.lock_path, group=grp.getgrgid(group).gr_name):
                 stat = os.stat(self.lock_path)
                 self.assertEqual(stat.st_gid, group)
-                self.assertEqual(stat.st_mode & 0777, 0774)
+                self.assertEqual(stat.st_mode & 0o777, lockfile.LockFile.LOCK_PERMS)
 
     def test_lock_contention(self):
 
@@ -82,12 +82,12 @@ class TestConfig(unittest.TestCase):
                 with lockfile.LockFile(self.lock_path, timeout=2) as lock:
                     # print("Test - {} got lock {}".format(os.getpid(), lock._id))
                     time.sleep(1)
-                    host, user, expires, id = lock.read_lockfile()
+                    host, user, expires, lock_id = lock.read_lockfile()
 
                     self.assertTrue(host is not None)
                     self.assertTrue(user is not None)
                     self.assertTrue(expires is not None)
-                    self.assertEqual(id, lock._id)
+                    self.assertEqual(lock_id, lock._id)
                     # print("Test - {} bye lock {}".format(os.getpid(), lock._id))
                 # Let the other procs get the lock this time.
                 time.sleep(0.2)

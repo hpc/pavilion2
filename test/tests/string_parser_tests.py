@@ -6,11 +6,12 @@ import traceback
 from pavilion import variables
 from pavilion import string_parser
 
+
 class TestStringParser(unittest.TestCase):
 
     var_data = {
         'var1': 'val1',
-        'sep' : '-',
+        'sep':  '-',
         'var2': ['0', '1', '2'],
         'var3': {'subvar1': 'subval1',
                  'subvar2': 'subval2'},
@@ -107,5 +108,3 @@ class TestStringParser(unittest.TestCase):
                     string_parser.parse(test_str).resolve(self.var_set_manager)
                 except error:
                     traceback.print_exc()
-
-

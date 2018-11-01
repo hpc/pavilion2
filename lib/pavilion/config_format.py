@@ -52,7 +52,7 @@
 #  ###################################################################
 
 from __future__ import division, unicode_literals, print_function
-import dependencies.yaml_config as yc
+import pavilion.dependencies.yaml_config as yc
 import re
 
 
@@ -80,7 +80,7 @@ class VariableElem(yc.CategoryElem):
     def validate(self, value_dict):
         """Check for a single item and return it, otherwise return a dict."""
 
-        if isinstance(value_dict, basestring):
+        if isinstance(value_dict, str):
             return value_dict
 
         return super(VariableElem, self).validate(value_dict)

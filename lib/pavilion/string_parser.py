@@ -78,8 +78,8 @@
 # SEP      -> .
 
 import re
-import variables
-import config_format
+from pavilion import variables
+from pavilion import config_format
 
 
 class ScanError(ValueError):
