@@ -115,7 +115,7 @@ class VariableSetManager:
     def add_var_set(self, name, value_dict):
         """Add a new variable set to this variable set manager. Variables in the set can then
         be retrieved by complex key.
-        :param str name: The name of the var set. Must be one of the reserved keys.
+        :param unicode name: The name of the var set. Must be one of the reserved keys.
         :param dict value_dict: A dictionary of values to populate the var set.
         :return: None
         :raises VariableError: On problems with the name or data.
@@ -182,7 +182,7 @@ class VariableSetManager:
     @classmethod
     def parse_key(cls, key):
         """Parse the given complex key, and return a reasonable (var_set, var, index, sub_var) tuple.
-        :param Union(str,list,tuple) key: A 1-4 part key. These may either be given as a
+        :param Union(unicode,list,tuple) key: A 1-4 part key. These may either be given as a
             list/tuple of strings, or dot separated in a string. The components are var_set, var,
             index, and sub_var. Var is required, the rest are optional. Index is expected to be an
             integer, and var_set is expected to be a key category.
@@ -193,10 +193,10 @@ class VariableSetManager:
 
         if isinstance(key, list) or isinstance(key, tuple):
             parts = list(key)
-        elif isinstance(key, str):
+        elif isinstance(key, unicode):
             parts = key.split('.')
         else:
-            raise TypeError("Only str keys or tuples/lists are allowed.")
+            raise TypeError("Only unicode keys or tuples/lists are allowed.")
 
         var_set = None
         if parts[0] in cls.VAR_SETS:
@@ -246,7 +246,7 @@ class VariableSetManager:
         """Resolve the given key using this known var sets. Unlike parse_key, the var_set returned
         will never be None, as the key must correspond to a found variable in a var_set. In case of
         conflicts, the var_set will be resolved in order.
-        :param Union(str,list,tuple) key: A 1-4 part key. These may either be given as a
+        :param Union(unicode,list,tuple) key: A 1-4 part key. These may either be given as a
         list/tuple of strings, or dot separated in a string. The components are var_set, var,
         index, and sub_var. Var is required, the rest are optional. Index is expected to be an
         integer, and var_set is expected to be a key category.
@@ -271,7 +271,7 @@ class VariableSetManager:
 
     def __getitem__(self, key):
         """Find the item that corresponds to the given complex key.
-        :param Union(str, list, tuple) key: A variable key. See parse_key for more.
+        :param Union(unicode, list, tuple) key: A variable key. See parse_key for more.
         :return: The value for the given key.
         :raises KeyError: If the key value can't be found.
         """
@@ -288,8 +288,8 @@ class VariableSetManager:
     def getlist(self, var_set, var):
         """Get the list of values for a given key. These values will always be a dictionary; If the
         the variable is simple (does not have sub_vars), the value will be in the 'None' key.
-        :param str var_set: The var set to fetch from.
-        :param str var: The variable to fetch.
+        :param unicode var_set: The var set to fetch from.
+        :param unicode var: The variable to fetch.
         :return: A a list of the corresponding values/subvalues.
         :raises KeyError: If either the var_set or var don't exist.
         """
@@ -314,8 +314,8 @@ class VariableSetManager:
     def len(self, var_set, var):
         """
         Get the length of the given key.
-        :param str var_set: The var set to fetch from.
-        :param str var: The variable to fetch.
+        :param unicode var_set: The var set to fetch from.
+        :param unicode var: The variable to fetch.
         :return: The number of items in the found 'var_set.var', the index and sub_var are ignored.
         :raises KeyError: When the key has problems, or can't be found.
         """
@@ -341,7 +341,7 @@ class VariableSet:
         or from a config with the 'init_from_config' method.
         :param name: The name of this var set.
         :param reserved_keys: The list of reserved keys. Needed to check the given var names.
-        :param value_dict: A mapping of var names to strings (str), a list of strings,
+        :param value_dict: A mapping of var names to strings (unicode), a list of strings,
         a dict of strings, or a list of dict of strings.
         """
 
@@ -354,7 +354,7 @@ class VariableSet:
 
     def _init_from_config(self, reserved_keys, value_dict):
         """Initialize the variable set from a config dictionary.
-        :param value_dict: A mapping of var names to strings (str), a list of strings,
+        :param value_dict: A mapping of var names to strings (unicode), a list of strings,
         a dict of strings, or a list of dict of strings.
         """
 
@@ -388,7 +388,7 @@ class VariableList:
 
     def __init__(self, values=None):
         """Initialize the Varialbe list.
-        :param values: A list of strings (str) or dicts of strings. The dicts must have the
+        :param values: A list of strings (unicode) or dicts of strings. The dicts must have the
         same keys.
         """
 
@@ -399,7 +399,7 @@ class VariableList:
 
     def _init_from_config(self, values):
         """Initialize the variable list from the given config values.
-        :param values: A list of strings (str) or dicts of strings. The dicts must have the
+        :param values: A list of strings (unicode) or dicts of strings. The dicts must have the
         same keys.
         """
 
@@ -417,12 +417,12 @@ class VariableList:
                 sub_vars = set(value_pairs.keys())
             elif set(value_pairs.keys()) != sub_vars:
                 raise VariableError("Sub-keys do no match across variable values.",
-                                    index=str(idx))
+                                    index=unicode(idx))
 
             try:
                 self.data.append(SubVariable(value_pairs))
             except VariableError as err:
-                err.index = str(idx)
+                err.index = unicode(idx)
                 raise err
 
     def get(self, index, sub_var):
@@ -462,7 +462,7 @@ class SubVariable:
 
     def _init_from_config(self, value_pairs):
         for key, value in value_pairs.items():
-            if not isinstance(value, str):
+            if not isinstance(value, unicode):
                 raise VariableError("Variable values must be unicode strings, got '{}'"
                                     .format(type(value)), sub_var=key)
 

@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 # This runs all the tests in the tests/ directory. For a python file to be recognized as a test
 # suite, it must end in '_tests.py'. All other files are ignored.

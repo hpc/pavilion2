@@ -1,3 +1,5 @@
+from __future__ import division, unicode_literals, print_function
+
 import grp
 import logging
 import os
@@ -30,7 +32,7 @@ class LockFile(object):
     SLEEP_PERIOD = 0.2
 
     # Default lock permissions
-    LOCK_PERMS = 0o774
+    LOCK_PERMS = 0774
 
     def __init__(self, lockfile_path, group=None, timeout=None, expires_after=DEFAULT_EXPIRE):
         """Initialize the lock file. The resulting class can be reused multiple times.
@@ -54,7 +56,7 @@ class LockFile(object):
 
         self._open = False
 
-        self._id = str(uuid.uuid4())
+        self._id = unicode(uuid.uuid4())
 
     def __enter__(self):
         """Try to create and lock the lockfile."""
@@ -139,7 +141,7 @@ class LockFile(object):
         """Create and fill out a lockfile at the given path.
         :param unicode path: Where the file will be created.
         :param int expires: How far in the future the lockfile expires.
-        :param str lock_id: The unique identifier for this lockfile.
+        :param unicode lock_id: The unique identifier for this lockfile.
         :returns: None
         :raises IOError: When the file cannot be written too.
         :raises OSError: When the file cannot be opened or already exists."""
@@ -149,8 +151,7 @@ class LockFile(object):
 
         fd = os.open(path, os.O_EXCL | os.O_CREAT | os.O_RDWR)
         expiration = time.time() + expires
-        file_note = ",".join([os.uname()[1], os.getlogin(), str(expiration), lock_id])
-        file_note = file_note.encode('utf8')
+        file_note = b"{},{},{},{}".format(os.uname()[1], os.getlogin(), expiration, lock_id)
         os.write(fd, file_note)
         os.close(fd)
 
@@ -174,7 +175,7 @@ class LockFile(object):
         """
 
         try:
-            with open(self._lock_path, 'r') as lock_file:
+            with open(self._lock_path, 'rb') as lock_file:
                 data = lock_file.read()
 
             try:
