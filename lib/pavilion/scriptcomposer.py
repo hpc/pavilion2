@@ -54,7 +54,8 @@
 #  ###################################################################
 
 from __future__ import unicode_literals
-import os, datetime
+import os, datetime, grp, pwd, stat
+from collections import OrderedDict
 
 """ Class to allow for scripts to be written for other modules.
     Typically, this will be used to write bash or batch scripts. 
@@ -91,9 +92,9 @@ class scriptHeader( object ):
         """Function to set the value of the internal scheduler macros
         variable.
         """
-        if value != None and not isinstance(value, dict):
-            error = "Scheduler Macro must be of type 'dict', not {}".format(
-                    type( value ) )
+        if value != None and not isinstance(value, OrderedDict):
+            error = "Scheduler Macro must be of type 'OrderedDict', not " +\
+                    "{}".format( type( value ) )
             raise TypeError( error )
 
         self._scheduler_macros = value
@@ -102,9 +103,10 @@ class scriptHeader( object ):
         """Function to set the header values for the script.
         :param string shell_path: Shell path specification.  Typically
                                   '/bin/bash'.  default = None.
-        :param dict scheduler_macros: Scheduler macros.  If there are elements
-                                      that are only one entry, the value will
-                                      just be None.  default = None.
+        :param OrderedDict scheduler_macros: Scheduler macros.  If there are
+                                             elements that are only one entry,
+                                             the value will just be None.
+                                             default = None.
         """
         self.shell_path = shell_path
         self.scheduler_macros = scheduler_macros
@@ -146,6 +148,19 @@ class scriptModules( object ):
         self._purge = value
 
     @property
+    def swaps( self ):
+        return self._swaps
+
+    @swaps.setter
+    def swaps( self, value ):
+        """Function to set the swaps internal variable."""
+        if value != None and not isinstance( value, OrderedDict):
+            error = "Swaps specification must be of type 'OrderedDict' and " +\
+                    "not {}.".format( type( value ) )
+            raise TypeError( error )
+        self._swaps = value
+
+    @property
     def unloads( self ):
         return self._unloads
 
@@ -171,40 +186,27 @@ class scriptModules( object ):
             raise TypeError( error )
         self._loads = value
 
-    @property
-    def swaps( self ):
-        return self._swaps
-
-    @swaps.setter
-    def swaps( self, value ):
-        """function to set the swaps internal variable."""
-        if value != None and not isinstance( value, dict ):
-            error = "Swaps specification must be of type 'dict' and not " +\
-                    "{}.".format( type( value ) )
-        self._swaps = value
-
-    def __init__( self, explicit_specification=None, purge=False,
-                  unloads=None, loads=None, swaps=None ):
+    def __init__( self, explicit_specification=None, purge=False, swaps=None,
+                  unloads=None, loads=None ):
         """Function to set the modules section for the script.
         :param list explicit_specification: List of commands to manage the
                                             modules explicitly.  default = None
         :param bool purge: Whether or not module purge will work on this
                            machine. default = False
+        :param OrderedDict swaps: Dictionary of modules to swap.  The current
+                                  module should be the key and the module to
+                                  replace it with should be the value.
+                                  default = None.
         :param list unloads: List of modules to unload for the script. 
                              default = None.
         :param list loads: List of modules to load for the script. 
                            default = None.
-        :param dict swaps: Dictionary of modules to swap.  The current module
-                           should be the key and the module to replace it with
-                           should be the value.  default = None.
         """
         self.explicit_specification = explicit_specification
         self.purge = purge
+        self.swaps = swaps
         self.unloads = unloads
         self.loads = loads
-        self.swaps = swaps
-
-        return self
 
     def reset( self ):
         self.__init__()
@@ -219,37 +221,36 @@ class scriptEnvironment( object ):
     @sets.setter
     def sets( self, value ):
         """Function to set the internal sets variable."""
-        if value != None and not isinstance( value, dict ):
-            error = "Sets specification must be of type 'dict' and not " +\
-                    "{}.".format( type( value ) )
+        if value != None and not isinstance( value, OrderedDict ):
+            error = "Sets specification must be of type 'OrderedDict' and " +\
+                    "not {}.".format( type( value ) )
             raise TypeError( error )
-        self._sets( value )
+        self._sets = value
 
     @property
     def unsets( self ):
         return self._unsets
 
     @unsets.setter
-    def unsets_setter( self, value ):
+    def unsets( self, value ):
         """Function to set the internal unsets variable."""
         if value != None and not isinstance( value, list ):
             error = "Unsets specification must be of type 'list' and not " +\
                     "{}.".format( type( value ) )
             raise TypeError( error )
-        self._unsets( value )
+        self._unsets = value
 
     def __init__( self, sets=None, unsets=None ):
         """Function to set and unset the environment variables.
-        :param dict sets: Dictionary of environment variables to set where the
-                          key is the environment variable and the value is the
-                          value assigned to that variable.  default = None
+        :param OrderedDict sets: Dictionary of environment variables to set
+                                 where the key is the environment variable and
+                                 the value is the value assigned to that
+                                 variable.  default = None
         :param list unsets: List of environment variables to unset for the
                             script.  default = None
         """
         self.sets = sets
         self.unsets = unsets
-
-        return self
 
     def reset( self ):
         self.__init__()
@@ -265,7 +266,7 @@ class scriptCommands( object ):
     @commands.setter
     def commands( self, value ):
         """Function to set the internal commands variable."""
-        if not isinstance( value, list ):
+        if value != None and not isinstance( value, list ):
             error = "Commands must be of type 'list' and not " +\
                     "{}.".format( type( value ) )
             raise TypeError( error )
@@ -277,8 +278,6 @@ class scriptCommands( object ):
                               in order.  default = None
         """
         self.commands = commands
-
-        return self
 
     def reset( self ):
         self.__init__()
@@ -308,8 +307,6 @@ class scriptPost( object ):
         """
         self.commands = commands
 
-        return self
-
     def reset( self ):
         self.__init__()
 
@@ -324,7 +321,7 @@ class scriptDetails( object ):
     @name.setter
     def name( self, value ):
         if not isinstance( value, unicode ):
-            error = "Name must be of type 'str' and not " +\
+            error = "Name must be of type 'unicode' and not " +\
                     "{}.".format( type( value ) )
             raise TypeError( error )
         self._name = value
@@ -336,7 +333,7 @@ class scriptDetails( object ):
     @script_type.setter
     def script_type( self, value ):
         if not isinstance( value, unicode ):
-            error = "Script type must be of type 'str' and not " +\
+            error = "Script type must be of type 'unicode' and not " +\
                     "{}.".format( type( value ) )
             raise TypeError( error )
         self._script_type = value
@@ -348,7 +345,7 @@ class scriptDetails( object ):
     @user.setter
     def user( self, value ):
         if not isinstance( value, unicode ):
-            error = "User must be of type 'str' and not " +\
+            error = "User must be of type 'unicode' and not " +\
                     "{}.".format( type( value ) )
             raise TypeError( error )
         self._user = value
@@ -360,7 +357,7 @@ class scriptDetails( object ):
     @group.setter
     def group( self, value ):
         if not isinstance( value, unicode ):
-            error = "Group must be of type 'str' and not " +\
+            error = "Group must be of type 'unicode' and not " +\
                     "{}.".format( type( value ) )
             raise TypeError( error )
         self._group = value
@@ -375,6 +372,9 @@ class scriptDetails( object ):
             error = "Owner permissions must be of type 'int' and not " +\
                     "{}.".format( type( value ) )
             raise TypeError( error )
+        if value < 0 or value > 7:
+            error = "Owner permissions must be between 0 and 7, inclusive."
+            raise ValueError( error )
         self._owner_perms = value
 
     @property
@@ -387,6 +387,9 @@ class scriptDetails( object ):
             error = "Group permissions must be of type 'int' and not " +\
                     "{}.".format( type( value ) )
             raise TypeError( error )
+        if value < 0 or value > 7:
+            error = "Group permissions must be between 0 and 7, inclusive."
+            raise ValueError( error )
         self._group_perms = value
 
     @property
@@ -394,23 +397,26 @@ class scriptDetails( object ):
         return self._world_perms
 
     @world_perms.setter
-    def world_pers( self, value ):
+    def world_perms( self, value ):
         if not isinstance( value, int ):
             error = "World permissions must be of type 'int' and not " +\
                     "{}.".format( type( value ) )
             raise TypeError( error )
+        if value < 0 or value > 7:
+            error = "World permissions must be between 0 and 7, inclusive."
+            raise ValueError( error )
         self._world_perms = value
 
     def __init__( self, 
                   name="_".join( datetime.datetime.now().__str__().split() ),
                   script_type="bash",
-                  user=os.environ['USER'],
-                  group="",
+                  user=unicode( os.environ['USER'] ),
+                  group=unicode( os.environ['USER'] ),
                   owner_perms=7,
                   group_perms=5,
                   world_perms=0 ):
         """Function to set the final details of the script.
-        :param string script_name: Specify a name for the script. 
+        :param string name: Specify a name for the script. 
                                    default = 'pav_(date)_(time)'
         :param string script_type: Type of script, determining an appropriate
                                    file ending.  default = bash
@@ -432,8 +438,6 @@ class scriptDetails( object ):
         self.owner_perms = owner_perms
         self.group_perms = group_perms
         self.world_perms = world_perms
-
-        return self
 
     def reset( self ):
         self.__init__()
@@ -530,7 +534,9 @@ class scriptComposer( object ):
 
         self._details = scriptDetails()
 
-        return self
+    def reset( self ):
+        """Function to reset all variables to the default."""
+        self.__init__()
 
     def writeScript( self, dirname=os.getcwd() ):
         """Function to write the script out to file.
@@ -539,7 +545,7 @@ class scriptComposer( object ):
                              file or False otherwise.
         """
 
-        file_name = self.details.script_name
+        file_name = self.details.name
 
         if not os.path.isabs( file_name ):
             file_name = os.path.join( dirname, file_name )
@@ -559,69 +565,130 @@ class scriptComposer( object ):
 
         script_file = open( file_name, 'w' )
 
+        lineList = []
+
         if self.header.shell_path != None:
-            script_file.write( self.header.shell_path )
+            lineList.append( "#!{}\n".format( self.header.shell_path ) )
 
         if self.header.scheduler_macros != None:
             for keyname in self.header.scheduler_macros.keys():
                 macro_str = "# " + keyname + " " + \
-                            self.header.scheduler_macros[keyname]
-                script_file.write( macro_str )
+                            self.header.scheduler_macros[keyname] + "\n"
+                lineList.append( macro_str )
 
-        script_file.write("")
+        lineList.append( "\n" )
 
         if self.modules.explicit_specification != None:
-            for module_spec in self.modules.explicit_specification:
-                script_file.write( module_spec )
+            for i in range(0, len( self.modules.explicit_specification ) ):
+                self.modules.explicit_specification[i] = \
+                                  self.modules.explicit_specification[i] + "\n"
+            lineList.extend( self.modules.explicit_specification )
         else:
             if self.modules.purge:
-                script_file.write( "module purge" )
+                lineList.append( "module purge\n" )
 
             if self.modules.swaps != None:
                 for mod_out, mod_in in self.modules.swaps.items():
-                    script_file.write( "module swap {} {}".format( mod_out,
-                                                                     mod_in ) )
+                    lineList.append( "module swap {} {}\n".format(
+                                                            mod_out, mod_in ) )
 
             if self.modules.unloads != None:
                 for module in self.modules.unloads:
-                    script_file.write( "module unload {}".format( module ) )
+                    lineList.append( "module unload {}\n".format( module ) )
 
             if self.modules.loads != None:
                 for module in self.modules.loads:
-                    script_file.write( "module load {}".format( module ) )
+                    lineList.append( "module load {}\n".format( module ) )
 
-        script_file.write("")
+        lineList.append( "\n" )
 
         if self.environment.unsets != None:
             for unset in self.environment.unsets:
-                script_file.write( "unset {}".format( unset ) )
+                lineList.append( "unset {}\n".format( unset ) )
 
         if self.environment.sets != None:
-            for var, val in self.environment.sets:
-                script_file.write( "export {}={}".format( var, val ) )
+            for var, val in self.environment.sets.items():
+                lineList.append( "export {}={}\n".format( var, val ) )
 
-        script_file.write("")
+        lineList.append( "\n" )
 
         if self.commands.commands != None:
-            for command in self.commands.commands:
-                script_file.write( command )
+            for i in range( 0, len( self.commands.commands ) ):
+                self.commands.commands[i] = self.commands.commands[i] + "\n"
+            lineList.extend( self.commands.commands )
 
-        script_file.write("")
+        lineList.append( "\n" )
 
         if self.post.commands != None:
-            for command in self.post.commands:
-                script_file.write( command )
+            for i in range( 0, len( self.post.commands ) ):
+                self.post.commands[i] = self.post.commands[i] + "\n"
+            lineList.extend( self.post.commands )
+
+        script_file.writelines( lineList )
 
         scriptfno = script_file.fileno()
 
-        os.fchmod( scriptfno,
-                   100 * self.details.owner_perms +
-                    10 * self.details.group_perms +
-                         self.details.world_perms )
+        permission_val = 100 * self.details.owner_perms +\
+                          10 * self.details.group_perms +\
+                               self.details.world_perms
 
-        uid = os.getuid()
+        fperm_val = 0
 
-        gid = pwd.getpwnam( os.environ['USER'] ).pw_gid
+        if self.details.owner_perms in [ 1, 3, 5, 7 ]:
+            fperm_val += stat.S_IXUSR
+
+        if self.details.owner_perms in [ 2, 3, 6, 7 ]:
+            fperm_val += stat.S_IWUSR
+
+        if self.details.owner_perms in [ 4, 5, 6, 7 ]:
+            fperm_val += stat.S_IRUSR
+
+        if self.details.group_perms in [ 1, 3, 5, 7 ]:
+            fperm_val += stat.S_IXGRP
+
+        if self.details.group_perms in [ 2, 3, 6, 7 ]:
+            fperm_val += stat.S_IWGRP
+
+        if self.details.group_perms in [ 4, 5, 6, 7 ]:
+            fperm_val += stat.S_IRGRP
+
+        if self.details.world_perms in [ 1, 3, 5, 7 ]:
+            fperm_val += stat.S_IXOTH
+
+        if self.details.world_perms in [ 2, 3, 6, 7 ]:
+            fperm_val += stat.S_IWOTH
+
+        if self.details.world_perms in [ 4, 5, 6, 7 ]:
+            fperm_val += stat.S_IROTH
+
+        os.fchmod( scriptfno, fperm_val )
+
+        if self.details.user == None:
+            self.details.user = os.environ['USER']
+
+        try:
+            uid = pwd.getpwnam( self.details.user ).pw_uid
+        except KeyError:
+            error = "Username {} not found on this machine.".format(
+                                                            self.details.user )
+            raise ValueError( error )
+
+        if self.details.group == None:
+            self.details.group = os.environ['USER'].decode()
+
+        try:
+            grp_st = grp.getgrnam( self.details.group )
+        except KeyError:
+            error = "Group {} not found on this machine.".format(
+                                                           self.details.group )
+            raise ValueError( error )
+
+        if self.details.user not in grp_st.gr_mem:
+            error = "User {} is not in group {}.".format( self.details.user,
+                                                          grp_st.gr_name )
+            raise ValueError( error )
+
+        gid = grp_st.gr_gid
 
         os.fchown( scriptfno, uid, gid )
 
