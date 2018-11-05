@@ -73,7 +73,7 @@ class scriptHeader( object ):
     @shell_path.setter
     def shell_path( self, value ):
         """Function to set the value of the internal shell path variable."""
-        if value != None and not isinstance(value, unicode):
+        if value is not None and not isinstance(value, unicode):
             error = "Shell Path must be of type 'str', not {}".format(
                     type( value ) )
             raise TypeError( error )
@@ -92,7 +92,7 @@ class scriptHeader( object ):
         """Function to set the value of the internal scheduler macros
         variable.
         """
-        if value != None and not isinstance(value, OrderedDict):
+        if value is not None and not isinstance(value, OrderedDict):
             error = "Scheduler Macro must be of type 'OrderedDict', not " +\
                     "{}".format( type( value ) )
             raise TypeError( error )
@@ -128,7 +128,7 @@ class scriptModules( object ):
     @explicit_specification.setter
     def explicit_specification( self, value ):
         """Function to set the explicit specification internal variable."""
-        if value != None and not isinstance( value, list ):
+        if value is not None and not isinstance( value, list ):
             error = "Explicit specification must be of type 'list' and not " +\
                     "{}.".format( type( value ) )
             raise TypeError( error )
@@ -154,7 +154,7 @@ class scriptModules( object ):
     @swaps.setter
     def swaps( self, value ):
         """Function to set the swaps internal variable."""
-        if value != None and not isinstance( value, OrderedDict):
+        if value is not None and not isinstance( value, OrderedDict):
             error = "Swaps specification must be of type 'OrderedDict' and " +\
                     "not {}.".format( type( value ) )
             raise TypeError( error )
@@ -167,7 +167,7 @@ class scriptModules( object ):
     @unloads.setter
     def unloads( self, value ):
         """Function to set the unloads internal variable."""
-        if value != None and not isinstance( value, list ):
+        if value is not None and not isinstance( value, list ):
             error = "Unloads specification must be of type 'list' and not " +\
                     "{}.".format( type( value ) )
             raise TypeError( error )
@@ -180,7 +180,7 @@ class scriptModules( object ):
     @loads.setter
     def loads( self, value ):
         """Function to set the loads internal variable."""
-        if value != None and not isinstance( value, list ):
+        if value is not None and not isinstance( value, list ):
             error = "Loads specification must be of type 'list' and not " +\
                     "{}.".format( type( value ) )
             raise TypeError( error )
@@ -221,7 +221,7 @@ class scriptEnvironment( object ):
     @sets.setter
     def sets( self, value ):
         """Function to set the internal sets variable."""
-        if value != None and not isinstance( value, OrderedDict ):
+        if value is not None and not isinstance( value, OrderedDict ):
             error = "Sets specification must be of type 'OrderedDict' and " +\
                     "not {}.".format( type( value ) )
             raise TypeError( error )
@@ -234,7 +234,7 @@ class scriptEnvironment( object ):
     @unsets.setter
     def unsets( self, value ):
         """Function to set the internal unsets variable."""
-        if value != None and not isinstance( value, list ):
+        if value is not None and not isinstance( value, list ):
             error = "Unsets specification must be of type 'list' and not " +\
                     "{}.".format( type( value ) )
             raise TypeError( error )
@@ -266,7 +266,7 @@ class scriptCommands( object ):
     @commands.setter
     def commands( self, value ):
         """Function to set the internal commands variable."""
-        if value != None and not isinstance( value, list ):
+        if value is not None and not isinstance( value, list ):
             error = "Commands must be of type 'list' and not " +\
                     "{}.".format( type( value ) )
             raise TypeError( error )
@@ -293,7 +293,7 @@ class scriptPost( object ):
     @commands.setter
     def commands( self, value ):
         """Function to set the internal commands variable."""
-        if value != None and not isinstance( value, list ):
+        if value is not None and not isinstance( value, list ):
             error = "Commands must be of type 'list' and not " +\
                     "{}.".format( type( value ) )
             raise TypeError( error )
@@ -567,10 +567,10 @@ class scriptComposer( object ):
 
         lineList = []
 
-        if self.header.shell_path != None:
+        if self.header.shell_path is not None:
             lineList.append( "#!{}\n".format( self.header.shell_path ) )
 
-        if self.header.scheduler_macros != None:
+        if self.header.scheduler_macros is not None:
             for keyname in self.header.scheduler_macros.keys():
                 macro_str = "# " + keyname + " " + \
                             self.header.scheduler_macros[keyname] + "\n"
@@ -578,7 +578,7 @@ class scriptComposer( object ):
 
         lineList.append( "\n" )
 
-        if self.modules.explicit_specification != None:
+        if self.modules.explicit_specification is not None:
             for i in range(0, len( self.modules.explicit_specification ) ):
                 self.modules.explicit_specification[i] = \
                                   self.modules.explicit_specification[i] + "\n"
@@ -587,39 +587,39 @@ class scriptComposer( object ):
             if self.modules.purge:
                 lineList.append( "module purge\n" )
 
-            if self.modules.swaps != None:
+            if self.modules.swaps is not None:
                 for mod_out, mod_in in self.modules.swaps.items():
                     lineList.append( "module swap {} {}\n".format(
                                                             mod_out, mod_in ) )
 
-            if self.modules.unloads != None:
+            if self.modules.unloads is not None:
                 for module in self.modules.unloads:
                     lineList.append( "module unload {}\n".format( module ) )
 
-            if self.modules.loads != None:
+            if self.modules.loads is not None:
                 for module in self.modules.loads:
                     lineList.append( "module load {}\n".format( module ) )
 
         lineList.append( "\n" )
 
-        if self.environment.unsets != None:
+        if self.environment.unsets is not None:
             for unset in self.environment.unsets:
                 lineList.append( "unset {}\n".format( unset ) )
 
-        if self.environment.sets != None:
+        if self.environment.sets is not None:
             for var, val in self.environment.sets.items():
                 lineList.append( "export {}={}\n".format( var, val ) )
 
         lineList.append( "\n" )
 
-        if self.commands.commands != None:
+        if self.commands.commands is not None:
             for i in range( 0, len( self.commands.commands ) ):
                 self.commands.commands[i] = self.commands.commands[i] + "\n"
             lineList.extend( self.commands.commands )
 
         lineList.append( "\n" )
 
-        if self.post.commands != None:
+        if self.post.commands is not None:
             for i in range( 0, len( self.post.commands ) ):
                 self.post.commands[i] = self.post.commands[i] + "\n"
             lineList.extend( self.post.commands )

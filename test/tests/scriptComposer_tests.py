@@ -26,8 +26,8 @@ class TestConfig( unittest.TestCase ):
         # Testing valid use cases.
 
         # Testing initialization.
-        self.assertEqual( testHeader.shell_path, None )
-        self.assertEqual( testHeader.scheduler_macros, None )
+        self.assertIsNone( testHeader.shell_path )
+        self.assertIsNone( testHeader.scheduler_macros )
 
         # Testing individual assignment.
         testPath = "/bin/bash"
@@ -51,8 +51,8 @@ class TestConfig( unittest.TestCase ):
                           testHeader.shell_path )
         self.assertEqual( scriptcomposer.scriptHeader().scheduler_macros,
                           testHeader.scheduler_macros )
-        self.assertEqual( testHeader.shell_path, None )
-        self.assertEqual( testHeader.scheduler_macros, None )
+        self.assertIsNone( testHeader.shell_path )
+        self.assertIsNone( testHeader.scheduler_macros )
 
         # Testing initialization assignment.
         testPath = "/usr/env/python"
@@ -96,11 +96,11 @@ class TestConfig( unittest.TestCase ):
         # Testing valid use cases.
 
         # Testing initialization
-        self.assertEqual( testModules.explicit_specification, None )
-        self.assertEqual( testModules.purge, False )
-        self.assertEqual( testModules.swaps, None )
-        self.assertEqual( testModules.unloads, None )
-        self.assertEqual( testModules.loads, None )
+        self.assertIsNone( testModules.explicit_specification )
+        self.assertFalse( testModules.purge )
+        self.assertIsNone( testModules.swaps )
+        self.assertIsNone( testModules.unloads )
+        self.assertIsNone( testModules.loads )
 
         # Testing individual assignment.
         testExplicit = [ 'module load doodle',
@@ -141,11 +141,11 @@ class TestConfig( unittest.TestCase ):
         # Testing reset.
         testModules.reset()
 
-        self.assertEqual( testModules.explicit_specification, None )
-        self.assertEqual( testModules.purge, False )
-        self.assertEqual( testModules.swaps, None )
-        self.assertEqual( testModules.unloads, None )
-        self.assertEqual( testModules.loads, None )
+        self.assertIsNone( testModules.explicit_specification )
+        self.assertFalse( testModules.purge )
+        self.assertIsNone( testModules.swaps )
+        self.assertIsNone( testModules.unloads )
+        self.assertIsNone( testModules.loads )
 
         # Testing init specification.
         # Start with use-case #1 where just the explicit specification is given
@@ -153,10 +153,10 @@ class TestConfig( unittest.TestCase ):
                                           explicit_specification=testExplicit )
 
         self.assertEqual( testModules.explicit_specification, testExplicit )
-        self.assertEqual( testModules.purge, False )
-        self.assertEqual( testModules.swaps, None )
-        self.assertEqual( testModules.unloads, None )
-        self.assertEqual( testModules.loads, None )
+        self.assertFalse( testModules.purge )
+        self.assertIsNone( testModules.swaps )
+        self.assertIsNone( testModules.unloads )
+        self.assertIsNone( testModules.loads )
 
         # Use-case #2 where everything but the explicit specification is given.
         testModules = scriptcomposer.scriptModules( purge=testPurge,
@@ -164,8 +164,8 @@ class TestConfig( unittest.TestCase ):
                                                     unloads=testUnloads,
                                                     loads=testLoads )
 
-        self.assertEqual( testModules.explicit_specification, None )
-        self.assertEqual( testModules.purge, testPurge )
+        self.assertIsNone( testModules.explicit_specification )
+        self.assertTrue( testModules.purge )
         self.assertEqual( testModules.swaps, testSwaps )
         self.assertEqual( testModules.unloads, testUnloads )
         self.assertEqual( testModules.loads, testLoads )
@@ -213,8 +213,8 @@ class TestConfig( unittest.TestCase ):
         # Testing initialization and defaults.
         testEnvironment = scriptcomposer.scriptEnvironment()
 
-        self.assertEqual( testEnvironment.sets, None )
-        self.assertEqual( testEnvironment.unsets, None )
+        self.assertIsNone( testEnvironment.sets )
+        self.assertIsNone( testEnvironment.unsets )
 
         # Testing individual setting of variables.
         testEnvironment.sets = testSets
@@ -226,8 +226,8 @@ class TestConfig( unittest.TestCase ):
         # Testing value reset.
         testEnvironment.reset()
 
-        self.assertEqual( testEnvironment.sets, None )
-        self.assertEqual( testEnvironment.unsets, None )
+        self.assertIsNone( testEnvironment.sets )
+        self.assertIsNone( testEnvironment.unsets )
 
         # Testing initialization assignment.
         testEnvironment = scriptcomposer.scriptEnvironment( sets=testSets,
@@ -261,7 +261,7 @@ class TestConfig( unittest.TestCase ):
         # Testing initialization and defaults.
         testCommand = scriptcomposer.scriptCommands()
 
-        self.assertEqual( testCommand.commands, None )
+        self.assertIsNone( testCommand.commands )
 
         # Testing individual assignment.
         testCommand.commands = testCommands
@@ -271,7 +271,7 @@ class TestConfig( unittest.TestCase ):
         # Testing reset.
         testCommand.reset()
 
-        self.assertEqual( testCommand.commands, None )
+        self.assertIsNone( testCommand.commands )
 
         # Testing initialization assignment.
         testCommand = scriptcomposer.scriptCommands( commands=testCommands )
@@ -299,7 +299,7 @@ class TestConfig( unittest.TestCase ):
         # Testing initialization and defaults.
         testPost = scriptcomposer.scriptPost()
 
-        self.assertEqual( testPost.commands, None )
+        self.assertIsNone( testPost.commands )
 
         # Testing individual assignment.
         testPost.commands = testCommands
@@ -309,7 +309,7 @@ class TestConfig( unittest.TestCase ):
         # Testing reset.
         testPost.reset()
 
-        self.assertEqual( testPost.commands, None )
+        self.assertIsNone( testPost.commands )
 
         # Testing initialization assignment.
         testPost = scriptcomposer.scriptPost( commands=testCommands )
@@ -449,34 +449,33 @@ class TestConfig( unittest.TestCase ):
         # Testing initialization defaults.
         testComposer = scriptcomposer.scriptComposer()
 
-        self.assertTrue( isinstance( testComposer.header,
-                                     scriptcomposer.scriptHeader ) )
-        self.assertTrue( isinstance( testComposer.modules,
-                                     scriptcomposer.scriptModules ) )
-        self.assertTrue( isinstance( testComposer.environment,
-                                     scriptcomposer.scriptEnvironment ) )
-        self.assertTrue( isinstance( testComposer.commands,
-                                     scriptcomposer.scriptCommands ) )
-        self.assertTrue( isinstance( testComposer.post,
-                                     scriptcomposer.scriptPost ) )
-        self.assertTrue( isinstance( testComposer.details,
-                                     scriptcomposer.scriptDetails ) )
+        self.assertIsInstance( testComposer.header,
+                                     scriptcomposer.scriptHeader )
+        self.assertIsInstance( testComposer.modules,
+                                     scriptcomposer.scriptModules )
+        self.assertIsInstance( testComposer.environment,
+                                     scriptcomposer.scriptEnvironment )
+        self.assertIsInstance( testComposer.commands,
+                                     scriptcomposer.scriptCommands )
+        self.assertIsInstance( testComposer.post, scriptcomposer.scriptPost )
+        self.assertIsInstance( testComposer.details,
+                                     scriptcomposer.scriptDetails )
 
-        self.assertEqual( testComposer.header.shell_path, None )
-        self.assertEqual( testComposer.header.scheduler_macros, None )
+        self.assertIsNone( testComposer.header.shell_path )
+        self.assertIsNone( testComposer.header.scheduler_macros )
 
-        self.assertEqual( testComposer.modules.explicit_specification, None )
-        self.assertEqual( testComposer.modules.purge, False )
-        self.assertEqual( testComposer.modules.swaps, None )
-        self.assertEqual( testComposer.modules.unloads, None )
-        self.assertEqual( testComposer.modules.loads, None )
+        self.assertIsNone( testComposer.modules.explicit_specification )
+        self.assertFalse( testComposer.modules.purge )
+        self.assertIsNone( testComposer.modules.swaps )
+        self.assertIsNone( testComposer.modules.unloads )
+        self.assertIsNone( testComposer.modules.loads )
 
-        self.assertEqual( testComposer.environment.unsets, None )
-        self.assertEqual( testComposer.environment.sets, None )
+        self.assertIsNone( testComposer.environment.unsets )
+        self.assertIsNone( testComposer.environment.sets )
 
-        self.assertEqual( testComposer.commands.commands, None )
+        self.assertIsNone( testComposer.commands.commands )
 
-        self.assertEqual( testComposer.post.commands, None )
+        self.assertIsNone( testComposer.post.commands )
 
         self.assertEqual( testComposer.details.script_type, "bash" )
         self.assertEqual( testComposer.details.user, os.environ['USER'] )
@@ -547,7 +546,7 @@ class TestConfig( unittest.TestCase ):
 
         self.assertEqual( testComposer.modules.explicit_specification,
                                                           testModulesExplicit )
-        self.assertEqual( testComposer.modules.purge, testModulesPurge )
+        self.assertTrue( testComposer.modules.purge )
         self.assertEqual( testComposer.modules.swaps, testModulesSwaps )
         self.assertEqual( testComposer.modules.unloads, testModulesUnloads )
         self.assertEqual( testComposer.modules.loads, testModulesLoads )
@@ -570,21 +569,21 @@ class TestConfig( unittest.TestCase ):
         # Testing reset.
         testComposer.reset()
 
-        self.assertEqual( testComposer.header.shell_path, None )
-        self.assertEqual( testComposer.header.scheduler_macros, None )
+        self.assertIsNone( testComposer.header.shell_path )
+        self.assertIsNone( testComposer.header.scheduler_macros )
 
-        self.assertEqual( testComposer.modules.explicit_specification, None )
-        self.assertEqual( testComposer.modules.purge, False )
-        self.assertEqual( testComposer.modules.swaps, None )
-        self.assertEqual( testComposer.modules.unloads, None )
-        self.assertEqual( testComposer.modules.loads, None )
+        self.assertIsNone( testComposer.modules.explicit_specification )
+        self.assertFalse( testComposer.modules.purge )
+        self.assertIsNone( testComposer.modules.swaps )
+        self.assertIsNone( testComposer.modules.unloads )
+        self.assertIsNone( testComposer.modules.loads )
 
-        self.assertEqual( testComposer.environment.unsets, None )
-        self.assertEqual( testComposer.environment.sets, None )
+        self.assertIsNone( testComposer.environment.unsets )
+        self.assertIsNone( testComposer.environment.sets )
 
-        self.assertEqual( testComposer.commands.commands, None )
+        self.assertIsNone( testComposer.commands.commands )
 
-        self.assertEqual( testComposer.post.commands, None )
+        self.assertIsNone( testComposer.post.commands )
 
         self.assertEqual( testComposer.details.script_type, "bash" )
         self.assertEqual( testComposer.details.user, os.environ['USER'] )
@@ -638,7 +637,7 @@ class TestConfig( unittest.TestCase ):
 
         self.assertEqual( testComposer.modules.explicit_specification,
                                                           testModulesExplicit )
-        self.assertEqual( testComposer.modules.purge, testModulesPurge )
+        self.assertTrue( testComposer.modules.purge )
         self.assertEqual( testComposer.modules.swaps, testModulesSwaps )
         self.assertEqual( testComposer.modules.unloads, testModulesUnloads )
         self.assertEqual( testComposer.modules.loads, testModulesLoads )
