@@ -99,7 +99,7 @@ def modify_dict( master_dict, replacement_key, replacement_val ):
     if not isinstance( master_dict, dict ) or \
        ( isinstance( master_dict, dict ) and \
          len( master_dict ) == 1 and \
-         master_dict.vals() == [ null ] ):
+         master_dict.values() == [ None ] ):
         return None
     elif not isinstance( replacement_val, dict ) and not isinstance( replacement_val, list ):
         master_dict[replacement_key] = replacement_val
@@ -197,14 +197,11 @@ class RunTestSuite(IPlugin):
     """
 
     def __init__(self):
-        #print sys.path
         my_name = self.__class__.__name__
         self.logger = logging.getLogger('pav.' + my_name)
         self.logger.info('created instance of plugin: %s' % my_name)
 
     def job_dispatcher(self, my_te, in_args):
-        #print "dispatch " + my_te.get_id() + " : "
-        #print my_te.this_dict[my_te.get_id()]
         params = my_te.get_values()
         js_params = json.dumps(params)
         uid = my_te.get_id()
@@ -228,7 +225,6 @@ class RunTestSuite(IPlugin):
                                help="submit again after delaying this many <secs> - NOT WORKING YET!")
         parser_rts.add_argument('-m', "--ldms",
                                 help="start LDMS metrics. Within Moab allocation only", action="store_true")
-        #parser_rts.add_argument('-p', nargs=1, metavar='<val>', help="fill host to this percent usage (DRM specific)")
         parser_rts.add_argument('-s', "--serial", help="run jobs serially, default mode is parallel", action="store_true")
         parser_rts.add_argument('-w', nargs=1, metavar='<count>',
                                 help="don't submit if <count> of my jobs running or queued (DRM specific)")
@@ -266,10 +262,6 @@ class RunTestSuite(IPlugin):
 
         if args['verbose']:
             print "Command args -> %s" % args
-            #print "TestSuite search path -> " + os.path.dirname(
-            #    os.path.realpath(args['testSuite']))
-            # print "User test suite:"
-            # print "  %s" % utc
 
         # get the "merged" test stanza for each test in the test suite
         my_test_suite = tc.get_effective_config_file()
@@ -288,6 +280,15 @@ class RunTestSuite(IPlugin):
                     modify_dict( my_test_suite, custom_dict.keys()[0], custom_dict.values()[0] )
                 else:
                     my_test_suite[ custom.split('=')[0] ] = custom.split('=')[1]
+
+        # Remove all non-test entries
+        removals = []
+        for test in my_test_suite:
+            if my_test_suite[test] == None:
+                removals.append(test)
+
+        for test in removals:
+            del my_test_suite[test]
 
         # if we are running in debug mode we are then done because we do not need
         # to submit anything
@@ -347,8 +348,6 @@ class RunTestSuite(IPlugin):
                             te.prep_ldms()
 
                         for _ in range(te.get_run_count()):
-                            #print "dispatch with:"
-                            #print test_entry.get_id()
                             self.job_dispatcher(test_entry, args)
 
             submit_again = RunTestSuite.submit_delay(args)

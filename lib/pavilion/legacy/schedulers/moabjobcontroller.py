@@ -63,9 +63,7 @@ import subprocess
 import re
 
 #from PAV.modules.basejobcontroller import JobController
-#from PAV.modules.helperutilities import which
 from basejobcontroller import JobController
-from helperutilities import which
 
 
 class MoabJobController(JobController):
@@ -111,10 +109,12 @@ class MoabJobController(JobController):
 
     @staticmethod
     def is_moab_system():
-        #if os.path.isfile("/etc/toss-release"):
-        if which("mdiag") is not None:
-            return True
-        return False
+        with open(os.devnull, 'w') as FNULL:
+            try:
+                subprocess.check_call(['mdiag'], stdout=FNULL)
+                return True
+            except subprocess.CalledProcessError:
+                return False
 
     # .. some setup and let the msub command fly ...
     def start(self):
