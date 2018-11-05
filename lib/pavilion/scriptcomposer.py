@@ -65,6 +65,18 @@ from collections import OrderedDict
 class scriptHeader( object ):
     """Class to serve as a struct for the script header."""
 
+    def __init__( self, shell_path=None, scheduler_macros=None ):
+        """Function to set the header values for the script.
+        :param string shell_path: Shell path specification.  Typically
+                                  '/bin/bash'.  default = None.
+        :param OrderedDict scheduler_macros: Scheduler macros.  If there are
+                                             elements that are only one entry,
+                                             the value will just be None.
+                                             default = None.
+        """
+        self.shell_path = shell_path
+        self.scheduler_macros = scheduler_macros
+
     @property
     def shell_path( self ):
         """Function to return the value of the internal shell path variable."""
@@ -99,18 +111,6 @@ class scriptHeader( object ):
 
         self._scheduler_macros = value
 
-    def __init__( self, shell_path=None, scheduler_macros=None ):
-        """Function to set the header values for the script.
-        :param string shell_path: Shell path specification.  Typically
-                                  '/bin/bash'.  default = None.
-        :param OrderedDict scheduler_macros: Scheduler macros.  If there are
-                                             elements that are only one entry,
-                                             the value will just be None.
-                                             default = None.
-        """
-        self.shell_path = shell_path
-        self.scheduler_macros = scheduler_macros
-
     def reset( self ):
         """Function to reset the values of the internal variables back to
         None.
@@ -120,6 +120,28 @@ class scriptHeader( object ):
 
 class scriptModules( object ):
     """Class to serve as a struct for the script modules."""
+
+    def __init__( self, explicit_specification=None, purge=False, swaps=None,
+                  unloads=None, loads=None ):
+        """Function to set the modules section for the script.
+        :param list explicit_specification: List of commands to manage the
+                                            modules explicitly.  default = None
+        :param bool purge: Whether or not module purge will work on this
+                           machine. default = False
+        :param OrderedDict swaps: Dictionary of modules to swap.  The current
+                                  module should be the key and the module to
+                                  replace it with should be the value.
+                                  default = None.
+        :param list unloads: List of modules to unload for the script. 
+                             default = None.
+        :param list loads: List of modules to load for the script. 
+                           default = None.
+        """
+        self.explicit_specification = explicit_specification
+        self.purge = purge
+        self.swaps = swaps
+        self.unloads = unloads
+        self.loads = loads
 
     @property
     def explicit_specification( self ):
@@ -186,33 +208,23 @@ class scriptModules( object ):
             raise TypeError( error )
         self._loads = value
 
-    def __init__( self, explicit_specification=None, purge=False, swaps=None,
-                  unloads=None, loads=None ):
-        """Function to set the modules section for the script.
-        :param list explicit_specification: List of commands to manage the
-                                            modules explicitly.  default = None
-        :param bool purge: Whether or not module purge will work on this
-                           machine. default = False
-        :param OrderedDict swaps: Dictionary of modules to swap.  The current
-                                  module should be the key and the module to
-                                  replace it with should be the value.
-                                  default = None.
-        :param list unloads: List of modules to unload for the script. 
-                             default = None.
-        :param list loads: List of modules to load for the script. 
-                           default = None.
-        """
-        self.explicit_specification = explicit_specification
-        self.purge = purge
-        self.swaps = swaps
-        self.unloads = unloads
-        self.loads = loads
-
     def reset( self ):
         self.__init__()
 
 class scriptEnvironment( object ):
     """Class to contain the environment variable changes for the script."""
+
+    def __init__( self, sets=None, unsets=None ):
+        """Function to set and unset the environment variables.
+        :param OrderedDict sets: Dictionary of environment variables to set
+                                 where the key is the environment variable and
+                                 the value is the value assigned to that
+                                 variable.  default = None
+        :param list unsets: List of environment variables to unset for the
+                            script.  default = None
+        """
+        self.sets = sets
+        self.unsets = unsets
 
     @property
     def sets( self ):
@@ -240,37 +252,12 @@ class scriptEnvironment( object ):
             raise TypeError( error )
         self._unsets = value
 
-    def __init__( self, sets=None, unsets=None ):
-        """Function to set and unset the environment variables.
-        :param OrderedDict sets: Dictionary of environment variables to set
-                                 where the key is the environment variable and
-                                 the value is the value assigned to that
-                                 variable.  default = None
-        :param list unsets: List of environment variables to unset for the
-                            script.  default = None
-        """
-        self.sets = sets
-        self.unsets = unsets
-
     def reset( self ):
         self.__init__()
 
 
 class scriptCommands( object ):
     """Class to contain the script commands."""
-
-    @property
-    def commands( self ):
-        return self._commands
-
-    @commands.setter
-    def commands( self, value ):
-        """Function to set the internal commands variable."""
-        if value is not None and not isinstance( value, list ):
-            error = "Commands must be of type 'list' and not " +\
-                    "{}.".format( type( value ) )
-            raise TypeError( error )
-        self._commands = value
 
     def __init__( self, commands=None ):
         """Function to specify the commands for the script.
@@ -279,13 +266,6 @@ class scriptCommands( object ):
         """
         self.commands = commands
 
-    def reset( self ):
-        self.__init__()
-
-
-class scriptPost( object ):
-    """Class to contain the post-script commands."""
-
     @property
     def commands( self ):
         return self._commands
@@ -298,6 +278,13 @@ class scriptPost( object ):
                     "{}.".format( type( value ) )
             raise TypeError( error )
         self._commands = value
+
+    def reset( self ):
+        self.__init__()
+
+
+class scriptPost( object ):
+    """Class to contain the post-script commands."""
 
     def __init__( self, commands=None ):
         """Function to specify the commands to run at the end of the script
@@ -307,12 +294,57 @@ class scriptPost( object ):
         """
         self.commands = commands
 
+    @property
+    def commands( self ):
+        return self._commands
+
+    @commands.setter
+    def commands( self, value ):
+        """Function to set the internal commands variable."""
+        if value is not None and not isinstance( value, list ):
+            error = "Commands must be of type 'list' and not " +\
+                    "{}.".format( type( value ) )
+            raise TypeError( error )
+        self._commands = value
+
     def reset( self ):
         self.__init__()
 
 
 class scriptDetails( object ):
     """Class to contain the final details of the script."""
+
+    def __init__( self, 
+                  name="_".join( datetime.datetime.now().__str__().split() ),
+                  script_type="bash",
+                  user=unicode( os.environ['USER'] ),
+                  group=unicode( os.environ['USER'] ),
+                  owner_perms=7,
+                  group_perms=5,
+                  world_perms=0 ):
+        """Function to set the final details of the script.
+        :param string name: Specify a name for the script. 
+                                   default = 'pav_(date)_(time)'
+        :param string script_type: Type of script, determining an appropriate
+                                   file ending.  default = bash
+        :param string user: Name of user to set as owner of the file. 
+                            default = current user
+        :param string group: Name of group to set as owner of the file. 
+                             default = user default group
+        :param int owner_perms: Value for owner's permission on the file (see
+                                `man chmod`).  default = 7
+        :param int group_perms: Value for group's permission on the file (see
+                                `man chmod`).  default = 5
+        :param int world_perms: Value for the world's permission on the file
+                                (see `man chmod`).  default = 0
+        """
+        self.name = name
+        self.script_type = script_type
+        self.user = user
+        self.group = group
+        self.owner_perms = owner_perms
+        self.group_perms = group_perms
+        self.world_perms = world_perms
 
     @property
     def name( self ):
@@ -407,43 +439,28 @@ class scriptDetails( object ):
             raise ValueError( error )
         self._world_perms = value
 
-    def __init__( self, 
-                  name="_".join( datetime.datetime.now().__str__().split() ),
-                  script_type="bash",
-                  user=unicode( os.environ['USER'] ),
-                  group=unicode( os.environ['USER'] ),
-                  owner_perms=7,
-                  group_perms=5,
-                  world_perms=0 ):
-        """Function to set the final details of the script.
-        :param string name: Specify a name for the script. 
-                                   default = 'pav_(date)_(time)'
-        :param string script_type: Type of script, determining an appropriate
-                                   file ending.  default = bash
-        :param string user: Name of user to set as owner of the file. 
-                            default = current user
-        :param string group: Name of group to set as owner of the file. 
-                             default = user default group
-        :param int owner_perms: Value for owner's permission on the file (see
-                                `man chmod`).  default = 7
-        :param int group_perms: Value for group's permission on the file (see
-                                `man chmod`).  default = 5
-        :param int world_perms: Value for the world's permission on the file
-                                (see `man chmod`).  default = 0
-        """
-        self.name = name
-        self.script_type = script_type
-        self.user = user
-        self.group = group
-        self.owner_perms = owner_perms
-        self.group_perms = group_perms
-        self.world_perms = world_perms
-
     def reset( self ):
         self.__init__()
 
 
 class scriptComposer( object ):
+
+    def __init__( self ):
+        """Function to initialize the class and the default values for all of
+        the variables.
+        """
+
+        self._header = scriptHeader()
+
+        self._modules = scriptModules()
+
+        self._environment = scriptEnvironment()
+
+        self._commands = scriptCommands()
+
+        self._post = scriptPost()
+
+        self._details = scriptDetails()
 
     @property
     def header( self ):
@@ -516,23 +533,6 @@ class scriptComposer( object ):
                         type( details_obj ) ) + " to the details variable."
             raise TypeError( error )
         self._details = details_obj
-
-    def __init__( self ):
-        """Function to initialize the class and the default values for all of
-        the variables.
-        """
-
-        self._header = scriptHeader()
-
-        self._modules = scriptModules()
-
-        self._environment = scriptEnvironment()
-
-        self._commands = scriptCommands()
-
-        self._post = scriptPost()
-
-        self._details = scriptDetails()
 
     def reset( self ):
         """Function to reset all variables to the default."""
