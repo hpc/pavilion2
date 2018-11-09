@@ -157,41 +157,63 @@ class ModuleWrapper(IPlugin):
         if cls._MODULE_SYSTEM is None:
             raise ModuleSystemError("Could not identify a module system.")
 
-    def get_module_loads(self, system_info):
-        """ Returns a list of module load commands to run.
-        :param system_info: The sys variable dictionary, which should contain relevant information
-        about the system."""
-
-        return []
-
-    def get_module_environment(self, system_info):
-        """Returns a dictionary of environment variables to set. Note that environment variables
-        set in this way are done in sequence within a bash script, and can thus contain
-        references to other known set variables and themselves, such as {'PATH', '${PATH}:/tmp/".
+    def load(self, system_info):
+        """Generates the commands and environment variables needed to load the module.
         :param system_info: The sys variable dictionary, which should contain relevant information
         about the system.
+        returns: ([commands], {env})
         """
 
-        return {}
+        raise NotImplementedError
+
+    def remove(self, system_info):
+        """Generates the commands and environment variables needed to remove the module.
+        :param system_info: The sys variable dictionary, which should contain relevant information
+        about the system.
+        returns: ([commands], {env})
+        """
+
+        raise NotImplementedError
+
+    def swap(self, old_module, system_info):
+        """Generates the commands and environment variables needed to swap the given module for
+        this one.
+        :param str old_module: The module to replace with this one.
+        :param dict system_info: The sys variable dictionary, which should contain relevant
+        information
+        about the system.
+        returns: ([commands], {env})
+        """
+
+        raise NotImplementedError
 
 
-class ModuleLoader(ModuleWrapper):
+class DefaultModuleLoader(ModuleWrapper):
 
     def __init__(self, name, version):
         """A basic wrapper for wrapping otherwise unwrapped modules.
         :param name: The name of the module to load.
         :param version: The version of the module to load.
         """
-        super(ModuleLoader).__init__(name, '<unwrapped>', version=version)
+        super(DefaultModuleLoader).__init__(name, '<unwrapped>', version=version)
 
-    def get_module_loads(self, system_info):
-        """In this case, simply load the module by name and version."""
+    def load(self, system_info):
+        """In the basic case, simply load the module by name and version."""
 
-        return ['{s._MODULE_CMD} load {s.module}'.format(s=self)]
+        return ['{s._MODULE_CMD} load {s.module}'.format(s=self)], {}
 
-    def get_module_environment(self, system_info):
-        pass
+    def swap(self, old_module, system_info):
+        """Perform a simple module swap."""
 
+        swap_cmd = '{s._MODULE_CMD} swap {old_module} {s.module}'\
+                   .format(s=self, old_module=old_module)
+
+        return [swap_cmd], {}
+
+    def remove(self, system_info):
+        """Remove this module from the environment."""
+
+    # These should do nothing, as this isn't part of the module plugin system.
     def activate(self):
         pass
 
