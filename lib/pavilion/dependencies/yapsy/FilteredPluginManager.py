@@ -1,4 +1,3 @@
-#!/usr/bin/python
 # -*- coding: utf-8; tab-width: 4; indent-tabs-mode: t; python-indent: 4 -*-
 
 """
@@ -39,11 +38,11 @@ class FilteredPluginManager(PluginManagerDecorator):
 
 	def __init__(self, 
 				 decorated_manager=None,
-				 categories_filter={"Default":IPlugin}, 
+				 categories_filter=None, 
 				 directories_list=None, 
 				 plugin_info_ext="yapsy-plugin"):
-		"""
-		"""
+		if categories_filter is None:
+			categories_filter = {"Default":IPlugin}
 		# Create the base decorator class
 		PluginManagerDecorator.__init__(self,decorated_manager,
 										categories_filter,

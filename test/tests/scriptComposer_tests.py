@@ -360,8 +360,9 @@ class TestConfig( unittest.TestCase ):
         self.assertEqual( testLines[0], "#!/usr/env/python" )
         self.assertEqual( testLines[1], "# -G pam" )
         self.assertEqual( testLines[2], "# -N fam" )
+        self.assertEqual( testLines[3], "" )
 
-        self.assertEqual( len(testLines), 3 )
+        self.assertEqual( len(testLines), 4 )
 
         testStat = os.stat( os.path.join(testDir, testDetailsName + '.batch') )
         expectedStat=stat.S_IFREG + stat.S_IRWXU + stat.S_IRGRP + stat.S_IWGRP
@@ -427,8 +428,9 @@ class TestConfig( unittest.TestCase ):
         self.assertEqual( testLines[0], "#!/usr/env/python" )
         self.assertEqual( testLines[1], "# -G pam" )
         self.assertEqual( testLines[2], "# -N fam" )
+        self.assertEqual( testLines[3], "" )
 
-        self.assertEqual( len(testLines), 3 )
+        self.assertEqual( len(testLines), 4 )
 
         testStat = os.stat( os.path.join(testDir, testDetailsName + '.batch') )
         expectedStat=stat.S_IFREG + stat.S_IRWXU + stat.S_IRGRP + stat.S_IWGRP

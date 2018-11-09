@@ -65,7 +65,7 @@ def get_module_wrapper(name, version):
     return ModuleWrapper(name, version)
 
 
-class ModuleWrapper(IPlugin):
+class ModuleWrapper(IPlugin.IPlugin):
 
     _MODULE_SYSTEM = None
     _MODULE_CMD = None

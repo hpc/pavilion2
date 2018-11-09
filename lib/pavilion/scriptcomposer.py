@@ -57,7 +57,7 @@ import os, datetime, grp, pwd, stat
 from collections import OrderedDict
 from pavilion.module_actions import ModuleAction
 import pavilion.module_wrapper
-from yapsy import PluginManager
+from yapsy.PluginManager import PluginManager
 
 """ Class to allow for scripts to be written for other modules.
     Typically, this will be used to write bash or batch scripts. 
@@ -466,7 +466,7 @@ class scriptComposer( object ):
         """Function to add a line unadulterated to the script lines.
         :param str command: String representing the whole command to add.
         """
-        if not isinstance( command, str ) or not isinstance( command, list ):
+        if not isinstance( command, str ) and not isinstance( command, list ):
             error="Command must be of type 'str' or 'list' and not {},".format(
                   command ) + " which is of type {}.".format( type( command ) )
             raise TypeError( error )
