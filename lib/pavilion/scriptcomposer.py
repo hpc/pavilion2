@@ -53,13 +53,82 @@
 #
 #  ###################################################################
 
-from __future__ import unicode_literals
 import os, datetime, grp, pwd, stat
 from collections import OrderedDict
+from pavilion.module_actions import ModuleAction
+import pavilion.module_wrapper
+from yapsy import PluginManager
 
 """ Class to allow for scripts to be written for other modules.
     Typically, this will be used to write bash or batch scripts. 
 """
+
+def get_action( mod_line ):
+    """Function to return the type of action requested by the user for a
+       given module, using the pavilion configuration syntax.  The string can
+       be in one of three formats:
+       1) '[mod-name]' - The module 'mod-name' is to be loaded.
+       2) '[old-mod-name]->[mod-name]' - The module 'old-mod-name' is to be
+                                         swapped out for the module 'mod-name'.
+       3) '-[mod-name]' - The module 'mod-name' is to be unlaoded.
+       :param str mod_line: String provided by the user in the config.
+       :return object action: Return the appropriate object as provided by
+                              the module_actions file.
+    """
+    if '->' in mod_line:
+        return 'swap'
+    elif mod_line.startswith( '-' ):
+        return 'unload'
+    else:
+        return 'load'
+
+def get_name( mod_line ):
+    """Function to return the name of the module based on the config string
+       provided by the user.  The string can be in one of three formats:
+       1) '[mod-name]' - The module 'mod-name' is the name returned.
+       2) '[old-mod-name]->[mod-name]' - The module 'mod-name' is returned.
+       3) '-[mod-name]' - The module 'mod-name' is the name returned.
+       :param str mod_line: String provided by the user in the config.
+       :return str modn_name: The name of the module to be returned.
+    """
+    if '->' in mod_line:
+        return mod_line[mod_line.find('->')+2,]
+    elif mod_line.startswith('-'):
+        return mod_line[1:]
+    else:
+        return mod_line
+
+def get_old_swap( mod_line ):
+    """Function to return the old module name in the case of a swap.
+       :param str mod_line: String provided by the user in the config.
+       :return str mod_old: Name of module to be swapped out.
+    """
+    return mod_line[:mod_line.find('->')-1]
+
+
+class moduleManager( PluginManager ):
+    """Class to inherit from and manage the plugin manager for the module
+       plugins.  Assumes that the module plugins will be kept in the
+       '${pav-root}/lib/pavilion/modules' directory.
+    """
+
+    def __init__( self ):
+        super( moduleManager ).__init__()
+
+        plugin_dir = os.path.dirname( os.path.abspath( __file__ ) ) +\
+                     '/modules'
+
+        self.setPluginPlaces( [ plugin_dir ] )
+
+        self.collectPlugins()
+
+        for mod in self.getAllPlugins():
+            modname = mod.plugin_object.module
+            self._mod_map[ modname ] = mod.plugin_object
+
+    @property
+    def mod_map( self ):
+        return self._mod_map
 
 
 class scriptHeader( object ):
@@ -85,7 +154,7 @@ class scriptHeader( object ):
     @shell_path.setter
     def shell_path( self, value ):
         """Function to set the value of the internal shell path variable."""
-        if value is not None and not isinstance(value, unicode):
+        if value is not None and not isinstance(value, str):
             error = "Shell Path must be of type 'str', not {}".format(
                     type( value ) )
             raise TypeError( error )
@@ -118,207 +187,14 @@ class scriptHeader( object ):
         self.__init__()
 
 
-class scriptModules( object ):
-    """Class to serve as a struct for the script modules."""
-
-    def __init__( self, explicit_specification=None, purge=False, swaps=None,
-                  unloads=None, loads=None ):
-        """Function to set the modules section for the script.
-        :param list explicit_specification: List of commands to manage the
-                                            modules explicitly.  default = None
-        :param bool purge: Whether or not module purge will work on this
-                           machine. default = False
-        :param OrderedDict swaps: Dictionary of modules to swap.  The current
-                                  module should be the key and the module to
-                                  replace it with should be the value.
-                                  default = None.
-        :param list unloads: List of modules to unload for the script. 
-                             default = None.
-        :param list loads: List of modules to load for the script. 
-                           default = None.
-        """
-        self.explicit_specification = explicit_specification
-        self.purge = purge
-        self.swaps = swaps
-        self.unloads = unloads
-        self.loads = loads
-
-    @property
-    def explicit_specification( self ):
-        return self._explicit_specification
-
-    @explicit_specification.setter
-    def explicit_specification( self, value ):
-        """Function to set the explicit specification internal variable."""
-        if value is not None and not isinstance( value, list ):
-            error = "Explicit specification must be of type 'list' and not " +\
-                    "{}.".format( type( value ) )
-            raise TypeError( error )
-        self._explicit_specification = value
-
-    @property
-    def purge( self ):
-        return self._purge
-
-    @purge.setter
-    def purge( self, value ):
-        """Function to set the purge internal variable."""
-        if not isinstance( value, bool ):
-            error = "Purge specification must be of type 'bool' and not " +\
-                    "{}.".format( type( value ) )
-            raise TypeError( error )
-        self._purge = value
-
-    @property
-    def swaps( self ):
-        return self._swaps
-
-    @swaps.setter
-    def swaps( self, value ):
-        """Function to set the swaps internal variable."""
-        if value is not None and not isinstance( value, OrderedDict):
-            error = "Swaps specification must be of type 'OrderedDict' and " +\
-                    "not {}.".format( type( value ) )
-            raise TypeError( error )
-        self._swaps = value
-
-    @property
-    def unloads( self ):
-        return self._unloads
-
-    @unloads.setter
-    def unloads( self, value ):
-        """Function to set the unloads internal variable."""
-        if value is not None and not isinstance( value, list ):
-            error = "Unloads specification must be of type 'list' and not " +\
-                    "{}.".format( type( value ) )
-            raise TypeError( error )
-        self._unloads = value
-
-    @property
-    def loads( self ):
-        return self._loads
-
-    @loads.setter
-    def loads( self, value ):
-        """Function to set the loads internal variable."""
-        if value is not None and not isinstance( value, list ):
-            error = "Loads specification must be of type 'list' and not " +\
-                    "{}.".format( type( value ) )
-            raise TypeError( error )
-        self._loads = value
-
-    def reset( self ):
-        self.__init__()
-
-class scriptEnvironment( object ):
-    """Class to contain the environment variable changes for the script."""
-
-    def __init__( self, sets=None, unsets=None ):
-        """Function to set and unset the environment variables.
-        :param OrderedDict sets: Dictionary of environment variables to set
-                                 where the key is the environment variable and
-                                 the value is the value assigned to that
-                                 variable.  default = None
-        :param list unsets: List of environment variables to unset for the
-                            script.  default = None
-        """
-        self.sets = sets
-        self.unsets = unsets
-
-    @property
-    def sets( self ):
-        return self._sets
-
-    @sets.setter
-    def sets( self, value ):
-        """Function to set the internal sets variable."""
-        if value is not None and not isinstance( value, OrderedDict ):
-            error = "Sets specification must be of type 'OrderedDict' and " +\
-                    "not {}.".format( type( value ) )
-            raise TypeError( error )
-        self._sets = value
-
-    @property
-    def unsets( self ):
-        return self._unsets
-
-    @unsets.setter
-    def unsets( self, value ):
-        """Function to set the internal unsets variable."""
-        if value is not None and not isinstance( value, list ):
-            error = "Unsets specification must be of type 'list' and not " +\
-                    "{}.".format( type( value ) )
-            raise TypeError( error )
-        self._unsets = value
-
-    def reset( self ):
-        self.__init__()
-
-
-class scriptCommands( object ):
-    """Class to contain the script commands."""
-
-    def __init__( self, commands=None ):
-        """Function to specify the commands for the script.
-        :param list commands: List of strings specifying the script commands
-                              in order.  default = None
-        """
-        self.commands = commands
-
-    @property
-    def commands( self ):
-        return self._commands
-
-    @commands.setter
-    def commands( self, value ):
-        """Function to set the internal commands variable."""
-        if value is not None and not isinstance( value, list ):
-            error = "Commands must be of type 'list' and not " +\
-                    "{}.".format( type( value ) )
-            raise TypeError( error )
-        self._commands = value
-
-    def reset( self ):
-        self.__init__()
-
-
-class scriptPost( object ):
-    """Class to contain the post-script commands."""
-
-    def __init__( self, commands=None ):
-        """Function to specify the commands to run at the end of the script
-        for generic tasks.
-        :param list commands: List of strings specifying the postscript
-                              commands in order.  default = None
-        """
-        self.commands = commands
-
-    @property
-    def commands( self ):
-        return self._commands
-
-    @commands.setter
-    def commands( self, value ):
-        """Function to set the internal commands variable."""
-        if value is not None and not isinstance( value, list ):
-            error = "Commands must be of type 'list' and not " +\
-                    "{}.".format( type( value ) )
-            raise TypeError( error )
-        self._commands = value
-
-    def reset( self ):
-        self.__init__()
-
-
 class scriptDetails( object ):
     """Class to contain the final details of the script."""
 
     def __init__( self, 
                   name="_".join( datetime.datetime.now().__str__().split() ),
                   script_type="bash",
-                  user=unicode( os.environ['USER'] ),
-                  group=unicode( os.environ['USER'] ),
+                  user=str( os.environ['USER'] ),
+                  group=str( os.environ['USER'] ),
                   owner_perms=7,
                   group_perms=5,
                   world_perms=0 ):
@@ -352,8 +228,8 @@ class scriptDetails( object ):
 
     @name.setter
     def name( self, value ):
-        if not isinstance( value, unicode ):
-            error = "Name must be of type 'unicode' and not " +\
+        if not isinstance( value, str ):
+            error = "Name must be of type 'str' and not " +\
                     "{}.".format( type( value ) )
             raise TypeError( error )
         self._name = value
@@ -364,8 +240,8 @@ class scriptDetails( object ):
 
     @script_type.setter
     def script_type( self, value ):
-        if not isinstance( value, unicode ):
-            error = "Script type must be of type 'unicode' and not " +\
+        if not isinstance( value, str ):
+            error = "Script type must be of type 'str' and not " +\
                     "{}.".format( type( value ) )
             raise TypeError( error )
         self._script_type = value
@@ -376,8 +252,8 @@ class scriptDetails( object ):
 
     @user.setter
     def user( self, value ):
-        if not isinstance( value, unicode ):
-            error = "User must be of type 'unicode' and not " +\
+        if not isinstance( value, str ):
+            error = "User must be of type 'str' and not " +\
                     "{}.".format( type( value ) )
             raise TypeError( error )
         self._user = value
@@ -388,8 +264,8 @@ class scriptDetails( object ):
 
     @group.setter
     def group( self, value ):
-        if not isinstance( value, unicode ):
-            error = "Group must be of type 'unicode' and not " +\
+        if not isinstance( value, str ):
+            error = "Group must be of type 'str' and not " +\
                     "{}.".format( type( value ) )
             raise TypeError( error )
         self._group = value
@@ -452,15 +328,9 @@ class scriptComposer( object ):
 
         self._header = scriptHeader()
 
-        self._modules = scriptModules()
-
-        self._environment = scriptEnvironment()
-
-        self._commands = scriptCommands()
-
-        self._post = scriptPost()
-
         self._details = scriptDetails()
+
+        self._script_lines = []
 
     @property
     def header( self ):
@@ -473,54 +343,6 @@ class scriptComposer( object ):
                               type( header_obj ) ) + " to the header variable."
             raise TypeError( error )
         self._header = header_obj
-
-    @property
-    def modules( self ):
-        return self._modules
-
-    @modules.setter
-    def modules( self, modules_obj ):
-        if not isinstance( modules_obj, scriptModules ):
-            error = "Tried to assign non-scriptModules object {}".format(
-                            type( modules_obj ) ) + " to the modules variable."
-            raise TypeError( error )
-        self._modules = modules_obj
-
-    @property
-    def environment( self ):
-        return self._environment
-
-    @environment.setter
-    def environment( self, environment_obj ):
-        if not isinstance( environment_obj, scriptEnvironment ):
-            error = "Tried to assign non-scriptEnvironment object {}".format(
-                    type( environment_obj ) ) + " to the environment variable."
-            raise TypeError( error )
-        self._environment = environment_obj
-
-    @property
-    def commands( self ):
-        return self._commands
-
-    @commands.setter
-    def commands( self, commands_obj ):
-        if not isinstance( commands_obj, scriptCommands ):
-            error = "Tried to assign non-scriptCommands object {}".format(
-                          type( commands_obj ) ) + " to the commands variable."
-            raise TypeError( error )
-        self._commands = commands_obj
-
-    @property
-    def post( self ):
-        return self._post
-
-    @post.setter
-    def post( self, post_obj ):
-        if not isinstance( post_obj, scriptPost ):
-            error = "Tried to assign non-scriptPost object {}".format(
-                                  type( post_obj ) ) + " to the post variable."
-            raise TypeError( error )
-        self._post = post_obj
 
     @property
     def details( self ):
@@ -537,6 +359,126 @@ class scriptComposer( object ):
     def reset( self ):
         """Function to reset all variables to the default."""
         self.__init__()
+
+    def envChange( self, env_mod ):
+        """Function to take the environment variable change requested by the
+        user and add the appropriate line to the script.
+        :param Union(dict, OrderedDict) env_mod: String representing an environment
+                                         variable to be unset (prepended with
+                                         a '-') or a dictionary defining the
+                                         variable to be set or modified as the
+                                         key and the value to assign as the
+                                         value.
+        """
+        if not isinstance( env_mod, dict ) or issubclass( env_mod, dict ):
+            error = "Environment modifications must be provided as a " +\
+                    "dict or subclass.  {} is of type {}.".format( env_mod,
+                                                              type( env_mod ) )
+            raise TypeError( error )
+
+        for item, val in env_mod.items():
+            if val is not None:
+                self._script_lines.append( 'export {}={}'.format( item, val ) )
+            else:
+                self._script_lines.append( 'unset {}'.format( item ) )
+
+    def moduleChange( self, mod_name ):
+        """Function to take the module changes specified in the user config
+        and add the appropriate lines to the script.
+        :param Union(list, str) mod_name: Name of a module or a list thereof in
+                                          the format used in the user config.
+        """
+
+        mod_obj_list = []
+
+        for mod in mod_name:
+            self.addNewline()
+            fullname = get_name( mod )
+            if '/' in fullname:
+                name, version = fullname.split('/')
+            else:
+                name = fullname
+                version = None
+            action = get_action( mod )
+
+            module_obj = module_wrapper.get_module_wrapper( name, version )
+
+            if action == 'load':
+                mod_act, mod_env = module_obj.load()
+
+                for act in mod_act:
+                    if isinstance( act, str ):
+                        self._script_lines.append( act )
+                    elif issubclass( act, ModuleAction ):
+                        self._script_lines.extend( [ act.action(),
+                                                     act.verify() ] )
+
+                self.envChange( mod_env )
+
+            elif action == 'unload':
+                mod_act, mod_env = module_obj.unload()
+
+                for act in mod_act:
+                    if isinstance( act, str ):
+                        self._script_lines.append( act )
+                    elif issubclass( act, ModuleAction ):
+                        self._script_lines.extend( [ act.action(),
+                                                     act.verify() ] )
+
+                self.envChange( mod_env )
+
+            elif action == 'swap':
+                old = get_old_swap( mod )
+                if '/' in old:
+                    oldname, oldver = old.split('/')
+                else:
+                    oldname = old
+                    oldver = None
+
+                mod_act, mod_env = module_obj.swap( old_module_name=oldname,
+                                                    old_version=oldver )
+
+                for act in mod_act:
+                    if isinstance( act, str ):
+                        self._script_lines.append( act )
+                    elif issubclass( act, ModuleAction ):
+                        self._script_lines.extend( [ act.action(),
+                                                     act.verify() ] )
+
+                self.envChange( mod_env )
+
+    def addNewline( self ):
+        """Function that just adds a newline to the script lines."""
+        self._script_lines.append('\n')
+
+    def addComment( self, comment ):
+        """Function for adding a comment to the script.
+        :param str comment: Text to be put in comment without the leading '# '.
+        """
+        if not isinstance( comment, str ):
+            error = "Comments must be of type 'str', which {} isn't.".format(
+                                                                      comment )
+            raise TypeError( error )
+
+        self._script_lines.append( "# " + comment )
+
+    def addCommand( self, command ):
+        """Function to add a line unadulterated to the script lines.
+        :param str command: String representing the whole command to add.
+        """
+        if not isinstance( command, str ) or not isinstance( command, list ):
+            error="Command must be of type 'str' or 'list' and not {},".format(
+                  command ) + " which is of type {}.".format( type( command ) )
+            raise TypeError( error )
+        elif isinstance( command, list ):
+            for cmd  in command:
+                if not isinstance( cmd, str ):
+                    error = "Commands must be of type 'str' and not {}".format(
+                            cmd ) + ", which is of type {}.".format(type(cmd))
+                    raise TypeError( cmd )
+                self._script_lines.append( cmd )
+        elif isinstance( command, str ):
+            self._script_lines.append( command )
 
     def writeScript( self, dirname=os.getcwd() ):
         """Function to write the script out to file.
@@ -577,52 +519,7 @@ class scriptComposer( object ):
                 lineList.append( macro_str )
 
         lineList.append( "\n" )
-
-        if self.modules.explicit_specification is not None:
-            for i in range(0, len( self.modules.explicit_specification ) ):
-                self.modules.explicit_specification[i] = \
-                                  self.modules.explicit_specification[i] + "\n"
-            lineList.extend( self.modules.explicit_specification )
-        else:
-            if self.modules.purge:
-                lineList.append( "module purge\n" )
-
-            if self.modules.swaps is not None:
-                for mod_out, mod_in in self.modules.swaps.items():
-                    lineList.append( "module swap {} {}\n".format(
-                                                            mod_out, mod_in ) )
-
-            if self.modules.unloads is not None:
-                for module in self.modules.unloads:
-                    lineList.append( "module unload {}\n".format( module ) )
-
-            if self.modules.loads is not None:
-                for module in self.modules.loads:
-                    lineList.append( "module load {}\n".format( module ) )
-
-        lineList.append( "\n" )
-
-        if self.environment.unsets is not None:
-            for unset in self.environment.unsets:
-                lineList.append( "unset {}\n".format( unset ) )
-
-        if self.environment.sets is not None:
-            for var, val in self.environment.sets.items():
-                lineList.append( "export {}={}\n".format( var, val ) )
-
-        lineList.append( "\n" )
-
-        if self.commands.commands is not None:
-            for i in range( 0, len( self.commands.commands ) ):
-                self.commands.commands[i] = self.commands.commands[i] + "\n"
-            lineList.extend( self.commands.commands )
-
-        lineList.append( "\n" )
-
-        if self.post.commands is not None:
-            for i in range( 0, len( self.post.commands ) ):
-                self.post.commands[i] = self.post.commands[i] + "\n"
-            lineList.extend( self.post.commands )
+        lineList.extend( self._script_lines )
 
         script_file.writelines( lineList )
 
@@ -674,7 +571,7 @@ class scriptComposer( object ):
             raise ValueError( error )
 
         if self.details.group == None:
-            self.details.group = os.environ['USER'].decode()
+            self.details.group = os.environ['USER']
 
         try:
             grp_st = grp.getgrnam( self.details.group )
