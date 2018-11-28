@@ -1,7 +1,7 @@
+from pavilion.module_actions import ModuleLoad, ModuleSwap, ModuleRemove
 from yapsy import IPlugin
 import logging
 import re
-import subprocess as sp
 
 LOGGER = logging.getLogger('pav.{}'.format(__name__))
 
@@ -13,15 +13,15 @@ class ModuleSystemError(RuntimeError):
 _WRAPPED_MODULES = {}
 
 
-def add_wrapped_module(module_wrapper):
+def add_wrapped_module(module_wrapper, version):
     """Add the module wrapper to the set of wrapped modules.
     :param ModuleWrapper module_wrapper: The module_wrapper class for the module.
+    :param Union(str, None) version: The version to add it under.
     :return: None
     :raises KeyError: On module version conflict.
     """
 
     name = module_wrapper.name
-    version = module_wrapper.version
     priority = module_wrapper.priority
 
     if name not in _WRAPPED_MODULES:
@@ -36,14 +36,14 @@ def add_wrapped_module(module_wrapper):
                                 .format(module_wrapper, _WRAPPED_MODULES[name][version]))
 
 
-def remove_wrapped_module(module_wrapper):
+def remove_wrapped_module(module_wrapper, version):
     """Remove the indicated module_wrapper from the set of wrapped module.
     :param ModuleWrapper module_wrapper: The module_wrapper to remove, if it exists.
+    :param Union(str, None) version: The specific version to remove.
     :returns None:
     """
 
     name = module_wrapper.name
-    version = module_wrapper.version
 
     if name in _WRAPPED_MODULES and version in _WRAPPED_MODULES[name]:
         del _WRAPPED_MODULES[name][version]
@@ -52,15 +52,20 @@ def remove_wrapped_module(module_wrapper):
             del _WRAPPED_MODULES[name]
 
 
-class ModuleInfo:
-    def __init__(self, name):
+def get_module_wrapper(name, version):
 
-        self.name = name
-        self.versions = []
-        self.default = None
+    if name in _WRAPPED_MODULES:
+        if version in _WRAPPED_MODULES[name]:
+            # Grab the version specific wrapper.
+            return _WRAPPED_MODULES[name][version]
+        elif None in _WRAPPED_MODULES[name]:
+            # Grab the generic wrapper for this module
+            return _WRAPPED_MODULES[name][None]
+
+    return ModuleWrapper(name, version)
 
 
-class ModuleWrapper(IPlugin):
+class ModuleWrapper(IPlugin.IPlugin):
 
     _MODULE_SYSTEM = None
     _MODULE_CMD = None
@@ -92,7 +97,7 @@ class ModuleWrapper(IPlugin):
             raise ModuleSystemError("Invalid module name: '{}'".format(name))
 
         self.name = name
-        self.version = version
+        self.__version = version
         self.priority = priority
         self.path = path
 
@@ -100,144 +105,71 @@ class ModuleWrapper(IPlugin):
             raise RuntimeError("You must use the 'find_module_system' class method before"
                                "instantiating a ModuleWrapper (or subclasses).")
 
-    @property
-    def module(self):
-        if self.version is not None:
-            return '{}/{}'.format(self.name, self.version)
-        else:
-            return self.name
+    def get_version(self, requested_version):
+        """Get the version of the module to load, given the requested version and the version
+        set in the instance. This should always be used to figure out what version to load.
+        :param Union(str, None) requested_version: The version requested by the user.
+        :return: The version that should be loaded.
+        """
+
+        if self.__version is not None and requested_version != self.__version:
+            raise ModuleWrapperError("Version mismatch. A module wrapper specifically for "
+                                     "version '{s.__version}' of '{s.name}' was used with "
+                                     "a non-matching requested version '{requested}"
+                                     .format(s=self, requested=requested_version))
+
+        return requested_version
 
     def activate(self):
         """Add this module to the wrapped module list."""
 
-        add_wrapped_module(self)
+        add_wrapped_module(self, self.__version)
 
     def deactivate(self):
         """Remove this module from the wrapped module list."""
 
-        remove_wrapped_module(self)
+        remove_wrapped_module(self, self.__version)
 
-    @classmethod
-    def find_module_system(cls, pav_config):
-        """Figure out which module system we're using, and set the module command in the class.""
-        :param pav_config: The pavilion configuration.
-        :return: None
-        :raises ModuleSystemError: When we can't find the module system.
+    def load(self, sys_info, requested_version=None):
+        """Generate the list of module actions and environment changes to load this module.
+        :param sys_info: The system info dictionary of variables, from the system plugins.
+        :param requested_version: The version requested to load.
+        :return: A list of actions (or bash command strings), and a dict of environment changes.
+        :rtype: (Union(str, ModuleAction), dict)
+        :raises ModuleWrapperError: If the requested version does not work with this instance.
         """
 
-        if cls._MODULE_CMD is not None or cls._MODULE_SYSTEM is not None:
-            LOGGER.warning("In ModuleWrapper, find_module_system should only be called once.")
-            return
+        version = self.get_version(requested_version)
 
-        cls._MODULE_CMD = pav_config.get('module_command')
+        return [ModuleLoad(self.name, version)], {}
 
-        version_cmd = [cls._MODULE_CMD, '-v']
-        try:
-            proc = sp.Popen(version_cmd, stderr=sp.STDOUT, stdout=sp.PIPE)
-        except FileNotFoundError as err:
-            raise ModuleSystemError("Could not find module cmd '{}' ({})."
-                                    .format(cls._MODULE_CMD, err))
-
-        result = proc.wait()
-        stdout, _ = proc.communicate()
-
-        if result != 0:
-            err_msg = "Error getting module version with cmd '{}'".format(version_cmd)
-            LOGGER.error(err_msg)
-            LOGGER.error(stdout)
-            raise ModuleSystemError(err_msg)
-
-        for line in stdout.split('\n'):
-            if "Modules Release" in line:
-                cls._MODULE_SYSTEM = cls.EMOD
-                break
-            elif "Modules based on Lua" in line:
-                cls._MODULE_SYSTEM = cls.LMOD
-
-        if cls._MODULE_SYSTEM is None:
-            raise ModuleSystemError("Could not identify a module system.")
-
-    def get_module_loads(self, system_info):
-        """ Returns a list of module load commands to run.
-        :param system_info: The sys variable dictionary, which should contain relevant information
-        about the system."""
-
-        return []
-
-    def get_module_environment(self, system_info):
-        """Returns a dictionary of environment variables to set. Note that environment variables
-        set in this way are done in sequence within a bash script, and can thus contain
-        references to other known set variables and themselves, such as {'PATH', '${PATH}:/tmp/".
-        :param system_info: The sys variable dictionary, which should contain relevant information
-        about the system.
+    def swap(self, sys_info, out_name, out_version, requested_version=None):
+        """Swap out the 'out' module and swap in the new module.
+        :param sys_info: The system info dictionary of variables, from the system plugins.
+        :param out_name: The name of the module to swap out.
+        :param out_version: The version of the module to swap out.
+        :param requested_version: The version requested to load.
+        :return: A list of actions (or bash command strings), and a dict of environment changes.
+        :rtype: (Union(str, ModuleAction), dict)
+        :raises ModuleWrapperError: If the requested version does not work with this instance.
         """
 
-        return {}
+        version = self.get_version(requested_version)
 
+        return [ModuleSwap(self.name, version, out_name, out_version)]
 
-class ModuleLoader(ModuleWrapper):
-
-    def __init__(self, name, version):
-        """A basic wrapper for wrapping otherwise unwrapped modules.
-        :param name: The name of the module to load.
-        :param version: The version of the module to load.
-        """
-        super(ModuleLoader).__init__(name, '<unwrapped>', version=version)
-
-    def get_module_loads(self, system_info):
-        """In this case, simply load the module by name and version."""
-
-        return ['{s._MODULE_CMD} load {s.module}'.format(s=self)]
-
-    def get_module_environment(self, system_info):
-        pass
-
-    def activate(self):
-        pass
-
-    def deactivate(self):
-        pass
-
-
-class ModuleSwapper(ModuleWrapper):
-    """A module wrapper for swapping two modules."""
-
-    def __init__(self, old_name, old_version, name, version):
-        """Set the name of the old module to remove, and the new to add.
-        :param str old_name: The name of the module to swap out.
-        :param Union(str, None) old_version: The version of the module to swap out.
-        :param str name: The name of the module to swap in.
-        :param Union(str, None) version: The version of the module to swap in.
+    def remove(self, sys_info, requested_version=None):
+        """Remove this module from the environment.
+        :param sys_info: The system info dictionary of variables, from the system plugins.
+        :param requested_version: The version requested to load.
+        :return: A list of actions (or bash command strings), and a dict of environment changes.
+        :rtype: (Union(str, ModuleAction), dict)
+        :raises ModuleWrapperError: If the requested version does not work with this instance.
         """
 
-        if self.NAME_VERS_RE.match(old_name) is None:
-            raise ModuleSystemError("Invalid module name for swapping out: '{}'".format(old_name))
-        if old_version is not None and self.NAME_VERS_RE.match(old_version) is None:
-            raise ModuleSystemError("Invalid module version for swapping out: '{}'"
-                                    .format(old_name))
+        version = self.get_version(requested_version)
 
-        self._old_name = old_name
-        self._old_version = old_version
-
-        super(ModuleSwapper).__init__(name, path='<unwrapped swap>', version=version)
-
-    @property
-    def old_module(self):
-        if self._old_version is not None:
-            return '{}/{}'.format(self._old_name, self._old_version)
-        else:
-            return self._old_name
-
-    def get_module_loads(self, system_info):
-        """Swap the old module for the new."""
-
-        return ['{s._MODULE_CMD} swap {s.old_module} {s.module}'.format(s=self)]
+        return [ModuleRemove(self.name, version)], {}
 
 
-class ModuleRemover(ModuleWrapper):
-    """A module wrapper for removing modules from the environment."""
-    def __init__(self, name, version):
-        super(ModuleRemover).__init__(name, '<unwrapped_remover>', version=version)
 
-    def get_module_loads(self, system_info):
-        return ['{s._MODULE_CMD} remove {s.module}'.format(s=self)]

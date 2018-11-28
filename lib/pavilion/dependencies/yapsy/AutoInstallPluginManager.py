@@ -1,4 +1,3 @@
-#!/usr/bin/python
 # -*- coding: utf-8; tab-width: 4; indent-tabs-mode: t; python-indent: 4 -*-
 
 """
@@ -13,21 +12,29 @@ API
 ===
 """
 
-import sys
 import os
 import shutil
 import zipfile
-import StringIO
 
 from yapsy.IPlugin import IPlugin
 from yapsy.PluginManagerDecorator import PluginManagerDecorator
 from yapsy import log
+from yapsy.compat import StringIO, str
 
 
 class AutoInstallPluginManager(PluginManagerDecorator):
 	"""
 	A plugin manager that also manages the installation of the plugin
 	files into the appropriate directory.
+
+	Ctor Arguments:
+		
+	    ``plugin_install_dir``
+  	    The directory where new plugins to be installed will be copied.
+
+	.. warning:: If ``plugin_install_dir`` does not correspond to
+	             an element of the ``directories_list``, it is
+	             appended to the later.			
 	"""
 
 
@@ -36,23 +43,11 @@ class AutoInstallPluginManager(PluginManagerDecorator):
 				 decorated_manager=None,
 				 # The following args will only be used if we need to
 				 # create a default PluginManager
-				 categories_filter={"Default":IPlugin}, 
+				 categories_filter=None, 
 				 directories_list=None, 
 				 plugin_info_ext="yapsy-plugin"):
-		"""
-		Create the plugin manager and set up the directory where to
-		install new plugins.
-
-		Arguments
-		
-	        ``plugin_install_dir``
-		    The directory where new plugins to be installed will be copied.
-
-		.. warning:: If ``plugin_install_dir`` does not correspond to
-		             an element of the ``directories_list``, it is
-		             appended to the later.
-			
-		"""
+		if categories_filter is None:
+			categories_filter = {"Default":IPlugin}
 		# Create the base decorator class
 		PluginManagerDecorator.__init__(self,
 										decorated_manager,
@@ -131,14 +126,16 @@ class AutoInstallPluginManager(PluginManagerDecorator):
 		Return ``True`` if the installation is a success, ``False`` if
 		it is a failure.
 		"""
-		if sys.version_info < (2, 6):
-			raise NotImplementedError("Installing fom a ZIP file is only supported for Python2.6 and later.")
 		if not os.path.isfile(plugin_ZIP_filename):
 			log.warning("Could not find the plugin's zip file at '%s'." % plugin_ZIP_filename)
 			return False
-		candidateZipFile = zipfile.ZipFile(plugin_ZIP_filename)
-		if candidateZipFile.testzip() is not None:
-			log.warning("Corruption detected in Zip file '%s'." % plugin_ZIP_filename)
+		try:
+			candidateZipFile = zipfile.ZipFile(plugin_ZIP_filename)
+			first_bad_file = candidateZipFile.testzip()
+			if first_bad_file:
+				raise Exception("Corrupted ZIP with first bad file '%s'" % first_bad_file)
+		except Exception as e:
+			log.warning("Invalid zip file '%s' (error: %s)." % (plugin_ZIP_filename,e))
 			return False
 		zipContent = candidateZipFile.namelist()
 		log.info("Investigating the content of a zip file containing: '%s'" % zipContent)
@@ -178,12 +175,23 @@ class AutoInstallPluginManager(PluginManagerDecorator):
 		for infoFileName in infoFileCandidates:
 			infoFile = candidateZipFile.read(infoFileName)
 			log.info("Assuming the zipped plugin info file to be '%s'" % infoFileName)
-			pluginName,moduleName,_ = self._getPluginNameAndModuleFromStream(StringIO.StringIO(infoFile))
+			pluginName,moduleName,_ = self._getPluginNameAndModuleFromStream(StringIO(str(infoFile,encoding="utf-8")))
 			if moduleName is None:
 					continue
 			log.info("Checking existence of the expected module '%s' in the zip file" % moduleName)
-			if moduleName in zipContent or os.path.join(moduleName,"__init__.py") in zipContent:
-				isValid = True
+			candidate_module_paths = [
+				moduleName,
+				# Try path consistent with the platform specific one
+				os.path.join(moduleName,"__init__.py"),
+				# Try typical paths (unix and windows)
+				"%s/__init__.py" % moduleName,
+				"%s\\__init__.py" % moduleName
+				]
+			for candidate in candidate_module_paths:
+				if candidate in zipContent:
+					isValid = True
+					break
+			if isValid:
 				break
 		if not isValid:
 			log.warning("Zip file structure seems wrong in '%s', "
@@ -193,7 +201,7 @@ class AutoInstallPluginManager(PluginManagerDecorator):
 			try:
 				candidateZipFile.extractall(self.install_dir)
 				return True
-			except Exception,e:
+			except Exception as e:
 				log.error("Could not install plugin '%s' from zip file '%s' (exception: '%s')." % (pluginName,plugin_ZIP_filename,e))
 				return False
 		

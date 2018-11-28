@@ -1,4 +1,3 @@
-#!/usr/bin/python
 # -*- coding: utf-8; tab-width: 4; indent-tabs-mode: t; python-indent: 4 -*-
 
 """
@@ -17,8 +16,7 @@ from yapsy.IPlugin import IPlugin
 
 from yapsy.PluginManagerDecorator import PluginManagerDecorator
 from yapsy.PluginManager import PLUGIN_NAME_FORBIDEN_STRING
-
-
+	
 
 class ConfigurablePluginManager(PluginManagerDecorator):
 	"""
@@ -35,6 +33,17 @@ class ConfigurablePluginManager(PluginManagerDecorator):
 	.. warning:: when giving/building the list of plugins to activate
 	             by default, there must not be any space in the list
 	             (neither in the names nor in between)
+
+	The ``config_change_trigger`` argument can be used to set a
+	specific method to call when the configuration is
+	altered. This will let the client application manage the way
+	they want the configuration to be updated (e.g. write on file
+	at each change or at precise time intervalls or whatever....)
+	
+	.. warning:: when no ``config_change_trigger`` is given and if
+	             the provided ``configparser_instance`` doesn't handle it
+	             implicitely, recording the changes persistently (ie writing on 
+	             the config file) won't happen.
 	"""
 	
 	CONFIG_SECTION_NAME = "Plugin Management"
@@ -42,23 +51,15 @@ class ConfigurablePluginManager(PluginManagerDecorator):
 
 	def __init__(self,
 				 configparser_instance=None,
-				 config_change_trigger= lambda x:True,
+				 config_change_trigger= lambda :True,
 				 decorated_manager=None,
 				 # The following args will only be used if we need to
 				 # create a default PluginManager
-				 categories_filter={"Default":IPlugin}, 
+				 categories_filter=None, 
 				 directories_list=None, 
 				 plugin_info_ext="yapsy-plugin"):
-		"""
-		Create the plugin manager and record the ConfigParser instance
-		that will be used afterwards.
-		
-		The ``config_change_trigger`` argument can be used to set a
-		specific method to call when the configuration is
-		altered. This will let the client application manage the way
-		they want the configuration to be updated (e.g. write on file
-		at each change or at precise time intervalls or whatever....)
-		"""
+		if categories_filter is None:
+			categories_filter = {"Default":IPlugin}
 		# Create the base decorator class
 		PluginManagerDecorator.__init__(self,decorated_manager,
 										categories_filter,
@@ -249,17 +250,17 @@ class ConfigurablePluginManager(PluginManagerDecorator):
 				return plugin_object
 		return None
 
-	def loadPlugins(self,callback=None):
+	def loadPlugins(self,callback=None, callback_after=None):
 		"""
 		Walk through the plugins' places and look for plugins.  Then
 		for each plugin candidate look for its category, load it and
 		stores it in the appropriate slot of the ``category_mapping``.
 		"""
- 		self._component.loadPlugins(callback)
+		self._component.loadPlugins(callback, callback_after)
 		# now load the plugins according to the recorded configuration
 		if self.config_parser.has_section(self.CONFIG_SECTION_NAME):
 			# browse all the categories
-			for category_name in self._component.category_mapping.keys():
+			for category_name in list(self._component.category_mapping.keys()):
 				# get the list of plugins to be activated for this
 				# category
 				option_name = "%s_plugins_to_load"%category_name

@@ -1,4 +1,3 @@
-#!/usr/bin/python
 # -*- coding: utf-8; tab-width: 4; indent-tabs-mode: t; python-indent: 4 -*-
 
 
@@ -41,9 +40,6 @@ class IPlugin(object):
 	"""
 
 	def __init__(self):
-		"""
-		Set the basic variables.
-		"""
 		self.is_activated = False
 
 	def activate(self):

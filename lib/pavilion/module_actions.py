@@ -23,7 +23,7 @@ class ModuleAction:
     def verify(self):
         raise NotImplementedError
 
-    @@property
+    @property
     def module(self):
         if self.version is not None:
             return '{s.name}/{s.version}'.format(s=self)
