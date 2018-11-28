@@ -1,4 +1,3 @@
-#!/usr/bin/python
 # -*- coding: utf-8; tab-width: 4; indent-tabs-mode: t; python-indent: 4 -*-
 
 
@@ -61,7 +60,7 @@ class IPluginLocator(object):
 		data *in a tuple*, if the required info could be
 		localised, else return ``(None,None,None)``.
 		"""
-		log.warn("setPluginInfoClass was called but '%s' doesn't implement it." % self)
+		log.warning("setPluginInfoClass was called but '%s' doesn't implement it." % self)
 		return None,None,None
 	
 
@@ -73,7 +72,7 @@ class IPluginLocator(object):
 		Set the class that holds PluginInfo. The class should inherit
 		from ``PluginInfo``.
 		"""
-		log.warn("setPluginInfoClass was called but '%s' doesn't implement it." % self)
+		log.warning("setPluginInfoClass was called but '%s' doesn't implement it." % self)
 
 	def getPluginInfoClass(self):
 		"""
@@ -82,7 +81,7 @@ class IPluginLocator(object):
 		
 		Get the class that holds PluginInfo.
 		"""
-		log.warn("getPluginInfoClass was called but '%s' doesn't implement it." % self)
+		log.warning("getPluginInfoClass was called but '%s' doesn't implement it." % self)
 		return None
 
 	def setPluginPlaces(self, directories_list):
@@ -92,7 +91,7 @@ class IPluginLocator(object):
 		
 		Set the list of directories where to look for plugin places.
 		"""
-		log.warn("setPluginPlaces was called but '%s' doesn't implement it." % self)
+		log.warning("setPluginPlaces was called but '%s' doesn't implement it." % self)
 
 	def updatePluginPlaces(self, directories_list):
 		"""
@@ -101,5 +100,5 @@ class IPluginLocator(object):
 		
 		Updates the list of directories where to look for plugin places.
 		"""
-		log.warn("updatePluginPlaces was called but '%s' doesn't implement it." % self)
+		log.warning("updatePluginPlaces was called but '%s' doesn't implement it." % self)
 

@@ -50,7 +50,11 @@ class LockFile(object):
 
         if group is not None:
             # This could error out, but should be checked by pavilion separately.
-            self._group = grp.getgrnam(group).gr_gid
+            try:
+                self._group = grp.getgrnam(group).gr_gid
+            except KeyError:
+                raise KeyError("Unknown group '{}' when creating lock '{}'."
+                               .format(group, lockfile_path))
 
         self._open = False
 

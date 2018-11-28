@@ -1,4 +1,3 @@
-#!/usr/bin/python
 # -*- coding: utf-8; tab-width: 4; indent-tabs-mode: t; python-indent: 4 -*-
 
 """
@@ -63,8 +62,9 @@ For a *Single file* plugin:
 Plugin Info File Format
 -----------------------
 
-The plugin info file gathers, as its name suggests, some basic
-information about the plugin.
+The plugin info file is a text file *encoded in ASCII or UTF-8* and
+gathering, as its name suggests, some basic information about the
+plugin.
 
 - it gives crucial information needed to be able to load the plugin
 
@@ -156,7 +156,20 @@ class PluginManager(object):
 	
 	The file describing a plugin must be written in the syntax
 	compatible with Python's ConfigParser module as in the
-	`Plugin Info File Format`_  
+	`Plugin Info File Format`_
+
+	About the __init__:
+
+	Initialize the mapping of the categories and set the list of
+	directories where plugins may be. This can also be set by
+	direct call the methods: 
+		
+	- ``setCategoriesFilter`` for ``categories_filter``
+	- ``setPluginPlaces`` for ``directories_list``
+	- ``setPluginInfoExtension`` for ``plugin_info_ext``
+
+	You may look at these function's documentation for the meaning
+	of each corresponding arguments.
 	"""
 
 	def __init__(self,
@@ -164,26 +177,15 @@ class PluginManager(object):
 				 directories_list=None,
 				 plugin_info_ext=None,
 				 plugin_locator=None):
-		"""
-		Initialize the mapping of the categories and set the list of
-		directories where plugins may be. This can also be set by
-		direct call the methods: 
-		
-		- ``setCategoriesFilter`` for ``categories_filter``
-		- ``setPluginPlaces`` for ``directories_list``
-		- ``setPluginInfoExtension`` for ``plugin_info_ext``
-
-		You may look at these function's documentation for the meaning
-		of each corresponding arguments.
-		"""
-		# many Python experienced users told me not to use mutable objects
-		# as default values for function/method arguments, but rather use None.
+		# as a good practice we don't use mutable objects as default
+		# values (these objects would become like static variables)
+		# for function/method arguments, but rather use None.
 		if categories_filter is None:
 			categories_filter = {"Default":IPlugin}
 		self.setCategoriesFilter(categories_filter)
 		plugin_locator = self._locatorDecide(plugin_info_ext, plugin_locator)
 		# plugin_locator could be either a dict defining strategies, or directly
-		# a IPluginLocator object
+		# an IPluginLocator object
 		self.setPluginLocator(plugin_locator, directories_list)
 
 	def _locatorDecide(self, plugin_info_ext, plugin_locator):
@@ -294,12 +296,15 @@ class PluginManager(object):
 		"""
 		Sets the strategy used to locate the basic information.
 
+		.. note: If a dir_list is provided it overrides the directory list
+		that may have been previously set in the locator.
+
 		See ``IPluginLocator`` for the policy that plugin_locator must enforce.
 		"""
 		if isinstance(plugin_locator, IPluginLocator):
 			self._plugin_locator = plugin_locator
 			if dir_list is not None:
-				self._plugin_locator.updatePluginPlaces(dir_list)
+				self._plugin_locator.setPluginPlaces(dir_list)
 			if picls is not None:
 				self.setPluginInfoClass(picls)
 		else:
@@ -365,7 +370,7 @@ class PluginManager(object):
 		"""
 		Return the list of all categories.
 		"""
-		return self.category_mapping.keys()
+		return list(self.category_mapping.keys())
 
 	def removePluginFromCategory(self, plugin,category_name):
 		"""
@@ -379,7 +384,7 @@ class PluginManager(object):
 		Append a new plugin to the given category.
 		"""
 		self.category_mapping[category_name].append(plugin)
-
+		
 	def getPluginsOfCategory(self, category_name):
 		"""
 		Return the list of all plugins belonging to a category.
@@ -391,10 +396,34 @@ class PluginManager(object):
 		Return the list of all plugins (belonging to all categories).
 		"""
 		allPlugins = set()
-		for pluginsOfOneCategory in self.category_mapping.itervalues():
+		for pluginsOfOneCategory in self.category_mapping.values():
 				allPlugins.update(pluginsOfOneCategory)
 		return list(allPlugins)
 
+	def getPluginsOf(self, **kwargs):
+		"""
+		Returns a set of plugins whose properties match the named arguments provided here along with their correspoding values.
+		"""
+		selectedPLugins = set()
+		for plugin in self.getAllPlugins():
+			for attrName in kwargs:
+				if not hasattr(plugin, attrName):
+					break
+				attrValue = kwargs[attrName]
+				pluginValue = getattr(plugin, attrName)
+				if pluginValue == attrValue:
+					continue
+				if type(pluginValue) == type(attrValue):
+					break
+				try:
+					if attrValue in pluginValue:
+						continue
+				except:
+					break
+			else:
+				selectedPLugins.add(plugin)
+		return selectedPLugins
+	
 	def getPluginCandidates(self):
 		"""
 		Return the list of possible plugins.
@@ -405,7 +434,7 @@ class PluginManager(object):
 		.. warning: locatePlugins must be called before !
 		"""
 		if not hasattr(self, '_candidates'):
-			raise ValueError("locatePlugins must be called before getPluginCandidates")
+			raise RuntimeError("locatePlugins must be called before getPluginCandidates")
 		return self._candidates[:]
 
 	def removePluginCandidate(self,candidateTuple):
@@ -440,16 +469,16 @@ class PluginManager(object):
 		"""
 		self._candidates, npc = self.getPluginLocator().locatePlugins()
 	
-	def loadPlugins(self, callback=None):
+	def loadPlugins(self, callback=None, callback_after=None):
 		"""
 		Load the candidate plugins that have been identified through a
 		previous call to locatePlugins.  For each plugin candidate
 		look for its category, load it and store it in the appropriate
 		slot of the ``category_mapping``.
 
-		If a callback function is specified, call it before every load
+		You can specify 2 callbacks: callback, and callback_after. If either of these are passed a function, (in the case of callback), it will get called before each plugin load attempt and (for callback_after), after each 
 		attempt.  The ``plugin_info`` instance is passed as an argument to
-		the callback.
+		each callback. This is meant to facilitate code that needs to run for each plugin, such as adding the directory it resides in to sys.path (so imports of other files in the plugin's directory work correctly). You can use callback_after to remove anything you added to the path.
 		"""
 # 		print "%s.loadPlugins" % self.__class__
 		if not hasattr(self, '_candidates'):
@@ -478,47 +507,96 @@ class PluginManager(object):
 			if "__init__" in  os.path.basename(candidate_filepath):
 				candidate_filepath = os.path.dirname(candidate_filepath)
 			try:
-				# use imp to correctly load the plugin as a module
-				if os.path.isdir(candidate_filepath):
-					candidate_module = imp.load_module(plugin_module_name,None,candidate_filepath,("py","r",imp.PKG_DIRECTORY))
-				else:
-					plugin_file = open(candidate_filepath+".py","r")
-					try:
-						candidate_module = imp.load_module(plugin_module_name,plugin_file,candidate_filepath+".py",("py","r",imp.PY_SOURCE))
-					finally:
-						plugin_file.close()
+				candidate_module = PluginManager._importModule(plugin_module_name, candidate_filepath)
 			except Exception:
 				exc_info = sys.exc_info()
 				log.error("Unable to import plugin: %s" % candidate_filepath, exc_info=exc_info)
 				plugin_info.error = exc_info
 				processed_plugins.append(plugin_info)
 				continue
+
 			processed_plugins.append(plugin_info)
 			if "__init__" in  os.path.basename(candidate_filepath):
 				sys.path.remove(plugin_info.path)
 			# now try to find and initialise the first subclass of the correct plugin interface
-			for element in [getattr(candidate_module,name) for name in dir(candidate_module)]:
+			last_failed_attempt_message = None
+			for element, element_name in ((getattr(candidate_module,name),name) for name in dir(candidate_module)):
 				plugin_info_reference = None
 				for category_name in self.categories_interfaces:
 					try:
 						is_correct_subclass = issubclass(element, self.categories_interfaces[category_name])
-					except TypeError:
+					except Exception:
+						exc_info = sys.exc_info()
+						log.debug("correct subclass tests failed for: %s in %s" % (element_name, candidate_filepath), exc_info=exc_info)
 						continue
 					if is_correct_subclass and element is not self.categories_interfaces[category_name]:
 							current_category = category_name
 							if candidate_infofile not in self._category_file_mapping[current_category]:
 								# we found a new plugin: initialise it and search for the next one
 								if not plugin_info_reference:
-									plugin_info.plugin_object = element()
-									plugin_info_reference = plugin_info
+									try:
+										plugin_info.plugin_object = self.instanciateElementWithImportInfo(element, element_name, plugin_module_name, candidate_filepath)
+										plugin_info_reference = plugin_info
+									except Exception:
+										exc_info = sys.exc_info()
+										last_failed_attempt_message = "Unable to create plugin object: %s" % candidate_filepath
+										log.debug(last_failed_attempt_message, exc_info=exc_info)
+										plugin_info.error = exc_info
+										break # If it didn't work once it wont again
+									else:
+										last_failed_attempt_message = None
 								plugin_info.categories.append(current_category)
 								self.category_mapping[current_category].append(plugin_info_reference)
 								self._category_file_mapping[current_category].append(candidate_infofile)
+								#Everything is loaded and instantiated for this plugin now
+								if callback_after is not None:
+									callback_after(plugin_info)
+			else:
+				if last_failed_attempt_message:
+					log.error(last_failed_attempt_message, exc_info=plugin_info.error)
+					
 		# Remove candidates list since we don't need them any more and
 		# don't need to take up the space
 		delattr(self, '_candidates')
 		return processed_plugins
 
+	
+	@staticmethod
+	def _importModule(plugin_module_name, candidate_filepath):
+		"""
+		Import a module, trying either to find it as a single file or as a directory.
+
+		:note: Isolated and provided to be reused, but not to be reimplemented !
+		"""
+		# use imp to correctly load the plugin as a module
+		if os.path.isdir(candidate_filepath):
+			candidate_module = imp.load_module(plugin_module_name,None,candidate_filepath,("py","r",imp.PKG_DIRECTORY))
+		else:
+			with open(candidate_filepath+".py","r") as plugin_file:
+				candidate_module = imp.load_module(plugin_module_name,plugin_file,candidate_filepath+".py",("py","r",imp.PY_SOURCE))
+		return candidate_module
+	
+	def instanciateElementWithImportInfo(self, element, element_name,
+										 plugin_module_name, candidate_filepath):
+		"""Override this method to customize how plugins are instanciated.
+		
+		:note: This methods recieves the 'element' that is a candidate
+		as the plugin's main file, but also enough information to reload
+		its containing module and this element.
+		"""
+		return self.instanciateElement(element)
+	
+	def instanciateElement(self, element):
+		"""
+		DEPRECATED(>1.11): reimplement instead `instanciateElementWithImportInfo` !
+		
+		Override this method to customize how plugins are instanciated.
+
+		:warning: This method is called only if
+		`instanciateElementWithImportInfo` has not been reimplemented !
+		"""
+		return element()
+	
 	def collectPlugins(self):
 		"""
 		Walk through the plugins' places and look for plugins.  Then
@@ -596,18 +674,6 @@ class PluginManagerSingleton(object):
 	__decoration_chain = None
 
 	def __init__(self):
-		"""
-		Initialisation: this class should not be initialised
-		explicitly and the ``get`` classmethod must be called instead.
-
-		To set up the various configurables variables of the
-		PluginManager's behaviour please call explicitly the following
-		methods:
-
-		  - ``setCategoriesFilter`` for ``categories_filter``
-		  - ``setPluginPlaces`` for ``directories_list``
-		  - ``setPluginInfoExtension`` for ``plugin_info_ext``
-		"""
 		if self.__instance is not None:
 			raise Exception("Singleton can't be created twice !")
 				

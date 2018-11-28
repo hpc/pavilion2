@@ -63,7 +63,6 @@ import getpass
 import copy
 from os.path import expanduser
 
-#from PAV.modules.ldms import LDMS
 from ldms import LDMS
 
 
@@ -90,7 +89,6 @@ class TestEntry(object):
 
         my_name = self.__class__.__name__
         self.id = nid
-        # print "initializing: " + str(self.id)
         self.name = values['name']
         self.eff_nodes = 1
         self.eff_ppn = None
@@ -110,7 +108,6 @@ class TestEntry(object):
 
         # define the required set of elements
         needed = {"source_location", "name", "run.cmd"}
-        # needed = {"source.rpath", "name", "run.cmd"}
         set_of_keys_supplied = set(data.keys())
 
         if needed.issubset(set_of_keys_supplied):
@@ -184,7 +181,6 @@ class TestEntry(object):
 
 
     def get_type(self):
-        # return params['run']['scheduler']
         return self.this_dict[self.id]['run']['scheduler']
 
     def get_count(self):
@@ -271,9 +267,6 @@ class SlurmTestEntry(TestEntry):
     def get_node_list(self):
         return self.this_dict[self.id]['slurm']['node_list']
 
-    # def get_values(self):
-    #   return self.this_dict[self.id]
-
     def get_test_variations(self):
         """
         Figure out all the variations for this test
@@ -316,13 +309,9 @@ class SlurmTestEntry(TestEntry):
 
 
         original_test_dict = self.this_dict[self.id]
-        # print "effective test suite:"
-        # print original_test_dict
-        # print ""
 
         my_prod = itertools.product(l1, l2, l3, l4)
         combinations = list(my_prod).__len__()
-        # print combinations
 
         for n, p, a, l in itertools.product(l1, l2, l3, l4):
             # Actually create a NEW test entry object that has just a single
@@ -336,10 +325,6 @@ class SlurmTestEntry(TestEntry):
             else:
                 my_new_id = self.id + "-variation" + str(i)
                 new_test_dict = copy.deepcopy(original_test_dict)
-                #print "Generate new slurm test entry (" + my_new_id + ")"
-
-            # print "my_n_type: "
-            # print type(n)
 
             new_te = SlurmTestEntry(my_new_id, new_test_dict, None)
             new_te.set_num_nodes(str(n))
@@ -347,11 +332,8 @@ class SlurmTestEntry(TestEntry):
             new_te.set_arg_str(str(a))
             new_te.set_node_list(str(l))
             tv.append(new_te)
-            # print new_te.this_dict[my_new_id],
             i += 1
 
-        # for e in tv:
-            # print e.this_dict[e.get_id()]
         return tv
 
     @staticmethod
@@ -376,7 +358,6 @@ class SlurmTestEntry(TestEntry):
         end_of_pipe = cut.stdout
 
         for line in end_of_pipe:
-            # print 'active_jobs: ', line.strip()
             return int(line.strip())
 
     def room_to_run(self, args):
@@ -421,9 +402,6 @@ class MoabTestEntry(TestEntry):
     def get_procs_per_node(self):
         return self.this_dict[self.id]['moab']['procs_per_node']
 
-    #def get_values(self):
-    #   return self.this_dict[self.id]
-
     def get_test_variations(self):
         """
         Figure out all the variations for this test
@@ -457,13 +435,9 @@ class MoabTestEntry(TestEntry):
             l3 = ['']
 
         original_test_dict = self.this_dict[self.id]
-        #print "effective test suite:"
-        #print original_test_dict
-        #print ""
 
         my_prod = itertools.product(l1, l2, l3)
         combinations = list(my_prod).__len__()
-        #print combinations
 
         for n, p, a in itertools.product(l1, l2, l3):
             # Actually create a NEW test entry object that has just a single
@@ -477,21 +451,14 @@ class MoabTestEntry(TestEntry):
             else:
                 my_new_id = self.id + "-variation" + str(i)
                 new_test_dict = copy.deepcopy(original_test_dict)
-                #print "Generate new moab test entry (" + my_new_id + ")"
-
-            #print "my_n_type: "
-            #print type(n)
 
             new_te = MoabTestEntry(my_new_id, new_test_dict, None)
             new_te.set_num_nodes(str(n))
             new_te.set_procs_per_node(str(p))
             new_te.set_arg_str(str(a))
             tv.append(new_te)
-            #print new_te.this_dict[my_new_id],
             i += 1
 
-        #for e in tv:
-            #print e.this_dict[e.get_id()]
         return tv
 
     @staticmethod
@@ -526,7 +493,6 @@ class MoabTestEntry(TestEntry):
         end_of_pipe = cut.stdout
 
         for line in end_of_pipe:
-            #print 'active_jobs: ', line.strip()
             return int(line.strip())
 
     def room_to_run(self, args):

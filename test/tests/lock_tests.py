@@ -49,9 +49,6 @@ class TestConfig(unittest.TestCase):
         with lock:
             pass
 
-        os.getgid()
-
-
         # Make sure we can set the group on the lockfile.
         # We need a group other than our default.
         groups = os.getgroups()
