@@ -62,10 +62,10 @@ def get_module_wrapper(name, version):
             # Grab the generic wrapper for this module
             return _WRAPPED_MODULES[name][None]
 
-    return ModuleWrapper(name, version)
+    return ModuleWrapper(name, '<default>', version)
 
 
-class ModuleWrapper(IPlugin):
+class ModuleWrapper(IPlugin.IPlugin):
 
     _MODULE_SYSTEM = None
     _MODULE_CMD = None
@@ -90,6 +90,8 @@ class ModuleWrapper(IPlugin):
         :param int priority: The priority of this wrapper. It will replace identical wrappers of a
         lower priority when loaded. Use
         """
+
+        super().__init__()
 
         if self.NAME_VERS_RE.match(name) is None:
             raise ModuleSystemError("Invalid module name: '{}'".format(name))
