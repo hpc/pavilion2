@@ -1,21 +1,15 @@
 
 class ModuleAction:
 
-    def __init__(self, module_name, version, options=None):
+    def __init__(self, module_name, version=None):
         """Initialize the action.
         :param str module_name: The name of the module
         :param Union(str, None) version: The version of the module. None denotes both unversioned
         modules and loading the default (as interpreted by the module system)
-        :param Union(list, None) options: A list of options to pass to the module command.
         """
 
         self.name = module_name
-        self.version = version
-
-        if options is None:
-            options = []
-
-        self.options = ' '.join(options)
+        self.version = version if version is not None else ''
 
     def action(self):
         raise NotImplementedError
@@ -25,7 +19,7 @@ class ModuleAction:
 
     @property
     def module(self):
-        if self.version is not None:
+        if self.version:
             return '{s.name}/{s.version}'.format(s=self)
         else:
             return self.name
@@ -34,19 +28,20 @@ class ModuleAction:
 class ModuleLoad(ModuleAction):
 
     def action(self):
-        return 'module {s.options} load {s.module}'.format(s=self)
+        return ['module load {s.module}'.format(s=self)]
 
     def verify(self):
-        return '# Line that runs a verification.'
+        return ['verify_module_loaded $TEST_ID {s.name} {s.version}'.format(s=self)]
 
 
 class ModuleRemove(ModuleAction):
 
     def action(self):
-        return 'module {s.options} remove {s.module}'.format(s=self)
+        return ['module remove {s.module}'.format(s=self)]
 
     def verify(self):
-        return '# Verify that it is gone.'
+        return ['verify_module_removed $TEST_ID {s.name} {s.version}'.format(s=self)]
+
 
 class ModuleSwap(ModuleAction):
 
@@ -64,7 +59,8 @@ class ModuleSwap(ModuleAction):
             return self.old_name
 
     def action(self):
-        return 'module {s.options} swap {s.old_module} {s.module}'
+        return ['module swap {s.old_module} {s.module}']
 
     def verify(self):
-        return '# Verify!!!'
+        return ['verify_module_loaded $TEST_ID {s.name} {s.version}'.format(s=self),
+                'verify_module_removed $TEST_ID {s.old_name} {s.old_version}']
