@@ -54,8 +54,7 @@
 # This module contains the base configuration for Pavilion itself.
 
 
-from __future__ import print_function, division, unicode_literals
-import dependencies.yaml_config as yc
+import pavilion.dependencies.yaml_config as yc
 import os
 import sys
 
@@ -71,7 +70,10 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
                     help_text="Paths to search for Pavilion config files. Pavilion configs (other"
                               "than this core config) are searched in the given order. In the case"
                               "of identically named files, directories listed earlier take "
-                              "precedent.")
+                              "precedent."),
+        yc.ListElem("disable_plugins", sub_elem=yc.StrElem(),
+                    help_text="Allows you to disable plugins by '<type>.<name>'. For example,"
+                              "'module.gcc' would disable the gcc module wrapper.")
     ]
 
 
