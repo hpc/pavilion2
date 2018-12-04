@@ -19,7 +19,7 @@ def get_parser():
                         help='Log all levels of messages to stderr.')
 
     _PAV_PARSER = parser
-    _PAV_SUB_PARSERS = parser.add_subparsers()
+    _PAV_SUB_PARSERS = parser.add_subparsers(dest='command_name')
 
     return parser
 

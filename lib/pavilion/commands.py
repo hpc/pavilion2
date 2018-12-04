@@ -1,6 +1,7 @@
+from pavilion import arguments
 from yapsy import IPlugin
 import argparse
-from pavilion import arguments
+import logging
 
 _COMMANDS = {}
 
@@ -40,6 +41,7 @@ class Command(IPlugin.IPlugin):
         """
         super().__init__()
 
+        self.logger = logging.getLogger('command.' + name)
         self.name = name
         self.description = description
         self.path = path

@@ -1,11 +1,13 @@
-import grp
-import logging
 from logging.handlers import RotatingFileHandler
-import os
-import sys
+from pavilion import arguments
+from pavilion import commands
 from pavilion import pav_config
 from pavilion import plugins
-from pavilion import arguments
+import grp
+import logging
+import os
+import sys
+import traceback
 
 # Pavilion is compatible with python >= 3.4
 if sys.version_info[0] != 3 or sys.version_info[1] < 4:
@@ -27,9 +29,13 @@ if config.shared_group:
 
 root_logger = logging.getLogger()
 
+# Set up a directory for tracebacks.
+tracebacks_dir = '~/.pavilion/tracebacks'
+os.makedirs(tracebacks_dir)
+
 # Put the log file in the lowest common pav config directory we can write to.
-for dir in reversed(config.config_dirs):
-    logfile = os.path.join(dir, 'pav.log')
+for log_dir in reversed(config.config_dirs):
+    logfile = os.path.join(log_dir, 'pav.log')
     if not os.path.exists(logfile):
         try:
             # 'Touch' the file, in case it doesn't exist. Makes it easier to verify writability
@@ -72,5 +78,19 @@ if args.verbose or not root_logger.handlers:
     handler.format(config.log_format)
     root_logger.addHandler(handler)
 
-# TODO:
-# Find the appropriate command plugin, and run it.
+try:
+    cmd = commands.get_command(args.command_name)
+except KeyError:
+    print("Unknown command {}.".format(args.command_name), file=sys.stderr)
+    sys.exit(-1)
+
+
+try:
+    sys.exit(cmd.run(config, args))
+except Exception as err:
+    print("Unknown error running command {}: {}.".format(args.command_name, err))
+    traceback_file = os.path.join(tracebacks_dir, str(os.getpid()))
+    with open(traceback_file, 'w') as tb:
+        tb.write(traceback.format_exc())
+    print("Traceback saved in {}".format(traceback_file))
+    sys.exit(-1)
