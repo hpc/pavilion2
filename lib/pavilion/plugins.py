@@ -1,5 +1,6 @@
 from yapsy.PluginManager import PluginManager
 from pavilion.module_wrapper import ModuleWrapper
+from pavilion.commands import Command
 import os
 
 _INIT_DONE=False
@@ -29,9 +30,10 @@ def initialize_plugins(pav_cfg):
 
     categories = {
         'module': ModuleWrapper,
+        'command': Command,
         # sys plugins
-        # cmd plugins
         # scheduler plugins
+        # result plugins
     }
 
     try:
