@@ -4,16 +4,25 @@ import pavilion.system_plugins as system_plugins
 class SystemArch( system_plugins.SystemPlugins ):
 
     def __init__( self ):
-        super.__init__( 'lanl_arch' )
+        super.__init__( 'sys_arch', 11 )
 
     def get( self, sys_vars ):
-        """Base method for determining the system architecture."""
+        """LANL method for determining the system architecture."""
 
         arch = subprocess.check_output(
                                 '/usr/projects/hpcsoft/utilities/bin/sys_arch')
 
         arch = arch.strip().decode('UTF-8')
 
-        sys_vars[ 'lanl_arch' ] = arch
+        sys_vars[ 'sys_arch' ] = arch
 
         return arch
+
+#    def get( self, sys_vars ):
+#        """LANL method for determining the system architecture."""
+#
+#        arch = '$(/usr/projects/hpcsoft/utilities/bin/sys_arch)'
+#
+#        sys_vars[ 'sys_arch' ] = arch
+#
+#        return arch

@@ -3,7 +3,7 @@ import pavilion.system_plugins as system_plugins
 class SystemOS( system_plugins.SystemPlugins ):
 
     def __init__( self ):
-        super.__init__( 'sys_os' )
+        super.__init__( 'sys_os', 10 )
         self.id = None
         self.version = None
 
@@ -29,3 +29,14 @@ class SystemOS( system_plugins.SystemPlugins ):
         sys_vars[ 'sys_os' ] = {'ID': self.id, 'Version': self.version}
 
         return {'ID': self.id, 'Version': self.version}
+
+#    def get( self, sys_vars ):
+#        """Base method for determining the operating system and version."""
+#
+#        self.id = "$( '^ID=' /etc/os-release | sed 's/ID=//' | sed 's/\"//g')"
+#        self.version = "$( grep '^VERSION_ID=' /etc/os-release | " + \
+#                       "sed 's/VERSION_ID=//' | sed 's\"//g')"
+#
+#        sys_vars[ 'sys_os' ] = {'ID': self.id, 'Version': self.version}
+#
+#        return {'ID': self.id, 'Version': self.version}

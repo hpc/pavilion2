@@ -4,7 +4,7 @@ import pavilion.system_plugins as system_plugins
 class SystemName( system_plugins.SystemPlugins ):
 
     def __init__( self ):
-        super.__init__( 'sys_name' )
+        super.__init__( 'sys_name', 10 )
 
     def get( self, sys_vars ):
         """Base method for determining the system name."""
@@ -16,3 +16,12 @@ class SystemName( system_plugins.SystemPlugins ):
         sys_vars[ 'sys_name' ] = name
 
         return name
+
+#    def get( self, sys_vars ):
+#        """Base method for determining the system name."""
+#
+#        name = '$(hostname -s)'
+#
+#        sys_vars[ 'sys_name' ] = name
+#
+#        return name
