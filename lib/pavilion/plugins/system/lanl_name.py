@@ -4,7 +4,7 @@ import pavilion.system_plugins as system_plugins
 class SystemName( system_plugins.SystemPlugins ):
 
     def __init__( self ):
-        super.__init__( 'sys_name', 11 )
+        super.__init__( 'sys_name', 11, True )
 
     def get( self, sys_vars ):
         """LANL method for determining the system name."""
@@ -17,12 +17,3 @@ class SystemName( system_plugins.SystemPlugins ):
         sys_vars[ 'sys_name' ] = name
 
         return name
-
-#    def get( self, sys_vars ):
-#        """LANL method for determining the system name."""
-#
-#        name = '$(/usr/projects/hpcsoft/utilities/bin/sys_name)'
-#
-#        sys_vars[ 'sys_name' ] = name
-#
-#        return name

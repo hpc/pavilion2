@@ -1,14 +1,14 @@
 import pavilion.system_plugins as system_plugins
 
-class SystemOS( system_plugins.SystemPlugins ):
+class HostOS( system_plugins.SystemPlugins ):
 
     def __init__( self ):
-        super.__init__( 'sys_os', 10, True )
+        super.__init__( 'host_os', 10, True )
         self.id = None
         self.version = None
 
     def get( self, sys_vars ):
-        """Base method for determining the operating system and version."""
+        """Base method for determining the operating host and version."""
 
         with open('/etc/os-release', 'r') as release:
             rlines = release.readlines()
@@ -26,6 +26,6 @@ class SystemOS( system_plugins.SystemPlugins ):
                                 and self.version[-1] == '"':
             self.version = self.version[1:-1]
 
-        sys_vars[ 'sys_os' ] = {'ID': self.id, 'Version': self.version}
+        sys_vars[ 'host_os' ] = {'ID': self.id, 'Version': self.version}
 
         return {'ID': self.id, 'Version': self.version}
