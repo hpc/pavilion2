@@ -100,32 +100,27 @@ class VariableError(ValueError):
 class DeferredVariable:
     """The value for some variables may not be available until a test is actually running."""
 
+    # NOTE: Other than __init__, this should always have the same interface as VariableList.
+
     VAR_TEMPLATE = '$(pav var {key})'
     ALLOWED_VARSETS = ['sys', 'pav', 'sched']
 
-    def __init__(self, name, var_set='sys', item_count=None, sub_keys=None):
-        """Normal variables are validated by the actual data. In this case we provide a way to
-        validate these manually.
+    def __init__(self, name, var_set='sys', sub_keys=None):
+        """Deferred variables need to know their name and var_set at definition time. Additionally,
+        they need to be aware of their valid sub-keys. They cannot have more than one value, like
+        normal variables.
         :param name: The name of this variable.
         :param var_set: The variable set this deferred variable belongs to. Only some varsets are
             allowed, as defined in DeferredVariable.ALLOWED_VARSETS.
-        :param item_count: The expected number of items in the variable. Can be an integer for a
-        precise count or None to denote one or more.
         :param list sub_keys: A list of subkey names for the variable. None denotes sub-keys aren't
             used.
         """
-
-        if item_count is not None:
-            if not isinstance(item_count, int) or item_count <= 0:
-                raise ValueError("Invalid Item Count in Deferred Variable. Should be an int > 0 "
-                                 "or None. Got: {}".format(item_count))
 
         if var_set not in self.ALLOWED_VARSETS:
             raise ValueError("The allowed values of var_set are {}. Got {}."
                              .format(self.ALLOWED_VARSETS, var_set))
 
         self.name = name
-        self.item_count = item_count
         self.var_set = var_set
 
         if sub_keys is None:
@@ -134,14 +129,10 @@ class DeferredVariable:
         self.sub_keys = sub_keys
 
     def get(self, index, sub_var):
-        key = [self.var_set, self.name]
-        if index is None:
-            index = 0
-        elif not (-self.item_count <= index < self.item_count):
-            raise KeyError("Index out of range ({}-{}), got {}."
-                           .format(-self.item_count, self.item_count - 1, index))
+        if index not in [0, None]:
+            raise KeyError("Deferred variables only have a single value.")
 
-        key.append(str(index))
+        key = [self.var_set, self.name]
 
         if sub_var is None and self.sub_keys:
             raise KeyError('Sub variable not requested, but must be one of {}'
@@ -157,6 +148,10 @@ class DeferredVariable:
             key.append(sub_var)
 
         return self.VAR_TEMPLATE.format(key='.'.join(key))
+
+    def __len__(self):
+        """Deferred variables always have a single value."""
+        return 1
 
 
 class VariableSetManager:
@@ -346,32 +341,6 @@ class VariableSetManager:
         except KeyError as msg:
             # Make sure our error message gives the full key.
             raise KeyError("Could not resolve reference '{}': {}".format(key, msg))
-
-    def getlist(self, var_set, var):
-        """Get the list of values for a given key. These values will always be a dictionary; If the
-        the variable is simple (does not have sub_vars), the value will be in the 'None' key.
-        :param str var_set: The var set to fetch from.
-        :param str var: The variable to fetch.
-        :return: A a list of the corresponding values/subvalues.
-        :raises KeyError: If either the var_set or var don't exist.
-        """
-
-        if var_set not in self.variable_sets:
-            raise KeyError("Unknown variable set '{}'".format(var_set, var))
-
-        _var_set = self.variable_sets[var_set]
-
-        if var not in self.variable_sets[var_set].data:
-            raise KeyError("Variable set '{}' does not contain a variable named '{}'"
-                           .format(var_set, var))
-
-        var_list = _var_set.data[var]
-
-        values = []
-        for value in var_list:
-            values.append(value.data)
-
-        return values
 
     def len(self, var_set, var):
         """
