@@ -115,7 +115,7 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
                              "files, so that users can share relevant results, etc."),
         yc.StrElem("log_format", default="%{asctime}, ${levelname}, ${name}: ${message}",
                    help_text="The log format to use for the pavilion logger. See: "
-                             "https://docs.python.org/3/library/logging.html#logrecord-attributes")
+                             "https://docs.python.org/3/library/logging.html#logrecord-attributes"),
         yc.StrElem("log_level", default="info", post_validator=log_level_validate,
                    help_text="The minimum log level for messages sent to the pavilion logfile.")
     ]

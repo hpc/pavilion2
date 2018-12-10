@@ -6,6 +6,11 @@ import logging
 _COMMANDS = {}
 
 
+class CommandError(RuntimeError):
+    """The error type commands should raise for semi-expected errors."""
+    pass
+
+
 def add_command(command):
     """Add the given command instance to the dictionary of commands."""
 

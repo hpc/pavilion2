@@ -1,4 +1,3 @@
-from __future__ import division, unicode_literals, print_function
 from collections import defaultdict
 from pavilion import string_parser, variables
 from pavilion.config_format import TestConfigLoader, TestSuiteLoader, TestConfigError, KEY_NAME_RE
@@ -30,7 +29,7 @@ def find_config(pav_config, conf_type, conf_name):
     return None
 
 
-def get_tests(pav_config, host, modes, tests):
+def get_tests(pav_config, host, modes, overrides, tests):
     """Get a dictionary of raw test configs given a host, list of modes,
     and a list of tests. Each of these configs will be lightly modified with a few extra variables
     about their name, suite, and suite_file, as well as guaranteeing that they have 'variables' and
@@ -38,6 +37,7 @@ def get_tests(pav_config, host, modes, tests):
     :param pav_config: The pavilion config data
     :param Union(str, None) host: The host the test is running on.
     :param list modes: A list (possibly empty) of modes to layer onto the test.
+    :param dict overrides: A dictionary of va
     :param list tests: A list (possibly empty) of tests to load. Each test can be either a
                        '<test_suite>.<test_name>', '<test_suite>', or '<test_suite>.*'. A test
                        suite by itself (or with a .*) get every test in a suite.
@@ -263,7 +263,7 @@ def _parse_strings(section):
         for i in range(len(section)):
             section[i] = _parse_strings(section[i])
         return section
-    elif isinstance(section, unicode):
+    elif isinstance(section, str):
         return string_parser.parse(section)
     else:
         # Should probably never happen (We're going to see this error a lot until we get a handle
