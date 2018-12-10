@@ -97,6 +97,68 @@ class VariableError(ValueError):
         return "Error processing variable key '{}': {}".format(key, self.base_message)
 
 
+class DeferredVariable:
+    """The value for some variables may not be available until a test is actually running."""
+
+    VAR_TEMPLATE = '$(pav var {key})'
+    ALLOWED_VARSETS = ['sys', 'pav', 'sched']
+
+    def __init__(self, name, var_set='sys', item_count=None, sub_keys=None):
+        """Normal variables are validated by the actual data. In this case we provide a way to
+        validate these manually.
+        :param name: The name of this variable.
+        :param var_set: The variable set this deferred variable belongs to. Only some varsets are
+            allowed, as defined in DeferredVariable.ALLOWED_VARSETS.
+        :param item_count: The expected number of items in the variable. Can be an integer for a
+        precise count or None to denote one or more.
+        :param list sub_keys: A list of subkey names for the variable. None denotes sub-keys aren't
+            used.
+        """
+
+        if item_count is not None:
+            if not isinstance(item_count, int) or item_count <= 0:
+                raise ValueError("Invalid Item Count in Deferred Variable. Should be an int > 0 "
+                                 "or None. Got: {}".format(item_count))
+
+        if var_set not in self.ALLOWED_VARSETS:
+            raise ValueError("The allowed values of var_set are {}. Got {}."
+                             .format(self.ALLOWED_VARSETS, var_set))
+
+        self.name = name
+        self.item_count = item_count
+        self.var_set = var_set
+
+        if sub_keys is None:
+            sub_keys = list()
+
+        self.sub_keys = sub_keys
+
+    def get(self, index, sub_var):
+        key = [self.var_set, self.name]
+        if index is None:
+            index = 0
+        elif not (-self.item_count <= index < self.item_count):
+            raise KeyError("Index out of range ({}-{}), got {}."
+                           .format(-self.item_count, self.item_count - 1, index))
+
+        key.append(str(index))
+
+        if sub_var is None and self.sub_keys:
+            raise KeyError('Sub variable not requested, but must be one of {}'
+                           .format(self.sub_keys))
+        elif sub_var is not None and not self.sub_keys:
+            raise KeyError('Sub variable {} requested for a deferred variable with no sub-keys.'
+                           .format(sub_var))
+        elif sub_var is not None and sub_var not in self.sub_keys:
+            raise KeyError('Sub variable requested ({}) that is not in the known sub-key list ({})'
+                           .format(sub_var, self.sub_keys))
+
+        if sub_var is not None:
+            key.append(sub_var)
+
+        return self.VAR_TEMPLATE.format(key='.'.join(key))
+
+
 class VariableSetManager:
     """This class manages the various sets of variables, provides complex key based lookups,
     manages conflict resolution, and so on."""
@@ -137,7 +199,7 @@ class VariableSetManager:
 
     def get_permutations(self, used_per_vars):
         """For every combination of permutation variables (that were used), return a new
-        varset manager.
+        var_set manager.
         :param set used_per_vars: A list of permutation variable names that were used.
         :return:
         """
@@ -363,11 +425,14 @@ class VariableSet:
                 raise VariableError("Var name '{}' is reserved.".format(key),
                                     var=key)
 
-            try:
-                self.data[key] = VariableList(values=value)
-            except VariableError as err:
-                err.var = key
-                raise err
+            if isinstance(value, DeferredVariable):
+                self.data[key] = value
+            else:
+                try:
+                    self.data[key] = VariableList(values=value)
+                except VariableError as err:
+                    err.var = key
+                    raise err
 
     def get(self, var, index, sub_var):
         """Return the value of the var given the var name, index, and sub_var name."""
@@ -431,12 +496,10 @@ class VariableList:
         if index is None:
             index = 0
         else:
-            try:
-                index = int(index)
-            except ValueError:
+            if not isinstance(index, int):
                 raise KeyError("Non-integer index given: '{}'".format(index))
 
-        if index >= len(self.data) or index < -len(self.data):
+        if not (-len(self.data) <= index < len(self.data)):
             raise KeyError("Index out of range. There are only {} items in this variable."
                            .format(len(self.data)))
 
