@@ -1,4 +1,3 @@
-from __future__ import division, unicode_literals, print_function
 from collections import defaultdict
 from pavilion import string_parser, variables
 from pavilion.config_format import TestConfigLoader, TestSuiteLoader, TestConfigError, KEY_NAME_RE
@@ -263,7 +262,7 @@ def _parse_strings(section):
         for i in range(len(section)):
             section[i] = _parse_strings(section[i])
         return section
-    elif isinstance(section, unicode):
+    elif isinstance(section, str):
         return string_parser.parse(section)
     else:
         # Should probably never happen (We're going to see this error a lot until we get a handle
