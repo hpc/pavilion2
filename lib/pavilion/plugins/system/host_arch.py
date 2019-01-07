@@ -1,4 +1,5 @@
 import subprocess
+import pavilion.variables
 import pavilion.system_plugins as system_plugins
 
 class HostArch( system_plugins.SystemPlugins ):
@@ -9,6 +10,8 @@ class HostArch( system_plugins.SystemPlugins ):
     def get( self, sys_vars ):
         """Base method for determining the host architecture."""
 
+        if self.is_deferable:
+            
         arch = subprocess.check_output(['uname', '-i'])
 
         arch = arch.strip().decode('UTF-8')
