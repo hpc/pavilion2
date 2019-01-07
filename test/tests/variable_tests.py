@@ -152,3 +152,37 @@ class TestVariables(unittest.TestCase):
         }
         # Adding non-string data
         self.assertRaises(VariableError, lambda: vsetm.add_var_set('sched', slurm_data))
+
+    def test_deferred(self):
+        """Test deferred variables."""
+
+        data = {
+            'var1': 'val1',
+            'var3': {'subvar1': 'subval1',
+                     'subvar2': 'subval2'},
+        }
+
+        sys_data = {
+            'var1': variables.DeferredVariable('var1'),
+            'var3': variables.DeferredVariable('var3', sub_keys=['subvar1', 'subvar2']),
+        }
+
+        self.assertRaises(ValueError, lambda: variables.DeferredVariable('test', var_set='var'))
+
+        slurm_data = {
+            'num_nodes': '45'
+        }
+
+        vsetm = variables.VariableSetManager()
+        vsetm.add_var_set('var', data)
+        vsetm.add_var_set('sys', sys_data)
+        vsetm.add_var_set('sched', slurm_data)
+
+        self.assertEqual(vsetm.len('sys', 'var1'), 1)
+        self.assertEqual(vsetm['sys.var1'], '$(pav var sys.var1)')
+        self.assertEqual(vsetm['sys.var3.subvar1'], '$(pav var sys.var3.subvar1)')
+        self.assertRaises(KeyError, lambda: vsetm['sys.var1.3'])
+        self.assertRaises(KeyError, lambda: vsetm['sys.var1.1.subvar1'])
+        self.assertRaises(KeyError, lambda: vsetm['sys.var3.noexist'])
+        self.assertRaises(KeyError, lambda: vsetm['sys.var1.noexist'])
+        self.assertRaises(KeyError, lambda: vsetm['sys.var3'])
