@@ -1,0 +1,9 @@
+[Core]
+Name = Bop
+Module = bop
+
+[Documentation]
+Description = Goes Bop!
+Author = Some Author
+Version = 1.0
+Website =

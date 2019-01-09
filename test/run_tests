@@ -13,15 +13,16 @@ logging_root = '/tmp/{user}'.format(user=os.getlogin())
 if not os.path.exists(logging_root):
     os.makedirs(logging_root)
 log_path = os.path.join(logging_root, 'pavilion_tests.log')
-logging.basicConfig(filename=log_path)
-print("Setting logging to output to, log_path")
+logging.basicConfig(filename=log_path,)
+console = logging.StreamHandler()
+console.setLevel(logging.INFO)
+logging.getLogger('').addHandler(console)
+print("Setting logging to output to ({}) and stderr".format(log_path))
 
 # Setup our paths to the pavilion libraries.
 sys.path.append(os.path.abspath('../lib'))
 sys.path.append(os.path.abspath('../lib/pavilion/dependencies'))
 
 loader = unittest.TestLoader()
-
 suite = loader.discover('./tests', pattern='*_tests.py')
-
 unittest.TextTestRunner(verbosity=2).run(suite)

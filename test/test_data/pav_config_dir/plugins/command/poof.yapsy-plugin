@@ -1,0 +1,9 @@
+[Core]
+Name = Poof
+Module = poof
+
+[Documentation]
+Description = Goes Poof!
+Author = Some Author
+Version = 1.0
+Website =

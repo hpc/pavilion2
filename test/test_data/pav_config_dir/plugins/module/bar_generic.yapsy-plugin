@@ -1,0 +1,9 @@
+[Core]
+Name = Bar-Generic
+Module = bar_generic
+
+[Documentation]
+Description = Wraps Bar
+Author = Some Author
+Version = 1.0
+Website =

@@ -1,0 +1,9 @@
+[Core]
+Name = Blarg
+Module = blarg
+
+[Documentation]
+Description = Goes Blarg!
+Author = Some Author
+Version = 1.0
+Website =
