@@ -2,11 +2,19 @@ from yapsy.PluginManager import PluginManager
 from pavilion.module_wrapper import ModuleWrapper
 from pavilion.commands import Command
 import os
+import logging
 
-_INIT_DONE=False
+LOGGER = logging.getLogger('plugins')
 
-_PLUGIN_MANAGER=None
+_PLUGIN_MANAGER = None
 
+PLUGIN_CATEGORIES = {
+    'module': ModuleWrapper,
+    'command': Command,
+    # sys plugins
+    # scheduler plugins
+    # result plugins
+}
 
 class PluginError(RuntimeError):
     pass
@@ -24,21 +32,14 @@ def initialize_plugins(pav_cfg):
     global _PLUGIN_MANAGER
 
     if _PLUGIN_MANAGER is not None:
-        raise RuntimeError("Plugins should only be initialized once per run of Pavilion.")
+        LOGGER.warning("Tried to initialize plugins multiple times.")
+        return
 
     plugin_dirs = [os.path.join(cfg_dir, 'plugins') for cfg_dir in pav_cfg.config_dirs]
 
-    categories = {
-        'module': ModuleWrapper,
-        'command': Command,
-        # sys plugins
-        # scheduler plugins
-        # result plugins
-    }
-
     try:
         pman = PluginManager(directories_list=plugin_dirs,
-                             categories_filter=categories)
+                             categories_filter=PLUGIN_CATEGORIES)
 
         pman.locatePlugins()
         pman.collectPlugins()
@@ -77,3 +78,18 @@ def list_plugins():
             plugins[category][plugin.name] = plugin
 
     return plugins
+
+
+def _reset_plugins():
+    LOGGER.warning("Resetting the plugins. This functionality exists only for use by unittests.")
+    import inspect
+
+    global _PLUGIN_MANAGER
+
+    _PLUGIN_MANAGER = None
+
+    for cat, cat_obj in PLUGIN_CATEGORIES.items():
+        module = inspect.getmodule(cat_obj)
+
+        if hasattr(module, '__reset'):
+            module.__reset()

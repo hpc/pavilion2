@@ -63,13 +63,13 @@ import logging
 def group_validate(sibs, group):
     """Make sure the group specified in the config exists and the user is in it."""
 
-    if not group:
+    if group is None:
         return
 
     try:
         gid = grp.getgrnam(group)
     except KeyError as err:
-        raise ValueError("Group {} is not known on this {}.".format(group, socket.gethostname()))
+        raise ValueError("Group {} is not known on host {}.".format(group, socket.gethostname()))
 
     if gid not in os.getgroups():
         raise ValueError("Group {} is not in the current user's list of groups.".format(group))
@@ -100,8 +100,8 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
     # Each and every configuration element needs to either not be required, or have a sensible
     # default. Essentially, Pavilion needs to work if no config is given.
     ELEMENTS = [
-        yc.ListElem("config_dirs", default=[os.path.join(os.environ['HOME'], '.pavilion'),
-                                            os.environ.get('PAV_CONFIG_DIR', './')],
+        yc.ListElem("config_dirs", defaults=[os.path.join(os.environ['HOME'], '.pavilion'),
+                                             os.environ.get('PAV_CONFIG_DIR', './')],
                     sub_elem=yc.StrElem(),
                     help_text="Paths to search for Pavilion config files. Pavilion configs (other"
                               "than this core config) are searched in the given order. In the case"
@@ -133,7 +133,7 @@ PAV_CONFIG_SEARCH_DIRS.extend([
 ])
 
 
-def find_pavilion_config():
+def find():
     """Search for a pavilion.yaml configuration file. The first one found is used.
     Directories are searched in this order: {}
     """.format(PAV_CONFIG_SEARCH_DIRS)

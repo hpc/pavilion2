@@ -1,6 +1,8 @@
 from pavilion import commands
-from pavilion import sys_vars
 from pavilion import config
+from collections import defaultdict
+from pavilion import schedulers
+from pavilion.string_parser import ResolveError
 
 
 class RunCommand(commands.Command):
@@ -36,11 +38,15 @@ class RunCommand(commands.Command):
         """Resolve the test configurations into individual tests and assign to schedulers.
         Have those schedulers kick off jobs to run the individual tests themselves."""
 
+        test_configs = self.get_tests(pav_config, args)
+
+    def get_tests(self, pav_config, args):
+
         self.logger.DEBUG("Finding Configs")
 
         # Use the sys_host if a host isn't specified.
         if args.host is None:
-            host = sys_vars.get('sys_host')
+            host = pav_config.sys_vars.get('sys_host')
         else:
             host = args.host
 
@@ -57,4 +63,48 @@ class RunCommand(commands.Command):
                 self.logger.error(msg)
                 raise commands.CommandError(msg)
 
-        test_mapping = config.get_tests(pav_config, host, args.mode)
+        raw_tests = config.get_tests(pav_config, host, args.mode)
+        tests_by_scheduler = defaultdict(lambda: [])
+
+        # Apply config overrides.
+        for test_cfg in raw_tests:
+            # Apply the overrides to each of the config values.
+            try:
+                config.apply_overrides(test_cfg, args.overrides)
+            except config.TestConfigError as err:
+                msg = 'Error applying overrides to test {} from {}: {}'\
+                      .format(test_cfg['name'], test_cfg['suite_path'], err)
+                self.logger.error(msg)
+                raise commands.CommandError(msg)
+
+            try:
+                for p_cfg, p_var_man in config.resolve_permutations(test_cfg, pav_config.pav_vars,
+                                                                    pav_config.sys_vars):
+
+                    tests_by_scheduler[p_cfg['scheduler']].append((p_cfg, p_var_man))
+            except config.TestConfigError as err:
+                msg = 'Error resolving permutations for test {} from {}: {}'\
+                      .format(test_cfg['name'], test_cfg['suite_path'], err)
+                self.logger.error(msg)
+                raise commands.CommandError(msg)
+
+        for sched_name in tests_by_scheduler.keys():
+            try:
+                sched = schedulers.get_scheduler(sched_name)
+            except KeyError:
+                msg = "Could not find scheduler '{}'.".format(sched_name)
+                self.logger.error(msg)
+                raise commands.CommandError(msg)
+
+            sched_configs = []
+            for test_cfg, test_var_man in tests_by_scheduler[sched_name]:
+                if sched_name in test_cfg:
+                    try:
+                        sched_configs.append(config.resolve_all_vars(test_cfg, test_var_man))
+                    except (ResolveError, KeyError) as err:
+                        msg = 'Error '
+
+
+
+
+

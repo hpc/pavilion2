@@ -6,7 +6,7 @@ def find_module_system(cls, pav_config):
     """Figure out which module system we're using, and set the module command in the class.""
     :param pav_config: The pavilion configuration.
     :return: None
-    :raises ModuleSystemError: When we can't find the module system.
+    :raises ModuleWrapperError: When we can't find the module system.
     """
 
     if cls._MODULE_CMD is not None or cls._MODULE_SYSTEM is not None:

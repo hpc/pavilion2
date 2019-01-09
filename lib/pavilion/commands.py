@@ -6,6 +6,16 @@ import logging
 _COMMANDS = {}
 
 
+def __reset():
+    """Reset the command plugins. This is only to be used as part of unittests."""
+
+    global _COMMANDS
+
+    _COMMANDS = {}
+
+    arguments._reset_parser()
+
+
 class CommandError(RuntimeError):
     """The error type commands should raise for semi-expected errors."""
     pass
@@ -36,20 +46,18 @@ def get_command(command_name):
 class Command(IPlugin.IPlugin):
     """Provides a pavilion command via a plugin."""
 
-    def __init__(self, name, description, path):
+    def __init__(self, name, description):
         """Initialize this command. This should be overridden by subclasses, to set reasonable
         values. Multiple commands of the same name are not allowed to exist.
 
         :param name: The name of this command. Will be used as the subcommand name.
         :param description: The help text for this command.
-        :param path: The path to the file that contains this command.
         """
         super().__init__()
 
         self.logger = logging.getLogger('command.' + name)
         self.name = name
         self.description = description
-        self.path = path
 
     def _setup_arguments(self, parser):
         """Setup the commands arguments in the Pavilion argument parser.

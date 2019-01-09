@@ -9,7 +9,6 @@ CONF_HOST = 'hosts'
 CONF_MODE = 'modes'
 CONF_TEST = 'tests'
 
-
 LOGGER = logging.getLogger('pav.' + __name__)
 
 
@@ -29,7 +28,7 @@ def find_config(pav_config, conf_type, conf_name):
     return None
 
 
-def get_tests(pav_config, host, modes, overrides, tests):
+def get_tests(pav_config, host, modes, tests):
     """Get a dictionary of raw test configs given a host, list of modes,
     and a list of tests. Each of these configs will be lightly modified with a few extra variables
     about their name, suite, and suite_file, as well as guaranteeing that they have 'variables' and
@@ -37,7 +36,6 @@ def get_tests(pav_config, host, modes, overrides, tests):
     :param pav_config: The pavilion config data
     :param Union(str, None) host: The host the test is running on.
     :param list modes: A list (possibly empty) of modes to layer onto the test.
-    :param dict overrides: A dictionary of va
     :param list tests: A list (possibly empty) of tests to load. Each test can be either a
                        '<test_suite>.<test_name>', '<test_suite>', or '<test_suite>.*'. A test
                        suite by itself (or with a .*) get every test in a suite.
@@ -76,7 +74,7 @@ def get_tests(pav_config, host, modes, overrides, tests):
 
     # A dictionary of test suites to a list of subtests to run in that suite.
     all_tests = defaultdict(lambda: dict())
-    picked_tests = dict()
+    picked_tests = []
     test_suite_loader = TestSuiteLoader()
 
     # Find and load all of the requested tests.
@@ -167,7 +165,7 @@ def get_tests(pav_config, host, modes, overrides, tests):
         if requested_test == '*':
             # Get all the tests in the given test suite.
             for test_cfg_name, test_cfg in all_tests[test_suite].items():
-                picked_tests['{}.{}'.format(test_suite, test_cfg_name)] = test_cfg
+                picked_tests.append(test_cfg)
 
         else:
             # Get the one specified test.
@@ -175,12 +173,63 @@ def get_tests(pav_config, host, modes, overrides, tests):
                 raise TestConfigError("Test suite '{}' does not contain a test '{}'."
                                       .format(test_suite, requested_test))
 
-            picked_tests[test_name] = all_tests[test_suite][requested_test]
+            picked_tests.append(all_tests[test_suite][requested_test])
 
     return picked_tests
 
 
-# TODO: Write this function, maybe?
+NOT_OVERRIDABLE = ['name', 'suite', 'suite_path']
+
+
+def apply_overrides(test_cfg, overrides, _first_level=True):
+    """Apply overrides to this test.
+    :param dict test_cfg: The test configuration.
+    :param dict overrides: A dictionary of values to override in all configs. This occurs at the
+        highest level, after inheritance is resolved.
+    """
+
+    return _apply_overrides(test_cfg, overrides, _first_level=True)
+
+
+def _apply_overrides(test_cfg, overrides, _first_level=True):
+    """Apply overrides recursively."""
+
+    for key in overrides.keys():
+        if _first_level and key in NOT_OVERRIDABLE:
+            LOGGER.warning("You can't override the '{}' key in a test config.".format(key))
+            continue
+
+        if key not in test_cfg:
+            test_cfg[key] = overrides[key]
+        elif isinstance(test_cfg[key], dict):
+            if isinstance(overrides[key], dict):
+                _apply_overrides(test_cfg[key], overrides[key])
+            else:
+                raise TestConfigError("Cannot override a dictionary of values with a "
+                                      "non-dictionary. Tried to put {} in key {} valued {}."
+                                      .format(overrides[key], key, test_cfg[key]))
+        elif isinstance(test_cfg[key], list):
+            # We always get lists from overrides as our 'array' type.
+            if isinstance(overrides[key], list):
+                test_cfg[key] = overrides[key]
+            # Put single values in a list.
+            elif isinstance(overrides[key], str):
+                test_cfg[key] = [overrides[key]]
+            else:
+                raise TestConfigError("Tried to override list key {} with a {} ({})"
+                                      .format(key, type(overrides[key]), overrides[key]))
+        elif isinstance(test_cfg[key], str):
+            if isinstance(overrides[key], str):
+                test_cfg[key] = overrides[key]
+            else:
+                raise TestConfigError("Tried to override str key {} with a {} ({})"
+                                      .format(key, type(overrides[key]), overrides[key]))
+        else:
+            raise TestConfigError("Configuration contains an element of an unrecognized type. "
+                                  "Key: {}, Type: {}.".format(key, type(test_cfg[key])))
+
+
+        # TODO: Write this function, maybe?
 def get_all_tests(pav_config):
     """Find all the tests within known config directories.
     :param dict pav_config:
@@ -334,6 +383,9 @@ def resolve_all_vars(component, var_man):
 
     elif isinstance(component, string_parser.PavString):
         return component.resolve(var_man)
+    elif isinstance(component, str):
+        # Some PavStrings may have already been resolved
+        return component
     else:
         raise TestConfigError("Invalid value type '{}' for '{}' when resolving strings."
                               .format(type(component), component))
