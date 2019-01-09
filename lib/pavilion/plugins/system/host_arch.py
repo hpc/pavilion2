@@ -5,17 +5,16 @@ import pavilion.system_plugins as system_plugins
 class HostArch( system_plugins.SystemPlugins ):
 
     def __init__( self ):
-        super.__init__( 'host_arch', 10, True )
+        super.__init__( 'host_arch', 10, True, [ None ] )
 
-    def get( self, sys_vars ):
+    def _get( self, sub_key=None ):
         """Base method for determining the host architecture."""
 
-        if self.is_deferable:
-            
-        arch = subprocess.check_output(['uname', '-i'])
+        if sub_key not in self.sub_keys:
+            raise KeyError("Sub-key '{}' not found on sys variable {}.".format(
+                           sub_key, self.name))
 
-        arch = arch.strip().decode('UTF-8')
+        self.values[ sub_key ] = subprocess.check_output(['uname', '-i'])
+        self.values[ sub_key ] = self.values[ sub_key ].strip().decode('UTF-8')
 
-        sys_vars[ 'host_arch' ] = arch
-
-        return arch
+        return self.values[ sub_key ]

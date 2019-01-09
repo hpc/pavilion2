@@ -20,10 +20,7 @@ class SysVarDict( collections.UserDict ):
 
     def __getitem__( self, name ):
         plugin = self.data[ name ]
-        if plugin.is_deferable and self.want_deferred:
-            return plugin.deferred_get()
-        else:
-            return plugin.get()
+        return plugin.get()
 
 def add_system_plugin( system_plugin ):
     name = system_plugin.name
@@ -54,11 +51,17 @@ class SystemPlugin(IPlugin):
     PRIO_DEFAULT = 0
     PRIO_COMMON = 10
     PRIO_USER = 20
+    global._SYSTEM_PLUGINS
 
-    def __init__(self, plugin_name, priority=PRIO_DEFAULT, is_deferable=False):
+    def __init__(self, plugin_name, priority=PRIO_DEFAULT, is_deferable=False,
+                 sub_keys=[ None ]):
         """Initialize the system plugin instance.  This should be overridden in
         each final plugin.
-        :param str name: The name of the system plugin being wrapped.
+        :param str plugin_name: The name of the system plugin being wrapped.
+        :param int priority: Priority value of plugin when two plugins have
+                             the same name.
+        :param bool is_deferable: Whether the plugin is able to be deferred.
+        :param str/dict sub_keys: Key or list of keys used with this plugin.
         """
         super().__init__()
 
@@ -69,12 +72,28 @@ class SystemPlugin(IPlugin):
 
         self.name = plugin_name
         self.priority = priority
+        self.sub_keys = sub_keys
+        self.values = {}
 
-    def get():
+        _SYSTEM_PLUGINS[ self.name ] = {}
+
+        for key in self.sub_keys:
+            _SYSTEM_PLUGINS[ self.name ][ key ] = None
+            self.values[ key ] = None
+
+    def _get( self, sub_key=None ):
         raise NotImplemented
 
-    def deferred_get():
-        return "$( pav sys_var {} )".format( self.name )
+    def get( self, sub_key=None, defer=True )
+        if defer and self.is_deferable:
+            return variables.DeferredVariable(self.name, 'sys', self.sub_keys)
+        elif defer and not self.is_deferable:
+            raise PluginSystemError("Deferred variable '{}'".format(self.name)+
+                                    " was requested but is not deferrable.")
+        elif _SYSTEM_PLUGINS[ self.name ][ sub_key ] is None:
+            _SYSTEM_PLUGINS[ self.name ][ sub_key ] = self._get( sub_key )
+
+        return _SYSTEM_PLUGINS[self.name][ sub_key ]
 
     def activate(self):
         """Add this plugin to the system plugin list."""
