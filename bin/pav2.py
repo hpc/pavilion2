@@ -16,7 +16,7 @@ if sys.version_info[0] != 3 or sys.version_info[1] < 4:
 
 # Get the config, and
 try:
-    config = pav_config.find_pavilion_config()
+    config = pav_config.find()
 except Exception as err:
     print(err, file=sys.stderr)
     sys.exit(-1)

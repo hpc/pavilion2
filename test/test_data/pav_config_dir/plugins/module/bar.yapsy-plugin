@@ -1,0 +1,9 @@
+[Core]
+Name = Bar
+Module = bar
+
+[Documentation]
+Description = Wraps Bar
+Author = Some Author
+Version = 1.0
+Website =

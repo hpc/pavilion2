@@ -9,6 +9,7 @@ def get_parser():
     main pavilion command. If the main parser hasn't yet been defined, this defines it."""
 
     global _PAV_PARSER
+    global _PAV_SUB_PARSER
 
     if _PAV_PARSER is not None:
         return _PAV_PARSER
@@ -19,7 +20,7 @@ def get_parser():
                         help='Log all levels of messages to stderr.')
 
     _PAV_PARSER = parser
-    _PAV_SUB_PARSERS = parser.add_subparsers(dest='command_name')
+    _PAV_SUB_PARSER = parser.add_subparsers(dest='command_name')
 
     return parser
 
@@ -37,3 +38,13 @@ def get_subparser():
                            "calling get_subparser.")
 
     return _PAV_SUB_PARSER
+
+
+def _reset_parser():
+    """Reset back to the base parser. This is for unittests only."""
+
+    global _PAV_PARSER
+
+    _PAV_PARSER = None
+
+    get_parser()

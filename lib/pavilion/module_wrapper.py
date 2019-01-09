@@ -6,11 +6,17 @@ import re
 LOGGER = logging.getLogger('pav.{}'.format(__name__))
 
 
-class ModuleSystemError(RuntimeError):
+class ModuleWrapperError(RuntimeError):
     pass
 
 
 _WRAPPED_MODULES = {}
+
+
+def __reset():
+    global _WRAPPED_MODULES
+
+    _WRAPPED_MODULES = {}
 
 
 def add_wrapped_module(module_wrapper, version):
@@ -20,6 +26,8 @@ def add_wrapped_module(module_wrapper, version):
     :return: None
     :raises KeyError: On module version conflict.
     """
+
+    print('hiya')
 
     name = module_wrapper.name
     priority = module_wrapper.priority
@@ -31,9 +39,9 @@ def add_wrapped_module(module_wrapper, version):
     elif priority > _WRAPPED_MODULES[name][version].priority:
         _WRAPPED_MODULES[name][version] = module_wrapper
     elif priority == _WRAPPED_MODULES[name][version].priority:
-        raise ModuleSystemError("Two modules for the same module/version, with the same "
-                                "priority {}, {}."
-                                .format(module_wrapper, _WRAPPED_MODULES[name][version]))
+        raise ModuleWrapperError("Two modules for the same module/version, with the same "
+                                 "priority {}, {}."
+                                 .format(module_wrapper, _WRAPPED_MODULES[name][version]))
 
 
 def remove_wrapped_module(module_wrapper, version):
@@ -67,8 +75,6 @@ def get_module_wrapper(name, version):
 
 class ModuleWrapper(IPlugin.IPlugin):
 
-    _MODULE_SYSTEM = None
-    _MODULE_CMD = None
     LMOD = 'lmod'
     EMOD = 'emod'
     NONE = 'none'
@@ -79,12 +85,10 @@ class ModuleWrapper(IPlugin.IPlugin):
 
     NAME_VERS_RE = re.compile(r'^[a-zA-Z0-9_.-]+$')
 
-    def __init__(self, name, path, version=None, priority=PRIO_DEFAULT):
+    def __init__(self, name, version=None, priority=PRIO_DEFAULT):
         """Initialize the module wrapper instance. This must be overridden in plugins
         as the plugin system can't handle the arguments
         :param str name: The name of the module being wrapped.
-        :param str path: Where this wrapper is defined. This makes it easy for users to resolve
-        problems with plugins, by letting them know where the plugin actually came from.
         :param str version: The version of module file to wrap. None denotes a wild version or a
         version-less modulefile.
         :param int priority: The priority of this wrapper. It will replace identical wrappers of a
@@ -94,18 +98,13 @@ class ModuleWrapper(IPlugin.IPlugin):
         super().__init__()
 
         if self.NAME_VERS_RE.match(name) is None:
-            raise ModuleSystemError("Invalid module name: '{}'".format(name))
+            raise ModuleWrapperError("Invalid module name: '{}'".format(name))
         if version is not None and self.NAME_VERS_RE.match(version) is None:
-            raise ModuleSystemError("Invalid module name: '{}'".format(name))
+            raise ModuleWrapperError("Invalid module name: '{}'".format(name))
 
         self.name = name
-        self.__version = version
+        self._version = version
         self.priority = priority
-        self.path = path
-
-        if self._MODULE_SYSTEM is None or self._MODULE_CMD is None:
-            raise RuntimeError("You must use the 'find_module_system' class method before"
-                               "instantiating a ModuleWrapper (or subclasses).")
 
     def get_version(self, requested_version):
         """Get the version of the module to load, given the requested version and the version
@@ -114,23 +113,29 @@ class ModuleWrapper(IPlugin.IPlugin):
         :return: The version that should be loaded.
         """
 
-        if self.__version is not None and requested_version != self.__version:
+        if self._version is not None and requested_version != self._version:
             raise ModuleWrapperError("Version mismatch. A module wrapper specifically for "
-                                     "version '{s.__version}' of '{s.name}' was used with "
-                                     "a non-matching requested version '{requested}"
+                                     "version '{s._version}' of '{s.name}' was used with "
+                                     "a non-matching requested version '{requested}'."
                                      .format(s=self, requested=requested_version))
 
         return requested_version
 
+    @property
+    def path(self):
+        import inspect
+
+        return inspect.getfile(self.__class__)
+
     def activate(self):
         """Add this module to the wrapped module list."""
 
-        add_wrapped_module(self, self.__version)
+        add_wrapped_module(self, self._version)
 
     def deactivate(self):
         """Remove this module from the wrapped module list."""
 
-        remove_wrapped_module(self, self.__version)
+        remove_wrapped_module(self, self._version)
 
     def load(self, sys_info, requested_version=None):
         """Generate the list of module actions and environment changes to load this module.
