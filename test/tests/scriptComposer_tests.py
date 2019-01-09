@@ -18,6 +18,20 @@ class TestConfig( unittest.TestCase ):
                    self.script_path ), file=sys.stderr )
             os.remove(self.script_path)
 
+    def _other_group(self):
+        """Find a group other than the user's default group to use when creating files.
+        :returns: The name of the found group."""
+
+        for gid in os.getgroups():
+
+            if gid == os.getgid():
+                # This is the user's default.
+                continue
+
+            return grp.getgrgid(gid).gr_name
+
+        raise RuntimeError("Could not find suitable group for use in test.")
+
     def test_header( self ):
         """Test for the scriptHeader class."""
         testHeader = scriptcomposer.scriptHeader()
@@ -202,7 +216,6 @@ class TestConfig( unittest.TestCase ):
                                                         group_perms=7,
                                                         world_perms=u'fail' )
 
-
     def test_scriptComposer( self ):
         """Testing scriptComposer class variable setting."""
 
@@ -234,7 +247,7 @@ class TestConfig( unittest.TestCase ):
 
         testComposer.addNewline()
 
-        testComposer.addCommand( [ 'taco', 'burrito', 'nachos' ] )
+        testComposer.addCommand(['taco', 'burrito', 'nachos'])
 
         testDetailsName = 'testName'
         testDetailsType = 'batch'
@@ -322,8 +335,9 @@ class TestConfig( unittest.TestCase ):
 
         testDetailsName = 'testName'
         testDetailsType = 'batch'
-        testDetailsUser = os.environ['USER']
-        testDetailsGroup = 'gzshared'
+        testDetailsUser = os.getlogin()
+        testDetailsGroup = self._other_group()
+
         testDetailsOP = 7
         testDetailsGP = 6
         testDetailsWP = 0
@@ -391,7 +405,7 @@ class TestConfig( unittest.TestCase ):
         testDetailsName = 'testName'
         testDetailsType = 'batch'
         testDetailsUser = os.environ['USER']
-        testDetailsGroup = 'gzshared'
+        testDetailsGroup = self._other_group()
         testDetailsOP = 7
         testDetailsGP = 6
         testDetailsWP = 0

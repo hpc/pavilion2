@@ -1,0 +1,9 @@
+[Core]
+Name = Foo
+Module = foo
+
+[Documentation]
+Description = Wraps Foo
+Author = Some Author
+Version = 1.0
+Website =
