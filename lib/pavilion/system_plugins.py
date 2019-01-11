@@ -51,7 +51,7 @@ class SystemPlugin(IPlugin):
     PRIO_DEFAULT = 0
     PRIO_COMMON = 10
     PRIO_USER = 20
-    global._SYSTEM_PLUGINS
+    global _SYSTEM_PLUGINS
 
     def __init__(self, plugin_name, priority=PRIO_DEFAULT, is_deferable=False,
                  sub_keys=None):
