@@ -54,7 +54,7 @@ class SystemPlugin(IPlugin):
     global._SYSTEM_PLUGINS
 
     def __init__(self, plugin_name, priority=PRIO_DEFAULT, is_deferable=False,
-                 sub_keys=[ None ]):
+                 sub_keys=None):
         """Initialize the system plugin instance.  This should be overridden in
         each final plugin.
         :param str plugin_name: The name of the system plugin being wrapped.
@@ -72,14 +72,10 @@ class SystemPlugin(IPlugin):
 
         self.name = plugin_name
         self.priority = priority
+        if sub_keys is None:
+            sub_keys = []
         self.sub_keys = sub_keys
         self.values = None
-
-        _SYSTEM_PLUGINS[ self.name ] = self
-
-#        for key in self.sub_keys:
-#            _SYSTEM_PLUGINS[ self.name ][ key ] = None
-#            self.values[ key ] = None
 
     def _get( self ):
         raise NotImplemented

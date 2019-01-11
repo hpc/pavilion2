@@ -3,14 +3,11 @@ import pavilion.system_plugins as system_plugins
 class HostOS( system_plugins.SystemPlugins ):
 
     def __init__( self ):
-        super.__init__( 'host_os', 10, True, [ 'ID', 'Version' ] )
+        super.__init__( plugin_name='host_os', priority=10, 
+                        is_deferable=True, sub_keys=[ 'ID', 'Version' ] )
 
-    def get( self ):
+    def _get( self ):
         """Base method for determining the operating host and version."""
-
-        if sub_key not in self.sub_keys:
-            raise KeyError("Sub-key '{}' not found on sys variable {}.".format(
-                           sub_key, self.name))
 
         rlines = []
         with open('/etc/os-release', 'r') as release:

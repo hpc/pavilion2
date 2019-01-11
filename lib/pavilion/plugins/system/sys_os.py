@@ -3,15 +3,13 @@ import pavilion.system_plugins as system_plugins
 class SystemOS( system_plugins.SystemPlugins ):
 
     def __init__( self ):
-        super.__init__( 'sys_os', 10, False, [ 'ID', 'Version' ] )
+        super.__init__( plugin_name='sys_os', priority=10, 
+                        is_deferable=False, sub_keys=[ 'ID', 'Version' ] )
 
-    def get( self, sub_key=None ):
+    def get( self ):
         """Base method for determining the operating system and version."""
 
-        if sub_key not in self.sub_keys:
-            raise KeyError("Sub-key '{}' not found on sys variable {}.".format(
-                           sub_key, self.name))
-
+        rlines = []
         with open('/etc/os-release', 'r') as release:
             rlines = release.readlines()
 
@@ -21,4 +19,4 @@ class SystemOS( system_plugins.SystemPlugins ):
             elif line[:11] == 'VERSION_ID=':
                 self.values[ 'Version' ] = line[11:].strip().strip('"')
 
-        return self.values[ sub_key ]
+        return self.values

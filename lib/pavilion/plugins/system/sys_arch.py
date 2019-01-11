@@ -4,17 +4,17 @@ import pavilion.system_plugins as system_plugins
 class SystemArch( system_plugins.SystemPlugins ):
 
     def __init__( self ):
-        super.__init__( 'sys_arch', 10, False, [ None ] )
+        super.__init__( plugin_name='sys_arch', priority=10,
+                        is_deferable=False, sub_keys=None )
 
-    def _get( self, sub_key=None ):
+    def _get( self ):
         """Base method for determining the system architecture."""
 
-        if sub_key not in self.sub_keys:
-            raise KeyError("Sub-key '{}' not found on sys variable {}.".format(
-                           sub_key, self.name))
+        self.values[ None ] = subprocess.check_output(['uname', '-i'])
 
-        self.values[ sub_key ] = subprocess.check_output(['uname', '-i'])
+        try:
+            self.values[ None ] = self.values[ None ].strip().decode('UTF-8')
+        except:
+            raise( system_plugins.PluginSystemError )
 
-        self.values[ sub_key ] = self.values[ sub_key ].strip().decode('UTF-8')
-
-        return self.values[ sub_key ]
+        return self.values
