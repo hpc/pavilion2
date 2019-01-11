@@ -13,14 +13,14 @@ _SYSTEM_PLUGINS = {}
 
 class SysVarDict( collections.UserDict ):
 
-    def __init__( self, want_deferred=True ):
+    def __init__( self, defer=True ):
         global._SYSTEM_PLUGINS
         super().__init__(_SYSTEM_PLUGINS)
-        self.want_deferred = want_deferred
+        self.defer = defer
 
     def __getitem__( self, name ):
         plugin = self.data[ name ]
-        return plugin.get()
+        return plugin.get( defer=self.defer )
 
 def add_system_plugin( system_plugin ):
     name = system_plugin.name
@@ -73,27 +73,27 @@ class SystemPlugin(IPlugin):
         self.name = plugin_name
         self.priority = priority
         self.sub_keys = sub_keys
-        self.values = {}
+        self.values = None
 
-        _SYSTEM_PLUGINS[ self.name ] = {}
+        _SYSTEM_PLUGINS[ self.name ] = self
 
-        for key in self.sub_keys:
-            _SYSTEM_PLUGINS[ self.name ][ key ] = None
-            self.values[ key ] = None
+#        for key in self.sub_keys:
+#            _SYSTEM_PLUGINS[ self.name ][ key ] = None
+#            self.values[ key ] = None
 
-    def _get( self, sub_key=None ):
+    def _get( self ):
         raise NotImplemented
 
-    def get( self, sub_key=None, defer=True )
+    def get( self, defer=True )
         if defer and self.is_deferable:
             return variables.DeferredVariable(self.name, 'sys', self.sub_keys)
         elif defer and not self.is_deferable:
             raise PluginSystemError("Deferred variable '{}'".format(self.name)+
                                     " was requested but is not deferrable.")
-        elif _SYSTEM_PLUGINS[ self.name ][ sub_key ] is None:
-            _SYSTEM_PLUGINS[ self.name ][ sub_key ] = self._get( sub_key )
+        elif self.values is None:
+            self._get()
 
-        return _SYSTEM_PLUGINS[self.name][ sub_key ]
+        return self.values
 
     def activate(self):
         """Add this plugin to the system plugin list."""
@@ -104,3 +104,8 @@ class SystemPlugin(IPlugin):
         """Remove this plugin from the system plugin list."""
 
         remove_system_plugin( self )
+
+    def __reset():
+        """Remove this plugin and its changes."""
+
+        self.deactivate()

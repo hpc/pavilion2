@@ -6,6 +6,7 @@ from pavilion import plugins
 from pavilion import commands
 from pavilion import module_wrapper
 from pavilion import pav_config
+from pavilion import system_plugins
 from pavilion import arguments
 
 
@@ -96,3 +97,61 @@ class PluginTests(unittest.TestCase):
         bar1.load({})
 
         plugins._reset_plugins()
+
+    def test_system_plugins(self):
+        """Make sure system values appear as expected.  Also that deferred
+        variables behave as expected."""
+
+        # Get an empty pavilion config and set some config dirs on it.
+        pav_cfg = pav_config.PavilionConfigLoader().load_empty()
+
+        # We're loading multiple directories of plugins - AT THE SAME TIME!
+        pav_cfg.config_dirs = [os.path.join(self.TEST_DATA_ROOT, 'pav_config_dir'),
+                               os.path.join(self.TEST_DATA_ROOT, 'pav_config_dir2')]
+
+        plugins.initialize_plugins(pav_cfg)
+
+        plugin_names = [ 'host_arch', 'host_name', 'host_os',
+                         'sys_arch', 'sys_name', 'sys_os' ]
+
+        sys_vars = system_plugins.SysVarDict( defer=False )
+
+        host_arch = \
+               subprocess.check_output(['uname', '-i']).strip().decode('UTF-8')
+
+        host_name = \
+            subprocess.check_output(['hostname', '-s']).strip().decode('UTF-8')
+
+        rlines = []
+        with open('/etc/os-release', 'r') as release:
+            rlines = release.readlines()
+
+        host_os = {}
+        for line in rlines:
+            if line[:3] == 'ID=':
+                host_os[ 'ID' ] = line[3:].strip().strip('"')
+            elif line[:11] == 'VERSION_ID=':
+                host_os[ 'Version' ] = line[11:].strip().strip('"')
+
+        self.assertEqual(host_arch, sys_vars[ 'host_arch' ][ None ])
+        self.assertEqual(host_name, sys_vars[ 'host_name' ][ None ])
+        self.assertEqual(host_os[ 'ID' ], sys_vars[ 'host_os' ][ 'ID' ])
+        self.assertEqual(host_os[ 'Version' ],
+                                            sys_vars[ 'host_os' ][ 'Version' ])
+
+        self.assertEqual(host_arch, sys_vars[ 'sys_arch' ][ None ])
+        self.assertEqual(host_name, sys_vars[ 'sys_name' ][ None ])
+        self.assertEqual(host_os[ 'ID' ], sys_vars[ 'sys_os' ][ 'ID' ])
+        self.assertEqual(host_os[ 'Version' ],
+                                             sys_vars[ 'sys_os' ][ 'Version' ])
+
+        system_plugins._SYSTEM_PLUGINS = {}
+
+        sys_vars = system_plugins.SysVarDict()
+
+        self.assertTrue( isinstance( sys_vars[ 'host_arch' ],
+                                                 variables.DeferredVariable ) )
+        self.assertTrue( isinstance( sys_vars[ 'host_name' ],
+                                                 variables.DeferredVariable ) )
+        self.assertTrue( isinstance( sys_vars[ 'host_os' ],
+                                                 variables.DeferredVariable ) )
