@@ -14,7 +14,7 @@ _SYSTEM_PLUGINS = {}
 class SysVarDict( collections.UserDict ):
 
     def __init__( self, defer=True ):
-        global._SYSTEM_PLUGINS
+        global _SYSTEM_PLUGINS
         super().__init__(_SYSTEM_PLUGINS)
         self.defer = defer
 
