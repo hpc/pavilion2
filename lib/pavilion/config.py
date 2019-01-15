@@ -248,7 +248,7 @@ def resolve_permutations(raw_test_cfg, pav_vars, sys_vars):
         one for each permutation. These will already contain all the var, sys, pav,
         and (resolved) permutation (per) variable sets. The 'sched' variable set will have to
         be added later.
-    :rtype: [variables.VariableSetManager]
+    :rtype: (dict, [variables.VariableSetManager])
     :raises TestConfigError: When there are problems with variables or the permutations.
     """
 

@@ -118,6 +118,12 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
                              "https://docs.python.org/3/library/logging.html#logrecord-attributes"),
         yc.StrElem("log_level", default="info", post_validator=log_level_validate,
                    help_text="The minimum log level for messages sent to the pavilion logfile.")
+        yc.CategoryElem("proxies", sub_elem=yc.StrElem(),
+                        help_text="Proxies, by protocol, to use when accessing the internet. "
+                                  "Eg: http: 'http://myproxy.myorg.org:8000'"),
+        yc.ListElem("no_proxy", sub_elem=yc.StrElem(),
+                    help_text="A list of DNS suffixes to ignore for proxy purposes. For example: "
+                              "'blah.com' would match 'www.blah.com', but not 'myblah.com'."),
     ]
 
 

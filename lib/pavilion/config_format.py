@@ -127,7 +127,7 @@ class TestConfigLoader(yc.YamlConfigLoader):
         yc.KeyedElem('build', elements=[
             yc.StrElem('source_location',
                        help_text="Path to the test source. It may be a directory, a tar file, "
-                                 "or a git URI. If it's a directory or file, the path is relative "
+                                 "or a URI. If it's a directory or file, the path is relative "
                                  "to '$PAV_CONFIG/test_src' by default."),
             yc.ListElem('modules', sub_elem=yc.StrElem(),
                         help_text="Modules to load into the build environment."),
