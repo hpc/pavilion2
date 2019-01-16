@@ -1,10 +1,10 @@
 import pavilion.system_plugins as system_plugins
 
-class SystemOS( system_plugins.SystemPlugins ):
+class SystemOS( system_plugins.SystemPlugin ):
 
     def __init__( self ):
-        super.__init__( plugin_name='sys_os', priority=10, 
-                        is_deferable=False, sub_keys=[ 'ID', 'Version' ] )
+        super().__init__( plugin_name='sys_os', priority=10,
+                          is_deferable=False, sub_keys=[ 'ID', 'Version' ] )
 
     def get( self ):
         """Base method for determining the operating system and version."""

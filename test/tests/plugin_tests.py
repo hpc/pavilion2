@@ -1,4 +1,5 @@
 import os
+import subprocess
 import unittest
 import traceback
 
@@ -60,6 +61,8 @@ class PluginTests(unittest.TestCase):
 
         plugins.initialize_plugins(pav_cfg)
 
+        print( plugins.list_plugins() )
+
         commands.get_command('poof').run(pav_cfg, [])
         commands.get_command('blarg').run(pav_cfg, [])
 
@@ -106,15 +109,24 @@ class PluginTests(unittest.TestCase):
         pav_cfg = pav_config.PavilionConfigLoader().load_empty()
 
         # We're loading multiple directories of plugins - AT THE SAME TIME!
-        pav_cfg.config_dirs = [os.path.join(self.TEST_DATA_ROOT, 'pav_config_dir'),
-                               os.path.join(self.TEST_DATA_ROOT, 'pav_config_dir2')]
+        print( "Path to system plugins: {}".format(
+          str(os.path.join(os.getcwd(), '../lib/pavilion') ) ) )
+
+        pav_cfg.config_dirs = [
+                  os.path.join(os.getcwd(), '../lib/pavilion') ]
 
         plugins.initialize_plugins(pav_cfg)
+
+        print( plugins.list_plugins() )
 
         plugin_names = [ 'host_arch', 'host_name', 'host_os',
                          'sys_arch', 'sys_name', 'sys_os' ]
 
-        sys_vars = system_plugins.SysVarDict( defer=False )
+        sys_vars = system_plugins._SYSTEM_PLUGINS
+
+        self.assertFalse( sys_vars is None )
+
+        sys_vars.set_defer( defer=False )
 
         host_arch = \
                subprocess.check_output(['uname', '-i']).strip().decode('UTF-8')
@@ -132,6 +144,15 @@ class PluginTests(unittest.TestCase):
                 host_os[ 'ID' ] = line[3:].strip().strip('"')
             elif line[:11] == 'VERSION_ID=':
                 host_os[ 'Version' ] = line[11:].strip().strip('"')
+
+        print( list(sys_vars.keys()) )
+
+        self.assertTrue( 'host_arch' in sys_vars )
+        self.assertTrue( 'host_name' in sys_vars )
+        self.assertTrue( 'host_os' in sys_vars )
+        self.assertTrue( 'sys_arch' in sys_vars )
+        self.assertTrue( 'sys_name' in sys_vars )
+        self.assertTrue( 'sys_os' in sys_vars )
 
         self.assertEqual(host_arch, sys_vars[ 'host_arch' ][ None ])
         self.assertEqual(host_name, sys_vars[ 'host_name' ][ None ])

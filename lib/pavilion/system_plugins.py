@@ -1,6 +1,6 @@
 import collections
-from pavilion.variables import VariableSetManager
-from yapsy.IPlugin import IPlugin
+from pavilion import variables
+from yapsy import IPlugin
 import logging
 import re
 
@@ -9,17 +9,28 @@ LOGGER = logging.getLogger('pav.{}'.format(__name__))
 class PluginSystemError(RuntimeError):
     pass
 
-_SYSTEM_PLUGINS = {}
+_SYSTEM_PLUGINS = None
 
 class SysVarDict( collections.UserDict ):
 
-    def __init__( self, defer=True ):
+    def __init__( self ):
         global _SYSTEM_PLUGINS
-        super().__init__(_SYSTEM_PLUGINS)
+        if _SYSTEM_PLUGINS is not None:
+            raise PluginSystemError(
+                     "Dictionary of system plugins can't be generated twice." )
+        super().__init__( {} )
+        _SYSTEM_PLUGINS = self
+
+        self.defer = False # Default
+
+    def set_defer( self, defer=True ):
         self.defer = defer
 
+    def get_object( self, name ):
+        return get_system_plugin( name )
+
     def __getitem__( self, name ):
-        plugin = self.data[ name ]
+        plugin = get_system_plugin( name )
         return plugin.get( defer=self.defer )
 
 def add_system_plugin( system_plugin ):
@@ -27,7 +38,11 @@ def add_system_plugin( system_plugin ):
 
     if name not in _SYSTEM_PLUGINS:
         _SYSTEM_PLUGINS[ name ] = system_plugin
-    elif priority > _SYSTEM_PLUGINS[name].priority:
+    elif isinstance(get_system_plugin( name ), variables.DeferredVariable ) \
+         and not system_plugin.is_deferable:
+        raise PluginSystemError("Two plugins of the same name don't have " + \
+                                "the same deferability.")
+    elif system_plugin.priority > get_system_plugin( name ).priority:
         _SYSTEM_PLUGINS[ name ] = system_plugin
     elif priority == _SYSTEM_PLUGINS[name].priority:
         raise PluginSystemError("Two plugins for the same system plugin have "
@@ -46,11 +61,14 @@ def get_system_plugin( name ):
 
     return _SYSTEM_PLUGINS[ name ]
 
-class SystemPlugin(IPlugin):
+class SystemPlugin(IPlugin.IPlugin):
 
     PRIO_DEFAULT = 0
     PRIO_COMMON = 10
     PRIO_USER = 20
+
+    NAME_VERS_RE = re.compile(r'^[a-zA-Z0-9_.-]+$')
+
     global _SYSTEM_PLUGINS
 
     def __init__(self, plugin_name, priority=PRIO_DEFAULT, is_deferable=False,
@@ -67,8 +85,12 @@ class SystemPlugin(IPlugin):
 
         self.is_deferable = is_deferable
 
-        if self.NAME_VERS_RE.match(name) is None:
-            raise PluginSystemError("Invalid module name: '{}'".format(name))
+        if self.NAME_VERS_RE.match(plugin_name) is None:
+            raise PluginSystemError("Invalid module name: '{}'".format(
+                                                                  plugin_name))
+
+        if _SYSTEM_PLUGINS is None:
+            SysVarDict()
 
         self.name = plugin_name
         self.priority = priority
@@ -77,12 +99,16 @@ class SystemPlugin(IPlugin):
         self.sub_keys = sub_keys
         self.values = None
 
+        _SYSTEM_PLUGINS[ plugin_name ] = self
+
     def _get( self ):
         raise NotImplemented
 
-    def get( self, defer=True )
+    def get( self, defer=True ):
         if defer and self.is_deferable:
-            return variables.DeferredVariable(self.name, 'sys', self.sub_keys)
+            return variables.DeferredVariable(self.name, var_set='sys',
+                                              sub_keys=self.sub_keys,
+                                              priority=self.priority)
         elif defer and not self.is_deferable:
             raise PluginSystemError("Deferred variable '{}'".format(self.name)+
                                     " was requested but is not deferrable.")
@@ -91,7 +117,7 @@ class SystemPlugin(IPlugin):
 
         return self.values
 
-    def activate(self):
+    def activate(self, ):
         """Add this plugin to the system plugin list."""
 
         add_system_plugin( self )
