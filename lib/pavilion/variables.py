@@ -105,7 +105,7 @@ class DeferredVariable:
     VAR_TEMPLATE = '$(pav var {key})'
     ALLOWED_VARSETS = ['sys', 'pav', 'sched']
 
-    def __init__(self, name, var_set='sys', sub_keys=None):
+    def __init__(self, name, var_set='sys', sub_keys=None, priority=0):
         """Deferred variables need to know their name and var_set at definition time. Additionally,
         they need to be aware of their valid sub-keys. They cannot have more than one value, like
         normal variables.
@@ -127,8 +127,9 @@ class DeferredVariable:
             sub_keys = list()
 
         self.sub_keys = sub_keys
+        self.priority = priority
 
-    def get(self, index, sub_var):
+    def get(self, index, sub_var, defer=None):
         if index not in [0, None]:
             raise KeyError("Deferred variables only have a single value.")
 

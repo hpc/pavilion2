@@ -1,0 +1,9 @@
+[Core]
+Name = Host Name
+Module = host_name
+
+[Documentation]
+Description = Uses 'hostname -s' to determine the name of the host.
+Author = Nicholas Sly
+Version = 1.0
+Website =

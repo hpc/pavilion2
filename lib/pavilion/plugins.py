@@ -1,6 +1,7 @@
-from yapsy.PluginManager import PluginManager
+from yapsy import PluginManager
 from pavilion.module_wrapper import ModuleWrapper
 from pavilion.commands import Command
+from pavilion.system_plugins import SystemPlugin as System
 import os
 import logging
 
@@ -11,7 +12,7 @@ _PLUGIN_MANAGER = None
 PLUGIN_CATEGORIES = {
     'module': ModuleWrapper,
     'command': Command,
-    # sys plugins
+    'sys': System,
     # scheduler plugins
     # result plugins
 }
@@ -38,7 +39,7 @@ def initialize_plugins(pav_cfg):
     plugin_dirs = [os.path.join(cfg_dir, 'plugins') for cfg_dir in pav_cfg.config_dirs]
 
     try:
-        pman = PluginManager(directories_list=plugin_dirs,
+        pman = PluginManager.PluginManager(directories_list=plugin_dirs,
                              categories_filter=PLUGIN_CATEGORIES)
 
         pman.locatePlugins()

@@ -1,0 +1,9 @@
+[Core]
+Name = Host Architecture
+Module = host_arch
+
+[Documentation]
+Description = Uses 'uname -i' to determine the processor architecture of the host.
+Author = Nicholas Sly
+Version = 1.0
+Website =
