@@ -6,7 +6,7 @@ import re
 
 LOGGER = logging.getLogger('pav.{}'.format(__name__))
 
-class PluginSystemError(RuntimeError):
+class SystemPluginError(RuntimeError):
     pass
 
 _SYSTEM_PLUGINS = None
@@ -15,15 +15,18 @@ _LOADED_PLUGINS = None
 
 class SysVarDict( collections.UserDict ):
 
-    def __init__( self ):
+    def __init__( self, defer=None ):
         global _SYSTEM_PLUGINS
         if _SYSTEM_PLUGINS is not None:
-            raise PluginSystemError(
+            raise SystemPluginError(
                      "Dictionary of system plugins can't be generated twice." )
         super().__init__( {} )
         _SYSTEM_PLUGINS = self
 
-        self.defer = False # default
+        if defer is None:
+            defer = False # default
+
+        self.defer = defer
 
     def set_defer( self, defer ):
         self.defer = defer
@@ -59,8 +62,10 @@ def add_system_plugin( system_plugin ):
         _LOADED_PLUGINS[ name ] = system_plugin
     elif system_plugin.priority > _LOADED_PLUGINS[ name ].priority:
         _LOADED_PLUGINS[ name ] = system_plugin
+        LOGGER.warning( "System plugin {} ignored due to priority.".format(
+                        name ) )
     elif system_plugin.priority == _LOADED_PLUGINS[name].priority:
-        raise PluginSystemError("Two plugins for the same system plugin have "
+        raise SystemPluginError("Two plugins for the same system plugin have "
                                 "the same priority {}, {} with name {}."
                                 .format(system_plugin, _LOADED_PLUGINS[name],
                                         name))
@@ -75,11 +80,11 @@ def get_system_plugin( name ):
     global _LOADED_PLUGINS
 
     if _LOADED_PLUGINS is None:
-        raise PluginSystemError(
+        raise SystemPluginError(
                               "Trying to get plugins before they are loaded." )
 
     if name not in _LOADED_PLUGINS:
-        raise PluginSystemError("Module not found: '{}'".format(name))
+        raise SystemPluginError("Module not found: '{}'".format(name))
 
     return _LOADED_PLUGINS[ name ]
 
@@ -106,13 +111,13 @@ class SystemPlugin(IPlugin.IPlugin):
         self.is_deferable = is_deferable
 
         if self.NAME_VERS_RE.match(plugin_name) is None:
-            raise PluginSystemError("Invalid module name: '{}'".format(
+            raise SystemPluginError("Invalid module name: '{}'".format(
                                                                   plugin_name))
 
         self.name = plugin_name
         self.priority = priority
         if sub_keys is None:
-            sub_keys = [ None ]
+            sub_keys = []
         self.sub_keys = sub_keys
         self.values = None
 
@@ -128,10 +133,12 @@ class SystemPlugin(IPlugin.IPlugin):
                                               sub_keys=self.sub_keys,
                                               priority=self.priority)
         elif defer and not self.is_deferable:
-            raise PluginSystemError("Deferred variable '{}'".format(self.name)+
+            raise SystemPluginError("Deferred variable '{}'".format(self.name)+
                                     " was requested but is not deferrable.")
         elif self.values is None:
             self.values = {}
+            if len(self.sub_keys) == 0:
+                self.sub_keys = [ None ]
             for key in self.sub_keys:
                 self.values[ key ] = None
             self._get()
@@ -140,7 +147,7 @@ class SystemPlugin(IPlugin.IPlugin):
 
         return self.values
 
-    def activate(self, ):
+    def activate(self):
         """Add this plugin to the system plugin list."""
 
         add_system_plugin( self )

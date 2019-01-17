@@ -15,6 +15,6 @@ class HostArch( system_plugins.SystemPlugin ):
         try:
             self.values[ None ] = self.values[ None ].strip().decode('UTF-8')
         except:
-            raise( system_plugins.PluginSystemError )
+            raise( system_plugins.SystemPluginError )
 
         return self.values
