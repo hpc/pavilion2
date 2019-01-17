@@ -1,10 +1,10 @@
 import pavilion.system_plugins as system_plugins
 
-class HostOS( system_plugins.SystemPlugins ):
+class HostOS( system_plugins.SystemPlugin ):
 
     def __init__( self ):
-        super.__init__( plugin_name='host_os', priority=10, 
-                        is_deferable=True, sub_keys=[ 'ID', 'Version' ] )
+        super().__init__( plugin_name='host_os', priority=10,
+                          is_deferable=True, sub_keys=[ 'ID', 'Version' ] )
 
     def _get( self ):
         """Base method for determining the operating host and version."""

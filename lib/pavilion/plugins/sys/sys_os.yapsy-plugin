@@ -1,0 +1,9 @@
+[Core]
+Name = System OS
+Module = sys_os
+
+[Documentation]
+Description = Uses the /etc/os-release file to determine the name of the node running the test in a deferred manner.
+Author = Nicholas Sly
+Version = 1.0
+Website =
