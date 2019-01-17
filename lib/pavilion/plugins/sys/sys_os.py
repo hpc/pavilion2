@@ -6,7 +6,7 @@ class SystemOS( system_plugins.SystemPlugin ):
         super().__init__( plugin_name='sys_os', priority=10,
                           is_deferable=False, sub_keys=[ 'ID', 'Version' ] )
 
-    def get( self ):
+    def _get( self ):
         """Base method for determining the operating system and version."""
 
         rlines = []
