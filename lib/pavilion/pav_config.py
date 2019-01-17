@@ -59,6 +59,8 @@ import os
 import socket
 import logging
 
+LOGGER = logging.getLogger('pavilion.' + __file__)
+
 
 def group_validate(sibs, group):
     """Make sure the group specified in the config exists and the user is in it."""
@@ -117,7 +119,7 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
                    help_text="The log format to use for the pavilion logger. See: "
                              "https://docs.python.org/3/library/logging.html#logrecord-attributes"),
         yc.StrElem("log_level", default="info", post_validator=log_level_validate,
-                   help_text="The minimum log level for messages sent to the pavilion logfile.")
+                   help_text="The minimum log level for messages sent to the pavilion logfile."),
         yc.CategoryElem("proxies", sub_elem=yc.StrElem(),
                         help_text="Proxies, by protocol, to use when accessing the internet. "
                                   "Eg: http: 'http://myproxy.myorg.org:8000'"),
@@ -131,8 +133,10 @@ PAV_CONFIG_SEARCH_DIRS = [
     './',
     os.path.join(os.environ['HOME'], '.pavilion'),
 ]
+
 if 'PAV_CONFIG_DIR' in os.environ:
     PAV_CONFIG_SEARCH_DIRS.append(os.environ['PAV_CONFIG_DIR'])
+
 PAV_CONFIG_SEARCH_DIRS.extend([
     '/etc/pavilion',
     '/opt/pavilion',
@@ -153,4 +157,5 @@ def find():
             except Exception as err:
                 raise RuntimeError("Error in Pavilion config at {}: {}".format(path, err))
 
+    LOGGER.warning("Could not find a pavilion config file. Using an empty/default config.")
     return PavilionConfigLoader().load_empty()
