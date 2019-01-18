@@ -128,7 +128,15 @@ class TestConfigLoader(yc.YamlConfigLoader):
             yc.StrElem('source_location',
                        help_text="Path to the test source. It may be a directory, a tar file, "
                                  "or a URI. If it's a directory or file, the path is relative "
-                                 "to '$PAV_CONFIG/test_src' by default."),
+                                 "to '$PAV_CONFIG/test_src' by default. For url's, the file "
+                                 "is automatically checked for updates every time the test is "
+                                 "run. Downloaded files are placed in a 'downloads' directory "
+                                 "under the pavilion working directory. (set in pavilion.yaml)"),
+            yc.StrElem('source_download_name',
+                       help_text='When downloading source, we by default use the last component '
+                                 'of the url path as the filename, or a hash of the url if there '
+                                 'is no suitable name. Use this parameter to override that '
+                                 'behavior with a pre-defined filename.'),
             yc.ListElem('modules', sub_elem=yc.StrElem(),
                         help_text="Modules to load into the build environment."),
             yc.CategoryElem('env', sub_elem=yc.StrElem(),
@@ -137,6 +145,12 @@ class TestConfigLoader(yc.YamlConfigLoader):
                         help_text='Files to copy into the build environment. Relative paths are'
                                   'searched for in ~/.pavilion, $PAV_CONFIG, and then \'./\'. '
                                   'Absolute paths are ok, but not recommended.'),
+            yc.StrElem('specificity',
+                       help_text="Use this string, along with variables, to automatically "
+                                 "differentiate builds. A common example would be to make builds"
+                                 "per-host specific by using the sys.sys_name variable. Note that"
+                                 "_deferred_ system variables aren't a good idea here, "
+                                 "as configs are compiled on the host that launches the test."),
             yc.ListElem('cmds', sub_elem=yc.StrElem(),
                         help_text='The sequence of commands to run to perform the build.')
             ],

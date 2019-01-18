@@ -109,6 +109,9 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
                               "than this core config) are searched in the given order. In the case"
                               "of identically named files, directories listed earlier take "
                               "precedent."),
+        # TODO: Ensure this directory and the expected underlying structure exists.
+        yc.StrElem('working_dir', default=os.path.join(os.environ['HOME'], '.pavilion'),
+                   help_text="Where pavilion puts it's run files, downloads, etc."),
         yc.ListElem("disable_plugins", sub_elem=yc.StrElem(),
                     help_text="Allows you to disable plugins by '<type>.<name>'. For example,"
                               "'module.gcc' would disable the gcc module wrapper."),

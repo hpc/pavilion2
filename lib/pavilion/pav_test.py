@@ -1,15 +1,31 @@
+
+import hashlib
 import os
 import json
+import urllib.parse
 from pavilion import schedulers
 from pavilion import lockfile
+from pavilion import wget
+from pavilion import utils
 
 
 class PavTestError(RuntimeError):
     pass
 
 
+# Keep track of files we've already hashed and updated before.
+__HASHED_FILES = {}
+
 class PavTest:
+    """The central pavilion test object. Handle saving, monitoring and running tests (via a
+    scheduler).
+
+    :cvar TEST_ID_DIGITS: How many digits should be in thte test folder names.
+    :cvar _BLOCK_SIZE: Blocksize for hashing files.
+    """
+
     TEST_ID_DIGITS = 6
+    _BLOCK_SIZE = 4096*1024
 
     def __init__(self, pav_cfg, config, id=None):
         """Create an new PavTest object.
@@ -72,40 +88,129 @@ class PavTest:
 
         return str(id)
 
-    def _get_build_components(self, pav_cfg, config):
-        """Retrieve all the files needed for the build. This can include pulling from URL's.
-        :returns: A dictionary of name->path
+    @staticmethod
+    def _find_file(pav_cfg, file):
+        """Look for the given file and return a full path to it. Relative paths are searched for
+        in all config directories under 'test_src'.
+        :param pav_cfg: The pavilion config object>
+        :param file: The path to the file.
+        :returns: The full path to the found file, or None if no such file could be found.
         """
 
-        files = []
+        if os.path.isabs(file):
+            if os.path.exists(file):
+                return file
+            else:
+                return None
 
-        if 'build' not in config:
-            return {}
+        for config_dir in pav_cfg.config_dirs:
+            path = os.path.join(config_dir, 'test_src', file)
+            path = os.path.realpath(path)
 
-        build_config = config['build']
+            if os.path.exists(path):
+                return path
 
-        if build_config.get('source_location'):
-            files.append(build_config.get('source_location'))
+        return None
 
-        files.extend(build_config.get('extra_files', []))
+    def _update_src(self, pav_cfg, build_config):
+        """Retrieve and/or check the existence of the files needed for the build. This can include
+            pulling from URL's.
+        :param pav_cfg: The pavilion configuration object.
+        :param dict build_config: The build configuration dictionary.
+        :returns: src_path, extra_files
+        """
 
-        for file in files:
-            if (file.startswith('http://') or
-                    file.startswith('https://') or
-                    file.startswith('ftp://')):
+        src_loc = build_config.get('source_location')
+        if src_loc is None:
+            return None
 
+        # For URL's, check if the file needs to be updated, and try to do so.
+        if (src_loc.startswith('http://') or
+                src_loc.startswith('https://') or
+                src_loc.startswith('ftp://')):
 
+            fn = build_config.get('source_download_name')
 
+            if fn is None:
+                url_parts = urllib.parse.urlparse(src_loc)
+                path_parts = url_parts.path.split('/')
+                if path_parts and path_parts[-1]:
+                    fn = path_parts[-1]
+                else:
+                    # Use a hash of the url if we can't get a name from it.
+                    fn = hashlib.sha256(src_loc.encode()).hexdigest()
 
+            fn = os.path.join(pav_cfg.working_dir, 'downloads', fn)
 
+            wget.update(pav_cfg, src_loc, fn)
 
+            return fn
 
+        src_path = self._find_file(pav_cfg, src_loc)
+        if src_path is None:
+            raise PavTestError("Could not find and update src location '{}'".format(src_loc))
 
+        if os.path.isdir(src_path):
+            # For directories, update the directories mtime to match the latest mtime in
+            # the entire directory.
+            self._date_dir()
+            return src_path
 
+        elif os.path.isfile(src_loc):
+            # For static files, we'll end up just hashing the whole thing.
+            return src_path
 
-    def _get_build_hash(self, config, files):
+        else:
+            raise PavTestError("Source location '{}' points to something unusable."
+                               .format(src_path))
+
+    def _create_build_hash(self, pav_cfg, config):
         """Turn the build config, and everything the build needs, into hash.  This includes the
-        build config string itself, the source tarball (or a tarball of the repo), """
+        build config itself, the source tarball, and all extra files. Additionally,
+        system variables may be included in the hash if specified via the pavilion config."""
+
+        # The hash order is:
+        #  - The build config (sorted by key)
+        #  - The src archive.
+        #    - For directories, the mtime (updated to the time of the most recently updated file),
+        #      is hashed instead.
+        #  - All of the build's 'extra_files'
+        #  - Each of the pav_cfg.build_hash_vars
+
+        hash_obj = hashlib.sha256()
+
+        build_config = config.get('build', {})
+
+        # Update the hash with the contents of the build config.
+        hash_obj.update(self._hash_dict(build_config))
+
+        src_path = self._update_src(pav_cfg, build_config)
+
+        if src_path is not None:
+            if os.path.isfile(src_path):
+                hash_obj.update(self._hash_file(src_path))
+            elif os.path.isdir(src_path):
+                hash_obj.update(self._hash_dir(src_path))
+            else:
+                raise PavTestError("Invalid src location {}.".format(src_path))
+
+        for path in build_config.get('extra_files'):
+            full_path = self._find_file(pav_cfg, path)
+
+            if full_path is None:
+                raise PavTestError("Could not find extra file '{}'".format(path))
+            elif os.path.isfile(full_path):
+                hash_obj.update(self._hash_file(full_path))
+            elif os.path.isdir(full_path):
+                self._date_dir(full_path)
+
+                hash_obj.update(self._hash_dir(full_path))
+            else:
+                raise PavTestError("Extra file '{}' must be a regular file or directory.")
+
+        hash_obj.update(build_config.get('specificity', ''))
+
+        return hash_obj.hexdigest()
 
     def _save_config(self):
         """Save the configuration for this test to the test config file."""
@@ -176,3 +281,71 @@ class PavTest:
                 return False
 
             return True
+
+    def _hash_dict(self, mapping):
+        """Create a hash from the keys and items in 'mapping'. Keys are processed in order. Can
+        handle lists and other dictionaries as values.
+        :param hashlib.sha1 hash_obj: The hashing object to update (doesn't necessarily have to be sha1).
+        :param dict mapping: The dictionary to hash.
+        """
+
+        hash_obj = hashlib.sha256()
+
+        for key in sorted(mapping.keys()):
+            hash_obj.update(str(key))
+
+            val = mapping[key]
+
+            if isinstance(val, str):
+                hash_obj.update(val)
+            elif isinstance(val, list):
+                for item in val:
+                    hash_obj.update(item)
+            elif isinstance(val, dict):
+                hash_obj.update(self._hash_dict(val))
+
+        return hash_obj.hexdigest()
+
+    def _hash_file(self, path):
+        """Hash the given file (which is assumed to exist).
+        :param str path: Path to the file to hash.
+        """
+
+        hash_obj = hashlib.sha256()
+
+        with open(path, 'rb') as file:
+            chunk = file.read(self._BLOCK_SIZE)
+            while chunk:
+                hash_obj.update(chunk)
+                chunk = file.read(self._BLOCK_SIZE)
+
+        return hash_obj.hexdigest()
+
+    def _hash_dir(self, path):
+        """Instead of hashing the files within a directory, we just create a hash based on it's
+        name and mtime, assuming we've run _date_dir on it before hand.
+        Note: This doesn't actually produce a hash, just an arbitrary string.
+        :param str path: The path to the directory.
+        :returns: The 'hash'
+        """
+
+        stat = os.stat(path)
+        return '{} {:0.5f}'.format(path, stat.st_mtime)
+
+    def _date_dir(self, base_path):
+        """Update the mtime of the given directory or path to the the latest mtime contained
+        within.
+        :param str base_path: The root of the path to evaluate.
+        """
+
+        src_stat = os.stat(base_path)
+        latest = src_stat.st_mtime
+
+        paths = utils.flatwalk(base_path)
+        for path in paths:
+            stat = os.stat(path)
+            if stat.st_mtime > latest:
+                latest = stat.st_mtime
+
+        if src_stat.st_mtime != latest:
+            os.utime(base_path, (src_stat.st_atime, latest))
