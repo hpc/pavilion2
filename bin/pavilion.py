@@ -1,3 +1,6 @@
+# This is the core pavilion script.
+# It shouldn't be run directly; use bin/pav instead.
+
 from logging.handlers import RotatingFileHandler
 from pavilion import arguments
 from pavilion import commands

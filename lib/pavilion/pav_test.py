@@ -1,8 +1,16 @@
-
+import gzip
+import lzma
+import bz2
+import tarfile
+import zipfile
 import hashlib
 import os
 import json
+import logging
+import shutil
 import urllib.parse
+import datetime
+import pytz
 from pavilion import schedulers
 from pavilion import lockfile
 from pavilion import wget
@@ -16,6 +24,7 @@ class PavTestError(RuntimeError):
 # Keep track of files we've already hashed and updated before.
 __HASHED_FILES = {}
 
+
 class PavTest:
     """The central pavilion test object. Handle saving, monitoring and running tests (via a
     scheduler).
@@ -25,7 +34,14 @@ class PavTest:
     """
 
     TEST_ID_DIGITS = 6
+    # We have to worry about hash collisions, but we don't need all the bytes of hash most
+    # algorithms give us. The birthday attack math for 64 bits (8 bytes) of hash and 10 million
+    # items yields a collision probability of just 0.00027%. Easily good enough.
+    BUILD_HASH_BYTES = 8
+
     _BLOCK_SIZE = 4096*1024
+
+    LOGGER = logging.getLogger('pav.{}'.format(__file__))
 
     def __init__(self, pav_cfg, config, id=None):
         """Create an new PavTest object.
@@ -62,8 +78,16 @@ class PavTest:
         self._config = config
         self._scheduler = self._get_scheduler(pav_cfg, config)
 
-        self.build_hash = self._get_build_hash()
         self.build_path = os.path.join(self.path, 'build')
+        if os.path.islink(self.build_path):
+            build_rp = os.path.realpath(self.build_path)
+            build_fn = os.path.basename(build_rp)
+            self.build_hash = build_fn.split('-')[-1]
+        else:
+            self.build_hash = self._create_build_hash(pav_cfg, config)
+
+        self.build_name = '{name}-{hash}'.format(name=self.name,
+                                                 hash=self.build_hash[:self.BUILD_HASH_BYTES*2])
 
     def _create_id(self, pav_cfg, tests_path):
         """Figure out what the test id of this test should be."""
@@ -112,6 +136,32 @@ class PavTest:
 
         return None
 
+    @staticmethod
+    def _isurl(url):
+        """Determine if the given path is a url."""
+        parsed = urllib.parse.urlparse(url)
+        return parsed.scheme != ''
+
+    @staticmethod
+    def _download_path(pav_cfg, loc, name):
+        """Get the path to where a source_download would be downloaded.
+        :param pav_cfg: The pavilion configuration object.
+        :param str loc: The url for the download, from the config's source_location field.
+        :param str name: The name of the download, from the config's source_download_name field."""
+
+        fn = name
+
+        if fn is None:
+            url_parts = urllib.parse.urlparse(loc)
+            path_parts = url_parts.path.split('/')
+            if path_parts and path_parts[-1]:
+                fn = path_parts[-1]
+            else:
+                # Use a hash of the url if we can't get a name from it.
+                fn = hashlib.sha256(loc.encode()).hexdigest()
+
+        return os.path.join(pav_cfg.working_dir, 'downloads', fn)
+
     def _update_src(self, pav_cfg, build_config):
         """Retrieve and/or check the existence of the files needed for the build. This can include
             pulling from URL's.
@@ -125,26 +175,13 @@ class PavTest:
             return None
 
         # For URL's, check if the file needs to be updated, and try to do so.
-        if (src_loc.startswith('http://') or
-                src_loc.startswith('https://') or
-                src_loc.startswith('ftp://')):
+        if self._isurl(src_loc):
+            src_dest = self._download_path(pav_cfg, src_loc,
+                                           build_config.get('source_download_name'))
 
-            fn = build_config.get('source_download_name')
+            wget.update(pav_cfg, src_loc, src_dest)
 
-            if fn is None:
-                url_parts = urllib.parse.urlparse(src_loc)
-                path_parts = url_parts.path.split('/')
-                if path_parts and path_parts[-1]:
-                    fn = path_parts[-1]
-                else:
-                    # Use a hash of the url if we can't get a name from it.
-                    fn = hashlib.sha256(src_loc.encode()).hexdigest()
-
-            fn = os.path.join(pav_cfg.working_dir, 'downloads', fn)
-
-            wget.update(pav_cfg, src_loc, fn)
-
-            return fn
+            return src_dest
 
         src_path = self._find_file(pav_cfg, src_loc)
         if src_path is None:
@@ -153,7 +190,7 @@ class PavTest:
         if os.path.isdir(src_path):
             # For directories, update the directories mtime to match the latest mtime in
             # the entire directory.
-            self._date_dir()
+            self._date_dir(src_path)
             return src_path
 
         elif os.path.isfile(src_loc):
@@ -210,7 +247,7 @@ class PavTest:
 
         hash_obj.update(build_config.get('specificity', ''))
 
-        return hash_obj.hexdigest()
+        return hash_obj.hexdigest()[:self.BUILD_HASH_BYTES*2]
 
     def _save_config(self):
         """Save the configuration for this test to the test config file."""
@@ -226,6 +263,193 @@ class PavTest:
         except TypeError as err:
             raise PavTestError("Invalid type in config for ({}): {}"
                                .format(self.name, err))
+
+    def build(self, pav_cfg):
+        """"""
+
+        build_path = os.path.join(pav_cfg.working_dir, 'builds', self.build_name)
+
+        lock_path = '{}.lock'.format(build_path)
+        with lockfile.LockFile(lock_path, group=pav_cfg.shared_group):
+
+            if os.path.exists(build_path):
+                # The build already exists. Just exit.
+                return build_path
+
+            self._setup_build_dir(pav_cfg, build_path)
+
+            self._do_build()
+
+
+    def _setup_build_dir(self, pav_cfg, build_path):
+        """"""
+
+        build_config = self._config.get('build', {})
+
+        src_loc = build_config.get('source_location')
+        if src_loc is None:
+            src_path = None
+        elif self._isurl(src_loc):
+            download_name = build_config.get('source_download_name')
+            src_path = self._download_path(pav_cfg, src_loc, download_name)
+        else:
+            src_path = self._find_file(pav_cfg, src_loc)
+            if src_path is None:
+                raise PavTestError("Could not find source file '{}'".format(src_path))
+
+        if os.path.isdir(src_path):
+            # Recursively copy the src directory to the build directory.
+            shutil.copytree(src_path, build_path, symlinks=True)
+
+        elif os.path.isfile(src_path):
+            # Handle decompression of a stream compressed file. The interfaces for the libs are
+            # all the same; we just have to choose the right one to use. Zips are handled as an
+            # archive, below.
+            category, subtype = utils.get_mime_type(src_path)
+            comp_lib = None
+            if category == 'application' and subtype in ('gzip', 'x-bzip2', 'x-xz', 'x-tar'):
+
+                if tarfile.is_tarfile(src_path):
+                    try:
+                        with tarfile.open(src_path, 'r') as tar:
+                            # Filter out all but the top level items.
+                            top_level = [m for m in tar.members if '/' not in m.name]
+                            # If the file contains only a single directory, make that directory the
+                            # build directory. This should be the default in most cases.
+                            if len(top_level) == 1 and top_level[0].isdir():
+                                tmpdir = '{}.tmp'.format(build_path)
+                                os.mkdir(tmpdir)
+                                tar.extractall(tmpdir)
+                                os.rename(os.path.join(tmpdir, top_level[0].name), build_path)
+                                os.rmdir(tmpdir)
+                            else:
+                                # Otherwise, the build path will contain the extracted contents
+                                # of the archive.
+                                os.mkdir(build_path)
+                                tar.extractall(build_path)
+                    except (OSError, IOError, tarfile.CompressionError, tarfile.TarError) as err:
+                        raise PavTestError("Could not extract tarfile '{}' into '{}': {}"
+                                           .format(src_path, build_path, err))
+
+                else:
+                    # If it's a compressed file but isn't a tar, extract the file into the build
+                    # directory.
+                    # All the python compression libraries have the same basic interface, so we can
+                    # just dynamically switch between modules.
+                    if subtype == 'gzip':
+                        comp_lib = gzip
+                    elif subtype == 'x-bzip2':
+                        comp_lib = bz2
+                    elif subtype == 'x-xz':
+                        comp_lib = lzma
+                    elif subtype == 'x-tar':
+                        raise PavTestError("Test src file '{}' is a bad tar file."
+                                           .format(src_path))
+
+                decomp_fn = os.path.join(build_path, src_path.rsplit('.', 2)[0])
+                os.mkdir(build_path)
+
+                try:
+                    with comp_lib.open(src_path) as infile, open(decomp_fn, 'wb') as outfile:
+                        shutil.copyfileobj(infile, outfile)
+                except (OSError, IOError, lzma.LZMAError) as err:
+                    raise PavTestError("Error decompressing gzip compressed file "
+                                       "'{}' into '{}': {}"
+                                       .format(src_path, decomp_fn, err))
+
+            elif category == 'application' and subtype == 'zip'
+                try:
+                    # Extract the zipfile, under the same conditions as above with tarfiles.
+                    with zipfile.ZipFile(src_path) as zip:
+                        top_level = [m for m in zip.filelist if '/' not in m.filename[:-1]]
+                        if len(top_level) == 1 and top_level[0].is_dir():
+                            tmpdir = '{}.tmp'.format(build_path)
+                            os.mkdir(tmpdir)
+                            zip.extractall(tmpdir)
+                            os.rename(os.path.join(tmpdir, top_level[0].name), build_path)
+                            os.rmdir(tmpdir)
+                        else:
+                            os.mkdir(build_path)
+                            zip.extractall(build_path)
+
+                except (OSError, IOError, zipfile.BadZipFile) as err:
+                    raise PavTestError("Could not extract zipfile '{}' into destination '{}': {}"
+                                       .format(src_path, build_path, err))
+
+
+            else:
+                # Finally, simply copy any other types of files into the build directory.
+                dest = os.path.join(build_path, os.path.basename(src_path))
+                try:
+                    os.mkdir(build_path)
+                    shutil.copyfile(src_path, dest)
+                except OSError as err:
+                    raise PavTestError("Could not copy test src '{}' to '{}': {}"
+                                       .format(src_path, dest, err))
+
+
+        # Now we just need to copy over all of the extra files.
+        for extra in build_config['extra_files']:
+            path = self._find_file(pav_cfg, extra)
+            dest = os.path.join(build_path, os.path.basename(path))
+            try:
+                shutil.copyfile(path, dest)
+            except OSError as err:
+                raise PavTestError("Could not copyh extra file '{}' to dest '{}': {}"
+                                   .format(path, dest, err))
+
+        return build_path
+
+
+    def status(self):
+        """Return the current status of this test."""
+
+        status_fn = os.path.join(self.path, 'status')
+        try:
+            with open(status_fn, 'rb') as status_file:
+
+                status_file.seek(0, os.SEEK_END)
+                # Seek to before the earliest position of the last line, or to the beginning of
+                # the file if the file is short.
+                if status_file.tell() > 4100:
+                    status_file.seek(-4100, os.SEEK_END)
+                else:
+                    status_file.seek(0)
+
+
+                # Get the current line, which is the last line of the file.
+                status_line = status_file.read().split(b'\n')[-1]
+
+                parts = status_line.split(b' ', 3)
+
+                if parts:
+                    when = datetime.datetime.fromisoformat(parts.pop(0).decode())
+                else:
+                    when = '?'
+
+                if parts:
+                    status = parts.pop(0)
+                else:
+                    status = status.UNKNOWN
+
+
+
+
+
+                    self.LOGGER.warning("Bad status line in status file '{}': '{}'"
+                                        .format(status_fn, status_line))
+
+
+        except:
+            pass
+
+
+
+
+
+
+
+
 
     @classmethod
     def _load_config(cls, test_path):
@@ -349,3 +573,45 @@ class PavTest:
 
         if src_stat.st_mtime != latest:
             os.utime(base_path, (src_stat.st_atime, latest))
+
+
+    def extract_file(self, path, dest):
+
+
+
+
+
+
+
+
+def extract_gzip(path, dest):
+    try:
+        with gzip.open(path) as infile, open(dest, 'wb') as outfile:
+            shutil.copyfileobj(infile, outfile)
+    except (OSError, IOError) as err:
+        PavTestError("Error decompressing gzip compressed file '{}' into '{}': {}"
+                     .format(path, dest, err))
+
+
+def extract_lzma(path, dest):
+    try:
+        with lzma.open(path) as infile, open(dest, 'wb') as outfile:
+            shutil.copyfileobj(infile, outfile)
+    except (OSError, IOError, lzma.LZMAError) as err:
+        PavTestError("Error decompressing lzma compressed file '{}' into '{}': {}"
+                     .format(path, dest, err))
+
+def extract_bzip(path, dest):
+    try:
+        with bz2.open(path) as infile, open(dest, 'wb') as outfile:
+            shutil.copyfileobj(infile, outfile)
+    except (OSError, IOError) as err:
+        PavTestError("Error decompressing gzip compressed file '{}' into '{}': {}"
+                     .format(path, dest, err))
+
+DECOMPRESSORS = {
+    'xz': extract_lzma,
+    'gz': extract_gzip,
+    'tgz': extract gzip,
+    'bz2': extract_bzip,
+}
