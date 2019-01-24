@@ -62,6 +62,9 @@ def add_system_plugin( system_plugin ):
         _LOADED_PLUGINS[ name ] = system_plugin
     elif system_plugin.priority > _LOADED_PLUGINS[ name ].priority:
         _LOADED_PLUGINS[ name ] = system_plugin
+        LOGGER.warning( "System plugin {} replaced due to priority.".format(
+                        name ) )
+    elif system_plugin.priority < _LOADED_PLUGINS[ name ].priority:
         LOGGER.warning( "System plugin {} ignored due to priority.".format(
                         name ) )
     elif system_plugin.priority == _LOADED_PLUGINS[name].priority:
@@ -121,9 +124,6 @@ class SystemPlugin(IPlugin.IPlugin):
         self.sub_keys = sub_keys
         self.values = None
 
-    def __reset( self ):
-        self.values = None
-
     def _get( self ):
         raise NotImplemented
 
@@ -160,4 +160,5 @@ class SystemPlugin(IPlugin.IPlugin):
     def __reset():
         """Remove this plugin and its changes."""
 
+        self.values = None
         self.deactivate()
