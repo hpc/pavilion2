@@ -107,10 +107,10 @@ class SchedulerPlugin(IPlugin.IPlugin):
         for var in _SCHEDULER_VARS:
             self.values[ var ] = None
 
-    def _get( var ):
+    def _get( self, var ):
         raise NotImplemented
 
-    def get( var ):
+    def get( self, var ):
         global _SCHEDULER_VARS
 
         if var not in _SCHEDULER_VARS:
@@ -136,7 +136,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
         return self.values[ var ]
 
-    def set( var, val ):
+    def set( self, var, val ):
         global _SCHEDULER_VARS
 
         if var not in _SCHEDULER_VARS:
@@ -154,6 +154,52 @@ class SchedulerPlugin(IPlugin.IPlugin):
                             "{} to {}.".format( self.values[ var ], val ) )
 
         self.values[ var ] = val
+
+    def check_request( self, patition, state, min_nodes, max_nodes,
+                       min_ppn, max_ppn, req_type ):
+        """Function intended to be overridden for the particular schedulers.
+           :param str partition - Name of the desired partition.
+           :param str state - State of the desired partition.
+           :param int min_nodes - Minimum number of nodes requested.
+           :param int,str max_nodes - Maximum number of nodes requested.
+                                      Can be 'all'.
+           :param int min_ppn - Minimum number of processors per node requested
+           :param int,str max_ppn - Maximum number of processors per node
+                                    requested.  Can be 'all'.
+           :param str req_type - Type of request.  Options include 'immediate'
+                                 and 'wait'.  Specifies whether the request
+                                 must be available immediately or if the job
+                                 can be queued for later.
+           :return tuple( int, int) - Tuple containing the number of nodes that
+                                      can be used and the number of processors
+                                      per node that can be used.
+        """
+        raise NotImplemented
+
+    def check_reservation( self, res_name ):
+        raise NotImplemented
+
+    def get_script_headers( self, partition=None, reservation=None, qos=None,
+                            account=None, num_nodes=None, ppn=None,
+                            time_limit=None ):
+        """Function to take a series of resource requests and return the list
+           of lines used to specify this request in a submissions script.
+           :param str partition - Name of the partition.
+           :param str reservation - Name of the reservation.
+           :param str qos - Name of the qos to use.
+           :param str account - Name of the account to use.
+           :param int nodes - Number of nodes.
+           :param int ppn - Number of processors per node.
+           :param time time - Time requested.
+           :return list(str) - List of lines to go at the beginning of a
+                               submissions script to request the variables.
+        """
+        raise NotImplemented
+
+    def get_submission_call( self ):
+        """Function to retrieve the appropriate function call to submit a job
+           to the scheduler."""
+        raise NotImplemented
 
     def activate(self):
         """Add this plugin to the system plugin list."""
