@@ -196,23 +196,35 @@ class SchedulerPlugin(IPlugin.IPlugin):
         """
         raise NotImplemented
 
-    def get_submission_call( self ):
-        """Function to retrieve the appropriate function call to submit a job
-           to the scheduler."""
+    def submit_job( self, path ):
+        """Function to submit a job to a scheduler and return the job ID
+           number.
+           :param str path - Path to the submission script.
+           :return str - Job ID number.
+        """
+        raise NotImplemented
+
+    def check_job( self, id, key ):
+        """Function to check the status of a job.
+           :param str id - ID number of the job as returned by submit_job().
+           :param str key - Optional parameter to request a specific value
+                            from the scheduler job information.
+           :return str - Status of the job matching the provided job ID.
+                         If the key is empty or requesting the state of the
+                         job, the return values should be 'pending', 'running',
+                         'finished', or 'failed'.
+        """
         raise NotImplemented
 
     def activate(self):
         """Add this plugin to the system plugin list."""
-
         add_scheduler_plugin( self )
 
     def deactivate(self):
         """Remove this plugin from the system plugin list."""
-
         remove_scheduler_plugin( self )
 
     def __reset():
         """Remove this plugin and its changes."""
-
         self.values = None
         self.deactivate()

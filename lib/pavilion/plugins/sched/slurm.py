@@ -269,6 +269,54 @@ class Slurm( scheduler_plugins.SchedulerPlugin ):
 
         return line_list
 
-    def get_submission_call( self ):
-        """Return the submission invocation."""
-        return 'sbatch'
+    def submit_job( self, path ):
+        if os.isfile( path ):
+            job_id = subprocess.check_output( [ 'sbatch', path ]
+                                          ).decode('UTF-8').strip().split()[-1]
+        else:
+            raise SchedulerPluginError( 'Submission script {}'.format( path )+\
+                                        ' not found.' )
+
+        return job_id
+
+    def check_job( self, id, key=None ):
+        job_dict = {}
+        try:
+            job_output = subprocess.check_output( [ 'scontrol', 'show', 'job',
+                         id ] ).decode( 'UTF-8' ).split()
+            for item in job_output:
+                key, value = item.split( '=' )
+                job_dict[ key ] = value
+        except( CalledProcessError ):
+            raise SchedulerPluginError( 'Job {} not found.'.format( id ) )
+
+        if key is None:
+            key = 'JobState'
+
+        try:
+            value = job_dict[ key ]
+        except( KeyError ):
+            raise SchedulerPluginError( 'Key {} not found in '.format( key ) +\
+                                        'scontrol output.' )
+
+        ret_val = None
+        run_list = [ 'RUNNING', 'COMPLETING', 'CONFIGURING' ]
+        pend_list = [ 'PENDING' ]
+        finish_list = [ 'COMPLETED' ]
+        fail_list = [ 'BOOT_FAIL', 'FAILED', 'DEADLINE', 'NODE_FAIL',
+                      'PREEMPTED', 'OUT_OF_MEMORY', 'TIMEOUT' ]
+
+        if key == 'JobState':
+            if value in run_list:
+                ret_val = 'running'
+            elif value in pend_list:
+                ret_val = 'pending'
+            elif value in finish_list:
+                ret_val = 'finished'
+            elif value in fail_list:
+                ret_val = 'failed'
+            else:
+                raise SchedulerPluginError( 'Job status {} '.format( value ) +\
+                                            'not recognized.' )
+
+        return ret_val
