@@ -88,14 +88,6 @@ class Slurm( scheduler_plugins.SchedulerPlugin ):
 
         return self.values[ var ]
 
-    def check_reservation( self, res_name ):
-        """Check the status of a requested reservation."""
-        if not subprocess.check_call( [ 'scontrol', 'show', 'reservation',
-                                                                  res_name ] ):
-            return False
-
-        return True
-
     def _collect_data( self ):
         """Use the `scontrol show node` command to collect data on all
            available nodes.  A class-level dictionary is being populated."""
@@ -126,6 +118,8 @@ class Slurm( scheduler_plugins.SchedulerPlugin ):
         # Set defaults
         if partition is None:
             partition = 'standard'
+
+        check_partition( partition )
 
         if state is None:
             state = 'IDLE'
@@ -235,6 +229,8 @@ class Slurm( scheduler_plugins.SchedulerPlugin ):
         if partition is None:
             partition = 'standard'
 
+        check_partition( partition )
+
         if not subprocess.check_call( [ 'scontrol', 'show', 'partition',
                                                                  partition ] ):
             raise SchedulerPluginError( 'Partition {} not found.'.format(
@@ -287,7 +283,7 @@ class Slurm( scheduler_plugins.SchedulerPlugin ):
             for item in job_output:
                 key, value = item.split( '=' )
                 job_dict[ key ] = value
-        except( CalledProcessError ):
+        except subprocess.CalledProcessError:
             raise SchedulerPluginError( 'Job {} not found.'.format( id ) )
 
         if key is None:
@@ -295,7 +291,7 @@ class Slurm( scheduler_plugins.SchedulerPlugin ):
 
         try:
             value = job_dict[ key ]
-        except( KeyError ):
+        except KeyError:
             raise SchedulerPluginError( 'Key {} not found in '.format( key ) +\
                                         'scontrol output.' )
 
@@ -320,3 +316,19 @@ class Slurm( scheduler_plugins.SchedulerPlugin ):
                                             'not recognized.' )
 
         return ret_val
+
+    def check_reservation( self, res_name ):
+        try:
+            subprocess.check_call( [ 'scontrol', 'show', 'reservation',
+                                                                  res_name ] ):
+            return True
+        except subprocess.CalledProcessError:
+            return False
+
+    def check_partition( self, partition ):
+        try:
+            subprocess.check_call( [ 'scontrol', 'show', 'partition',
+                                                                  partition ] )
+        except subprocess.CalledProcessError:
+            raise SchedulerPluginError( 'Partition {} not found.'.format(
+                                                                  partition ) )

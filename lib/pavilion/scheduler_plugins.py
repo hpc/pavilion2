@@ -176,9 +176,6 @@ class SchedulerPlugin(IPlugin.IPlugin):
         """
         raise NotImplemented
 
-    def check_reservation( self, res_name ):
-        raise NotImplemented
-
     def get_script_headers( self, partition=None, reservation=None, qos=None,
                             account=None, num_nodes=None, ppn=None,
                             time_limit=None ):
@@ -213,6 +210,20 @@ class SchedulerPlugin(IPlugin.IPlugin):
                          If the key is empty or requesting the state of the
                          job, the return values should be 'pending', 'running',
                          'finished', or 'failed'.
+        """
+        raise NotImplemented
+
+    def check_reservation( self, res_name ):
+        """Function to check that a reservation is valid.
+           :param str res_name - Reservation to check for validity.
+           :raises SchedulerPluginError - If the reservation is not valid.
+        """
+        raise NotImplemented
+
+    def check_partition( self, partition ):
+        """Function to check that a partition is valid.
+           :param str partition - Partition to check for validity.
+           :raises SchedulerPluginError - If the partition is not valid.
         """
         raise NotImplemented
 
