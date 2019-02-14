@@ -16,25 +16,25 @@ _SCHEDULER_VARS = [ 'num_nodes', 'procs_per_node', 'qos', 'reservation',
                     'partition', 'account', 'down_nodes', 'unused_nodes',
                     'busy_nodes', 'maint_nodes', 'other_nodes', 'chunk_size' ]
 
-class SchedVarDict( collections.UserDict ):
+class SchedVarDict(collections.UserDict):
 
-    def __init__( self ):
+    def __init__(self):
         global _SCHEDULER_PLUGINS
         if _SCHEDULER_PLUGINS is not None:
             raise SchedulerPluginError(
-                  "Dictionary of scheduler plugins can't be generated twice." )
-        super().__init__( {} )
+                  "Dictionary of scheduler plugins can't be generated twice.")
+        super().__init__({})
         _SCHEDULER_PLUGINS = self
 
-    def __getitem__( self, name, var ):
+    def __getitem__(self, name, var):
         if name not in self.data:
             self.data[ name ][ var ] = \
-                             get_scheduler_plugin( name ).get( var )
+                             get_scheduler_plugin(name).get(var)
         return self.data[ name ]
 
-    def _reset( self ):
-        LOGGER.warning( "Resetting the plugins.  This functionality exists " +\
-                        "only for use by unittests." )
+    def _reset(self):
+        LOGGER.warning("Resetting the plugins.  This functionality exists " +\
+                        "only for use by unittests.")
         _reset_plugins()
         self.data = {}
 
@@ -43,9 +43,9 @@ def _reset_plugins():
 
     if _SCHEDULER_PLUGINS is not None:
         for key in list(_SCHEDULER_PLUGINS.keys()):
-            remove_system_plugins( key )
+            remove_system_plugins(key)
 
-def add_scheduler_plugin( scheduler_plugin ):
+def add_scheduler_plugin(scheduler_plugin):
     global _SCHEDULER_PLUGINS
     name = scheduler_plugin.name
 
@@ -56,30 +56,30 @@ def add_scheduler_plugin( scheduler_plugin ):
         _LOADED_PLUGINS[ name ] = scheduler_plugin
     elif scheduler_plugin.priority > _LOADED_PLUGINS[name].priority:
         _LOADED_PLUGINS[ name ] = scheduler_plugin
-        LOGGER.warning( "Scheduler plugin {} replaced due to priority".format(
-                        name ) )
+        LOGGER.warning("Scheduler plugin {} replaced due to priority".format(
+                        name))
     elif priority < _LOADED_PLUGINS[name].priority:
-        LOGGER.warning( "Scheduler plugin {} ignored due to priority".format(
-                        name ) )
+        LOGGER.warning("Scheduler plugin {} ignored due to priority".format(
+                        name))
     elif priority == _LOADED_PLUGINS[name].priority:
         raise SchedulerPluginError("Two plugins for the same system plugin "
                                 "have the same priority {}, {}."
                                 .format(scheduler_plugin,
                                         _LOADED_PLUGINS[name]))
 
-def remove_scheduler_plugin( scheduler_plugin ):
+def remove_scheduler_plugin(scheduler_plugin):
     global _SCHEDULER_PLUGINS
     name = scheduler_plugin.name
 
     if name in _SCHEDULER_PLUGINS:
         del _SCHEDULER_PLUGINS[ name ]
 
-def get_scheduler_plugin( name ):
+def get_scheduler_plugin(name):
     global _LOADED_PLUGINS
 
     if _LOADED_PLUGINS is None:
         raise SchedulerPluginError(
-                              "Trying to get plugins before they are loaded." )
+                              "Trying to get plugins before they are loaded.")
 
     if name not in _LOADED_PLUGINS:
         raise SchedulerPluginError("Module not found: '{}'".format(name))
@@ -94,69 +94,69 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
     NAME_VERS_RE = re.compile(r'^[a-zA-Z0-9_.-]+$')
 
-    def __init__( self, name, priority=PRIO_DEFAULT ):
+    def __init__(self, name, priority=PRIO_DEFAULT):
         """Scheduler plugin that is expected to be overriden by subclasses.
         The plugin will populate a set of expected 'sched' variables."""
 
         super().__init__()
 
-        self.logger = logging.getLogger( 'sched.' + name )
+        self.logger = logging.getLogger('sched.' + name)
         self.name = name
         self.priority = priority
         self.values = {}
         for var in _SCHEDULER_VARS:
             self.values[ var ] = None
 
-    def _get( self, var ):
+    def _get(self, var):
         raise NotImplemented
 
-    def get( self, var ):
+    def get(self, var):
         global _SCHEDULER_VARS
 
         if var not in _SCHEDULER_VARS:
-            raise SchedulerPluginError( "Requested variable {}".format( var )+\
-                              " not in the expected list of variables." )
+            raise SchedulerPluginError("Requested variable {}".format(var)+\
+                              " not in the expected list of variables.")
 
         if self.values[ var ] is None:
-            val = self._get( var )
+            val = self._get(var)
 
             ge_set = [ 'num_nodes', 'down_nodes', 'unused_nodes', 'busy_nodes',
                        'maint_nodes', 'other_nodes', 'chunk_size' ]
             if var in ge_set and val < 0:
-                raise SchedulerPluginError( "Value for '{}' ".format( var ) +\
+                raise SchedulerPluginError("Value for '{}' ".format(var) +\
                                             "must be greater than or equal " +\
                                             "to zero.  Received '{}'.".format(
-                                            val ) )
+                                            val))
             if var == 'procs_per_node' and val <= 0:
-                raise SchedulerPluginError( "Value for 'procs_per_node' " +\
+                raise SchedulerPluginError("Value for 'procs_per_node' " +\
                                             "must be greater than zero.  " +\
-                                            "Received '{}'.".format( val ) )
+                                            "Received '{}'.".format(val))
 
             self.values[ var ] = val
 
         return self.values[ var ]
 
-    def set( self, var, val ):
+    def set(self, var, val):
         global _SCHEDULER_VARS
 
         if var not in _SCHEDULER_VARS:
-            raise SchedulerPluginError( "Specified variable {}".format( var )+\
-                                    " not in the expected list of variables." )
+            raise SchedulerPluginError("Specified variable {}".format(var)+\
+                                    " not in the expected list of variables.")
 
         if var in [ 'down_nodes', 'unused_nodes', 'busy_nodes', 'maint_nodes',
                     'other_nodes' ]:
-            raise SchedulerPluginError( "Attempting to set a variable that" + \
+            raise SchedulerPluginError("Attempting to set a variable that" + \
                                         " is not meant to be set by the " + \
-                                        "user.  Variable: {}.".format( var ) )
+                                        "user.  Variable: {}.".format(var))
 
         if self.values[ var ] is not None:
-            logger.warning( "Replacing value for {} from ".format( var ) + \
-                            "{} to {}.".format( self.values[ var ], val ) )
+            logger.warning("Replacing value for {} from ".format(var) + \
+                            "{} to {}.".format(self.values[ var ], val))
 
         self.values[ var ] = val
 
-    def check_request( self, patition, state, min_nodes, max_nodes,
-                       min_ppn, max_ppn, req_type ):
+    def check_request(self, patition, state, min_nodes, max_nodes,
+                       min_ppn, max_ppn, req_type):
         """Function intended to be overridden for the particular schedulers.
            :param str partition - Name of the desired partition.
            :param str state - State of the desired partition.
@@ -170,15 +170,15 @@ class SchedulerPlugin(IPlugin.IPlugin):
                                  and 'wait'.  Specifies whether the request
                                  must be available immediately or if the job
                                  can be queued for later.
-           :return tuple( int, int) - Tuple containing the number of nodes that
+           :return tuple(int, int) - Tuple containing the number of nodes that
                                       can be used and the number of processors
                                       per node that can be used.
         """
         raise NotImplemented
 
-    def get_script_headers( self, partition=None, reservation=None, qos=None,
+    def get_script_headers(self, partition=None, reservation=None, qos=None,
                             account=None, num_nodes=None, ppn=None,
-                            time_limit=None ):
+                            time_limit=None):
         """Function to take a series of resource requests and return the list
            of lines used to specify this request in a submissions script.
            :param str partition - Name of the partition.
@@ -193,7 +193,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
         """
         raise NotImplemented
 
-    def submit_job( self, path ):
+    def submit_job(self, path):
         """Function to submit a job to a scheduler and return the job ID
            number.
            :param str path - Path to the submission script.
@@ -201,7 +201,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
         """
         raise NotImplemented
 
-    def check_job( self, id, key ):
+    def check_job(self, id, key):
         """Function to check the status of a job.
            :param str id - ID number of the job as returned by submit_job().
            :param str key - Optional parameter to request a specific value
@@ -213,27 +213,35 @@ class SchedulerPlugin(IPlugin.IPlugin):
         """
         raise NotImplemented
 
-    def check_reservation( self, res_name ):
+    def check_reservation(self, res_name):
         """Function to check that a reservation is valid.
            :param str res_name - Reservation to check for validity.
            :raises SchedulerPluginError - If the reservation is not valid.
         """
         raise NotImplemented
 
-    def check_partition( self, partition ):
+    def check_partition(self, partition):
         """Function to check that a partition is valid.
            :param str partition - Partition to check for validity.
            :raises SchedulerPluginError - If the partition is not valid.
         """
         raise NotImplemented
 
+    def kick_off(self, partition=None, reservation=None, qos=None,
+                 account=None, num_nodes=None, ppn=None, time_limit=None,
+                 line_list=None):
+        """Function to accept a list of lines and generate a script that is
+           then submitted to the scheduler.
+        """
+        raise NotImplemented
+
     def activate(self):
         """Add this plugin to the system plugin list."""
-        add_scheduler_plugin( self )
+        add_scheduler_plugin(self)
 
     def deactivate(self):
         """Remove this plugin from the system plugin list."""
-        remove_scheduler_plugin( self )
+        remove_scheduler_plugin(self)
 
     def __reset():
         """Remove this plugin and its changes."""
