@@ -3,12 +3,9 @@
 import datetime
 import grp
 import os
-import pwd
 import stat
-from collections import OrderedDict
 from pavilion.module_actions import ModuleAction
 import pavilion.module_wrapper
-from yapsy.PluginManager import PluginManager
 
 """ Class to allow for scripts to be written for other modules.
     Typically, this will be used to write bash or batch scripts. 
