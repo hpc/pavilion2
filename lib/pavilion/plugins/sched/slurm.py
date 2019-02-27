@@ -110,26 +110,10 @@ class Slurm(scheduler_plugins.SchedulerPlugin):
             self.node_data[node_info['NodeName']] = node_info
 
 
-    def check_request(self, partition=None, state=None, min_nodes=None,
-                       max_nodes=None, min_ppn=None, max_ppn=None,
-                       req_type=None):
-        if self.node_data is None:
-            self._collect_data()
+    def check_request(self, partition='standard', state='IDLE', min_nodes=1,
+                       max_nodes=None, min_ppn=1, max_ppn=None, req_type=None):
 
-        # Set defaults
-        if partition is None:
-            partition = 'standard'
-
-        check_partition(partition)
-
-        if state is None:
-            state = 'IDLE'
-
-        if min_nodes is None:
-            min_nodes = 1
-
-        if min_ppn is None:
-            min_ppn = 1
+        self._collect_data()
 
         # Lists for internal uses
         comp_nodes = []

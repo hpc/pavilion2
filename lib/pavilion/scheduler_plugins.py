@@ -12,9 +12,9 @@ class SchedulerPluginError(RuntimeError):
 _SCHEDULER_PLUGINS = None
 _LOADED_PLUGINS = None
 
-_SCHEDULER_VARS = [ 'num_nodes', 'procs_per_node', 'qos', 'reservation',
+_SCHEDULER_VARS = ['num_nodes', 'procs_per_node', 'qos', 'reservation',
                     'partition', 'account', 'down_nodes', 'unused_nodes',
-                    'busy_nodes', 'maint_nodes', 'other_nodes', 'chunk_size' ]
+                    'busy_nodes', 'maint_nodes', 'other_nodes', 'chunk_size']
 
 class SchedVarDict(collections.UserDict):
 
@@ -28,9 +28,9 @@ class SchedVarDict(collections.UserDict):
 
     def __getitem__(self, name, var):
         if name not in self.data:
-            self.data[ name ][ var ] = \
+            self.data[name][var] = \
                              get_scheduler_plugin(name).get(var)
-        return self.data[ name ]
+        return self.data[name]
 
     def _reset(self):
         LOGGER.warning("Resetting the plugins.  This functionality exists " +\
@@ -53,9 +53,9 @@ def add_scheduler_plugin(scheduler_plugin):
         _LOADED_PLUGINS = {}
 
     if name not in _LOADED_PLUGINS:
-        _LOADED_PLUGINS[ name ] = scheduler_plugin
+        _LOADED_PLUGINS[name] = scheduler_plugin
     elif scheduler_plugin.priority > _LOADED_PLUGINS[name].priority:
-        _LOADED_PLUGINS[ name ] = scheduler_plugin
+        _LOADED_PLUGINS[name] = scheduler_plugin
         LOGGER.warning("Scheduler plugin {} replaced due to priority".format(
                         name))
     elif priority < _LOADED_PLUGINS[name].priority:
@@ -72,7 +72,7 @@ def remove_scheduler_plugin(scheduler_plugin):
     name = scheduler_plugin.name
 
     if name in _SCHEDULER_PLUGINS:
-        del _SCHEDULER_PLUGINS[ name ]
+        del _SCHEDULER_PLUGINS[name]
 
 def get_scheduler_plugin(name):
     global _LOADED_PLUGINS
@@ -84,7 +84,7 @@ def get_scheduler_plugin(name):
     if name not in _LOADED_PLUGINS:
         raise SchedulerPluginError("Module not found: '{}'".format(name))
 
-    return _LOADED_PLUGINS[ name ]
+    return _LOADED_PLUGINS[name]
 
 class SchedulerPlugin(IPlugin.IPlugin):
 
@@ -105,7 +105,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
         self.priority = priority
         self.values = {}
         for var in _SCHEDULER_VARS:
-            self.values[ var ] = None
+            self.values[var] = None
 
     def _get(self, var):
         raise NotImplemented
@@ -117,11 +117,11 @@ class SchedulerPlugin(IPlugin.IPlugin):
             raise SchedulerPluginError("Requested variable {}".format(var)+\
                               " not in the expected list of variables.")
 
-        if self.values[ var ] is None:
+        if self.values[var] is None:
             val = self._get(var)
 
-            ge_set = [ 'num_nodes', 'down_nodes', 'unused_nodes', 'busy_nodes',
-                       'maint_nodes', 'other_nodes', 'chunk_size' ]
+            ge_set = ['num_nodes', 'down_nodes', 'unused_nodes', 'busy_nodes',
+                       'maint_nodes', 'other_nodes', 'chunk_size']
             if var in ge_set and val < 0:
                 raise SchedulerPluginError("Value for '{}' ".format(var) +\
                                             "must be greater than or equal " +\
@@ -132,9 +132,9 @@ class SchedulerPlugin(IPlugin.IPlugin):
                                             "must be greater than zero.  " +\
                                             "Received '{}'.".format(val))
 
-            self.values[ var ] = val
+            self.values[var] = val
 
-        return self.values[ var ]
+        return self.values[var]
 
     def set(self, var, val):
         global _SCHEDULER_VARS
@@ -143,17 +143,17 @@ class SchedulerPlugin(IPlugin.IPlugin):
             raise SchedulerPluginError("Specified variable {}".format(var)+\
                                     " not in the expected list of variables.")
 
-        if var in [ 'down_nodes', 'unused_nodes', 'busy_nodes', 'maint_nodes',
-                    'other_nodes' ]:
+        if var in ['down_nodes', 'unused_nodes', 'busy_nodes', 'maint_nodes',
+                    'other_nodes']:
             raise SchedulerPluginError("Attempting to set a variable that" + \
                                         " is not meant to be set by the " + \
                                         "user.  Variable: {}.".format(var))
 
-        if self.values[ var ] is not None:
+        if self.values[var] is not None:
             logger.warning("Replacing value for {} from ".format(var) + \
-                            "{} to {}.".format(self.values[ var ], val))
+                            "{} to {}.".format(self.values[var], val))
 
-        self.values[ var ] = val
+        self.values[var] = val
 
     def check_request(self, patition, state, min_nodes, max_nodes,
                        min_ppn, max_ppn, req_type):
@@ -228,7 +228,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
         raise NotImplemented
 
     def kick_off(self, partition=None, reservation=None, qos=None,
-                 account=None, num_nodes=None, ppn=None, time_limit=None,
+                 account=None, num_nodes=1, ppn=1, time_limit=None,
                  line_list=None):
         """Function to accept a list of lines and generate a script that is
            then submitted to the scheduler.
