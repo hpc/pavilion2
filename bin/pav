@@ -6,4 +6,19 @@ PAV_DIR=$(dirname $(dirname $(realpath ${BASH_SOURCE[0]})))
 
 export PYTHONPATH="${PYTHONPATH}:${PAV_DIR}/lib:${PAV_DIR}/lib/pavilion/dependencies"
 
-${PYTHON} ${PAV_DIR}/bin/pavilion.py $@
+SHARED_GROUP=$(${PYTHON} ${PAV_DIR}/bin/query_config.py shared_group)
+UMASK=$(${PYTHON} ${PAV_DIR}/bin/query_config.py umask)
+
+# Set the umask according to the pavilion config.
+[[ -n ${UMASK} ]] && umask ${UMASK}
+
+if [[ -n ${SHARED_GROUP} ]]; then
+    # Run pavilion under the given shared group, if one is in the config.
+    newgrp ${SHARED_GROUP} <<EOF
+        ${PYTHON} ${PAV_DIR}/bin/pav.py $@
+EOF
+
+else
+    ${PYTHON} ${PAV_DIR}/bin/pav.py $@
+fi
+

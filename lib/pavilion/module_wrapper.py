@@ -27,8 +27,6 @@ def add_wrapped_module(module_wrapper, version):
     :raises KeyError: On module version conflict.
     """
 
-    print('hiya')
-
     name = module_wrapper.name
     priority = module_wrapper.priority
 

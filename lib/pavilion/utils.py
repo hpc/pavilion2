@@ -48,3 +48,4 @@ def get_mime_type(path):
 def fix_permissions(pav_cfg, path):
     # Recursively the fix permissions of the given path such that both the group and owner
     # have read
+    pass
