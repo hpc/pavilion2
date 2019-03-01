@@ -35,7 +35,7 @@ class PavTest:
     """The central pavilion test object. Handle saving, monitoring and running tests (via a
     scheduler).
 
-    :cvar TEST_ID_DIGITS: How many digits should be in thte test folder names.
+    :cvar TEST_ID_DIGITS: How many digits should be in the test folder names.
     :cvar _BLOCK_SIZE: Blocksize for hashing files.
     """
 
