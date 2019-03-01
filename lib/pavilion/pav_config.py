@@ -114,6 +114,8 @@ PAV_CONFIG_SEARCH_DIRS.extend([
     '/opt/pavilion',
 ])
 
+dirname = os.path.dirname
+pav_root = dirname(dirname(dirname(os.path.realpath(__file__))))
 
 class PavilionConfigLoader(yc.YamlConfigLoader):
 
@@ -128,6 +130,9 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
                               "precedent."),
         yc.StrElem('working_dir', default=USER_HOME_PAV,
                    help_text="Where pavilion puts it's run files, downloads, etc."),
+        yc.StrElem('pav_root', default=pav_root, hidden=True,
+                   help_text="The root directory of the pavilion install. This shouldn't be "
+                             "set by the user."),
         yc.ListElem("disable_plugins", sub_elem=yc.StrElem(),
                     help_text="Allows you to disable plugins by '<type>.<name>'. For example,"
                               "'module.gcc' would disable the gcc module wrapper."),

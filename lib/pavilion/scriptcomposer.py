@@ -116,29 +116,28 @@ class ScriptHeader(object):
 class ScriptDetails(object):
     """Class to contain the final details of the script."""
 
-    def __init__(self, name=None, group=None, perms=None):
+    def __init__(self, path=None, group=None, perms=None):
         """Function to set the final details of the script.
-        :param string name: Specify a name for the script. 
-                                   default = 'pav_(date)_(time)'
+        :param string path: The path to the script file. default = 'pav_(date)_(time)'
         :param string group: Name of group to set as owner of the file. 
                              default = user default group
         :param int perms: Value for permission on the file (see
                           `man chmod`).  default = 0o770
         """
-        self.name = name
+        self.path = path
         self.group = group
         self.perms = perms
 
     @property
-    def name(self):
-        return self._name
+    def path(self):
+        return self._path
 
-    @name.setter
-    def name(self, value):
+    @path.setter
+    def path(self, value):
         if value is None:
             value = "_".join(datetime.datetime.now().__str__().split())
 
-        self._name = value
+        self._path = value
 
     @property
     def group(self):

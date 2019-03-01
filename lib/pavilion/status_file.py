@@ -21,6 +21,7 @@ class TestStatesStruct:
     INVALID = 'INVALID'         # For when the status given was invalid.
     CREATED = 'CREATED'         # Always the initial status of the status file.
     BUILDING = 'BUILDING'       # For when we're currently building the test.
+    BUILD_FAILED = 'BUILD_FAILED'
     BUILD_DONE = 'BUILD_DONE'   # For when the build step has completed.
     RUNNING = 'RUNNING'         # For when we're currently running the test.
     RUN_DONE = 'RUN_DONE'       # For when the run step is complete.
