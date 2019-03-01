@@ -26,11 +26,16 @@ class TestStatesStruct:
     RUN_DONE = 'RUN_DONE'       # For when the run step is complete.
     RESULTS = 'RESULTS'         # For when we're getting the results.
     COMPLETE = 'COMPLETE'       # For when the test is completely complete.
+    SCHEDULED = 'SCHEDULED'     # The test has been scheduled with a scheduler.
+    WAITING = 'WAITING'
+    FAILED = 'FAILED'           # For when the test has failed.
 
     MAX_LENGTH = 15
 
     def __init__(self):
         """Validate all of the constants."""
+
+        self.list = []
 
         for key in self.__class__.__dict__.keys():
             if key.startswith('_') or key in ['get', 'validate', 'MAX_LENGTH']:
@@ -38,6 +43,8 @@ class TestStatesStruct:
 
             if not self.validate(key):
                 raise RuntimeError("Invalid StatusFile constant '{}'.".format(key))
+
+            self.list.append(key)
 
     def validate(self, key):
         """Make sure the key conforms to the above rules."""
@@ -60,7 +67,7 @@ STATES = TestStatesStruct()
 
 class StatusInfo:
     def __init__(self, when=None, state='', note=''):
-        self.when = None
+        self.when = when
         self.state = state
         self.note = note
 

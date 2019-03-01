@@ -1,7 +1,8 @@
+from collections import defaultdict
 from pavilion import commands
 from pavilion import config
-from collections import defaultdict
-from pavilion import schedulers
+from pavilion import pav_test
+from pavilion import scheduler_plugins
 from pavilion.string_parser import ResolveError
 
 
@@ -38,15 +39,17 @@ class RunCommand(commands.Command):
         """Resolve the test configurations into individual tests and assign to schedulers.
         Have those schedulers kick off jobs to run the individual tests themselves."""
 
+        # 1. Resolve the test configs
+        #   - Get sched vars from scheduler.
+        #   - Compile variables.
+        #
+
         test_configs = self.get_tests(pav_config, args)
 
-        for sched_name in test_configs:
-            for test in test_configs[sched_name]:
-                # Save the test config to disk, thereby creating a test id.
-                test.save()
+        for sched_name, tests in test_configs.items():
+            sched = scheduler_plugins.get_scheduler_plugin(sched_name)
 
-
-
+            sched.run_tests(tests)
 
     def get_tests(self, pav_config, args):
         """Translate a general set of pavilion test configs into the final, resolved
@@ -75,7 +78,7 @@ class RunCommand(commands.Command):
                 self.logger.error(msg)
                 raise commands.CommandError(msg)
 
-        raw_tests = config.get_tests(pav_config, host, args.mode)
+        raw_tests = config.get_tests(pav_config, host, args.mode, tests)
         raw_tests_by_scheduler = defaultdict(lambda: [])
         tests_by_scheduler = defaultdict(lambda: [])
 
@@ -92,9 +95,9 @@ class RunCommand(commands.Command):
 
             # Resolve all configuration permutations.
             try:
-                for p_cfg, p_var_man in config.resolve_permutations(test_cfg, pav_config.pav_vars,
+                for p_cfg, p_var_man in config.resolve_permutations(test_cfg,
+                                                                    pav_config.pav_vars,
                                                                     pav_config.sys_vars):
-
 
                     raw_tests_by_scheduler[p_cfg['scheduler']].append((p_cfg, p_var_man))
             except config.TestConfigError as err:
@@ -107,44 +110,34 @@ class RunCommand(commands.Command):
         # are based on all of the
         for sched_name in raw_tests_by_scheduler.keys():
             try:
-                sched_class = schedulers.get_scheduler(sched_name)
+                sched = scheduler_plugins.get_scheduler_plugin(sched_name)
             except KeyError:
                 msg = "Could not find scheduler '{}'.".format(sched_name)
                 self.logger.error(msg)
                 raise commands.CommandError(msg)
 
-            # We need the scheduler specific section from each test to hand to the scheduler.
-            sched_configs = []
-            for test_cfg, test_var_man in raw_tests_by_scheduler[sched_name]:
-                if sched_name in test_cfg:
-                    try:
-                        sched_configs.append(config.resolve_all_vars(test_cfg[sched_name],
-                                                                     test_var_man))
-                    except (ResolveError, KeyError) as err:
-                        msg = 'Error resolving scheduler variables in config: {}'.format(err)
-                        self.logger.error(msg)
-                        raise commands.CommandError(msg)
+            # Get the dictionary of scheduler variables (mostly deferred).
+            sched_vars = sched.get_vars()
 
-            # Get the scheduler var limits based on all of the tests that will be run on this
-            # scheduler.
-            sched_limits = sched_class.get_limits_from_configs(sched_configs)
+            sched_config_sections = scheduler_plugins.list_scheduler_plugins()
 
             # Set the echeduler variables for each test.
             for test_cfg, test_var_man in raw_tests_by_scheduler[sched_name]:
-                sched_config = config.resolve_all_vars(test_cfg[sched_name], test_var_man)
-                sched = sched_class(sched_config, sched_limits)
-
                 test_var_man.add_var_set('sched', sched.vars)
 
                 # Resolve all variables for the test.
                 try:
-                    resolved_config = config.resolve_all_vars(test_cfg, test_var_man)
+                    resolved_config = config.resolve_all_vars(
+                        test_cfg,
+                        test_var_man,
+                        no_deferred_allowed=sched_config_sections)
+
                 except (ResolveError, KeyError) as err:
                     msg = 'Error resolving variables in config: {}'.format(err)
                     self.logger.error(msg)
                     raise commands.CommandError(msg)
 
-                test = PavTest(pav_config, resolved_config, sched)
+                test = pav_test.PavTest(pav_config, resolved_config)
 
                 tests_by_scheduler[sched.name].append(test)
 

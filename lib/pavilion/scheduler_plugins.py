@@ -12,13 +12,21 @@ class SchedulerPluginError(RuntimeError):
 _SCHEDULER_PLUGINS = None
 _LOADED_PLUGINS = None
 
-_SCHEDULER_VARS = ['num_nodes', 'procs_per_node', 'qos', 'reservation',
-                    'partition', 'account', 'down_nodes', 'unused_nodes',
-                    'busy_nodes', 'maint_nodes', 'other_nodes', 'chunk_size']
-
 class SchedVarDict(collections.UserDict):
 
-    def __init__(self):
+    # Suggested scheduler variables.
+    SCHEDULER_VARS = {
+        'num_nodes': 'The node count for this test.',
+        'alloc_nodes': ''
+        'procs_per_node': 'Min procs per node for this test.',
+        'mem_per_node': 'Min memory ',
+        ''
+    }
+
+    def __init__(self, sched_config=None):
+
+        self.
+
         global _SCHEDULER_PLUGINS
         if _SCHEDULER_PLUGINS is not None:
             raise SchedulerPluginError(
@@ -26,7 +34,24 @@ class SchedVarDict(collections.UserDict):
         super().__init__({})
         _SCHEDULER_PLUGINS = self
 
-    def __getitem__(self, name, var):
+    def __getitem__(self, key):
+
+        if key in self.SCHEDULER_VARS:
+            if key not in self.data:
+                self.data[key] = getattr(self, key)
+
+            return self.data[key]
+
+        else:
+            raise KeyError("Scheduler var '{}' not available for scheduler '{}'"
+                           .format(key, self.__class__.__name__))
+
+
+
+    def num_nodes(self):
+
+        # Code to get num_nodes
+
         if name not in self.data:
             self.data[name][var] = \
                              get_scheduler_plugin(name).get(var)
@@ -37,6 +62,7 @@ class SchedVarDict(collections.UserDict):
                         "only for use by unittests.")
         _reset_plugins()
         self.data = {}
+
 
 def _reset_plugins():
     global _SCHEDULER_PLUGINS

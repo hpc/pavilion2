@@ -71,8 +71,6 @@ class ScriptHeader(object):
         self.shell_path = shell_path
         self.scheduler_headers = scheduler_headers
 
-        return self
-
     @property
     def shell_path(self):
         """Function to return the value of the internal shell path variable."""
@@ -131,8 +129,6 @@ class ScriptDetails(object):
         self.group = group
         self.perms = perms
 
-        return self
-
     @property
     def name(self):
         return self._name
@@ -183,8 +179,6 @@ class ScriptComposer(object):
 
         self._script_lines = []
 
-        return self
-
     @property
     def header(self):
         return self._header
@@ -211,21 +205,17 @@ class ScriptComposer(object):
         """Function to reset all variables to the default."""
         self.__init__()
 
-    def envChange(self, env_mod):
+    def envChange(self, var, value):
         """Function to take the environment variable change requested by the
         user and add the appropriate line to the script.
-        :param Union(dict, OrderedDict) env_mod: String representing an environment
-                                         variable to be unset (prepended with
-                                         a '-') or a dictionary defining the
-                                         variable to be set or modified as the
-                                         key and the value to assign as the
-                                         value.
+        :param str var: The variable name.
+        :param str value: The variable value. None unsets variable.
         """
-        for item, val in env_mod.items():
-            if val is not None:
-                self._script_lines.append('export {}={}'.format(item, val))
-            else:
-                self._script_lines.append('unset {}'.format(item))
+
+        if value is not None:
+            self._script_lines.append('export {}={}'.format(var, value))
+        else:
+            self._script_lines.append('unset {}'.format(var))
 
     def moduleChange(self, mod_name):
         """Function to take the module changes specified in the user config

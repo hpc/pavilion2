@@ -1,21 +1,20 @@
-import gzip
-import lzma
+from pavilion import lockfile
+from pavilion import scriptcomposer
+from pavilion import status_file
+from pavilion import utils
+from pavilion import wget
 import bz2
-import tarfile
-import zipfile
+import gzip
 import hashlib
-import os
 import json
 import logging
+import lzma
+import os
+import re
 import shutil
+import tarfile
 import urllib.parse
-import datetime
-#from pavilion import schedulers
-from pavilion import lockfile
-from pavilion import wget
-from pavilion import utils
-from pavilion import status_file
-#from pavilion import scriptcomposer
+import zipfile
 
 
 class PavTestError(RuntimeError):
@@ -50,7 +49,7 @@ class PavTest:
 
     LOGGER = logging.getLogger('pav.{}'.format(__file__))
 
-    def __init__(self, pav_cfg, config, test_id=None):
+    def __init__(self, pav_cfg, config=None, test_id=None):
         """Create an new PavTest object.
         :param pav_cfg:
         :param config:
@@ -95,9 +94,6 @@ class PavTest:
         self.status = status_file.StatusFile(os.path.join(self.path, 'status'))
         self.status.set(status_file.STATES.CREATED, "Test directory and status file created.")
 
-        # TODO - The scheduler needs to be handled outside of this class.
-        #self._scheduler = self._get_scheduler()
-
         self.build_path = os.path.join(self.path, 'build')
         if os.path.islink(self.build_path):
             build_rp = os.path.realpath(self.build_path)
@@ -109,9 +105,13 @@ class PavTest:
         self.build_name = '{name}-{hash}'.format(name=self.name,
                                                  hash=self.build_hash[:self.BUILD_HASH_BYTES*2])
 
+        self.run_tmpl_path = os.path.join(self.path, 'run.tmpl')
+        self.run_script_path = os.path.join(self.path, 'run.sh')
+        self.build_script_path = os.path.join(self.path, 'build.sh')
+
         # TODO - Get integration with the script composer figured out.
-        #self._create_build_script()
-        #self._create_run_script()
+        self._create_build_script()
+        self._create_run_script()
 
         self.status.set(status_file.STATES.CREATED, "Test directory setup complete.")
 
@@ -558,9 +558,43 @@ class PavTest:
         if src_stat.st_mtime != latest:
             os.utime(base_path, (src_stat.st_atime, latest))
 
-    def create_build_script(self):
+    def _create_build_script(self):
         """Write the build script."""
 
-        script = scriptcomposer.ScriptComposer()
+        script = scriptcomposer.ScriptComposer(
+            details=scriptcomposer.ScriptDetails(
+                name='build.sh',
+                group=self._pav_cfg.shared_group,
+            ))
 
-        script.header.shell_path
+        build_config = self._config.get('build', {})
+
+        for module in build_config.get('modules', []):
+            script.moduleChange(module)
+
+        for var, value in build_config.get('env', {}).items():
+            script.envChange(var, value)
+
+
+
+    TMPL_ESCAPE_RE = re.compile(r'\[\x1E((?:sched|sys)\.\w+(?:\.\w+)?)\x1E\]')
+    def resolve_template(self, var_man):
+        """Resolve the test deferred variables using the appropriate escape sequence."""
+        try:
+            with open(self.run_tmpl_path,'r') as run_tmpl, \
+                 open(self.run_script_path, 'w') as run_script:
+                for line in run_tmpl.readlines():
+                    outline = []
+                    char_val = 0
+                    match = self.TMPL_ESCAPE_RE.search(line,char_val)
+                    while match is not None:
+                        outline.append(line[char_val:match.start()])
+                        char_val = match.end()
+                        var_name = match.groups()[0]
+                        outline.append(var_man.get(var_name))
+                        match = self.TMPL_ESCAPE_RE.search(line,char_val)
+                    outline.append(line[char_val:])
+                    run_script.write(''.join(outline))
+        except(IOError, OSError) as e:
+            raise PavTestError("Failed processing run template file '{}' into run script'{}': {}"
+                               .format(self.run_tmpl_path, self.run_script_path,e))

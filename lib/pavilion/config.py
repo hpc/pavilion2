@@ -362,29 +362,49 @@ def _get_used_per_vars(component, var_man):
     return used_per_vars
 
 
-def resolve_all_vars(component, var_man):
+def resolve_all_vars(config, var_man, no_deferred_allowed):
     """Recursively resolve the given config component's variables, using a variable manager.
-    :param component: The config component to resolve.
+    :param dict config: The config component to resolve.
     :param var_man: A variable manager. (Presumably a permutation of the base var_man)
+    :param list no_deferred_allowed: Do not allow deferred variables in sections of these
+        names.
+    :return: The component, resolved.
+    """
+
+    resolved_dict = {}
+
+    for key in config:
+        allow_deferred = False if key in no_deferred_allowed else True
+
+        resolved_dict[key] = resolve_section_vars(config[key], var_man, allow_deferred)
+
+    return resolved_dict
+
+
+def resolve_section_vars(component, var_man, allow_deferred):
+    """Recursively resolve the given config component's variables, using a variable manager.
+    :param dict component: The config component to resolve.
+    :param var_man: A variable manager. (Presumably a permutation of the base var_man)
+    :param bool allow_deferred: Do not allow deferred variables in this section.
     :return: The component, resolved.
     """
 
     if isinstance(component, dict):
         resolved_dict = {}
         for key in component.keys():
-            resolved_dict[key] = resolve_all_vars(component[key], var_man)
+            resolved_dict[key] = resolve_section_vars(component[key], var_man, allow_deferred)
         return resolved_dict
 
     elif isinstance(component, list):
         resolved_list = []
         for i in range(len(component)):
-            resolved_list.append(resolve_all_vars(component[i], var_man))
+            resolved_list.append(resolve_section_vars(component[i], var_man, allow_deferred))
         return resolved_list
 
     elif isinstance(component, string_parser.PavString):
-        return component.resolve(var_man)
+        return component.resolve(var_man, allow_deferred=allow_deferred)
     elif isinstance(component, str):
-        # Some PavStrings may have already been resolved
+        # Some PavStrings may have already been resolved.
         return component
     else:
         raise TestConfigError("Invalid value type '{}' for '{}' when resolving strings."
