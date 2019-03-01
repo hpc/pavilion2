@@ -570,10 +570,10 @@ class PavTest:
         build_config = self._config.get('build', {})
 
         for module in build_config.get('modules', []):
-            script.moduleChange(module)
+            script.module_change(module)
 
         for var, value in build_config.get('env', {}).items():
-            script.envChange(var, value)
+            script.env_change(var, value)
 
 
 

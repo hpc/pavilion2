@@ -1,15 +1,13 @@
-#!python
-
+from pavilion import module_wrapper
+from pavilion.module_actions import ModuleAction
 import datetime
 import grp
 import os
-import stat
-from pavilion.module_actions import ModuleAction
-import pavilion.module_wrapper
 
 """ Class to allow for scripts to be written for other modules.
     Typically, this will be used to write bash or batch scripts. 
 """
+
 
 def get_action(mod_line):
     """Function to return the type of action requested by the user for a
@@ -30,6 +28,7 @@ def get_action(mod_line):
     else:
         return 'load'
 
+
 def get_name(mod_line):
     """Function to return the name of the module based on the config string
        provided by the user.  The string can be in one of three formats:
@@ -40,11 +39,12 @@ def get_name(mod_line):
        :return str modn_name: The name of the module to be returned.
     """
     if '->' in mod_line:
-        return mod_line[mod_line.find('->')+2,]
+        return mod_line[mod_line.find('->')+2:]
     elif mod_line.startswith('-'):
         return mod_line[1:]
     else:
         return mod_line
+
 
 def get_old_swap(mod_line):
     """Function to return the old module name in the case of a swap.
@@ -188,7 +188,7 @@ class ScriptComposer(object):
         if header is None:
             self._header = ScriptHeader()
 
-        self._header = header_obj
+        self._header = header
 
     @property
     def details(self):
@@ -205,29 +205,28 @@ class ScriptComposer(object):
         """Function to reset all variables to the default."""
         self.__init__()
 
-    def envChange(self, var, value):
+    def env_change(self, env_dict):
         """Function to take the environment variable change requested by the
         user and add the appropriate line to the script.
-        :param str var: The variable name.
-        :param str value: The variable value. None unsets variable.
+        :param dict env_dict: A dictionary (preferably an OrderedDict) of environment keys
+            and values to set. A value of None will unset the variable.
         """
 
-        if value is not None:
-            self._script_lines.append('export {}={}'.format(var, value))
-        else:
-            self._script_lines.append('unset {}'.format(var))
+        for key, value in env_dict.items():
+            if value is not None:
+                self._script_lines.append('export {}={}'.format(key, value))
+            else:
+                self._script_lines.append('unset {}'.format(key))
 
-    def moduleChange(self, mod_name):
+    def module_change(self, mod_name):
         """Function to take the module changes specified in the user config
         and add the appropriate lines to the script.
         :param Union(list, str) mod_name: Name of a module or a list thereof in
                                           the format used in the user config.
         """
 
-        mod_obj_list = []
-
         for mod in mod_name:
-            self.addNewline()
+            self.add_newline()
             fullname = get_name(mod)
             if '/' in fullname:
                 name, version = fullname.split('/')
@@ -247,7 +246,7 @@ class ScriptComposer(object):
                     elif issubclass(act, ModuleAction):
                         self._script_lines.extend([act.action(), act.verify()])
 
-                self.envChange(mod_env)
+                self.env_change(mod_env)
 
             elif action == 'unload':
                 mod_act, mod_env = module_obj.unload()
@@ -258,7 +257,7 @@ class ScriptComposer(object):
                     elif issubclass(act, ModuleAction):
                         self._script_lines.extend([act.action(), act.verify()])
 
-                self.envChange(mod_env)
+                self.env_change(mod_env)
 
             elif action == 'swap':
                 old = get_old_swap(mod)
@@ -269,7 +268,7 @@ class ScriptComposer(object):
                     oldver = None
 
                 mod_act, mod_env = module_obj.swap(old_module_name=oldname,
-                                                            old_version=oldver)
+                                                   old_version=oldver)
 
                 for act in mod_act:
                     if isinstance(act, str):
@@ -277,19 +276,19 @@ class ScriptComposer(object):
                     elif issubclass(act, ModuleAction):
                         self._script_lines.extend([act.action(), act.verify()])
 
-                self.envChange(mod_env)
+                self.env_change(mod_env)
 
-    def addNewline(self):
+    def add_newline(self):
         """Function that just adds a newline to the script lines."""
         self._script_lines.append('\n')
 
-    def addComment(self, comment):
+    def add_comment(self, comment):
         """Function for adding a comment to the script.
         :param str comment: Text to be put in comment without the leading '# '.
         """
         self._script_lines.append("# {}".format(comment))
 
-    def addCommand(self, command):
+    def add_command(self, command):
         """Function to add a line unadulterated to the script lines.
         :param str command: String representing the whole command to add.
         """
@@ -299,35 +298,25 @@ class ScriptComposer(object):
         elif isinstance(command, str):
             self._script_lines.append(command)
 
-    def writeScript(self, dirname=os.getcwd()):
+    def write(self):
         """Function to write the script out to file.
         :param string dirname: Directory to write the file to.  default=$(pwd)
         :return bool result: Returns either True for successfully writing the
                              file or False otherwise.
         """
 
-        file_name = self.details.name
-
-        if not os.path.isabs(file_name):
-            file_name = os.path.join(dirname, file_name)
-
-        with open(file_name, 'w') as script_file:
-
+        with open(self.details.path, 'w') as script_file:
             script_file.writelines(self._script_lines)
     
-            scriptfno = script_file.fileno()
-    
-            os.chmod(scriptfno, self.details.perms)
-    
-            try:
-                grp_st = grp.getgrnam(self.details.group)
-            except KeyError:
-                error = "Group {} not found on this machine.".format(
-                                                            self.details.group)
-                raise ScriptComposerError(error)
-    
-            gid = grp_st.gr_gid
-    
-            os.chown(scriptfno, uid, gid)
+        os.chmod(self.details.path, self.details.perms)
 
-        return True
+        try:
+            grp_st = grp.getgrnam(self.details.group)
+        except KeyError:
+            error = "Group {} not found on this machine.".format(
+                                                        self.details.group)
+            raise ScriptComposerError(error)
+
+        gid = grp_st.gr_gid
+
+        os.chown(self.details.path, os.getuid(), gid)
