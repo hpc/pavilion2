@@ -358,6 +358,7 @@ class Slurm(scheduler_plugins.SchedulerPlugin):
                                 slurm['time_limit'], test_obj.id,
                                 test_obj.path)
 
+        test_obj.job_id = job_id
         test_obj.status.set(self.status.STATES.SCHEDULED,
                             "Test has slurm job ID {}.".format(job_id))
 
