@@ -92,6 +92,9 @@ class PavTest:
             if not os.path.isdir(self.path):
                 raise PavTestNotFoundError("No test with id '{}' could be found.".format(self.id))
 
+        # This will be set by the scheduler
+        self._job_id = None
+
         # Setup the initial status file.
         self.status = StatusFile(os.path.join(self.path, 'status'))
         self.status.set(STATES.CREATED, "Test directory and status file created.")
@@ -110,7 +113,7 @@ class PavTest:
                 build_fn = os.path.basename(build_rp)
                 self.build_hash = build_fn.split('-')[-1]
             else:
-                self.build_hash = self._create_build_hash(pav_cfg, config)
+                self.build_hash = self._create_build_hash(build_config)
 
             self.build_name = '{name}-{hash}'.format(name=self.name,
                                                      hash=self.build_hash[:self.BUILD_HASH_BYTES*2])
@@ -177,11 +180,9 @@ class PavTest:
         return os.path.join(tests_path,
                             "{id:0{digits}d}".format(id=test_id, digits=self.TEST_ID_DIGITS))
 
-    @staticmethod
-    def _find_file(pav_cfg, file):
+    def _find_file(self, file):
         """Look for the given file and return a full path to it. Relative paths are searched for
         in all config directories under 'test_src'.
-        :param pav_cfg: The pavilion config object>
         :param file: The path to the file.
         :returns: The full path to the found file, or None if no such file could be found.
         """
@@ -192,7 +193,7 @@ class PavTest:
             else:
                 return None
 
-        for config_dir in pav_cfg.config_dirs:
+        for config_dir in self._pav_cfg.config_dirs:
             path = os.path.join(config_dir, 'test_src', file)
             path = os.path.realpath(path)
 
@@ -207,10 +208,8 @@ class PavTest:
         parsed = urllib.parse.urlparse(url)
         return parsed.scheme != ''
 
-    @staticmethod
-    def _download_path(pav_cfg, loc, name):
+    def _download_path(self, loc, name):
         """Get the path to where a source_download would be downloaded.
-        :param pav_cfg: The pavilion configuration object.
         :param str loc: The url for the download, from the config's source_location field.
         :param str name: The name of the download, from the config's source_download_name field."""
 
@@ -225,12 +224,11 @@ class PavTest:
                 # Use a hash of the url if we can't get a name from it.
                 fn = hashlib.sha256(loc.encode()).hexdigest()
 
-        return os.path.join(pav_cfg.working_dir, 'downloads', fn)
+        return os.path.join(self._pav_cfg.working_dir, 'downloads', fn)
 
-    def _update_src(self, pav_cfg, build_config):
+    def _update_src(self, build_config):
         """Retrieve and/or check the existence of the files needed for the build. This can include
             pulling from URL's.
-        :param pav_cfg: The pavilion configuration object.
         :param dict build_config: The build configuration dictionary.
         :returns: src_path, extra_files
         """
@@ -241,14 +239,13 @@ class PavTest:
 
         # For URL's, check if the file needs to be updated, and try to do so.
         if self._isurl(src_loc):
-            src_dest = self._download_path(pav_cfg, src_loc,
-                                           build_config.get('source_download_name'))
+            src_dest = self._download_path(src_loc, build_config.get('source_download_name'))
 
-            wget.update(pav_cfg, src_loc, src_dest)
+            wget.update(self._pav_cfg, src_loc, src_dest)
 
             return src_dest
 
-        src_path = self._find_file(pav_cfg, src_loc)
+        src_path = self._find_file(src_loc)
         if src_path is None:
             raise PavTestError("Could not find and update src location '{}'".format(src_loc))
 
@@ -266,7 +263,7 @@ class PavTest:
             raise PavTestError("Source location '{}' points to something unusable."
                                .format(src_path))
 
-    def _create_build_hash(self, pav_cfg, build_config):
+    def _create_build_hash(self, build_config):
         """Turn the build config, and everything the build needs, into hash.  This includes the
         build config itself, the source tarball, and all extra files. Additionally,
         system variables may be included in the hash if specified via the pavilion config."""
@@ -284,7 +281,7 @@ class PavTest:
         # Update the hash with the contents of the build config.
         hash_obj.update(self._hash_dict(build_config))
 
-        src_path = self._update_src(pav_cfg, build_config)
+        src_path = self._update_src(build_config)
 
         if src_path is not None:
             if os.path.isfile(src_path):
@@ -295,7 +292,7 @@ class PavTest:
                 raise PavTestError("Invalid src location {}.".format(src_path))
 
         for path in build_config.get('extra_files', []):
-            full_path = self._find_file(pav_cfg, path)
+            full_path = self._find_file(path)
 
             if full_path is None:
                 raise PavTestError("Could not find extra file '{}'".format(path))
@@ -332,13 +329,21 @@ class PavTest:
         test directory, and note that we've used the given build. Returns True if these
         steps completed successfully."""
 
-        # Note: This is separated into a separate function for code flow reasons, and to
-        #       better illustrate the basic steps involved.
+        # Make sure another test doesn't try to do the build at the same time.
+        # Note cleanup of failed builds HAS to occur under this lock to avoid a race condition,
+        #   even though it would be way simpler to do it in .build()
+        lock_path = '{}.lock'.format(self.build_origin)
+        with lockfile.LockFile(lock_path, group=self._pav_cfg.shared_group):
+            build_dir = self.build_origin + '.tmp'
 
-        # Attempt to perform the actual build
-        if not self._build():
-            # The build failed. The reason should already be set in the status file.
-            return False
+            # Attempt to perform the actual build
+            if not self._build(build_dir):
+                # The build failed. The reason should already be set in the status file.
+                self._clean_failed_build(build_dir)
+                return False
+
+            # Rename the build to it's final location.
+            os.rename(build_dir, self.build_origin)
 
         # Perform a symlink copy of the original build directory into our test directory.
         try:
@@ -363,70 +368,78 @@ class PavTest:
     # A process should produce some output at least once every this many seconds.
     BUILD_SILENT_TIMEOUT = 30
 
-    def _build(self):
+    def _build(self, build_dir):
         """Perform the build. This assumes the build template is resolved and that there actually
         is a build to perform.
         :returns: True or False, depending on whether the build appears to have been successful.
         """
 
-        lock_path = '{}.lock'.format(self.build_origin)
-        with lockfile.LockFile(lock_path, group=self._pav_cfg.shared_group):
+        if os.path.exists(self.build_origin):
+            # Another test built it before this run could. We should be good to go.
+            return True
 
-            if os.path.exists(self.build_origin):
-                # The build already exists. Just exit.
-                return True
+        try:
+            self._setup_build_dir(build_dir)
+        except PavTestError as err:
+            self.status.set(STATES.BUILD_FAILED,
+                            "Error setting up build directory '{}': {}"
+                            .format(build_dir, err))
+            return False
 
-            self._setup_build_dir(self._pav_cfg, self.build_origin)
+        build_log_path = os.path.join(build_dir, 'pav_build_log')
 
-            build_log_path = os.path.join(self.build_origin, 'pav_build_log')
+        try:
+            with open(build_log_path, 'w') as build_log:
+                proc = subprocess.Popen([self.build_script_path],
+                                        cwd=build_dir,
+                                        stdout=build_log,
+                                        stderr=build_log)
 
-            try:
-                with open(build_log_path, 'w') as build_log:
-                    proc = subprocess.Popen([self.build_script_path],
-                                            cwd=self.build_origin,
-                                            stdout=build_log,
-                                            stderr=build_log)
+                timeout = self.BUILD_SILENT_TIMEOUT
+                result = None
+                while result is None:
+                    try:
+                        result = proc.wait(timeout=timeout)
+                    except subprocess.TimeoutExpired:
+                        stat = os.stat(build_log_path)
+                        quiet_time = time.time() - stat.st_mtime
+                        # Has the output file changed recently?
+                        if self.BUILD_SILENT_TIMEOUT < quiet_time:
+                            # Give up on the build, and call it a failure.
+                            proc.kill()
+                            self.status.set(STATES.BUILD_FAILED,
+                                            "Build timed out after {} seconds."
+                                            .format(self.BUILD_SILENT_TIMEOUT))
+                            return False
+                        else:
+                            # Only wait a max of BUILD_SILENT_TIMEOUT next 'wait'
+                            timeout = self.BUILD_SILENT_TIMEOUT - quiet_time
+        except subprocess.CalledProcessError as err:
+            self.status.set(STATES.BUILD_FAILED,
+                            "Error running build process: {}".format(err))
+            return False
 
-                    timeout = self.BUILD_SILENT_TIMEOUT
-                    result = None
-                    while result is None:
-                        try:
-                            result = proc.wait(timeout=timeout)
-                        except subprocess.TimeoutExpired:
-                            stat = os.stat(build_log_path)
-                            quiet_time = time.time() - stat.st_mtime
-                            # Has the output file changed recently?
-                            if self.BUILD_SILENT_TIMEOUT < quiet_time:
-                                # Give up on the build, and call it a failure.
-                                proc.kill()
-                                self.status.set(STATES.BUILD_FAILED,
-                                                "Build timed out after {} seconds."
-                                                .format(self.BUILD_SILENT_TIMEOUT))
-                                return False
-                            else:
-                                # Only wait a max of BUILD_SILENT_TIMEOUT next 'wait'
-                                timeout = self.BUILD_SILENT_TIMEOUT - quiet_time
-            except subprocess.CalledProcessError as err:
-                self.status.set(STATES.BUILD_FAILED,
-                                "Error running build process: {}".format(err))
-                return False
+        except (IOError, OSError) as err:
+            self.status.set(STATES.BUILD_FAILED,
+                            "Error that's probably related to writing the build output: {}"
+                            .format(err))
+            return False
 
-            except (IOError, OSError) as err:
-                self.status.set(STATES.BUILD_FAILED,
-                                "Error that's probably related to writing the build output: {}"
-                                .format(err))
-                return False
+        if result != 0:
+            self.status.set(STATES.BUILD_FAILED,
+                            "Build returned a non-zero result.")
+            return False
+        else:
 
-            if result != 0:
-                self.status.set(STATES.BUILD_FAILED,
-                                "Build returned a non-zero result.")
-                return False
-            else:
-                self.status.set(STATES.BUILD_DONE, "Build completed successfully.")
-                return True
+            self.status.set(STATES.BUILD_DONE, "Build completed successfully.")
+            return True
 
-    def _setup_build_dir(self, pav_cfg, build_path):
-        """"""
+    def _setup_build_dir(self, build_path):
+        """
+        TODO: Write this
+        :param build_path:
+        :return:
+        """
 
         build_config = self._config.get('build', {})
 
@@ -435,9 +448,9 @@ class PavTest:
             src_path = None
         elif self._isurl(src_loc):
             download_name = build_config.get('source_download_name')
-            src_path = self._download_path(pav_cfg, src_loc, download_name)
+            src_path = self._download_path(src_loc, download_name)
         else:
-            src_path = self._find_file(pav_cfg, src_loc)
+            src_path = self._find_file(src_loc)
             if src_path is None:
                 raise PavTestError("Could not find source file '{}'".format(src_path))
 
@@ -532,15 +545,24 @@ class PavTest:
 
         # Now we just need to copy over all of the extra files.
         for extra in build_config['extra_files']:
-            path = self._find_file(pav_cfg, extra)
+            path = self._find_file(extra)
             dest = os.path.join(build_path, os.path.basename(path))
             try:
                 shutil.copyfile(path, dest)
             except OSError as err:
-                raise PavTestError("Could not copyh extra file '{}' to dest '{}': {}"
+                raise PavTestError("Could not copy extra file '{}' to dest '{}': {}"
                                    .format(path, dest, err))
 
         return build_path
+
+    def _clean_failed_build(self, build_dir):
+        """Clean up a failed build at 'build_dir'."""
+
+        def handle_error(_, path, exc_info):
+            self.LOGGER.error("Error removing temporary build directory '{}': {}"
+                              .format(path, exc_info))
+
+        shutil.rmtree(path=build_dir, onerror=handle_error)
 
     @classmethod
     def _load_config(cls, test_path):
@@ -576,6 +598,40 @@ class PavTest:
                 return False
 
             return True
+
+    @property
+    def job_id(self):
+
+        path = os.path.join(self.path, 'jobid')
+
+        if self._job_id is not None:
+            return self._job_id
+
+        try:
+            with os.path.isfile(path) as job_id_file:
+                self._job_id = job_id_file.read()
+        except FileNotFoundError:
+            return None
+        except (OSError, IOError) as err:
+            self.LOGGER.error("Could not read jobid file '{}': {}"
+                              .format(path, err))
+            return None
+
+        return self._job_id
+
+    @job_id.setter
+    def job_id(self, job_id):
+
+        path = os.path.join(self.path, 'jobid')
+
+        try:
+            with open(path, 'w') as job_id_file:
+                job_id_file.write(job_id)
+        except (IOError, OSError) as err:
+            self.LOGGER.error("Could not write jobid file '{}': {}"
+                              .format(path, err))
+
+        self._job_id = job_id
 
     def _hash_dict(self, mapping):
         """Create a hash from the keys and items in 'mapping'. Keys are processed in order. Can
