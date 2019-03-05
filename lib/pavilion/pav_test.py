@@ -71,17 +71,6 @@ class PavTest:
 
         # Create the tests directory if it doesn't already exist.
         tests_path = os.path.join(pav_cfg.working_dir, 'tests')
-        if not os.path.isdir(tests_path):
-            # Try to create the tests directory if it doesn't exist. This will fail with a
-            # meaningful error if it exists as something other than a directory.
-            try:
-                os.makedirs(tests_path, exist_ok=True)
-            except OSError as err:
-                # There's a race condition here; if the directory was created between when we
-                # checked and created it, then this isn't an error.
-                if not os.path.isdir(tests_path):
-                    raise PavTestError("Could not create missing test dir at '{}': {}"
-                                       .format(tests_path, err))
 
         self._config = config
 
@@ -117,17 +106,6 @@ class PavTest:
                 self.build_hash = build_fn.split('-')[-1]
             else:
                 self.build_hash = self._create_build_hash(build_config)
-
-            builds_dir = os.path.join(pav_cfg.working_dir, 'builds')
-            if not os.path.exists(builds_dir):
-                try:
-                    os.mkdir(builds_dir)
-                except OSError as err:
-                    if os.path.exists(builds_dir):
-                        pass
-                    else:
-                        raise PavTestError("Could not create builds directory '{}': {}"
-                                           .format(builds_dir, err))
 
             self.build_name = '{name}-{hash}'.format(name=self.name,
                                                      hash=self.build_hash[:self.BUILD_HASH_BYTES*2])
@@ -341,11 +319,11 @@ class PavTest:
             else:
                 raise PavTestError("Invalid src location {}.".format(src_path))
 
-        for path in build_config.get('extra_files', []):
-            full_path = self._find_file(path, 'test_src')
+        for extra_file in build_config.get('extra_files', []):
+            full_path = self._find_file(extra_file, 'test_src')
 
             if full_path is None:
-                raise PavTestError("Could not find extra file '{}'".format(path))
+                raise PavTestError("Could not find extra file '{}'".format(extra_file))
             elif os.path.isfile(full_path):
                 hash_obj.update(self._hash_file(full_path))
             elif os.path.isdir(full_path):
@@ -474,13 +452,6 @@ class PavTest:
             self.status.set(STATES.BUILD_DONE, "Build completed successfully.")
             return True
 
-    # We need to drop most special characters from some strings. This will translate those
-    # to the empty string.
-    _TRANSLATE_TABLE = defaultdict(default_factory=lambda: '')
-    _TRANSLATE_TABLE.update({
-        ord(c): c for c in 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.,:'
-    })
-
     def _setup_build_dir(self, build_path):
         """Setup the build directory, by extracting or copying the source and any extra files.
         :param build_path: Path to the intended build directory.
@@ -494,8 +465,7 @@ class PavTest:
             src_path = None
         elif self._isurl(src_loc):
             # Remove special characters from the url to get a reasonable default file name.
-            default_name = src_loc.translate(self._TRANSLATE_TABLE)
-            download_name = build_config.get('source_download_name', default_name)
+            download_name = build_config.get('source_download_name')
             # Download the file to the downloads directory.
             src_path = self._download_path(src_loc, download_name)
         else:

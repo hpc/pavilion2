@@ -12,15 +12,28 @@ class PavTestTests(unittest.TestCase):
     TEST_DATA_ROOT = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
     TEST_DATA_ROOT = os.path.join(TEST_DATA_ROOT, 'test_data')
 
+    PAV_CONFIG_PATH = os.path.join(TEST_DATA_ROOT, 'pav_config_dir', 'pavilion.yaml')
+
+    TEST_URL = 'https://github.com/lanl/Pavilion/archive/2.0.zip'
+
     def __init__(self, *args, **kwargs):
 
-        self.pav_cfg = pav_config.PavilionConfigLoader().load_empty()
+        with open(self.PAV_CONFIG_PATH) as cfg_file:
+            self.pav_cfg = pav_config.PavilionConfigLoader().load(cfg_file)
 
         self.pav_cfg.config_dirs = [os.path.join(self.TEST_DATA_ROOT, 'pav_config_dir')]
 
         self.tmp_dir = tempfile.TemporaryDirectory()
 
         self.pav_cfg.working_dir = '/tmp/pflarr/pav_test' # self.tmp_dir.name
+
+        # Create the basic directories in the working directory
+        for path in [self.pav_cfg.working_dir,
+                     os.path.join(self.pav_cfg.working_dir, 'builds'),
+                     os.path.join(self.pav_cfg.working_dir, 'tests'),
+                     os.path.join(self.pav_cfg.working_dir, 'downloads')]:
+            if not os.path.exists(path):
+                os.makedirs(path, exist_ok=True)
 
         super().__init__(*args, **kwargs)
 
@@ -76,6 +89,7 @@ class PavTestTests(unittest.TestCase):
             }
         }
 
+        # Check that decompression and setup works for all accepted types.
         archives = [
             'src.tar.gz',
             'src.xz',
@@ -132,12 +146,57 @@ class PavTestTests(unittest.TestCase):
                 shutil.rmtree(test.build_origin)
 
             test._setup_build_dir(test.build_origin)
-            with open(os.path.join(test.build_origin, 'binfile'), 'rb') as build_file,\
-                 open(os.path.join(original_tree, 'binfile'), 'rb') as orig_file:
-                self.assertEqual(build_file.read(), orig_file.read(),
-                                 "Extracted files don't match.")
+            self._cmp_files(os.path.join(test.build_origin, 'binfile'),
+                            os.path.join(original_tree, 'binfile'))
+
+        # Make sure extra files are getting copied over.
+        config = base_config.copy()
+        config['build']['source_location'] = 'src.tar.gz'
+        config['build']['extra_files'] = [
+            'src.tar.gz',
+            'src.xz',
+        ]
+        test = pav_test.PavTest(self.pav_cfg, config=config)
+
+        if os.path.exists(test.build_origin):
+            shutil.rmtree(test.build_origin)
+
+        test._setup_build_dir(test.build_origin)
+
+        for file in config['build']['extra_files']:
+            self._cmp_files(os.path.join(test_archives, file),
+                            os.path.join(test.build_origin, file))
+
+    def test_src_urls(self):
+
+        base_config = {
+            'name': 'test',
+            'build': {
+                'modules': ['gcc'],
+            }
+        }
+
+        config = base_config.copy()
+        config['build']['source_location'] = self.TEST_URL
+
+        test = pav_test.PavTest(self.pav_cfg, config)
+        if os.path.exists(test.build_origin):
+            shutil.rmtree(test.build_origin)
+        test._setup_build_dir(test.build_origin)
+        self._cmp_files(os.path.join(self.TEST_DATA_ROOT, '../../README.md'),
+                        os.path.join(test.build_origin, 'README.md'))
+
+    def _cmp_files(self, a_path, b_path):
+        """Compare two files."""
+
+        with open(a_path, 'rb') as a_file, open(b_path, 'rb') as b_file:
+            self.assertEqual(a_file.read(), b_file.read(),
+                             "File contents mismatch for {} and {}."
+                             .format(a_path, b_path))
 
     def _cmp_tree(self, a, b):
+        """Compare two directory trees, including the contents of all the files."""
+
         a_walk = list(os.walk(a))
         b_walk = list(os.walk(b))
 
@@ -169,10 +228,7 @@ class PavTestTests(unittest.TestCase):
                 self.assert_(os.path.exists(b_path),
                              "File missing from archive b '{}'".format(b_path))
 
-                with open(a_path, 'rb') as a_file, open(b_path, 'rb') as b_file:
-                    self.assertEqual(a_file.read(), b_file.read(),
-                                     "File contents mismatch for {} and {}."
-                                     .format(a_path, b_path))
+                self._cmp_files(a_path, b_path)
 
         self.assert_(not a_walk and not b_walk,
                      "Left over directory contents in a or b: {}, {}".format(a_walk, b_walk))
