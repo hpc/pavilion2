@@ -217,77 +217,65 @@ class ScriptComposer(object):
             else:
                 self._script_lines.append('unset {}'.format(key))
 
-    def module_change(self, mod_name):
+    def module_change(self, module, sys_vars):
         """Function to take the module changes specified in the user config
         and add the appropriate lines to the script.
-        :param Union(list, str) mod_name: Name of a module or a list thereof in
-                                          the format used in the user config.
+        :param str module: Name of a module or a list thereof in the format used in the user
+                           config.
+        :param dict sys_vars: The pavilion system variable dictionary.
         """
 
-        for mod in mod_name:
-            self.add_newline()
-            fullname = get_name(mod)
-            if '/' in fullname:
-                name, version = fullname.split('/')
+        fullname = get_name(module)
+        if '/' in fullname:
+            name, version = fullname.split('/')
+        else:
+            name = fullname
+            version = None
+        action = get_action(module)
+
+        module_obj = module_wrapper.get_module_wrapper(name, version)
+
+        if action == 'load':
+            mod_act, mod_env = module_obj.load(sys_vars, version)
+
+        elif action == 'unload':
+            mod_act, mod_env = module_obj.unload()
+
+        elif action == 'swap':
+            old = get_old_swap(module)
+            if '/' in old:
+                oldname, oldver = old.split('/')
             else:
-                name = fullname
-                version = None
-            action = get_action(mod)
+                oldname = old
+                oldver = None
 
-            module_obj = module_wrapper.get_module_wrapper(name, version)
+            mod_act, mod_env = module_obj.swap(old_module_name=oldname,
+                                               old_version=oldver)
+        else:
+            # This is not an expected error
+            raise RuntimeError("Invalid Module action '{}'".format(action))
 
-            if action == 'load':
-                mod_act, mod_env = module_obj.load()
+        for act in mod_act:
+            if isinstance(act, ModuleAction):
+                self._script_lines.extend(act.action())
+                self._script_lines.extend(act.verify())
+            else:
+                self._script_lines.append(act)
 
-                for act in mod_act:
-                    if isinstance(act, str):
-                        self._script_lines.append(act)
-                    elif issubclass(act, ModuleAction):
-                        self._script_lines.extend([act.action(), act.verify()])
+        self.env_change(mod_env)
 
-                self.env_change(mod_env)
-
-            elif action == 'unload':
-                mod_act, mod_env = module_obj.unload()
-
-                for act in mod_act:
-                    if isinstance(act, str):
-                        self._script_lines.append(act)
-                    elif issubclass(act, ModuleAction):
-                        self._script_lines.extend([act.action(), act.verify()])
-
-                self.env_change(mod_env)
-
-            elif action == 'swap':
-                old = get_old_swap(mod)
-                if '/' in old:
-                    oldname, oldver = old.split('/')
-                else:
-                    oldname = old
-                    oldver = None
-
-                mod_act, mod_env = module_obj.swap(old_module_name=oldname,
-                                                   old_version=oldver)
-
-                for act in mod_act:
-                    if isinstance(act, str):
-                        self._script_lines.append(act)
-                    elif issubclass(act, ModuleAction):
-                        self._script_lines.extend([act.action(), act.verify()])
-
-                self.env_change(mod_env)
-
-    def add_newline(self):
+    def newline(self):
         """Function that just adds a newline to the script lines."""
-        self._script_lines.append('\n')
+        # This will create a blank line with just a newline.
+        self._script_lines.append('')
 
-    def add_comment(self, comment):
+    def comment(self, comment):
         """Function for adding a comment to the script.
         :param str comment: Text to be put in comment without the leading '# '.
         """
         self._script_lines.append("# {}".format(comment))
 
-    def add_command(self, command):
+    def command(self, command):
         """Function to add a line unadulterated to the script lines.
         :param str command: String representing the whole command to add.
         """
@@ -305,8 +293,9 @@ class ScriptComposer(object):
         """
 
         with open(self.details.path, 'w') as script_file:
-            script_file.writelines(self._script_lines)
-    
+            script_file.write('\n'.join(self._script_lines))
+            script_file.write('\n')
+
         os.chmod(self.details.path, self.details.perms)
 
         try:

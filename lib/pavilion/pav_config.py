@@ -117,6 +117,7 @@ PAV_CONFIG_SEARCH_DIRS.extend([
 dirname = os.path.dirname
 pav_root = dirname(dirname(dirname(os.path.realpath(__file__))))
 
+
 class PavilionConfigLoader(yc.YamlConfigLoader):
 
     # Each and every configuration element needs to either not be required, or have a sensible
@@ -130,9 +131,6 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
                               "precedent."),
         yc.StrElem('working_dir', default=USER_HOME_PAV,
                    help_text="Where pavilion puts it's run files, downloads, etc."),
-        yc.StrElem('pav_root', default=pav_root, hidden=True,
-                   help_text="The root directory of the pavilion install. This shouldn't be "
-                             "set by the user."),
         yc.ListElem("disable_plugins", sub_elem=yc.StrElem(),
                     help_text="Allows you to disable plugins by '<type>.<name>'. For example,"
                               "'module.gcc' would disable the gcc module wrapper."),
@@ -153,6 +151,18 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
         yc.ListElem("no_proxy", sub_elem=yc.StrElem(),
                     help_text="A list of DNS suffixes to ignore for proxy purposes. For example: "
                               "'blah.com' would match 'www.blah.com', but not 'myblah.com'."),
+
+        # The following configuration items are for internal use and provide a convenient way
+        # to pass around core pavilion components or data.
+        # They are not intended to be set by the user, and will generally be overwritten
+        # without even checking for user provided values.
+        yc.StrElem('pav_root', default=pav_root, hidden=True,
+                   help_text="The root directory of the pavilion install. This shouldn't be "
+                             "set by the user."),
+        yc.KeyedElem('sys_vars', elements=[], hidden=True, default={},
+                     help_text="This will contain the system variable dictionary."),
+        yc.KeyedElem('pav_vars', elements=[], hidden=True, default={},
+                     help_text="This will contain the pavilion variable dictionary."),
     ]
 
 

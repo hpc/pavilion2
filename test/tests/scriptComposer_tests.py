@@ -248,9 +248,9 @@ class TestConfig( unittest.TestCase ):
         testHeaderScheduler[ '-G' ] = 'pam'
         testHeaderScheduler[ '-N' ] = 'fam'
 
-        testComposer.add_newline()
+        testComposer.newline()
 
-        testComposer.add_command(['taco', 'burrito', 'nachos'])
+        testComposer.command(['taco', 'burrito', 'nachos'])
 
         testDetailsName = 'testName'
         testDetailsType = 'batch'

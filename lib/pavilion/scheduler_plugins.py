@@ -17,15 +17,13 @@ class SchedVarDict(collections.UserDict):
     # Suggested scheduler variables.
     SCHEDULER_VARS = {
         'num_nodes': 'The node count for this test.',
-        'alloc_nodes': ''
+        'alloc_nodes': '',
         'procs_per_node': 'Min procs per node for this test.',
         'mem_per_node': 'Min memory ',
-        ''
+        '': '',
     }
 
     def __init__(self, sched_config=None):
-
-        self.
 
         global _SCHEDULER_PLUGINS
         if _SCHEDULER_PLUGINS is not None:
@@ -51,10 +49,8 @@ class SchedVarDict(collections.UserDict):
     def num_nodes(self):
 
         # Code to get num_nodes
-
         if name not in self.data:
-            self.data[name][var] = \
-                             get_scheduler_plugin(name).get(var)
+            self.data[name][var] = get_scheduler_plugin(name).get(var)
         return self.data[name]
 
     def _reset(self):

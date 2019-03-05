@@ -185,3 +185,9 @@ class StatusFile:
         except (IOError, OSError) as err:
             raise TestStatusError("Could not write status line '{}' to status file '{}': {}"
                                   .format(status_line, self.path, err))
+
+    def __eq__(self, other):
+        return (
+            type(self) == type(other) and
+            self.path == other.path
+        )

@@ -138,7 +138,8 @@ class PavTest:
     def from_id(cls, pav_cfg, test_id):
         """Load a new PavTest object based on id."""
 
-        path = os.path.join(pav_cfg[pav_cfg.working_dir], 'tests', test_id)
+        path = cls._get_test_path(os.path.join(pav_cfg.working_dir, 'tests'), test_id)
+
         if not os.path.isdir(path):
             raise PavTestError("Test directory for test id {} does not exist at '{}' as expected."
                                .format(test_id, path))
@@ -175,15 +176,47 @@ class PavTest:
 
         return test_id
 
-    def _get_test_path(self, tests_path, test_id):
+    @classmethod
+    def _get_test_path(cls, tests_path, test_id):
         """Calculate the path to the test directory given the overall test directory and the id."""
         return os.path.join(tests_path,
-                            "{id:0{digits}d}".format(id=test_id, digits=self.TEST_ID_DIGITS))
+                            "{id:0{digits}d}".format(id=test_id, digits=cls.TEST_ID_DIGITS))
 
-    def _find_file(self, file):
+    def _save_config(self):
+        """Save the configuration for this test to the test config file."""
+
+        config_path = os.path.join(self.path, 'config')
+
+        try:
+            with open(config_path, 'w') as json_file:
+                json.dump(self._config, json_file)
+        except (OSError, IOError) as err:
+            raise PavTestError("Could not save PavTest ({}) config at {}: {}"
+                               .format(self.name, self.path, err))
+        except TypeError as err:
+            raise PavTestError("Invalid type in config for ({}): {}"
+                               .format(self.name, err))
+
+    @classmethod
+    def _load_config(cls, test_path):
+        config_path = os.path.join(test_path, 'config')
+
+        if not os.path.isfile(config_path):
+            raise PavTestError("Could not find config file for test at {}.".format(test_path))
+
+        try:
+            with open(config_path, 'r') as config_file:
+                return json.load(config_file)
+        except TypeError as err:
+            raise PavTestError("Bad config values for config '{}': {}".format(config_path, err))
+        except (IOError, OSError) as err:
+            raise PavTestError("Error reading config file '{}': {}".format(config_path, err))
+
+    def _find_file(self, file, sub_dir=None):
         """Look for the given file and return a full path to it. Relative paths are searched for
         in all config directories under 'test_src'.
         :param file: The path to the file.
+        :param sub_dir: The subdirectory in each config directory in which to search.
         :returns: The full path to the found file, or None if no such file could be found.
         """
 
@@ -194,8 +227,11 @@ class PavTest:
                 return None
 
         for config_dir in self._pav_cfg.config_dirs:
-            path = os.path.join(config_dir, 'test_src', file)
-            path = os.path.realpath(path)
+            path = [config_dir]
+            if sub_dir is not None:
+                path.append(sub_dir)
+            path.append(file)
+            path = os.path.realpath(os.path.join(*path))
 
             if os.path.exists(path):
                 return path
@@ -308,21 +344,6 @@ class PavTest:
         hash_obj.update(build_config.get('specificity', '').encode('utf-8'))
 
         return hash_obj.hexdigest()[:self.BUILD_HASH_BYTES*2]
-
-    def _save_config(self):
-        """Save the configuration for this test to the test config file."""
-
-        config_path = os.path.join(self.path, 'config')
-
-        try:
-            with open(config_path, 'w') as json_file:
-                json.dump(self._config, json_file)
-        except (OSError, IOError) as err:
-            raise PavTestError("Could not save PavTest ({}) config at {}: {}"
-                               .format(self.name, self.path, err))
-        except TypeError as err:
-            raise PavTestError("Invalid type in config for ({}): {}"
-                               .format(self.name, err))
 
     def build(self):
         """Perform the build if needed, do a soft-link copy of the build directory into our
@@ -440,6 +461,8 @@ class PavTest:
         :param build_path:
         :return:
         """
+
+        # TODO: Handle builds without an archive.
 
         build_config = self._config.get('build', {})
 
@@ -563,21 +586,6 @@ class PavTest:
                               .format(path, exc_info))
 
         shutil.rmtree(path=build_dir, onerror=handle_error)
-
-    @classmethod
-    def _load_config(cls, test_path):
-        config_path = os.path.join(test_path, 'config')
-
-        if not os.path.isfile(config_path):
-            raise PavTestError("Could not find config file for test at {}.".format(test_path))
-
-        try:
-            with open(config_path, 'r') as config_file:
-                return json.load(config_file)
-        except TypeError as err:
-            raise PavTestError("Bad config values for config '{}': {}".format(config_path, err))
-        except (IOError, OSError) as err:
-            raise PavTestError("Error reading config file '{}': {}".format(config_path, err))
 
     @property
     def is_built(self):
@@ -717,18 +725,33 @@ class PavTest:
 
         pav_lib_bash = os.path.join(self._pav_cfg.pav_root, 'bin', 'pav-lib.bash')
 
-        script.add_comment('The following is added to every test build and run script.')
+        script.comment('The following is added to every test build and run script.')
         script.env_change({'TEST_ID': '{}'.format(self.id)})
-        script.add_command('source {}'.format(pav_lib_bash))
+        script.command('source {}'.format(pav_lib_bash))
 
-        for module in tmpl_config.get('modules', []):
-            script.module_change(module)
+        modules = tmpl_config.get('modules', [])
+        if modules:
+            script.newline()
+            script.comment('Perform module related changes to the environment.')
 
-        script.env_change(tmpl_config.get('env', {}))
+            for module in tmpl_config.get('modules', []):
+                script.module_change(module, self._pav_cfg.sys_vars)
 
-        for line in tmpl_config.get('cmds', []):
-            for split_line in line.split('\n'):
-                script.add_command(split_line)
+        env = tmpl_config.get('env', {})
+        if env:
+            script.newline()
+            script.comment("Making any environment changes needed.")
+            script.env_change(tmpl_config.get('env', {}))
+
+        script.newline()
+        cmds = tmpl_config.get('cmds', [])
+        if cmds:
+            script.comment("Perform the sequence of test commands.")
+            for line in tmpl_config.get('cmds', []):
+                for split_line in line.split('\n'):
+                    script.command(split_line)
+        else:
+            script.comment('No commands given for this script.')
 
         script.write()
 
