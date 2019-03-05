@@ -1,3 +1,4 @@
+from collections import defaultdict
 from pavilion import lockfile
 from pavilion import scriptcomposer
 from pavilion import utils
@@ -14,6 +15,7 @@ import re
 import shutil
 import subprocess
 import tarfile
+import tempfile
 import time
 import urllib.parse
 import zipfile
@@ -51,11 +53,12 @@ class PavTest:
 
     LOGGER = logging.getLogger('pav.{}'.format(__file__))
 
-    def __init__(self, pav_cfg, config=None, test_id=None):
-        """Create an new PavTest object.
-        :param pav_cfg:
-        :param config:
-        :param test_id:
+    def __init__(self, pav_cfg, config, test_id=None):
+        """Create an new PavTest object. If loading an existing test instance, use the
+        PavTest.from_id method.
+        :param pav_cfg: The pavilion configuration.
+        :param config: The test configuration dictionary.
+        :param test_id: The test id (for an existing test).
         """
 
         # Just about every method needs this
@@ -114,6 +117,17 @@ class PavTest:
                 self.build_hash = build_fn.split('-')[-1]
             else:
                 self.build_hash = self._create_build_hash(build_config)
+
+            builds_dir = os.path.join(pav_cfg.working_dir, 'builds')
+            if not os.path.exists(builds_dir):
+                try:
+                    os.mkdir(builds_dir)
+                except OSError as err:
+                    if os.path.exists(builds_dir):
+                        pass
+                    else:
+                        raise PavTestError("Could not create builds directory '{}': {}"
+                                           .format(builds_dir, err))
 
             self.build_name = '{name}-{hash}'.format(name=self.name,
                                                      hash=self.build_hash[:self.BUILD_HASH_BYTES*2])
@@ -281,7 +295,7 @@ class PavTest:
 
             return src_dest
 
-        src_path = self._find_file(src_loc)
+        src_path = self._find_file(src_loc, 'test_src')
         if src_path is None:
             raise PavTestError("Could not find and update src location '{}'".format(src_loc))
 
@@ -291,7 +305,7 @@ class PavTest:
             self._date_dir(src_path)
             return src_path
 
-        elif os.path.isfile(src_loc):
+        elif os.path.isfile(src_path):
             # For static files, we'll end up just hashing the whole thing.
             return src_path
 
@@ -328,7 +342,7 @@ class PavTest:
                 raise PavTestError("Invalid src location {}.".format(src_path))
 
         for path in build_config.get('extra_files', []):
-            full_path = self._find_file(path)
+            full_path = self._find_file(path, 'test_src')
 
             if full_path is None:
                 raise PavTestError("Could not find extra file '{}'".format(path))
@@ -357,10 +371,15 @@ class PavTest:
         with lockfile.LockFile(lock_path, group=self._pav_cfg.shared_group):
             build_dir = self.build_origin + '.tmp'
 
-            # Attempt to perform the actual build
+            # Attempt to perform the actual build, this shouldn't raise an exception unless
+            # something goes terribly wrong.
             if not self._build(build_dir):
                 # The build failed. The reason should already be set in the status file.
-                self._clean_failed_build(build_dir)
+                def handle_error(_, path, exc_info):
+                    self.LOGGER.error("Error removing temporary build directory '{}': {}"
+                                      .format(path, exc_info))
+
+                shutil.rmtree(path=build_dir, onerror=handle_error)
                 return False
 
             # Rename the build to it's final location.
@@ -455,14 +474,18 @@ class PavTest:
             self.status.set(STATES.BUILD_DONE, "Build completed successfully.")
             return True
 
-    def _setup_build_dir(self, build_path):
-        """
-        TODO: Write this
-        :param build_path:
-        :return:
-        """
+    # We need to drop most special characters from some strings. This will translate those
+    # to the empty string.
+    _TRANSLATE_TABLE = defaultdict(default_factory=lambda: '')
+    _TRANSLATE_TABLE.update({
+        ord(c): c for c in 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.,:'
+    })
 
-        # TODO: Handle builds without an archive.
+    def _setup_build_dir(self, build_path):
+        """Setup the build directory, by extracting or copying the source and any extra files.
+        :param build_path: Path to the intended build directory.
+        :return: None
+        """
 
         build_config = self._config.get('build', {})
 
@@ -470,12 +493,19 @@ class PavTest:
         if src_loc is None:
             src_path = None
         elif self._isurl(src_loc):
-            download_name = build_config.get('source_download_name')
+            # Remove special characters from the url to get a reasonable default file name.
+            default_name = src_loc.translate(self._TRANSLATE_TABLE)
+            download_name = build_config.get('source_download_name', default_name)
+            # Download the file to the downloads directory.
             src_path = self._download_path(src_loc, download_name)
         else:
-            src_path = self._find_file(src_loc)
+            src_path = self._find_file(src_loc, 'test_src')
             if src_path is None:
                 raise PavTestError("Could not find source file '{}'".format(src_path))
+
+        if src_path is None:
+            # If there is no source archive or data, just make the build directory.
+            os.mkdir(build_path)
 
         if os.path.isdir(src_path):
             # Recursively copy the src directory to the build directory.
@@ -487,7 +517,8 @@ class PavTest:
             # archive, below.
             category, subtype = utils.get_mime_type(src_path)
             comp_lib = None
-            if category == 'application' and subtype in ('gzip', 'x-bzip2', 'x-xz', 'x-tar'):
+            if category == 'application' and \
+                    subtype in ('gzip', 'x-bzip2', 'x-xz', 'x-tar', 'x-lzma'):
 
                 if tarfile.is_tarfile(src_path):
                     try:
@@ -520,22 +551,24 @@ class PavTest:
                         comp_lib = gzip
                     elif subtype == 'x-bzip2':
                         comp_lib = bz2
-                    elif subtype == 'x-xz':
+                    elif subtype in ('x-xz', 'x-lzma'):
                         comp_lib = lzma
                     elif subtype == 'x-tar':
                         raise PavTestError("Test src file '{}' is a bad tar file."
                                            .format(src_path))
 
-                decomp_fn = os.path.join(build_path, src_path.rsplit('.', 2)[0])
-                os.mkdir(build_path)
+                    decomp_fn = src_path.split('/')[-1].split('.', 1)[0]
+                    decomp_fn = os.path.join(build_path, decomp_fn)
+                    os.mkdir(build_path)
 
-                try:
-                    with comp_lib.open(src_path) as infile, open(decomp_fn, 'wb') as outfile:
-                        shutil.copyfileobj(infile, outfile)
-                except (OSError, IOError, lzma.LZMAError) as err:
-                    raise PavTestError("Error decompressing gzip compressed file "
-                                       "'{}' into '{}': {}"
-                                       .format(src_path, decomp_fn, err))
+                    try:
+                        with comp_lib.open(src_path) as infile, \
+                                open(decomp_fn, 'wb') as outfile:
+                            shutil.copyfileobj(infile, outfile)
+                    except (OSError, IOError, lzma.LZMAError) as err:
+                        raise PavTestError("Error decompressing compressed file "
+                                           "'{}' into '{}': {}"
+                                           .format(src_path, decomp_fn, err))
 
             elif category == 'application' and subtype == 'zip':
                 try:
@@ -543,11 +576,10 @@ class PavTest:
                     with zipfile.ZipFile(src_path) as zipped:
                         top_level = [m for m in zipped.filelist if '/' not in m.filename[:-1]]
                         if len(top_level) == 1 and top_level[0].is_dir():
-                            tmpdir = '{}.tmp'.format(build_path)
-                            os.mkdir(tmpdir)
-                            zipped.extractall(tmpdir)
-                            os.rename(os.path.join(tmpdir, top_level[0].name), build_path)
-                            os.rmdir(tmpdir)
+                            with tempfile.TemporaryDirectory(
+                                    dir=os.path.dirname(build_path)) as tmpdir:
+                                zipped.extractall(tmpdir)
+                                os.rename(os.path.join(tmpdir, top_level[0].filename), build_path)
                         else:
                             os.mkdir(build_path)
                             zipped.extractall(build_path)
@@ -567,25 +599,14 @@ class PavTest:
                                        .format(src_path, dest, err))
 
         # Now we just need to copy over all of the extra files.
-        for extra in build_config['extra_files']:
-            path = self._find_file(extra)
+        for extra in build_config.get('extra_files', []):
+            path = self._find_file(extra, 'test_src')
             dest = os.path.join(build_path, os.path.basename(path))
             try:
                 shutil.copyfile(path, dest)
             except OSError as err:
                 raise PavTestError("Could not copy extra file '{}' to dest '{}': {}"
                                    .format(path, dest, err))
-
-        return build_path
-
-    def _clean_failed_build(self, build_dir):
-        """Clean up a failed build at 'build_dir'."""
-
-        def handle_error(_, path, exc_info):
-            self.LOGGER.error("Error removing temporary build directory '{}': {}"
-                              .format(path, exc_info))
-
-        shutil.rmtree(path=build_dir, onerror=handle_error)
 
     @property
     def is_built(self):
@@ -689,7 +710,7 @@ class PavTest:
         """
 
         stat = os.stat(path)
-        return '{} {:0.5f}'.format(path, stat.st_mtime)
+        return '{} {:0.5f}'.format(path, stat.st_mtime).encode('utf-8')
 
     @staticmethod
     def _date_dir(base_path):

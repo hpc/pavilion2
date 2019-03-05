@@ -32,8 +32,10 @@ def get_mime_type(path):
     :returns: category, subtype"""
 
     ftype = subprocess.check_output(['file',
-                                     '-b',            # Don't print the filename
-                                     '--mime-types',  # Mime types are more sane to deal w/
+                                     # Don't print the filename
+                                     '-b',
+                                     # Mime types are more sane to deal with
+                                     '--mime-type',
                                      path])
 
     # Get rid of whitespace and convert to unicode, and split
