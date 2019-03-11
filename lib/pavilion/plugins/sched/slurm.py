@@ -406,16 +406,11 @@ class Slurm(scheduler_plugins.SchedulerPlugin):
         # Number of nodes is based on the SLURM_JOB_NUM_NODES environment
         # variable, which is populated by Slurm when inside of an allocation.
         if name == 'num_nodes':
-            request_avail = os.getenv('SLURM_JOB_NUM_NODES')
+            request_avail = self._get_num_nodes()
         elif name == 'procs_per_node':
-            request_avail = os.getenv('SLURM_JOB_CPUS_PER_NODE')
+            request_avail = self._get_min_ppn()
         elif name == 'mem_per_node':
-            check = subprocess.check_output(['scontrol', '-o', 'show',
-                                             'node', '$(hostname)']).split()
-            for item in check:
-                if item[:8] == 'FreeMem=':
-                    request_avail = item.split('=')[1]
-                    break
+            request_avail = self._get_mem_per_node()
 
         # The value should only be none if the environment variable was not
         # defined.
@@ -429,7 +424,7 @@ class Slurm(scheduler_plugins.SchedulerPlugin):
             raise SchedulerPluginError(
                  "Available {} '{}' is less than minimum requested nodes '{}'."
                  .format(name, request_avail, request_min))
-        elif num_nodes_avail < request_max:
+        elif request_avail < request_max:
             return request_avail
         else:
             return request_max
