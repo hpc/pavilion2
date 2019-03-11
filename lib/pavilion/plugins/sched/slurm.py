@@ -433,3 +433,84 @@ class Slurm(scheduler_plugins.SchedulerPlugin):
             return request_avail
         else:
             return request_max
+
+
+# Functions to run inside of an allocation to get job-specific values
+    def _get_num_nodes(self):
+        return os.getenv('SLURM_NNODES')
+
+
+    def _get_node_list(self):
+        final_list = []
+        nodelist = os.getenv('SLURM_NODELIST')
+
+        if '[' in nodelist:
+            prefix = nodelist.split('[')[0]
+            nodes = nodelist.split('[')[1].split(']')[0]
+
+            range_list = nodes.split(',')
+
+            for item in range_list:
+                if '-' in item:
+                    node_range = range(int(item.split('-')[0]),
+                                       int(item.split('-')[1])+1)
+                    zfill = len(item.split('-')[0])
+                    for i in range(0, len(node_range)):
+                        final_list.append(str(node_range[i]).zfill(zfill))
+                else:
+                    final_list.append(item)
+
+            for i in range(0, len(final_list)):
+                final_list[i] = prefix + final_list[i]
+        else:
+            final_list.append(nodelist)
+
+        return final_list
+
+
+    def _get_min_ppn(self, node_list=None):
+        if node_list is None:
+            node_list = self._get_node_list()
+        num_procs = None
+
+        for node in node_list:
+            node_procs = subprocess.check_output( ['ssh', node, 'nproc'] )
+            if num_procs is not None:
+                num_procs = min(num_procs, node_procs)
+            else:
+                num_procs = node_procs
+
+        return num_procs
+
+
+    def _get_tot_procs(self, node_list=None):
+        if node_list is None:
+            node_list = self._get_node_list()
+        num_procs = 0
+
+        for node in node_list:
+            node_procs = subprocess.check_output( ['ssh', node, 'nproc'] )
+            num_procs += node_procs
+
+        return num_procs
+
+
+    def _get_mem_per_node(self, node_list=None):
+        if node_list is None:
+            node_list = self._get_node_list()
+
+        mem = None
+
+        for node in node_list:
+            cmd_list = ['ssh', 'node', 'free', '-g']
+            node_mem = subprocess.check_output( cmd_list ).decode('UTF-8')
+            for line in node_mem.split('\n'):
+                if line[:4] == 'Mem:':
+                    mem_free = line.split()[3]
+                    break
+            if mem is not None:
+                mem = min(mem, int(mem_free))
+            else:
+                mem = int(mem_free)
+
+        return mem
