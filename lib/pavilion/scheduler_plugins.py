@@ -259,7 +259,71 @@ class SchedulerPlugin(IPlugin.IPlugin):
     def resolve_request(self, request):
         """Function to resolve the request for resources against the available
            resources.  This should always be run inside of an allocation."""
+        if name not in self.values and name != 'scheduler_plugin':
+            raise SchedulerPluginError("'{}' not a resolvable request."
+                                       .format(name))
+
+        request_min = 1
+        request_max = 1
+        # Parse the request format
+        if '-' in request:
+            request_split = request.split('-')
+            request_min = request_split[0]
+            request_max = request_split[1]
+
+        # Use scheduler-specific method of determining available resources.
+        # Number of nodes is based on the SLURM_JOB_NUM_NODES environment
+        # variable, which is populated by Slurm when inside of an allocation.
+        if name == 'num_nodes':
+            request_avail = self._get_num_nodes()
+        elif name == 'procs_per_node':
+            request_avail = self._get_min_ppn()
+        elif name == 'mem_per_node':
+            request_avail = self._get_mem_per_node()
+
+        # The value should only be none if the environment variable was not
+        # defined.
+        if request_avail is None:
+            raise SchedulerPluginError(
+                           "Resolving requests for '{}' requires an allocation"
+                           .format(name))
+
+        # Determine if the request can be met and return the appropriate value.
+        if request_avail < request_min:
+            raise SchedulerPluginError(
+                 "Available {} '{}' is less than minimum requested nodes '{}'."
+                 .format(name, request_avail, request_min))
+        elif request_avail < request_max:
+            return request_avail
+        else:
+            return request_max
+
+    def _get_num_nodes(self):
+        """Scheduler-specific method of determining the number of nodes
+           available from inside of an allocation."""
         raise NotImplemented
+
+    def _get_node_list(self):
+        """Scheduler-specific method of determining a list of all nodes in an
+           allocation from inside of the allocation."""
+        raise NotImplemented
+
+    def _get_min_ppn(self, node_list=None):
+        """Scheduler-specific method of determining the greatest number of
+           processors common to all nodes in an allocation from inside of that
+           allocation."""
+        raise NotImplemented
+
+    def _get_tot_procs(self, node_list=None):
+        """Scheduler-specific method of determining the total number of
+           processes that can run in an allocation from inside of that
+           allocation."""
+        raise NotImplemented
+
+    def _get_mem_per_node(self, node_list=None):
+        """Scheduler-specific method of determining the maximum amount of
+           free memory common across all nodes in an allocation from inside
+           that allocation."""
 
     def activate(self):
         """Add this plugin to the system plugin list."""
