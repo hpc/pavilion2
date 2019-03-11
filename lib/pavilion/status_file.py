@@ -21,6 +21,7 @@ class TestStatesStruct:
     INVALID = 'INVALID'         # For when the status given was invalid.
     CREATED = 'CREATED'         # Always the initial status of the status file.
     BUILDING = 'BUILDING'       # For when we're currently building the test.
+    BUILD_FAILED = 'BUILD_FAILED'
     BUILD_DONE = 'BUILD_DONE'   # For when the build step has completed.
     RUNNING = 'RUNNING'         # For when we're currently running the test.
     RUN_DONE = 'RUN_DONE'       # For when the run step is complete.
@@ -184,3 +185,9 @@ class StatusFile:
         except (IOError, OSError) as err:
             raise TestStatusError("Could not write status line '{}' to status file '{}': {}"
                                   .format(status_line, self.path, err))
+
+    def __eq__(self, other):
+        return (
+            type(self) == type(other) and
+            self.path == other.path
+        )

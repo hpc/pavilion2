@@ -1,15 +1,13 @@
-#!python
-
+from pavilion import module_wrapper
+from pavilion.module_actions import ModuleAction
 import datetime
 import grp
 import os
-import stat
-from pavilion.module_actions import ModuleAction
-import pavilion.module_wrapper
 
 """ Class to allow for scripts to be written for other modules.
     Typically, this will be used to write bash or batch scripts. 
 """
+
 
 def get_action(mod_line):
     """Function to return the type of action requested by the user for a
@@ -30,6 +28,7 @@ def get_action(mod_line):
     else:
         return 'load'
 
+
 def get_name(mod_line):
     """Function to return the name of the module based on the config string
        provided by the user.  The string can be in one of three formats:
@@ -40,11 +39,12 @@ def get_name(mod_line):
        :return str modn_name: The name of the module to be returned.
     """
     if '->' in mod_line:
-        return mod_line[mod_line.find('->')+2,]
+        return mod_line[mod_line.find('->')+2:]
     elif mod_line.startswith('-'):
         return mod_line[1:]
     else:
         return mod_line
+
 
 def get_old_swap(mod_line):
     """Function to return the old module name in the case of a swap.
@@ -116,29 +116,28 @@ class ScriptHeader(object):
 class ScriptDetails(object):
     """Class to contain the final details of the script."""
 
-    def __init__(self, name=None, group=None, perms=None):
+    def __init__(self, path=None, group=None, perms=None):
         """Function to set the final details of the script.
-        :param string name: Specify a name for the script. 
-                                   default = 'pav_(date)_(time)'
+        :param string path: The path to the script file. default = 'pav_(date)_(time)'
         :param string group: Name of group to set as owner of the file. 
                              default = user default group
         :param int perms: Value for permission on the file (see
                           `man chmod`).  default = 0o770
         """
-        self.name = name
+        self.path = path
         self.group = group
         self.perms = perms
 
     @property
-    def name(self):
-        return self._name
+    def path(self):
+        return self._path
 
-    @name.setter
-    def name(self, value):
+    @path.setter
+    def path(self, value):
         if value is None:
             value = "_".join(datetime.datetime.now().__str__().split())
 
-        self._name = value
+        self._path = value
 
     @property
     def group(self):
@@ -188,7 +187,7 @@ class ScriptComposer(object):
         if header is None:
             self._header = ScriptHeader()
 
-        self._header = header_obj
+        self._header = header
 
     @property
     def details(self):
@@ -205,91 +204,78 @@ class ScriptComposer(object):
         """Function to reset all variables to the default."""
         self.__init__()
 
-    def envChange(self, var, value):
+    def env_change(self, env_dict):
         """Function to take the environment variable change requested by the
         user and add the appropriate line to the script.
-        :param str var: The variable name.
-        :param str value: The variable value. None unsets variable.
+        :param dict env_dict: A dictionary (preferably an OrderedDict) of environment keys
+            and values to set. A value of None will unset the variable.
         """
 
-        if value is not None:
-            self._script_lines.append('export {}={}'.format(var, value))
-        else:
-            self._script_lines.append('unset {}'.format(var))
+        for key, value in env_dict.items():
+            if value is not None:
+                self._script_lines.append('export {}={}'.format(key, value))
+            else:
+                self._script_lines.append('unset {}'.format(key))
 
-    def moduleChange(self, mod_name):
+    def module_change(self, module, sys_vars):
         """Function to take the module changes specified in the user config
         and add the appropriate lines to the script.
-        :param Union(list, str) mod_name: Name of a module or a list thereof in
-                                          the format used in the user config.
+        :param str module: Name of a module or a list thereof in the format used in the user
+                           config.
+        :param dict sys_vars: The pavilion system variable dictionary.
         """
 
-        mod_obj_list = []
+        fullname = get_name(module)
+        if '/' in fullname:
+            name, version = fullname.split('/')
+        else:
+            name = fullname
+            version = None
+        action = get_action(module)
 
-        for mod in mod_name:
-            self.addNewline()
-            fullname = get_name(mod)
-            if '/' in fullname:
-                name, version = fullname.split('/')
+        module_obj = module_wrapper.get_module_wrapper(name, version)
+
+        if action == 'load':
+            mod_act, mod_env = module_obj.load(sys_vars, version)
+
+        elif action == 'unload':
+            mod_act, mod_env = module_obj.unload()
+
+        elif action == 'swap':
+            old = get_old_swap(module)
+            if '/' in old:
+                oldname, oldver = old.split('/')
             else:
-                name = fullname
-                version = None
-            action = get_action(mod)
+                oldname = old
+                oldver = None
 
-            module_obj = module_wrapper.get_module_wrapper(name, version)
+            mod_act, mod_env = module_obj.swap(old_module_name=oldname,
+                                               old_version=oldver)
+        else:
+            # This is not an expected error
+            raise RuntimeError("Invalid Module action '{}'".format(action))
 
-            if action == 'load':
-                mod_act, mod_env = module_obj.load()
+        for act in mod_act:
+            if isinstance(act, ModuleAction):
+                self._script_lines.extend(act.action())
+                self._script_lines.extend(act.verify())
+            else:
+                self._script_lines.append(act)
 
-                for act in mod_act:
-                    if isinstance(act, str):
-                        self._script_lines.append(act)
-                    elif issubclass(act, ModuleAction):
-                        self._script_lines.extend([act.action(), act.verify()])
+        self.env_change(mod_env)
 
-                self.envChange(mod_env)
-
-            elif action == 'unload':
-                mod_act, mod_env = module_obj.unload()
-
-                for act in mod_act:
-                    if isinstance(act, str):
-                        self._script_lines.append(act)
-                    elif issubclass(act, ModuleAction):
-                        self._script_lines.extend([act.action(), act.verify()])
-
-                self.envChange(mod_env)
-
-            elif action == 'swap':
-                old = get_old_swap(mod)
-                if '/' in old:
-                    oldname, oldver = old.split('/')
-                else:
-                    oldname = old
-                    oldver = None
-
-                mod_act, mod_env = module_obj.swap(old_module_name=oldname,
-                                                            old_version=oldver)
-
-                for act in mod_act:
-                    if isinstance(act, str):
-                        self._script_lines.append(act)
-                    elif issubclass(act, ModuleAction):
-                        self._script_lines.extend([act.action(), act.verify()])
-
-                self.envChange(mod_env)
-
-    def addNewline(self):
+    def newline(self):
         """Function that just adds a newline to the script lines."""
-        self._script_lines.append('\n')
+        # This will create a blank line with just a newline.
+        self._script_lines.append('')
 
-    def addComment(self, comment):
+    def comment(self, comment):
         """Function for adding a comment to the script.
         :param str comment: Text to be put in comment without the leading '# '.
         """
         self._script_lines.append("# {}".format(comment))
 
-    def addCommand(self, command):
+    def command(self, command):
         """Function to add a line unadulterated to the script lines.
         :param str command: String representing the whole command to add.
         """
@@ -299,35 +285,26 @@ class ScriptComposer(object):
         elif isinstance(command, str):
             self._script_lines.append(command)
 
-    def writeScript(self, dirname=os.getcwd()):
+    def write(self):
         """Function to write the script out to file.
         :param string dirname: Directory to write the file to.  default=$(pwd)
         :return bool result: Returns either True for successfully writing the
                              file or False otherwise.
         """
 
-        file_name = self.details.name
+        with open(self.details.path, 'w') as script_file:
+            script_file.write('\n'.join(self._script_lines))
+            script_file.write('\n')
 
-        if not os.path.isabs(file_name):
-            file_name = os.path.join(dirname, file_name)
+        os.chmod(self.details.path, self.details.perms)
 
-        with open(file_name, 'w') as script_file:
+        try:
+            grp_st = grp.getgrnam(self.details.group)
+        except KeyError:
+            error = "Group {} not found on this machine.".format(
+                                                        self.details.group)
+            raise ScriptComposerError(error)
 
-            script_file.writelines(self._script_lines)
-    
-            scriptfno = script_file.fileno()
-    
-            os.chmod(scriptfno, self.details.perms)
-    
-            try:
-                grp_st = grp.getgrnam(self.details.group)
-            except KeyError:
-                error = "Group {} not found on this machine.".format(
-                                                            self.details.group)
-                raise ScriptComposerError(error)
-    
-            gid = grp_st.gr_gid
-    
-            os.chown(scriptfno, uid, gid)
+        gid = grp_st.gr_gid
 
-        return True
+        os.chown(self.details.path, os.getuid(), gid)

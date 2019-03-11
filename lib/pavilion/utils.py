@@ -32,8 +32,10 @@ def get_mime_type(path):
     :returns: category, subtype"""
 
     ftype = subprocess.check_output(['file',
-                                     '-b',            # Don't print the filename
-                                     '--mime-types',  # Mime types are more sane to deal w/
+                                     # Don't print the filename
+                                     '-b',
+                                     # Mime types are more sane to deal with
+                                     '--mime-type',
                                      path])
 
     # Get rid of whitespace and convert to unicode, and split
@@ -43,6 +45,17 @@ def get_mime_type(path):
     subtype = parts[1] if len(parts) > 1 else None
 
     return category, subtype
+
+
+def symlink_copy(src, dst):
+    """Makes an absolute symlink from src to dst.
+    :param str src: The file to which the symlink will point.
+    :param str dst: The symlink file to create.
+    """
+
+    src = os.path.realpath(src)
+
+    return os.symlink(src, dst)
 
 
 def fix_permissions(pav_cfg, path):

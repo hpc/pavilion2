@@ -51,7 +51,7 @@
 #
 #  ###################################################################
 
-from __future__ import division, unicode_literals, print_function
+from collections import OrderedDict
 import pavilion.dependencies.yaml_config as yc
 import re
 
@@ -96,10 +96,6 @@ class TestConfigLoader(yc.YamlConfigLoader):
     """This class describes a test section in a Pavilion config file. It is expected to be
     added to by various plugins."""
 
-
-    # DEV NOTE:
-
-
     ELEMENTS = [
         yc.RegexElem('inherits_from', regex=r'\w+',
                      help_text="Inherit from the given test section, and override parameters with"
@@ -140,7 +136,7 @@ class TestConfigLoader(yc.YamlConfigLoader):
             yc.ListElem('modules', sub_elem=yc.StrElem(),
                         help_text="Modules to load into the build environment."),
             yc.CategoryElem('env', sub_elem=yc.StrElem(),
-                            help_text="Environment variables to set in the build environment."),
+                           help_text="Environment variables to set in the build environment."),
             yc.ListElem('extra_files', sub_elem=yc.StrElem(),
                         help_text='Files to copy into the build environment. Relative paths are'
                                   'searched for in ~/.pavilion, $PAV_CONFIG, and then \'./\'. '
@@ -161,7 +157,7 @@ class TestConfigLoader(yc.YamlConfigLoader):
             yc.ListElem('modules', sub_elem=yc.StrElem(),
                         help_text="Modules to load into the run environment."),
             yc.CategoryElem('env', sub_elem=yc.StrElem(),
-                            help_text="Environment variables to set in the run environment."),
+                           help_text="Environment variables to set in the run environment."),
             yc.ListElem('cmds', sub_elem=yc.StrElem(),
                         help_text='The sequence of commands to run to run the test.')
         ],

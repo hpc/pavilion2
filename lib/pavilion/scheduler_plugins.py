@@ -49,6 +49,7 @@ class SchedVarDict(collections.UserDict):
             raise KeyError("Scheduler var '{}' not available for scheduler '{}'"
                            .format(key, self.__class__.__name__))
 
+
     def _reset(self):
         LOGGER.warning("Resetting the plugins.  This functionality exists " +\
                         "only for use by unittests.")
