@@ -14,6 +14,8 @@ class Slurm(scheduler_plugins.SchedulerPlugin):
 
         # Set up the config specification for the test configuration.
 
+    def activate(self):
+        """Specify the configuration details for the test configs."""
         self.conf = yc.KeyedElem('slurm', elements=[
             yc.StrElem('num_nodes',
                        help_text="Number of nodes requested for this test.  "
@@ -43,6 +45,8 @@ class Slurm(scheduler_plugins.SchedulerPlugin):
             help_text="Configuration for the Slurm scheduler.")
 
         config_format.TestConfigLoader.add_subsection( self.conf )
+
+        super().activate()
 
 #    def _get(self, var):
 #        """Base method for getting variable values from the slurm scheduler."""
