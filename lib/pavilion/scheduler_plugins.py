@@ -124,53 +124,6 @@ class SchedulerPlugin(IPlugin.IPlugin):
         for var in _SCHEDULER_VARS:
             self.values[var] = None
 
-#    def _get(self, var):
-#        raise NotImplemented
-#
-#    def get(self, var):
-#        global _SCHEDULER_VARS
-#
-#        if var not in _SCHEDULER_VARS:
-#            raise SchedulerPluginError("Requested variable {}".format(var)+\
-#                              " not in the expected list of variables.")
-#
-#        if self.values[var] is None:
-#            val = self._get(var)
-#
-#            ge_set = ['num_nodes', 'down_nodes', 'unused_nodes', 'busy_nodes',
-#                       'maint_nodes', 'other_nodes', 'chunk_size']
-#            if var in ge_set and val < 0:
-#                raise SchedulerPluginError("Value for '{}' ".format(var) +\
-#                                            "must be greater than or equal " +\
-#                                            "to zero.  Received '{}'.".format(
-#                                            val))
-#            if var == 'procs_per_node' and val <= 0:
-#                raise SchedulerPluginError("Value for 'procs_per_node' " +\
-#                                            "must be greater than zero.  " +\
-#                                            "Received '{}'.".format(val))
-#
-#            self.values[var] = val
-#
-#        return self.values[var]
-#
-#    def set(self, var, val):
-#        global _SCHEDULER_VARS
-#
-#        if var not in _SCHEDULER_VARS:
-#            raise SchedulerPluginError("Specified variable {}".format(var)+\
-#                                    " not in the expected list of variables.")
-#
-#        if var in ['down_nodes', 'unused_nodes', 'busy_nodes', 'maint_nodes',
-#                    'other_nodes']:
-#            raise SchedulerPluginError("Attempting to set a variable that" + \
-#                                        " is not meant to be set by the " + \
-#                                        "user.  Variable: {}.".format(var))
-#
-#        if self.values[var] is not None:
-#            logger.warning("Replacing value for {} from ".format(var) + \
-#                            "{} to {}.".format(self.values[var], val))
-#
-#        self.values[var] = val
 
     def check_request(self, patition, state, min_nodes, max_nodes,
                        min_ppn, max_ppn, req_type):
