@@ -283,10 +283,9 @@ class PavString(Token):
 
         return var_set
 
-    def get_substr_vars(self, var_man, iter_vars):
+    def get_substr_vars(self, var_man):
         """
         :param variables.VariableSetManager var_man:
-        :param dict iter_vars:
         :return:
         """
 
@@ -305,11 +304,12 @@ class PavString(Token):
 
         return sorted(local_iter_vars)
 
-    def resolve(self, var_man, _iter_vars=None):
+    def resolve(self, var_man, _iter_vars=None, allow_deferred=True):
         """
         :param variables.VariableSetManager var_man:
         :param dict _iter_vars: Variables that are being iterated over in the resolution of a
             sub string.
+        :param bool allow_deferred: Whether this string can support deferred variables.
         :return: The string with all variables resolved.
         :raises ResolveError:
         """
@@ -329,7 +329,9 @@ class PavString(Token):
 
                 if (var_set, var) in _iter_vars and idx is None:
                     # Resolve the substr var by the given index.
-                    parts.append(token.resolve(var_man, iter_index=_iter_vars[(var_set, var)]))
+                    parts.append(token.resolve(var_man,
+                                               iter_index=_iter_vars[(var_set, var)],
+                                               allow_deferred=allow_deferred))
                 else:
                     # A single valued var, or one referenced directly by index.
                     parts.append(token.resolve(var_man))
@@ -337,7 +339,7 @@ class PavString(Token):
             elif isinstance(token, PavString):
                 # We have a substring to resolve.
 
-                local_iter_vars = token.get_substr_vars(var_man, _iter_vars)
+                local_iter_vars = token.get_substr_vars(var_man)
 
                 # This holds the current index for each var we're looping over.
                 _iter_vars = _iter_vars.copy()
@@ -423,7 +425,7 @@ class VariableToken(Token):
 
         self.var = var
 
-    def resolve(self, var_man, iter_index=None):
+    def resolve(self, var_man, iter_index=None, allow_deferred=True):
         """Resolve any variables in this token using the variable manager.
         :param variables.VariableSetManager var_man: The variable manager to use for resolution.
         :param int iter_index: The index to force for this variable, when it's being iterated over.
@@ -435,7 +437,13 @@ class VariableToken(Token):
         if iter_index is not None:
             idx = iter_index
 
-        return var_man[(var_set, var, idx, subvar)]
+        value = var_man[(var_set, var, idx, subvar)]
+
+        if (not allow_deferred) and isinstance(value, variables.DeferredVariable):
+            raise ResolveError("Deferred variables like ({}) are not allowed in this config "
+                               "section.".format(self.var))
+        else:
+            return value
 
     def __repr__(self):
         return "{}('{}')".format(self.__class__.__name__, self.var)

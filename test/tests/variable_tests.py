@@ -1,9 +1,8 @@
-from __future__ import print_function, unicode_literals, division
-
 import unittest
 
 from pavilion import variables
 from pavilion.variables import VariableError
+
 
 class TestVariables(unittest.TestCase):
 

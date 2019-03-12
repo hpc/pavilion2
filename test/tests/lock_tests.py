@@ -70,9 +70,11 @@ class TestConfig(unittest.TestCase):
         proc_count = 6
         procs = []
 
+        fight_path = os.path.join(os.path.dirname(__file__), 'lock_fight.py')
+
         try:
             for p in range(proc_count):
-                procs.append(sp.Popen(['python', 'tests/lock_fight.py', self.lock_path]))
+                procs.append(sp.Popen(['python', fight_path, self.lock_path]))
             # Give the procs a chance to start.
             time.sleep(0.5)
 

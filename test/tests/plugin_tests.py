@@ -8,6 +8,7 @@ from pavilion import commands
 from pavilion import module_wrapper
 from pavilion import pav_config
 from pavilion import system_plugins
+from pavilion import scheduler_plugins
 from pavilion import arguments
 from pavilion import variables
 
@@ -182,3 +183,25 @@ class PluginTests(unittest.TestCase):
         self.assertFalse( 'host_os' in sys_vars )
         self.assertTrue( isinstance( sys_vars[ 'host_os' ],
                                                  variables.DeferredVariable ) )
+
+    def test_scheduler_plugins(self):
+        """Make sure scheduler values appear as expected."""
+
+        # Get an empty pavilion config and set some config dirs on it.
+        pav_cfg = pav_config.PavilionConfigLoader().load_empty()
+
+        # We're loading multiple directories of plugins - AT THE SAME TIME!
+        pav_cfg.config_dirs = [ os.path.join(os.getcwd(), '../lib/pavilion') ]
+
+        plugins.initialize_plugins(pav_cfg)
+
+        plugin_names = [ 'slurm' ]
+
+        #plugin_list = scheduler_plugins._LOADED_PLUGINS
+        plugin_dict = plugins.list_plugins()
+
+        self.assertFalse( plugin_dict is None )
+
+        self.assertTrue( 'sched' in plugin_dict )
+
+        self.assertTrue( 'slurm' in plugin_dict[ 'sched' ] )

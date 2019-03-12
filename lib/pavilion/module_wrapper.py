@@ -27,8 +27,6 @@ def add_wrapped_module(module_wrapper, version):
     :raises KeyError: On module version conflict.
     """
 
-    print('hiya')
-
     name = module_wrapper.name
     priority = module_wrapper.priority
 
@@ -70,7 +68,7 @@ def get_module_wrapper(name, version):
             # Grab the generic wrapper for this module
             return _WRAPPED_MODULES[name][None]
 
-    return ModuleWrapper(name, '<default>', version)
+    return ModuleWrapper(name, version=version)
 
 
 class ModuleWrapper(IPlugin.IPlugin):
@@ -100,7 +98,7 @@ class ModuleWrapper(IPlugin.IPlugin):
         if self.NAME_VERS_RE.match(name) is None:
             raise ModuleWrapperError("Invalid module name: '{}'".format(name))
         if version is not None and self.NAME_VERS_RE.match(version) is None:
-            raise ModuleWrapperError("Invalid module name: '{}'".format(name))
+            raise ModuleWrapperError("Invalid module version: '{}'".format(name))
 
         self.name = name
         self._version = version

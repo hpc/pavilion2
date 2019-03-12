@@ -10,6 +10,15 @@ Given a reasonable (python2.7) python, you should be able to run the tests via:
 This sets up an environment to find pavilion and it's dependencies, discovers the tests, and runs 
 them all.
 
+### Configuration
+Some tests requires some knowledge about your environment. You'll want to create a 
+`test_data/pav_config_dir/pavilion.yaml` file to deal with that. This file is already git ignored. 
+The following config fields should be filled:
+  
+  - proxies - You should specify your web proxies, if any.
+  - no\_proxy - You should give your internal dns roots (myorg.org) so that pavilion will know
+                when not to use the proxy.
+
 ## Adding Unit Tests
 To add a unit test, simply add a new module to the `tests/` directory and utilize the `unitest` 
 module. Here's an example:
