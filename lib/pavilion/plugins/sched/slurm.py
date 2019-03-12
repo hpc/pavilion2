@@ -48,87 +48,6 @@ class Slurm(scheduler_plugins.SchedulerPlugin):
 
         super().activate()
 
-#    def _get(self, var):
-#        """Base method for getting variable values from the slurm scheduler."""
-#        if var in ['down_nodes', 'unused_nodes', 'busy_nodes', 'maint_nodes',
-#                   'other_nodes'] and \
-#           self.values[var] is None:
-#            # Retrieve the full list of nodes and their states.
-#            sinfo = subprocess.check_output(['sinfo', '--noheader'
-#                                             '-o "%20E %12U %19H %.6D %6t %N"']
-#                                            ).decode('UTF-8').split('\n')
-#
-#            # Lists to be populated with node names.
-#            down_list = []
-#            unused_list = []
-#            busy_list = []
-#            maint_list = []
-#            other_list = []
-#            prefix = ''
-#            # Iterating through the lines of the sinfo output.
-#            for line in sinfo:
-#                line = line[1:-1]
-#                items = line.split()
-#                nodes = items[5]
-#                node_list = []
-#
-#                # If prefix hasn't been set, set it.
-#                if prefix == '':
-#                   for letter in nodes:
-#                       if letter.isalpha():
-#                           prefix.append(letter)
-#                       else:
-#                           break
-#
-#                # Strip the prefix from the node list
-#                nodes = nodes[len(prefix):]
-#
-#                # Strip any extra zeros as well as any brackets from node list.
-#                nzero = 0
-#                if nodes[0] == '[' and nodes[-1] == ']':
-#                    nodes = nodes[1:-1]
-#                elif nodes[0] != '[' and nodes[-1] == ']':
-#                    for char in nodes:
-#                        if char == '[':
-#                            break
-#                        nzero += 1
-#                    nodes = nodes[nzero+1:-1]
-#
-#                # Split node list by individuals or ranges.
-#                nodes = nodes.split(',')
-#
-#                # Expand ranges to an explicit list of every node.
-#                for node in nodes:
-#                    if '-' in node:
-#                        node_len = len(node.split('-')[0])
-#                        for i in range(node.split('-')[0], node.split('-')[1]):
-#                            node_list.append(prefix +
-#                                                str(i).zfill(node_len + nzero))
-#                    else:
-#                        node_list.append(prefix + nzero + node)
-#
-#                # Determine to which list this set of nodes belongs.
-#                state = items[4]
-#                if state[:3] == 'down' or state[:4] == 'drain' or
-#                   state[:3] == 'drng':
-#                    down_list.extend(node_list)
-#                elif state[:4] == 'alloc' or state[:3] == 'resv':
-#                    busy_list.extend(node_list)
-#                elif state[:4] == 'maint':
-#                    maint_list.extend(node_list)
-#                elif state[:3] == 'idle':
-#                    unused_list.extend(node_list)
-#                else:
-#                    other_list.extend(node_list)
-#
-#            # Assign to related class-level variables.
-#            self.values['down_nodes'] = down_list
-#            self.values['unused_nodes'] = unused_list
-#            self.values['busy_nodes'] = busy_list
-#            self.values['maint_nodes'] = maint_list
-#            self.values['other_nodes'] = other_list
-#
-#        return self.values[var]
 
     def _collect_data(self):
         """Use the `scontrol show node` command to collect data on all
@@ -136,27 +55,39 @@ class Slurm(scheduler_plugins.SchedulerPlugin):
         sinfo = subprocess.check_output(
                                   ['scontrol', 'show', 'node']).decode('UTF-8')
 
+        # Splits output by node record
         for node in sinfo.split('\n\n'):
             node_info = {}
+            # Splits each node's output by line
             for line in node.split('\n'):
-                if line.strip() != '' and item.strip()[:3] != 'OS=' and
-                   item.strip()[:7] != 'Reason=':
+                # Skip if the line is empty
+                if len(line) == 1 and line[0] == '':
+                    continue
+                # Skipping emtpy lines and lines that start with OS= and
+                # Reason= because those two instances use spaces.  For all
+                # others, dividing the record up into key-value pairs and
+                # storing in the dictionary for this node.
+                if line.strip() != '' and line.strip()[:3] != 'OS=' and
+                   line.strip()[:7] != 'Reason=':
                     for item in line.strip().split():
-                        node_info[item.split('=').strip()] =
-                                                      item.split('=').strip()
+                        node_info[item.split('=')[0]] = item.split('=')[1]
+                # For the OS= and Reason= lines, just don't split on spaces.
                 elif item.strip()[:3] == 'OS=' or
                      item.strip()[:7] == 'Reason=':
                     node_info[item.strip().split('=')[0]] =
-                                                   item.strip().split('=')[1]
+                                                     item.strip().split('=')[1]
+            # Store the result in a dictionary by node name with all info
+            # provided by sinfo in a dictionary.
             self.node_data[node_info['NodeName']] = node_info
 
     def check_request(self, partition='standard', state='IDLE', nodes=1,
                       ppn=1, req_type=None):
-
+        # Refresh the information from Slurm
         self._collect_data()
 
         min_nodes = 1
         max_nodes = 1
+        # Accept a range for the number of nodes.
         if '-' in nodes:
             node_split = nodes.split('-')
             min_nodes = node_split[0]
@@ -167,6 +98,7 @@ class Slurm(scheduler_plugins.SchedulerPlugin):
 
         min_ppn = 1
         max_ppn = 1
+        # Accept a range for the number of processors per node.
         if '-' in ppn:
             ppn_split = ppn.split('-')
             min_ppn = ppn_split[0]
@@ -175,6 +107,8 @@ class Slurm(scheduler_plugins.SchedulerPlugin):
             min_ppn = ppn
             max_ppn = ppn
 
+        # Allow for node and ppn specification to be 'all' as in
+        # 'all available'.
         max_avail_nodes = True if max_nodes == 'all' else False
         min_nodes = max_nodes if min_nodes == 'all'
         max_avail_ppn = True if max_ppn == 'all' else False
@@ -290,20 +224,11 @@ class Slurm(scheduler_plugins.SchedulerPlugin):
 
         check_partition(partition)
 
-        if not subprocess.check_call(['scontrol', 'show', 'partition',
-                                                                   partition]):
-            raise SchedulerPluginError('Partition {} not found.'.format(
-                                                                    partition))
-
         line_list.append('#SBATCH -p {}'.format(partition))
 
-        if reservation is not None:
-            if not check_reservation(reservation):
-                raise SchedulerPluginError('Reservation {} not found.'.format(
-                                                                  reservation))
-            else:
-                line_list.append('#SBATCH --reservation={}'.format(
-                                                                  reservation))
+        check_reservation(reservation)
+
+        line_list.append('#SBATCH --reservation={}'.format(reservation))
 
         if qos is not None:
             line_list.append('#SBATCH -q {}'.format(qos))
