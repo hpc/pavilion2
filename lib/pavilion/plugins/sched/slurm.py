@@ -1,12 +1,48 @@
+from pavilion import config_format
 from pavilion import status_file
 from pavilion import scheduler_plugins
 from pavilion import scriptcomposer
+import pavilion.dependencies.yaml_config as yc
 
 class Slurm(scheduler_plugins.SchedulerPlugin):
 
     def __init__(self):
         super().__init__(name='slurm', priority=10)
+        self.name = name
+        self.priority = priority
         self.node_data = None
+
+        # Set up the config specification for the test configuration.
+
+        self.conf = yc.KeyedElem('slurm', elements=[
+            yc.StrElem('num_nodes',
+                       help_text="Number of nodes requested for this test.  "
+                                 "This can be a range (e.g. 12-24)."),
+            yc.StrElem('procs_per_node',
+                       help_text="Number of processors per node for this test."
+                                 "  This can be a range (e.g. 36-244)."),
+            yc.StrElem('mem_per_node',
+                       help_text="The minimum amount of memory required.  "
+                                 "This can be a range (e.g. 64-128)."),
+            yc.StrElem('partition',
+                       help_text="The partition that the test should be run "
+                                 "on."),
+            yc.StrElem('qos',
+                       help_text="The QOS that this test should run under."),
+            yc.StrElem('account',
+                       help_text="The account that this test should run "
+                                 "under."),
+            yc.StrElem('reservation',
+                       help_text="The reservation that this test should run "
+                                 "under."),
+            yc.StrElem('time_limit',
+                       help_text="The time limit to specify for the slurm "
+                                 "job.  This can be a range (e.g. "
+                                 "00:02:00-01:00:00).")
+            ],
+            help_text="Configuration for the Slurm scheduler.")
+
+        config_format.TestConfigLoader.add_subsection( self.conf )
 
 #    def _get(self, var):
 #        """Base method for getting variable values from the slurm scheduler."""
