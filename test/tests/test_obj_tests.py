@@ -5,6 +5,7 @@ import unittest
 
 from pavilion import pav_config
 from pavilion import pav_test
+from pavilion import variables
 
 
 class PavTestTests(unittest.TestCase):
@@ -185,6 +186,102 @@ class PavTestTests(unittest.TestCase):
         test._setup_build_dir(test.build_origin)
         self._cmp_files(os.path.join(self.TEST_DATA_ROOT, '../../README.md'),
                         os.path.join(test.build_origin, 'README.md'))
+
+    def test_resolve_template(self):
+        tmpl_path = os.path.join(self.TEST_DATA_ROOT, 'resolve_template_good.tmpl')
+
+        var_man = variables.VariableSetManager()
+        var_man.add_var_set('sched', {
+            'num_nodes': '3',
+            'partition': 'test'
+        })
+        var_man.add_var_set('sys', {
+            'hostname': 'test.host.com',
+            'complicated': {
+                'a': 'yes',
+                'b': 'no'
+            }
+        })
+
+        script_path = tempfile.mktemp()
+        pav_test.PavTest.resolve_template(tmpl_path,
+                                          script_path,
+                                          var_man)
+        with open(script_path) as gen_script,\
+             open(os.path.join(self.TEST_DATA_ROOT, 'resolve_template_good.sh')) as ver_script:
+            self.assertEqual(gen_script.read(), ver_script.read())
+
+        os.unlink(script_path)
+
+        for bad_tmpl in (
+                'resolve_template_keyerror.tmpl',
+                'resolve_template_bad_key.tmpl',
+                'resolve_template_extra_escape.tmpl'):
+
+            script_path = tempfile.mktemp()
+            tmpl_path = os.path.join(self.TEST_DATA_ROOT, bad_tmpl)
+            with self.assertRaises(KeyError,
+                                   msg="Error not raised on bad file '{}'".format(bad_tmpl)):
+                pav_test.PavTest.resolve_template(tmpl_path, script_path, var_man)
+
+            if os.path.exists(script_path):
+                os.unlink(script_path)
+
+    def test_build(self):
+        """Make sure building works."""
+
+        config = {
+            'name': 'build_test',
+            'build': {
+                'cmds': ['echo "Hello World [\x1esched.num_nodes\x1e]"'],
+                'source_location': 'binfile.gz',
+            },
+        }
+
+        test = pav_test.PavTest(self.pav_cfg, config)
+
+        sched_vars = {
+            'num_nodes': '3'
+        }
+
+        # Test a basic build, with a gzip file and an actual build script.
+        test.build(sched_vars)
+
+        # Make sure the build path and build origin contain softlinks to the same files.
+        self._cmp_tree(test.build_origin, test.build_path)
+        self._is_softlink_dir(test.build_path)
+
+        config = {
+            'name': 'build_test',
+            'build': {
+                'cmds': ['echo "Hello World [\x1esched.num_nodes\x1e]"'],
+                'source_location': 'binfile.gz',
+            },
+        }
+
+
+    def test_run(self):
+        pass
+
+    def _is_softlink_dir(self, path):
+        """Verify that a directory contains nothing but softlinks whose files exist. Directories
+        in a softlink dir should be real directories though."""
+
+        for base_dir, cdirs, cfiles in os.walk(path):
+            for cdir in cdirs:
+                self.assert_(os.path.isdir(os.path.join(base_dir, cdir)),
+                             "Directory in softlink dir is a softlink (it shouldn't be).")
+
+            for file in cfiles:
+                file_path = os.path.join(base_dir, file)
+                self.assert_(os.path.islink(file_path),
+                             "File in softlink dir '{}' is not a softlink."
+                             .format(file_path))
+
+                target_path = os.path.realpath(file_path)
+                self.assert_(os.path.exists(target_path),
+                             "Softlink target '{}' for link '{}' does not exist."
+                             .format(target_path, file_path))
 
     def _cmp_files(self, a_path, b_path):
         """Compare two files."""
