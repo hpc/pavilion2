@@ -1,7 +1,7 @@
-from collections import defaultdict
 from pavilion import lockfile
 from pavilion import scriptcomposer
 from pavilion import utils
+from pavilion import variables
 from pavilion import wget
 from pavilion.status_file import StatusFile, STATES
 import bz2
@@ -13,6 +13,7 @@ import lzma
 import os
 import re
 import shutil
+import stat
 import subprocess
 import tarfile
 import tempfile
@@ -51,7 +52,7 @@ class PavTest:
 
     _BLOCK_SIZE = 4096*1024
 
-    LOGGER = logging.getLogger('pav.{}'.format(__file__))
+    LOGGER = logging.getLogger('pav.PavTest')
 
     def __init__(self, pav_cfg, config, test_id=None):
         """Create an new PavTest object. If loading an existing test instance, use the
@@ -84,6 +85,9 @@ class PavTest:
             if not os.path.isdir(self.path):
                 raise PavTestNotFoundError("No test with id '{}' could be found.".format(self.id))
 
+        # Set a logger more specific to this test.
+        self.LOGGER = logging.getLogger('pav.PavTest.{}'.format(self.id))
+
         # This will be set by the scheduler
         self._job_id = None
 
@@ -107,8 +111,7 @@ class PavTest:
             else:
                 self.build_hash = self._create_build_hash(build_config)
 
-            self.build_name = '{name}-{hash}'.format(name=self.name,
-                                                     hash=self.build_hash[:self.BUILD_HASH_BYTES*2])
+            self.build_name = '{hash}'.format(hash=self.build_hash[:self.BUILD_HASH_BYTES*2])
             self.build_origin = os.path.join(pav_cfg.working_dir, 'builds', self.build_name)
 
             self.build_tmpl_path = os.path.join(self.path, 'build.tmpl')
@@ -337,31 +340,58 @@ class PavTest:
 
         return hash_obj.hexdigest()[:self.BUILD_HASH_BYTES*2]
 
-    def build(self):
+    def build(self, sched_vars):
         """Perform the build if needed, do a soft-link copy of the build directory into our
         test directory, and note that we've used the given build. Returns True if these
-        steps completed successfully."""
+        steps completed successfully.
+        :param dict sched_vars: The scheduler variables for resolving the build template.
+        """
 
-        # Make sure another test doesn't try to do the build at the same time.
-        # Note cleanup of failed builds HAS to occur under this lock to avoid a race condition,
-        #   even though it would be way simpler to do it in .build()
-        lock_path = '{}.lock'.format(self.build_origin)
-        with lockfile.LockFile(lock_path, group=self._pav_cfg.shared_group):
-            build_dir = self.build_origin + '.tmp'
+        # Resolve the build template file into the final build script.
+        if self.build_tmpl_path is not None:
+            var_man = variables.VariableSetManager()
+            var_man.add_var_set('sys', self._pav_cfg.sys_vars)
+            var_man.add_var_set('sched', sched_vars)
 
-            # Attempt to perform the actual build, this shouldn't raise an exception unless
-            # something goes terribly wrong.
-            if not self._build(build_dir):
-                # The build failed. The reason should already be set in the status file.
-                def handle_error(_, path, exc_info):
-                    self.LOGGER.error("Error removing temporary build directory '{}': {}"
-                                      .format(path, exc_info))
-
-                shutil.rmtree(path=build_dir, onerror=handle_error)
+            try:
+                self.resolve_template(self.build_tmpl_path,
+                                      self.build_script_path,
+                                      var_man)
+            except KeyError as err:
+                msg = "Error resolving variable in build template '{}': {}"\
+                      .format(self.build_tmpl_path, err)
+                self.LOGGER.error(msg)
+                self.status.set(STATES.BUILD_ERROR, msg)
                 return False
+            except PavTestError as err:
+                self.LOGGER.error(err)
+                self.status.set(STATES.BUILD_ERROR, err)
 
-            # Rename the build to it's final location.
-            os.rename(build_dir, self.build_origin)
+        # Only try to do the build if it doesn't already exist.
+        if not os.path.exists(self.build_origin):
+            # Make sure another test doesn't try to do the build at the same time.
+            # Note cleanup of failed builds HAS to occur under this lock to avoid a race condition,
+            #   even though it would be way simpler to do it in .build()
+            lock_path = '{}.lock'.format(self.build_origin)
+            with lockfile.LockFile(lock_path, group=self._pav_cfg.shared_group):
+                # Make sure the build wasn't created while we waited for the lock.
+                if not os.path.exists(self.build_origin):
+                    build_dir = self.build_origin + '.tmp'
+
+                    # Attempt to perform the actual build, this shouldn't raise an exception unless
+                    # something goes terribly wrong.
+                    if not self._build(build_dir):
+                        # The build failed. The reason should already be set in the status file.
+                        def handle_error(_, path, exc_info):
+                            self.LOGGER.error("Error removing temporary build directory '{}': {}"
+                                              .format(path, exc_info))
+
+                        # Cleanup the temporary build tree.
+                        shutil.rmtree(path=build_dir, onerror=handle_error)
+                        return False
+
+                    # Rename the build to it's final location.
+                    os.rename(build_dir, self.build_origin)
 
         # Perform a symlink copy of the original build directory into our test directory.
         try:
@@ -370,8 +400,10 @@ class PavTest:
                             symlinks=True,
                             copy_function=utils.symlink_copy)
         except OSError as err:
-            self.status.set(STATES.BUILD_FAILED,
-                            "Could not perform the build directory copy: {}".format(err))
+            msg = "Could not perform the build directory copy: {}".format(err)
+            self.status.set(STATES.BUILD_ERROR, msg)
+            self.LOGGER.error(msg)
+            return False
 
         # Touch the original build directory, so that we know it was used recently.
         try:
@@ -391,15 +423,10 @@ class PavTest:
         is a build to perform.
         :returns: True or False, depending on whether the build appears to have been successful.
         """
-
-        if os.path.exists(self.build_origin):
-            # Another test built it before this run could. We should be good to go.
-            return True
-
         try:
             self._setup_build_dir(build_dir)
         except PavTestError as err:
-            self.status.set(STATES.BUILD_FAILED,
+            self.status.set(STATES.BUILD_ERROR,
                             "Error setting up build directory '{}': {}"
                             .format(build_dir, err))
             return False
@@ -433,12 +460,12 @@ class PavTest:
                             # Only wait a max of BUILD_SILENT_TIMEOUT next 'wait'
                             timeout = self.BUILD_SILENT_TIMEOUT - quiet_time
         except subprocess.CalledProcessError as err:
-            self.status.set(STATES.BUILD_FAILED,
+            self.status.set(STATES.BUILD_ERROR,
                             "Error running build process: {}".format(err))
             return False
 
         except (IOError, OSError) as err:
-            self.status.set(STATES.BUILD_FAILED,
+            self.status.set(STATES.BUILD_ERROR,
                             "Error that's probably related to writing the build output: {}"
                             .format(err))
             return False
@@ -477,7 +504,7 @@ class PavTest:
             # If there is no source archive or data, just make the build directory.
             os.mkdir(build_path)
 
-        if os.path.isdir(src_path):
+        elif os.path.isdir(src_path):
             # Recursively copy the src directory to the build directory.
             shutil.copytree(src_path, build_path, symlinks=True)
 
@@ -577,6 +604,68 @@ class PavTest:
             except OSError as err:
                 raise PavTestError("Could not copy extra file '{}' to dest '{}': {}"
                                    .format(path, dest, err))
+
+    RUN_SILENT_TIMEOUT = 5*60
+
+    def run(self, sched_vars):
+        """Run the test, returning True on success, False otherwise.
+        :param dict sched_vars: The scheduler variables for resolving the build template.
+        """
+
+        if self.run_tmpl_path is not None:
+            # Convert the run script template into the final run script.
+            try:
+                var_man = variables.VariableSetManager()
+                var_man.add_var_set('sched', sched_vars)
+                var_man.add_var_set('sys', self._pav_cfg.sys_vars)
+
+                self.resolve_template(self.run_tmpl_path,
+                                      self.run_script_path,
+                                      var_man)
+            except KeyError as err:
+                msg = "Error converting run template '{}' into the final script: {}"\
+                        .format(self.run_tmpl_path, err)
+                self.LOGGER.error(msg)
+                self.status.set(STATES.RUN_ERROR, msg)
+            except PavTestError as err:
+                self.LOGGER.error(err)
+                self.status.set(STATES.RUN_ERROR, err)
+
+        run_log_path = os.path.join(self.path, 'run.log')
+
+        with open(run_log_path, 'wb') as run_log:
+            proc = subprocess.Popen([self.run_script_path],
+                                    cwd=self.build_path,
+                                    stdout=run_log,
+                                    stderr=run_log)
+
+            # Run the test, but timeout if it doesn't produce any output every
+            # RUN_SILENT_TIMEOUT seconds
+            timeout = self.RUN_SILENT_TIMEOUT
+            result = None
+            while result is None:
+                try:
+                    result = proc.wait(timeout=timeout)
+                except subprocess.TimeoutExpired:
+                    stat = os.stat(run_log_path)
+                    quiet_time = time.time() - stat.st_mtime
+                    # Has the output file changed recently?
+                    if self.RUN_SILENT_TIMEOUT < quiet_time:
+                        # Give up on the build, and call it a failure.
+                        proc.kill()
+                        self.status.set(STATES.RUN_FAILED,
+                                        "Run timed out after {} seconds."
+                                        .format(self.RUN_SILENT_TIMEOUT))
+                        return False
+                    else:
+                        # Only wait a max of BUILD_SILENT_TIMEOUT next 'wait'
+                        timeout = self.RUN_SILENT_TIMEOUT - quiet_time
+
+        self.status.set(STATES.RUN_DONE, "Test run has completed successfully.")
+        return True
+
+    def process_results(self):
+        """Process the results of the test."""
 
     @property
     def is_built(self):
@@ -746,33 +835,55 @@ class PavTest:
 
         script.write()
 
-    TMPL_ESCAPE_RE = re.compile(r'\[\x1E((?:sched|sys)\.\w+(?:\.\w+)?)\x1E\]')
+    # Variables will be enclosed in ascii record separators enclosed in square brackets.
+    # We look for this, even with keys that can't be correct, to more easily find errors
+    # in how we write these files.
+    TMPL_ESCAPE_RE = re.compile(r'\[\x1E((?:\x1E[^\]]|[^\x1E])*)\x1E\]')
 
-    def resolve_template(self, var_man):
-        """Resolve the test deferred variables using the appropriate escape sequence."""
+    @classmethod
+    def resolve_template(cls, tmpl_path, script_path, var_man):
+        """Resolve the test deferred variables using the appropriate escape sequence.
+        :param str tmpl_path: Path to the template file to read.
+        :param str script_path: Path to the script file to write.
+        :param variables.VariableSetManager var_man: A variable set manager for retreiving found
+            variables. Is expected to contain the sys and sched variable sets.
+        :raises KeyError: For unknown variables in the template.
+        """
+
         try:
-            with open(self.run_tmpl_path, 'r') as run_tmpl, \
-                 open(self.run_script_path, 'w') as run_script:
+            with open(tmpl_path, 'r') as tmpl, \
+                 open(script_path, 'w') as script:
 
-                for line in run_tmpl.readlines():
-                    outline = []
+                for line in tmpl.readlines():
+                    out_line = []
                     char_val = 0
-                    match = self.TMPL_ESCAPE_RE.search(line, char_val)
+                    match = cls.TMPL_ESCAPE_RE.search(line, char_val)
 
                     # Walk through the line, and lookup the real value of each matched
                     # deferred variable.
                     while match is not None:
-                        outline.append(line[char_val:match.start()])
+                        out_line.append(line[char_val:match.start()])
                         char_val = match.end()
                         var_name = match.groups()[0]
-                        outline.append(var_man.get(var_name))
-                        match = self.TMPL_ESCAPE_RE.search(line, char_val)
+                        # This may raise a KeyError, which callers should expect.
+                        out_line.append(var_man[var_name])
+                        match = cls.TMPL_ESCAPE_RE.search(line, char_val)
 
                     # Don't forget the remainder of the line.
-                    outline.append(line[char_val:])
+                    out_line.append(line[char_val:])
 
-                    run_script.write(''.join(outline))
+                    out_line = ''.join(out_line)
+
+                    # Make sure all of our escape sequences are accounted for.
+                    if '\x1e]' in out_line or '[\x1e' in out_line:
+                        raise KeyError("Errant escape sequence in template '{}': '{}'"
+                                       .format(tmpl_path, out_line))
+
+                    script.write(out_line)
+
+            # Add group and owner execute permissions to the produced script.
+            os.chmod(script_path, os.stat(script_path).st_mode | stat.S_IXGRP | stat.S_IXUSR)
 
         except(IOError, OSError) as err:
             raise PavTestError("Failed processing run template file '{}' into run script'{}': {}"
-                               .format(self.run_tmpl_path, self.run_script_path, err))
+                               .format(tmpl_path, script_path, err))
