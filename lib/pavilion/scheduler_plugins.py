@@ -22,6 +22,7 @@ SCHEDULER_VARS = {
 
 class SchedVarDict(collections.UserDict):
 
+    # Suggested scheduler variables.
     def __init__(self, sched_plugin=None):
 
         global _SCHEDULER_VARIABLES
