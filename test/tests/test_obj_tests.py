@@ -230,35 +230,72 @@ class PavTestTests(unittest.TestCase):
     def test_build(self):
         """Make sure building works."""
 
-        config = {
+        config1 = {
             'name': 'build_test',
             'build': {
                 'cmds': ['echo "Hello World [\x1esched.num_nodes\x1e]"'],
                 'source_location': 'binfile.gz',
             },
         }
-
-        test = pav_test.PavTest(self.pav_cfg, config)
 
         sched_vars = {
             'num_nodes': '3'
         }
 
+        test = pav_test.PavTest(self.pav_cfg, config1)
+
         # Test a basic build, with a gzip file and an actual build script.
-        test.build(sched_vars)
+        self.assertTrue(test.build(sched_vars), msg="Build failed")
 
         # Make sure the build path and build origin contain softlinks to the same files.
         self._cmp_tree(test.build_origin, test.build_path)
         self._is_softlink_dir(test.build_path)
 
+        # We're going to time out this build on purpose, to test the code that waits for
+        # builds to complete.
         config = {
             'name': 'build_test',
             'build': {
-                'cmds': ['echo "Hello World [\x1esched.num_nodes\x1e]"'],
+                'cmds': ['sleep 10'],
                 'source_location': 'binfile.gz',
             },
         }
 
+        test = pav_test.PavTest(self.pav_cfg, config)
+        test.BUILD_SILENT_TIMEOUT = 1
+
+        # This build should fail.
+        self.assertFalse(test.build(sched_vars), "Build succeeded when it should have timed out.")
+        self.assertTrue(test.status.current().note.startswith("Build timed out"))
+
+        # Test general build failure.
+        config = {
+            'name': 'build_test',
+            'build': {
+                'cmds': ['exit 1'],
+                'source_location': 'binfile.gz',
+            },
+        }
+
+        # These next two test a few things:
+        #  1. That building, and then re-using, a build directory works.
+        #  2. That the test fails properly under a couple different conditions
+        test = pav_test.PavTest(self.pav_cfg, config)
+        # Remove the build tree to ensure we do the build fresh.
+        shutil.rmtree(test.build_origin)
+
+        # This should fail because the build exits non-zero
+        self.assertFalse(test.build(sched_vars), "Build succeeded when it should have failed.")
+        self.assertTrue(test.status.current().note.startswith("Build returned a non-zero result."))
+
+        # This should fail due to a missing variable
+        # The build should already exist.
+        test2 = pav_test.PavTest(self.pav_cfg, config)
+        self.assertFalse(test2.build({}), "Build succeeded when it should have had a variable "
+                                          "error")
+        self.assertTrue(test2.status.current().note.startswith("Error resolving variable."))
+
+        self.assertEqual(test.build_origin, test2.build_origin)
 
     def test_run(self):
         pass

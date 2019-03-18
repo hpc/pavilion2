@@ -2,12 +2,13 @@ import collections
 from pavilion.variables import VariableSetManager
 from yapsy import IPlugin
 import logging
-import re
 
 LOGGER = logging.getLogger('pav.{}'.format(__name__))
 
+
 class SchedulerPluginError(RuntimeError):
     pass
+
 
 _SCHEDULER_PLUGINS = None
 _LOADED_PLUGINS = None
@@ -19,6 +20,7 @@ SCHEDULER_VARS = {
     'procs_per_node': 'Min procs per node for this test.',
     'mem_per_node': 'Min memory '
 }
+
 
 class SchedVarDict(collections.UserDict):
 
@@ -63,6 +65,7 @@ def _reset_plugins():
         for key in list(_SCHEDULER_PLUGINS.keys()):
             remove_system_plugins(key)
 
+
 def add_scheduler_plugin(scheduler_plugin):
     global _SCHEDULER_PLUGINS
     name = scheduler_plugin.name
@@ -85,12 +88,14 @@ def add_scheduler_plugin(scheduler_plugin):
                                 .format(scheduler_plugin,
                                         _LOADED_PLUGINS[name]))
 
+
 def remove_scheduler_plugin(scheduler_plugin):
     global _SCHEDULER_PLUGINS
     name = scheduler_plugin.name
 
     if name in _SCHEDULER_PLUGINS:
         del _SCHEDULER_PLUGINS[name]
+
 
 def get_scheduler_plugin(name):
     global _LOADED_PLUGINS
@@ -104,13 +109,15 @@ def get_scheduler_plugin(name):
 
     return _LOADED_PLUGINS[name]
 
+
 class SchedulerPlugin(IPlugin.IPlugin):
+    """
+    :cvar NAME: The name of this plugin, and it's corresponding config section.
+    """
 
     PRIO_DEFAULT = 0
     PRIO_COMMON = 10
     PRIO_USER = 20
-
-    NAME_VERS_RE = re.compile(r'^[a-zA-Z0-9_.-]+$')
 
     def __init__(self, name, priority=PRIO_DEFAULT):
         """Scheduler plugin that is expected to be overriden by subclasses.
@@ -118,6 +125,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
         super().__init__()
 
+        self.conf = None
         self.logger = logging.getLogger('sched.' + name)
         self.name = name
         self.priority = priority
@@ -125,26 +133,8 @@ class SchedulerPlugin(IPlugin.IPlugin):
         for var in _SCHEDULER_VARS:
             self.values[var] = None
 
-
-    def check_request(self, patition, state, min_nodes, max_nodes,
-                       min_ppn, max_ppn, req_type):
-        """Function intended to be overridden for the particular schedulers.
-           :param str partition - Name of the desired partition.
-           :param str state - State of the desired partition.
-           :param int min_nodes - Minimum number of nodes requested.
-           :param int,str max_nodes - Maximum number of nodes requested.
-                                      Can be 'all'.
-           :param int min_ppn - Minimum number of processors per node requested
-           :param int,str max_ppn - Maximum number of processors per node
-                                    requested.  Can be 'all'.
-           :param str req_type - Type of request.  Options include 'immediate'
-                                 and 'wait'.  Specifies whether the request
-                                 must be available immediately or if the job
-                                 can be queued for later.
-           :return tuple(int, int) - Tuple containing the number of nodes that
-                                      can be used and the number of processors
-                                      per node that can be used.
-        """
+    def _check_request(self, *args, **kwargs):
+        """Function intended to be overridden for the particular schedulers."""
         raise NotImplemented
 
     def get_script_headers(self, partition=None, reservation=None, qos=None,
@@ -200,11 +190,17 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
     def kick_off(self, test_obj):
         """Function to accept a test object and kick off a build."""
-        raise NotImplemented
 
-    def _kick_off(self, partition=None, reservation=None, qos=None,
-                  account=None, num_nodes=1, ppn=1, time_limit=None,
-                  line_list=None):
+        config = test_obj.config[self.name]
+
+        kick_off_path = self._write_kick_off_script(test_obj.path, test_obj.run_cmd(), **config)
+
+        test_obj.job_id = self.submit_job(kick_off_path)
+
+        test_obj.status.set(test_obj.status.STATES.SCHEDULED,
+                            "Test {} has job ID {}.".format(self.name, test_obj.job_id))
+
+    def _write_kick_off_script(self, test_path, run_cmd, **kwargs):
         """Function to accept a list of lines and generate a script that is
            then submitted to the scheduler.
         """

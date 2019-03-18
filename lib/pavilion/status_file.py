@@ -7,6 +7,7 @@ import tzlocal
 class TestStatusError(RuntimeError):
     pass
 
+
 class TestStatesStruct:
     """A class containing the valid test state constants.
     Rules:
@@ -88,6 +89,9 @@ class StatusInfo:
         self.state = state
         self.note = note
 
+    def __str__(self):
+        return 'Status: {s.when} {s.state} {s.note}'.format(s=self)
+
 
 class StatusFile:
     """The wraps the status file that is used in each test, and manages the creation, reading,
@@ -96,6 +100,8 @@ class StatusFile:
     atomic manner. It does, however, limit it's writes to appends of a size such that those
     writes should be atomic.
     """
+
+    STATES = STATES
 
     TIME_FORMAT = '%Y-%m-%dT%H:%M:%S.%f%z'
     TS_LEN = 5 + 3 + 3 + 3 + 3 + 3 + 6 + 14

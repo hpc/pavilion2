@@ -459,6 +459,7 @@ class PavTest:
                         else:
                             # Only wait a max of BUILD_SILENT_TIMEOUT next 'wait'
                             timeout = self.BUILD_SILENT_TIMEOUT - quiet_time
+
         except subprocess.CalledProcessError as err:
             self.status.set(STATES.BUILD_ERROR,
                             "Error running build process: {}".format(err))

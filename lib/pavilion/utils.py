@@ -62,3 +62,6 @@ def fix_permissions(pav_cfg, path):
     # Recursively the fix permissions of the given path such that both the group and owner
     # have read
     pass
+
+def mask_file_and_dir_permissions(path, dir_perms, file_perms):
+    """"""
