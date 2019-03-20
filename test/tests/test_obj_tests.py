@@ -238,14 +238,10 @@ class PavTestTests(unittest.TestCase):
             },
         }
 
-        sched_vars = {
-            'num_nodes': '3'
-        }
-
         test = pav_test.PavTest(self.pav_cfg, config1)
 
         # Test a basic build, with a gzip file and an actual build script.
-        self.assertTrue(test.build(sched_vars), msg="Build failed")
+        self.assertTrue(test.build(), msg="Build failed")
 
         # Make sure the build path and build origin contain softlinks to the same files.
         self._cmp_tree(test.build_origin, test.build_path)
@@ -265,7 +261,7 @@ class PavTestTests(unittest.TestCase):
         test.BUILD_SILENT_TIMEOUT = 1
 
         # This build should fail.
-        self.assertFalse(test.build(sched_vars), "Build succeeded when it should have timed out.")
+        self.assertFalse(test.build(), "Build succeeded when it should have timed out.")
         self.assertTrue(test.status.current().note.startswith("Build timed out"))
 
         # Test general build failure.
@@ -282,23 +278,55 @@ class PavTestTests(unittest.TestCase):
         #  2. That the test fails properly under a couple different conditions
         test = pav_test.PavTest(self.pav_cfg, config)
         # Remove the build tree to ensure we do the build fresh.
-        shutil.rmtree(test.build_origin)
+        if os.path.isdir(test.build_origin):
+            shutil.rmtree(test.build_origin)
 
         # This should fail because the build exits non-zero
-        self.assertFalse(test.build(sched_vars), "Build succeeded when it should have failed.")
+        self.assertFalse(test.build(), "Build succeeded when it should have failed.")
         self.assertTrue(test.status.current().note.startswith("Build returned a non-zero result."))
 
         # This should fail due to a missing variable
         # The build should already exist.
         test2 = pav_test.PavTest(self.pav_cfg, config)
-        self.assertFalse(test2.build({}), "Build succeeded when it should have had a variable "
-                                          "error")
-        self.assertTrue(test2.status.current().note.startswith("Error resolving variable."))
+        self.assertFalse(test2.build(), "Build succeeded when it should have failed.")
+        self.assertTrue(test.status.current().note.startswith("Build returned a non-zero result."))
 
         self.assertEqual(test.build_origin, test2.build_origin)
 
     def test_run(self):
-        pass
+        config1 = {
+            'name': 'run_test',
+            'run': {
+                'env': {
+                    'foo': 'bar',
+                },
+                'cmds': ['echo "I ran, punks"'],
+            },
+        }
+
+        test = pav_test.PavTest(self.pav_cfg, config1)
+
+        self.assertTrue(test.run({}), msg="Test failed to run.")
+
+        config2 = config1.copy()
+        config2['run']['modules'] = ['gcc', 'mpi']
+
+        test = pav_test.PavTest(self.pav_cfg, config2)
+        self.assertFalse(test.run({}), msg="Test should have failed because a module couldn't be "
+                                           "loaded. {}".format(test.path))
+        # TODO: Make sure this is the exact reason for the failure (doesn't work currently).
+
+        # Make sure the test fails properly on a timeout.
+        config3 = {
+            'name': 'sleep_test',
+            'run': {
+                'cmds': ['sleep 10']
+            }
+        }
+        test = pav_test.PavTest(self.pav_cfg, config3)
+        test.RUN_SILENT_TIMEOUT = 1
+        self.assertFalse(test.run({}), msg="Test should have failed due to timeout. {}"
+                                           .format(test.path))
 
     def _is_softlink_dir(self, path):
         """Verify that a directory contains nothing but softlinks whose files exist. Directories

@@ -98,7 +98,6 @@ class PavTest:
         self.build_path = None
         self.build_name = None
         self.build_hash = None
-        self.build_tmpl_path = None
         self.build_script_path = None
 
         build_config = self._config.get('build', {})
@@ -114,15 +113,14 @@ class PavTest:
             self.build_name = '{hash}'.format(hash=self.build_hash[:self.BUILD_HASH_BYTES*2])
             self.build_origin = os.path.join(pav_cfg.working_dir, 'builds', self.build_name)
 
-            self.build_tmpl_path = os.path.join(self.path, 'build.tmpl')
             self.build_script_path = os.path.join(self.path, 'build.sh')
-            self._write_tmpl(self.build_tmpl_path, build_config)
+            self._write_script(self.build_script_path, build_config)
 
         run_config = self._config.get('run', {})
         if run_config:
             self.run_tmpl_path = os.path.join(self.path, 'run.tmpl')
             self.run_script_path = os.path.join(self.path, 'run.sh')
-            self._write_tmpl(self.run_tmpl_path, run_config)
+            self._write_script(self.run_tmpl_path, run_config)
         else:
             self.run_tmpl_path = None
             self.run_script_path = None
@@ -340,32 +338,12 @@ class PavTest:
 
         return hash_obj.hexdigest()[:self.BUILD_HASH_BYTES*2]
 
-    def build(self, sched_vars):
+    def build(self):
         """Perform the build if needed, do a soft-link copy of the build directory into our
         test directory, and note that we've used the given build. Returns True if these
         steps completed successfully.
         :param dict sched_vars: The scheduler variables for resolving the build template.
         """
-
-        # Resolve the build template file into the final build script.
-        if self.build_tmpl_path is not None:
-            var_man = variables.VariableSetManager()
-            var_man.add_var_set('sys', self._pav_cfg.sys_vars)
-            var_man.add_var_set('sched', sched_vars)
-
-            try:
-                self.resolve_template(self.build_tmpl_path,
-                                      self.build_script_path,
-                                      var_man)
-            except KeyError as err:
-                msg = "Error resolving variable in build template '{}': {}"\
-                      .format(self.build_tmpl_path, err)
-                self.LOGGER.error(msg)
-                self.status.set(STATES.BUILD_ERROR, msg)
-                return False
-            except PavTestError as err:
-                self.LOGGER.error(err)
-                self.status.set(STATES.BUILD_ERROR, err)
 
         # Only try to do the build if it doesn't already exist.
         if not os.path.exists(self.build_origin):
@@ -470,6 +448,11 @@ class PavTest:
                             "Error that's probably related to writing the build output: {}"
                             .format(err))
             return False
+
+        try:
+            self._fix_build_permissions()
+        except OSError as err:
+            self.LOGGER.warning("Error fixing build permissions: {}".format(err))
 
         if result != 0:
             self.status.set(STATES.BUILD_FAILED,
@@ -608,6 +591,25 @@ class PavTest:
 
     RUN_SILENT_TIMEOUT = 5*60
 
+    def _fix_build_permissions(self):
+        """The files in a build directory should never be writable, but directories should be.
+        Users are thus allowed to delete build directories and their files, but never modify
+        them. Additions, deletions within test build directories will effect the soft links,
+        not the original files themselves. (This applies both to owner and group).
+        :raises OSError: If we lack permissions or something else goes wrong."""
+
+        # We rely on the umask to handle most restrictions.
+        # This just masks out the write bits.
+        file_mask = 0o777555
+
+        # We shouldn't have to do anything to directories, they should have the correct permissions
+        # already.
+        for path, _, files in os.walk(self.build_origin):
+            for file in files:
+                file_path = os.path.join(path, file)
+                st = os.stat(file_path)
+                os.chmod(file_path, st.st_mode & file_mask)
+
     def run(self, sched_vars):
         """Run the test, returning True on success, False otherwise.
         :param dict sched_vars: The scheduler variables for resolving the build template.
@@ -662,8 +664,12 @@ class PavTest:
                         # Only wait a max of BUILD_SILENT_TIMEOUT next 'wait'
                         timeout = self.RUN_SILENT_TIMEOUT - quiet_time
 
-        self.status.set(STATES.RUN_DONE, "Test run has completed successfully.")
-        return True
+        if result != 0:
+            self.status.set(STATES.RUN_FAILED, "Test run failed.")
+            return False
+        else:
+            self.status.set(STATES.RUN_DONE, "Test run has completed successfully.")
+            return True
 
     def process_results(self):
         """Process the results of the test."""
@@ -791,10 +797,10 @@ class PavTest:
         if src_stat.st_mtime != latest:
             os.utime(base_path, (src_stat.st_atime, latest))
 
-    def _write_tmpl(self, path, tmpl_config):
-        """Write a build or run template. The formats for each are identical.
+    def _write_script(self, path, config):
+        """Write a build or run script or template. The formats for each are identical.
         :param str path: Path to the template file to write.
-        :param dict tmpl_config: Configuration dictionary for the template file.
+        :param dict config: Configuration dictionary for the script file.
         :return:
         """
 
@@ -810,25 +816,25 @@ class PavTest:
         script.env_change({'TEST_ID': '{}'.format(self.id)})
         script.command('source {}'.format(pav_lib_bash))
 
-        modules = tmpl_config.get('modules', [])
+        modules = config.get('modules', [])
         if modules:
             script.newline()
             script.comment('Perform module related changes to the environment.')
 
-            for module in tmpl_config.get('modules', []):
+            for module in config.get('modules', []):
                 script.module_change(module, self._pav_cfg.sys_vars)
 
-        env = tmpl_config.get('env', {})
+        env = config.get('env', {})
         if env:
             script.newline()
             script.comment("Making any environment changes needed.")
-            script.env_change(tmpl_config.get('env', {}))
+            script.env_change(config.get('env', {}))
 
         script.newline()
-        cmds = tmpl_config.get('cmds', [])
+        cmds = config.get('cmds', [])
         if cmds:
             script.comment("Perform the sequence of test commands.")
-            for line in tmpl_config.get('cmds', []):
+            for line in config.get('cmds', []):
                 for split_line in line.split('\n'):
                     script.command(split_line)
         else:

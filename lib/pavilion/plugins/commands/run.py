@@ -119,7 +119,10 @@ class RunCommand(commands.Command):
             # Get the dictionary of scheduler variables (mostly deferred).
             sched_vars = sched.get_vars()
 
-            sched_config_sections = scheduler_plugins.list_scheduler_plugins()
+            nondeferred_config_sections = scheduler_plugins.list_scheduler_plugins()
+
+            # Builds must no the values of all their variables now.
+            nondeferred_config_sections.append('build')
 
             # Set the echeduler variables for each test.
             for test_cfg, test_var_man in raw_tests_by_scheduler[sched_name]:
@@ -142,19 +145,3 @@ class RunCommand(commands.Command):
                 tests_by_scheduler[sched.name].append(test)
 
         return tests_by_scheduler
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
