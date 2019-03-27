@@ -561,21 +561,31 @@ class PavTest:
 
             elif category == 'application' and subtype == 'zip':
                 try:
-                    # Extract the zipfile, under the same conditions as above with tarfiles.
+                    # Extract the zipfile, under the same conditions as
+                    # above with tarfiles.
                     with zipfile.ZipFile(src_path) as zipped:
-                        top_level = [m for m in zipped.filelist if '/' not in m.filename[:-1]]
-                        if len(top_level) == 1 and top_level[0].is_dir():
-                            with tempfile.TemporaryDirectory(
-                                    dir=os.path.dirname(build_path)) as tmpdir:
-                                zipped.extractall(tmpdir)
-                                os.rename(os.path.join(tmpdir, top_level[0].filename), build_path)
+
+                        tmpdir = os.path.join(
+                            os.path.dirname(build_path),
+                            'src.unzipped'
+                        )
+                        os.mkdir(tmpdir)
+                        zipped.extractall(tmpdir)
+
+                        files = os.listdir(tmpdir)
+                        if len(files) == 1 and os.path.isdir(files[0]):
+                            # Make the zip's root directory the build dir.
+                            os.rename(os.path.join(tmpdir, files[0]),
+                                      build_path)
+                            os.rmdir(tmpdir)
                         else:
-                            os.mkdir(build_path)
-                            zipped.extractall(build_path)
+                            # The overall contents of the zip are the build dir.
+                            os.rename(tmpdir, build_path)
 
                 except (OSError, IOError, zipfile.BadZipFile) as err:
-                    raise PavTestError("Could not extract zipfile '{}' into destination '{}': {}"
-                                       .format(src_path, build_path, err))
+                    raise PavTestError(
+                        "Could not extract zipfile '{}' into destination "
+                        "'{}': {}".format(src_path, build_path, err))
 
             else:
                 # Finally, simply copy any other types of files into the build directory.
