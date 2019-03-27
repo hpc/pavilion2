@@ -73,7 +73,7 @@ class PavTest:
         # Create the tests directory if it doesn't already exist.
         tests_path = os.path.join(pav_cfg.working_dir, 'tests')
 
-        self._config = config
+        self.config = config
 
         # Get an id for the test, if we weren't given one.
         if test_id is None:
@@ -100,7 +100,7 @@ class PavTest:
         self.build_hash = None
         self.build_script_path = None
 
-        build_config = self._config.get('build', {})
+        build_config = self.config.get('build', {})
         if build_config:
             self.build_path = os.path.join(self.path, 'build')
             if os.path.islink(self.build_path):
@@ -116,7 +116,7 @@ class PavTest:
             self.build_script_path = os.path.join(self.path, 'build.sh')
             self._write_script(self.build_script_path, build_config)
 
-        run_config = self._config.get('run', {})
+        run_config = self.config.get('run', {})
         if run_config:
             self.run_tmpl_path = os.path.join(self.path, 'run.tmpl')
             self.run_script_path = os.path.join(self.path, 'run.sh')
@@ -140,6 +140,14 @@ class PavTest:
         config = cls._load_config(path)
 
         return PavTest(pav_cfg, config, test_id)
+
+    def run_cmd(self):
+        """Construct a shell command that would cause pavilion to run this
+        test."""
+
+        pav_path = os.path.join(self._pav_cfg.pav_root, 'bin', 'pav')
+
+        return '{} run {}'.format(pav_path, self.id)
 
     def _create_id(self, tests_path):
         """Figure out what the test id of this test should be.
@@ -182,7 +190,7 @@ class PavTest:
 
         try:
             with open(config_path, 'w') as json_file:
-                json.dump(self._config, json_file)
+                json.dump(self.config, json_file)
         except (OSError, IOError) as err:
             raise PavTestError("Could not save PavTest ({}) config at {}: {}"
                                .format(self.name, self.path, err))
@@ -469,7 +477,7 @@ class PavTest:
         :return: None
         """
 
-        build_config = self._config.get('build', {})
+        build_config = self.config.get('build', {})
 
         src_loc = build_config.get('source_location')
         if src_loc is None:
@@ -680,7 +688,7 @@ class PavTest:
         :returns: True if the build exists (or the test doesn't have a build), False otherwise.
         """
 
-        if 'build' not in self._config:
+        if 'build' not in self.config:
             return True
 
         if os.path.islink(self.build_path):

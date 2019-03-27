@@ -1,3 +1,4 @@
+import logging
 import os
 import subprocess
 import unittest
@@ -13,6 +14,8 @@ from pavilion import arguments
 from pavilion import variables
 
 
+LOGGER = logging.getLogger(__name__)
+
 class PluginTests(unittest.TestCase):
 
     TEST_DATA_ROOT = os.path.join(
@@ -25,15 +28,18 @@ class PluginTests(unittest.TestCase):
         arguments.get_parser()
 
     def test_plugin_loading(self):
-        """Check to make sure the plugin system initializes correctly. Separate tests will check
-        the internal initialization of each plugin sub-system."""
+        """Check to make sure the plugin system initializes correctly. Separate
+        tests will check the internal initialization of each plugin
+        sub-system."""
 
         # Get an empty pavilion config and set some config dirs on it.
         pav_cfg = pav_config.PavilionConfigLoader().load_empty()
 
         # We're loading multiple directories of plugins - AT THE SAME TIME!
-        pav_cfg.config_dirs = [os.path.join(self.TEST_DATA_ROOT, 'pav_config_dir'),
-                               os.path.join(self.TEST_DATA_ROOT, 'pav_config_dir2')]
+        pav_cfg.config_dirs = [os.path.join(self.TEST_DATA_ROOT,
+                                            'pav_config_dir'),
+                               os.path.join(self.TEST_DATA_ROOT,
+                                            'pav_config_dir2')]
 
         for path in pav_cfg.config_dirs:
             self.assertTrue(os.path.exists(path))
@@ -58,8 +64,10 @@ class PluginTests(unittest.TestCase):
         pav_cfg = pav_config.PavilionConfigLoader().load_empty()
 
         # We're loading multiple directories of plugins - AT THE SAME TIME!
-        pav_cfg.config_dirs = [os.path.join(self.TEST_DATA_ROOT, 'pav_config_dir'),
-                               os.path.join(self.TEST_DATA_ROOT, 'pav_config_dir2')]
+        pav_cfg.config_dirs = [os.path.join(self.TEST_DATA_ROOT,
+                                            'pav_config_dir'),
+                               os.path.join(self.TEST_DATA_ROOT,
+                                            'pav_config_dir2')]
 
         plugins.initialize_plugins(pav_cfg)
 
@@ -69,9 +77,11 @@ class PluginTests(unittest.TestCase):
         # Clean up our plugin initializations.
         plugins._reset_plugins()
 
-        pav_cfg.config_dirs.append(os.path.join(self.TEST_DATA_ROOT, 'pav_config_dir_conflicts'))
+        pav_cfg.config_dirs.append(os.path.join(self.TEST_DATA_ROOT,
+                                                'pav_config_dir_conflicts'))
 
-        self.assertRaises(plugins.PluginError, lambda: plugins.initialize_plugins(pav_cfg))
+        self.assertRaises(plugins.PluginError,
+                          lambda: plugins.initialize_plugins(pav_cfg))
 
         # Clean up our plugin initializations.
         plugins._reset_plugins()
@@ -83,8 +93,10 @@ class PluginTests(unittest.TestCase):
         pav_cfg = pav_config.PavilionConfigLoader().load_empty()
 
         # We're loading multiple directories of plugins - AT THE SAME TIME!
-        pav_cfg.config_dirs = [os.path.join(self.TEST_DATA_ROOT, 'pav_config_dir'),
-                               os.path.join(self.TEST_DATA_ROOT, 'pav_config_dir2')]
+        pav_cfg.config_dirs = [os.path.join(self.TEST_DATA_ROOT,
+                                            'pav_config_dir'),
+                               os.path.join(self.TEST_DATA_ROOT,
+                                            'pav_config_dir2')]
 
         plugins.initialize_plugins(pav_cfg)
 
@@ -95,7 +107,8 @@ class PluginTests(unittest.TestCase):
 
         self.assertEqual('1.3', bar1.get_version('1.3'))
         self.assertEqual('1.2.0', bar2.get_version('1.2.0'))
-        self.assertRaises(module_wrapper.ModuleWrapperError, lambda: bar2.get_version('1.3.0'))
+        self.assertRaises(module_wrapper.ModuleWrapperError,
+                          lambda: bar2.get_version('1.3.0'))
 
         bar1.load({})
 
@@ -108,100 +121,81 @@ class PluginTests(unittest.TestCase):
         # Get an empty pavilion config and set some config dirs on it.
         pav_cfg = pav_config.PavilionConfigLoader().load_empty()
 
-        # We're loading multiple directories of plugins - AT THE SAME TIME!
-        pav_cfg.config_dirs = [ os.path.join(os.getcwd(), '../lib/pavilion') ]
-
         plugins.initialize_plugins(pav_cfg)
 
-        plugin_names = [ 'host_arch', 'host_name', 'host_os',
-                         'sys_arch', 'sys_name', 'sys_os' ]
+        self.assertFalse(system_plugins._LOADED_PLUGINS is None)
 
-        plugin_list = system_plugins._LOADED_PLUGINS
+        host_arch = subprocess.check_output(['uname', '-i'])
+        host_arch = host_arch.strip().decode('UTF-8')
 
-        self.assertFalse( plugin_list is None )
+        host_name = subprocess.check_output(['hostname', '-s'])
+        host_name = host_name.strip().decode('UTF-8')
 
-        host_arch = \
-               subprocess.check_output(['uname', '-i']).strip().decode('UTF-8')
-
-        host_name = \
-            subprocess.check_output(['hostname', '-s']).strip().decode('UTF-8')
-
-        rlines = []
         with open('/etc/os-release', 'r') as release:
             rlines = release.readlines()
 
         host_os = {}
         for line in rlines:
             if line[:3] == 'ID=':
-                host_os[ 'ID' ] = line[3:].strip().strip('"')
+                host_os['ID'] = line[3:].strip().strip('"')
             elif line[:11] == 'VERSION_ID=':
-                host_os[ 'Version' ] = line[11:].strip().strip('"')
+                host_os['Version'] = line[11:].strip().strip('"')
 
-        sys_vars = system_plugins.SysVarDict()
+        sys_vars = system_plugins.get_system_plugin_dict(defer=False)
 
-        self.assertFalse( 'sys_arch' in sys_vars )
-        self.assertEqual(host_arch, sys_vars[ 'sys_arch' ] )
-        self.assertTrue( 'sys_arch' in sys_vars )
+        self.assertFalse('sys_arch' in sys_vars)
+        self.assertEqual(host_arch, sys_vars['sys_arch'])
+        self.assertTrue('sys_arch' in sys_vars)
 
-        self.assertFalse( 'sys_name' in sys_vars )
-        self.assertEqual(host_name, sys_vars[ 'sys_name' ])
-        self.assertTrue( 'sys_name' in sys_vars )
+        self.assertFalse('sys_name' in sys_vars)
+        self.assertEqual(host_name, sys_vars['sys_name'])
+        self.assertTrue('sys_name' in sys_vars)
 
-        self.assertFalse( 'sys_os' in sys_vars )
-        self.assertEqual(host_os[ 'ID' ], sys_vars[ 'sys_os' ][ 'ID' ])
-        self.assertEqual(host_os[ 'Version' ],
-                                             sys_vars[ 'sys_os' ][ 'Version' ])
-        self.assertTrue( 'sys_os' in sys_vars )
+        self.assertFalse('sys_os' in sys_vars)
+        self.assertEqual(host_os['ID'], sys_vars['sys_os']['ID'])
+        self.assertEqual(host_os['Version'],
+                         sys_vars['sys_os']['Version'])
+        self.assertTrue('sys_os' in sys_vars)
 
+        self.assertFalse('host_arch' in sys_vars)
+        self.assertEqual(host_arch, sys_vars['host_arch'])
+        self.assertTrue('host_arch' in sys_vars)
 
-        self.assertFalse( 'host_arch' in sys_vars )
-        self.assertEqual( host_arch, sys_vars[ 'host_arch' ])
-        self.assertTrue( 'host_arch' in sys_vars )
+        self.assertFalse('host_name' in sys_vars)
+        self.assertEqual(host_name, sys_vars['host_name'])
+        self.assertTrue('host_name' in sys_vars)
 
-        self.assertFalse( 'host_name' in sys_vars )
-        self.assertEqual(host_name, sys_vars[ 'host_name' ])
-        self.assertTrue( 'host_name' in sys_vars )
+        self.assertFalse('host_os' in sys_vars)
+        self.assertEqual(host_os['ID'], sys_vars['host_os']['ID'])
+        self.assertEqual(host_os['Version'],
+                         sys_vars['host_os']['Version'])
+        self.assertTrue('host_os' in sys_vars)
 
-        self.assertFalse( 'host_os' in sys_vars )
-        self.assertEqual(host_os[ 'ID' ], sys_vars[ 'host_os' ][ 'ID' ])
-        self.assertEqual(host_os[ 'Version' ],
-                                            sys_vars[ 'host_os' ][ 'Version' ])
-        self.assertTrue( 'host_os' in sys_vars )
-
-        sys_vars._reset()
-
-        self.assertTrue( len(system_plugins._SYSTEM_PLUGINS.items()) == 0 )
-
-        sys_vars.set_defer( True )
-
-        self.assertFalse( 'host_arch' in sys_vars )
-        self.assertTrue( isinstance( sys_vars[ 'host_arch' ],
-                                                 variables.DeferredVariable ) )
-        self.assertFalse( 'host_name' in sys_vars )
-        self.assertTrue( isinstance( sys_vars[ 'host_name' ],
-                                                 variables.DeferredVariable ) )
-        self.assertFalse( 'host_os' in sys_vars )
-        self.assertTrue( isinstance( sys_vars[ 'host_os' ],
-                                                 variables.DeferredVariable ) )
-
-    def test_scheduler_plugins(self):
-        """Make sure scheduler values appear as expected."""
-
-        # Get an empty pavilion config and set some config dirs on it.
-        pav_cfg = pav_config.PavilionConfigLoader().load_empty()
-
-        # We're loading multiple directories of plugins - AT THE SAME TIME!
-        pav_cfg.config_dirs = [ os.path.join(os.getcwd(), '../lib/pavilion') ]
+        # Re-initialize the plugin system.
+        plugins._reset_plugins()
+        # Make sure these have been wiped
+        self.assertIsNone(system_plugins._LOADED_PLUGINS)
 
         plugins.initialize_plugins(pav_cfg)
 
-        plugin_names = [ 'slurm' ]
+        # Make sure these have been wiped.
+        self.assertIsNone(system_plugins._SYS_VAR_DICT)
+        # but these are back
+        self.assertIsNotNone(system_plugins._LOADED_PLUGINS)
 
-        #plugin_list = scheduler_plugins._LOADED_PLUGINS
-        plugin_dict = plugins.list_plugins()
+        sys_vars = system_plugins.get_system_plugin_dict(defer=True)
 
-        self.assertFalse( plugin_dict is None )
+        self.assertTrue(len(system_plugins._SYS_VAR_DICT.items()) == 0)
 
-        self.assertTrue( 'sched' in plugin_dict )
+        # Check that the deferred values are actually deferred.
+        self.assertFalse('host_arch' in sys_vars)
+        self.assertTrue(isinstance(sys_vars['host_arch'],
+                                   variables.DeferredVariable))
+        self.assertFalse('host_name' in sys_vars)
+        self.assertTrue(isinstance(sys_vars['host_name'],
+                                   variables.DeferredVariable))
+        self.assertFalse('host_os' in sys_vars)
+        self.assertTrue(isinstance(sys_vars['host_os'],
+                                   variables.DeferredVariable))
 
-        self.assertTrue( 'slurm' in plugin_dict[ 'sched' ] )
+        plugins._reset_plugins()

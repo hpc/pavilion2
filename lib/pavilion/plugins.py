@@ -18,16 +18,19 @@ PLUGIN_CATEGORIES = {
     # result plugins
 }
 
+
 class PluginError(RuntimeError):
     pass
 
 
 def initialize_plugins(pav_cfg):
-    """Initialize the plugin system, and activate plugins in all known plugin directories (except
-    those specifically disabled in the config. Should only ever be run once pavilion command.
+    """Initialize the plugin system, and activate plugins in all known plugin
+    directories (except those specifically disabled in the config. Should
+    only ever be run once pavilion command.
     :param pav_cfg: The pavilion configuration
     :return: Nothing
-    :raises PluginError: When there's an issue with a plugin or the plugin system in general.
+    :raises PluginError: When there's an issue with a plugin or the plugin
+        system in general.
     :raises RuntimeError: When you try to run this twice.
     """
 
@@ -37,11 +40,12 @@ def initialize_plugins(pav_cfg):
         LOGGER.warning("Tried to initialize plugins multiple times.")
         return
 
-    plugin_dirs = [os.path.join(cfg_dir, 'plugins') for cfg_dir in pav_cfg.config_dirs]
+    plugin_dirs = [os.path.join(cfg_dir, 'plugins')
+                   for cfg_dir in pav_cfg.config_dirs]
 
     try:
         pman = PluginManager.PluginManager(directories_list=plugin_dirs,
-                             categories_filter=PLUGIN_CATEGORIES)
+                                           categories_filter=PLUGIN_CATEGORIES)
 
         pman.locatePlugins()
         pman.collectPlugins()
@@ -83,7 +87,8 @@ def list_plugins():
 
 
 def _reset_plugins():
-    LOGGER.warning("Resetting the plugins. This functionality exists only for use by unittests.")
+    LOGGER.warning("Resetting the plugins. This functionality exists only for "
+                   "use by unittests.")
     import inspect
 
     global _PLUGIN_MANAGER

@@ -1,57 +1,5 @@
-####################################################################
-#
-#  Disclaimer and Notice of Copyright
-#  ==================================
-#
-#  Copyright (c) 2015, Los Alamos National Security, LLC
-#  All rights reserved.
-#
-#  Copyright 2015. Los Alamos National Security, LLC.
-#  This software was produced under U.S. Government contract
-#  DE-AC52-06NA25396 for Los Alamos National Laboratory (LANL),
-#  which is operated by Los Alamos National Security, LLC for
-#  the U.S. Department of Energy. The U.S. Government has rights
-#  to use, reproduce, and distribute this software.  NEITHER
-#  THE GOVERNMENT NOR LOS ALAMOS NATIONAL SECURITY, LLC MAKES
-#  ANY WARRANTY, EXPRESS OR IMPLIED, OR ASSUMES ANY LIABILITY
-#  FOR THE USE OF THIS SOFTWARE.  If software is modified to
-#  produce derivative works, such modified software should be
-#  clearly marked, so as not to confuse it with the version
-#  available from LANL.
-#
-#  Additionally, redistribution and use in source and binary
-#  forms, with or without modification, are permitted provided
-#  that the following conditions are met:
-#  -  Redistributions of source code must retain the
-#     above copyright notice, this list of conditions
-#     and the following disclaimer.
-#  -  Redistributions in binary form must reproduce the
-#     above copyright notice, this list of conditions
-#     and the following disclaimer in the documentation
-#     and/or other materials provided with the distribution.
-#  -  Neither the name of Los Alamos National Security, LLC,
-#     Los Alamos National Laboratory, LANL, the U.S. Government,
-#     nor the names of its contributors may be used to endorse
-#     or promote products derived from this software without
-#     specific prior written permission.
-#
-#  THIS SOFTWARE IS PROVIDED BY LOS ALAMOS NATIONAL SECURITY, LLC
-#  AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
-#  INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
-#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
-#  IN NO EVENT SHALL LOS ALAMOS NATIONAL SECURITY, LLC OR CONTRIBUTORS
-#  BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY,
-#  OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
-#  OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-#  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
-#  TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
-#  OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY
-#  OF SUCH DAMAGE.
-#
-#  ###################################################################
-
-# This module contains functions and classes for building variable sets for string insertion.
+# This module contains functions and classes for building variable sets for
+# string insertion.
 # There are three layers to every variable:
 #   - A list of variable values
 #   - A dictionary of sub-keys
@@ -60,21 +8,24 @@
 #
 # From the user perspective, however, all but the value itself is optional.
 #
-# While variables are stored in this manner, these layers are automatically resolved in the
-# trivial cases such as when there is only one element, or a single value instead of a set of
-# key/value pairs.
+# While variables are stored in this manner, these layers are automatically
+# resolved in the trivial cases such as when there is only one element, or a
+# single value instead of a set of key/value pairs.
 #
-# There are expected to be multiple variable sets; plain variables (var), permutations (per),
-# plugin provided via 'sys', core pavilion provided (pav), and scheduler provided (sched).
+# There are expected to be multiple variable sets; plain variables (var),
+# permutations (per), plugin provided via 'sys', core pavilion provided (pav),
+# and scheduler provided (sched).
 #
 
 from __future__ import print_function, unicode_literals, division
 
 
 class VariableError(ValueError):
-    """This error should be thrown when processing variable data, and something goes wrong."""
+    """This error should be thrown when processing variable data,
+    and something goes wrong."""
 
-    def __init__(self, message, var_set=None, var=None, index=None, sub_var=None):
+    def __init__(self, message, var_set=None, var=None, index=None,
+                 sub_var=None):
         self.var_set = var_set
         self.var = var
         self.index = index
@@ -94,26 +45,30 @@ class VariableError(ValueError):
 
         key = '.'.join(key)
 
-        return "Error processing variable key '{}': {}".format(key, self.base_message)
+        return "Error processing variable key '{}': {}" \
+            .format(key, self.base_message)
 
 
 class DeferredVariable:
-    """The value for some variables may not be available until a test is actually running."""
+    """The value for some variables may not be available until a test is
+    actually running."""
 
-    # NOTE: Other than __init__, this should always have the same interface as VariableList.
+    # NOTE: Other than __init__, this should always have the same interface
+    # as VariableList.
 
-    VAR_TEMPLATE = '$(pav var {key})'
+    VAR_TEMPLATE = '[\x1e{key}\x1e]'
     ALLOWED_VARSETS = ['sys', 'pav', 'sched']
 
-    def __init__(self, name, var_set='sys', sub_keys=None, priority=0):
-        """Deferred variables need to know their name and var_set at definition time. Additionally,
-        they need to be aware of their valid sub-keys. They cannot have more than one value, like
-        normal variables.
+    def __init__(self, name, var_set='sys', sub_keys=None):
+        """Deferred variables need to know their name and var_set at definition
+        time. Additionally, they need to be aware of their valid sub-keys.
+        They cannot have more than one value, like normal variables.
         :param name: The name of this variable.
-        :param var_set: The variable set this deferred variable belongs to. Only some varsets are
-            allowed, as defined in DeferredVariable.ALLOWED_VARSETS.
-        :param list sub_keys: A list of subkey names for the variable. None denotes sub-keys aren't
-            used.
+        :param var_set: The variable set this deferred variable belongs to.
+            Only some varsets are allowed, as defined in
+            DeferredVariable.ALLOWED_VARSETS.
+        :param list sub_keys: A list of subkey names for the variable. None
+            denotes sub-keys aren't used.
         """
 
         if var_set not in self.ALLOWED_VARSETS:
@@ -127,9 +82,8 @@ class DeferredVariable:
             sub_keys = list()
 
         self.sub_keys = sub_keys
-        self.priority = priority
 
-    def get(self, index, sub_var, defer=None):
+    def get(self, index, sub_var):
         if index not in [0, None]:
             raise KeyError("Deferred variables only have a single value.")
 
@@ -139,11 +93,13 @@ class DeferredVariable:
             raise KeyError('Sub variable not requested, but must be one of {}'
                            .format(self.sub_keys))
         elif sub_var is not None and not self.sub_keys:
-            raise KeyError('Sub variable {} requested for a deferred variable with no sub-keys.'
-                           .format(sub_var))
+            raise KeyError(
+                'Sub variable {} requested for a deferred variable with no '
+                'sub-keys.'.format(sub_var))
         elif sub_var is not None and sub_var not in self.sub_keys:
-            raise KeyError('Sub variable requested ({}) that is not in the known sub-key list ({})'
-                           .format(sub_var, self.sub_keys))
+            raise KeyError(
+                'Sub variable requested ({}) that is not in the known sub-key '
+                'list ({})'.format(sub_var, self.sub_keys))
 
         if sub_var is not None:
             key.append(sub_var)
@@ -156,8 +112,8 @@ class DeferredVariable:
 
 
 class VariableSetManager:
-    """This class manages the various sets of variables, provides complex key based lookups,
-    manages conflict resolution, and so on."""
+    """This class manages the various sets of variables, provides complex key
+    based lookups, manages conflict resolution, and so on."""
 
     # The variable sets, in order of resolution.
     VAR_SETS = ('per', 'var', 'sys', 'pav', 'sched')
@@ -171,9 +127,10 @@ class VariableSetManager:
         self.reserved_keys.extend(self.VAR_SETS)
 
     def add_var_set(self, name, value_dict):
-        """Add a new variable set to this variable set manager. Variables in the set can then
-        be retrieved by complex key.
-        :param str name: The name of the var set. Must be one of the reserved keys.
+        """Add a new variable set to this variable set manager. Variables in
+        the set can then be retrieved by complex key.
+        :param str name: The name of the var set. Must be one of the reserved
+            keys.
         :param dict value_dict: A dictionary of values to populate the var set.
         :return: None
         :raises VariableError: On problems with the name or data.
@@ -182,10 +139,12 @@ class VariableSetManager:
             raise ValueError("Unknown variable set name: '{}'".format(name))
 
         if name in self.variable_sets:
-            raise ValueError("Variable set '{}' already initialized.".format(name))
+            raise ValueError(
+                "Variable set '{}' already initialized.".format(name))
 
         try:
-            var_set = VariableSet(name, self.reserved_keys, value_dict=value_dict)
+            var_set = VariableSet(name, self.reserved_keys,
+                                  value_dict=value_dict)
         except VariableError as err:
             # Update the error to include the var set.
             err.var_set = name
@@ -292,11 +251,13 @@ class VariableSetManager:
             sub_var = parts.pop(0)
 
             if sub_var == '':
-                raise KeyError("Invalid, empty sub_var in key: '{}'".format(key))
+                raise KeyError(
+                    "Invalid, empty sub_var in key: '{}'".format(key))
 
         if parts:
-            raise KeyError("Variable reference ({}) has too many parts, or an invalid "
-                           "variable set (should be one of {})".format(key, cls.VAR_SETS))
+            raise KeyError(
+                "Variable reference ({}) has too many parts, or an invalid "
+                "variable set (should be one of {})".format(key, cls.VAR_SETS))
 
         return var_set, var, index, sub_var
 
@@ -322,8 +283,9 @@ class VariableSetManager:
                     break
 
         if var_set is None:
-            raise KeyError("Could not find a variable named '{}' in any variable set."
-                           .format(var))
+            raise KeyError(
+                "Could not find a variable named '{}' in any variable set."
+                .format(var))
 
         return var_set, var, index, sub_var
 
@@ -341,7 +303,8 @@ class VariableSetManager:
             return self.variable_sets[var_set].get(var, index, sub_var)
         except KeyError as msg:
             # Make sure our error message gives the full key.
-            raise KeyError("Could not resolve reference '{}': {}".format(key, msg))
+            raise KeyError(
+                "Could not resolve reference '{}': {}".format(key, msg))
 
     def len(self, var_set, var):
         """
@@ -358,8 +321,9 @@ class VariableSetManager:
         _var_set = self.variable_sets[var_set]
 
         if var not in self.variable_sets[var_set].data:
-            raise KeyError("Variable set '{}' does not contain a variable named '{}'"
-                           .format(var_set, var))
+            raise KeyError(
+                "Variable set '{}' does not contain a variable named '{}'"
+                .format(var_set, var))
 
         return len(_var_set.data[var])
 
@@ -410,8 +374,9 @@ class VariableSet:
         if var in self.data:
             return self.data[var].get(index, sub_var)
         else:
-            raise KeyError("Variable set '{}' does not contain a variable named '{}'"
-                           .format(self.name, var))
+            raise KeyError(
+                "Variable set '{}' does not contain a variable named '{}'"
+                .format(self.name, var))
 
     def __contains__(self, item):
         return item in self.data
@@ -451,8 +416,9 @@ class VariableList:
             if sub_vars is None:
                 sub_vars = set(value_pairs.keys())
             elif set(value_pairs.keys()) != sub_vars:
-                raise VariableError("Sub-keys do no match across variable values.",
-                                    index=str(idx))
+                raise VariableError(
+                    "Sub-keys do no match across variable values.",
+                    index=str(idx))
 
             try:
                 self.data.append(SubVariable(value_pairs))
@@ -470,8 +436,9 @@ class VariableList:
                 raise KeyError("Non-integer index given: '{}'".format(index))
 
         if not (-len(self.data) <= index < len(self.data)):
-            raise KeyError("Index out of range. There are only {} items in this variable."
-                           .format(len(self.data)))
+            raise KeyError(
+                "Index out of range. There are only {} items in this variable."
+                .format(len(self.data)))
 
         return self.data[index].get(sub_var)
 
@@ -496,8 +463,9 @@ class SubVariable:
     def _init_from_config(self, value_pairs):
         for key, value in value_pairs.items():
             if not isinstance(value, str):
-                raise VariableError("Variable values must be unicode strings, got '{}'"
-                                    .format(type(value)), sub_var=key)
+                raise VariableError(
+                    "Variable values must be unicode strings, got '{}'"
+                    .format(type(value)), sub_var=key)
 
             self.data[key] = value
 
@@ -505,6 +473,7 @@ class SubVariable:
         if sub_var in self.data:
             return self.data[sub_var]
         elif sub_var is None:
-            raise KeyError("Variable has sub-values; one must be requested explicitly.")
+            raise KeyError(
+                "Variable has sub-values; one must be requested explicitly.")
         else:
             raise KeyError("Unknown sub_var: '{}'".format(sub_var))
