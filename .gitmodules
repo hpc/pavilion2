@@ -19,3 +19,6 @@
 [submodule "lib/pavilion/dependencies/sub_repos/chardet"]
 	path = lib/pavilion/dependencies/sub_repos/chardet
 	url = https://github.com/chardet/chardet.git
+[submodule "lib/pavilion/dependencies/sub_repos/python-certifi"]
+	path = lib/pavilion/dependencies/sub_repos/python-certifi
+	url = https://github.com/certifi/python-certifi.git
