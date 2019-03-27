@@ -22,3 +22,6 @@
 [submodule "lib/pavilion/dependencies/sub_repos/python-certifi"]
 	path = lib/pavilion/dependencies/sub_repos/python-certifi
 	url = https://github.com/certifi/python-certifi.git
+[submodule "lib/pavilion/dependencies/sub_repos/idna"]
+	path = lib/pavilion/dependencies/sub_repos/idna
+	url = https://github.com/kjd/idna.git
