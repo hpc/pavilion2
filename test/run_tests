@@ -9,6 +9,7 @@ import os
 import sys
 import unittest
 
+
 logging_root = '/tmp/{user}'.format(user=os.getlogin())
 if not os.path.exists(logging_root):
     os.makedirs(logging_root)
@@ -16,6 +17,7 @@ log_path = os.path.join(logging_root, 'pavilion_tests.log')
 logging.basicConfig(filename=log_path,)
 console = logging.StreamHandler()
 console.setLevel(logging.INFO)
+console.setFormatter(logging.Formatter(fmt='\x1b[2m%(message)s\x1b[0m'))
 logging.getLogger('').addHandler(console)
 print("Setting logging to output to ({}) and stderr".format(log_path))
 

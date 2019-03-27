@@ -565,15 +565,13 @@ class PavTest:
                     # above with tarfiles.
                     with zipfile.ZipFile(src_path) as zipped:
 
-                        tmpdir = os.path.join(
-                            os.path.dirname(build_path),
-                            'src.unzipped'
-                        )
+                        tmpdir = '{}.unzipped'.format(build_path)
                         os.mkdir(tmpdir)
                         zipped.extractall(tmpdir)
 
                         files = os.listdir(tmpdir)
-                        if len(files) == 1 and os.path.isdir(files[0]):
+                        if (len(files) == 1 and
+                                os.path.isdir(os.path.join(tmpdir, files[0]))):
                             # Make the zip's root directory the build dir.
                             os.rename(os.path.join(tmpdir, files[0]),
                                       build_path)

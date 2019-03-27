@@ -180,9 +180,15 @@ class PavTestTests(unittest.TestCase):
         config = base_config.copy()
         config['build']['source_location'] = self.TEST_URL
 
+        # remove existing downloads, and replace the directory.
+        downloads_path = os.path.join(self.pav_cfg.working_dir, 'downloads')
+        shutil.rmtree(downloads_path)
+        os.mkdir(downloads_path)
+
         test = pav_test.PavTest(self.pav_cfg, config)
         if os.path.exists(test.build_origin):
             shutil.rmtree(test.build_origin)
+
         test._setup_build_dir(test.build_origin)
         self._cmp_files(os.path.join(self.TEST_DATA_ROOT, '../../README.md'),
                         os.path.join(test.build_origin, 'README.md'))
@@ -300,6 +306,7 @@ class PavTestTests(unittest.TestCase):
                 'env': {
                     'foo': 'bar',
                 },
+                #
                 'cmds': ['echo "I ran, punks"'],
             },
         }
