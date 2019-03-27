@@ -13,3 +13,6 @@
 [submodule "lib/pavilion/dependencies/sub_repos/tzlocal"]
 	path = lib/pavilion/dependencies/sub_repos/tzlocal
 	url = https://github.com/regebro/tzlocal.git
+[submodule "lib/pavilion/dependencies/sub_repos/urllib3"]
+	path = lib/pavilion/dependencies/sub_repos/urllib3
+	url = https://github.com/shazow/urllib3.git
