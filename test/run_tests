@@ -19,6 +19,13 @@ console.setLevel(logging.INFO)
 logging.getLogger('').addHandler(console)
 print("Setting logging to output to ({}) and stderr".format(log_path))
 
+config = 'test_data/pav_config_dir/pavilion.yaml'
+if not os.path.exists(config):
+    print("Could not find a config file at '{}'".format(config)
+    print("To run tests, this file must be created.")
+    print("It may be blank, or may contain proxy info.")
+    sys.exit(1)
+
 # Setup our paths to the pavilion libraries.
 sys.path.append(os.path.abspath('../lib'))
 sys.path.append(os.path.abspath('../lib/pavilion/dependencies'))
