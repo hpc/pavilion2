@@ -16,3 +16,6 @@
 [submodule "lib/pavilion/dependencies/sub_repos/urllib3"]
 	path = lib/pavilion/dependencies/sub_repos/urllib3
 	url = https://github.com/shazow/urllib3.git
+[submodule "lib/pavilion/dependencies/sub_repos/chardet"]
+	path = lib/pavilion/dependencies/sub_repos/chardet
+	url = https://github.com/chardet/chardet.git
