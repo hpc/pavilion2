@@ -187,6 +187,16 @@ class TestConfigLoader(yc.YamlConfigLoader):
 
         cls.ELEMENTS.append(subsection)
 
+    @classmethod
+    def remove_subsection(cls, subsection_name):
+        """Remove a subsection from the config. This is really only for use
+        in plugin deactivate methods."""
+
+        for section in list(cls.ELEMENTS):
+            if subsection_name == section.name:
+                cls.ELEMENTS.remove(section)
+                return
+
 
 class TestSuiteLoader(yc.CatYamlConfigLoader):
     """An actual test config file consists of multiple config sections."""

@@ -5,6 +5,7 @@ import unittest
 
 from pavilion import pav_config
 from pavilion import pav_test
+from pavilion import variables
 
 
 class PavTestTests(unittest.TestCase):
@@ -36,9 +37,6 @@ class PavTestTests(unittest.TestCase):
                 os.makedirs(path, exist_ok=True)
 
         super().__init__(*args, **kwargs)
-
-    def setUp(self):
-        pass
 
     def test_obj(self):
         """Test pavtest object initialization."""
@@ -117,7 +115,11 @@ class PavTestTests(unittest.TestCase):
 
             # Make sure the extracted archive is identical to the original
             # (Though the containing directory will have a different name)
-            self._cmp_tree(test.build_origin, original_tree)
+            try:
+                self._cmp_tree(test.build_origin, original_tree)
+            except AssertionError as err:
+                raise AssertionError("Error extracting {}".format(archive),
+                                     *err.args)
 
         # Check directory copying
         config = base_config.copy()
@@ -179,12 +181,183 @@ class PavTestTests(unittest.TestCase):
         config = base_config.copy()
         config['build']['source_location'] = self.TEST_URL
 
+        # remove existing downloads, and replace the directory.
+        downloads_path = os.path.join(self.pav_cfg.working_dir, 'downloads')
+        shutil.rmtree(downloads_path)
+        os.mkdir(downloads_path)
+
         test = pav_test.PavTest(self.pav_cfg, config)
         if os.path.exists(test.build_origin):
             shutil.rmtree(test.build_origin)
+
         test._setup_build_dir(test.build_origin)
         self._cmp_files(os.path.join(self.TEST_DATA_ROOT, '../../README.md'),
                         os.path.join(test.build_origin, 'README.md'))
+
+    def test_resolve_template(self):
+        tmpl_path = os.path.join(self.TEST_DATA_ROOT, 'resolve_template_good.tmpl')
+
+        var_man = variables.VariableSetManager()
+        var_man.add_var_set('sched', {
+            'num_nodes': '3',
+            'partition': 'test'
+        })
+        var_man.add_var_set('sys', {
+            'hostname': 'test.host.com',
+            'complicated': {
+                'a': 'yes',
+                'b': 'no'
+            }
+        })
+
+        script_path = tempfile.mktemp()
+        pav_test.PavTest.resolve_template(tmpl_path,
+                                          script_path,
+                                          var_man)
+        with open(script_path) as gen_script,\
+             open(os.path.join(self.TEST_DATA_ROOT, 'resolve_template_good.sh')) as ver_script:
+            self.assertEqual(gen_script.read(), ver_script.read())
+
+        os.unlink(script_path)
+
+        for bad_tmpl in (
+                'resolve_template_keyerror.tmpl',
+                'resolve_template_bad_key.tmpl',
+                'resolve_template_extra_escape.tmpl'):
+
+            script_path = tempfile.mktemp()
+            tmpl_path = os.path.join(self.TEST_DATA_ROOT, bad_tmpl)
+            with self.assertRaises(KeyError,
+                                   msg="Error not raised on bad file '{}'".format(bad_tmpl)):
+                pav_test.PavTest.resolve_template(tmpl_path, script_path, var_man)
+
+            if os.path.exists(script_path):
+                os.unlink(script_path)
+
+    def test_build(self):
+        """Make sure building works."""
+
+        config1 = {
+            'name': 'build_test',
+            'build': {
+                'cmds': ['echo "Hello World [\x1esched.num_nodes\x1e]"'],
+                'source_location': 'binfile.gz',
+            },
+        }
+
+        test = pav_test.PavTest(self.pav_cfg, config1)
+
+        # Test a basic build, with a gzip file and an actual build script.
+        self.assertTrue(test.build(), msg="Build failed")
+
+        # Make sure the build path and build origin contain softlinks to the same files.
+        self._cmp_tree(test.build_origin, test.build_path)
+        self._is_softlink_dir(test.build_path)
+
+        # We're going to time out this build on purpose, to test the code that waits for
+        # builds to complete.
+        config = {
+            'name': 'build_test',
+            'build': {
+                'cmds': ['sleep 10'],
+                'source_location': 'binfile.gz',
+            },
+        }
+
+        test = pav_test.PavTest(self.pav_cfg, config)
+        test.BUILD_SILENT_TIMEOUT = 1
+
+        # This build should fail.
+        self.assertFalse(test.build(), "Build succeeded when it should have timed out.")
+        self.assertTrue(test.status.current().note.startswith("Build timed out"))
+
+        # Test general build failure.
+        config = {
+            'name': 'build_test',
+            'build': {
+                'cmds': ['exit 1'],
+                'source_location': 'binfile.gz',
+            },
+        }
+
+        # These next two test a few things:
+        #  1. That building, and then re-using, a build directory works.
+        #  2. That the test fails properly under a couple different conditions
+        test = pav_test.PavTest(self.pav_cfg, config)
+        # Remove the build tree to ensure we do the build fresh.
+        if os.path.isdir(test.build_origin):
+            shutil.rmtree(test.build_origin)
+
+        # This should fail because the build exits non-zero
+        self.assertFalse(test.build(), "Build succeeded when it should have failed.")
+        self.assertTrue(test.status.current().note.startswith("Build returned a non-zero result."))
+
+        # This should fail due to a missing variable
+        # The build should already exist.
+        test2 = pav_test.PavTest(self.pav_cfg, config)
+        self.assertFalse(test2.build(), "Build succeeded when it should have failed.")
+        self.assertTrue(test.status.current().note.startswith("Build returned a non-zero result."))
+
+        self.assertEqual(test.build_origin, test2.build_origin)
+
+    def test_run(self):
+        config1 = {
+            'name': 'run_test',
+            'run': {
+                'env': {
+                    'foo': 'bar',
+                },
+                #
+                'cmds': ['echo "I ran, punks"'],
+            },
+        }
+
+        test = pav_test.PavTest(self.pav_cfg, config1)
+
+        self.assertTrue(test.run({}), msg="Test failed to run.")
+
+        config2 = config1.copy()
+        config2['run']['modules'] = ['asdlfkjae', 'adjwerloijeflkasd']
+
+        test = pav_test.PavTest(self.pav_cfg, config2)
+        self.assertFalse(
+            test.run({}),
+            msg="Test should have failed because a module couldn't be "
+                "loaded. {}".format(test.path))
+        # TODO: Make sure this is the exact reason for the failure
+        #   (doesn't work currently).
+
+        # Make sure the test fails properly on a timeout.
+        config3 = {
+            'name': 'sleep_test',
+            'run': {
+                'cmds': ['sleep 10']
+            }
+        }
+        test = pav_test.PavTest(self.pav_cfg, config3)
+        test.RUN_SILENT_TIMEOUT = 1
+        self.assertFalse(test.run({}), msg="Test should have failed due to timeout. {}"
+                                           .format(test.path))
+
+    def _is_softlink_dir(self, path):
+        """Verify that a directory contains nothing but softlinks whose files exist. Directories
+        in a softlink dir should be real directories though."""
+
+        for base_dir, cdirs, cfiles in os.walk(path):
+            for cdir in cdirs:
+                self.assert_(os.path.isdir(os.path.join(base_dir, cdir)),
+                             "Directory in softlink dir is a softlink (it shouldn't be).")
+
+            for file in cfiles:
+                file_path = os.path.join(base_dir, file)
+                self.assert_(os.path.islink(file_path),
+                             "File in softlink dir '{}' is not a softlink."
+                             .format(file_path))
+
+                target_path = os.path.realpath(file_path)
+                self.assert_(os.path.exists(target_path),
+                             "Softlink target '{}' for link '{}' does not exist."
+                             .format(target_path, file_path))
 
     def _cmp_files(self, a_path, b_path):
         """Compare two files."""
@@ -195,7 +368,8 @@ class PavTestTests(unittest.TestCase):
                              .format(a_path, b_path))
 
     def _cmp_tree(self, a, b):
-        """Compare two directory trees, including the contents of all the files."""
+        """Compare two directory trees, including the contents of all the
+        files."""
 
         a_walk = list(os.walk(a))
         b_walk = list(os.walk(b))
@@ -208,16 +382,18 @@ class PavTestTests(unittest.TestCase):
             a_dir, a_dirs, a_files = a_walk.pop(0)
             b_dir, b_dirs, b_files = b_walk.pop(0)
 
-            self.assertEqual(sorted(a_dirs), sorted(b_dirs),
-                             "Extracted archive subdir mismatch for '{}' {} != {}"
-                             .format(a, a_dirs, b_dirs))
+            self.assertEqual(
+                sorted(a_dirs), sorted(b_dirs),
+                "Extracted archive subdir mismatch for '{}' {} != {}"
+                .format(a, a_dirs, b_dirs))
 
             # Make sure these are in the same order.
             a_files.sort()
             b_files.sort()
 
-            self.assertEqual(a_files, b_files, "Extracted archive file list mismatch. "
-                                               "{} != {}".format(a_files, b_files))
+            self.assertEqual(a_files, b_files,
+                             "Extracted archive file list mismatch. "
+                             "{} != {}".format(a_files, b_files))
 
             for file in a_files:
                 # The file names have are been verified as the same.

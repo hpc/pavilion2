@@ -172,33 +172,16 @@ class ScriptComposer(object):
         the variables.
         """
 
+        if header is None:
+            header = ScriptHeader()
+
         self.header = header
 
+        if details is None:
+            details = ScriptDetails()
         self.details = details
 
         self._script_lines = []
-
-    @property
-    def header(self):
-        return self._header
-
-    @header.setter
-    def header(self, header):
-        if header is None:
-            self._header = ScriptHeader()
-
-        self._header = header
-
-    @property
-    def details(self):
-        return self._details
-
-    @details.setter
-    def details(self, details):
-        if details is None:
-            self._details = ScriptDetails()
-
-        self._details = details
 
     def reset(self):
         """Function to reset all variables to the default."""
@@ -293,6 +276,9 @@ class ScriptComposer(object):
         """
 
         with open(self.details.path, 'w') as script_file:
+            script_file.write('\n'.join(self.header.get_lines()))
+            script_file.write('\n\n')
+
             script_file.write('\n'.join(self._script_lines))
             script_file.write('\n')
 

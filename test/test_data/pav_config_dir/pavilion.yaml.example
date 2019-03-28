@@ -1,0 +1,7 @@
+proxies: 
+    http: "http://proxyout.example.com:8080"
+    https: "http://proxyout.example.com:8080"
+    ftp: "http://proxyout.example.com:8080"
+
+no_proxy: 
+    - example.com

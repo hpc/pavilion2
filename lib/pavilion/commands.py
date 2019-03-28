@@ -1,19 +1,21 @@
 from pavilion import arguments
 from yapsy import IPlugin
 import argparse
+import inspect
 import logging
 
 _COMMANDS = {}
 
 
 def __reset():
-    """Reset the command plugins. This is only to be used as part of unittests."""
+    """Reset the command plugins. This is only to be used as part of
+    unittests."""
 
     global _COMMANDS
 
     _COMMANDS = {}
 
-    arguments._reset_parser()
+    arguments.reset_parser()
 
 
 class CommandError(RuntimeError):
@@ -29,9 +31,10 @@ def add_command(command):
     if command.name not in _COMMANDS:
         _COMMANDS[command.name] = command
     else:
-        raise RuntimeError("Multiple commands of the same name are not allowed to exist. "
-                           "command.{c1.name} found at both {c1.path} and {c2.path}."
-                           .format(c1=_COMMANDS[command.name], c2=command))
+        raise RuntimeError(
+            "Multiple commands of the same name are not allowed to exist. "
+            "command.{c1.name} found at both {c1.path} and {c2.path}."
+            .format(c1=_COMMANDS[command.name], c2=command))
 
 
 def get_command(command_name):
@@ -47,10 +50,12 @@ class Command(IPlugin.IPlugin):
     """Provides a pavilion command via a plugin."""
 
     def __init__(self, name, description):
-        """Initialize this command. This should be overridden by subclasses, to set reasonable
-        values. Multiple commands of the same name are not allowed to exist.
+        """Initialize this command. This should be overridden by subclasses, to
+        set reasonable values. Multiple commands of the same name are not
+        allowed to exist.
 
-        :param name: The name of this command. Will be used as the subcommand name.
+        :param name: The name of this command. Will be used as the subcommand
+            name.
         :param description: The help text for this command.
         """
         super().__init__()
@@ -87,6 +92,14 @@ class Command(IPlugin.IPlugin):
         """This method should contain the
         :param pav_config: The pavilion configuration object.
         :param args: The parsed arguments for this command.
-        :return: The return code of the command should denote success (0) or failure (not 0).
+        :return: The return code of the command should denote success (0) or
+            failure (not 0).
         """
         pass
+
+    def __repr__(self):
+        return '<{} from file {} named {}>'.format(
+            self.__class__.__name__,
+            inspect.getfile(self.__class__),
+            self.name
+        )

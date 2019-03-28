@@ -17,35 +17,46 @@ class TestStatesStruct:
       - The constants must be a valid python identifier that starts with a letter.
     """
 
-    UNKNOWN = 'UNKNOWN'         # For when we can't determine the status.
-    INVALID = 'INVALID'         # For when the status given was invalid.
-    CREATED = 'CREATED'         # Always the initial status of the status file.
-    BUILDING = 'BUILDING'       # For when we're currently building the test.
-    BUILD_FAILED = 'BUILD_FAILED'
-    BUILD_DONE = 'BUILD_DONE'   # For when the build step has completed.
-    RUNNING = 'RUNNING'         # For when we're currently running the test.
-    RUN_DONE = 'RUN_DONE'       # For when the run step is complete.
-    RESULTS = 'RESULTS'         # For when we're getting the results.
-    COMPLETE = 'COMPLETE'       # For when the test is completely complete.
-    SCHEDULED = 'SCHEDULED'     # The test has been scheduled with a scheduler.
-    WAITING = 'WAITING'
-    FAILED = 'FAILED'           # For when the test has failed.
+    # To add a state, simply add a valid class attribute, with the value set to the
+    # help/usage for that state. States will end up comparing by key name, as the instance
+    # values of these attributes will be changed and the help stored elsewhere.
+    UNKNOWN = "For when we can't determine the status."
+    INVALID = "For when the status given was invalid."
+    CREATED = "Always the initial status of the status file."
+    BUILDING = "For when we're currently building the test."
+    BUILD_FAILED = "The build has failed."
+    BUILD_ERROR = "An unexpected error occurred while setting up the build."
+    BUILD_DONE = "For when the build step has completed."
+    RUNNING = "For when we're currently running the test."
+    RUN_FAILED = "The test run has failed."
+    RUN_ERROR = "An unexpected error has occurred when setting up the test run."
+    RUN_DONE = "For when the run step is complete."
+    RESULTS = "For when we're getting the results."
+    COMPLETE = "For when the test is completely complete."
+    SCHEDULED = "The test has been scheduled with a scheduler."
+    WAITING = ""
+    FAILED = "For when the test has failed."
 
-    MAX_LENGTH = 15
+    max_length = 15
 
     def __init__(self):
         """Validate all of the constants."""
 
-        self.list = []
+        self._help = {}
 
-        for key in self.__class__.__dict__.keys():
-            if key.startswith('_') or key in ['get', 'validate', 'MAX_LENGTH']:
+        # Validate the built-in states
+        for key in dir(self):
+            if key.startswith('_') or key[0].islower():
                 continue
 
             if not self.validate(key):
                 raise RuntimeError("Invalid StatusFile constant '{}'.".format(key))
 
-            self.list.append(key)
+            # Save the help to a local dict.
+            self._help[key] = getattr(self, key)
+
+            # Set the instance values of each state to the state name.
+            setattr(self, key, key)
 
     def validate(self, key):
         """Make sure the key conforms to the above rules."""
@@ -53,13 +64,19 @@ class TestStatesStruct:
                 key.isupper() and
                 key.isidentifier() and
                 len(key.encode('utf-8')) == len(key) and
-                len(key) <= self.MAX_LENGTH and
-                hasattr(self, key) and
-                getattr(self, key) == key)
+                len(key) <= self.max_length and
+                hasattr(self, key))
 
     def get(self, key):
         """Get the value of the status key."""
         return getattr(self, key)
+
+    def help(self, state):
+        """Get the help string for a state."""
+        return self._help.get(state, "Help missing for state '{}'".format(state))
+
+    def list(self):
+        return self._help.keys()
 
 
 # There is one predefined, global status object defined at module load time.
@@ -72,6 +89,9 @@ class StatusInfo:
         self.state = state
         self.note = note
 
+    def __str__(self):
+        return 'Status: {s.when} {s.state} {s.note}'.format(s=self)
+
 
 class StatusFile:
     """The wraps the status file that is used in each test, and manages the creation, reading,
@@ -81,6 +101,8 @@ class StatusFile:
     writes should be atomic.
     """
 
+    STATES = STATES
+
     TIME_FORMAT = '%Y-%m-%dT%H:%M:%S.%f%z'
     TS_LEN = 5 + 3 + 3 + 3 + 3 + 3 + 6 + 14
 
@@ -89,7 +111,7 @@ class StatusFile:
     LINE_MAX = 4096
     # Maximum length of a note. They can use every byte minux the timestamp and status sizes,
     # the spaces in-between, and the trailing newline.
-    NOTE_MAX = LINE_MAX - TS_LEN - 1 - TestStatesStruct.MAX_LENGTH - 1 - 1
+    NOTE_MAX = LINE_MAX - TS_LEN - 1 - STATES.max_length - 1 - 1
 
     def __init__(self, path):
         """Create the status file object.

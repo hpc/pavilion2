@@ -48,7 +48,7 @@ class StatusTests(unittest.TestCase):
         status.set("AN_EXCESSIVELY_LONG_STATE_NAME", "This is " + "way "*10000 + "too long.")
         status_info = status.current()
 
-        self.assertLessEqual(len(status_info.state), STATES.MAX_LENGTH)
+        self.assertLessEqual(len(status_info.state), STATES.max_length)
         self.assertEqual(status_info.state, STATES.INVALID)
         self.assertLessEqual(len(status_info.note), status.NOTE_MAX)
 

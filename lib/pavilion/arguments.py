@@ -40,7 +40,7 @@ def get_subparser():
     return _PAV_SUB_PARSER
 
 
-def _reset_parser():
+def reset_parser():
     """Reset back to the base parser. This is for unittests only."""
 
     global _PAV_PARSER

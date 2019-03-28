@@ -10,34 +10,42 @@ class RunCommand(commands.Command):
 
     def __init__(self):
 
-        super().__init__('run', 'Setup and run a set of tests.', __file__)
+        super().__init__('run', 'Setup and run a set of tests.')
 
     def _setup_arguments(self, parser):
 
-        parser.add_argument('-H', '--host', action='store',
-                            help='The host to configure this test for. If not specified, the '
-                                 'current host as denoted by the sys plugin \'sys_host\' is used.')
-        parser.add_argument('-m', '--mode', action='store', dest='modes', nargs='*',
-                            help='Mode configurations to overlay on the host configuration for '
-                                 'each test. These are overlayed in the order given.')
-        parser.add_argument('-c', dest='config_overrides', action='store', nargs='*',
-                            help='Overrides for specific configuration options. These are gathered'
-                                 'used as a final set of overrides before the configs are'
-                                 'resolved. They should take the form \'key=value\', '
-                                 'where key is the dot separated key name, and value is a '
-                                 'json object.')
-        parser.add_argument('-f', '--file', action='store', dest='files', nargs='*',
-                            help='One or more files to read to get the list of tests to run. '
-                                 'These files should contain a newline separated list of test '
-                                 'names. Lines that start with a \'#\' are ignored as comments.')
-        parser.add_argument('tests', nargs='*', action='store',
-                            help='The name of the tests to run. These may be suite names (in '
-                                 'which case every test in the suite is run), '
-                                 'or a <suite_name>.<test_name>.')
+        parser.add_argument(
+            '-H', '--host', action='store',
+            help='The host to configure this test for. If not specified, the '
+                 'current host as denoted by the sys plugin \'sys_host\' is '
+                 'used.')
+        parser.add_argument(
+            '-m', '--mode', action='store', dest='modes', nargs='*',
+            help='Mode configurations to overlay on the host configuration for '
+                 'each test. These are overlayed in the order given.')
+        parser.add_argument(
+            '-c', dest='config_overrides', action='store', nargs='*',
+            help='Overrides for specific configuration options. These are '
+                 'gathered used as a final set of overrides before the '
+                 'configs are resolved. They should take the form '
+                 '\'key=value\', where key is the dot separated key name, '
+                 'and value is a json object.')
+        parser.add_argument(
+            '-f', '--file', action='store', dest='files', nargs='*',
+            help='One or more files to read to get the list of tests to run. '
+                 'These files should contain a newline separated list of test '
+                 'names. Lines that start with a \'#\' are ignored as '
+                 'comments.')
+        parser.add_argument(
+            'tests', nargs='*', action='store',
+            help='The name of the tests to run. These may be suite names (in '
+                 'which case every test in the suite is run), or a '
+                 '<suite_name>.<test_name>.')
 
     def run(self, pav_config, args):
-        """Resolve the test configurations into individual tests and assign to schedulers.
-        Have those schedulers kick off jobs to run the individual tests themselves."""
+        """Resolve the test configurations into individual tests and assign to
+        schedulers. Have those schedulers kick off jobs to run the individual
+        tests themselves."""
 
         # 1. Resolve the test configs
         #   - Get sched vars from scheduler.
@@ -52,10 +60,12 @@ class RunCommand(commands.Command):
             sched.run_tests(tests)
 
     def get_tests(self, pav_config, args):
-        """Translate a general set of pavilion test configs into the final, resolved
-        configuration objects. These objects will be organized in a dictionary by scheduler,
-        and have a scheduler object instantiated and attached.
-        :returns: A dictionary (by scheduler type name) of lists of test objects
+        """Translate a general set of pavilion test configs into the final,
+        resolved configuration objects. These objects will be organized in a
+        dictionary by scheduler, and have a scheduler object instantiated and
+        attached.
+        :returns: A dictionary (by scheduler type name) of lists of test
+            objects
         """
         self.logger.DEBUG("Finding Configs")
 
@@ -79,7 +89,7 @@ class RunCommand(commands.Command):
                 raise commands.CommandError(msg)
 
         raw_tests = config.get_tests(pav_config, host, args.mode, tests)
-        raw_tests_by_scheduler = defaultdict(lambda: [])
+        raw_tests_by_sched = defaultdict(lambda: [])
         tests_by_scheduler = defaultdict(lambda: [])
 
         # Apply config overrides.
@@ -95,20 +105,20 @@ class RunCommand(commands.Command):
 
             # Resolve all configuration permutations.
             try:
-                for p_cfg, p_var_man in config.resolve_permutations(test_cfg,
-                                                                    pav_config.pav_vars,
-                                                                    pav_config.sys_vars):
+                for p_cfg, p_var_man in config.resolve_permutations(
+                        test_cfg, pav_config.pav_vars, pav_config.sys_vars):
 
-                    raw_tests_by_scheduler[p_cfg['scheduler']].append((p_cfg, p_var_man))
+                    sched = p_cfg['scheduler']
+                    raw_tests_by_sched[sched].append((p_cfg, p_var_man))
             except config.TestConfigError as err:
                 msg = 'Error resolving permutations for test {} from {}: {}'\
                       .format(test_cfg['name'], test_cfg['suite_path'], err)
                 self.logger.error(msg)
                 raise commands.CommandError(msg)
 
-        # Get the schedulers for the tests, and the scheduler variables. The scheduler variables
-        # are based on all of the
-        for sched_name in raw_tests_by_scheduler.keys():
+        # Get the schedulers for the tests, and the scheduler variables. 
+        # The scheduler variables are based on all of the
+        for sched_name in raw_tests_by_sched.keys():
             try:
                 sched = scheduler_plugins.get_scheduler_plugin(sched_name)
             except KeyError:
@@ -116,21 +126,21 @@ class RunCommand(commands.Command):
                 self.logger.error(msg)
                 raise commands.CommandError(msg)
 
-            # Get the dictionary of scheduler variables (mostly deferred).
-            sched_vars = sched.get_vars()
+            nondeferred_cfg_sctns = scheduler_plugins.list_scheduler_plugins()
 
-            sched_config_sections = scheduler_plugins.list_scheduler_plugins()
+            # Builds must have the values of all their variables now.
+            nondeferred_cfg_sctns.append('build')
 
             # Set the echeduler variables for each test.
-            for test_cfg, test_var_man in raw_tests_by_scheduler[sched_name]:
-                test_var_man.add_var_set('sched', sched.vars)
+            for test_cfg, test_var_man in raw_tests_by_sched[sched_name]:
+                test_var_man.add_var_set('sched', sched)
 
                 # Resolve all variables for the test.
                 try:
                     resolved_config = config.resolve_all_vars(
                         test_cfg,
                         test_var_man,
-                        no_deferred_allowed=sched_config_sections)
+                        no_deferred_allowed=nondeferred_cfg_sctns)
 
                 except (ResolveError, KeyError) as err:
                     msg = 'Error resolving variables in config: {}'.format(err)
@@ -142,19 +152,3 @@ class RunCommand(commands.Command):
                 tests_by_scheduler[sched.name].append(test)
 
         return tests_by_scheduler
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -1,270 +1,432 @@
-import pavilion.scheduler_plugins as scheduler_plugins
-import pavilion.scriptcomposer as scriptcomposer
+from pavilion import config_format
+from pavilion import scriptcomposer
+from pavilion.scheduler_plugins import SchedulerPlugin
+from pavilion.scheduler_plugins import SchedulerPluginError
+from pavilion.scheduler_plugins import SchedulerVariables
+from pavilion.scheduler_plugins import dfr_sched_var
+from pavilion.scheduler_plugins import sched_var
+import collections
+import os
+import pavilion.dependencies.yaml_config as yc
+import subprocess
 
-class Slurm(scheduler_plugins.SchedulerPlugin):
+class SbatchHeader(scriptcomposer.ScriptHeader):
+    def __init__(self, sched_config, nodes, id):
+        super().__init__()
+
+        self._conf = sched_config
+        self._id = id
+        self._nodes = nodes
+
+    def get_lines(self):
+
+        lines = super().get_lines()
+
+        lines.append('#SBATCH --job_name "pav test #{s.id}"'.format(s=self))
+        lines.append('#SBATCH -p {s._conf[partition]}'.format(s=self))
+        if self._conf.get('reservation') is not None:
+            lines.append('#SBATCH --reservation {s._conf[reservation]}'
+                         .format(s=self))
+        if self._conf.get('qos') is not None:
+            lines.append('#SBATCH --qos {s._conf[qos]}'.format(s=self))
+        if self._conf.get('account') is not None:
+            lines.append('#SBATCH --account {s._conf[account]}'.format(s=self))
+
+        lines.append('#SBATCH -N {s.nodes}'.format(s=self))
+        lines.append('#SBATCH --tasks-per-node={s._conf['
+                     'tasks_per_node]}'.format(s=self))
+        lines.append('#SBATCH -t {s._conf[time_limit]}'.format(s=self))
+
+        return lines
+
+
+class SlurmVars(SchedulerVariables):
+    @sched_var
+    def min_ppn(self):
+        """The minimum processors per node across all nodes."""
+        return self.get_data()['min_ppn']
+
+    @sched_var
+    def max_ppn(self):
+        """The maximum processors per node across all nodes."""
+        return self.get_data()['max_ppn']
+
+    @sched_var
+    def min_mem(self):
+        """The minimum memory per node across all nodes (in MiB)."""
+        return self.get_data()['min_ppn']
+
+    @sched_var
+    def max_mem(self):
+        """The maximum memory per node across all nodes (in MiB)."""
+
+
+    @dfr_sched_var
+    def alloc_nodes(self):
+        """The number of nodes in this allocation."""
+        return os.getenv('SLURM_NNODES')
+
+    @dfr_sched_var
+    def alloc_node_list(self):
+        """A space separated list of nodes in this allocation."""
+        final_list = []
+        nodelist = os.getenv('SLURM_NODELIST')
+
+        if '[' in nodelist:
+            prefix = nodelist.split('[')[0]
+            nodes = nodelist.split('[')[1].split(']')[0]
+
+            range_list = nodes.split(',')
+
+            for item in range_list:
+                if '-' in item:
+                    node_range = range(int(item.split('-')[0]),
+                                       int(item.split('-')[1])+1)
+                    zfill = len(item.split('-')[0])
+                    for i in range(0, len(node_range)):
+                        final_list.append(str(node_range[i]).zfill(zfill))
+                else:
+                    final_list.append(item)
+
+            for i in range(0, len(final_list)):
+                final_list[i] = prefix + final_list[i]
+        else:
+            final_list.append(nodelist)
+
+        # Deferred variables can't be lists, so we have to make this into
+        # a space separated string.
+        return ' '.join(final_list)
+
+    @dfr_sched_var
+    def alloc_min_ppn(self):
+        """Min ppn for this allocation."""
+        return self.get_data()['alloc_summary']['min_ppn']
+
+    @dfr_sched_var
+    def alloc_max_ppn(self):
+        """Max ppn for this allocation."""
+        return self.get_data()['alloc_summary']['max_ppn']
+
+    @dfr_sched_var
+    def alloc_min_mem(self):
+        """Min mem per node for this allocation. (in MiB)"""
+        return self.get_data()['alloc_summary']['min_mem']
+
+    @dfr_sched_var
+    def alloc_max_mem(self):
+        """Max mem per node for this allocation. (in MiB)"""
+        return self.get_data()['alloc_summary']['max_mem']
+
+    @dfr_sched_var
+    def alloc_cpu_total(self):
+        """Total CPUs across all nodes in this allocation."""
+        return self.get_data()['alloc_summary']['total_cpu']
+
+    @dfr_sched_var
+    def test_nodes(self):
+        """The number of nodes allocated for this test (may be less than the
+        total in this allocation)."""
+
+        num_nodes = self.test.config['slurm'].get('num_nodes')
+
+        _, nmax = num_nodes.split('-') if '-' in num_nodes else None, num_nodes
+
+        if nmax == 'all':
+            return self.alloc_nodes()
+        else:
+            return nmax
+
+    @dfr_sched_var
+    def test_procs(self):
+        """The number of processors to request for this test."""
+
+        alloc_nodes = self.get_data()['alloc_nodes'].values()
+        alloc_nodes.sort(lambda v: v['CPUTot'], reverse=True)
+
+        biggest_nodes = alloc_nodes[:int(self.test_nodes)]
+        return sum([n['CPUTot'] for n in biggest_nodes])
+
+    @dfr_sched_var
+    def test_cmd(self):
+        """Construct a cmd to run a process under this scheduler, with the
+        criteria specified by this test.
+        """
+
+        # Note that this is expected to become significantly more complicated
+        # as we add additional constraints.
+
+        cmd = ['srun',
+               '-N', self.test_nodes(),
+               '-n', self.test_procs()]
+
+        return ' '.join(cmd)
+
+
+class Slurm(SchedulerPlugin):
+
+    KICKOFF_SCRIPT_EXT = '.sbatch'
+
+    VAR_CLASS = SlurmVars
 
     def __init__(self):
         super().__init__(name='slurm', priority=10)
+
         self.node_data = None
 
-    def _get(self, var):
-        """Base method for getting variable values from the slurm scheduler."""
-        if var in ['down_nodes', 'unused_nodes', 'busy_nodes', 'maint_nodes',
-                   'other_nodes'] and \
-           self.values[var] is None:
-            # Retrieve the full list of nodes and their states.
-            sinfo = subprocess.check_output(['sinfo', '--noheader'
-                                             '-o "%20E %12U %19H %.6D %6t %N"']
-                                            ).decode('UTF-8').split('\n')
+    def get_conf(self):
+        return yc.KeyedElem(
+            self.name,
+            help_text="Configuration for the Slurm scheduler.",
+            elements=[
+                yc.StrElem(
+                    'num_nodes', default="1",
+                     help_text="Number of nodes requested for this test. "
+                               "This can be a range (e.g. 12-24)."),
+                yc.StrElem('tasks_per_node', default="1",
+                           help_text="Number of tasks to run per node."),
+                yc.StrElem(
+                    'mem_per_node',
+                    help_text="The minimum amount of memory required in GB. "
+                              "This can be a range (e.g. 64-128)."),
+                yc.StrElem(
+                    'partition', default="standard",
+                    help_text="The partition that the test should be run "
+                              "on."),
+                yc.StrElem('qos',
+                           help_text="The QOS that this test should use."),
+                yc.StrElem('account',
+                           help_text="The account that this test should run "
+                                     "under."),
+                yc.StrElem('reservation',
+                           help_text="The reservation that this test should "
+                                     "run under."),
+                yc.StrElem('time_limit',
+                           help_text="The time limit to specify for the slurm "
+                                     "job.  This can be a range (e.g. "
+                                     "00:02:00-01:00:00)."),
+                yc.StrElem(name='immediate',
+                           choices=['true', 'false'],
+                           default='false',
+                           help_text="If set to immediate, this test will fail "
+                                     "to kick off if the expected resources "
+                                     "aren't immediately available."),
+                yc.ListElem(name='avail_states',
+                            sub_elem=yc.StrElem(),
+                            defaults=['IDLE', 'MAINT'],
+                            help_text="When looking for immediately available "
+                                      "nodes, they must be in one of these "
+                                      "states."),
+                yc.ListElem(name='up_states',
+                            sub_elem=yc.StrElem(),
+                            defaults=['ALLOCATED',
+                                      'COMPLETING',
+                                      'IDLE',
+                                      'MAINT'],
+                            help_text="When looking for nodes that could be  "
+                                      "allocated, they must be in one of these "
+                                      "states."),
+                ])
 
-            # Lists to be populated with node names.
-            down_list = []
-            unused_list = []
-            busy_list = []
-            maint_list = []
-            other_list = []
-            prefix = ''
-            # Iterating through the lines of the sinfo output.
-            for line in sinfo:
-                line = line[1:-1]
-                items = line.split()
-                nodes = items[5]
-                node_list = []
+    def _get_data(self):
 
-                # If prefix hasn't been set, set it.
-                if prefix == '':
-                   for letter in nodes:
-                       if letter.isalpha():
-                           prefix.append(letter)
-                       else:
-                           break
+        data = dict()
 
-                # Strip the prefix from the node list
-                nodes = nodes[len(prefix):]
+        data['nodes'] = self._collect_node_data()
+        data['summary'] = self._make_summary(data['nodes'].values())
 
-                # Strip any extra zeros as well as any brackets from node list.
-                nzero = 0
-                if nodes[0] == '[' and nodes[-1] == ']':
-                    nodes = nodes[1:-1]
-                elif nodes[0] != '[' and nodes[-1] == ']':
-                    for char in nodes:
-                        if char == '[':
-                            break
-                        nzero += 1
-                    nodes = nodes[nzero+1:-1]
+        # Get additional information specific to just our allocation.
+        if self.in_alloc:
+            alloc_nodes = os.environ.get('SLURM_NODELIST')
 
-                # Split node list by individuals or ranges.
-                nodes = nodes.split(',')
+            data['alloc_nodes'] = self._collect_node_data(alloc_nodes)
+            data['alloc_summary'] = self._make_summary(alloc_nodes.values())
 
-                # Expand ranges to an explicit list of every node.
-                for node in nodes:
-                    if '-' in node:
-                        node_len = len(node.split('-')[0])
-                        for i in range(node.split('-')[0], node.split('-')[1]):
-                            node_list.append(prefix +
-                                                str(i).zfill(node_len + nzero))
-                    else:
-                        node_list.append(prefix + nzero + node)
+        return data
 
-                # Determine to which list this set of nodes belongs.
-                state = items[4]
-                if state[:3] == 'down' or state[:4] == 'drain' or
-                   state[:3] == 'drng':
-                    down_list.extend(node_list)
-                elif state[:4] == 'alloc' or state[:3] == 'resv':
-                    busy_list.extend(node_list)
-                elif state[:4] == 'maint':
-                    maint_list.extend(node_list)
-                elif state[:3] == 'idle':
-                    unused_list.extend(node_list)
-                else:
-                    other_list.extend(node_list)
+    FIELD_TYPES = {
+        'CPUTot': int,
+        'CPUAlloc': int,
+        'CPULoad': float,
+        # In MB
+        'RealMemory': int,
+        'AllocMemory': int,
+        'FreeMemory': int,
+        'Partitions': lambda s: s.split(','),
+        'AvailableFeatures': lambda s: s.split(','),
+        'ActiveFeatures': lambda s: s.split(','),
+    }
 
-            # Assign to related class-level variables.
-            self.values['down_nodes'] = down_list
-            self.values['unused_nodes'] = unused_list
-            self.values['busy_nodes'] = busy_list
-            self.values['maint_nodes'] = maint_list
-            self.values['other_nodes'] = other_list
+    def _collect_node_data(self, nodes=None):
+        """Use the `scontrol show node` command to collect data on nodes.
+        Types are converted according to self.FIELD_TYPES.
+        :param str nodes: The nodes to collect data on. If None, collect
+            data on all nodes. The format is slurm standard node list,
+            which can include compressed series eg 'n00[20-99],n0101'
+        :rtype: dict
+        :returns: A dict of node dictionaries."""
 
-        return self.values[var]
+        cmd = ['scontrol', 'show', 'node']
 
-    def _collect_data(self):
-        """Use the `scontrol show node` command to collect data on all
-           available nodes.  A class-level dictionary is being populated."""
-        sinfo = subprocess.check_output(
-                                  ['scontrol', 'show', 'node']).decode('UTF-8')
+        if nodes is not None:
+            cmd.append(nodes)
 
+        sinfo = subprocess.check_output(cmd)
+        sinfo = sinfo.decode('UTF-8')
+
+        node_data = {}
+
+        # Splits output by node record
         for node in sinfo.split('\n\n'):
             node_info = {}
+            # Splits each node's output by line
             for line in node.split('\n'):
-                if line.strip() != '' and item.strip()[:3] != 'OS=' and
-                   item.strip()[:7] != 'Reason=':
-                    for item in line.strip().split():
-                        node_info[item.split('=').strip()] =
-                                                      item.split('=').strip()
-                elif item.strip()[:3] == 'OS=' or
-                     item.strip()[:7] == 'Reason=':
-                    node_info[item.strip().split('=')[0]] =
-                                                   item.strip().split('=')[1]
-            self.node_data[node_info['NodeName']] = node_info
+                line = line.strip()
 
+                # Skip if the line is empty
+                if not line:
+                    continue
 
-    def check_request(self, partition='standard', state='IDLE', min_nodes=1,
-                       max_nodes=None, min_ppn=1, max_ppn=None, req_type=None):
+                # Skipping emtpy lines and lines that start with OS= and
+                # Reason= because those two instances use spaces.  For all
+                # others, dividing the record up into key-value pairs and
+                # storing in the dictionary for this node.
+                if not (line.startswith('OS=') or line.startswith('Reason=')):
+                    for item in line.split():
+                        key, value = item.split('=', 1)
+                        if key in self.FIELD_TYPES:
+                            value = self.FIELD_TYPES[key](value)
+                        node_info[key] = value
 
-        self._collect_data()
+                # For the OS= and Reason= lines, just don't split on spaces.
+                else:
+                    key, value = line.split('=', 1)
+                    node_info[key] = value
 
-        # Lists for internal uses
-        comp_nodes = []
-        partition_nodes = []
-        state_nodes = []
-        ppn_nodes = []
-        max_procs = 0
-        min_procs = None
-        max_avail = False
-        if max_nodes == 'all':
-            max_avail = True
+            # Store the result in a dictionary by node name with all info
+            # provided by sinfo in a dictionary.
+            node_data[node_info['NodeName']] = node_info
 
-        # Collect the list of nodes that are compute nodes.  Determined by
-        # whether or not they have the keys 'Partitions' and 'State'.
-        for node in list(self.node_data.keys()):
-            if 'Partitions' in list(self.node_data[node].keys()) and
-               'State' in list(self.node_data[node].keys()):
-                comp_nodes.append(node)
-                max_procs = max([max_procs, self.node_data['CPUTot']])
+        return node_data
 
-        if min_nodes > len(comp_nodes):
-            raise SchedulerPluginError('Insufficient compute nodes.')
+    def _make_summary(self, nodes):
+        """Get aggregate data about the given nodes. This includes:
+            - min_ppn - min procs per node
+            - max_ppn - max procs per node
+            - min_mem - min mem per node (in MiB)
+            - max_mem - min mem per node (in MiB)
+            - total_cpu - Total cpu's on these nodes.
+        :param typing.Iterable nodes: Node dictionaries as returned by
+        _collect_node_data.
+        :rtype: dict"""
 
-        # Set default maxes based on collected node lists.
-        if max_nodes is None or max_avail:
-            max_nodes = len(comp_nodes)
+        min_ppn = 0
+        max_ppn = 0
+        min_mem = 0
+        max_mem = 0
+        tot_cpu = 0
 
-        if max_ppn is None:
-            max_ppn = max_procs
+        data = dict()
+
+        for node in nodes:
+            # It's totally weird to start a max calculation from 0, but that
+            # should be the default in this case anyway.
+            if min_ppn == 0 or node['CPUTot'] < min_ppn:
+                min_ppn = node['CPUTot']
+
+            max_ppn = node['CPUTot'] if node['CPUTot'] > max_ppn else max_ppn
+
+            tot_cpu += node['CPUTot']
+
+            if min_mem == 0 or node['RealMemory'] < min_mem:
+                min_mem = node['RealMemory']
+
+            if node['RealMemory'] > max_mem:
+                max_mem = node['RealMemory']
+
+        data['min_ppn'] = min_ppn
+        data['max_ppn'] = max_ppn
+        data['min_mem'] = min_mem
+        data['max_mem'] = max_mem
+        data['total_cpu'] = tot_cpu
+
+        return data
+
+    def _filter_nodes(self, min, config, nodes):
+        """Filter the system nodes down to just those we can use. For each step,
+        we check to make sure we still have the minimum nodes needed in order
+        to give more relevant errors.
+
+        :param int min: The minimum number of nodes desired. This will
+        :param dict config: The scheduler config for a test.
+        :param [dict] nodes: Nodes (as defined by collect node data)
+        :returns: A list of node names that are compatible with the given
+        config.
+        :rtype: list
+        """
+
+        # Remove any nodes that aren't compute nodes.
+        nodes = list(filter(lambda n: 'Partitions' in n and 'State' in n,
+                            nodes))
+
+        # Remove nodes that aren't up.
+        up_states = config['up_states']
+        nodes = list(filter(lambda n: n['State'] in up_states, nodes))
+        if min > len(nodes):
+            raise SchedulerPluginError("Insufficient nodes in up states: {}"
+                                       .format(up_states))
 
         # Check for compute nodes that are part of the right partition.
-        for node in list(self.node_data.keys()):
-            if partition in self.node_data[node]['Partitions']:
-                partition_nodes.append(node)
+        partition = config['partition']
+        nodes = list(filter(lambda n: partition in n['Partitions'], nodes))
 
-        if min_nodes > len(partition_nodes):
-            raise SchedulerPluginError('Insufficient nodes in partition ' + \
+        if min > len(nodes):
+            raise SchedulerPluginError('Insufficient nodes in partition '
                                        '{}.'.format(partition))
 
-        if req_type == 'immediate':
+        if config['immediate'] == 'true':
+            states = config['avail_states']
             # Check for compute nodes in this partition in the right state.
-            for node in partition_nodes:
-                if state in self.node_data[node]['State']
-                    state_nodes.append(node)
-    
-            if min_nodes > len(state_nodes):
-                raise SchedulerPluginError('Insufficient nodes in partition'+\
-                                           ' {} and state {}.'.format(
-                                                              patition, state))
+            nodes = list(filter(lambda n: n['State'] in states, nodes))
 
-            # Check that compute nodes in the right partition and state have
-            # enough processors to match the requirements.
-            for node in state_nodes:
-                if self.node_data[node]['CPUTot'] >= min_ppn and
-                   self.node_data[node]['CPUTot'] <= max_ppn:
-                    ppn_nodes.append(node)
-        elif req_type == 'wait':
-            for node in partition_nodes:
-                if self.node_data[node]['CPUTot'] >= min_ppn and
-                   self.node_data[node]['CPUTot'] <= max_ppn:
-                    ppn_nodes.append(node)
-        else:
-            raise SchedulerPluginError("Request type {} ".format(req_type)+\
-                                       "not recognized.")
-    
-        if min_nodes > len(ppn_nodes):
-            raise SchedulerPluginError
+            if min > len(nodes):
+                raise SchedulerPluginError('Insufficient nodes in partition'
+                                           ' {} and states {}.'
+                                           .format(partition, states))
 
-        if len(ppn_nodes) >= max_nodes:
-            num_nodes = max_nodes
-        else:
-            num_nodes = ppn_nodes
+        tasks_per_node = config.get('tasks_per_node')
+        # When we want all the CPUs, it doesn't matter how many are on a node.
+        tasks_per_node = 0 if tasks_per_node == 'all' else int(tasks_per_node)
+        nodes = list(filter(lambda n: tasks_per_node <= n['CPUTot'], nodes))
 
-        max_procs = 0
-        for node in ppn_nodes:
-            if min_procs is None:
-                min_procs = self.node_data[node]['CPUTot']
-            else:
-                min_procs = min(min_procs, self.node_data[node]['CPUTot']
-            max_procs = max(max_procs, self.node_data[node]['CPUTot'])
+        if min > len(nodes):
+            raise SchedulerPluginError('Insufficient nodes with more than {} '
+                                       'procs per node available.'
+                                       .format(tasks_per_node))
 
-        if ppn_min > max_procs:
-            raise SchedulerPluginError('Too many processors requested.')
-        elif ppn_max < min_procs:
-            num_procs = ppn_max
-        elif max_procs < ppn_max:
-            num_procs = max_procs
+        return nodes
 
-        return (num_nodes, num_procs)
+    def _in_alloc(self):
+        """Check if we're in an allocation."""
 
-    def get_script_headers(self, partition=None, reservation=None, qos=None,
-                           account=None, num_nodes=None, ppn=None,
-                           time_limit=None):
-        """Function to accept a series of job submission resource requests and
-           return a list of lines to go in a submission script.
-        """
-        line_list = []
-        if partition is None:
-            partition = 'standard'
-
-        check_partition(partition)
-
-        if not subprocess.check_call(['scontrol', 'show', 'partition',
-                                                                   partition]):
-            raise SchedulerPluginError('Partition {} not found.'.format(
-                                                                    partition))
-
-        line_list.append('#SBATCH -p {}'.format(partition))
-
-        if reservation is not None:
-            if not check_reservation(reservation):
-                raise SchedulerPluginError('Reservation {} not found.'.format(
-                                                                  reservation))
-            else:
-                line_list.append('#SBATCH --reservation={}'.format(
-                                                                  reservation))
-
-        if qos is not None:
-            line_list.append('#SBATCH -q {}'.format(qos))
-
-        if account is not None:
-            line_list.append('#SBATCH --account={}'.format(account))
-
-        if num_nodes is None:
-            raise SchedulerPluginError('A number of nodes must be provided.')
-
-        line_list.append('#SBATCH -N {}'.format(num_nodes))
-
-        if ppn is not None:
-            line_list.append('#SBATCH --ntasks-per-node={}'.format(ppn))
-
-        if time_limit is not None:
-            line_list.append('#SBATCH -t {}'.format(time_limit))
-
-        return line_list
+        return 'SLURM_JOBID' in os.environ
 
     def submit_job(self, path):
-        if os.isfile(path):
-            job_id = subprocess.check_output(['sbatch', path]
-                                          ).decode('UTF-8').strip().split()[-1]
+        """Submit the kick off script using sbatch."""
+
+        if os.path.isfile(path):
+            job_id = subprocess.check_output(['sbatch', path])
+            job_id = job_id.decode('UTF-8').strip().split()[-1]
         else:
             raise SchedulerPluginError('Submission script {}'.format(path)+\
                                        ' not found.')
-
         return job_id
 
     def check_job(self, id, key=None):
         job_dict = {}
         try:
-            job_output = subprocess.check_output(['scontrol', 'show', 'job',
-                         id]).decode('UTF-8').split()
+            job_output = subprocess.check_output(
+                ['scontrol', 'show', 'job', id])
+            job_output = job_output.decode('UTF-8').split()
             for item in job_output:
                 key, value = item.split('=')
                 job_dict[key] = value
@@ -285,7 +447,7 @@ class Slurm(scheduler_plugins.SchedulerPlugin):
         pend_list = ['PENDING']
         finish_list = ['COMPLETED']
         fail_list = ['BOOT_FAIL', 'FAILED', 'DEADLINE', 'NODE_FAIL',
-                      'PREEMPTED', 'OUT_OF_MEMORY', 'TIMEOUT']
+                     'PREEMPTED', 'OUT_OF_MEMORY', 'TIMEOUT']
 
         if key == 'JobState':
             if value in run_list:
@@ -303,21 +465,64 @@ class Slurm(scheduler_plugins.SchedulerPlugin):
         return ret_val
 
     def check_reservation(self, res_name):
+        cmd = ['scontrol', 'show', 'reservation', res_name]
         try:
-            subprocess.check_call(['scontrol', 'show', 'reservation',
-                                                                    res_name]):
+            subprocess.check_call(cmd, stdout=subprocess.DEVNULL,
+                                  stderr=subprocess.DEVNULL)
             return True
         except subprocess.CalledProcessError:
             return False
 
-    def check_partition(self, partition):
-        try:
-            subprocess.check_call(['scontrol', 'show', 'partition', partition])
-        except subprocess.CalledProcessError:
-            raise SchedulerPluginError('Partition {} not found.'.format(
-                                                                    partition))
+    def _get_kick_off_header(self, test):
+        """Get the kickoff header. Most of the work here """
 
-    def kick_off(self, partition=None, reservation=None, qos=None,
-                 account=None, num_nodes=None, ppn=None, time_limit=None,
-                 line_list=None):
-        sbatch_script = scriptcomposer.ScriptComposer()
+        sched_config = test.config.get(self.name)
+
+        nodes = self.get_data()['nodes']
+
+        return SbatchHeader(sched_config,
+                            self._get_node_range(sched_config, nodes),
+                            test.id)
+
+    def _get_node_range(self, sched_config, nodes):
+        """Translate user requests for a number of nodes into a numerical
+        range based on the number of nodes on the actual system.
+        :param dict sched_config: The scheduler config for a particular test.
+        :returns: A range suitable for the num_nodes argument of slurm."""
+
+        # Figure out the requested number of nodes
+        num_nodes = sched_config.get('num_nodes')
+        min_all = False
+        if '-' in num_nodes:
+            min_nodes, max_nodes = num_nodes.split()
+
+            if min_nodes == 'all':
+                # We'll translate this to something else in a bit.
+                min_nodes = '1'
+                min_all = True
+        else:
+            min_nodes = max_nodes = num_nodes
+
+        try:
+            min_nodes = int(min_nodes)
+        except ValueError:
+            raise SchedulerPluginError(
+                "Invalid num_nodes minimum value: {}"
+                .format(min_nodes))
+
+        nodes = self._filter_nodes(min_nodes, sched_config, nodes)
+
+        if min_all:
+            min_nodes = len(nodes)
+
+        if max_nodes == 'all':
+            max_nodes = len(nodes)
+        else:
+            try:
+                max_nodes = int(max_nodes)
+            except ValueError:
+                raise SchedulerPluginError(
+                    "Invalid num_nodes maximum value: {}".format(max_nodes))
+
+        return '{}-{}'.format(min_nodes, max_nodes)
+

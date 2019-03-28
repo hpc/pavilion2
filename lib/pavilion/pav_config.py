@@ -62,8 +62,9 @@ import logging
 LOGGER = logging.getLogger('pavilion.' + __file__)
 
 
-def group_validate(sibs, group):
-    """Make sure the group specified in the config exists and the user is in it."""
+def group_validate(_, group):
+    """Make sure the group specified in the config exists and the user is
+    in it."""
 
     if group is None:
         return
@@ -71,16 +72,19 @@ def group_validate(sibs, group):
     try:
         gid = grp.getgrnam(group)
     except KeyError:
-        raise ValueError("Group {} is not known on host {}.".format(group, socket.gethostname()))
+        raise ValueError("Group {} is not known on host {}."
+                         .format(group, socket.gethostname()))
 
     if gid not in os.getgroups():
-        raise ValueError("Group {} is not in the current user's list of groups.".format(group))
+        raise ValueError("Group {} is not in the current user's list of "
+                         "groups.".format(group))
 
     return group
 
 
-def log_level_validate(sibs, level):
-    """Convert a text log level into a level from the logging module, and validate the levels."""
+def log_level_validate(_, level):
+    """Convert a text log level into a level from the logging module, and
+    validate the levels."""
 
     level = level.lower()
     if level == 'debug':
@@ -106,6 +110,9 @@ if 'HOME' in os.environ:
 else:
     USER_HOME_PAV = None
 
+# Include the pavilion source directory.
+PAV_CONFIG_SEARCH_DIRS.append(os.path.dirname(__file__))
+
 if 'PAV_CONFIG_DIR' in os.environ:
     PAV_CONFIG_SEARCH_DIRS.append(os.environ['PAV_CONFIG_DIR'])
 
@@ -120,55 +127,76 @@ pav_root = dirname(dirname(dirname(os.path.realpath(__file__))))
 
 class PavilionConfigLoader(yc.YamlConfigLoader):
 
-    # Each and every configuration element needs to either not be required, or have a sensible
-    # default. Essentially, Pavilion needs to work if no config is given.
+    # Each and every configuration element needs to either not be required,
+    # or have a sensible default. Essentially, Pavilion needs to work if no
+    # config is given.
     ELEMENTS = [
-        yc.ListElem("config_dirs", defaults=PAV_CONFIG_SEARCH_DIRS,
-                    sub_elem=yc.StrElem(),
-                    help_text="Paths to search for Pavilion config files. Pavilion configs (other"
-                              "than this core config) are searched for in the given order. In the "
-                              "case of identically named files, directories listed earlier take "
-                              "precedent."),
-        yc.StrElem('working_dir', default=USER_HOME_PAV,
-                   help_text="Where pavilion puts it's run files, downloads, etc."),
-        yc.ListElem("disable_plugins", sub_elem=yc.StrElem(),
-                    help_text="Allows you to disable plugins by '<type>.<name>'. For example,"
-                              "'module.gcc' would disable the gcc module wrapper."),
-        yc.StrElem("shared_group", post_validator=group_validate,
-                   help_text="Pavilion can automatically set group permissions on all created "
-                             "files, so that users can share relevant results, etc."),
-        yc.StrElem("umask", default="0002",
-                   help_text="The umask to apply to all files created by pavilion. This should"
-                             "be in the format needed by the umask shell command."),
-        yc.StrElem("log_format", default="%{asctime}, ${levelname}, ${name}: ${message}",
-                   help_text="The log format to use for the pavilion logger. See: "
-                             "https://docs.python.org/3/library/logging.html#logrecord-attributes"),
-        yc.StrElem("log_level", default="info", post_validator=log_level_validate,
-                   help_text="The minimum log level for messages sent to the pavilion logfile."),
-        yc.CategoryElem("proxies", sub_elem=yc.StrElem(),
-                        help_text="Proxies, by protocol, to use when accessing the internet. "
-                                  "Eg: http: 'http://myproxy.myorg.org:8000'"),
-        yc.ListElem("no_proxy", sub_elem=yc.StrElem(),
-                    help_text="A list of DNS suffixes to ignore for proxy purposes. For example: "
-                              "'blah.com' would match 'www.blah.com', but not 'myblah.com'."),
+        yc.ListElem(
+            "config_dirs",
+            defaults=PAV_CONFIG_SEARCH_DIRS,
+            sub_elem=yc.StrElem(),
+            help_text="Paths to search for Pavilion config files. Pavilion "
+                      "configs (other than this core config) are searched for "
+                      "in the given order. In the case of identically named "
+                      "files, directories listed earlier take precedent."),
+        yc.StrElem(
+            'working_dir', default=USER_HOME_PAV,
+            help_text="Where pavilion puts it's run files, downloads, etc."),
+        yc.ListElem(
+            "disable_plugins", sub_elem=yc.StrElem(),
+            help_text="Allows you to disable plugins by '<type>.<name>'. For "
+                      "example, 'module.gcc' would disable the gcc module "
+                      "wrapper."),
+        yc.StrElem(
+            "shared_group", post_validator=group_validate,
+            help_text="Pavilion can automatically set group permissions on all "
+                      "created files, so that users can share relevant "
+                      "results, etc."),
+        yc.StrElem(
+            "umask", default="0002",
+            help_text="The umask to apply to all files created by pavilion. "
+                      "This should be in the format needed by the umask shell "
+                      "command."),
+        yc.StrElem(
+            "log_format",
+            default="%{asctime}, ${levelname}, ${name}: ${message}",
+            help_text="The log format to use for the pavilion logger. See: "
+                      "https://docs.python.org/3/library/logging.html#"
+                      "logrecord-attributes"),
+        yc.StrElem(
+            "log_level", default="info", post_validator=log_level_validate,
+            help_text="The minimum log level for messages sent to the pavilion "
+                      "logfile."),
+        yc.CategoryElem(
+            "proxies", sub_elem=yc.StrElem(),
+            help_text="Proxies, by protocol, to use when accessing the "
+                      "internet. Eg: http: 'http://myproxy.myorg.org:8000'"),
+        yc.ListElem(
+            "no_proxy", sub_elem=yc.StrElem(),
+            help_text="A list of DNS suffixes to ignore for proxy purposes. "
+                      "For example: 'blah.com' would match 'www.blah.com', but "
+                      "not 'myblah.com'."),
 
-        # The following configuration items are for internal use and provide a convenient way
-        # to pass around core pavilion components or data.
-        # They are not intended to be set by the user, and will generally be overwritten
-        # without even checking for user provided values.
-        yc.StrElem('pav_root', default=pav_root, hidden=True,
-                   help_text="The root directory of the pavilion install. This shouldn't be "
-                             "set by the user."),
-        yc.KeyedElem('sys_vars', elements=[], hidden=True, default={},
-                     help_text="This will contain the system variable dictionary."),
-        yc.KeyedElem('pav_vars', elements=[], hidden=True, default={},
-                     help_text="This will contain the pavilion variable dictionary."),
+        # The following configuration items are for internal use and provide a
+        # convenient way to pass around core pavilion components or data.
+        # They are not intended to be set by the user, and will generally be
+        # overwritten without even checking for user provided values.
+        yc.StrElem(
+            'pav_root', default=pav_root, hidden=True,
+            help_text="The root directory of the pavilion install. This "
+                      "shouldn't be set by the user."),
+        yc.KeyedElem(
+            'sys_vars', elements=[], hidden=True, default={},
+            help_text="This will contain the system variable dictionary."),
+        yc.KeyedElem(
+            'pav_vars', elements=[], hidden=True, default={},
+            help_text="This will contain the pavilion variable dictionary."),
     ]
 
 
 def find():
-    """Search for a pavilion.yaml configuration file. The first one found is used.
-    Directories are searched in this order: {}
+    """Search for a pavilion.yaml configuration file. The first one found is 
+    used. Directories are searched in this order: {}
     """.format(PAV_CONFIG_SEARCH_DIRS)
 
     for config_dir in PAV_CONFIG_SEARCH_DIRS:
@@ -178,7 +206,9 @@ def find():
                 # Parse and load the configuration.
                 return PavilionConfigLoader().load(open(path))
             except Exception as err:
-                raise RuntimeError("Error in Pavilion config at {}: {}".format(path, err))
+                raise RuntimeError("Error in Pavilion config at {}: {}"
+                                   .format(path, err))
 
-    LOGGER.warning("Could not find a pavilion config file. Using an empty/default config.")
+    LOGGER.warning("Could not find a pavilion config file. Using an "
+                   "empty/default config.")
     return PavilionConfigLoader().load_empty()
