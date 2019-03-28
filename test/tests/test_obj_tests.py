@@ -38,9 +38,6 @@ class PavTestTests(unittest.TestCase):
 
         super().__init__(*args, **kwargs)
 
-    def setUp(self):
-        pass
-
     def test_obj(self):
         """Test pavtest object initialization."""
 

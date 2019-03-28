@@ -166,67 +166,66 @@ class Slurm(SchedulerPlugin):
 
     KICKOFF_SCRIPT_EXT = '.sbatch'
 
-    META_VAR_CLASS = SlurmVars
+    VAR_CLASS = SlurmVars
 
     def __init__(self):
         super().__init__(name='slurm', priority=10)
 
         self.node_data = None
 
-    def activate(self):
-        """Specify the configuration details for the test configs."""
-
-        self.conf = yc.KeyedElem(self.name, elements=[
-            yc.StrElem('num_nodes', default="1",
-                       help_text="Number of nodes requested for this test. "
-                                 "This can be a range (e.g. 12-24)."),
-            yc.StrElem('tasks_per_node', default="1",
-                       help_text="Number of tasks to run per node."),
-            yc.StrElem('mem_per_node',
-                       help_text="The minimum amount of memory required in GB. "
-                                 "This can be a range (e.g. 64-128)."),
-            yc.StrElem('partition', default="standard",
-                       help_text="The partition that the test should be run "
-                                 "on."),
-            yc.StrElem('qos',
-                       help_text="The QOS that this test should run under."),
-            yc.StrElem('account',
-                       help_text="The account that this test should run "
-                                 "under."),
-            yc.StrElem('reservation',
-                       help_text="The reservation that this test should run "
-                                 "under."),
-            yc.StrElem('time_limit',
-                       help_text="The time limit to specify for the slurm "
-                                 "job.  This can be a range (e.g. "
-                                 "00:02:00-01:00:00)."),
-            yc.StrElem(name='immediate',
-                       choices=['true', 'false'],
-                       default='false',
-                       help_text="If set to immediate, this test will fail to "
-                                 "kick off if the expected resources aren't "
-                                 "immediately available."),
-            yc.ListElem(name='avail_states',
-                        sub_elem=yc.StrElem(),
-                        default=['IDLE', 'MAINT'],
-                        help_text="When looking for immediately available "
-                                  "nodes, they must be in one of these "
-                                  "states."),
-            yc.ListElem(name='up_states',
-                        sub_elem=yc.StrElem(),
-                        default=['ALLOCATED',
-                                 'COMPLETING',
-                                 'IDLE',
-                                 'MAINT'],
-                        help_text="When looking for nodes that could be  "
-                                  "allocated, they must be in one of these "
-                                  "states."),
-            ],
-            help_text="Configuration for the Slurm scheduler.")
-
-        config_format.TestConfigLoader.add_subsection(self.conf)
-
-        super().activate()
+    def get_conf(self):
+        return yc.KeyedElem(
+            self.name,
+            help_text="Configuration for the Slurm scheduler.",
+            elements=[
+                yc.StrElem(
+                    'num_nodes', default="1",
+                     help_text="Number of nodes requested for this test. "
+                               "This can be a range (e.g. 12-24)."),
+                yc.StrElem('tasks_per_node', default="1",
+                           help_text="Number of tasks to run per node."),
+                yc.StrElem(
+                    'mem_per_node',
+                    help_text="The minimum amount of memory required in GB. "
+                              "This can be a range (e.g. 64-128)."),
+                yc.StrElem(
+                    'partition', default="standard",
+                    help_text="The partition that the test should be run "
+                              "on."),
+                yc.StrElem('qos',
+                           help_text="The QOS that this test should use."),
+                yc.StrElem('account',
+                           help_text="The account that this test should run "
+                                     "under."),
+                yc.StrElem('reservation',
+                           help_text="The reservation that this test should "
+                                     "run under."),
+                yc.StrElem('time_limit',
+                           help_text="The time limit to specify for the slurm "
+                                     "job.  This can be a range (e.g. "
+                                     "00:02:00-01:00:00)."),
+                yc.StrElem(name='immediate',
+                           choices=['true', 'false'],
+                           default='false',
+                           help_text="If set to immediate, this test will fail "
+                                     "to kick off if the expected resources "
+                                     "aren't immediately available."),
+                yc.ListElem(name='avail_states',
+                            sub_elem=yc.StrElem(),
+                            defaults=['IDLE', 'MAINT'],
+                            help_text="When looking for immediately available "
+                                      "nodes, they must be in one of these "
+                                      "states."),
+                yc.ListElem(name='up_states',
+                            sub_elem=yc.StrElem(),
+                            defaults=['ALLOCATED',
+                                      'COMPLETING',
+                                      'IDLE',
+                                      'MAINT'],
+                            help_text="When looking for nodes that could be  "
+                                      "allocated, they must be in one of these "
+                                      "states."),
+                ])
 
     def _get_data(self):
 

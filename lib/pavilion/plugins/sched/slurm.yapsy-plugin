@@ -1,0 +1,9 @@
+[Core]
+Name = Slurm Scheduler
+Module = slurm
+
+[Documentation]
+Description = Slurm scheduler wrapper.
+Author = Nicholas Sly/Paul Ferrell
+Version = 1.0
+Website =

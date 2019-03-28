@@ -16,6 +16,7 @@ from pavilion import variables
 
 LOGGER = logging.getLogger(__name__)
 
+
 class PluginTests(unittest.TestCase):
 
     TEST_DATA_ROOT = os.path.join(
@@ -175,11 +176,11 @@ class PluginTests(unittest.TestCase):
         plugins._reset_plugins()
         # Make sure these have been wiped
         self.assertIsNone(system_plugins._LOADED_PLUGINS)
+        # Make sure these have been wiped.
+        self.assertIsNone(system_plugins._SYS_VAR_DICT)
 
         plugins.initialize_plugins(pav_cfg)
 
-        # Make sure these have been wiped.
-        self.assertIsNone(system_plugins._SYS_VAR_DICT)
         # but these are back
         self.assertIsNotNone(system_plugins._LOADED_PLUGINS)
 

@@ -58,6 +58,13 @@ def symlink_copy(src, dst):
     return os.symlink(src, dst)
 
 
+def dprint(*args, **kwargs):
+    """Print with pretty colors, so it's easy to find."""
+    args = ['\x1b[33m'] + list(args) + ['\x1b[0m']
+
+    return print(*args, **kwargs)
+
+
 def fix_permissions(pav_cfg, path):
     # Recursively the fix permissions of the given path such that both the group and owner
     # have read

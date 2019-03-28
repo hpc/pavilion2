@@ -2,7 +2,7 @@ from yapsy import PluginManager
 from pavilion.module_wrapper import ModuleWrapper
 from pavilion.commands import Command
 from pavilion.system_plugins import SystemPlugin as System
-from pavilion.scheduler_plugins import SchedulerPlugin as Scheduler
+from pavilion.scheduler_plugins import SchedulerPlugin
 import os
 import logging
 
@@ -14,7 +14,7 @@ PLUGIN_CATEGORIES = {
     'module': ModuleWrapper,
     'command': Command,
     'sys': System,
-    'sched': Scheduler,
+    'sched': SchedulerPlugin,
     # result plugins
 }
 

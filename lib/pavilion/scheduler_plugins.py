@@ -1,5 +1,6 @@
 from pavilion.variables import DeferredVariable
 from pavilion import scriptcomposer
+from pavilion import config_format
 from yapsy import IPlugin
 from functools import wraps
 import collections
@@ -14,7 +15,7 @@ class SchedulerPluginError(RuntimeError):
     pass
 
 
-_SCHED_PLUGINS = None
+_SCHEDULER_PLUGINS = None
 
 
 def sched_var(func):
@@ -214,46 +215,14 @@ class SchedulerVariables(collections.UserDict):
         return mem_num/self.BYTE_SIZE_UNITS[mem_unit]
 
 
-def _reset_plugins():
+def __reset():
     """This exists for testing purposes only."""
 
     global _SCHEDULER_PLUGINS
 
     if _SCHEDULER_PLUGINS is not None:
-        for key in list(_SCHEDULER_PLUGINS.keys()):
-            remove_scheduler_plugin(key)
-
-
-def add_scheduler_plugin(plugin):
-    global _SCHEDULER_PLUGINS
-    global _SCHED_PLUGINS
-    name = plugin.name
-
-    if _SCHED_PLUGINS is None:
-        _SCHED_PLUGINS = {}
-
-    if name not in _SCHED_PLUGINS:
-        _SCHED_PLUGINS[name] = plugin
-    else:
-        ex_plugin = _SCHED_PLUGINS[name]
-        if ex_plugin.priority > plugin.priority:
-            LOGGER.warning(
-                "Scheduler plugin {} ignored due to priority"
-                .format(name))
-        elif ex_plugin.priority == plugin.priority:
-            raise SchedulerPluginError(
-                "Two plugins for the same system plugin have the same priority "
-                "{}, {}.".format(plugin, _SCHED_PLUGINS[name]))
-        else:
-            _SCHED_PLUGINS[name] = plugin
-
-
-def remove_scheduler_plugin(scheduler_plugin):
-    global _SCHEDULER_PLUGINS
-    name = scheduler_plugin.name
-
-    if name in _SCHEDULER_PLUGINS:
-        del _SCHEDULER_PLUGINS[name]
+        for plugin in list(_SCHEDULER_PLUGINS.values()):
+            plugin.deactivate()
 
 
 def get_scheduler_plugin(name):
@@ -261,22 +230,22 @@ def get_scheduler_plugin(name):
     :param str name: The name of the scheduler plugin.
     :rtype: SchedulerPlugin
     """
-    global _SCHED_PLUGINS
+    global _SCHEDULER_PLUGINS
 
-    if _SCHED_PLUGINS is None:
+    if _SCHEDULER_PLUGINS is None:
         raise SchedulerPluginError("No scheduler plugins loaded.")
 
-    if name not in _SCHED_PLUGINS:
+    if name not in _SCHEDULER_PLUGINS:
         raise SchedulerPluginError("Module not found: '{}'".format(name))
 
-    return _SCHED_PLUGINS[name]
+    return _SCHEDULER_PLUGINS[name]
 
 
 def list_scheduler_plugins():
-    if _SCHED_PLUGINS is None:
+    if _SCHEDULER_PLUGINS is None:
         raise SchedulerPluginError("Scheduler Plugins aren't loaded.")
 
-    return _SCHED_PLUGINS.keys()
+    return _SCHEDULER_PLUGINS.keys()
 
 
 class SchedulerPlugin(IPlugin.IPlugin):
@@ -301,7 +270,6 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
         super().__init__()
 
-        self.conf = None
         self.logger = logging.getLogger('sched.' + name)
         self.name = name
         self.priority = priority
@@ -328,6 +296,12 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
     def _in_alloc(self):
         """The plugin specific implementation of 'in_alloc'."""
+
+        raise NotImplementedError
+
+    def get_conf(self):
+        """Return the configuration object suitable for adding to the test
+        configuration."""
 
         raise NotImplementedError
 
@@ -471,14 +445,35 @@ class SchedulerPlugin(IPlugin.IPlugin):
            that allocation."""
 
     def activate(self):
-        """Add this plugin to the system plugin list."""
-        add_scheduler_plugin(self)
+        """Add this plugin to the scheduler plugin list."""
+
+        global _SCHEDULER_PLUGINS
+        name = self.name
+
+        if _SCHEDULER_PLUGINS is None:
+            _SCHEDULER_PLUGINS = {}
+
+        if name not in _SCHEDULER_PLUGINS:
+            _SCHEDULER_PLUGINS[name] = self
+            config_format.TestConfigLoader.add_subsection(self.get_conf())
+        else:
+            ex_plugin = _SCHEDULER_PLUGINS[name]
+            if ex_plugin.priority > self.priority:
+                LOGGER.warning(
+                    "Scheduler plugin {} ignored due to priority"
+                        .format(name))
+            elif ex_plugin.priority == self.priority:
+                raise SchedulerPluginError(
+                    "Two plugins for the same system plugin have the same "
+                    "priority {}, {}.".format(self, _SCHEDULER_PLUGINS[name]))
+            else:
+                _SCHEDULER_PLUGINS[name] = self
 
     def deactivate(self):
-        """Remove this plugin from the system plugin list."""
-        remove_scheduler_plugin(self)
+        """Remove this plugin from the scheduler plugin list."""
+        global _SCHEDULER_PLUGINS
+        name = self.name
 
-    def __reset():
-        """Remove this plugin and its changes."""
-        self.values = None
-        self.deactivate()
+        if name in _SCHEDULER_PLUGINS:
+            config_format.TestConfigLoader.remove_subsection(name)
+            del _SCHEDULER_PLUGINS[name]

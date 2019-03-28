@@ -471,6 +471,15 @@ class PavTest:
             self.status.set(STATES.BUILD_DONE, "Build completed successfully.")
             return True
 
+    TAR_SUBTYPES = (
+        'gzip',
+        'x-gzip',
+        'x-bzip2',
+        'x-xz',
+        'x-tar',
+        'x-lzma',
+    )
+
     def _setup_build_dir(self, build_path):
         """Setup the build directory, by extracting or copying the source and any extra files.
         :param build_path: Path to the intended build directory.
@@ -506,18 +515,19 @@ class PavTest:
             # archive, below.
             category, subtype = utils.get_mime_type(src_path)
             comp_lib = None
-            if category == 'application' and \
-                    subtype in ('gzip', 'x-bzip2', 'x-xz', 'x-tar', 'x-lzma'):
 
+            if category == 'application' and subtype in self.TAR_SUBTYPES:
                 if tarfile.is_tarfile(src_path):
                     try:
                         with tarfile.open(src_path, 'r') as tar:
                             # Filter out all but the top level items.
-                            top_level = [m for m in tar.members if '/' not in m.name]
-                            # If the file contains only a single directory, make that directory the
-                            # build directory. This should be the default in most cases.
+                            top_level = [m for m in tar.members
+                                         if '/' not in m.name]
+                            # If the file contains only a single directory,
+                            # make that directory the build directory. This
+                            # should be the default in most cases.
                             if len(top_level) == 1 and top_level[0].isdir():
-                                tmpdir = '{}.tmp'.format(build_path)
+                                tmpdir = '{}.zip'.format(build_path)
                                 os.mkdir(tmpdir)
                                 tar.extractall(tmpdir)
                                 os.rename(os.path.join(tmpdir, top_level[0].name), build_path)
@@ -532,19 +542,24 @@ class PavTest:
                                            .format(src_path, build_path, err))
 
                 else:
-                    # If it's a compressed file but isn't a tar, extract the file into the build
-                    # directory.
-                    # All the python compression libraries have the same basic interface, so we can
-                    # just dynamically switch between modules.
-                    if subtype == 'gzip':
+                    # If it's a compressed file but isn't a tar, extract the
+                    # file into the build directory.
+                    # All the python compression libraries have the same basic
+                    # interface, so we can just dynamically switch between
+                    # modules.
+                    if subtype in ('gzip', 'x-gzip'):
                         comp_lib = gzip
                     elif subtype == 'x-bzip2':
                         comp_lib = bz2
                     elif subtype in ('x-xz', 'x-lzma'):
                         comp_lib = lzma
                     elif subtype == 'x-tar':
-                        raise PavTestError("Test src file '{}' is a bad tar file."
-                                           .format(src_path))
+                        raise PavTestError(
+                            "Test src file '{}' is a bad tar file."
+                            .format(src_path))
+                    else:
+                        raise RuntimeError("Unhandled compression type. '{}'"
+                                           .format(subtype))
 
                     decomp_fn = src_path.split('/')[-1].split('.', 1)[0]
                     decomp_fn = os.path.join(build_path, decomp_fn)
@@ -555,9 +570,10 @@ class PavTest:
                                 open(decomp_fn, 'wb') as outfile:
                             shutil.copyfileobj(infile, outfile)
                     except (OSError, IOError, lzma.LZMAError) as err:
-                        raise PavTestError("Error decompressing compressed file "
-                                           "'{}' into '{}': {}"
-                                           .format(src_path, decomp_fn, err))
+                        raise PavTestError(
+                            "Error decompressing compressed file "
+                            "'{}' into '{}': {}"
+                            .format(src_path, decomp_fn, err))
 
             elif category == 'application' and subtype == 'zip':
                 try:

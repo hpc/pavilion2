@@ -1,4 +1,6 @@
-from pavilion import pav_test
+from pavilion import plugins
+from pavilion import pav_config
+from pavilion import scheduler_plugins
 import datetime
 import os
 import subprocess
@@ -24,10 +26,25 @@ def has_slurm():
 
 class SlurmTests(unittest.TestCase):
 
+    def __init__(self, *args, **kwargs):
+
+        super().__init__(*args, **kwargs)
+
+        # Do a default pav config, which will load from
+        # the pavilion lib path.
+        self.pav_config = pav_config.PavilionConfigLoader().load_empty()
+
+    def setUp(self):
+
+        plugins.initialize_plugins(self.pav_config)
+
+    def tearDown(self):
+
+        plugins._reset_plugins()
+
     @unittest.skipIf(not has_slurm(), "Only runs on a system with slurm.")
     def test_vars(self):
         """Make sure all the slurm scheduler variable methods work when
         not on a node."""
 
-        self.assertFalse(True)
-
+        scheduler_plugins.get_scheduler_plugin('slurm')
