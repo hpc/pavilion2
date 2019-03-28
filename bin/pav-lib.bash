@@ -209,11 +209,8 @@ function construct_mod_list {
 #
 # Output:
 #   stdout - Prints the version number of the given module that is loaded. If the module
-#            has no version, prints an empty string.
-#
-# Exit Values:
-#   0 - Module is loaded, and was printed.
-#   1 - Module is not loaded.
+#            has no version, prints an empty string. Print '<none>' if no loaded version was
+#            found.
 function module_loaded_version() {
     if [[ "$1" = "-h" ]]; then
         echo "Usage: $0 <module_name>"
@@ -225,7 +222,7 @@ function module_loaded_version() {
     local mod=$(module -t list 2>&1 | grep -E "^$1(/|$)" | head -1)
     if [[ -z "${mod}" ]]; then
         # Module is not loaded.
-        return 1
+        echo '<none>'
     fi
 
     local version=$(echo ${mod} | awk -F/ '{ print $2 }')
@@ -263,9 +260,11 @@ function module_loaded() {
                      awk -F, '{ print $2 }')
   fi
 
+  echo "module_version ${module_version}"
+
   # Get the version of the module that is currently loaded, if at all.
   local loaded_version=$(module_loaded_version $1)
-  if [[ "$?" == 1 ]]; then
+  if [[ ${loaded_version} == "<none>" ]]; then
     return 1
   fi
 
@@ -308,6 +307,8 @@ function verify_module_loaded() {
     module_loaded_result=$?
 
     local msg
+
+    echo "mlr ${module_loaded_result}"
 
     case ${module_loaded_result} in
         1)
@@ -357,7 +358,7 @@ function verify_module_removed() {
 
     # Get the version of the module that is currently loaded, if at all.
     local loaded_version=$(module_loaded_version $1)
-    if [[ "$?" == 0 ]]; then
+    if [[ "${loaded_version}" == "<none>" ]]; then
         return 0
     fi
 
