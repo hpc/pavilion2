@@ -118,7 +118,11 @@ class PavTestTests(unittest.TestCase):
 
             # Make sure the extracted archive is identical to the original
             # (Though the containing directory will have a different name)
-            self._cmp_tree(test.build_origin, original_tree)
+            try:
+                self._cmp_tree(test.build_origin, original_tree)
+            except AssertionError as err:
+                raise AssertionError("Error extracting {}".format(archive),
+                                     *err.args)
 
         # Check directory copying
         config = base_config.copy()
@@ -316,12 +320,15 @@ class PavTestTests(unittest.TestCase):
         self.assertTrue(test.run({}), msg="Test failed to run.")
 
         config2 = config1.copy()
-        config2['run']['modules'] = ['gcc', 'mpi']
+        config2['run']['modules'] = ['asdlfkjae', 'adjwerloijeflkasd']
 
         test = pav_test.PavTest(self.pav_cfg, config2)
-        self.assertFalse(test.run({}), msg="Test should have failed because a module couldn't be "
-                                           "loaded. {}".format(test.path))
-        # TODO: Make sure this is the exact reason for the failure (doesn't work currently).
+        self.assertFalse(
+            test.run({}),
+            msg="Test should have failed because a module couldn't be "
+                "loaded. {}".format(test.path))
+        # TODO: Make sure this is the exact reason for the failure
+        #   (doesn't work currently).
 
         # Make sure the test fails properly on a timeout.
         config3 = {
@@ -364,7 +371,8 @@ class PavTestTests(unittest.TestCase):
                              .format(a_path, b_path))
 
     def _cmp_tree(self, a, b):
-        """Compare two directory trees, including the contents of all the files."""
+        """Compare two directory trees, including the contents of all the
+        files."""
 
         a_walk = list(os.walk(a))
         b_walk = list(os.walk(b))
@@ -377,16 +385,18 @@ class PavTestTests(unittest.TestCase):
             a_dir, a_dirs, a_files = a_walk.pop(0)
             b_dir, b_dirs, b_files = b_walk.pop(0)
 
-            self.assertEqual(sorted(a_dirs), sorted(b_dirs),
-                             "Extracted archive subdir mismatch for '{}' {} != {}"
-                             .format(a, a_dirs, b_dirs))
+            self.assertEqual(
+                sorted(a_dirs), sorted(b_dirs),
+                "Extracted archive subdir mismatch for '{}' {} != {}"
+                .format(a, a_dirs, b_dirs))
 
             # Make sure these are in the same order.
             a_files.sort()
             b_files.sort()
 
-            self.assertEqual(a_files, b_files, "Extracted archive file list mismatch. "
-                                               "{} != {}".format(a_files, b_files))
+            self.assertEqual(a_files, b_files,
+                             "Extracted archive file list mismatch. "
+                             "{} != {}".format(a_files, b_files))
 
             for file in a_files:
                 # The file names have are been verified as the same.
