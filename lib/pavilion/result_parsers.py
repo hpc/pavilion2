@@ -54,7 +54,9 @@ class ResultParser(IPlugin.IPlugin):
     def __call__(self, test, **kwargs):
         """This is where the result parser is actually implemented.
         :param dict kwargs: The arguments are the config values from the the
-        test's result config section for this parser."""
+        test's result config section for this parser.
+        :raises ResultParserError: When something goes wrong.
+        """
 
         raise NotImplementedError("A result parser plugin must implement"
                                   "the __call__ method.")

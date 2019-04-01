@@ -199,7 +199,7 @@ class TestConfigLoader(yc.YamlConfigLoader):
 
         list_elem = yc.ListElem(name, sub_elem=config)
 
-        if name in [e.name for e in cls._RESULT_PARSERS.config_elems]:
+        if name in [e.name for e in cls._RESULT_PARSERS.config_elems.values()]:
             raise ValueError("Tried to add result parser with name '{}'"
                              "to the config, but one already exists."
                              .format(name))
@@ -211,7 +211,7 @@ class TestConfigLoader(yc.YamlConfigLoader):
                              "leaf element '{}' was not string based."
                              .format(name, err.args[0]))
 
-        cls._RESULT_PARSERS.config_elems.append(list_elem)
+        cls._RESULT_PARSERS.config_elems[name] = list_elem
 
     @classmethod
     def remove_result_parser_config(cls, name):
@@ -221,9 +221,9 @@ class TestConfigLoader(yc.YamlConfigLoader):
         :return:
         """
 
-        for section in list(cls._RESULT_PARSERS.config_elems):
+        for section in list(cls._RESULT_PARSERS.config_elems.values()):
             if section.name == name:
-                cls._RESULT_PARSERS.config_elems.remove(section)
+                del cls._RESULT_PARSERS.config_elems.remove[section.name]
                 return
 
     @classmethod
@@ -234,10 +234,10 @@ class TestConfigLoader(yc.YamlConfigLoader):
         """
 
         if hasattr(elem, 'config_elems'):
-            for sub_elem in elem.config_elems:
+            for sub_elem in elem.config_elems.values():
                 cls.check_leaves(sub_elem)
-        elif hasattr(elem, 'sub_elem'):
-            cls.check_leaves(elem.sub_elem)
+        elif hasattr(elem, '_sub_elem') and elem._sub_elem is not None:
+            cls.check_leaves(elem._sub_elem)
         elif issubclass(elem.type, str):
             return
         else:

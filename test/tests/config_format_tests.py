@@ -13,7 +13,8 @@ class TestConfig(unittest.TestCase):
 
         data = format.TestConfigLoader().load(f)
 
-        self.assertEqual(len(data), 7)
+        # This is likely to change over time.
+        self.assertEqual(len(data), 8)
         self.assertEqual(data.inherits_from, 'something_else')
         self.assertEqual(data.scheduler, 'slurm')
         self.assertEqual(data.run.cmds[0], 'true')
