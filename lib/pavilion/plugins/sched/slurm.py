@@ -1,11 +1,9 @@
-from pavilion import config_format
 from pavilion import scriptcomposer
-from pavilion.scheduler_plugins import SchedulerPlugin
-from pavilion.scheduler_plugins import SchedulerPluginError
-from pavilion.scheduler_plugins import SchedulerVariables
-from pavilion.scheduler_plugins import dfr_sched_var
-from pavilion.scheduler_plugins import sched_var
-import collections
+from pavilion.schedulers import SchedulerPlugin
+from pavilion.schedulers import SchedulerPluginError
+from pavilion.schedulers import SchedulerVariables
+from pavilion.schedulers import dfr_sched_var
+from pavilion.schedulers import sched_var
 import os
 import pavilion.dependencies.yaml_config as yc
 import subprocess

@@ -1,6 +1,6 @@
 from pavilion import plugins
-from pavilion import pav_config
-from pavilion import scheduler_plugins
+from pavilion import config
+from pavilion import schedulers
 import datetime
 import os
 import subprocess
@@ -32,7 +32,7 @@ class SlurmTests(unittest.TestCase):
 
         # Do a default pav config, which will load from
         # the pavilion lib path.
-        self.pav_config = pav_config.PavilionConfigLoader().load_empty()
+        self.pav_config = config.PavilionConfigLoader().load_empty()
 
     def setUp(self):
 
@@ -47,4 +47,4 @@ class SlurmTests(unittest.TestCase):
         """Make sure all the slurm scheduler variable methods work when
         not on a node."""
 
-        scheduler_plugins.get_scheduler_plugin('slurm')
+        schedulers.get_scheduler_plugin('slurm')

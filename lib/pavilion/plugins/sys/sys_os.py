@@ -1,4 +1,4 @@
-import pavilion.system_plugins as system_plugins
+import pavilion.system_variables as system_plugins
 
 class SystemOS( system_plugins.SystemPlugin ):
 

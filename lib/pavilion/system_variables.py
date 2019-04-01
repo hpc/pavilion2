@@ -1,5 +1,5 @@
 import collections
-from pavilion import variables
+from pavilion.test_config import variables
 from yapsy import IPlugin
 import logging
 import re

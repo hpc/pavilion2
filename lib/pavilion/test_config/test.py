@@ -1,7 +1,7 @@
+from . import variables
 from pavilion import lockfile
 from pavilion import scriptcomposer
 from pavilion import utils
-from pavilion import variables
 from pavilion import wget
 from pavilion.status_file import StatusFile, STATES
 import bz2
@@ -16,14 +16,14 @@ import shutil
 import stat
 import subprocess
 import tarfile
-import tempfile
 import time
 import urllib.parse
 import zipfile
 
 
 class PavTestError(RuntimeError):
-    """For general test errors. Whatever was being attempted has failed in a non-recoverable way."""
+    """For general test errors. Whatever was being attempted has failed in a
+    non-recoverable way."""
     pass
 
 
@@ -37,17 +37,20 @@ __HASHED_FILES = {}
 
 
 class PavTest:
-    """The central pavilion test object. Handle saving, monitoring and running tests (via a
-    scheduler).
+    """The central pavilion test object. Handle saving, monitoring and running
+    tests.
 
     :cvar TEST_ID_DIGITS: How many digits should be in the test folder names.
     :cvar _BLOCK_SIZE: Blocksize for hashing files.
     """
 
-    TEST_ID_DIGITS = 6
-    # We have to worry about hash collisions, but we don't need all the bytes of hash most
-    # algorithms give us. The birthday attack math for 64 bits (8 bytes) of hash and 10 million
-    # items yields a collision probability of just 0.00027%. Easily good enough.
+    # By default we support up to 10 million tests.
+    TEST_ID_DIGITS = 7
+
+    # We have to worry about hash collisions, but we don't need all the bytes
+    # of hash most algorithms give us. The birthday attack math for 64 bits (
+    # 8 bytes) of hash and 10 million items yields a collision probability of
+    # just 0.00027%. Easily good enough.
     BUILD_HASH_BYTES = 8
 
     _BLOCK_SIZE = 4096*1024
@@ -55,8 +58,8 @@ class PavTest:
     LOGGER = logging.getLogger('pav.PavTest')
 
     def __init__(self, pav_cfg, config, test_id=None):
-        """Create an new PavTest object. If loading an existing test instance, use the
-        PavTest.from_id method.
+        """Create an new PavTest object. If loading an existing test instance,
+        use the PavTest.from_id method.
         :param pav_cfg: The pavilion configuration.
         :param config: The test configuration dictionary.
         :param test_id: The test id (for an existing test).
@@ -83,7 +86,8 @@ class PavTest:
             self.id = test_id
             self.path = self._get_test_path(tests_path, self.id)
             if not os.path.isdir(self.path):
-                raise PavTestNotFoundError("No test with id '{}' could be found.".format(self.id))
+                raise PavTestNotFoundError(
+                    "No test with id '{}' could be found.".format(self.id))
 
         # Set a logger more specific to this test.
         self.LOGGER = logging.getLogger('pav.PavTest.{}'.format(self.id))
@@ -93,7 +97,8 @@ class PavTest:
 
         # Setup the initial status file.
         self.status = StatusFile(os.path.join(self.path, 'status'))
-        self.status.set(STATES.CREATED, "Test directory and status file created.")
+        self.status.set(STATES.CREATED,
+                        "Test directory and status file created.")
 
         self.build_path = None
         self.build_name = None
@@ -110,8 +115,10 @@ class PavTest:
             else:
                 self.build_hash = self._create_build_hash(build_config)
 
-            self.build_name = '{hash}'.format(hash=self.build_hash[:self.BUILD_HASH_BYTES*2])
-            self.build_origin = os.path.join(pav_cfg.working_dir, 'builds', self.build_name)
+            short_hash = self.build_hash[:self.BUILD_HASH_BYTES*2]
+            self.build_name = '{hash}'.format(hash=short_hash)
+            self.build_origin = os.path.join(pav_cfg.working_dir,
+                                             'builds', self.build_name)
 
             self.build_script_path = os.path.join(self.path, 'build.sh')
             self._write_script(self.build_script_path, build_config)
@@ -131,10 +138,12 @@ class PavTest:
     def from_id(cls, pav_cfg, test_id):
         """Load a new PavTest object based on id."""
 
-        path = cls._get_test_path(os.path.join(pav_cfg.working_dir, 'tests'), test_id)
+        path = cls._get_test_path(os.path.join(pav_cfg.working_dir, 'tests'),
+                                  test_id)
 
         if not os.path.isdir(path):
-            raise PavTestError("Test directory for test id {} does not exist at '{}' as expected."
+            raise PavTestError("Test directory for test id {} does not exist "
+                               "at '{}' as expected."
                                .format(test_id, path))
 
         config = cls._load_config(path)
@@ -158,7 +167,8 @@ class PavTest:
         :rtype: int
         """
 
-        with lockfile.LockFile(os.path.join(tests_path, '.lockfile'), timeout=1):
+        lockfile_path = os.path.join(tests_path, '.lockfile')
+        with lockfile.LockFile(lockfile_path, timeout=1):
             tests = os.listdir(tests_path)
             # Only return the test directories that could be integers.
             tests = tuple(map(int, filter(str.isdigit, tests)))
@@ -173,15 +183,20 @@ class PavTest:
             try:
                 os.mkdir(self.path)
             except (IOError, OSError) as err:
-                raise PavTestError("Failed to create test dir '{}': {}".format(tests_path, err))
+                raise PavTestError("Failed to create test dir '{}': {}"
+                                   .format(tests_path, err))
 
         return test_id
 
     @classmethod
     def _get_test_path(cls, tests_path, test_id):
-        """Calculate the path to the test directory given the overall test directory and the id."""
-        return os.path.join(tests_path,
-                            "{id:0{digits}d}".format(id=test_id, digits=cls.TEST_ID_DIGITS))
+        """Calculate the path to the test directory given the overall test
+        directory and the id."""
+
+        id_str = "{id:0{digits}d}".format(id=test_id,
+                                          digits=cls.TEST_ID_DIGITS)
+
+        return os.path.join(tests_path, id_str)
 
     def _save_config(self):
         """Save the configuration for this test to the test config file."""
@@ -203,22 +218,27 @@ class PavTest:
         config_path = os.path.join(test_path, 'config')
 
         if not os.path.isfile(config_path):
-            raise PavTestError("Could not find config file for test at {}.".format(test_path))
+            raise PavTestError("Could not find config file for test at {}."
+                               .format(test_path))
 
         try:
             with open(config_path, 'r') as config_file:
                 return json.load(config_file)
         except TypeError as err:
-            raise PavTestError("Bad config values for config '{}': {}".format(config_path, err))
+            raise PavTestError("Bad config values for config '{}': {}"
+                               .format(config_path, err))
         except (IOError, OSError) as err:
-            raise PavTestError("Error reading config file '{}': {}".format(config_path, err))
+            raise PavTestError("Error reading config file '{}': {}"
+                               .format(config_path, err))
 
     def _find_file(self, file, sub_dir=None):
-        """Look for the given file and return a full path to it. Relative paths are searched for
-        in all config directories under 'test_src'.
+        """Look for the given file and return a full path to it. Relative paths
+        are searched for in all config directories under 'test_src'.
         :param file: The path to the file.
-        :param sub_dir: The subdirectory in each config directory in which to search.
-        :returns: The full path to the found file, or None if no such file could be found.
+        :param sub_dir: The subdirectory in each config directory in which to
+            search.
+        :returns: The full path to the found file, or None if no such file
+            could be found.
         """
 
         if os.path.isabs(file):
@@ -247,8 +267,10 @@ class PavTest:
 
     def _download_path(self, loc, name):
         """Get the path to where a source_download would be downloaded.
-        :param str loc: The url for the download, from the config's source_location field.
-        :param str name: The name of the download, from the config's source_download_name field."""
+        :param str loc: The url for the download, from the config's
+            source_location field.
+        :param str name: The name of the download, from the config's
+            source_download_name field."""
 
         fn = name
 
@@ -264,8 +286,8 @@ class PavTest:
         return os.path.join(self._pav_cfg.working_dir, 'downloads', fn)
 
     def _update_src(self, build_config):
-        """Retrieve and/or check the existence of the files needed for the build. This can include
-            pulling from URL's.
+        """Retrieve and/or check the existence of the files needed for the
+            build. This can include pulling from URL's.
         :param dict build_config: The build configuration dictionary.
         :returns: src_path, extra_files
         """
@@ -276,7 +298,8 @@ class PavTest:
 
         # For URL's, check if the file needs to be updated, and try to do so.
         if self._isurl(src_loc):
-            src_dest = self._download_path(src_loc, build_config.get('source_download_name'))
+            dwn_name = build_config.get('source_download_name')
+            src_dest = self._download_path(src_loc, dwn_name)
 
             wget.update(self._pav_cfg, src_loc, src_dest)
 
@@ -284,11 +307,12 @@ class PavTest:
 
         src_path = self._find_file(src_loc, 'test_src')
         if src_path is None:
-            raise PavTestError("Could not find and update src location '{}'".format(src_loc))
+            raise PavTestError("Could not find and update src location '{}'"
+                               .format(src_loc))
 
         if os.path.isdir(src_path):
-            # For directories, update the directories mtime to match the latest mtime in
-            # the entire directory.
+            # For directories, update the directories mtime to match the
+            # latest mtime in the entire directory.
             self._date_dir(src_path)
             return src_path
 
@@ -297,19 +321,20 @@ class PavTest:
             return src_path
 
         else:
-            raise PavTestError("Source location '{}' points to something unusable."
-                               .format(src_path))
+            raise PavTestError("Source location '{}' points to something "
+                               "unusable.".format(src_path))
 
     def _create_build_hash(self, build_config):
-        """Turn the build config, and everything the build needs, into hash.  This includes the
-        build config itself, the source tarball, and all extra files. Additionally,
-        system variables may be included in the hash if specified via the pavilion config."""
+        """Turn the build config, and everything the build needs, into hash.
+        This includes the build config itself, the source tarball, and all
+        extra files. Additionally, system variables may be included in the
+        hash if specified via the pavilion config."""
 
         # The hash order is:
         #  - The build config (sorted by key)
         #  - The src archive.
-        #    - For directories, the mtime (updated to the time of the most recently updated file),
-        #      is hashed instead.
+        #    - For directories, the mtime (updated to the time of the most
+        #      recently updated file) is hashed instead.
         #  - All of the build's 'extra_files'
         #  - Each of the pav_cfg.build_hash_vars
 
@@ -332,7 +357,8 @@ class PavTest:
             full_path = self._find_file(extra_file, 'test_src')
 
             if full_path is None:
-                raise PavTestError("Could not find extra file '{}'".format(extra_file))
+                raise PavTestError("Could not find extra file '{}'"
+                                   .format(extra_file))
             elif os.path.isfile(full_path):
                 hash_obj.update(self._hash_file(full_path))
             elif os.path.isdir(full_path):
@@ -340,17 +366,17 @@ class PavTest:
 
                 hash_obj.update(self._hash_dir(full_path))
             else:
-                raise PavTestError("Extra file '{}' must be a regular file or directory.")
+                raise PavTestError("Extra file '{}' must be a regular "
+                                   "file or directory.".format(extra_file))
 
         hash_obj.update(build_config.get('specificity', '').encode('utf-8'))
 
         return hash_obj.hexdigest()[:self.BUILD_HASH_BYTES*2]
 
     def build(self):
-        """Perform the build if needed, do a soft-link copy of the build directory into our
-        test directory, and note that we've used the given build. Returns True if these
-        steps completed successfully.
-        :param dict sched_vars: The scheduler variables for resolving the build template.
+        """Perform the build if needed, do a soft-link copy of the build
+        directory into our test directory, and note that we've used the given
+        build. Returns True if these steps completed successfully.
         """
 
         # Only try to do the build if it doesn't already exist.

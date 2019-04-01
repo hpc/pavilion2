@@ -7,11 +7,10 @@ import traceback
 from pavilion import plugins
 from pavilion import commands
 from pavilion import module_wrapper
-from pavilion import pav_config
-from pavilion import system_plugins
-from pavilion import scheduler_plugins
+from pavilion import config
+from pavilion import system_variables
 from pavilion import arguments
-from pavilion import variables
+from pavilion.test_config import variables
 
 
 LOGGER = logging.getLogger(__name__)
@@ -34,7 +33,7 @@ class PluginTests(unittest.TestCase):
         sub-system."""
 
         # Get an empty pavilion config and set some config dirs on it.
-        pav_cfg = pav_config.PavilionConfigLoader().load_empty()
+        pav_cfg = config.PavilionConfigLoader().load_empty()
 
         # We're loading multiple directories of plugins - AT THE SAME TIME!
         pav_cfg.config_dirs = [os.path.join(self.TEST_DATA_ROOT,
@@ -62,7 +61,7 @@ class PluginTests(unittest.TestCase):
         """Make sure command plugin loading is sane."""
 
         # Get an empty pavilion config and set some config dirs on it.
-        pav_cfg = pav_config.PavilionConfigLoader().load_empty()
+        pav_cfg = config.PavilionConfigLoader().load_empty()
 
         # We're loading multiple directories of plugins - AT THE SAME TIME!
         pav_cfg.config_dirs = [os.path.join(self.TEST_DATA_ROOT,
@@ -91,7 +90,7 @@ class PluginTests(unittest.TestCase):
         """Make sure module wrapper loading is sane too."""
 
         # Get an empty pavilion config and set some config dirs on it.
-        pav_cfg = pav_config.PavilionConfigLoader().load_empty()
+        pav_cfg = config.PavilionConfigLoader().load_empty()
 
         # We're loading multiple directories of plugins - AT THE SAME TIME!
         pav_cfg.config_dirs = [os.path.join(self.TEST_DATA_ROOT,
@@ -120,11 +119,11 @@ class PluginTests(unittest.TestCase):
         variables behave as expected."""
 
         # Get an empty pavilion config and set some config dirs on it.
-        pav_cfg = pav_config.PavilionConfigLoader().load_empty()
+        pav_cfg = config.PavilionConfigLoader().load_empty()
 
         plugins.initialize_plugins(pav_cfg)
 
-        self.assertFalse(system_plugins._LOADED_PLUGINS is None)
+        self.assertFalse(system_variables._LOADED_PLUGINS is None)
 
         host_arch = subprocess.check_output(['uname', '-i'])
         host_arch = host_arch.strip().decode('UTF-8')
@@ -142,7 +141,7 @@ class PluginTests(unittest.TestCase):
             elif line[:11] == 'VERSION_ID=':
                 host_os['Version'] = line[11:].strip().strip('"')
 
-        sys_vars = system_plugins.get_system_plugin_dict(defer=False)
+        sys_vars = system_variables.get_system_plugin_dict(defer=False)
 
         self.assertFalse('sys_arch' in sys_vars)
         self.assertEqual(host_arch, sys_vars['sys_arch'])
@@ -175,18 +174,18 @@ class PluginTests(unittest.TestCase):
         # Re-initialize the plugin system.
         plugins._reset_plugins()
         # Make sure these have been wiped
-        self.assertIsNone(system_plugins._LOADED_PLUGINS)
+        self.assertIsNone(system_variables._LOADED_PLUGINS)
         # Make sure these have been wiped.
-        self.assertIsNone(system_plugins._SYS_VAR_DICT)
+        self.assertIsNone(system_variables._SYS_VAR_DICT)
 
         plugins.initialize_plugins(pav_cfg)
 
         # but these are back
-        self.assertIsNotNone(system_plugins._LOADED_PLUGINS)
+        self.assertIsNotNone(system_variables._LOADED_PLUGINS)
 
-        sys_vars = system_plugins.get_system_plugin_dict(defer=True)
+        sys_vars = system_variables.get_system_plugin_dict(defer=True)
 
-        self.assertTrue(len(system_plugins._SYS_VAR_DICT.items()) == 0)
+        self.assertTrue(len(system_variables._SYS_VAR_DICT.items()) == 0)
 
         # Check that the deferred values are actually deferred.
         self.assertFalse('host_arch' in sys_vars)

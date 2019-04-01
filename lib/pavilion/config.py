@@ -1,411 +1,214 @@
-from collections import defaultdict
-from pavilion import string_parser, variables
-from pavilion.config_format import TestConfigLoader, TestSuiteLoader, TestConfigError, KEY_NAME_RE
-import logging
+####################################################################
+#
+#  Disclaimer and Notice of Copyright
+#  ==================================
+#
+#  Copyright (c) 2015, Los Alamos National Security, LLC
+#  All rights reserved.
+#
+#  Copyright 2015. Los Alamos National Security, LLC.
+#  This software was produced under U.S. Government contract
+#  DE-AC52-06NA25396 for Los Alamos National Laboratory (LANL),
+#  which is operated by Los Alamos National Security, LLC for
+#  the U.S. Department of Energy. The U.S. Government has rights
+#  to use, reproduce, and distribute this software.  NEITHER
+#  THE GOVERNMENT NOR LOS ALAMOS NATIONAL SECURITY, LLC MAKES
+#  ANY WARRANTY, EXPRESS OR IMPLIED, OR ASSUMES ANY LIABILITY
+#  FOR THE USE OF THIS SOFTWARE.  If software is modified to
+#  produce derivative works, such modified software should be
+#  clearly marked, so as not to confuse it with the version
+#  available from LANL.
+#
+#  Additionally, redistribution and use in source and binary
+#  forms, with or without modification, are permitted provided
+#  that the following conditions are met:
+#  -  Redistributions of source code must retain the
+#     above copyright notice, this list of conditions
+#     and the following disclaimer.
+#  -  Redistributions in binary form must reproduce the
+#     above copyright notice, this list of conditions
+#     and the following disclaimer in the documentation
+#     and/or other materials provided with the distribution.
+#  -  Neither the name of Los Alamos National Security, LLC,
+#     Los Alamos National Laboratory, LANL, the U.S. Government,
+#     nor the names of its contributors may be used to endorse
+#     or promote products derived from this software without
+#     specific prior written permission.
+#
+#  THIS SOFTWARE IS PROVIDED BY LOS ALAMOS NATIONAL SECURITY, LLC
+#  AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
+#  INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+#  IN NO EVENT SHALL LOS ALAMOS NATIONAL SECURITY, LLC OR CONTRIBUTORS
+#  BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY,
+#  OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
+#  OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+#  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
+#  TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+#  OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY
+#  OF SUCH DAMAGE.
+#
+#  ###################################################################
+
+# This module contains the base configuration for Pavilion itself.
+
+import grp
+import pavilion.dependencies.yaml_config as yc
 import os
+import socket
+import logging
 
-# Config file types
-CONF_HOST = 'hosts'
-CONF_MODE = 'modes'
-CONF_TEST = 'tests'
-
-LOGGER = logging.getLogger('pav.' + __name__)
+LOGGER = logging.getLogger('pavilion.' + __file__)
 
 
-def find_config(pav_config, conf_type, conf_name):
-    """Search all of the known configuration directories for a config of the given
-    type and name.
-    :param pav_config: The pavilion config data.
-    :param unicode conf_type: 'host', 'mode', or 'test'
-    :param conf_name: The name of the config (without a file extension).
-    :return: The path to the first matching config found, or None if one wasn't found.
-    """
-    for conf_dir in pav_config.config_dirs:
-        path = os.path.join(conf_dir, conf_type, '{}.yaml'.format(conf_name))
-        if os.path.exists(path):
-            return path
+def group_validate(_, group):
+    """Make sure the group specified in the config exists and the user is
+    in it."""
 
-    return None
+    if group is None:
+        return
+
+    try:
+        gid = grp.getgrnam(group)
+    except KeyError:
+        raise ValueError("Group {} is not known on host {}."
+                         .format(group, socket.gethostname()))
+
+    if gid not in os.getgroups():
+        raise ValueError("Group {} is not in the current user's list of "
+                         "groups.".format(group))
+
+    return group
 
 
-def get_tests(pav_config, host, modes, tests):
-    """Get a dictionary of raw test configs given a host, list of modes,
-    and a list of tests. Each of these configs will be lightly modified with a few extra variables
-    about their name, suite, and suite_file, as well as guaranteeing that they have 'variables' and
-    'permutations' sections.
-    :param pav_config: The pavilion config data
-    :param Union(str, None) host: The host the test is running on.
-    :param list modes: A list (possibly empty) of modes to layer onto the test.
-    :param list tests: A list (possibly empty) of tests to load. Each test can be either a
-                       '<test_suite>.<test_name>', '<test_suite>', or '<test_suite>.*'. A test
-                       suite by itself (or with a .*) get every test in a suite.
-    :return: A mapping of '<test_suite>.<test_name>' -> raw_test_cfg
-    """
+def log_level_validate(_, level):
+    """Convert a text log level into a level from the logging module, and
+    validate the levels."""
 
-    test_config_loader = TestConfigLoader()
-
-    if host is None:
-        # Use the defaults if a host config isn't given.
-        base_config = test_config_loader.load_empty()
+    level = level.lower()
+    if level == 'debug':
+        return logging.DEBUG
+    elif level == 'info':
+        return logging.INFO
+    elif level == 'warning':
+        return logging.WARNING
+    elif level == 'error':
+        return logging.ERROR
+    elif level == 'critical':
+        return logging.CRITICAL
     else:
-        host_cfg_path = find_config(pav_config, CONF_HOST, host)
-        if host_cfg_path is None:
-            raise TestConfigError("Could not find {} config file for {}.".format(CONF_HOST, host))
+        raise ValueError("Invalid logging level: {}".format(level))
 
-        try:
-            with open(host_cfg_path) as host_cfg_file:
-                # Load and validate the host test config defaults.
-                base_config = test_config_loader.load(host_cfg_file)
-        except (IOError, OSError) as err:
-            raise TestConfigError("Could not open host config '{}': {}".format(host_cfg_path, err))
 
-    for mode in modes:
-        mode_cfg_path = find_config(pav_config, CONF_MODE, mode)
+# Figure out what directories we'll search for configuration files.
+PAV_CONFIG_SEARCH_DIRS = ['./']
 
-        if mode_cfg_path is None:
-            raise TestConfigError("Could not find {} config file for {}.".format(CONF_MODE, mode))
+if 'HOME' in os.environ:
+    USER_HOME_PAV = os.path.join(os.environ['HOME'], '.pavilion')
+    PAV_CONFIG_SEARCH_DIRS.append(USER_HOME_PAV)
+else:
+    USER_HOME_PAV = None
 
-        try:
-            with open(mode_cfg_path) as mode_cfg_file:
-                # Load this mode_config and merge it into the base_config.
-                base_config = test_config_loader.load_merge(base_config, mode_cfg_file)
-        except (IOError, OSError) as err:
-            raise TestConfigError("Could not open mode config '{}': {}".format(mode_cfg_path, err))
+# Include the pavilion source directory.
+PAV_CONFIG_SEARCH_DIRS.append(os.path.dirname(__file__))
 
-    # A dictionary of test suites to a list of subtests to run in that suite.
-    all_tests = defaultdict(lambda: dict())
-    picked_tests = []
-    test_suite_loader = TestSuiteLoader()
+if 'PAV_CONFIG_DIR' in os.environ:
+    PAV_CONFIG_SEARCH_DIRS.append(os.environ['PAV_CONFIG_DIR'])
 
-    # Find and load all of the requested tests.
-    for test_name in tests:
-        # Make sure the test name has the right number of parts.
-        # They should look like '<test_suite>.<subtest>', '<test_suite>.*' or just '<test_suite>'
-        name_parts = test_name.split('.')
-        if len(name_parts) == 0 or name_parts[0] == '':
-            raise TestConfigError("Empty test name given.")
-        elif len(name_parts) > 2:
-            raise TestConfigError("Test names can be a general test suite, or a test suite followed"
-                                  "by a specific test. Eg: 'supermagic' or 'supermagic.fs_tests'")
+PAV_CONFIG_SEARCH_DIRS.extend([
+    '/etc/pavilion',
+    '/opt/pavilion',
+])
 
-        # Divide the test name into it's parts.
-        if len(name_parts == 2):
-            test_suite, requested_test = name_parts
-        else:
-            test_suite = name_parts[0]
-            requested_test = '*'
+dirname = os.path.dirname
+pav_root = dirname(dirname(dirname(os.path.realpath(__file__))))
 
-        # Make sure our test suite and subtest names are sane.
-        if KEY_NAME_RE.match(test_suite) is None:
-            raise TestConfigError("Invalid test suite name: '{}'".format(test_suite))
-        if requested_test != '*' and KEY_NAME_RE.match(requested_test) is None:
-            raise TestConfigError("Invalid subtest for requested test: '{}'".format(test_name))
 
-        # Only load each test suite's tests once.
-        if test_suite not in all_tests:
-            test_suite_path = find_config(pav_config, CONF_TEST, test_suite)
+class PavilionConfigLoader(yc.YamlConfigLoader):
 
-            if test_suite_path is None:
-                raise TestConfigError("Could not find test suite {}. Looked in these locations: {}"
-                                      .format(test_suite, pav_config.config_dirs))
+    # Each and every configuration element needs to either not be required,
+    # or have a sensible default. Essentially, Pavilion needs to work if no
+    # config is given.
+    ELEMENTS = [
+        yc.ListElem(
+            "config_dirs",
+            defaults=PAV_CONFIG_SEARCH_DIRS,
+            sub_elem=yc.StrElem(),
+            help_text="Paths to search for Pavilion config files. Pavilion "
+                      "configs (other than this core config) are searched for "
+                      "in the given order. In the case of identically named "
+                      "files, directories listed earlier take precedent."),
+        yc.StrElem(
+            'working_dir', default=USER_HOME_PAV,
+            help_text="Where pavilion puts it's run files, downloads, etc."),
+        yc.ListElem(
+            "disable_plugins", sub_elem=yc.StrElem(),
+            help_text="Allows you to disable plugins by '<type>.<name>'. For "
+                      "example, 'module.gcc' would disable the gcc module "
+                      "wrapper."),
+        yc.StrElem(
+            "shared_group", post_validator=group_validate,
+            help_text="Pavilion can automatically set group permissions on all "
+                      "created files, so that users can share relevant "
+                      "results, etc."),
+        yc.StrElem(
+            "umask", default="0002",
+            help_text="The umask to apply to all files created by pavilion. "
+                      "This should be in the format needed by the umask shell "
+                      "command."),
+        yc.StrElem(
+            "log_format",
+            default="%{asctime}, ${levelname}, ${name}: ${message}",
+            help_text="The log format to use for the pavilion logger. See: "
+                      "https://docs.python.org/3/library/logging.html#"
+                      "logrecord-attributes"),
+        yc.StrElem(
+            "log_level", default="info", post_validator=log_level_validate,
+            help_text="The minimum log level for messages sent to the pavilion "
+                      "logfile."),
+        yc.CategoryElem(
+            "proxies", sub_elem=yc.StrElem(),
+            help_text="Proxies, by protocol, to use when accessing the "
+                      "internet. Eg: http: 'http://myproxy.myorg.org:8000'"),
+        yc.ListElem(
+            "no_proxy", sub_elem=yc.StrElem(),
+            help_text="A list of DNS suffixes to ignore for proxy purposes. "
+                      "For example: 'blah.com' would match 'www.blah.com', but "
+                      "not 'myblah.com'."),
 
+        # The following configuration items are for internal use and provide a
+        # convenient way to pass around core pavilion components or data.
+        # They are not intended to be set by the user, and will generally be
+        # overwritten without even checking for user provided values.
+        yc.StrElem(
+            'pav_root', default=pav_root, hidden=True,
+            help_text="The root directory of the pavilion install. This "
+                      "shouldn't be set by the user."),
+        yc.KeyedElem(
+            'sys_vars', elements=[], hidden=True, default={},
+            help_text="This will contain the system variable dictionary."),
+        yc.KeyedElem(
+            'pav_vars', elements=[], hidden=True, default={},
+            help_text="This will contain the pavilion variable dictionary."),
+    ]
+
+
+def find():
+    """Search for a pavilion.yaml configuration file. The first one found is 
+    used. Directories are searched in this order: {}
+    """.format(PAV_CONFIG_SEARCH_DIRS)
+
+    for config_dir in PAV_CONFIG_SEARCH_DIRS:
+        path = os.path.join(config_dir, 'pavilion.yaml')
+        if os.path.os.path.isfile(path):
             try:
-                with open(test_suite_path) as test_suite_file:
-                    test_suite_cfg = test_suite_loader.load(test_suite_file)
+                # Parse and load the configuration.
+                return PavilionConfigLoader().load(open(path))
+            except Exception as err:
+                raise RuntimeError("Error in Pavilion config at {}: {}"
+                                   .format(path, err))
 
-            except (IOError, OSError) as err:
-                raise TestConfigError("Could not open test suite config {}: {}"
-                                      .format(test_suite_path, err))
-
-            # Organize tests into an inheritance tree.
-            depended_on_by = defaultdict(lambda: list())
-            # All the tests for this suite.
-            suite_tests = {}
-            # Tests that haven't been processed whose dependencies are resolved.
-            dep_resolved = []
-            for test_cfg_name, test_cfg in test_suite_cfg.items():
-                if test_cfg.get('inherits_from') is None:
-                    test_cfg.inherits_from = '__base__'
-                    dep_resolved.append(test_cfg_name)
-                else:
-                    depended_on_by[test_cfg.inherits_from].append(test_cfg)
-
-                suite_tests[test_cfg_name] = test_cfg
-
-            suite_tests['__base__'] = base_config
-
-            # Resolve all the dependencies
-            while dep_resolved:
-                test_cfg_name = dep_resolved.pop(0)
-                test_cfg = suite_tests[test_cfg_name]
-                parent = suite_tests[test_cfg.inherits_from]
-
-                suite_tests[test_cfg_name] = test_config_loader.merge(parent, test_cfg)
-
-                dep_resolved.append(depended_on_by.get(test_cfg_name, []))
-                del depended_on_by[test_cfg_name]
-
-            if depended_on_by:
-                raise TestConfigError("Tests in suite '{}' have dependencies on '{}' that "
-                                      "could not be resolved."
-                                      .format(test_suite_path, depended_on_by.keys()))
-
-            # Add some basic information to each test config.
-            for test_cfg_name, test_cfg in suite_tests:
-                test_cfg['name'] = test_suite_cfg
-                test_cfg['suite'] = test_suite
-                test_cfg['suite_path'] = test_suite_path
-                if 'variables' not in test_cfg:
-                    test_cfg['variables'] = dict()
-                if 'permutations' not in test_cfg:
-                    test_cfg['permutations'] = dict()
-
-            all_tests[test_suite] = suite_tests
-
-        if requested_test == '*':
-            # Get all the tests in the given test suite.
-            for test_cfg_name, test_cfg in all_tests[test_suite].items():
-                picked_tests.append(test_cfg)
-
-        else:
-            # Get the one specified test.
-            if requested_test not in all_tests[test_suite]:
-                raise TestConfigError("Test suite '{}' does not contain a test '{}'."
-                                      .format(test_suite, requested_test))
-
-            picked_tests.append(all_tests[test_suite][requested_test])
-
-    return picked_tests
-
-
-NOT_OVERRIDABLE = ['name', 'suite', 'suite_path']
-
-
-def apply_overrides(test_cfg, overrides, _first_level=True):
-    """Apply overrides to this test.
-    :param dict test_cfg: The test configuration.
-    :param dict overrides: A dictionary of values to override in all configs. This occurs at the
-        highest level, after inheritance is resolved.
-    """
-
-    return _apply_overrides(test_cfg, overrides, _first_level=True)
-
-
-def _apply_overrides(test_cfg, overrides, _first_level=True):
-    """Apply overrides recursively."""
-
-    for key in overrides.keys():
-        if _first_level and key in NOT_OVERRIDABLE:
-            LOGGER.warning("You can't override the '{}' key in a test config.".format(key))
-            continue
-
-        if key not in test_cfg:
-            test_cfg[key] = overrides[key]
-        elif isinstance(test_cfg[key], dict):
-            if isinstance(overrides[key], dict):
-                _apply_overrides(test_cfg[key], overrides[key])
-            else:
-                raise TestConfigError("Cannot override a dictionary of values with a "
-                                      "non-dictionary. Tried to put {} in key {} valued {}."
-                                      .format(overrides[key], key, test_cfg[key]))
-        elif isinstance(test_cfg[key], list):
-            # We always get lists from overrides as our 'array' type.
-            if isinstance(overrides[key], list):
-                test_cfg[key] = overrides[key]
-            # Put single values in a list.
-            elif isinstance(overrides[key], str):
-                test_cfg[key] = [overrides[key]]
-            else:
-                raise TestConfigError("Tried to override list key {} with a {} ({})"
-                                      .format(key, type(overrides[key]), overrides[key]))
-        elif isinstance(test_cfg[key], str):
-            if isinstance(overrides[key], str):
-                test_cfg[key] = overrides[key]
-            else:
-                raise TestConfigError("Tried to override str key {} with a {} ({})"
-                                      .format(key, type(overrides[key]), overrides[key]))
-        else:
-            raise TestConfigError("Configuration contains an element of an unrecognized type. "
-                                  "Key: {}, Type: {}.".format(key, type(test_cfg[key])))
-
-
-        # TODO: Write this function, maybe?
-def get_all_tests(pav_config):
-    """Find all the tests within known config directories.
-    :param dict pav_config:
-    :return:
-    """
-
-
-def resolve_permutations(raw_test_cfg, pav_vars, sys_vars):
-    """Resolve permutations for all used permutation variables, returning a variable manager for
-    each permuted version of the test config. We use this opportunity to populate the variable
-    manager with most other variable types as well.
-    :param dict raw_test_cfg: The raw test configuration dictionary.
-    :param dict pav_vars: The pavilion provided variable set.
-    :param dict sys_vars: The system plugin provided variable set.
-    :returns: The parsed, modified configuration, and a list of variable set managers,
-        one for each permutation. These will already contain all the var, sys, pav,
-        and (resolved) permutation (per) variable sets. The 'sched' variable set will have to
-        be added later.
-    :rtype: (dict, [variables.VariableSetManager])
-    :raises TestConfigError: When there are problems with variables or the permutations.
-    """
-
-    base_var_man = variables.VariableSetManager()
-    try:
-        base_var_man.add_var_set('per', raw_test_cfg['permutations'])
-    except variables.VariableError as err:
-        raise TestConfigError("Error in permutations section: {}".format(err))
-
-    # We don't resolve variables within the variables section, so we remove those parts now.
-    del raw_test_cfg['permutations']
-    user_vars = raw_test_cfg['variables']
-    del raw_test_cfg['variables']
-
-    del raw_test_cfg['variables']
-    # Recursively make our configuration a little less raw, recursively parsing all string values
-    # into PavString objects.
-    test_cfg = _parse_strings(raw_test_cfg)
-
-    # We only want to permute over the permutation variables that are actually used.
-    # This also provides a convenient place to catch any problems with how those variables
-    # are used.
-    try:
-        used_per_vars = _get_used_per_vars(raw_test_cfg, base_var_man)
-    except RuntimeError as err:
-        raise TestConfigError("In suite file '{}' test name '{}': {}"
-                              .format(raw_test_cfg['suite'], raw_test_cfg['name'], err))
-
-    # Since per vars are the highest in resolution order, we can make things a bit faster
-    # by adding these after we find the used per vars.
-    try:
-        base_var_man.add_var_set('var', user_vars)
-    except variables.VariableError as err:
-        raise TestConfigError("Error in variables section: {}".format(err))
-
-    try:
-        base_var_man.add_var_set('sys', sys_vars)
-    except variables.VariableError as err:
-        raise TestConfigError("Error in sys variables: {}".format(err))
-
-    try:
-        base_var_man.add_var_set('pav', pav_vars)
-    except variables.VariableError as err:
-        raise TestConfigError("Error in pav variables: {}".format(err))
-
-    return test_cfg, base_var_man.get_permutations(used_per_vars)
-
-
-def _parse_strings(section):
-    """Parse all non-key strings in the given config section, and replace them with a PavString
-    object. This involves recursively walking any data-structures in the given section.
-    :param section: The config section to process.
-    :return: The original dict with the non-key strings replaced.
-    """
-
-    if isinstance(section, dict):
-        for key in section.keys():
-            section[key] = _parse_strings(section[key])
-        return section
-    elif isinstance(section, list):
-        for i in range(len(section)):
-            section[i] = _parse_strings(section[i])
-        return section
-    elif isinstance(section, str):
-        return string_parser.parse(section)
-    else:
-        # Should probably never happen (We're going to see this error a lot until we get a handle
-        # on strings vs unicode though).
-        raise RuntimeError("Invalid value type '{}' of value '{}'."
-                           .format(type(section), section))
-
-
-def _get_used_per_vars(component, var_man):
-    """Recursively get all the variables used by this test config, in canonical form.
-    :param component: A section of the configuration file to look for per vars in.
-    :param variables.VariableSetManager: The variable set manager.
-    :returns: A list of used 'per' variables names (Just the 'var' component).
-    :raises RuntimeError: For invalid sections.
-    """
-
-    used_per_vars = set()
-
-    if isinstance(component, dict):
-        for key in component.keys():
-            try:
-                used_per_vars = used_per_vars.union(_get_used_per_vars(component[key], var_man))
-            except KeyError:
-                pass
-
-    elif isinstance(component, list):
-        for i in range(len(component)):
-            try:
-                used_per_vars = used_per_vars.union(_get_used_per_vars(component[i], var_man))
-            except KeyError:
-                pass
-
-    elif isinstance(component, string_parser.PavString):
-        for var in component.variables:
-            var_set, var, idx, sub = var_man.resolve_key(var)
-
-            # Grab just 'per' vars.
-            # Also, if per variables are used by index, we just resolve that value normally rather
-            # than permuting over it.
-            if var_set == 'per' and idx is None:
-                used_per_vars.add(var)
-    else:
-        # This should be unreachable.
-        raise RuntimeError("Unknown config component type '{}' of '{}'"
-                           .format(type(component), component))
-
-    return used_per_vars
-
-
-def resolve_all_vars(config, var_man, no_deferred_allowed):
-    """Recursively resolve the given config component's variables, using a variable manager.
-    :param dict config: The config component to resolve.
-    :param var_man: A variable manager. (Presumably a permutation of the base var_man)
-    :param list no_deferred_allowed: Do not allow deferred variables in sections of these
-        names.
-    :return: The component, resolved.
-    """
-
-    resolved_dict = {}
-
-    for key in config:
-        allow_deferred = False if key in no_deferred_allowed else True
-
-        resolved_dict[key] = resolve_section_vars(config[key], var_man, allow_deferred)
-
-    return resolved_dict
-
-
-def resolve_section_vars(component, var_man, allow_deferred):
-    """Recursively resolve the given config component's variables, using a variable manager.
-    :param dict component: The config component to resolve.
-    :param var_man: A variable manager. (Presumably a permutation of the base var_man)
-    :param bool allow_deferred: Do not allow deferred variables in this section.
-    :return: The component, resolved.
-    """
-
-    if isinstance(component, dict):
-        resolved_dict = {}
-        for key in component.keys():
-            resolved_dict[key] = resolve_section_vars(component[key], var_man, allow_deferred)
-        return resolved_dict
-
-    elif isinstance(component, list):
-        resolved_list = []
-        for i in range(len(component)):
-            resolved_list.append(resolve_section_vars(component[i], var_man, allow_deferred))
-        return resolved_list
-
-    elif isinstance(component, string_parser.PavString):
-        return component.resolve(var_man, allow_deferred=allow_deferred)
-    elif isinstance(component, str):
-        # Some PavStrings may have already been resolved.
-        return component
-    else:
-        raise TestConfigError("Invalid value type '{}' for '{}' when resolving strings."
-                              .format(type(component), component))
+    LOGGER.warning("Could not find a pavilion config file. Using an "
+                   "empty/default config.")
+    return PavilionConfigLoader().load_empty()

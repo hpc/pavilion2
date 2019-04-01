@@ -1,5 +1,5 @@
 import subprocess
-import pavilion.system_plugins as system_plugins
+import pavilion.system_variables as system_plugins
 
 class HostArch( system_plugins.SystemPlugin ):
 

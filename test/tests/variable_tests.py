@@ -1,7 +1,7 @@
 import unittest
 
-from pavilion import variables
-from pavilion.variables import VariableError
+from pavilion.test_config import variables
+from pavilion.test_config.variables import VariableError
 
 
 class TestVariables(unittest.TestCase):
@@ -33,7 +33,8 @@ class TestVariables(unittest.TestCase):
         vsetm.add_var_set('sys', sys_data)
         vsetm.add_var_set('sched', slurm_data)
 
-        # Lookup without set name, this also conflicts across vsets and should resolve correctly.
+        # Lookup without set name, this also conflicts across vsets and should
+        # resolve correctly.
         self.assertEqual(vsetm['var1'], 'val1')
         # Lookup with set name
         self.assertEqual(vsetm['var.var1'], 'val1')
@@ -125,14 +126,17 @@ class TestVariables(unittest.TestCase):
 
         # Unknown vset name
         vsetm = variables.VariableSetManager()
-        self.assertRaises(ValueError, lambda: vsetm.add_var_set('blah', {}))
+        with self.assertRaises(ValueError):
+            vsetm.add_var_set('blah', {})
 
         # Duplicate vset name
         vsetm.add_var_set('var', {})
-        self.assertRaises(ValueError, lambda: vsetm.add_var_set('var', {}))
+        with self.assertRaises(ValueError):
+            vsetm.add_var_set('var', {})
 
         # Using reserved names
-        self.assertRaises(VariableError, lambda: vsetm.add_var_set('per', {'per': '3'}))
+        with self.assertRaises(VariableError):
+            vsetm.add_var_set('per', {'per': '3'})
 
         # Successful add after a failure.
         vsetm.add_var_set('per', {})
@@ -144,13 +148,15 @@ class TestVariables(unittest.TestCase):
                      {'subvar1': 'subval1_1',
                       'subvar3': 'subval1_2'}]
         }
-        self.assertRaises(VariableError, lambda: vsetm.add_var_set('sys', data))
+        with self.assertRaises(VariableError):
+            vsetm.add_var_set('sys', data)
 
         slurm_data = {
             'num_nodes': 45
         }
         # Adding non-string data
-        self.assertRaises(VariableError, lambda: vsetm.add_var_set('sched', slurm_data))
+        with self.assertRaises(VariableError):
+            vsetm.add_var_set('sched', slurm_data)
 
     def test_deferred(self):
         """Test deferred variables."""
@@ -183,9 +189,11 @@ class TestVariables(unittest.TestCase):
         self.assertEqual(vsetm['sys.var1'], '[\x1esys.var1\x1e]')
         self.assertEqual(vsetm['sys.var3.subvar1'],
                          '[\x1esys.var3.subvar1\x1e]')
-        with self.assertRaises(KeyError):
-            vsetm['sys.var1.3']
-            vsetm['sys.var1.1.subvar1']
-            vsetm['sys.var3.noexist']
-            vsetm['sys.var1.noexist']
-            vsetm['sys.var3']
+        for key in (
+                'sys.var1.3',
+                'sys.var1.1.subvar1',
+                'sys.var3.noexist',
+                'sys.var1.noexist',
+                'sys.var3'):
+            with self.assertRaises(KeyError):
+                _ = vsetm[key]

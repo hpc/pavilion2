@@ -1,6 +1,6 @@
-from pavilion.variables import DeferredVariable
+from pavilion.test_config.variables import DeferredVariable
 from pavilion import scriptcomposer
-from pavilion import config_format
+from pavilion.test_config import format
 from yapsy import IPlugin
 from functools import wraps
 import collections
@@ -455,13 +455,13 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
         if name not in _SCHEDULER_PLUGINS:
             _SCHEDULER_PLUGINS[name] = self
-            config_format.TestConfigLoader.add_subsection(self.get_conf())
+            format.TestConfigLoader.add_subsection(self.get_conf())
         else:
             ex_plugin = _SCHEDULER_PLUGINS[name]
             if ex_plugin.priority > self.priority:
                 LOGGER.warning(
                     "Scheduler plugin {} ignored due to priority"
-                        .format(name))
+                    .format(name))
             elif ex_plugin.priority == self.priority:
                 raise SchedulerPluginError(
                     "Two plugins for the same system plugin have the same "
@@ -475,5 +475,5 @@ class SchedulerPlugin(IPlugin.IPlugin):
         name = self.name
 
         if name in _SCHEDULER_PLUGINS:
-            config_format.TestConfigLoader.remove_subsection(name)
+            format.TestConfigLoader.remove_subsection(name)
             del _SCHEDULER_PLUGINS[name]
