@@ -64,8 +64,8 @@ class Regex(result_parsers.ResultParser):
             return None
 
         if results == 'first':
-            return results[0]
+            return matches[0]
         elif results == 'last':
-            return results[-1]
+            return matches[-1]
         else:
-            return results
+            return matches
