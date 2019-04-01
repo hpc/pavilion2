@@ -1,57 +1,3 @@
-####################################################################
-#
-#  Disclaimer and Notice of Copyright
-#  ==================================
-#
-#  Copyright (c) 2015, Los Alamos National Security, LLC
-#  All rights reserved.
-#
-#  Copyright 2015. Los Alamos National Security, LLC.
-#  This software was produced under U.S. Government contract
-#  DE-AC52-06NA25396 for Los Alamos National Laboratory (LANL),
-#  which is operated by Los Alamos National Security, LLC for
-#  the U.S. Department of Energy. The U.S. Government has rights
-#  to use, reproduce, and distribute this software.  NEITHER
-#  THE GOVERNMENT NOR LOS ALAMOS NATIONAL SECURITY, LLC MAKES
-#  ANY WARRANTY, EXPRESS OR IMPLIED, OR ASSUMES ANY LIABILITY
-#  FOR THE USE OF THIS SOFTWARE.  If software is modified to
-#  produce derivative works, such modified software should be
-#  clearly marked, so as not to confuse it with the version
-#  available from LANL.
-#
-#  Additionally, redistribution and use in source and binary
-#  forms, with or without modification, are permitted provided
-#  that the following conditions are met:
-#  -  Redistributions of source code must retain the
-#     above copyright notice, this list of conditions
-#     and the following disclaimer.
-#  -  Redistributions in binary form must reproduce the
-#     above copyright notice, this list of conditions
-#     and the following disclaimer in the documentation
-#     and/or other materials provided with the distribution.
-#  -  Neither the name of Los Alamos National Security, LLC,
-#     Los Alamos National Laboratory, LANL, the U.S. Government,
-#     nor the names of its contributors may be used to endorse
-#     or promote products derived from this software without
-#     specific prior written permission.
-#
-#  THIS SOFTWARE IS PROVIDED BY LOS ALAMOS NATIONAL SECURITY, LLC
-#  AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
-#  INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
-#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
-#  IN NO EVENT SHALL LOS ALAMOS NATIONAL SECURITY, LLC OR CONTRIBUTORS
-#  BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY,
-#  OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
-#  OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-#  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
-#  TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
-#  OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY
-#  OF SUCH DAMAGE.
-#
-#  ###################################################################
-
-from collections import OrderedDict
 import pavilion.dependencies.yaml_config as yc
 import re
 
@@ -65,8 +11,8 @@ KEY_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_-]+$')
 
 
 class VariableElem(yc.CategoryElem):
-    """A variable entry can be either a single string value or a dictionary of values. If we get
-    a single value, we'll return it instead of a dict."""
+    """A variable entry can be either a single string value or a dictionary
+    of values. If we get a single value, we'll return it instead of a dict."""
 
     _NAME_RE = KEY_NAME_RE
 
@@ -87,94 +33,130 @@ class VariableElem(yc.CategoryElem):
 
 
 class VarCatElem(yc.CategoryElem):
-    """Just like a regular category elem, but we override the key regex to allow dashes. We
-    won't be using name style references anyway."""
+    """Just like a regular category elem, but we override the key regex to
+    allow dashes. We won't be using name style references anyway."""
     _NAME_RE = KEY_NAME_RE
 
 
 class TestConfigLoader(yc.YamlConfigLoader):
-    """This class describes a test section in a Pavilion config file. It is expected to be
-    added to by various plugins."""
+    """This class describes a test section in a Pavilion config file. It is
+    expected to be added to by various plugins."""
 
     ELEMENTS = [
-        yc.RegexElem('inherits_from', regex=r'\w+',
-                     help_text="Inherit from the given test section, and override parameters with"
-                               "those specified in this one. Lists are overridden entirely"),
-        yc.StrElem('subtitle',
-                   help_text="An extended title for this test. This is useful for assigning a "
-                             "unique name to virtual tests through variable insertion. For "
-                             "example, if a test has a single permutation variable named "
-                             "'subtest', then '{subtest}' would give a useful descriptor."),
-        VarCatElem('variables', sub_elem=yc.ListElem(sub_elem=VariableElem()),
-                   help_text="Variables for this test section. These can be inserted into "
-                             "strings anywhere else in the config through the string formatting "
-                             "syntax. They keys 'var', 'per', 'pav', 'sys' and 'sched' are "
-                             "reserved. Each value may be a single or list of strings or "
-                             "key/string pairs."),
-        VarCatElem('permutations', sub_elem=yc.ListElem(sub_elem=VariableElem()),
-                   help_text="Permutation variables for this test section. These are just like "
-                             "normal variables, but they if a list of values (whether a single "
-                             "string or key/string pairs) is given, then a virtual test is "
-                             "created for each combination across all variables in each section. "
-                             "The resulting virtual test is thus given a single permutation of "
-                             "these values."),
+        yc.RegexElem(
+            'inherits_from', regex=r'\w+',
+            help_text="Inherit from the given test section, and override "
+                      "parameters those specified in this one. Lists are "
+                      "overridden entirely"),
+        yc.StrElem(
+            'subtitle',
+            help_text="An extended title for this test. This is useful for "
+                      "assigning unique name to virtual tests through "
+                      "variable insertion. example, if a test has a single "
+                      "permutation variable 'subtest', then '{subtest}' "
+                      "would give a useful descriptor."),
+        VarCatElem(
+            'variables', sub_elem=yc.ListElem(sub_elem=VariableElem()),
+            help_text="Variables for this test section. These can be "
+                      "inserted strings anywhere else in the config through "
+                      "the string syntax. They keys 'var', 'per', 'pav', "
+                      "'sys' and 'sched' reserved. Each value may be a "
+                      "single or list of strings key/string pairs."),
+        VarCatElem(
+            'permutations', sub_elem=yc.ListElem(sub_elem=VariableElem()),
+            help_text="Permutation variables for this test section. These are "
+                      "just like normal variables, but they if a list of "
+                      "values (whether a single string or key/string pairs) "
+                      "is given, then a virtual test is created for each "
+                      "combination across all variables in each section. The "
+                      "resulting virtual test is thus given a single "
+                      "permutation of these values."),
         yc.RegexElem('scheduler', regex=r'\w+',
                      help_text="The scheduler class to use to run this test."),
         yc.KeyedElem('build', elements=[
-            yc.StrElem('source_location',
-                       help_text="Path to the test source. It may be a directory, a tar file, "
-                                 "or a URI. If it's a directory or file, the path is relative "
-                                 "to '$PAV_CONFIG/test_src' by default. For url's, the file "
-                                 "is automatically checked for updates every time the test is "
-                                 "run. Downloaded files are placed in a 'downloads' directory "
-                                 "under the pavilion working directory. (set in pavilion.yaml)"),
-            yc.StrElem('source_download_name',
-                       help_text='When downloading source, we by default use the last component '
-                                 'of the url path as the filename, or a hash of the url if there '
-                                 'is no suitable name. Use this parameter to override that '
-                                 'behavior with a pre-defined filename.'),
-            yc.ListElem('modules', sub_elem=yc.StrElem(),
-                        help_text="Modules to load into the build environment."),
-            yc.CategoryElem('env', sub_elem=yc.StrElem(),
-                           help_text="Environment variables to set in the build environment."),
-            yc.ListElem('extra_files', sub_elem=yc.StrElem(),
-                        help_text='Files to copy into the build environment. Relative paths are'
-                                  'searched for in ~/.pavilion, $PAV_CONFIG, and then \'./\'. '
-                                  'Absolute paths are ok, but not recommended.'),
-            yc.StrElem('specificity',
-                       help_text="Use this string, along with variables, to automatically "
-                                 "differentiate builds. A common example would be to make builds"
-                                 "per-host specific by using the sys.sys_name variable. Note that"
-                                 "_deferred_ system variables aren't a good idea here, "
-                                 "as configs are compiled on the host that launches the test."),
+            yc.StrElem(
+                'source_location',
+                help_text="Path to the test source. It may be a directory, "
+                          "a tar file, or a URI. If it's a directory or "
+                          "file, the path is to '$PAV_CONFIG/test_src' by "
+                          "default. For url's, the is automatically checked "
+                          "for updates every time the test run. Downloaded "
+                          "files are placed in a 'downloads' under the "
+                          "pavilion working directory. (set in pavilion.yaml)"),
+            yc.StrElem(
+                'source_download_name',
+                help_text='When downloading source, we by default use the '
+                          'last of the url path as the filename, or a hash '
+                          'of the url if is no suitable name. Use this '
+                          'parameter to override behavior with a pre-defined '
+                          'filename.'),
+            yc.ListElem(
+                'modules', sub_elem=yc.StrElem(),
+                help_text="Modules to load into the build environment."),
+            yc.CategoryElem(
+                'env', sub_elem=yc.StrElem(),
+                help_text="Environment variables to set in the build "
+                          "environment."),
+            yc.ListElem(
+                'extra_files', sub_elem=yc.StrElem(),
+                help_text='Files to copy into the build environment. '
+                          'Relative paths searched for in ~/.pavilion, '
+                          '$PAV_CONFIG. Absolute paths are ok, '
+                          'but not recommended.'),
+            yc.StrElem(
+                'specificity',
+                help_text="Use this string, along with variables, to "
+                          "differentiate builds. A common example would be "
+                          "to make per-host specific by using the "
+                          "sys.sys_name variable. Note _deferred_ system "
+                          "variables aren't a good idea hereas configs are "
+                          "compiled on the host that launches the test."),
             yc.ListElem('cmds', sub_elem=yc.StrElem(),
-                        help_text='The sequence of commands to run to perform the build.')
+                        help_text='The sequence of commands to run to perform '
+                                  'the build.')
             ],
-            help_text="The test build configuration. This will be used to dynamically generate a "
-                      "build script for building the test."),
+            help_text="The test build configuration. This will be used to "
+                      "dynamically generate a build script for building "
+                      "the test."),
 
         yc.KeyedElem('run', elements=[
             yc.ListElem('modules', sub_elem=yc.StrElem(),
                         help_text="Modules to load into the run environment."),
             yc.CategoryElem('env', sub_elem=yc.StrElem(),
-                           help_text="Environment variables to set in the run environment."),
+                            help_text="Environment variables to set in the run "
+                                      "environment."),
             yc.ListElem('cmds', sub_elem=yc.StrElem(),
-                        help_text='The sequence of commands to run to run the test.')
+                        help_text='The sequence of commands to run to run the '
+                                  'test.')
         ],
-                     help_text="The test run configuration. This will be used to dynamically "
-                               "generate a run script for the test."),
+                     help_text="The test run configuration. This will be used "
+                               "to dynamically generate a run script for the "
+                               "test."),
     ]
+
+    # We'll append the result parsers separately, to have an easy way to
+    # access it.
+    _RESULT_PARSERS = yc.KeyedElem(
+        'result', elements=[],
+        help_text="Result parser configurations go here. Each parser config "
+                  "can occur by itself or as a list of configs, in which "
+                  "case the parser will run once for each config given. The "
+                  "output of these parsers will be combined into the final "
+                  "result json data.")
+    ELEMENTS.append(_RESULT_PARSERS)
 
     @classmethod
     def add_subsection(cls, subsection):
         """Use this method to add additional sub-sections to the config.
-        :param yc.ConfigElem subsection: A yaml config element to add. Keyed elements are expected,
-        though any ConfigElem based instance should work.
+        :param yc.ConfigElem subsection: A yaml config element to add. Keyed
+            elements are expected, though any ConfigElem based instance
+            (whose leave elements are StrElems) should work.
         """
 
         if not isinstance(subsection, yc.ConfigElement):
-            raise ValueError("Tried to add a subsection to the config, but it wasn't a yaml_config"
-                             " ConfigElement instance (or an instance of a ConfigElement child "
+            raise ValueError("Tried to add a subsection to the config, but it "
+                             "wasn't a yaml_config ConfigElement instance (or "
+                             "an instance of a ConfigElement child "
                              "class).")
 
         name = subsection.name
@@ -182,8 +164,15 @@ class TestConfigLoader(yc.YamlConfigLoader):
         names = [el.name for el in cls.ELEMENTS]
 
         if name in names:
-            raise ValueError("Tried to add a subsection to the config called {0}, but one"
-                             "already exists.".format(name))
+            raise ValueError("Tried to add a subsection to the config called "
+                             "{0}, but one already exists.".format(name))
+
+        try:
+            cls.check_leaves(subsection)
+        except ValueError as err:
+            raise ValueError("Tried to add result parser named '{}', but "
+                             "leaf element '{}' was not string based."
+                             .format(name, err.args[0]))
 
         cls.ELEMENTS.append(subsection)
 
@@ -197,12 +186,70 @@ class TestConfigLoader(yc.YamlConfigLoader):
                 cls.ELEMENTS.remove(section)
                 return
 
+    @classmethod
+    def add_result_parser_config(cls, name, config_items):
+        """Add the given list of config items as a result parser
+        configuration named 'name'. Throws errors for invalid configuraitons.
+        """
+
+        config = yc.KeyedElem(
+            'result_parser_{}'.format(name),
+            elements=config_items
+        )
+
+        list_elem = yc.ListElem(name, sub_elem=config)
+
+        if name in [e.name for e in cls._RESULT_PARSERS.config_elems]:
+            raise ValueError("Tried to add result parser with name '{}'"
+                             "to the config, but one already exists."
+                             .format(name))
+
+        try:
+            cls.check_leaves(config)
+        except ValueError as err:
+            raise ValueError("Tried to add result parser named '{}', but "
+                             "leaf element '{}' was not string based."
+                             .format(name, err.args[0]))
+
+        cls._RESULT_PARSERS.config_elems.append(list_elem)
+
+    @classmethod
+    def remove_result_parser_config(cls, name):
+        """Remove the given result parser from the result parser configuration
+        section.
+        :param str name: The name of the parser to remove.
+        :return:
+        """
+
+        for section in list(cls._RESULT_PARSERS.config_elems):
+            if section.name == name:
+                cls._RESULT_PARSERS.config_elems.remove(section)
+                return
+
+    @classmethod
+    def check_leaves(cls, elem):
+        """
+        :param yc.ConfigElement elem:
+        :return:
+        """
+
+        if hasattr(elem, 'config_elems'):
+            for sub_elem in elem.config_elems:
+                cls.check_leaves(sub_elem)
+        elif hasattr(elem, 'sub_elem'):
+            cls.check_leaves(elem.sub_elem)
+        elif issubclass(elem.type, str):
+            return
+        else:
+            raise ValueError(elem)
+
 
 class TestSuiteLoader(yc.CatYamlConfigLoader):
     """An actual test config file consists of multiple config sections."""
 
     _NAME_RE = KEY_NAME_RE
 
-    # We use the list of ELEMENTS from TestConfigLoader. since this is the same object, subsections
-    # added to TestConfigLoader will get picked up here too.
+    # We use the list of ELEMENTS from TestConfigLoader. since this is the
+    # same object, subsections added to TestConfigLoader will get picked up
+    # here too.
     BASE = yc.KeyedElem(elements=TestConfigLoader.ELEMENTS)
