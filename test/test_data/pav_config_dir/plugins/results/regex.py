@@ -23,24 +23,23 @@ class Regex(result_parsers.ResultParser):
             ),
             yc.StrElem(
                 'results', default='first',
-                choices=['first', 'all', 'last', 'PASS', 'FAIL'],
+                choices=['first', 'all', 'last'],
                 help_text="This can return the first, last, or all matches. "
                           "If there are no matches the result will be null"
-                          "or an empty list. For 'PASS' and 'FAIL', simply"
-                          "return that value if a match was found (and the"
-                          "opposite otherwise."
+                          "or an empty list."
             )
         ])
 
         return config_items
 
-    def _check_args(self, test, file=None, regex=None, results=None):
+    def check_args(self, test, file=None, regex=None, results=None):
 
         try:
             re.compile(regex)
         except ValueError as err:
             raise result_parsers.ResultParserError(
-                "Invalid regular expression: {}".format(err))
+                "Invalid regular expression: {}".format(err)
+            )
 
     def __call__(self, test, file=None, regex=None, results=None):
 
@@ -68,13 +67,5 @@ class Regex(result_parsers.ResultParser):
             return matches[0]
         elif results == 'last':
             return matches[-1]
-        elif results == 'all':
-            return matches
-        elif results in ['PASS', 'FAIL']:
-            if matches:
-                return results
-            else:
-                return 'PASS' if results == 'FAIL' else 'FAIL'
         else:
-            raise RuntimeError("Invalid 'results' argument in regex parser: "
-                               "'{}'".format(results))
+            return matches

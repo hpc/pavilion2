@@ -47,4 +47,13 @@ class SlurmTests(unittest.TestCase):
         """Make sure all the slurm scheduler variable methods work when
         not on a node."""
 
-        schedulers.get_scheduler_plugin('slurm')
+        slurm = schedulers.get_scheduler_plugin('slurm')
+
+        print(slurm.get_data()['summary'])
+
+        # Grab a random jobid, and get the status of it.
+        jobs = subprocess.check_output(['squeue', '-o', "%i %T"])
+        last_job = jobs.split('\n')[-1]
+        jobid, status = last_job.strip().split()
+
+        slurm.check_job(jobid)

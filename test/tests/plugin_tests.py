@@ -1,16 +1,15 @@
+from pavilion import arguments
+from pavilion import commands
+from pavilion import config
+from pavilion import module_wrapper
+from pavilion import plugins
+from pavilion import result_parsers
+from pavilion import system_variables
+from pavilion.test_config import variables
 import logging
 import os
 import subprocess
 import unittest
-import traceback
-
-from pavilion import plugins
-from pavilion import commands
-from pavilion import module_wrapper
-from pavilion import config
-from pavilion import system_variables
-from pavilion import arguments
-from pavilion.test_config import variables
 
 
 LOGGER = logging.getLogger(__name__)
@@ -199,3 +198,23 @@ class PluginTests(unittest.TestCase):
                                    variables.DeferredVariable))
 
         plugins._reset_plugins()
+
+    def test_result_parser_plugins(self):
+        """Check basic result parser structure."""
+
+        # Get an empty pavilion config and set some config dirs on it.
+        pav_cfg = config.PavilionConfigLoader().load_empty()
+
+        # We're loading multiple directories of plugins - AT THE SAME TIME!
+        pav_cfg.config_dirs = [os.path.join(self.TEST_DATA_ROOT,
+                                            'pav_config_dir')]
+
+        # We should have exactly one test plugin.
+        self.assertEqual(len(result_parsers.list_plugins()), 1)
+
+        regex = result_parsers.get_plugin('regex')
+
+        #TODO: Write more extensive tests.
+
+
+

@@ -7,6 +7,8 @@ from pavilion.schedulers import sched_var
 import os
 import pavilion.dependencies.yaml_config as yc
 import subprocess
+from pavilion.utils import dprint
+
 
 class SbatchHeader(scriptcomposer.ScriptHeader):
     def __init__(self, sched_config, nodes, id):
@@ -160,6 +162,13 @@ class SlurmVars(SchedulerVariables):
         return ' '.join(cmd)
 
 
+def slurm_float(val):
+    if val == 'N/A':
+        return None
+    else:
+        return float(val)
+
+
 class Slurm(SchedulerPlugin):
 
     KICKOFF_SCRIPT_EXT = '.sbatch'
@@ -228,9 +237,13 @@ class Slurm(SchedulerPlugin):
     def _get_data(self):
 
         data = dict()
-
         data['nodes'] = self._collect_node_data()
-        data['summary'] = self._make_summary(data['nodes'].values())
+
+        # Filter out 'nodes' that aren't a part of any partition.
+        # These are typically front-end/login nodes.
+        real_nodes = [n for n in data['nodes'].values() if
+                      'Partitions' in n]
+        data['summary'] = self._make_summary(real_nodes)
 
         # Get additional information specific to just our allocation.
         if self.in_alloc:
@@ -244,7 +257,7 @@ class Slurm(SchedulerPlugin):
     FIELD_TYPES = {
         'CPUTot': int,
         'CPUAlloc': int,
-        'CPULoad': float,
+        'CPULoad': slurm_float,
         # In MB
         'RealMemory': int,
         'AllocMemory': int,
@@ -276,6 +289,11 @@ class Slurm(SchedulerPlugin):
         # Splits output by node record
         for node in sinfo.split('\n\n'):
             node_info = {}
+
+            # Skip empty parts
+            if not node.strip():
+                continue
+
             # Splits each node's output by line
             for line in node.split('\n'):
                 line = line.strip()
@@ -419,7 +437,7 @@ class Slurm(SchedulerPlugin):
                                        ' not found.')
         return job_id
 
-    def check_job(self, id, key=None):
+    def check_job(self, id, key='JobState'):
         job_dict = {}
         try:
             job_output = subprocess.check_output(
@@ -430,9 +448,6 @@ class Slurm(SchedulerPlugin):
                 job_dict[key] = value
         except subprocess.CalledProcessError:
             raise SchedulerPluginError('Job {} not found.'.format(id))
-
-        if key is None:
-            key = 'JobState'
 
         try:
             value = job_dict[key]
@@ -523,4 +538,3 @@ class Slurm(SchedulerPlugin):
                     "Invalid num_nodes maximum value: {}".format(max_nodes))
 
         return '{}-{}'.format(min_nodes, max_nodes)
-
