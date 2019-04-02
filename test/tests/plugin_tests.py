@@ -205,6 +205,8 @@ class PluginTests(unittest.TestCase):
         # Get an empty pavilion config and set some config dirs on it.
         pav_cfg = config.PavilionConfigLoader().load_empty()
 
+        plugins.initialize_plugins(pav_cfg)
+
         # We're loading multiple directories of plugins - AT THE SAME TIME!
         pav_cfg.config_dirs = [os.path.join(self.TEST_DATA_ROOT,
                                             'pav_config_dir')]
@@ -213,6 +215,8 @@ class PluginTests(unittest.TestCase):
         self.assertEqual(len(result_parsers.list_plugins()), 1)
 
         regex = result_parsers.get_plugin('regex')
+
+        plugins._reset_plugins()
 
         #TODO: Write more extensive tests.
 
