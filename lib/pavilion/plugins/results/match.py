@@ -1,6 +1,5 @@
 from pavilion import result_parsers
 import yaml_config as yc
-import re
 
 
 class Match(result_parsers.ResultParser):
@@ -49,5 +48,5 @@ class Match(result_parsers.ResultParser):
         if not matches.empty():
             return results
 
-        ret_val = 'pass' if results == 'fail' else 'pass'
+        ret_val = PASS if results == 'fail' else FAIL
         return ret_val

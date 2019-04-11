@@ -12,7 +12,10 @@ def get_plugin(name):
     """Get the result plugin parser called name.
     :param str name: The name of the result parser plugin to return."""
 
-    return _RESULT_PARSERS[name]
+    try:
+        return _RESULT_PARSERS[name]
+    except KeyError as err:
+        raise ResultParserError( "{} not in {}.".format(name, list_plugins()))
 
 
 def list_plugins():
@@ -38,6 +41,8 @@ class ResultParser(IPlugin.IPlugin):
     PRIO_DEFAULT = 0
     PRIO_COMMON = 10
     PRIO_USER = 20
+    PASS="PASS"
+    FAIL="FAIL"
 
     def __init__(self, name, priority=PRIO_COMMON):
         """Initialize the plugin object

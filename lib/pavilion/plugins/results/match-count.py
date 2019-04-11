@@ -1,6 +1,5 @@
 from pavilion import result_parsers
 import yaml_config as yc
-import re
 
 
 class MatchCount(result_parsers.ResultParser):
@@ -17,29 +16,27 @@ class MatchCount(result_parsers.ResultParser):
                 'match', default=None,
                 help_text="A word that will be searched for in the output of "
                           "the test that will determine success or failure."
-            )
-            yc.IntElem(
+            ),
+            yc.StrElem(
                 'threshold', default=None,
                 help_text="If a threshold is defined, 'pass' will be returned "
                           "if greater than or equal to that many instances "
                           "of the specified word are found.  If fewer "
                           "instances are found, 'fail' is returned.  If no "
                           "threshold is defined, the count will be returned."
+            )
         ])
 
         return config_items
 
     def __call__(self, test, file=None, search=None, threshold=None):
 
-        matches = []
+        total = 0
 
         try:
             with open(file, "r") as infile:
                 for line in infile.readlines():
-                    match = line if search in line else None
-
-                    if match is not None:
-                        matches.append(match.group())
+                    total += line.count(search)
         except (IOError, OSError) as err:
             raise result_parsers.ResultParserError(
                 "Match result parser could not read input file '{}': {}"
@@ -47,8 +44,7 @@ class MatchCount(result_parsers.ResultParser):
             )
 
         if threshold is None:
-            return len(matches)
-        else:
-            if len(matches) < threshold:
-                return 'fail'
-        return 'pass'
+            return total
+        elif total < int(threshold):
+                return self.FAIL
+        return self.PASS
