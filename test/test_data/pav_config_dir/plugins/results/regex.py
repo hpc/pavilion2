@@ -22,27 +22,26 @@ class Regex(result_parsers.ResultParser):
                           "interpreted literally. IE '\\n' is a '\\' and an 'n'"
             ),
             yc.StrElem(
-                'rtype', default='first',
-                choices=['first', 'all', 'last', 'PASS', 'FAIL'],
+                'results', default='first',
+                choices=['first', 'all', 'last'],
                 help_text="This can return the first, last, or all matches. "
                           "If there are no matches the result will be null"
-                          "or an empty list. For 'PASS' and 'FAIL', simply"
-                          "return that value if a match was found (and the"
-                          "opposite otherwise."
+                          "or an empty list."
             )
         ])
 
         return config_items
 
-    def _check_args(self, test, file=None, regex=None, rtype=None):
+    def check_args(self, test, file=None, regex=None, results=None):
 
         try:
             re.compile(regex)
         except ValueError as err:
             raise result_parsers.ResultParserError(
-                "Invalid regular expression: {}".format(err))
+                "Invalid regular expression: {}".format(err)
+            )
 
-    def __call__(self, test, file=None, regex=None, rtype=None):
+    def __call__(self, test, file=None, regex=None, results=None):
 
         regex = re.compile(regex)
 
@@ -61,17 +60,12 @@ class Regex(result_parsers.ResultParser):
                 .format(file, err)
             )
 
-        if rtype == 'first':
-            return matches[0] if matches else None
-        elif rtype == 'last':
-            return matches[-1] if matches else None
-        elif rtype == 'all':
-            return matches
-        elif rtype in ['PASS', 'FAIL']:
-            if matches:
-                return rtype
-            else:
-                return 'PASS' if rtype == 'FAIL' else 'FAIL'
+        if results in ['first', 'last'] and not matches:
+            return None
+
+        if results == 'first':
+            return matches[0]
+        elif results == 'last':
+            return matches[-1]
         else:
-            raise RuntimeError("Invalid 'results' argument in regex parser: "
-                               "'{}'".format(rtype))
+            return matches

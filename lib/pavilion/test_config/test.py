@@ -381,21 +381,27 @@ class PavTest:
 
         # Only try to do the build if it doesn't already exist.
         if not os.path.exists(self.build_origin):
-            # Make sure another test doesn't try to do the build at the same time.
-            # Note cleanup of failed builds HAS to occur under this lock to avoid a race condition,
-            #   even though it would be way simpler to do it in .build()
+            # Make sure another test doesn't try to do the build at
+            # the same time.
+            # Note cleanup of failed builds HAS to occur under this lock to
+            # avoid a race condition, even though it would be way simpler to
+            # do it in .build()
             lock_path = '{}.lock'.format(self.build_origin)
             with lockfile.LockFile(lock_path, group=self._pav_cfg.shared_group):
-                # Make sure the build wasn't created while we waited for the lock.
+                # Make sure the build wasn't created while we waited for
+                # the lock.
                 if not os.path.exists(self.build_origin):
                     build_dir = self.build_origin + '.tmp'
 
-                    # Attempt to perform the actual build, this shouldn't raise an exception unless
+                    # Attempt to perform the actual build, this shouldn't
+                    # raise an exception unless
                     # something goes terribly wrong.
                     if not self._build(build_dir):
-                        # The build failed. The reason should already be set in the status file.
+                        # The build failed. The reason should already be set
+                        # in the status file.
                         def handle_error(_, path, exc_info):
-                            self.LOGGER.error("Error removing temporary build directory '{}': {}"
+                            self.LOGGER.error("Error removing temporary build "
+                                              "directory '{}': {}"
                                               .format(path, exc_info))
 
                         # Cleanup the temporary build tree.
@@ -405,7 +411,8 @@ class PavTest:
                     # Rename the build to it's final location.
                     os.rename(build_dir, self.build_origin)
 
-        # Perform a symlink copy of the original build directory into our test directory.
+        # Perform a symlink copy of the original build directory into our test
+        # directory.
         try:
             shutil.copytree(self.build_origin,
                             self.build_path,
@@ -417,23 +424,26 @@ class PavTest:
             self.LOGGER.error(msg)
             return False
 
-        # Touch the original build directory, so that we know it was used recently.
+        # Touch the original build directory, so that we know it was used
+        # recently.
         try:
             now = time.time()
             os.utime(self.build_origin, (now, now))
         except OSError as err:
-            self.LOGGER.warning("Could not update timestamp on build directory '{}': {}"
+            self.LOGGER.warning("Could not update timestamp on build directory "
+                                "'{}': {}"
                                 .format(self.build_origin, err))
 
         return True
 
-    # A process should produce some output at least once every this many seconds.
+    # A process should produce some output at least once every this many
+    # seconds.
     BUILD_SILENT_TIMEOUT = 30
 
     def _build(self, build_dir):
-        """Perform the build. This assumes the build template is resolved and that there actually
-        is a build to perform.
-        :returns: True or False, depending on whether the build appears to have been successful.
+        """Perform the build. This assumes there actually is a build to perform.
+        :returns: True or False, depending on whether the build appears to have
+            been successful.
         """
         try:
             self._setup_build_dir(build_dir)
@@ -458,8 +468,8 @@ class PavTest:
                     try:
                         result = proc.wait(timeout=timeout)
                     except subprocess.TimeoutExpired:
-                        stat = os.stat(build_log_path)
-                        quiet_time = time.time() - stat.st_mtime
+                        log_stat = os.stat(build_log_path)
+                        quiet_time = time.time() - log_stat.st_mtime
                         # Has the output file changed recently?
                         if self.BUILD_SILENT_TIMEOUT < quiet_time:
                             # Give up on the build, and call it a failure.
@@ -469,7 +479,8 @@ class PavTest:
                                             .format(self.BUILD_SILENT_TIMEOUT))
                             return False
                         else:
-                            # Only wait a max of BUILD_SILENT_TIMEOUT next 'wait'
+                            # Only wait a max of BUILD_SILENT_TIMEOUT next
+                            # 'wait'
                             timeout = self.BUILD_SILENT_TIMEOUT - quiet_time
 
         except subprocess.CalledProcessError as err:
@@ -479,14 +490,15 @@ class PavTest:
 
         except (IOError, OSError) as err:
             self.status.set(STATES.BUILD_ERROR,
-                            "Error that's probably related to writing the build output: {}"
-                            .format(err))
+                            "Error that's probably related to writing the "
+                            "build output: {}".format(err))
             return False
 
         try:
             self._fix_build_permissions()
         except OSError as err:
-            self.LOGGER.warning("Error fixing build permissions: {}".format(err))
+            self.LOGGER.warning("Error fixing build permissions: {}"
+                                .format(err))
 
         if result != 0:
             self.status.set(STATES.BUILD_FAILED,
@@ -507,7 +519,8 @@ class PavTest:
     )
 
     def _setup_build_dir(self, build_path):
-        """Setup the build directory, by extracting or copying the source and any extra files.
+        """Setup the build directory, by extracting or copying the source
+            and any extra files.
         :param build_path: Path to the intended build directory.
         :return: None
         """
@@ -518,17 +531,20 @@ class PavTest:
         if src_loc is None:
             src_path = None
         elif self._isurl(src_loc):
-            # Remove special characters from the url to get a reasonable default file name.
+            # Remove special characters from the url to get a reasonable
+            # default file name.
             download_name = build_config.get('source_download_name')
             # Download the file to the downloads directory.
             src_path = self._download_path(src_loc, download_name)
         else:
             src_path = self._find_file(src_loc, 'test_src')
             if src_path is None:
-                raise PavTestError("Could not find source file '{}'".format(src_path))
+                raise PavTestError("Could not find source file '{}'"
+                                   .format(src_path))
 
         if src_path is None:
-            # If there is no source archive or data, just make the build directory.
+            # If there is no source archive or data, just make the build
+            # directory.
             os.mkdir(build_path)
 
         elif os.path.isdir(src_path):
@@ -536,11 +552,10 @@ class PavTest:
             shutil.copytree(src_path, build_path, symlinks=True)
 
         elif os.path.isfile(src_path):
-            # Handle decompression of a stream compressed file. The interfaces for the libs are
-            # all the same; we just have to choose the right one to use. Zips are handled as an
-            # archive, below.
+            # Handle decompression of a stream compressed file. The interfaces
+            # for the libs are all the same; we just have to choose the right
+            # one to use. Zips are handled as an archive, below.
             category, subtype = utils.get_mime_type(src_path)
-            comp_lib = None
 
             if category == 'application' and subtype in self.TAR_SUBTYPES:
                 if tarfile.is_tarfile(src_path):
@@ -556,16 +571,20 @@ class PavTest:
                                 tmpdir = '{}.zip'.format(build_path)
                                 os.mkdir(tmpdir)
                                 tar.extractall(tmpdir)
-                                os.rename(os.path.join(tmpdir, top_level[0].name), build_path)
+                                opath = os.path.join(tmpdir,
+                                                     top_level[0].name)
+                                os.rename(opath, build_path)
                                 os.rmdir(tmpdir)
                             else:
-                                # Otherwise, the build path will contain the extracted contents
-                                # of the archive.
+                                # Otherwise, the build path will contain the
+                                # extracted contents of the archive.
                                 os.mkdir(build_path)
                                 tar.extractall(build_path)
-                    except (OSError, IOError, tarfile.CompressionError, tarfile.TarError) as err:
-                        raise PavTestError("Could not extract tarfile '{}' into '{}': {}"
-                                           .format(src_path, build_path, err))
+                    except (OSError, IOError,
+                            tarfile.CompressionError, tarfile.TarError) as err:
+                        raise PavTestError(
+                            "Could not extract tarfile '{}' into '{}': {}"
+                            .format(src_path, build_path, err))
 
                 else:
                     # If it's a compressed file but isn't a tar, extract the
@@ -587,7 +606,8 @@ class PavTest:
                         raise RuntimeError("Unhandled compression type. '{}'"
                                            .format(subtype))
 
-                    decomp_fn = src_path.split('/')[-1].split('.', 1)[0]
+                    decomp_fn = src_path.split('/')[-1]
+                    decomp_fn = decomp_fn.split('.', 1)[0]
                     decomp_fn = os.path.join(build_path, decomp_fn)
                     os.mkdir(build_path)
 
@@ -628,14 +648,16 @@ class PavTest:
                         "'{}': {}".format(src_path, build_path, err))
 
             else:
-                # Finally, simply copy any other types of files into the build directory.
+                # Finally, simply copy any other types of files into the build
+                # directory.
                 dest = os.path.join(build_path, os.path.basename(src_path))
                 try:
                     os.mkdir(build_path)
                     shutil.copyfile(src_path, dest)
                 except OSError as err:
-                    raise PavTestError("Could not copy test src '{}' to '{}': {}"
-                                       .format(src_path, dest, err))
+                    raise PavTestError(
+                        "Could not copy test src '{}' to '{}': {}"
+                        .format(src_path, dest, err))
 
         # Now we just need to copy over all of the extra files.
         for extra in build_config.get('extra_files', []):
@@ -644,24 +666,27 @@ class PavTest:
             try:
                 shutil.copyfile(path, dest)
             except OSError as err:
-                raise PavTestError("Could not copy extra file '{}' to dest '{}': {}"
-                                   .format(path, dest, err))
+                raise PavTestError(
+                    "Could not copy extra file '{}' to dest '{}': {}"
+                    .format(path, dest, err))
 
     RUN_SILENT_TIMEOUT = 5*60
 
     def _fix_build_permissions(self):
-        """The files in a build directory should never be writable, but directories should be.
-        Users are thus allowed to delete build directories and their files, but never modify
-        them. Additions, deletions within test build directories will effect the soft links,
-        not the original files themselves. (This applies both to owner and group).
+        """The files in a build directory should never be writable, but
+            directories should be. Users are thus allowed to delete build
+            directories and their files, but never modify them. Additions,
+            deletions within test build directories will effect the soft links,
+            not the original files themselves. (This applies both to owner and
+            group).
         :raises OSError: If we lack permissions or something else goes wrong."""
 
         # We rely on the umask to handle most restrictions.
         # This just masks out the write bits.
         file_mask = 0o777555
 
-        # We shouldn't have to do anything to directories, they should have the correct permissions
-        # already.
+        # We shouldn't have to do anything to directories, they should have
+        # the correct permissions already.
         for path, _, files in os.walk(self.build_origin):
             for file in files:
                 file_path = os.path.join(path, file)
@@ -670,7 +695,8 @@ class PavTest:
 
     def run(self, sched_vars):
         """Run the test, returning True on success, False otherwise.
-        :param dict sched_vars: The scheduler variables for resolving the build template.
+        :param dict sched_vars: The scheduler variables for resolving the build
+        template.
         """
 
         if self.run_tmpl_path is not None:
@@ -684,8 +710,9 @@ class PavTest:
                                       self.run_script_path,
                                       var_man)
             except KeyError as err:
-                msg = "Error converting run template '{}' into the final script: {}"\
-                        .format(self.run_tmpl_path, err)
+                msg = ("Error converting run template '{}' into the final " 
+                       "script: {}"
+                       .format(self.run_tmpl_path, err))
                 self.LOGGER.error(msg)
                 self.status.set(STATES.RUN_ERROR, msg)
             except PavTestError as err:
@@ -708,8 +735,8 @@ class PavTest:
                 try:
                     result = proc.wait(timeout=timeout)
                 except subprocess.TimeoutExpired:
-                    stat = os.stat(run_log_path)
-                    quiet_time = time.time() - stat.st_mtime
+                    out_stat = os.stat(run_log_path)
+                    quiet_time = time.time() - out_stat.st_mtime
                     # Has the output file changed recently?
                     if self.RUN_SILENT_TIMEOUT < quiet_time:
                         # Give up on the build, and call it a failure.
@@ -726,7 +753,8 @@ class PavTest:
             self.status.set(STATES.RUN_FAILED, "Test run failed.")
             return False
         else:
-            self.status.set(STATES.RUN_DONE, "Test run has completed successfully.")
+            self.status.set(STATES.RUN_DONE,
+                            "Test run has completed successfully.")
             return True
 
     def process_results(self):
@@ -735,16 +763,18 @@ class PavTest:
     @property
     def is_built(self):
         """Whether the build for this test exists.
-        :returns: True if the build exists (or the test doesn't have a build), False otherwise.
+        :returns: True if the build exists (or the test doesn't have a build),
+            False otherwise.
         """
 
         if 'build' not in self.config:
             return True
 
         if os.path.islink(self.build_path):
-            # The file is expected to be a softlink, but we need to make sure the path it points
-            # to exists. The most robust way is to check it with stat, which will throw an exception
-            # if it doesn't exist (an OSError in certain weird cases like symlink loops).
+            # The file is expected to be a softlink, but we need to make sure
+            # the path it points to exists. The most robust way is to check
+            # it with stat, which will throw an exception if it doesn't
+            # exist (an OSError in certain weird cases like symlink loops).
             try:
                 os.stat(self.build_path)
             except (OSError, FileNotFoundError):
@@ -787,8 +817,9 @@ class PavTest:
         self._job_id = job_id
 
     def _hash_dict(self, mapping):
-        """Create a hash from the keys and items in 'mapping'. Keys are processed in order. Can
-        handle lists and other dictionaries as values.
+        """Create a hash from the keys and items in 'mapping'. Keys are
+            processed in order. Can handle lists and other dictionaries as
+            values.
         :param dict mapping: The dictionary to hash.
         """
 
@@ -826,20 +857,20 @@ class PavTest:
 
     @staticmethod
     def _hash_dir(path):
-        """Instead of hashing the files within a directory, we just create a hash based on it's
-        name and mtime, assuming we've run _date_dir on it before hand.
-        Note: This doesn't actually produce a hash, just an arbitrary string.
+        """Instead of hashing the files within a directory, we just create a
+            'hash' based on it's name and mtime, assuming we've run _date_dir
+            on it before hand. This produces an arbitrary string, not a hash.
         :param str path: The path to the directory.
         :returns: The 'hash'
         """
 
-        stat = os.stat(path)
-        return '{} {:0.5f}'.format(path, stat.st_mtime).encode('utf-8')
+        dir_stat = os.stat(path)
+        return '{} {:0.5f}'.format(path, dir_stat.st_mtime).encode('utf-8')
 
     @staticmethod
     def _date_dir(base_path):
-        """Update the mtime of the given directory or path to the the latest mtime contained
-        within.
+        """Update the mtime of the given directory or path to the the latest
+        mtime contained within.
         :param str base_path: The root of the path to evaluate.
         """
 
@@ -848,15 +879,16 @@ class PavTest:
 
         paths = utils.flat_walk(base_path)
         for path in paths:
-            stat = os.stat(path)
-            if stat.st_mtime > latest:
-                latest = stat.st_mtime
+            dir_stat = os.stat(path)
+            if dir_stat.st_mtime > latest:
+                latest = dir_stat.st_mtime
 
         if src_stat.st_mtime != latest:
             os.utime(base_path, (src_stat.st_atime, latest))
 
     def _write_script(self, path, config):
-        """Write a build or run script or template. The formats for each are identical.
+        """Write a build or run script or template. The formats for each are
+            identical.
         :param str path: Path to the template file to write.
         :param dict config: Configuration dictionary for the script file.
         :return:
@@ -868,9 +900,11 @@ class PavTest:
                 group=self._pav_cfg.shared_group,
             ))
 
-        pav_lib_bash = os.path.join(self._pav_cfg.pav_root, 'bin', 'pav-lib.bash')
+        pav_lib_bash = os.path.join(self._pav_cfg.pav_root,
+                                    'bin', 'pav-lib.bash')
 
-        script.comment('The following is added to every test build and run script.')
+        script.comment('The following is added to every test build and '
+                       'run script.')
         script.env_change({'TEST_ID': '{}'.format(self.id)})
         script.command('source {}'.format(pav_lib_bash))
 
@@ -900,18 +934,15 @@ class PavTest:
 
         script.write()
 
-    # Variables will be enclosed in ascii record separators enclosed in square brackets.
-    # We look for this, even with keys that can't be correct, to more easily find errors
-    # in how we write these files.
-    TMPL_ESCAPE_RE = re.compile(r'\[\x1E((?:\x1E[^\]]|[^\x1E])*)\x1E\]')
-
     @classmethod
     def resolve_template(cls, tmpl_path, script_path, var_man):
-        """Resolve the test deferred variables using the appropriate escape sequence.
+        """Resolve the test deferred variables using the appropriate escape
+            sequence.
         :param str tmpl_path: Path to the template file to read.
         :param str script_path: Path to the script file to write.
-        :param variables.VariableSetManager var_man: A variable set manager for retreiving found
-            variables. Is expected to contain the sys and sched variable sets.
+        :param variables.VariableSetManager var_man: A variable set manager for
+            retrieving found variables. Is expected to contain the sys and
+            sched variable sets.
         :raises KeyError: For unknown variables in the template.
         """
 
@@ -920,35 +951,19 @@ class PavTest:
                  open(script_path, 'w') as script:
 
                 for line in tmpl.readlines():
-                    out_line = []
-                    char_val = 0
-                    match = cls.TMPL_ESCAPE_RE.search(line, char_val)
-
-                    # Walk through the line, and lookup the real value of each matched
-                    # deferred variable.
-                    while match is not None:
-                        out_line.append(line[char_val:match.start()])
-                        char_val = match.end()
-                        var_name = match.groups()[0]
-                        # This may raise a KeyError, which callers should expect.
-                        out_line.append(var_man[var_name])
-                        match = cls.TMPL_ESCAPE_RE.search(line, char_val)
-
-                    # Don't forget the remainder of the line.
-                    out_line.append(line[char_val:])
-
-                    out_line = ''.join(out_line)
-
-                    # Make sure all of our escape sequences are accounted for.
-                    if '\x1e]' in out_line or '[\x1e' in out_line:
-                        raise KeyError("Errant escape sequence in template '{}': '{}'"
-                                       .format(tmpl_path, out_line))
-
-                    script.write(out_line)
+                    script.write(var_man.resolve_deferred_str(line))
 
             # Add group and owner execute permissions to the produced script.
-            os.chmod(script_path, os.stat(script_path).st_mode | stat.S_IXGRP | stat.S_IXUSR)
+            new_mode = (os.stat(script_path).st_mode |
+                        stat.S_IXGRP |
+                        stat.S_IXUSR)
+            os.chmod(script_path, new_mode)
 
-        except(IOError, OSError) as err:
-            raise PavTestError("Failed processing run template file '{}' into run script'{}': {}"
+        except ValueError as err:
+            raise PavTestError("Problem escaping run template file '{}': {}"
+                               .format(tmpl_path, err))
+
+        except (IOError, OSError) as err:
+            raise PavTestError("Failed processing run template file '{}' into "
+                               "run script'{}': {}"
                                .format(tmpl_path, script_path, err))

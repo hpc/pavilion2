@@ -351,11 +351,21 @@ class SchedulerPlugin(IPlugin.IPlugin):
         """
         raise NotImplementedError
 
-    def check_job(self, id, key):
+    # Job status constants to be used across all schedulers. Scheduler plugins
+    # should translate the scheduler's states into these four.
+
+    # The job is currently executing
+    JOB_RUNNING = 'RUNNING'
+    # The job is scheduled (but not yet running).
+    JOB_SCHEDULED = 'SCHEDULED'
+    # The job is complete (and successful)
+    JOB_COMPLETE = 'COMPLETE'
+    # The job has failed to complete
+    JOB_FAILED = 'FAILED'
+
+    def check_job(self, id):
         """Function to check the status of a job.
            :param str id - ID number of the job as returned by submit_job().
-           :param str key - Optional parameter to request a specific value
-                            from the scheduler job information.
            :return str - Status of the job matching the provided job ID.
                          If the key is empty or requesting the state of the
                          job, the return values should be 'pending', 'running',

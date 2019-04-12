@@ -4,6 +4,7 @@ from pavilion.commands import Command
 from pavilion.result_parsers import ResultParser
 from pavilion.system_variables import SystemPlugin as System
 from pavilion.schedulers import SchedulerPlugin
+from pavilion.result_parsers import ResultParser
 import os
 import logging
 
@@ -14,9 +15,10 @@ _PLUGIN_MANAGER = None
 PLUGIN_CATEGORIES = {
     'module': ModuleWrapper,
     'command': Command,
-    'results': ResultParser,
     'sys': System,
     'sched': SchedulerPlugin,
+    'result': ResultParser,
+    # result plugins
 }
 
 

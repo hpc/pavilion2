@@ -223,7 +223,7 @@ class TestConfigLoader(yc.YamlConfigLoader):
 
         for section in list(cls._RESULT_PARSERS.config_elems.values()):
             if section.name == name:
-                del cls._RESULT_PARSERS.config_elems.remove[section.name]
+                del cls._RESULT_PARSERS.config_elems[section.name]
                 return
 
     @classmethod

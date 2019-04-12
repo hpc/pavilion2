@@ -5,6 +5,7 @@ import unittest
 
 from pavilion import config
 from pavilion.test_config import PavTest, variables
+from pavilion.test_config.test import PavTestError
 
 
 class PavTestTests(unittest.TestCase):
@@ -25,7 +26,7 @@ class PavTestTests(unittest.TestCase):
 
         self.tmp_dir = tempfile.TemporaryDirectory()
 
-        self.pav_cfg.working_dir = '/tmp/pflarr/pav_test' # self.tmp_dir.name
+        self.pav_cfg.working_dir = self.tmp_dir.name
 
         # Create the basic directories in the working directory
         for path in [self.pav_cfg.working_dir,
@@ -221,17 +222,28 @@ class PavTestTests(unittest.TestCase):
 
         for bad_tmpl in (
                 'resolve_template_keyerror.tmpl',
-                'resolve_template_bad_key.tmpl',
-                'resolve_template_extra_escape.tmpl'):
+                'resolve_template_bad_key.tmpl'):
 
             script_path = tempfile.mktemp()
             tmpl_path = os.path.join(self.TEST_DATA_ROOT, bad_tmpl)
-            with self.assertRaises(KeyError,
-                                   msg="Error not raised on bad file '{}'".format(bad_tmpl)):
+            with self.assertRaises(
+                    KeyError,
+                    msg="Error not raised on bad file '{}'".format(bad_tmpl)):
                 PavTest.resolve_template(tmpl_path, script_path, var_man)
 
             if os.path.exists(script_path):
                 os.unlink(script_path)
+
+        script_path = tempfile.mktemp()
+        tmpl_path = os.path.join(self.TEST_DATA_ROOT,
+                                 'resolve_template_extra_escape.tmpl')
+        with self.assertRaises(
+                PavTestError,
+                msg="Error not raised on bad file '{}'".format(bad_tmpl)):
+            PavTest.resolve_template(tmpl_path, script_path, var_man)
+
+        if os.path.exists(script_path):
+            os.unlink(script_path)
 
     def test_build(self):
         """Make sure building works."""

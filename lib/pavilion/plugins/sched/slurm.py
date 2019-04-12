@@ -6,7 +6,9 @@ from pavilion.schedulers import dfr_sched_var
 from pavilion.schedulers import sched_var
 import os
 import pavilion.dependencies.yaml_config as yc
+import re
 import subprocess
+
 
 class SbatchHeader(scriptcomposer.ScriptHeader):
     def __init__(self, sched_config, nodes, id):
@@ -160,6 +162,13 @@ class SlurmVars(SchedulerVariables):
         return ' '.join(cmd)
 
 
+def slurm_float(val):
+    if val == 'N/A':
+        return None
+    else:
+        return float(val)
+
+
 class Slurm(SchedulerPlugin):
 
     KICKOFF_SCRIPT_EXT = '.sbatch'
@@ -228,9 +237,13 @@ class Slurm(SchedulerPlugin):
     def _get_data(self):
 
         data = dict()
-
         data['nodes'] = self._collect_node_data()
-        data['summary'] = self._make_summary(data['nodes'].values())
+
+        # Filter out 'nodes' that aren't a part of any partition.
+        # These are typically front-end/login nodes.
+        real_nodes = [n for n in data['nodes'].values() if
+                      'Partitions' in n]
+        data['summary'] = self._make_summary(real_nodes)
 
         # Get additional information specific to just our allocation.
         if self.in_alloc:
@@ -241,10 +254,10 @@ class Slurm(SchedulerPlugin):
 
         return data
 
-    FIELD_TYPES = {
+    NODE_FIELD_TYPES = {
         'CPUTot': int,
         'CPUAlloc': int,
-        'CPULoad': float,
+        'CPULoad': slurm_float,
         # In MB
         'RealMemory': int,
         'AllocMemory': int,
@@ -274,34 +287,13 @@ class Slurm(SchedulerPlugin):
         node_data = {}
 
         # Splits output by node record
-        for node in sinfo.split('\n\n'):
-            node_info = {}
-            # Splits each node's output by line
-            for line in node.split('\n'):
-                line = line.strip()
+        for node_section in sinfo.split('\n\n'):
 
-                # Skip if the line is empty
-                if not line:
-                    continue
+            node_info = self.parse_scontrol(node_section)
+            for k,v in node_info.items():
+                if k in self.NODE_FIELD_TYPES:
+                    node_info[k] = self.NODE_FIELD_TYPES[v]
 
-                # Skipping emtpy lines and lines that start with OS= and
-                # Reason= because those two instances use spaces.  For all
-                # others, dividing the record up into key-value pairs and
-                # storing in the dictionary for this node.
-                if not (line.startswith('OS=') or line.startswith('Reason=')):
-                    for item in line.split():
-                        key, value = item.split('=', 1)
-                        if key in self.FIELD_TYPES:
-                            value = self.FIELD_TYPES[key](value)
-                        node_info[key] = value
-
-                # For the OS= and Reason= lines, just don't split on spaces.
-                else:
-                    key, value = line.split('=', 1)
-                    node_info[key] = value
-
-            # Store the result in a dictionary by node name with all info
-            # provided by sinfo in a dictionary.
             node_data[node_info['NodeName']] = node_info
 
         return node_data
@@ -419,20 +411,72 @@ class Slurm(SchedulerPlugin):
                                        ' not found.')
         return job_id
 
-    def check_job(self, id, key=None):
+    SCONTROL_KEY_RE = re.compile(r'(?:^|\s+)([A-Z][a-zA-Z0-9:/]*)=')
+    SCONTROL_WS_RE = re.compile(r'\s+')
+
+    def parse_scontrol(self, section):
+
+        # NOTE: Because slurm administrators can essentially add whatever
+        # they want to scontrol variables, they may break the parsing of
+        # 'scontrol show' output, perhaps even making it un-parseable with a
+        # general algorithm.
+
+        offset = 0
+        val = None
+        key = None
+
+        results = {}
+
+        match = self.SCONTROL_KEY_RE.search(section)
+        # Keep searching till we find all the key=value pairs.
+        while match is not None:
+
+            # We break values at whitespace by default, but their
+            # might be more. We add everything before the key match
+            # to the last value.
+            if key is not None:
+                extra = section[offset: match.start(1)].rstrip()
+                val = val + extra
+
+                results[key] = val
+
+            key = match.groups()[0]
+
+            ws_match = self.SCONTROL_WS_RE.search(section, match.end())
+            if ws_match is None:
+                # We've reached the end of the string
+                offset = len(section)
+            else:
+                offset = ws_match.start()
+
+            # The value is everything up to the whitespace (we may append more)
+            val = section[match.end():offset]
+
+            # Search for the next key starting from the offset
+            match = self.SCONTROL_KEY_RE.search(section, offset)
+
+        if key is not None:
+            # Add the last key and anything extra
+            results[key] = val + section[offset:].rstrip()
+
+        return results
+
+    def check_job(self, id):
         job_dict = {}
         try:
             job_output = subprocess.check_output(
                 ['scontrol', 'show', 'job', id])
             job_output = job_output.decode('UTF-8').split()
             for item in job_output:
-                key, value = item.split('=')
+                item = item.strip()
+                if not item:
+                    continue
+                from pavilion.utils import cprint
+                cprint(item, color=36)
+                key, value = item.split('=', 1)
                 job_dict[key] = value
         except subprocess.CalledProcessError:
             raise SchedulerPluginError('Job {} not found.'.format(id))
-
-        if key is None:
-            key = 'JobState'
 
         try:
             value = job_dict[key]
@@ -457,8 +501,8 @@ class Slurm(SchedulerPlugin):
             elif value in fail_list:
                 ret_val = 'failed'
             else:
-                raise SchedulerPluginError('Job status {} '.format(value) +\
-                                           'not recognized.')
+                raise SchedulerPluginError('Job status {} not recognized.'
+                                           .format(key))
 
         return ret_val
 
@@ -523,4 +567,3 @@ class Slurm(SchedulerPlugin):
                     "Invalid num_nodes maximum value: {}".format(max_nodes))
 
         return '{}-{}'.format(min_nodes, max_nodes)
-

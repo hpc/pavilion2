@@ -3,6 +3,11 @@ from yapsy import IPlugin
 import inspect
 import logging
 import yaml_config as yc
+from .test_config import variables
+
+
+LOGGER = logging.getLogger(__file__)
+
 
 # The dictionary of result parsers.
 _RESULT_PARSERS = {}
@@ -24,7 +29,14 @@ def list_plugins():
     return list(_RESULT_PARSERS.keys())
 
 
-LOGGER = logging.getLogger(__file__)
+def __reset():
+    """Reset the plugin setup. This is for testing only."""
+
+    global _RESULT_PARSERS
+
+    # Remove all existing parsers.
+    for parser in list(_RESULT_PARSERS.values()):
+        parser.deactivate()
 
 
 class ResultParserError(RuntimeError):
@@ -66,13 +78,23 @@ class ResultParser(IPlugin.IPlugin):
         raise NotImplementedError("A result parser plugin must implement"
                                   "the __call__ method.")
 
-    def check_args(self, test, **kwargs):
+    def _check_args(self, test, **kwargs):
         """Override this to add custom checking of the arguments at test
         kickoff time. This prevents errors in your arguments from causing
         a problem in the middle of a test run. The yaml_config module handles
-        structural checking (and can handle more)."""
+        structural checking (and can handle more). This should raise a
+        descriptive ResultParserError if any issues are found."""
 
         pass
+
+    def check_args(self, test, args):
+        """Check the arguments for any errors at test kickoff time, if they
+        don't contain deferred variables."""
+
+        if variables.VariableSetManager.has_deferred(args):
+            return
+
+        self._check_args(test, **args)
 
     def get_config_items(self):
         """Get the config for this result parser. This should be a list of
