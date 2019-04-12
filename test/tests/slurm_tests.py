@@ -43,17 +43,19 @@ class SlurmTests(unittest.TestCase):
         plugins._reset_plugins()
 
     @unittest.skipIf(not has_slurm(), "Only runs on a system with slurm.")
-    def test_vars(self):
+    def test_slurm_vars(self):
         """Make sure all the slurm scheduler variable methods work when
         not on a node."""
 
         slurm = schedulers.get_scheduler_plugin('slurm')
 
-        print(slurm.get_data()['summary'])
+        from pavilion.utils import cprint
+        cprint(slurm.get_data()['summary'])
 
         # Grab a random jobid, and get the status of it.
         jobs = subprocess.check_output(['squeue', '-o', "%i %T"])
-        last_job = jobs.split('\n')[-1]
+        jobs = jobs.decode('utf-8')
+        last_job = jobs.strip().split('\n')[-1]
         jobid, status = last_job.strip().split()
 
         slurm.check_job(jobid)

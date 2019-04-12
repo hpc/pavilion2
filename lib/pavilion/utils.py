@@ -58,9 +58,11 @@ def symlink_copy(src, dst):
     return os.symlink(src, dst)
 
 
-def dprint(*args, **kwargs):
+def cprint(*args, color=33, **kwargs):
     """Print with pretty colors, so it's easy to find."""
-    args = ['\x1b[33m'] + list(args) + ['\x1b[0m']
+    start_escape = '\x1b[{}m'.format(color)
+
+    args = [start_escape] + list(args) + ['\x1b[0m']
 
     return print(*args, **kwargs)
 

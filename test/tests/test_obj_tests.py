@@ -26,7 +26,7 @@ class PavTestTests(unittest.TestCase):
 
         self.tmp_dir = tempfile.TemporaryDirectory()
 
-        self.pav_cfg.working_dir = '/tmp/pflarr/pav_test' # self.tmp_dir.name
+        self.pav_cfg.working_dir = self.tmp_dir.name
 
         # Create the basic directories in the working directory
         for path in [self.pav_cfg.working_dir,

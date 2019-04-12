@@ -22,7 +22,7 @@ class Regex(result_parsers.ResultParser):
                           "interpreted literally. IE '\\n' is a '\\' and an 'n'"
             ),
             yc.StrElem(
-                'results', default='first',
+                'rtype', default='first',
                 choices=['first', 'all', 'last', 'PASS', 'FAIL'],
                 help_text="This can return the first, last, or all matches. "
                           "If there are no matches the result will be null"
@@ -34,7 +34,7 @@ class Regex(result_parsers.ResultParser):
 
         return config_items
 
-    def _check_args(self, test, file=None, regex=None, results=None):
+    def _check_args(self, test, file=None, regex=None, rtype=None):
 
         try:
             re.compile(regex)
@@ -42,7 +42,7 @@ class Regex(result_parsers.ResultParser):
             raise result_parsers.ResultParserError(
                 "Invalid regular expression: {}".format(err))
 
-    def __call__(self, test, file=None, regex=None, results=None):
+    def __call__(self, test, file=None, regex=None, rtype=None):
 
         regex = re.compile(regex)
 
@@ -61,20 +61,17 @@ class Regex(result_parsers.ResultParser):
                 .format(file, err)
             )
 
-        if results in ['first', 'last'] and not matches:
-            return None
-
-        if results == 'first':
-            return matches[0]
-        elif results == 'last':
-            return matches[-1]
-        elif results == 'all':
+        if rtype == 'first':
+            return matches[0] if matches else None
+        elif rtype == 'last':
+            return matches[-1] if matches else None
+        elif rtype == 'all':
             return matches
-        elif results in ['PASS', 'FAIL']:
+        elif rtype in ['PASS', 'FAIL']:
             if matches:
-                return results
+                return rtype
             else:
-                return 'PASS' if results == 'FAIL' else 'FAIL'
+                return 'PASS' if rtype == 'FAIL' else 'FAIL'
         else:
             raise RuntimeError("Invalid 'results' argument in regex parser: "
-                               "'{}'".format(results))
+                               "'{}'".format(rtype))
