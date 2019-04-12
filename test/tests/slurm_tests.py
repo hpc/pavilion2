@@ -1,6 +1,6 @@
 from pavilion import plugins
-from pavilion import pav_config
-from pavilion import scheduler_plugins
+from pavilion import config
+from pavilion import schedulers
 import datetime
 import os
 import subprocess
@@ -32,7 +32,7 @@ class SlurmTests(unittest.TestCase):
 
         # Do a default pav config, which will load from
         # the pavilion lib path.
-        self.pav_config = pav_config.PavilionConfigLoader().load_empty()
+        self.pav_config = config.PavilionConfigLoader().load_empty()
 
     def setUp(self):
 
@@ -43,8 +43,19 @@ class SlurmTests(unittest.TestCase):
         plugins._reset_plugins()
 
     @unittest.skipIf(not has_slurm(), "Only runs on a system with slurm.")
-    def test_vars(self):
+    def test_slurm_vars(self):
         """Make sure all the slurm scheduler variable methods work when
         not on a node."""
 
-        scheduler_plugins.get_scheduler_plugin('slurm')
+        slurm = schedulers.get_scheduler_plugin('slurm')
+
+        from pavilion.utils import cprint
+        cprint(slurm.get_data()['summary'])
+
+        # Grab a random jobid, and get the status of it.
+        jobs = subprocess.check_output(['squeue', '-o', "%i %T"])
+        jobs = jobs.decode('utf-8')
+        last_job = jobs.strip().split('\n')[-1]
+        jobid, status = last_job.strip().split()
+
+        slurm.check_job(jobid)

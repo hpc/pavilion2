@@ -1,6 +1,6 @@
-from pavilion.variables import DeferredVariable
+from pavilion.test_config.variables import DeferredVariable
 from pavilion import scriptcomposer
-from pavilion import config_format
+from pavilion.test_config import format
 from yapsy import IPlugin
 from functools import wraps
 import collections
@@ -351,11 +351,21 @@ class SchedulerPlugin(IPlugin.IPlugin):
         """
         raise NotImplementedError
 
-    def check_job(self, id, key):
+    # Job status constants to be used across all schedulers. Scheduler plugins
+    # should translate the scheduler's states into these four.
+
+    # The job is currently executing
+    JOB_RUNNING = 'RUNNING'
+    # The job is scheduled (but not yet running).
+    JOB_SCHEDULED = 'SCHEDULED'
+    # The job is complete (and successful)
+    JOB_COMPLETE = 'COMPLETE'
+    # The job has failed to complete
+    JOB_FAILED = 'FAILED'
+
+    def check_job(self, id):
         """Function to check the status of a job.
            :param str id - ID number of the job as returned by submit_job().
-           :param str key - Optional parameter to request a specific value
-                            from the scheduler job information.
            :return str - Status of the job matching the provided job ID.
                          If the key is empty or requesting the state of the
                          job, the return values should be 'pending', 'running',
@@ -455,13 +465,13 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
         if name not in _SCHEDULER_PLUGINS:
             _SCHEDULER_PLUGINS[name] = self
-            config_format.TestConfigLoader.add_subsection(self.get_conf())
+            format.TestConfigLoader.add_subsection(self.get_conf())
         else:
             ex_plugin = _SCHEDULER_PLUGINS[name]
             if ex_plugin.priority > self.priority:
                 LOGGER.warning(
                     "Scheduler plugin {} ignored due to priority"
-                        .format(name))
+                    .format(name))
             elif ex_plugin.priority == self.priority:
                 raise SchedulerPluginError(
                     "Two plugins for the same system plugin have the same "
@@ -475,5 +485,5 @@ class SchedulerPlugin(IPlugin.IPlugin):
         name = self.name
 
         if name in _SCHEDULER_PLUGINS:
-            config_format.TestConfigLoader.remove_subsection(name)
+            format.TestConfigLoader.remove_subsection(name)
             del _SCHEDULER_PLUGINS[name]

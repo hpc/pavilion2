@@ -1,8 +1,7 @@
 from collections import defaultdict
 from pavilion import commands
-from pavilion import config
-from pavilion import pav_test
-from pavilion import scheduler_plugins
+from test import config_utils, PavTest
+from pavilion import schedulers
 from pavilion.string_parser import ResolveError
 
 
@@ -55,7 +54,7 @@ class RunCommand(commands.Command):
         test_configs = self.get_tests(pav_config, args)
 
         for sched_name, tests in test_configs.items():
-            sched = scheduler_plugins.get_scheduler_plugin(sched_name)
+            sched = schedulers.get_scheduler_plugin(sched_name)
 
             sched.run_tests(tests)
 
@@ -88,7 +87,7 @@ class RunCommand(commands.Command):
                 self.logger.error(msg)
                 raise commands.CommandError(msg)
 
-        raw_tests = config.get_tests(pav_config, host, args.mode, tests)
+        raw_tests = config_utils.get_tests(pav_config, host, args.mode, tests)
         raw_tests_by_sched = defaultdict(lambda: [])
         tests_by_scheduler = defaultdict(lambda: [])
 
@@ -96,8 +95,8 @@ class RunCommand(commands.Command):
         for test_cfg in raw_tests:
             # Apply the overrides to each of the config values.
             try:
-                config.apply_overrides(test_cfg, args.overrides)
-            except config.TestConfigError as err:
+                config_utils.apply_overrides(test_cfg, args.overrides)
+            except config_utils.TestConfigError as err:
                 msg = 'Error applying overrides to test {} from {}: {}'\
                       .format(test_cfg['name'], test_cfg['suite_path'], err)
                 self.logger.error(msg)
@@ -105,12 +104,12 @@ class RunCommand(commands.Command):
 
             # Resolve all configuration permutations.
             try:
-                for p_cfg, p_var_man in config.resolve_permutations(
+                for p_cfg, p_var_man in config_utils.resolve_permutations(
                         test_cfg, pav_config.pav_vars, pav_config.sys_vars):
 
                     sched = p_cfg['scheduler']
                     raw_tests_by_sched[sched].append((p_cfg, p_var_man))
-            except config.TestConfigError as err:
+            except config_utils.TestConfigError as err:
                 msg = 'Error resolving permutations for test {} from {}: {}'\
                       .format(test_cfg['name'], test_cfg['suite_path'], err)
                 self.logger.error(msg)
@@ -120,13 +119,13 @@ class RunCommand(commands.Command):
         # The scheduler variables are based on all of the
         for sched_name in raw_tests_by_sched.keys():
             try:
-                sched = scheduler_plugins.get_scheduler_plugin(sched_name)
+                sched = schedulers.get_scheduler_plugin(sched_name)
             except KeyError:
                 msg = "Could not find scheduler '{}'.".format(sched_name)
                 self.logger.error(msg)
                 raise commands.CommandError(msg)
 
-            nondeferred_cfg_sctns = scheduler_plugins.list_scheduler_plugins()
+            nondeferred_cfg_sctns = schedulers.list_scheduler_plugins()
 
             # Builds must have the values of all their variables now.
             nondeferred_cfg_sctns.append('build')
@@ -137,7 +136,7 @@ class RunCommand(commands.Command):
 
                 # Resolve all variables for the test.
                 try:
-                    resolved_config = config.resolve_all_vars(
+                    resolved_config = config_utils.resolve_all_vars(
                         test_cfg,
                         test_var_man,
                         no_deferred_allowed=nondeferred_cfg_sctns)
@@ -147,7 +146,7 @@ class RunCommand(commands.Command):
                     self.logger.error(msg)
                     raise commands.CommandError(msg)
 
-                test = pav_test.PavTest(pav_config, resolved_config)
+                test = PavTest(pav_config, resolved_config)
 
                 tests_by_scheduler[sched.name].append(test)
 

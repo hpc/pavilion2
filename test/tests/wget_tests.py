@@ -6,7 +6,7 @@ import tempfile
 import unittest
 
 from pavilion import wget
-from pavilion import pav_config
+from pavilion import config
 
 PAV_DIR = os.path.realpath(__file__)
 for i in range(3):
@@ -32,12 +32,12 @@ class TestWGet(unittest.TestCase):
 
         # Try to get a configuration from the testing pavilion.yaml file.
         try:
-            pav_cfg = pav_config.PavilionConfigLoader().load(open(self.PAV_CONFIG_PATH))
+            pav_cfg = config.PavilionConfigLoader().load(open(self.PAV_CONFIG_PATH))
         except FileNotFoundError:
             self._logger.error("Could not find pavilion config at '{}'. You'll probably need to "
                                "setup the proxy information for this test."
                                .format(self.PAV_CONFIG_PATH))
-            pav_cfg = pav_config.PavilionConfigLoader().load_empty()
+            pav_cfg = config.PavilionConfigLoader().load_empty()
 
         info = wget.head(pav_cfg, self.GET_TARGET)
 
@@ -62,12 +62,12 @@ class TestWGet(unittest.TestCase):
 
         # Try to get a configuration from the testing pavilion.yaml file.
         try:
-            pav_cfg = pav_config.PavilionConfigLoader().load(open(self.PAV_CONFIG_PATH))
+            pav_cfg = config.PavilionConfigLoader().load(open(self.PAV_CONFIG_PATH))
         except FileNotFoundError:
             self._logger.error("Could not find pavilion config at '{}'. You'll probably need to "
                                "setup the proxy information for this test."
                                .format(self.PAV_CONFIG_PATH))
-            pav_cfg = pav_config.PavilionConfigLoader().load_empty()
+            pav_cfg = config.PavilionConfigLoader().load_empty()
 
         dest_fn = tempfile.mktemp(dir='/tmp')
         info_fn = '{}.info'.format(dest_fn)

@@ -1,5 +1,5 @@
 
-from pavilion import pav_config
+from pavilion import config
 import argparse
 import sys
 
@@ -10,7 +10,7 @@ parser.add_argument('key', nargs=1, action="store", help="The config key to look
 args = parser.parse_args()
 key = args.key[0]
 
-pav_cfg = pav_config.find()
+pav_cfg = config.find()
 
 
 if key in pav_cfg:

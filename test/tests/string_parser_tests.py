@@ -1,8 +1,7 @@
 import unittest
 import traceback
 
-from pavilion import variables
-from pavilion import string_parser
+from pavilion.test_config import variables, string_parser
 
 
 class TestStringParser(unittest.TestCase):

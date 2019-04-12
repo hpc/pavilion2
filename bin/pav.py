@@ -4,7 +4,7 @@
 from logging.handlers import RotatingFileHandler
 from pavilion import arguments
 from pavilion import commands
-from pavilion import pav_config
+from pavilion import config
 from pavilion import plugins
 import logging
 import os
@@ -18,7 +18,7 @@ if sys.version_info[0] != 3 or sys.version_info[1] < 4:
 
 # Get the config, and
 try:
-    pav_cfg = pav_config.find()
+    pav_cfg = config.find()
 except Exception as err:
     print(err, file=sys.stderr)
     sys.exit(-1)
