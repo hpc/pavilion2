@@ -51,10 +51,10 @@ class ResultParser(IPlugin.IPlugin):
             of the same name. Higher priority plugins will supersede others.
         """
 
+        super().__init__()
+
         self.name = name
         self.priority = priority
-
-        super().__init__()
 
     def __call__(self, test, **kwargs):
         """This is where the result parser is actually implemented.
