@@ -12,15 +12,16 @@ class WGetError(RuntimeError):
     pass
 
 
-# How many times to follow redirects in a 'head' call before giving up and returning whatever we
-# last got.
+# How many times to follow redirects in a 'head' call before giving up and
+# returning whatever we last got.
 REDIRECT_LIMIT = 10
 
 
 def get(pav_cfg, url, dest):
-    """Download the file at the given url and store it at dest. If a file already exists at dest
-    it will be overwritten (assuming we have the permissions to do so). Proxies are handled
-    automatically based on pav_cfg settings. This is done atomically; the download is saved to an
+    """Download the file at the given url and store it at dest. If a file
+    already exists at dest it will be overwritten (assuming we have the
+    permissions to do so). Proxies are handled automatically based on
+    pav_cfg settings. This is done atomically; the download is saved to an
     intermediate location and then moved.
     :param pav_cfg: The pavilion configuration object.
     :param str url: The url for the file to download.
@@ -35,7 +36,8 @@ def get(pav_cfg, url, dest):
     dest_dir = os.path.dirname(os.path.realpath(dest))
 
     try:
-        with session.get(url, proxies=proxies, stream=True) as response, \
+        with session.get(url, proxies=proxies, stream=True,
+                         timeout=pav_cfg.wget_timeout) as response, \
               tempfile.NamedTemporaryFile(dir=dest_dir, delete=False) as tmp:
             for chunk in response.iter_content(chunk_size=4096):
                 tmp.write(chunk)
@@ -69,7 +71,9 @@ def head(pav_cfg, url):
     redirects = 0
 
     try:
-        response = session.head(url, proxies=proxies)
+        response = session.head(url,
+                                proxies=proxies,
+                                timeout=pav_cfg.wget_timeout)
         # The location header is the redirect location. While the requests library resolves these
         # automatically, it still returns the first header result from a 'head' call. We need to
         # follow these manually, up to a point.
@@ -79,7 +83,9 @@ def head(pav_cfg, url):
                 return response
             redirect_url = response.headers['Location']
             proxies = _get_proxies(pav_cfg, redirect_url)
-            response = session.head(redirect_url, proxies=proxies)
+            response = session.head(redirect_url,
+                                    proxies=proxies,
+                                    timeout=pav_cfg.wget_timeout)
 
     except requests.exceptions.RequestException as err:
         raise WGetError(err)
