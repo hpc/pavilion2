@@ -11,7 +11,6 @@ import json
 import logging
 import lzma
 import os
-import re
 import shutil
 import stat
 import subprocess
@@ -80,11 +79,11 @@ class PavTest:
 
         # Get an id for the test, if we weren't given one.
         if test_id is None:
-            self.id = self._create_id(tests_path)
+            self.id, self.path = utils.create_id_dir(tests_path)
             self._save_config()
         else:
             self.id = test_id
-            self.path = self._get_test_path(tests_path, self.id)
+            self.path = utils.make_id_path(tests_path, self.id)
             if not os.path.isdir(self.path):
                 raise PavTestNotFoundError(
                     "No test with id '{}' could be found.".format(self.id))
@@ -138,7 +137,7 @@ class PavTest:
     def from_id(cls, pav_cfg, test_id):
         """Load a new PavTest object based on id."""
 
-        path = cls._get_test_path(os.path.join(pav_cfg.working_dir, 'tests'),
+        path = utils.make_id_path(os.path.join(pav_cfg.working_dir, 'tests'),
                                   test_id)
 
         if not os.path.isdir(path):
@@ -157,46 +156,6 @@ class PavTest:
         pav_path = os.path.join(self._pav_cfg.pav_root, 'bin', 'pav')
 
         return '{} run {}'.format(pav_path, self.id)
-
-    def _create_id(self, tests_path):
-        """Figure out what the test id of this test should be.
-        :side effect: Sets self.path, creates that directory.
-        :param str tests_path: The path to the general tests directory.
-        :returns: The allocated test id.
-        :raises PavTestError: When we can't get an id or create the directory.
-        :rtype: int
-        """
-
-        lockfile_path = os.path.join(tests_path, '.lockfile')
-        with lockfile.LockFile(lockfile_path, timeout=1):
-            tests = os.listdir(tests_path)
-            # Only return the test directories that could be integers.
-            tests = tuple(map(int, filter(str.isdigit, tests)))
-
-            # Find the first unused id.
-            test_id = 1
-            while test_id in tests:
-                test_id += 1
-
-            self.path = self._get_test_path(tests_path, test_id)
-
-            try:
-                os.mkdir(self.path)
-            except (IOError, OSError) as err:
-                raise PavTestError("Failed to create test dir '{}': {}"
-                                   .format(tests_path, err))
-
-        return test_id
-
-    @classmethod
-    def _get_test_path(cls, tests_path, test_id):
-        """Calculate the path to the test directory given the overall test
-        directory and the id."""
-
-        id_str = "{id:0{digits}d}".format(id=test_id,
-                                          digits=cls.TEST_ID_DIGITS)
-
-        return os.path.join(tests_path, id_str)
 
     def _save_config(self):
         """Save the configuration for this test to the test config file."""
@@ -815,6 +774,12 @@ class PavTest:
                               .format(path, err))
 
         self._job_id = job_id
+
+    @property
+    def ts(self):
+        """Return the unix timestamp for this test, based on the last
+        modified date for the test directory."""
+        return os.stat(self.path).st_mtime
 
     def _hash_dict(self, mapping):
         """Create a hash from the keys and items in 'mapping'. Keys are

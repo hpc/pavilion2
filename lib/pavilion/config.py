@@ -54,7 +54,7 @@
 # This module contains the base configuration for Pavilion itself.
 
 import grp
-import pavilion.dependencies.yaml_config as yc
+import yaml_config as yc
 import os
 import socket
 import logging
@@ -167,6 +167,12 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
             "log_level", default="info", post_validator=log_level_validate,
             help_text="The minimum log level for messages sent to the pavilion "
                       "logfile."),
+        yc.IntElem(
+            "wget_timeout", default=5,
+            help_text="How long to wait on web requests before timing out. On"
+                      "networks without internet access, zero will allow you"
+                      "to spot issues faster."
+        ),
         yc.CategoryElem(
             "proxies", sub_elem=yc.StrElem(),
             help_text="Proxies, by protocol, to use when accessing the "

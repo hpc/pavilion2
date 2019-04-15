@@ -3,7 +3,6 @@ from collections import OrderedDict
 
 package_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 sys.path.append(os.path.join(package_root, 'lib'))
-sys.path.append(os.path.join(package_root, 'lib', 'pavilion', 'dependencies'))
 
 from pavilion import scriptcomposer
 

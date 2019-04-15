@@ -31,7 +31,6 @@ if not os.path.exists(config):
 
 # Setup our paths to the pavilion libraries.
 sys.path.append(os.path.abspath('../lib'))
-sys.path.append(os.path.abspath('../lib/pavilion/dependencies'))
 
 loader = unittest.TestLoader()
 suite = loader.discover('./tests', pattern='*_tests.py')
