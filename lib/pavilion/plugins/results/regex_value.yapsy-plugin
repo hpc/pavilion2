@@ -1,0 +1,9 @@
+[Core]
+Name = Regex Value Result Parser
+Module = regex_value
+
+[Documentation]
+Description = Parses strings from a file using Regex and optionally compares to a value.
+Author = Nicholas C. Sly
+Version = 1.0
+Website =

@@ -1,10 +1,14 @@
+import logging
 import os
 import tempfile
 import unittest
 
-from pavilion import result_parsers
 from pavilion import config
+from pavilion import plugins
+from pavilion import result_parsers
 from pavilion.test_config import PavTest
+
+LOGGER = logging.getLogger(__name__)
 
 class PavTestTests(unittest.TestCase):
 
@@ -76,71 +80,88 @@ class PavTestTests(unittest.TestCase):
     def test_regex_value_parser(self):
         """Ensure the regex-value parser works appropriately."""
 
+        # Get an empty pavilion config and set some config dirs on it.
+        pav_cfg = config.PavilionConfigLoader().load_empty()
+
+        plugins.initialize_plugins(pav_cfg)
+
+        # We're loading multiple directories of plugins - AT THE SAME TIME!
+        pav_cfg.config_dirs = [os.path.join(self.TEST_DATA_ROOT,
+                                            'pav_config_dir')]
+
         output_loc = self.pav_cfg.working_dir + '/outfile.txt'
 
-        parser = result_parsers.get_plugin('regex-value')
+        parser = result_parsers.get_plugin('regex_value')
 
         # Testing the check_args functionality.
-
         # Test that it works when provided sensible values.
         valid_regex = '^User:(.*)$'
-        parser.check_args(regex=valid_regex, results='all', expected=['12'])
+        parser.check_args(None, regex=valid_regex, results='all', expected=['12'])
 
         test_regex = '[[['
 
+        exc = result_parsers.ResultParserError
+
         # Test assertion is raised upon receiving an invalid regex.
-        self.assertRaises(parser.check_args(regex=test_regex))
+        self.assertRaises(exc, parser.check_args, None, regex=test_regex)
 
         # Test assertion is raised when an invalid range is provided.
-        self.assertRaises(parser.check_args(regex=valid_regex, results='all',
-                                            expected=['12-11']))
+        self.assertRaises(exc, parser.check_args, None, regex=valid_regex,
+                          results='all', expected=['12-11'])
 
-        self.assertRaises(parser.check_args(regex=valid_regex, results='all',
-                                            expected=['-11--12']))
+        self.assertRaises(exc, parser.check_args, None, regex=valid_regex,
+                          results='all', expected=['-11--12'])
 
-        self.assertRaises(parser.check_args(regex=valid_regex, results='all',
-                                            expected=['11-12-13']))
+        self.assertRaises(exc, parser.check_args, None, regex=valid_regex,
+                          results='all',  expected=['11-12-13'])
 
-        self.assertRaises(parser.check_args(regex=valid_regex, results='all',
-                                            expected=['11-words']))
+        self.assertRaises(exc, parser.check_args, None, regex=valid_regex,
+                          results='all', expected=['11-words'])
 
         test_output = [
-            "Test Name: FakeTest",
-            "User: Some-gal-or-guy",
-            "result1=19",
-            "result3=test",
-            "result9=-12",
-            "result98=",
+            "Test Name: FakeTest\n",
+            "User: Some-gal-or-guy\n",
+            "result1=19\n",
+            "result3=test\n",
+            "result9=-12\n",
+            "result98=\n",
             "overall=whatevs"
         ]
+
+        passing = result_parsers.ResultParser.PASS
+        failing = result_parsers.ResultParser.FAIL
 
         with open(output_loc,'w') as outfile:
             outfile.writelines(test_output)
 
-        self.assertEqual(parser(file=output_loc, regex=valid_regex,
-                                results='all'), 'Some-gal-or-guy')
+        self.assertRaises(exc, parser, None, file='notfile.txt',
+                          regex=valid_regex)
 
-        self.assertEqual(parser(file=output_loc, regex='^result1=(.*)$',
-                                results='first', expected=['19']), 'PASS')
+        self.assertEqual(parser(None, file=output_loc, regex='^result1=(.*)$',
+                                results='first', expected=['19']), passing)
 
-        self.assertEqual(parser(file=output_loc, regex='^result9=(.*)$',
-                                results='all', expected=['-13--9']), 'PASS')
+        self.assertEqual(parser(None, file=output_loc, regex=valid_regex,
+                                results='all'), ['User: Some-gal-or-guy'])
 
-        self.assertEqual(parser(file=output_loc, regex='^result3=(.*)$',
-                                results='last'), 'test')
+        self.assertEqual(parser(None, file=output_loc, regex='^result9=(.*)$',
+                                results='all', expected=['-13--9']), passing)
 
-        self.assertIsNone(parser(file=output_loc, regex='^result2=(.*)$',
+        self.assertEqual(parser(None, file=output_loc, regex='^result3=(.*)$',
+                                results='last'), ['result3=test'])
+
+        self.assertIsNone(parser(None, file=output_loc, regex='^result2=(.*)$',
                                  results='first'))
 
-        self.assertIsNone(parser(file=output_loc, regex='^result2=(.*)$',
+        self.assertIsNone(parser(None, file=output_loc, regex='^result2=(.*)$',
                                  results='last'))
 
-        self.assertEqual(parser(file=output_loc, regex='^result2=(.*)$',
+        self.assertEqual(parser(None, file=output_loc, regex='^result2=(.*)$',
                                 results='all'), [])
 
-        self.assertEqual(parser(file=output_loc, regex='^result?=(.*)$',
-                                results='all', expected=['100','101']), 'FAIL')
+        self.assertEqual(parser(None, file=output_loc, regex='^result.*=(.*)$',
+                                results='all', expected=['100','101']), failing)
 
         not_output = output_loc + ".false"
 
-        self.assertRaises(parser(file=not_output, regex='^result1=(.*)$'))
+        self.assertRaises(exc, parser, None, file=not_output,
+                          regex='^result1=(.*)$')
