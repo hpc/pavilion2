@@ -78,7 +78,13 @@ class ResultParser(IPlugin.IPlugin):
         kickoff time. This prevents errors in your arguments from causing
         a problem in the middle of a test run. The yaml_config module handles
         structural checking (and can handle more). This should raise a
-        descriptive ResultParserError if any issues are found."""
+        descriptive ResultParserError if any issues are found.
+        :param pavilion.test_config.PavTest test: The test object that this
+            result parser will be working with.
+        :param kwargs: Child result parsers should override these with
+            specific kwargs for their arguments. They should all default to
+            and rely on the config parser to set their defaults.
+        """
 
         pass
 

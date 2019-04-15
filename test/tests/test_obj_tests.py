@@ -6,14 +6,18 @@ import unittest
 from pavilion import config
 from pavilion.test_config import PavTest, variables
 from pavilion.test_config.test import PavTestError
+from pavilion.suite import Suite
 
 
 class PavTestTests(unittest.TestCase):
 
-    TEST_DATA_ROOT = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+    TEST_DATA_ROOT = os.path.realpath(__file__)
+    TEST_DATA_ROOT = os.path.dirname(os.path.dirname(TEST_DATA_ROOT))
     TEST_DATA_ROOT = os.path.join(TEST_DATA_ROOT, 'test_data')
 
-    PAV_CONFIG_PATH = os.path.join(TEST_DATA_ROOT, 'pav_config_dir', 'pavilion.yaml')
+    PAV_CONFIG_PATH = os.path.join(TEST_DATA_ROOT,
+                                   'pav_config_dir',
+                                   'pavilion.yaml')
 
     TEST_URL = 'https://github.com/lanl/Pavilion/archive/2.0.zip'
 
@@ -22,16 +26,19 @@ class PavTestTests(unittest.TestCase):
         with open(self.PAV_CONFIG_PATH) as cfg_file:
             self.pav_cfg = config.PavilionConfigLoader().load(cfg_file)
 
-        self.pav_cfg.config_dirs = [os.path.join(self.TEST_DATA_ROOT, 'pav_config_dir')]
+        self.pav_cfg.config_dirs = [os.path.join(self.TEST_DATA_ROOT,
+                                                 'pav_config_dir')]
 
         self.tmp_dir = tempfile.TemporaryDirectory()
 
-        self.pav_cfg.working_dir = self.tmp_dir.name
+        #self.pav_cfg.working_dir = self.tmp_dir.name
+        self.pav_cfg.working_dir = '/tmp/{}/pav_tests/'.format(os.getlogin())
 
         # Create the basic directories in the working directory
         for path in [self.pav_cfg.working_dir,
                      os.path.join(self.pav_cfg.working_dir, 'builds'),
                      os.path.join(self.pav_cfg.working_dir, 'tests'),
+                     os.path.join(self.pav_cfg.working_dir, 'suites'),
                      os.path.join(self.pav_cfg.working_dir, 'downloads')]:
             if not os.path.exists(path):
                 os.makedirs(path, exist_ok=True)
@@ -43,9 +50,11 @@ class PavTestTests(unittest.TestCase):
 
         # Initializing with a mostly blank config
         config = {
+            # The only required param.
             'name': 'blank_test'
         }
 
+        # Making sure this doesn't throw errors from missing params.
         PavTest(self.pav_cfg, config)
 
         config = {
@@ -78,7 +87,8 @@ class PavTestTests(unittest.TestCase):
             self.assertEqual(t.__dict__[key], t2.__dict__[key])
 
     def test_setup_build_dir(self):
-        """Make sure we can correctly handle all of the various archive formats."""
+        """Make sure we can correctly handle all of the various archive
+        formats."""
 
         base_config = {
             'name': 'test',
@@ -99,7 +109,8 @@ class PavTestTests(unittest.TestCase):
             'no_encaps.zip',
         ]
 
-        test_archives = os.path.join(self.TEST_DATA_ROOT, 'pav_config_dir', 'test_src')
+        test_archives = os.path.join(self.TEST_DATA_ROOT, 'pav_config_dir',
+                                     'test_src')
         original_tree = os.path.join(test_archives, 'src')
 
         for archive in archives:
@@ -195,7 +206,8 @@ class PavTestTests(unittest.TestCase):
                         os.path.join(test.build_origin, 'README.md'))
 
     def test_resolve_template(self):
-        tmpl_path = os.path.join(self.TEST_DATA_ROOT, 'resolve_template_good.tmpl')
+        tmpl_path = os.path.join(self.TEST_DATA_ROOT,
+                                 'resolve_template_good.tmpl')
 
         var_man = variables.VariableSetManager()
         var_man.add_var_set('sched', {
@@ -211,11 +223,12 @@ class PavTestTests(unittest.TestCase):
         })
 
         script_path = tempfile.mktemp()
-        PavTest.resolve_template(tmpl_path,
-                                      script_path,
-                                      var_man)
+        PavTest.resolve_template(tmpl_path, script_path, var_man)
+        good_path = os.path.join(self.TEST_DATA_ROOT,
+                                 'resolve_template_good.sh')
+
         with open(script_path) as gen_script,\
-             open(os.path.join(self.TEST_DATA_ROOT, 'resolve_template_good.sh')) as ver_script:
+             open(good_path) as ver_script:
             self.assertEqual(gen_script.read(), ver_script.read())
 
         os.unlink(script_path)
@@ -347,8 +360,50 @@ class PavTestTests(unittest.TestCase):
         }
         test = PavTest(self.pav_cfg, config3)
         test.RUN_SILENT_TIMEOUT = 1
-        self.assertFalse(test.run({}), msg="Test should have failed due to timeout. {}"
-                                           .format(test.path))
+        self.assertFalse(test.run({}),
+                         msg="Test should have failed due to timeout. {}"
+                             .format(test.path))
+
+    def test_suites(self):
+        """Test suite creation and regeneration."""
+
+        config1 = {
+            'name': 'run_test',
+            'run': {
+                'env': {
+                    'foo': 'bar',
+                },
+                #
+                'cmds': ['echo "I ran, punks"'],
+            },
+        }
+
+        tests = []
+        for i in range(3):
+            tests.append(PavTest(self.pav_cfg, config1))
+
+        # Make sure this doesn't explode
+        suite = Suite(self.pav_cfg, tests)
+
+        # Make sure we got all the tests
+        self.assertEqual(len(suite.tests), 3)
+        test_paths = [os.path.join(suite.path, p)
+                      for p in os.listdir(suite.path)]
+        # And that the test paths are unique
+        self.assertEqual(len(set(test_paths)),
+                         len([os.path.realpath(p) for p in test_paths]))
+        # Make sure the paths resolve
+        for link_path in test_paths:
+            self.assertTrue(os.path.islink(link_path))
+            self.assertTrue(os.path.exists(os.path.realpath(link_path)))
+
+        suite2 = Suite.from_id(self.pav_cfg, suite.id)
+        self.assertEqual(suite.tests.keys(), suite2.tests.keys())
+        self.assertEqual([t.id for t in suite.tests.values()],
+                         [t.id for t in suite2.tests.values()])
+                                                
+        self.assertEqual(suite.path, suite2.path)
+        self.assertEqual(suite.id, suite2.id)
 
     def _is_softlink_dir(self, path):
         """Verify that a directory contains nothing but softlinks whose files exist. Directories
