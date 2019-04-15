@@ -54,7 +54,7 @@
 # This module contains the base configuration for Pavilion itself.
 
 import grp
-import pavilion.dependencies.yaml_config as yc
+import yaml_config as yc
 import os
 import socket
 import logging

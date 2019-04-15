@@ -1,4 +1,4 @@
-import pavilion.dependencies.yaml_config as yc
+import yaml_config as yc
 import re
 
 

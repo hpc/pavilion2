@@ -5,7 +5,7 @@ from pavilion.schedulers import SchedulerVariables
 from pavilion.schedulers import dfr_sched_var
 from pavilion.schedulers import sched_var
 import os
-import pavilion.dependencies.yaml_config as yc
+import yaml_config as yc
 import re
 import subprocess
 
