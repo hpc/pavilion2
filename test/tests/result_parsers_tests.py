@@ -127,6 +127,10 @@ class PavTestTests(unittest.TestCase):
         self.assertEqual(parser(None, file=output_loc, regex='^result13=(.*)$',
                                 results='all', expected=['-32.0-22']), passing)
 
+        self.assertEqual(parser(None, file=output_loc, regex='^result13=(.*)$',
+                                results='all',
+                                expected=['-10000000000.0-0']), passing)
+
         self.assertEqual(parser(None, file=output_loc, regex='^result3=(.*)$',
                                 results='last'), ['result3=test'])
 

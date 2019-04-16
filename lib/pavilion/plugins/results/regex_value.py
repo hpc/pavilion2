@@ -126,7 +126,6 @@ class RegexValue(result_parsers.ResultParser):
         res = [self.FAIL for x in range(0,len(found))]
 
         for i in range(0,len(res)):
-            print("\n Comparing found value {} to expected {}.".format(found[i], expected))
             for exp_set in expected:
                 if '-' not in exp_set[1:] and found[i] == exp_set:
                     res[i] = self.PASS
