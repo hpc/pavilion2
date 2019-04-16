@@ -38,45 +38,6 @@ class PavTestTests(unittest.TestCase):
 
         super().__init__(*args, **kwargs)
 
-    def test_obj(self):
-        """Test pavtest object initialization."""
-
-        # Initializing with a mostly blank config
-        config = {
-            'name': 'blank_test'
-        }
-
-        PavTest(self.pav_cfg, config)
-
-        config = {
-            'subtest': 'st',
-            'name': 'test',
-            'build': {
-                'modules': ['gcc'],
-                'cmds': ['echo "Hello World"'],
-            },
-            'run': {
-                'modules': ['gcc', 'openmpi'],
-                'cmds': ['echo "Running dis stuff"'],
-                'env': {'BLARG': 'foo'},
-            }
-        }
-
-        # Make sure we can create a test from a fairly populated config.
-        t = PavTest(self.pav_cfg, config)
-
-        # Make sure we can recreate the object from id.
-        t2 = PavTest.from_id(self.pav_cfg, t.id)
-
-        # Make sure the objects are identical
-        # This tests the following functions
-        #  - from_id
-        #  - save_config, load_config
-        #  - get_test_path
-        #  - write_tmpl
-        for key in set(t.__dict__.keys()).union(t2.__dict__.keys()):
-            self.assertEqual(t.__dict__[key], t2.__dict__[key])
-
     def test_regex_value_parser(self):
         """Ensure the regex-value parser works appropriately."""
 
@@ -124,6 +85,8 @@ class PavTestTests(unittest.TestCase):
             "result1=19\n",
             "result3=test\n",
             "result9=-12\n",
+            "result12=9.9\n",
+            "result13=-22.2\n",
             "result98=\n",
             "overall=whatevs"
         ]
@@ -145,6 +108,24 @@ class PavTestTests(unittest.TestCase):
 
         self.assertEqual(parser(None, file=output_loc, regex='^result9=(.*)$',
                                 results='all', expected=['-13--9']), passing)
+
+        self.assertEqual(parser(None, file=output_loc, regex='^result12=(.*)$',
+                                results='all', expected=['9.0-9.9']), passing)
+
+        self.assertEqual(parser(None, file=output_loc, regex='^result12=(.*)$',
+                                results='all', expected=['9.9-9.9']), passing)
+
+        self.assertEqual(parser(None, file=output_loc, regex='^result12=(.*)$',
+                                results='all', expected=['9.9-10.0']), passing)
+
+        self.assertEqual(parser(None, file=output_loc, regex='^result12=(.*)$',
+                                results='all', expected=['-9.9-10.0']), passing)
+
+        self.assertEqual(parser(None, file=output_loc, regex='^result13=(.*)$',
+                                results='all', expected=['-32--22']), passing)
+
+        self.assertEqual(parser(None, file=output_loc, regex='^result13=(.*)$',
+                                results='all', expected=['-32.0-22']), passing)
 
         self.assertEqual(parser(None, file=output_loc, regex='^result3=(.*)$',
                                 results='last'), ['result3=test'])

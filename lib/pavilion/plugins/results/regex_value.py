@@ -7,6 +7,7 @@ class RegexValue(result_parsers.ResultParser):
     """Accepts a value or range of values for validation of results."""
 
     def __init__(self):
+        self.range_re = re.compile('(-?[0-9]*\.?[0-9]*)-(-?.*)')
         super().__init__(name='regex_value', priority=10)
 
     def get_config_items(self):
@@ -25,10 +26,15 @@ class RegexValue(result_parsers.ResultParser):
                 choices=['first', 'all', 'last'],
                 help_text="This can return the first, last, or all matches. "
                           "If there are no matches the result will be null"
-                          "or an empty list."
+                          "or an empty list unless a value is provided for "
+                          "expected."
             ),
             yc.ListElem('expected', sub_elem=yc.StrElem(),
-                help_text="Optional expected value.  Can be a range."
+                help_text="Optional expected value.  Can be a range. If "
+                          "provided, the result will be 'PASS' if all of the "
+                          "found values (determined by the 'results' value) "
+                          "are included in the expected values.  Otherwise, "
+                          "the result is 'FAIL'."
             )
         ])
 
@@ -47,9 +53,9 @@ class RegexValue(result_parsers.ResultParser):
 
         for item in expected:
             test_list = []
+            
             if '-' in item[1:]:
-                test_list.append(item[:item[1:].find('-')+1])
-                test_list.append(item[item[1:].find('-')+2:])
+                test_list = list(self.range_re.search(item).groups())
                 # Check for valid second part of range.
                 if '-' in test_list[1][1:]:
                     raise result_parsers.ResultParserError(
@@ -61,7 +67,7 @@ class RegexValue(result_parsers.ResultParser):
             for test_item in test_list:
                 # Check for values as integers.
                 try:
-                    int(test_item)
+                    float(test_item)
                 except ValueError as err:
                     raise result_parsers.ResultParserError(
                         "Invalid value: {}".format(test_item)
@@ -70,7 +76,7 @@ class RegexValue(result_parsers.ResultParser):
             if len(test_list) > 1:
                 # Check for range specification as
                 # (<lesser value>-<greater value>)
-                if int(test_list[1]) < int(test_list[0]):
+                if float(test_list[1]) < float(test_list[0]):
                     raise result_parsers.ResultParserError(
                         "Invalid range: {}".format(item))
 
@@ -114,18 +120,22 @@ class RegexValue(result_parsers.ResultParser):
                 found[i] = found[i][0]
             return found
 
-        exp_list = []
+        for i in range(0,len(found)):
+            found[i] = found[i][1]
 
-        for item in expected:
-            if '-' not in item[1:]:
-                exp_list.append(int(item))
-            else:
-                min_val = int(item[:item[1:].find('-')+1])
-                max_val = int(item[item[1:].find('-')+2:])
-                exp_list.extend(list(range(min_val, max_val+1)))
+        res = [self.FAIL for x in range(0,len(found))]
 
-        for res in found:
-            if int(res[1]) not in exp_list:
-                return self.FAIL
+        for i in range(0,len(res)):
+            print("\n Comparing found value {} to expected {}.".format(found[i], expected))
+            for exp_set in expected:
+                if '-' not in exp_set[1:] and found[i] == exp_set:
+                    res[i] = self.PASS
+                elif '-' in exp_set[1:]:
+                    low, high = self.range_re.search(exp_set).groups()
+                    if float(low) <= float(found[i]) <= float(high):
+                        res[i] = self.PASS
+
+        if self.FAIL in res:
+            return self.FAIL
 
         return self.PASS
