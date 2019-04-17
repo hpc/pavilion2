@@ -1,0 +1,24 @@
+hello:
+    build:
+        cmds:
+            - echo "Building Hello"
+    run:
+        cmds:
+            - echo "Running World"
+
+    scheduler: "slurm"
+
+world:
+    build:
+        cmds:
+            - echo "Building World"
+    run:
+        cmds:
+            - echo "Running World"
+
+    scheduler: "raw"
+
+narf:
+    inherits_from: world
+
+    scheduler: "blarg"

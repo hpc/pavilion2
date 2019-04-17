@@ -3,14 +3,16 @@ from pavilion import config
 import argparse
 import sys
 
-parser = argparse.ArgumentParser(description="Finds the pavilion configuration, and prints the"
-                                             "asked for config value.")
-parser.add_argument('key', nargs=1, action="store", help="The config key to look up.")
+parser = argparse.ArgumentParser(
+    description="Finds the pavilion configuration, and prints the asked for "
+                "config value.")
+parser.add_argument('key', nargs=1, action="store",
+                    help="The config key to look up.")
 
 args = parser.parse_args()
 key = args.key[0]
 
-pav_cfg = config.find()
+pav_cfg = config.find(warn=False)
 
 
 if key in pav_cfg:

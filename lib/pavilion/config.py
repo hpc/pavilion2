@@ -200,7 +200,7 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
     ]
 
 
-def find():
+def find(warn=True):
     """Search for a pavilion.yaml configuration file. The first one found is 
     used. Directories are searched in this order: {}
     """.format(PAV_CONFIG_SEARCH_DIRS)
@@ -215,6 +215,7 @@ def find():
                 raise RuntimeError("Error in Pavilion config at {}: {}"
                                    .format(path, err))
 
-    LOGGER.warning("Could not find a pavilion config file. Using an "
-                   "empty/default config.")
+    if warn:
+        LOGGER.warning("Could not find a pavilion config file. Using an "
+                       "empty/default config.")
     return PavilionConfigLoader().load_empty()

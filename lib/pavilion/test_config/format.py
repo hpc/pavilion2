@@ -7,7 +7,7 @@ class TestConfigError(ValueError):
     pass
 
 
-KEY_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_-]+$')
+KEY_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_-]*$')
 
 
 class VariableElem(yc.CategoryElem):
