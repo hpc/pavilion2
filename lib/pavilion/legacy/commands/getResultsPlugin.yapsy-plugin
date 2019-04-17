@@ -1,9 +1,0 @@
-[Core]
-Name = getResults
-Module = getResultsPlugin
-
-[Documentation]
-Author = Craig Idler 
-Version = 0.1
-Website = http://pavilion.org
-Description = Plugin that implements a function to get the results of test runs
