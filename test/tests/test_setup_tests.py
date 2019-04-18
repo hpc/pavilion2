@@ -1,11 +1,11 @@
 
-from pavilion import unittest
+from pavilion.unittest import PavTestCase
 from pavilion.test_config import (get_tests, TestConfigError, apply_overrides,
                                   resolve_permutations, resolve_all_vars)
 from pavilion.test_config import variables, string_parser
 
 
-class TestSetupTests(unittest.PavTestBase):
+class TestSetupTests(PavTestCase):
 
     def test_get_tests(self):
         """Make sure get_tests can find tests and resolve inheritance."""

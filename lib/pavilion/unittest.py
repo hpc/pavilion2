@@ -1,12 +1,14 @@
+import fnmatch
 import os
 import tempfile
 import unittest
+import types
 
 from pavilion import config
 from pavilion.utils import cprint
 
 
-class PavTestBase(unittest.TestCase):
+class PavTestCase(unittest.TestCase):
     """This is a base class for other test suites."""
 
     TEST_DATA_ROOT = os.path.realpath(__file__)
@@ -17,8 +19,14 @@ class PavTestBase(unittest.TestCase):
     PAV_CONFIG_PATH = os.path.join(TEST_DATA_ROOT,
                                    'pav_config_dir',
                                    'pavilion.yaml')
+    PAV_LIB_DIR = os.path.dirname(__file__)
 
     TEST_URL = 'https://github.com/lanl/Pavilion/archive/2.0.zip'
+
+    # Skip any tests that match these globs.
+    SKIP = []
+    # Only run tests that match these globs.
+    ONLY = []
 
     def __init__(self, *args, **kwargs):
 
@@ -26,11 +34,11 @@ class PavTestBase(unittest.TestCase):
             self.pav_cfg = config.PavilionConfigLoader().load(cfg_file)
 
         self.pav_cfg.config_dirs = [os.path.join(self.TEST_DATA_ROOT,
-                                                 'pav_config_dir')]
+                                                 'pav_config_dir'),
+                                    self.PAV_LIB_DIR]
 
         self.tmp_dir = tempfile.TemporaryDirectory()
 
-        #self.pav_cfg.working_dir = self.tmp_dir.name
         self.pav_cfg.working_dir = '/tmp/{}/pav_tests/'.format(os.getlogin())
 
         # Create the basic directories in the working directory
@@ -43,6 +51,43 @@ class PavTestBase(unittest.TestCase):
                 os.makedirs(path, exist_ok=True)
 
         super().__init__(*args, **kwargs)
+
+    def __getattribute__(self, item):
+        attr = super().__getattribute__(item)
+
+        # Wrap our test functions in a function that dynamically wraps
+        # them so they only execute under certain conditions.
+        if (isinstance(attr, types.MethodType) and
+                attr.__name__.startswith('test_')):
+
+            name = attr.__name__[len('test_'):]
+
+            if self.SKIP:
+                for skip_glob in self.SKIP:
+                    if fnmatch.fnmatch(name, skip_glob):
+                        return unittest.skip("Skipped via command line.")(attr)
+                return attr
+
+            if self.ONLY:
+                for only_glob in self.ONLY:
+                    if fnmatch.fnmatch(name, only_glob):
+                        return attr
+                return unittest.skip("Not in list of tests to run.")(attr)
+
+        # If it isn't altered or explicitely returned above, just return the
+        # attribute.
+        return attr
+
+    @classmethod
+    def set_skip(cls, globs):
+        """Skip tests whose names match the given globs."""
+
+        cls.SKIP = globs
+
+    @classmethod
+    def set_only(cls, globs):
+        """Only run tests whos names match the given globs."""
+        cls.ONLY = globs
 
     def _is_softlink_dir(self, path):
         """Verify that a directory contains nothing but softlinks whose files

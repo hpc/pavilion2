@@ -411,8 +411,6 @@ class VariableToken(Token):
 
         is_deferred = var_man.is_deferred(var_set, var)
 
-        print(var_set, var, allow_deferred, is_deferred)
-
         if (not allow_deferred) and is_deferred:
             raise ResolveError("Deferred variables like ({}) are not allowed "
                                "in this config section.".format(self.var))

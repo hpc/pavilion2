@@ -1,10 +1,10 @@
-import unittest
 import traceback
 
 from pavilion.test_config import variables, string_parser
+from pavilion.unittest import PavTestCase
 
 
-class TestStringParser(unittest.TestCase):
+class TestStringParser(PavTestCase):
 
     var_data = {
         'var1': 'val1',

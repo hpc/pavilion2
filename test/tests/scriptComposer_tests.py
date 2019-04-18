@@ -1,12 +1,9 @@
 import grp, os, pwd, stat, sys, unittest
 from collections import OrderedDict
-
-package_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-sys.path.append(os.path.join(package_root, 'lib'))
-
 from pavilion import scriptcomposer
+from pavilion.unittest import PavTestCase
 
-class TestConfig( unittest.TestCase ):
+class TestConfig(PavTestCase):
 
     script_path = 'testName.batch'
 
@@ -31,7 +28,6 @@ class TestConfig( unittest.TestCase ):
 
         raise RuntimeError("Could not find suitable group for use in test.")
 
-    @unittest.skip
     def test_header( self ):
         """Test for the ScriptHeader class."""
         testHeader = scriptcomposer.ScriptHeader()
@@ -102,7 +98,6 @@ class TestConfig( unittest.TestCase ):
             testHeader = scriptcomposer.ScriptHeader(shell_path=12,
                                                      scheduler_macros=13)
 
-    @unittest.skip
     def test_details( self ):
         """Testing the ScriptBody class."""
 
@@ -217,7 +212,6 @@ class TestConfig( unittest.TestCase ):
                                                     group_perms=7,
                                                     world_perms=u'fail')
 
-    @unittest.skip
     def test_scriptComposer( self ):
         """Testing ScriptComposer class variable setting."""
 
@@ -328,7 +322,6 @@ class TestConfig( unittest.TestCase ):
         self.assertEqual(testComposer.body.world_perms, testDetailsWP)
 
 
-    @unittest.skip
     def test_writeScript( self ):
         """Testing the writeScript function of the ScriptComposer class."""
         testHeaderShell = "/usr/env/python"
@@ -398,7 +391,6 @@ class TestConfig( unittest.TestCase ):
         os.remove( os.path.join( testDir, testDetailsName + '.batch' ) )
 
 
-    @unittest.skip
     def test_writeScript_2( self ):
         """Testing the writeScript function of the ScriptComposer class."""
         testHeaderShell = "/usr/env/python"

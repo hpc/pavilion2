@@ -7,6 +7,7 @@ import unittest
 
 from pavilion import wget
 from pavilion import config
+from pavilion.unittest import PavTestCase
 
 PAV_DIR = os.path.realpath(__file__)
 for i in range(3):
@@ -20,7 +21,7 @@ def get_hash(fn):
         return sha.hexdigest()
 
 
-class TestWGet(unittest.TestCase):
+class TestWGet(PavTestCase):
 
     GET_TARGET = "https://github.com/lanl/Pavilion/raw/2.0/README.md"
     LOCAL_TARGET = os.path.join(PAV_DIR, 'README.md')

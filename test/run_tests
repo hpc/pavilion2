@@ -8,6 +8,7 @@ import logging
 import os
 import sys
 import unittest
+import argparse
 
 
 logging_root = '/tmp/{user}'.format(user=os.getlogin())
@@ -31,6 +32,25 @@ if not os.path.exists(config):
 
 # Setup our paths to the pavilion libraries.
 sys.path.append(os.path.abspath('../lib'))
+
+from pavilion.unittest import PavTestCase
+
+parser = argparse.ArgumentParser()
+
+parser.add_argument('-s', '--skip', action='append', default=[],
+                    help="Skip tests matching the given glob pattern. The "
+                         "'test_' prefix is removed from the name for this "
+                         "check.")
+parser.add_argument('-o', '--only', action='append', default=[],
+                    help="Only run tests matching the given glob pattern. The "
+                         "'test_' prefix is removed from the name for this "
+                         "check.")
+args = parser.parse_args(sys.argv[1:])
+
+if args.skip:
+    PavTestCase.set_skip(args.skip)
+if args.only:
+    PavTestCase.set_only(args.only)
 
 loader = unittest.TestLoader()
 suite = loader.discover('./tests', pattern='*_tests.py')

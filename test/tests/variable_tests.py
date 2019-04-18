@@ -1,10 +1,9 @@
-import unittest
-
 from pavilion.test_config import variables
 from pavilion.test_config.variables import VariableError
+from pavilion.unittest import PavTestCase
 
 
-class TestVariables(unittest.TestCase):
+class TestVariables(PavTestCase):
 
     def test_good_queries(self):
         """Make sure all valid ways to lookup variables work."""

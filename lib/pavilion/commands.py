@@ -38,9 +38,7 @@ def add_command(command):
 
 
 def get_command(command_name):
-    """Return the command of the given name.
-    :rtype: Command
-    """
+    """Return the command of the given name."""
     global _COMMANDS
 
     return _COMMANDS[command_name]

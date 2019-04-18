@@ -1,13 +1,9 @@
-from pavilion import plugins
 from pavilion import config
+from pavilion import plugins
 from pavilion import schedulers
-import datetime
-import os
+from pavilion.unittest import PavTestCase
 import subprocess
-import tempfile
-import time
 import unittest
-import tzlocal
 
 
 _HAS_SLURM = None
@@ -24,7 +20,7 @@ def has_slurm():
     return _HAS_SLURM
 
 
-class SlurmTests(unittest.TestCase):
+class SlurmTests(PavTestCase):
 
     def __init__(self, *args, **kwargs):
 

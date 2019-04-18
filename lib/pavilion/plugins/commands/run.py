@@ -70,7 +70,7 @@ class RunCommand(commands.Command):
         #
 
         try:
-            test_configs = self.get_tests(pav_config, args)
+            test_configs = self._get_tests(pav_config, args)
         except test_config.TestConfigError as err:
             print(err)
             return 1
@@ -138,7 +138,7 @@ class RunCommand(commands.Command):
             }
             utils.output_json(sys.stdout, json_data)
 
-    def get_tests(self, pav_config, host, test_files, tests, modes, overrides):
+    def _get_tests(self, pav_config, host, test_files, tests, modes, overrides):
         """Translate a general set of pavilion test configs into the final,
         resolved configuration objects. These objects will be organized in a
         dictionary by scheduler, and have a scheduler object instantiated and

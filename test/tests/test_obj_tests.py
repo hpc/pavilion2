@@ -9,7 +9,7 @@ from pavilion.suite import Suite
 from pavilion import unittest
 
 
-class PavTestTests(unittest.PavTestBase):
+class PavTestTests(unittest.PavTestCase):
 
     def test_obj(self):
         """Test pavtest object initialization."""
@@ -364,8 +364,8 @@ class PavTestTests(unittest.PavTestBase):
         suite2 = Suite.from_id(self.pav_cfg, suite.id)
         self.assertEqual(sorted(suite.tests.keys()),
                          sorted(suite2.tests.keys()))
-        self.assertEqual([t.id for t in suite.tests.values()],
-                         [t.id for t in suite2.tests.values()])
+        self.assertEqual(sorted([t.id for t in suite.tests.values()]),
+                         sorted([t.id for t in suite2.tests.values()]))
                                                 
         self.assertEqual(suite.path, suite2.path)
         self.assertEqual(suite.id, suite2.id)
