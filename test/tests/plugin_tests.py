@@ -6,16 +6,15 @@ from pavilion import plugins
 from pavilion import result_parsers
 from pavilion import system_variables
 from pavilion.test_config import variables
+from pavilion.unittest import PavTestCase
 import logging
 import os
 import subprocess
-import unittest
-
 
 LOGGER = logging.getLogger(__name__)
 
 
-class PluginTests(unittest.TestCase):
+class PluginTests(PavTestCase):
 
     TEST_DATA_ROOT = os.path.join(
         os.path.dirname(os.path.dirname(os.path.realpath(__file__))),

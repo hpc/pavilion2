@@ -3,11 +3,7 @@
 # and hold it for a moment.
 # It runs until killed.
 
-from __future__ import unicode_literals, print_function, division
-
 import logging
-
-
 
 import os
 import sys

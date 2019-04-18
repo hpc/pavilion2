@@ -1,11 +1,10 @@
 from __future__ import print_function
 
-import unittest
-
 from pavilion.test_config import format
+from pavilion.unittest import PavTestCase
 
 
-class TestConfig(unittest.TestCase):
+class TestConfig(PavTestCase):
     def test_valid_config(self):
         """Check that a valid config is read correctly."""
 

@@ -1,9 +1,0 @@
-[Core]
-Name = runTestSuite 
-Module = runTestSuitePlugin
-
-[Documentation]
-Author = Craig Idler 
-Version = 0.1
-Website = http://pavilion.org
-Description = Plugin that implements a function to run/launch test jobs (called suites) 

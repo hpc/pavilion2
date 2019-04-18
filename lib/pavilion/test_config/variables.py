@@ -320,6 +320,13 @@ class VariableSetManager:
             raise KeyError(
                 "Could not resolve reference '{}': {}".format(key, msg))
 
+    def is_deferred(self, var_set, var):
+        """Return whether the given variable in the given varset is a
+        deferred variable."""
+
+        return isinstance(self.variable_sets[var_set].data[var],
+                          DeferredVariable)
+
     def len(self, var_set, var):
         """
         Get the length of the given key.

@@ -38,9 +38,7 @@ def add_command(command):
 
 
 def get_command(command_name):
-    """Return the command of the given name.
-    :rtype: Command
-    """
+    """Return the command of the given name."""
     global _COMMANDS
 
     return _COMMANDS[command_name]
@@ -49,20 +47,25 @@ def get_command(command_name):
 class Command(IPlugin.IPlugin):
     """Provides a pavilion command via a plugin."""
 
-    def __init__(self, name, description):
+    def __init__(self, name, description, short_help=None):
         """Initialize this command. This should be overridden by subclasses, to
         set reasonable values. Multiple commands of the same name are not
         allowed to exist.
 
         :param name: The name of this command. Will be used as the subcommand
             name.
-        :param description: The help text for this command.
+        :param description: The full description and help header for this
+            command. Displayed with 'pav <cmd> --help'.
+        :param short_help: A short description of the command displayed
+            when doing a 'pav --help'. If this is None, the command won't
+            be listed.
         """
         super().__init__()
 
         self.logger = logging.getLogger('command.' + name)
         self.name = name
         self.description = description
+        self.short_help = short_help
 
     def _setup_arguments(self, parser):
         """Setup the commands arguments in the Pavilion argument parser.
@@ -78,7 +81,18 @@ class Command(IPlugin.IPlugin):
 
         # Add the arguments for this command to the
         sub_parser = arguments.get_subparser()
-        parser = sub_parser.add_parser(self.name, description=self.description)
+
+        # A add the short help, or not. A quirk of argparse is that if 'help'
+        # is set, the subcommand is listed regardless of whether the
+        # help is None. If we don't want that, we have to init without 'help'.
+        if self.short_help is None:
+            parser = sub_parser.add_parser(self.name,
+                                           description=self.description)
+        else:
+            parser = sub_parser.add_parser(self.name,
+                                           description=self.description,
+                                           help=self.short_help)
+
         self._setup_arguments(parser)
 
         self._setup_other()

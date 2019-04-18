@@ -55,6 +55,8 @@ def initialize_plugins(pav_cfg):
     except Exception as err:
         raise PluginError("Error initializing plugin system: {}".format(err))
 
+    disable_plugins = pav_cfg.disable_plugins
+
     for plugin in pman.getAllPlugins():
         plugin_dot_name = '{p.category}.{p.name}'.format(p=plugin)
 

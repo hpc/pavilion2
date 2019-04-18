@@ -1,14 +1,14 @@
 from pavilion.status_file import StatusFile, STATES
+from pavilion.unittest import PavTestCase
 import datetime
 import os
 import subprocess
 import tempfile
 import time
-import unittest
 import tzlocal
 
 
-class StatusTests(unittest.TestCase):
+class StatusTests(PavTestCase):
 
     def test_status(self):
         """Checking status object basic functionality."""

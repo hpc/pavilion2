@@ -7,5 +7,5 @@ class Bop(commands.Command):
         super().__init__('bop', 'Goes bop!')
 
     def run(self, pav_config, args):
+        pass
 
-        print("Bop!")

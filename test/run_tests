@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
 
-# This runs all the tests in the tests/ directory. For a python file to be recognized as a test
-# suite, it must end in '_tests.py'. All other files are ignored.
-
 # The __init__ for the tests module sets up all the tests.
 import logging
 import os
 import sys
 import unittest
+import argparse
 
 
 logging_root = '/tmp/{user}'.format(user=os.getlogin())
@@ -32,6 +30,34 @@ if not os.path.exists(config):
 # Setup our paths to the pavilion libraries.
 sys.path.append(os.path.abspath('../lib'))
 
-loader = unittest.TestLoader()
-suite = loader.discover('./tests', pattern='*_tests.py')
-unittest.TextTestRunner(verbosity=2).run(suite)
+
+def main():
+    from pavilion.unittest import PavTestCase
+
+    parser = argparse.ArgumentParser(
+        usage="This runs all the tests in the tests/ directory. For a python " 
+              "file to be recognized as a test suite, it must end in "
+              "'_tests.py'. All other files are ignored")
+
+    parser.add_argument('-s', '--skip', action='append', default=[],
+                        help="Skip tests matching the given glob pattern. The "
+                             "'test_' prefix is removed from the name for this "
+                             "check.")
+    parser.add_argument('-o', '--only', action='append', default=[],
+                        help="Only run tests matching the given glob pattern. "
+                             "The 'test_' prefix is removed from the name "
+                             "for this check.")
+    args = parser.parse_args(sys.argv[1:])
+
+    if args.skip:
+        PavTestCase.set_skip(args.skip)
+    if args.only:
+        PavTestCase.set_only(args.only)
+
+    loader = unittest.TestLoader()
+    suite = loader.discover('./tests', pattern='*_tests.py')
+    unittest.TextTestRunner(verbosity=2).run(suite)
+
+
+if __name__ == '__main__':
+    main()
