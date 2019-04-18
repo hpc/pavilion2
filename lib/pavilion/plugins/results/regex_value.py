@@ -117,11 +117,14 @@ class RegexValue(result_parsers.ResultParser):
 
         if expected is None: # found == 'spanish-inquisition'
             for i in range(0,len(found)):
-                found[i] = found[i][0]
+                found[i] = found[i].group(0)
             return found
 
+        if not isinstance(expected, list):
+            raise result_parsers.ResultParserError("Expected should be a list.")
+
         for i in range(0,len(found)):
-            found[i] = found[i][1]
+            found[i] = found[i].group(1)
 
         res = [self.FAIL for x in range(0,len(found))]
 

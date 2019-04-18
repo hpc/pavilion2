@@ -100,6 +100,9 @@ class PavTestTests(unittest.TestCase):
         self.assertRaises(exc, parser, None, file='notfile.txt',
                           regex=valid_regex)
 
+#        self.assertEqual(parser(None, file=output_loc, regex='^result1=(.*)$',
+#                                results='first', expected='19'), passing)
+
         self.assertEqual(parser(None, file=output_loc, regex='^result1=(.*)$',
                                 results='first', expected=['19']), passing)
 

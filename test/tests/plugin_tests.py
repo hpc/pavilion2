@@ -212,7 +212,7 @@ class PluginTests(unittest.TestCase):
                                             'pav_config_dir')]
 
         # We should have exactly one test plugin.
-        self.assertEqual(len(result_parsers.list_plugins()), 1)
+        self.assertEqual(len(result_parsers.list_plugins()), 2)
 
         regex = result_parsers.get_plugin('regex')
 
