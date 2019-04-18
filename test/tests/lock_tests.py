@@ -1,17 +1,15 @@
-from __future__ import print_function, unicode_literals, division
-
 import grp
 from pavilion import lockfile
+from pavilion.unittest import PavTestCase
 import os
 import subprocess as sp
 import sys
 import time
-import unittest
 
 
-# NOTE: The lockfile class is designed to work over NFS, but these tests don't actually check for
-#  that.
-class TestConfig(unittest.TestCase):
+# NOTE: The lockfile class is designed to work over NFS, but these tests don't
+# actually check for that.
+class TestConfig(PavTestCase):
     lock_path = 'lock_test.lock'
 
     def setUp(self):
@@ -63,8 +61,6 @@ class TestConfig(unittest.TestCase):
                 self.assertEqual(stat.st_gid, group)
                 self.assertEqual(stat.st_mode & 0o777, lockfile.LockFile.LOCK_PERMS)
 
-    # TODO - unskip
-    @unittest.skip
     def test_lock_contention(self):
 
         proc_count = 6

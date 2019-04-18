@@ -32,7 +32,7 @@ sys.path.append(os.path.abspath('../lib'))
 
 
 def main():
-    from pavilion.unittest import PavTestCase
+    from pavilion.unittest import PavTestCase, ColorResult
 
     parser = argparse.ArgumentParser(
         usage="This runs all the tests in the tests/ directory. For a python " 
@@ -56,7 +56,10 @@ def main():
 
     loader = unittest.TestLoader()
     suite = loader.discover('./tests', pattern='*_tests.py')
-    unittest.TextTestRunner(verbosity=2).run(suite)
+    runner = unittest.TextTestRunner(
+        resultclass=ColorResult,
+        verbosity=2)
+    runner.run(suite)
 
 
 if __name__ == '__main__':

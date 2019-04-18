@@ -65,14 +65,14 @@ class PavTestCase(unittest.TestCase):
             if self.SKIP:
                 for skip_glob in self.SKIP:
                     if fnmatch.fnmatch(name, skip_glob):
-                        return unittest.skip("Skipped via command line.")(attr)
+                        return unittest.skip("via cmdline")(attr)
                 return attr
 
             if self.ONLY:
                 for only_glob in self.ONLY:
                     if fnmatch.fnmatch(name, only_glob):
                         return attr
-                return unittest.skip("Not in list of tests to run.")(attr)
+                return unittest.skip("via cmdline")(attr)
 
         # If it isn't altered or explicitely returned above, just return the
         # attribute.
@@ -158,7 +158,58 @@ class PavTestCase(unittest.TestCase):
                 self._cmp_files(a_path, b_path)
 
         self.assert_(not a_walk and not b_walk,
-                     "Left over directory contents in a or b: {}, {}".format(a_walk, b_walk))
+                     "Left over directory contents in a or b: {}, {}"
+                     .format(a_walk, b_walk))
 
     _cprint = staticmethod(cprint)
+
+
+class ColorResult(unittest.TextTestResult):
+
+    COLOR_BASE = '\x1b[{}m'
+    COLOR_RESET = '\x1b[0m'
+    BLACK = COLOR_BASE.format(30)
+    RED = COLOR_BASE.format(31)
+    GREEN = COLOR_BASE.format(32)
+    YELLOW = COLOR_BASE.format(33)
+    BLUE = COLOR_BASE.format(34)
+    MAGENTA = COLOR_BASE.format(35)
+    CYAN = COLOR_BASE.format(36)
+    GREY = COLOR_BASE.format(2)
+    BOLD = COLOR_BASE.format(1)
+
+    def __init__(self, *args, **kwargs):
+        self.stream = None
+        super().__init__(*args, **kwargs)
+
+    def startTest(self, test):
+        super().startTest(test)
+        if self.showAll:
+            self.stream.write(self.GREY)
+            self.stream.write(self.getDescription(test))
+            self.stream.write(self.COLOR_RESET)
+            self.stream.write(" ... ")
+            self.stream.flush()
+
+    def addSuccess(self, test):
+        self.stream.write(self.GREEN)
+        super().addSuccess(test)
+        self.stream.write(self.COLOR_RESET)
+
+    def addFailure(self, test, err):
+        self.stream.write(self.MAGENTA)
+        super().addFailure(test, err)
+        self.stream.write(self.COLOR_RESET)
+
+    def addError(self, test, err):
+        self.stream.write(self.RED)
+        super().addError(test, err)
+        self.stream.write(self.COLOR_RESET)
+
+    def addSkip(self, test, reason):
+        self.stream.write(self.CYAN)
+        super().addSkip(test, reason)
+        self.stream.write(self.COLOR_RESET)
+
+
 
