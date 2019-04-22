@@ -56,6 +56,7 @@
 import grp
 import yaml_config as yc
 import os
+from pathlib import Path
 import socket
 import logging
 
@@ -105,24 +106,26 @@ def log_level_validate(_, level):
 PAV_CONFIG_SEARCH_DIRS = ['./']
 
 if 'HOME' in os.environ:
-    USER_HOME_PAV = os.path.join(os.environ['HOME'], '.pavilion')
+    USER_HOME_PAV = Path(os.environ['HOME'], '.pavilion')
     PAV_CONFIG_SEARCH_DIRS.append(USER_HOME_PAV)
 else:
     USER_HOME_PAV = None
 
 # Include the pavilion source directory.
-PAV_CONFIG_SEARCH_DIRS.append(os.path.dirname(__file__))
+PAV_CONFIG_SEARCH_DIRS.append(Path(__file__).resolve().parent)
 
 if 'PAV_CONFIG_DIR' in os.environ:
-    PAV_CONFIG_SEARCH_DIRS.append(os.environ['PAV_CONFIG_DIR'])
+    try:
+        _path = Path(os.environ['PAV_CONFIG_DIR']).resolve()
+        PAV_CONFIG_SEARCH_DIRS.append(_path)
+    except FileNotFoundError as err:
+        LOGGER.warning("Invalid path in env var PAV_CONFIG_DIR. Ignoring.")
 
-PAV_CONFIG_SEARCH_DIRS.extend([
-    '/etc/pavilion',
-    '/opt/pavilion',
-])
+for _dir in Path('/etc/pavilion'), Path('/opt/pavilion'):
+    if _dir.exists():
+        PAV_CONFIG_SEARCH_DIRS.append(_dir)
 
-dirname = os.path.dirname
-pav_root = dirname(dirname(dirname(os.path.realpath(__file__))))
+PAV_ROOT = Path(__file__).resolve().parents[2]
 
 
 class PavilionConfigLoader(yc.YamlConfigLoader):
@@ -134,12 +137,12 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
         yc.ListElem(
             "config_dirs",
             defaults=PAV_CONFIG_SEARCH_DIRS,
-            sub_elem=yc.StrElem(),
+            sub_elem=yc.PathElem(),
             help_text="Paths to search for Pavilion config files. Pavilion "
                       "configs (other than this core config) are searched for "
                       "in the given order. In the case of identically named "
                       "files, directories listed earlier take precedent."),
-        yc.StrElem(
+        yc.PathElem(
             'working_dir', default=USER_HOME_PAV,
             help_text="Where pavilion puts it's run files, downloads, etc."),
         yc.ListElem(
@@ -187,8 +190,8 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
         # convenient way to pass around core pavilion components or data.
         # They are not intended to be set by the user, and will generally be
         # overwritten without even checking for user provided values.
-        yc.StrElem(
-            'pav_root', default=pav_root, hidden=True,
+        yc.PathElem(
+            'pav_root', default=PAV_ROOT, hidden=True,
             help_text="The root directory of the pavilion install. This "
                       "shouldn't be set by the user."),
         yc.KeyedElem(
@@ -206,11 +209,11 @@ def find(warn=True):
     """.format(PAV_CONFIG_SEARCH_DIRS)
 
     for config_dir in PAV_CONFIG_SEARCH_DIRS:
-        path = os.path.join(config_dir, 'pavilion.yaml')
-        if os.path.os.path.isfile(path):
+        path = config_dir/'pavilion.yaml'
+        if path.is_file():
             try:
                 # Parse and load the configuration.
-                return PavilionConfigLoader().load(open(path))
+                return PavilionConfigLoader().load(path.open())
             except Exception as err:
                 raise RuntimeError("Error in Pavilion config at {}: {}"
                                    .format(path, err))

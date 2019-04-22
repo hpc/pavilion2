@@ -1,12 +1,11 @@
+from pathlib import Path
+from pavilion import unittest
+from pavilion.suite import Suite
+from pavilion.test_config import PavTest, variables
+from pavilion.test_config.test import PavTestError
 import os
 import shutil
 import tempfile
-
-from pavilion.test_config import PavTest, variables
-from pavilion.test_config.test import PavTestError
-from pavilion.suite import Suite
-
-from pavilion import unittest
 
 
 class PavTestTests(unittest.PavTestCase):
@@ -75,9 +74,8 @@ class PavTestTests(unittest.PavTestCase):
             'no_encaps.zip',
         ]
 
-        test_archives = os.path.join(self.TEST_DATA_ROOT, 'pav_config_dir',
-                                     'test_src')
-        original_tree = os.path.join(test_archives, 'src')
+        test_archives = self.TEST_DATA_ROOT/'pav_config_dir'/'test_src'
+        original_tree = test_archives/'src'
 
         for archive in archives:
             config = base_config.copy()
@@ -85,8 +83,8 @@ class PavTestTests(unittest.PavTestCase):
 
             test = PavTest(self.pav_cfg, config=config)
 
-            if os.path.exists(test.build_origin):
-                shutil.rmtree(test.build_origin)
+            if test.build_origin.exists():
+                shutil.rmtree(str(test.build_origin))
 
             test._setup_build_dir(test.build_origin)
 
@@ -103,8 +101,8 @@ class PavTestTests(unittest.PavTestCase):
         config['build']['source_location'] = 'src'
         test = PavTest(self.pav_cfg, config=config)
 
-        if os.path.exists(test.build_origin):
-            shutil.rmtree(test.build_origin)
+        if test.build_origin.exists:
+            shutil.rmtree(str(test.build_origin))
 
         test._setup_build_dir(test.build_origin)
         self._cmp_tree(test.build_origin, original_tree)
@@ -121,12 +119,12 @@ class PavTestTests(unittest.PavTestCase):
             config['build']['source_location'] = file
             test = PavTest(self.pav_cfg, config=config)
 
-            if os.path.exists(test.build_origin):
+            if test.build_origin.exists():
                 shutil.rmtree(test.build_origin)
 
             test._setup_build_dir(test.build_origin)
-            self._cmp_files(os.path.join(test.build_origin, 'binfile'),
-                            os.path.join(original_tree, 'binfile'))
+            self._cmp_files(test.build_origin/'binfile',
+                            original_tree/'binfile')
 
         # Make sure extra files are getting copied over.
         config = base_config.copy()
@@ -137,14 +135,14 @@ class PavTestTests(unittest.PavTestCase):
         ]
         test = PavTest(self.pav_cfg, config=config)
 
-        if os.path.exists(test.build_origin):
+        if test.build_origin.exists():
             shutil.rmtree(test.build_origin)
 
         test._setup_build_dir(test.build_origin)
 
         for file in config['build']['extra_files']:
-            self._cmp_files(os.path.join(test_archives, file),
-                            os.path.join(test.build_origin, file))
+            self._cmp_files(test_archives/file,
+                            test.build_origin/file)
 
     def test_src_urls(self):
 
@@ -159,21 +157,20 @@ class PavTestTests(unittest.PavTestCase):
         config['build']['source_location'] = self.TEST_URL
 
         # remove existing downloads, and replace the directory.
-        downloads_path = os.path.join(self.pav_cfg.working_dir, 'downloads')
+        downloads_path = self.pav_cfg.working_dir/'downloads'
         shutil.rmtree(downloads_path)
-        os.mkdir(downloads_path)
+        downloads_path.mkdir()
 
         test = PavTest(self.pav_cfg, config)
-        if os.path.exists(test.build_origin):
+        if test.build_origin.exists:
             shutil.rmtree(test.build_origin)
 
         test._setup_build_dir(test.build_origin)
-        self._cmp_files(os.path.join(self.TEST_DATA_ROOT, '../../README.md'),
-                        os.path.join(test.build_origin, 'README.md'))
+        self._cmp_files(self.TEST_DATA_ROOT.parents[1]/'README.md',
+                        test.build_origin/'README.md')
 
     def test_resolve_template(self):
-        tmpl_path = os.path.join(self.TEST_DATA_ROOT,
-                                 'resolve_template_good.tmpl')
+        tmpl_path = self.TEST_DATA_ROOT/'resolve_template_good.tmpl'
 
         var_man = variables.VariableSetManager()
         var_man.add_var_set('sched', {
@@ -188,41 +185,39 @@ class PavTestTests(unittest.PavTestCase):
             }
         })
 
-        script_path = tempfile.mktemp()
+        script_path = Path(tempfile.mktemp())
         PavTest.resolve_template(tmpl_path, script_path, var_man)
-        good_path = os.path.join(self.TEST_DATA_ROOT,
-                                 'resolve_template_good.sh')
+        good_path = self.TEST_DATA_ROOT/'resolve_template_good.sh'
 
-        with open(script_path) as gen_script,\
-             open(good_path) as ver_script:
+        with script_path.open() as gen_script,\
+                good_path.open() as ver_script:
             self.assertEqual(gen_script.read(), ver_script.read())
 
-        os.unlink(script_path)
+        script_path.unlink()
 
         for bad_tmpl in (
                 'resolve_template_keyerror.tmpl',
                 'resolve_template_bad_key.tmpl'):
 
-            script_path = tempfile.mktemp()
-            tmpl_path = os.path.join(self.TEST_DATA_ROOT, bad_tmpl)
+            script_path = Path(tempfile.mktemp())
+            tmpl_path = self.TEST_DATA_ROOT/bad_tmpl
             with self.assertRaises(
                     KeyError,
                     msg="Error not raised on bad file '{}'".format(bad_tmpl)):
                 PavTest.resolve_template(tmpl_path, script_path, var_man)
 
-            if os.path.exists(script_path):
-                os.unlink(script_path)
+            if script_path.exists():
+                script_path.unlink()
 
-        script_path = tempfile.mktemp()
-        tmpl_path = os.path.join(self.TEST_DATA_ROOT,
-                                 'resolve_template_extra_escape.tmpl')
+        script_path = Path(tempfile.mktemp())
+        tmpl_path = self.TEST_DATA_ROOT/'resolve_template_extra_escape.tmpl'
         with self.assertRaises(
                 PavTestError,
                 msg="Error not raised on bad file '{}'".format(bad_tmpl)):
             PavTest.resolve_template(tmpl_path, script_path, var_man)
 
-        if os.path.exists(script_path):
-            os.unlink(script_path)
+        if script_path.exists():
+            script_path.unlink()
 
     def test_build(self):
         """Make sure building works."""
@@ -240,12 +235,13 @@ class PavTestTests(unittest.PavTestCase):
         # Test a basic build, with a gzip file and an actual build script.
         self.assertTrue(test.build(), msg="Build failed")
 
-        # Make sure the build path and build origin contain softlinks to the same files.
+        # Make sure the build path and build origin contain softlinks to the
+        # same files.
         self._cmp_tree(test.build_origin, test.build_path)
         self._is_softlink_dir(test.build_path)
 
-        # We're going to time out this build on purpose, to test the code that waits for
-        # builds to complete.
+        # We're going to time out this build on purpose, to test the code
+        # that waits for builds to complete.
         config = {
             'name': 'build_test',
             'build': {
@@ -258,8 +254,10 @@ class PavTestTests(unittest.PavTestCase):
         test.BUILD_SILENT_TIMEOUT = 1
 
         # This build should fail.
-        self.assertFalse(test.build(), "Build succeeded when it should have timed out.")
-        self.assertTrue(test.status.current().note.startswith("Build timed out"))
+        self.assertFalse(test.build(),
+                         "Build succeeded when it should have timed out.")
+        current_note = test.status.current().note
+        self.assertTrue(current_note.startswith("Build timed out"))
 
         # Test general build failure.
         config = {
@@ -275,18 +273,24 @@ class PavTestTests(unittest.PavTestCase):
         #  2. That the test fails properly under a couple different conditions
         test = PavTest(self.pav_cfg, config)
         # Remove the build tree to ensure we do the build fresh.
-        if os.path.isdir(test.build_origin):
+        if test.build_origin.is_dir():
             shutil.rmtree(test.build_origin)
 
         # This should fail because the build exits non-zero
-        self.assertFalse(test.build(), "Build succeeded when it should have failed.")
-        self.assertTrue(test.status.current().note.startswith("Build returned a non-zero result."))
+        self.assertFalse(test.build(),
+                         "Build succeeded when it should have failed.")
+        current_note = test.status.current().note
+        self.assertTrue(current_note.startswith(
+            "Build returned a non-zero result."))
 
         # This should fail due to a missing variable
         # The build should already exist.
         test2 = PavTest(self.pav_cfg, config)
-        self.assertFalse(test2.build(), "Build succeeded when it should have failed.")
-        self.assertTrue(test.status.current().note.startswith("Build returned a non-zero result."))
+        self.assertFalse(test2.build(),
+                         "Build succeeded when it should have failed.")
+        current_note = test.status.current().note
+        self.assertTrue(current_note.startswith(
+            "Build returned a non-zero result."))
 
         self.assertEqual(test.build_origin, test2.build_origin)
 
@@ -353,11 +357,11 @@ class PavTestTests(unittest.PavTestCase):
 
         # Make sure we got all the tests
         self.assertEqual(len(suite.tests), 3)
-        test_paths = [os.path.join(suite.path, p)
+        test_paths = [Path(suite.path, p)
                       for p in os.listdir(suite.path)]
         # And that the test paths are unique
         self.assertEqual(len(set(test_paths)),
-                         len([os.path.realpath(p) for p in test_paths]))
+                         len([p.resolve() for p in test_paths]))
 
         self._is_softlink_dir(suite.path)
 
@@ -369,4 +373,3 @@ class PavTestTests(unittest.PavTestCase):
                                                 
         self.assertEqual(suite.path, suite2.path)
         self.assertEqual(suite.id, suite2.id)
-

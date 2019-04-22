@@ -74,10 +74,12 @@ def head(pav_cfg, url):
         response = session.head(url,
                                 proxies=proxies,
                                 timeout=pav_cfg.wget_timeout)
-        # The location header is the redirect location. While the requests library resolves these
-        # automatically, it still returns the first header result from a 'head' call. We need to
-        # follow these manually, up to a point.
-        while 'Location' in response.headers and response.headers['Location'] != url:
+        # The location header is the redirect location. While the requests
+        # library resolves these automatically, it still returns the first
+        # header result from a 'head' call. We need to follow these
+        # manually, up to a point.
+        while ('Location' in response.headers and
+               response.headers['Location'] != url):
             redirects += 1
             if redirects > REDIRECT_LIMIT:
                 return response
@@ -94,8 +96,8 @@ def head(pav_cfg, url):
 
 
 def _get_proxies(pav_cfg, url):
-    """Figure out the proxies based on the the pav_cfg and the particular url we're going to.
-    This mostly handles disabling the proxy for internal urls.
+    """Figure out the proxies based on the the pav_cfg and the particular url
+    we're going to. This mostly handles disabling the proxy for internal urls.
     :param pav_cfg: The pavilion config object.
     :param str url: The url we hope to go to.
     :returns: The proxy dictionary.
@@ -113,8 +115,9 @@ def _get_proxies(pav_cfg, url):
 
 
 def _get_info(path):
-    """Get the contents of the info file for the given file, which is located at <filename>.info.
-    Additionally, add some useful stat information to the info object we return.
+    """Get the contents of the info file for the given file, which is located
+    at <filename>.info. Additionally, add some useful stat information to
+    the info object we return.
     :param str path: The path to the file we want the info object for.
     :returns: A dictionary of the info information.
     :rtype dict:
@@ -133,7 +136,8 @@ def _get_info(path):
                     info[key.decode('utf-8')] = db[key].decode('utf-8')
 
         except dbm.error as err:
-            LOGGER.warning("Error reading dbm file '{}': {}".format(info_fn, err))
+            LOGGER.warning("Error reading dbm file '{}': {}"
+                           .format(info_fn, err))
 
     stat = os.stat(path)
 
@@ -155,7 +159,8 @@ INFO_HEADER_FIELDS = [
 def _save_info(path, head_data):
     """Given the path and the http head data, create an info file.
     :param str path: The path to the file we're creating the info object for.
-    :param dict head_data: The header information from an http HEAD request for the object.
+    :param dict head_data: The header information from an http HEAD request
+    for the object.
     """
 
     info_fn = '{}.info'.format(path)
@@ -170,9 +175,9 @@ def _save_info(path, head_data):
 
 
 def update(pav_cfg, url, dest):
-    """Check if the file needs to be re-downloaded, and do so if necessary. This will
-    careate a '{dest}.info' file in the same directory that will be used to check if updates are
-    necessary.
+    """Check if the file needs to be re-downloaded, and do so if necessary.
+    This will careate a '{dest}.info' file in the same directory that will
+    be used to check if updates are necessary.
     :param pav_cfg: The pavilion configuration object.
     :param str url: The url for the file to download.
     :param str dest: The path to where we want to store the file.
@@ -190,16 +195,19 @@ def update(pav_cfg, url, dest):
     else:
         info = _get_info(dest)
 
-        # If the file .info file doesn't exist, check to see if we can get a matching
-        # Content-Length and fetch it if we can't.
-        if not os.path.exists(info_path) and head_data.get('Content-Length') != info['size']:
+        # If the file .info file doesn't exist, check to see if we can get a
+        # matching Content-Length and fetch it if we can't.
+        if (not os.path.exists(info_path) and
+                head_data.get('Content-Length') != info['size']):
             fetch = True
 
-        # If we do have an info file and neither the ETag or content length match, refetch.
-        # Note that the content length vs saved length depends on the transfer encoding. It should
-        # match for any already compressed files, but other data types are frequently compressed.
+        # If we do have an info file and neither the ETag or content length
+        # match, refetch. Note that the content length vs saved length
+        # depends on the transfer encoding. It should match for any already
+        # compressed files, but other data types are frequently compressed.
         elif not (info['ETag'] == head_data.get('ETag') or
-                  # If the old content length is the same, it's probably unchanged. Probably...
+                  # If the old content length is the same, it's probably
+                  # unchanged. Probably...
                   head_data.get('Content-Length') == info.get('Content-Length') or
                   # Or if the content length matches the actual size.
                   head_data.get('Content-Length') == info['size']):

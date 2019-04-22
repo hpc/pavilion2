@@ -28,8 +28,10 @@ class StatusTests(PavTestCase):
         # Make sure the timestamp is before now.
         self.assertLess(status_info.when, now)
         # Make sure the timestamp is less than a few seconds in the future.
-        # If things are wrong with our timestamping code, they'll be much farther off than this.
-        self.assertGreater(now + datetime.timedelta(seconds=5), status_info.when)
+        # If things are wrong with our timestamping code, they'll be much
+        # farther off than this.
+        self.assertGreater(now + datetime.timedelta(seconds=5),
+                           status_info.when)
         
         self.assertEqual(status_info.note, '')
         
@@ -45,7 +47,8 @@ class StatusTests(PavTestCase):
                          (states + ['CREATED']).sort())
 
         # Make sure too long statuses are handled correctly.
-        status.set("AN_EXCESSIVELY_LONG_STATE_NAME", "This is " + "way "*10000 + "too long.")
+        status.set("AN_EXCESSIVELY_LONG_STATE_NAME",
+                   "This is " + "way "*10000 + "too long.")
         status_info = status.current()
 
         self.assertLessEqual(len(status_info.state), STATES.max_length)
@@ -79,7 +82,8 @@ class StatusTests(PavTestCase):
             pass
 
         for proc in procs:
-            self.assertEqual(proc.wait(), 0, msg="status_fight sub-test had an error.")
+            self.assertEqual(proc.wait(), 0,
+                             msg="status_fight sub-test had an error.")
 
         # Make sure the entire history can be read sanely.
         status = StatusFile(fn)
@@ -87,14 +91,17 @@ class StatusTests(PavTestCase):
 
         for entry in history:
             # All the states should be running
-            # (The first is normally 'CREATED', but we bypassed the normal creation of the file)
+            # (The first is normally 'CREATED', but we bypassed the normal
+            # creation of the file)
             self.assertEqual(entry.state, STATES.RUNNING)
-            # Make sure the state never bled into the note, and that the note was found.
+            # Make sure the state never bled into the note, and that the
+            # note was found.
             self.assert_(STATES.RUNNING not in entry.note)
             self.assertNotEqual(entry.note, '')
             # Make sure nothing else bled into the note (namely, the timestamp)
             self.assertLess(len(entry.note), 20)
-            # Make sure we have a sane date on all lines. This will be None if we couldn't parse
+            # Make sure we have a sane date on all lines. This will be None
+            # if we couldn't parse
             # the date.
             self.assertIsNot(entry.when, None)
 

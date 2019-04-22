@@ -1,10 +1,10 @@
-from yapsy import PluginManager
-from pavilion.module_wrapper import ModuleWrapper
+from pathlib import Path
 from pavilion.commands import Command
-from pavilion.system_variables import SystemPlugin as System
-from pavilion.schedulers import SchedulerPlugin
+from pavilion.module_wrapper import ModuleWrapper
 from pavilion.result_parsers import ResultParser
-import os
+from pavilion.schedulers import SchedulerPlugin
+from pavilion.system_variables import SystemPlugin as System
+from yapsy import PluginManager
 import logging
 
 LOGGER = logging.getLogger('plugins')
@@ -17,7 +17,6 @@ PLUGIN_CATEGORIES = {
     'sys': System,
     'sched': SchedulerPlugin,
     'result': ResultParser,
-    # result plugins
 }
 
 
@@ -42,7 +41,7 @@ def initialize_plugins(pav_cfg):
         LOGGER.warning("Tried to initialize plugins multiple times.")
         return
 
-    plugin_dirs = [os.path.join(cfg_dir, 'plugins')
+    plugin_dirs = [Path(cfg_dir)/'plugins'
                    for cfg_dir in pav_cfg.config_dirs]
 
     try:

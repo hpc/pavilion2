@@ -1,7 +1,8 @@
-import grp
 from pavilion import lockfile
 from pavilion.unittest import PavTestCase
+import grp
 import os
+import pathlib
 import subprocess as sp
 import sys
 import time
@@ -9,23 +10,25 @@ import time
 
 # NOTE: The lockfile class is designed to work over NFS, but these tests don't
 # actually check for that.
-class TestConfig(PavTestCase):
-    lock_path = 'lock_test.lock'
+class TestLocking(PavTestCase):
+    lock_path = pathlib.Path('lock_test.lock')
 
     def setUp(self):
-        if os.path.exists(self.lock_path):
-            print("\nRemoving lockfile {} from old (failed) run.".format(self.lock_path),
+        if self.lock_path.exists():
+            print("\nRemoving lockfile {} from old (failed) run."
+                  .format(self.lock_path),
                   file=sys.stderr)
-            os.unlink(self.lock_path)
+            self.lock_path.unlink()
 
     def test_locks(self):
 
-        # Make sure the lock can be created and deleted with no contention and in non-blocking mode.
+        # Make sure the lock can be created and deleted with no contention
+        # and in non-blocking mode.
         with lockfile.LockFile(self.lock_path):
             # Make sure the lock was created.
-            self.assertTrue(os.path.exists(self.lock_path))
+            self.assertTrue(self.lock_path.exists())
         # Make sure the lock is deleted after close.
-        self.assertFalse(os.path.exists(self.lock_path))
+        self.assertFalse(self.lock_path.exists())
 
         lockfile.LockFile._create_lockfile(self.lock_path, 100, '1234')
 
@@ -35,7 +38,8 @@ class TestConfig(PavTestCase):
         with lockfile.LockFile(self.lock_path, timeout=2):
             pass
 
-        # Making sure that we can automatically acquire and delete an expired lockfile.
+        # Making sure that we can automatically acquire and delete an
+        # expired lockfile.
         lockfile.LockFile._create_lockfile(self.lock_path, -100, '1234')
         with lockfile.LockFile(self.lock_path, timeout=1):
             pass
@@ -52,32 +56,37 @@ class TestConfig(PavTestCase):
         groups = os.getgroups()
         groups.remove(os.getuid())
         if not groups:
-            print("Could not test group permissions with lockfile, no suitable alternate group "
+            print("Could not test group permissions with lockfile, "
+                  "no suitable alternate group "
                   "found.", file=sys.stderr)
         else:
             group = groups.pop()
-            with lockfile.LockFile(self.lock_path, group=grp.getgrgid(group).gr_name):
-                stat = os.stat(self.lock_path)
+            with lockfile.LockFile(self.lock_path,
+                                   group=grp.getgrgid(group).gr_name):
+                stat = self.lock_path.stat()
                 self.assertEqual(stat.st_gid, group)
-                self.assertEqual(stat.st_mode & 0o777, lockfile.LockFile.LOCK_PERMS)
+                self.assertEqual(stat.st_mode & 0o777,
+                                 lockfile.LockFile.LOCK_PERMS)
 
     def test_lock_contention(self):
 
         proc_count = 6
         procs = []
 
-        fight_path = os.path.join(os.path.dirname(__file__), 'lock_fight.py')
+        fight_path = pathlib.Path(__file__).parent/'lock_fight.py'
 
         try:
             for p in range(proc_count):
-                procs.append(sp.Popen(['python', fight_path, self.lock_path]))
+                procs.append(sp.Popen(['python3', fight_path, self.lock_path]))
             # Give the procs a chance to start.
             time.sleep(0.5)
 
-            # Get the lock 5 times, hold it a sec, and verify that it's uncorrupted.
+            # Get the lock 5 times, hold it a sec, and verify that it's
+            # uncorrupted.
             for i in range(5):
                 with lockfile.LockFile(self.lock_path, timeout=2) as lock:
-                    # print("Test - {} got lock {}".format(os.getpid(), lock._id))
+                    # print("Test - {} got lock {}".format(os.getpid(),
+                    # lock._id))
                     time.sleep(1)
                     host, user, expires, lock_id = lock.read_lockfile()
 
@@ -85,7 +94,6 @@ class TestConfig(PavTestCase):
                     self.assertTrue(user is not None)
                     self.assertTrue(expires is not None)
                     self.assertEqual(lock_id, lock._id)
-                    # print("Test - {} bye lock {}".format(os.getpid(), lock._id))
                 # Let the other procs get the lock this time.
                 time.sleep(0.2)
 
@@ -103,20 +111,19 @@ class TestConfig(PavTestCase):
 
         # We can't acquire the lock more than once at a time.
         with lockfile.LockFile(self.lock_path):
-            self.assertRaises(RuntimeError, _acquire_lock)
+            self.assertRaises(TimeoutError, _acquire_lock)
 
         # The lock should time out properly.
         lockfile.LockFile._create_lockfile(self.lock_path, 100, '1234')
-        self.assertRaises(lockfile.TimeoutError, _acquire_lock, timeout=0.2)
-        os.unlink(self.lock_path)
+        self.assertRaises(TimeoutError, _acquire_lock, timeout=0.2)
+        self.lock_path.unlink()
 
         # This shouldn't cause an error, but should get logged.
         with lockfile.LockFile(self.lock_path):
-            os.unlink(self.lock_path)
+            self.lock_path.unlink()
 
         with lockfile.LockFile(self.lock_path):
-            os.unlink(self.lock_path)
+            self.lock_path.unlink()
             lockfile.LockFile._create_lockfile(self.lock_path, 100, 'abcd')
         # Remove our bad lockfile
-        os.unlink(self.lock_path)
-
+        self.lock_path.unlink()

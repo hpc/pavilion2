@@ -2,8 +2,6 @@
 # It writes a whole bunch of status updates to a file over the period of a half
 # second, starting when the file is created.
 
-from __future__ import unicode_literals, print_function, division
-
 import logging
 import os
 import sys

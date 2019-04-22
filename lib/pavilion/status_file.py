@@ -1,3 +1,4 @@
+from pathlib import Path
 import datetime
 import logging
 import os
@@ -14,12 +15,14 @@ class TestStatesStruct:
       - The value should be an ascii string of the constant name.
       - The constants have a max length of 15 characters.
       - The constants are in all caps.
-      - The constants must be a valid python identifier that starts with a letter.
+      - The constants must be a valid python identifier that starts with a
+        letter.
     """
 
-    # To add a state, simply add a valid class attribute, with the value set to the
-    # help/usage for that state. States will end up comparing by key name, as the instance
-    # values of these attributes will be changed and the help stored elsewhere.
+    # To add a state, simply add a valid class attribute, with the value set
+    # to the help/usage for that state. States will end up comparing by key
+    # name, as the instance values of these attributes will be changed and
+    # the help stored elsewhere.
     UNKNOWN = "For when we can't determine the status."
     INVALID = "For when the status given was invalid."
     CREATED = "Always the initial status of the status file."
@@ -50,7 +53,8 @@ class TestStatesStruct:
                 continue
 
             if not self.validate(key):
-                raise RuntimeError("Invalid StatusFile constant '{}'.".format(key))
+                raise RuntimeError("Invalid StatusFile constant '{}'."
+                                   .format(key))
 
             # Save the help to a local dict.
             self._help[key] = getattr(self, key)
@@ -73,7 +77,8 @@ class TestStatesStruct:
 
     def help(self, state):
         """Get the help string for a state."""
-        return self._help.get(state, "Help missing for state '{}'".format(state))
+        return self._help.get(state,
+                              "Help missing for state '{}'".format(state))
 
     def list(self):
         return self._help.keys()
@@ -94,11 +99,11 @@ class StatusInfo:
 
 
 class StatusFile:
-    """The wraps the status file that is used in each test, and manages the creation, reading,
-    and modification of that file.
-    NOTE: The status file does not perform any locking to ensure that it's created in an
-    atomic manner. It does, however, limit it's writes to appends of a size such that those
-    writes should be atomic.
+    """The wraps the status file that is used in each test, and manages the
+    creation, reading, and modification of that file.
+    NOTE: The status file does not perform any locking to ensure that it's
+    created in an atomic manner. It does, however, limit it's writes to
+    appends of a size such that those writes should be atomic.
     """
 
     STATES = STATES
@@ -109,8 +114,8 @@ class StatusFile:
     LOGGER = logging.getLogger('pav.{}'.format(__file__))
 
     LINE_MAX = 4096
-    # Maximum length of a note. They can use every byte minux the timestamp and status sizes,
-    # the spaces in-between, and the trailing newline.
+    # Maximum length of a note. They can use every byte minux the timestamp
+    # and status sizes, the spaces in-between, and the trailing newline.
     NOTE_MAX = LINE_MAX - TS_LEN - 1 - STATES.max_length - 1 - 1
 
     def __init__(self, path):
@@ -118,11 +123,11 @@ class StatusFile:
         :param path: The path to the status file.
         """
 
-        self.path = path
+        self.path = Path(path)
 
         self.tz = tzlocal.get_localzone()
 
-        if not os.path.isfile(self.path):
+        if not self.path.is_file():
             # Make sure we can open the file, and create it if it doesn't exist.
             self.set(STATES.CREATED, '')
 
@@ -135,7 +140,8 @@ class StatusFile:
 
         if parts:
             try:
-                status.when = datetime.datetime.strptime(parts.pop(0), self.TIME_FORMAT)
+                status.when = datetime.datetime.strptime(parts.pop(0),
+                                                         self.TIME_FORMAT)
             except ValueError as err:
                 self.LOGGER.warning("Bad date in log line '{}' in file '{}': {}"
                                     .format(line, self.path, err))
@@ -150,7 +156,7 @@ class StatusFile:
 
     def history(self):
         try:
-            with open(self.path, 'rb') as status_file:
+            with self.path.open('rb') as status_file:
                 lines = status_file.readlines()
         except (OSError, IOError) as err:
             raise TestStatusError("Error opening/reading status file '{}': {}"
@@ -164,7 +170,7 @@ class StatusFile:
         end_read_len = self.LINE_MAX + 16
 
         try:
-            with open(self.path, 'rb') as status_file:
+            with self.path.open('rb') as status_file:
                 status_file.seek(0, os.SEEK_END)
                 file_len = status_file.tell()
                 if file_len < end_read_len:
@@ -191,21 +197,23 @@ class StatusFile:
         when = self.tz.localize(datetime.datetime.now())
         when = when.strftime(self.TIME_FORMAT)
 
-        # If we were given an invalid status, make the status invalid but add what was given to
-        # the note.
+        # If we were given an invalid status, make the status invalid but add
+        # what was given to the note.
         if not STATES.validate(status):
             status = STATES.INVALID
             note = '({}) {}'.format(status, note)
 
-        # Truncate the note such that, even when encoded in utf-8, it is shorter than NOTE_MAX
+        # Truncate the note such that, even when encoded in utf-8, it is
+        # shorter than NOTE_MAX
         note = note.encode('utf-8')[:self.NOTE_MAX].decode('utf-8', 'ignore')
 
         status_line = '{} {} {}\n'.format(when, status, note).encode('utf-8')
         try:
-            with open(self.path, 'ab') as status_file:
+            with self.path.open('ab') as status_file:
                 status_file.write(status_line)
         except (IOError, OSError) as err:
-            raise TestStatusError("Could not write status line '{}' to status file '{}': {}"
+            raise TestStatusError("Could not write status line '{}' to status "
+                                  "file '{}': {}"
                                   .format(status_line, self.path, err))
 
     def __eq__(self, other):

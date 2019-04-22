@@ -14,9 +14,11 @@ def get_parser():
     if _PAV_PARSER is not None:
         return _PAV_PARSER
 
-    parser = argparse.ArgumentParser(description="Pavilion is a framework for running tests on "
-                                                 "supercomputers.")
-    parser.add_argument('-v', '--verbose', dest='verbose', action='store_true', default=False,
+    parser = argparse.ArgumentParser(
+        description="Pavilion is a framework for running tests on "
+                    "supercomputers.")
+    parser.add_argument('-v', '--verbose', dest='verbose', action='store_true',
+                        default=False,
                         help='Log all levels of messages to stderr.')
 
     _PAV_PARSER = parser
@@ -26,16 +28,16 @@ def get_parser():
 
 
 def get_subparser():
-    """Get the pavilion subparser object. This should be used by command plugins to add
-    sub-commands and their arguments to Pavilion.
+    """Get the pavilion subparser object. This should be used by command
+    plugins to add sub-commands and their arguments to Pavilion.
     See https://docs.python.org/3/library/argparse.html#sub-commands
 
     :rtype: argparse._SubParsersAction
     """
 
     if _PAV_PARSER is None:
-        raise RuntimeError("get_parser() must be called to setup the base argument parser before "
-                           "calling get_subparser.")
+        raise RuntimeError("get_parser() must be called to setup the base "
+                           "argument parser before calling get_subparser.")
 
     return _PAV_SUB_PARSER
 

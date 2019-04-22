@@ -1,4 +1,5 @@
 from . import variables
+from pathlib import Path
 from pavilion import lockfile
 from pavilion import scriptcomposer
 from pavilion import utils
@@ -73,7 +74,7 @@ class PavTest:
             self.name = self.name + '.' + config['subtest']
 
         # Create the tests directory if it doesn't already exist.
-        tests_path = os.path.join(pav_cfg.working_dir, 'tests')
+        tests_path = pav_cfg.working_dir/'tests'
 
         self.config = config
 
@@ -84,7 +85,7 @@ class PavTest:
         else:
             self.id = test_id
             self.path = utils.make_id_path(tests_path, self.id)
-            if not os.path.isdir(self.path):
+            if not self.path.is_dir():
                 raise PavTestNotFoundError(
                     "No test with id '{}' could be found.".format(self.id))
 
@@ -95,7 +96,7 @@ class PavTest:
         self._job_id = None
 
         # Setup the initial status file.
-        self.status = StatusFile(os.path.join(self.path, 'status'))
+        self.status = StatusFile(self.path/'status')
         self.status.set(STATES.CREATED,
                         "Test directory and status file created.")
 
@@ -106,26 +107,24 @@ class PavTest:
 
         build_config = self.config.get('build', {})
         if build_config:
-            self.build_path = os.path.join(self.path, 'build')
-            if os.path.islink(self.build_path):
-                build_rp = os.path.realpath(self.build_path)
-                build_fn = os.path.basename(build_rp)
-                self.build_hash = build_fn.split('-')[-1]
+            self.build_path = self.path/'build'
+            if self.build_path.is_symlink():
+                build_rp = self.build_path.resolve()
+                self.build_hash = build_rp.name
             else:
                 self.build_hash = self._create_build_hash(build_config)
 
             short_hash = self.build_hash[:self.BUILD_HASH_BYTES*2]
             self.build_name = '{hash}'.format(hash=short_hash)
-            self.build_origin = os.path.join(pav_cfg.working_dir,
-                                             'builds', self.build_name)
+            self.build_origin = pav_cfg.working_dir/'builds'/self.build_name
 
-            self.build_script_path = os.path.join(self.path, 'build.sh')
+            self.build_script_path = self.path/'build.sh'
             self._write_script(self.build_script_path, build_config)
 
         run_config = self.config.get('run', {})
         if run_config:
-            self.run_tmpl_path = os.path.join(self.path, 'run.tmpl')
-            self.run_script_path = os.path.join(self.path, 'run.sh')
+            self.run_tmpl_path = self.path/'run.tmpl'
+            self.run_script_path = self.path/'run.sh'
             self._write_script(self.run_tmpl_path, run_config)
         else:
             self.run_tmpl_path = None
@@ -137,10 +136,9 @@ class PavTest:
     def from_id(cls, pav_cfg, test_id):
         """Load a new PavTest object based on id."""
 
-        path = utils.make_id_path(os.path.join(pav_cfg.working_dir, 'tests'),
-                                  test_id)
+        path = utils.make_id_path(pav_cfg.working_dir/'tests', test_id)
 
-        if not os.path.isdir(path):
+        if not path.is_dir():
             raise PavTestError("Test directory for test id {} does not exist "
                                "at '{}' as expected."
                                .format(test_id, path))
@@ -153,17 +151,17 @@ class PavTest:
         """Construct a shell command that would cause pavilion to run this
         test."""
 
-        pav_path = os.path.join(self._pav_cfg.pav_root, 'bin', 'pav')
+        pav_path = self._pav_cfg.pav_root/'bin'/'pav'
 
         return '{} run {}'.format(pav_path, self.id)
 
     def _save_config(self):
         """Save the configuration for this test to the test config file."""
 
-        config_path = os.path.join(self.path, 'config')
+        config_path = self.path/'config'
 
         try:
-            with open(config_path, 'w') as json_file:
+            with config_path.open('w') as json_file:
                 json.dump(self.config, json_file)
         except (OSError, IOError) as err:
             raise PavTestError("Could not save PavTest ({}) config at {}: {}"
@@ -174,14 +172,14 @@ class PavTest:
 
     @classmethod
     def _load_config(cls, test_path):
-        config_path = os.path.join(test_path, 'config')
+        config_path = test_path/'config'
 
-        if not os.path.isfile(config_path):
+        if not config_path.is_file():
             raise PavTestError("Could not find config file for test at {}."
                                .format(test_path))
 
         try:
-            with open(config_path, 'r') as config_file:
+            with config_path.open('r') as config_file:
                 return json.load(config_file)
         except TypeError as err:
             raise PavTestError("Bad config values for config '{}': {}"
@@ -193,27 +191,27 @@ class PavTest:
     def _find_file(self, file, sub_dir=None):
         """Look for the given file and return a full path to it. Relative paths
         are searched for in all config directories under 'test_src'.
-        :param file: The path to the file.
+        :param Path file: The path to the file.
         :param sub_dir: The subdirectory in each config directory in which to
             search.
         :returns: The full path to the found file, or None if no such file
             could be found.
         """
 
-        if os.path.isabs(file):
-            if os.path.exists(file):
+        if file.is_absolute():
+            if file.exists():
                 return file
             else:
                 return None
 
+        # Assemble a potential location from each config dir.
         for config_dir in self._pav_cfg.config_dirs:
-            path = [config_dir]
+            path = config_dir
             if sub_dir is not None:
-                path.append(sub_dir)
-            path.append(file)
-            path = os.path.realpath(os.path.join(*path))
+                path = path/sub_dir
+            path = path/file
 
-            if os.path.exists(path):
+            if path.exists():
                 return path
 
         return None
@@ -242,7 +240,7 @@ class PavTest:
                 # Use a hash of the url if we can't get a name from it.
                 fn = hashlib.sha256(loc.encode()).hexdigest()
 
-        return os.path.join(self._pav_cfg.working_dir, 'downloads', fn)
+        return self._pav_cfg.working_dir/'downloads'/fn
 
     def _update_src(self, build_config):
         """Retrieve and/or check the existence of the files needed for the
@@ -264,18 +262,18 @@ class PavTest:
 
             return src_dest
 
-        src_path = self._find_file(src_loc, 'test_src')
+        src_path = self._find_file(Path(src_loc), 'test_src')
         if src_path is None:
             raise PavTestError("Could not find and update src location '{}'"
                                .format(src_loc))
 
-        if os.path.isdir(src_path):
+        if src_path.is_dir():
             # For directories, update the directories mtime to match the
             # latest mtime in the entire directory.
             self._date_dir(src_path)
             return src_path
 
-        elif os.path.isfile(src_path):
+        elif src_path.is_file():
             # For static files, we'll end up just hashing the whole thing.
             return src_path
 
@@ -305,22 +303,23 @@ class PavTest:
         src_path = self._update_src(build_config)
 
         if src_path is not None:
-            if os.path.isfile(src_path):
+            if src_path.is_file():
                 hash_obj.update(self._hash_file(src_path))
-            elif os.path.isdir(src_path):
+            elif src_path.is_dir():
                 hash_obj.update(self._hash_dir(src_path))
             else:
                 raise PavTestError("Invalid src location {}.".format(src_path))
 
         for extra_file in build_config.get('extra_files', []):
+            extra_file = Path(extra_file)
             full_path = self._find_file(extra_file, 'test_src')
 
             if full_path is None:
                 raise PavTestError("Could not find extra file '{}'"
                                    .format(extra_file))
-            elif os.path.isfile(full_path):
+            elif full_path.is_file():
                 hash_obj.update(self._hash_file(full_path))
-            elif os.path.isdir(full_path):
+            elif full_path.is_dir():
                 self._date_dir(full_path)
 
                 hash_obj.update(self._hash_dir(full_path))
@@ -339,18 +338,18 @@ class PavTest:
         """
 
         # Only try to do the build if it doesn't already exist.
-        if not os.path.exists(self.build_origin):
+        if not self.build_origin.exists():
             # Make sure another test doesn't try to do the build at
             # the same time.
             # Note cleanup of failed builds HAS to occur under this lock to
             # avoid a race condition, even though it would be way simpler to
             # do it in .build()
-            lock_path = '{}.lock'.format(self.build_origin)
+            lock_path = self.build_origin.with_suffix('.lock')
             with lockfile.LockFile(lock_path, group=self._pav_cfg.shared_group):
                 # Make sure the build wasn't created while we waited for
                 # the lock.
-                if not os.path.exists(self.build_origin):
-                    build_dir = self.build_origin + '.tmp'
+                if not self.build_origin.exists():
+                    build_dir = self.build_origin.with_suffix('.tmp')
 
                     # Attempt to perform the actual build, this shouldn't
                     # raise an exception unless
@@ -368,7 +367,7 @@ class PavTest:
                         return False
 
                     # Rename the build to it's final location.
-                    os.rename(build_dir, self.build_origin)
+                    build_dir.rename(self.build_origin)
 
         # Perform a symlink copy of the original build directory into our test
         # directory.
@@ -401,6 +400,7 @@ class PavTest:
 
     def _build(self, build_dir):
         """Perform the build. This assumes there actually is a build to perform.
+        :param Path build_dir: The directory in which to perform the build.
         :returns: True or False, depending on whether the build appears to have
             been successful.
         """
@@ -412,12 +412,12 @@ class PavTest:
                             .format(build_dir, err))
             return False
 
-        build_log_path = os.path.join(build_dir, 'pav_build_log')
+        build_log_path = build_dir/'pav_build_log'
 
         try:
-            with open(build_log_path, 'w') as build_log:
-                proc = subprocess.Popen([self.build_script_path],
-                                        cwd=build_dir,
+            with build_log_path.open('w') as build_log:
+                proc = subprocess.Popen([str(self.build_script_path)],
+                                        cwd=str(build_dir),
                                         stdout=build_log,
                                         stderr=build_log)
 
@@ -427,7 +427,7 @@ class PavTest:
                     try:
                         result = proc.wait(timeout=timeout)
                     except subprocess.TimeoutExpired:
-                        log_stat = os.stat(build_log_path)
+                        log_stat = build_log_path.stat()
                         quiet_time = time.time() - log_stat.st_mtime
                         # Has the output file changed recently?
                         if self.BUILD_SILENT_TIMEOUT < quiet_time:
@@ -496,7 +496,7 @@ class PavTest:
             # Download the file to the downloads directory.
             src_path = self._download_path(src_loc, download_name)
         else:
-            src_path = self._find_file(src_loc, 'test_src')
+            src_path = self._find_file(Path(src_loc), 'test_src')
             if src_path is None:
                 raise PavTestError("Could not find source file '{}'"
                                    .format(src_path))
@@ -504,20 +504,20 @@ class PavTest:
         if src_path is None:
             # If there is no source archive or data, just make the build
             # directory.
-            os.mkdir(build_path)
+            build_path.mkdir()
 
-        elif os.path.isdir(src_path):
+        elif src_path.is_dir():
             # Recursively copy the src directory to the build directory.
             shutil.copytree(src_path, build_path, symlinks=True)
 
-        elif os.path.isfile(src_path):
+        elif src_path.is_file():
             # Handle decompression of a stream compressed file. The interfaces
             # for the libs are all the same; we just have to choose the right
             # one to use. Zips are handled as an archive, below.
             category, subtype = utils.get_mime_type(src_path)
 
             if category == 'application' and subtype in self.TAR_SUBTYPES:
-                if tarfile.is_tarfile(src_path):
+                if tarfile.is_tarfile(str(src_path)):
                     try:
                         with tarfile.open(src_path, 'r') as tar:
                             # Filter out all but the top level items.
@@ -527,17 +527,16 @@ class PavTest:
                             # make that directory the build directory. This
                             # should be the default in most cases.
                             if len(top_level) == 1 and top_level[0].isdir():
-                                tmpdir = '{}.zip'.format(build_path)
-                                os.mkdir(tmpdir)
+                                tmpdir = build_path.with_suffix('.tmp')
+                                tmpdir.mkdir()
                                 tar.extractall(tmpdir)
-                                opath = os.path.join(tmpdir,
-                                                     top_level[0].name)
-                                os.rename(opath, build_path)
-                                os.rmdir(tmpdir)
+                                opath = tmpdir/top_level[0].name
+                                opath.rename(build_path)
+                                tmpdir.rmdir()
                             else:
                                 # Otherwise, the build path will contain the
                                 # extracted contents of the archive.
-                                os.mkdir(build_path)
+                                build_path.mkdir()
                                 tar.extractall(build_path)
                     except (OSError, IOError,
                             tarfile.CompressionError, tarfile.TarError) as err:
@@ -565,14 +564,13 @@ class PavTest:
                         raise RuntimeError("Unhandled compression type. '{}'"
                                            .format(subtype))
 
-                    decomp_fn = src_path.split('/')[-1]
-                    decomp_fn = decomp_fn.split('.', 1)[0]
-                    decomp_fn = os.path.join(build_path, decomp_fn)
-                    os.mkdir(build_path)
+                    decomp_fn = src_path.with_suffix('').name
+                    decomp_fn = build_path/decomp_fn
+                    build_path.mkdir()
 
                     try:
                         with comp_lib.open(src_path) as infile, \
-                                open(decomp_fn, 'wb') as outfile:
+                                decomp_fn.open('wb') as outfile:
                             shutil.copyfileobj(infile, outfile)
                     except (OSError, IOError, lzma.LZMAError) as err:
                         raise PavTestError(
@@ -586,20 +584,18 @@ class PavTest:
                     # above with tarfiles.
                     with zipfile.ZipFile(src_path) as zipped:
 
-                        tmpdir = '{}.unzipped'.format(build_path)
-                        os.mkdir(tmpdir)
+                        tmpdir = build_path.with_suffix('.unzipped')
+                        tmpdir.mkdir()
                         zipped.extractall(tmpdir)
 
-                        files = os.listdir(tmpdir)
-                        if (len(files) == 1 and
-                                os.path.isdir(os.path.join(tmpdir, files[0]))):
+                        files = os.listdir(str(tmpdir))
+                        if len(files) == 1 and (tmpdir/files[0]).is_dir():
                             # Make the zip's root directory the build dir.
-                            os.rename(os.path.join(tmpdir, files[0]),
-                                      build_path)
-                            os.rmdir(tmpdir)
+                            (tmpdir/files[0]).rename(build_path)
+                            tmpdir.rmdir()
                         else:
                             # The overall contents of the zip are the build dir.
-                            os.rename(tmpdir, build_path)
+                            tmpdir.rename(build_path)
 
                 except (OSError, IOError, zipfile.BadZipFile) as err:
                     raise PavTestError(
@@ -609,9 +605,9 @@ class PavTest:
             else:
                 # Finally, simply copy any other types of files into the build
                 # directory.
-                dest = os.path.join(build_path, os.path.basename(src_path))
+                dest = build_path/src_path.name
                 try:
-                    os.mkdir(build_path)
+                    build_path.mkdir()
                     shutil.copyfile(src_path, dest)
                 except OSError as err:
                     raise PavTestError(
@@ -620,8 +616,9 @@ class PavTest:
 
         # Now we just need to copy over all of the extra files.
         for extra in build_config.get('extra_files', []):
+            extra = Path(extra)
             path = self._find_file(extra, 'test_src')
-            dest = os.path.join(build_path, os.path.basename(path))
+            dest = build_path/path.name
             try:
                 shutil.copyfile(path, dest)
             except OSError as err:
@@ -647,10 +644,11 @@ class PavTest:
         # We shouldn't have to do anything to directories, they should have
         # the correct permissions already.
         for path, _, files in os.walk(self.build_origin):
+            path = Path(path)
             for file in files:
-                file_path = os.path.join(path, file)
-                st = os.stat(file_path)
-                os.chmod(file_path, st.st_mode & file_mask)
+                file_path = path/file
+                st = file_path.stat()
+                file_path.lchmod(st.st_mode & file_mask)
 
     def run(self, sched_vars):
         """Run the test, returning True on success, False otherwise.
@@ -678,9 +676,9 @@ class PavTest:
                 self.LOGGER.error(err)
                 self.status.set(STATES.RUN_ERROR, err)
 
-        run_log_path = os.path.join(self.path, 'run.log')
+        run_log_path = self.path/'run.log'
 
-        with open(run_log_path, 'wb') as run_log:
+        with run_log_path.open('wb') as run_log:
             proc = subprocess.Popen([self.run_script_path],
                                     cwd=self.build_path,
                                     stdout=run_log,
@@ -694,7 +692,7 @@ class PavTest:
                 try:
                     result = proc.wait(timeout=timeout)
                 except subprocess.TimeoutExpired:
-                    out_stat = os.stat(run_log_path)
+                    out_stat = run_log_path.stat()
                     quiet_time = time.time() - out_stat.st_mtime
                     # Has the output file changed recently?
                     if self.RUN_SILENT_TIMEOUT < quiet_time:
@@ -726,31 +724,21 @@ class PavTest:
             False otherwise.
         """
 
-        if 'build' not in self.config:
+        if self.build_path.resolve().exists():
             return True
-
-        if os.path.islink(self.build_path):
-            # The file is expected to be a softlink, but we need to make sure
-            # the path it points to exists. The most robust way is to check
-            # it with stat, which will throw an exception if it doesn't
-            # exist (an OSError in certain weird cases like symlink loops).
-            try:
-                os.stat(self.build_path)
-            except (OSError, FileNotFoundError):
-                return False
-
-            return True
+        else:
+            return False
 
     @property
     def job_id(self):
 
-        path = os.path.join(self.path, 'jobid')
+        path = self.path/'jobid'
 
         if self._job_id is not None:
             return self._job_id
 
         try:
-            with os.path.isfile(path) as job_id_file:
+            with path.open('r') as job_id_file:
                 self._job_id = job_id_file.read()
         except FileNotFoundError:
             return None
@@ -764,10 +752,10 @@ class PavTest:
     @job_id.setter
     def job_id(self, job_id):
 
-        path = os.path.join(self.path, 'jobid')
+        path = self.path/'jobid'
 
         try:
-            with open(path, 'w') as job_id_file:
+            with path.open('w') as job_id_file:
                 job_id_file.write(job_id)
         except (IOError, OSError) as err:
             self.LOGGER.error("Could not write jobid file '{}': {}"
@@ -779,7 +767,7 @@ class PavTest:
     def ts(self):
         """Return the unix timestamp for this test, based on the last
         modified date for the test directory."""
-        return os.stat(self.path).st_mtime
+        return self.path.stat().st_mtime
 
     def _hash_dict(self, mapping):
         """Create a hash from the keys and items in 'mapping'. Keys are
@@ -807,12 +795,12 @@ class PavTest:
 
     def _hash_file(self, path):
         """Hash the given file (which is assumed to exist).
-        :param str path: Path to the file to hash.
+        :param Path path: Path to the file to hash.
         """
 
         hash_obj = hashlib.sha256()
 
-        with open(path, 'rb') as file:
+        with path.open('rb') as file:
             chunk = file.read(self._BLOCK_SIZE)
             while chunk:
                 hash_obj.update(chunk)
@@ -825,31 +813,31 @@ class PavTest:
         """Instead of hashing the files within a directory, we just create a
             'hash' based on it's name and mtime, assuming we've run _date_dir
             on it before hand. This produces an arbitrary string, not a hash.
-        :param str path: The path to the directory.
+        :param Path path: The path to the directory.
         :returns: The 'hash'
         """
 
-        dir_stat = os.stat(path)
+        dir_stat = path.stat()
         return '{} {:0.5f}'.format(path, dir_stat.st_mtime).encode('utf-8')
 
     @staticmethod
     def _date_dir(base_path):
         """Update the mtime of the given directory or path to the the latest
         mtime contained within.
-        :param str base_path: The root of the path to evaluate.
+        :param Path base_path: The root of the path to evaluate.
         """
 
-        src_stat = os.stat(base_path)
+        src_stat = base_path.stat()
         latest = src_stat.st_mtime
 
         paths = utils.flat_walk(base_path)
         for path in paths:
-            dir_stat = os.stat(path)
+            dir_stat = path.stat()
             if dir_stat.st_mtime > latest:
                 latest = dir_stat.st_mtime
 
         if src_stat.st_mtime != latest:
-            os.utime(base_path, (src_stat.st_atime, latest))
+            os.utime(str(base_path), (src_stat.st_atime, latest))
 
     def _write_script(self, path, config):
         """Write a build or run script or template. The formats for each are
@@ -865,8 +853,7 @@ class PavTest:
                 group=self._pav_cfg.shared_group,
             ))
 
-        pav_lib_bash = os.path.join(self._pav_cfg.pav_root,
-                                    'bin', 'pav-lib.bash')
+        pav_lib_bash = self._pav_cfg.pav_root/'bin'/'pav-lib.bash'
 
         script.comment('The following is added to every test build and '
                        'run script.')
@@ -903,8 +890,8 @@ class PavTest:
     def resolve_template(cls, tmpl_path, script_path, var_man):
         """Resolve the test deferred variables using the appropriate escape
             sequence.
-        :param str tmpl_path: Path to the template file to read.
-        :param str script_path: Path to the script file to write.
+        :param Path tmpl_path: Path to the template file to read.
+        :param Path script_path: Path to the script file to write.
         :param variables.VariableSetManager var_man: A variable set manager for
             retrieving found variables. Is expected to contain the sys and
             sched variable sets.
@@ -912,17 +899,17 @@ class PavTest:
         """
 
         try:
-            with open(tmpl_path, 'r') as tmpl, \
-                 open(script_path, 'w') as script:
+            with tmpl_path.open('r') as tmpl, \
+                 script_path.open('w') as script:
 
                 for line in tmpl.readlines():
                     script.write(var_man.resolve_deferred_str(line))
 
             # Add group and owner execute permissions to the produced script.
-            new_mode = (os.stat(script_path).st_mode |
+            new_mode = (script_path.stat().st_mode |
                         stat.S_IXGRP |
                         stat.S_IXUSR)
-            os.chmod(script_path, new_mode)
+            os.chmod(str(script_path), new_mode)
 
         except ValueError as err:
             raise PavTestError("Problem escaping run template file '{}': {}"
@@ -932,3 +919,6 @@ class PavTest:
             raise PavTestError("Failed processing run template file '{}' into "
                                "run script'{}': {}"
                                .format(tmpl_path, script_path, err))
+
+    def __repr__(self):
+        return "PavTest({s.name}-{s.id})".format(s=self)

@@ -3,8 +3,8 @@ from pavilion import scriptcomposer
 from pavilion.test_config import format
 from yapsy import IPlugin
 from functools import wraps
+from pathlib import Path
 import collections
-import os
 import logging
 import subprocess
 
@@ -236,7 +236,9 @@ def get_scheduler_plugin(name):
         raise SchedulerPluginError("No scheduler plugins loaded.")
 
     if name not in _SCHEDULER_PLUGINS:
-        raise SchedulerPluginError("Module not found: '{}'".format(name))
+        print(_SCHEDULER_PLUGINS)
+        raise SchedulerPluginError(
+            "Scheduler plugin not found: '{}'".format(name))
 
     return _SCHEDULER_PLUGINS[name]
 
@@ -245,7 +247,7 @@ def list_scheduler_plugins():
     if _SCHEDULER_PLUGINS is None:
         raise SchedulerPluginError("Scheduler Plugins aren't loaded.")
 
-    return _SCHEDULER_PLUGINS.keys()
+    return list(_SCHEDULER_PLUGINS.keys())
 
 
 class SchedulerPlugin(IPlugin.IPlugin):
@@ -328,6 +330,11 @@ class SchedulerPlugin(IPlugin.IPlugin):
         """
         raise NotImplementedError
 
+    def get_vars(self, test):
+        """Returns the dictionary of scheduler variables."""
+
+        return self.VAR_CLASS(self, test)
+
     def run_tests(self, tests):
         """Run each of the given tests using this scheduler, each scheduled
         using a separate allocation.
@@ -346,7 +353,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
     def submit_job(self, path):
         """Function to submit a job to a scheduler and return the job ID
            number.
-           :param str path - Path to the submission script.
+           :param Path path: - Path to the submission script.
            :return str - Job ID number.
         """
         raise NotImplementedError
@@ -363,29 +370,15 @@ class SchedulerPlugin(IPlugin.IPlugin):
     # The job has failed to complete
     JOB_FAILED = 'FAILED'
 
-    def check_job(self, id):
+    def check_job(self, id_):
         """Function to check the status of a job.
-           :param str id - ID number of the job as returned by submit_job().
+           :param str id_: - ID number of the job as returned by submit_job().
            :return str - Status of the job matching the provided job ID.
                          If the key is empty or requesting the state of the
                          job, the return values should be 'pending', 'running',
                          'finished', or 'failed'.
         """
         raise NotImplemented
-
-    def check_reservation(self, res_name):
-        """Function to check that a reservation is valid.
-           :param str res_name - Reservation to check for validity.
-           :raises SchedulerPluginError - If the reservation is not valid.
-        """
-        raise NotImplemented
-
-    def check_partition(self, partition):
-        """Function to check that a partition is valid.
-           :param str partition - Partition to check for validity.
-           :raises SchedulerPluginError - If the partition is not valid.
-        """
-        raise NotImplementedError
 
     def kick_off(self, test_obj):
         """Function to accept a test object and kick off a build.
@@ -397,7 +390,8 @@ class SchedulerPlugin(IPlugin.IPlugin):
         test_obj.job_id = self.submit_job(kick_off_path)
 
         test_obj.status.set(test_obj.status.STATES.SCHEDULED,
-                            "Test {} has job ID {}.".format(self.name, test_obj.job_id))
+                            "Test {} has job ID {}."
+                            .format(self.name, test_obj.job_id))
 
     def _write_kick_off_script(self, test):
         """Function to accept a list of lines and generate a script that is
@@ -406,12 +400,12 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
         header = self._get_kick_off_header(test)
 
+        path = test.path/'kickoff.{}'.format(self.KICKOFF_SCRIPT_EXT)
+
         script = scriptcomposer.ScriptComposer(
             header=header,
             details=scriptcomposer.ScriptDetails(
-                path=os.path.join(test.path,
-                                  'kickoff.{}'.format(self.KICKOFF_SCRIPT_EXT))
-
+                path=path
             ),
         )
 

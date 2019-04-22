@@ -45,9 +45,6 @@ class SlurmTests(PavTestCase):
 
         slurm = schedulers.get_scheduler_plugin('slurm')
 
-        from pavilion.utils import cprint
-        cprint(slurm.get_data()['summary'])
-
         # Grab a random jobid, and get the status of it.
         jobs = subprocess.check_output(['squeue', '-o', "%i %T"])
         jobs = jobs.decode('utf-8')

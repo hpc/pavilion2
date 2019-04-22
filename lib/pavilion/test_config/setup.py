@@ -3,8 +3,8 @@ from . import variables
 from .format import TestConfigError, KEY_NAME_RE
 from .format import TestConfigLoader, TestSuiteLoader
 from collections import defaultdict
+import copy
 import logging
-import os
 
 # Config file types
 CONF_HOST = 'hosts'
@@ -18,20 +18,20 @@ def _find_config(pav_config, conf_type, conf_name):
     """Search all of the known configuration directories for a config of the
     given type and name.
     :param pav_config: The pavilion config data.
-    :param unicode conf_type: 'host', 'mode', or 'test'
-    :param conf_name: The name of the config (without a file extension).
+    :param str conf_type: 'host', 'mode', or 'test'
+    :param str conf_name: The name of the config (without a file extension).
     :return: The path to the first matching config found, or None if one wasn't
     found.
     """
     for conf_dir in pav_config.config_dirs:
-        path = os.path.join(conf_dir, conf_type, '{}.yaml'.format(conf_name))
-        if os.path.exists(path):
+        path = conf_dir/conf_type/'{}.yaml'.format(conf_name)
+        if path.exists():
             return path
 
     return None
 
 
-def get_tests(pav_config, host, modes, tests):
+def load_test_configs(pav_config, host, modes, tests):
     """Get a dictionary of raw test configs given a host, list of modes,
     and a list of tests. Each of these configs will be lightly modified with
     a few extra variables about their name, suite, and suite_file, as well as
@@ -60,7 +60,8 @@ def get_tests(pav_config, host, modes, tests):
         try:
             with open(host_cfg_path) as host_cfg_file:
                 # Load and validate the host test config defaults.
-                base_config = test_config_loader.load(host_cfg_file)
+                base_config = test_config_loader.load(host_cfg_file,
+                                                      partial=True)
         except (IOError, OSError) as err:
             raise TestConfigError("Could not open host config '{}': {}"
                                   .format(host_cfg_path, err))
@@ -76,7 +77,8 @@ def get_tests(pav_config, host, modes, tests):
             with open(mode_cfg_path) as mode_cfg_file:
                 # Load this mode_config and merge it into the base_config.
                 base_config = test_config_loader.load_merge(base_config,
-                                                            mode_cfg_file)
+                                                            mode_cfg_file,
+                                                            partial=True)
         except (IOError, OSError) as err:
             raise TestConfigError("Could not open mode config '{}': {}"
                                   .format(mode_cfg_path, err))
@@ -186,7 +188,7 @@ def get_tests(pav_config, host, modes, tests):
             for test_cfg_name, test_cfg in suite_tests.items():
                 test_cfg['name'] = test_cfg_name
                 test_cfg['suite'] = test_suite
-                test_cfg['suite_path'] = test_suite_path
+                test_cfg['suite_path'] = str(test_suite_path)
                 if 'variables' not in test_cfg:
                     test_cfg['variables'] = dict()
                 if 'permutations' not in test_cfg:
@@ -297,10 +299,12 @@ def resolve_permutations(raw_test_cfg, pav_vars, sys_vars):
         permutations.
     """
 
-    if 'permutations' in raw_test_cfg:
-        per_vars = raw_test_cfg['permutations']
+    test_cfg = copy.deepcopy(raw_test_cfg)
+
+    if 'permutations' in test_cfg:
+        per_vars = test_cfg['permutations']
         # This is no longer used in the config.
-        del raw_test_cfg['permutations']
+        del test_cfg['permutations']
     else:
         per_vars = {}
 
@@ -313,25 +317,25 @@ def resolve_permutations(raw_test_cfg, pav_vars, sys_vars):
     # We don't resolve variables within the variables section, so we remove
     # those parts now.
 
-    if 'variables' in raw_test_cfg:
-        user_vars = raw_test_cfg['variables']
-        del raw_test_cfg['variables']
+    if 'variables' in test_cfg:
+        user_vars = test_cfg['variables']
+        del test_cfg['variables']
     else:
         user_vars = {}
 
     # Recursively make our configuration a little less raw, recursively
     # parsing all string values into PavString objects.
-    test_cfg = _parse_strings(raw_test_cfg)
+    test_cfg = _parse_strings(test_cfg)
 
     # We only want to permute over the permutation variables that are
     # actually used.  This also provides a convenient place to catch any
     # problems with how those variables are used.
     try:
-        used_per_vars = _get_used_per_vars(raw_test_cfg, base_var_man)
+        used_per_vars = _get_used_per_vars(test_cfg, base_var_man)
     except RuntimeError as err:
         raise TestConfigError(
             "In suite file '{}' test name '{}': {}"
-            .format(raw_test_cfg['suite'], raw_test_cfg['name'], err))
+            .format(test_cfg['suite'], test_cfg['name'], err))
 
     # Since per vars are the highest in resolution order, we can make things
     # a bit faster by adding these after we find the used per vars.
@@ -371,6 +375,8 @@ def _parse_strings(section):
         return section
     elif isinstance(section, str):
         return string_parser.parse(section)
+    elif section is None:
+        return None
     else:
         # Should probably never happen (We're going to see this error a lot
         # until we get a handle on strings vs unicode though).
@@ -415,6 +421,9 @@ def _get_used_per_vars(component, var_man):
             # it.
             if var_set == 'per' and idx is None:
                 used_per_vars.add(var)
+    elif component is None:
+        # It's ok if this is None.
+        pass
     else:
         # This should be unreachable.
         raise RuntimeError("Unknown config component type '{}' of '{}'"
@@ -474,6 +483,8 @@ def _resolve_section_vars(component, var_man, allow_deferred):
     elif isinstance(component, str):
         # Some PavStrings may have already been resolved.
         return component
+    elif component is None:
+        return None
     else:
         raise TestConfigError("Invalid value type '{}' for '{}' when "
                               "resolving strings."

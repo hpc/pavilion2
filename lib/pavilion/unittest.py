@@ -1,9 +1,11 @@
 import fnmatch
 import os
+from pathlib import Path
 import tempfile
 import unittest
 import types
 
+from pavilion import arguments
 from pavilion import config
 from pavilion.utils import cprint
 
@@ -11,15 +13,10 @@ from pavilion.utils import cprint
 class PavTestCase(unittest.TestCase):
     """This is a base class for other test suites."""
 
-    TEST_DATA_ROOT = os.path.realpath(__file__)
-    for i in range(3):
-        TEST_DATA_ROOT = os.path.dirname(TEST_DATA_ROOT)
-    TEST_DATA_ROOT = os.path.join(TEST_DATA_ROOT, 'test', 'test_data')
+    PAV_LIB_DIR = Path(__file__).resolve().parent
+    TEST_DATA_ROOT = PAV_LIB_DIR.parents[1]/'test'/'test_data'
 
-    PAV_CONFIG_PATH = os.path.join(TEST_DATA_ROOT,
-                                   'pav_config_dir',
-                                   'pavilion.yaml')
-    PAV_LIB_DIR = os.path.dirname(__file__)
+    PAV_CONFIG_PATH = TEST_DATA_ROOT/'pav_config_dir'/'pavilion.yaml'
 
     TEST_URL = 'https://github.com/lanl/Pavilion/archive/2.0.zip'
 
@@ -30,25 +27,28 @@ class PavTestCase(unittest.TestCase):
 
     def __init__(self, *args, **kwargs):
 
-        with open(self.PAV_CONFIG_PATH) as cfg_file:
+        with open(str(self.PAV_CONFIG_PATH)) as cfg_file:
             self.pav_cfg = config.PavilionConfigLoader().load(cfg_file)
 
-        self.pav_cfg.config_dirs = [os.path.join(self.TEST_DATA_ROOT,
-                                                 'pav_config_dir'),
+        self.pav_cfg.config_dirs = [self.TEST_DATA_ROOT/'pav_config_dir',
                                     self.PAV_LIB_DIR]
 
         self.tmp_dir = tempfile.TemporaryDirectory()
 
-        self.pav_cfg.working_dir = '/tmp/{}/pav_tests/'.format(os.getlogin())
+        # We have to get this to set up the base argument parser before
+        # plugins can add to it.
+        _ = arguments.get_parser()
+
+        self.pav_cfg.working_dir = Path('/tmp')/os.getlogin()/'pav_tests'
 
         # Create the basic directories in the working directory
         for path in [self.pav_cfg.working_dir,
-                     os.path.join(self.pav_cfg.working_dir, 'builds'),
-                     os.path.join(self.pav_cfg.working_dir, 'tests'),
-                     os.path.join(self.pav_cfg.working_dir, 'suites'),
-                     os.path.join(self.pav_cfg.working_dir, 'downloads')]:
-            if not os.path.exists(path):
-                os.makedirs(path, exist_ok=True)
+                     self.pav_cfg.working_dir/'builds',
+                     self.pav_cfg.working_dir/'tests',
+                     self.pav_cfg.working_dir/'suites',
+                     self.pav_cfg.working_dir/'downloads']:
+            if not path.exists():
+                os.makedirs(str(path), exist_ok=True)
 
         super().__init__(*args, **kwargs)
 
@@ -74,7 +74,7 @@ class PavTestCase(unittest.TestCase):
                         return attr
                 return unittest.skip("via cmdline")(attr)
 
-        # If it isn't altered or explicitely returned above, just return the
+        # If it isn't altered or explicitly returned above, just return the
         # attribute.
         return attr
 
@@ -95,19 +95,22 @@ class PavTestCase(unittest.TestCase):
         though."""
 
         for base_dir, cdirs, cfiles in os.walk(path):
+            base_dir = Path(base_dir)
             for cdir in cdirs:
-                self.assert_(os.path.isdir(os.path.join(base_dir, cdir)),
-                             "Directory in softlink dir is a softlink (it shouldn't be).")
+                self.assert_((base_dir/cdir).is_dir(),
+                             "Directory in softlink dir is a softlink (it "
+                             "shouldn't be).")
 
             for file in cfiles:
-                file_path = os.path.join(base_dir, file)
-                self.assert_(os.path.islink(file_path),
+                file_path = base_dir/file
+                self.assert_(file_path.is_symlink(),
                              "File in softlink dir '{}' is not a softlink."
                              .format(file_path))
 
-                target_path = os.path.realpath(file_path)
-                self.assert_(os.path.exists(target_path),
-                             "Softlink target '{}' for link '{}' does not exist."
+                target_path = file_path.resolve()
+                self.assert_(target_path.exists(),
+                             "Softlink target '{}' for link '{}' does not "
+                             "exist."
                              .format(target_path, file_path))
 
     def _cmp_files(self, a_path, b_path):
@@ -132,6 +135,8 @@ class PavTestCase(unittest.TestCase):
         while a_walk and b_walk:
             a_dir, a_dirs, a_files = a_walk.pop(0)
             b_dir, b_dirs, b_files = b_walk.pop(0)
+            a_dir = Path(a_dir)
+            b_dir = Path(b_dir)
 
             self.assertEqual(
                 sorted(a_dirs), sorted(b_dirs),
@@ -148,11 +153,11 @@ class PavTestCase(unittest.TestCase):
 
             for file in a_files:
                 # The file names have are been verified as the same.
-                a_path = os.path.join(a_dir, file)
-                b_path = os.path.join(b_dir, file)
+                a_path = a_dir/file
+                b_path = b_dir/file
 
                 # We know the file exists in a, does it in b?
-                self.assert_(os.path.exists(b_path),
+                self.assert_(b_path.exists(),
                              "File missing from archive b '{}'".format(b_path))
 
                 self._cmp_files(a_path, b_path)

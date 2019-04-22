@@ -57,7 +57,7 @@ class TestWGet(PavTestCase):
         self.assertFalse(os.path.exists(info_fn))
 
         # Update should get the file if it doesn't exist.
-        wget.update(pav_cfg, self.GET_TARGET, dest_fn)
+        wget.update(self.pav_cfg, self.GET_TARGET, dest_fn)
         self.assertTrue(os.path.exists(dest_fn))
         self.assertTrue(os.path.exists(info_fn))
 

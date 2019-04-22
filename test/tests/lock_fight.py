@@ -27,5 +27,5 @@ while True:
             # print("Fight {} - bye lock {}".format(os.getpid(), lock._id))
         # If we don't sleep, the sem proc will probably get the lock right back.
         time.sleep(0.2)
-    except lockfile.TimeoutError:
+    except TimeoutError:
         continue

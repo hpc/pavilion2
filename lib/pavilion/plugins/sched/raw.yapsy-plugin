@@ -1,0 +1,9 @@
+[Core]
+Name = Raw Scheduler
+Module = raw
+
+[Documentation]
+Description = Raw scheduler wrapper.
+Author = Nicholas Sly/Paul Ferrell
+Version = 1.0
+Website =

@@ -23,13 +23,13 @@ class VariableElem(yc.CategoryElem):
                                            defaults=None,
                                            **kwargs)
 
-    def validate(self, value_dict):
+    def validate(self, value_dict, partial=False):
         """Check for a single item and return it, otherwise return a dict."""
 
         if isinstance(value_dict, str):
             return value_dict
 
-        return super(VariableElem, self).validate(value_dict)
+        return super(VariableElem, self).validate(value_dict, partial=partial)
 
 
 class VarCatElem(yc.CategoryElem):
@@ -71,7 +71,7 @@ class TestConfigLoader(yc.YamlConfigLoader):
                       "combination across all variables in each section. The "
                       "resulting virtual test is thus given a single "
                       "permutation of these values."),
-        yc.RegexElem('scheduler', regex=r'\w+',
+        yc.RegexElem('scheduler', regex=r'\w+', required=True,
                      help_text="The scheduler class to use to run this test."),
         yc.KeyedElem('build', elements=[
             yc.StrElem(
@@ -105,6 +105,7 @@ class TestConfigLoader(yc.YamlConfigLoader):
                           'but not recommended.'),
             yc.StrElem(
                 'specificity',
+                default='',
                 help_text="Use this string, along with variables, to "
                           "differentiate builds. A common example would be "
                           "to make per-host specific by using the "

@@ -1,24 +1,24 @@
 
 from pavilion.unittest import PavTestCase
-from pavilion.test_config import (get_tests, TestConfigError, apply_overrides,
+from pavilion.test_config import (load_test_configs, TestConfigError, apply_overrides,
                                   resolve_permutations, resolve_all_vars)
 from pavilion.test_config import variables, string_parser
 
 
 class TestSetupTests(PavTestCase):
 
-    def test_get_tests(self):
+    def test_loading_tests(self):
         """Make sure get_tests can find tests and resolve inheritance."""
 
         with self.assertRaises(TestConfigError):
             # Non-existent host config
-            get_tests(self.pav_cfg, 'nope', [], ['hello_world'])
+            load_test_configs(self.pav_cfg, 'nope', [], ['hello_world'])
 
-        tests = get_tests(self.pav_cfg, 'this', [], ['hello_world'])
+        tests = load_test_configs(self.pav_cfg, 'this', [], ['hello_world'])
         self.assertEqual(sorted(['narf', 'hello', 'world']),
                          sorted([test['name'] for test in tests]))
 
-        tests = get_tests(self.pav_cfg, 'this', [], ['hello_world.hello'])
+        tests = load_test_configs(self.pav_cfg, 'this', [], ['hello_world.hello'])
         hello = tests.pop()
 
         # There should have only been 1
@@ -29,17 +29,17 @@ class TestSetupTests(PavTestCase):
         # Make sure the variable from the host config got propagated.
         self.assertIn('hosty', hello['variables'])
 
-        tests = get_tests(self.pav_cfg, 'this', [], ['hello_world.narf'])
+        tests = load_test_configs(self.pav_cfg, 'this', [], ['hello_world.narf'])
         narf = tests.pop()
         # Make sure this got overridden from 'world'
-        self.assertEqual(narf['scheduler'], 'blarg')
+        self.assertEqual(narf['scheduler'], 'dummy')
         # Make sure this didn't get lost.
         self.assertEqual(narf['run']['cmds'], ['echo "Running World"'])
 
     def test_apply_overrides(self):
         """Make sure overrides get applied to test configs correctly."""
 
-        tests = get_tests(self.pav_cfg, 'this', [], ['hello_world'])
+        tests = load_test_configs(self.pav_cfg, 'this', [], ['hello_world'])
 
         overrides = {
             'run': {

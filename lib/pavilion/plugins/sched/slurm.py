@@ -186,9 +186,10 @@ class Slurm(SchedulerPlugin):
             help_text="Configuration for the Slurm scheduler.",
             elements=[
                 yc.StrElem(
-                    'num_nodes', default="1",
-                     help_text="Number of nodes requested for this test. "
-                               "This can be a range (e.g. 12-24)."),
+                    'num_nodes',
+                    default="1",
+                    help_text="Number of nodes requested for this test. "
+                              "This can be a range (e.g. 12-24)."),
                 yc.StrElem('tasks_per_node', default="1",
                            help_text="Number of tasks to run per node."),
                 yc.StrElem(
@@ -471,8 +472,6 @@ class Slurm(SchedulerPlugin):
                 item = item.strip()
                 if not item:
                     continue
-                from pavilion.utils import cprint
-                cprint(item, color=36)
                 key, value = item.split('=', 1)
                 job_dict[key] = value
         except subprocess.CalledProcessError:

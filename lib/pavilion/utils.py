@@ -1,32 +1,34 @@
 # This file contains assorted utility functions.
 
+from pathlib import Path
+from pavilion import lockfile
 import csv
 import json
 import os
 import re
-import sys
 import subprocess
-from pavilion import lockfile
+import sys
 
 
 def flat_walk(path, *args, **kwargs):
     """Perform an os.walk on path, but return a flattened list of every file
     and directory found.
-    :param str path: The path to walk with os.walk.
+    :param Path path: The path to walk with os.walk.
     :param args: Any additional positional args for os.walk.
     :param kwargs: Any additional kwargs for os.walk.
     :returns: A list of all directories and files in or under the given path.
-    :rtype list:
+    :rtype list[Path]:
     """
 
     paths = []
 
-    for directory, dirnames, filenames in os.walk(path, *args, **kwargs):
+    for directory, dirnames, filenames in os.walk(str(path), *args, **kwargs):
+        directory = Path(directory)
         for dirname in dirnames:
-            paths.append(os.path.join(directory, dirname))
+            paths.append(directory/dirname)
 
         for filename in filenames:
-            paths.append(os.path.join(directory, filename))
+            paths.append(directory/filename)
 
     return paths
 
@@ -34,7 +36,7 @@ def flat_walk(path, *args, **kwargs):
 def get_mime_type(path):
     """Use a filemagic command to get the mime type of a file. Returned as a
     tuple of category and subtype.
-    :param str path: The path to the file to examine.
+    :param Path path: The path to the file to examine.
     :returns: category, subtype"""
 
     ftype = subprocess.check_output(['file',
@@ -42,7 +44,7 @@ def get_mime_type(path):
                                      '-b',
                                      # Mime types are more sane to deal with
                                      '--mime-type',
-                                     path])
+                                     str(path)])
 
     # Get rid of whitespace and convert to unicode, and split
     parts = ftype.strip().decode().split('/', 2)
@@ -70,27 +72,33 @@ ID_FMT = '{id:0{digits}d}'
 
 def make_id_path(base_path, id_):
     """Create the full path to an id directory given its base path and
-    the id."""
-    return os.path.join(base_path, ID_FMT.format(id=id_, digits=ID_DIGITS))
+    the id.
+    :param Path base_path: The path to where id directories are stored.
+    :param int id_: The id number
+    :rtype: Path
+    """
+
+    return base_path/ID_FMT.format(id=id_, digits=ID_DIGITS)
 
 
 def create_id_dir(id_dir):
     """In the given directory, create the lowest numbered (positive integer)
     directory that doesn't already exist.
-    :param str id_dir: Path to the directory that contains these 'id'
+    :param Path id_dir: Path to the directory that contains these 'id'
         directories
     :returns: The id and path to the created directory.
+    :rtype: list(int, Path)
     :raises OSError: on directory creation failure.
     :raises TimeoutError: If we couldn't get the lock in time.
 
     """
 
-    lockfile_path = os.path.join(id_dir, '.lockfile')
+    lockfile_path = id_dir/'.lockfile'
     with lockfile.LockFile(lockfile_path, timeout=1):
-        ids = os.listdir(id_dir)
+        ids = os.listdir(str(id_dir))
         # Only return the test directories that could be integers.
         ids = filter(str.isdigit, ids)
-        ids = filter(lambda d: os.path.isdir(os.path.join(id_dir, d)), ids)
+        ids = filter(lambda d: os.path.isdir(id_dir/d), ids)
         ids = list(map(int, ids))
         ids.sort()
 
@@ -100,7 +108,7 @@ def create_id_dir(id_dir):
             id_ += 1
 
         path = make_id_path(id_dir, id_)
-        os.mkdir(path)
+        path.mkdir()
 
     return id_, path
 

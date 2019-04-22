@@ -1,3 +1,4 @@
+from pathlib import Path
 import grp
 import logging
 import os
@@ -11,45 +12,48 @@ LOGGER = logging.getLogger('pav.' + __name__)
 NEVER = 10**10
 
 
-class TimeoutError(RuntimeError):
-    """Error raised when the lockfile times out."""
-    pass
-
-
 class LockFile(object):
-    """An NFS friendly way to create a lock file. Locks contain information on what host and user
-    created the lock, and have a built in expiration date. To be used in a 'with' context.
+    """An NFS friendly way to create a lock file. Locks contain information
+    on what host and user created the lock, and have a built in expiration
+    date. To be used in a 'with' context.
     :cvar DEFAULT_EXPIRE: How long it takes for a lock to expire."""
 
     # Time till file is considered stale, in seconds. (5 minute default)
     DEFAULT_EXPIRE = 60 * 60 * 5
 
     # How long to sleep between lock attempts.
-    # This shouldn't be any less than 0.01 or so on a regular filesystem. 0.2 is pretty reasonable
-    # for an nfs filesystem and sporadically used locks.
+    # This shouldn't be any less than 0.01 or so on a regular filesystem.
+    # 0.2 is pretty reasonable for an nfs filesystem and sporadically used
+    # locks.
     SLEEP_PERIOD = 0.2
 
     # Default lock permissions
     LOCK_PERMS = 0o774
 
-    def __init__(self, lockfile_path, group=None, timeout=None, expires_after=DEFAULT_EXPIRE):
-        """Initialize the lock file. The resulting class can be reused multiple times.
-        :param unicode lockfile_path: The path to the lockfile. Should probably start with a '.',
-        and end with '.lock', but that's up to the user.
-        :param unicode group: The name of the group to set lockfiles to. If this is given,
-        :param timeout: When to quit trying to acquire the lock in seconds. None (default) denotes
-        non-blocking mode.
-        :param expires_after: When to consider the lock dead, and overwritable (in seconds). The
-        NEVER module variable is provided as easily named long time. (10^10 secs, 317 years)
+    def __init__(self, lockfile_path, group=None, timeout=None,
+                 expires_after=DEFAULT_EXPIRE):
+        """Initialize the lock file. The resulting class can be reused
+        multiple times.
+        :param Path lockfile_path: The path to the lockfile. Should
+        probably start with a '.', and end with '.lock', but that's up to
+        the user.
+        :param str group: The name of the group to set lockfiles to. If
+        this is given,
+        :param timeout: When to quit trying to acquire the lock in seconds.
+        None (default) denotes non-blocking mode.
+        :param expires_after: When to consider the lock dead,
+        and overwritable (in seconds). The NEVER module variable is
+        provided as easily named long time. (10^10 secs, 317 years)
         """
 
-        self._lock_path = lockfile_path
+        self._lock_path = Path(lockfile_path)
         self._timeout = timeout
         self._expire_period = expires_after
         self._group = None
 
         if group is not None:
-            # This could error out, but should be checked by pavilion separately.
+            # This could error out, but should be checked by pavilion
+            # separately.
             try:
                 self._group = grp.getgrnam(group).gr_gid
             except KeyError:
@@ -74,8 +78,11 @@ class LockFile(object):
         while self._timeout is None or time.time() - self._timeout <= start:
             try:
 
-                self._create_lockfile(self._lock_path, self._expire_period, self._id,
-                                      group_id=self._group)
+                self._create_lockfile(
+                    self._lock_path,
+                    self._expire_period,
+                    self._id,
+                    group_id=self._group)
                 acquired = True
 
                 # We got the lock, quit the loop.
@@ -94,10 +101,14 @@ class LockFile(object):
                 if expires < time.time():
                     # The file is expired. Try to delete it.
                     try:
+                        exp_file = self._lock_path.with_name(
+                            self._lock_path.name + '.expired'
+                        )
 
-                        with LockFile(self._lock_path + '.expired', expires_after=NEVER):
+                        with LockFile(exp_file,
+                                      expires_after=NEVER):
                             try:
-                                os.unlink(self._lock_path)
+                                self._lock_path.unlink()
                             except OSError:
                                 pass
                     except TimeoutError:
@@ -109,13 +120,15 @@ class LockFile(object):
                     time.sleep(self.SLEEP_PERIOD)
 
         if not acquired:
-            raise TimeoutError("Lock on file '{}' could not be acquired.".format(self._lock_path))
+            raise TimeoutError("Lock on file '{}' could not be acquired."
+                               .format(self._lock_path))
 
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Delete the lockfile, thereby releasing the lock.
-        :raises RuntimeError: When we can't delete our own lockfile for some reason.
+        :raises RuntimeError: When we can't delete our own lockfile for some
+            reason.
         """
 
         # There isn't really anything we can do in this case.
@@ -126,7 +139,7 @@ class LockFile(object):
                          .format(self._lock_path, (host, user)))
         else:
             try:
-                os.unlink(self._lock_path)
+                self._lock_path.unlink()
             except OSError as err:
                 # There isn't really anything we can do in this case.
                 host, user, expiration, lock_id = self.read_lockfile()
@@ -148,12 +161,17 @@ class LockFile(object):
         :raises IOError: When the file cannot be written too.
         :raises OSError: When the file cannot be opened or already exists."""
 
-        # DEV NOTE: This logic is separate so that we can create these files outside of
-        # the standard mechanisms for testing purposes.
+        # DEV NOTE: This logic is separate so that we can create these files
+        # outside of the standard mechanisms for testing purposes.
+
+        # We're doing low level operations on the path, so we just need
+        # it as a string.
+        path = str(path)
 
         fd = os.open(path, os.O_EXCL | os.O_CREAT | os.O_RDWR)
         expiration = time.time() + expires
-        file_note = ",".join([os.uname()[1], os.getlogin(), str(expiration), lock_id])
+        file_note = ",".join([os.uname()[1], os.getlogin(), str(expiration),
+                              lock_id])
         file_note = file_note.encode('utf8')
         os.write(fd, file_note)
         os.close(fd)
@@ -172,20 +190,21 @@ class LockFile(object):
                                .format(path, err))
 
     def read_lockfile(self):
-        """Returns componenets of the lockfile content, or None for each of these values if
-        there was an error..
+        """Returns componenets of the lockfile content, or None for each of
+        these values if there was an error..
         :returns: host, user, expiration (as a float), id
         """
 
         try:
-            with open(self._lock_path, 'r') as lock_file:
+            with self._lock_path.open(mode='r') as lock_file:
                 data = lock_file.read()
 
             try:
                 host, user, expiration, lock_id = data.split(',')
                 expiration = float(expiration)
             except ValueError:
-                LOGGER.warning("Invalid format in lockfile '{}': {}".format(self._lock_path, data))
+                LOGGER.warning("Invalid format in lockfile '{}': {}"
+                               .format(self._lock_path, data))
                 return None, None, None, None
 
         except (OSError, IOError):

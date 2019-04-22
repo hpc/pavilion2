@@ -1,3 +1,4 @@
+from pathlib import Path
 from pavilion import module_wrapper
 from pavilion.module_actions import ModuleAction
 import datetime
@@ -118,13 +119,14 @@ class ScriptDetails(object):
 
     def __init__(self, path=None, group=None, perms=None):
         """Function to set the final details of the script.
-        :param string path: The path to the script file. default = 'pav_(date)_(time)'
+        :param Union(str,Path) path: The path to the script file. default =
+            'pav_(date)_(time)'
         :param string group: Name of group to set as owner of the file. 
                              default = user default group
         :param int perms: Value for permission on the file (see
                           `man chmod`).  default = 0o770
         """
-        self.path = path
+        self.path = Path(path)
         self.group = group
         self.perms = perms
 
@@ -275,14 +277,14 @@ class ScriptComposer(object):
                              file or False otherwise.
         """
 
-        with open(self.details.path, 'w') as script_file:
+        with self.details.path.open('w') as script_file:
             script_file.write('\n'.join(self.header.get_lines()))
             script_file.write('\n\n')
 
             script_file.write('\n'.join(self._script_lines))
             script_file.write('\n')
 
-        os.chmod(self.details.path, self.details.perms)
+        os.chmod(str(self.details.path), self.details.perms)
 
         try:
             grp_st = grp.getgrnam(self.details.group)
@@ -293,4 +295,4 @@ class ScriptComposer(object):
 
         gid = grp_st.gr_gid
 
-        os.chown(self.details.path, os.getuid(), gid)
+        os.chown(str(self.details.path), os.getuid(), gid)

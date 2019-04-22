@@ -16,11 +16,6 @@ LOGGER = logging.getLogger(__name__)
 
 class PluginTests(PavTestCase):
 
-    TEST_DATA_ROOT = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
-        'test_data',
-    )
-
     def setUp(self):
         # This has to run before any command plugins are loaded.
         arguments.get_parser()
@@ -34,13 +29,11 @@ class PluginTests(PavTestCase):
         pav_cfg = config.PavilionConfigLoader().load_empty()
 
         # We're loading multiple directories of plugins - AT THE SAME TIME!
-        pav_cfg.config_dirs = [os.path.join(self.TEST_DATA_ROOT,
-                                            'pav_config_dir'),
-                               os.path.join(self.TEST_DATA_ROOT,
-                                            'pav_config_dir2')]
+        pav_cfg.config_dirs = [self.TEST_DATA_ROOT/'pav_config_dir',
+                               self.TEST_DATA_ROOT/'pav_config_dir2']
 
         for path in pav_cfg.config_dirs:
-            self.assertTrue(os.path.exists(path))
+            self.assertTrue(path.exists())
 
         plugins.initialize_plugins(pav_cfg)
 
@@ -62,10 +55,8 @@ class PluginTests(PavTestCase):
         pav_cfg = config.PavilionConfigLoader().load_empty()
 
         # We're loading multiple directories of plugins - AT THE SAME TIME!
-        pav_cfg.config_dirs = [os.path.join(self.TEST_DATA_ROOT,
-                                            'pav_config_dir'),
-                               os.path.join(self.TEST_DATA_ROOT,
-                                            'pav_config_dir2')]
+        pav_cfg.config_dirs = [self.TEST_DATA_ROOT/'pav_config_dir',
+                               self.TEST_DATA_ROOT/'pav_config_dir2']
 
         plugins.initialize_plugins(pav_cfg)
 
@@ -75,8 +66,8 @@ class PluginTests(PavTestCase):
         # Clean up our plugin initializations.
         plugins._reset_plugins()
 
-        pav_cfg.config_dirs.append(os.path.join(self.TEST_DATA_ROOT,
-                                                'pav_config_dir_conflicts'))
+        pav_cfg.config_dirs.append(
+            self.TEST_DATA_ROOT/'pav_config_dir_conflicts')
 
         self.assertRaises(plugins.PluginError,
                           lambda: plugins.initialize_plugins(pav_cfg))
@@ -91,10 +82,8 @@ class PluginTests(PavTestCase):
         pav_cfg = config.PavilionConfigLoader().load_empty()
 
         # We're loading multiple directories of plugins - AT THE SAME TIME!
-        pav_cfg.config_dirs = [os.path.join(self.TEST_DATA_ROOT,
-                                            'pav_config_dir'),
-                               os.path.join(self.TEST_DATA_ROOT,
-                                            'pav_config_dir2')]
+        pav_cfg.config_dirs = [self.TEST_DATA_ROOT/'pav_config_dir',
+                               self.TEST_DATA_ROOT/'pav_config_dir2']
 
         plugins.initialize_plugins(pav_cfg)
 
@@ -207,8 +196,7 @@ class PluginTests(PavTestCase):
         plugins.initialize_plugins(pav_cfg)
 
         # We're loading multiple directories of plugins - AT THE SAME TIME!
-        pav_cfg.config_dirs = [os.path.join(self.TEST_DATA_ROOT,
-                                            'pav_config_dir')]
+        pav_cfg.config_dirs = [self.TEST_DATA_ROOT/'pav_config_dir']
 
         # We should have exactly one test plugin.
         self.assertEqual(len(result_parsers.list_plugins()), 1)

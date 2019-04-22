@@ -1,0 +1,9 @@
+[Core]
+Name = Dummy
+Module = dummy
+
+[Documentation]
+Description = A Dummy scheduler
+Author = Some Author
+Version = 1.0
+Website =

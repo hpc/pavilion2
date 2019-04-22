@@ -21,4 +21,4 @@ world:
 narf:
     inherits_from: world
 
-    scheduler: "blarg"
+    scheduler: "dummy"
