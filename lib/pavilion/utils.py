@@ -98,7 +98,7 @@ def create_id_dir(id_dir):
         ids = os.listdir(str(id_dir))
         # Only return the test directories that could be integers.
         ids = filter(str.isdigit, ids)
-        ids = filter(lambda d: os.path.isdir(id_dir/d), ids)
+        ids = filter(lambda d: (id_dir/d).is_dir(), ids)
         ids = list(map(int, ids))
         ids.sort()
 

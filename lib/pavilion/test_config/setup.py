@@ -58,7 +58,7 @@ def load_test_configs(pav_config, host, modes, tests):
                                   .format(CONF_HOST, host))
 
         try:
-            with open(host_cfg_path) as host_cfg_file:
+            with host_cfg_path.open() as host_cfg_file:
                 # Load and validate the host test config defaults.
                 base_config = test_config_loader.load(host_cfg_file,
                                                       partial=True)
@@ -74,7 +74,7 @@ def load_test_configs(pav_config, host, modes, tests):
                                   .format(CONF_MODE, mode))
 
         try:
-            with open(mode_cfg_path) as mode_cfg_file:
+            with mode_cfg_path.open() as mode_cfg_file:
                 # Load this mode_config and merge it into the base_config.
                 base_config = test_config_loader.load_merge(base_config,
                                                             mode_cfg_file,
@@ -128,7 +128,7 @@ def load_test_configs(pav_config, host, modes, tests):
                     .format(test_suite, pav_config.config_dirs))
 
             try:
-                with open(test_suite_path) as test_suite_file:
+                with test_suite_path.open() as test_suite_file:
                     test_suite_cfg = test_suite_loader.load(test_suite_file)
 
             except (IOError, OSError) as err:

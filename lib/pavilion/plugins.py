@@ -41,7 +41,7 @@ def initialize_plugins(pav_cfg):
         LOGGER.warning("Tried to initialize plugins multiple times.")
         return
 
-    plugin_dirs = [Path(cfg_dir)/'plugins'
+    plugin_dirs = [str(Path(cfg_dir)/'plugins')
                    for cfg_dir in pav_cfg.config_dirs]
 
     try:

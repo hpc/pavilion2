@@ -2,22 +2,24 @@
 
 LA-CC-15-041
 
-Pavilion is a Python 2.7-based software framework for running and analyzing jobs/tests targeting HPC systems.
+Pavilion is a Python 3 (3.4+) based framework for running and analyzing 
+tests targeting HPC systems. It provides a rich YAML-based configuration 
+system for wrapping test codes and running them against various systems.
+The vast majority of the system is pluggable, giving users the ability
+to modify Pavilion's operation via easy to write plugins. This includes
+components for gathering system data, adding additional schedulers, 
+and parsing test results.
 
 
 ## Usage
 
-Set the ENV variable PVINSTALL to point to the installation directory.
-```sh
-setenv PVINSTALL /users/me/pavilion
-```
-
-Add the PAV sub-directory to your Path.
+Add the PAV bin directory to your Path.
 ```bash
-setenv PATH ${PVINSTALL}/PAV:${PVINSTALL}/PAV/scripts:${PATH}
+setenv PATH <PVINSTALL_PATH>/bin:${PATH}
 ```
 
-Create your own default and test specific test config files. See examples in $PVINSTALL/docs directory.
+Create your own default and test specific test config files. 
+See examples in $PVINSTALL/docs directory.
 
 Help with running the tool can be accessed by running `pav -h`.
 

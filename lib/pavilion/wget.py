@@ -1,9 +1,9 @@
-import urllib.parse
-import requests
-import os
-import tempfile
+from pathlib import Path
 import dbm
 import logging
+import requests
+import tempfile
+import urllib.parse
 
 LOGGER = logging.getLogger('pavilion.' + __file__)
 
@@ -25,7 +25,7 @@ def get(pav_cfg, url, dest):
     intermediate location and then moved.
     :param pav_cfg: The pavilion configuration object.
     :param str url: The url for the file to download.
-    :param str dest: The path to where the file will be stored.
+    :param Path dest: The path to where the file will be stored.
     """
 
     proxies = _get_proxies(pav_cfg, url)
@@ -33,12 +33,13 @@ def get(pav_cfg, url, dest):
     session = requests.Session()
     session.trust_env = False
 
-    dest_dir = os.path.dirname(os.path.realpath(dest))
+    dest_dir = dest.parent.resolve()
 
     try:
         with session.get(url, proxies=proxies, stream=True,
                          timeout=pav_cfg.wget_timeout) as response, \
-              tempfile.NamedTemporaryFile(dir=dest_dir, delete=False) as tmp:
+              tempfile.NamedTemporaryFile(dir=str(dest_dir),
+                                          delete=False) as tmp:
             for chunk in response.iter_content(chunk_size=4096):
                 tmp.write(chunk)
     except requests.exceptions.RequestException as err:
@@ -49,7 +50,7 @@ def get(pav_cfg, url, dest):
                         .format(url, dest_dir, err))
 
     try:
-        os.rename(tmp.name, dest)
+        Path(tmp.name).rename(dest)
     except (IOError, OSError) as err:
         raise WGetError("Error moving file from '{}' to final location '{}': {}"
                         .format(url, dest, err))
@@ -118,18 +119,18 @@ def _get_info(path):
     """Get the contents of the info file for the given file, which is located
     at <filename>.info. Additionally, add some useful stat information to
     the info object we return.
-    :param str path: The path to the file we want the info object for.
+    :param Path path: The path to the file we want the info object for.
     :returns: A dictionary of the info information.
     :rtype dict:
     """
 
-    info_fn = '{}.info'.format(path)
+    info_fn = path.with_suffix(path.suffix + '.info')
 
     info = {}
 
-    if os.path.isfile(info_fn):
+    if info_fn.is_file():
         try:
-            with dbm.open(info_fn) as db:
+            with dbm.open(str(info_fn)) as db:
 
                 for key in db.keys():
                     # Convert everything to unicode.
@@ -139,7 +140,7 @@ def _get_info(path):
             LOGGER.warning("Error reading dbm file '{}': {}"
                            .format(info_fn, err))
 
-    stat = os.stat(path)
+    stat = path.stat()
 
     info['mtime'] = stat.st_mtime
     info['ctime'] = stat.st_ctime
@@ -158,15 +159,15 @@ INFO_HEADER_FIELDS = [
 
 def _save_info(path, head_data):
     """Given the path and the http head data, create an info file.
-    :param str path: The path to the file we're creating the info object for.
+    :param Path path: The path to the file we're creating the info object for.
     :param dict head_data: The header information from an http HEAD request
     for the object.
     """
 
-    info_fn = '{}.info'.format(path)
+    info_fn = path.with_suffix(path.suffix + '.info')
 
     try:
-        with dbm.open(info_fn, 'n') as db:
+        with dbm.open(str(info_fn), 'n') as db:
             for field in INFO_HEADER_FIELDS:
                 if field in head_data:
                     db[field] = head_data[field]
@@ -180,24 +181,24 @@ def update(pav_cfg, url, dest):
     be used to check if updates are necessary.
     :param pav_cfg: The pavilion configuration object.
     :param str url: The url for the file to download.
-    :param str dest: The path to where we want to store the file.
+    :param Path dest: The path to where we want to store the file.
     """
 
     fetch = False
 
-    info_path = '{}.info'.format(dest)
+    info_path = dest.with_suffix(dest.suffix+'.info')
 
     head_data = head(pav_cfg, url)
 
     # If the file doesn't exist, just get it.
-    if not os.path.exists(dest):
+    if not dest.exists():
         fetch = True
     else:
         info = _get_info(dest)
 
         # If the file .info file doesn't exist, check to see if we can get a
         # matching Content-Length and fetch it if we can't.
-        if (not os.path.exists(info_path) and
+        if (not info_path.exists() and
                 head_data.get('Content-Length') != info['size']):
             fetch = True
 
@@ -205,12 +206,13 @@ def update(pav_cfg, url, dest):
         # match, refetch. Note that the content length vs saved length
         # depends on the transfer encoding. It should match for any already
         # compressed files, but other data types are frequently compressed.
-        elif not (info['ETag'] == head_data.get('ETag') or
-                  # If the old content length is the same, it's probably
-                  # unchanged. Probably...
-                  head_data.get('Content-Length') == info.get('Content-Length') or
-                  # Or if the content length matches the actual size.
-                  head_data.get('Content-Length') == info['size']):
+        elif (not (
+                info['ETag'] == head_data.get('ETag') or
+                # If the old content length is the same, it's probably
+                # unchanged. Probably...
+                head_data.get('Content-Length') == info.get('Content-Length') or
+                # Or if the content length matches the actual size.
+                head_data.get('Content-Length') == info['size'])):
             fetch = True
 
     if fetch:

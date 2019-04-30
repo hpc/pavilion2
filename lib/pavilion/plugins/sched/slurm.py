@@ -401,14 +401,14 @@ class Slurm(SchedulerPlugin):
 
         return 'SLURM_JOBID' in os.environ
 
-    def submit_job(self, path):
+    def schedule(self, script_path, output_path):
         """Submit the kick off script using sbatch."""
 
-        if os.path.isfile(path):
-            job_id = subprocess.check_output(['sbatch', path])
+        if os.path.isfile(script_path):
+            job_id = subprocess.check_output(['sbatch', script_path])
             job_id = job_id.decode('UTF-8').strip().split()[-1]
         else:
-            raise SchedulerPluginError('Submission script {}'.format(path)+\
+            raise SchedulerPluginError('Submission script {}'.format(script_path) +\
                                        ' not found.')
         return job_id
 
@@ -514,7 +514,7 @@ class Slurm(SchedulerPlugin):
         except subprocess.CalledProcessError:
             return False
 
-    def _get_kick_off_header(self, test):
+    def _get_schedule_script_header(self, test):
         """Get the kickoff header. Most of the work here """
 
         sched_config = test.config.get(self.name)

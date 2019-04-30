@@ -1,9 +1,11 @@
 import fnmatch
+from hashlib import sha1
 import os
 from pathlib import Path
 import tempfile
 import unittest
 import types
+import inspect
 
 from pavilion import arguments
 from pavilion import config
@@ -18,7 +20,7 @@ class PavTestCase(unittest.TestCase):
 
     PAV_CONFIG_PATH = TEST_DATA_ROOT/'pav_config_dir'/'pavilion.yaml'
 
-    TEST_URL = 'https://github.com/lanl/Pavilion/archive/2.0.zip'
+    TEST_URL = 'https://github.com/lanl/Pavilion/archive/master.zip'
 
     # Skip any tests that match these globs.
     SKIP = []
@@ -27,7 +29,7 @@ class PavTestCase(unittest.TestCase):
 
     def __init__(self, *args, **kwargs):
 
-        with open(str(self.PAV_CONFIG_PATH)) as cfg_file:
+        with self.PAV_CONFIG_PATH.open() as cfg_file:
             self.pav_cfg = config.PavilionConfigLoader().load(cfg_file)
 
         self.pav_cfg.config_dirs = [self.TEST_DATA_ROOT/'pav_config_dir',
@@ -53,7 +55,18 @@ class PavTestCase(unittest.TestCase):
         super().__init__(*args, **kwargs)
 
     def __getattribute__(self, item):
+        """When the unittest framework wants a test, check if the test
+        is in the SKIP or ONLY lists, and skip it as appropriate. Only
+        test methods are effected by this.
+        A test is in the SKIP or ONLY list if the filename (minus extension),
+        class name, .
+
+        """
         attr = super().__getattribute__(item)
+
+        cls = super().__getattribute__('__class__')
+        cname = cls.__name__.lower()
+        fname = Path(inspect.getfile(cls)).with_suffix('').name
 
         # Wrap our test functions in a function that dynamically wraps
         # them so they only execute under certain conditions.
@@ -64,13 +77,19 @@ class PavTestCase(unittest.TestCase):
 
             if self.SKIP:
                 for skip_glob in self.SKIP:
-                    if fnmatch.fnmatch(name, skip_glob):
+                    skip_glob = skip_glob.lower()
+                    if (fnmatch.fnmatch(name, skip_glob) or
+                            fnmatch.fnmatch(cname, skip_glob) or
+                            fnmatch.fnmatch(fname, skip_glob)):
                         return unittest.skip("via cmdline")(attr)
                 return attr
 
             if self.ONLY:
                 for only_glob in self.ONLY:
-                    if fnmatch.fnmatch(name, only_glob):
+                    only_glob = only_glob.lower()
+                    if (fnmatch.fnmatch(name, only_glob) or
+                            fnmatch.fnmatch(cname, only_glob) or
+                            fnmatch.fnmatch(fname, only_glob)):
                         return attr
                 return unittest.skip("via cmdline")(attr)
 
@@ -94,7 +113,7 @@ class PavTestCase(unittest.TestCase):
         exist. Directories in a softlink dir should be real directories
         though."""
 
-        for base_dir, cdirs, cfiles in os.walk(path):
+        for base_dir, cdirs, cfiles in os.walk(str(path)):
             base_dir = Path(base_dir)
             for cdir in cdirs:
                 self.assert_((base_dir/cdir).is_dir(),
@@ -114,9 +133,12 @@ class PavTestCase(unittest.TestCase):
                              .format(target_path, file_path))
 
     def _cmp_files(self, a_path, b_path):
-        """Compare two files."""
+        """Compare two files.
+        :param Path a_path:
+        :param Path b_path:
+        """
 
-        with open(a_path, 'rb') as a_file, open(b_path, 'rb') as b_file:
+        with a_path.open('rb') as a_file, b_path.open('rb') as b_file:
             self.assertEqual(a_file.read(), b_file.read(),
                              "File contents mismatch for {} and {}."
                              .format(a_path, b_path))
@@ -125,8 +147,8 @@ class PavTestCase(unittest.TestCase):
         """Compare two directory trees, including the contents of all the
         files."""
 
-        a_walk = list(os.walk(a))
-        b_walk = list(os.walk(b))
+        a_walk = list(os.walk(str(a)))
+        b_walk = list(os.walk(str(b)))
 
         # Make sure these are in the same order.
         a_walk.sort()
@@ -165,6 +187,17 @@ class PavTestCase(unittest.TestCase):
         self.assert_(not a_walk and not b_walk,
                      "Left over directory contents in a or b: {}, {}"
                      .format(a_walk, b_walk))
+
+    @staticmethod
+    def get_hash(fn):
+        """ Get a sha1 hash of the file at the given path.
+        :param Path fn:
+        :return:
+        """
+        with fn.open('rb') as file:
+            sha = sha1()
+            sha.update(file.read())
+            return sha.hexdigest()
 
     _cprint = staticmethod(cprint)
 

@@ -106,6 +106,8 @@ class SchedulerVariables(collections.UserDict):
         self.sched = scheduler
         self.test = test
 
+        self.logger = logging.getLogger('{}_vars'.format(scheduler))
+
         # Find all the scheduler variables and add them as variables.
         for key in self.__dict__.keys():
             # Ignore anything that starts with an underscore
@@ -185,7 +187,7 @@ class SchedulerVariables(collections.UserDict):
         Returns 1 on error (and logs the error)."""
         mem_line = None
         try:
-            with open('/proc/meminfo') as meminfo:
+            with Path('/proc/meminfo').open() as meminfo:
                 for line in meminfo.readlines():
                     if line.startswith('MemTotal:'):
                         mem_line = line
@@ -343,20 +345,28 @@ class SchedulerPlugin(IPlugin.IPlugin):
         """
 
         for test in tests:
-            self.kick_off(test)
+            self.schedule_test(test)
 
     def run_suite(self, tests):
         """Run each of the given tests using a single allocation."""
 
-        raise NotImplementedError
+        raise Exception("This has not yet been implemented.")
 
-    def submit_job(self, path):
-        """Function to submit a job to a scheduler and return the job ID
-           number.
-           :param Path path: - Path to the submission script.
+    def schedule(self, script_path, output_path):
+        """Run the script at at script path with this scheduler. This base
+        version simply runs the script directly.
+           :param Path script_path: - Path to the submission script.
+           :param Path output_path: - Path to where to direct the output.
            :return str - Job ID number.
         """
-        raise NotImplementedError
+
+        # Run the submit job script. We don't want to wait for it to finish,
+        # just redirect the output to a reasonable place.
+        output_file = output_path.open('w')
+        proc = subprocess.Popen([str(script_path)],
+                                stdout=output_file,
+                                stderr=output_file)
+        return proc.pid
 
     # Job status constants to be used across all schedulers. Scheduler plugins
     # should translate the scheduler's states into these four.
@@ -369,38 +379,39 @@ class SchedulerPlugin(IPlugin.IPlugin):
     JOB_COMPLETE = 'COMPLETE'
     # The job has failed to complete
     JOB_FAILED = 'FAILED'
+    # There was an error with the scheduler plugin or pavilion itself.
+    JOB_ERROR = 'ERROR'
 
-    def check_job(self, id_):
+    def check_job(self, pav_cfg, id_):
         """Function to check the status of a job.
-           :param str id_: - ID number of the job as returned by submit_job().
-           :return str - Status of the job matching the provided job ID.
-                         If the key is empty or requesting the state of the
-                         job, the return values should be 'pending', 'running',
-                         'finished', or 'failed'.
+            :param pav_cfg: The pavilion configuration.
+            :param str id_: The id of the job, the format of which is scheduler
+            specific.
+            :return str - One of the self.JOB_* constants
         """
         raise NotImplemented
 
-    def kick_off(self, test_obj):
-        """Function to accept a test object and kick off a build.
+    def schedule_test(self, test_obj):
+        """Function.
         :param pavilion.pav_test.PavTest test_obj: The pavilion test to start.
         """
 
-        kick_off_path = self._write_kick_off_script(test_obj)
+        kick_off_path = self._create_schedule_script(test_obj)
 
-        test_obj.job_id = self.submit_job(kick_off_path)
+        test_obj.job_id = self.schedule(kick_off_path)
 
         test_obj.status.set(test_obj.status.STATES.SCHEDULED,
                             "Test {} has job ID {}."
                             .format(self.name, test_obj.job_id))
 
-    def _write_kick_off_script(self, test):
+    def _create_schedule_script(self, test):
         """Function to accept a list of lines and generate a script that is
            then submitted to the scheduler.
         """
 
-        header = self._get_kick_off_header(test)
+        header = self._get_schedule_script_header(test)
 
-        path = test.path/'kickoff.{}'.format(self.KICKOFF_SCRIPT_EXT)
+        path = test.path/'run_test.{}'.format(self.KICKOFF_SCRIPT_EXT)
 
         script = scriptcomposer.ScriptComposer(
             header=header,
@@ -411,42 +422,20 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
         script.newline()
 
-        script.comment("Within the allocation, run the command.")
-        script.command(test.run_cmd())
-
         script.write()
 
         return script.details.path
 
-    def _get_kick_off_header(self, test):
-        raise NotImplementedError
+    def _get_schedule_script_header(self, test):
+        return scriptcomposer.ScriptHeader()
 
-    def _get_num_nodes(self):
-        """Scheduler-specific method of determining the number of nodes
-           available from inside of an allocation."""
-        raise NotImplemented
+    @staticmethod
+    def _add_schedule_script_body(script, test):
+        """Add the script body to the given script object. This default
+        simply adds a comment and the test run command."""
 
-    def _get_node_list(self):
-        """Scheduler-specific method of determining a list of all nodes in an
-           allocation from inside of the allocation."""
-        raise NotImplemented
-
-    def _get_min_ppn(self, node_list=None):
-        """Scheduler-specific method of determining the greatest number of
-           processors common to all nodes in an allocation from inside of that
-           allocation."""
-        raise NotImplemented
-
-    def _get_tot_procs(self, node_list=None):
-        """Scheduler-specific method of determining the total number of
-           processes that can run in an allocation from inside of that
-           allocation."""
-        raise NotImplemented
-
-    def _get_mem_per_node(self, node_list=None):
-        """Scheduler-specific method of determining the maximum amount of
-           free memory common across all nodes in an allocation from inside
-           that allocation."""
+        script.comment("Within the allocation, run the command.")
+        script.command(test.run_cmd())
 
     def activate(self):
         """Add this plugin to the scheduler plugin list."""

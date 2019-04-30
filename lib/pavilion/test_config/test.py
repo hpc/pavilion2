@@ -351,29 +351,34 @@ class PavTest:
                 if not self.build_origin.exists():
                     build_dir = self.build_origin.with_suffix('.tmp')
 
-                    # Attempt to perform the actual build, this shouldn't
-                    # raise an exception unless
-                    # something goes terribly wrong.
-                    if not self._build(build_dir):
+                    try:
+                        # Attempt to perform the actual build, this shouldn't
+                        # raise an exception unless
+                        # something goes terribly wrong.
+                        if not self._build(build_dir):
+                            return False
+
+                        # Rename the build to it's final location.
+                        build_dir.rename(self.build_origin)
+                    finally:
                         # The build failed. The reason should already be set
                         # in the status file.
                         def handle_error(_, path, exc_info):
-                            self.LOGGER.error("Error removing temporary build "
-                                              "directory '{}': {}"
-                                              .format(path, exc_info))
+                            self.LOGGER.error(
+                                "Error removing temporary build "
+                                "directory '{}': {}"
+                                .format(path, exc_info))
 
-                        # Cleanup the temporary build tree.
-                        shutil.rmtree(path=build_dir, onerror=handle_error)
-                        return False
-
-                    # Rename the build to it's final location.
-                    build_dir.rename(self.build_origin)
+                        if build_dir.exists():
+                            # Cleanup the temporary build tree.
+                            shutil.rmtree(path=str(build_dir),
+                                          onerror=handle_error)
 
         # Perform a symlink copy of the original build directory into our test
         # directory.
         try:
-            shutil.copytree(self.build_origin,
-                            self.build_path,
+            shutil.copytree(str(self.build_origin),
+                            str(self.build_path),
                             symlinks=True,
                             copy_function=utils.symlink_copy)
         except OSError as err:
@@ -386,7 +391,7 @@ class PavTest:
         # recently.
         try:
             now = time.time()
-            os.utime(self.build_origin, (now, now))
+            os.utime(str(self.build_origin), (now, now))
         except OSError as err:
             self.LOGGER.warning("Could not update timestamp on build directory "
                                 "'{}': {}"
@@ -508,7 +513,7 @@ class PavTest:
 
         elif src_path.is_dir():
             # Recursively copy the src directory to the build directory.
-            shutil.copytree(src_path, build_path, symlinks=True)
+            shutil.copytree(str(src_path), str(build_path), symlinks=True)
 
         elif src_path.is_file():
             # Handle decompression of a stream compressed file. The interfaces
@@ -519,7 +524,7 @@ class PavTest:
             if category == 'application' and subtype in self.TAR_SUBTYPES:
                 if tarfile.is_tarfile(str(src_path)):
                     try:
-                        with tarfile.open(src_path, 'r') as tar:
+                        with tarfile.open(str(src_path), 'r') as tar:
                             # Filter out all but the top level items.
                             top_level = [m for m in tar.members
                                          if '/' not in m.name]
@@ -529,7 +534,7 @@ class PavTest:
                             if len(top_level) == 1 and top_level[0].isdir():
                                 tmpdir = build_path.with_suffix('.tmp')
                                 tmpdir.mkdir()
-                                tar.extractall(tmpdir)
+                                tar.extractall(str(tmpdir))
                                 opath = tmpdir/top_level[0].name
                                 opath.rename(build_path)
                                 tmpdir.rmdir()
@@ -537,7 +542,7 @@ class PavTest:
                                 # Otherwise, the build path will contain the
                                 # extracted contents of the archive.
                                 build_path.mkdir()
-                                tar.extractall(build_path)
+                                tar.extractall(str(build_path))
                     except (OSError, IOError,
                             tarfile.CompressionError, tarfile.TarError) as err:
                         raise PavTestError(
@@ -569,7 +574,7 @@ class PavTest:
                     build_path.mkdir()
 
                     try:
-                        with comp_lib.open(src_path) as infile, \
+                        with comp_lib.open(str(src_path)) as infile, \
                                 decomp_fn.open('wb') as outfile:
                             shutil.copyfileobj(infile, outfile)
                     except (OSError, IOError, lzma.LZMAError) as err:
@@ -582,11 +587,11 @@ class PavTest:
                 try:
                     # Extract the zipfile, under the same conditions as
                     # above with tarfiles.
-                    with zipfile.ZipFile(src_path) as zipped:
+                    with zipfile.ZipFile(str(src_path)) as zipped:
 
                         tmpdir = build_path.with_suffix('.unzipped')
                         tmpdir.mkdir()
-                        zipped.extractall(tmpdir)
+                        zipped.extractall(str(tmpdir))
 
                         files = os.listdir(str(tmpdir))
                         if len(files) == 1 and (tmpdir/files[0]).is_dir():
@@ -608,7 +613,7 @@ class PavTest:
                 dest = build_path/src_path.name
                 try:
                     build_path.mkdir()
-                    shutil.copyfile(src_path, dest)
+                    shutil.copyfile(str(src_path), str(dest))
                 except OSError as err:
                     raise PavTestError(
                         "Could not copy test src '{}' to '{}': {}"
@@ -620,7 +625,7 @@ class PavTest:
             path = self._find_file(extra, 'test_src')
             dest = build_path/path.name
             try:
-                shutil.copyfile(path, dest)
+                shutil.copyfile(str(path), str(dest))
             except OSError as err:
                 raise PavTestError(
                     "Could not copy extra file '{}' to dest '{}': {}"
@@ -643,7 +648,7 @@ class PavTest:
 
         # We shouldn't have to do anything to directories, they should have
         # the correct permissions already.
-        for path, _, files in os.walk(self.build_origin):
+        for path, _, files in os.walk(str(self.build_origin)):
             path = Path(path)
             for file in files:
                 file_path = path/file
@@ -679,8 +684,10 @@ class PavTest:
         run_log_path = self.path/'run.log'
 
         with run_log_path.open('wb') as run_log:
-            proc = subprocess.Popen([self.run_script_path],
-                                    cwd=self.build_path,
+            run_wd = str(self.build_path) if self.build_path is not None \
+                                            else None
+            proc = subprocess.Popen([str(self.run_script_path)],
+                                    cwd=run_wd,
                                     stdout=run_log,
                                     stderr=run_log)
 

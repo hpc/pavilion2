@@ -101,7 +101,7 @@ class PavTestTests(unittest.PavTestCase):
         config['build']['source_location'] = 'src'
         test = PavTest(self.pav_cfg, config=config)
 
-        if test.build_origin.exists:
+        if test.build_origin.exists():
             shutil.rmtree(str(test.build_origin))
 
         test._setup_build_dir(test.build_origin)
@@ -120,7 +120,7 @@ class PavTestTests(unittest.PavTestCase):
             test = PavTest(self.pav_cfg, config=config)
 
             if test.build_origin.exists():
-                shutil.rmtree(test.build_origin)
+                shutil.rmtree(str(test.build_origin))
 
             test._setup_build_dir(test.build_origin)
             self._cmp_files(test.build_origin/'binfile',
@@ -136,13 +136,15 @@ class PavTestTests(unittest.PavTestCase):
         test = PavTest(self.pav_cfg, config=config)
 
         if test.build_origin.exists():
-            shutil.rmtree(test.build_origin)
+            shutil.rmtree(str(test.build_origin))
 
         test._setup_build_dir(test.build_origin)
 
         for file in config['build']['extra_files']:
             self._cmp_files(test_archives/file,
                             test.build_origin/file)
+
+    README_HASH = '275fa3c8aeb10d145754388446be1f24bb16fb00'
 
     def test_src_urls(self):
 
@@ -158,16 +160,16 @@ class PavTestTests(unittest.PavTestCase):
 
         # remove existing downloads, and replace the directory.
         downloads_path = self.pav_cfg.working_dir/'downloads'
-        shutil.rmtree(downloads_path)
+        shutil.rmtree(str(downloads_path))
         downloads_path.mkdir()
 
         test = PavTest(self.pav_cfg, config)
-        if test.build_origin.exists:
-            shutil.rmtree(test.build_origin)
+        if test.build_origin.exists():
+            shutil.rmtree(str(test.build_origin))
 
         test._setup_build_dir(test.build_origin)
-        self._cmp_files(self.TEST_DATA_ROOT.parents[1]/'README.md',
-                        test.build_origin/'README.md')
+        self.assertEqual(self.README_HASH,
+                         self.get_hash(test.build_origin/'README.md'))
 
     def test_resolve_template(self):
         tmpl_path = self.TEST_DATA_ROOT/'resolve_template_good.tmpl'
@@ -274,7 +276,7 @@ class PavTestTests(unittest.PavTestCase):
         test = PavTest(self.pav_cfg, config)
         # Remove the build tree to ensure we do the build fresh.
         if test.build_origin.is_dir():
-            shutil.rmtree(test.build_origin)
+            shutil.rmtree(str(test.build_origin))
 
         # This should fail because the build exits non-zero
         self.assertFalse(test.build(),
@@ -358,7 +360,7 @@ class PavTestTests(unittest.PavTestCase):
         # Make sure we got all the tests
         self.assertEqual(len(suite.tests), 3)
         test_paths = [Path(suite.path, p)
-                      for p in os.listdir(suite.path)]
+                      for p in os.listdir(str(suite.path))]
         # And that the test paths are unique
         self.assertEqual(len(set(test_paths)),
                          len([p.resolve() for p in test_paths]))

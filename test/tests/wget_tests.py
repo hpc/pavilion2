@@ -1,28 +1,19 @@
 from hashlib import sha1
+from pathlib import Path
 import dbm
 import logging
-import os
 import tempfile
 
 from pavilion import wget
 from pavilion.unittest import PavTestCase
 
-PAV_DIR = os.path.realpath(__file__)
-for i in range(3):
-    PAV_DIR = os.path.dirname(PAV_DIR)
-
-
-def get_hash(fn):
-    with open(fn, 'rb') as file:
-        sha = sha1()
-        sha.update(file.read())
-        return sha.hexdigest()
+PAV_DIR = Path(__file__).resolve().parents[2]
 
 
 class TestWGet(PavTestCase):
 
-    GET_TARGET = "https://github.com/lanl/Pavilion/raw/2.0/README.md"
-    LOCAL_TARGET = os.path.join(PAV_DIR, 'README.md')
+    GET_TARGET = "https://github.com/lanl/Pavilion/raw/master/README.md"
+    TARGET_HASH = '275fa3c8aeb10d145754388446be1f24bb16fb00'
 
     _logger = logging.getLogger(__file__)
 
@@ -39,46 +30,47 @@ class TestWGet(PavTestCase):
 
         # Note that there are race conditions with this, however,
         # it is unlikely they will ever be encountered in this context.
-        dest_fn = tempfile.mktemp(dir='/tmp')
+        dest_fn = Path(tempfile.mktemp(dir='/tmp'))
 
         # Raises an exception on failure.
         wget.get(self.pav_cfg, self.GET_TARGET, dest_fn)
 
-        self.assertEqual(get_hash(self.LOCAL_TARGET), get_hash(dest_fn))
+        self.assertEqual(self.TARGET_HASH,
+                         self.get_hash(dest_fn))
 
-        os.unlink(dest_fn)
+        dest_fn.unlink()
 
     def test_update(self):
 
-        dest_fn = tempfile.mktemp(dir='/tmp')
-        info_fn = '{}.info'.format(dest_fn)
+        dest_fn = Path(tempfile.mktemp(dir='/tmp'))
+        info_fn = dest_fn.with_suffix(dest_fn.suffix + '.info')
 
-        self.assertFalse(os.path.exists(dest_fn))
-        self.assertFalse(os.path.exists(info_fn))
+        self.assertFalse(dest_fn.exists())
+        self.assertFalse(info_fn.exists())
 
         # Update should get the file if it doesn't exist.
         wget.update(self.pav_cfg, self.GET_TARGET, dest_fn)
-        self.assertTrue(os.path.exists(dest_fn))
-        self.assertTrue(os.path.exists(info_fn))
+        self.assertTrue(dest_fn.exists())
+        self.assertTrue(info_fn.exists())
 
         # It should update the file if the info file isn't there and the
         # sizes don't match.
-        ctime = os.stat(dest_fn).st_ctime
-        with open(dest_fn, 'ab') as dest_file:
+        ctime = dest_fn.stat().st_ctime
+        with dest_fn.open('ab') as dest_file:
             dest_file.write(b'a')
-        os.unlink(info_fn)
+        info_fn.unlink()
         wget.update(self.pav_cfg, self.GET_TARGET, dest_fn)
-        new_ctime = os.stat(dest_fn).st_ctime
+        new_ctime = dest_fn.stat().st_ctime
         self.assertNotEqual(new_ctime, ctime)
         ctime = new_ctime
 
         # We'll muck up the info file data, to force an update.
-        with dbm.open(info_fn, 'w') as db:
+        with dbm.open(str(info_fn), 'w') as db:
             db['ETag'] = 'nope'
             db['Content-Length'] = '-1'
         wget.update(self.pav_cfg, self.GET_TARGET, dest_fn)
-        new_ctime = os.stat(dest_fn).st_ctime
+        new_ctime = dest_fn.stat().st_ctime
         self.assertNotEqual(new_ctime, ctime)
 
-        os.unlink(dest_fn)
-        os.unlink(info_fn)
+        dest_fn.stat()
+        info_fn.stat()

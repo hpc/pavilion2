@@ -63,7 +63,7 @@ class Suite:
                     user_pav_dir.mkdir()
 
                 last_suite_fn = user_pav_dir/'last_suite'
-                with open(last_suite_fn, 'w') as last_suite_file:
+                with last_suite_fn.open('w') as last_suite_file:
                     last_suite_file.write(str(self.id))
             except (IOError, OSError):
                 # It's ok if we can't write this file.

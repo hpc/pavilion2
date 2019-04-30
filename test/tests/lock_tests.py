@@ -77,7 +77,9 @@ class TestLocking(PavTestCase):
 
         try:
             for p in range(proc_count):
-                procs.append(sp.Popen(['python3', fight_path, self.lock_path]))
+                procs.append(sp.Popen(['python3',
+                                       str(fight_path),
+                                       str(self.lock_path)]))
             # Give the procs a chance to start.
             time.sleep(0.5)
 

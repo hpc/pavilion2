@@ -1,9 +1,10 @@
 from collections import defaultdict
+from pathlib import Path
 from pavilion import commands
-from pavilion import test_config
-from pavilion.suite import Suite
 from pavilion import schedulers
+from pavilion import test_config
 from pavilion import utils
+from pavilion.suite import Suite
 from pavilion.test_config.string_parser import ResolveError
 import sys
 import time
@@ -146,7 +147,7 @@ class RunCommand(commands.Command):
         :param pav_config: The pavilion config
         :param str host: The host config to target these tests with
         :param list(str) modes: The mode configs to use.
-        :param list(str) test_files: Files containing a newline separated
+        :param list(Path) test_files: Files containing a newline separated
             list of tests.
         :param list(str) tests: The tests to run.
         :param list(str) overrides: Overrides to apply to the configurations.
@@ -162,7 +163,7 @@ class RunCommand(commands.Command):
         tests = list(tests)
         for file in test_files:
             try:
-                with open(file) as test_file:
+                with file.open() as test_file:
                     for line in test_file.readlines():
                         line = line.strip()
                         if line and not line.startswith('#'):

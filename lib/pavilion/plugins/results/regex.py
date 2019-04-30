@@ -1,4 +1,5 @@
 from pavilion import result_parsers
+from pathlib import Path
 import yaml_config as yc
 import re
 
