@@ -1,11 +1,10 @@
-from pavilion import scriptcomposer
+from pathlib import Path
 from pavilion.schedulers import SchedulerPlugin
 from pavilion.schedulers import SchedulerVariables
 from pavilion.schedulers import sched_var
-from pathlib import Path
 import socket
-import yaml_config as yc
 import subprocess
+import yaml_config as yc
 
 
 class RawVars(SchedulerVariables):
@@ -61,7 +60,15 @@ class Raw(SchedulerPlugin):
         super().__init__('raw')
 
     def get_conf(self):
-        return yc.KeyedElem('raw', elements=[])
+        return yc.KeyedElem('raw', elements=[
+            yc.StrElem(
+                'concurrent',
+                choices=['true', 'false', 'True', 'False'],
+                default='False',
+                help_text="Allow this test to run concurrently with other"
+                          "concurrent tests under the 'raw' scheduler."
+            )
+        ])
 
     def _filter_nodes(self):
         return []
@@ -122,6 +129,23 @@ class Raw(SchedulerPlugin):
             "Could not find results or running pid of job id '{}'."
             .format(id_))
         return self.JOB_ERROR
+
+    def schedule_test(self, test):
+        """Run the kickoff script as a subprocess.
+           :param pavilion.test_config.PavTest test: The test to schedule.
+           :return str - Job ID number.
+        """
+
+        # Run the submit job script. We don't want to wait for it to finish,
+        # just redirect the output to a reasonable place.
+        output_file = (test.path/'kickoff.out').open('w')
+        proc = subprocess.Popen([str(self._sched_test_script_path(test))],
+                                stdout=output_file,
+                                stderr=output_file)
+        return proc.pid
+
+    # Use the version of lock_concurrency that actually does something.
+    lock_concurrency = SchedulerPlugin._do_lock_concurrency
 
     @staticmethod
     def _job_result_path(pav_cfg, id_):

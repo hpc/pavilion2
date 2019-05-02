@@ -4,19 +4,23 @@ from pavilion import lockfile
 from pavilion import scriptcomposer
 from pavilion import utils
 from pavilion import wget
+from pavilion import result_parsers
 from pavilion.status_file import StatusFile, STATES
 import bz2
+import datetime
 import gzip
 import hashlib
 import json
 import logging
 import lzma
 import os
+import re
 import shutil
 import stat
 import subprocess
 import tarfile
 import time
+import tzlocal
 import urllib.parse
 import zipfile
 
@@ -73,6 +77,8 @@ class PavTest:
         if 'subtest' in config and config['subtest']:
             self.name = self.name + '.' + config['subtest']
 
+        self.scheduler = config['scheduler']
+
         # Create the tests directory if it doesn't already exist.
         tests_path = pav_cfg.working_dir/'tests'
 
@@ -100,10 +106,14 @@ class PavTest:
         self.status.set(STATES.CREATED,
                         "Test directory and status file created.")
 
+        self._started = None
+        self._finished = None
+
         self.build_path = None
         self.build_name = None
         self.build_hash = None
         self.build_script_path = None
+        self.run_log = self.path/'run.log'
 
         build_config = self.config.get('build', {})
         if build_config:
@@ -661,6 +671,9 @@ class PavTest:
         template.
         """
 
+        self.status.set(STATES.PREPPING_RUN,
+                        "Resolving final run script.")
+
         if self.run_tmpl_path is not None:
             # Convert the run script template into the final run script.
             try:
@@ -681,9 +694,14 @@ class PavTest:
                 self.LOGGER.error(err)
                 self.status.set(STATES.RUN_ERROR, err)
 
-        run_log_path = self.path/'run.log'
+        with self.run_log.open('wb') as run_log:
+            self.status.set(STATES.RUNNING,
+                            "Starting the run script.")
 
-        with run_log_path.open('wb') as run_log:
+            tz = tzlocal.get_localzone()
+
+            self._started = tz.localize(datetime.datetime.now())
+
             run_wd = str(self.build_path) if self.build_path is not None \
                                             else None
             proc = subprocess.Popen([str(self.run_script_path)],
@@ -699,7 +717,7 @@ class PavTest:
                 try:
                     result = proc.wait(timeout=timeout)
                 except subprocess.TimeoutExpired:
-                    out_stat = run_log_path.stat()
+                    out_stat = self.run_log.stat()
                     quiet_time = time.time() - out_stat.st_mtime
                     # Has the output file changed recently?
                     if self.RUN_SILENT_TIMEOUT < quiet_time:
@@ -708,21 +726,132 @@ class PavTest:
                         self.status.set(STATES.RUN_FAILED,
                                         "Run timed out after {} seconds."
                                         .format(self.RUN_SILENT_TIMEOUT))
-                        return False
+                        self._finished = tz.localize(datetime.datetime.now())
+                        return STATES.RUN_TIMEOUT
                     else:
                         # Only wait a max of BUILD_SILENT_TIMEOUT next 'wait'
                         timeout = self.RUN_SILENT_TIMEOUT - quiet_time
 
+        self._finished = tz.localize(datetime.datetime.now())
         if result != 0:
             self.status.set(STATES.RUN_FAILED, "Test run failed.")
-            return False
+            return STATES.RUN_FAILED
         else:
             self.status.set(STATES.RUN_DONE,
                             "Test run has completed successfully.")
-            return True
+            return STATES.RUN_DONE
 
-    def process_results(self):
-        """Process the results of the test."""
+    RESERVED_RESULT_KEYS = [
+        'name',
+        'id',
+        'created',
+        'started',
+        'finished',
+        'duration',
+    ]
+
+    def check_result_parsers(self):
+        """Make sure the result parsers are sensible.
+         - No duplicated key names.
+         - Sensible keynames: /[a-z0-9_-]+/
+         - No reserved key names.
+
+        :raises PavTestError: When a config breaks the rules.
+        """
+
+        used_parsers = self.config['results']
+
+        key_names = []
+
+        for rtype in used_parsers:
+            for rconf in self.config['results'][rtype]:
+                key = rconf.get('key')
+
+                if key is None:
+                    raise RuntimeError(
+                        "ResultParser config for parser '{}' missing key. "
+                        "This is an error with the result parser itself,"
+                        "probably.".format(rtype)
+                    )
+
+                regex = re.compile(result_parsers.ResultParser.KEY_REGEX_STR)
+
+                if regex.match(key) is None:
+                    raise RuntimeError(
+                        "ResultParser config for parser '{}' has invalid key."
+                        "Key does not match the required format. "
+                        "This is an error with the result parser itself, "
+                        "probably.".format(rtype)
+                    )
+
+                if key in key_names:
+                    raise PavTestError(
+                        "Duplicate result parser key name '{}' in test '{}'"
+                        .format(key, self.name)
+                    )
+
+                if key in self.RESERVED_RESULT_KEYS:
+                    raise PavTestError(
+                        "Result parser key '{}' in test '{}' is reserved."
+                        .format(key, self.name)
+                    )
+
+                key_names.append(key)
+
+    def gather_results(self, run_result):
+        """Process and log the results of the test."""
+
+        if self._finished is None:
+            raise RuntimeError(
+                "test.gather_results can't be run unless the test completed."
+                "This occurred for test {s.name}, #{s.id}"
+                .format(s=self)
+            )
+
+        parser_configs = self.config['results']
+
+        # Create a human readable timestamp from the test directories
+        # modified (should be creation) timestamp.
+        created = tzlocal.get_localzone().localize(
+            datetime.datetime.fromtimestamp(
+                self.path.stat().st_mtime
+            )
+        ).isoformat(" ")
+
+        results = {
+            # These can't be overridden
+            'name': self.name,
+            'id': self.id,
+            'created': created,
+            'started': self._started.isoformat(" "),
+            'finished': self._finished.isoformat(" "),
+            'duration': self._finished - self._started,
+            # This may be overridden by result parsers.
+            'result': run_result
+        }
+
+        self.status.set(STATES.RESULTS,
+                        "Parsing {} different result types."
+                        .format(len(parser_configs)))
+
+        for parser_name in parser_configs.keys():
+            # This is almost guaranteed to work, as the config wouldn't
+            # have validated otherwise.
+            parser = result_parsers.get_plugin(parser_name)
+
+            for rconf in parser_configs[parser_name]:
+                try:
+                    result = parser(self, **rconf)
+
+                    results[rconf['key']] = result
+                except (result_parsers.ResultParserError, KeyError) as err:
+                    self.LOGGER.warning(
+                        "Error parsing results for result parser '{}'"
+                        "with key '{}': {}"
+                        .format(parser.name, rconf.get('key', '<no_key>'), err))
+
+        result_logger = logging.getLogger('results')
+        result_logger.info(json.dumps(results))
 
     @property
     def is_built(self):

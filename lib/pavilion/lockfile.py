@@ -64,7 +64,7 @@ class LockFile(object):
 
         self._id = str(uuid.uuid4())
 
-    def __enter__(self):
+    def lock(self):
         """Try to create and lock the lockfile."""
 
         if self._open:
@@ -125,7 +125,7 @@ class LockFile(object):
 
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def unlock(self):
         """Delete the lockfile, thereby releasing the lock.
         :raises RuntimeError: When we can't delete our own lockfile for some
             reason.
@@ -151,10 +151,16 @@ class LockFile(object):
                     LOGGER.error("Lockfile '{}' mysteriously disappeared."
                                  .format(self._lock_path))
 
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        return self.unlock()
+
+    def __enter__(self):
+        return self.lock()
+
     @classmethod
     def _create_lockfile(cls, path, expires, lock_id, group_id=None):
         """Create and fill out a lockfile at the given path.
-        :param unicode path: Where the file will be created.
+        :param Path path: Where the file will be created.
         :param int expires: How far in the future the lockfile expires.
         :param str lock_id: The unique identifier for this lockfile.
         :returns: None
@@ -190,7 +196,7 @@ class LockFile(object):
                                .format(path, err))
 
     def read_lockfile(self):
-        """Returns componenets of the lockfile content, or None for each of
+        """Returns the components of the lockfile content, or None for each of
         these values if there was an error..
         :returns: host, user, expiration (as a float), id
         """

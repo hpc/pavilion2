@@ -138,7 +138,7 @@ class TestConfigLoader(yc.YamlConfigLoader):
     # We'll append the result parsers separately, to have an easy way to
     # access it.
     _RESULT_PARSERS = yc.KeyedElem(
-        'result', elements=[],
+        'results', elements=[],
         help_text="Result parser configurations go here. Each parser config "
                   "can occur by itself or as a list of configs, in which "
                   "case the parser will run once for each config given. The "
@@ -192,6 +192,24 @@ class TestConfigLoader(yc.YamlConfigLoader):
         """Add the given list of config items as a result parser
         configuration named 'name'. Throws errors for invalid configuraitons.
         """
+
+        # Validate the config.
+        found_key = False
+        found_file = False
+        for item in config_items:
+            if item.name == 'key' and item.required:
+                found_key = True
+            elif item.name == 'file':
+                found_file = True
+
+        if not found_key:
+            raise TestConfigError(
+                "Result parser '{}' must have a required config "
+                "element named 'key'".format(name))
+        if not found_file:
+            raise TestConfigError(
+                "Result parser '{}' must have a config element named 'file'."
+                .format(name))
 
         config = yc.KeyedElem(
             'result_parser_{}'.format(name),

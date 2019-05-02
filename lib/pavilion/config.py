@@ -162,7 +162,7 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
                       "command."),
         yc.StrElem(
             "log_format",
-            default="%{asctime}, ${levelname}, ${name}: ${message}",
+            default="%(asctime), %(levelname), %(name): %(message)",
             help_text="The log format to use for the pavilion logger. See: "
                       "https://docs.python.org/3/library/logging.html#"
                       "logrecord-attributes"),
@@ -170,6 +170,15 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
             "log_level", default="info", post_validator=log_level_validate,
             help_text="The minimum log level for messages sent to the pavilion "
                       "logfile."),
+        yc.PathElem(
+            "result_log",
+            # Derive the default from the working directory, if a value isn't
+            # given.
+            post_validator=(lambda d, v: v if v is not None else
+                            d['working_dir']/'results.log'),
+            help_text="Results are put in both the general log and a specific"
+                      "results log. This defaults to 'results.log' in the "
+                      "working directory."),
         yc.IntElem(
             "wget_timeout", default=5,
             help_text="How long to wait on web requests before timing out. On"

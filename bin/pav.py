@@ -59,6 +59,17 @@ def main():
     # filter them.
     root_logger.setLevel(logging.DEBUG)
 
+    # Setup the result logger.
+    # Results will be logged to both the main log and the result log.
+    result_logger = logging.getLogger('results')
+    result_handler = RotatingFileHandler(filename=pav_cfg.result_log,
+                                         # 20 MB
+                                         maxBytes=20 * 1024 ** 2,
+                                         backupCount=3)
+    result_handler.setFormatter(logging.Formatter("%(asctime)s %(message)s"))
+    result_logger.setLevel(logging.INFO)
+    result_logger.addHandler(result_handler)
+
     # This has to be done before we initialize plugins
     parser = arguments.get_parser()
 
@@ -79,10 +90,10 @@ def main():
     # Add a stream to stderr if we're in verbose mode, or if no other handler
     # is defined.
     if args.verbose or not root_logger.handlers:
-        handler = logging.StreamHandler(sys.stderr)
-        handler.level(logging.DEBUG)
-        handler.format(pav_cfg.log_format)
-        root_logger.addHandler(handler)
+        result_handler = logging.StreamHandler(sys.stderr)
+        result_handler.level(logging.DEBUG)
+        result_handler.format(pav_cfg.log_format)
+        root_logger.addHandler(result_handler)
 
     # Create the basic directories in the working directory
     for path in [pav_cfg.working_dir,

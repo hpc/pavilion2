@@ -1,5 +1,4 @@
 from collections import defaultdict
-from pathlib import Path
 from pavilion import commands
 from pavilion import schedulers
 from pavilion import test_config

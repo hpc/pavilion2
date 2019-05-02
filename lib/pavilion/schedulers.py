@@ -1,9 +1,11 @@
 from pavilion.test_config.variables import DeferredVariable
 from pavilion import scriptcomposer
 from pavilion.test_config import format
+from pavilion.lockfile import LockFile
 from yapsy import IPlugin
 from functools import wraps
 from pathlib import Path
+from pavilion.status_file import STATES
 import collections
 import logging
 import subprocess
@@ -352,21 +354,67 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
         raise Exception("This has not yet been implemented.")
 
-    def schedule(self, script_path, output_path):
-        """Run the script at at script path with this scheduler. This base
-        version simply runs the script directly.
+    def schedule(self, script_path):
+        """Run the kickoff script at at script path with this scheduler.
            :param Path script_path: - Path to the submission script.
-           :param Path output_path: - Path to where to direct the output.
            :return str - Job ID number.
         """
 
-        # Run the submit job script. We don't want to wait for it to finish,
-        # just redirect the output to a reasonable place.
-        output_file = output_path.open('w')
-        proc = subprocess.Popen([str(script_path)],
-                                stdout=output_file,
-                                stderr=output_file)
-        return proc.pid
+        raise NotImplementedError
+
+    @staticmethod
+    def lock_concurrency(pav_cfg, test):
+        """Acquire the concurrency lock for this scheduler, if necessary.
+        :param pav_cfg: The pavilion configuration.
+        :param pavilion.pav_config.test.PavTest test: The pavilion test
+            to lock concurrency for.
+        """
+
+        return None
+
+    # A pre-implemented version of lock_concurrency that locks based
+    # on the scheduler's 'concurrent' variable. Provides a standard way to
+    # do this for schedulers that need it.
+    # Just set the following in your scheduler class:
+    #   lock_concurrency = SchedulerPlugin._do_lock_concurrency
+    @staticmethod
+    def _do_lock_concurrency(pav_cfg, test):
+        """Acquire the concurrency lock for this scheduler, if necessary.
+        :param pav_cfg: The pavilion configuration.
+        :param pavilion.pav_config.test.PavTest test: The pavilion test
+            to lock concurrency for.
+        """
+
+        if test.config['raw'].get('concurrent') not in ('false', 'False'):
+            return None
+
+        # Most schedulers shouldn't have to do this.
+        lock_path = pav_cfg.working_dir/'raw_sched.lock'
+
+        lock = LockFile(
+            lock_path,
+            group=pav_cfg.group,
+            # Expire after 24 hours.
+            expires_after=60*60*24,
+        )
+
+        test.status.set(STATES.SCHEDULED,
+                        "Test is non-concurrent, and waiting on the"
+                        "concurrency lock.")
+
+        lock.lock()
+
+        return lock
+
+
+    @staticmethod
+    def unlock_concurrency(lock):
+        """Unlock the concurrency lock, if one exists.
+        :param Union(Lockfile, None) lock:
+        """
+
+        if lock is not None:
+            lock.unlock()
 
     # Job status constants to be used across all schedulers. Scheduler plugins
     # should translate the scheduler's states into these four.
@@ -396,7 +444,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
         :param pavilion.pav_test.PavTest test_obj: The pavilion test to start.
         """
 
-        kick_off_path = self._create_schedule_script(test_obj)
+        kick_off_path = self._create_sched_test_script(test_obj)
 
         test_obj.job_id = self.schedule(kick_off_path)
 
@@ -404,19 +452,21 @@ class SchedulerPlugin(IPlugin.IPlugin):
                             "Test {} has job ID {}."
                             .format(self.name, test_obj.job_id))
 
-    def _create_schedule_script(self, test):
+    @staticmethod
+    def _sched_test_script_path(test):
+        return (test.path/'schedule_test').with_
+
+    def _create_sched_test_script(self, test):
         """Function to accept a list of lines and generate a script that is
            then submitted to the scheduler.
         """
 
         header = self._get_schedule_script_header(test)
 
-        path = test.path/'run_test.{}'.format(self.KICKOFF_SCRIPT_EXT)
-
         script = scriptcomposer.ScriptComposer(
             header=header,
             details=scriptcomposer.ScriptDetails(
-                path=path
+                path=self._sched_test_script_path(test)
             ),
         )
 
