@@ -1,4 +1,3 @@
-from .test import PavTest
 from . import format
 from .variables import DeferredVariable, VariableSetManager, VariableError
 from . import variables

@@ -1,4 +1,4 @@
-from pavilion.test_config import PavTest
+from pavilion.pavtest import PavTest
 from pavilion import utils
 from pathlib import Path
 import logging

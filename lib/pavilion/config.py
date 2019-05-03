@@ -103,7 +103,7 @@ def log_level_validate(_, level):
 
 
 # Figure out what directories we'll search for configuration files.
-PAV_CONFIG_SEARCH_DIRS = ['./']
+PAV_CONFIG_SEARCH_DIRS = [Path('./').resolve()]
 
 if 'HOME' in os.environ:
     USER_HOME_PAV = Path(os.environ['HOME'], '.pavilion')
@@ -120,10 +120,6 @@ if 'PAV_CONFIG_DIR' in os.environ:
         PAV_CONFIG_SEARCH_DIRS.append(_path)
     except FileNotFoundError as err:
         LOGGER.warning("Invalid path in env var PAV_CONFIG_DIR. Ignoring.")
-
-for _dir in Path('/etc/pavilion'), Path('/opt/pavilion'):
-    if _dir.exists():
-        PAV_CONFIG_SEARCH_DIRS.append(_dir)
 
 PAV_ROOT = Path(__file__).resolve().parents[2]
 
@@ -143,7 +139,7 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
                       "in the given order. In the case of identically named "
                       "files, directories listed earlier take precedent."),
         yc.PathElem(
-            'working_dir', default=USER_HOME_PAV,
+            'working_dir', default=USER_HOME_PAV, required=True,
             help_text="Where pavilion puts it's run files, downloads, etc."),
         yc.ListElem(
             "disable_plugins", sub_elem=yc.StrElem(),

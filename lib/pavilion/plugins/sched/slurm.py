@@ -44,17 +44,17 @@ class SlurmVars(SchedulerVariables):
     @sched_var
     def min_ppn(self):
         """The minimum processors per node across all nodes."""
-        return self.get_data()['min_ppn']
+        return self.sched_data['min_ppn']
 
     @sched_var
     def max_ppn(self):
         """The maximum processors per node across all nodes."""
-        return self.get_data()['max_ppn']
+        return self.sched_data['max_ppn']
 
     @sched_var
     def min_mem(self):
         """The minimum memory per node across all nodes (in MiB)."""
-        return self.get_data()['min_ppn']
+        return self.sched_data['min_ppn']
 
     @sched_var
     def max_mem(self):
@@ -100,27 +100,27 @@ class SlurmVars(SchedulerVariables):
     @dfr_sched_var
     def alloc_min_ppn(self):
         """Min ppn for this allocation."""
-        return self.get_data()['alloc_summary']['min_ppn']
+        return self.sched_data['alloc_summary']['min_ppn']
 
     @dfr_sched_var
     def alloc_max_ppn(self):
         """Max ppn for this allocation."""
-        return self.get_data()['alloc_summary']['max_ppn']
+        return self.sched_data['alloc_summary']['max_ppn']
 
     @dfr_sched_var
     def alloc_min_mem(self):
         """Min mem per node for this allocation. (in MiB)"""
-        return self.get_data()['alloc_summary']['min_mem']
+        return self.sched_data['alloc_summary']['min_mem']
 
     @dfr_sched_var
     def alloc_max_mem(self):
         """Max mem per node for this allocation. (in MiB)"""
-        return self.get_data()['alloc_summary']['max_mem']
+        return self.sched_data['alloc_summary']['max_mem']
 
     @dfr_sched_var
     def alloc_cpu_total(self):
         """Total CPUs across all nodes in this allocation."""
-        return self.get_data()['alloc_summary']['total_cpu']
+        return self.sched_data['alloc_summary']['total_cpu']
 
     @dfr_sched_var
     def test_nodes(self):
@@ -140,7 +140,7 @@ class SlurmVars(SchedulerVariables):
     def test_procs(self):
         """The number of processors to request for this test."""
 
-        alloc_nodes = self.get_data()['alloc_nodes'].values()
+        alloc_nodes = self.sched_data['alloc_nodes'].values()
         alloc_nodes.sort(lambda v: v['CPUTot'], reverse=True)
 
         biggest_nodes = alloc_nodes[:int(self.test_nodes)]
@@ -514,7 +514,7 @@ class Slurm(SchedulerPlugin):
         except subprocess.CalledProcessError:
             return False
 
-    def _get_schedule_script_header(self, test):
+    def _get_kickoff_script_header(self, test):
         """Get the kickoff header. Most of the work here """
 
         sched_config = test.config.get(self.name)

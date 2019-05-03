@@ -1,8 +1,9 @@
 from pathlib import Path
 from pavilion import unittest
+from pavilion.status_file import STATES
 from pavilion.suite import Suite
-from pavilion.test_config import PavTest, variables
-from pavilion.test_config.test import PavTestError
+from pavilion.test_config import variables
+from pavilion.pavtest import PavTestError, PavTest
 import os
 import shutil
 import tempfile
@@ -16,7 +17,8 @@ class PavTestTests(unittest.PavTestCase):
         # Initializing with a mostly blank config
         config = {
             # The only required param.
-            'name': 'blank_test'
+            'name': 'blank_test',
+            'scheduler': 'raw',
         }
 
         # Making sure this doesn't throw errors from missing params.
@@ -25,6 +27,7 @@ class PavTestTests(unittest.PavTestCase):
         config = {
             'subtest': 'st',
             'name': 'test',
+            'scheduler': 'raw',
             'build': {
                 'modules': ['gcc'],
                 'cmds': ['echo "Hello World"'],
@@ -57,6 +60,7 @@ class PavTestTests(unittest.PavTestCase):
 
         base_config = {
             'name': 'test',
+            'scheduler': 'raw',
             'build': {
                 'modules': ['gcc'],
             }
@@ -150,6 +154,7 @@ class PavTestTests(unittest.PavTestCase):
 
         base_config = {
             'name': 'test',
+            'scheduler': 'raw',
             'build': {
                 'modules': ['gcc'],
             }
@@ -226,6 +231,7 @@ class PavTestTests(unittest.PavTestCase):
 
         config1 = {
             'name': 'build_test',
+            'scheduler': 'raw',
             'build': {
                 'cmds': ['echo "Hello World [\x1esched.num_nodes\x1e]"'],
                 'source_location': 'binfile.gz',
@@ -246,6 +252,7 @@ class PavTestTests(unittest.PavTestCase):
         # that waits for builds to complete.
         config = {
             'name': 'build_test',
+            'scheduler': 'raw',
             'build': {
                 'cmds': ['sleep 10'],
                 'source_location': 'binfile.gz',
@@ -264,6 +271,7 @@ class PavTestTests(unittest.PavTestCase):
         # Test general build failure.
         config = {
             'name': 'build_test',
+            'scheduler': 'raw',
             'build': {
                 'cmds': ['exit 1'],
                 'source_location': 'binfile.gz',
@@ -299,6 +307,7 @@ class PavTestTests(unittest.PavTestCase):
     def test_run(self):
         config1 = {
             'name': 'run_test',
+            'scheduler': 'raw',
             'run': {
                 'env': {
                     'foo': 'bar',
@@ -316,8 +325,9 @@ class PavTestTests(unittest.PavTestCase):
         config2['run']['modules'] = ['asdlfkjae', 'adjwerloijeflkasd']
 
         test = PavTest(self.pav_cfg, config2)
-        self.assertFalse(
+        self.assertEqual(
             test.run({}),
+            STATES.RUN_FAILED,
             msg="Test should have failed because a module couldn't be "
                 "loaded. {}".format(test.path))
         # TODO: Make sure this is the exact reason for the failure
@@ -326,21 +336,25 @@ class PavTestTests(unittest.PavTestCase):
         # Make sure the test fails properly on a timeout.
         config3 = {
             'name': 'sleep_test',
+            'scheduler': 'raw',
             'run': {
                 'cmds': ['sleep 10']
             }
         }
         test = PavTest(self.pav_cfg, config3)
         test.RUN_SILENT_TIMEOUT = 1
-        self.assertFalse(test.run({}),
-                         msg="Test should have failed due to timeout. {}"
-                             .format(test.path))
+        self.assertEqual(
+            test.run({}),
+            STATES.RUN_TIMEOUT,
+            msg="Test should have failed due to timeout. {}"
+                .format(test.path))
 
     def test_suites(self):
         """Test suite creation and regeneration."""
 
         config1 = {
             'name': 'run_test',
+            'scheduler': 'raw',
             'run': {
                 'env': {
                     'foo': 'bar',

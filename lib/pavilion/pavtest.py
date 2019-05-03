@@ -1,4 +1,4 @@
-from . import variables
+from pavilion.test_config import variables
 from pathlib import Path
 from pavilion import lockfile
 from pavilion import scriptcomposer
@@ -798,8 +798,10 @@ class PavTest:
 
                 key_names.append(key)
 
-    def gather_results(self, run_result):
-        """Process and log the results of the test."""
+    def gather_results(self, parsers, run_result):
+        """Process and log the results of the test.
+        :param list(
+        """
 
         if self._finished is None:
             raise RuntimeError(
