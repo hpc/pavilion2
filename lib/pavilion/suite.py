@@ -54,6 +54,8 @@ class Suite:
                         "Could not link test '{}' in suite at '{}': {}"
                         .format(test.path, link_path, err))
 
+            self._save_suite_id()
+
         else:
             self.id = _id
             self.path = utils.make_id_path(suites_path, self.id)
@@ -93,7 +95,7 @@ class Suite:
 
         return cls(pav_cfg, tests, _id=id_)
 
-    def save_suite_id(self):
+    def _save_suite_id(self):
         """Save the suite id to the user's .pavilion directory."""
 
         # Save the last suite we created to the .pavilion directory
