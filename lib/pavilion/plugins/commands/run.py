@@ -5,6 +5,7 @@ from pavilion import test_config
 from pavilion import utils
 from pavilion.suite import Suite
 from pavilion.test_config.string_parser import ResolveError
+from pavilion.pavtest import PavTest
 import sys
 import time
 
@@ -86,7 +87,7 @@ class RunCommand(commands.Command):
         for sched_name, tests in test_configs.items():
             sched = schedulers.get_scheduler_plugin(sched_name)
 
-            sched.run_tests(tests)
+            sched.schedule_tests(tests)
 
         wait_result = None
         if args.wait is not None:
@@ -234,7 +235,7 @@ class RunCommand(commands.Command):
                     self.logger.error(msg)
                     raise commands.CommandError(msg)
 
-                test = test_config.PavTest(pav_config, resolved_config)
+                test = PavTest(pav_config, resolved_config)
 
                 tests_by_scheduler[sched.name].append(test)
 

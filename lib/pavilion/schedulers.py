@@ -8,6 +8,7 @@ from pathlib import Path
 from pavilion.status_file import STATES
 import collections
 import logging
+import os
 import subprocess
 
 LOGGER = logging.getLogger('pav.{}'.format(__name__))
@@ -62,7 +63,7 @@ def dfr_sched_var(*sub_keys):
         @wraps(func)
         def defer(self):
             # Return a deferred variable if we aren't on a node.
-            if not self._in_alloc:
+            if not self.sched.in_alloc:
                 return DeferredVariable(func.__name__,
                                         var_set='sched',
                                         sub_keys=sub_keys)
@@ -103,21 +104,27 @@ class SchedulerVariables(collections.UserDict):
 
         super().__init__(self)
 
-        self._keys = set()
-
         self.sched = scheduler
         self.test = test
 
+        self._keys = self._find_vars()
+
         self.logger = logging.getLogger('{}_vars'.format(scheduler))
 
-        # Find all the scheduler variables and add them as variables.
-        for key in self.__dict__.keys():
+    @classmethod
+    def _find_vars(cls):
+        """Find all the scheduler variables and add them as variables."""
+
+        keys = set()
+        for key in cls.__dict__.keys():
+
             # Ignore anything that starts with an underscore
             if key.startswith('_'):
                 continue
-            obj = getattr(self, key)
+            obj = getattr(cls, key)
             if callable(obj) and hasattr(obj, 'is_sched_var'):
-                self._keys.add(key)
+                keys.add(key)
+        return keys
 
     def __getitem__(self, key):
         """As per the dict class."""
@@ -145,9 +152,16 @@ class SchedulerVariables(collections.UserDict):
         """As per the dict class."""
         return ((k, self[k]) for k in self._keys)
 
-    def get_data(self):
+    @property
+    def sched_data(self):
         """A convenience function for getting data from the scheduler."""
         return self.sched.get_data()
+
+    def __repr__(self):
+        for k in self.keys():
+            _ = self[k]
+
+        return super().__repr__()
 
     # Variables
     # The methods that follow are all scheduler variables. They provide bare
@@ -339,36 +353,23 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
         return self.VAR_CLASS(self, test)
 
-    def run_tests(self, tests):
-        """Run each of the given tests using this scheduler, each scheduled
-        using a separate allocation.
+    def schedule_tests(self, pav_cfg, tests):
+        """Schedule each of the given tests using this scheduler using a
+        separate allocation (if applicable) for each.
         :param list[pavilion.pav_test.PavTest] tests: A list of pavilion tests
-            to run.
+            to schedule.
         """
 
         for test in tests:
-            self.schedule_test(test)
+            self.schedule_test(pav_cfg, test)
 
     def run_suite(self, tests):
         """Run each of the given tests using a single allocation."""
 
         raise Exception("This has not yet been implemented.")
 
-    def schedule(self, script_path):
-        """Run the kickoff script at at script path with this scheduler.
-           :param Path script_path: - Path to the submission script.
-           :return str - Job ID number.
-        """
-
-        raise NotImplementedError
-
-    @staticmethod
-    def lock_concurrency(pav_cfg, test):
-        """Acquire the concurrency lock for this scheduler, if necessary.
-        :param pav_cfg: The pavilion configuration.
-        :param pavilion.pav_config.test.PavTest test: The pavilion test
-            to lock concurrency for.
-        """
+    def lock_concurrency(self, pav_cfg, test):
+        """Acquire the concurrency lock for this scheduler, if necessary."""
 
         return None
 
@@ -377,19 +378,21 @@ class SchedulerPlugin(IPlugin.IPlugin):
     # do this for schedulers that need it.
     # Just set the following in your scheduler class:
     #   lock_concurrency = SchedulerPlugin._do_lock_concurrency
-    @staticmethod
-    def _do_lock_concurrency(pav_cfg, test):
+    def _do_lock_concurrency(self, pav_cfg, test):
         """Acquire the concurrency lock for this scheduler, if necessary.
         :param pav_cfg: The pavilion configuration.
         :param pavilion.pav_config.test.PavTest test: The pavilion test
             to lock concurrency for.
         """
 
-        if test.config['raw'].get('concurrent') not in ('false', 'False'):
+        if (test.config[self.name].get('concurrent')
+                not in ('false', 'False')):
             return None
 
+        lock_name = '{s.name}_sched.lock'.format(s=self)
+
         # Most schedulers shouldn't have to do this.
-        lock_path = pav_cfg.working_dir/'raw_sched.lock'
+        lock_path = pav_cfg.working_dir/lock_name
 
         lock = LockFile(
             lock_path,
@@ -400,12 +403,12 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
         test.status.set(STATES.SCHEDULED,
                         "Test is non-concurrent, and waiting on the"
-                        "concurrency lock.")
+                        "concurrency lock for scheduler {s.name}."
+                        .format(s=self))
 
         lock.lock()
 
         return lock
-
 
     @staticmethod
     def unlock_concurrency(lock):
@@ -439,44 +442,64 @@ class SchedulerPlugin(IPlugin.IPlugin):
         """
         raise NotImplemented
 
-    def schedule_test(self, test_obj):
+    def schedule_test(self, pav_cfg, test_obj):
         """Function.
-        :param pavilion.pav_test.PavTest test_obj: The pavilion test to start.
+        :param pavilion.test_config.PavTest test_obj: The pavilion test to
+        start.
         """
 
-        kick_off_path = self._create_sched_test_script(test_obj)
+        kick_off_path = self._create_kickoff_script(pav_cfg, test_obj)
 
-        test_obj.job_id = self.schedule(kick_off_path)
+        test_obj.job_id = self.schedule(test_obj, kick_off_path)
 
         test_obj.status.set(test_obj.status.STATES.SCHEDULED,
                             "Test {} has job ID {}."
                             .format(self.name, test_obj.job_id))
 
-    @staticmethod
-    def _sched_test_script_path(test):
-        return (test.path/'schedule_test').with_
-
-    def _create_sched_test_script(self, test):
-        """Function to accept a list of lines and generate a script that is
-           then submitted to the scheduler.
+    def schedule(self, test_obj, kickoff_path):
+        """Run the kickoff script at script path with this scheduler.
+        :param pavilion.test_config.PavTest test_obj: The test to schedule.
+        :param Path kickoff_path: - Path to the submission script.
+        :return str - Job ID number.
         """
 
-        header = self._get_schedule_script_header(test)
+        raise NotImplementedError
+
+    def _kickoff_script_path(self, test):
+        path = (test.path/'kickoff')
+        return path.with_suffix(self.KICKOFF_SCRIPT_EXT)
+
+    def _create_kickoff_script(self, pav_cfg, test_obj):
+        """Function to accept a list of lines and generate a script that is
+           then submitted to the scheduler.
+           :param pavilion.test_config.PavTest test_obj:
+        """
+
+        header = self._get_kickoff_script_header(test_obj)
 
         script = scriptcomposer.ScriptComposer(
             header=header,
             details=scriptcomposer.ScriptDetails(
-                path=self._sched_test_script_path(test)
+                path=self._kickoff_script_path(test_obj)
             ),
         )
 
-        script.newline()
+        # Make sure the pavilion spawned
+        env_changes = {
+            'PATH': '{}:${{PATH}}'.format(pav_cfg.pav_root/'bin')
+        }
+        if 'PAV_CONFIG_DIR' in os.environ:
+            env_changes['PAV_CONFIG_DIR'] = os.environ['PAV_CONFIG_DIR']
+
+        script.env_change(env_changes)
+
+        script.command('pav _run {t.id}'.format(t=test_obj))
 
         script.write()
 
         return script.details.path
 
-    def _get_schedule_script_header(self, test):
+    def _get_kickoff_script_header(self, test):
         return scriptcomposer.ScriptHeader()
 
     @staticmethod

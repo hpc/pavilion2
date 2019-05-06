@@ -12,7 +12,7 @@ class RawVars(SchedulerVariables):
     @sched_var
     def cpus(self):
         """Total CPUs (includes hyperthreading cpus)."""
-        return self.get_data()['cpus']
+        return self.sched_data['cpus']
 
     @sched_var
     def total_mem(self):
@@ -24,7 +24,13 @@ class RawVars(SchedulerVariables):
     def avail_mem(self):
         """Available memory in MiB to the nearest MiB."""
 
-        return self.mem_to_mib('memavail')
+        return self.mem_to_mib('memavailable')
+
+    @sched_var
+    def free_mem(self):
+        """Free memory in MiB to the nearest MiB."""
+
+        return self.mem_to_mib('memfree')
 
     MEM_UNITS = {
         None: 1000**0,
@@ -36,13 +42,15 @@ class RawVars(SchedulerVariables):
     def mem_to_mib(self, key):
         """Get a meminfo value from the meminfo dict, and convert it to
         a standard unit (MiB)."""
-        meminfo = self.get_data()['meminfo']
+        meminfo = self.sched_data['meminfo']
         if key in meminfo:
             value, unit = meminfo[key]
         else:
             self.logger.warning("Unknown meminfo key '{}'"
                                 .format(key))
             return 0
+
+        unit = unit.lower()
 
         if unit in self.MEM_UNITS:
             return self.MEM_UNITS[unit] * value // 1024**2
@@ -79,7 +87,7 @@ class Raw(SchedulerPlugin):
 
     def _get_data(self):
 
-        cpus = subprocess.check_output(['nproc'])
+        cpus = subprocess.check_output(['nproc']).strip().decode('utf8')
 
         with Path('/proc/meminfo').open() as meminfo_file:
             meminfo = {}
@@ -106,10 +114,10 @@ class Raw(SchedulerPlugin):
             'meminfo': meminfo
         }
 
-    def check_job(self, pav_cfg, id_):
+    def check_job(self, pav_cfg, job_id):
 
-        result_path = self._job_result_path(pav_cfg, id_)
-        proc_path = Path('/proc')/id_
+        result_path = self._job_result_path(pav_cfg, job_id)
+        proc_path = Path('/proc') / job_id
 
         if proc_path.exists():
             return self.JOB_RUNNING
@@ -122,27 +130,28 @@ class Raw(SchedulerPlugin):
                 else:
                     self.logger.warning(
                         "Bad status in status file '{}' for job '{}': {}"
-                        .format(result_path, id_, result))
+                        .format(result_path, job_id, result))
                     return self.JOB_ERROR
 
         self.logger.warning(
             "Could not find results or running pid of job id '{}'."
-            .format(id_))
+            .format(job_id))
         return self.JOB_ERROR
 
-    def schedule_test(self, test):
-        """Run the kickoff script as a subprocess.
-           :param pavilion.test_config.PavTest test: The test to schedule.
-           :return str - Job ID number.
+    def schedule(self, test_obj, kickoff_path):
+        """Run the kickoff script at script path with this scheduler.
+        :param pavilion.test_config.PavTest test_obj: The test to schedule.
+        :param Path kickoff_path: - Path to the submission script.
+        :return str - Job ID number.
         """
 
         # Run the submit job script. We don't want to wait for it to finish,
         # just redirect the output to a reasonable place.
-        output_file = (test.path/'kickoff.out').open('w')
-        proc = subprocess.Popen([str(self._sched_test_script_path(test))],
+        output_file = (test_obj.path / 'kickoff.out').open('w')
+        proc = subprocess.Popen([str(kickoff_path)],
                                 stdout=output_file,
                                 stderr=output_file)
-        return proc.pid
+        return str(proc.pid)
 
     # Use the version of lock_concurrency that actually does something.
     lock_concurrency = SchedulerPlugin._do_lock_concurrency

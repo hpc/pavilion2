@@ -1,5 +1,5 @@
 from pavilion import commands
-from pavilion.test_config import PavTest
+from pavilion.pavtest import PavTest
 from pavilion import schedulers
 from pavilion.status_file import STATES
 import logging
