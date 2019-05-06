@@ -54,20 +54,6 @@ class Suite:
                         "Could not link test '{}' in suite at '{}': {}"
                         .format(test.path, link_path, err))
 
-            # Save the last suite we created to the .pavilion directory
-            # in the user's home dir. Pavilion commands can use this so the
-            # user doesn't actually have to know the suite_id of tests.
-            try:
-                user_pav_dir = Path(os.path.expanduser('~/.pavilion'))
-                if not user_pav_dir.is_dir():
-                    user_pav_dir.mkdir()
-
-                last_suite_fn = user_pav_dir/'last_suite'
-                with last_suite_fn.open('w') as last_suite_file:
-                    last_suite_file.write(str(self.id))
-            except (IOError, OSError):
-                # It's ok if we can't write this file.
-                pass
         else:
             self.id = _id
             self.path = utils.make_id_path(suites_path, self.id)
@@ -106,6 +92,51 @@ class Suite:
                 raise ValueError(link_path)
 
         return cls(pav_cfg, tests, _id=id_)
+
+    def save_suite_id(self):
+        """Save the suite id to the user's .pavilion directory."""
+
+        # Save the last suite we created to the .pavilion directory
+        # in the user's home dir. Pavilion commands can use this so the
+        # user doesn't actually have to know the suite_id of tests.
+        user_pav_dir = Path(os.path.expanduser('~/.pavilion'))
+        last_suite_fn = user_pav_dir/'last_suite'
+        try:
+            if not user_pav_dir.is_dir():
+                user_pav_dir.mkdir()
+
+            with last_suite_fn.open('w') as last_suite_file:
+                last_suite_file.write(str(self.id))
+        except (IOError, OSError):
+            # It's ok if we can't write this file.
+            self._logger.warning("Could not save suite id to '{}'"
+                                 .format(last_suite_fn))
+
+    @classmethod
+    def load_suite_id(cls):
+        """Load the last suite id used by the current user."""
+        logger = logging.getLogger(cls.LOGGER_FMT.format('<unknown>'))
+
+        user_pav_dir = Path(os.path.expanduser('~/.pavilion'))
+        last_suite_fn = user_pav_dir/'last_suite'
+        if not os.path.exists(last_suite_fn):
+            return None
+        try:
+            with last_suite_fn.open() as last_suite_file:
+                raw_suite_id = last_suite_file.read().strip()
+        except (IOError, OSError) as err:
+            logger.warning("Failed to read suite id file '{}': {}"
+                           .format(last_suite_fn, err))
+            return None
+
+        try:
+            return int(raw_suite_id)
+        except ValueError:
+            logger.warning(
+                "Could not load suite id from '{}'. Invalid value: '{}'"
+                .format(last_suite_fn, raw_suite_id)
+            )
+            return None
 
     @property
     def ts(self):
