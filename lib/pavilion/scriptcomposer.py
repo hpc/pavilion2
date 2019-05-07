@@ -100,10 +100,16 @@ class ScriptHeader(object):
 
     def get_lines(self):
         """Function to retrieve a list of lines for the script header."""
-        ret_list = [self.shell_path]
+        if self.shell_path[:2] != '#!':
+            ret_list = ['#!{}'.format(self.shell_path)]
+        else:
+            ret_list = [self.shell_path]
 
-        for part in self.scheduler_headers:
-            ret_list.append(part)
+        for i in range(0, len(self.scheduler_headers)):
+            if self.scheduler_headers[i][0] != '#':
+                ret_list.append('# {}'.format(self.scheduler_headers[i]))
+            else:
+                ret_list.append(self.scheduler_headers[i])
 
         return ret_list
 
@@ -126,7 +132,7 @@ class ScriptDetails(object):
         :param int perms: Value for permission on the file (see
                           `man chmod`).  default = 0o770
         """
-        self.path = Path(path)
+        self.path = path
         self.group = group
         self.perms = perms
 
@@ -139,7 +145,7 @@ class ScriptDetails(object):
         if value is None:
             value = "_".join(datetime.datetime.now().__str__().split())
 
-        self._path = value
+        self._path = Path(value)
 
     @property
     def group(self):
@@ -148,9 +154,9 @@ class ScriptDetails(object):
     @group.setter
     def group(self, value):
         if value is None:
-            value = str(os.environ['USER'])
+            value = os.environ['USER']
 
-        self._group = value
+        self._group = str(value)
 
     @property
     def perms(self):
@@ -161,7 +167,7 @@ class ScriptDetails(object):
         if value is None:
             value = 0o770
 
-        self._perms = value
+        self._perms = oct(value)
 
     def reset(self):
         self.__init__()
@@ -284,7 +290,7 @@ class ScriptComposer(object):
             script_file.write('\n'.join(self._script_lines))
             script_file.write('\n')
 
-        os.chmod(str(self.details.path), self.details.perms)
+        os.chmod(str(self.details.path), int(self.details.perms, 8))
 
         try:
             grp_st = grp.getgrnam(self.details.group)
