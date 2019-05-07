@@ -1,7 +1,6 @@
 from pavilion import commands
 from pavilion import pavtest
 from pavilion import status_file
-from pavilion import test_config
 from pavilion import utils
 from pavilion.suite import Suite
 import sys
@@ -27,27 +26,37 @@ class StatusCommand(commands.Command):
 
     def run(self, pav_config, args):
 
-        test_list = args.tests
+        test_list = []
         test_statuses = []
+
+        if not args.tests:
+            pav_suite = Suite.from_id(pav_config, Suite.load_suite_id)
+            test_list = pav_suite.tests
+        else:
+            for test_id in args.tests:
+                if test_id.startswith('s'):
+                    test_list.extend(Suite.from_id(pav_config,
+                                                   test_id[1:]).tests
+                                    )
+                else:
+                    test_list.append(test_id)
 
         for test_id in test_list:
             status_file = None
+            pav_test = pavtest.PavTest.from_id(pav_config, test_id)
+            status_file = status_file.StatusFile(pav_test.status).current()
 
-            if test_id[0] == 's':
-                pass
-            else:
-                pav_test = pavtest.PavTest.from_id(pav_config, test_id)
-                status_file = status_file.StatusFile(pav_test.status)
+            test_statuses.append({
+                'test_id': test_id,
+                'state': status_file.state,
+                'time': status_file.when,
+                'note': status_file.note,
+            })
 
-                test_statuses.append({
-                    'test_id': test_id,
-                    'state': status_file.state,
-                    'time': status_file.when,
-                    'note': status_file.note,
-                })
-
-        try:
-            test_configs = self._get_tests(pav_config, args)
-        except test_config.TestConfigError as err:
-            print(err)
-            return 1
+        if args.json:
+            json_data = {'statuses': test_statuses}
+            utils.output_json(sys.stdout, json_data)
+        else:
+            cols = ['test_id', 'state', 'time', 'note']
+            utils.draw_table(sys.stdout, {}, cols, test_statuses,
+                             title='Test statuses')
