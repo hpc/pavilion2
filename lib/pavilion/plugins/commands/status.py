@@ -21,7 +21,7 @@ class StatusCommand(commands.Command):
             'tests', nargs='*', action='store',
             help='The name(s) of the tests to check.  These may be any mix of'
                  'test IDs and suite IDs.  If no value is provided, the most'
-                 'recent test or suite submitted by this user is checked.'
+                 'recent suite submitted by this user is checked.'
         )
 
     def run(self, pav_config, args):
@@ -30,7 +30,7 @@ class StatusCommand(commands.Command):
         test_statuses = []
 
         if not args.tests:
-            pav_suite = Suite.from_id(pav_config, Suite.load_suite_id)
+            pav_suite = Suite.from_id(pav_config, Suite.load_suite_id())
             test_list = pav_suite.tests
         else:
             for test_id in args.tests:
