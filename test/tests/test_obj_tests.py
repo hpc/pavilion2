@@ -22,7 +22,7 @@ class PavTestTests(unittest.PavTestCase):
         }
 
         # Making sure this doesn't throw errors from missing params.
-        PavTest(self.pav_cfg, config)
+        PavTest(self.pav_cfg, config, sys_vars={})
 
         config = {
             'subtest': 'st',
@@ -40,7 +40,7 @@ class PavTestTests(unittest.PavTestCase):
         }
 
         # Make sure we can create a test from a fairly populated config.
-        t = PavTest(self.pav_cfg, config)
+        t = PavTest(self.pav_cfg, config, sys_vars={})
 
         # Make sure we can recreate the object from id.
         t2 = PavTest.from_id(self.pav_cfg, t.id)
@@ -85,7 +85,7 @@ class PavTestTests(unittest.PavTestCase):
             config = base_config.copy()
             config['build']['source_location'] = archive
 
-            test = PavTest(self.pav_cfg, config=config)
+            test = PavTest(self.pav_cfg, config=config, sys_vars={})
 
             if test.build_origin.exists():
                 shutil.rmtree(str(test.build_origin))
@@ -103,7 +103,7 @@ class PavTestTests(unittest.PavTestCase):
         # Check directory copying
         config = base_config.copy()
         config['build']['source_location'] = 'src'
-        test = PavTest(self.pav_cfg, config=config)
+        test = PavTest(self.pav_cfg, config=config, sys_vars={})
 
         if test.build_origin.exists():
             shutil.rmtree(str(test.build_origin))
@@ -121,7 +121,7 @@ class PavTestTests(unittest.PavTestCase):
         for file in files:
             config = base_config.copy()
             config['build']['source_location'] = file
-            test = PavTest(self.pav_cfg, config=config)
+            test = PavTest(self.pav_cfg, config=config, sys_vars={})
 
             if test.build_origin.exists():
                 shutil.rmtree(str(test.build_origin))
@@ -137,7 +137,7 @@ class PavTestTests(unittest.PavTestCase):
             'src.tar.gz',
             'src.xz',
         ]
-        test = PavTest(self.pav_cfg, config=config)
+        test = PavTest(self.pav_cfg, config=config, sys_vars={})
 
         if test.build_origin.exists():
             shutil.rmtree(str(test.build_origin))
@@ -168,7 +168,7 @@ class PavTestTests(unittest.PavTestCase):
         shutil.rmtree(str(downloads_path))
         downloads_path.mkdir()
 
-        test = PavTest(self.pav_cfg, config)
+        test = PavTest(self.pav_cfg, config, sys_vars={})
         if test.build_origin.exists():
             shutil.rmtree(str(test.build_origin))
 
@@ -238,7 +238,7 @@ class PavTestTests(unittest.PavTestCase):
             },
         }
 
-        test = PavTest(self.pav_cfg, config1)
+        test = PavTest(self.pav_cfg, config1, sys_vars={})
 
         # Test a basic build, with a gzip file and an actual build script.
         self.assertTrue(test.build(), msg="Build failed")
@@ -259,7 +259,7 @@ class PavTestTests(unittest.PavTestCase):
             },
         }
 
-        test = PavTest(self.pav_cfg, config)
+        test = PavTest(self.pav_cfg, config, sys_vars={})
         test.BUILD_SILENT_TIMEOUT = 1
 
         # This build should fail.
@@ -281,7 +281,7 @@ class PavTestTests(unittest.PavTestCase):
         # These next two test a few things:
         #  1. That building, and then re-using, a build directory works.
         #  2. That the test fails properly under a couple different conditions
-        test = PavTest(self.pav_cfg, config)
+        test = PavTest(self.pav_cfg, config, sys_vars={})
         # Remove the build tree to ensure we do the build fresh.
         if test.build_origin.is_dir():
             shutil.rmtree(str(test.build_origin))
@@ -295,7 +295,7 @@ class PavTestTests(unittest.PavTestCase):
 
         # This should fail due to a missing variable
         # The build should already exist.
-        test2 = PavTest(self.pav_cfg, config)
+        test2 = PavTest(self.pav_cfg, config, sys_vars={})
         self.assertFalse(test2.build(),
                          "Build succeeded when it should have failed.")
         current_note = test.status.current().note
@@ -317,16 +317,19 @@ class PavTestTests(unittest.PavTestCase):
             },
         }
 
-        test = PavTest(self.pav_cfg, config1)
+        test = PavTest(self.pav_cfg, config1, sys_vars={})
+        self.assert_(test.build())
 
-        self.assertTrue(test.run({}), msg="Test failed to run.")
+        self.assertTrue(test.run({}, sys_vars={}), msg="Test failed to run.")
 
         config2 = config1.copy()
         config2['run']['modules'] = ['asdlfkjae', 'adjwerloijeflkasd']
 
-        test = PavTest(self.pav_cfg, config2)
+        test = PavTest(self.pav_cfg, config2, sys_vars={})
+        self.assert_(test.build())
+
         self.assertEqual(
-            test.run({}),
+            test.run({}, sys_vars={}),
             STATES.RUN_FAILED,
             msg="Test should have failed because a module couldn't be "
                 "loaded. {}".format(test.path))
@@ -341,10 +344,11 @@ class PavTestTests(unittest.PavTestCase):
                 'cmds': ['sleep 10']
             }
         }
-        test = PavTest(self.pav_cfg, config3)
+        test = PavTest(self.pav_cfg, config3, sys_vars={})
+        self.assert_(test.build())
         test.RUN_SILENT_TIMEOUT = 1
         self.assertEqual(
-            test.run({}),
+            test.run({}, sys_vars={}),
             STATES.RUN_TIMEOUT,
             msg="Test should have failed due to timeout. {}"
                 .format(test.path))
@@ -366,7 +370,7 @@ class PavTestTests(unittest.PavTestCase):
 
         tests = []
         for i in range(3):
-            tests.append(PavTest(self.pav_cfg, config1))
+            tests.append(PavTest(self.pav_cfg, config1, sys_vars={}))
 
         # Make sure this doesn't explode
         suite = Suite(self.pav_cfg, tests)

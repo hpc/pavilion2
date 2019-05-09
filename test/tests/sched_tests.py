@@ -29,15 +29,15 @@ class RawSchedTests(PavTestCase):
 
         class TestVars(schedulers.SchedulerVariables):
 
-            @schedulers.sched_var
+            @schedulers.var_method
             def hello(self):
                 return 'hello'
 
-            @schedulers.sched_var
+            @schedulers.var_method
             def foo(self):
                 return self.sched_data['foo']
 
-            @schedulers.dfr_sched_var()
+            @schedulers.dfr_var_method()
             def bar(self):
                 return 'bar'
 
@@ -61,10 +61,14 @@ class RawSchedTests(PavTestCase):
             def _in_alloc(self):
                 return self.in_alloc_var
 
-        test = PavTest(self.pav_cfg, {
-            'name': 'sched-vars',
-            'scheduler': 'dummy'
-        })
+        test = PavTest(
+            self.pav_cfg,
+            {
+                'name': 'sched-vars',
+                'scheduler': 'dummy'
+            },
+            sys_vars={}
+        )
 
         dummy_sched = DummySched()
 

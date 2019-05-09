@@ -2,8 +2,8 @@ from pavilion import scriptcomposer
 from pavilion.schedulers import SchedulerPlugin
 from pavilion.schedulers import SchedulerPluginError
 from pavilion.schedulers import SchedulerVariables
-from pavilion.schedulers import dfr_sched_var
-from pavilion.schedulers import sched_var
+from pavilion.schedulers import dfr_var_method
+from pavilion.var_dict import var_method
 import os
 import yaml_config as yc
 import re
@@ -41,32 +41,32 @@ class SbatchHeader(scriptcomposer.ScriptHeader):
 
 
 class SlurmVars(SchedulerVariables):
-    @sched_var
+    @var_method
     def min_ppn(self):
         """The minimum processors per node across all nodes."""
         return self.sched_data['min_ppn']
 
-    @sched_var
+    @var_method
     def max_ppn(self):
         """The maximum processors per node across all nodes."""
         return self.sched_data['max_ppn']
 
-    @sched_var
+    @var_method
     def min_mem(self):
         """The minimum memory per node across all nodes (in MiB)."""
         return self.sched_data['min_ppn']
 
-    @sched_var
+    @var_method
     def max_mem(self):
         """The maximum memory per node across all nodes (in MiB)."""
 
 
-    @dfr_sched_var
+    @dfr_var_method
     def alloc_nodes(self):
         """The number of nodes in this allocation."""
         return os.getenv('SLURM_NNODES')
 
-    @dfr_sched_var
+    @dfr_var_method
     def alloc_node_list(self):
         """A space separated list of nodes in this allocation."""
         final_list = []
@@ -97,32 +97,32 @@ class SlurmVars(SchedulerVariables):
         # a space separated string.
         return ' '.join(final_list)
 
-    @dfr_sched_var
+    @dfr_var_method
     def alloc_min_ppn(self):
         """Min ppn for this allocation."""
         return self.sched_data['alloc_summary']['min_ppn']
 
-    @dfr_sched_var
+    @dfr_var_method
     def alloc_max_ppn(self):
         """Max ppn for this allocation."""
         return self.sched_data['alloc_summary']['max_ppn']
 
-    @dfr_sched_var
+    @dfr_var_method
     def alloc_min_mem(self):
         """Min mem per node for this allocation. (in MiB)"""
         return self.sched_data['alloc_summary']['min_mem']
 
-    @dfr_sched_var
+    @dfr_var_method
     def alloc_max_mem(self):
         """Max mem per node for this allocation. (in MiB)"""
         return self.sched_data['alloc_summary']['max_mem']
 
-    @dfr_sched_var
+    @dfr_var_method
     def alloc_cpu_total(self):
         """Total CPUs across all nodes in this allocation."""
         return self.sched_data['alloc_summary']['total_cpu']
 
-    @dfr_sched_var
+    @dfr_var_method
     def test_nodes(self):
         """The number of nodes allocated for this test (may be less than the
         total in this allocation)."""
@@ -136,7 +136,7 @@ class SlurmVars(SchedulerVariables):
         else:
             return nmax
 
-    @dfr_sched_var
+    @dfr_var_method
     def test_procs(self):
         """The number of processors to request for this test."""
 
@@ -146,7 +146,7 @@ class SlurmVars(SchedulerVariables):
         biggest_nodes = alloc_nodes[:int(self.test_nodes)]
         return sum([n['CPUTot'] for n in biggest_nodes])
 
-    @dfr_sched_var
+    @dfr_var_method
     def test_cmd(self):
         """Construct a cmd to run a process under this scheduler, with the
         criteria specified by this test.
@@ -180,7 +180,7 @@ class Slurm(SchedulerPlugin):
 
         self.node_data = None
 
-    def get_conf(self):
+    def _get_conf(self):
         return yc.KeyedElem(
             self.name,
             help_text="Configuration for the Slurm scheduler.",
@@ -401,7 +401,7 @@ class Slurm(SchedulerPlugin):
 
         return 'SLURM_JOBID' in os.environ
 
-    def schedule(self, script_path, output_path):
+    def _schedule(self, script_path, output_path):
         """Submit the kick off script using sbatch."""
 
         if os.path.isfile(script_path):
