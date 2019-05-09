@@ -1,0 +1,9 @@
+[Core]
+Name = Run Internal Command
+Module = _run
+
+[Documentation]
+Description = Run a specific, prepped test.
+Author = Nicholas Sly/Paul Ferrell
+Version = 1.0
+Website =

@@ -128,7 +128,7 @@ class PluginTests(PavTestCase):
             elif line[:11] == 'VERSION_ID=':
                 host_os['Version'] = line[11:].strip().strip('"')
 
-        sys_vars = system_variables.get_system_plugin_dict(defer=False)
+        sys_vars = system_variables.get_vars(defer=False)
 
         self.assertFalse('sys_arch' in sys_vars)
         self.assertEqual(host_arch, sys_vars['sys_arch'])
@@ -170,7 +170,7 @@ class PluginTests(PavTestCase):
         # but these are back
         self.assertIsNotNone(system_variables._LOADED_PLUGINS)
 
-        sys_vars = system_variables.get_system_plugin_dict(defer=True)
+        sys_vars = system_variables.get_vars(defer=True)
 
         self.assertTrue(len(system_variables._SYS_VAR_DICT.items()) == 0)
 

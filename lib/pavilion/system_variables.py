@@ -52,7 +52,7 @@ def __reset():
     _SYS_VAR_DICT = None
 
 
-def get_system_plugin_dict(defer):
+def get_vars(defer):
     """Get the dictionary of system plugins.
     :param bool defer: Whether the deferable plugins should be deferred.
     :rtype: dict

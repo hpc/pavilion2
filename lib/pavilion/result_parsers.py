@@ -15,7 +15,10 @@ _RESULT_PARSERS = {}
 
 def get_plugin(name):
     """Get the result plugin parser called name.
-    :param str name: The name of the result parser plugin to return."""
+    :param str name: The name of the result parser plugin to return.
+    :rtype: ResultParser
+
+    """
 
     return _RESULT_PARSERS[name]
 
@@ -38,6 +41,12 @@ def __reset():
 
 class ResultParserError(RuntimeError):
     pass
+
+
+# These are the base result constants
+PASS = 'PASS'
+FAIL = 'FAIL'
+ERROR = 'ERROR'
 
 
 class ResultParser(IPlugin.IPlugin):
@@ -97,6 +106,8 @@ class ResultParser(IPlugin.IPlugin):
 
         self._check_args(test, **args)
 
+    KEY_REGEX_STR = r'^[a-z0-9_-]+$'
+
     def get_config_items(self):
         """Get the config for this result parser. This should be a list of
         yaml_config.ConfigElement instances that will be added to the test
@@ -122,9 +133,10 @@ class ResultParser(IPlugin.IPlugin):
         """
 
         return [
-            yc.StrElem("key", required=True,
-                       help_text="The key value in the result json for this"
-                                 "result component."),
+            yc.RegexElem("key", required=True,
+                         regex=self.KEY_REGEX_STR,
+                         help_text="The key value in the result json for this"
+                                   "result component."),
             # The default for the file is handled by the test object.
             yc.StrElem("file", default=None,
                        help_text="Path to the file that this result parser "
@@ -146,6 +158,7 @@ class ResultParser(IPlugin.IPlugin):
     def activate(self):
 
         config_items = self.get_config_items()
+
         format.TestConfigLoader.add_result_parser_config(self.name,
                                                          config_items)
 
