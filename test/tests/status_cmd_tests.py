@@ -76,7 +76,10 @@ class StatusTests(PavTestCase):
 
         configs = [config1, config2, config3]
 
-        tests = [pavtest.PavTest(self.pav_cfg, test) for test in configs]
+        sys_vars = system_variables.get_vars()
+
+        tests = [pavtest.PavTest(self.pav_cfg, test, sys_vars=sys_vars)
+                 for test in configs]
 
         for test in tests:
             test.RUN_SILENT_TIMEOUT = 1

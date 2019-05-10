@@ -54,7 +54,7 @@ class StatusCommand(commands.Command):
         for test_id in test_list:
             status_f = None
             try:
-                pav_test = pavtest.PavTest.from_id(pav_config, int(test_id))
+                pav_test = pavtest.PavTest.load(pav_config, int(test_id))
             except pavtest.PavTestError or pavtest.PavTestNotFoundError as err:
                 print("Test {} could not be opened.\n{}".format(test_id, err))
             status_f = status_file.StatusFile(pav_test.status.path).current()
