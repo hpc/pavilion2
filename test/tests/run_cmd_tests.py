@@ -50,14 +50,14 @@ class PavTestTests(PavTestCase):
 
         args = arg_parser.parse_args([
             'run',
-            #'-h', 'this',
+            '-H', 'this',
             'hello_world.world',
             'hello_world.narf'
         ])
 
         run_cmd = commands.get_command(args.command_name)
 
-        run_cmd.run(self.pav_cfg, args)
+        self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
 
 
 

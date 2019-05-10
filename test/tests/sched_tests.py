@@ -67,7 +67,7 @@ class RawSchedTests(PavTestCase):
                 'name': 'sched-vars',
                 'scheduler': 'dummy'
             },
-            sys_vars={}
+            {}
         )
 
         dummy_sched = DummySched()
