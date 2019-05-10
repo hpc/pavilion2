@@ -40,7 +40,6 @@ class PavTestTests(PavTestCase):
                                    [],
                                    {})
 
-        self._cprint(tests)
         self.assertEqual(tests['raw'][0].name, 'world')
         self.assertEqual(tests['dummy'][0].name, 'narf')
 

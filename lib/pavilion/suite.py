@@ -121,7 +121,7 @@ class Suite:
 
         user_pav_dir = Path(os.path.expanduser('~/.pavilion'))
         last_suite_fn = user_pav_dir/'last_suite'
-        if not os.path.exists(last_suite_fn):
+        if not last_suite_fn.exists():
             return None
         try:
             with last_suite_fn.open() as last_suite_file:
