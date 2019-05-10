@@ -1,5 +1,6 @@
 from pavilion import commands
 from pavilion import pavtest
+from pavilion import schedulers
 from pavilion import status_file
 from pavilion import utils
 from pavilion import suite
@@ -58,6 +59,10 @@ class StatusCommand(commands.Command):
             except pavtest.PavTestError or pavtest.PavTestNotFoundError as err:
                 print("Test {} could not be opened.\n{}".format(test_id, err))
             status_f = status_file.StatusFile(pav_test.status.path).current()
+
+            if status_f.state == 'SCHEDULED':
+                status_f = schedulers.get_scheduler(pav_test.scheduler)\
+                               .check_job(pav_cfg, pav_test)
 
             test_statuses.append({
                 'test_id': test_id,
