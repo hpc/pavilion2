@@ -18,8 +18,8 @@ class HostOS(system_plugins.SystemPlugin):
 
         for line in rlines:
             if line[:3] == 'ID=':
-                os['ID'] = line[3:].strip().strip('"')
+                os['id'] = line[3:].strip().strip('"')
             elif line[:11] == 'VERSION_ID=':
-                os['Version'] = line[11:].strip().strip('"')
+                os['version'] = line[11:].strip().strip('"')
 
         return os

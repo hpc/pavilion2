@@ -8,7 +8,6 @@ from pavilion import system_variables
 from pavilion.test_config import variables
 from pavilion.unittest import PavTestCase
 import logging
-import os
 import subprocess
 
 LOGGER = logging.getLogger(__name__)
@@ -124,9 +123,9 @@ class PluginTests(PavTestCase):
         host_os = {}
         for line in rlines:
             if line[:3] == 'ID=':
-                host_os['ID'] = line[3:].strip().strip('"')
+                host_os['id'] = line[3:].strip().strip('"')
             elif line[:11] == 'VERSION_ID=':
-                host_os['Version'] = line[11:].strip().strip('"')
+                host_os['version'] = line[11:].strip().strip('"')
 
         sys_vars = system_variables.get_vars(defer=False)
 
@@ -139,9 +138,9 @@ class PluginTests(PavTestCase):
         self.assertTrue('sys_name' in sys_vars)
 
         self.assertFalse('sys_os' in sys_vars)
-        self.assertEqual(host_os['ID'], sys_vars['sys_os']['ID'])
-        self.assertEqual(host_os['Version'],
-                         sys_vars['sys_os']['Version'])
+        self.assertEqual(host_os['id'], sys_vars['sys_os']['id'])
+        self.assertEqual(host_os['version'],
+                         sys_vars['sys_os']['version'])
         self.assertTrue('sys_os' in sys_vars)
 
         self.assertFalse('host_arch' in sys_vars)
@@ -153,9 +152,9 @@ class PluginTests(PavTestCase):
         self.assertTrue('host_name' in sys_vars)
 
         self.assertFalse('host_os' in sys_vars)
-        self.assertEqual(host_os['ID'], sys_vars['host_os']['ID'])
-        self.assertEqual(host_os['Version'],
-                         sys_vars['host_os']['Version'])
+        self.assertEqual(host_os['id'], sys_vars['host_os']['id'])
+        self.assertEqual(host_os['version'],
+                         sys_vars['host_os']['version'])
         self.assertTrue('host_os' in sys_vars)
 
         # Re-initialize the plugin system.

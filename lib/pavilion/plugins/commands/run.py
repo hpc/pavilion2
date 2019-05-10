@@ -192,8 +192,7 @@ class RunCommand(commands.Command):
                 msg = "Could not read test file {}: {}".format(file, err)
                 self.logger.error(msg)
                 raise commands.CommandError(msg)
-        from pavilion.utils import cprint
-        cprint(pav_cfg, host, modes, tests)
+
         raw_tests = test_config.load_test_configs(pav_cfg, host, modes,
                                                   tests)
         raw_tests_by_sched = defaultdict(lambda: [])
