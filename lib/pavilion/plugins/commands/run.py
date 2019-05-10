@@ -7,6 +7,7 @@ from pavilion.suite import Suite
 from pavilion.test_config.string_parser import ResolveError
 from pavilion.pavtest import PavTest
 from pavilion import system_variables
+import errno
 import sys
 import time
 
@@ -71,6 +72,16 @@ class RunCommand(commands.Command):
         #   - Compile variables.
         #
 
+        overrides = {}
+        for ovr in args.overrides:
+            if '=' not in ovr:
+                print("Invalid override value. Must be in the form: "
+                      "<key>=<value>. Ex. -c run.modules=['gcc'] ")
+                return errno.EINVAL
+
+            key, value = ovr.split('=', 1)
+            overrides[key] = value
+
         try:
             test_configs = self._get_tests(pav_cfg,
                                            args.host,
@@ -80,25 +91,24 @@ class RunCommand(commands.Command):
                                            args.overrides)
         except test_config.TestConfigError as err:
             print(err, file=sys.stderr)
-            return 1
+            return errno.EINVAL
 
         all_tests = sum(test_configs.values(), [])
 
         if not all_tests:
             print("You must specify at least one test.", file=sys.stderr)
-            return 1
+            return errno.EINVAL
 
         suite = Suite(pav_cfg, all_tests)
 
         # Building any tests that specify that they should be built before
-        #
         for test in all_tests:
             if test.config['build']['on_nodes'] not in ['true', 'True']:
                 if not test.build():
                     print("Error building test: status {status.state} "
                           "- {status.note}"
                           .format(status=test.status))
-                    return 1
+                    return errno.EINVAL
 
         for sched_name, tests in test_configs.items():
             sched = schedulers.get_scheduler_plugin(sched_name)
@@ -113,7 +123,8 @@ class RunCommand(commands.Command):
                 for sched_name, tests in test_configs.items():
                     sched = schedulers.get_scheduler_plugin(sched_name)
                     for test in tests:
-                        status = sched.check_job(pav_cfg, test.jobid)
+                        status = sched.check_job(pav_cfg, test)
+                        # TODO: Fix this!
                         if status in (sched.JOB_COMPLETE, sched.JOB_RUNNING):
                             wait_result = True
                             break
@@ -154,6 +165,8 @@ class RunCommand(commands.Command):
                 'tests': rows,
             }
             utils.json_dump(json_data, sys.stdout)
+
+        return 0
 
     def _get_tests(self, pav_cfg, host, test_files, tests, modes, overrides):
         """Translate a general set of pavilion test configs into the final,
@@ -256,7 +269,7 @@ class RunCommand(commands.Command):
                     self.logger.error(msg)
                     raise commands.CommandError(msg)
 
-                test = PavTest(pav_cfg, resolved_config, sys_vars=sys_vars)
+                test = PavTest(pav_cfg, resolved_config, sys_vars)
 
                 tests_by_scheduler[sched.name].append(test)
 

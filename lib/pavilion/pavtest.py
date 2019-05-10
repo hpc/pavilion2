@@ -61,14 +61,18 @@ class PavTest:
 
     LOGGER = logging.getLogger('pav.PavTest')
 
-    def __init__(self, pav_cfg, config, test_id=None, sys_vars=None):
+    def __init__(self, pav_cfg, config, sys_vars, _id=None):
         """Create an new PavTest object. If loading an existing test instance,
         use the PavTest.from_id method.
         :param pav_cfg: The pavilion configuration.
         :param config: The test configuration dictionary.
-        :param test_id: The test id (for an existing test).
-        :param dict sys_vars: System variables.
+        :param Union(dict, None) sys_vars: System variables.
+        :param _id: The test id of an existing test. (You should be using
+            PavTest.load).
         """
+
+        if _id is None and sys_vars is None:
+            raise RuntimeError("New PavTest objects require a sys_vars dict. ")
 
         # Just about every method needs this
         self._pav_cfg = pav_cfg
@@ -86,11 +90,11 @@ class PavTest:
         self.config = config
 
         # Get an id for the test, if we weren't given one.
-        if test_id is None:
+        if _id is None:
             self.id, self.path = utils.create_id_dir(tests_path)
             self._save_config()
         else:
-            self.id = test_id
+            self.id = _id
             self.path = utils.make_id_path(tests_path, self.id)
             if not self.path.is_dir():
                 raise PavTestNotFoundError(
@@ -148,8 +152,11 @@ class PavTest:
         self.status.set(STATES.CREATED, "Test directory setup complete.")
 
     @classmethod
-    def from_id(cls, pav_cfg, test_id):
-        """Load a new PavTest object based on id."""
+    def load(cls, pav_cfg, test_id):
+        """Load an old PavTest object given a test id.
+        :param pav_cfg: The pavilion config
+        :param int test_id: The test's id number.
+        """
 
         path = utils.make_id_path(pav_cfg.working_dir/'tests', test_id)
 
@@ -160,7 +167,7 @@ class PavTest:
 
         config = cls._load_config(path)
 
-        return PavTest(pav_cfg, config, test_id=test_id)
+        return PavTest(pav_cfg, config, None, _id=test_id)
 
     def run_cmd(self):
         """Construct a shell command that would cause pavilion to run this
