@@ -26,7 +26,7 @@ class _RunCommand(commands.Command):
         """Load and run an already prepped test in the current environment."""
 
         try:
-            test = PavTest.from_id(pav_cfg, args.test_id)
+            test = PavTest.load(pav_cfg, args.test_id)
         except PavTestError as err:
             self.logger.error("Error loading test '{}': {}"
                               .format(args.test_id, err))

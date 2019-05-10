@@ -86,7 +86,7 @@ class Suite:
                     )
                     continue
 
-                tests.append(PavTest.from_id(pav_cfg, test_id=test_id))
+                tests.append(PavTest.load(pav_cfg, test_id=test_id))
             else:
                 logger.info(
                     "Polluted suite directory in suite '{}'".format(suite_path)

@@ -47,7 +47,7 @@ class RawSchedTests(PavTestCase):
         self.test = PavTest(
             self.pav_cfg,
             cfg,
-            sys_vars={}
+            {}
         )
 
     def tearDown(self):
@@ -94,7 +94,7 @@ class RawSchedTests(PavTestCase):
         test = PavTest(
             self.pav_cfg,
             cfg,
-            sys_vars={}
+            {}
         )
 
         test.status.set('SCHEDULED', 'but not really')

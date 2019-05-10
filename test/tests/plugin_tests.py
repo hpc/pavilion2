@@ -204,7 +204,4 @@ class PluginTests(PavTestCase):
 
         plugins._reset_plugins()
 
-        #TODO: Write more extensive tests.
-
-
-
+        # TODO: Write more extensive tests.
