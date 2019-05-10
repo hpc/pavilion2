@@ -142,7 +142,7 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
                       "command."),
         yc.StrElem(
             "log_format",
-            default="{asctime}, {levelname}, {name}: {message}",
+            default="{asctime}, {levelname}, {hostname}, {name}: {message}",
             help_text="The log format to use for the pavilion logger. "
                       "Uses the modern '{' format style. See: "
                       "https://docs.python.org/3/library/logging.html#"

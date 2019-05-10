@@ -117,7 +117,7 @@ class Raw(SchedulerPlugin):
             'meminfo': meminfo
         }
 
-    def check_job(self, pav_cfg, test):
+    def job_status(self, pav_cfg, test):
         """Raw jobs will either be scheduled (waiting on a concurrency
         lock), or in an unknown state (as there aren't records of dead jobs).
         :rtype: StatusInfo

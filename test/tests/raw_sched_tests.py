@@ -108,25 +108,25 @@ class RawSchedTests(PavTestCase):
 
         # Make a test from another host.
         test.job_id = 'garbledhostnameasldfkjasd_{}'.format(os.getpid())
-        status = raw.check_job(self.pav_cfg, test)
+        status = raw.job_status(self.pav_cfg, test)
         self.assertEqual(status.state, STATES.SCHEDULED)
 
         # Make a test with a non-existent pid.
         test.job_id = '{}_{}'.format(hostname, max_pid + 1)
-        status = raw.check_job(self.pav_cfg, test)
+        status = raw.job_status(self.pav_cfg, test)
         self.assertEqual(status.state, STATES.SCHED_ERROR)
 
         # Check the 'race condition' case of check_job
         test.status.set(STATES.COMPLETE, 'not really this either.')
-        status = raw.check_job(self.pav_cfg, test)
+        status = raw.job_status(self.pav_cfg, test)
         self.assertEqual(status.state, STATES.COMPLETE)
         test.status.set(STATES.SCHEDULED, "reseting.")
 
         # Make a test with a re-used pid.
         test.job_id = '{}_{}'.format(hostname, os.getpid())
-        status = raw.check_job(self.pav_cfg, test)
+        status = raw.job_status(self.pav_cfg, test)
         self.assertEqual(status.state, STATES.SCHED_ERROR)
 
         raw.schedule_test(self.pav_cfg, test)
-        status = raw.check_job(self.pav_cfg, test)
+        status = raw.job_status(self.pav_cfg, test)
         self.assertEqual(status.state, STATES.SCHEDULED)

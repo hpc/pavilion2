@@ -3,6 +3,7 @@ from pavilion import commands
 from pavilion import schedulers
 from pavilion import test_config
 from pavilion import utils
+from pavilion.status_file import STATES
 from pavilion.suite import Suite
 from pavilion.test_config.string_parser import ResolveError
 from pavilion.pavtest import PavTest
@@ -88,7 +89,7 @@ class RunCommand(commands.Command):
                                            args.files,
                                            args.tests,
                                            args.modes,
-                                           args.overrides)
+                                           overrides)
         except test_config.TestConfigError as err:
             print(err, file=sys.stderr)
             return errno.EINVAL
@@ -115,6 +116,9 @@ class RunCommand(commands.Command):
 
             sched.schedule_tests(pav_cfg, tests)
 
+        # Tests should all be scheduled now, and have the SCHEDULED state
+        # (at some point, at least). Wait until something isn't scheduled
+        # anymore (either running or dead), or our timeout expires.
         wait_result = None
         if args.wait is not None:
             end_time = time.time() + args.wait
@@ -123,16 +127,15 @@ class RunCommand(commands.Command):
                 for sched_name, tests in test_configs.items():
                     sched = schedulers.get_scheduler_plugin(sched_name)
                     for test in tests:
-                        status = sched.check_job(pav_cfg, test)
-                        # TODO: Fix this!
-                        if status in (sched.JOB_COMPLETE, sched.JOB_RUNNING):
-                            wait_result = True
-                            break
-                        elif status == sched.JOB_FAILED:
-                            wait_result = False
+                        status = test.status.current()
+                        if status == STATES.SCHEDULED:
+                            status = sched.job_status(pav_cfg, test)
+
+                        if status != STATES.SCHEDULED:
+                            # The test has moved past the scheduled state.
+                            wait_result = None
                             break
 
-                    if wait_result is not None:
                         break
 
                 if wait_result is None:
@@ -140,31 +143,10 @@ class RunCommand(commands.Command):
                     # we spent checking our jobs.
                     time.sleep(self.SLEEP_INTERVAL - (time.time() - last_time))
 
-        rows = []
-        for sched_name, tests in test_configs:
-            sched = schedulers.get_scheduler_plugin(sched_name)
-            for test in tests:
-                test_info = {
-                    'id': test.id,
-                    'name': test.name,
-                    'jobid': test.jobid,
-                    'scheduler': sched_name,
-                    'sched_status': sched.check_job(pav_cfg, test.jobid),
-                    'status': tests.status.current().state,
-                }
-                rows.append(test_info)
+        print("{} tests started under as test series {}."
+              .format(len(all_tests), suite.id))
 
-        if not args.json:
-            cols = ['id', 'name', 'scheduler', 'jobid', 'sched_status',
-                    'status']
-            utils.draw_table(sys.stdout, {}, cols, rows,
-                             title="Tests for suite ${}".format(suite.id))
-        else:
-            json_data = {
-                'suite': suite.id,
-                'tests': rows,
-            }
-            utils.json_dump(json_data, sys.stdout)
+        # TODO: Call pav status on the series.
 
         return 0
 
@@ -190,8 +172,6 @@ class RunCommand(commands.Command):
         # Use the sys_host if a host isn't specified.
         if host is None:
             host = sys_vars.get('sys_host')
-        #TODO - try with None
-        print('host', host)
 
         tests = list(tests)
         for file in test_files:

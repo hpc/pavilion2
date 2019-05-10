@@ -391,3 +391,5 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
         # We may get a broken pipe, especially when the output is piped to
         # something like head. It's ok, just move along.
         pass
+
+
