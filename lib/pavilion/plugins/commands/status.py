@@ -79,3 +79,6 @@ class StatusCommand(commands.Command):
             utils.draw_table(sys.stdout, {}, cols, test_statuses,
                              title='Test statuses')
         return 0
+
+        def __repr__(self):
+            return str(self)

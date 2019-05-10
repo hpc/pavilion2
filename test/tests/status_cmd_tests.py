@@ -1,6 +1,8 @@
 from pavilion import commands
 from pavilion import plugins
 from pavilion import pavtest
+from pavilion import schedulers
+from pavilion import status_file
 from pavilion import system_variables
 from pavilion.suite import Suite
 from pavilion.test_config import format
@@ -79,7 +81,7 @@ class StatusTests(PavTestCase):
 
         sys_vars = system_variables.get_vars(False)
 
-        tests = [pavtest.PavTest(self.pav_cfg, test, sys_vars=sys_vars)
+        tests = [pavtest.PavTest(self.pav_cfg, test, sys_vars)
                  for test in configs]
 
         for test in tests:
@@ -122,3 +124,45 @@ class StatusTests(PavTestCase):
         arg_list = test_str.split()
         args = parser.parse_args(arg_list)
         self.assertEqual(status_cmd.run(self.pav_cfg, args),0)
+
+    def test_status_command_with_sched(self):
+        """Test status command when test is 'SCHEDULED'."""
+
+
+        class DummySched(schedulers.SchedulerPlugin):
+
+            def __init__(self):
+                super().__init__('dummy')
+
+            def check_job(self, pav_cfg, test):
+                return status_file.StatusInfo(when=None,
+                                              state='WINNING',
+                                              note='Lost')
+
+        test = format.TestConfigLoader().validate({
+            'scheduler': 'testytest',
+            'run': {
+                'env': {
+                    'foo': 'bar',
+                },
+                'cmds': ['sleep 10'],
+            },
+        })
+
+        test['name'] = 'run_test0'
+
+        sys_vars = system_variables.get_vars(False)
+
+        test = pavtest.PavTest(self.pav_cfg, test, sys_vars)
+
+        test.status.set(status_file.STATES.SCHEDULED, "faker")
+
+        status_cmd = commands.get_command('status')
+
+        parser = argparse.ArgumentParser()
+        status_cmd._setup_arguments(parser)
+        args = parser.parse_args([str(test.id)])
+        self.assertEqual(status_cmd.run(self.pav_cfg, args),0)
+
+        for status in test.status.history():
+            print(status.state)
