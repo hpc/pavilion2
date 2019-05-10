@@ -103,6 +103,9 @@ class StatusInfo:
     def __str__(self):
         return 'Status: {s.when} {s.state} {s.note}'.format(s=self)
 
+    def __repr__(self):
+        return 'StatusInfo({s.when}, {s.state}, {s.note})'.format(s=self)
+
 
 class StatusFile:
     """The wraps the status file that is used in each test, and manages the
@@ -135,7 +138,7 @@ class StatusFile:
 
         if not self.path.is_file():
             # Make sure we can open the file, and create it if it doesn't exist.
-            self.set(STATES.CREATED, '')
+            self.set(STATES.CREATED, 'Created status file.')
 
         self._cached_current = None
         self._cached_current_touched = {

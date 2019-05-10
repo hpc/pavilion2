@@ -108,8 +108,9 @@ class PavTest:
 
         # Setup the initial status file.
         self.status = StatusFile(self.path/'status')
-        self.status.set(STATES.CREATED,
-                        "Test directory and status file created.")
+        if _id is None:
+            self.status.set(STATES.CREATED,
+                            "Test directory and status file created.")
 
         self._started = None
         self._finished = None
@@ -149,7 +150,8 @@ class PavTest:
             self.run_tmpl_path = None
             self.run_script_path = None
 
-        self.status.set(STATES.CREATED, "Test directory setup complete.")
+        if _id is None:
+            self.status.set(STATES.CREATED, "Test directory setup complete.")
 
     @classmethod
     def load(cls, pav_cfg, test_id):

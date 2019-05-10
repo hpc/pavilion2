@@ -129,7 +129,7 @@ class RunCommand(commands.Command):
                     for test in tests:
                         status = test.status.current()
                         if status == STATES.SCHEDULED:
-                            status = sched.check_job(pav_cfg, test)
+                            status = sched.job_status(pav_cfg, test)
 
                         if status != STATES.SCHEDULED:
                             # The test has moved past the scheduled state.

@@ -23,7 +23,7 @@ class Dummy(schedulers.SchedulerPlugin):
 
         return ""
 
-    def check_job(self, pav_cfg, test):
+    def job_status(self, pav_cfg, test):
         """Dummy jobs are always ok, because they're dumb."""
         if test.status.current().state == STATES.SCHEDULED:
             test.status.set(STATES.COMPLETE, "I'm done, dummy.")
