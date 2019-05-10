@@ -9,6 +9,7 @@ import os
 import yaml_config as yc
 import re
 import subprocess
+from pathlib import Path
 
 from pavilion.utils import cprint
 
@@ -25,7 +26,7 @@ class SbatchHeader(scriptcomposer.ScriptHeader):
         lines = super().get_lines()
 
         lines.append(
-            '#SBATCH --job_name "pav test #{s._test_id}"'
+            '#SBATCH --job-name "pav test #{s._test_id}"'
             .format(s=self))
         lines.append('#SBATCH -p {s._conf[partition]}'.format(s=self))
         if self._conf.get('reservation') is not None:
@@ -36,9 +37,10 @@ class SbatchHeader(scriptcomposer.ScriptHeader):
         if self._conf.get('account') is not None:
             lines.append('#SBATCH --account {s._conf[account]}'.format(s=self))
 
-        lines.append('#SBATCH -N {s.nodes}'.format(s=self))
+        lines.append('#SBATCH -N {s._nodes}'.format(s=self))
         lines.append('#SBATCH --tasks-per-node={s._conf['
                      'tasks_per_node]}'.format(s=self))
+        #if self._conf.get('time_limit') is not None:
         lines.append('#SBATCH -t {s._conf[time_limit]}'.format(s=self))
 
         return lines
@@ -48,27 +50,29 @@ class SlurmVars(SchedulerVariables):
     @var_method
     def min_ppn(self):
         """The minimum processors per node across all nodes."""
-        return self.sched_data['min_ppn']
+        return self.sched_data['summary']['min_ppn']
 
     @var_method
     def max_ppn(self):
         """The maximum processors per node across all nodes."""
-        return self.sched_data['max_ppn']
+        return self.sched_data['summary']['max_ppn']
 
     @var_method
     def min_mem(self):
         """The minimum memory per node across all nodes (in MiB)."""
 
-        return self.sched_data['min_ppn']
+        return self.sched_data['summary']['min_mem']
 
     @var_method
     def max_mem(self):
         """The maximum memory per node across all nodes (in MiB)."""
 
+        return self.sched_data['summary']['max_mem']
+
     @dfr_var_method
     def alloc_nodes(self):
         """The number of nodes in this allocation."""
-        return os.ysetenv('SLURM_NNODES')
+        return os.getenv('SLURM_NNODES')
 
     @dfr_var_method
     def alloc_node_list(self):
@@ -356,7 +360,7 @@ class Slurm(SchedulerPlugin):
 
         :param int min_nodes: The minimum number of nodes desired. This will
         :param dict config: The scheduler config for a test.
-        :param [dict] nodes: Nodes (as defined by collect node data)
+        :param [list] nodes: Nodes (as defined by collect node data)
         :returns: A list of node names that are compatible with the given
         config.
         :rtype: list
@@ -408,16 +412,28 @@ class Slurm(SchedulerPlugin):
 
         return 'SLURM_JOBID' in os.environ
 
-    def _schedule(self, script_path, output_path):
-        """Submit the kick off script using sbatch."""
+    def _schedule(self, test, kickoff_path):
+        """Submit the kick off script using sbatch.
+        :param PavTest test: The PavTest we're kicking off.
+        :param Path kickoff_path: The kickoff script path.
+        """
 
-        if os.path.isfile(script_path):
-            job_id = subprocess.check_output(['sbatch', script_path])
-            job_id = job_id.decode('UTF-8').strip().split()[-1]
-        else:
+        if not kickoff_path.is_file():
             raise SchedulerPluginError(
-                'Submission script {} not found'.format(script_path))
-        return job_id
+                'Submission script {} not found'.format(kickoff_path))
+
+        proc = subprocess.Popen(['sbatch', kickoff_path.as_posix()],
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE)
+        stdout, stderr = proc.communicate()
+
+        if proc.poll() != 0:
+            raise SchedulerPluginError(
+                "Sbatch failed for kickoff script '{}': {}"
+                .format(kickoff_path, stderr.decode('utf8'))
+            )
+
+        return stdout.decode('UTF-8').strip().split()[-1]
 
     SCONTROL_KEY_RE = re.compile(r'(?:^|\s+)([A-Z][a-zA-Z0-9:/]*)=')
     SCONTROL_WS_RE = re.compile(r'\s+')
@@ -637,13 +653,14 @@ class Slurm(SchedulerPlugin):
         nodes = self.get_data()['nodes']
 
         return SbatchHeader(sched_config,
-                            self._get_node_range(sched_config, nodes),
+                            self._get_node_range(sched_config, nodes.values()),
                             test.id)
 
     def _get_node_range(self, sched_config, nodes):
         """Translate user requests for a number of nodes into a numerical
         range based on the number of nodes on the actual system.
         :param dict sched_config: The scheduler config for a particular test.
+        :param list nodes: A list of nodes.
         :returns: A range suitable for the num_nodes argument of slurm."""
 
         # Figure out the requested number of nodes

@@ -2,7 +2,6 @@ from collections import defaultdict
 from pavilion import commands
 from pavilion import schedulers
 from pavilion import test_config
-from pavilion import utils
 from pavilion.status_file import STATES
 from pavilion.suite import Suite
 from pavilion.test_config.string_parser import ResolveError
@@ -114,7 +113,11 @@ class RunCommand(commands.Command):
         for sched_name, tests in test_configs.items():
             sched = schedulers.get_scheduler_plugin(sched_name)
 
-            sched.schedule_tests(pav_cfg, tests)
+            try:
+                sched.schedule_tests(pav_cfg, tests)
+            except schedulers.SchedulerPluginError as err:
+                print(err)
+                self._cancel_all(test_configs)
 
         # Tests should all be scheduled now, and have the SCHEDULED state
         # (at some point, at least). Wait until something isn't scheduled
@@ -254,3 +257,11 @@ class RunCommand(commands.Command):
                 tests_by_scheduler[sched.name].append(test)
 
         return tests_by_scheduler
+
+    def _cancel_all(self, tests_by_sched):
+        for sched_name, tests in tests_by_sched.items():
+
+            sched = schedulers.get_scheduler_plugin(sched_name)
+
+            for test in tests:
+                sched.cancel_job(test)

@@ -92,6 +92,35 @@ class SlurmTests(PavTestCase):
 
         test = PavTest(self.pav_cfg, cfg, {})
 
-        vars = slurm.get_vars(test)
+        for k, v in slurm.get_vars(test).items():
+            # Make sure everything has a value of some sort.
+            self.assertNotIn(v, ['None', ''])
 
-        self._cprint(vars)
+        # There's not much we can do to automatically test deferred slurm
+        # vars without a dedicated slurm host. Maybe we'll set up such a test
+        # harness eventually.
+
+    @unittest.skipIf(not has_slurm(), "Only runs on a system with slurm.")
+    def test_schedule_test(self):
+        """Try to schedule a test. It doesn't have to run (but it can!) """
+
+        slurm = schedulers.get_scheduler_plugin('slurm')
+
+        cfg = TestConfigLoader().validate({
+            'scheduler': 'slurm',
+            'run': {
+                'cmds': [
+                    'echo "Hello World."'
+                ]
+            },
+            'slurm': {
+                'qos': 'tossdev',
+                'partition': 'tossdev'
+            }
+        })
+        cfg['name'] = 'slurm_test'
+
+        test = PavTest(self.pav_cfg, cfg, {})
+        self._cprint('\n', test.id, test.path)
+
+        slurm.schedule_test(self.pav_cfg, test)
