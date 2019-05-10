@@ -1,6 +1,7 @@
 from pavilion import commands
 from pavilion import plugins
 from pavilion import pavtest
+from pavilion import system_variables
 from pavilion.suite import Suite
 from pavilion.test_config import format
 from pavilion.unittest import PavTestCase
@@ -76,7 +77,7 @@ class StatusTests(PavTestCase):
 
         configs = [config1, config2, config3]
 
-        sys_vars = system_variables.get_vars()
+        sys_vars = system_variables.get_vars(False)
 
         tests = [pavtest.PavTest(self.pav_cfg, test, sys_vars=sys_vars)
                  for test in configs]

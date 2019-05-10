@@ -68,7 +68,7 @@ class StatusCommand(commands.Command):
 
         if args.json:
             json_data = {'statuses': test_statuses}
-            utils.output_json(sys.stdout, json_data)
+            utils.json_dump(json_data, sys.stdout)
         else:
             cols = ['test_id', 'state', 'time', 'note']
             utils.draw_table(sys.stdout, {}, cols, test_statuses,
