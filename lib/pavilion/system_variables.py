@@ -52,7 +52,7 @@ def __reset():
     _SYS_VAR_DICT = None
 
 
-def get_system_plugin_dict(defer):
+def get_vars(defer):
     """Get the dictionary of system plugins.
     :param bool defer: Whether the deferable plugins should be deferred.
     :rtype: dict
@@ -109,20 +109,9 @@ class SystemPlugin(IPlugin.IPlugin):
         if defer and self.is_deferable:
             return variables.DeferredVariable(self.name, var_set='sys',
                                               sub_keys=self.sub_keys)
-        elif defer and not self.is_deferable:
-            raise SystemPluginError(
-                "Deferred variable '{}' was requested but is not deferrable."
-                .format(self.name)
-            )
-        elif self.values is None:
-            self.values = {}
-            if len(self.sub_keys) == 0:
-                self.sub_keys = [None]
-            for key in self.sub_keys:
-                self.values[key] = None
-            self._get()
-            if list(self.values.keys()) == [None]:
-                self.values = self.values[None]
+
+        if self.values is None:
+            self.values = self._get()
 
         return self.values
 

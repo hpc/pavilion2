@@ -1,0 +1,7 @@
+# This is for the run command tests 'test_get_test'
+     # Comments are supposed to be ignored
+hello_world.world
+
+# So are empty lines
+
+hello_world.narf

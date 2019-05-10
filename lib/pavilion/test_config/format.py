@@ -75,6 +75,11 @@ class TestConfigLoader(yc.YamlConfigLoader):
                      help_text="The scheduler class to use to run this test."),
         yc.KeyedElem('build', elements=[
             yc.StrElem(
+                'on_nodes', default='False',
+                choices=['true', 'false', 'True', 'False'],
+                help_text="Whether to build on or off of the test allocation."
+            ),
+            yc.StrElem(
                 'source_location',
                 help_text="Path to the test source. It may be a directory, "
                           "a tar file, or a URI. If it's a directory or "

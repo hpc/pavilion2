@@ -1,6 +1,7 @@
 from pavilion import plugins
 from pavilion import commands
 from pavilion.unittest import PavTestCase
+from pavilion import arguments
 
 
 class PavTestTests(PavTestCase):
@@ -30,12 +31,33 @@ class PavTestTests(PavTestCase):
         self.assertEqual(tests['raw'][0].name, 'world')
         self.assertEqual(tests['dummy'][0].name, 'narf')
 
-        tests_file = self.TEST_DATA_ROOT
+        tests_file = self.TEST_DATA_ROOT/'run_test_list'
 
+        tests = run_cmd._get_tests(self.pav_cfg,
+                                   'this',
+                                   [tests_file],
+                                   [],
+                                   [],
+                                   {})
 
+        self._cprint(tests)
+        self.assertEqual(tests['raw'][0].name, 'world')
+        self.assertEqual(tests['dummy'][0].name, 'narf')
 
     def test_run(self):
-        pass
+
+        arg_parser = arguments.get_parser()
+
+        args = arg_parser.parse_args([
+            'run',
+            #'-h', 'this',
+            'hello_world.world',
+            'hello_world.narf'
+        ])
+
+        run_cmd = commands.get_command(args.command_name)
+
+        run_cmd.run(self.pav_cfg, args)
 
 
 

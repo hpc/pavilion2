@@ -78,7 +78,7 @@ def make_id_path(base_path, id_):
     :rtype: Path
     """
 
-    return base_path/ID_FMT.format(id=id_, digits=ID_DIGITS)
+    return base_path/(ID_FMT.format(id=id_, digits=ID_DIGITS))
 
 
 def create_id_dir(id_dir):
@@ -122,18 +122,46 @@ def cprint(*args, color=33, **kwargs):
     return print(*args, **kwargs)
 
 
-def output_json(outfile, context):
-    """Just dump the context out as raw JSON.
-    :param outfile: The file object to write to.
-    :param context: A serializable object containing nothing but serializable
-    objects.
-    :return:
-    """
-    try:
-        json.dump(context, outfile)
-    except IOError:
-        # Handle a broken pipe
-        pass
+class PavEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, Path):
+            return super().default(str(o))
+        else:
+            return super().default(str(o))
+
+
+def json_dumps(obj, skipkeys=False, ensure_ascii=True,
+               check_circular=True, allow_nan=True, indent=None,
+               separators=None, default=None, sort_keys=False, **kw):
+    """Dump data to string as per the json dumps function, but using
+    our custom encoder."""
+    return json.dumps(obj, cls=PavEncoder,
+                      skipkeys=skipkeys,
+                      ensure_ascii=ensure_ascii,
+                      check_circular=check_circular,
+                      allow_nan=allow_nan,
+                      indent=indent,
+                      separators=separators,
+                      default=default,
+                      sort_keys=sort_keys,
+                      **kw)
+
+
+def json_dump(obj, fp, skipkeys=False, ensure_ascii=True,
+              check_circular=True, allow_nan=True, indent=None,
+              separators=None, default=None, sort_keys=False, **kw):
+    """Dump data to string as per the json dumps function, but using
+    our custom encoder."""
+    return json.dump(obj, fp, cls=PavEncoder,
+                     skipkeys=skipkeys,
+                     ensure_ascii=ensure_ascii,
+                     check_circular=check_circular,
+                     allow_nan=allow_nan,
+                     indent=indent,
+                     separators=separators,
+                     default=default,
+                     sort_keys=sort_keys,
+                     **kw)
 
 
 def output_csv(outfile, field_info, fields, rows):

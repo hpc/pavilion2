@@ -1,32 +1,35 @@
 from pathlib import Path
 from pavilion.schedulers import SchedulerPlugin
 from pavilion.schedulers import SchedulerVariables
-from pavilion.schedulers import sched_var
+from pavilion.pav_vars import var_method
+from pavilion.status_file import STATES, StatusInfo
 import socket
 import subprocess
 import yaml_config as yc
+import tzlocal
+import datetime
 
 
 class RawVars(SchedulerVariables):
 
-    @sched_var
+    @var_method
     def cpus(self):
         """Total CPUs (includes hyperthreading cpus)."""
         return self.sched_data['cpus']
 
-    @sched_var
+    @var_method
     def total_mem(self):
         """Total memory in MiB to the nearest MiB."""
 
         return self.mem_to_mib('memtotal')
 
-    @sched_var
+    @var_method
     def avail_mem(self):
         """Available memory in MiB to the nearest MiB."""
 
         return self.mem_to_mib('memavailable')
 
-    @sched_var
+    @var_method
     def free_mem(self):
         """Free memory in MiB to the nearest MiB."""
 
@@ -67,7 +70,7 @@ class Raw(SchedulerPlugin):
     def __init__(self):
         super().__init__('raw')
 
-    def get_conf(self):
+    def _get_conf(self):
         return yc.KeyedElem('raw', elements=[
             yc.StrElem(
                 'concurrent',
@@ -114,61 +117,81 @@ class Raw(SchedulerPlugin):
             'meminfo': meminfo
         }
 
-    def check_job(self, pav_cfg, job_id):
+    def check_job(self, pav_cfg, test):
+        """Raw jobs will either be scheduled (waiting on a concurrency
+        lock), or in an unknown state (as there aren't records of dead jobs).
+        :rtype: StatusInfo
+        """
 
-        result_path = self._job_result_path(pav_cfg, job_id)
-        proc_path = Path('/proc') / job_id
+        host, pid = test.job_id.rsplit('_', 1)
 
-        if proc_path.exists():
-            return self.JOB_RUNNING
-        elif result_path.exists():
-            with result_path.open('r') as result_file:
-                result = result_file.read()
+        now = tzlocal.get_localzone().localize(
+            datetime.datetime.now()
+        )
 
-                if result in (self.JOB_FAILED, self.JOB_COMPLETE):
-                    return result
-                else:
-                    self.logger.warning(
-                        "Bad status in status file '{}' for job '{}': {}"
-                        .format(result_path, job_id, result))
-                    return self.JOB_ERROR
+        local_host = socket.gethostname()
+        if host != local_host:
+            return StatusInfo(
+                when=now,
+                state=STATES.SCHEDULED,
+                note="Can't determine the scheduler status of a 'raw' "
+                     "test started on a different host ({} vs {})."
+                     .format(host, local_host))
 
-        self.logger.warning(
-            "Could not find results or running pid of job id '{}'."
-            .format(job_id))
-        return self.JOB_ERROR
+        cmd_fn = Path('/proc')/pid/'cmdline'
+        cmdline = None
 
-    def schedule(self, test_obj, kickoff_path):
-        """Run the kickoff script at script path with this scheduler.
+        if cmd_fn.exists():
+            try:
+                with cmd_fn.open('rb') as cmd_file:
+                    cmdline = cmd_file.read()
+            except (IOError, OSError):
+                pass
+
+        if cmdline is not None:
+            cmdline = cmdline.replace(b'\x00', b' ').decode('utf8')
+
+            # Make sure we're looking at the same job.
+            if ('kickoff.sh' in cmdline and
+                    '-{}-'.format(test.id) in cmdline):
+                return StatusInfo(
+                    when=now,
+                    state=STATES.SCHEDULED,
+                    note="Process is running, and probably waiting on a "
+                         "concurrency lock.")
+
+        # The command isn't running because it completed, died, or was killed.
+        # Recheck the status file for changes, otherwise call it an error.
+        status = test.status.current()
+        if status.state != STATES.SCHEDULED:
+            return status
+        else:
+            msg = ("Job died or was killed. Check '{}' for more info."
+                   .format(test.path/'kickoff.out'))
+            test.status.set(STATES.SCHED_ERROR, msg)
+            return StatusInfo(
+                when=now,
+                state=STATES.SCHED_ERROR,
+                note=msg)
+
+    def _schedule(self, test_obj, kickoff_path):
+        """Run the kickoff script in a separate process. The job id a
+        combination of the hostname and pid.
         :param pavilion.test_config.PavTest test_obj: The test to schedule.
         :param Path kickoff_path: - Path to the submission script.
-        :return str - Job ID number.
+        :return: '<host>_<pid>'
         """
 
         # Run the submit job script. We don't want to wait for it to finish,
         # just redirect the output to a reasonable place.
-        output_file = (test_obj.path / 'kickoff.out').open('w')
-        proc = subprocess.Popen([str(kickoff_path)],
-                                stdout=output_file,
-                                stderr=output_file)
-        return str(proc.pid)
+        proc = subprocess.Popen([str(kickoff_path),
+                                 # We include the test id as an argument,
+                                 # so we can identify this invocation later
+                                 # via /proc/<jobid>/cmdline.
+                                 '-{}-'.format(test_obj.id)])
+
+        return '{}_{}'.format(socket.gethostname(), proc.pid)
 
     # Use the version of lock_concurrency that actually does something.
     lock_concurrency = SchedulerPlugin._do_lock_concurrency
 
-    @staticmethod
-    def _job_result_path(pav_cfg, id_):
-        """Get the path to the job result file for the given job id.
-        :param pav_cfg: The base pavilion config
-        :param str id_: The job id
-        :return: The job id path
-        :rtype: Path
-        """
-
-        id_dir = pav_cfg.working_dir/'share'/'raw_job_status'
-
-        hostname = socket.gethostname()
-
-        result_file = '{}-()'.format(hostname, id_)
-
-        return id_dir/result_file

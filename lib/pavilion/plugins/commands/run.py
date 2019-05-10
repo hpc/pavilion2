@@ -6,6 +6,7 @@ from pavilion import utils
 from pavilion.suite import Suite
 from pavilion.test_config.string_parser import ResolveError
 from pavilion.pavtest import PavTest
+from pavilion import system_variables
 import sys
 import time
 
@@ -29,7 +30,7 @@ class RunCommand(commands.Command):
             help='Mode configurations to overlay on the host configuration for '
                  'each test. These are overlayed in the order given.')
         parser.add_argument(
-            '-c', dest='config_overrides', action='append', default=[],
+            '-c', dest='overrides', action='append', default=[],
             help='Overrides for specific configuration options. These are '
                  'gathered used as a final set of overrides before the '
                  'configs are resolved. They should take the form '
@@ -60,7 +61,7 @@ class RunCommand(commands.Command):
 
     SLEEP_INTERVAL = 1
 
-    def run(self, pav_config, args):
+    def run(self, pav_cfg, args):
         """Resolve the test configurations into individual tests and assign to
         schedulers. Have those schedulers kick off jobs to run the individual
         tests themselves."""
@@ -71,23 +72,38 @@ class RunCommand(commands.Command):
         #
 
         try:
-            test_configs = self._get_tests(pav_config, args)
+            test_configs = self._get_tests(pav_cfg,
+                                           args.host,
+                                           args.files,
+                                           args.tests,
+                                           args.modes,
+                                           args.overrides)
         except test_config.TestConfigError as err:
-            print(err)
+            print(err, file=sys.stderr)
             return 1
 
         all_tests = sum(test_configs.values(), [])
 
         if not all_tests:
-            print("You must specify at least one test.")
+            print("You must specify at least one test.", file=sys.stderr)
             return 1
 
-        suite = Suite(pav_config, all_tests)
+        suite = Suite(pav_cfg, all_tests)
+
+        # Building any tests that specify that they should be built before
+        #
+        for test in all_tests:
+            if test.config['build']['on_nodes'] not in ['true', 'True']:
+                if not test.build():
+                    print("Error building test: status {status.state} "
+                          "- {status.note}"
+                          .format(status=test.status))
+                    return 1
 
         for sched_name, tests in test_configs.items():
             sched = schedulers.get_scheduler_plugin(sched_name)
 
-            sched.schedule_tests(tests)
+            sched.schedule_tests(pav_cfg, tests)
 
         wait_result = None
         if args.wait is not None:
@@ -97,7 +113,7 @@ class RunCommand(commands.Command):
                 for sched_name, tests in test_configs.items():
                     sched = schedulers.get_scheduler_plugin(sched_name)
                     for test in tests:
-                        status = sched.check_job(test.jobid)
+                        status = sched.check_job(pav_cfg, test.jobid)
                         if status in (sched.JOB_COMPLETE, sched.JOB_RUNNING):
                             wait_result = True
                             break
@@ -122,7 +138,7 @@ class RunCommand(commands.Command):
                     'name': test.name,
                     'jobid': test.jobid,
                     'scheduler': sched_name,
-                    'sched_status': sched.check_job(test.jobid),
+                    'sched_status': sched.check_job(pav_cfg, test.jobid),
                     'status': tests.status.current().state,
                 }
                 rows.append(test_info)
@@ -137,14 +153,14 @@ class RunCommand(commands.Command):
                 'suite': suite.id,
                 'tests': rows,
             }
-            utils.output_json(sys.stdout, json_data)
+            utils.json_dump(json_data, sys.stdout)
 
-    def _get_tests(self, pav_config, host, test_files, tests, modes, overrides):
+    def _get_tests(self, pav_cfg, host, test_files, tests, modes, overrides):
         """Translate a general set of pavilion test configs into the final,
         resolved configuration objects. These objects will be organized in a
         dictionary by scheduler, and have a scheduler object instantiated and
         attached.
-        :param pav_config: The pavilion config
+        :param pav_cfg: The pavilion config
         :param str host: The host config to target these tests with
         :param list(str) modes: The mode configs to use.
         :param list(Path) test_files: Files containing a newline separated
@@ -156,9 +172,13 @@ class RunCommand(commands.Command):
         """
         self.logger.debug("Finding Configs")
 
+        sys_vars = system_variables.get_vars(True)
+
         # Use the sys_host if a host isn't specified.
         if host is None:
-            host = pav_config.sys_vars.get('sys_host')
+            host = sys_vars.get('sys_host')
+        #TODO - try with None
+        print('host', host)
 
         tests = list(tests)
         for file in test_files:
@@ -173,7 +193,8 @@ class RunCommand(commands.Command):
                 self.logger.error(msg)
                 raise commands.CommandError(msg)
 
-        raw_tests = test_config.load_test_configs(pav_config, host, modes, tests)
+        raw_tests = test_config.load_test_configs(pav_cfg, host, modes,
+                                                  tests)
         raw_tests_by_sched = defaultdict(lambda: [])
         tests_by_scheduler = defaultdict(lambda: [])
 
@@ -192,8 +213,8 @@ class RunCommand(commands.Command):
             try:
                 p_cfg, permutes = test_config.resolve_permutations(
                     test_cfg,
-                    pav_config.pav_vars,
-                    pav_config.sys_vars
+                    pav_cfg.pav_vars,
+                    sys_vars
                 )
                 for p_var_man in permutes:
                     sched = p_cfg['scheduler'].resolve(p_var_man)
@@ -235,7 +256,7 @@ class RunCommand(commands.Command):
                     self.logger.error(msg)
                     raise commands.CommandError(msg)
 
-                test = PavTest(pav_config, resolved_config)
+                test = PavTest(pav_cfg, resolved_config, sys_vars=sys_vars)
 
                 tests_by_scheduler[sched.name].append(test)
 

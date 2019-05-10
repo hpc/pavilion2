@@ -83,25 +83,6 @@ def group_validate(_, group):
     return group
 
 
-def log_level_validate(_, level):
-    """Convert a text log level into a level from the logging module, and
-    validate the levels."""
-
-    level = level.lower()
-    if level == 'debug':
-        return logging.DEBUG
-    elif level == 'info':
-        return logging.INFO
-    elif level == 'warning':
-        return logging.WARNING
-    elif level == 'error':
-        return logging.ERROR
-    elif level == 'critical':
-        return logging.CRITICAL
-    else:
-        raise ValueError("Invalid logging level: {}".format(level))
-
-
 # Figure out what directories we'll search for configuration files.
 PAV_CONFIG_SEARCH_DIRS = [Path('./').resolve()]
 
@@ -118,10 +99,13 @@ if 'PAV_CONFIG_DIR' in os.environ:
     try:
         _path = Path(os.environ['PAV_CONFIG_DIR']).resolve()
         PAV_CONFIG_SEARCH_DIRS.append(_path)
-    except FileNotFoundError as err:
+    except FileNotFoundError:
         LOGGER.warning("Invalid path in env var PAV_CONFIG_DIR. Ignoring.")
 
 PAV_ROOT = Path(__file__).resolve().parents[2]
+
+# Use this config file, if it exists.
+PAV_CONFIG_FILE = os.environ.get('PAV_CONFIG_FILE', None)
 
 
 class PavilionConfigLoader(yc.YamlConfigLoader):
@@ -158,12 +142,14 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
                       "command."),
         yc.StrElem(
             "log_format",
-            default="%(asctime), %(levelname), %(name): %(message)",
-            help_text="The log format to use for the pavilion logger. See: "
+            default="{asctime}, {levelname}, {name}: {message}",
+            help_text="The log format to use for the pavilion logger. "
+                      "Uses the modern '{' format style. See: "
                       "https://docs.python.org/3/library/logging.html#"
                       "logrecord-attributes"),
         yc.StrElem(
-            "log_level", default="info", post_validator=log_level_validate,
+            "log_level", default="info",
+            choices=['debug', 'info', 'warning', 'error', 'critical'],
             help_text="The minimum log level for messages sent to the pavilion "
                       "logfile."),
         yc.PathElem(
@@ -196,6 +182,10 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
         # They are not intended to be set by the user, and will generally be
         # overwritten without even checking for user provided values.
         yc.PathElem(
+            'pav_cfg_file', hidden=True,
+            help_text="The location of the loaded pav config file."
+        ),
+        yc.PathElem(
             'pav_root', default=PAV_ROOT, hidden=True,
             help_text="The root directory of the pavilion install. This "
                       "shouldn't be set by the user."),
@@ -209,16 +199,29 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
 
 
 def find(warn=True):
-    """Search for a pavilion.yaml configuration file. The first one found is 
-    used. Directories are searched in this order: {}
-    """.format(PAV_CONFIG_SEARCH_DIRS)
+    """Search for a pavilion.yaml configuration file. Use the one pointed
+    to by PAV_CONFIG_FILE. Otherwise, use the first found in these 
+    directories: {}""".format(PAV_CONFIG_SEARCH_DIRS)
+
+    if PAV_CONFIG_FILE is not None:
+        pav_cfg_file = Path(PAV_CONFIG_FILE)
+        if pav_cfg_file.is_file():
+            try:
+                cfg = PavilionConfigLoader().load(pav_cfg_file.open())
+                cfg.pav_cfg_file = pav_cfg_file
+                return cfg
+            except Exception as err:
+                raise RuntimeError("Error in Pavilion config at {}: {}"
+                                   .format(pav_cfg_file, err))
 
     for config_dir in PAV_CONFIG_SEARCH_DIRS:
         path = config_dir/'pavilion.yaml'
         if path.is_file():
             try:
                 # Parse and load the configuration.
-                return PavilionConfigLoader().load(path.open())
+                cfg = PavilionConfigLoader().load(path.open())
+                cfg.pav_cfg_file = path
+                return cfg
             except Exception as err:
                 raise RuntimeError("Error in Pavilion config at {}: {}"
                                    .format(path, err))
