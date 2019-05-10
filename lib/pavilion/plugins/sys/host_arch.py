@@ -10,11 +10,7 @@ class HostArch( system_plugins.SystemPlugin ):
     def _get( self ):
         """Base method for determining the host architecture."""
 
-        self.values[ None ] = subprocess.check_output(['uname', '-i'])
+        out = subprocess.check_output(['uname', '-i'])
 
-        try:
-            self.values[ None ] = self.values[ None ].strip().decode('UTF-8')
-        except:
-            raise( system_plugins.SystemPluginError )
+        return out.strip().decode('utf8')
 
-        return self.values

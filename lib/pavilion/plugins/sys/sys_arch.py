@@ -10,11 +10,5 @@ class SystemArch( system_plugins.SystemPlugin ):
     def _get( self ):
         """Base method for determining the system architecture."""
 
-        self.values[ None ] = subprocess.check_output(['uname', '-i'])
-
-        try:
-            self.values[ None ] = self.values[ None ].strip().decode('UTF-8')
-        except:
-            raise( system_plugins.SystemPluginError )
-
-        return self.values
+        arch = subprocess.check_output(['uname', '-i'])
+        return arch.strip().decode('utf8')

@@ -30,7 +30,7 @@ class RunCommand(commands.Command):
             help='Mode configurations to overlay on the host configuration for '
                  'each test. These are overlayed in the order given.')
         parser.add_argument(
-            '-c', dest='config_overrides', action='append', default=[],
+            '-c', dest='overrides', action='append', default=[],
             help='Overrides for specific configuration options. These are '
                  'gathered used as a final set of overrides before the '
                  'configs are resolved. They should take the form '
@@ -177,6 +177,8 @@ class RunCommand(commands.Command):
         # Use the sys_host if a host isn't specified.
         if host is None:
             host = sys_vars.get('sys_host')
+        #TODO - try with None
+        print('host', host)
 
         tests = list(tests)
         for file in test_files:
