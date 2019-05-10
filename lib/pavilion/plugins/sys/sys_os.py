@@ -6,7 +6,7 @@ class SystemOS(system_plugins.SystemPlugin):
 
     def __init__(self):
         super().__init__(plugin_name='sys_os', priority=10,
-                         is_deferable=False, sub_keys=['ID', 'Version'])
+                         is_deferable=False, sub_keys=['id', 'version'])
 
     def _get(self):
         """Base method for determining the operating system and version."""
@@ -14,10 +14,12 @@ class SystemOS(system_plugins.SystemPlugin):
         with Path('/etc/os-release').open('r') as release:
             rlines = release.readlines()
 
+        os = {}
+
         for line in rlines:
             if line[:3] == 'ID=':
-                self.values['ID'] = line[3:].strip().strip('"')
+                os['id'] = line[3:].strip().strip('"')
             elif line[:11] == 'VERSION_ID=':
-                self.values['Version'] = line[11:].strip().strip('"')
+                os['version'] = line[11:].strip().strip('"')
 
-        return self.values
+        return os

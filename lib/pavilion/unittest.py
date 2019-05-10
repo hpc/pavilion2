@@ -37,6 +37,9 @@ class PavTestCase(unittest.TestCase):
 
         raw_pav_cfg.working_dir = Path('/tmp')/os.getlogin()/'pav_tests'
 
+        if not raw_pav_cfg.working_dir.exists():
+            raw_pav_cfg.working_dir.mkdir()
+
         cfg_dir = raw_pav_cfg.working_dir/'pav_cfgs'
         if not cfg_dir.exists():
             cfg_dir.mkdir()
