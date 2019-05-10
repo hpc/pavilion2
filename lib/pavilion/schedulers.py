@@ -7,9 +7,11 @@ from pavilion.test_config import format
 from pavilion.test_config.variables import DeferredVariable
 from pavilion.var_dict import VarDict, var_method
 from yapsy import IPlugin
+import datetime
 import logging
 import os
 import subprocess
+import tzlocal
 
 LOGGER = logging.getLogger('pav.{}'.format(__name__))
 
@@ -365,7 +367,15 @@ class SchedulerPlugin(IPlugin.IPlugin):
         if lock is not None:
             lock.unlock()
 
-    def check_job(self, pav_cfg, test):
+    @staticmethod
+    def _now():
+        """Convenience method for getting a reasonable current time object."""
+
+        return tzlocal.get_localzone().localize(
+            datetime.datetime.now()
+        )
+
+    def job_status(self, pav_cfg, test):
         """Get the job state from the scheduler, and map it to one of the
         on of the following states: SCHEDULED, SCHED_ERROR, SCHED_CANCELLED.
         This may also simply re-fetch the latest state from the state file,

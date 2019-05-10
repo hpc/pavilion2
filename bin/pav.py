@@ -10,6 +10,7 @@ from pavilion import pav_vars
 import logging
 from pathlib import Path
 import os
+import socket
 import sys
 import traceback
 
@@ -32,6 +33,19 @@ def main():
     # Set up a directory for tracebacks.
     tracebacks_dir = Path(os.path.expanduser('~/.pavilion/tracebacks'))
     os.makedirs(str(tracebacks_dir), exist_ok=True)
+
+    # Setup the logging records to contain host information, just like in
+    # the logging module example
+    old_factory = logging.getLogRecordFactory()
+    hostname = socket.gethostname()
+
+    def record_factory(*fargs, **kwargs):
+        record = old_factory(*fargs, **kwargs)
+        record.hostname = hostname
+        return record
+
+    # Setup the new record factory.
+    logging.setLogRecordFactory(record_factory)
 
     # Put the log file in the lowest common pav config directory we can write
     # to.
