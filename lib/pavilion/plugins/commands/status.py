@@ -61,8 +61,8 @@ class StatusCommand(commands.Command):
             status_f = status_file.StatusFile(pav_test.status.path).current()
 
             if status_f.state == 'SCHEDULED':
-                status_f = schedulers.get_scheduler(pav_test.scheduler)\
-                               .check_job(pav_cfg, pav_test)
+                status_f = schedulers.get_scheduler_plugin(pav_test.scheduler)\
+                           .job_status(pav_config, pav_test)
 
             test_statuses.append({
                 'test_id': test_id,

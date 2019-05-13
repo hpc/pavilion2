@@ -128,40 +128,39 @@ class StatusTests(PavTestCase):
     def test_status_command_with_sched(self):
         """Test status command when test is 'SCHEDULED'."""
 
-
-        class DummySched(schedulers.SchedulerPlugin):
-
-            def __init__(self):
-                super().__init__('dummy')
-
-            def check_job(self, pav_cfg, test):
-                return status_file.StatusInfo(when=None,
-                                              state='WINNING',
-                                              note='Lost')
-
         test = format.TestConfigLoader().validate({
-            'scheduler': 'testytest',
+            'scheduler': 'raw',
             'run': {
                 'env': {
                     'foo': 'bar',
                 },
-                'cmds': ['sleep 10'],
+                'cmds': ['sleep 1'],
             },
         })
 
-        test['name'] = 'run_test0'
+        test['name'] = 'testytest'
 
         sys_vars = system_variables.get_vars(False)
 
+        sched_vars = schedulers.get_scheduler_plugin('raw').get_vars(test)
+
         test = pavtest.PavTest(self.pav_cfg, test, sys_vars)
 
-        test.status.set(status_file.STATES.SCHEDULED, "faker")
+        test.build()
+        test.run(sched_vars, sys_vars)
 
         status_cmd = commands.get_command('status')
 
         parser = argparse.ArgumentParser()
         status_cmd._setup_arguments(parser)
         args = parser.parse_args([str(test.id)])
+        test.status.set(status_file.STATES.SCHEDULED, "faker")
+        self.assertEqual(status_cmd.run(self.pav_cfg, args),0)
+
+        parser = argparse.ArgumentParser()
+        status_cmd._setup_arguments(parser)
+        args = parser.parse_args(['-j', str(test.id)])
+        test.status.set(status_file.STATES.SCHEDULED, "faker")
         self.assertEqual(status_cmd.run(self.pav_cfg, args),0)
 
         for status in test.status.history():
