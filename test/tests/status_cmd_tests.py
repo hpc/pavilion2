@@ -147,7 +147,9 @@ class StatusTests(PavTestCase):
         test = pavtest.PavTest(self.pav_cfg, test, sys_vars)
 
         test.build()
-        test.run(sched_vars, sys_vars)
+        schedulers.get_scheduler_plugin(test.scheduler)\
+            .schedule_test(self.pav_cfg, test)
+#        test.run(sched_vars, sys_vars)
 
         status_cmd = commands.get_command('status')
 
