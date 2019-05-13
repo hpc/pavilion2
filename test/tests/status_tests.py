@@ -33,7 +33,7 @@ class StatusTests(PavTestCase):
         self.assertGreater(now + datetime.timedelta(seconds=5),
                            status_info.when)
         
-        self.assertEqual(status_info.note, '')
+        self.assertEqual(status_info.note, 'Created status file.')
         
         # Dump a bunch of states to the status file.
         states = [STATES.UNKNOWN, STATES.INVALID, STATES.CREATED,
