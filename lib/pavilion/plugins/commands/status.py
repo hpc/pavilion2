@@ -66,8 +66,9 @@ class StatusCommand(commands.Command):
 
             test_statuses.append({
                 'test_id': test_id,
+                'name': pav_test.name,
                 'state': status_f.state,
-                'time': str(status_f.when),
+                'time': status_f.when.strftime("%d %b %Y %H:%M:%S %Z"),
                 'note': status_f.note,
             })
 
@@ -75,7 +76,7 @@ class StatusCommand(commands.Command):
             json_data = {'statuses': test_statuses}
             utils.json_dump(json_data, sys.stdout)
         else:
-            cols = ['test_id', 'state', 'time', 'note']
+            cols = ['test_id', 'name', 'state', 'time', 'note']
             utils.draw_table(sys.stdout, {}, cols, test_statuses,
                              title='Test statuses')
         return 0

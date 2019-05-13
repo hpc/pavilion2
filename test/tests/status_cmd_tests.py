@@ -164,6 +164,3 @@ class StatusTests(PavTestCase):
         args = parser.parse_args(['-j', str(test.id)])
         test.status.set(status_file.STATES.SCHEDULED, "faker")
         self.assertEqual(status_cmd.run(self.pav_cfg, args),0)
-
-        for status in test.status.history():
-            print(status.state)
