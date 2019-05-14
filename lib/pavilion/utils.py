@@ -8,6 +8,7 @@ import os
 import re
 import subprocess
 import sys
+import textwrap
 
 
 def flat_walk(path, *args, **kwargs):
@@ -113,13 +114,58 @@ def create_id_dir(id_dir):
     return id_, path
 
 
-def cprint(*args, color=33, **kwargs):
-    """Print with pretty colors, so it's easy to find."""
+def dbg_print(*args, color=33, **kwargs):
+    """A colored print statement for debug printing. Use when you want to
+    print junk and easily excise it later.
+    :param int color: ANSI color code to print the string under.
+    """
     start_escape = '\x1b[{}m'.format(color)
 
-    args = [start_escape] + list(args) + ['\x1b[0m']
+    args = list(args)
+    args[0] = start_escape + '\n' + str(args[0])
+
+    args.append('\x1b[0m')
 
     return print(*args, **kwargs)
+
+
+def fprint(*args, color=None, bullet='', width=60,
+           sep=' ', file=sys.stdout):
+    """Print with automatic wrapping, bullets, and other features.
+    :param args: Standard print function args
+    :param int color: ANSI color code to print with.
+    :param str bullet: Print the first line with this bullet,
+        and the rest with that much space prepended.
+    :param str sep: The standard print sep argument.
+    :param file: Stream to print.
+    :param int width: Wrap the text to this width.
+    """
+
+    args = list(args)
+    if color is not None:
+        print('\x1b[{}m'.format(color), end='', file=file)
+
+    out_str = sep.join(args)
+    lines = textwrap.wrap(out_str, width=width)
+    for line in lines:
+        line = textwrap.indent(line, bullet, lambda l: l is lines[0])
+        print(line, file=file)
+
+    if color is not None:
+        print('\x1b[0m', end='', file=file)
+
+
+# Setup colors as part of the fprint function itself.
+BLACK = 30
+RED = 31
+GREEN = 32
+YELLOW = 33
+BLUE = 34
+MAGENTA = 35
+CYAN = 36
+WHITE = 37
+GREY = 37
+GRAY = 37
 
 
 class PavEncoder(json.JSONEncoder):

@@ -1,14 +1,13 @@
-from pavilion import plugins
-from pavilion import schedulers
-from pavilion.test_config.format import TestConfigLoader
-from pavilion.pavtest import PavTest
-from pavilion.unittest import PavTestCase
-from pavilion.status_file import STATES
+import os
 import socket
 import subprocess
+import time
 from pathlib import Path
-import os
 
+from pavilion import plugins
+from pavilion import schedulers
+from pavilion.status_file import STATES
+from pavilion.unittest import PavTestCase
 
 _HAS_SLURM = None
 
@@ -34,22 +33,6 @@ class RawSchedTests(PavTestCase):
 
         plugins.initialize_plugins(self.pav_cfg)
 
-        cfg = TestConfigLoader().validate({
-            'scheduler': 'raw',
-            'run': {
-                'cmds': [
-                    'echo "Hello World."'
-                ]
-            },
-        })
-        cfg['name'] = 'raw_test'
-
-        self.test = PavTest(
-            self.pav_cfg,
-            cfg,
-            {}
-        )
-
     def tearDown(self):
 
         plugins._reset_plugins()
@@ -60,7 +43,7 @@ class RawSchedTests(PavTestCase):
 
         raw = schedulers.get_scheduler_plugin('raw')
 
-        svars = raw.get_vars(self.test)
+        svars = raw.get_vars(self._quick_test())
 
         for key, value in svars.items():
             self.assertNotEqual(int(value), 0)
@@ -70,32 +53,22 @@ class RawSchedTests(PavTestCase):
 
         raw = schedulers.get_scheduler_plugin('raw')
 
-        self.assertTrue(self.test.build())
+        test = self._quick_test()
 
-        raw.schedule_tests(self.pav_cfg, [self.test])
+        self.assertTrue(test.build())
 
-        self.test.wait(2)
+        raw.schedule_tests(self.pav_cfg, [test])
 
-        self.assertEqual(self.test.status.current().state, STATES.COMPLETE)
+        test.wait(2)
+
+        self.assertEqual(test.status.current().state, STATES.COMPLETE)
 
     def test_check_job(self):
         """Make sure we can get the test's scheduler status."""
 
-        cfg = TestConfigLoader().validate({
-            'scheduler': 'raw',
-            'run': {
-                'cmds': [
-                    'sleep 2"'
-                ]
-            },
-        })
-        cfg['name'] = 'raw_test'
-
-        test = PavTest(
-            self.pav_cfg,
-            cfg,
-            {}
-        )
+        cfg = self._quick_test_cfg()
+        cfg['run']['cmds'] = ['sleep 2']
+        test = self._quick_test(cfg=cfg)
 
         test.status.set('SCHEDULED', 'but not really')
 
@@ -130,3 +103,31 @@ class RawSchedTests(PavTestCase):
         raw.schedule_test(self.pav_cfg, test)
         status = raw.job_status(self.pav_cfg, test)
         self.assertEqual(status.state, STATES.SCHEDULED)
+
+    def test_cancel_job(self):
+        """Create a series of tests and kill them under different
+        circumstances."""
+
+        # This test will just sleep for a bit.
+        cfg = self._quick_test_cfg()
+        cfg['run']['cmds'] = ['sleep 100']
+
+        test = self._quick_test(cfg=cfg)
+        test.build()
+
+        raw = schedulers.get_scheduler_plugin('raw')
+
+        raw.schedule_test(self.pav_cfg, test)
+
+        timeout = time.time() + 1
+        while (raw.job_status(self.pav_cfg, test).state == STATES.SCHEDULED
+                and time.time() < timeout):
+            time.sleep(.1)
+
+        # The test should be running
+        self.assertEqual(test.status.current().state,
+                         STATES.RUNNING)
+
+        _, pid = test.job_id.split('_')
+
+        self.assertEqual(raw.cancel_job(test).state, STATES.SCHED_CANCELLED)

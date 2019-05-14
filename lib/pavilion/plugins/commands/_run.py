@@ -2,7 +2,7 @@ from pavilion import commands
 from pavilion import schedulers
 from pavilion import system_variables
 from pavilion import utils
-from pavilion.pavtest import PavTest, PavTestError
+from pavilion.pav_test import PavTest, PavTestError
 from pavilion.status_file import STATES
 import logging
 

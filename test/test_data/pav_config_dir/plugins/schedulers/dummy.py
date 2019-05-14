@@ -4,7 +4,10 @@ import yaml_config as yc
 
 
 class DummyVars(schedulers.SchedulerVariables):
-    pass
+
+    @schedulers.var_method
+    def am_i_dumb(self):
+        return True
 
 
 class Dummy(schedulers.SchedulerPlugin):
@@ -12,9 +15,9 @@ class Dummy(schedulers.SchedulerPlugin):
     VAR_CLASS = DummyVars
 
     def __init__(self):
-        super().__init__('dummy')
+        super().__init__('dummy', 'I am dumb')
 
-    def _get_conf(self):
+    def get_conf(self):
 
         return yc.KeyedElem('dummy', elements=[])
 
@@ -30,4 +33,7 @@ class Dummy(schedulers.SchedulerPlugin):
 
         return test.status.current()
 
+    def cancel_job(self, test):
+        """Do nothing, like a lazy jerk Class."""
 
+        return True, "There was nothing to cancel, dummy."

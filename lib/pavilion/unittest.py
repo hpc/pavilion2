@@ -9,7 +9,9 @@ import inspect
 
 from pavilion import arguments
 from pavilion import config
-from pavilion.utils import cprint
+from pavilion.pav_test import PavTest
+from pavilion.utils import dbg_print
+from pavilion.test_config.format import TestConfigLoader
 
 
 class PavTestCase(unittest.TestCase):
@@ -218,7 +220,38 @@ class PavTestCase(unittest.TestCase):
             sha.update(file.read())
             return sha.hexdigest()
 
-    _cprint = staticmethod(cprint)
+    dbg_print = staticmethod(dbg_print)
+
+    @staticmethod
+    def _quick_test_cfg():
+        """Return the config to use with _quick_test."""
+        return {
+            'scheduler': 'raw',
+            'run': {
+                'cmds': [
+                    'echo "Hello World."'
+                ]
+            },
+        }
+
+    def _quick_test(self, cfg=None, name="quick_test"):
+        """Create a test object to work with.
+        :param dict cfg: An optional config dict to create the test from.
+        :param str name: The name of the test.
+        The default is a simple hello world test with the raw scheduler.
+        """
+
+        if cfg is None:
+            cfg = self._quick_test_cfg()
+
+        cfg = TestConfigLoader().validate(cfg)
+        cfg['name'] = name
+
+        return PavTest(
+            self.pav_cfg,
+            cfg,
+            {}
+        )
 
 
 class ColorResult(unittest.TextTestResult):
@@ -267,6 +300,4 @@ class ColorResult(unittest.TextTestResult):
         self.stream.write(self.CYAN)
         super().addSkip(test, reason)
         self.stream.write(self.COLOR_RESET)
-
-
 

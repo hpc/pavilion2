@@ -12,8 +12,6 @@ class TestConfig(PavTestCase):
 
         data = format.TestConfigLoader().load(f)
 
-        # This is likely to change over time.
-        self.assertEqual(len(data), 8)
         self.assertEqual(data.inherits_from, 'something_else')
         self.assertEqual(data.scheduler, 'slurm')
         self.assertEqual(data.run.cmds[0], 'true')
@@ -24,4 +22,3 @@ class TestConfig(PavTestCase):
         self.assertEqual(data.variables.bird, ['eagle', 'mockingbird',
                                                'woodpecker'])
         self.assertEqual(data.variables.horse[0].legs, '4')
-

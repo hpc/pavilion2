@@ -55,6 +55,14 @@ class TestConfigLoader(yc.YamlConfigLoader):
                       "variable insertion. example, if a test has a single "
                       "permutation variable 'subtest', then '{subtest}' "
                       "would give a useful descriptor."),
+        yc.StrElem(
+            'summary', default='',
+            help_text="Summary of the purpose of this test."
+        ),
+        yc.StrElem(
+            'doc', default='',
+            help_text="Detailed documentation string for this test."
+        ),
         VarCatElem(
             'variables', sub_elem=yc.ListElem(sub_elem=VariableElem()),
             help_text="Variables for this test section. These can be "

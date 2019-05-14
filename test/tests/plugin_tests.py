@@ -123,7 +123,7 @@ class PluginTests(PavTestCase):
         host_os = {}
         for line in rlines:
             if line[:3] == 'ID=':
-                host_os['id'] = line[3:].strip().strip('"')
+                host_os['name'] = line[3:].strip().strip('"')
             elif line[:11] == 'VERSION_ID=':
                 host_os['version'] = line[11:].strip().strip('"')
 
@@ -138,7 +138,7 @@ class PluginTests(PavTestCase):
         self.assertTrue('sys_name' in sys_vars)
 
         self.assertFalse('sys_os' in sys_vars)
-        self.assertEqual(host_os['id'], sys_vars['sys_os']['id'])
+        self.assertEqual(host_os['name'], sys_vars['sys_os']['name'])
         self.assertEqual(host_os['version'],
                          sys_vars['sys_os']['version'])
         self.assertTrue('sys_os' in sys_vars)
@@ -152,7 +152,7 @@ class PluginTests(PavTestCase):
         self.assertTrue('host_name' in sys_vars)
 
         self.assertFalse('host_os' in sys_vars)
-        self.assertEqual(host_os['id'], sys_vars['host_os']['id'])
+        self.assertEqual(host_os['name'], sys_vars['host_os']['name'])
         self.assertEqual(host_os['version'],
                          sys_vars['host_os']['version'])
         self.assertTrue('host_os' in sys_vars)
@@ -170,8 +170,6 @@ class PluginTests(PavTestCase):
         self.assertIsNotNone(system_variables._LOADED_PLUGINS)
 
         sys_vars = system_variables.get_vars(defer=True)
-
-        self.assertTrue(len(system_variables._SYS_VAR_DICT.items()) == 0)
 
         # Check that the deferred values are actually deferred.
         self.assertFalse('host_arch' in sys_vars)

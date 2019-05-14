@@ -5,6 +5,7 @@ from .format import TestConfigLoader, TestSuiteLoader
 from collections import defaultdict
 import copy
 import logging
+import os
 
 # Config file types
 CONF_HOST = 'hosts'
@@ -14,16 +15,16 @@ CONF_TEST = 'tests'
 LOGGER = logging.getLogger('pav.' + __name__)
 
 
-def _find_config(pav_config, conf_type, conf_name):
+def _find_config(pav_cfg, conf_type, conf_name):
     """Search all of the known configuration directories for a config of the
     given type and name.
-    :param pav_config: The pavilion config data.
+    :param pav_cfg: The pavilion config data.
     :param str conf_type: 'host', 'mode', or 'test'
     :param str conf_name: The name of the config (without a file extension).
     :return: The path to the first matching config found, or None if one wasn't
     found.
     """
-    for conf_dir in pav_config.config_dirs:
+    for conf_dir in pav_cfg.config_dirs:
         path = conf_dir/conf_type/'{}.yaml'.format(conf_name)
         if path.exists():
             return path
@@ -31,12 +32,78 @@ def _find_config(pav_config, conf_type, conf_name):
     return None
 
 
-def load_test_configs(pav_config, host, modes, tests):
+def find_all_tests(pav_cfg):
+    """Find all the tests within known config directories.
+    :param pav_cfg: The pavilion configuration.
+    :return: Returns a data structure that looks like:
+        suite_name -> {
+            'path': Path to the suite file.
+            'err': Error loading suite file.
+            'supersedes': [superseded_suite_files]
+            'tests': name -> {
+                    'conf': The full test config (inheritance resolved),
+                    'summary': Test summary string,
+                    'doc': Test doc string,
+            }
+    """
+
+    suites = {}
+
+    for conf_dir in pav_cfg.config_dirs:
+        path = conf_dir/'tests'
+
+        if not (path.exists() and path.is_dir()):
+            continue
+
+        for file in os.listdir(path.as_posix()):
+
+            file = path/file
+            if file.suffix == '.yaml' and file.is_file():
+                # It's ok if the tests aren't completely validated. They
+                # may have been written to require a real host/mode file.
+                with file.open('r') as suite_file:
+                    suite_cfg = TestSuiteLoader().load(suite_file,
+                                                       partial=True)
+                suite_name = file.stem
+
+                if suite_name not in suites:
+                    suites[suite_name] = {
+                        'path': file,
+                        'err': '',
+                        'tests': {},
+                        'supersedes': [],
+                    }
+                else:
+                    suites[suite_name]['supersedes'].append(file)
+
+                base = TestConfigLoader().load_empty()
+
+                try:
+                    suite_cfgs = resolve_inheritance(
+                        base_config=base,
+                        suite_cfg=suite_cfg,
+                        suite_path=file
+                    )
+                except Exception as err:
+                    suites[suite_name]['err'] = err
+                    continue
+
+                for test_name, conf in suite_cfgs.items():
+                    suites[suite_name]['tests'][test_name] = {
+                        'conf': conf,
+                        'summary': conf['summary'],
+                        'doc': conf['doc'],
+                    }
+
+    return suites
+
+
+def load_test_configs(pav_cfg, host, modes, tests):
     """Get a dictionary of raw test configs given a host, list of modes,
     and a list of tests. Each of these configs will be lightly modified with
     a few extra variables about their name, suite, and suite_file, as well as
     guaranteeing that they have 'variables' and 'permutations' sections.
-    :param pav_config: The pavilion config data
+    :param pav_cfg: The pavilion config data
     :param Union(str, None) host: The host the test is running on.
     :param list modes: A list (possibly empty) of modes to layer onto the test.
     :param list tests: A list (possibly empty) of tests to load. Each test can
@@ -52,7 +119,7 @@ def load_test_configs(pav_config, host, modes, tests):
         # Use the defaults if a host config isn't given.
         base_config = test_config_loader.load_empty()
     else:
-        host_cfg_path = _find_config(pav_config, CONF_HOST, host)
+        host_cfg_path = _find_config(pav_cfg, CONF_HOST, host)
         if host_cfg_path is None:
             raise TestConfigError("Could not find {} config file for host '{}'."
                                   .format(CONF_HOST, host))
@@ -67,7 +134,7 @@ def load_test_configs(pav_config, host, modes, tests):
                                   .format(host_cfg_path, err))
 
     for mode in modes:
-        mode_cfg_path = _find_config(pav_config, CONF_MODE, mode)
+        mode_cfg_path = _find_config(pav_cfg, CONF_MODE, mode)
 
         if mode_cfg_path is None:
             raise TestConfigError("Could not find {} config file for {}."
@@ -119,13 +186,13 @@ def load_test_configs(pav_config, host, modes, tests):
 
         # Only load each test suite's tests once.
         if test_suite not in all_tests:
-            test_suite_path = _find_config(pav_config, CONF_TEST, test_suite)
+            test_suite_path = _find_config(pav_cfg, CONF_TEST, test_suite)
 
             if test_suite_path is None:
                 raise TestConfigError(
                     "Could not find test suite {}. Looked in these "
                     "locations: {}"
-                    .format(test_suite, pav_config.config_dirs))
+                    .format(test_suite, pav_cfg.config_dirs))
 
             try:
                 with test_suite_path.open() as test_suite_file:
@@ -135,64 +202,17 @@ def load_test_configs(pav_config, host, modes, tests):
                 raise TestConfigError("Could not open test suite config {}: {}"
                                       .format(test_suite_path, err))
 
-            # Organize tests into an inheritance tree.
-            depended_on_by = defaultdict(lambda: list())
-            # All the tests for this suite.
-            suite_tests = {}
-            # A list of tests whose parent's have had their dependencies
-            # resolved.
-            ready_to_resolve = list()
-            for test_cfg_name, test_cfg in test_suite_cfg.items():
-                if test_cfg.get('inherits_from') is None:
-                    test_cfg.inherits_from = '__base__'
-                    # Tests that depend on nothing are ready to resolve.
-                    ready_to_resolve.append(test_cfg_name)
-                else:
-                    depended_on_by[test_cfg.inherits_from].append(test_cfg_name)
-
-                suite_tests[test_cfg_name] = test_cfg
-
-            # Add this so we can cleanly depend on it.
-            suite_tests['__base__'] = base_config
-
-            # Resolve all the dependencies
-            while ready_to_resolve:
-                # Grab a test whose parent's are resolved and the parent test.
-                test_cfg_name = ready_to_resolve.pop(0)
-                test_cfg = suite_tests[test_cfg_name]
-                parent = suite_tests[test_cfg.inherits_from]
-
-                # Merge the parent and test.
-                suite_tests[test_cfg_name] = test_config_loader.merge(parent,
-                                                                      test_cfg)
-
-                # Now all tests that depend on this one are ready to resolve.
-                ready_to_resolve.extend(depended_on_by.get(test_cfg_name, []))
-                # Delete this test from here, for a sanity check to know we
-                # resolved it.
-                if test_cfg_name in depended_on_by:
-                    del depended_on_by[test_cfg_name]
-
-            # If there's anything with dependencies left, that's bad. It
-            # generally means there are cycles in our dependency tree.
-            if depended_on_by:
-                raise TestConfigError(
-                    "Tests in suite '{}' have dependencies on '{}' that "
-                    "could not be resolved."
-                    .format(test_suite_path, depended_on_by.keys()))
-
-            # Remove the test base
-            del suite_tests['__base__']
+            suite_tests = resolve_inheritance(
+                base_config,
+                test_suite_cfg,
+                test_suite_path
+            )
 
             # Add some basic information to each test config.
             for test_cfg_name, test_cfg in suite_tests.items():
                 test_cfg['name'] = test_cfg_name
                 test_cfg['suite'] = test_suite
                 test_cfg['suite_path'] = str(test_suite_path)
-                if 'variables' not in test_cfg:
-                    test_cfg['variables'] = dict()
-                if 'permutations' not in test_cfg:
-                    test_cfg['permutations'] = dict()
 
             all_tests[test_suite] = suite_tests
 
@@ -213,6 +233,62 @@ def load_test_configs(pav_config, host, modes, tests):
             picked_tests.append(all_tests[test_suite][requested_test])
 
     return picked_tests
+
+
+def resolve_inheritance(base_config, suite_cfg, suite_path):
+
+    test_config_loader = TestConfigLoader()
+
+    # Organize tests into an inheritance tree.
+    depended_on_by = defaultdict(lambda: list())
+    # All the tests for this suite.
+    suite_tests = {}
+    # A list of tests whose parent's have had their dependencies
+    # resolved.
+    ready_to_resolve = list()
+    for test_cfg_name, test_cfg in suite_cfg.items():
+        if test_cfg.get('inherits_from') is None:
+            test_cfg.inherits_from = '__base__'
+            # Tests that depend on nothing are ready to resolve.
+            ready_to_resolve.append(test_cfg_name)
+        else:
+            depended_on_by[test_cfg.inherits_from].append(test_cfg_name)
+
+        suite_tests[test_cfg_name] = test_cfg
+
+    # Add this so we can cleanly depend on it.
+    suite_tests['__base__'] = base_config
+
+    # Resolve all the dependencies
+    while ready_to_resolve:
+        # Grab a test whose parent's are resolved and the parent test.
+        test_cfg_name = ready_to_resolve.pop(0)
+        test_cfg = suite_tests[test_cfg_name]
+        parent = suite_tests[test_cfg.inherits_from]
+
+        # Merge the parent and test.
+        suite_tests[test_cfg_name] = test_config_loader.merge(parent,
+                                                              test_cfg)
+
+        # Now all tests that depend on this one are ready to resolve.
+        ready_to_resolve.extend(depended_on_by.get(test_cfg_name, []))
+        # Delete this test from here, for a sanity check to know we
+        # resolved it.
+        if test_cfg_name in depended_on_by:
+            del depended_on_by[test_cfg_name]
+
+    # If there's anything with dependencies left, that's bad. It
+    # generally means there are cycles in our dependency tree.
+    if depended_on_by:
+        raise TestConfigError(
+            "Tests in suite '{}' have dependencies on '{}' that "
+            "could not be resolved."
+            .format(suite_path, depended_on_by.keys()))
+
+    # Remove the test base
+    del suite_tests['__base__']
+
+    return suite_tests
 
 
 NOT_OVERRIDABLE = ['name', 'suite', 'suite_path']
@@ -272,16 +348,6 @@ def _apply_overrides(test_cfg, overrides, _first_level=True):
                 "Key: {}, Type: {}.".format(key, type(test_cfg[key])))
 
 
-# TODO: Write this function, maybe?
-def list_tests(pav_config):
-    """Find all the tests within known config directories.
-    :param dict pav_config:
-    :return:
-    """
-
-    return pav_config
-
-
 def resolve_permutations(raw_test_cfg, pav_vars, sys_vars):
     """Resolve permutations for all used permutation variables, returning a
     variable manager for each permuted version of the test config. We use
@@ -289,7 +355,8 @@ def resolve_permutations(raw_test_cfg, pav_vars, sys_vars):
     variable types as well.
     :param dict raw_test_cfg: The raw test configuration dictionary.
     :param dict pav_vars: The pavilion provided variable set.
-    :param dict sys_vars: The system plugin provided variable set.
+    :param Union(dict, pavilion.system_variables.SysVarDict) sys_vars: The
+        system plugin provided variable set.
     :returns: The parsed, modified configuration, and a list of variable set
         managers, one for each permutation. These will already contain all the
         var, sys, pav, and (resolved) permutation (per) variable sets. The

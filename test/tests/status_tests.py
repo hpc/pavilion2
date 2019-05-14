@@ -1,7 +1,8 @@
 from pavilion.status_file import StatusFile, STATES
 from pavilion.unittest import PavTestCase
+from pathlib import Path
 import datetime
-import os
+#import os
 import subprocess
 import tempfile
 import time
@@ -13,11 +14,11 @@ class StatusTests(PavTestCase):
     def test_status(self):
         """Checking status object basic functionality."""
 
-        fn = tempfile.mktemp()
+        fn = Path(tempfile.mktemp())
 
         status = StatusFile(fn)
 
-        self.assertTrue(os.path.exists(fn))
+        self.assertTrue(fn.exists())
         status_info = status.current()
         self.assertEqual(status_info.state, 'CREATED')
 
@@ -55,30 +56,33 @@ class StatusTests(PavTestCase):
         self.assertEqual(status_info.state, STATES.INVALID)
         self.assertLessEqual(len(status_info.note), status.NOTE_MAX)
 
-        with open(fn, 'r') as sf:
+        with fn.open('r') as sf:
             lines = sf.readlines()
 
             self.assertLessEqual(len(lines[-1]), status.LINE_MAX)
 
-        os.unlink(fn)
+        fn.unlink()
 
     def test_atomicity(self):
         """Making sure the status file can be written to atomically."""
 
         proc_count = 10
 
-        fn = tempfile.mktemp()
+        fn = Path(tempfile.mktemp())
 
-        fight_path = os.path.join(os.path.dirname(__file__), 'status_fight.py')
+        fight_path = Path(__file__).resolve().parent/'status_fight.py'
 
         procs = []
         for i in range(proc_count):
-            procs.append(subprocess.Popen(['python3', fight_path, fn]))
+            procs.append(
+                subprocess.Popen(['python3',
+                                  fight_path.as_posix(),
+                                  fn.as_posix()]))
 
         time.sleep(0.2)
 
         # Create the status file, which should start the procs writing.
-        with open(fn, 'w'):
+        with fn.open('w'):
             pass
 
         for proc in procs:
@@ -105,4 +109,4 @@ class StatusTests(PavTestCase):
             # the date.
             self.assertIsNot(entry.when, None)
 
-        os.unlink(fn)
+        fn.unlink()
