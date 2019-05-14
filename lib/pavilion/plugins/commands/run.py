@@ -86,13 +86,31 @@ class RunCommand(commands.Command):
             key, value = ovr.split('=', 1)
             overrides[key] = value
 
+        sys_vars = system_variables.get_vars(True)
+
         try:
-            test_configs = self._get_tests(pav_cfg,
-                                           args.host,
-                                           args.files,
-                                           args.tests,
-                                           args.modes,
-                                           overrides)
+            test_configs = self._get_tests(
+                pav_cfg=pav_cfg,
+                host=args.host,
+                test_files=args.files,
+                tests=args.tests,
+                modes=args.modes,
+                overrides=overrides,
+                sys_vars=sys_vars,
+            )
+
+            # Make the dict of test configs by scheduler into a dict
+            # of test objects by scheduler.
+            # Why? Because we re-use _get_tests in other classes that only
+            # need to configs.
+            for sched_name in test_configs.keys():
+                for i in range(len(test_configs[sched_name])):
+                    test_configs[sched_name][i] = PavTest(
+                        pav_cfg=pav_cfg,
+                        config=test_configs[sched_name][i],
+                        sys_vars=sys_vars
+                    )
+
         except test_config.TestConfigError as err:
             fprint(err, file=sys.stderr)
             return errno.EINVAL
@@ -178,9 +196,10 @@ class RunCommand(commands.Command):
 
         return 0
 
-    def _get_tests(self, pav_cfg, host, test_files, tests, modes, overrides):
+    def _get_tests(self, pav_cfg, host, test_files, tests, modes,
+                   overrides, sys_vars):
         """Translate a general set of pavilion test configs into the final,
-        resolved configuration objects. These objects will be organized in a
+        resolved configurations. These objects will be organized in a
         dictionary by scheduler, and have a scheduler object instantiated and
         attached.
         :param pav_cfg: The pavilion config
@@ -190,12 +209,11 @@ class RunCommand(commands.Command):
             list of tests.
         :param list(str) tests: The tests to run.
         :param list(str) overrides: Overrides to apply to the configurations.
+        :param system_variables.SysVarDict sys_vars: The system variables dict.
         :returns: A dictionary (by scheduler type name) of lists of test
-            objects
+            configs.
         """
         self.logger.debug("Finding Configs")
-
-        sys_vars = system_variables.get_vars(True)
 
         # Use the sys_host if a host isn't specified.
         if host is None:
@@ -277,9 +295,7 @@ class RunCommand(commands.Command):
                     self.logger.error(msg)
                     raise commands.CommandError(msg)
 
-                test = PavTest(pav_cfg, resolved_config, sys_vars)
-
-                tests_by_scheduler[sched.name].append(test)
+                tests_by_scheduler[sched.name].append(resolved_config)
 
         return tests_by_scheduler
 

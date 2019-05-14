@@ -19,6 +19,12 @@ PLUGIN_CATEGORIES = {
     'result': ResultParser,
 }
 
+__all__ = [
+    "PluginError",
+    "initialize_plugins",
+    "list_plugins",
+]
+
 
 class PluginError(RuntimeError):
     pass

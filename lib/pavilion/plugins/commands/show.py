@@ -7,6 +7,7 @@ from pavilion import system_variables
 from pavilion import config
 from pavilion import utils
 from pavilion.test_config import DeferredVariable
+from pavilion.test_config import find_all_tests
 import argparse
 import errno
 import sys
@@ -90,7 +91,7 @@ class ShowCommand(commands.Command):
             custom information to the state file during a run."""
         )
 
-        config = subparsers.add_parser(
+        config_p = subparsers.add_parser(
             'config',
             aliases=['conf'],
             help="Show the pavilion config.",
@@ -99,11 +100,21 @@ class ShowCommand(commands.Command):
             the current config, or generate a template of one.
             """
         )
-        config.add_argument(
+        config_p.add_argument(
             '--template',
             action='store_true', default=False,
             help="Show an empty config template for pavilion, rather than the "
                  "current config."
+        )
+
+        subparsers.add_parser(
+            'config_dirs',
+            aliases=['config_dir'],
+            help="List the config dirs.",
+            description="""The listed configuration directories are resolved 
+            in the order given. Tests in higher directories supersede those 
+            in lower. Plugins, however, are resolved according to internally
+            defined priorities."""
         )
 
         subparsers.add_parser(
@@ -145,48 +156,87 @@ class ShowCommand(commands.Command):
             """
         )
 
-    def run(self, pav_config, args):
+        # TODO: Documentation links.
+        suites = subparsers.add_parser(
+            'suites',
+            aliases=['suite'],
+            help="Show the available test suites.",
+            description="""Test suite files contain test configurations
+            that can be run using Pavilion.
+            """
+        )
+        suites.add_argument(
+            '--err',
+            action='store_true', default=False,
+            help="Display any errors encountered while reading the suite.",
+        )
+        suites.add_argument(
+            '--supersedes',
+            action='store_true', default=False,
+            help="List suite files superseded by this one."
+        )
+
+        subparsers.add_parser(
+            'tests',
+            aliases=['test'],
+            help="Show the available tests.",
+            description="""Test configurations that can be run using Pavilion.
+            """
+        )
+
+    def run(self, pav_cfg, args):
+        """Run the show command's chosen sub-command."""
 
         if args.show_cmd is None:
+            # If now sub command is given, print the help for 'show'
             self._parser.print_help(sys.stdout)
             return errno.EINVAL
         else:
-            cmd = args.show_cmd
+            cmd_name = args.show_cmd
 
-        if 'schedulers'.startswith(cmd):
-            return self._scheduler_cmd(pav_config, args)
-        elif 'result_parsers'.startswith(cmd):
-            return self._result_parsers_cmd(pav_config, args)
-        elif 'states'.startswith(cmd):
-            return self._states_cmd(pav_config, args)
-        elif 'config'.startswith(cmd):
-            return self._config_cmd(pav_config, args)
-        elif cmd in [
+        if 'schedulers'.startswith(cmd_name):
+            cmd = self._scheduler_cmd
+        elif 'result_parsers'.startswith(cmd_name):
+            cmd = self._result_parsers_cmd
+        elif 'states'.startswith(cmd_name):
+            cmd = self._states_cmd
+        elif 'config'.startswith(cmd_name):
+            cmd = self._config_cmd
+        elif 'config_dirs'.startswith(cmd_name):
+            cmd = self._config_dirs
+        elif cmd_name in [
                 'module_wrappers',
                 'mod',
                 'module',
                 'modules',
                 'wrappers']:
-            return self._module_cmd(pav_config, args)
-        elif cmd in [
+            cmd = self._module_cmd
+        elif cmd_name in [
                 'system_variables',
                 'sys_vars',
                 'sys_var',
                 'sys']:
-            return self._sys_var_cmd(pav_config, args)
-        elif cmd in [
+            cmd = self._sys_var_cmd
+        elif cmd_name in [
                 'pavilion_variables',
                 'pav_vars',
                 'pav_var',
                 'pav']:
-            return self._pav_var_cmd(pav_config, args)
+            cmd = self._pav_var_cmd
+        elif 'suites'.startswith(cmd_name):
+            cmd = self._suites_cmd
+        elif 'tests' == cmd_name:
+            cmd = self._tests_cmd
+        else:
+            raise RuntimeError("Invalid show cmd '{}'".format(cmd_name))
 
+        result = cmd(pav_cfg, args)
+        return 0 if result is None else result
 
     @staticmethod
-    def _scheduler_cmd(_, args):
+    def _scheduler_cmd(_, args, outfile=sys.stdout):
         """
         :param argparse.Namespace args:
-        :return:
         """
 
         sched = None  # type : schedulers.SchedulerPlugin
@@ -210,14 +260,12 @@ class ShowCommand(commands.Command):
                 sched_vars.append(vars.info(key))
 
             utils.draw_table(
-                sys.stdout,
+                outfile,
                 field_info={},
                 fields=['name', 'deferred', 'help'],
                 rows=sched_vars,
                 title="Variables for the {} scheduler plugin.".format(args.vars)
             )
-
-            return 0
 
         elif args.config is not None:
 
@@ -241,7 +289,7 @@ class ShowCommand(commands.Command):
                 })
 
             utils.draw_table(
-                sys.stdout,
+                outfile,
                 field_info={},
                 fields=['name', 'description'],
                 rows=scheds,
@@ -249,7 +297,7 @@ class ShowCommand(commands.Command):
             )
 
     @staticmethod
-    def _result_parsers_cmd(_, args):
+    def _result_parsers_cmd(_, args, outfile=sys.stdout):
 
         if args.config:
             try:
@@ -273,14 +321,14 @@ class ShowCommand(commands.Command):
             rps = []
             for rp_name in result_parsers.list_plugins():
                 rp = result_parsers.get_plugin(rp_name)
-                desc = " ".join(rp.__doc__.split())
+                desc = " ".join(rp.__doc__.decode('utf8').split())
                 rps.append({
                     'name': rp_name,
                     'description': desc
                 })
 
             utils.draw_table(
-                sys.stdout,
+                outfile,
                 field_info={},
                 fields=['name', 'description'],
                 rows=rps,
@@ -288,7 +336,7 @@ class ShowCommand(commands.Command):
             )
 
     @staticmethod
-    def _states_cmd(_, args):
+    def _states_cmd(_, args, outfile=sys.stdout):
 
         states = []
         for state in sorted(status_file.STATES.list()):
@@ -298,24 +346,38 @@ class ShowCommand(commands.Command):
             })
 
         utils.draw_table(
-            sys.stdout,
+            outfile,
             field_info={},
             fields=['name', 'description'],
             rows=states,
             title="Pavilion Test States"
         )
 
+
     @staticmethod
-    def _config_cmd(pav_cfg, args):
+    def _config_cmd(pav_cfg, args, outfile=sys.stdout):
 
         if args.template:
             config.PavilionConfigLoader().dump(sys.stdout)
         else:
-            config.PavilionConfigLoader().dump(sys.stdout,
+            config.PavilionConfigLoader().dump(outfile,
                                                values=pav_cfg)
 
     @staticmethod
-    def _module_cmd(_, args):
+    def _config_dirs(pav_cfg, _, outfile=sys.stdout):
+
+        rows = [{'path': path} for path in pav_cfg.config_dirs]
+
+        utils.draw_table(
+            outfile,
+            field_info={},
+            fields=['path'],
+            rows=rows,
+            title="Config directories by priority."
+        )
+
+    @staticmethod
+    def _module_cmd(_, args, outfile=sys.stdout):
 
         modules = []
         for mod_name in sorted(module_wrapper.list_module_wrappers()):
@@ -327,15 +389,16 @@ class ShowCommand(commands.Command):
             })
 
         utils.draw_table(
-            sys.stdout,
+            outfile,
             field_info={},
             fields=['name', 'version', 'description'],
             rows=modules,
             title="Available Module Wrapper Plugins"
         )
 
+
     @staticmethod
-    def _sys_var_cmd(pav_cfg, args):
+    def _sys_var_cmd(pav_cfg, args, outfile=sys.stdout):
 
         rows = []
 
@@ -353,7 +416,7 @@ class ShowCommand(commands.Command):
             })
 
         utils.draw_table(
-            sys.stdout,
+            outfile,
             field_info={},
             fields=['name', 'value', 'description'],
             rows=rows,
@@ -361,7 +424,7 @@ class ShowCommand(commands.Command):
         )
 
     @staticmethod
-    def _pav_var_cmd(pav_cfg, _):
+    def _pav_var_cmd(pav_cfg, _, outfile=sys.stdout):
 
         rows = []
 
@@ -373,9 +436,77 @@ class ShowCommand(commands.Command):
             })
 
         utils.draw_table(
-            sys.stdout,
+            outfile,
             field_info={},
             fields=['name', 'value', 'description'],
             rows=rows,
             title="Available Pavilion Variables"
+        )
+
+    @staticmethod
+    def _suites_cmd(pav_cfg, args, outfile=sys.stdout):
+        suites = find_all_tests(pav_cfg)
+
+        rows = []
+        for suite_name in sorted(list(suites.keys())):
+            suite = suites[suite_name]
+
+            if suite['err']:
+                name = utils.ANSIStr(suite_name, 'red')
+            else:
+                name = suite_name
+
+            rows.append({
+                'name': name,
+                'path': suite['path'],
+                'tests': len(suite['tests']),
+                'err': suite['err']
+            })
+
+            if args.supersedes and suite['supersedes']:
+                for path in suite['supersedes']:
+                    rows.append({
+                        # Make these rows appear faded.
+                        'name': utils.ANSIStr(suite_name, 'white'),
+                        'path': utils.ANSIStr(path, 'white'),
+                        'tests': '?',
+                        'err': ''
+                    })
+
+        fields = ['name', 'tests', 'path']
+        if args.err:
+            fields.append('err')
+
+
+        utils.draw_table(
+            outfile,
+            field_info={},
+            fields=fields,
+            rows=rows,
+            title="Available Test Suites"
+        )
+
+    @staticmethod
+    def _tests_cmd(pav_cfg, args, outfile=sys.stdout):
+
+        suites = find_all_tests(pav_cfg)
+        rows = []
+
+        for suite_name in sorted(list(suites.keys())):
+            suite = suites[suite_name]
+
+            for test_name in sorted(list(suite['tests'])):
+                test = suite['tests'][test_name]
+
+                rows.append({
+                    'name': '{}.{}'.format(suite_name, test_name),
+                    'summary': test['summary']
+                })
+
+        utils.draw_table(
+            outfile,
+            field_info={},
+            fields=['name', 'summary'],
+            rows=rows,
+            title="Available Tests"
         )

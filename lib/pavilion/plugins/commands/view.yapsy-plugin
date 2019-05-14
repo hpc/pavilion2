@@ -1,0 +1,9 @@
+[Core]
+Name = View Test Command
+Module = view
+
+[Documentation]
+Description = Prints test configs.
+Author = Nicholas Sly/Paul Ferrell
+Version = 1.0
+Website =

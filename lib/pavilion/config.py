@@ -92,15 +92,15 @@ if 'HOME' in os.environ:
 else:
     USER_HOME_PAV = None
 
-# Include the pavilion source directory.
-PAV_CONFIG_SEARCH_DIRS.append(Path(__file__).resolve().parent)
-
 if 'PAV_CONFIG_DIR' in os.environ:
     try:
         _path = Path(os.environ['PAV_CONFIG_DIR']).resolve()
         PAV_CONFIG_SEARCH_DIRS.append(_path)
     except FileNotFoundError:
         LOGGER.warning("Invalid path in env var PAV_CONFIG_DIR. Ignoring.")
+
+# Include the pavilion source directory.
+PAV_CONFIG_SEARCH_DIRS.append(Path(__file__).resolve().parent)
 
 PAV_ROOT = Path(__file__).resolve().parents[2]
 
