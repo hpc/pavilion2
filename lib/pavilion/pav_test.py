@@ -121,6 +121,7 @@ class PavTest:
         self.build_script_path = None   # type: Path
         self.build_origin = None        # type: Path
         self.run_log = self.path/'run.log'
+        self.results_path = self.path/'results.json'
 
         build_config = self.config.get('build', {})
         self.build_path = self.path/'build'
@@ -959,6 +960,25 @@ class PavTest:
                         .format(parser.name, rconf.get('key', '<no_key>'), err))
 
         return results
+
+    def save_results(self, results):
+        """Save the results to the results file.
+        :param dict results: The results dictionary.
+        """
+
+        with self.results_path.open('w') as results_file:
+            json.dump(results, results_file)
+
+    def load_results(self):
+        """Load results from the results file.
+        :returns A dict of results, or None if the results file doesn't exist.
+        """
+
+        if self.results_path.exists():
+            with self.results_path.open() as results_file:
+                return json.load(results_file)
+        else:
+            return None
 
     @property
     def is_built(self):

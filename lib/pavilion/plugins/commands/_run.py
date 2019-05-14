@@ -64,6 +64,8 @@ class _RunCommand(commands.Command):
             test.set_run_complete()
             return
 
+        test.save_results(results)
+
         result_logger = logging.getLogger('results')
         result_logger.info(utils.json_dumps(results))
 
