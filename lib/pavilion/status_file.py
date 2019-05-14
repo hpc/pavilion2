@@ -23,25 +23,28 @@ class TestStatesStruct:
     # to the help/usage for that state. States will end up comparing by key
     # name, as the instance values of these attributes will be changed and
     # the help stored elsewhere.
-    UNKNOWN = "For when we can't determine the status."
-    INVALID = "For when the status given was invalid."
-    CREATED = "Always the initial status of the status file."
-    BUILDING = "For when we're currently building the test."
+    UNKNOWN = "We can't determine the status."
+    INVALID = "The status given to set was invalid."
+    CREATED = "The test object/directory is being created."
+    CREATION_ERROR = "The test object/directory could not be created."
+    SCHEDULED = "The test has been scheduled with a scheduler."
+    SCHED_ERROR = "There was a scheduler related error."
+    SCHED_CANCELLED = "The job was cancelled."
+    BUILDING = "The test is currently being built."
     BUILD_FAILED = "The build has failed."
     BUILD_ERROR = "An unexpected error occurred while setting up the build."
-    BUILD_DONE = "For when the build step has completed."
+    BUILD_DONE = "The build step has completed."
     PREPPING_RUN = "Performing final (on node) steps before the test run."
     RUNNING = "For when we're currently running the test."
     RUN_TIMEOUT = "The test run went long without any output."
     RUN_FAILED = "The test run has failed."
     RUN_ERROR = "An unexpected error has occurred when setting up the test run."
+    RUN_USER = "Jobs can report extra status using pav set_status and" \
+               "this status value."
     RUN_DONE = "For when the run step is complete."
     RESULTS = "For when we're getting the results."
     RESULTS_ERROR = "A result parser raised an error."
     COMPLETE = "For when the test is completely complete."
-    SCHEDULED = "The test has been scheduled with a scheduler."
-    WAITING = ""
-    FAILED = "For when the test has failed."
 
     max_length = 15
 
@@ -92,13 +95,21 @@ STATES = TestStatesStruct()
 
 
 class StatusInfo:
-    def __init__(self, when=None, state='', note=''):
-        self.when = when
+    def __init__(self, state, note, when=None):
+
         self.state = state
         self.note = note
 
+        if when is None:
+            self.when = tzlocal.get_localzone().localize(
+                datetime.datetime.now()
+            )
+
     def __str__(self):
         return 'Status: {s.when} {s.state} {s.note}'.format(s=self)
+
+    def __repr__(self):
+        return 'StatusInfo({s.when}, {s.state}, {s.note})'.format(s=self)
 
 
 class StatusFile:
@@ -123,23 +134,38 @@ class StatusFile:
 
     def __init__(self, path):
         """Create the status file object.
-        :param path: The path to the status file.
+        :param Path path: The path to the status file.
         """
 
-        self.path = Path(path)
+        if isinstance(path, str):
+            raise ValueError('NOOO')
+
+        self.path = path
 
         self.tz = tzlocal.get_localzone()
 
         if not self.path.is_file():
             # Make sure we can open the file, and create it if it doesn't exist.
-            self.set(STATES.CREATED, '')
+            self.set(STATES.CREATED, 'Created status file.')
+
+        self._cached_current = None
+        self._cached_current_touched = {
+            'state': False,
+            'when': False,
+            'note': False
+        }
 
     def _parse_status_line(self, line):
+        """Parse a line of the status file. This assumes all sorts of things
+        could be wrong with the file format.
+        :rtype: StatusInfo
+        """
+
         line = line.decode('utf-8')
 
         parts = line.split(" ", 2)
 
-        status = StatusInfo(None, '', '')
+        status = StatusInfo('', '', )
 
         if parts:
             try:
@@ -158,6 +184,9 @@ class StatusFile:
         return status
 
     def history(self):
+        """Return a list of all statuses recorded.
+        :rtype: list(StatusInfo)
+        """
         try:
             with self.path.open('rb') as status_file:
                 lines = status_file.readlines()
@@ -168,6 +197,9 @@ class StatusFile:
         return [self._parse_status_line(line) for line in lines]
 
     def current(self):
+        """Return the most recent status object.
+        :rtype: StatusInfo
+        """
 
         # We read a bit extra to avoid off-by-one errors
         end_read_len = self.LINE_MAX + 16
@@ -190,11 +222,10 @@ class StatusFile:
             raise TestStatusError("Error reading status file '{}': {}"
                                   .format(self.path, err))
 
-    def set(self, status, note):
+    def set(self, state, note):
         """Set the status.
-        :param status:
-        :param note:
-        :return:
+        :param state: The current state.
+        :param note: A note about this particular instance of the state.
         """
 
         when = self.tz.localize(datetime.datetime.now())
@@ -202,15 +233,15 @@ class StatusFile:
 
         # If we were given an invalid status, make the status invalid but add
         # what was given to the note.
-        if not STATES.validate(status):
-            status = STATES.INVALID
-            note = '({}) {}'.format(status, note)
+        if not STATES.validate(state):
+            state = STATES.INVALID
+            note = '({}) {}'.format(state, note)
 
         # Truncate the note such that, even when encoded in utf-8, it is
         # shorter than NOTE_MAX
         note = note.encode('utf-8')[:self.NOTE_MAX].decode('utf-8', 'ignore')
 
-        status_line = '{} {} {}\n'.format(when, status, note).encode('utf-8')
+        status_line = '{} {} {}\n'.format(when, state, note).encode('utf-8')
         try:
             with self.path.open('ab') as status_file:
                 status_file.write(status_line)

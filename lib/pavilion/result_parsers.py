@@ -99,7 +99,11 @@ class ResultParser(IPlugin.IPlugin):
 
     def check_args(self, test, args):
         """Check the arguments for any errors at test kickoff time, if they
-        don't contain deferred variables."""
+        don't contain deferred variables. We can't check tests with
+        deferred args. On error, should raise a ResultParserError.
+        :param pavilion.pav_test.PavTest test: The test to check against.
+        :param dict args: The arguments from the config.
+        """
 
         if variables.VariableSetManager.has_deferred(args):
             return

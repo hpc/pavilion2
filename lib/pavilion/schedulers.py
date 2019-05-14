@@ -1,15 +1,17 @@
-from pavilion.test_config.variables import DeferredVariable
-from pavilion import scriptcomposer
-from pavilion.test_config import format
-from pavilion.lockfile import LockFile
-from yapsy import IPlugin
 from functools import wraps
 from pathlib import Path
-from pavilion.status_file import STATES
-import collections
+from pavilion import scriptcomposer
+from pavilion.lockfile import LockFile
+from pavilion.status_file import STATES, StatusInfo
+from pavilion.test_config import format
+from pavilion.test_config.variables import DeferredVariable
+from pavilion.var_dict import VarDict, var_method
+from yapsy import IPlugin
+import datetime
 import logging
 import os
 import subprocess
+import tzlocal
 
 LOGGER = logging.getLogger('pav.{}'.format(__name__))
 
@@ -18,30 +20,15 @@ class SchedulerPluginError(RuntimeError):
     pass
 
 
-_SCHEDULER_PLUGINS = None
+_SCHEDULER_PLUGINS = None  # type: dict
 
 
-def sched_var(func):
-    """This decorator marks the given function as a scheduler variable. The
-    function must take no arguments (other than self)."""
-
-    # The scheduler plugin class will search for these.
-    func.is_sched_var = True
-    func.is_deferable = False
-
-    # Wrap the function function so it keeps it's base attributes.
-    @wraps(func)
-    def _func(self):
-        # This is primarily to enforce the fact that these can't take arguments
-        return str(func(self))
-
-    return _func
-
-
-def dfr_sched_var(*sub_keys):
+def dfr_var_method(*sub_keys):
     """This decorator marks the following function as a deferred variable. It
     can optionally be given sub_keys for the variable as positional
-    arguments."""
+    arguments.
+    :param list(str) sub_keys: The variable sub-keys.
+    """
 
     # The deferred variable class expects a list.
     sub_keys = list(sub_keys)
@@ -57,8 +44,8 @@ def dfr_sched_var(*sub_keys):
     def _dfr_var(func):
 
         # The scheduler plugin class will search for these.
-        func.is_sched_var = True
-        func.is_deferable = False
+        func._is_var_method = True
+        func._is_deferable = True
 
         @wraps(func)
         def defer(self):
@@ -77,7 +64,7 @@ def dfr_sched_var(*sub_keys):
         return _dfr_var
 
 
-class SchedulerVariables(collections.UserDict):
+class SchedulerVariables(VarDict):
     """The base scheduler variables class. Each scheduler should have a child
     class of this that contains all the variable functions it provides.
 
@@ -102,7 +89,7 @@ class SchedulerVariables(collections.UserDict):
         set of variables is relevant.
         """
 
-        super().__init__(self)
+        super().__init__('sched')
 
         self.sched = scheduler
         self.test = test
@@ -111,51 +98,11 @@ class SchedulerVariables(collections.UserDict):
 
         self.logger = logging.getLogger('{}_vars'.format(scheduler))
 
-    @classmethod
-    def _find_vars(cls):
-        """Find all the scheduler variables and add them as variables."""
-
-        keys = set()
-        for key in cls.__dict__.keys():
-
-            # Ignore anything that starts with an underscore
-            if key.startswith('_'):
-                continue
-            obj = getattr(cls, key)
-            if callable(obj) and hasattr(obj, 'is_sched_var'):
-                keys.add(key)
-        return keys
-
-    def __getitem__(self, key):
-        """As per the dict class."""
-        if key not in self._keys:
-            raise KeyError("Invalid scheduler variable '{}'".format(key))
-
-        if key not in self.data:
-            self.data[key] = getattr(self, key)()
-
-        return self.data[key]
-
-    def keys(self):
-        """As per the dict class."""
-        # Python 3 expects this to be a generator.
-        return (k for k in self._keys)
-
-    def get(self, key, default=None):
-        """As per the dict class."""
-        if key not in self._keys:
-            return default
-
-        return self[key]
-
-    def values(self):
-        """As per the dict class."""
-        return ((k, self[k]) for k in self._keys)
-
     @property
     def sched_data(self):
         """A convenience function for getting data from the scheduler."""
-        return self.sched.get_data()
+        data = self.sched.get_data()
+        return data
 
     def __repr__(self):
         for k in self.keys():
@@ -170,7 +117,7 @@ class SchedulerVariables(collections.UserDict):
     # front-end nodes have less resources than any compute node. Note that
     # they are all non-deferred, so they're safe to use in build scripts,
 
-    @sched_var
+    @var_method
     def min_cpus(self):
         """Get a minimum number of cpus we have available on the local
         system. Defaults to 1 on error (and logs the error)."""
@@ -197,7 +144,7 @@ class SchedulerVariables(collections.UserDict):
         'GiB': 1024**3
     }
 
-    @sched_var
+    @var_method
     def min_mem(self):
         """Get a minimum amount of memory for the system, in Gibibytes.
         Returns 1 on error (and logs the error)."""
@@ -254,7 +201,6 @@ def get_scheduler_plugin(name):
         raise SchedulerPluginError("No scheduler plugins loaded.")
 
     if name not in _SCHEDULER_PLUGINS:
-        print(_SCHEDULER_PLUGINS)
         raise SchedulerPluginError(
             "Scheduler plugin not found: '{}'".format(name))
 
@@ -272,8 +218,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
     """The base scheduler plugin class. Scheduler plugins should inherit from
     this.
     :cvar KICKOFF_SCRIPT_EXT: The extension for the kickoff script.
-    :cvar SchedVarMeta META_VAR_CLASS: The class containing methods used
-        to extract
+    :cvar SchedulerVariables VAR_CLASS: The scheduler's variable class.
     """
 
     PRIO_DEFAULT = 0
@@ -284,7 +229,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
     VAR_CLASS = None
 
-    def __init__(self, name, priority=PRIO_DEFAULT):
+    def __init__(self, name, description, priority=PRIO_DEFAULT):
         """Scheduler plugin that is expected to be overriden by subclasses.
         The plugin will populate a set of expected 'sched' variables."""
 
@@ -292,6 +237,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
         self.logger = logging.getLogger('sched.' + name)
         self.name = name
+        self.description = description
         self.priority = priority
         self._data = None
 
@@ -356,6 +302,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
     def schedule_tests(self, pav_cfg, tests):
         """Schedule each of the given tests using this scheduler using a
         separate allocation (if applicable) for each.
+        :param pav_cfg: The pavilion config
         :param list[pavilion.pav_test.PavTest] tests: A list of pavilion tests
             to schedule.
         """
@@ -369,7 +316,10 @@ class SchedulerPlugin(IPlugin.IPlugin):
         raise Exception("This has not yet been implemented.")
 
     def lock_concurrency(self, pav_cfg, test):
-        """Acquire the concurrency lock for this scheduler, if necessary."""
+        """Acquire the concurrency lock for this scheduler, if necessary.
+        :param pav_cfg: The pavilion config.
+        :param test: A test object
+        """
 
         return None
 
@@ -385,8 +335,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
             to lock concurrency for.
         """
 
-        if (test.config[self.name].get('concurrent')
-                not in ('false', 'False')):
+        if test.config[self.name]['concurrent'] in ('false', 'False'):
             return None
 
         lock_name = '{s.name}_sched.lock'.format(s=self)
@@ -396,13 +345,13 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
         lock = LockFile(
             lock_path,
-            group=pav_cfg.group,
+            group=pav_cfg.shared_group,
             # Expire after 24 hours.
             expires_after=60*60*24,
         )
 
         test.status.set(STATES.SCHEDULED,
-                        "Test is non-concurrent, and waiting on the"
+                        "Test is non-concurrent, and waiting on the "
                         "concurrency lock for scheduler {s.name}."
                         .format(s=self))
 
@@ -419,44 +368,46 @@ class SchedulerPlugin(IPlugin.IPlugin):
         if lock is not None:
             lock.unlock()
 
-    # Job status constants to be used across all schedulers. Scheduler plugins
-    # should translate the scheduler's states into these four.
+    @staticmethod
+    def _now():
+        """Convenience method for getting a reasonable current time object."""
 
-    # The job is currently executing
-    JOB_RUNNING = 'RUNNING'
-    # The job is scheduled (but not yet running).
-    JOB_SCHEDULED = 'SCHEDULED'
-    # The job is complete (and successful)
-    JOB_COMPLETE = 'COMPLETE'
-    # The job has failed to complete
-    JOB_FAILED = 'FAILED'
-    # There was an error with the scheduler plugin or pavilion itself.
-    JOB_ERROR = 'ERROR'
+        return tzlocal.get_localzone().localize(
+            datetime.datetime.now()
+        )
 
-    def check_job(self, pav_cfg, id_):
-        """Function to check the status of a job.
-            :param pav_cfg: The pavilion configuration.
-            :param str id_: The id of the job, the format of which is scheduler
-            specific.
-            :return str - One of the self.JOB_* constants
+    def job_status(self, pav_cfg, test):
+        """Get the job state from the scheduler, and map it to one of the
+        on of the following states: SCHEDULED, SCHED_ERROR, SCHED_CANCELLED.
+        This may also simply re-fetch the latest state from the state file,
+        and return that if necessary.
+        :param pav_cfg: The pavilion configuration.
+        :param pavilion.pav_test.PavTest test: The test we're checking on.
+        :return: A StatusInfo object representing the status.
+        :rtype: pavilion.status_file.StatusInfo
         """
+
+        # Jobid's are assumed to be re-used, so the test is included to
+        # make it easier to check that it's definitely the same job.
+
         raise NotImplemented
 
     def schedule_test(self, pav_cfg, test_obj):
-        """Function.
+        """Create the test script and schedule the job.
+        :param pav_cfg: The pavilion cfg.
         :param pavilion.test_config.PavTest test_obj: The pavilion test to
         start.
         """
 
         kick_off_path = self._create_kickoff_script(pav_cfg, test_obj)
 
-        test_obj.job_id = self.schedule(test_obj, kick_off_path)
+        test_obj.job_id = self._schedule(test_obj, kick_off_path)
 
         test_obj.status.set(test_obj.status.STATES.SCHEDULED,
                             "Test {} has job ID {}."
                             .format(self.name, test_obj.job_id))
 
-    def schedule(self, test_obj, kickoff_path):
+    def _schedule(self, test_obj, kickoff_path):
         """Run the kickoff script at script path with this scheduler.
         :param pavilion.test_config.PavTest test_obj: The test to schedule.
         :param Path kickoff_path: - Path to the submission script.
@@ -486,14 +437,19 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
         # Make sure the pavilion spawned
         env_changes = {
-            'PATH': '{}:${{PATH}}'.format(pav_cfg.pav_root/'bin')
+            'PATH': '{}:${{PATH}}'.format(pav_cfg.pav_root/'bin'),
+            'PAV_CONFIG_FILE': str(pav_cfg.pav_cfg_file),
         }
         if 'PAV_CONFIG_DIR' in os.environ:
             env_changes['PAV_CONFIG_DIR'] = os.environ['PAV_CONFIG_DIR']
 
         script.env_change(env_changes)
 
-        script.command('pav _run {t.id}'.format(t=test_obj))
+        # This may be running after this python invocation is finished,
+        # so we redirect the output here.
+        script.command(
+            'pav _run {t.id} >{outfile} 2>&1'
+            .format(t=test_obj, outfile=test_obj.path/'kickoff.out'))
 
         script.write()
 
@@ -509,6 +465,33 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
         script.comment("Within the allocation, run the command.")
         script.command(test.run_cmd())
+
+    def cancel_job(self, test):
+        """Tell the scheduler to cancel the given test, if it can. This should
+        simply try it's best for the test given, and note in the test status
+        (with a SCHED_ERROR) if there were problems. Update the test status to
+        SCHED_CANCELLED if it succeeds.
+        :param pavilion.pav_test.PavTest test: The test to cancel.
+        :returns: A status info object describing the state. If we actually
+            cancel the job the test status will be set to SCHED_CANCELLED.
+            This should return SCHED_ERROR when something goes wrong.
+        :rtype: StatusInfo
+        """
+
+        job_id = test.job_id
+        if job_id is None:
+            return StatusInfo(STATES.SCHED_CANCELLED, "Job was never started.")
+
+        return self._cancel_job(test)
+
+    def _cancel_job(self, test):
+        """Override in scheduler plugins to handle cancelling a job.
+        :param pavilion.pav_test.PavTest test: The test to cancel.
+        :returns: Whether we're confident the job was canceled, and an
+            explanation.
+        :rtype: StatusInfo
+        """
+        raise NotImplementedError
 
     def activate(self):
         """Add this plugin to the scheduler plugin list."""

@@ -2,7 +2,7 @@ from pavilion import config
 from pavilion import plugins
 from pavilion import schedulers
 from pavilion.test_config import variables
-from pavilion.pavtest import PavTest
+from pavilion.pav_test import PavTest
 from pavilion.unittest import PavTestCase
 
 
@@ -29,15 +29,15 @@ class RawSchedTests(PavTestCase):
 
         class TestVars(schedulers.SchedulerVariables):
 
-            @schedulers.sched_var
+            @schedulers.var_method
             def hello(self):
                 return 'hello'
 
-            @schedulers.sched_var
+            @schedulers.var_method
             def foo(self):
                 return self.sched_data['foo']
 
-            @schedulers.dfr_sched_var()
+            @schedulers.dfr_var_method()
             def bar(self):
                 return 'bar'
 
@@ -45,11 +45,10 @@ class RawSchedTests(PavTestCase):
                 pass
 
         class DummySched(schedulers.SchedulerPlugin):
-
             VAR_CLASS = TestVars
 
             def __init__(self):
-                super().__init__('dummy')
+                super().__init__('dummy', 'more dumb')
 
                 self.in_alloc_var = False
 
@@ -61,10 +60,14 @@ class RawSchedTests(PavTestCase):
             def _in_alloc(self):
                 return self.in_alloc_var
 
-        test = PavTest(self.pav_cfg, {
-            'name': 'sched-vars',
-            'scheduler': 'dummy'
-        })
+        test = PavTest(
+            self.pav_cfg,
+            {
+                'name': 'sched-vars',
+                'scheduler': 'dummy'
+            },
+            {}
+        )
 
         dummy_sched = DummySched()
 

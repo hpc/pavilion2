@@ -6,8 +6,11 @@ from pavilion import arguments
 from pavilion import commands
 from pavilion import config
 from pavilion import plugins
+from pavilion import pav_vars
 import logging
+from pathlib import Path
 import os
+import socket
 import sys
 import traceback
 
@@ -28,8 +31,21 @@ def main():
     root_logger = logging.getLogger()
 
     # Set up a directory for tracebacks.
-    tracebacks_dir = os.path.expanduser('~/.pavilion/tracebacks')
-    os.makedirs(tracebacks_dir, exist_ok=True)
+    tracebacks_dir = Path(os.path.expanduser('~/.pavilion/tracebacks'))
+    os.makedirs(str(tracebacks_dir), exist_ok=True)
+
+    # Setup the logging records to contain host information, just like in
+    # the logging module example
+    old_factory = logging.getLogRecordFactory()
+    hostname = socket.gethostname()
+
+    def record_factory(*fargs, **kwargs):
+        record = old_factory(*fargs, **kwargs)
+        record.hostname = hostname
+        return record
+
+    # Setup the new record factory.
+    logging.setLogRecordFactory(record_factory)
 
     # Put the log file in the lowest common pav config directory we can write
     # to.
@@ -50,7 +66,8 @@ def main():
                                                maxBytes=1024 ** 2,
                                                backupCount=3)
             file_handler.setFormatter(logging.Formatter(pav_cfg.log_format))
-            file_handler.setLevel(pav_cfg.log_level)
+            file_handler.setLevel(getattr(logging,
+                                          pav_cfg.log_level.upper()))
             root_logger.addHandler(file_handler)
             break
 
@@ -65,7 +82,8 @@ def main():
                                          # 20 MB
                                          maxBytes=20 * 1024 ** 2,
                                          backupCount=3)
-    result_handler.setFormatter(logging.Formatter("%(asctime)s %(message)s"))
+    result_handler.setFormatter(logging.Formatter("{asctime} {message}",
+                                                  style='{'))
     result_logger.setLevel(logging.INFO)
     result_logger.addHandler(result_handler)
 
@@ -79,6 +97,8 @@ def main():
         print("Error initializing plugins: {}".format(err), file=sys.stderr)
         sys.exit(-1)
 
+    pav_cfg.pav_vars = pav_vars.PavVars()
+
     # Parse the arguments
     try:
         args = parser.parse_args()
@@ -89,22 +109,22 @@ def main():
     # Add a stream to stderr if we're in verbose mode, or if no other handler
     # is defined.
     if args.verbose or not root_logger.handlers:
-        result_handler = logging.StreamHandler(sys.stderr)
-        result_handler.level(logging.DEBUG)
-        result_handler.format(pav_cfg.log_format)
+        verbose_handler = logging.StreamHandler(sys.stderr)
+        verbose_handler.setLevel(logging.DEBUG)
+        verbose_handler.setFormatter(pav_cfg.log_format)
         root_logger.addHandler(result_handler)
 
     # Create the basic directories in the working directory
     for path in [pav_cfg.working_dir,
-                 os.path.join(pav_cfg.working_dir, 'builds'),
-                 os.path.join(pav_cfg.working_dir, 'tests'),
-                 os.path.join(pav_cfg.working_dir, 'downloads')]:
-        if not os.path.exists(path):
+                 pav_cfg.working_dir/'builds',
+                 pav_cfg.working_dir/'tests',
+                 pav_cfg.working_dir/'downloads']:
+        if not path.exists():
             try:
-                os.mkdir(path)
+                path.mkdir()
             except OSError as err:
                 # Handle potential race conditions with directory creation.
-                if os.path.exists(path):
+                if path.exists():
                     # Something else created the directory
                     pass
                 else:
@@ -127,10 +147,10 @@ def main():
     except Exception as err:
         print("Unknown error running command {}: {}."
               .format(args.command_name, err))
-        traceback_file = os.path.join(tracebacks_dir, str(os.getpid()))
+        traceback_file = tracebacks_dir/str(os.getpid())
         traceback.print_exc()
 
-        with open(traceback_file, 'w') as tb:
+        with traceback_file.open('w') as tb:
             tb.write(traceback.format_exc())
         print("Traceback saved in {}".format(traceback_file))
         sys.exit(-1)

@@ -18,16 +18,17 @@ class Regex(result_parsers.ResultParser):
                 'regex', default=None,
                 help_text="The python regex to use to search the given file. "
                           "See: 'https://docs.python.org/3/library/re.html' "
-                          "You can use single quotes in YAML to have the string"
-                          "interpreted literally. IE '\\n' is a '\\' and an 'n'"
+                          "You can use single quotes in YAML to have the "
+                          "string interpreted literally. IE '\\n' is a '\\' "
+                          "and an 'n'."
             ),
             yc.StrElem(
                 'rtype', default='first',
                 choices=['first', 'all', 'last', 'PASS', 'FAIL'],
                 help_text="This can return the first, last, or all matches. "
-                          "If there are no matches the result will be null"
-                          "or an empty list. For 'PASS' and 'FAIL', simply"
-                          "return that value if a match was found (and the"
+                          "If there are no matches the result will be null "
+                          "or an empty list. For 'PASS' and 'FAIL', simply "
+                          "return that value if a match was found (and the "
                           "opposite otherwise."
             )
         ])

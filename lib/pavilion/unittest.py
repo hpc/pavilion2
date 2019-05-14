@@ -9,7 +9,9 @@ import inspect
 
 from pavilion import arguments
 from pavilion import config
-from pavilion.utils import cprint
+from pavilion.pav_test import PavTest
+from pavilion.utils import dbg_print
+from pavilion.test_config.format import TestConfigLoader
 
 
 class PavTestCase(unittest.TestCase):
@@ -30,18 +32,32 @@ class PavTestCase(unittest.TestCase):
     def __init__(self, *args, **kwargs):
 
         with self.PAV_CONFIG_PATH.open() as cfg_file:
+            raw_pav_cfg = config.PavilionConfigLoader().load(cfg_file)
+
+        raw_pav_cfg.config_dirs = [self.TEST_DATA_ROOT/'pav_config_dir',
+                                   self.PAV_LIB_DIR]
+
+        raw_pav_cfg.working_dir = Path('/tmp')/os.getlogin()/'pav_tests'
+
+        if not raw_pav_cfg.working_dir.exists():
+            raw_pav_cfg.working_dir.mkdir()
+
+        cfg_dir = raw_pav_cfg.working_dir/'pav_cfgs'
+        if not cfg_dir.exists():
+            cfg_dir.mkdir()
+
+        cfg_path = Path(tempfile.mktemp(
+            suffix='.yaml',
+            dir=str(cfg_dir)))
+
+        with cfg_path.open('w') as pav_cfg_file:
+            config.PavilionConfigLoader().dump(pav_cfg_file,
+                                               raw_pav_cfg)
+
+        with cfg_path.open() as cfg_file:
             self.pav_cfg = config.PavilionConfigLoader().load(cfg_file)
 
-        self.pav_cfg.config_dirs = [self.TEST_DATA_ROOT/'pav_config_dir',
-                                    self.PAV_LIB_DIR]
-
-        self.tmp_dir = tempfile.TemporaryDirectory()
-
-        # We have to get this to set up the base argument parser before
-        # plugins can add to it.
-        _ = arguments.get_parser()
-
-        self.pav_cfg.working_dir = Path('/tmp')/os.getlogin()/'pav_tests'
+        self.pav_cfg.pav_cfg_file = cfg_path
 
         # Create the basic directories in the working directory
         for path in [self.pav_cfg.working_dir,
@@ -52,6 +68,11 @@ class PavTestCase(unittest.TestCase):
             if not path.exists():
                 os.makedirs(str(path), exist_ok=True)
 
+        self.tmp_dir = tempfile.TemporaryDirectory()
+
+        # We have to get this to set up the base argument parser before
+        # plugins can add to it.
+        _ = arguments.get_parser()
         super().__init__(*args, **kwargs)
 
     def __getattribute__(self, item):
@@ -199,7 +220,38 @@ class PavTestCase(unittest.TestCase):
             sha.update(file.read())
             return sha.hexdigest()
 
-    _cprint = staticmethod(cprint)
+    dbg_print = staticmethod(dbg_print)
+
+    @staticmethod
+    def _quick_test_cfg():
+        """Return the config to use with _quick_test."""
+        return {
+            'scheduler': 'raw',
+            'run': {
+                'cmds': [
+                    'echo "Hello World."'
+                ]
+            },
+        }
+
+    def _quick_test(self, cfg=None, name="quick_test"):
+        """Create a test object to work with.
+        :param dict cfg: An optional config dict to create the test from.
+        :param str name: The name of the test.
+        The default is a simple hello world test with the raw scheduler.
+        """
+
+        if cfg is None:
+            cfg = self._quick_test_cfg()
+
+        cfg = TestConfigLoader().validate(cfg)
+        cfg['name'] = name
+
+        return PavTest(
+            self.pav_cfg,
+            cfg,
+            {}
+        )
 
 
 class ColorResult(unittest.TextTestResult):
@@ -248,6 +300,4 @@ class ColorResult(unittest.TextTestResult):
         self.stream.write(self.CYAN)
         super().addSkip(test, reason)
         self.stream.write(self.COLOR_RESET)
-
-
 

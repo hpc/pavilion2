@@ -5,8 +5,12 @@ from pathlib import Path
 class HostOS(system_plugins.SystemPlugin):
 
     def __init__(self):
-        super().__init__(plugin_name='host_os', priority=10,
-                         is_deferable=True, sub_keys=['ID', 'Version'])
+        super().__init__(
+        plugin_name='host_os', 
+        help_text="The target host's OS info (name, version).",
+        priority=10,
+        is_deferable=True, 
+        sub_keys=['name', 'version'])
 
     def _get(self):
         """Base method for determining the operating host and version."""
@@ -14,10 +18,12 @@ class HostOS(system_plugins.SystemPlugin):
         with Path('/etc/os-release').open('r') as release:
             rlines = release.readlines()
 
+        os = {}
+
         for line in rlines:
             if line[:3] == 'ID=':
-                self.values['ID'] = line[3:].strip().strip('"')
+                os['name'] = line[3:].strip().strip('"')
             elif line[:11] == 'VERSION_ID=':
-                self.values['Version'] = line[11:].strip().strip('"')
+                os['version'] = line[11:].strip().strip('"')
 
-        return self.values
+        return os

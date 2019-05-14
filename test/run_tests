@@ -12,11 +12,15 @@ logging_root = '/tmp/{user}'.format(user=os.getlogin())
 if not os.path.exists(logging_root):
     os.makedirs(logging_root)
 log_path = os.path.join(logging_root, 'pavilion_tests.log')
-logging.basicConfig(filename=log_path,)
+logging.basicConfig(filename=log_path)
 console = logging.StreamHandler()
 console.setLevel(logging.INFO)
-console.setFormatter(logging.Formatter(fmt='\x1b[2m%(message)s\x1b[0m'))
-logging.getLogger('').addHandler(console)
+console.setFormatter(logging.Formatter(fmt='\x1b[2m{message}\x1b[0m',
+                                       style='{'))#logging.getLogger('').addHandler(console)
+
+logging.getLogger('').handlers.pop(0)
+print(logging.getLogger('results').handlers)
+
 print("Setting logging to output to ({}) and stderr".format(log_path))
 
 config = 'test_data/pav_config_dir/pavilion.yaml'

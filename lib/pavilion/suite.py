@@ -1,4 +1,4 @@
-from pavilion.pavtest import PavTest
+from pavilion.pav_test import PavTest
 from pavilion import utils
 from pathlib import Path
 import logging
@@ -86,7 +86,7 @@ class Suite:
                     )
                     continue
 
-                tests.append(PavTest.from_id(pav_cfg, test_id=test_id))
+                tests.append(PavTest.load(pav_cfg, test_id=test_id))
             else:
                 logger.info(
                     "Polluted suite directory in suite '{}'".format(suite_path)
@@ -121,7 +121,7 @@ class Suite:
 
         user_pav_dir = Path(os.path.expanduser('~/.pavilion'))
         last_suite_fn = user_pav_dir/'last_suite'
-        if not os.path.exists(last_suite_fn):
+        if not last_suite_fn.exists():
             return None
         try:
             with last_suite_fn.open() as last_suite_file:

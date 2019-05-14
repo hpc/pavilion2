@@ -8,7 +8,6 @@ from pavilion import system_variables
 from pavilion.test_config import variables
 from pavilion.unittest import PavTestCase
 import logging
-import os
 import subprocess
 
 LOGGER = logging.getLogger(__name__)
@@ -124,11 +123,11 @@ class PluginTests(PavTestCase):
         host_os = {}
         for line in rlines:
             if line[:3] == 'ID=':
-                host_os['ID'] = line[3:].strip().strip('"')
+                host_os['name'] = line[3:].strip().strip('"')
             elif line[:11] == 'VERSION_ID=':
-                host_os['Version'] = line[11:].strip().strip('"')
+                host_os['version'] = line[11:].strip().strip('"')
 
-        sys_vars = system_variables.get_system_plugin_dict(defer=False)
+        sys_vars = system_variables.get_vars(defer=False)
 
         self.assertFalse('sys_arch' in sys_vars)
         self.assertEqual(host_arch, sys_vars['sys_arch'])
@@ -139,9 +138,9 @@ class PluginTests(PavTestCase):
         self.assertTrue('sys_name' in sys_vars)
 
         self.assertFalse('sys_os' in sys_vars)
-        self.assertEqual(host_os['ID'], sys_vars['sys_os']['ID'])
-        self.assertEqual(host_os['Version'],
-                         sys_vars['sys_os']['Version'])
+        self.assertEqual(host_os['name'], sys_vars['sys_os']['name'])
+        self.assertEqual(host_os['version'],
+                         sys_vars['sys_os']['version'])
         self.assertTrue('sys_os' in sys_vars)
 
         self.assertFalse('host_arch' in sys_vars)
@@ -153,9 +152,9 @@ class PluginTests(PavTestCase):
         self.assertTrue('host_name' in sys_vars)
 
         self.assertFalse('host_os' in sys_vars)
-        self.assertEqual(host_os['ID'], sys_vars['host_os']['ID'])
-        self.assertEqual(host_os['Version'],
-                         sys_vars['host_os']['Version'])
+        self.assertEqual(host_os['name'], sys_vars['host_os']['name'])
+        self.assertEqual(host_os['version'],
+                         sys_vars['host_os']['version'])
         self.assertTrue('host_os' in sys_vars)
 
         # Re-initialize the plugin system.
@@ -170,9 +169,7 @@ class PluginTests(PavTestCase):
         # but these are back
         self.assertIsNotNone(system_variables._LOADED_PLUGINS)
 
-        sys_vars = system_variables.get_system_plugin_dict(defer=True)
-
-        self.assertTrue(len(system_variables._SYS_VAR_DICT.items()) == 0)
+        sys_vars = system_variables.get_vars(defer=True)
 
         # Check that the deferred values are actually deferred.
         self.assertFalse('host_arch' in sys_vars)
@@ -205,7 +202,4 @@ class PluginTests(PavTestCase):
 
         plugins._reset_plugins()
 
-        #TODO: Write more extensive tests.
-
-
-
+        # TODO: Write more extensive tests.

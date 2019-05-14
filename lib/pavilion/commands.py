@@ -38,7 +38,10 @@ def add_command(command):
 
 
 def get_command(command_name):
-    """Return the command of the given name."""
+    """Return the command of the given name.
+    :param str command_name: The name of the command to search for.
+    :rtype: Command
+    """
     global _COMMANDS
 
     return _COMMANDS[command_name]

@@ -1,28 +1,32 @@
 from pavilion import commands
 from pavilion import pavtest
-from pavilion import schedulers
 from pavilion import status_file
 from pavilion import utils
 from pavilion import suite
 import sys
 
-class StatusCommand(commands.Command):
+class SetStatusCommand(commands.Command):
 
     def __init__(self):
-        super().__init__('status', 'Check the status of a test, list of tests,'
-                         ' or test suite.', short_help="Get status of tests.")
+        super().__init__('set_status', 'Set the status of a test, list of '
+                         'tests, or test suite.',
+                         short_help="Set status of tests.")
 
     def _setup_arguments(self, parser):
 
         parser.add_argument(
-            '-j', '--json', action='store_true', default=False,
-            help='Give output as json, rather than as standard human readable.'
+            '-s', '--state', action='store', default='RUN_USER',
+            help='State to set for the test, tests, or suite of tests.'
+        )
+        parser.add_argument(
+            '-n', '--note', action='store', default=None,
+            help='Note to set for the test, tests, or suite of tests.'
         )
         parser.add_argument(
             'tests', nargs='*', action='store',
-            help='The name(s) of the tests to check.  These may be any mix of '
+            help='The name(s) of the tests to set.  These may be any mix of '
                  'test IDs and suite IDs.  If no value is provided, the most '
-                 'recent suite submitted by this user is checked.'
+                 'recent suite submitted by this user is used.'
         )
 
     def run(self, pav_config, args):
@@ -59,29 +63,13 @@ class StatusCommand(commands.Command):
                 pav_test = pavtest.PavTest.load(pav_config, int(test_id))
             except pavtest.PavTestError or pavtest.PavTestNotFoundError as err:
                 print("Test {} could not be opened.\n{}".format(test_id, err))
+
             if pav_test is not None:
-                status_f = status_file.StatusFile(pav_test.status.path).current()
+                status_f = status_file.StatusFile(pav_test.status.path)
 
             if status_f is not None:
-                if status_f.state == 'SCHEDULED':
-                    status_f = schedulers.get_scheduler_plugin(pav_test.scheduler)\
-                               .job_status(pav_config, pav_test)
+                status_f.set(args.state, args.note)
 
-                test_statuses.append({
-                    'test_id': test_id,
-                    'name': pav_test.name,
-                    'state': status_f.state,
-                    'time': status_f.when.strftime("%d %b %Y %H:%M:%S %Z"),
-                    'note': status_f.note,
-                })
-
-        if args.json:
-            json_data = {'statuses': test_statuses}
-            utils.json_dump(json_data, sys.stdout)
-        else:
-            cols = ['test_id', 'name', 'state', 'time', 'note']
-            utils.draw_table(sys.stdout, {}, cols, test_statuses,
-                             title='Test statuses')
         return 0
 
     def __repr__(self):

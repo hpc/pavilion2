@@ -55,6 +55,14 @@ class TestConfigLoader(yc.YamlConfigLoader):
                       "variable insertion. example, if a test has a single "
                       "permutation variable 'subtest', then '{subtest}' "
                       "would give a useful descriptor."),
+        yc.StrElem(
+            'summary', default='',
+            help_text="Summary of the purpose of this test."
+        ),
+        yc.StrElem(
+            'doc', default='',
+            help_text="Detailed documentation string for this test."
+        ),
         VarCatElem(
             'variables', sub_elem=yc.ListElem(sub_elem=VariableElem()),
             help_text="Variables for this test section. These can be "
@@ -74,6 +82,11 @@ class TestConfigLoader(yc.YamlConfigLoader):
         yc.RegexElem('scheduler', regex=r'\w+', required=True,
                      help_text="The scheduler class to use to run this test."),
         yc.KeyedElem('build', elements=[
+            yc.StrElem(
+                'on_nodes', default='False',
+                choices=['true', 'false', 'True', 'False'],
+                help_text="Whether to build on or off of the test allocation."
+            ),
             yc.StrElem(
                 'source_location',
                 help_text="Path to the test source. It may be a directory, "

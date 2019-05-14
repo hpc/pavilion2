@@ -1,11 +1,11 @@
-from pavilion.test_config import variables
 from pathlib import Path
 from pavilion import lockfile
+from pavilion import result_parsers
 from pavilion import scriptcomposer
 from pavilion import utils
 from pavilion import wget
-from pavilion import result_parsers
 from pavilion.status_file import StatusFile, STATES
+from pavilion.test_config import variables
 import bz2
 import datetime
 import gzip
@@ -61,13 +61,18 @@ class PavTest:
 
     LOGGER = logging.getLogger('pav.PavTest')
 
-    def __init__(self, pav_cfg, config, test_id=None):
+    def __init__(self, pav_cfg, config, sys_vars, _id=None):
         """Create an new PavTest object. If loading an existing test instance,
         use the PavTest.from_id method.
         :param pav_cfg: The pavilion configuration.
         :param config: The test configuration dictionary.
-        :param test_id: The test id (for an existing test).
+        :param Union(dict, None) sys_vars: System variables.
+        :param _id: The test id of an existing test. (You should be using
+            PavTest.load).
         """
+
+        if _id is None and sys_vars is None:
+            raise RuntimeError("New PavTest objects require a sys_vars dict. ")
 
         # Just about every method needs this
         self._pav_cfg = pav_cfg
@@ -85,11 +90,11 @@ class PavTest:
         self.config = config
 
         # Get an id for the test, if we weren't given one.
-        if test_id is None:
+        if _id is None:
             self.id, self.path = utils.create_id_dir(tests_path)
             self._save_config()
         else:
-            self.id = test_id
+            self.id = _id
             self.path = utils.make_id_path(tests_path, self.id)
             if not self.path.is_dir():
                 raise PavTestNotFoundError(
@@ -103,48 +108,57 @@ class PavTest:
 
         # Setup the initial status file.
         self.status = StatusFile(self.path/'status')
-        self.status.set(STATES.CREATED,
-                        "Test directory and status file created.")
+        if _id is None:
+            self.status.set(STATES.CREATED,
+                            "Test directory and status file created.")
 
         self._started = None
         self._finished = None
 
-        self.build_path = None
+        self.build_path = None          # type: Path
         self.build_name = None
-        self.build_hash = None
-        self.build_script_path = None
+        self.build_hash = None          # type: str
+        self.build_script_path = None   # type: Path
+        self.build_origin = None        # type: Path
         self.run_log = self.path/'run.log'
 
         build_config = self.config.get('build', {})
-        if build_config:
-            self.build_path = self.path/'build'
-            if self.build_path.is_symlink():
-                build_rp = self.build_path.resolve()
-                self.build_hash = build_rp.name
-            else:
-                self.build_hash = self._create_build_hash(build_config)
+        self.build_path = self.path/'build'
+        if self.build_path.is_symlink():
+            build_rp = self.build_path.resolve()
+            self.build_hash = build_rp.name
+        else:
+            self.build_hash = self._create_build_hash(build_config)
 
-            short_hash = self.build_hash[:self.BUILD_HASH_BYTES*2]
-            self.build_name = '{hash}'.format(hash=short_hash)
-            self.build_origin = pav_cfg.working_dir/'builds'/self.build_name
+        short_hash = self.build_hash[:self.BUILD_HASH_BYTES*2]
+        self.build_name = '{hash}'.format(hash=short_hash)
+        self.build_origin = pav_cfg.working_dir/'builds'/self.build_name
 
-            self.build_script_path = self.path/'build.sh'
-            self._write_script(self.build_script_path, build_config)
+        self.build_script_path = self.path/'build.sh'
+        if not self.build_script_path.exists():
+            self._write_script(self.build_script_path,
+                               build_config,
+                               sys_vars)
 
         run_config = self.config.get('run', {})
         if run_config:
             self.run_tmpl_path = self.path/'run.tmpl'
             self.run_script_path = self.path/'run.sh'
-            self._write_script(self.run_tmpl_path, run_config)
+            if not self.run_tmpl_path.exists():
+                self._write_script(self.run_tmpl_path, run_config, sys_vars)
         else:
             self.run_tmpl_path = None
             self.run_script_path = None
 
-        self.status.set(STATES.CREATED, "Test directory setup complete.")
+        if _id is None:
+            self.status.set(STATES.CREATED, "Test directory setup complete.")
 
     @classmethod
-    def from_id(cls, pav_cfg, test_id):
-        """Load a new PavTest object based on id."""
+    def load(cls, pav_cfg, test_id):
+        """Load an old PavTest object given a test id.
+        :param pav_cfg: The pavilion config
+        :param int test_id: The test's id number.
+        """
 
         path = utils.make_id_path(pav_cfg.working_dir/'tests', test_id)
 
@@ -155,7 +169,7 @@ class PavTest:
 
         config = cls._load_config(path)
 
-        return PavTest(pav_cfg, config, test_id)
+        return PavTest(pav_cfg, config, None, _id=test_id)
 
     def run_cmd(self):
         """Construct a shell command that would cause pavilion to run this
@@ -172,7 +186,7 @@ class PavTest:
 
         try:
             with config_path.open('w') as json_file:
-                json.dump(self.config, json_file)
+                utils.json_dump(self.config, json_file)
         except (OSError, IOError) as err:
             raise PavTestError("Could not save PavTest ({}) config at {}: {}"
                                .format(self.name, self.path, err))
@@ -190,6 +204,8 @@ class PavTest:
 
         try:
             with config_path.open('r') as config_file:
+                # Because only string keys are allowed in test configs,
+                # this is a reasonable way to load them.
                 return json.load(config_file)
         except TypeError as err:
             raise PavTestError("Bad config values for config '{}': {}"
@@ -349,6 +365,8 @@ class PavTest:
 
         # Only try to do the build if it doesn't already exist.
         if not self.build_origin.exists():
+            self.status.set(STATES.BUILDING,
+                            "Starting build {}.".format(self.build_hash))
             # Make sure another test doesn't try to do the build at
             # the same time.
             # Note cleanup of failed builds HAS to occur under this lock to
@@ -363,8 +381,10 @@ class PavTest:
 
                     try:
                         # Attempt to perform the actual build, this shouldn't
-                        # raise an exception unless
-                        # something goes terribly wrong.
+                        # raise an exception unless something goes terribly
+                        # wrong.
+                        # This will also set the test status for
+                        # non-catastrophic cases.
                         if not self._build(build_dir):
                             return False
 
@@ -381,14 +401,22 @@ class PavTest:
 
                         if build_dir.exists():
                             # Cleanup the temporary build tree.
-                            shutil.rmtree(path=str(build_dir),
+                            shutil.rmtree(path=build_dir.as_posix(),
                                           onerror=handle_error)
+                else:
+                    self.status.set(
+                        STATES.BUILDING,
+                        "Build {} created while waiting for build lock."
+                        .format(self.build_hash))
+        else:
+            self.status.set(STATES.BUILDING,
+                            "Build {} already exists.".format(self.build_hash))
 
         # Perform a symlink copy of the original build directory into our test
         # directory.
         try:
-            shutil.copytree(str(self.build_origin),
-                            str(self.build_path),
+            shutil.copytree(self.build_origin.as_posix(),
+                            self.build_path.as_posix(),
                             symlinks=True,
                             copy_function=utils.symlink_copy)
         except OSError as err:
@@ -401,7 +429,7 @@ class PavTest:
         # recently.
         try:
             now = time.time()
-            os.utime(str(self.build_origin), (now, now))
+            os.utime(self.build_origin.as_posix(), (now, now))
         except OSError as err:
             self.LOGGER.warning("Could not update timestamp on build directory "
                                 "'{}': {}"
@@ -430,11 +458,12 @@ class PavTest:
         build_log_path = build_dir/'pav_build_log'
 
         try:
+            # Do the build, and wait for it to complete.
             with build_log_path.open('w') as build_log:
-                proc = subprocess.Popen([str(self.build_script_path)],
-                                        cwd=str(build_dir),
+                proc = subprocess.Popen([self.build_script_path.as_posix()],
+                                        cwd=build_dir.as_posix(),
                                         stdout=build_log,
-                                        stderr=build_log)
+                                        stderr=subprocess.STDOUT)
 
                 timeout = self.BUILD_SILENT_TIMEOUT
                 result = None
@@ -523,7 +552,9 @@ class PavTest:
 
         elif src_path.is_dir():
             # Recursively copy the src directory to the build directory.
-            shutil.copytree(str(src_path), str(build_path), symlinks=True)
+            shutil.copytree(src_path.as_posix(),
+                            build_path.as_posix(),
+                            symlinks=True)
 
         elif src_path.is_file():
             # Handle decompression of a stream compressed file. The interfaces
@@ -532,9 +563,9 @@ class PavTest:
             category, subtype = utils.get_mime_type(src_path)
 
             if category == 'application' and subtype in self.TAR_SUBTYPES:
-                if tarfile.is_tarfile(str(src_path)):
+                if tarfile.is_tarfile(src_path.as_posix()):
                     try:
-                        with tarfile.open(str(src_path), 'r') as tar:
+                        with tarfile.open(src_path.as_posix(), 'r') as tar:
                             # Filter out all but the top level items.
                             top_level = [m for m in tar.members
                                          if '/' not in m.name]
@@ -544,7 +575,7 @@ class PavTest:
                             if len(top_level) == 1 and top_level[0].isdir():
                                 tmpdir = build_path.with_suffix('.tmp')
                                 tmpdir.mkdir()
-                                tar.extractall(str(tmpdir))
+                                tar.extractall(tmpdir.as_posix())
                                 opath = tmpdir/top_level[0].name
                                 opath.rename(build_path)
                                 tmpdir.rmdir()
@@ -552,7 +583,7 @@ class PavTest:
                                 # Otherwise, the build path will contain the
                                 # extracted contents of the archive.
                                 build_path.mkdir()
-                                tar.extractall(str(build_path))
+                                tar.extractall(build_path.as_posix())
                     except (OSError, IOError,
                             tarfile.CompressionError, tarfile.TarError) as err:
                         raise PavTestError(
@@ -584,7 +615,7 @@ class PavTest:
                     build_path.mkdir()
 
                     try:
-                        with comp_lib.open(str(src_path)) as infile, \
+                        with comp_lib.open(src_path.as_posix()) as infile, \
                                 decomp_fn.open('wb') as outfile:
                             shutil.copyfileobj(infile, outfile)
                     except (OSError, IOError, lzma.LZMAError) as err:
@@ -597,13 +628,13 @@ class PavTest:
                 try:
                     # Extract the zipfile, under the same conditions as
                     # above with tarfiles.
-                    with zipfile.ZipFile(str(src_path)) as zipped:
+                    with zipfile.ZipFile(src_path.as_posix()) as zipped:
 
                         tmpdir = build_path.with_suffix('.unzipped')
                         tmpdir.mkdir()
-                        zipped.extractall(str(tmpdir))
+                        zipped.extractall(tmpdir.as_posix())
 
-                        files = os.listdir(str(tmpdir))
+                        files = os.listdir(tmpdir.as_posix())
                         if len(files) == 1 and (tmpdir/files[0]).is_dir():
                             # Make the zip's root directory the build dir.
                             (tmpdir/files[0]).rename(build_path)
@@ -623,7 +654,7 @@ class PavTest:
                 dest = build_path/src_path.name
                 try:
                     build_path.mkdir()
-                    shutil.copyfile(str(src_path), str(dest))
+                    shutil.copyfile(src_path.as_posix(), dest.as_posix())
                 except OSError as err:
                     raise PavTestError(
                         "Could not copy test src '{}' to '{}': {}"
@@ -635,7 +666,7 @@ class PavTest:
             path = self._find_file(extra, 'test_src')
             dest = build_path/path.name
             try:
-                shutil.copyfile(str(path), str(dest))
+                shutil.copyfile(path.as_posix(), dest.as_posix())
             except OSError as err:
                 raise PavTestError(
                     "Could not copy extra file '{}' to dest '{}': {}"
@@ -658,18 +689,18 @@ class PavTest:
 
         # We shouldn't have to do anything to directories, they should have
         # the correct permissions already.
-        for path, _, files in os.walk(str(self.build_origin)):
+        for path, _, files in os.walk(self.build_origin.as_posix()):
             path = Path(path)
             for file in files:
                 file_path = path/file
                 st = file_path.stat()
                 file_path.lchmod(st.st_mode & file_mask)
 
-    def run(self, sched_vars):
+    def run(self, sched_vars, sys_vars):
         """Run the test, returning True on success, False otherwise.
         :param dict sched_vars: The scheduler variables for resolving the build
-        template.
-        """
+            template.
+        :param dict sys_vars: The system variables."""
 
         self.status.set(STATES.PREPPING_RUN,
                         "Resolving final run script.")
@@ -679,7 +710,7 @@ class PavTest:
             try:
                 var_man = variables.VariableSetManager()
                 var_man.add_var_set('sched', sched_vars)
-                var_man.add_var_set('sys', self._pav_cfg.sys_vars)
+                var_man.add_var_set('sys', sys_vars)
 
                 self.resolve_template(self.run_tmpl_path,
                                       self.run_script_path,
@@ -690,9 +721,11 @@ class PavTest:
                        .format(self.run_tmpl_path, err))
                 self.LOGGER.error(msg)
                 self.status.set(STATES.RUN_ERROR, msg)
+                return STATES.RUN_ERROR
             except PavTestError as err:
                 self.LOGGER.error(err)
                 self.status.set(STATES.RUN_ERROR, err)
+                return STATES.RUN_ERROR
 
         with self.run_log.open('wb') as run_log:
             self.status.set(STATES.RUNNING,
@@ -702,12 +735,17 @@ class PavTest:
 
             self._started = tz.localize(datetime.datetime.now())
 
-            run_wd = str(self.build_path) if self.build_path is not None \
-                                            else None
-            proc = subprocess.Popen([str(self.run_script_path)],
+            # TODO: There should always be a build directory, even if there
+            #       isn't a build.
+            # Set the working directory to the build path, if there is one.
+            run_wd = None
+            if self.build_path is not None:
+                run_wd = self.build_path.as_posix()
+
+            proc = subprocess.Popen([self.run_script_path.as_posix()],
                                     cwd=run_wd,
                                     stdout=run_log,
-                                    stderr=run_log)
+                                    stderr=subprocess.STDOUT)
 
             # Run the test, but timeout if it doesn't produce any output every
             # RUN_SILENT_TIMEOUT seconds
@@ -740,6 +778,44 @@ class PavTest:
             self.status.set(STATES.RUN_DONE,
                             "Test run has completed successfully.")
             return STATES.RUN_DONE
+
+    def set_run_complete(self):
+        """Write a file in the test directory that indicates that the test
+        has completed a run, one way or another. This should only be called
+        when we're sure their won't be any more status changes."""
+
+        # Write the current time to the file. We don't actually use the contents
+        # of the file, but it's nice to have another record of when this was
+        # run.
+        with (self.path/'RUN_COMPLETE').open('w') as run_complete:
+            run_complete.write(
+                tzlocal.get_localzone().localize(
+                    datetime.datetime.now()
+                ).isoformat()
+            )
+
+    WAIT_INTERVAL = 0.5
+
+    def wait(self, timeout=None):
+        """Wait for the test run to be complete. This works across hosts, as
+        it simply checks for files in the run directory.
+        :param Union(None, float) timeout: How long to wait in seconds. If
+            this is None, wait forever.
+        :raises TimeoutError: if the timeout expires.
+        """
+
+        run_complete_file = self.path/'RUN_COMPLETE'
+
+        if timeout is not None:
+            timeout = time.time() + timeout
+
+        while 1:
+            if run_complete_file.exists():
+                return
+
+            if timeout is not None and time.time() > timeout:
+                raise TimeoutError("Timed out waiting for test '{}' to "
+                                   "complete".format(self.id))
 
     RESERVED_RESULT_KEYS = [
         'name',
@@ -798,14 +874,39 @@ class PavTest:
 
                 key_names.append(key)
 
-    def gather_results(self, parsers, run_result):
-        """Process and log the results of the test.
-        :param list(
+                parser = result_parsers.get_plugin(rtype)
+                try:
+                    parser.check_args(self, rconf)
+                except result_parsers.ResultParserError as err:
+                    raise PavTestError(
+                        "Test '{}' has a result parser of type '{}' with"
+                        "key '{}' that has invalid arguments: {}"
+                        .format(self.name, rtype,
+                                rconf.get('key', '<unset>'), err)
+                    )
+
+    def gather_results(self, run_result):
+        """Process and log the results of the test, including the default set
+        of result keys.
+
+        Default Result Keys:
+          name - The name of the test
+          id - The test id
+          created - When the test was created.
+          started - When the test was started.
+          finished - When the test finished running (or failed).
+          duration - Length of the test run.
+          result - Defaults to PASS if the test completed (with a zero
+            exit status). Is generally expected to be overridden by other
+            result parsers.
+
+        :param str run_result: The result of the run.
         """
 
         if self._finished is None:
             raise RuntimeError(
-                "test.gather_results can't be run unless the test completed."
+                "test.gather_results can't be run unless the test was run"
+                "(or an attempt was made to run it. "
                 "This occurred for test {s.name}, #{s.id}"
                 .format(s=self)
             )
@@ -820,6 +921,11 @@ class PavTest:
             )
         ).isoformat(" ")
 
+        if run_result == STATES.RUN_DONE:
+            default_result = result_parsers.PASS
+        else:
+            default_result = result_parsers.FAIL
+
         results = {
             # These can't be overridden
             'name': self.name,
@@ -827,13 +933,13 @@ class PavTest:
             'created': created,
             'started': self._started.isoformat(" "),
             'finished': self._finished.isoformat(" "),
-            'duration': self._finished - self._started,
+            'duration': str(self._finished - self._started),
             # This may be overridden by result parsers.
-            'result': run_result
+            'result': default_result
         }
 
         self.status.set(STATES.RESULTS,
-                        "Parsing {} different result types."
+                        "Parsing {} result types."
                         .format(len(parser_configs)))
 
         for parser_name in parser_configs.keys():
@@ -852,8 +958,7 @@ class PavTest:
                         "with key '{}': {}"
                         .format(parser.name, rconf.get('key', '<no_key>'), err))
 
-        result_logger = logging.getLogger('results')
-        result_logger.info(json.dumps(results))
+        return results
 
     @property
     def is_built(self):
@@ -975,15 +1080,19 @@ class PavTest:
                 latest = dir_stat.st_mtime
 
         if src_stat.st_mtime != latest:
-            os.utime(str(base_path), (src_stat.st_atime, latest))
+            os.utime(base_path.as_posix(), (src_stat.st_atime, latest))
 
-    def _write_script(self, path, config):
+    def _write_script(self, path, config, sys_vars):
         """Write a build or run script or template. The formats for each are
             identical.
         :param str path: Path to the template file to write.
         :param dict config: Configuration dictionary for the script file.
         :return:
         """
+
+        if sys_vars is None:
+            raise RuntimeError("Trying to write script without sys_vars "
+                               "in test '{}'.".format(self.id))
 
         script = scriptcomposer.ScriptComposer(
             details=scriptcomposer.ScriptDetails(
@@ -1004,7 +1113,7 @@ class PavTest:
             script.comment('Perform module related changes to the environment.')
 
             for module in config.get('modules', []):
-                script.module_change(module, self._pav_cfg.sys_vars)
+                script.module_change(module, sys_vars)
 
         env = config.get('env', {})
         if env:
@@ -1047,7 +1156,7 @@ class PavTest:
             new_mode = (script_path.stat().st_mode |
                         stat.S_IXGRP |
                         stat.S_IXUSR)
-            os.chmod(str(script_path), new_mode)
+            os.chmod(script_path.as_posix(), new_mode)
 
         except ValueError as err:
             raise PavTestError("Problem escaping run template file '{}': {}"

@@ -1,13 +1,18 @@
-from collections import defaultdict
-from pavilion import commands
-from pavilion import schedulers
-from pavilion import test_config
-from pavilion import utils
-from pavilion.suite import Suite
-from pavilion.test_config.string_parser import ResolveError
-from pavilion.pavtest import PavTest
+import errno
 import sys
 import time
+from collections import defaultdict
+
+from pavilion import commands
+from pavilion import schedulers
+from pavilion import system_variables
+from pavilion import test_config
+from pavilion import utils
+from pavilion.pav_test import PavTest, PavTestError
+from pavilion.status_file import STATES
+from pavilion.suite import Suite
+from pavilion.test_config.string_parser import ResolveError
+from pavilion.utils import fprint
 
 
 class RunCommand(commands.Command):
@@ -29,7 +34,7 @@ class RunCommand(commands.Command):
             help='Mode configurations to overlay on the host configuration for '
                  'each test. These are overlayed in the order given.')
         parser.add_argument(
-            '-c', dest='config_overrides', action='append', default=[],
+            '-c', dest='overrides', action='append', default=[],
             help='Overrides for specific configuration options. These are '
                  'gathered used as a final set of overrides before the '
                  'configs are resolved. They should take the form '
@@ -60,7 +65,7 @@ class RunCommand(commands.Command):
 
     SLEEP_INTERVAL = 1
 
-    def run(self, pav_config, args):
+    def run(self, pav_cfg, args):
         """Resolve the test configurations into individual tests and assign to
         schedulers. Have those schedulers kick off jobs to run the individual
         tests themselves."""
@@ -70,42 +75,106 @@ class RunCommand(commands.Command):
         #   - Compile variables.
         #
 
-        try:
-            test_configs = self._get_tests(pav_config, args)
-        except test_config.TestConfigError as err:
-            print(err)
-            return 1
+        overrides = {}
+        for ovr in args.overrides:
+            if '=' not in ovr:
+                fprint("Invalid override value. Must be in the form: "
+                       "<key>=<value>. Ex. -c run.modules=['gcc'] ",
+                       file=sys.stderr)
+                return errno.EINVAL
 
-        all_tests = sum(test_configs.values(), [])
+            key, value = ovr.split('=', 1)
+            overrides[key] = value
+
+        sys_vars = system_variables.get_vars(True)
+
+        try:
+            configs_by_sched = self._get_tests(
+                pav_cfg=pav_cfg,
+                host=args.host,
+                test_files=args.files,
+                tests=args.tests,
+                modes=args.modes,
+                overrides=overrides,
+                sys_vars=sys_vars,
+            )
+
+            tests_by_sched = self._configs_to_tests(
+                pav_cfg=pav_cfg,
+                sys_vars=sys_vars,
+                configs_by_sched=configs_by_sched,
+            )
+
+        except test_config.TestConfigError as err:
+            fprint(err, file=sys.stderr)
+            return errno.EINVAL
+
+        all_tests = sum(tests_by_sched.values(), [])
 
         if not all_tests:
-            print("You must specify at least one test.")
-            return 1
+            fprint("You must specify at least one test.", file=sys.stderr)
+            return errno.EINVAL
 
-        suite = Suite(pav_config, all_tests)
+        suite = Suite(pav_cfg, all_tests)
 
-        for sched_name, tests in test_configs.items():
+        rp_errors = []
+        for test in all_tests:
+            # Make sure the result parsers have reasonable arguments.
+            try:
+                test.check_result_parsers()
+            except PavTestError as err:
+                rp_errors.append(str(err))
+
+        if rp_errors:
+            fprint("Result Parser configurations had errors:",
+                   file=sys.stderr, color=utils.RED)
+            for msg in rp_errors:
+                fprint(msg, bullet=' - ', file=sys.stderr)
+            return errno.EINVAL
+
+        # Building any tests that specify that they should be built before
+        for test in all_tests:
+            if test.config['build']['on_nodes'] not in ['true', 'True']:
+                if not test.build():
+                    fprint("Error building test: ", file=sys.stderr,
+                           color=utils.RED)
+                    fprint("status {status.state} - {status.note}"
+                           .format(status=test.status),
+                           file=sys.stderr)
+                    return errno.EINVAL
+
+        for sched_name, tests in tests_by_sched.items():
             sched = schedulers.get_scheduler_plugin(sched_name)
 
-            sched.schedule_tests(tests)
+            try:
+                sched.schedule_tests(pav_cfg, tests)
+            except schedulers.SchedulerPluginError as err:
+                fprint('Error scheduling tests:', file=sys.stderr,
+                       color=utils.RED)
+                fprint(err, bullet='  ', file=sys.stderr)
+                fprint('Cancelling already kicked off tests.', file=sys.stderr)
+                self._cancel_all(tests_by_sched)
 
+        # Tests should all be scheduled now, and have the SCHEDULED state
+        # (at some point, at least). Wait until something isn't scheduled
+        # anymore (either running or dead), or our timeout expires.
         wait_result = None
         if args.wait is not None:
             end_time = time.time() + args.wait
             while time.time() < end_time and wait_result is None:
                 last_time = time.time()
-                for sched_name, tests in test_configs.items():
+                for sched_name, tests in tests_by_sched.items():
                     sched = schedulers.get_scheduler_plugin(sched_name)
                     for test in tests:
-                        status = sched.check_job(test.jobid)
-                        if status in (sched.JOB_COMPLETE, sched.JOB_RUNNING):
-                            wait_result = True
-                            break
-                        elif status == sched.JOB_FAILED:
-                            wait_result = False
+                        status = test.status.current()
+                        if status == STATES.SCHEDULED:
+                            status = sched.job_status(pav_cfg, test)
+
+                        if status != STATES.SCHEDULED:
+                            # The test has moved past the scheduled state.
+                            wait_result = None
                             break
 
-                    if wait_result is not None:
                         break
 
                 if wait_result is None:
@@ -113,52 +182,36 @@ class RunCommand(commands.Command):
                     # we spent checking our jobs.
                     time.sleep(self.SLEEP_INTERVAL - (time.time() - last_time))
 
-        rows = []
-        for sched_name, tests in test_configs:
-            sched = schedulers.get_scheduler_plugin(sched_name)
-            for test in tests:
-                test_info = {
-                    'id': test.id,
-                    'name': test.name,
-                    'jobid': test.jobid,
-                    'scheduler': sched_name,
-                    'sched_status': sched.check_job(test.jobid),
-                    'status': tests.status.current().state,
-                }
-                rows.append(test_info)
+        fprint("{} tests started as test series {}."
+               .format(len(all_tests), suite.id),
+               color=utils.GREEN)
 
-        if not args.json:
-            cols = ['id', 'name', 'scheduler', 'jobid', 'sched_status',
-                    'status']
-            utils.draw_table(sys.stdout, {}, cols, rows,
-                             title="Tests for suite ${}".format(suite.id))
-        else:
-            json_data = {
-                'suite': suite.id,
-                'tests': rows,
-            }
-            utils.output_json(sys.stdout, json_data)
+        # TODO: Call pav status on the series.
 
-    def _get_tests(self, pav_config, host, test_files, tests, modes, overrides):
+        return 0
+
+    def _get_tests(self, pav_cfg, host, test_files, tests, modes,
+                   overrides, sys_vars):
         """Translate a general set of pavilion test configs into the final,
-        resolved configuration objects. These objects will be organized in a
+        resolved configurations. These objects will be organized in a
         dictionary by scheduler, and have a scheduler object instantiated and
         attached.
-        :param pav_config: The pavilion config
+        :param pav_cfg: The pavilion config
         :param str host: The host config to target these tests with
         :param list(str) modes: The mode configs to use.
         :param list(Path) test_files: Files containing a newline separated
             list of tests.
         :param list(str) tests: The tests to run.
         :param list(str) overrides: Overrides to apply to the configurations.
+        :param system_variables.SysVarDict sys_vars: The system variables dict.
         :returns: A dictionary (by scheduler type name) of lists of test
-            objects
+            configs.
         """
         self.logger.debug("Finding Configs")
 
         # Use the sys_host if a host isn't specified.
         if host is None:
-            host = pav_config.sys_vars.get('sys_host')
+            host = sys_vars.get('sys_host')
 
         tests = list(tests)
         for file in test_files:
@@ -173,7 +226,8 @@ class RunCommand(commands.Command):
                 self.logger.error(msg)
                 raise commands.CommandError(msg)
 
-        raw_tests = test_config.load_test_configs(pav_config, host, modes, tests)
+        raw_tests = test_config.load_test_configs(pav_cfg, host, modes,
+                                                  tests)
         raw_tests_by_sched = defaultdict(lambda: [])
         tests_by_scheduler = defaultdict(lambda: [])
 
@@ -192,8 +246,8 @@ class RunCommand(commands.Command):
             try:
                 p_cfg, permutes = test_config.resolve_permutations(
                     test_cfg,
-                    pav_config.pav_vars,
-                    pav_config.sys_vars
+                    pav_cfg.pav_vars,
+                    sys_vars
                 )
                 for p_var_man in permutes:
                     sched = p_cfg['scheduler'].resolve(p_var_man)
@@ -219,7 +273,7 @@ class RunCommand(commands.Command):
             # Builds must have the values of all their variables now.
             nondeferred_cfg_sctns.append('build')
 
-            # Set the echeduler variables for each test.
+            # Set the scheduler variables for each test.
             for test_cfg, test_var_man in raw_tests_by_sched[sched_name]:
                 test_var_man.add_var_set('sched', sched.get_vars(test_cfg))
 
@@ -235,8 +289,33 @@ class RunCommand(commands.Command):
                     self.logger.error(msg)
                     raise commands.CommandError(msg)
 
-                test = PavTest(pav_config, resolved_config)
-
-                tests_by_scheduler[sched.name].append(test)
+                tests_by_scheduler[sched.name].append(resolved_config)
 
         return tests_by_scheduler
+
+    @staticmethod
+    def _configs_to_tests(pav_cfg, sys_vars, configs_by_sched):
+        """Convert the dictionary of test configs by scheduler into actual tests."""
+
+        tests_by_sched = {}
+
+        for sched_name in configs_by_sched.keys():
+            tests_by_sched[sched_name] = []
+            for i in range(len(configs_by_sched[sched_name])):
+                tests_by_sched[sched_name].append(PavTest(
+                    pav_cfg=pav_cfg,
+                    config=configs_by_sched[sched_name][i],
+                    sys_vars=sys_vars
+                ))
+
+        return tests_by_sched
+
+    @staticmethod
+    def _cancel_all(tests_by_sched):
+        """Cancel each of the given tests using the appropriate scheduler."""
+        for sched_name, tests in tests_by_sched.items():
+
+            sched = schedulers.get_scheduler_plugin(sched_name)
+
+            for test in tests:
+                sched.cancel_job(test)
