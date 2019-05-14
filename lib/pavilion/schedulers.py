@@ -2,7 +2,7 @@ from functools import wraps
 from pathlib import Path
 from pavilion import scriptcomposer
 from pavilion.lockfile import LockFile
-from pavilion.status_file import STATES
+from pavilion.status_file import STATES, StatusInfo
 from pavilion.test_config import format
 from pavilion.test_config.variables import DeferredVariable
 from pavilion.var_dict import VarDict, var_method
@@ -20,7 +20,7 @@ class SchedulerPluginError(RuntimeError):
     pass
 
 
-_SCHEDULER_PLUGINS = None
+_SCHEDULER_PLUGINS = None  # type: dict
 
 
 def dfr_var_method(*sub_keys):
@@ -218,8 +218,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
     """The base scheduler plugin class. Scheduler plugins should inherit from
     this.
     :cvar KICKOFF_SCRIPT_EXT: The extension for the kickoff script.
-    :cvar SchedVarMeta META_VAR_CLASS: The class containing methods used
-        to extract
+    :cvar SchedulerVariables VAR_CLASS: The scheduler's variable class.
     """
 
     PRIO_DEFAULT = 0
@@ -230,7 +229,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
     VAR_CLASS = None
 
-    def __init__(self, name, priority=PRIO_DEFAULT):
+    def __init__(self, name, description, priority=PRIO_DEFAULT):
         """Scheduler plugin that is expected to be overriden by subclasses.
         The plugin will populate a set of expected 'sched' variables."""
 
@@ -238,6 +237,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
         self.logger = logging.getLogger('sched.' + name)
         self.name = name
+        self.description = description
         self.priority = priority
         self._data = None
 
@@ -265,7 +265,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
         raise NotImplementedError
 
-    def _get_conf(self):
+    def get_conf(self):
         """Return the configuration object suitable for adding to the test
         configuration."""
 
@@ -382,9 +382,9 @@ class SchedulerPlugin(IPlugin.IPlugin):
         This may also simply re-fetch the latest state from the state file,
         and return that if necessary.
         :param pav_cfg: The pavilion configuration.
-        :param pavilion.pavtest.PavTest test: The test we're checking on.
-        :return (str, str): Current state according to the scheduler,
-            and a note.
+        :param pavilion.pav_test.PavTest test: The test we're checking on.
+        :return: A StatusInfo object representing the status.
+        :rtype: pavilion.status_file.StatusInfo
         """
 
         # Jobid's are assumed to be re-used, so the test is included to
@@ -471,9 +471,26 @@ class SchedulerPlugin(IPlugin.IPlugin):
         simply try it's best for the test given, and note in the test status
         (with a SCHED_ERROR) if there were problems. Update the test status to
         SCHED_CANCELLED if it succeeds.
-        :param pavilion.pavtest.PavTest test: The test to cancel.
+        :param pavilion.pav_test.PavTest test: The test to cancel.
+        :returns: A status info object describing the state. If we actually
+            cancel the job the test status will be set to SCHED_CANCELLED.
+            This should return SCHED_ERROR when something goes wrong.
+        :rtype: StatusInfo
         """
 
+        job_id = test.job_id
+        if job_id is None:
+            return StatusInfo(STATES.SCHED_CANCELLED, "Job was never started.")
+
+        return self._cancel_job(test)
+
+    def _cancel_job(self, test):
+        """Override in scheduler plugins to handle cancelling a job.
+        :param pavilion.pav_test.PavTest test: The test to cancel.
+        :returns: Whether we're confident the job was canceled, and an
+            explanation.
+        :rtype: StatusInfo
+        """
         raise NotImplementedError
 
     def activate(self):
@@ -487,7 +504,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
         if name not in _SCHEDULER_PLUGINS:
             _SCHEDULER_PLUGINS[name] = self
-            format.TestConfigLoader.add_subsection(self._get_conf())
+            format.TestConfigLoader.add_subsection(self.get_conf())
         else:
             ex_plugin = _SCHEDULER_PLUGINS[name]
             if ex_plugin.priority > self.priority:

@@ -115,11 +115,11 @@ class PavTest:
         self._started = None
         self._finished = None
 
-        self.build_path = None
+        self.build_path = None          # type: Path
         self.build_name = None
-        self.build_hash = None
-        self.build_script_path = None
-        self.build_origin = None
+        self.build_hash = None          # type: str
+        self.build_script_path = None   # type: Path
+        self.build_origin = None        # type: Path
         self.run_log = self.path/'run.log'
 
         build_config = self.config.get('build', {})
@@ -401,7 +401,7 @@ class PavTest:
 
                         if build_dir.exists():
                             # Cleanup the temporary build tree.
-                            shutil.rmtree(path=str(build_dir),
+                            shutil.rmtree(path=build_dir.as_posix(),
                                           onerror=handle_error)
                 else:
                     self.status.set(
@@ -415,8 +415,8 @@ class PavTest:
         # Perform a symlink copy of the original build directory into our test
         # directory.
         try:
-            shutil.copytree(str(self.build_origin),
-                            str(self.build_path),
+            shutil.copytree(self.build_origin.as_posix(),
+                            self.build_path.as_posix(),
                             symlinks=True,
                             copy_function=utils.symlink_copy)
         except OSError as err:
@@ -429,7 +429,7 @@ class PavTest:
         # recently.
         try:
             now = time.time()
-            os.utime(str(self.build_origin), (now, now))
+            os.utime(self.build_origin.as_posix(), (now, now))
         except OSError as err:
             self.LOGGER.warning("Could not update timestamp on build directory "
                                 "'{}': {}"
@@ -460,8 +460,8 @@ class PavTest:
         try:
             # Do the build, and wait for it to complete.
             with build_log_path.open('w') as build_log:
-                proc = subprocess.Popen([str(self.build_script_path)],
-                                        cwd=str(build_dir),
+                proc = subprocess.Popen([self.build_script_path.as_posix()],
+                                        cwd=build_dir.as_posix(),
                                         stdout=build_log,
                                         stderr=subprocess.STDOUT)
 
@@ -552,7 +552,9 @@ class PavTest:
 
         elif src_path.is_dir():
             # Recursively copy the src directory to the build directory.
-            shutil.copytree(str(src_path), str(build_path), symlinks=True)
+            shutil.copytree(src_path.as_posix(),
+                            build_path.as_posix(),
+                            symlinks=True)
 
         elif src_path.is_file():
             # Handle decompression of a stream compressed file. The interfaces
@@ -561,9 +563,9 @@ class PavTest:
             category, subtype = utils.get_mime_type(src_path)
 
             if category == 'application' and subtype in self.TAR_SUBTYPES:
-                if tarfile.is_tarfile(str(src_path)):
+                if tarfile.is_tarfile(src_path.as_posix()):
                     try:
-                        with tarfile.open(str(src_path), 'r') as tar:
+                        with tarfile.open(src_path.as_posix(), 'r') as tar:
                             # Filter out all but the top level items.
                             top_level = [m for m in tar.members
                                          if '/' not in m.name]
@@ -573,7 +575,7 @@ class PavTest:
                             if len(top_level) == 1 and top_level[0].isdir():
                                 tmpdir = build_path.with_suffix('.tmp')
                                 tmpdir.mkdir()
-                                tar.extractall(str(tmpdir))
+                                tar.extractall(tmpdir.as_posix())
                                 opath = tmpdir/top_level[0].name
                                 opath.rename(build_path)
                                 tmpdir.rmdir()
@@ -581,7 +583,7 @@ class PavTest:
                                 # Otherwise, the build path will contain the
                                 # extracted contents of the archive.
                                 build_path.mkdir()
-                                tar.extractall(str(build_path))
+                                tar.extractall(build_path.as_posix())
                     except (OSError, IOError,
                             tarfile.CompressionError, tarfile.TarError) as err:
                         raise PavTestError(
@@ -613,7 +615,7 @@ class PavTest:
                     build_path.mkdir()
 
                     try:
-                        with comp_lib.open(str(src_path)) as infile, \
+                        with comp_lib.open(src_path.as_posix()) as infile, \
                                 decomp_fn.open('wb') as outfile:
                             shutil.copyfileobj(infile, outfile)
                     except (OSError, IOError, lzma.LZMAError) as err:
@@ -626,13 +628,13 @@ class PavTest:
                 try:
                     # Extract the zipfile, under the same conditions as
                     # above with tarfiles.
-                    with zipfile.ZipFile(str(src_path)) as zipped:
+                    with zipfile.ZipFile(src_path.as_posix()) as zipped:
 
                         tmpdir = build_path.with_suffix('.unzipped')
                         tmpdir.mkdir()
-                        zipped.extractall(str(tmpdir))
+                        zipped.extractall(tmpdir.as_posix())
 
-                        files = os.listdir(str(tmpdir))
+                        files = os.listdir(tmpdir.as_posix())
                         if len(files) == 1 and (tmpdir/files[0]).is_dir():
                             # Make the zip's root directory the build dir.
                             (tmpdir/files[0]).rename(build_path)
@@ -652,7 +654,7 @@ class PavTest:
                 dest = build_path/src_path.name
                 try:
                     build_path.mkdir()
-                    shutil.copyfile(str(src_path), str(dest))
+                    shutil.copyfile(src_path.as_posix(), dest.as_posix())
                 except OSError as err:
                     raise PavTestError(
                         "Could not copy test src '{}' to '{}': {}"
@@ -664,7 +666,7 @@ class PavTest:
             path = self._find_file(extra, 'test_src')
             dest = build_path/path.name
             try:
-                shutil.copyfile(str(path), str(dest))
+                shutil.copyfile(path.as_posix(), dest.as_posix())
             except OSError as err:
                 raise PavTestError(
                     "Could not copy extra file '{}' to dest '{}': {}"
@@ -687,7 +689,7 @@ class PavTest:
 
         # We shouldn't have to do anything to directories, they should have
         # the correct permissions already.
-        for path, _, files in os.walk(str(self.build_origin)):
+        for path, _, files in os.walk(self.build_origin.as_posix()):
             path = Path(path)
             for file in files:
                 file_path = path/file
@@ -738,9 +740,9 @@ class PavTest:
             # Set the working directory to the build path, if there is one.
             run_wd = None
             if self.build_path is not None:
-                run_wd = str(self.build_path)
+                run_wd = self.build_path.as_posix()
 
-            proc = subprocess.Popen([str(self.run_script_path)],
+            proc = subprocess.Popen([self.run_script_path.as_posix()],
                                     cwd=run_wd,
                                     stdout=run_log,
                                     stderr=subprocess.STDOUT)
@@ -872,8 +874,32 @@ class PavTest:
 
                 key_names.append(key)
 
+                parser = result_parsers.get_plugin(rtype)
+                try:
+                    parser.check_args(self, rconf)
+                except result_parsers.ResultParserError as err:
+                    raise PavTestError(
+                        "Test '{}' has a result parser of type '{}' with"
+                        "key '{}' that has invalid arguments: {}"
+                        .format(self.name, rtype,
+                                rconf.get('key', '<unset>'), err)
+                    )
+
     def gather_results(self, run_result):
-        """Process and log the results of the test.
+        """Process and log the results of the test, including the default set
+        of result keys.
+
+        Default Result Keys:
+          name - The name of the test
+          id - The test id
+          created - When the test was created.
+          started - When the test was started.
+          finished - When the test finished running (or failed).
+          duration - Length of the test run.
+          result - Defaults to PASS if the test completed (with a zero
+            exit status). Is generally expected to be overridden by other
+            result parsers.
+
         :param str run_result: The result of the run.
         """
 
@@ -895,6 +921,11 @@ class PavTest:
             )
         ).isoformat(" ")
 
+        if run_result == STATES.RUN_DONE:
+            default_result = result_parsers.PASS
+        else:
+            default_result = result_parsers.FAIL
+
         results = {
             # These can't be overridden
             'name': self.name,
@@ -904,7 +935,7 @@ class PavTest:
             'finished': self._finished.isoformat(" "),
             'duration': str(self._finished - self._started),
             # This may be overridden by result parsers.
-            'result': run_result
+            'result': default_result
         }
 
         self.status.set(STATES.RESULTS,
@@ -1049,7 +1080,7 @@ class PavTest:
                 latest = dir_stat.st_mtime
 
         if src_stat.st_mtime != latest:
-            os.utime(str(base_path), (src_stat.st_atime, latest))
+            os.utime(base_path.as_posix(), (src_stat.st_atime, latest))
 
     def _write_script(self, path, config, sys_vars):
         """Write a build or run script or template. The formats for each are
@@ -1125,7 +1156,7 @@ class PavTest:
             new_mode = (script_path.stat().st_mode |
                         stat.S_IXGRP |
                         stat.S_IXUSR)
-            os.chmod(str(script_path), new_mode)
+            os.chmod(script_path.as_posix(), new_mode)
 
         except ValueError as err:
             raise PavTestError("Problem escaping run template file '{}': {}"

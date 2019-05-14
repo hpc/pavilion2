@@ -6,33 +6,32 @@ import logging
 import os
 import sys
 import time
+from pathlib import Path
 
-log_dir = '/tmp/{}'.format(os.getlogin())
-if not os.path.exists(log_dir):
-    os.makedirs(log_dir)
-logging.basicConfig(filename=os.path.join(log_dir, 'pavilion_tests.log'))
+log_dir = Path('/tmp', os.getlogin())
+if not log_dir.exists():
+    os.makedirs(log_dir.as_posix())
+logging.basicConfig(filename=(log_dir/'pavilion_tests.log').as_posix())
 
-package_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-sys.path.append(os.path.join(package_root, 'lib'))
+package_root = Path(__file__).resolve().parents[2]
+sys.path.append((package_root/'lib').as_posix())
 
 from pavilion import status_file
 
 TIME_LIMIT = 0.5
 
 # This takes a file name as a single argument.
-path = sys.argv[1]
+path = Path(sys.argv[1])
 
 start_time = None
 
-while not os.path.exists(path):
+while not path.exists():
     continue
 
-start_time = time.time()
+time_limit = time.time() + TIME_LIMIT
 status = status_file.StatusFile(path)
 
-while True:
-    if time.time() - start_time > TIME_LIMIT:
-        break
-
+while time.time() < time_limit:
     for i in range(100):
-        status.set(status_file.STATES.RUNNING, "Testing {}".format(os.getpid()))
+        status.set(status_file.STATES.RUNNING,
+                   "Testing {}".format(os.getpid()))

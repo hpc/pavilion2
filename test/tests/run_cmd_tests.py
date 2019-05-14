@@ -4,7 +4,7 @@ from pavilion.unittest import PavTestCase
 from pavilion import arguments
 
 
-class PavTestTests(PavTestCase):
+class RunCmdTests(PavTestCase):
 
     def setUp(self):
         plugins.initialize_plugins(self.pav_cfg)

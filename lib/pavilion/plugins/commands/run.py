@@ -1,15 +1,18 @@
-from collections import defaultdict
-from pavilion import commands
-from pavilion import schedulers
-from pavilion import test_config
-from pavilion.status_file import STATES
-from pavilion.suite import Suite
-from pavilion.test_config.string_parser import ResolveError
-from pavilion.pavtest import PavTest
-from pavilion import system_variables
 import errno
 import sys
 import time
+from collections import defaultdict
+
+from pavilion import commands
+from pavilion import schedulers
+from pavilion import system_variables
+from pavilion import test_config
+from pavilion import utils
+from pavilion.pav_test import PavTest, PavTestError
+from pavilion.status_file import STATES
+from pavilion.suite import Suite
+from pavilion.test_config.string_parser import ResolveError
+from pavilion.utils import fprint
 
 
 class RunCommand(commands.Command):
@@ -75,8 +78,9 @@ class RunCommand(commands.Command):
         overrides = {}
         for ovr in args.overrides:
             if '=' not in ovr:
-                print("Invalid override value. Must be in the form: "
-                      "<key>=<value>. Ex. -c run.modules=['gcc'] ")
+                fprint("Invalid override value. Must be in the form: "
+                       "<key>=<value>. Ex. -c run.modules=['gcc'] ",
+                       file=sys.stderr)
                 return errno.EINVAL
 
             key, value = ovr.split('=', 1)
@@ -90,24 +94,41 @@ class RunCommand(commands.Command):
                                            args.modes,
                                            overrides)
         except test_config.TestConfigError as err:
-            print(err, file=sys.stderr)
+            fprint(err, file=sys.stderr)
             return errno.EINVAL
 
         all_tests = sum(test_configs.values(), [])
 
         if not all_tests:
-            print("You must specify at least one test.", file=sys.stderr)
+            fprint("You must specify at least one test.", file=sys.stderr)
             return errno.EINVAL
 
         suite = Suite(pav_cfg, all_tests)
+
+        rp_errors = []
+        for test in all_tests:
+            # Make sure the result parsers have reasonable arguments.
+            try:
+                test.check_result_parsers()
+            except PavTestError as err:
+                rp_errors.append(str(err))
+
+        if rp_errors:
+            fprint("Result Parser configurations had errors:",
+                   file=sys.stderr, color=utils.RED)
+            for msg in rp_errors:
+                fprint(msg, bullet=' - ', file=sys.stderr)
+            return errno.EINVAL
 
         # Building any tests that specify that they should be built before
         for test in all_tests:
             if test.config['build']['on_nodes'] not in ['true', 'True']:
                 if not test.build():
-                    print("Error building test: status {status.state} "
-                          "- {status.note}"
-                          .format(status=test.status))
+                    fprint("Error building test: ", file=sys.stderr,
+                           color=utils.RED)
+                    fprint("status {status.state} - {status.note}"
+                           .format(status=test.status),
+                           file=sys.stderr)
                     return errno.EINVAL
 
         for sched_name, tests in test_configs.items():
@@ -116,7 +137,10 @@ class RunCommand(commands.Command):
             try:
                 sched.schedule_tests(pav_cfg, tests)
             except schedulers.SchedulerPluginError as err:
-                print(err)
+                fprint('Error scheduling tests:', file=sys.stderr,
+                       color=utils.RED)
+                fprint(err, bullet='  ', file=sys.stderr)
+                fprint('Cancelling already kicked off tests.', file=sys.stderr)
                 self._cancel_all(test_configs)
 
         # Tests should all be scheduled now, and have the SCHEDULED state
@@ -146,8 +170,9 @@ class RunCommand(commands.Command):
                     # we spent checking our jobs.
                     time.sleep(self.SLEEP_INTERVAL - (time.time() - last_time))
 
-        print("{} tests started under as test series {}."
-              .format(len(all_tests), suite.id))
+        fprint("{} tests started as test series {}."
+               .format(len(all_tests), suite.id),
+               color=utils.GREEN)
 
         # TODO: Call pav status on the series.
 
@@ -258,7 +283,9 @@ class RunCommand(commands.Command):
 
         return tests_by_scheduler
 
-    def _cancel_all(self, tests_by_sched):
+    @staticmethod
+    def _cancel_all(tests_by_sched):
+        """Cancel each of the given tests using the appropriate scheduler."""
         for sched_name, tests in tests_by_sched.items():
 
             sched = schedulers.get_scheduler_plugin(sched_name)

@@ -68,7 +68,11 @@ def get_module_wrapper(name, version):
             # Grab the generic wrapper for this module
             return _WRAPPED_MODULES[name][None]
 
-    return ModuleWrapper(name, version=version)
+    return ModuleWrapper(name, '<default>', version=version)
+
+
+def list_module_wrappers():
+    return list(_WRAPPED_MODULES.keys())
 
 
 class ModuleWrapper(IPlugin.IPlugin):
@@ -83,10 +87,11 @@ class ModuleWrapper(IPlugin.IPlugin):
 
     NAME_VERS_RE = re.compile(r'^[a-zA-Z0-9_.-]+$')
 
-    def __init__(self, name, version=None, priority=PRIO_DEFAULT):
+    def __init__(self, name, help_text, version=None, priority=PRIO_DEFAULT):
         """Initialize the module wrapper instance. This must be overridden in plugins
         as the plugin system can't handle the arguments
         :param str name: The name of the module being wrapped.
+        :param str help_text: A description of this wrapper.
         :param str version: The version of module file to wrap. None denotes a wild version or a
         version-less modulefile.
         :param int priority: The priority of this wrapper. It will replace identical wrappers of a
@@ -102,20 +107,23 @@ class ModuleWrapper(IPlugin.IPlugin):
 
         self.name = name
         self._version = version
+        self.help_text = help_text
         self.priority = priority
 
     def get_version(self, requested_version):
-        """Get the version of the module to load, given the requested version and the version
-        set in the instance. This should always be used to figure out what version to load.
+        """Get the version of the module to load, given the requested
+        version and the version set in the instance. This should always be
+        used to figure out what version to load.
         :param Union(str, None) requested_version: The version requested by the user.
         :return: The version that should be loaded.
         """
 
         if self._version is not None and requested_version != self._version:
-            raise ModuleWrapperError("Version mismatch. A module wrapper specifically for "
-                                     "version '{s._version}' of '{s.name}' was used with "
-                                     "a non-matching requested version '{requested}'."
-                                     .format(s=self, requested=requested_version))
+            raise ModuleWrapperError(
+                "Version mismatch. A module wrapper specifically for "
+                "version '{s._version}' of '{s.name}' was used with "
+                "a non-matching requested version '{requested}'."
+                .format(s=self, requested=requested_version))
 
         return requested_version
 

@@ -4,7 +4,7 @@ from pavilion import schedulers
 from pavilion.unittest import PavTestCase
 from pavilion.test_config.format import TestConfigLoader
 from pavilion.status_file import STATES
-from pavilion.pavtest import PavTest
+from pavilion.pav_test import PavTest
 import subprocess
 import unittest
 
@@ -72,8 +72,6 @@ class SlurmTests(PavTestCase):
                                "job id.")
         test.job_id = jobid
 
-        self._cprint(slurm.job_status(self.pav_cfg, test))
-
     @unittest.skipIf(not has_slurm(), "Only runs on a system with slurm.")
     def test_sched_vars(self):
         """Make sure the scheduler vars are reasonable."""
@@ -113,14 +111,17 @@ class SlurmTests(PavTestCase):
                     'echo "Hello World."'
                 ]
             },
-            'slurm': {
-                'qos': 'tossdev',
-                'partition': 'tossdev'
-            }
         })
         cfg['name'] = 'slurm_test'
 
         test = PavTest(self.pav_cfg, cfg, {})
-        self._cprint('\n', test.id, test.path)
 
         slurm.schedule_test(self.pav_cfg, test)
+
+        status = slurm.job_status(self.pav_cfg, test)
+
+        self.assertEqual(status.state, STATES.SCHEDULED)
+
+        status = slurm.cancel_job(test)
+
+        self.assertEqual(status.state, STATES.SCHED_CANCELLED)

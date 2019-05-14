@@ -11,8 +11,6 @@ import re
 import subprocess
 from pathlib import Path
 
-from pavilion.utils import cprint
-
 class SbatchHeader(scriptcomposer.ScriptHeader):
     def __init__(self, sched_config, nodes, test_id):
         super().__init__()
@@ -40,8 +38,8 @@ class SbatchHeader(scriptcomposer.ScriptHeader):
         lines.append('#SBATCH -N {s._nodes}'.format(s=self))
         lines.append('#SBATCH --tasks-per-node={s._conf['
                      'tasks_per_node]}'.format(s=self))
-        #if self._conf.get('time_limit') is not None:
-        lines.append('#SBATCH -t {s._conf[time_limit]}'.format(s=self))
+        if self._conf.get('time_limit') is not None:
+            lines.append('#SBATCH -t {s._conf[time_limit]}'.format(s=self))
 
         return lines
 
@@ -184,11 +182,14 @@ class Slurm(SchedulerPlugin):
     VAR_CLASS = SlurmVars
 
     def __init__(self):
-        super().__init__(name='slurm', priority=10)
+        super().__init__(
+            'slurm',
+            "Schedules tests via the Slurm scheduler.",
+            priority=10)
 
         self.node_data = None
 
-    def _get_conf(self):
+    def get_conf(self):
         return yc.KeyedElem(
             self.name,
             help_text="Configuration for the Slurm scheduler.",
@@ -208,6 +209,11 @@ class Slurm(SchedulerPlugin):
                     'partition', default="standard",
                     help_text="The partition that the test should be run "
                               "on."),
+                yc.StrElem(
+                    'immediate', choices=['true', 'false'], default='false',
+                    help_text="Only consider nodes not currently running jobs"
+                              "when determining job size"
+                ),
                 yc.StrElem('qos',
                            help_text="The QOS that this test should use."),
                 yc.StrElem('account',
@@ -216,16 +222,11 @@ class Slurm(SchedulerPlugin):
                 yc.StrElem('reservation',
                            help_text="The reservation that this test should "
                                      "run under."),
-                yc.StrElem('time_limit',
-                           help_text="The time limit to specify for the slurm "
-                                     "job.  This can be a range (e.g. "
-                                     "00:02:00-01:00:00)."),
-                yc.StrElem(name='immediate',
-                           choices=['true', 'false'],
-                           default='false',
-                           help_text="If set to immediate, this test will fail "
-                                     "to kick off if the expected resources "
-                                     "aren't immediately available."),
+                yc.RegexElem(
+                    'time_limit', regex=r'^(\d+-)?(\d+:)?\d+(:\d+)?$',
+                    help_text="The time limit to specify for the slurm job in"
+                              "the formats accepted by slurm "
+                              "(<hours>:<minutes> is typical)"),
                 yc.ListElem(name='avail_states',
                             sub_elem=yc.StrElem(),
                             defaults=['IDLE', 'MAINT'],
@@ -698,3 +699,37 @@ class Slurm(SchedulerPlugin):
                     "Invalid num_nodes maximum value: {}".format(max_nodes))
 
         return '{}-{}'.format(min_nodes, max_nodes)
+
+    def _cancel_job(self, test):
+        """Scancel the job.
+        :param pavilion.pav_test.PavTest test: The test to cancel.
+        """
+
+        # TODO: check this
+
+        cmd = ['scancel', test.job_id]
+
+        proc = subprocess.Popen(cmd,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE)
+        stdout, stderr = proc.communicate()
+
+        if proc.poll() == 0:
+            # Scancel successful, pass the stdout message
+
+            msg = "Slurm jobid {} canceled via slurm.".format(test.job_id)
+            # Someday I'll add a method to do this in one shot.
+            test.status.set(
+                STATES.SCHED_CANCELLED,
+                msg
+            )
+            return StatusInfo(
+                STATES.SCHED_CANCELLED,
+                msg
+            )
+        else:
+            # Scancel failed, pass the stderr message
+            return StatusInfo(
+                STATES.SCHED_ERROR,
+                stderr
+            )

@@ -190,9 +190,6 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
             help_text="The root directory of the pavilion install. This "
                       "shouldn't be set by the user."),
         yc.KeyedElem(
-            'sys_vars', elements=[], hidden=True, default={},
-            help_text="This will contain the system variable dictionary."),
-        yc.KeyedElem(
             'pav_vars', elements=[], hidden=True, default={},
             help_text="This will contain the pavilion variable dictionary."),
     ]
