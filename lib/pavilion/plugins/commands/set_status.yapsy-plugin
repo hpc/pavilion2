@@ -1,0 +1,9 @@
+[Core]
+Name = Set Status Command
+Module = set_status
+
+[Documentation]
+Description = Command to set the status of tests or test suites.
+Author = Nicholas Sly/Paul Ferrell
+Version = 1.0
+Website =

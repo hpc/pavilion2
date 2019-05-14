@@ -53,24 +53,27 @@ class StatusCommand(commands.Command):
                     test_list.append(test_id)
 
         for test_id in test_list:
+            pav_test = None
             status_f = None
             try:
                 pav_test = pavtest.PavTest.load(pav_config, int(test_id))
             except pavtest.PavTestError or pavtest.PavTestNotFoundError as err:
                 print("Test {} could not be opened.\n{}".format(test_id, err))
-            status_f = status_file.StatusFile(pav_test.status.path).current()
+            if pav_test is not None:
+                status_f = status_file.StatusFile(pav_test.status.path).current()
 
-            if status_f.state == 'SCHEDULED':
-                status_f = schedulers.get_scheduler_plugin(pav_test.scheduler)\
-                           .job_status(pav_config, pav_test)
+            if status_f is not None:
+                if status_f.state == 'SCHEDULED':
+                    status_f = schedulers.get_scheduler_plugin(pav_test.scheduler)\
+                               .job_status(pav_config, pav_test)
 
-            test_statuses.append({
-                'test_id': test_id,
-                'name': pav_test.name,
-                'state': status_f.state,
-                'time': status_f.when.strftime("%d %b %Y %H:%M:%S %Z"),
-                'note': status_f.note,
-            })
+                test_statuses.append({
+                    'test_id': test_id,
+                    'name': pav_test.name,
+                    'state': status_f.state,
+                    'time': status_f.when.strftime("%d %b %Y %H:%M:%S %Z"),
+                    'note': status_f.note,
+                })
 
         if args.json:
             json_data = {'statuses': test_statuses}
@@ -81,5 +84,5 @@ class StatusCommand(commands.Command):
                              title='Test statuses')
         return 0
 
-        def __repr__(self):
-            return str(self)
+    def __repr__(self):
+        return str(self)
