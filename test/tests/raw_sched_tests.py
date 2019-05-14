@@ -128,8 +128,6 @@ class RawSchedTests(PavTestCase):
         self.assertEqual(test.status.current().state,
                          STATES.RUNNING)
 
-        self.dbg_print(test.path)
         _, pid = test.job_id.split('_')
-        self.dbg_print((Path('/proc') / pid / 'cmdline').open().read())
 
         self.assertEqual(raw.cancel_job(test).state, STATES.SCHED_CANCELLED)

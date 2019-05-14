@@ -19,12 +19,20 @@ class RunCmdTests(PavTestCase):
 
         run_cmd = commands.get_command('run')
 
-        tests = run_cmd._get_tests(self.pav_cfg,
-                                   'this',
-                                   [],
-                                   ['hello_world'],
-                                   [],
-                                   {})
+        tests = run_cmd._get_tests(
+            pav_cfg=self.pav_cfg,
+            host='this',
+            test_files=[],
+            tests=['hello_world'],
+            modes=[],
+            overrides={},
+            sys_vars={})
+
+        tests = run_cmd._configs_to_tests(
+            pav_cfg=self.pav_cfg,
+            sys_vars={},
+            configs_by_sched=tests,
+        )
 
         # Make sure all the tests are there, under the right schedulers.
         self.assertEqual(tests['slurm'][0].name, 'hello')
@@ -33,12 +41,20 @@ class RunCmdTests(PavTestCase):
 
         tests_file = self.TEST_DATA_ROOT/'run_test_list'
 
-        tests = run_cmd._get_tests(self.pav_cfg,
-                                   'this',
-                                   [tests_file],
-                                   [],
-                                   [],
-                                   {})
+        tests = run_cmd._get_tests(
+            pav_cfg=self.pav_cfg,
+            host='this',
+            test_files=[tests_file],
+            tests=[],
+            modes=[],
+            overrides={},
+            sys_vars={})
+
+        tests = run_cmd._configs_to_tests(
+            pav_cfg=self.pav_cfg,
+            sys_vars={},
+            configs_by_sched=tests,
+        )
 
         self.assertEqual(tests['raw'][0].name, 'world')
         self.assertEqual(tests['dummy'][0].name, 'narf')

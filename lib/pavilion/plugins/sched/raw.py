@@ -215,7 +215,6 @@ class Raw(SchedulerPlugin):
         cmd_fn = Path('/proc')/pid/'cmdline'
 
         if not cmd_fn.exists():
-            print('no cmdline file')
             # It's definitely not running if the cmdline file doesn't exit.
             return False
 
@@ -225,18 +224,14 @@ class Raw(SchedulerPlugin):
         except (IOError, OSError):
             # The file might have stopped existing suddenly. That's
             # ok, but it means the process isn't running anymore
-            print('error reading cmdline file')
             return False
 
-        print('cmdline "{}"'.format(cmdline))
         cmdline = cmdline.replace(b'\x00', b' ').decode('utf8')
 
         # Make sure we're looking at the same job.
         if ('kickoff.sh' in cmdline and
                 '-{}-'.format(test_id) in cmdline):
             return True
-
-        print('cmdline "{}"'.format(cmdline))
 
         return False
 

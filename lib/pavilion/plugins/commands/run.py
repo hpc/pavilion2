@@ -89,7 +89,7 @@ class RunCommand(commands.Command):
         sys_vars = system_variables.get_vars(True)
 
         try:
-            test_configs = self._get_tests(
+            configs_by_sched = self._get_tests(
                 pav_cfg=pav_cfg,
                 host=args.host,
                 test_files=args.files,
@@ -99,23 +99,17 @@ class RunCommand(commands.Command):
                 sys_vars=sys_vars,
             )
 
-            # Make the dict of test configs by scheduler into a dict
-            # of test objects by scheduler.
-            # Why? Because we re-use _get_tests in other classes that only
-            # need to configs.
-            for sched_name in test_configs.keys():
-                for i in range(len(test_configs[sched_name])):
-                    test_configs[sched_name][i] = PavTest(
-                        pav_cfg=pav_cfg,
-                        config=test_configs[sched_name][i],
-                        sys_vars=sys_vars
-                    )
+            tests_by_sched = self._configs_to_tests(
+                pav_cfg=pav_cfg,
+                sys_vars=sys_vars,
+                configs_by_sched=configs_by_sched,
+            )
 
         except test_config.TestConfigError as err:
             fprint(err, file=sys.stderr)
             return errno.EINVAL
 
-        all_tests = sum(test_configs.values(), [])
+        all_tests = sum(tests_by_sched.values(), [])
 
         if not all_tests:
             fprint("You must specify at least one test.", file=sys.stderr)
@@ -149,7 +143,7 @@ class RunCommand(commands.Command):
                            file=sys.stderr)
                     return errno.EINVAL
 
-        for sched_name, tests in test_configs.items():
+        for sched_name, tests in tests_by_sched.items():
             sched = schedulers.get_scheduler_plugin(sched_name)
 
             try:
@@ -159,7 +153,7 @@ class RunCommand(commands.Command):
                        color=utils.RED)
                 fprint(err, bullet='  ', file=sys.stderr)
                 fprint('Cancelling already kicked off tests.', file=sys.stderr)
-                self._cancel_all(test_configs)
+                self._cancel_all(tests_by_sched)
 
         # Tests should all be scheduled now, and have the SCHEDULED state
         # (at some point, at least). Wait until something isn't scheduled
@@ -169,7 +163,7 @@ class RunCommand(commands.Command):
             end_time = time.time() + args.wait
             while time.time() < end_time and wait_result is None:
                 last_time = time.time()
-                for sched_name, tests in test_configs.items():
+                for sched_name, tests in tests_by_sched.items():
                     sched = schedulers.get_scheduler_plugin(sched_name)
                     for test in tests:
                         status = test.status.current()
@@ -279,7 +273,7 @@ class RunCommand(commands.Command):
             # Builds must have the values of all their variables now.
             nondeferred_cfg_sctns.append('build')
 
-            # Set the echeduler variables for each test.
+            # Set the scheduler variables for each test.
             for test_cfg, test_var_man in raw_tests_by_sched[sched_name]:
                 test_var_man.add_var_set('sched', sched.get_vars(test_cfg))
 
@@ -298,6 +292,23 @@ class RunCommand(commands.Command):
                 tests_by_scheduler[sched.name].append(resolved_config)
 
         return tests_by_scheduler
+
+    @staticmethod
+    def _configs_to_tests(pav_cfg, sys_vars, configs_by_sched):
+        """Convert the dictionary of test configs by scheduler into actual tests."""
+
+        tests_by_sched = {}
+
+        for sched_name in configs_by_sched.keys():
+            tests_by_sched[sched_name] = []
+            for i in range(len(configs_by_sched[sched_name])):
+                tests_by_sched[sched_name].append(PavTest(
+                    pav_cfg=pav_cfg,
+                    config=configs_by_sched[sched_name][i],
+                    sys_vars=sys_vars
+                ))
+
+        return tests_by_sched
 
     @staticmethod
     def _cancel_all(tests_by_sched):
