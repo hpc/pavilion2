@@ -95,10 +95,15 @@ STATES = TestStatesStruct()
 
 
 class StatusInfo:
-    def __init__(self, when=None, state='', note=''):
-        self.when = when
+    def __init__(self, state, note, when=None):
+
         self.state = state
         self.note = note
+
+        if when is None:
+            self.when = tzlocal.get_localzone().localize(
+                datetime.datetime.now()
+            )
 
     def __str__(self):
         return 'Status: {s.when} {s.state} {s.note}'.format(s=self)
@@ -129,10 +134,13 @@ class StatusFile:
 
     def __init__(self, path):
         """Create the status file object.
-        :param path: The path to the status file.
+        :param Path path: The path to the status file.
         """
 
-        self.path = Path(path)
+        if isinstance(path, str):
+            raise ValueError('NOOO')
+
+        self.path = path
 
         self.tz = tzlocal.get_localzone()
 
@@ -148,11 +156,16 @@ class StatusFile:
         }
 
     def _parse_status_line(self, line):
+        """Parse a line of the status file. This assumes all sorts of things
+        could be wrong with the file format.
+        :rtype: StatusInfo
+        """
+
         line = line.decode('utf-8')
 
         parts = line.split(" ", 2)
 
-        status = StatusInfo(None, '', '')
+        status = StatusInfo('', '', )
 
         if parts:
             try:

@@ -109,9 +109,9 @@ def main():
     # Add a stream to stderr if we're in verbose mode, or if no other handler
     # is defined.
     if args.verbose or not root_logger.handlers:
-        result_handler = logging.StreamHandler(sys.stderr)
-        result_handler.level(logging.DEBUG)
-        result_handler.format(pav_cfg.log_format)
+        verbose_handler = logging.StreamHandler(sys.stderr)
+        verbose_handler.setLevel(logging.DEBUG)
+        verbose_handler.setFormatter(pav_cfg.log_format)
         root_logger.addHandler(result_handler)
 
     # Create the basic directories in the working directory

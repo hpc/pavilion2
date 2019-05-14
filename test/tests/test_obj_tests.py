@@ -3,7 +3,7 @@ from pavilion import unittest
 from pavilion.status_file import STATES
 from pavilion.suite import Suite
 from pavilion.test_config import variables
-from pavilion.pavtest import PavTestError, PavTest
+from pavilion.pav_test import PavTestError, PavTest
 import os
 import shutil
 import tempfile

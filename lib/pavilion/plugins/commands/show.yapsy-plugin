@@ -1,0 +1,9 @@
+[Core]
+Name = Show Command
+Module = show
+
+[Documentation]
+Description = Command to show pavilion info
+Author = Nicholas Sly/Paul Ferrell
+Version = 1.0
+Website =

@@ -4,7 +4,7 @@ from pavilion import schedulers
 from pavilion.unittest import PavTestCase
 from pavilion.test_config.format import TestConfigLoader
 from pavilion.status_file import STATES
-from pavilion.pavtest import PavTest
+from pavilion.pav_test import PavTest
 import subprocess
 import unittest
 
@@ -72,8 +72,6 @@ class SlurmTests(PavTestCase):
                                "job id.")
         test.job_id = jobid
 
-        self._cprint(slurm.job_status(self.pav_cfg, test))
-
     @unittest.skipIf(not has_slurm(), "Only runs on a system with slurm.")
     def test_sched_vars(self):
         """Make sure the scheduler vars are reasonable."""
@@ -92,6 +90,38 @@ class SlurmTests(PavTestCase):
 
         test = PavTest(self.pav_cfg, cfg, {})
 
-        vars = slurm.get_vars(test)
+        for k, v in slurm.get_vars(test).items():
+            # Make sure everything has a value of some sort.
+            self.assertNotIn(v, ['None', ''])
 
-        self._cprint(vars)
+        # There's not much we can do to automatically test deferred slurm
+        # vars without a dedicated slurm host. Maybe we'll set up such a test
+        # harness eventually.
+
+    @unittest.skipIf(not has_slurm(), "Only runs on a system with slurm.")
+    def test_schedule_test(self):
+        """Try to schedule a test. It doesn't have to run (but it can!) """
+
+        slurm = schedulers.get_scheduler_plugin('slurm')
+
+        cfg = TestConfigLoader().validate({
+            'scheduler': 'slurm',
+            'run': {
+                'cmds': [
+                    'echo "Hello World."'
+                ]
+            },
+        })
+        cfg['name'] = 'slurm_test'
+
+        test = PavTest(self.pav_cfg, cfg, {})
+
+        slurm.schedule_test(self.pav_cfg, test)
+
+        status = slurm.job_status(self.pav_cfg, test)
+
+        self.assertEqual(status.state, STATES.SCHEDULED)
+
+        status = slurm.cancel_job(test)
+
+        self.assertEqual(status.state, STATES.SCHED_CANCELLED)

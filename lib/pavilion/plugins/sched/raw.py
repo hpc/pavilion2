@@ -1,13 +1,17 @@
-from pathlib import Path
-from pavilion.schedulers import SchedulerPlugin
-from pavilion.schedulers import SchedulerVariables
-from pavilion.pav_vars import var_method
-from pavilion.status_file import STATES, StatusInfo
+import datetime
+import os
+import signal
 import socket
 import subprocess
-import yaml_config as yc
+import time
+from pathlib import Path
+
 import tzlocal
-import datetime
+import yaml_config as yc
+from pavilion.pav_vars import var_method
+from pavilion.schedulers import SchedulerPlugin
+from pavilion.schedulers import SchedulerVariables
+from pavilion.status_file import STATES, StatusInfo
 
 
 class RawVars(SchedulerVariables):
@@ -68,9 +72,12 @@ class Raw(SchedulerPlugin):
     VAR_CLASS = RawVars
 
     def __init__(self):
-        super().__init__('raw')
+        super().__init__(
+            'raw',
+            "Schedules tests as local processes."
+        )
 
-    def _get_conf(self):
+    def get_conf(self):
         return yc.KeyedElem('raw', elements=[
             yc.StrElem(
                 'concurrent',
@@ -195,3 +202,85 @@ class Raw(SchedulerPlugin):
     # Use the version of lock_concurrency that actually does something.
     lock_concurrency = SchedulerPlugin._do_lock_concurrency
 
+    @staticmethod
+    def _verify_pid(pid, test_id):
+        """Verify that the test is running under the given pid. Note that this
+        may change before, after, or during this call.
+        :param str pid: The pid to search for.
+        :param int test_id: The id of the test started under that pid.
+        :return: True - If the given pid is for the given test_id
+            (False otherwise)
+        """
+
+        cmd_fn = Path('/proc')/pid/'cmdline'
+
+        if not cmd_fn.exists():
+            # It's definitely not running if the cmdline file doesn't exit.
+            return False
+
+        try:
+            with cmd_fn.open('rb') as cmd_file:
+                cmdline = cmd_file.read()
+        except (IOError, OSError):
+            # The file might have stopped existing suddenly. That's
+            # ok, but it means the process isn't running anymore
+            return False
+
+        cmdline = cmdline.replace(b'\x00', b' ').decode('utf8')
+
+        # Make sure we're looking at the same job.
+        if ('kickoff.sh' in cmdline and
+                '-{}-'.format(test_id) in cmdline):
+            return True
+
+        return False
+
+    CANCEL_TIMEOUT = 1
+
+    def _cancel_job(self, test):
+        """Try to kill the given test's pid (if it is the right pid).
+        :param pavilion.pav_test.PavTest test: The test to cancel.
+        """
+
+        host, pid = test.job_id.rsplit('_', 1)
+
+        hostname = socket.gethostname()
+        if host != hostname:
+            return StatusInfo(STATES.SCHED_ERROR,
+                              "Job started on different host ({})."
+                              .format(hostname))
+
+        if not self._verify_pid(pid, test.id):
+            # Test was no longer running, just return it's current state.
+            return test.status.current()
+
+        try:
+            os.kill(int(pid), signal.SIGTERM)
+        except PermissionError:
+            return StatusInfo(
+                STATES.SCHED_ERROR,
+                "You don't have permission to kill PID {}".format(pid)
+            )
+        except OSError as err:
+            return StatusInfo(
+                STATES.SCHED_ERROR,
+                "Unexpected error cancelling job {}: {}"
+                .format(pid, str(err))
+            )
+
+        timeout = time.time() + self.CANCEL_TIMEOUT
+        while self._verify_pid(pid, test.id) and time.time() < timeout:
+            time.sleep(.1)
+
+        if not self._verify_pid(pid, test.id):
+            test.status.set(STATES.SCHED_CANCELLED,
+                            "Canceled via pavilion.")
+            return StatusInfo(
+                STATES.SCHED_CANCELLED,
+                "PID {} was terminated.".format(pid)
+            )
+        else:
+            return StatusInfo(
+                STATES.SCHED_ERROR,
+                "PID {} refused to die.".format(pid)
+            )

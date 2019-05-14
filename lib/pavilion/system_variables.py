@@ -13,7 +13,7 @@ class SystemPluginError(RuntimeError):
 
 
 _SYS_VAR_DICT = None
-_LOADED_PLUGINS = None
+_LOADED_PLUGINS = None  # type : dict
 
 
 class SysVarDict(collections.UserDict):
@@ -43,6 +43,29 @@ class SysVarDict(collections.UserDict):
 
         return self.data[name]
 
+    def keys(self):
+
+        global _LOADED_PLUGINS
+
+        return _LOADED_PLUGINS.keys()
+
+    def items(self):
+        return [(key, self[key]) for key in self.keys()]
+
+    def values(self):
+        return [self[key] for key in self.keys()]
+
+    def __iter__(self):
+        return self.keys()
+
+    @staticmethod
+    def help(key):
+        """Return help information for the given key."""
+
+        global _LOADED_PLUGINS
+
+        return _LOADED_PLUGINS[key].help_text
+
 
 def __reset():
     global _SYS_VAR_DICT
@@ -55,7 +78,7 @@ def __reset():
 def get_vars(defer):
     """Get the dictionary of system plugins.
     :param bool defer: Whether the deferable plugins should be deferred.
-    :rtype: dict
+    :rtype: SysVarDict
     """
 
     global _SYS_VAR_DICT
@@ -74,11 +97,16 @@ class SystemPlugin(IPlugin.IPlugin):
 
     NAME_VERS_RE = re.compile(r'^[a-zA-Z0-9_.-]+$')
 
-    def __init__(self, plugin_name, priority=PRIO_DEFAULT, is_deferable=False,
+    def __init__(self,
+                 plugin_name,
+                 help_text,
+                 priority=PRIO_DEFAULT,
+                 is_deferable=False,
                  sub_keys=None):
         """Initialize the system plugin instance.  This should be overridden in
         each final plugin.
         :param str plugin_name: The name of the system plugin being wrapped.
+        :param str help_text: Short description of this value.
         :param int priority: Priority value of plugin when two plugins have
                              the same name.
         :param bool is_deferable: Whether the plugin is able to be deferred.
@@ -93,6 +121,7 @@ class SystemPlugin(IPlugin.IPlugin):
             raise SystemPluginError("Invalid module name: '{}'".format(
                                                                   plugin_name))
 
+        self.help_text = help_text
         self.name = plugin_name
         self.priority = priority
         if sub_keys is None:

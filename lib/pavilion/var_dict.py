@@ -83,3 +83,23 @@ class VarDict(UserDict):
     def values(self):
         """As per the dict class."""
         return ((k, self[k]) for k in self._keys)
+
+    def info(self, key):
+        """Get an info dictionary about the given key."""
+
+        if key not in self._keys:
+            raise KeyError("Key '{}' does not exist in vardict '{}'"
+                           .format(key, self._name))
+
+        func = getattr(self, key)
+
+        # Get rid of newlines
+        help_text = func.__doc__.replace('\n', ' ')
+        # Get rid of extra whitespace
+        help_text = ' '.join(help_text.split())
+
+        return {
+            'name': key,
+            'deferred': func._is_deferable,
+            'help': help_text,
+        }
