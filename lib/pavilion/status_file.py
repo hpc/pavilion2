@@ -104,6 +104,8 @@ class StatusInfo:
             self.when = tzlocal.get_localzone().localize(
                 datetime.datetime.now()
             )
+        else:
+            self.when = when
 
     def __str__(self):
         return 'Status: {s.when} {s.state} {s.note}'.format(s=self)
@@ -234,8 +236,8 @@ class StatusFile:
         # If we were given an invalid status, make the status invalid but add
         # what was given to the note.
         if not STATES.validate(state):
-            state = STATES.INVALID
             note = '({}) {}'.format(state, note)
+            state = STATES.INVALID
 
         # Truncate the note such that, even when encoded in utf-8, it is
         # shorter than NOTE_MAX

@@ -10,7 +10,7 @@ from pavilion import test_config
 from pavilion import utils
 from pavilion.pav_test import PavTest, PavTestError
 from pavilion.status_file import STATES
-from pavilion.suite import Suite
+from pavilion.series import TestSeries
 from pavilion.test_config.string_parser import ResolveError
 from pavilion.utils import fprint
 
@@ -115,7 +115,7 @@ class RunCommand(commands.Command):
             fprint("You must specify at least one test.", file=sys.stderr)
             return errno.EINVAL
 
-        suite = Suite(pav_cfg, all_tests)
+        suite = TestSeries(pav_cfg, all_tests)
 
         rp_errors = []
         for test in all_tests:

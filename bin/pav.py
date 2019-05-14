@@ -118,6 +118,7 @@ def main():
     for path in [pav_cfg.working_dir,
                  pav_cfg.working_dir/'builds',
                  pav_cfg.working_dir/'tests',
+                 pav_cfg.working_dir/'series',
                  pav_cfg.working_dir/'downloads']:
         if not path.exists():
             try:

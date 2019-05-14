@@ -50,7 +50,7 @@ def get_command(command_name):
 class Command(IPlugin.IPlugin):
     """Provides a pavilion command via a plugin."""
 
-    def __init__(self, name, description, short_help=None):
+    def __init__(self, name, description, short_help=None, aliases=None):
         """Initialize this command. This should be overridden by subclasses, to
         set reasonable values. Multiple commands of the same name are not
         allowed to exist.
@@ -69,6 +69,7 @@ class Command(IPlugin.IPlugin):
         self.name = name
         self.description = description
         self.short_help = short_help
+        self._aliases = aliases if aliases is not None else []
 
     def _setup_arguments(self, parser):
         """Setup the commands arguments in the Pavilion argument parser.
@@ -90,9 +91,11 @@ class Command(IPlugin.IPlugin):
         # help is None. If we don't want that, we have to init without 'help'.
         if self.short_help is None:
             parser = sub_parser.add_parser(self.name,
+                                           aliases=self._aliases,
                                            description=self.description)
         else:
             parser = sub_parser.add_parser(self.name,
+                                           aliases=self._aliases,
                                            description=self.description,
                                            help=self.short_help)
 

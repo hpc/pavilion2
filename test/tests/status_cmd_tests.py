@@ -4,7 +4,7 @@ from pavilion import pavtest
 from pavilion import schedulers
 from pavilion import status_file
 from pavilion import system_variables
-from pavilion.suite import Suite
+from pavilion.series import TestSeries
 from pavilion.test_config import format
 from pavilion.unittest import PavTestCase
 import argparse
@@ -24,7 +24,7 @@ class StatusTests(PavTestCase):
 
         parser = argparse.ArgumentParser()
         status_cmd._setup_arguments(parser)
-        args = parser.parse_args(['test1','test2'])
+        args = parser.parse_args(['test1', 'test2'])
 
         self.assertEqual(args.tests[0], 'test1')
         self.assertEqual(args.tests[1], 'test2')
@@ -32,7 +32,7 @@ class StatusTests(PavTestCase):
 
         parser = argparse.ArgumentParser()
         status_cmd._setup_arguments(parser)
-        args = parser.parse_args(['-j','test0','test9'])
+        args = parser.parse_args(['-j', 'test0', 'test9'])
 
         self.assertEqual(args.tests[0], 'test0')
         self.assertEqual(args.tests[1], 'test9')
@@ -88,11 +88,8 @@ class StatusTests(PavTestCase):
             test.RUN_SILENT_TIMEOUT = 1
 
         # Make sure this doesn't explode
-        suite = Suite(self.pav_cfg, tests)
+        suite = TestSeries(self.pav_cfg, tests)
         test_str = " ".join([str(test) for test in suite.tests])
-
-        # Make sure we got all the tests
-        self.assertEqual(len(suite.tests), 3)
 
         status_cmd = commands.get_command('status')
 
@@ -102,28 +99,28 @@ class StatusTests(PavTestCase):
             status_cmd._setup_arguments(parser)
             arg_list = ['-j', str(test)]
             args = parser.parse_args(arg_list)
-            self.assertEqual(status_cmd.run(self.pav_cfg, args),0)
+            self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
 
         # Testing for multiple tests with json output
         parser = argparse.ArgumentParser()
         status_cmd._setup_arguments(parser)
-        arg_list = ['-j'].extend(test_str.split())
+        arg_list = ['-j'] + test_str.split()
         args = parser.parse_args(arg_list)
-        self.assertEqual(status_cmd.run(self.pav_cfg, args),0)
+        self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
 
         # Testing for individual tests with tabular output
         for test in suite.tests:
             parser = argparse.ArgumentParser()
             status_cmd._setup_arguments(parser)
             args = parser.parse_args([str(test)])
-            self.assertEqual(status_cmd.run(self.pav_cfg, args),0)
+            self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
 
         # Testing for multiple tests with tabular output
         parser = argparse.ArgumentParser()
         status_cmd._setup_arguments(parser)
         arg_list = test_str.split()
         args = parser.parse_args(arg_list)
-        self.assertEqual(status_cmd.run(self.pav_cfg, args),0)
+        self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
 
     def test_set_status_command(self):
         """Test set status command by generating a suite of tests."""
@@ -186,7 +183,7 @@ class StatusTests(PavTestCase):
             arg_list = ['-s', 'RUN_USER', '-n', 'tacos are delicious',
                         str(test.id)]
             args = parser.parse_args(arg_list)
-            self.assertEqual(set_status_cmd.run(self.pav_cfg, args),0)
+            self.assertEqual(set_status_cmd.run(self.pav_cfg, args), 0)
             end_status = status_file.StatusFile(test.status.path).current()
 
             self.assertNotEqual(end_status.state, start_status.state)
@@ -201,15 +198,15 @@ class StatusTests(PavTestCase):
         arg_list = ['--state', 'RUN_USER', '--note', 'spaghetti is good too']
         arg_list.extend(test_str)
         args = parser.parse_args(arg_list)
-        self.assertEqual(set_status_cmd.run(self.pav_cfg, args),0)
+        self.assertEqual(set_status_cmd.run(self.pav_cfg, args), 0)
 
         for test in tests:
-            status=None
+            status = None
             status = status_file.StatusFile(test.status.path).current()
             self.assertEqual(end_status.state, 'RUN_USER')
             self.assertEqual(status.note, 'spaghetti is good too')
 
-         # TODO: Add test for 'INVALID' status.
+        # TODO: Add test for 'INVALID' status.
 
     def test_status_command_with_sched(self):
         """Test status command when test is 'SCHEDULED'."""
@@ -233,7 +230,7 @@ class StatusTests(PavTestCase):
         test = pavtest.PavTest(self.pav_cfg, test, sys_vars)
 
         test.build()
-        schedulers.get_scheduler_plugin(test.scheduler)\
+        schedulers.get_scheduler_plugin(test.scheduler) \
             .schedule_test(self.pav_cfg, test)
 
         status_cmd = commands.get_command('status')
@@ -242,12 +239,12 @@ class StatusTests(PavTestCase):
         status_cmd._setup_arguments(parser)
         args = parser.parse_args([str(test.id)])
         test.status.set(status_file.STATES.SCHEDULED, "faker")
-        self.assertEqual(status_cmd.run(self.pav_cfg, args),0)
+        self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
 
         parser = argparse.ArgumentParser()
         status_cmd._setup_arguments(parser)
         args = parser.parse_args(['-j', str(test.id)])
         test.status.set(status_file.STATES.SCHEDULED, "faker")
-        self.assertEqual(status_cmd.run(self.pav_cfg, args),0)
+        self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
 
         # TODO: Test that the above have actually been set.

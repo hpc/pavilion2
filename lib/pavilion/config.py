@@ -123,7 +123,7 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
                       "in the given order. In the case of identically named "
                       "files, directories listed earlier take precedent."),
         yc.PathElem(
-            'working_dir', default=USER_HOME_PAV, required=True,
+            'working_dir', default=USER_HOME_PAV/'working_dir', required=True,
             help_text="Where pavilion puts it's run files, downloads, etc."),
         yc.ListElem(
             "disable_plugins", sub_elem=yc.StrElem(),

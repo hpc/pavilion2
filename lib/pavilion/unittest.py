@@ -63,7 +63,7 @@ class PavTestCase(unittest.TestCase):
         for path in [self.pav_cfg.working_dir,
                      self.pav_cfg.working_dir/'builds',
                      self.pav_cfg.working_dir/'tests',
-                     self.pav_cfg.working_dir/'suites',
+                     self.pav_cfg.working_dir/'series',
                      self.pav_cfg.working_dir/'downloads']:
             if not path.exists():
                 os.makedirs(str(path), exist_ok=True)

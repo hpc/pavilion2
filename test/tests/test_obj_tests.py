@@ -1,7 +1,7 @@
 from pathlib import Path
 from pavilion import unittest
 from pavilion.status_file import STATES
-from pavilion.suite import Suite
+from pavilion.series import TestSeries
 from pavilion.test_config import variables
 from pavilion.pav_test import PavTestError, PavTest
 import os
@@ -373,7 +373,7 @@ class PavTestTests(unittest.PavTestCase):
             tests.append(PavTest(self.pav_cfg, config1, {}))
 
         # Make sure this doesn't explode
-        suite = Suite(self.pav_cfg, tests)
+        suite = TestSeries(self.pav_cfg, tests)
 
         # Make sure we got all the tests
         self.assertEqual(len(suite.tests), 3)
@@ -385,7 +385,7 @@ class PavTestTests(unittest.PavTestCase):
 
         self._is_softlink_dir(suite.path)
 
-        suite2 = Suite.from_id(self.pav_cfg, suite.id)
+        suite2 = TestSeries.from_id(self.pav_cfg, suite.id)
         self.assertEqual(sorted(suite.tests.keys()),
                          sorted(suite2.tests.keys()))
         self.assertEqual(sorted([t.id for t in suite.tests.values()]),
