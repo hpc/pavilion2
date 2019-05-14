@@ -15,10 +15,10 @@ UMASK=$(${PYTHON} ${PAV_DIR}/bin/query_config.py umask)
 if [[ -n ${SHARED_GROUP} ]]; then
     # Run pavilion under the given shared group, if one is in the config.
     newgrp ${SHARED_GROUP} <<EOF
-        ${PYTHON} ${PAV_DIR}/bin/pav.py $@
+        ${PYTHON} ${PAV_DIR}/bin/pav.py "$@"
 EOF
 
 else
-    ${PYTHON} ${PAV_DIR}/bin/pav.py $@
+    ${PYTHON} ${PAV_DIR}/bin/pav.py "$@"
 fi
 

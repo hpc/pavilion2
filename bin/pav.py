@@ -50,6 +50,10 @@ def main():
     # Put the log file in the lowest common pav config directory we can write
     # to.
     for log_dir in reversed(pav_cfg.config_dirs):
+        # Don't write to the pavilion lib directory
+        if log_dir == Path(__file__).parents[1]/'lib'/'pavilion':
+            continue
+
         log_fn = log_dir/'pav.log'
         if not log_fn.exists():
             try:
