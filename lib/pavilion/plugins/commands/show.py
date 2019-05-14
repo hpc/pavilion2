@@ -19,8 +19,8 @@ class ShowCommand(commands.Command):
     def __init__(self):
         super().__init__(
             'show',
-            'Show information about pavilion plugins and configuration '
-            'settings.',
+            'Show internal information about pavilion plugins and '
+            'configuration settings.',
             short_help="Show pavilion plugin/config info."
         )
 
