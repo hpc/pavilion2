@@ -276,6 +276,7 @@ class PavTest:
         """
 
         src_loc = build_config.get('source_location')
+        print(sched.get_vars(test_cfg))
         if src_loc is None:
             return None
 
