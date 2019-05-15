@@ -142,7 +142,7 @@ class ResultParser(IPlugin.IPlugin):
                          help_text="The key value in the result json for this"
                                    "result component."),
             # The default for the file is handled by the test object.
-            yc.StrElem("file", default=None,
+            yc.StrElem("file", default='run.log',
                        help_text="Path to the file that this result parser "
                                  "will examine.")
         ]

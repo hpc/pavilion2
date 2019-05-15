@@ -74,8 +74,6 @@ class ResultsCommand(commands.Command):
         # Sort the keys by the size of the data
         all_keys.sort(key=lambda k: max([len(res[k]) for res in results]))
 
-        print(all_keys)
-
         if args.json:
             utils.json_dump(results, sys.stdout)
             return 0

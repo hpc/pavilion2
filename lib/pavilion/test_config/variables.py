@@ -344,8 +344,10 @@ class VariableSetManager:
 
         if var not in self.variable_sets[var_set].data:
             raise KeyError(
-                "Variable set '{}' does not contain a variable named '{}'"
-                .format(var_set, var))
+                "Variable set '{}' does not contain a variable named '{}'. "
+                "Available variables are: {}"
+                .format(var_set, var,
+                        tuple(self.variable_sets[var_set].data.keys())))
 
         return len(_var_set.data[var])
 
@@ -479,8 +481,9 @@ class VariableSet:
             return self.data[var].get(index, sub_var)
         else:
             raise KeyError(
-                "Variable set '{}' does not contain a variable named '{}'"
-                .format(self.name, var))
+                "Variable set '{}' does not contain a variable named '{}'. "
+                "Available variables are: {}"
+                .format(self.name, var, tuple(self.data.keys())))
 
     def __contains__(self, item):
         return item in self.data

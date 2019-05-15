@@ -82,7 +82,12 @@ class VarDict(UserDict):
 
     def values(self):
         """As per the dict class."""
-        return ((k, self[k]) for k in self._keys)
+        return (self[k] for k in self.keys())
+
+    def items(self):
+        """As per the dict class."""
+
+        return ((k, self[k]) for k in self.keys())
 
     def info(self, key):
         """Get an info dictionary about the given key."""

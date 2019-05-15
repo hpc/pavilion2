@@ -49,31 +49,16 @@ def main():
 
     # Put the log file in the lowest common pav config directory we can write
     # to.
-    for log_dir in reversed(pav_cfg.config_dirs):
-        # Don't write to the pavilion lib directory
-        if log_dir == Path(__file__).parents[1]/'lib'/'pavilion':
-            continue
-
-        log_fn = log_dir/'pav.log'
-        if not log_fn.exists():
-            try:
-                # 'Touch' the file, in case it doesn't exist. Makes it easier to
-                # verify writability in a sec.
-                log_fn.open('a').close()
-            except OSError:
-                # It's ok if we can't do this.
-                pass
-        if os.access(str(log_fn), os.W_OK):
-            # Set up a rotating logfile than rotates when it gets larger
-            # than 1 MB.
-            file_handler = RotatingFileHandler(filename=str(log_fn),
-                                               maxBytes=1024 ** 2,
-                                               backupCount=3)
-            file_handler.setFormatter(logging.Formatter(pav_cfg.log_format))
-            file_handler.setLevel(getattr(logging,
-                                          pav_cfg.log_level.upper()))
-            root_logger.addHandler(file_handler)
-            break
+    log_fn = pav_cfg.working_dir/'pav.log'
+    # Set up a rotating logfile than rotates when it gets larger
+    # than 1 MB.
+    file_handler = RotatingFileHandler(filename=str(log_fn),
+                                       maxBytes=1024 ** 2,
+                                       backupCount=3)
+    file_handler.setFormatter(logging.Formatter(pav_cfg.log_format))
+    file_handler.setLevel(getattr(logging,
+                                  pav_cfg.log_level.upper()))
+    root_logger.addHandler(file_handler)
 
     # The root logger should pass all messages, even if the handlers
     # filter them.

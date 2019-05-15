@@ -321,7 +321,7 @@ class ShowCommand(commands.Command):
             rps = []
             for rp_name in result_parsers.list_plugins():
                 rp = result_parsers.get_plugin(rp_name)
-                desc = " ".join(rp.__doc__.decode('utf8').split())
+                desc = " ".join(rp.__doc__.split())
                 rps.append({
                     'name': rp_name,
                     'description': desc

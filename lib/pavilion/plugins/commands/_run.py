@@ -32,13 +32,24 @@ class _RunCommand(commands.Command):
                               .format(args.test_id, err))
             raise
 
-        if test.config['build']['on_nodes'] in ['true', 'True']:
-            if not test.build():
-                self.logger.warning(
-                    "Test {t.id} failed to build:"
-                )
+        try:
+            if test.config['build']['on_nodes'] in ['true', 'True']:
+                if not test.build():
+                    self.logger.warning(
+                        "Test {t.id} failed to build:"
+                    )
+        except Exception:
+            test.status.set(STATES.BUILD_ERROR,
+                            "Unknown build error. Refer to the kickoff log.")
+            raise
 
-        sched = schedulers.get_scheduler_plugin(test.scheduler)
+        try:
+            sched = schedulers.get_scheduler_plugin(test.scheduler)
+        except Exception:
+            test.status.set(STATES.BUILD_ERROR,
+                            "Unknown error getting the scheduler. Refer to "
+                            "the kickoff log.")
+            raise
 
         # Optionally wait on other tests running under the same scheduler.
         # This depends on the scheduler and the test configuration.
@@ -51,6 +62,11 @@ class _RunCommand(commands.Command):
             test.status.set(STATES.RUN_ERROR, err)
             test.set_run_complete()
             return
+        except Exception:
+            test.status.set(
+                STATES.RUN_ERROR,
+                "Unknown error while running test. Refer to the kickoff log.")
+            raise
         finally:
             sched.unlock_concurrency(lock)
 
@@ -64,10 +80,23 @@ class _RunCommand(commands.Command):
             test.set_run_complete()
             return
 
-        test.save_results(results)
+        try:
+            test.save_results(results)
 
-        result_logger = logging.getLogger('results')
-        result_logger.info(utils.json_dumps(results))
+            result_logger = logging.getLogger('results')
+            result_logger.info(utils.json_dumps(results))
+        except Exception:
+            test.status.set(
+                STATES.RESULTS_ERROR,
+                "Unknown error while saving results. Refer to the kickoff log.")
+            raise
 
-        test.status.set(STATES.COMPLETE, "Test completed successfully.")
-        test.set_run_complete()
+        try:
+            test.status.set(STATES.COMPLETE, "Test completed successfully.")
+            test.set_run_complete()
+        except Exception:
+            test.status.set(
+                STATES.UNKNOWN,
+                "Unknown error while setting test completion. Refer to the "
+                "kickoff log.")
+            raise

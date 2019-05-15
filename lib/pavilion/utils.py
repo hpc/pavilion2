@@ -114,7 +114,7 @@ def create_id_dir(id_dir):
     return id_, path
 
 
-def dbg_print(*args, color=33, **kwargs):
+def dbg_print(*args, color=33, file=sys.stderr, **kwargs):
     """A colored print statement for debug printing. Use when you want to
     print junk and easily excise it later.
     :param int color: ANSI color code to print the string under.
@@ -126,7 +126,7 @@ def dbg_print(*args, color=33, **kwargs):
 
     args.append('\x1b[0m')
 
-    return print(*args, **kwargs)
+    return print(*args, file=file, **kwargs)
 
 
 def fprint(*args, color=None, bullet='', width=60,

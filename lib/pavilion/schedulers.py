@@ -435,6 +435,10 @@ class SchedulerPlugin(IPlugin.IPlugin):
             ),
         )
 
+        script.comment("Redirect all output to kickoff.log")
+        script.command("exec >{} 2>&1"
+                       .format(test_obj.path/'kickoff.log'))
+
         # Make sure the pavilion spawned
         env_changes = {
             'PATH': '{}:${{PATH}}'.format(pav_cfg.pav_root/'bin'),
@@ -445,11 +449,8 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
         script.env_change(env_changes)
 
-        # This may be running after this python invocation is finished,
-        # so we redirect the output here.
-        script.command(
-            'pav _run {t.id} >{outfile} 2>&1'
-            .format(t=test_obj, outfile=test_obj.path/'kickoff.out'))
+        # Run the test via pavilion
+        script.command('pav _run {t.id}'.format(t=test_obj))
 
         script.write()
 
