@@ -121,6 +121,7 @@ class PavTest:
         self.build_script_path = None   # type: Path
         self.build_origin = None        # type: Path
         self.run_log = self.path/'run.log'
+        self.results_path = self.path/'results.json'
 
         build_config = self.config.get('build', {})
         self.build_path = self.path/'build'
@@ -574,7 +575,7 @@ class PavTest:
                             # make that directory the build directory. This
                             # should be the default in most cases.
                             if len(top_level) == 1 and top_level[0].isdir():
-                                tmpdir = build_path.with_suffix('.tmp')
+                                tmpdir = build_path.with_suffix('.extracted')
                                 tmpdir.mkdir()
                                 tar.extractall(tmpdir.as_posix())
                                 opath = tmpdir/top_level[0].name
@@ -877,7 +878,11 @@ class PavTest:
 
                 parser = result_parsers.get_plugin(rtype)
                 try:
-                    parser.check_args(self, rconf)
+                    # The parser's don't know about the 'key' config item.
+                    args = rconf.copy()
+                    del args['key']
+
+                    parser.check_args(self, args)
                 except result_parsers.ResultParserError as err:
                     raise PavTestError(
                         "Test '{}' has a result parser of type '{}' with"
@@ -950,7 +955,11 @@ class PavTest:
 
             for rconf in parser_configs[parser_name]:
                 try:
-                    result = parser(self, **rconf)
+                    # The parser's don't know about the 'key' config item.
+                    args = rconf.copy()
+                    del args['key']
+
+                    result = parser(self, **args)
 
                     results[rconf['key']] = result
                 except (result_parsers.ResultParserError, KeyError) as err:
@@ -960,6 +969,25 @@ class PavTest:
                         .format(parser.name, rconf.get('key', '<no_key>'), err))
 
         return results
+
+    def save_results(self, results):
+        """Save the results to the results file.
+        :param dict results: The results dictionary.
+        """
+
+        with self.results_path.open('w') as results_file:
+            json.dump(results, results_file)
+
+    def load_results(self):
+        """Load results from the results file.
+        :returns A dict of results, or None if the results file doesn't exist.
+        """
+
+        if self.results_path.exists():
+            with self.results_path.open() as results_file:
+                return json.load(results_file)
+        else:
+            return None
 
     @property
     def is_built(self):

@@ -275,13 +275,19 @@ class TestConfigLoader(yc.YamlConfigLoader):
         else:
             raise ValueError(elem)
 
+# TODO: Fix this name.
+def TestSuiteLoader():
+    """Create a new test suite loader instance. This has to be done
+    dynamically because of how we add keys to the TestConfig above."""
 
-class TestSuiteLoader(yc.CatYamlConfigLoader):
-    """An actual test config file consists of multiple config sections."""
+    class _TestSuiteLoader(yc.CatYamlConfigLoader):
+        """An actual test config file consists of multiple config sections."""
 
-    _NAME_RE = KEY_NAME_RE
+        _NAME_RE = KEY_NAME_RE
 
-    # We use the list of ELEMENTS from TestConfigLoader. since this is the
-    # same object, subsections added to TestConfigLoader will get picked up
-    # here too.
-    BASE = yc.KeyedElem(elements=TestConfigLoader.ELEMENTS)
+        # We use the list of ELEMENTS from TestConfigLoader. since this is the
+        # same object, subsections added to TestConfigLoader will get picked up
+        # here too.
+        BASE = yc.KeyedElem(elements=TestConfigLoader.ELEMENTS)
+
+    return _TestSuiteLoader()

@@ -139,7 +139,7 @@ class RunCommand(commands.Command):
                     fprint("Error building test: ", file=sys.stderr,
                            color=utils.RED)
                     fprint("status {status.state} - {status.note}"
-                           .format(status=test.status),
+                           .format(status=test.status.current()),
                            file=sys.stderr)
                     return errno.EINVAL
 

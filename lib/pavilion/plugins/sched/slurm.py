@@ -146,11 +146,21 @@ class SlurmVars(SchedulerVariables):
     def test_procs(self):
         """The number of processors to request for this test."""
 
-        alloc_nodes = self.sched_data['alloc_nodes'].values()
-        alloc_nodes.sort(lambda v: v['CPUTot'], reverse=True)
+        alloc_nodes = list(self.sched_data['alloc_nodes'].values())
+        alloc_nodes.sort(key=lambda v: v['CPUTot'], reverse=True)
 
-        biggest_nodes = alloc_nodes[:int(self.test_nodes)]
-        return sum([n['CPUTot'] for n in biggest_nodes])
+        biggest_nodes = alloc_nodes[:int(self.test_nodes())]
+        total_procs = sum([n['CPUTot'] for n in biggest_nodes])
+
+        # The requested processors is the number per node times
+        # the actual number of nodes.
+        req_procs = int(self.test.config['slurm'].get('tasks_per_node'))
+        req_procs = req_procs * int(self.test_nodes())
+
+        # We can't request more processors than there are, nor
+        # should we return more than requested.
+        return min(total_procs, req_procs)
+
 
     @dfr_var_method
     def test_cmd(self):
@@ -258,8 +268,9 @@ class Slurm(SchedulerPlugin):
         # Get additional information specific to just our allocation.
         if self.in_alloc:
             alloc_nodes = os.environ.get('SLURM_NODELIST')
+            alloc_nodes = self._collect_node_data(alloc_nodes)
 
-            data['alloc_nodes'] = self._collect_node_data(alloc_nodes)
+            data['alloc_nodes'] = alloc_nodes
             data['alloc_summary'] = self._make_summary(alloc_nodes.values())
 
         return data
@@ -597,8 +608,8 @@ class Slurm(SchedulerPlugin):
         if job_state in self.SCHED_WAITING:
             return StatusInfo(
                 state=STATES.SCHEDULED,
-                note=("Job has state '{}', reason '{}'"
-                      .format(job_state, job_info.get('Reason'))),
+                note=("Job {} has state '{}', reason '{}'"
+                      .format(test.job_id, job_state, job_info.get('Reason'))),
                 when=self._now()
             )
         elif job_state in self.SCHED_RUN:

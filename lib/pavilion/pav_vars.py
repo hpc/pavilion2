@@ -1,7 +1,9 @@
-from pavilion.var_dict import VarDict, var_method
-import time
 import datetime
+import os
+import time
+
 import tzlocal
+from pavilion.var_dict import VarDict, var_method
 
 
 class PavVars(VarDict):
@@ -41,3 +43,8 @@ class PavVars(VarDict):
     def time(self):
         """An 'HH:MM:SS.usec' timestamp."""
         return self._now.strftime('%H:%M:%S.%f')
+
+    @var_method
+    def user(self):
+        """The current user's login name."""
+        return os.getlogin()
