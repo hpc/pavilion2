@@ -190,20 +190,11 @@ class StatusTests(PavTestCase):
             self.assertEqual(end_status.state, 'RUN_USER')
             self.assertEqual(end_status.note, 'tacos are delicious')
 
-        # Testing for multiple tests with json output
-        parser = argparse.ArgumentParser()
-        set_status_cmd._setup_arguments(parser)
-        test_str = [str(test.id) for test in tests]
-        arg_list = ['--state', 'RUN_USER', '--note', 'spaghetti is good too']
-        arg_list.extend(test_str)
-        args = parser.parse_args(arg_list)
-        self.assertEqual(set_status_cmd.run(self.pav_cfg, args), 0)
-
         for test in tests:
             status = None
             status = status_file.StatusFile(test.status.path).current()
             self.assertEqual(end_status.state, 'RUN_USER')
-            self.assertEqual(status.note, 'spaghetti is good too')
+            self.assertEqual(status.note, 'tacos are delicious')
 
         # TODO: Add test for 'INVALID' status.
 

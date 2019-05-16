@@ -32,7 +32,7 @@ class ModuleLoad(ModuleAction):
         return ['module load {s.module}'.format(s=self)]
 
     def verify(self):
-        return ['verify_module_loaded $TEST_ID {s.name} '.format(s=self)
+        return ['verify_module_loaded $TEST_ID {s.name} '.format(s=self) +
                     '{s.version}'.format(s=self)]
 
 
@@ -42,7 +42,7 @@ class ModuleRemove(ModuleAction):
         return ['module remove {s.module}'.format(s=self)]
 
     def verify(self):
-        return ['verify_module_removed $TEST_ID {s.name} '.format(s=self)
+        return ['verify_module_removed $TEST_ID {s.name} '.format(s=self) +
                     '{s.version}'.format(s=self)]
 
 
@@ -62,17 +62,17 @@ class ModuleSwap(ModuleAction):
             return self.old_name
 
     def action(self):
-        actions = ['if $(module list 2>&1 | grep {s.old_name})'.format(s=self)
+        actions = ['if $(module list 2>&1 | grep {s.old_name})'.format(s=self),
                    'then',
-                   '    module swap $(module list 2>&1 | grep '
+                   '    module swap $(module list 2>&1 | grep ' +
                        '{s.old_name}) {s.module}'.format(s=self),
                    'else',
-                   '    module load {s.module}'.format(s=self)
+                   '    module load {s.module}'.format(s=self),
                    'fi']
         return actions
 
     def verify(self):
-        return ['verify_module_loaded $TEST_ID {s.name} '.format(s=self)
+        return ['verify_module_loaded $TEST_ID {s.name} '.format(s=self) +
                     '{s.version}'.format(s=self),
-                'verify_module_removed $TEST_ID {s.old_name} '.format(s=self)
+                'verify_module_removed $TEST_ID {s.old_name} '.format(s=self) +
                     '{s.old_version}'.format(s=self)]
