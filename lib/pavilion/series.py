@@ -35,7 +35,7 @@ class TestSeries:
         if _id is None:
             # Get the series id and path.
             try:
-                self.id, self.path = utils.create_id_dir(series_path)
+                self._id, self.path = utils.create_id_dir(series_path)
             except (OSError, TimeoutError) as err:
                 raise TestSeriesError(
                     "Could not get id or series directory in '{}': {}"
@@ -56,10 +56,17 @@ class TestSeries:
             self._save_series_id()
 
         else:
-            self.id = _id
-            self.path = utils.make_id_path(series_path, self.id)
+            self._id = _id
+            self.path = utils.make_id_path(series_path, self._id)
 
-        self._logger = logging.getLogger(self.LOGGER_FMT.format(self.id))
+        self._logger = logging.getLogger(self.LOGGER_FMT.format(self._id))
+
+    @property
+    def id(self):
+        """Return the series id as a string, with an 's' in the front to
+        differentiate it from test ids."""
+
+        return 's{}'.format(self._id)
 
     @classmethod
     def from_id(cls, pav_cfg, id_):
@@ -107,7 +114,7 @@ class TestSeries:
                 user_pav_dir.mkdir()
 
             with last_series_fn.open('w') as last_series_file:
-                last_series_file.write(str(self.id))
+                last_series_file.write(str(self._id))
         except (IOError, OSError):
             # It's ok if we can't write this file.
             self._logger.warning("Could not save series id to '{}'"
