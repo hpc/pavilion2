@@ -115,7 +115,7 @@ class RunCommand(commands.Command):
             fprint("You must specify at least one test.", file=sys.stderr)
             return errno.EINVAL
 
-        suite = TestSeries(pav_cfg, all_tests)
+        series = TestSeries(pav_cfg, all_tests)
 
         rp_errors = []
         for test in all_tests:
@@ -182,8 +182,10 @@ class RunCommand(commands.Command):
                     # we spent checking our jobs.
                     time.sleep(self.SLEEP_INTERVAL - (time.time() - last_time))
 
-        fprint("{} tests started as test series {}."
-               .format(len(all_tests), suite.id),
+        fprint("{} test{} started as test series {}."
+               .format(len(all_tests),
+                       's' if len(all_tests) > 1 else '',
+                       series.id),
                color=utils.GREEN)
 
         # TODO: Call pav status on the series.
