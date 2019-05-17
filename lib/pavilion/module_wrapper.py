@@ -58,7 +58,7 @@ def remove_wrapped_module(module_wrapper, version):
             del _WRAPPED_MODULES[name]
 
 
-def get_module_wrapper(name, version):
+def get_module_wrapper(name, version=None):
 
     if name in _WRAPPED_MODULES:
         if version in _WRAPPED_MODULES[name]:
