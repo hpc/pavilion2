@@ -164,8 +164,6 @@ class SystemPlugin(IPlugin.IPlugin):
             LOGGER.warning("System plugin {} ignored due to priority."
                            .format(name))
         elif self.priority == _LOADED_PLUGINS[name].priority:
-            from pavilion.utils import dprint
-            dprint("is a b?", self is _LOADED_PLUGINS[name])
             raise SystemPluginError(
                 "Two plugins for the same system plugin have "
                 "the same priority {}, {} with name {}."
