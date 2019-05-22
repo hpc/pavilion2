@@ -166,7 +166,7 @@ class SystemPlugin(IPlugin.IPlugin):
         elif self.priority == _LOADED_PLUGINS[name].priority:
             raise SystemPluginError(
                 "Two plugins for the same system plugin have "
-                "the same priority {}, {} with name {}."
+                "the same priority: \n{} and \n{}."
                 .format(self, _LOADED_PLUGINS[name], name))
 
     def deactivate(self):
@@ -183,8 +183,9 @@ class SystemPlugin(IPlugin.IPlugin):
                 del _SYS_VAR_DICT[self.name]
 
     def __repr__(self):
-        return '<{} from file {} named {}>'.format(
+        return '<{} from file {} named {}, priority {}>'.format(
             self.__class__.__name__,
             inspect.getfile(self.__class__),
-            self.name
+            self.name,
+            self.priority
         )
