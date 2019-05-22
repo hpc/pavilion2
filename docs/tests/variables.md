@@ -131,8 +131,8 @@ It is an error to refer to a variable with sub-keys without a sub-key.
 subkeyed_vars:
     variables:
       compiler: 
-        name: 'gcc', 
-        cmd: 'mpicc',
+        name: 'gcc' 
+        cmd: 'mpicc'
         openmp: '-fopenmp'
     
     build:

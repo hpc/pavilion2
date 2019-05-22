@@ -1,13 +1,14 @@
 import subprocess
 import pavilion.system_variables as system_plugins
 
+
 class SystemArch( system_plugins.SystemPlugin ):
 
     def __init__( self ):
         super().__init__(
             plugin_name='sys_arch', 
             help_text="The system architecture.",
-            priority=10,              
+            priority=self.PRIO_DEFAULT,
             is_deferable=False, 
             sub_keys=None )
 

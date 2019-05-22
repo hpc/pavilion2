@@ -120,10 +120,11 @@ when you make this mistake.
 
 #### More Info
 Variables are a powerful feature of pavilion, and the above just scratches 
-the surface. See the [variables](tests/varaiables.md) section of the docs for
+the surface. See the [variables](tests/variables.md) section of the docs for
 detailed information.
 
 ###Inheritance
+
 Tests within a single test suite file can inherit from each other.
 
 ```yaml

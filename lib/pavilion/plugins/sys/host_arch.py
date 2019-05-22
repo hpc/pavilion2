@@ -7,7 +7,7 @@ class HostArch(system_plugins.SystemPlugin):
         super().__init__(
             plugin_name='host_arch',
             help_text="The current host's architecture.",
-            priority=10,
+            priority=self.PRIO_DEFAULT,
             is_deferable=True,
             sub_keys=None)
 

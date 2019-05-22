@@ -6,11 +6,11 @@ class HostOS(system_plugins.SystemPlugin):
 
     def __init__(self):
         super().__init__(
-        plugin_name='host_os', 
-        help_text="The target host's OS info (name, version).",
-        priority=10,
-        is_deferable=True, 
-        sub_keys=['name', 'version'])
+            plugin_name='host_os',
+            help_text="The target host's OS info (name, version).",
+            priority=self.PRIO_DEFAULT,
+            is_deferable=True,
+            sub_keys=['name', 'version'])
 
     def _get(self):
         """Base method for determining the operating host and version."""
