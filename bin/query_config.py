@@ -12,8 +12,11 @@ parser.add_argument('key', nargs=1, action="store",
 args = parser.parse_args()
 key = args.key[0]
 
-pav_cfg = config.find(warn=False)
-
+try:
+    pav_cfg = config.find(warn=False)
+except Exception as err:
+    print(err, file=sys.stderr)
+    sys.exit(1)
 
 if key in pav_cfg:
     value = pav_cfg[key]
