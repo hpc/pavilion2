@@ -13,12 +13,19 @@ UMASK=$(${PYTHON} ${PAV_DIR}/bin/query_config.py umask)
 [[ -n ${UMASK} ]] && umask ${UMASK}
 
 if [[ -n ${SHARED_GROUP} ]]; then
+    # We have to construct a command string that has properly escaped and
+    # quoted
+    CMD="${PYTHON} ${PAV_DIR}/bin/pav.py"
+    for arg in "$@"; do
+        arg=\"$(echo ${arg} | sed 's/"/\\"/g')\"
+        CMD="${CMD} ${arg}"
+    done
+
     # Run pavilion under the given shared group, if one is in the config.
     newgrp ${SHARED_GROUP} <<EOF
-        ${PYTHON} ${PAV_DIR}/bin/pav.py "$@"
+        ${CMD}
 EOF
 
 else
     ${PYTHON} ${PAV_DIR}/bin/pav.py "$@"
 fi
-
