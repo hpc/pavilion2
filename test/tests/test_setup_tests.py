@@ -67,9 +67,11 @@ class TestSetupTests(PavTestCase):
         raw_test = {
             'build': {
                 'cmds':
-                    ["echo {foo} {bar.p}", "echo {foo}", "echo {bar.q}"],
+                    ["echo {{foo}} {{bar.p}}",
+                     "echo {{foo}}",
+                     "echo {{bar.q}}"],
                 'env':
-                    {'baz': '{baz}'}
+                    {'baz': '{{baz}}'}
             },
             'permutations': {
                 'foo': ['1', '2', '3'],
@@ -121,12 +123,14 @@ class TestSetupTests(PavTestCase):
         test = {
             'build': {
                 'cmds':
-                    ["echo {foo} {bar.p}", "echo {per.foo}", "echo {bar.q}"],
+                    ["echo {{foo}} {{bar.p}}",
+                     "echo {{per.foo}}",
+                     "echo {{bar.q}}"],
                 'env': [
-                    {'baz': '{baz}'},
-                    {'oof': '{var.blarg.l}-{var.blarg.r}'},
-                    {'pav': '{pav.nope}'},
-                    {'sys': '{nope}'}]
+                    {'baz': '{{baz}}'},
+                    {'oof': '{{var.blarg.l}}-{{var.blarg.r}}'},
+                    {'pav': '{{pav.nope}}'},
+                    {'sys': '{{nope}}'}]
             },
             'permutations': {
                 'foo': ['1', '2'],
@@ -176,7 +180,7 @@ class TestSetupTests(PavTestCase):
         # section.
         test = {
             'build': {
-                'cmds': ['echo {foo}']
+                'cmds': ['echo {{foo}}']
             }
         }
 

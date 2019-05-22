@@ -34,6 +34,7 @@ class TestStatesStruct:
     BUILD_FAILED = "The build has failed."
     BUILD_ERROR = "An unexpected error occurred while setting up the build."
     BUILD_DONE = "The build step has completed."
+    ENV_FAILED = "Unable to load the environment requested by the test."
     PREPPING_RUN = "Performing final (on node) steps before the test run."
     RUNNING = "For when we're currently running the test."
     RUN_TIMEOUT = "The test run went long without any output."

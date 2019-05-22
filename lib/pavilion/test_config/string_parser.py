@@ -58,10 +58,18 @@ def parse(string):
     return PavString(tokens)
 
 
-TEXT_END_RE = re.compile(r'\[|\\|{|}|(:.)?\]')
+TEXT_END_RE = re.compile(r'\[|\\|{{|}}|(:.)?\]')
 
 
 def tokenize(string):
+    """Tokenize the given string.
+    - Plain text data will become TextTokens.
+    - Variable references will become Variable Tokens.
+    - Substrings will be marked at beginning and end SubString*Tokens.
+    - Escaped characters become their own TextToken.
+    - Detects Unmatched var brackets.
+    """
+
     tokens = [TextToken('', 0, 0)]
 
     pos = 0
@@ -89,6 +97,8 @@ def tokenize(string):
             pos += 1
         elif end_str.endswith(']'):
 
+            # This must be a sequence of :.], where the dot is the separator
+            # character.
             if len(end_str) == 3:
                 separator = end_str[1]
             else:
@@ -97,17 +107,17 @@ def tokenize(string):
             tokens.append(SubStringEndToken(pos, pos+1, separator))
             pos += len(end_str)
 
-        elif end_str == '{':
-            var_end = string.find('}', pos)
+        elif end_str == '{{':
+            var_end = string.find('}}', pos)
             if var_end == -1:
                 error_end = string.find(' ', pos)
                 if error_end == -1:
                     error_end = len(string)
                 raise ScanError(
-                    "Variable escape missing closing bracket '}'",
+                    "Variable escape missing closing brackets '}}'",
                     pos - 1, error_end)
 
-            var_name = string[pos+1:var_end]
+            var_name = string[pos+2:var_end]
 
             # Use the variable manager to parse the key and check for validity.
             try:
@@ -127,10 +137,10 @@ def tokenize(string):
                                 .format(sub_var, var_name), pos, var_end)
 
             tokens.append(VariableToken(var_name, pos, var_end))
-            pos = var_end + 1
+            pos = var_end + 2
 
-        elif end_str == '}':
-            raise ScanError("Extra variable close bracket '}'", pos, pos + 1)
+        elif end_str == '}}':
+            raise ScanError("Extra variable close brackets '}}'", pos, pos + 1)
         elif end_str == '\\':
             if pos + 1 >= len(string):
                 raise ScanError("Escape character '\\' at end of string.",
