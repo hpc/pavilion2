@@ -254,10 +254,10 @@ class ShowCommand(commands.Command):
 
         if args.vars is not None:
             sched_vars = []
-            vars = sched.get_vars(None)
+            svars = sched.get_vars(None)
 
-            for key in sorted(list(vars.keys())):
-                sched_vars.append(vars.info(key))
+            for key in sorted(list(svars.keys())):
+                sched_vars.append(svars.info(key))
 
             utils.draw_table(
                 outfile,
@@ -274,7 +274,9 @@ class ShowCommand(commands.Command):
             class Loader(yaml_config.YamlConfigLoader):
                 ELEMENTS = [sched_config]
 
-            Loader().dump(sys.stdout)
+            defaults = Loader().load_empty()
+
+            Loader().dump(sys.stdout, values=defaults)
 
         else:
             # Assuming --list was given
