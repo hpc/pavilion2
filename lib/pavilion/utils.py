@@ -141,7 +141,7 @@ def fprint(*args, color=None, bullet='', width=60,
     :param int width: Wrap the text to this width.
     """
 
-    args = list(args)
+    args = list(map(str, args))
     if color is not None:
         print('\x1b[{}m'.format(color), end='', file=file)
 
