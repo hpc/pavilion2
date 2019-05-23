@@ -105,9 +105,7 @@ class PluginTests(PavTestCase):
         variables behave as expected."""
 
         # Get an empty pavilion config and set some config dirs on it.
-        pav_cfg = config.PavilionConfigLoader().load_empty()
-
-        plugins.initialize_plugins(pav_cfg)
+        plugins.initialize_plugins(self.pav_cfg)
 
         self.assertFalse(system_variables._LOADED_PLUGINS is None)
 
@@ -164,7 +162,7 @@ class PluginTests(PavTestCase):
         # Make sure these have been wiped.
         self.assertIsNone(system_variables._SYS_VAR_DICT)
 
-        plugins.initialize_plugins(pav_cfg)
+        plugins.initialize_plugins(self.pav_cfg)
 
         # but these are back
         self.assertIsNotNone(system_variables._LOADED_PLUGINS)
@@ -187,13 +185,7 @@ class PluginTests(PavTestCase):
     def test_result_parser_plugins(self):
         """Check basic result parser structure."""
 
-        # Get an empty pavilion config and set some config dirs on it.
-        pav_cfg = config.PavilionConfigLoader().load_empty()
-
-        plugins.initialize_plugins(pav_cfg)
-
-        # We're loading multiple directories of plugins - AT THE SAME TIME!
-        pav_cfg.config_dirs = [self.TEST_DATA_ROOT/'pav_config_dir']
+        plugins.initialize_plugins(self.pav_cfg)
 
         # We should have exactly one test plugin.
         self.assertEqual(len(result_parsers.list_plugins()), 1)
