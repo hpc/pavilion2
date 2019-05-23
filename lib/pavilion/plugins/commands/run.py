@@ -214,7 +214,7 @@ class RunCommand(commands.Command):
 
         # Use the sys_host if a host isn't specified.
         if host is None:
-            host = sys_vars.get('sys_host')
+            host = sys_vars.get('sys_name')
 
         tests = list(tests)
         for file in test_files:
