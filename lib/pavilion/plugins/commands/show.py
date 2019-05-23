@@ -189,7 +189,7 @@ class ShowCommand(commands.Command):
 
         if args.show_cmd is None:
             # If now sub command is given, print the help for 'show'
-            self._parser.print_help(self.OUTFILE)
+            self._parser.print_help(self.outfile)
             return errno.EINVAL
         else:
             cmd_name = args.show_cmd
@@ -230,7 +230,7 @@ class ShowCommand(commands.Command):
         else:
             raise RuntimeError("Invalid show cmd '{}'".format(cmd_name))
 
-        result = cmd(pav_cfg, args, outfile=self.OUTFILE)
+        result = cmd(pav_cfg, args, outfile=self.outfile)
         return 0 if result is None else result
 
     @staticmethod
