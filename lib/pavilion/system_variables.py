@@ -124,6 +124,7 @@ class SystemPlugin(IPlugin.IPlugin):
         self.help_text = help_text
         self.name = plugin_name
         self.priority = priority
+        self.file = inspect.getfile(self.__class__)
         if sub_keys is None:
             sub_keys = []
         self.sub_keys = sub_keys
@@ -185,7 +186,7 @@ class SystemPlugin(IPlugin.IPlugin):
     def __repr__(self):
         return '<{} from file {} named {}, priority {}>'.format(
             self.__class__.__name__,
-            inspect.getfile(self.__class__),
+            self.file,
             self.name,
             self.priority
         )
