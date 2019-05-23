@@ -1,4 +1,5 @@
 import errno
+import sys
 
 from pavilion import commands
 from pavilion import utils
@@ -40,6 +41,7 @@ class SetStatusCommand(commands.Command):
             utils.fprint(
                 "Test {} could not be opened.\n{}".format(args.test, err),
                 color=utils.RED,
+                file=self.errfile,
             )
             return errno.EINVAL
 

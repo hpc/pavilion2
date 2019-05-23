@@ -75,7 +75,7 @@ class ResultsCommand(commands.Command):
         all_keys.sort(key=lambda k: max([len(res[k]) for res in results]))
 
         if args.json:
-            utils.json_dump(results, sys.stdout)
+            utils.json_dump(results, self.outfile)
             return 0
 
         if args.full:
@@ -84,7 +84,7 @@ class ResultsCommand(commands.Command):
             fields = ['name', 'id', 'result'] + args.key
 
         utils.draw_table(
-            outfile=sys.stdout,
+            outfile=self.outfile,
             field_info={},
             fields=fields,
             rows=results,

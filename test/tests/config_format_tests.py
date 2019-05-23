@@ -8,7 +8,7 @@ class TestConfig(PavTestCase):
     def test_valid_config(self):
         """Check that a valid config is read correctly."""
 
-        f = open('test_data/config_tests.basics.yaml', 'r')
+        f = (self.TEST_DATA_ROOT/'config_tests.basics.yaml').open()
 
         data = format.TestConfigLoader().load(f)
 

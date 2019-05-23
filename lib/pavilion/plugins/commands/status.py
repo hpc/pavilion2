@@ -47,6 +47,7 @@ class StatusCommand(commands.Command):
                     utils.fprint(
                         "Suite {} could not be found.\n{}"
                         .format(test_id[1:], err),
+                        file=self.errfile,
                         color=utils.RED
                     )
                     continue
@@ -85,11 +86,11 @@ class StatusCommand(commands.Command):
 
         if args.json:
             json_data = {'statuses': test_statuses}
-            utils.json_dump(json_data, sys.stdout)
+            utils.json_dump(json_data, self.outfile)
         else:
             fields = ['test_id', 'name', 'state', 'time', 'note']
             utils.draw_table(
-                outfile=sys.stdout,
+                outfile=self.outfile,
                 field_info={},
                 fields=fields,
                 rows=test_statuses,

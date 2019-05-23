@@ -8,9 +8,10 @@ from pavilion.test_config import format
 from pavilion.unittest import PavTestCase
 from pavilion.pav_test import PavTest
 import argparse
+import io
 
 
-class StatusTests(PavTestCase):
+class StatusCmdTests(PavTestCase):
 
     def setUp(self):
         plugins.initialize_plugins(self.pav_cfg)
@@ -91,6 +92,7 @@ class StatusTests(PavTestCase):
         test_str = " ".join([str(test) for test in suite.tests])
 
         status_cmd = commands.get_command('status')
+        status_cmd.outfile = io.StringIO()
 
         # Testing for individual tests with json output
         for test in suite.tests:
@@ -171,6 +173,7 @@ class StatusTests(PavTestCase):
             test.RUN_SILENT_TIMEOUT = 1
 
         set_status_cmd = commands.get_command('set_status')
+        set_status_cmd.outfile = io.StringIO()
 
         # Testing for individual tests with json output
         for test in tests:
@@ -205,8 +208,6 @@ class StatusTests(PavTestCase):
 
         sys_vars = system_variables.get_vars(False)
 
-        sched_vars = schedulers.get_scheduler_plugin('raw').get_vars(test)
-
         test = PavTest(self.pav_cfg, test, sys_vars)
 
         test.build()
@@ -214,6 +215,7 @@ class StatusTests(PavTestCase):
             .schedule_test(self.pav_cfg, test)
 
         status_cmd = commands.get_command('status')
+        status_cmd.outfile = io.StringIO()
 
         parser = argparse.ArgumentParser()
         status_cmd._setup_arguments(parser)
