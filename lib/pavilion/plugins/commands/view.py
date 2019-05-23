@@ -55,7 +55,7 @@ class ViewCommand(run.RunCommand):
             if '=' not in ovr:
                 fprint("Invalid override value. Must be in the form: "
                        "<key>=<value>. Ex. -c run.modules=['gcc'] ",
-                       file=sys.stderr)
+                       file=self.errfile)
                 return errno.EINVAL
 
             key, value = ovr.split('=', 1)
@@ -80,4 +80,4 @@ class ViewCommand(run.RunCommand):
         configs = sum(configs.values(), [])
 
         for config in configs:
-            pprint.pprint(config)
+            pprint.pprint(config, stream=self.outfile)

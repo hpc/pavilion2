@@ -18,7 +18,7 @@ class PavTestCase(unittest.TestCase):
     """This is a base class for other test suites."""
 
     PAV_LIB_DIR = Path(__file__).resolve().parent
-    TEST_DATA_ROOT = PAV_LIB_DIR.parents[1]/'test'/'test_data'
+    TEST_DATA_ROOT = PAV_LIB_DIR.parents[1]/'test'/'data'
 
     PAV_CONFIG_PATH = TEST_DATA_ROOT/'pav_config_dir'/'pavilion.yaml'
 

@@ -22,7 +22,7 @@ test results, and more.
  - Extreme extensibility (plugins everywhere). 
 
 ## Contents
- - [Basic Usage](#usage)
+ - [Basic Usage](#basic-usage)
  - [Advanced Usage](docs/advanced.md)
  - [Installation](INSTALL.md)
    - [Configuring Pavilion](docs/config.md)
@@ -119,12 +119,34 @@ scheduler: slurm
 
 The above host config would set the default scheduler to 'slurm' for tests 
 kicked off on a host with a hostname of `my_host`. Pavilion uses the contents
+<<<<<<< HEAD
  of the `sys_name` config variable to determine the current host, which is 
+=======
+ of the `sys_name` test config variable to determine the current host, which is 
+>>>>>>> d9d31d2debf5020f5ee162c6d93e5fd66762b310
  provided via a built-in
   [system variable plugin](docs/plugins/sys_vars.md). 
  This behaviour can be overridden by providing your own sys_var plugin, which
   is especially useful on clusters with multiple frontends.
 
+#### Mode Configs
+In addition to host config files, you can provide mode config files that you 
+can apply to any test when you run it. They have the same format as the host 
+configs, but multiple can be provided per test. 
+
+For example, the following mode file could be used to set a particular set of
+slurm vars. It would reside in `modes/tester.yaml` in a pavilion config 
+directory.
+ 
+```yaml
+slurm: 
+    account: tester
+    partition: post-dst
+```
+
+```bash
+pav run -m tester -f post_dst_tests.txt
+```
  
 ### Running tests
 Running tests is easy. All you need is the test suite name (the name of the 
@@ -218,4 +240,4 @@ Every test has a results object that contains at least the keys listed above.
  results.
  
  Results are saved alongside each test, as well being written to a 
- central result log that is suitable for import into Splunk or other tools.
+ central result log that is suitable for import into Splunk or other tools. 

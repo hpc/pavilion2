@@ -8,7 +8,7 @@ class SystemOS(system_plugins.SystemPlugin):
         super().__init__(
             plugin_name='sys_os', 
             help_text="The system os info (name, version).",
-            priority=10,
+            priority=self.PRIO_DEFAULT,
             is_deferable=False, 
             sub_keys=['name', 'version'])
 

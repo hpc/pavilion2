@@ -124,6 +124,7 @@ class SystemPlugin(IPlugin.IPlugin):
         self.help_text = help_text
         self.name = plugin_name
         self.priority = priority
+        self.file = inspect.getfile(self.__class__)
         if sub_keys is None:
             sub_keys = []
         self.sub_keys = sub_keys
@@ -164,11 +165,9 @@ class SystemPlugin(IPlugin.IPlugin):
             LOGGER.warning("System plugin {} ignored due to priority."
                            .format(name))
         elif self.priority == _LOADED_PLUGINS[name].priority:
-            from pavilion.utils import dbg_print
-            dbg_print("is a b?", self is _LOADED_PLUGINS[name])
             raise SystemPluginError(
                 "Two plugins for the same system plugin have "
-                "the same priority {}, {} with name {}."
+                "the same priority: \n{} and \n{}."
                 .format(self, _LOADED_PLUGINS[name], name))
 
     def deactivate(self):
@@ -185,8 +184,9 @@ class SystemPlugin(IPlugin.IPlugin):
                 del _SYS_VAR_DICT[self.name]
 
     def __repr__(self):
-        return '<{} from file {} named {}>'.format(
+        return '<{} from file {} named {}, priority {}>'.format(
             self.__class__.__name__,
-            inspect.getfile(self.__class__),
-            self.name
+            self.file,
+            self.name,
+            self.priority
         )

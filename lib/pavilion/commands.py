@@ -1,8 +1,10 @@
-from pavilion import arguments
-from yapsy import IPlugin
 import argparse
 import inspect
 import logging
+import sys
+
+from pavilion import arguments
+from yapsy import IPlugin
 
 _COMMANDS = {}
 
@@ -67,9 +69,14 @@ class Command(IPlugin.IPlugin):
 
         self.logger = logging.getLogger('command.' + name)
         self.name = name
+        self.file = inspect.getfile(self.__class__)
         self.description = description
         self.short_help = short_help
         self._aliases = aliases if aliases is not None else []
+
+        # These are to allow tests to redirect output as needed.
+        self.outfile = sys.stdout
+        self.errfile = sys.stderr
 
     def _setup_arguments(self, parser):
         """Setup the commands arguments in the Pavilion argument parser.
@@ -112,6 +119,7 @@ class Command(IPlugin.IPlugin):
         """This method should contain the
         :param pav_config: The pavilion configuration object.
         :param args: The parsed arguments for this command.
+        :param outfile: Where to direct the command output.
         :return: The return code of the command should denote success (0) or
             failure (not 0).
         """
@@ -120,6 +128,6 @@ class Command(IPlugin.IPlugin):
     def __repr__(self):
         return '<{} from file {} named {}>'.format(
             self.__class__.__name__,
-            inspect.getfile(self.__class__),
+            self.file,
             self.name
         )

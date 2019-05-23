@@ -1,5 +1,4 @@
 import errno
-import sys
 import time
 from collections import defaultdict
 
@@ -80,7 +79,7 @@ class RunCommand(commands.Command):
             if '=' not in ovr:
                 fprint("Invalid override value. Must be in the form: "
                        "<key>=<value>. Ex. -c run.modules=['gcc'] ",
-                       file=sys.stderr)
+                       file=self.errfile)
                 return errno.EINVAL
 
             key, value = ovr.split('=', 1)
@@ -106,13 +105,13 @@ class RunCommand(commands.Command):
             )
 
         except test_config.TestConfigError as err:
-            fprint(err, file=sys.stderr)
+            fprint(err, file=self.errfile)
             return errno.EINVAL
 
         all_tests = sum(tests_by_sched.values(), [])
 
         if not all_tests:
-            fprint("You must specify at least one test.", file=sys.stderr)
+            fprint("You must specify at least one test.", file=self.errfile)
             return errno.EINVAL
 
         series = TestSeries(pav_cfg, all_tests)
@@ -127,20 +126,20 @@ class RunCommand(commands.Command):
 
         if rp_errors:
             fprint("Result Parser configurations had errors:",
-                   file=sys.stderr, color=utils.RED)
+                   file=self.errfile, color=utils.RED)
             for msg in rp_errors:
-                fprint(msg, bullet=' - ', file=sys.stderr)
+                fprint(msg, bullet=' - ', file=self.errfile)
             return errno.EINVAL
 
         # Building any tests that specify that they should be built before
         for test in all_tests:
             if test.config['build']['on_nodes'] not in ['true', 'True']:
                 if not test.build():
-                    fprint("Error building test: ", file=sys.stderr,
+                    fprint("Error building test: ", file=self.errfile,
                            color=utils.RED)
                     fprint("status {status.state} - {status.note}"
                            .format(status=test.status.current()),
-                           file=sys.stderr)
+                           file=self.errfile)
                     return errno.EINVAL
 
         for sched_name, tests in tests_by_sched.items():
@@ -149,10 +148,11 @@ class RunCommand(commands.Command):
             try:
                 sched.schedule_tests(pav_cfg, tests)
             except schedulers.SchedulerPluginError as err:
-                fprint('Error scheduling tests:', file=sys.stderr,
+                fprint('Error scheduling tests:', file=self.errfile,
                        color=utils.RED)
-                fprint(err, bullet='  ', file=sys.stderr)
-                fprint('Cancelling already kicked off tests.', file=sys.stderr)
+                fprint(err, bullet='  ', file=self.errfile)
+                fprint('Cancelling already kicked off tests.',
+                       file=self.errfile)
                 self._cancel_all(tests_by_sched)
 
         # Tests should all be scheduled now, and have the SCHEDULED state
@@ -186,6 +186,7 @@ class RunCommand(commands.Command):
                .format(len(all_tests),
                        's' if len(all_tests) > 1 else '',
                        series.id),
+               file=self.outfile,
                color=utils.GREEN)
 
         # TODO: Call pav status on the series.
@@ -297,7 +298,8 @@ class RunCommand(commands.Command):
 
     @staticmethod
     def _configs_to_tests(pav_cfg, sys_vars, configs_by_sched):
-        """Convert the dictionary of test configs by scheduler into actual tests."""
+        """Convert the dictionary of test configs by scheduler into actual
+        tests."""
 
         tests_by_sched = {}
 

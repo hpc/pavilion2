@@ -8,7 +8,7 @@ class SystemHost(system_plugins.SystemPlugin):
         super().__init__(
             plugin_name='sys_host', 
             help_text="The system (kickoff) hostname.",
-            priority=10,
+            priority=self.PRIO_DEFAULT,
             is_deferable=False, 
             sub_keys=None)
 

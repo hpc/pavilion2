@@ -45,26 +45,26 @@ class TestStringParser(PavTestCase):
             # Checking that escapes are escaped.
             (r'\\\{\}\[\]\ \a', r'\{}[] a'),
             # Basic variable substitution
-            ('Hello {var1} World', 'Hello val1 World'),
+            ('Hello {{var1}} World', 'Hello val1 World'),
             # Variable with var_set. We'll rely on the variable tests for the full combinations,
             # as they use the same functions under the hood.
-            ('Hello {pav.var1} World', 'Hello pval1 World'),
+            ('Hello {{pav.var1}} World', 'Hello pval1 World'),
             # Substring substitution with spaces.
-            ('Hello [{var2}: ] World.', 'Hello 0 1 2 World.'),
+            ('Hello [{{var2}}: ] World.', 'Hello 0 1 2 World.'),
             # Substring substitution as last item.
-            ('Hello [{var2}]', 'Hello 012'),
+            ('Hello [{{var2}}]', 'Hello 012'),
             # Substring substitution with multiple loop vars and a non-loop var.
-            ('Hello [{var2}{sep}{pav.var2}: ] World.',
+            ('Hello [{{var2}}{{sep}}{{pav.var2}}: ] World.',
              'Hello 0-p0 0-p1 1-p0 1-p1 2-p0 2-p1 World.'),
             # Substring substitution without spaces.
-            ('Hello [{var2}]World.', 'Hello 012World.'),
+            ('Hello [{{var2}}]World.', 'Hello 012World.'),
             # Substring substitution with an escaped space.
-            ('Hello [{var2}:\ ] World.', 'Hello 0: 1: 2:  World.'),
+            ('Hello [{{var2}}:\ ] World.', 'Hello 0: 1: 2:  World.'),
             # Sub-strings with repeated usage
-            ('Hello [{var4.subvar1}-{var4.subvar2}: ] World.',
+            ('Hello [{{var4.subvar1}}-{{var4.subvar2}}: ] World.',
              'Hello subval0_1-subval0_2 subval1_1-subval1_2 World.'),
             # sub-sub strings
-            ('Hello [{var2}-[{var4.subvar1}:-]: ] World.',
+            ('Hello [{{var2}}-[{{var4.subvar1}}:-]: ] World.',
              'Hello 0-subval0_1-subval1_1 1-subval0_1-subval1_1 2-subval0_1-subval1_1 World.'),
 
         ]
@@ -76,15 +76,15 @@ class TestStringParser(PavTestCase):
     def test_parser_errors(self):
         test_strings = [
             # Missing close bracket on variable reference.
-            ('Hello {bleh World.', string_parser.ScanError),
+            ('Hello {{bleh World.', string_parser.ScanError),
             # Bad variable name
-            ('Hello {;;dasd} World.', string_parser.ScanError),
+            ('Hello {{;;dasd}} World.', string_parser.ScanError),
             # Bad var_set name (raised by VariableSetManager, re-caught in the tokenizer)
-            ('Hello {;.foo.bar} World.', string_parser.ScanError),
+            ('Hello {{;.foo.bar}} World.', string_parser.ScanError),
             # Bad sub_var name
-            ('Hello {pav.bar.;-} World.', string_parser.ScanError),
+            ('Hello {{pav.bar.;-}} World.', string_parser.ScanError),
             # Extra close bracket
-            ('Hello {hello}} World.', string_parser.ScanError),
+            ('Hello {{hello}}}} World.', string_parser.ScanError),
             # Strings cannot end with the escape character.for
             ('Hello \\', string_parser.ScanError),
             # The 'Unknown scanning error' exception shouldn't be reachable.

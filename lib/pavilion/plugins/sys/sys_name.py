@@ -8,7 +8,7 @@ class SystemName( system_plugins.SystemPlugin ):
         super().__init__(
             plugin_name='sys_name', 
             help_text='The system name (not necessarily hostname).',
-            priority=10,
+            priority=self.PRIO_DEFAULT,
             is_deferable=False, 
             sub_keys=None )
 

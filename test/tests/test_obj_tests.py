@@ -392,4 +392,4 @@ class PavTestTests(unittest.PavTestCase):
                          sorted([t.id for t in suite2.tests.values()]))
                                                 
         self.assertEqual(suite.path, suite2.path)
-        self.assertEqual('s{}'.format(suite._id), suite2.id)
+        self.assertEqual(suite.id, suite2.id)

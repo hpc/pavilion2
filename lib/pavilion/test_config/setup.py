@@ -194,8 +194,6 @@ def load_test_configs(pav_cfg, host, modes, tests):
                     "locations: {}"
                     .format(test_suite, pav_cfg.config_dirs))
 
-            from pavilion.utils import dbg_print
-            dbg_print("Loading test suite.", test_suite_path)
             try:
                 with test_suite_path.open() as test_suite_file:
                     test_suite_cfg = test_suite_loader.load(test_suite_file)

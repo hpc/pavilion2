@@ -133,9 +133,9 @@ class PluginTests(PavTestCase):
         self.assertEqual(host_arch, sys_vars['sys_arch'])
         self.assertTrue('sys_arch' in sys_vars)
 
-        self.assertFalse('sys_name' in sys_vars)
-        self.assertEqual(host_name, sys_vars['sys_name'])
-        self.assertTrue('sys_name' in sys_vars)
+        self.assertFalse('sys_host' in sys_vars)
+        self.assertEqual(host_name, sys_vars['sys_host'])
+        self.assertTrue('sys_host' in sys_vars)
 
         self.assertFalse('sys_os' in sys_vars)
         self.assertEqual(host_os['name'], sys_vars['sys_os']['name'])

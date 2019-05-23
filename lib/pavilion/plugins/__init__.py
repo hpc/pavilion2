@@ -5,6 +5,7 @@ from pavilion.result_parsers import ResultParser
 from pavilion.schedulers import SchedulerPlugin
 from pavilion.system_variables import SystemPlugin as System
 from yapsy import PluginManager
+from yapsy import log as yapsy_log
 import logging
 
 LOGGER = logging.getLogger('plugins')
@@ -59,6 +60,7 @@ def initialize_plugins(pav_cfg):
     except Exception as err:
         raise PluginError("Error initializing plugin system: {}".format(err))
 
+    # Activate each plugin in turn.
     for plugin in pman.getAllPlugins():
         plugin_dot_name = '{p.category}.{p.name}'.format(p=plugin)
 
@@ -67,7 +69,7 @@ def initialize_plugins(pav_cfg):
             continue
 
         try:
-            pman.activatePluginByName(plugin.name, plugin.category)
+            plugin.plugin_object.activate()
         except Exception as err:
             raise PluginError("Error activating plugin {name}: {err}"
                               .format(name=plugin.name, err=err))

@@ -71,14 +71,14 @@ def group_validate(_, group):
         return
 
     try:
-        gid = grp.getgrnam(group)
+        group_info = grp.getgrnam(group)
     except KeyError:
         raise ValueError("Group {} is not known on host {}."
                          .format(group, socket.gethostname()))
 
-    if gid not in os.getgroups():
-        raise ValueError("Group {} is not in the current user's list of "
-                         "groups.".format(group))
+    if os.getlogin() not in group_info.gr_mem:
+        raise ValueError("User '{}' is not in the group '{}'"
+                         .format(os.getlogin(), group_info.gr_mem))
 
     return group
 
@@ -158,13 +158,13 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
             # given.
             post_validator=(lambda d, v: v if v is not None else
                             d['working_dir']/'results.log'),
-            help_text="Results are put in both the general log and a specific"
+            help_text="Results are put in both the general log and a specific "
                       "results log. This defaults to 'results.log' in the "
                       "working directory."),
         yc.IntElem(
             "wget_timeout", default=5,
-            help_text="How long to wait on web requests before timing out. On"
-                      "networks without internet access, zero will allow you"
+            help_text="How long to wait on web requests before timing out. On "
+                      "networks without internet access, zero will allow you "
                       "to spot issues faster."
         ),
         yc.CategoryElem(

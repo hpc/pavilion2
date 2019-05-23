@@ -8,9 +8,10 @@ from pavilion.test_config import format
 from pavilion.unittest import PavTestCase
 from pavilion.pav_test import PavTest
 import argparse
+import io
 
 
-class StatusTests(PavTestCase):
+class StatusCmdTests(PavTestCase):
 
     def setUp(self):
         plugins.initialize_plugins(self.pav_cfg)
@@ -91,6 +92,7 @@ class StatusTests(PavTestCase):
         test_str = " ".join([str(test) for test in suite.tests])
 
         status_cmd = commands.get_command('status')
+        status_cmd.outfile = io.StringIO()
 
         # Testing for individual tests with json output
         for test in suite.tests:
@@ -171,32 +173,23 @@ class StatusTests(PavTestCase):
             test.RUN_SILENT_TIMEOUT = 1
 
         set_status_cmd = commands.get_command('set_status')
+        set_status_cmd.outfile = io.StringIO()
 
         # Testing for individual tests with json output
         for test in tests:
-            start_status = None
-            end_status = None
-            start_status = status_file.StatusFile(test.status.path).current()
+            start_status = test.status.current()
             parser = argparse.ArgumentParser()
             set_status_cmd._setup_arguments(parser)
             arg_list = ['-s', 'RUN_USER', '-n', 'tacos are delicious',
                         str(test.id)]
             args = parser.parse_args(arg_list)
             self.assertEqual(set_status_cmd.run(self.pav_cfg, args), 0)
-            end_status = status_file.StatusFile(test.status.path).current()
+            end_status = test.status.current()
 
             self.assertNotEqual(end_status.state, start_status.state)
             self.assertNotEqual(end_status.note, start_status.note)
             self.assertEqual(end_status.state, 'RUN_USER')
             self.assertEqual(end_status.note, 'tacos are delicious')
-
-        for test in tests:
-            status = None
-            status = status_file.StatusFile(test.status.path).current()
-            self.assertEqual(end_status.state, 'RUN_USER')
-            self.assertEqual(status.note, 'tacos are delicious')
-
-        # TODO: Add test for 'INVALID' status.
 
     def test_status_command_with_sched(self):
         """Test status command when test is 'SCHEDULED'."""
@@ -215,8 +208,6 @@ class StatusTests(PavTestCase):
 
         sys_vars = system_variables.get_vars(False)
 
-        sched_vars = schedulers.get_scheduler_plugin('raw').get_vars(test)
-
         test = PavTest(self.pav_cfg, test, sys_vars)
 
         test.build()
@@ -224,6 +215,7 @@ class StatusTests(PavTestCase):
             .schedule_test(self.pav_cfg, test)
 
         status_cmd = commands.get_command('status')
+        status_cmd.outfile = io.StringIO()
 
         parser = argparse.ArgumentParser()
         status_cmd._setup_arguments(parser)
