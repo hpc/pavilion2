@@ -437,8 +437,10 @@ class Slurm(SchedulerPlugin):
             raise SchedulerPluginError(
                 'Submission script {} not found'.format(kickoff_path))
 
+        slurm_out = test.path/'slurm.log'
+
         proc = subprocess.Popen(['sbatch',
-                                 '--output=/dev/null',
+                                 '--output={}'.format(slurm_out),
                                  kickoff_path.as_posix()],
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE)
