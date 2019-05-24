@@ -92,7 +92,11 @@ class _RunCommand(commands.Command):
             raise
 
         try:
-            test.status.set(STATES.COMPLETE, "Test completed successfully.")
+            if STATES.RUN_FAILED in test.status.history():
+                note = "Test completed, but test failed."
+            else:
+                note = "Test completed successfully."
+            test.status.set(STATES.COMPLETE, note)
             test.set_run_complete()
         except Exception:
             test.status.set(

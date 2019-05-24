@@ -958,6 +958,9 @@ class PavTest:
                     args = rconf.copy()
                     del args['key']
 
+                    if 'file' not in args:
+                        args['file'] = self.run_log
+
                     result = parser(self, **args)
 
                     results[rconf['key']] = result
