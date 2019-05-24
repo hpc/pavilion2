@@ -11,6 +11,7 @@ import re
 import subprocess
 from pathlib import Path
 
+
 class SbatchHeader(scriptcomposer.ScriptHeader):
     def __init__(self, sched_config, nodes, test_id):
         super().__init__()
@@ -20,6 +21,8 @@ class SbatchHeader(scriptcomposer.ScriptHeader):
         self._nodes = nodes
 
     def get_lines(self):
+
+        print('slurm_conf', self._conf)
 
         lines = super().get_lines()
 
@@ -160,7 +163,6 @@ class SlurmVars(SchedulerVariables):
         # We can't request more processors than there are, nor
         # should we return more than requested.
         return min(total_procs, req_procs)
-
 
     @dfr_var_method
     def test_cmd(self):
@@ -322,7 +324,8 @@ class Slurm(SchedulerPlugin):
 
         return node_data
 
-    def _make_summary(self, nodes):
+    @staticmethod
+    def _make_summary(nodes):
         """Get aggregate data about the given nodes. This includes:
             - min_ppn - min procs per node
             - max_ppn - max procs per node
@@ -434,7 +437,9 @@ class Slurm(SchedulerPlugin):
             raise SchedulerPluginError(
                 'Submission script {} not found'.format(kickoff_path))
 
-        proc = subprocess.Popen(['sbatch', kickoff_path.as_posix()],
+        proc = subprocess.Popen(['sbatch',
+                                 '--output=/dev/null',
+                                 kickoff_path.as_posix()],
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE)
         stdout, stderr = proc.communicate()

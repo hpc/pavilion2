@@ -76,9 +76,11 @@ def group_validate(_, group):
         raise ValueError("Group {} is not known on host {}."
                          .format(group, socket.gethostname()))
 
-    if os.getlogin() not in group_info.gr_mem:
+    user = os.environ['USER']
+
+    if user not in group_info.gr_mem:
         raise ValueError("User '{}' is not in the group '{}'"
-                         .format(os.getlogin(), group_info.gr_mem))
+                         .format(user, group_info.gr_mem))
 
     return group
 

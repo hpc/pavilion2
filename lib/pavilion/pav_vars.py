@@ -47,4 +47,7 @@ class PavVars(VarDict):
     @var_method
     def user(self):
         """The current user's login name."""
-        return os.getlogin()
+
+        # The environment, in this case, is more reliable than the os module
+        # alternative (os.getlogin(), see `man getlogin`).
+        return os.environ.get('USER')

@@ -3,6 +3,7 @@ from . import variables
 from .format import TestConfigError, KEY_NAME_RE
 from .format import TestConfigLoader, TestSuiteLoader
 from collections import defaultdict
+from yaml_config import RequiredError
 import copy
 import logging
 import os
@@ -115,10 +116,9 @@ def load_test_configs(pav_cfg, host, modes, tests):
 
     test_config_loader = TestConfigLoader()
 
-    if host is None:
-        # Use the defaults if a host config isn't given.
-        base_config = test_config_loader.load_empty()
-    else:
+    base_config = test_config_loader.load_empty()
+
+    if host is not None:
         host_cfg_path = _find_config(pav_cfg, CONF_HOST, host)
         if host_cfg_path is None:
             raise TestConfigError("Could not find {} config file for host '{}'."
@@ -127,11 +127,27 @@ def load_test_configs(pav_cfg, host, modes, tests):
         try:
             with host_cfg_path.open() as host_cfg_file:
                 # Load and validate the host test config defaults.
-                base_config = test_config_loader.load(host_cfg_file,
-                                                      partial=True)
+                base_config = test_config_loader.load_merge(
+                    base_config,
+                    host_cfg_file,
+                    partial=True)
         except (IOError, OSError) as err:
             raise TestConfigError("Could not open host config '{}': {}"
                                   .format(host_cfg_path, err))
+        except ValueError as err:
+            raise TestConfigError(
+                "Host config '{}' has invalid value. {}"
+                .format(host_cfg_path, err))
+        except KeyError as err:
+            raise TestConfigError(
+                "Host config '{}' has an invalid key. {}"
+                .format(host_cfg_path, err))
+        except TypeError as err:
+            # All config elements in test configs must be strings, and just
+            # about everything converts cleanly to a string.
+            raise RuntimeError(
+                "Host config '{}' raised a type error, but that "
+                "should never happen. {}".format(host_cfg_path, err))
 
     for mode in modes:
         mode_cfg_path = _find_config(pav_cfg, CONF_MODE, mode)
@@ -149,6 +165,20 @@ def load_test_configs(pav_cfg, host, modes, tests):
         except (IOError, OSError) as err:
             raise TestConfigError("Could not open mode config '{}': {}"
                                   .format(mode_cfg_path, err))
+        except ValueError as err:
+            raise TestConfigError(
+                "Mode config '{}' has invalid value. {}"
+                .format(mode_cfg_path, err))
+        except KeyError as err:
+            raise TestConfigError(
+                "Mode config '{}' has an invalid key. {}"
+                .format(mode_cfg_path, err))
+        except TypeError as err:
+            # All config elements in test configs must be strings, and just
+            # about everything converts cleanly to a string.
+            raise RuntimeError(
+                "Mode config '{}' raised a type error, but that "
+                "should never happen. {}".format(mode_cfg_path, err))
 
     # A dictionary of test suites to a list of subtests to run in that suite.
     all_tests = defaultdict(lambda: dict())
@@ -196,7 +226,11 @@ def load_test_configs(pav_cfg, host, modes, tests):
 
             try:
                 with test_suite_path.open() as test_suite_file:
-                    test_suite_cfg = test_suite_loader.load(test_suite_file)
+                    # We're loading this in raw mode, because the defaults
+                    # will have already been provided.
+                    # Each test config will be individually validated later.
+                    test_suite_cfg = test_suite_loader.load_raw(
+                        test_suite_file)
 
             except (IOError, OSError) as err:
                 raise TestConfigError("Could not open test suite config {}: {}"
@@ -248,13 +282,13 @@ def resolve_inheritance(base_config, suite_cfg, suite_path):
     ready_to_resolve = list()
     for test_cfg_name, test_cfg in suite_cfg.items():
         if test_cfg.get('inherits_from') is None:
-            test_cfg.inherits_from = '__base__'
+            test_cfg['inherits_from'] = '__base__'
             # Tests that depend on nothing are ready to resolve.
             ready_to_resolve.append(test_cfg_name)
         else:
-            depended_on_by[test_cfg.inherits_from].append(test_cfg_name)
+            depended_on_by[test_cfg['inherits_from']].append(test_cfg_name)
 
-        suite_tests[test_cfg_name] = test_cfg
+        suite_tests[test_cfg_name] = TestConfigLoader().normalize(test_cfg)
 
     # Add this so we can cleanly depend on it.
     suite_tests['__base__'] = base_config
@@ -264,7 +298,7 @@ def resolve_inheritance(base_config, suite_cfg, suite_path):
         # Grab a test whose parent's are resolved and the parent test.
         test_cfg_name = ready_to_resolve.pop(0)
         test_cfg = suite_tests[test_cfg_name]
-        parent = suite_tests[test_cfg.inherits_from]
+        parent = suite_tests[test_cfg['inherits_from']]
 
         # Merge the parent and test.
         suite_tests[test_cfg_name] = test_config_loader.merge(parent,
@@ -287,6 +321,28 @@ def resolve_inheritance(base_config, suite_cfg, suite_path):
 
     # Remove the test base
     del suite_tests['__base__']
+
+    # Validate each test config individually.
+    for test_name, test_config in suite_tests.items():
+        try:
+            suite_tests[test_name] = test_config_loader.validate(test_config)
+        except RequiredError as err:
+            raise TestConfigError(
+                "Test {} in suite {} has a missing key. {}"
+                .format(test_name, suite_path, err))
+        except ValueError as err:
+            raise TestConfigError(
+                "Test {} in suite {} has an invalid value. {}"
+                .format(test_name, suite_path, err))
+        except KeyError as err:
+            raise TestConfigError(
+                "Test {} in suite {} has an invalid key. {}"
+                .format(test_name, suite_path, err))
+        except TypeError as err:
+            # See the same error above when loading host configs.
+            raise RuntimeError(
+                "Loaded test '{}' in suite '{}' raised a type error, but that "
+                "should never happen. {}".format(test_name, suite_path, err))
 
     return suite_tests
 

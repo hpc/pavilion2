@@ -23,13 +23,19 @@ class VariableElem(yc.CategoryElem):
                                            defaults=None,
                                            **kwargs)
 
+    def normalize(self, values):
+        if isinstance(values, str):
+            return values
+
+        return super().normalize(values)
+
     def validate(self, value_dict, partial=False):
         """Check for a single item and return it, otherwise return a dict."""
 
         if isinstance(value_dict, str):
             return value_dict
 
-        return super(VariableElem, self).validate(value_dict, partial=partial)
+        return super().validate(value_dict, partial=partial)
 
 
 class VarCatElem(yc.CategoryElem):
@@ -274,6 +280,7 @@ class TestConfigLoader(yc.YamlConfigLoader):
             return
         else:
             raise ValueError(elem)
+
 
 # TODO: Fix this name.
 def TestSuiteLoader():

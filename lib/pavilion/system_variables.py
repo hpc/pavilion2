@@ -124,7 +124,7 @@ class SystemPlugin(IPlugin.IPlugin):
         self.help_text = help_text
         self.name = plugin_name
         self.priority = priority
-        self.file = inspect.getfile(self.__class__)
+        self.path = inspect.getfile(self.__class__)
         if sub_keys is None:
             sub_keys = []
         self.sub_keys = sub_keys
@@ -163,7 +163,7 @@ class SystemPlugin(IPlugin.IPlugin):
                            .format(name))
         elif self.priority < _LOADED_PLUGINS[name].priority:
             LOGGER.warning("System plugin {} ignored due to priority."
-                           .format(name))
+                           .format(self.path))
         elif self.priority == _LOADED_PLUGINS[name].priority:
             raise SystemPluginError(
                 "Two plugins for the same system plugin have "
@@ -186,7 +186,7 @@ class SystemPlugin(IPlugin.IPlugin):
     def __repr__(self):
         return '<{} from file {} named {}, priority {}>'.format(
             self.__class__.__name__,
-            self.file,
+            self.path,
             self.name,
             self.priority
         )
