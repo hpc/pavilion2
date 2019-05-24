@@ -119,11 +119,7 @@ scheduler: slurm
 
 The above host config would set the default scheduler to 'slurm' for tests 
 kicked off on a host with a hostname of `my_host`. Pavilion uses the contents
-<<<<<<< HEAD
- of the `sys_name` config variable to determine the current host, which is 
-=======
  of the `sys_name` test config variable to determine the current host, which is 
->>>>>>> d9d31d2debf5020f5ee162c6d93e5fd66762b310
  provided via a built-in
   [system variable plugin](docs/plugins/sys_vars.md). 
  This behaviour can be overridden by providing your own sys_var plugin, which
