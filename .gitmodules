@@ -1,6 +1,3 @@
-[submodule "lib/dependencies/pyyaml"]
-	path = lib/sub_repos/pyyaml
-	url = git@github.com:pflarr/pyyaml.git
 [submodule "lib/dependencies/yaml_config"]
 	path = lib/sub_repos/yaml_config
 	url = git@git.lanl.gov:pflarr/yaml_config.git
