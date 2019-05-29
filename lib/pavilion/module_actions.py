@@ -4,8 +4,9 @@ class ModuleAction:
     def __init__(self, module_name, version=None):
         """Initialize the action.
         :param str module_name: The name of the module
-        :param Union(str, None) version: The version of the module. None denotes both unversioned
-        modules and loading the default (as interpreted by the module system)
+        :param Union(str, None) version: The version of the module. None
+        denotes both unversioned modules and loading the default (as
+        interpreted by the module system)
         """
 
         self.name = module_name
@@ -28,10 +29,12 @@ class ModuleAction:
 class ModuleLoad(ModuleAction):
 
     def action(self):
-        return ['module load {s.module}'.format(s=self)]
+        return ['module load {s.module}'
+                .format(s=self)]
 
     def verify(self):
-        return ['verify_module_loaded $TEST_ID {s.name} {s.version}'.format(s=self)]
+        return ['verify_module_loaded $TEST_ID {s.name} {s.version}'
+                .format(s=self)]
 
 
 class ModuleRemove(ModuleAction):
@@ -40,7 +43,8 @@ class ModuleRemove(ModuleAction):
         return ['module remove {s.module}'.format(s=self)]
 
     def verify(self):
-        return ['verify_module_removed $TEST_ID {s.name} {s.version}'.format(s=self)]
+        return ['verify_module_removed $TEST_ID {s.name} {s.version}'
+                .format(s=self)]
 
 
 class ModuleSwap(ModuleAction):
@@ -59,8 +63,16 @@ class ModuleSwap(ModuleAction):
             return self.old_name
 
     def action(self):
-        return ['module swap {s.old_module} {s.module}']
+        actions = ['if $(module list 2>&1 | grep {s.old_name}) then',
+                   '    module swap $(module list 2>&1 | '
+                   'grep {s.old_name}) {s.module}'
+                   'else',
+                   '    module load {s.module}',
+                   'fi']
+        return [a.format(s=self) for a in actions]
 
     def verify(self):
-        return ['verify_module_loaded $TEST_ID {s.name} {s.version}'.format(s=self),
-                'verify_module_removed $TEST_ID {s.old_name} {s.old_version}']
+        lines = ['verify_module_loaded $TEST_ID {s.name} {s.version}',
+                 'verify_module_removed $TEST_ID {s.old_name} {s.old_version}']
+
+        return [l.format(s=self) for l in lines]

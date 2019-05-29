@@ -56,7 +56,7 @@ class _RunCommand(commands.Command):
         lock = sched.lock_concurrency(pav_cfg, test)
 
         try:
-            result = test.run(sched.get_vars(test),
+            run_result = test.run(sched.get_vars(test),
                               system_variables.get_vars(defer=False))
         except PavTestError as err:
             test.status.set(STATES.RUN_ERROR, err)
@@ -70,8 +70,13 @@ class _RunCommand(commands.Command):
         finally:
             sched.unlock_concurrency(lock)
 
+        # The test.run() method should have already logged the error and
+        # set an appropriate status.
+        if run_result in (STATES.RUN_ERROR, STATES.RUN_TIMEOUT):
+            return
+
         try:
-            results = test.gather_results(result)
+            results = test.gather_results(run_result)
         except Exception as err:
             self.logger.error("Unexpected error gathering results: {}"
                               .format(err))
@@ -92,7 +97,9 @@ class _RunCommand(commands.Command):
             raise
 
         try:
-            test.status.set(STATES.COMPLETE, "Test completed successfully.")
+            test.status.set(STATES.COMPLETE,
+                            "The test completed with result: {}"
+                            .format(results.get('result', '<unknown>')))
             test.set_run_complete()
         except Exception:
             test.status.set(

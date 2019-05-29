@@ -58,7 +58,7 @@ def remove_wrapped_module(module_wrapper, version):
             del _WRAPPED_MODULES[name]
 
 
-def get_module_wrapper(name, version):
+def get_module_wrapper(name, version=None):
 
     if name in _WRAPPED_MODULES:
         if version in _WRAPPED_MODULES[name]:
@@ -169,7 +169,7 @@ class ModuleWrapper(IPlugin.IPlugin):
 
         version = self.get_version(requested_version)
 
-        return [ModuleSwap(self.name, version, out_name, out_version)]
+        return [ModuleSwap(self.name, version, out_name, out_version)], {}
 
     def remove(self, sys_info, requested_version=None):
         """Remove this module from the environment.
@@ -183,6 +183,3 @@ class ModuleWrapper(IPlugin.IPlugin):
         version = self.get_version(requested_version)
 
         return [ModuleRemove(self.name, version)], {}
-
-
-
