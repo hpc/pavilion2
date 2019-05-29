@@ -22,8 +22,6 @@ class SbatchHeader(scriptcomposer.ScriptHeader):
 
     def get_lines(self):
 
-        print('slurm_conf', self._conf)
-
         lines = super().get_lines()
 
         lines.append(
