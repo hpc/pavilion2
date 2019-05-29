@@ -55,7 +55,8 @@ def main():
     file_handler = RotatingFileHandler(filename=str(log_fn),
                                        maxBytes=1024 ** 2,
                                        backupCount=3)
-    file_handler.setFormatter(logging.Formatter(pav_cfg.log_format))
+    file_handler.setFormatter(logging.Formatter(pav_cfg.log_format,
+                                                style='{'))
     file_handler.setLevel(getattr(logging,
                                   pav_cfg.log_level.upper()))
     root_logger.addHandler(file_handler)
@@ -100,7 +101,8 @@ def main():
     if args.verbose or not root_logger.handlers:
         verbose_handler = logging.StreamHandler(sys.stderr)
         verbose_handler.setLevel(logging.DEBUG)
-        verbose_handler.setFormatter(pav_cfg.log_format)
+        verbose_handler.setFormatter(logging.Formatter(pav_cfg.log_format,
+                                                       style='{'))
         root_logger.addHandler(result_handler)
 
     # Create the basic directories in the working directory
