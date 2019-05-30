@@ -151,7 +151,7 @@ class ResultParser(IPlugin.IPlugin):
     def path(self):
         """The path to the file containing this result parser plugin."""
 
-        return inspect.getfile(self)
+        return inspect.getfile(self.__class__)
 
     def help(self):
         """Return a formatted help string for the parser."""

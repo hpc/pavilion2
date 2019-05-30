@@ -1,5 +1,6 @@
 from pavilion.module_actions import ModuleLoad, ModuleSwap, ModuleRemove
 from yapsy import IPlugin
+import inspect
 import logging
 import re
 
@@ -109,6 +110,7 @@ class ModuleWrapper(IPlugin.IPlugin):
         self._version = version
         self.help_text = help_text
         self.priority = priority
+        self.path = inspect.getfile(self.__class__)
 
     def get_version(self, requested_version):
         """Get the version of the module to load, given the requested

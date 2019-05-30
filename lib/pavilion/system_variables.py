@@ -133,12 +133,13 @@ class SystemPlugin(IPlugin.IPlugin):
     def _get(self):
         """This should be overridden to implement gathering of data for the
         system variable."""
-        raise NotImplemented
+        raise NotImplementedError
 
     def get(self, defer):
         if defer and self.is_deferable:
             return variables.DeferredVariable(self.name, var_set='sys',
-                                              sub_keys=self.sub_keys)
+                                              sub_keys=self.sub_keys,
+                                              path=self.path)
 
         if self.values is None:
             self.values = self._get()

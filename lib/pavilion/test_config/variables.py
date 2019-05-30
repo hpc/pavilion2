@@ -62,7 +62,7 @@ class DeferredVariable:
     VAR_TEMPLATE = '[\x1e{key}\x1e]'
     ALLOWED_VARSETS = ['sys', 'pav', 'sched']
 
-    def __init__(self, name, var_set='sys', sub_keys=None):
+    def __init__(self, name, var_set='sys', sub_keys=None, path=None):
         """Deferred variables need to know their name and var_set at definition
         time. Additionally, they need to be aware of their valid sub-keys.
         They cannot have more than one value, like normal variables.
@@ -85,6 +85,8 @@ class DeferredVariable:
             sub_keys = list()
 
         self.sub_keys = sub_keys
+
+        self.path = path
 
     def get(self, index, sub_var):
         if index not in [0, None]:
@@ -338,7 +340,7 @@ class VariableSetManager:
         """
 
         if var_set not in self.variable_sets:
-            raise KeyError("Unknown variable set '{}'".format(var_set, var))
+            raise KeyError("Unknown variable set '{}'".format(var_set))
 
         _var_set = self.variable_sets[var_set]
 
