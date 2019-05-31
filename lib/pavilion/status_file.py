@@ -40,7 +40,7 @@ class TestStatesStruct:
     RUN_TIMEOUT = "The test run went long without any output."
     RUN_FAILED = "The test run has failed."
     RUN_ERROR = "An unexpected error has occurred when setting up the test run."
-    RUN_USER = "Jobs can report extra status using pav set_status and" \
+    RUN_USER = "Jobs can report extra status using pav set_status and " \
                "this status value."
     RUN_DONE = "For when the run step is complete."
     RESULTS = "For when we're getting the results."

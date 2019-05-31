@@ -165,7 +165,7 @@ class ShowCommand(commands.Command):
 
         subparsers.add_parser(
             'pavilion_variables',
-            aliases=['pav_vars', 'pav_vars', 'pav'],
+            aliases=['pav_vars', 'pav_vars', 'pav_var', 'pav'],
             help="Show the available pavilion variables.",
             description="""Pavilion variables are available for use in test
             configurations. Simply put the name of the variable in curly
@@ -257,9 +257,13 @@ class ShowCommand(commands.Command):
                 'pav_var',
                 'pav']:
             cmd = self._pav_var_cmd
-        elif 'suites'.startswith(cmd_name):
+        elif cmd_name in [
+                'suite',
+                'suites']:
             cmd = self._suites_cmd
-        elif cmd_name == 'tests':
+        elif cmd_name in [
+                'test',
+                'tests']:
             cmd = self._tests_cmd
         else:
             raise RuntimeError("Invalid show cmd '{}'".format(cmd_name))
@@ -390,7 +394,7 @@ class ShowCommand(commands.Command):
         for state in sorted(status_file.STATES.list()):
             states.append({
                 'name': state,
-                'description': status_file.STATES.info(state)
+                'description': status_file.STATES.help(state)
             })
 
         utils.draw_table(

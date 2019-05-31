@@ -88,7 +88,7 @@ class DeferredVariable:
 
         self.path = path
 
-    def _get(self, index, sub_var):
+    def get(self, index, sub_var):
         if index not in [0, None]:
             raise KeyError("Deferred variables only have a single value.")
 
