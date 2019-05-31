@@ -467,7 +467,7 @@ class ShowCommand(commands.Command):
                 'name': key,
                 'value': value if not deferred else '<deferred>',
                 'description': help,
-                'path': value.path,
+                'path': sys_vars.get_obj(key).path,
             })
 
         fields = ['name', 'value', 'description']
