@@ -149,8 +149,7 @@ class SystemPlugin(IPlugin.IPlugin):
     def get(self, defer):
         if defer and self.is_deferable:
             return variables.DeferredVariable(self.name, var_set='sys',
-                                              sub_keys=self.sub_keys,
-                                              path=self.path)
+                                              sub_keys=self.sub_keys)
 
         if self.values is None:
             self.values = self._get()
