@@ -1,8 +1,12 @@
 
 from pavilion.unittest import PavTestCase
-from pavilion.test_config import (load_test_configs, TestConfigError, apply_overrides,
-                                  resolve_permutations, resolve_all_vars)
+from pavilion.test_config import (load_test_configs,
+                                  TestConfigError,
+                                  apply_overrides,
+                                  resolve_permutations,
+                                  resolve_all_vars)
 from pavilion.test_config import variables, string_parser
+from pavilion import plugins
 
 
 class TestSetupTests(PavTestCase):
@@ -35,6 +39,32 @@ class TestSetupTests(PavTestCase):
         self.assertEqual(narf['scheduler'], 'dummy')
         # Make sure this didn't get lost.
         self.assertEqual(narf['run']['cmds'], ['echo "Running World"'])
+
+    def test_layering(self):
+        """Make sure test config layering works as expected."""
+
+        plugins.initialize_plugins(self.pav_cfg)
+
+        for host in ('this', 'layer_host'):
+            for modes in ([], ['layer_mode']):
+                for test in ('layer_tests.layer_test',
+                             'layer_tests.layer_test_part'):
+                    answer = 'standard'
+                    if host == 'layer_host':
+                        answer = 'host'
+                    if modes:
+                        answer = 'mode'
+                    if test.endswith('part'):
+                        answer = 'test'
+
+                    tests = load_test_configs(
+                        pav_cfg=self.pav_cfg,
+                        host=host,
+                        modes=modes,
+                        tests=[test])
+                    self.assertEqual(tests[0]['slurm']['partition'], answer)
+
+        plugins._reset_plugins()
 
     def test_apply_overrides(self):
         """Make sure overrides get applied to test configs correctly."""
