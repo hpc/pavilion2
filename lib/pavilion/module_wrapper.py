@@ -1,5 +1,6 @@
 from pavilion.module_actions import ModuleLoad, ModuleSwap, ModuleRemove
 from yapsy import IPlugin
+import inspect
 import logging
 import re
 

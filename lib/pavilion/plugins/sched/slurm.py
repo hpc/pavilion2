@@ -685,25 +685,26 @@ class Slurm(SchedulerPlugin):
         min_all = False
         if '-' in num_nodes:
             min_nodes, max_nodes = num_nodes.split()
-
-            if min_nodes == 'all':
-                # We'll translate this to something else in a bit.
-                min_nodes = '1'
-                min_all = True
         else:
             min_nodes = max_nodes = num_nodes
 
-        try:
-            min_nodes = int(min_nodes)
-        except ValueError:
-            raise SchedulerPluginError(
-                "Invalid num_nodes minimum value: {}"
-                .format(min_nodes))
+        if min_nodes == 'all':
+            # We'll translate this to something else in a bit.
+            min_nodes = '1'
+            min_all = True
 
-        nodes = self._filter_nodes(min_nodes, sched_config, nodes)
+        nodes = self._filter_nodes(int(min_nodes), sched_config, nodes)
 
         if min_all:
             min_nodes = len(nodes)
+        else:
+            try:
+                min_nodes = int(min_nodes)
+            except ValueError:
+                raise SchedulerPluginError(
+                    "Invalid num_nodes minimum value: {}"
+                    .format(min_nodes))
+
 
         if max_nodes == 'all':
             max_nodes = len(nodes)

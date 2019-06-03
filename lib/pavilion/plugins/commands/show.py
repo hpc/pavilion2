@@ -37,9 +37,9 @@ class ShowCommand(commands.Command):
             'schedulers',
             aliases=['sched', 'scheduler'],
             help="Show scheduler information. Lists all schedulers by default.",
-            description="""Pavilion interacts with cluster's via scheduler 
-            plugins. They can also provide a variables for use in test 
-            configurations at kickoff time (non-deferred) and at test run 
+            description="""Pavilion interacts with cluster's via scheduler
+            plugins. They can also provide a variables for use in test
+            configurations at kickoff time (non-deferred) and at test run
             time (deferred)."""
         )
 
@@ -56,18 +56,22 @@ class ShowCommand(commands.Command):
             '--vars', action='store', type=str, metavar='<scheduler>',
             help="Show info about scheduler vars."
         )
+        sched_group.add_argument(
+            '--verbose', '-v',
+            action='store_true', default=False,
+            help='Display the path to the plugin file.'
+        )
 
         result = subparsers.add_parser(
             "result_parsers",
             aliases=['res', 'result', 'results'],
             help="Show result_parser plugin info.",
-            description="""Pavilion provides result parsers to allow tests 
-            parse results out of a variety of formats. These can add keys to 
-            each test run's json result information, or simply change the 
-            PASS/FAIL state based on advanced criteria. You can add your own 
+            description="""Pavilion provides result parsers to allow tests
+            parse results out of a variety of formats. These can add keys to
+            each test run's json result information, or simply change the
+            PASS/FAIL state based on advanced criteria. You can add your own
             result parsers via plugins.
             """
-
         )
         result_group = result.add_mutually_exclusive_group()
         result_group.add_argument(
@@ -79,14 +83,19 @@ class ShowCommand(commands.Command):
             '--config', action='store', type=str, metavar='<result_parser>',
             help="Print the default config section for the result parser."
         )
+        result_group.add_argument(
+            '--verbose', '-v',
+            action='store_true', default=False,
+            help='Display the path to the plugin file.'
+        )
 
         subparsers.add_parser(
             'states',
             aliases=['state'],
             help="Show the pavilion test states and their meaning.",
-            description="""Pavilion tests are carefully tracked using a 
-            status file during their entire lifecycle. This command lists the 
-            various states a test can be in during that time. Of particular 
+            description="""Pavilion tests are carefully tracked using a
+            status file during their entire lifecycle. This command lists the
+            various states a test can be in during that time. Of particular
             note is the RUN_USER state, which can be used by tests to add
             custom information to the state file during a run."""
         )
@@ -95,7 +104,7 @@ class ShowCommand(commands.Command):
             'config',
             aliases=['conf'],
             help="Show the pavilion config.",
-            description="""The pavilion configuration allows you to tweak 
+            description="""The pavilion configuration allows you to tweak
             pavilion's base settings and directories. This allows you to view
             the current config, or generate a template of one.
             """
@@ -111,26 +120,31 @@ class ShowCommand(commands.Command):
             'config_dirs',
             aliases=['config_dir'],
             help="List the config dirs.",
-            description="""The listed configuration directories are resolved 
-            in the order given. Tests in higher directories supersede those 
+            description="""The listed configuration directories are resolved
+            in the order given. Tests in higher directories supersede those
             in lower. Plugins, however, are resolved according to internally
             defined priorities."""
         )
 
-        subparsers.add_parser(
+        module_wrappers = subparsers.add_parser(
             'module_wrappers',
             aliases=['mod', 'module', 'modules', 'wrappers'],
             help="Show the installed module wrappers.",
-            description="""Module wrappers allow you to customize how 
-            pavilion loads modules. They can be used in conjunction with 
-            system variables to adjust how a module is loaded based on OS or a 
-            variety of other factors. Using system modules, you can hide the 
+            description="""Module wrappers allow you to customize how
+            pavilion loads modules. They can be used in conjunction with
+            system variables to adjust how a module is loaded based on OS or a
+            variety of other factors. Using system modules, you can hide the
             complexity of your environment from pavilion tests, so that test
             configs can work as-is on any cluster.
             """
         )
+        module_wrappers.add_argument(
+            '--verbose', '-v',
+            action='store_true', default=False,
+            help='Display the path to the plugin file.'
+        )
 
-        subparsers.add_parser(
+        sys_vars = subparsers.add_parser(
             'system_variables',
             aliases=['sys_vars', 'sys', 'sys_var'],
             help="Show the available system variables.",
@@ -143,15 +157,20 @@ class ShowCommand(commands.Command):
                         "they are resolved at test kickoff time on the "
                         "kickoff host."
         )
+        sys_vars.add_argument(
+            '--verbose', '-v',
+            action='store_true', default=False,
+            help='Display the path to the plugin file.'
+        )
 
         subparsers.add_parser(
             'pavilion_variables',
-            aliases=['pav_vars', 'pav_vars', 'pav'],
+            aliases=['pav_vars', 'pav_vars', 'pav_var', 'pav'],
             help="Show the available pavilion variables.",
-            description="""Pavilion variables are available for use in test 
-            configurations. Simply put the name of the variable in curly 
+            description="""Pavilion variables are available for use in test
+            configurations. Simply put the name of the variable in curly
             brackets in any test config value: '{pav.hour}' or simply '{hour}'.
-            All pavilion variable are resolved at test kickoff time on the 
+            All pavilion variable are resolved at test kickoff time on the
             kickoff host.
             """
         )
@@ -166,6 +185,11 @@ class ShowCommand(commands.Command):
             """
         )
         suites.add_argument(
+            '--verbose', '-v',
+            action='store_true', default=False,
+            help="Display the path for each suite."
+        )
+        suites.add_argument(
             '--err',
             action='store_true', default=False,
             help="Display any errors encountered while reading the suite.",
@@ -176,19 +200,29 @@ class ShowCommand(commands.Command):
             help="List suite files superseded by this one."
         )
 
-        subparsers.add_parser(
+        tests = subparsers.add_parser(
             'tests',
             aliases=['test'],
             help="Show the available tests.",
             description="""Test configurations that can be run using Pavilion.
             """
         )
+        tests.add_argument(
+            '--verbose', '-v',
+            action='store_true', default=False,
+            help='Display the path for each test.'
+        )
+        tests.add_argument(
+            '--err',
+            action='store_true', default=False,
+            help='Display any errors encountered while reading the test.'
+        )
 
     def run(self, pav_cfg, args):
         """Run the show command's chosen sub-command."""
 
         if args.show_cmd is None:
-            # If now sub command is given, print the help for 'show'
+            # If no sub command is given, print the help for 'show'
             self._parser.print_help(self.outfile)
             return errno.EINVAL
         else:
@@ -223,9 +257,13 @@ class ShowCommand(commands.Command):
                 'pav_var',
                 'pav']:
             cmd = self._pav_var_cmd
-        elif 'suites'.startswith(cmd_name):
+        elif cmd_name in [
+                'suite',
+                'suites']:
             cmd = self._suites_cmd
-        elif 'tests' == cmd_name:
+        elif cmd_name in [
+                'test',
+                'tests']:
             cmd = self._tests_cmd
         else:
             raise RuntimeError("Invalid show cmd '{}'".format(cmd_name))
@@ -288,12 +326,18 @@ class ShowCommand(commands.Command):
                 scheds.append({
                     'name': sched_name,
                     'description': sched.description,
+                    'path': sched.path
                 })
+
+            fields = ['name', 'description']
+
+            if args.verbose:
+                fields.append('path')
 
             utils.draw_table(
                 outfile,
                 field_info={},
-                fields=['name', 'description'],
+                fields=fields,
                 rows=scheds,
                 title="Available Scheduler Plugins"
             )
@@ -326,13 +370,19 @@ class ShowCommand(commands.Command):
                 desc = " ".join(rp.__doc__.split())
                 rps.append({
                     'name': rp_name,
-                    'description': desc
+                    'description': desc,
+                    'path': rp.path
                 })
+
+            fields = ['name', 'description']
+
+            if args.verbose:
+                fields.append('path')
 
             utils.draw_table(
                 outfile,
                 field_info={},
-                fields=['name', 'description'],
+                fields=fields,
                 rows=rps,
                 title="Available Result Parsers"
             )
@@ -344,7 +394,7 @@ class ShowCommand(commands.Command):
         for state in sorted(status_file.STATES.list()):
             states.append({
                 'name': state,
-                'description': status_file.STATES.info(state)
+                'description': status_file.STATES.help(state)
             })
 
         utils.draw_table(
@@ -388,12 +438,18 @@ class ShowCommand(commands.Command):
                 'name': mod_name,
                 'version': mw._version,
                 'description': mw.help_text,
+                'path': mw.path,
             })
+
+        fields = ['name', 'version', 'description']
+
+        if args.verbose:
+            fields.append('path')
 
         utils.draw_table(
             outfile,
             field_info={},
-            fields=['name', 'version', 'description'],
+            fields=fields,
             rows=modules,
             title="Available Module Wrapper Plugins"
         )
@@ -415,12 +471,18 @@ class ShowCommand(commands.Command):
                 'name': key,
                 'value': value if not deferred else '<deferred>',
                 'description': help,
+                'path': sys_vars.get_obj(key).path,
             })
+
+        fields = ['name', 'value', 'description']
+
+        if args.verbose:
+            fields.append('path')
 
         utils.draw_table(
             outfile,
             field_info={},
-            fields=['name', 'value', 'description'],
+            fields=fields,
             rows=rows,
             title="Available System Variables"
         )
@@ -475,9 +537,13 @@ class ShowCommand(commands.Command):
                         'err': ''
                     })
 
-        fields = ['name', 'tests', 'path']
-        if args.err:
-            fields.append('err')
+        fields = ['name', 'tests']
+
+        if args.verbose or args.err:
+            fields.append('path')
+
+            if args.err:
+                fields.append('err')
 
 
         utils.draw_table(
@@ -498,18 +564,38 @@ class ShowCommand(commands.Command):
         for suite_name in sorted(list(suites.keys())):
             suite = suites[suite_name]
 
+            if suite['err']:
+                suite_name = utils.ANSIStr(suite_name, 'red')
+
+                rows.append({
+                    'name': '{}.*'.format(suite_name),
+                    'summary': 'Loading the suite failed.  '
+                               'For more info, run `pav show tests --err`.',
+                    'path': suite['path'],
+                    'err': suite['err']
+                })
+
             for test_name in sorted(list(suite['tests'])):
                 test = suite['tests'][test_name]
 
                 rows.append({
                     'name': '{}.{}'.format(suite_name, test_name),
                     'summary': test['summary'][:self.SUMMARY_SIZE_LIMIT]
+                    'path': suite['path'],
+                    'err': 'None'
                 })
+
+        fields = ['name', 'summary']
+        if args.verbose or args.err:
+            fields.append('path')
+
+            if args.err:
+                fields.append('err')
 
         utils.draw_table(
             outfile,
             field_info={},
-            fields=['name', 'summary'],
+            fields=fields,
             rows=rows,
             title="Available Tests"
         )

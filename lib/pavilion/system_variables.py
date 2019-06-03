@@ -43,6 +43,17 @@ class SysVarDict(collections.UserDict):
 
         return self.data[name]
 
+    @classmethod
+    def get_obj(cls, name):
+        """Return the corresponding object without invoking the .get method."""
+
+        global _LOADED_PLUGINS
+
+        if name not in _LOADED_PLUGINS:
+            raise KeyError("No system plugin named '{}'.".format(name))
+
+        return _LOADED_PLUGINS[name]
+
     def keys(self):
 
         global _LOADED_PLUGINS
@@ -133,7 +144,7 @@ class SystemPlugin(IPlugin.IPlugin):
     def _get(self):
         """This should be overridden to implement gathering of data for the
         system variable."""
-        raise NotImplemented
+        raise NotImplementedError
 
     def get(self, defer):
         if defer and self.is_deferable:

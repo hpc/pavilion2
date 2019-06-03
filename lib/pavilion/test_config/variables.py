@@ -338,7 +338,7 @@ class VariableSetManager:
         """
 
         if var_set not in self.variable_sets:
-            raise KeyError("Unknown variable set '{}'".format(var_set, var))
+            raise KeyError("Unknown variable set '{}'".format(var_set))
 
         _var_set = self.variable_sets[var_set]
 
