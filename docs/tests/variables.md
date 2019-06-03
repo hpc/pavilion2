@@ -254,7 +254,7 @@ permuted_test:
 The above would result in three virtual tests, each one echoing a different 
 message.
  - The tests are scheduled independently when using `pav run`.
- - They have the same test name (permuted_tests).
+ - They have the same test name (permuted_test).
 
 #### Complex Variables in Permutations 
 Complex variables are a useful way to group variables together in a permutation.
@@ -277,7 +277,7 @@ mytest:
 This would create two virtual tests, one built with gcc and one with intel. 
  - The `subtitle` test attribute lets us give each a specific name. In this 
  case `mytest.gcc` and `mytest.intel`.
- - Note that using a variable multiple times never creates additional 
+ - Note that using a variable multiple times __never__ creates additional 
  permutations. 
 
 #### Multi-Variable Permutations
@@ -296,7 +296,7 @@ multi_perm_test:
 This would create 12 virtual tests, one for every combination of `msg` and 
 `person`.
 
-#### Additional Permutation Behavior
+#### Unused Permutation Variables
 
 ```yaml
 multi_perm_test:
@@ -306,9 +306,13 @@ multi_perm_test:
       ice_cream: ['strawberry', 'snozberry']
       
     run:
-      cmds: 'echo "Let them eat {{cake}} cake, and {{ice cream}} flavored ice cream."'
+      cmds: echo "Let them eat {{cake}} cake, and {{ice cream}} 
+            flavored ice cream."
 ```
 
 This would create six virtual tests, for every combination of `cake` and 
 `ice_cream`. The `meat` permutations won't have any effect since they're not
 used. 
+
+This means it's safe to include permutation variables in your host and mode 
+configs, as they'll only cause permutations if used.

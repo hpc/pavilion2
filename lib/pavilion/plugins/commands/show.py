@@ -554,8 +554,9 @@ class ShowCommand(commands.Command):
             title="Available Test Suites"
         )
 
-    @staticmethod
-    def _tests_cmd(pav_cfg, args, outfile=sys.stdout):
+    SUMMARY_SIZE_LIMIT = 100
+
+    def _tests_cmd(self, pav_cfg, _, outfile=sys.stdout):
 
         suites = find_all_tests(pav_cfg)
         rows = []
@@ -579,7 +580,7 @@ class ShowCommand(commands.Command):
 
                 rows.append({
                     'name': '{}.{}'.format(suite_name, test_name),
-                    'summary': test['summary'],
+                    'summary': test['summary'][:self.SUMMARY_SIZE_LIMIT]
                     'path': suite['path'],
                     'err': 'None'
                 })
