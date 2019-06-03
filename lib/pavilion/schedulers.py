@@ -8,6 +8,7 @@ from pavilion.test_config.variables import DeferredVariable
 from pavilion.var_dict import VarDict, var_method
 from yapsy import IPlugin
 import datetime
+import inspect
 import logging
 import os
 import subprocess
@@ -240,6 +241,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
         self.description = description
         self.priority = priority
         self._data = None
+        self.path = inspect.getfile(self.__class__)
 
         if self.VAR_CLASS is None:
             raise SchedulerPluginError("You must set the Var class for"
