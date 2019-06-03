@@ -85,7 +85,7 @@ class TestConfigLoader(yc.YamlConfigLoader):
                       "combination across all variables in each section. The "
                       "resulting virtual test is thus given a single "
                       "permutation of these values."),
-        yc.RegexElem('scheduler', regex=r'\w+', required=True,
+        yc.RegexElem('scheduler', regex=r'\w+', default="raw",
                      help_text="The scheduler class to use to run this test."),
         yc.KeyedElem('build', elements=[
             yc.StrElem(

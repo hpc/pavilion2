@@ -165,7 +165,8 @@ super_magic-fs:
  2. A field that takes a list (modules, cmds, etc.) are always completely 
   overwritten by a new list. (In the above example, the single command in the
    fs test command list overwrites the entire original command list.)
-   
+ 3. A test can inherit from a test, which inherits from a test, and so on.
+ 4. Inheritance is resolved before permutations or any variables substitutions.
    
 ### Permutations
 Variables that appear in the permutation section are special. If they have 
