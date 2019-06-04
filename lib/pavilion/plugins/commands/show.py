@@ -580,7 +580,7 @@ class ShowCommand(commands.Command):
 
                 rows.append({
                     'name': '{}.{}'.format(suite_name, test_name),
-                    'summary': test['summary'][:self.SUMMARY_SIZE_LIMIT]
+                    'summary': test['summary'][:self.SUMMARY_SIZE_LIMIT],
                     'path': suite['path'],
                     'err': 'None'
                 })
