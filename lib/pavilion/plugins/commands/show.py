@@ -556,7 +556,7 @@ class ShowCommand(commands.Command):
 
     SUMMARY_SIZE_LIMIT = 100
 
-    def _tests_cmd(self, pav_cfg, _, outfile=sys.stdout):
+    def _tests_cmd(self, pav_cfg, args, outfile=sys.stdout):
 
         suites = find_all_tests(pav_cfg)
         rows = []
