@@ -50,12 +50,14 @@ through variable substitution, module file loads, and environment variables.
 
 Test configs can contain variable references within their config values (all 
 of which are read as strings by Pavilion).
-These variables come from a variety of sources: 
- - The test config's variables section (var)
+
+These variables come from a variety of sources (this is also the resolution 
+order): 
  - The test config's permutations section (per)
- - The selected scheduler (sched)
+ - The test config's variables section (var)
  - System Plugins (sys)
  - Pavilion hardcoded variables (pav)
+ - The selected scheduler (sched)
   
 Variable names must be in lowercase and start with a letter, but may 
 contain numbers, dashes and underscores.

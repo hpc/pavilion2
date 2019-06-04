@@ -26,8 +26,8 @@ addition, Pavilion reuses existing builds where possible, which allows for
 skipping most of the build steps. 
 
  1. [Find all source files](#finding-source-files)
- 1. [Create a Build Script](#)
- 1. [Generate a Build Hash](#)
+ 1. [Create a Build Script](#create-a-build-script)
+ 1. [Generate a Build Hash](#generate-a-build-hash)
  1. [Create and Populate the Build Directory](#)
  1. [Run the Build Script](#)
  1. [Copy the Build](#)
@@ -56,33 +56,8 @@ directory.
 This attribute provides a build with a base archive, url, directory, or file 
 to use as the source. Local files are looked for in all of the configuration
 directories in the [typical order](../config.md), and the first found is used
-.
-
-Regardless of how the files are obtained (and possibly extracted), Pavilion 
-does one of two things with the results. 
-
-###### Single Directories
-If the file (or extracted archive) is a single directory, that directory 
-becomes the build directory. 
-
-```bash
-# This tar file has a single top-level directory. 
-# The 'src' directory will be the build directory.
-tar -tf src.tar.gz
-  src/README.txt
-  src/mytest.c
-```
-
-###### File/s
-In all other cases, the build directory will simply contain the files.
-
-```bash
-# This tar file has multiple files at the top level.
-# The build directory will contain these files.
-tar -tf src2.tar.gz
-  README.txt
-  src/mytest.c
-```
+. How the extracted files are used depends on the structure of the extracted 
+files themselves.
 
 ##### Archives and Compression
 Pavilion supports archives (.tar), compressed archives (tar.gz), and 
@@ -211,3 +186,88 @@ The list of commands to perform the build.
     needed. You can also use `set -e` to exit on any failure.
     
 ### Generate a Build Hash
+
+Paraview uniquely identifies each build by generating a hash based on the 
+build source and build script. If a build directory with that build hash 
+exists, then Paraview simply uses that existing build.
+
+The build hash is composed from:
+ 1. The build script.
+ 1. The build's `specificity`.
+ 1. The source file or archive gotten using `source_location`.
+    2. Source directories are scanned for changes, rather than recursively
+        hashed. The most recent mtime of the directory is hashed.
+ 1. Each of the `extra_files`.
+
+#### specificity
+Use this field to add additional criteria to the build hash. For instance, if
+ you'd like your builds to be host specific, you could set this to 
+ `"{{sys.sys_host}}"`.
+ 
+
+### Locking the Build
+
+The rest of the build process occurs under the auspices of a lockfile. This 
+allows the build directory creation, population, and build to occur without 
+conflicts from other tests that might be trying to create the same build. 
+This is true even if those tests are running on different nodes or even 
+entirely different hosts, assuming they all share a working directory on a 
+shared file system.
+
+ - If the build directory exists, then the build is ready. The test can 
+    simply continue without building. 
+ - The initial build directory is a temp file that is atomically moved into 
+    place. There should never be a point where a partial build exists.
+ - The build script is expected to periodically produce output, otherwise 
+ Pavilion will assume it deadlocked or otherwise failed and release the lock.
+ 
+### Create and Populate a Build Directory
+
+The construction of the build directory is closely tied to the 
+structure of the extracted contents of the file/directory . These are 
+generally extracted/copied directly into their final location (once 
+they've been downloaded). The `extra_files` are then copied
+into that directory.
+
+There are three basic cases.
+
+##### No source
+An empty source directory is created. 
+
+##### Single Directory
+If the file (or extracted archive) is a single directory, that directory 
+becomes the build directory. 
+
+```bash
+# This tar file has a single top-level directory. 
+# The 'src' directory will be the build directory.
+tar -tf src.tar.gz
+  src/README.txt
+  src/mytest.c
+  
+ls build_dir
+  README
+  mytest.c
+```
+
+##### File/s
+In all other cases, the build directory will simply contain the files.
+
+```bash
+# This tar file has multiple files at the top level.
+# The build directory will contain these files.
+tar -tf src2.tar.gz
+  README.txt
+  src/mytest.c
+  
+ls build_dir
+  README.txt
+  src/mytest.c 
+```
+
+### Building
+
+Once the build directory is set up, we can run the build itself. 
+
+  - The build can be run either on nodes or on the kickoff host, depending on 
+    the value of `on_nodes`. Default is to build on the test allocation 
