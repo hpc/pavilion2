@@ -28,6 +28,25 @@ def main():
         print(err, file=sys.stderr)
         sys.exit(-1)
 
+    # Create the basic directories in the working directory
+    for path in [pav_cfg.working_dir,
+                 pav_cfg.working_dir/'builds',
+                 pav_cfg.working_dir/'tests',
+                 pav_cfg.working_dir/'series',
+                 pav_cfg.working_dir/'downloads']:
+        if not path.exists():
+            try:
+                path.mkdir()
+            except OSError as err:
+                # Handle potential race conditions with directory creation.
+                if path.exists():
+                    # Something else created the directory
+                    pass
+                else:
+                    print("Could not create base directory '{}': {}"
+                          .format(path, err))
+                    sys.exit(1)
+
     root_logger = logging.getLogger()
 
     # Set up a directory for tracebacks.
@@ -104,25 +123,6 @@ def main():
         verbose_handler.setFormatter(logging.Formatter(pav_cfg.log_format,
                                                        style='{'))
         root_logger.addHandler(result_handler)
-
-    # Create the basic directories in the working directory
-    for path in [pav_cfg.working_dir,
-                 pav_cfg.working_dir/'builds',
-                 pav_cfg.working_dir/'tests',
-                 pav_cfg.working_dir/'series',
-                 pav_cfg.working_dir/'downloads']:
-        if not path.exists():
-            try:
-                path.mkdir()
-            except OSError as err:
-                # Handle potential race conditions with directory creation.
-                if path.exists():
-                    # Something else created the directory
-                    pass
-                else:
-                    print("Could not create base directory '{}': {}"
-                          .format(path, err))
-                    sys.exit(1)
 
     if args.command_name is None:
         parser.print_help()
