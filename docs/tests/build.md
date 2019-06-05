@@ -25,13 +25,14 @@ same steps in Pavilion, though in many cases those steps may be 'empty'. In
 addition, Pavilion reuses existing builds where possible, which allows for 
 skipping most of the build steps. 
 
+ 1. [General Build Section Notes]()
  1. [Find all source files](#finding-source-files)
  1. [Create a Build Script](#create-a-build-script)
  1. [Generate a Build Hash](#generate-a-build-hash)
- 1. [Create and Populate the Build Directory](#)
- 1. [Run the Build Script](#)
- 1. [Copy the Build](#)
- 
+ 1. [Create and Populate the Build Directory](#create-a-build-script)
+ 1. [Perform the Build](#perform-the-build)
+ 1. [Copy the Build](#copy-the-build)
+  
 ### Finding Source Files
 
 There are two ways to specify source in Pavilion: Through the `source_location`
@@ -108,8 +109,15 @@ The script is composed in the following order:
   - module manipulation
   - environment changes
   - commands
+  
+__Note that the build config (and thus script) can't contain 
+[Deferred Variables](variables.md#deferred-variables).__ 
 
-Given the following build config:
+Not only do we  need to know the value of everything to make the build hash, 
+but the build might not even run in a scheduled environment where the 
+deferred value is available.
+
+##### An example config and build script
 
 ```yaml
 build-example:
@@ -265,9 +273,36 @@ ls build_dir
   src/mytest.c 
 ```
 
-### Building
+### Perform the Build
 
 Once the build directory is set up, we can run the build itself. 
 
-  - The build can be run either on nodes or on the kickoff host, depending on 
-    the value of `on_nodes`. Default is to build on the test allocation 
+  - The build can be run either on nodes right before the test runs, or on the 
+    kickoff host, depending on the value of `on_nodes`.
+     - Default is to build on the test allocation.
+     - Building on the kickoff host means you find problems really early.
+  - To build, pavilion just runs the build script. 
+    - The working directory is the build directory.
+  - The build is considered successful if the build script exits successfully.
+  - All regular files in the build directory are given read-only permissions.
+  
+#### on_nodes
+If true (default), build the test on an allocation right before the test is 
+run. Otherwise, build before kicking of the test on the kickoff host. It's 
+assumed that the kickoff host has an environment (and module system) 
+comparable to a node. 
+  
+### Copy the Build
+
+Whether a test performs the build or just uses an existing build, each test 
+needs a copy of the build to run. Instead of actually duplicating the build, 
+Pavilion creates an identical directory structure with symlinks to each of 
+the regular files in the build, a **symlink** copy. 
+
+![build symlinks](../imgs/working_dir.png "Build Symlinks")
+
+Multiple tests can thus use the same build files, delete build files, and 
+write new files to the build directory without concern for other tests. 
+__Tests cannot append or alter the build files.__ If a test needs to alter a 
+file, the symlink should be deleted and replaced with a copy of the real file
+as part of the test run commands.

@@ -6,6 +6,8 @@ This page contains in-depth documentation on the test format.
 
  - [Tests and Suites](#tests-and-suites)
  - [Formatting and Structure](#test-formatting-and-structure)
+ - [Host Configs](#host-configs)
+ - [Mode Configs](#mode-configs)
  - [Order of Resolution](#order-of-resolution)
  - [Top Level Test Config Keys](#top-level-test-config-keys)
 
@@ -106,7 +108,7 @@ While YAML is the base configuration language, Pavilion interprets the values
  given in some non-standard ways.
 
 #### Strings Only
-__All Pavilion (non-structural) test config values are interpreted as strings.__ 
+All Pavilion (non-structural) test config values are interpreted as strings.
 
 YAML provides several different data types, but Pavilion forcibly converts 
 all of them to strings. The bool True becomes "True", 5 becomes the string 
@@ -142,6 +144,52 @@ multi-example:
         - {bar: 1}
         - {bar: 2}
       baz: {buz: "hello"}
+```
+
+## Host Configs
+Host configs allow you to have per-host settings. These are layered on top of
+the general defaults for every test run on a particular host. They are 
+`<name>.yaml` files that go in the `<config_dir>/hosts/` directory, in any of
+your [config directories](../config.md).
+ 
+Pavilion determines your current host through the `sys_name` system variable.
+The default plugin simply uses the short hostname, but it's recommended to add
+a plugin that gives a system name that generically refers to the entire cluster.
+
+You can specify the host config with the `-H` option to the `pav run`.
+```
+pav run -H another_host my_tests
+```
+
+### Format
+Host configs are a test config, and accept every option that a test config 
+does. The test attributes are all at the top level; there're no test names here.
+
+```yaml
+scheduler: slurm
+slurm:
+    partition: user
+    qos: user
+```
+
+## Mode Configs
+Mode configs are exactly like host configs, except you can have more than one
+of them. They're meant for applying extra defaults to tests that are 
+situational. They are `<name>.yaml` files that go in the `<config_dir>/modes/` 
+directory, in any of your [config directories](../config.md).
+
+For instance, if you regularly run on the `dev` partition, you might have a 
+`<config_dir>/modes/dev.yaml` file to set that up for you. 
+
+```yaml
+slurm:
+    partition: dev
+    account: dev_user
+```
+
+You could then add the mode when starting tests with the `-m` option:
+```
+pav run -m dev my_tests
 ```
 
 ## Order of Resolution
