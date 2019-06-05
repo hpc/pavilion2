@@ -228,9 +228,15 @@ class ShowCommand(commands.Command):
         else:
             cmd_name = args.show_cmd
 
-        if 'schedulers'.startswith(cmd_name):
+        if cmd_name in [
+                'schedulers',
+                'sched']:
             cmd = self._scheduler_cmd
-        elif 'result_parsers'.startswith(cmd_name):
+        elif cmd_name in [
+                'result_parsers',
+                'results',
+                'result',
+                'res']:
             cmd = self._result_parsers_cmd
         elif 'states'.startswith(cmd_name):
             cmd = self._states_cmd

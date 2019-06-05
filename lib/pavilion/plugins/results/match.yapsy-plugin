@@ -1,0 +1,9 @@
+[Core]
+Name = Match Result Parser
+Module = match
+
+[Documentation]
+Description = Finds a match for a string in a given output.
+Author = Nicholas C. Sly
+Version = 1.0
+Website =
