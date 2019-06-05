@@ -96,8 +96,9 @@ def list_plugins():
 
 
 def _reset_plugins():
-    LOGGER.warning("Resetting the plugins. This functionality exists only for "
-                   "use by unittests.")
+    """Reset the plugin system. This functionality is for unittests,
+    and should never be used in Pavilion proper."""
+
     import inspect
 
     global _PLUGIN_MANAGER

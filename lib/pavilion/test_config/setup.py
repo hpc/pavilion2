@@ -120,34 +120,33 @@ def load_test_configs(pav_cfg, host, modes, tests):
 
     if host is not None:
         host_cfg_path = _find_config(pav_cfg, CONF_HOST, host)
-        if host_cfg_path is None:
-            raise TestConfigError("Could not find {} config file for host '{}'."
-                                  .format(CONF_HOST, host))
 
-        try:
-            with host_cfg_path.open() as host_cfg_file:
-                # Load and validate the host test config defaults.
-                base_config = test_config_loader.load_merge(
-                    base_config,
-                    host_cfg_file,
-                    partial=True)
-        except (IOError, OSError) as err:
-            raise TestConfigError("Could not open host config '{}': {}"
-                                  .format(host_cfg_path, err))
-        except ValueError as err:
-            raise TestConfigError(
-                "Host config '{}' has invalid value. {}"
-                .format(host_cfg_path, err))
-        except KeyError as err:
-            raise TestConfigError(
-                "Host config '{}' has an invalid key. {}"
-                .format(host_cfg_path, err))
-        except TypeError as err:
-            # All config elements in test configs must be strings, and just
-            # about everything converts cleanly to a string.
-            raise RuntimeError(
-                "Host config '{}' raised a type error, but that "
-                "should never happen. {}".format(host_cfg_path, err))
+        if host_cfg_path is not None:
+
+            try:
+                with host_cfg_path.open() as host_cfg_file:
+                    # Load and validate the host test config defaults.
+                    base_config = test_config_loader.load_merge(
+                        base_config,
+                        host_cfg_file,
+                        partial=True)
+            except (IOError, OSError) as err:
+                raise TestConfigError("Could not open host config '{}': {}"
+                                      .format(host_cfg_path, err))
+            except ValueError as err:
+                raise TestConfigError(
+                    "Host config '{}' has invalid value. {}"
+                    .format(host_cfg_path, err))
+            except KeyError as err:
+                raise TestConfigError(
+                    "Host config '{}' has an invalid key. {}"
+                    .format(host_cfg_path, err))
+            except TypeError as err:
+                # All config elements in test configs must be strings, and just
+                # about everything converts cleanly to a string.
+                raise RuntimeError(
+                    "Host config '{}' raised a type error, but that "
+                    "should never happen. {}".format(host_cfg_path, err))
 
     for mode in modes:
         mode_cfg_path = _find_config(pav_cfg, CONF_MODE, mode)

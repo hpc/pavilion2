@@ -14,10 +14,6 @@ class TestSetupTests(PavTestCase):
     def test_loading_tests(self):
         """Make sure get_tests can find tests and resolve inheritance."""
 
-        with self.assertRaises(TestConfigError):
-            # Non-existent host config
-            load_test_configs(self.pav_cfg, 'nope', [], ['hello_world'])
-
         tests = load_test_configs(self.pav_cfg, 'this', [], ['hello_world'])
         self.assertEqual(sorted(['narf', 'hello', 'world']),
                          sorted([test['name'] for test in tests]))

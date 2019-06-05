@@ -124,6 +124,13 @@ class PavTest:
         self.results_path = self.path/'results.json'
 
         build_config = self.config.get('build', {})
+
+        self.build_script_path = self.path/'build.sh'
+        if not self.build_script_path.exists():
+            self._write_script(self.build_script_path,
+                               build_config,
+                               sys_vars)
+
         self.build_path = self.path/'build'
         if self.build_path.is_symlink():
             build_rp = self.build_path.resolve()
@@ -134,12 +141,6 @@ class PavTest:
         short_hash = self.build_hash[:self.BUILD_HASH_BYTES*2]
         self.build_name = '{hash}'.format(hash=short_hash)
         self.build_origin = pav_cfg.working_dir/'builds'/self.build_name
-
-        self.build_script_path = self.path/'build.sh'
-        if not self.build_script_path.exists():
-            self._write_script(self.build_script_path,
-                               build_config,
-                               sys_vars)
 
         run_config = self.config.get('run', {})
         if run_config:
@@ -315,17 +316,20 @@ class PavTest:
         hash if specified via the pavilion config."""
 
         # The hash order is:
-        #  - The build config (sorted by key)
+        #  - The build script
+        #  - The build specificity
         #  - The src archive.
         #    - For directories, the mtime (updated to the time of the most
         #      recently updated file) is hashed instead.
         #  - All of the build's 'extra_files'
-        #  - Each of the pav_cfg.build_hash_vars
 
         hash_obj = hashlib.sha256()
 
-        # Update the hash with the contents of the build config.
-        hash_obj.update(self._hash_dict(build_config))
+        # Update the hash with the contents of the build script.
+        hash_obj.update(self._hash_file(self.build_script_path))
+
+        specificity = build_config.get('specificity', '')
+        hash_obj.update(specificity.encode('utf8'))
 
         src_path = self._update_src(build_config)
 
@@ -461,7 +465,9 @@ class PavTest:
         try:
             # Do the build, and wait for it to complete.
             with build_log_path.open('w') as build_log:
-                proc = subprocess.Popen([self.build_script_path.as_posix()],
+                # Build scripts take the test id as a first argument.
+                cmd = [self.build_script_path.as_posix(), str(self.id)]
+                proc = subprocess.Popen(cmd,
                                         cwd=build_dir.as_posix(),
                                         stdout=build_log,
                                         stderr=subprocess.STDOUT)
@@ -743,7 +749,9 @@ class PavTest:
             if self.build_path is not None:
                 run_wd = self.build_path.as_posix()
 
-            proc = subprocess.Popen([self.run_script_path.as_posix()],
+            # Run scripts take the test id as a first argument.
+            cmd = [self.run_script_path.as_posix(), str(self.id)]
+            proc = subprocess.Popen(cmd,
                                     cwd=run_wd,
                                     stdout=run_log,
                                     stderr=subprocess.STDOUT)
@@ -1133,9 +1141,10 @@ class PavTest:
 
         pav_lib_bash = self._pav_cfg.pav_root/'bin'/'pav-lib.bash'
 
-        script.comment('The following is added to every test build and '
-                       'run script.')
-        script.env_change({'TEST_ID': '{}'.format(self.id)})
+        # If we include this directly, it breaks build hashing.
+        script.comment('The first (and only) argument of the build script is '
+                       'the test id.')
+        script.env_change({'TEST_ID': '$1'})
         script.command('source {}'.format(pav_lib_bash))
 
         modules = config.get('modules', [])

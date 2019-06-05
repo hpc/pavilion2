@@ -4,6 +4,7 @@ from pavilion.status_file import STATES
 from pavilion.series import TestSeries
 from pavilion.test_config import variables
 from pavilion.pav_test import PavTestError, PavTest
+import copy
 import os
 import shutil
 import tempfile
@@ -82,7 +83,7 @@ class PavTestTests(unittest.PavTestCase):
         original_tree = test_archives/'src'
 
         for archive in archives:
-            config = base_config.copy()
+            config = copy.deepcopy(base_config)
             config['build']['source_location'] = archive
 
             test = PavTest(self.pav_cfg, config, {})
@@ -101,7 +102,7 @@ class PavTestTests(unittest.PavTestCase):
                                      *err.args)
 
         # Check directory copying
-        config = base_config.copy()
+        config = copy.deepcopy(base_config)
         config['build']['source_location'] = 'src'
         test = PavTest(self.pav_cfg, config, {})
 
@@ -119,7 +120,7 @@ class PavTestTests(unittest.PavTestCase):
         ]
 
         for file in files:
-            config = base_config.copy()
+            config = copy.deepcopy(base_config)
             config['build']['source_location'] = file
             test = PavTest(self.pav_cfg, config, {})
 
@@ -131,7 +132,7 @@ class PavTestTests(unittest.PavTestCase):
                             original_tree/'binfile')
 
         # Make sure extra files are getting copied over.
-        config = base_config.copy()
+        config = copy.deepcopy(base_config)
         config['build']['source_location'] = 'src.tar.gz'
         config['build']['extra_files'] = [
             'src.tar.gz',
@@ -160,7 +161,7 @@ class PavTestTests(unittest.PavTestCase):
             }
         }
 
-        config = base_config.copy()
+        config = copy.deepcopy(base_config)
         config['build']['source_location'] = self.TEST_URL
 
         # remove existing downloads, and replace the directory.
@@ -273,36 +274,31 @@ class PavTestTests(unittest.PavTestCase):
             'name': 'build_test',
             'scheduler': 'raw',
             'build': {
-                'cmds': ['exit 1'],
+                'cmds': ['exit 0'],
                 'source_location': 'binfile.gz',
             },
         }
 
-        # These next two test a few things:
-        #  1. That building, and then re-using, a build directory works.
-        #  2. That the test fails properly under a couple different conditions
+        #  Check that building, and then re-using, a build directory works.
         test = PavTest(self.pav_cfg, config, {})
         # Remove the build tree to ensure we do the build fresh.
         if test.build_origin.is_dir():
             shutil.rmtree(str(test.build_origin))
+        self.assertTrue(test.build())
 
-        # This should fail because the build exits non-zero
-        self.assertFalse(test.build(),
-                         "Build succeeded when it should have failed.")
-        current_note = test.status.current().note
-        self.assertTrue(current_note.startswith(
-            "Build returned a non-zero result."))
-
-        # This should fail due to a missing variable
-        # The build should already exist.
         test2 = PavTest(self.pav_cfg, config, {})
-        self.assertFalse(test2.build(),
+        self.assertTrue(test2.build())
+        self.assertEqual(test.build_origin, test2.build_origin)
+
+        config3 = copy.deepcopy(config)
+        config3['build']['cmds'] = ['exit 1']
+        # This should fail because the build exits non-zero
+        test3 = PavTest(self.pav_cfg, config3, {})
+        self.assertFalse(test3.build(),
                          "Build succeeded when it should have failed.")
-        current_note = test.status.current().note
+        current_note = test3.status.current().note
         self.assertTrue(current_note.startswith(
             "Build returned a non-zero result."))
-
-        self.assertEqual(test.build_origin, test2.build_origin)
 
     def test_run(self):
         config1 = {
