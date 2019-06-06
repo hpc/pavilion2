@@ -1,0 +1,8 @@
+before_script:
+    - echo "before"
+
+run_tests:
+    image: ubuntu:14.04
+    script:
+        - python3 -c "print('hello world')"
+
