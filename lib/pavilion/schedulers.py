@@ -451,6 +451,8 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
         script.env_change(env_changes)
 
+        # Put test ID into an environment variable.
+        script.command('export PAV_TEST_ID={t.id}'.format(t=test_obj))
         # Run the test via pavilion
         script.command('pav _run {t.id}'.format(t=test_obj))
 

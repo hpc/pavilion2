@@ -51,3 +51,10 @@ class PavVars(VarDict):
         # The environment, in this case, is more reliable than the os module
         # alternative (os.getlogin(), see `man getlogin`).
         return os.environ.get('USER')
+
+    @var_method
+    def testid(self):
+        """The current test ID."""
+
+        # Environment variable is set in the scheduler plugin base class.
+        return os.environ.get('PAV_TEST_ID')
