@@ -2,9 +2,11 @@ from pavilion import result_parsers
 import yaml_config as yc
 import re
 
-
 class RegexValue(result_parsers.ResultParser):
     """Accepts a value or range of values for validation of results."""
+
+    PASS = result_parsers.PASS
+    FAIL = result_parsers.FAIL
 
     def __init__(self):
         self.range_re = re.compile('(-?[0-9]*\.?[0-9]*)-(-?.*)')
@@ -56,7 +58,7 @@ class RegexValue(result_parsers.ResultParser):
 
         for item in expected:
             test_list = []
-            
+
             if '-' in item[1:]:
                 test_list = list(self.range_re.search(item).groups())
                 # Check for valid second part of range.
@@ -133,7 +135,6 @@ class RegexValue(result_parsers.ResultParser):
                 found[i] = [found[i].group(1)]
             else:
                 found[i] = found[i].groups()
-            print(">>>>>>>>>>> Found values: {}".format(found[i]))
 
         res = [self.FAIL for x in range(0,len(found))]
 
@@ -144,14 +145,12 @@ class RegexValue(result_parsers.ResultParser):
                         res[i] = self.PASS
                     elif '-' in exp_set[1:]:
                         low, high = self.range_re.search(exp_set).groups()
-                        print("<<<<< Testing that {} <= {} <= {}".format(
-                              float(low), found[i][j], float(high)))
                         if float(low) <= float(found[i][j]) <= float(high):
                             if res[i] == self.FAIL:
                                 res[i] = self.PASS
                         else:
                             if res[i] == self.PASS:
-                                res[i] == self.FAIL
+                                res[i] = self.FAIL
 
         if self.FAIL in res:
             return self.FAIL

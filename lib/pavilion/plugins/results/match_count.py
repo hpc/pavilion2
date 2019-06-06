@@ -5,6 +5,9 @@ import yaml_config as yc
 class MatchCount(result_parsers.ResultParser):
     """Count matches against a word to inform success or failure."""
 
+    PASS = result_parsers.PASS
+    FAIL = result_parsers.FAIL
+
     def __init__(self):
         super().__init__(name='match_count')
 
@@ -28,6 +31,22 @@ class MatchCount(result_parsers.ResultParser):
         ])
 
         return config_items
+
+    def check_args(self, test, file=None, search=None, threshold=None):
+
+        if threshold is not None:
+            try:
+                int(threshold)
+            except:
+                raise result_parsers.ResultParserError(
+                    "Invalid value for threshold: {}".format(threshold)
+                )
+
+            if int(threshold) < 0:
+                raise result_parsers.ResultParserError(
+                    "Threshold must be greater than or equal to zero. "
+                    "Received {}".format(threshold)
+                )
 
     def __call__(self, test, file=None, search=None, threshold=None):
 

@@ -5,6 +5,9 @@ import yaml_config as yc
 class Match(result_parsers.ResultParser):
     """Match against a specific word to determine success or failure."""
 
+    PASS = result_parsers.PASS
+    FAIL = result_parsers.FAIL
+
     def __init__(self):
         super().__init__(name='match')
 
@@ -19,7 +22,7 @@ class Match(result_parsers.ResultParser):
             ),
             yc.StrElem(
                 'results', default='pass',
-                choices=['pass','fail'],
+                choices=['pass','fail',self.PASS,self.FAIL],
                 help_text="If the word is found in the output, the result "
                           "will be what is provided here.  If the word is not "
                           "found, the other choice is the result."
@@ -38,15 +41,19 @@ class Match(result_parsers.ResultParser):
                     match = line if search in line else None
 
                     if match is not None:
-                        matches.append(match.group())
+                        matches.append(match)
         except (IOError, OSError) as err:
             raise result_parsers.ResultParserError(
                 "Match result parser could not read input file '{}': {}"
                 .format(file, err)
             )
 
-        if not matches.empty():
+        if matches:
             return results
 
-        ret_val = PASS if results == 'fail' else FAIL
+        if results in ['fail', self.FAIL]:
+            ret_val = self.PASS
+        else:
+            ret_val = self.FAIL
+
         return ret_val
