@@ -1,5 +1,6 @@
 # This file contains assorted utility functions.
 
+
 from pathlib import Path
 from pavilion import lockfile
 import csv
@@ -9,7 +10,8 @@ import re
 import subprocess
 import sys
 import textwrap
-
+import shutil
+import copy
 
 def flat_walk(path, *args, **kwargs):
     """Perform an os.walk on path, but return a flattened list of every file
@@ -304,7 +306,6 @@ def _plen(string):
     unescaped = ANSI_ESCAPE_RE.sub('', string)
 
     return len(unescaped)
- 
 
 def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
                title=None):
@@ -331,6 +332,11 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
     :return: None
     """
 
+    #COULD STILL ALLOW COLUMN WIDTH TO BE BASED TO FUNCTION
+    #WILL STILL CALCULATE TO MAKE SURE TABLE WILL FIT SCREEN AND 
+    #WILL WRAP ACCORDINGLY
+
+    wrap = False
     column_widths = {}
     titles = {}
     for field in fields:
@@ -347,12 +353,12 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
     for row in rows:
         formatted_row = {}
         if row is None:
-            # 'None' rows just produce an empty row.
+            # 'None' rows just produce an empty row
             formatted_rows.append(blank_row)
             continue
 
         for field in fields:
-            # Get the data, or it's default if provided.
+            # Get the data, or it's default if provided
             info = field_info.get(field, {})
             data = row.get(field, info.get('default', ''))
             # Transform the data, if a transform is given
@@ -378,9 +384,9 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
         for row in formatted_rows:
             data = row[field]
             dlen = _plen(data)
-            row[field] = data + ' '*max(0, width - dlen) 
+            row[field] = data + ''*max(0, width - dlen)
 
-    # Find the total width of the table. 
+     # Find the total width of the table.
     total_width = (sum(column_widths.values())  # column widths
                    + len(fields) - 1)           # | dividers
     if pad:
@@ -392,7 +398,28 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
         diff = title_len + 2 - total_width
         column_widths[fields[-1]] += diff
 
-    title_format = ' {{0:{0}s}} '.format(total_width - 2)
+    #GETS THE SIZE OF THE CURRENT TERMINAL
+    x = shutil.get_terminal_size()
+    window_width = x[0]
+
+    # GETS COLUMNS THAT WILL NEED TO BE WRAPPED
+    if total_width > window_width:
+        diff = total_width - window_width 
+        wrap = True
+        cols_to_wrap = []
+        for field, width in column_widths.items():
+            #DOESN'T WRAP FIRST COLUMN OR ANY COLUMN <= 10 
+            if field != fields[0] and width > 10:
+                cols_to_wrap.append(field)
+
+        s = 0
+        for field in cols_to_wrap:
+            s = s + column_widths[field]
+        for field in cols_to_wrap:
+            column_widths[field] = column_widths[field] - round((column_widths[field]/s)*diff)
+            if column_widths[field] < len(field):
+                wrap = False
+    title_format = ' {{0:{0}s}} '.format(window_width-2)
 
     # Generate the format string for each row.
     col_formats = []
@@ -403,7 +430,7 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
             format_str = ' ' + format_str + ' '
         col_formats.append(format_str)
     row_format = '|'.join(col_formats)
-
+    
     # Add 2 dashes to each break line if we're padding the data
     brk_pad_extra = 2 if pad else 0
     horizontal_break = '+'.join(['-'*(column_widths[field]+brk_pad_extra)
@@ -417,6 +444,43 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
     horizontal_break += '\n'
     title_format += '\n'
 
+    #REFORMATS ROWS FOR WRAPPING
+    new_rows = []
+    if wrap:
+        #Reformats all the rows
+        for row in formatted_rows:
+            wraps = {}
+            #Creates wrap list that holds list of strings for the wrapped text
+            for field in cols_to_wrap:
+                my_wrap = textwrap.TextWrapper(width = column_widths[field])
+                wrap_list = my_wrap.wrap(text = row[field])
+                wraps[field] = wrap_list
+            num_lines = 0
+            #Gets the largest number of lines, so we know how many iterations
+            #to do when printing
+            for field in wraps.keys():
+                l = len(wraps[field])
+                if l > num_lines:
+                    num_lines = l
+            #Populates current row witht the first wrap
+            for field in cols_to_wrap:
+                row[field] = wraps[field][0]
+            new_rows.append(row)
+            #Creates a new row for each line of text required
+            for line in range(1,num_lines):
+                new_row = copy.deepcopy(row)
+                #Emptys current row
+                for key in fields:
+                    new_row[key] = ''
+                #Populates the necessary fields, if they exist
+                for field in cols_to_wrap:
+                    if line >= len(wraps[field]):
+                        new_row[field] = ''
+                    else:
+                        new_row[field] = wraps[field][line]
+                new_rows.append(new_row)
+        formatted_rows = new_rows
+
     try:
         if border:
             outfile.write(horizontal_break)
@@ -426,16 +490,11 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
 
         outfile.write(row_format.format(**titles))
         outfile.write(horizontal_break)
+
         for row in formatted_rows:
             outfile.write(row_format.format(**row))
-
         if border:
             outfile.write(horizontal_break)
 
-        outfile.write('\n')
     except IOError:
-        # We may get a broken pipe, especially when the output is piped to
-        # something like head. It's ok, just move along.
         pass
-
-
