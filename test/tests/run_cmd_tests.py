@@ -70,7 +70,7 @@ class RunCmdTests(PavTestCase):
             'hello_world.narf'
         ])
 
-        run_cmd = commands.get_command(args.command_name) 
+        run_cmd = commands.get_command(args.command_name)
 
         self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
 
