@@ -59,43 +59,51 @@ class CancelCommand(commands.Command):
         # Will only run if tests list is not empty. 
         if test_list:
             test_statuses = []
-            test_list = map(int, test_list)
-            for test_id in test_list:
-                test = PavTest.load(pav_cfg, test_id)
-                sched = schedulers.get_scheduler_plugin(test.scheduler)
+            tlist = map(int, test_list)
+            for test_id in tlist:
+                try:
+                    test = PavTest.load(pav_cfg, test_id)
+                    sched = schedulers.get_scheduler_plugin(test.scheduler)
 
-                stat = test.status.current()
-                # Won't try to cancel a completed job or a job that was 
-                # previously cancelled. 
-                if stat.state != STATES.COMPLETE and stat.state != STATES.SCHED_CANCELLED:
-                    # Sets status based on the result of sched.cancel_job. 
-                    # Ran into trouble when 'cancelling' jobs that never 
-                    # actually started, ie. build errors/created job states. 
-                    test.status.set(sched.cancel_job(test).state,
-                                    sched.cancel_job(test).note)
-                    utils.fprint("test {} cancelled."
-                                 .format(test_id), file=self.outfile,
-                                    color=utils.GREEN)
+                    stat = test.status.current()
+                    # Won't try to cancel a completed job or a job that was 
+                    # previously cancelled. 
+                    if stat.state != STATES.COMPLETE and stat.state != STATES.SCHED_CANCELLED:
+                        # Sets status based on the result of sched.cancel_job. 
+                        # Ran into trouble when 'cancelling' jobs that never 
+                        # actually started, ie. build errors/created job states. 
+                        test.status.set(sched.cancel_job(test).state,
+                                     sched.cancel_job(test).note)
+                        utils.fprint("test {} cancelled."
+                                  .format(test_id), file=self.outfile,
+                                     color=utils.GREEN)
 
-                else:
-                    utils.fprint("test {} could not be cancelled, has state: {}."
-                           .format(test_id, stat.state), file=self.outfile,
-                                            color=utils.RED)
+                    else:
+                        utils.fprint("test {} could not be cancelled, has state: {}."
+                            .format(test_id, stat.state), file=self.outfile,
+                                             color=utils.RED)
 
-                # Gets the updated info for the specific test. 
-                stat = test.status.current()
-                test_statuses.append({
-                    'test_id': test_id,
-                    'name': test.name,
-                    'state': stat.state,
-                    'time': stat.when.strftime("%d %b %Y %H:%M:%S %Z"),
-                    'note': stat.note,
-                })
+                    # Gets the updated info for the specific test. 
+                    stat = test.status.current()
+                    test_statuses.append({
+                        'test_id': test_id,
+                        'name': test.name,
+                        'state': stat.state,
+                        'time': stat.when.strftime("%d %b %Y %H:%M:%S %Z"),
+                        'note': stat.note,
+                     })
+
+                except PavTestError as err:
+                    utils.fprint("Test {} could not be cancelled, cannot be" \
+                                 " found. \n{}".format(test_id, err), file=self.errfile,
+                                 color=utils.RED)
+                    test_list.remove(str(test_id))
+                    continue
 
         # Currently printing the test statuses based on the list populated when 
         # running this command. Could potentially call pav status, but I did it 
         # this way. 
-        if args.status:
+        if args.status and test_list:
             if args.json:
                 json_data = {'Cancel statuses': test_statuses}
                 utils.json_dump(json_data, self.outfile)
