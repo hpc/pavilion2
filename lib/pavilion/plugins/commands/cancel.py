@@ -58,6 +58,7 @@ class CancelCommand(commands.Command):
 
         # Will only run if tests list is not empty. 
         if test_list:
+            update_list = test_list.copy()
             test_statuses = []
             tlist = map(int, test_list)
             for test_id in tlist:
@@ -97,8 +98,11 @@ class CancelCommand(commands.Command):
                     utils.fprint("Test {} could not be cancelled, cannot be" \
                                  " found. \n{}".format(test_id, err), file=self.errfile,
                                  color=utils.RED)
-                    test_list.remove(str(test_id))
+                    update_list.remove(str(test_id))
                     continue
+
+            # Gets updated list of tests that actually existed. 
+            test_list = update_list
 
         # Currently printing the test statuses based on the list populated when 
         # running this command. Could potentially call pav status, but I did it 
