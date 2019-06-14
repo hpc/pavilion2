@@ -1,4 +1,5 @@
 import errno
+import argparse
 import time
 from collections import defaultdict
 
@@ -12,7 +13,6 @@ from pavilion.status_file import STATES
 from pavilion.series import TestSeries
 from pavilion.test_config.string_parser import ResolveError
 from pavilion.utils import fprint
-
 
 class RunCommand(commands.Command):
 
@@ -55,6 +55,10 @@ class RunCommand(commands.Command):
                  'started before returning. If a test hasn\'t started by '
                  'then, cancel all tests and return a failure. Defaults to'
                  'not checking tests before returning.'
+        )
+        parser.add_argument(
+            '-s', '--status', action='store_true', default=False,
+            help='Display test statuses'
         )
         parser.add_argument(
             'tests', nargs='*', action='store',
@@ -190,6 +194,13 @@ class RunCommand(commands.Command):
                color=utils.GREEN)
 
         # TODO: Call pav status on the series.
+
+        if args.status:
+            parser = argparse.ArgumentParser()
+            status = commands.get_command('status')
+            status._setup_arguments(parser)
+            args = parser.parse_args(["{}".format(series.id)])
+            status.run(pav_cfg, args)
 
         return 0
 
