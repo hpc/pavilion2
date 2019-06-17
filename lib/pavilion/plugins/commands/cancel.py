@@ -81,16 +81,6 @@ class CancelCommand(commands.Command):
                             .format(test_id, stat.state), file=self.outfile,
                                              color=utils.RED)
 
-                    # Gets the updated info for the specific test. 
-                    stat = test.status.current()
-                    test_statuses.append({
-                        'test_id': test_id,
-                        'name': test.name,
-                        'state': stat.state,
-                        'time': stat.when.strftime("%d %b %Y %H:%M:%S %Z"),
-                        'note': stat.note,
-                     })
-
                 except PavTestError as err:
                     utils.fprint("Test {} could not be cancelled, cannot be" \
                                  " found. \n{}".format(test_id, err), file=self.errfile,
