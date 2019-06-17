@@ -7,6 +7,7 @@ from pavilion.status_file import STATES
 from pavilion.pav_test import PavTest
 import errno
 import sys
+import argparse
 
 class CancelCommand(commands.Command):
 
@@ -22,10 +23,6 @@ class CancelCommand(commands.Command):
         parser.add_argument(
             '-s', '--status', action='store_true', default=False,
             help='Prints status of cancelled jobs.'
-        )
-        parser.add_argument(
-            '-j', '--json', action='store_true', default=False,
-            help='Give output as json, rather than as standard human readable.'
         )
         parser.add_argument(
             'tests', nargs='*', action='store',
@@ -104,21 +101,18 @@ class CancelCommand(commands.Command):
             # Gets updated list of tests that actually existed. 
             test_list = update_list
 
-        # Currently printing the test statuses based on the list populated when 
-        # running this command. Could potentially call pav status, but I did it 
-        # this way. 
+        # Only prints statuses of tests if option is selected
+        # and test_list is not empty, therefore atleast 1 test
+        # was a valid test
         if args.status and test_list:
-            if args.json:
-                json_data = {'Cancel statuses': test_statuses}
-                utils.json_dump(json_data, self.outfile)
-            else:
-                fields = ['test_id', 'name', 'state', 'time', 'note']
-                utils.draw_table(
-                    outfile=self.outfile,
-                    field_info={},
-                    fields=fields,
-                    rows=test_statuses,
-                    title='Cancel statuses')
+            string = ""
+            parser = argparse.ArgumentParser()
+            status = commands.get_command('status')
+            status._setup_arguments(parser)
+            for test in test_list:
+                string = string + " " + str(test)
+            args = parser.parse_args(["{}".format(string)])
+            status.run(pav_cfg, args)
 
         return 0
 
