@@ -56,7 +56,6 @@ class CancelCommand(commands.Command):
         # Will only run if tests list is not empty. 
         if test_list:
             update_list = test_list.copy()
-            test_statuses = []
             tlist = map(int, test_list)
             for test_id in tlist:
                 try:
@@ -95,13 +94,13 @@ class CancelCommand(commands.Command):
         # and test_list is not empty, therefore atleast 1 test
         # was a valid test
         if args.status and test_list:
-            string = ""
+            string = []
             parser = argparse.ArgumentParser()
             status = commands.get_command('status')
             status._setup_arguments(parser)
             for test in test_list:
-                string = string + " " + str(test)
-            args = parser.parse_args(["{}".format(string)])
+                string.append(str(test))
+            args = parser.parse_args(string)
             status.run(pav_cfg, args)
 
         return 0
