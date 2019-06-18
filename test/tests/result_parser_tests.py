@@ -125,9 +125,6 @@ class ResultParserTests(PavTestCase):
             results={}
         )
 
-        import pprint
-        pprint.pprint(results)
-
         # Check all the different results to make sure they're what we expect.
         self.assertEqual(
             results['basic'],
@@ -151,10 +148,10 @@ class ResultParserTests(PavTestCase):
 
         self.assertEqual(results['name']['other']['name'], 'In a World')
 
-        self.assertEqual(results['lists'],
-                         ['and someone saves the World',
-                          'In a World',
-                          "I'm here to cause World"])
+        self.assertEqual(sorted(results['lists']),
+                         sorted(['and someone saves the World',
+                                 'In a World',
+                                 "I'm here to cause World"]))
 
         self.assertEqual(results['all'], False)
         self.assertEqual(results['result'], result_parsers.PASS)

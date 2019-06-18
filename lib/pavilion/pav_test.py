@@ -955,6 +955,7 @@ class PavTest:
                         "Parsing {} result types."
                         .format(len(parser_configs)))
 
+        results = result_parsers.parse_results(self, results)
 
         return results
 

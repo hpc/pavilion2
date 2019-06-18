@@ -347,9 +347,6 @@ def parse_results(test, results):
                 for path in glob.glob(file_glob):
                     paths.append(Path(path))
 
-            from pavilion.utils import dbg_print
-            dbg_print(key, 'globs', globs, 'paths', paths)
-
             # Apply the result parser to each file we're parsing.
             # Handle the results according to the 'action' config attribute.
             for path in paths:
@@ -401,8 +398,6 @@ def parse_results(test, results):
                     raise ResultParserError(
                         "Invalid action for result parser '{}': {}"
                         .format(parser_name, action))
-
-            dbg_print(presults)
 
             # Combine the results of all the files given according to the
             # 'per_file' config attribute.
