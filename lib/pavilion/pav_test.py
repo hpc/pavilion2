@@ -439,15 +439,6 @@ class PavTest:
             self.LOGGER.error(msg)
             return False
 
-        # Make a symlink in the build directory that points to the original test
-        # that built it
-        #try:
-        #    dst = str(self.build_origin) + "/test"
-        #    src = str(self.path)
-        #    os.symlink(src, dst)
-        #except: 
-        #    self.LOGGER.warning("Could not create symlink to test")
-
         # Touch the original build directory, so that we know it was used
         # recently.
         try:
