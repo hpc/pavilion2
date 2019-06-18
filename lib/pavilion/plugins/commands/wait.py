@@ -61,6 +61,8 @@ class WaitCommand(commands.Command):
 
         statuses = status.StatusCommand()
 
-        statuses.run(pav_cfg, args)
+        statuses.outfile = self.outfile
 
-        return 0
+        ret_val = statuses.run(pav_cfg, args)
+
+        return ret_val
