@@ -65,36 +65,17 @@ class LogCommand(commands.Command):
             cmd_name = args.show_cmd
 
         if 'run'.startswith(cmd_name):
-            cmd = self._run_cmd
+            file_name = str(pav_cfg.working_dir) + "/tests/" +str(args.test).zfill(7) + "/run.log"
         elif 'kickoff'.startswith(cmd_name):
-            cmd = self._kickoff_cmd
+            file_name = str(pav_cfg.working_dir) + "/tests/" + str(args.test).zfill(7)  + "/kickoff.log"
         elif 'build'.startswith(cmd_name):
-            cmd = self._build_cmd
+            file_name = str(pav_cfg.working_dir) + "/tests/" + str(args.test).zfill(7) + "/build/pav_build_log"
         else:
             raise RuntimeError("Invalid show cmd '{}'".format(cmd_name))
 
         fprint("test # " + str(args.test).zfill(7))
+        f_log = open(file_name, "r")
+        fprint(f_log.read())
 
-        result = cmd(pav_cfg, args, outfile=self.outfile)
-        return 0 if result is None else result
+        return 0
 
-    @staticmethod
-    def _run_cmd(pav_cfg , args, outfile=sys.stdout):
-        fprint("~~~~~~~~~~~run cmd~~~~~~~~~")
-        file_name = str(pav_cfg.working_dir) + "/tests/" +str(args.test).zfill(7) + "/run.log"
-        run_log = open(file_name, "r")
-        fprint(run_log.read())
-
-    @staticmethod
-    def _kickoff_cmd(pav_cfg, args, outfile=sys.stdout):
-        fprint("~~~~kickoff cmd~~~~~")
-        file_name = str(pav_cfg.working_dir) + "/tests/" + str(args.test).zfill(7)  + "/kickoff.log"
-        kickoff_log = open(file_name, "r")
-        fprint(kickoff_log.read())
-
-    @staticmethod
-    def _build_cmd(pav_cfg, args, outfile=sys.stdout):
-        fprint("~~~~~~build cmd~~~~~")
-        file_name = str(pav_cfg.working_dir) + "/tests/" + str(args.test).zfill(7) + "/build/pav_build_log"
-        build_log = open(file_name, "r")
-        fprint(build_log.read())
