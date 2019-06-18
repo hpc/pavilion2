@@ -12,6 +12,7 @@ import sys
 import textwrap
 import shutil
 import copy
+import statistics
 
 def flat_walk(path, *args, **kwargs):
     """Perform an os.walk on path, but return a flattened list of every file
@@ -307,8 +308,24 @@ def _plen(string):
 
     return len(unescaped)
 
-def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
-               title=None):
+options = []
+
+def dynamic_for_loop(boundaries, *vargs):
+    if not boundaries:
+        options.append( list(vargs))
+    else:
+        bounds = boundaries[0]
+        for i in range(*bounds):
+            dynamic_for_loop(boundaries[1:], *(vargs + (i,)))
+
+def getTotalWidth(column_widths, fields, formatted_rows, pad):
+     # Find the total width of the table.
+    total_width = (sum(column_widths.values())  # column widths
+                   + len(fields) - 1)           # | dividers
+
+    return total_width
+
+def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=None):
     """Prints a table from the given data, setting column width as needed.
     :param outfile: The output file to write to. 
     :param field_info: Should be a dictionary of field names where the value
@@ -332,18 +349,28 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
     :return: None
     """
 
-    #COULD STILL ALLOW COLUMN WIDTH TO BE BASED TO FUNCTION
-    #WILL STILL CALCULATE TO MAKE SURE TABLE WILL FIT SCREEN AND 
-    #WILL WRAP ACCORDINGLY
+    # Allows users to specify which fields they do not want wrapped. 
+    # Ideally this would be a function parameter, but I didn't want to go
+    # change it everywhere yet. 
+    ignore = []
+
+    # Testing ignore. 
+    ignore.append(fields[0])
 
     wrap = False
+    # Unspecified coulmn_Widths will be popuated with the length of the title
+    # being the column min, and the longest string at field being the column
+    # max
     column_widths = {}
     titles = {}
-    for field in fields:
-        default_title = field.replace('_', ' ').capitalize()
-        field_title = field_info.get(field, {}).get('title', default_title)
-        column_widths[field] = [len(field_title)]
-        titles[field] = field_title
+ 
+    if not column_widths:
+        for field in fields:
+            default_title = field.replace('_', ' ').capitalize()
+            field_title = field_info.get(field, {}).get('title', default_title)
+            # Gets the length of column title
+            column_widths[field] = [len(field_title)]
+            titles[field] = field_title
 
     blank_row = {}
     for field in fields:
@@ -372,55 +399,103 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
                               repr(data)), file=sys.stderr)
                 raise
 
-            column_widths[field].append(_plen(data))
+            # Appends the length of all rows at a given field
+            if _plen(data) > column_widths[field][0]:
+                column_widths[field].append(_plen(data))
+
             formatted_row[field] = data
         formatted_rows.append(formatted_row)
 
+    column_min_widths = dict(column_widths)
+    column_max_widths = dict(column_widths)
+
+    # Gets dictionary with largest width, and smalled width for each field. 
     for field in column_widths.keys():
-        column_widths[field] = max(column_widths[field])
+        column_min_widths[field] = min(column_min_widths[field])
+        column_max_widths[field] = max(column_max_widths[field])
 
-    # We have to manually pad everything due to unicode and ansi escapes.
-    for field, width in column_widths.items():
-        for row in formatted_rows:
-            data = row[field]
-            dlen = _plen(data)
-            row[field] = data + ''*max(0, width - dlen)
+    if ignore:
+        for field in ignore:
+            column_min_widths[field] = column_max_widths[field]
 
-     # Find the total width of the table.
-    total_width = (sum(column_widths.values())  # column widths
-                   + len(fields) - 1)           # | dividers
-    if pad:
-        total_width += len(fields)*2            # padding
-    # Widen the last column if the title is longer than everything else.
-    # The +2 is for title padding.
-    title_len = len(title)
-    if title is not None and (title_len + 2 > total_width):
-        diff = title_len + 2 - total_width
-        column_widths[fields[-1]] += diff
+    # Gets the total width with the max for each column and the min for each
+    # column. 
+    totalMin = getTotalWidth(column_min_widths, fields, formatted_rows, pad)
+    totalMax = getTotalWidth(column_max_widths, fields, formatted_rows, pad)
 
     #GETS THE SIZE OF THE CURRENT TERMINAL
     x = shutil.get_terminal_size()
     window_width = x[0]
+    if pad:
+        x = 2 * len(fields)
+        x = x + len(fields) - 1
+        window_width = window_width - x
 
     # GETS COLUMNS THAT WILL NEED TO BE WRAPPED
-    if total_width > window_width:
-        diff = total_width - window_width 
+    if totalMax > window_width:
         wrap = True
         cols_to_wrap = []
         for field, width in column_widths.items():
-            #DOESN'T WRAP FIRST COLUMN OR ANY COLUMN <= 10 
-            if field != fields[0] and width > 10:
-                cols_to_wrap.append(field)
+            cols_to_wrap.append(field)
 
-        s = 0
+        # Gets boundaries for calculating all possibilities. 
+        boundaries = []
         for field in cols_to_wrap:
-            s = s + column_widths[field]
+            current = []
+            current.append(column_min_widths[field])
+            current.append(column_max_widths[field]+1)
+            current.append(1)
+            boundaries.append(current)
+
+        # Generates Dictionary for every field with the number of wraps,
+        # based on the given column size. 
+        wrap_options = {}
+        max_wraps = 0
         for field in cols_to_wrap:
-            column_widths[field] = column_widths[field] - round((column_widths[field]/s)*diff)
-            if column_widths[field] < len(field):
-                wrap = False
+            wrap_options[field] = {}
+            col_width = column_min_widths[field]
+            while col_width <= column_max_widths[field]:
+                wrap_total = 0
+                for row in rows:
+                    wraps = textwrap.TextWrapper(width = col_width)
+                    wrap_list = wraps.wrap(text = str(row[field]))
+                    wrap_total = wrap_total + len(wrap_list)
+                    if wrap_total > max_wraps:
+                        max_wraps = wrap_total
+                wrap_options[field][col_width] = wrap_total
+                col_width += 1
+
+        # Creates all possible combinations. 
+        dynamic_for_loop(boundaries)
+
+        # Looks for 'best' solution. 
+        best = {}
+        mx = 0
+        wraps = max_wraps
+        for config in options:
+            rsum = 0
+            wrapc = wrap_options[cols_to_wrap[0]][config[0]]
+            for i in range(len(config)):
+                rsum = rsum + config[i]
+                wrapcur = wrap_options[cols_to_wrap[i]][config[i]]
+                if wrapcur > wrapc:
+                    wrapc = wrapcur
+            if mx <= rsum <= window_width and wrapc <= wraps:
+                    mx = rsum
+                    best = config
+                    wraps = wrapc
+
+        if best:
+            for i in range(len(cols_to_wrap)):
+                column_widths[cols_to_wrap[i]] = best[i]
+        else:
+            # I gave up trying to wrap. 
+            # An optimal solution could not be found. 
+            column_widths = column_max_widths
+
     title_format = ' {{0:{0}s}} '.format(window_width-2)
-
+    if not wrap:
+        column_widths = column_max_widths
     # Generate the format string for each row.
     col_formats = []
     for field in fields:
@@ -430,7 +505,7 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
             format_str = ' ' + format_str + ' '
         col_formats.append(format_str)
     row_format = '|'.join(col_formats)
-    
+
     # Add 2 dashes to each break line if we're padding the data
     brk_pad_extra = 2 if pad else 0
     horizontal_break = '+'.join(['-'*(column_widths[field]+brk_pad_extra)
@@ -444,7 +519,6 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
     horizontal_break += '\n'
     title_format += '\n'
 
-    #REFORMATS ROWS FOR WRAPPING
     new_rows = []
     if wrap:
         #Reformats all the rows
@@ -498,3 +572,4 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
 
     except IOError:
         pass
+
