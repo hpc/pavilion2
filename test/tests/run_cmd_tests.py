@@ -35,8 +35,8 @@ class RunCmdTests(PavTestCase):
         )
 
         # Make sure all the tests are there, under the right schedulers.
-        self.assertEqual(tests['slurm'][0].name, 'hello')
-        self.assertEqual(tests['raw'][0].name, 'world')
+        self.assertEqual(tests['raw'][0].name, 'hello')
+        self.assertEqual(tests['raw'][1].name, 'world')
         self.assertEqual(tests['dummy'][0].name, 'narf')
 
         tests_file = self.TEST_DATA_ROOT/'run_test_list'

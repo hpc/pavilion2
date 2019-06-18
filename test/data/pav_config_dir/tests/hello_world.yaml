@@ -6,7 +6,7 @@ hello:
         cmds:
             - echo "Running World"
 
-    scheduler: "slurm"
+    scheduler: "raw"
 
 world:
     build:
