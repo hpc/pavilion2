@@ -196,11 +196,11 @@ class RunCommand(commands.Command):
         # TODO: Call pav status on the series.
 
         if args.status:
-            parser = argparse.ArgumentParser()
             status = commands.get_command('status')
-            status._setup_arguments(parser)
-            args = parser.parse_args(["{}".format(series.id)])
-            status.run(pav_cfg, args)
+            test_arg = []
+            test_arg.append(str(series.id))
+            tests = status._get_tests(pav_cfg, test_arg)
+            status._print_tests(pav_cfg, tests, args)
 
         return 0
 

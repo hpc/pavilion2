@@ -29,33 +29,12 @@ class StatusCommand(commands.Command):
 
     def run(self, pav_cfg, args):
 
-        if not args.tests:
-            # Get the last series ran by this user.
-            series_id = series.TestSeries.load_user_series_id()
-            if series_id is not None:
-                args.tests.append('s{}'.format(series_id))
+        tests = self._get_tests(pav_cfg, args.tests)
+        self._print_tests(pav_cfg, tests, args)
 
-        test_list = []
-        for test_id in args.tests:
-            if test_id.startswith('s'):
-                try:
-                    test_list.extend(
-                        series.TestSeries.from_id(
-                            pav_cfg,
-                            int(test_id[1:])).tests)
-                except series.TestSeriesError as err:
-                    utils.fprint(
-                        "Suite {} could not be found.\n{}"
-                        .format(test_id[1:], err),
-                        file=self.errfile,
-                        color=utils.RED
-                    )
-                    continue
-            else:
-                test_list.append(test_id)
+        return 0
 
-        test_list = map(int, test_list)
-
+    def _print_tests(self, pav_cfg, test_list, args):
         test_statuses = []
         for test_id in test_list:
             try:
@@ -96,14 +75,40 @@ class StatusCommand(commands.Command):
                 rows=test_statuses,
                 title='Test statuses')
 
-        return 0
-
     def _get_tests(self, pav_cfg, tests):
         """Get the list of tests given those specified in the arguments.
         :param pav_cfg: The pavilion config.
         :param list(str) tests: The tests via the command line args.
         :returns: Test ids.
         """
+        if not tests:
+            # Get the last series ran by the user.
+            series_id = series.TestSeries.load_user_series_id()
+            if series_id is not None:
+                tests.append('s{}'.format(series_id))
+
+        test_list = []
+        for test_id in tests:
+            if test_id.startswith('s'):
+                try:
+                    test_list.extend(
+                        series.TestSeries.from_id(
+                            pav_cfg,
+                            int(test_id[1:])).tests)
+                except series.TestSeriesError as err:
+                    utils.fprint(
+                        "Suite {} could not be found.\n{}"
+                        .format(test_id[1:], err),
+                        file=self.errfile,
+                        color=utils.RED
+                    )
+                    continue
+            else:
+                test_list.append(test_id)
+
+        test_list = map(int, test_list)
+
+        return test_list
 
     def __repr__(self):
         return str(self)
