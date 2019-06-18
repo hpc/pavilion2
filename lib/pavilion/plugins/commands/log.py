@@ -26,8 +26,6 @@ class LogCommand(commands.Command):
 
     def _setup_arguments(self, parser):
 
-        parser.add_argument('--test', help="Test number argument.", type=int)
-
         subparsers = parser.add_subparsers(
             dest="show_cmd",
             help="Types of information to show."
@@ -55,6 +53,8 @@ class LogCommand(commands.Command):
             help="Displays summary of build.",
             description="""Displays summary of build."""
         )
+
+        parser.add_argument('test', help="Test number argument.", type=int)
 
     def run(self, pav_cfg, args):
 
