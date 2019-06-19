@@ -135,6 +135,12 @@ class RunCommand(commands.Command):
         for test in all_tests:
             if test.config['build']['on_nodes'] not in ['true', 'True']:
                 if not test.build():
+                    for oth_test in all_tests:
+                        if oth_test.build_hash != test.build_hash:
+                            oth_test.status.set(STATES.BUILD_ERROR,
+                                    "Build cancelled because build {} failed."
+                                    .format(test.id)
+                            )
                     fprint("Error building test: ", file=self.errfile,
                            color=utils.RED)
                     fprint("status {status.state} - {status.note}"
