@@ -7,6 +7,7 @@ from pavilion.pav_test import PavTest, PavTestError, PavTestNotFoundError
 import errno
 import sys
 
+from pavilion.utils import fprint
 
 class StatusCommand(commands.Command):
 
@@ -32,11 +33,14 @@ class StatusCommand(commands.Command):
         if not args.tests:
             # Get the last series ran by this user.
             series_id = series.TestSeries.load_user_series_id()
+            fprint("~~~~" + str(series_id))
             if series_id is not None:
                 args.tests.append('s{}'.format(series_id))
 
         test_list = []
+
         for test_id in args.tests:
+			# Test argument is a SERIES number
             if test_id.startswith('s'):
                 try:
                     test_list.extend(
@@ -51,6 +55,7 @@ class StatusCommand(commands.Command):
                         color=utils.RED
                     )
                     continue
+			# Test argument is a TEST number
             else:
                 test_list.append(test_id)
 
