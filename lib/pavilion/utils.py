@@ -12,6 +12,7 @@ import sys
 import textwrap
 import shutil
 import copy
+import itertools
 import statistics
 
 def flat_walk(path, *args, **kwargs):
@@ -308,16 +309,6 @@ def _plen(string):
 
     return len(unescaped)
 
-options = []
-
-def dynamic_for_loop(boundaries, *vargs):
-    if not boundaries:
-        options.append( list(vargs))
-    else:
-        bounds = boundaries[0]
-        for i in range(*bounds):
-            dynamic_for_loop(boundaries[1:], *(vargs + (i,)))
-
 def getTotalWidth(column_widths, fields, formatted_rows, pad):
      # Find the total width of the table.
     total_width = (sum(column_widths.values())  # column widths
@@ -355,7 +346,7 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
     ignore = []
 
     # Testing ignore. 
-    ignore.append(fields[0])
+    #ignore.append(fields[2])
 
     wrap = False
     # Unspecified coulmn_Widths will be popuated with the length of the title
@@ -399,103 +390,107 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
                               repr(data)), file=sys.stderr)
                 raise
 
-            # Appends the length of all rows at a given field
+            # Appends the length of all rows at a given field longer than the
+            # title. Effectively forces that the minimum column width is no
+            # less than the header. 
             if _plen(data) > column_widths[field][0]:
                 column_widths[field].append(_plen(data))
 
             formatted_row[field] = data
         formatted_rows.append(formatted_row)
 
-    column_min_widths = dict(column_widths)
-    column_max_widths = dict(column_widths)
+    min_widths = dict(column_widths)
+    max_widths = dict(column_widths)
 
     # Gets dictionary with largest width, and smalled width for each field. 
     for field in column_widths.keys():
-        column_min_widths[field] = min(column_min_widths[field])
-        column_max_widths[field] = max(column_max_widths[field])
+        min_widths[field] = min(min_widths[field])
+        max_widths[field] = max(max_widths[field])
 
     if ignore:
         for field in ignore:
-            column_min_widths[field] = column_max_widths[field]
+            min_widths[field] = max_widths[field]
 
+    column_widths = max_widths
     # Gets the total width with the max for each column and the min for each
     # column. 
-    totalMin = getTotalWidth(column_min_widths, fields, formatted_rows, pad)
-    totalMax = getTotalWidth(column_max_widths, fields, formatted_rows, pad)
+    totalMin = getTotalWidth(min_widths, fields, formatted_rows, pad)
+    totalMax = getTotalWidth(max_widths, fields, formatted_rows, pad)
 
-    #GETS THE SIZE OF THE CURRENT TERMINAL
-    x = shutil.get_terminal_size()
-    window_width = x[0]
+    # Gets the effective window width. 
+    window_width = shutil.get_terminal_size()
+    window_width = window_width[0]
+
+    # Reduced the effective window width if we have padded dividers. 
     if pad:
-        x = 2 * len(fields)
-        x = x + len(fields) - 1
-        window_width = window_width - x
+        offset = 2 * len(fields)
+        offset = offset + len(fields) - 1
+        window_width = window_width - offset 
 
-    # GETS COLUMNS THAT WILL NEED TO BE WRAPPED
+    # Checks to see if table will fit on screen as is. If not then it starts
+    # the process of calculating the 'optimal' way to wrap. 
     if totalMax > window_width:
         wrap = True
-        cols_to_wrap = []
-        for field, width in column_widths.items():
-            cols_to_wrap.append(field)
-
-        # Gets boundaries for calculating all possibilities. 
         boundaries = []
-        for field in cols_to_wrap:
+        for field in fields:
             current = []
-            current.append(column_min_widths[field])
-            current.append(column_max_widths[field]+1)
-            current.append(1)
+            current.append(min_widths[field])
+            current.append(max_widths[field]+1)
             boundaries.append(current)
 
-        # Generates Dictionary for every field with the number of wraps,
-        # based on the given column size. 
-        wrap_options = {}
-        max_wraps = 0
-        for field in cols_to_wrap:
-            wrap_options[field] = {}
-            col_width = column_min_widths[field]
-            while col_width <= column_max_widths[field]:
-                wrap_total = 0
-                for row in rows:
-                    wraps = textwrap.TextWrapper(width = col_width)
-                    wrap_list = wraps.wrap(text = str(row[field]))
-                    wrap_total = wrap_total + len(wrap_list)
-                    if wrap_total > max_wraps:
-                        max_wraps = wrap_total
-                wrap_options[field][col_width] = wrap_total
-                col_width += 1
-
+        combos = []
+        i = 0
         # Creates all possible combinations. 
-        dynamic_for_loop(boundaries)
+        for p in itertools.product(*(range(*b) for b in boundaries)):
+            if sum(p) == window_width:
+                combos.append(list(p))
+            i += 1
 
-        # Looks for 'best' solution. 
-        best = {}
-        mx = 0
-        wraps = max_wraps
-        for config in options:
-            rsum = 0
-            wrapc = wrap_options[cols_to_wrap[0]][config[0]]
-            for i in range(len(config)):
-                rsum = rsum + config[i]
-                wrapcur = wrap_options[cols_to_wrap[i]][config[i]]
-                if wrapcur > wrapc:
-                    wrapc = wrapcur
-            if mx <= rsum <= window_width and wrapc <= wraps:
-                    mx = rsum
-                    best = config
-                    wraps = wrapc
+        if combos:
+            # Calculates the max number of wraps for a given column width
+            # combination. Uses the shorter, combos list. 
+            wrap_options = []
+            min_wraps = sys.maxsize
+            for combo in combos:
+                wrap_count = []
+                for i in range(len(fields)):
+                    column_width = combo[i]
+                    wrap_total = 0
+                    for row in rows:
+                        wraps = textwrap.TextWrapper(width=column_width)
+                        wrap_list = wraps.wrap(text=str(row[fields[i]]))
+                        wrap_total = wrap_total + len(wrap_list)
+                    wrap_count.append(wrap_total)
+                wrap_count = max(wrap_count)
+                if wrap_count <= min_wraps:
+                    min_wraps = wrap_count
+                    pair = [combo, wrap_count]
+                    wrap_options.append(pair)
 
-        if best:
-            for i in range(len(cols_to_wrap)):
-                column_widths[cols_to_wrap[i]] = best[i]
+            best_list = []
+            for config in wrap_options:
+                if config[1] == min_wraps:
+                    best_list.append(config)
+            wrap_options = best_list
+
+            best = sys.maxsize
+            best_c = []
+            for config in wrap_options:
+                if statistics.stdev(config[0]) < best:
+                    best = statistics.stdev(config[0])
+                    best_c = config
+
+            for i in range(len(fields)):
+                column_widths[fields[i]] = best_c[0][i]
+
         else:
-            # I gave up trying to wrap. 
-            # An optimal solution could not be found. 
-            column_widths = column_max_widths
+            # No optimal solutions could be found, no longer trying to wrap
+            # text. 
+            wrap = False
 
     title_format = ' {{0:{0}s}} '.format(window_width-2)
     if not wrap:
-        column_widths = column_max_widths
+        column_widths = max_widths
     # Generate the format string for each row.
     col_formats = []
     for field in fields:
@@ -525,7 +520,7 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
         for row in formatted_rows:
             wraps = {}
             #Creates wrap list that holds list of strings for the wrapped text
-            for field in cols_to_wrap:
+            for field in fields:
                 my_wrap = textwrap.TextWrapper(width = column_widths[field])
                 wrap_list = my_wrap.wrap(text = row[field])
                 wraps[field] = wrap_list
@@ -537,7 +532,7 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
                 if l > num_lines:
                     num_lines = l
             #Populates current row witht the first wrap
-            for field in cols_to_wrap:
+            for field in fields:
                 row[field] = wraps[field][0]
             new_rows.append(row)
             #Creates a new row for each line of text required
@@ -547,7 +542,7 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
                 for key in fields:
                     new_row[key] = ''
                 #Populates the necessary fields, if they exist
-                for field in cols_to_wrap:
+                for field in fields:
                     if line >= len(wraps[field]):
                         new_row[field] = ''
                     else:
