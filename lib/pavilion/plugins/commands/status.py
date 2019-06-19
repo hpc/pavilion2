@@ -35,7 +35,8 @@ def status_from_test_obj(pav_cfg, test_obj):
             'note': status_f.note,
         })
 
-    return test_statuses.sort(key=lambda x: x['test_id'], reverse=True)
+    test_statuses.sort(key=lambda x: x['test_id'])
+    return test_statuses
 
 def get_statuses(pav_cfg, args, errfile):
     """Get the statuses of the listed tests or series.
@@ -52,9 +53,9 @@ def get_statuses(pav_cfg, args, errfile):
         series_id = series.TestSeries.load_user_series_id()
         if series_id is not None:
             args.tests.append('s{}'.format(series_id))
-
-    if not args.tests:
-        raise commands.CommandError("No tests found.")
+        else:
+            raise commands.CommandError("No tests specified and no last series "
+                    "was found.")
 
     test_list = []
     for test_id in args.tests:
@@ -75,7 +76,7 @@ def get_statuses(pav_cfg, args, errfile):
         else:
             test_list.append(test_id)
 
-    test_list = map(int, test_list)
+    test_list = list(map(int, test_list))
 
     test_statuses = []
     test_obj_list = []
@@ -91,7 +92,6 @@ def get_statuses(pav_cfg, args, errfile):
                 'time': "",
                 'note': "Test not found.",
             })
-
 
     statuses = status_from_test_obj(pav_cfg, test_obj_list)
 
@@ -109,6 +109,12 @@ def print_status(statuses, outfile, json=False):
     :param stream outfile: Stream to which the statuses should be printed.
     :return int success or failure.
     """
+
+    ret_val = 1
+    for stat in statuses:
+        if (stat['note'] != "Test not found."):
+            ret_val = 0
+
     if json:
         json_data = {'statuses': statuses}
         utils.json_dump(json_data, outfile)
@@ -121,7 +127,7 @@ def print_status(statuses, outfile, json=False):
             rows=statuses,
             title='Test statuses')
 
-    return 0
+    return ret_val
 
 def print_from_test_obj(pav_cfg, test_obj, outfile, json=False):
     """Print the statuses given a list of test objects or a single test object.

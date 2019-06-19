@@ -9,6 +9,28 @@ class TestSeriesError(RuntimeError):
     """An error in managing a series of tests."""
     pass
 
+def test_obj_from_id(pav_cfg, test_ids):
+    """Return the test object(s) associated with the id(s) provided.
+    :param dict pav_cfg: Base pavilion configuration.
+    :param list/str test_ids: One or more test IDs."
+    :return tuple(list(test_obj),list(failed_ids)): tuple containing a list of
+    test objects and a list of test IDs for which no test could be found."""
+
+    test_obj_list = []
+    test_failed_list = []
+
+    if not isinstance(test_ids, list):
+        test_ids = [test_ids]
+
+    for test_id in test_ids:
+        try:
+            test = PavTest.load(pav_cfg, test_id)
+            test_obj_list.append(test)
+        except (PavTestError, PavTestNotFoundError) as err:
+            test_failed_list.append(test_id)
+
+    return (test_obj_list, test_failed_list)
+
 
 class TestSeries:
     """Series are a collection of tests. Every time """
