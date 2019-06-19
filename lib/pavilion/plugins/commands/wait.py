@@ -59,6 +59,6 @@ class WaitCommand(commands.Command):
 
             tmp_statuses = status.get_statuses(pav_cfg, args, self.errfile)
 
-        statuses = status.print_status(tmp_statuses, self.outfile, args.json)
+        ret_val = status.print_status(tmp_statuses, self.outfile, args.json)
 
         return ret_val
