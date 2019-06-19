@@ -4,7 +4,7 @@ from pavilion import schedulers
 from pavilion.test_config import variables
 from pavilion.pav_test import PavTest
 from pavilion.unittest import PavTestCase
-
+import re
 
 class RawSchedTests(PavTestCase):
 
@@ -83,3 +83,64 @@ class RawSchedTests(PavTestCase):
         dummy_sched.in_alloc_var = True
         del svars['bar']
         self.assertEqual(svars['bar'], 'bar')
+
+    def test_kickoff_env(self):
+
+        pav_cfg = self.pav_cfg
+
+        pav_cfg['env_setup'] = ['test1', 'test2', 'test3']
+
+        class TestVars(schedulers.SchedulerVariables):
+
+            @schedulers.var_method
+            def hello(self):
+                return 'hello'
+
+            @schedulers.var_method
+            def foo(self):
+                return self.sched_data['foo']
+
+            @schedulers.dfr_var_method()
+            def bar(self):
+                return 'bar'
+
+            def not_a_key(self):
+                pass
+
+        class DummySched(schedulers.SchedulerPlugin):
+            VAR_CLASS = TestVars
+
+            def __init__(self):
+                super().__init__('dummy', 'more dumb')
+
+                self.in_alloc_var = False
+
+            def _get_data(self):
+                return {
+                    'foo': 'baz'
+                }
+
+            def _in_alloc(self):
+                return self.in_alloc_var
+
+        test = PavTest(
+            self.pav_cfg,
+            {
+                'name': 'sched-vars',
+                'scheduler': 'dummy'
+            },
+            {}
+        )
+
+        dummy_sched = DummySched()
+        path = dummy_sched._create_kickoff_script(pav_cfg, test)
+        with path.open() as file:
+            lines = file.readlines()
+        for i in range(0,len(lines)):
+            lines[i] = lines[i].strip()
+        testlist = pav_cfg['env_setup']
+        self.assertTrue(set(testlist).issubset(lines))
+        self.assertTrue(re.match(r'pav _run.*', lines[-1]))
+
+
+
