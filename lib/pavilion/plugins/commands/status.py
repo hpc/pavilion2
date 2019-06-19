@@ -21,21 +21,92 @@ class StatusCommand(commands.Command):
             '-j', '--json', action='store_true', default=False,
             help='Give output as json, rather than as standard human readable.'
         )
+
+        # Either input test/series or list of tests/series XOR 'all'
+        test_group=parser.add_mutually_exclusive_group()
+        test_group.add_argument(
+            '-t', '--tests', nargs='*', action='store',
+            help='The name(s) of the tests to check.  These may be any mix of '
+                'test IDs and series IDs.  If no value is provided, the most '
+                'recent series submitted by this user is checked.'
+        )
+        test_group.add_argument(
+            '-a', '--all', action='store_true',
+            help='Show statuses of all tests (default=10 max tests)'
+        )
+        """
         parser.add_argument(
-            'tests', nargs='*', action='store',
+            'tests', nargs='*', action='store', type=str,
             help='The name(s) of the tests to check.  These may be any mix of '
                  'test IDs and series IDs.  If no value is provided, the most '
                  'recent series submitted by this user is checked.'
         )
+        parser.add_argument(
+            '-a', '--all',action='store_true',
+            help='Shows information of all tests.'
+        )
+        """
 
     def run(self, pav_cfg, args):
 
+        test_list = []
+
+        if args.tests:
+            print("tests argument")
+            # traverse arguments list
+            for test_id in args.tests:
+                # if argument is a SERIES name
+                if test_id.startswith('s'):
+                    try:
+                        test_list.extend(
+                            series.TestSeries.from_id(
+                                pav_cfg,
+                                int(test_id[1:])).tests)
+                    except series.TestSeriesError as err:
+                        utils.fprint(
+                            "Suite {} could not be found.\n"
+                            .format(test_id[1:], err),
+                            file=self.errfile,
+                            color=utils.RED
+                        )
+                # if argument is a TEST name
+                else:
+                    test_list.append(test_id)
+        elif args.all:
+            print("all argument")
+        else:
+            print("no arguments, get tests of latest series")
+            series_id = series.TestSeries.load_user_series_id()
+            if series_id is not None:
+                series_name = 's' + str(series_id)
+                print("latest series: " + series_name)
+                try:
+                    test_list.extend(
+                        series.TestSeries.from_id(
+                            pav_cfg,
+                            int(series_name[1:])).tests)
+                except series.TestSeriesError as err:
+                    utils.fprint(
+                        "Suite {} could not be found.\n{}"
+                        .format(test_id[1:], err),
+                        file=self.errfile,
+                        color=utils.RED
+                    )
+
+        # print test_list
+        print("test_list: ")
+        print(*test_list)
+
+        """
         if not args.tests:
             # Get the last series ran by this user.
             series_id = series.TestSeries.load_user_series_id()
-            fprint("~~~~" + str(series_id))
+            fprint("load user series id " + str(series_id))
             if series_id is not None:
-                args.tests.append('s{}'.format(series_id))
+                series_name = 's' + str(series_id)
+                fprint(series_name)
+                args.tests.append(series_name)
+                #args.tests.append('s{}'.format(series_id))
 
         test_list = []
 
@@ -47,6 +118,7 @@ class StatusCommand(commands.Command):
                         series.TestSeries.from_id(
                             pav_cfg,
                             int(test_id[1:])).tests)
+                    fprint(test_id)
                 except series.TestSeriesError as err:
                     utils.fprint(
                         "Suite {} could not be found.\n{}"
@@ -58,7 +130,8 @@ class StatusCommand(commands.Command):
 			# Test argument is a TEST number
             else:
                 test_list.append(test_id)
-
+                fprint(test_id)
+        """
         test_list = map(int, test_list)
 
         test_statuses = []
