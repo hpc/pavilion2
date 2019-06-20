@@ -2,7 +2,7 @@ from pavilion import plugins
 from pavilion import commands
 from pavilion.unittest import PavTestCase
 from pavilion import arguments
-
+import io
 
 class RunCmdTests(PavTestCase):
 
@@ -74,7 +74,19 @@ class RunCmdTests(PavTestCase):
 
         self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
 
+    def test_run_status(self):
 
+        arg_parser = arguments.get_parser()
 
+        args = arg_parser.parse_args([
+            'run',
+            '-s',
+            '-j',
+            'hello_world'
+        ])
+
+        run_cmd = commands.get_command(args.command_name)
+
+        self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
 
 
