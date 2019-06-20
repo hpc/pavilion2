@@ -70,6 +70,7 @@ class Command(IPlugin.IPlugin):
         self.logger = logging.getLogger('command.' + name)
         self.name = name
         self.file = inspect.getfile(self.__class__)
+        self.path = self.file
         self.description = description
         self.short_help = short_help
         self._aliases = aliases if aliases is not None else []
