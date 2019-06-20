@@ -94,9 +94,9 @@ class ResultsCommand(commands.Command):
     def _get_tests(self, pav_cfg, tests_arg):
         if not tests_arg:
             # Get the last series ran by this user.
-            series_id = series.TestSeries.load_user_series_id(pav_cfg)
+            series_id = series.TestSeries.load_user_series_id()
             if series_id is not None:
-                tests_arg.append(series_id)
+                tests_arg.append('s{}'.format(series_id))
 
         test_list = []
         for test_id in tests_arg:

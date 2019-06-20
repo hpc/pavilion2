@@ -31,9 +31,9 @@ class StatusCommand(commands.Command):
 
         if not args.tests:
             # Get the last series ran by this user.
-            series_id = series.TestSeries.load_user_series_id(pav_cfg)
+            series_id = series.TestSeries.load_user_series_id()
             if series_id is not None:
-                args.tests.append(series_id)
+                args.tests.append('s{}'.format(series_id))
 
         test_list = []
         for test_id in args.tests:
