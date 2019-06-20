@@ -145,12 +145,16 @@ class ModuleWrapper(IPlugin.IPlugin):
         remove_wrapped_module(self, self._version)
 
     def load(self, sys_info, requested_version=None):
-        """Generate the list of module actions and environment changes to load this module.
-        :param sys_info: The system info dictionary of variables, from the system plugins.
+        """Generate the list of module actions and environment changes to load
+         this module.
+        :param sys_info: The system info dictionary of variables, from the
+            system plugins.
         :param requested_version: The version requested to load.
-        :return: A list of actions (or bash command strings), and a dict of environment changes.
+        :return: A list of actions (or bash command strings), and a dict of
+            environment changes.
         :rtype: (Union(str, ModuleAction), dict)
-        :raises ModuleWrapperError: If the requested version does not work with this instance.
+        :raises ModuleWrapperError: If the requested version does not work with
+            this instance.
         """
 
         version = self.get_version(requested_version)
@@ -159,13 +163,16 @@ class ModuleWrapper(IPlugin.IPlugin):
 
     def swap(self, sys_info, out_name, out_version, requested_version=None):
         """Swap out the 'out' module and swap in the new module.
-        :param sys_info: The system info dictionary of variables, from the system plugins.
+        :param sys_info: The system info dictionary of variables, from the
+        system plugins.
         :param out_name: The name of the module to swap out.
         :param out_version: The version of the module to swap out.
         :param requested_version: The version requested to load.
-        :return: A list of actions (or bash command strings), and a dict of environment changes.
+        :return: A list of actions (or bash command strings), and a dict of
+        environment changes.
         :rtype: (Union(str, ModuleAction), dict)
-        :raises ModuleWrapperError: If the requested version does not work with this instance.
+        :raises ModuleWrapperError: If the requested version does not work
+        with this instance.
         """
 
         version = self.get_version(requested_version)
@@ -174,11 +181,14 @@ class ModuleWrapper(IPlugin.IPlugin):
 
     def remove(self, sys_info, requested_version=None):
         """Remove this module from the environment.
-        :param sys_info: The system info dictionary of variables, from the system plugins.
+        :param sys_info: The system info dictionary of variables, from the
+        system plugins.
         :param requested_version: The version requested to load.
-        :return: A list of actions (or bash command strings), and a dict of environment changes.
+        :return: A list of actions (or bash command strings), and a dict of
+        environment changes.
         :rtype: (Union(str, ModuleAction), dict)
-        :raises ModuleWrapperError: If the requested version does not work with this instance.
+        :raises ModuleWrapperError: If the requested version does not work with
+        this instance.
         """
 
         version = self.get_version(requested_version)

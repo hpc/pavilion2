@@ -1,4 +1,5 @@
 import errno
+import argparse
 import time
 from collections import defaultdict
 
@@ -9,10 +10,10 @@ from pavilion import test_config
 from pavilion import utils
 from pavilion.pav_test import PavTest, PavTestError
 from pavilion.status_file import STATES
-from pavilion.series import TestSeries
+from pavilion.plugins.commands.status import print_from_test_obj
+from pavilion.series import TestSeries, test_obj_from_id
 from pavilion.test_config.string_parser import ResolveError
 from pavilion.utils import fprint
-
 
 class RunCommand(commands.Command):
 
@@ -55,6 +56,10 @@ class RunCommand(commands.Command):
                  'started before returning. If a test hasn\'t started by '
                  'then, cancel all tests and return a failure. Defaults to'
                  'not checking tests before returning.'
+        )
+        parser.add_argument(
+            '-s', '--status', action='store_true', default=False,
+            help='Display test statuses'
         )
         parser.add_argument(
             'tests', nargs='*', action='store',
@@ -135,6 +140,12 @@ class RunCommand(commands.Command):
         for test in all_tests:
             if test.config['build']['on_nodes'] not in ['true', 'True']:
                 if not test.build():
+                    for oth_test in all_tests:
+                        if oth_test.build_hash != test.build_hash:
+                            oth_test.status.set(STATES.BUILD_ERROR,
+                                    "Build cancelled because build {} failed."
+                                    .format(test.id)
+                            )
                     fprint("Error building test: ", file=self.errfile,
                            color=utils.RED)
                     fprint("status {status.state} - {status.note}"
@@ -190,6 +201,11 @@ class RunCommand(commands.Command):
                color=utils.GREEN)
 
         # TODO: Call pav status on the series.
+
+        if args.status:
+            tests = list(series.tests.keys())
+            tests, failed = test_obj_from_id(pav_cfg, tests)
+            return print_from_test_obj(pav_cfg, tests, self.outfile, args.json)
 
         return 0
 

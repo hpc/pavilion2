@@ -955,28 +955,7 @@ class PavTest:
                         "Parsing {} result types."
                         .format(len(parser_configs)))
 
-        for parser_name in parser_configs.keys():
-            # This is almost guaranteed to work, as the config wouldn't
-            # have validated otherwise.
-            parser = result_parsers.get_plugin(parser_name)
-
-            for rconf in parser_configs[parser_name]:
-                try:
-                    # The parser's don't know about the 'key' config item.
-                    args = rconf.copy()
-                    del args['key']
-
-                    if 'file' not in args:
-                        args['file'] = self.run_log
-
-                    result = parser(self, **args)
-
-                    results[rconf['key']] = result
-                except (result_parsers.ResultParserError, KeyError) as err:
-                    self.LOGGER.warning(
-                        "Error parsing results for result parser '{}'"
-                        "with key '{}': {}"
-                        .format(parser.name, rconf.get('key', '<no_key>'), err))
+        results = result_parsers.parse_results(self, results)
 
         return results
 
