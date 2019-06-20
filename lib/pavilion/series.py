@@ -1,4 +1,4 @@
-from pavilion.pav_test import PavTest
+from pavilion.pav_test import PavTest, PavTestError, PavTestNotFoundError
 from pavilion import utils
 from pathlib import Path
 import logging

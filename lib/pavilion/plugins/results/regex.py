@@ -28,7 +28,7 @@ class Regex(result_parsers.ResultParser):
 
         return config_items
 
-    def _check_args(self, test, regex=None, match_type=None):
+    def _check_args(self, test, file, action, per_file, regex=None, match_type=None):
 
         try:
             re.compile(regex)
@@ -36,7 +36,7 @@ class Regex(result_parsers.ResultParser):
             raise result_parsers.ResultParserError(
                 "Invalid regular expression: {}".format(err))
 
-    def __call__(self, test, file, regex=None, match_type=None):
+    def __call__(self, test, file, action, per_file, regex=None, match_type=None):
 
         regex = re.compile(regex)
 

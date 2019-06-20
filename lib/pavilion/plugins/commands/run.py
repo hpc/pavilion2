@@ -10,7 +10,8 @@ from pavilion import test_config
 from pavilion import utils
 from pavilion.pav_test import PavTest, PavTestError
 from pavilion.status_file import STATES
-from pavilion.series import TestSeries
+from pavilion.plugins.commands.status import print_from_test_obj
+from pavilion.series import TestSeries, test_obj_from_id
 from pavilion.test_config.string_parser import ResolveError
 from pavilion.utils import fprint
 
@@ -202,11 +203,9 @@ class RunCommand(commands.Command):
         # TODO: Call pav status on the series.
 
         if args.status:
-            status = commands.get_command('status')
-            test_arg = []
-            test_arg.append(str(series.id))
-            tests = status._get_tests(pav_cfg, test_arg)
-            status._print_tests(pav_cfg, tests, args)
+            tests = list(series.tests.keys())
+            tests, failed = test_obj_from_id(pav_cfg, tests)
+            return print_from_test_obj(pav_cfg, tests, self.outfile, args.json)
 
         return 0
 
