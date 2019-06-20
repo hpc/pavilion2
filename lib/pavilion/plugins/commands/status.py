@@ -49,17 +49,43 @@ def get_statuses(pav_cfg, args, errfile):
               note.
     """
 
-    if not args.tests:
+    if (not args.tests) and (not args.all):
         # Get the last series ran by this user.
         series_id = series.TestSeries.load_user_series_id()
         if series_id is not None:
             args.tests.append('s{}'.format(series_id))
             print("series id: " + str(series_id))
-
+    """
     if not args.tests:
         raise commands.CommandError("No tests found.")
+    """
 
     test_list = []
+
+    # user wants all tests
+    if args.all:
+        print("~~~~ALL TEST~~~")
+        if args.limit:
+            limit = args.limit
+        else:
+            limit = 10
+        print("limit: " + str(limit))
+        # Get latest test
+        last_series = series.TestSeries.load_user_series_id()
+        print("last_series = " + str(last_series))
+        last_tests = series.TestSeries.from_id(pav_cfg, last_series).tests
+        print("last_tests = " + str(last_tests))
+        last_test = max(last_tests, key=int)
+        print("last_test = " + str(last_test))
+        while limit is not 0:
+            test_list.append(last_test)
+            last_test = last_test - 1
+            limit = limit - 1
+    # user doesn't want all tests
+    else:
+        print("no all tests")
+
+    #test_list = []
     for test_id in args.tests:
         # Series 
         if test_id.startswith('s'):
@@ -80,6 +106,7 @@ def get_statuses(pav_cfg, args, errfile):
         else:
             test_list.append(test_id)
 
+    print(test_list)
     test_list = map(int, test_list)
 
     test_statuses = []
@@ -158,6 +185,14 @@ class StatusCommand(commands.Command):
             help='The name(s) of the tests to check.  These may be any mix of '
                  'test IDs and series IDs.  If no value is provided, the most '
                  'recent series submitted by this user is checked.'
+        )
+        parser.add_argument(
+            '-a', '--all', action='store_true',
+            help='Displays all tests within a certain limit.'
+        )
+        parser.add_argument(
+            '-l', '--limit', type=int,
+            help='If -a/--all is used, then --limit is the number of last SUITES.'
         )
 
     def run(self, pav_cfg, args):
