@@ -4,7 +4,8 @@ from pavilion import status_file
 from pavilion import utils
 from pavilion import series
 from pavilion.status_file import STATES
-from pavilion.pav_test import PavTest
+from pavilion.pav_test import PavTest, PavTestError, PavTestNotFoundError
+from pavilion.plugins.commands.status import print_from_test_obj
 import errno
 import sys
 import argparse
@@ -23,6 +24,10 @@ class CancelCommand(commands.Command):
         parser.add_argument(
             '-s', '--status', action='store_true', default=False,
             help='Prints status of cancelled jobs.'
+        )
+        parser.add_argument(
+            '-j', '--json', action='store_true', default=False,
+            help='Prints status of cancelled jobs in json format.'
         )
         parser.add_argument(
             'tests', nargs='*', action='store',
@@ -55,11 +60,12 @@ class CancelCommand(commands.Command):
 
         # Will only run if tests list is not empty. 
         if test_list:
-            update_list = test_list.copy()
+            update_list = []
             tlist = map(int, test_list)
             for test_id in tlist:
                 try:
                     test = PavTest.load(pav_cfg, test_id)
+                    update_list.append(test)
                     sched = schedulers.get_scheduler_plugin(test.scheduler)
 
                     stat = test.status.current()
@@ -84,7 +90,6 @@ class CancelCommand(commands.Command):
                     utils.fprint("Test {} could not be cancelled, cannot be" \
                                  " found. \n{}".format(test_id, err), file=self.errfile,
                                  color=utils.RED)
-                    update_list.remove(str(test_id))
                     continue
 
             # Gets updated list of tests that actually existed. 
@@ -94,14 +99,7 @@ class CancelCommand(commands.Command):
         # and test_list is not empty, therefore atleast 1 test
         # was a valid test
         if args.status and test_list:
-            string = []
-            parser = argparse.ArgumentParser()
-            status = commands.get_command('status')
-            status._setup_arguments(parser)
-            for test in test_list:
-                string.append(str(test))
-            args = parser.parse_args(string)
-            status.run(pav_cfg, args)
+            return print_from_test_obj(pav_cfg, test_list, self.outfile, args.json)
 
         return 0
 
