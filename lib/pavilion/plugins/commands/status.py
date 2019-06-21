@@ -54,10 +54,10 @@ def get_statuses(pav_cfg, args, errfile):
         if series_id is not None:
             args.tests.append('s{}'.format(series_id))
             print("series id: " + str(series_id))
-    """
-    if not args.tests:
+    
+    if (not args.tests) and (not args.all):
         raise commands.CommandError("No tests found.")
-    """
+   
 
     test_list = []
 
@@ -98,7 +98,7 @@ def get_statuses(pav_cfg, args, errfile):
             test_list.append(test_id)
 
     #test_list = test_list.sort(reverse = True)
-    print(test_list)
+    #print(test_list)
     test_list = map(int, test_list)
 
     test_statuses = []
