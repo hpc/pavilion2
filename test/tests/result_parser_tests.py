@@ -1,14 +1,10 @@
+import logging
+
+import yaml_config as yc
 from pavilion import arguments
-from pavilion import commands
-from pavilion import config
-from pavilion import module_wrapper
 from pavilion import plugins
 from pavilion import result_parsers
-from pavilion import system_variables
-from pavilion.test_config import variables
 from pavilion.unittest import PavTestCase
-import logging
-import subprocess
 
 LOGGER = logging.getLogger(__name__)
 
@@ -26,8 +22,6 @@ class ResultParserTests(PavTestCase):
 
         # We should have exactly one test plugin.
         self.assertEqual(len(result_parsers.list_plugins()), 1)
-
-        regex = result_parsers.get_plugin('regex')
 
         test_cfg = {
             'scheduler': 'raw',
@@ -53,7 +47,7 @@ class ResultParserTests(PavTestCase):
                     {
                         # Look all the log files, and save 'True' on match.
                         'key': 'true',
-                        'file': ['../run.log'],
+                        'files': ['../run.log'],
                         'regex': r'.* World',
                         'action': result_parsers.ACTION_TRUE,
                     },
@@ -61,7 +55,7 @@ class ResultParserTests(PavTestCase):
                         # As before, but false. Also, with lists of data.
                         'key': 'false',
                         # By multiple globs.
-                        'file': ['../run.log', 'other.*'],
+                        'files': ['../run.log', 'other.*'],
                         'regex': r'.* World',
                         'match_type': result_parsers.MATCH_ALL,
                         'action': result_parsers.ACTION_FALSE,
@@ -69,7 +63,7 @@ class ResultParserTests(PavTestCase):
                     {
                         # As before, but keep match counts.
                         'key': 'count',
-                        'file': ['../run.log', '*.log'],
+                        'files': ['../run.log', '*.log'],
                         'regex': r'.* World',
                         'match_type': result_parsers.MATCH_ALL,
                         'action': result_parsers.ACTION_COUNT,
@@ -78,7 +72,7 @@ class ResultParserTests(PavTestCase):
                     {
                         # Store matches by fullname
                         'key': 'fullname',
-                        'file': ['../run.log', '*.log'],
+                        'files': ['../run.log', '*.log'],
                         'regex': r'.* World',
                         'per_file': result_parsers.PER_FULLNAME,
                     },
@@ -87,27 +81,27 @@ class ResultParserTests(PavTestCase):
                         # Note there is a name conflict here between other.txt
                         # and other.log.
                         'key': 'name',
-                        'file': ['other.*'],
+                        'files': ['other.*'],
                         'regex': r'.* World',
                         'per_file': result_parsers.PER_NAME,
                     },
                     {
                         'key': 'lists',
-                        'file': ['other*'],
+                        'files': ['other*'],
                         'regex': r'.* World',
                         'match_type': result_parsers.MATCH_ALL,
                         'per_file': result_parsers.PER_LIST,
                     },
                     {
                         'key': 'all',
-                        'file': ['other*'],
+                        'files': ['other*'],
                         'regex': r'.* World',
                         'action': result_parsers.ACTION_TRUE,
                         'per_file': result_parsers.PER_ALL
                     },
                     {
                         'key': 'result',
-                        'file': ['other*'],
+                        'files': ['other*'],
                         'regex': r'.* World',
                         'action': result_parsers.ACTION_TRUE,
                         'per_file': result_parsers.PER_ANY
@@ -155,5 +149,82 @@ class ResultParserTests(PavTestCase):
 
         self.assertEqual(results['all'], False)
         self.assertEqual(results['result'], result_parsers.PASS)
+
+        plugins._reset_plugins()
+
+    def test_check_args(self):
+        plugins.initialize_plugins(self.pav_cfg)
+
+        # We should have exactly one test plugin.
+        self.assertEqual(len(result_parsers.list_plugins()), 1)
+
+        # Make sure we can check arguments.
+        test_cfg = {
+            'results': {
+                'regex': [
+                    {'key': 'ok', 'regex': r'foo'},
+                ]
+            }
+        }
+        test = self._quick_test(test_cfg, 'check_args_test')
+        result_parsers.check_args(test.config['results'])
+
+        # Make sure duplicate keys aren't allowed.
+        test_cfg = {
+            'results': {
+                'regex': [
+                    {'key': 'repeated', 'regex': r'foo'},
+                    {'key': 'repeated', 'regex': r'foo'},
+                ]
+            }
+        }
+        test = self._quick_test(test_cfg, 'check_args_test')
+        with self.assertRaises(result_parsers.ResultParserError):
+            result_parsers.check_args(test.config['results'])
+
+        # Make sure we handle bad key names.
+        test_cfg = {
+            'results': {
+                'regex': [
+                    {'key': '#!@123948aa', 'regex': r'foo'},
+                ]
+            }
+        }
+        with self.assertRaises(ValueError):
+            self._quick_test(test_cfg, 'check_args_test')
+
+        # Make sure we handle missing the 'key' attribute as expected.
+        test_cfg = {
+            'results': {
+                'regex': [
+                    {'regex': r'foo'},
+                ]
+            }
+        }
+        with self.assertRaises(ValueError):
+            self._quick_test(test_cfg, 'check_args_test')
+
+        # Make sure reserved keys aren't allowed.
+        test_cfg = {
+            'results': {
+                'regex': [
+                    {'key': 'started', 'regex': r'foo'},
+                ]
+            }
+        }
+        test = self._quick_test(test_cfg, 'check_args_test')
+        with self.assertRaises(result_parsers.ResultParserError):
+            result_parsers.check_args(test.config['results'])
+
+        # Missing a key for the parser plugin
+        test_cfg = {
+            'results': {
+                'regex': [
+                    {'key': 'nope'},
+                ]
+            }
+        }
+        with self.assertRaises(yc.RequiredError):
+            self._quick_test(test_cfg, 'check_args_test')
 
         plugins._reset_plugins()

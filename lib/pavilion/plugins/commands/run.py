@@ -14,6 +14,7 @@ from pavilion.plugins.commands.status import print_from_test_obj
 from pavilion.series import TestSeries, test_obj_from_id
 from pavilion.test_config.string_parser import ResolveError
 from pavilion.utils import fprint
+from pavilion import result_parsers
 
 class RunCommand(commands.Command):
 
@@ -125,7 +126,7 @@ class RunCommand(commands.Command):
         for test in all_tests:
             # Make sure the result parsers have reasonable arguments.
             try:
-                test.check_result_parsers()
+                result_parsers.check_args(test.config['results'])
             except PavTestError as err:
                 rp_errors.append(str(err))
 
