@@ -35,7 +35,6 @@ def status_from_test_obj(pav_cfg, test_obj):
             'note': status_f.note,
         })
 
-    #print(test_statuses.sort(key=lambda x: x['test_id'], reverse=True))
     #return test_statuses.sort(key=lambda x: x['test_id'], reverse=True)
     return test_statuses
 
@@ -64,28 +63,20 @@ def get_statuses(pav_cfg, args, errfile):
 
     # user wants all tests
     if args.all:
-        print("~~~~ALL TEST~~~")
         if args.limit:
             limit = args.limit
         else:
             limit = 10
-        print("limit: " + str(limit))
+        print("max # of tests displayed: " + str(limit))
         # Get latest test
         last_series = series.TestSeries.load_user_series_id()
-        print("last_series = " + str(last_series))
         last_tests = series.TestSeries.from_id(pav_cfg, last_series).tests
-        print("last_tests = " + str(last_tests))
         last_test = max(last_tests, key=int)
-        print("last_test = " + str(last_test))
         while limit is not 0:
             test_list.append(last_test)
             last_test = last_test - 1
             limit = limit - 1
-    # user doesn't want all tests
-    else:
-        print("no all tests")
 
-    #test_list = []
     for test_id in args.tests:
         # Series 
         if test_id.startswith('s'):
@@ -106,6 +97,7 @@ def get_statuses(pav_cfg, args, errfile):
         else:
             test_list.append(test_id)
 
+    #test_list = test_list.sort(reverse = True)
     print(test_list)
     test_list = map(int, test_list)
 
@@ -126,7 +118,6 @@ def get_statuses(pav_cfg, args, errfile):
 
 
     statuses = status_from_test_obj(pav_cfg, test_obj_list)
-    #print(test_obj_list)
 
     if statuses is not None:
         test_statuses = test_statuses + statuses
