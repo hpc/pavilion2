@@ -15,7 +15,7 @@ class Regex(result_parsers.ResultParser):
         config_items = super().get_config_items()
         config_items.extend([
             yc.StrElem(
-                'regex', default='',
+                'regex', required=True,
                 help_text="The python regex to use to search the given file. "
                           "See: 'https://docs.python.org/3/library/re.html' "
                           "You can use single quotes in YAML to have the "
@@ -28,7 +28,7 @@ class Regex(result_parsers.ResultParser):
 
         return config_items
 
-    def _check_args(self, test, regex=None, match_type=None):
+    def _check_args(self, regex=None, match_type=None):
 
         try:
             re.compile(regex)
