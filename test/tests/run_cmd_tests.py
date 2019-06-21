@@ -76,6 +76,7 @@ class RunCmdTests(PavTestCase):
         ])
 
         run_cmd = commands.get_command(args.command_name)
+        run_cmd.outfile = io.StringIO()
 
         self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
 
@@ -86,12 +87,25 @@ class RunCmdTests(PavTestCase):
         args = arg_parser.parse_args([
             'run',
             '-s',
-            '-j',
             'hello_world'
         ])
 
         run_cmd = commands.get_command(args.command_name)
+        run_cmd.outfile = io.StringIO()
 
         self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
 
+    def test_run_status_json(self):
 
+        arg_parser = arguments.get_parser()
+
+        args = arg_parser.parse_args([
+            'run',
+            '-s', '-j',
+            'hello_world'
+        ])
+
+        run_cmd = commands.get_command(args.command_name)
+        run_cmd.outfile = io.StringIO()
+
+        self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
