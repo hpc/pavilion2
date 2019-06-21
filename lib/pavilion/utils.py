@@ -403,7 +403,7 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
     max_widths = dict(column_widths)
 
     # Gets dictionary with largest width, and smalled width for each field. 
-    for field in column_widths.keys():
+    for field in fields:
         min_widths[field] = min(min_widths[field])
         max_widths[field] = max(max_widths[field])
 
@@ -439,12 +439,10 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
             boundaries.append(current)
 
         combos = []
-        i = 0
         # Creates all possible combinations. 
         for p in itertools.product(*(range(*b) for b in boundaries)):
             if sum(p) == window_width:
                 combos.append(list(p))
-            i += 1
 
         if combos:
             # Calculates the max number of wraps for a given column width
@@ -474,14 +472,14 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
             wrap_options = best_list
 
             best = sys.maxsize
-            best_c = []
+            best_config = []
             for config in wrap_options:
                 if statistics.stdev(config[0]) < best:
                     best = statistics.stdev(config[0])
-                    best_c = config
+                    best_config = config
 
             for i in range(len(fields)):
-                column_widths[fields[i]] = best_c[0][i]
+                column_widths[fields[i]] = best_config[0][i]
 
         else:
             # No optimal solutions could be found, no longer trying to wrap
@@ -489,8 +487,7 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
             wrap = False
 
     title_format = ' {{0:{0}s}} '.format(window_width-2)
-    if not wrap:
-        column_widths = max_widths
+
     # Generate the format string for each row.
     col_formats = []
     for field in fields:
@@ -562,6 +559,7 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
 
         for row in formatted_rows:
             outfile.write(row_format.format(**row))
+        outfile.write('\n')
         if border:
             outfile.write(horizontal_break)
 
