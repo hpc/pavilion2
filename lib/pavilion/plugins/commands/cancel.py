@@ -54,15 +54,26 @@ class CancelCommand(commands.Command):
                         "Suite {} could not be found.\n{}".format(test_id[1:],
                                 err), file=self.errfile, color=utils.RED
                     )
+                except ValueError as err:
+                    utils.fprint(
+                        "Suite {} is not a valid suite.\n{}"
+                        .format(test_id[1:], err), file=self.errfile, color=utils.RED
+                    )
                     continue
             else:
-                test_list.append(test_id)
+                try:
+                    test_list.append(int(test_id))
+                except ValueError as err:
+                    utils.fprint(
+                        "Test {} is not a valid test.\n{}".format(test_id,
+                                err), file=self.errfile, color=utils.RED
+                    )
+                    continue
 
         # Will only run if tests list is not empty. 
         if test_list:
             update_list = []
-            tlist = map(int, test_list)
-            for test_id in tlist:
+            for test_id in test_list:
                 try:
                     test = PavTest.load(pav_cfg, test_id)
                     update_list.append(test)
