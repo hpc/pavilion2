@@ -15,6 +15,7 @@ class CancelCmdTests(PavTestCase):
         plugins._reset_plugins()
 
     def test_cancel(self):
+        """Test cancel command with no arguments."""
 
         arg_parser = arguments.get_parser()
 
@@ -40,6 +41,7 @@ class CancelCmdTests(PavTestCase):
         self.assertEqual(cancel_cmd.run(self.pav_cfg, args), 0)
 
     def test_cancel_invalid_test(self):
+        """Test cancel command with invalid test."""
 
         arg_parser = arguments.get_parser()
 
@@ -55,6 +57,7 @@ class CancelCmdTests(PavTestCase):
         self.assertEqual(cancel_cmd.run(self.pav_cfg, args), 0)
 
     def test_cancel_invalid_series(self):
+        """Test cancel command with invalid series."""
 
         arg_parser = arguments.get_parser()
 
@@ -70,6 +73,7 @@ class CancelCmdTests(PavTestCase):
         self.assertEqual(cancel_cmd.run(self.pav_cfg, args), 0)
 
     def test_cancel_series_test(self):
+        """Test cancel command with combination of series and tests."""
 
         arg_parser = arguments.get_parser()
 
@@ -85,6 +89,7 @@ class CancelCmdTests(PavTestCase):
         self.assertEqual(cancel_cmd.run(self.pav_cfg, args), 0)
 
     def test_cancel_status_flag(self):
+        """Test cancel command with status flag."""
 
         arg_parser = arguments.get_parser()
 
@@ -100,6 +105,7 @@ class CancelCmdTests(PavTestCase):
         self.assertEqual(cancel_cmd.run(self.pav_cfg, args), 0)
 
     def test_cancel_status_json(self):
+        """Test cancel command with status flag and jason flag."""
 
         arg_parser = arguments.get_parser()
 
