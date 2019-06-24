@@ -64,8 +64,9 @@ def main():
     runner = unittest.TextTestRunner(
         resultclass=ColorResult,
         verbosity=2)
-    runner.run(suite)
+    result = runner.run(suite)
+    return len(result.errors) + len(result.failures)
 
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())
