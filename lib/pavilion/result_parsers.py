@@ -544,6 +544,7 @@ def parse_results(test, results):
                 raise ResultParserError("Invalid per_file value: {}"
                                         .format(per_file))
 
+    print("~~~~~RESULT: " + results['result'])
     if results['result'] not in (PASS, FAIL):
         if results['result'] is True:
             results['result'] = PASS
