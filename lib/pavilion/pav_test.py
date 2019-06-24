@@ -836,78 +836,6 @@ class PavTest:
                 raise TimeoutError("Timed out waiting for test '{}' to "
                                    "complete".format(self.id))
 
-    RESERVED_RESULT_KEYS = [
-        'name',
-        'id',
-        'created',
-        'started',
-        'finished',
-        'duration',
-    ]
-
-    def check_result_parsers(self):
-        """Make sure the result parsers are sensible.
-         - No duplicated key names.
-         - Sensible keynames: /[a-z0-9_-]+/
-         - No reserved key names.
-
-        :raises PavTestError: When a config breaks the rules.
-        """
-
-        used_parsers = self.config['results']
-
-        key_names = []
-
-        for rtype in used_parsers:
-            for rconf in self.config['results'][rtype]:
-                key = rconf.get('key')
-
-                if key is None:
-                    raise RuntimeError(
-                        "ResultParser config for parser '{}' missing key. "
-                        "This is an error with the result parser itself,"
-                        "probably.".format(rtype)
-                    )
-
-                regex = re.compile(result_parsers.ResultParser.KEY_REGEX_STR)
-
-                if regex.match(key) is None:
-                    raise RuntimeError(
-                        "ResultParser config for parser '{}' has invalid key."
-                        "Key does not match the required format. "
-                        "This is an error with the result parser itself, "
-                        "probably.".format(rtype)
-                    )
-
-                if key in key_names:
-                    raise PavTestError(
-                        "Duplicate result parser key name '{}' in test '{}'"
-                        .format(key, self.name)
-                    )
-
-                if key in self.RESERVED_RESULT_KEYS:
-                    raise PavTestError(
-                        "Result parser key '{}' in test '{}' is reserved."
-                        .format(key, self.name)
-                    )
-
-                key_names.append(key)
-
-                parser = result_parsers.get_plugin(rtype)
-                try:
-                    # The parser's don't know about the 'key' config item.
-                    args = rconf.copy()
-                    del args['key']
-
-                    parser.check_args(self, args)
-                except result_parsers.ResultParserError as err:
-                    raise PavTestError(
-                        "Test '{}' has a result parser of type '{}' with"
-                        "key '{}' that has invalid arguments: {}"
-                        .format(self.name, rtype,
-                                rconf.get('key', '<unset>'), err)
-                    )
-
     def gather_results(self, run_result):
         """Process and log the results of the test, including the default set
         of result keys.
@@ -965,28 +893,7 @@ class PavTest:
                         "Parsing {} result types."
                         .format(len(parser_configs)))
 
-        for parser_name in parser_configs.keys():
-            # This is almost guaranteed to work, as the config wouldn't
-            # have validated otherwise.
-            parser = result_parsers.get_plugin(parser_name)
-
-            for rconf in parser_configs[parser_name]:
-                try:
-                    # The parser's don't know about the 'key' config item.
-                    args = rconf.copy()
-                    del args['key']
-
-                    if 'file' not in args:
-                        args['file'] = self.run_log
-
-                    result = parser(self, **args)
-
-                    results[rconf['key']] = result
-                except (result_parsers.ResultParserError, KeyError) as err:
-                    self.LOGGER.warning(
-                        "Error parsing results for result parser '{}'"
-                        "with key '{}': {}"
-                        .format(parser.name, rconf.get('key', '<no_key>'), err))
+        results = result_parsers.parse_results(self, results)
 
         return results
 

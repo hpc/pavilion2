@@ -16,7 +16,9 @@ def has_slurm():
     global _HAS_SLURM
     if _HAS_SLURM is None:
         try:
-            _HAS_SLURM = subprocess.call(['sinfo', '--version']) == 0
+            _HAS_SLURM = subprocess.call(['sinfo', '--version'],
+                                         stdout=subprocess.DEVNULL,
+                                         stderr=subprocess.DEVNULL) == 0
         except (FileNotFoundError, subprocess.CalledProcessError):
             _HAS_SLURM = False
 
