@@ -64,10 +64,10 @@ class Command(result_parsers.ResultParser):
         # compare cmd_result with success value
         if cmd_result == str(success_value):
             print("command success")
-            return "COMMAND SUCCESS"
+            return "successful"
         else:
             print("command unsuccessful")
-            return "COMMAND UNSUCCESSFUL"
+            return "unsuccessful"
 
 
         return "success"
