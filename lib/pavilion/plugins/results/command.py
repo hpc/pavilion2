@@ -2,6 +2,7 @@ from pavilion import result_parsers
 import yaml_config as yc
 import re
 import os
+import subprocess
 
 
 class Command(result_parsers.ResultParser):
@@ -30,7 +31,8 @@ class Command(result_parsers.ResultParser):
             )
         # runs command
         else:
-            os.system(command)
+            #os.system(command)
+            subprocess.call(command, shell=True)
 
     def __call__(self, test, file, command=None):
 
