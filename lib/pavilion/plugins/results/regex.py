@@ -15,27 +15,20 @@ class Regex(result_parsers.ResultParser):
         config_items = super().get_config_items()
         config_items.extend([
             yc.StrElem(
-                'regex', default='',
+                'regex', required=True,
                 help_text="The python regex to use to search the given file. "
                           "See: 'https://docs.python.org/3/library/re.html' "
                           "You can use single quotes in YAML to have the "
                           "string interpreted literally. IE '\\n' is a '\\' "
                           "and an 'n'."
             ),
-            yc.StrElem(
-                'rtype', default='first',
-                choices=['first', 'all', 'last', 'PASS', 'FAIL'],
-                help_text="This can return the first, last, or all matches. "
-                          "If there are no matches the result will be null "
-                          "or an empty list. For 'PASS' and 'FAIL', simply "
-                          "return that value if a match was found (and the "
-                          "opposite otherwise."
-            )
+            # Use the built-in matches element.
+            result_parsers.MATCHES_ELEM
         ])
 
         return config_items
 
-    def _check_args(self, test, file=None, regex=None, rtype=None):
+    def _check_args(self, regex=None, match_type=None):
 
         try:
             re.compile(regex)
@@ -43,36 +36,25 @@ class Regex(result_parsers.ResultParser):
             raise result_parsers.ResultParserError(
                 "Invalid regular expression: {}".format(err))
 
-    def __call__(self, test, file=None, regex=None, rtype=None):
+    def __call__(self, test, file, regex=None, match_type=None):
 
         regex = re.compile(regex)
 
         matches = []
 
-        try:
-            with open(file, "r") as infile:
-                for line in infile.readlines():
-                    match = regex.search(line)
+        for line in file.readlines():
+            match = regex.search(line)
 
-                    if match is not None:
-                        matches.append(match.group())
-        except (IOError, OSError) as err:
-            raise result_parsers.ResultParserError(
-                "Regex result parser could not read input file '{}': {}"
-                .format(file, err)
-            )
+            if match is not None:
+                matches.append(match.group())
 
-        if rtype == 'first':
+        if match_type == result_parsers.MATCH_FIRST:
             return matches[0] if matches else None
-        elif rtype == 'last':
+        elif match_type == result_parsers.MATCH_LAST:
             return matches[-1] if matches else None
-        elif rtype == 'all':
+        elif match_type == result_parsers.MATCH_ALL:
             return matches
-        elif rtype in ['PASS', 'FAIL']:
-            if matches:
-                return rtype
-            else:
-                return 'PASS' if rtype == 'FAIL' else 'FAIL'
         else:
-            raise RuntimeError("Invalid 'results' argument in regex parser: "
-                               "'{}'".format(rtype))
+            raise result_parsers.ResultParserError(
+                "Invalid 'matches' value '{}'".format('matches')
+            )
