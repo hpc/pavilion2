@@ -42,7 +42,7 @@ class CancelCommand(commands.Command):
             # Get the last series ran by this user. 
             series_id = series.TestSeries.load_user_series_id()
             if series_id is not None:
-                args.tests.append('s{}'.format(series_id))
+                args.tests.append(series_id)
 
         test_list = []
         for test_id in args.tests:
@@ -51,15 +51,16 @@ class CancelCommand(commands.Command):
                     test_list.extend(series.TestSeries.from_id(pav_cfg,int(test_id[1:])).tests)
                 except series.TestSeriesError as err:
                     utils.fprint(
-                        "Suite {} could not be found.\n{}".format(test_id[1:],
+                        "Series {} could not be found.\n{}".format(test_id[1:],
                                 err), file=self.errfile, color=utils.RED
                     )
+                    return errno.EINVAL
                 except ValueError as err:
                     utils.fprint(
-                        "Suite {} is not a valid suite.\n{}"
+                        "Series {} is not a valid series.\n{}"
                         .format(test_id[1:], err), file=self.errfile, color=utils.RED
                     )
-                    continue
+                    return errno.EINVAL
             else:
                 try:
                     test_list.append(int(test_id))
@@ -68,49 +69,43 @@ class CancelCommand(commands.Command):
                         "Test {} is not a valid test.\n{}".format(test_id,
                                 err), file=self.errfile, color=utils.RED
                     )
-                    continue
+                    return errno.EINVAL
 
-        # Will only run if tests list is not empty. 
-        if test_list:
-            update_list = []
-            for test_id in test_list:
-                try:
-                    test = PavTest.load(pav_cfg, test_id)
-                    update_list.append(test)
-                    sched = schedulers.get_scheduler_plugin(test.scheduler)
+        test_object_list = []
+        for test_id in test_list:
+            try:
+                test = PavTest.load(pav_cfg, test_id)
+                sched = schedulers.get_scheduler_plugin(test.scheduler)
+                test_object_list.append(test)
 
-                    stat = test.status.current()
-                    # Won't try to cancel a completed job or a job that was 
-                    # previously cancelled. 
-                    if stat.state != STATES.COMPLETE and stat.state != STATES.SCHED_CANCELLED:
-                        # Sets status based on the result of sched.cancel_job. 
-                        # Ran into trouble when 'cancelling' jobs that never 
-                        # actually started, ie. build errors/created job states. 
-                        test.status.set(sched.cancel_job(test).state,
-                                     sched.cancel_job(test).note)
-                        utils.fprint("test {} cancelled."
-                                  .format(test_id), file=self.outfile,
-                                     color=utils.GREEN)
+                status = test.status.current()
+                # Won't try to cancel a completed job or a job that was 
+                # previously cancelled. 
+                if status.state != STATES.COMPLETE and status.state != STATES.SCHED_CANCELLED:
+                    # Sets status based on the result of sched.cancel_job. 
+                    # Ran into trouble when 'cancelling' jobs that never 
+                    # actually started, ie. build errors/created job states. 
+                    test.status.set(sched.cancel_job(test).state,
+                                 sched.cancel_job(test).note)
+                    utils.fprint("test {} cancelled."
+                              .format(test_id), file=self.outfile,
+                                 color=utils.GREEN)
 
-                    else:
-                        utils.fprint("test {} could not be cancelled, has state: {}."
-                            .format(test_id, stat.state), file=self.outfile,
-                                             color=utils.RED)
+                else:
+                    utils.fprint("test {} could not be cancelled, has state: {}."
+                        .format(test_id, status.state), file=self.outfile,
+                                         color=utils.RED)
 
-                except PavTestError as err:
-                    utils.fprint("Test {} could not be cancelled, cannot be" \
-                                 " found. \n{}".format(test_id, err), file=self.errfile,
-                                 color=utils.RED)
-                    continue
-
-            # Gets updated list of tests that actually existed. 
-            test_list = update_list
+            except PavTestError as err:
+                utils.fprint("Test {} could not be cancelled, cannot be" \
+                             " found. \n{}".format(test_id, err), file=self.errfile,
+                             color=utils.RED)
+                return errno.EINVAL
 
         # Only prints statuses of tests if option is selected
-        # and test_list is not empty, therefore atleast 1 test
-        # was a valid test
-        if args.status and test_list:
-            return print_from_test_obj(pav_cfg, test_list, self.outfile, args.json)
+        # and test_list is not empty
+        if args.status and test_object_list:
+            return print_from_test_obj(pav_cfg, test_object_list, self.outfile, args.json)
 
         return 0
 
