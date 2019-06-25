@@ -1,5 +1,6 @@
-import yaml_config as yc
+from collections import defaultdict
 import re
+import yaml_config as yc
 
 
 class TestConfigError(ValueError):
@@ -213,22 +214,22 @@ class TestConfigLoader(yc.YamlConfigLoader):
         """
 
         # Validate the config.
-        found_key = False
-        found_file = False
+        required_keys = {
+            'key': False,
+            'files': False,
+            'action': False,
+            'per_file': False,
+        }
         for item in config_items:
-            if item.name == 'key' and item.required:
-                found_key = True
-            elif item.name == 'file':
-                found_file = True
+            for req_key in required_keys.keys():
+                if item.name == req_key:
+                    required_keys[req_key] = True
 
-        if not found_key:
-            raise TestConfigError(
-                "Result parser '{}' must have a required config "
-                "element named 'key'".format(name))
-        if not found_file:
-            raise TestConfigError(
-                "Result parser '{}' must have a config element named 'file'."
-                .format(name))
+        for req_key, found in required_keys.items():
+            if not found:
+                raise TestConfigError(
+                    "Result parser '{}' must have a required config "
+                    "element named '{}'".format(name, req_key))
 
         config = yc.KeyedElem(
             'result_parser_{}'.format(name),
