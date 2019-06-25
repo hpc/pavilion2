@@ -416,9 +416,10 @@ class PavTest:
                 # Make a symlink in the build directory that points to
                 # the original test that built it
                 try:
-                    dst = str(self.build_origin) + "/test"
-                    src = str(self.path)
-                    os.symlink(src, dst)
+                    dst = self.build_origin / 'test'
+                    src = self.path
+                    dst.symlink_to(src, True)
+                    dst.resolve()
                 except: 
                     self.LOGGER.warning("Could not create symlink to test")
 
