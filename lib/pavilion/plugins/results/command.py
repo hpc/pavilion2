@@ -39,6 +39,7 @@ class Command(result_parsers.ResultParser):
             raise result_parsers.ResultParserError(
                 "command, success, and success_value are required"
             )
+        """
         # runs command
         else:
             cmd_result = ""
@@ -67,7 +68,36 @@ class Command(result_parsers.ResultParser):
             else: 
                 print("command unsuccessful")
                 success_value = "command_unsuccessful"
+        """
 
     def __call__(self, test, file, command=None, success=None, success_value=None):
+
+        # run command
+        cmd_result = ""
+        # get output
+        if success == "output":
+            try:
+                cmd_result = subprocess.check_output(command,
+                    stderr=subprocess.STDOUT,
+                    shell=True).decode("utf-8")
+                cmd_result = str(cmd_result)
+                print("out: " + cmd_result)
+            except:
+                print("output: command did not work")
+        # get return value
+        else:
+            try:
+                cmd_result = str(subprocess.call(command, shell=True))
+                print("return value: " + cmd_result)
+            except:
+                print("return value: command did not work")
+        # compare cmd_result with success value
+        if cmd_result == str(success_value):
+            print("command success")
+            return "COMMAND SUCCESS"
+        else:
+            print("command unsuccessful")
+            return "COMMAND UNSUCCESSFUL"
+
 
         return "success"
