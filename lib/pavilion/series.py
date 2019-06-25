@@ -107,43 +107,33 @@ class TestSeries:
         # Save the last series we created to the .pavilion directory
         # in the user's home dir. Pavilion commands can use this so the
         # user doesn't actually have to know the series_id of tests.
-        user_pav_dir = Path(os.path.expanduser('~/.pavilion'))
-        last_series_fn = user_pav_dir/'last_series'
-        try:
-            if not user_pav_dir.is_dir():
-                user_pav_dir.mkdir()
 
+        last_series_fn = self.pav_cfg.working_dir/'users'
+        last_series_fn /= '{}.series'.format(utils.get_login())
+        try:
             with last_series_fn.open('w') as last_series_file:
-                last_series_file.write(str(self._id))
+                last_series_file.write(self.id)
         except (IOError, OSError):
             # It's ok if we can't write this file.
             self._logger.warning("Could not save series id to '{}'"
                                  .format(last_series_fn))
 
     @classmethod
-    def load_user_series_id(cls):
+    def load_user_series_id(cls, pav_cfg):
         """Load the last series id used by the current user."""
         logger = logging.getLogger(cls.LOGGER_FMT.format('<unknown>'))
 
-        user_pav_dir = Path(os.path.expanduser('~/.pavilion'))
-        last_series_fn = user_pav_dir/'last_series'
+        last_series_fn = pav_cfg.working_dir/'users'
+        last_series_fn /= '{}.series'.format(utils.get_login())
+
         if not last_series_fn.exists():
             return None
         try:
             with last_series_fn.open() as last_series_file:
-                raw_series_id = last_series_file.read().strip()
+                return last_series_file.read().strip()
         except (IOError, OSError) as err:
             logger.warning("Failed to read series id file '{}': {}"
                            .format(last_series_fn, err))
-            return None
-
-        try:
-            return int(raw_series_id)
-        except ValueError:
-            logger.warning(
-                "Could not load series id from '{}'. Invalid value: '{}'"
-                .format(last_series_fn, raw_series_id)
-            )
             return None
 
     @property
