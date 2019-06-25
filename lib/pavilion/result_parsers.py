@@ -1,13 +1,14 @@
-from .test_config import format
-from yapsy import IPlugin
-import inspect
 import glob
-from pathlib import Path
+import inspect
 import logging
-import yaml_config as yc
-from .test_config import variables
+import re
 from collections import OrderedDict
+from pathlib import Path
 
+import yaml_config as yc
+from yapsy import IPlugin
+from .test_config import format
+from .test_config import variables
 
 LOGGER = logging.getLogger(__file__)
 
@@ -117,43 +118,49 @@ class ResultParser(IPlugin.IPlugin):
 
     def __call__(self, test, file, **kwargs):
         """This is where the result parser is actually implemented.
+        :param pavilion.pav_test.PavTest test: The test run object.
+        :param file: This will be a file object or a string, depending on the
+        parser's 'open_mode' setting in __init__.
         :param dict kwargs: The arguments are the config values from the the
-        test's result config section for this parser.
+        test's result config section for this parser. These should be
+        explicitly defined in your result parser class.
         :raises ResultParserError: When something goes wrong.
         """
 
         raise NotImplementedError("A result parser plugin must implement"
                                   "the __call__ method.")
 
-    def _check_args(self, test, **kwargs):
+    def _check_args(self, **kwargs):
         """Override this to add custom checking of the arguments at test
         kickoff time. This prevents errors in your arguments from causing
         a problem in the middle of a test run. The yaml_config module handles
         structural checking (and can handle more). This should raise a
         descriptive ResultParserError if any issues are found.
-        :param pavilion.test_config.PavTest test: The test object that this
-            result parser will be working with.
         :param kwargs: Child result parsers should override these with
             specific kwargs for their arguments. They should all default to
             and rely on the config parser to set their defaults.
+        raises ResultParserError: If there are bad arguments.
         """
 
         pass
 
-    def check_args(self, test, args):
+    def check_args(self, **kwargs):
         """Check the arguments for any errors at test kickoff time, if they
         don't contain deferred variables. We can't check tests with
         deferred args. On error, should raise a ResultParserError.
-        :param pavilion.pav_test.PavTest test: The test to check against.
         :param dict args: The arguments from the config.
         """
 
-        if variables.VariableSetManager.has_deferred(args):
+        # The presence or absence of needed args should be enforced by
+        # setting 'required' in the yaml_config config items.
+
+        # Don't check args if they have deferred values.
+        if variables.VariableSetManager.has_deferred(kwargs):
             return
 
-        self._check_args(test, **args)
+        self._check_args(**kwargs)
 
-    KEY_REGEX_STR = r'^[a-z0-9_-]+$'
+    KEY_REGEX_STR = r'^[a-zA-Z0-9_-]+$'
 
     def get_config_items(self):
         """Get the config for this result parser. This should be a list of
@@ -162,13 +169,10 @@ class ResultParser(IPlugin.IPlugin):
         list of yaml_config.StrElem objects, but any structure is allowed
         as long as the leaf elements are StrElem type.
 
-        Every result parser is expected to take the following arguments:
-            'file' - The path to the file to examine (relative to the test
-                     build directory), defaults to the test run's log.
-                     Some parsers may ignore (or change the meaning of)
-                     this argument.
-            'key' - The name to give the result in the result json. (No
-                    default)
+        The config values will be passed as the keyword arguments to the
+        result parser when it's run and when it's arguments are checked. Those
+        values listed below are handled by the base class, and won't be passed,
+        however.
 
         Example:
             config_items = super().get_config_items()
@@ -206,7 +210,7 @@ class ResultParser(IPlugin.IPlugin):
             ),
             # The default for the file is handled by the test object.
             yc.ListElem(
-                "file",
+                "files",
                 sub_elem=yc.StrElem(),
                 defaults=['../run.log'],
                 help_text="Path to the file/s that this result parser "
@@ -294,6 +298,71 @@ class ResultParser(IPlugin.IPlugin):
         del _RESULT_PARSERS[self.name]
 
 
+RESERVED_RESULT_KEYS = [
+    'name',
+    'id',
+    'created',
+    'started',
+    'finished',
+    'duration',
+]
+
+
+def check_args(parser_configs):
+    """Make sure the result parsers are sensible.
+     - No duplicated key names.
+     - Sensible keynames: /[a-z0-9_-]+/
+     - No reserved key names.
+
+    :raises PavTestError: When a config breaks the rules.
+    """
+
+    key_names = []
+
+    for rtype in parser_configs:
+        for rconf in parser_configs[rtype]:
+            key = rconf.get('key')
+
+            if key is None:
+                raise RuntimeError(
+                    "ResultParser config for parser '{}' missing key. "
+                    "This is an error with the result parser itself,"
+                    "probably.".format(rtype)
+                )
+
+            regex = re.compile(ResultParser.KEY_REGEX_STR)
+
+            if regex.match(key) is None:
+                raise RuntimeError(
+                    "ResultParser config for parser '{}' has invalid key."
+                    "Key does not match the required format. "
+                    "This is an error with the result parser itself, "
+                    "probably.".format(rtype)
+                )
+
+            if key in key_names:
+                raise ResultParserError(
+                    "Duplicate result parser key name '{}' under parser '{}'"
+                    .format(key, rtype)
+                )
+
+            if key in RESERVED_RESULT_KEYS:
+                raise ResultParserError(
+                    "Result parser key '{}' under parser '{}' is reserved."
+                    .format(key, rtype)
+                )
+
+            key_names.append(key)
+
+            parser = get_plugin(rtype)
+            # The parser's don't know about the 'key' config item.
+            args = rconf.copy()
+            for key in ('key', 'action', 'per_file', 'files'):
+                del args[key]
+
+            parser.check_args(**args)
+
+
 def parse_results(test, results):
     """
     :param pavilion.pav_test.PavTest test: The pavilion test run to gather
@@ -321,14 +390,14 @@ def parse_results(test, results):
             # Grab these for local use.
             action = rconf['action']
             key = rconf['key']
-            globs = rconf['file']
+            globs = rconf['files']
             per_file = rconf['per_file']
 
             try:
                 # These config items are used here, but not expected by the
                 # parsers themselves.
                 args = rconf.copy()
-                for k in 'key', 'file', 'action', 'per_file':
+                for k in 'key', 'files', 'action', 'per_file':
                     del args[k]
             except KeyError as err:
                 raise ResultParserError(
