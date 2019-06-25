@@ -27,7 +27,7 @@ class LogCommand(commands.Command):
     def _setup_arguments(self, parser):
 
         subparsers = parser.add_subparsers(
-            dest="show_cmd",
+            dest="log_cmd",
             help="Types of information to show."
         )
 
@@ -54,15 +54,15 @@ class LogCommand(commands.Command):
             description="""Displays summary of build."""
         )
 
-        parser.add_argument('test', help="Test number argument.", type=int)
+        parser.add_argument('test', help="Test number argument.")
 
     def run(self, pav_cfg, args):
 
-        if args.show_cmd is None:
+        if args.log_cmd is None:
             self._parser.print_help(self.outfile)
             return errno.EINVAL
         else:
-            cmd_name = args.show_cmd
+            cmd_name = args.log_cmd
 
         if 'run'.startswith(cmd_name):
             file_name = str(pav_cfg.working_dir) + "/tests/" +str(args.test).zfill(7) + "/run.log"
