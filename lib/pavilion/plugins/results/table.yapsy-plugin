@@ -1,0 +1,9 @@
+[Core]
+Name = Table Result Parser
+Module = table
+
+[Documentation]
+Description = Parses tables in a string format
+Author = Francine
+Version = 1.0
+Website =
