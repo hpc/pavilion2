@@ -71,8 +71,8 @@ class CancelCmdTests(PavTestCase):
         cancel_cmd.errfile = StringIO()
 
         test = []
-        series_id = series.TestSeries.load_user_series_id()
-        test.append('s{}'.format(series_id))
+        series_id = series.TestSeries.load_user_series_id(self.pav_cfg)
+        test.append(series_id)
         test_list = []
         test_list.extend(series.TestSeries.from_id(self.pav_cfg,
                                                    int(test[0][1:])).tests)

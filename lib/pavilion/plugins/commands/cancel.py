@@ -40,9 +40,9 @@ class CancelCommand(commands.Command):
 
         if not args.tests:
             # Get the last series ran by this user. 
-            series_id = series.TestSeries.load_user_series_id()
+            series_id = series.TestSeries.load_user_series_id(pav_cfg)
             if series_id is not None:
-                args.tests.append('s{}'.format(series_id))
+                args.tests.append(series_id)
 
         test_list = []
         for test_id in args.tests:
