@@ -3,6 +3,9 @@ from pavilion import commands
 from pavilion import schedulers
 from pavilion.unittest import PavTestCase
 from pavilion import arguments
+from pavilion import series
+from pavilion.pav_test import PavTest
+from pavilion.status_file import STATES
 from pavilion.plugins.commands.status import get_statuses
 from io import StringIO
 import sys
@@ -43,6 +46,42 @@ class CancelCmdTests(PavTestCase):
         cancel_cmd.errfile = StringIO()
 
         self.assertEqual(cancel_cmd.run(self.pav_cfg, args), 0)
+
+    def test_cancel_slurm_check(self):
+        """Cancel Test and make sure it is cancelled through scheduler."""
+
+        arg_parser = arguments.get_parser()
+
+        args = arg_parser.parse_args([
+            'run',
+            '-H', 'this'
+            'hello_world2'
+        ])
+
+        run_cmd = commands.get_command(args.command_name)
+        run_cmd.outfile = StringIO()
+        run_cmd.run(self.pav_cfg, args)
+
+        args = arg_parser.parse_args([
+            'cancel'
+        ])
+
+        cancel_cmd = commands.get_command(args.command_name)
+        cancel_cmd.outfile = StringIO()
+        cancel_cmd.errfile = StringIO()
+
+        test = []
+        series_id = series.TestSeries.load_user_series_id()
+        test.append('s{}'.format(series_id))
+        test_list = []
+        test_list.extend(series.TestSeries.from_id(self.pav_cfg,
+                                                   int(test[0][1:])).tests)
+        for test_id in test_list:
+            test = PavTest.load(self.pav_cfg, test_id)
+            if test.status.current().state != STATES.COMPLETE:
+                sched = schedulers.get_scheduler_plugin(test.scheduler)
+                sched_status = sched.job_status(self.pav_cfg, test)
+                self.assertIn("SCHED_CANCELLED", str(sched_status))
 
     def test_wait_cancel(self):
         """Test cancel command after waiting for tests to start."""
