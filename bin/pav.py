@@ -29,11 +29,13 @@ def main():
         sys.exit(-1)
 
     # Create the basic directories in the working directory
-    for path in [pav_cfg.working_dir,
-                 pav_cfg.working_dir/'builds',
-                 pav_cfg.working_dir/'tests',
-                 pav_cfg.working_dir/'series',
-                 pav_cfg.working_dir/'downloads']:
+    for path in [
+            pav_cfg.working_dir,
+            pav_cfg.working_dir/'builds',
+            pav_cfg.working_dir/'downloads',
+            pav_cfg.working_dir/'series',
+            pav_cfg.working_dir/'tests',
+            pav_cfg.working_dir/'users']:
         if not path.exists():
             try:
                 path.mkdir()

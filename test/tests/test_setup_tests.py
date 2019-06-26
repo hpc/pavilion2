@@ -24,7 +24,7 @@ class TestSetupTests(PavTestCase):
         # There should have only been 1
         self.assertFalse(tests)
         # Check some basic test attributes.
-        self.assertEqual(hello['scheduler'], 'slurm')
+        self.assertEqual(hello['scheduler'], 'raw')
         self.assertEqual(hello['suite'], 'hello_world')
         # Make sure the variable from the host config got propagated.
         self.assertIn('hosty', hello['variables'])
