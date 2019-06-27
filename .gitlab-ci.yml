@@ -6,6 +6,9 @@ run_tests:
         - pavilion
     image: pavilion
     script:
+        - pushd $CI_PROJECT_DIR
+        - git checkout $CI_COMMIT_SHA
+        - git submodule update --init --recursive
         - env
         - python3 -c "print('hello world')"
 
