@@ -822,6 +822,10 @@ class PavTest:
             if run_complete_file.exists():
                 return
 
+            time.sleep(self.WAIT_INTERVAL)
+            from pavilion import utils
+            utils.dbg_print(self.status.current())
+
             if timeout is not None and time.time() > timeout:
                 raise TimeoutError("Timed out waiting for test '{}' to "
                                    "complete".format(self.id))
