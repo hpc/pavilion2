@@ -8,6 +8,7 @@ import logging
 import os
 import sys
 import time
+import subprocess
 
 def get_login():
     """Get the current user's login, either through os.getlogin or
