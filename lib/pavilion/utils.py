@@ -1,7 +1,6 @@
 # This file contains assorted utility functions.
 
 from pathlib import Path
-from pavilion import lockfile
 import csv
 import json
 import os
@@ -80,38 +79,6 @@ def make_id_path(base_path, id_):
     """
 
     return base_path/(ID_FMT.format(id=id_, digits=ID_DIGITS))
-
-
-def create_id_dir(id_dir):
-    """In the given directory, create the lowest numbered (positive integer)
-    directory that doesn't already exist.
-    :param Path id_dir: Path to the directory that contains these 'id'
-        directories
-    :returns: The id and path to the created directory.
-    :rtype: list(int, Path)
-    :raises OSError: on directory creation failure.
-    :raises TimeoutError: If we couldn't get the lock in time.
-
-    """
-
-    lockfile_path = id_dir/'.lockfile'
-    with lockfile.LockFile(lockfile_path, timeout=1):
-        ids = os.listdir(str(id_dir))
-        # Only return the test directories that could be integers.
-        ids = filter(str.isdigit, ids)
-        ids = filter(lambda d: (id_dir/d).is_dir(), ids)
-        ids = list(map(int, ids))
-        ids.sort()
-
-        # Find the first unused id.
-        id_ = 1
-        while id_ in ids:
-            id_ += 1
-
-        path = make_id_path(id_dir, id_)
-        path.mkdir()
-
-    return id_, path
 
 
 def get_login():
