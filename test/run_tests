@@ -12,7 +12,7 @@ sys.path.append(os.path.abspath('../lib'))
 
 from pavilion import utils
 
-logging_root = '/tmp/{user}'.format(user=utils.getlogin())
+logging_root = '/tmp/{user}'.format(user=utils.get_login())
 if not os.path.exists(logging_root):
     os.makedirs(logging_root)
 log_path = os.path.join(logging_root, 'pavilion_tests.log')

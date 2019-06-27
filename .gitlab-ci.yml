@@ -5,10 +5,10 @@ run_tests:
     tags:
         - pavilion
     image: pavilion
+    variables:
+        GIT_SUBMODULE_STRATEGY: recursive
     script:
         - pushd $CI_PROJECT_DIR
-        - git checkout $CI_COMMIT_SHA
-        - git submodule update --init --recursive
         - pushd test
         - ./run_tests
 
