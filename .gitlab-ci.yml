@@ -7,5 +7,7 @@ run_tests:
     script:
         - pushd $CI_PROJECT_DIR
         - pushd test
+        # Put in place by docker
+        - cp /usr/share/pavilion.yaml data/pavilion_config_dir/pavilion.yaml
         - ./run_tests
 
