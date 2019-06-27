@@ -9,7 +9,27 @@ import os
 import sys
 import time
 
-log_dir = '/tmp/{}'.format(os.getlogin())
+def get_login():
+    """Get the current user's login, either through os.getlogin or
+    the environment, or the id command."""
+
+    try:
+        return os.getlogin()
+    except OSError:
+        pass
+
+    if 'USER' in os.environ:
+        return os.environ['USER']
+
+    try:
+        name = subprocess.check_output(['id', '-un'],
+                                       stderr=subprocess.DEVNULL)
+        return name.decode('utf8').strip()
+    except Exception:
+        raise RuntimeError(
+            "Could not get the name of the current user.")
+
+log_dir = '/tmp/{}'.format(get_login())
 if not os.path.exists(log_dir):
     os.makedirs(log_dir)
 logging.basicConfig(filename=os.path.join(log_dir, 'pavilion_tests.log'))
