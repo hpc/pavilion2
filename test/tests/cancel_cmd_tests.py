@@ -47,7 +47,7 @@ class CancelCmdTests(PavTestCase):
 
         self.assertEqual(cancel_cmd.run(self.pav_cfg, args), 0)
 
-    def test_cancel_slurm_check(self):
+    def test_cancel_sched_check(self):
         """Cancel Test and make sure it is cancelled through scheduler."""
 
         arg_parser = arguments.get_parser()
@@ -175,8 +175,29 @@ class CancelCmdTests(PavTestCase):
         arg_parser = arguments.get_parser()
 
         args = arg_parser.parse_args([
+            'run',
+            '-H', 'this',
+            'hello_world.hello',
+            'hello_world.world'
+        ])
+
+        run_cmd = commands.get_command(args.command_name)
+        run_cmd.outfile = StringIO()
+        run_cmd.run(self.pav_cfg, args)
+
+        tests = []
+
+        series_id = series.TestSeries.load_user_series_id(self.pav_cfg)
+        tests.append(series_id)
+
+        tests.extend(series.TestSeries.from_id(self.pav_cfg,
+                                               int(series_id[1:])).tests)
+
+        args = arg_parser.parse_args([
             'cancel',
-            's23', '124', 's2'
+            tests[0],
+            str(tests[1]),
+            str(tests[2])
         ])
 
         cancel_cmd = commands.get_command(args.command_name)
@@ -189,6 +210,16 @@ class CancelCmdTests(PavTestCase):
         """Test cancel command with status flag."""
 
         arg_parser = arguments.get_parser()
+
+        args = arg_parser.parse_args([
+            'run',
+            '-H', 'this',
+            'hello_world.world'
+        ])
+
+        run_cmd = commands.get_command(args.command_name)
+        run_cmd.outfile = StringIO()
+        run_cmd.run(self.pav_cfg, args)
 
         args = arg_parser.parse_args([
             'cancel',
@@ -205,6 +236,16 @@ class CancelCmdTests(PavTestCase):
         """Test cancel command with status flag and json flag."""
 
         arg_parser = arguments.get_parser()
+
+        args = arg_parser.parse_args([
+            'run',
+            '-H', 'this',
+            'hello_world.world'
+        ])
+
+        run_cmd = commands.get_command(args.command_name)
+        run_cmd.outfile = StringIO()
+        run_cmd.run(self.pav_cfg, args)
 
         args = arg_parser.parse_args([
             'cancel',
