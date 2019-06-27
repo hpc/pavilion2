@@ -1,7 +1,3 @@
-before_script:
-    - pushd $CI_PROJECT_DIR/lib/sub_repos/pytz
-    - make build
-
 run_tests:
     tags:
         - pavilion
