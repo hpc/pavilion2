@@ -4,6 +4,6 @@ Module = cancel
 
 [Documentation]
 Description = Command to cancel tests
-Author = Kody Everson
+Author = Kody  J. Everson
 Version = 1.0
 Website =
