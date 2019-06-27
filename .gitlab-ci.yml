@@ -1,3 +1,7 @@
+before_script:
+    - groupadd pav_tester
+    - useradd -G pav_tester -m pav 
+
 run_tests:
     tags:
         - pavilion
@@ -5,9 +9,10 @@ run_tests:
     variables:
         GIT_SUBMODULE_STRATEGY: recursive
     script:
-        - pushd $CI_PROJECT_DIR
-        - pushd test
-        # Put in place by docker
-        - cp /usr/share/pavilion.yaml data/pav_config_dir/pavilion.yaml
-        - ./run_tests
+        # The original is put in place by docker
+        - cp /usr/share/pavilion.yaml $CI_PROJECT_DIR/test/data/pav_config_dir/pavilion.yaml
+        - chmod g+A $CI_PROJECT_DIR
+        - chgrp -R pav_tester $CI_PROJECT_DIR
+        - pushd $CI_PROJECT_DIR/test
+        - sudo -u pav ./run_tests
 
