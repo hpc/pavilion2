@@ -1,6 +1,7 @@
 from pathlib import Path
 from pavilion import module_wrapper
 from pavilion.module_actions import ModuleAction
+from pavilion import utils
 import datetime
 import grp
 import os
@@ -154,7 +155,7 @@ class ScriptDetails(object):
     @group.setter
     def group(self, value):
         if value is None:
-            value = os.environ['USER']
+            value = utils.get_login()
 
         self._group = str(value)
 
