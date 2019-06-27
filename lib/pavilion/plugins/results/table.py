@@ -1,7 +1,6 @@
 from pavilion import result_parsers
 from pavilion import config
 import yaml_config as yc
-#import numpy as np
 import pavilion.test_config
 import re
 
@@ -34,9 +33,6 @@ class Table(result_parsers.ResultParser):
             raise result_parsers.ResultParserError(
                 "row AND column names required"
             )
-        else:
-            print("rows: " + str(row_names))
-            print("columns: " + str(col_names))
 
     def __call__(self, test, file, row_names=None, col_names=None):
 
@@ -49,7 +45,15 @@ class Table(result_parsers.ResultParser):
                 res = any(ele in str(line) for ele in row_col_names)
                 if res is True:
                     table_str = table_str + line
-        
-        #table_vals = np.genfromtxt(table_str, dtype=str, skip_header=1)
 
-        return table_str
+        nums_only = re.findall(r'\d+\.\d+', table_str)
+
+        table = {}
+        i = 0
+        for r in range(0,len(row_names)):
+            table[row_names[r]] = {}
+            for c in range(0, len(col_names)):
+                table[row_names[r]][col_names[c]] = nums_only[i]
+                i = i + 1
+
+        return table
