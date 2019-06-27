@@ -1,5 +1,8 @@
 from pavilion import result_parsers
+from pavilion import config
 import yaml_config as yc
+#import numpy as np
+import pavilion.test_config
 import re
 
 
@@ -37,4 +40,16 @@ class Table(result_parsers.ResultParser):
 
     def __call__(self, test, file, row_names=None, col_names=None):
 
-        return " "
+        table_str = ""
+        row_col_names = []
+        row_col_names.extend(row_names)
+        row_col_names.extend(col_names)
+        with open(file.name, 'r'):
+            for line in file:
+                res = any(ele in str(line) for ele in row_col_names)
+                if res is True:
+                    table_str = table_str + line
+        
+        #table_vals = np.genfromtxt(table_str, dtype=str, skip_header=1)
+
+        return table_str
