@@ -36,7 +36,7 @@ class Regex(result_parsers.ResultParser):
             raise result_parsers.ResultParserError(
                 "Invalid regular expression: {}".format(err))
 
-    def __call__(self, test, file, action, per_file, regex=None, match_type=None):
+    def __call__(self, test, file, regex=None, match_type=None):
 
         regex = re.compile(regex)
 
