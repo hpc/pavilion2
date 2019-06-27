@@ -7,8 +7,12 @@ import sys
 import unittest
 import argparse
 
+# Setup our paths to the pavilion libraries.
+sys.path.append(os.path.abspath('../lib'))
 
-logging_root = '/tmp/{user}'.format(user=os.environ['USER'])
+from pavilion import utils
+
+logging_root = '/tmp/{user}'.format(user=utils.getlogin())
 if not os.path.exists(logging_root):
     os.makedirs(logging_root)
 log_path = os.path.join(logging_root, 'pavilion_tests.log')
@@ -19,9 +23,6 @@ console.setFormatter(logging.Formatter(fmt='\x1b[2m{message}\x1b[0m',
                                        style='{'))
 
 logging.getLogger('').handlers.pop(0)
-
-# Setup our paths to the pavilion libraries.
-sys.path.append(os.path.abspath('../lib'))
 
 
 def main():
