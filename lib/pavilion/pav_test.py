@@ -825,6 +825,7 @@ class PavTest:
             time.sleep(self.WAIT_INTERVAL)
             from pavilion import utils
             utils.dbg_print(self.status.current())
+            utils.dbg_print(list(self.path.iterdir()))
 
             if timeout is not None and time.time() > timeout:
                 raise TimeoutError("Timed out waiting for test '{}' to "
