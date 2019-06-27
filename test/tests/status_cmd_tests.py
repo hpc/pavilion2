@@ -7,6 +7,7 @@ from pavilion.series import TestSeries
 from pavilion.test_config import format
 from pavilion.unittest import PavTestCase
 from pavilion.pav_test import PavTest
+from pavilion import utils
 import argparse
 import io
 

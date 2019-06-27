@@ -3,6 +3,7 @@ from pathlib import Path
 from collections import OrderedDict
 from pavilion import scriptcomposer
 from pavilion.unittest import PavTestCase
+from pavilion import utils
 
 class TestConfig(PavTestCase):
 
@@ -59,7 +60,7 @@ class TestConfig(PavTestCase):
         # Testing initialization and defaults.
         testDetails = scriptcomposer.ScriptDetails()
 
-        self.assertEqual(testDetails.group, os.environ['USER'])
+        self.assertEqual(testDetails.group, utils.get_login())
         self.assertEqual(testDetails.perms, oct(0o770))
 
         # Testing individual assignment.
@@ -74,7 +75,7 @@ class TestConfig(PavTestCase):
         # Testing reset.
         testDetails.reset()
 
-        self.assertEqual(testDetails.group, os.environ['USER'])
+        self.assertEqual(testDetails.group, utils.get_login())
         self.assertEqual(testDetails.perms, oct(0o770))
 
         # Testing initialization assignment.
@@ -123,7 +124,7 @@ class TestConfig(PavTestCase):
         self.assertEqual(testComposer.header.shell_path, '#!/bin/bash')
         self.assertEqual(testComposer.header.scheduler_headers, [])
 
-        self.assertEqual(testComposer.details.group, os.environ['USER'])
+        self.assertEqual(testComposer.details.group, utils.get_login())
         self.assertEqual(testComposer.details.perms, oct(0o770))
 
         # Testing individual assignment
@@ -161,7 +162,7 @@ class TestConfig(PavTestCase):
         self.assertEqual(testComposer.header.shell_path, '#!/bin/bash')
         self.assertEqual(testComposer.header.scheduler_headers, [])
 
-        self.assertEqual(testComposer.details.group, os.environ['USER'])
+        self.assertEqual(testComposer.details.group, utils.get_login())
         self.assertEqual(testComposer.details.perms, oct(0o770))
 
         # Testing object assignment.
