@@ -1,8 +1,9 @@
-before_script:
-    - git clone https://git.lanl.gov/hpcsoft/pavilion2
+#before_script:
+#    - git clone https://git.lanl.gov/hpcsoft/pavilion2
 
 run_tests:
     image: pavilion
     script:
+        - env
         - python3 -c "print('hello world')"
 
