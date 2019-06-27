@@ -8,7 +8,7 @@ import unittest
 import argparse
 
 
-logging_root = '/tmp/{user}'.format(user=os.getlogin())
+logging_root = '/tmp/{user}'.format(user=os.environ['USER'])
 if not os.path.exists(logging_root):
     os.makedirs(logging_root)
 log_path = os.path.join(logging_root, 'pavilion_tests.log')
