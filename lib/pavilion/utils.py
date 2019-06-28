@@ -473,6 +473,8 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
             tableWidthIssue = False
 
     if wrap:
+        best = sys.maxsize
+        best_config = []
         combos = []
         boundaries = []
         for field in fields:
@@ -547,16 +549,15 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
                     if config[1] == min_wraps:
                         min_col_wrap_list.append(config)
 
-            best = sys.maxsize
-            best_config = []
-            # Uses standard deviation of column widths to pick the best column
-            # since every configuration left in the list has the same number of
-            # wraps. 
-            if tableWidthIssue:
+                # Uses standard deviation of column widths to pick the best column
+                # since every configuration left in the list has the same number of
+                # wraps. 
                 for config in min_col_wrap_list:
                     if statistics.stdev(config[0]) < best:
                         best = statistics.stdev(config[0])
                         best_config = config
+                        
+            # Just set the best combination to be the max_width of every field.            
             else:
                 best_config.append(combos)
 
