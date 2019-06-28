@@ -92,6 +92,8 @@ class RunCmdTests(PavTestCase):
 
         run_cmd = commands.get_command(args.command_name)
 
+        run_cmd.outfile = io.StringIO()
+
         self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
 
 
