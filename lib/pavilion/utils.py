@@ -328,8 +328,10 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
             into the table.
           format (optional) - a format string in the new style format syntax.
             It will expect the data for that row as arg 0. IE: '{0:2.2f}%'.
-          default (optional) - A default value for the field. A blank is
-          printed by default.
+            default (optional) - A default value for the field. A blank is
+            printed by default.
+          ignore (optional) - a list of field names  you want ignored when
+            wrapping the table.
     :param fields: A list of the fields to include, in the given order.
     :param rows: A list of data dictionaries. A None may be included to denote
         that a horizontal line row should be inserted.
@@ -343,10 +345,9 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
     # Allows users to specify which fields they do not want wrapped. 
     # Ideally this would be a function parameter, but I didn't want to go
     # change it everywhere yet. 
-    ignore = []
-
-    # Testing ignore. 
-    #ignore.append(fields[2])
+    ignore_list = []
+    if 'ignore' in field_info:
+        ignore_list = field_info['ignore']
 
     wrap = False
     # Unspecified coulmn_Widths will be popuated with the length of the title
@@ -354,14 +355,13 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
     # max
     column_widths = {}
     titles = {}
- 
-    if not column_widths:
-        for field in fields:
-            default_title = field.replace('_', ' ').capitalize()
-            field_title = field_info.get(field, {}).get('title', default_title)
-            # Gets the length of column title
-            column_widths[field] = [len(field_title)]
-            titles[field] = field_title
+
+    for field in fields:
+        default_title = field.replace('_', ' ').capitalize()
+        field_title = field_info.get(field, {}).get('title', default_title)
+        # Gets the length of column title
+        column_widths[field] = [len(field_title)]
+        titles[field] = field_title
 
     blank_row = {}
     for field in fields:
@@ -410,8 +410,8 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
         max_widths[field] = max(max_widths[field])
         column_widths[field] = max(column_widths[field])
 
-    if ignore:
-        for field in ignore:
+    if ignore_list:
+        for field in ignore_list:
             min_widths[field] = max_widths[field]
 
     # Gets the total width with the max for each column and the min for each
