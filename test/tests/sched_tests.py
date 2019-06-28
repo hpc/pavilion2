@@ -15,6 +15,7 @@ class RawSchedTests(PavTestCase):
         # Do a default pav config, which will load from
         # the pavilion lib path.
         self.pav_config = config.PavilionConfigLoader().load_empty()
+        self.pav_config.config_dirs = [self.TEST_DATA_ROOT/'pav_config_dir']
 
     def setUp(self):
 
@@ -87,41 +88,7 @@ class RawSchedTests(PavTestCase):
     def test_kickoff_env(self):
 
         pav_cfg = self.pav_cfg
-
         pav_cfg['env_setup'] = ['test1', 'test2', 'test3']
-
-        class TestVars(schedulers.SchedulerVariables):
-
-            @schedulers.var_method
-            def hello(self):
-                return 'hello'
-
-            @schedulers.var_method
-            def foo(self):
-                return self.sched_data['foo']
-
-            @schedulers.dfr_var_method()
-            def bar(self):
-                return 'bar'
-
-            def not_a_key(self):
-                pass
-
-        class DummySched(schedulers.SchedulerPlugin):
-            VAR_CLASS = TestVars
-
-            def __init__(self):
-                super().__init__('dummy', 'more dumb')
-
-                self.in_alloc_var = False
-
-            def _get_data(self):
-                return {
-                    'foo': 'baz'
-                }
-
-            def _in_alloc(self):
-                return self.in_alloc_var
 
         test = PavTest(
             self.pav_cfg,
@@ -132,7 +99,7 @@ class RawSchedTests(PavTestCase):
             {}
         )
 
-        dummy_sched = DummySched()
+        dummy_sched = schedulers.get_scheduler_plugin('dummy')
         path = dummy_sched._create_kickoff_script(pav_cfg, test)
         with path.open() as file:
             lines = file.readlines()
