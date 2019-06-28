@@ -463,6 +463,8 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
         wrap = True
         tableWidthIssue = True
 
+    # Table will fit on screen, but columns need to be wrapped based on user
+    # column specifications
     else:
         for field in fields:
             if column_widths[field] > max_widths[field]:
@@ -471,10 +473,13 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
             tableWidthIssue = False
 
     if wrap:
+        combos = []
         boundaries = []
         for field in fields:
             current = []
 
+            # Generates the range of potential column widths if table width was the
+            # reason for wrapping
             if tableWidthIssue:
                 # Get updated max width for a column provided every other column is
                 # at its minimum width. 
@@ -490,72 +495,70 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
                 current.append(min_widths[field])
                 current.append(max_widths[field]+1)
 
+            # Updates the only combination to be the max width for each field
             else:
-                current.append(max_widths[field])
-                current.append(max_widths[field]+1)
+                combos.append(max_widths[field])
+
             boundaries.append(current)
 
-        combos = []
+        if tableWidthIssue:
+            # Creates all possible combinations.
+            for combo in itertools.product(*(range(*bound) for bound in boundaries)):
 
-        # Creates all possible combinations. 
-        for combo in itertools.product(*(range(*bound) for bound in boundaries)):
-
-            # Only populates list with combinations less than or equal to current window
-            # size.
-            if tableWidthIssue:
+                # Only populates list with combinations equal to current window
+                # size if table width was the reason for wrapping
                 if sum(combo) == window_width:
-                    combos.append(list(combo))
-            else:
-                if sum(combo) <= window_width:
                     combos.append(list(combo))
 
         if combos:
-
             # Calculates the max number of wraps for a given column width
             # combination. Uses the shorter, combos list. 
             wrap_options = []
             min_wraps = sys.maxsize
 
-            for combo in combos:
-                wrap_count = []
+            if tableWidthIssue:
+                for combo in combos:
+                    wrap_count = []
 
-                for i in range(len(fields)):
-                    column_width = combo[i]
-                    wrap_total = 0
+                    for i in range(len(fields)):
+                        column_width = combo[i]
+                        wrap_total = 0
 
-                    for row in rows:
-                        wraps = textwrap.TextWrapper(width=column_width)
-                        wrap_list = wraps.wrap(text=str(row[fields[i]]))
-                        wrap_total = wrap_total + len(wrap_list)
+                        for row in rows:
+                            wraps = textwrap.TextWrapper(width=column_width)
+                            wrap_list = wraps.wrap(text=str(row[fields[i]]))
+                            wrap_total = wrap_total + len(wrap_list)
 
-                    wrap_count.append(wrap_total)
+                        wrap_count.append(wrap_total)
 
-                wrap_count = max(wrap_count)
+                    wrap_count = max(wrap_count)
 
-                # Updates minimum wraps with the smallest amount of wraps seen
-                # so far. 
-                if wrap_count <= min_wraps:
-                    min_wraps = wrap_count
-                    pair = [combo, wrap_count]
-                    wrap_options.append(pair)
+                    # Updates minimum wraps with the smallest amount of wraps seen
+                    # so far. 
+                    if wrap_count <= min_wraps:
+                        min_wraps = wrap_count
+                        pair = [combo, wrap_count]
+                        wrap_options.append(pair)
 
-            min_col_wrap_list = []
-            # Goes through and removes any combination that isn't equal to the
-            # minimum number of wraps. 
-            for config in wrap_options:
-                if config[1] == min_wraps:
-                    min_col_wrap_list.append(config)
+                min_col_wrap_list = []
+                # Goes through and removes any combination that isn't equal to the
+                # minimum number of wraps. 
+                for config in wrap_options:
+                    if config[1] == min_wraps:
+                        min_col_wrap_list.append(config)
 
             best = sys.maxsize
             best_config = []
-
             # Uses standard deviation of column widths to pick the best column
             # since every configuration left in the list has the same number of
             # wraps. 
-            for config in min_col_wrap_list:
-                if statistics.stdev(config[0]) < best:
-                    best = statistics.stdev(config[0])
-                    best_config = config
+            if tableWidthIssue:
+                for config in min_col_wrap_list:
+                    if statistics.stdev(config[0]) < best:
+                        best = statistics.stdev(config[0])
+                        best_config = config
+            else:
+                best_config.append(combos)
 
             for i in range(len(fields)):
                 column_widths[fields[i]] = best_config[0][i]
