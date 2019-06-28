@@ -332,6 +332,10 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
             printed by default.
           ignore (optional) - a list of field names  you want ignored when
             wrapping the table.
+          max_widths (optional) - a dictionary that provides the max width of a
+            specific column, with the key being the specific field name.
+          min_widths (optional) - a dictionary that provides the min width of a
+            specific column, with the key being the specific field name.
     :param fields: A list of the fields to include, in the given order.
     :param rows: A list of data dictionaries. A None may be included to denote
         that a horizontal line row should be inserted.
@@ -342,6 +346,8 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
     :return: None
     """
 
+    wrap = False
+
     # Allows users to specify which fields they do not want wrapped. 
     # Ideally this would be a function parameter, but I didn't want to go
     # change it everywhere yet. 
@@ -349,7 +355,6 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
     if 'ignore' in field_info:
         ignore_list = field_info['ignore']
 
-    wrap = False
     # Unspecified coulmn_Widths will be popuated with the length of the title
     # being the column min, and the longest string at field being the column
     # max
@@ -410,9 +415,32 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
         max_widths[field] = max(max_widths[field])
         column_widths[field] = max(column_widths[field])
 
+    # If user specified ignoring wrapping on a given field it will, set the
+    # mimimum width equal to the largest entry in that field, since max_widths
+    # currently holds that.
     if ignore_list:
         for field in ignore_list:
             min_widths[field] = max_widths[field]
+
+    # If user defined a max width for a given field it gets updated here.
+    if 'max_width' in field_info:
+        UserMaxWidth = field_info['max_width']
+        for field in fields:
+            if field in UserMaxWidth:
+                max_widths[field] = UserMaxWidths[field]
+
+    # If user defined a min width for a given field it gets updates here.
+    if 'min_width' in field_info:
+        UserMinWidth = field_info['min_width']
+        for field in fields:
+            if field in UserMinWidth:
+                min_widths[field] = UserMinWidth[field]
+
+    # Ensures that the max width for a given field is always, larger or 
+    # atleast equal to the minimum field width. 
+    for field in fields:
+        if max_widths[field] < min_widths[field]:
+            max_widths[field] = min_widths[field]
 
     # Gets the total width with the max for each column and the min for each
     # column. 
@@ -494,7 +522,6 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
             # Goes through and removes any combinations that isn't equal to the
             # minimum number of wraps. 
             for config in wrap_options:
-
                 if config[1] == min_wraps:
                     best_list.append(config)
 
@@ -507,7 +534,6 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
             # since every configuration left in the list has the same number of
             # wraps. 
             for config in wrap_options:
-
                 if statistics.stdev(config[0]) < best:
                     best = statistics.stdev(config[0])
                     best_config = config
@@ -524,6 +550,9 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
 
     # Generate the format string for each row.
     col_formats = []
+
+    if not wrap:
+        column_widths = max_widths
 
     for field in fields:
         format_str = '{{{field_name}:{width}}}'\
@@ -585,7 +614,6 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
 
                 #Populates the necessary fields, if they exist
                 for field in fields:
-
                     if line >= len(wraps[field]):
                         new_row[field] = ''
                     else:
