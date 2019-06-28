@@ -82,6 +82,7 @@ class RunCmdTests(PavTestCase):
         self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
 
     def test_run_status(self):
+        '''Tests run command with status flag.'''
 
         arg_parser = arguments.get_parser()
 
@@ -99,6 +100,7 @@ class RunCmdTests(PavTestCase):
         self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
 
     def test_run_status_json(self):
+        '''Tests run command with status and json flags'''
 
         arg_parser = arguments.get_parser()
 
