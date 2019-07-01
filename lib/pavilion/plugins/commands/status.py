@@ -61,14 +61,10 @@ def get_statuses(pav_cfg, args, errfile):
 
     # user wants all tests
     if args.all:
-        if args.limit:
-            limit = args.limit
-        else:
-            limit = 10
-        print("max # of tests displayed: " + str(limit))
+        limit = args.limit
         # Get latest test
-        last_series = series.TestSeries.load_user_series_id()
-        last_tests = series.TestSeries.from_id(pav_cfg, last_series).tests
+        last_series = series.TestSeries.load_user_series_id(pav_cfg)
+        last_tests = series.TestSeries.from_id(pav_cfg, int(last_series[1:])).tests
         last_test = max(last_tests, key=int)
         while limit is not 0:
             test_list.append(last_test)
@@ -183,7 +179,7 @@ class StatusCommand(commands.Command):
             help='Displays all tests within a certain limit.'
         )
         parser.add_argument(
-            '-l', '--limit', type=int,
+            '-l', '--limit', type=int, default=10,
             help='If -a/--all is used, then --limit is the number of last SUITES.'
         )
 
