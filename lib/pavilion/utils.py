@@ -1,5 +1,6 @@
 # This file contains assorted utility functions.
 
+
 from pathlib import Path
 from pavilion import lockfile
 import csv
@@ -9,7 +10,8 @@ import re
 import subprocess
 import sys
 import textwrap
-
+import shutil
+import copy
 
 def flat_walk(path, *args, **kwargs):
     """Perform an os.walk on path, but return a flattened list of every file
@@ -112,6 +114,27 @@ def create_id_dir(id_dir):
         path.mkdir()
 
     return id_, path
+
+
+def get_login():
+    """Get the current user's login, either through os.getlogin or
+    the environment, or the id command."""
+
+    try:
+        return os.getlogin()
+    except OSError:
+        pass
+
+    if 'USER' in os.environ:
+        return os.environ['USER']
+
+    try:
+        name = subprocess.check_output(['id', '-un'],
+                                       stderr=subprocess.DEVNULL)
+        return name.decode('utf8').strip()
+    except Exception:
+        raise RuntimeError(
+            "Could not get the name of the current user.")
 
 
 def dbg_print(*args, color=33, file=sys.stderr, **kwargs):
@@ -304,12 +327,11 @@ def _plen(string):
     unescaped = ANSI_ESCAPE_RE.sub('', string)
 
     return len(unescaped)
- 
 
 def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
                title=None):
     """Prints a table from the given data, setting column width as needed.
-    :param outfile: The output file to write to. 
+    :param outfile: The output file to write to.
     :param field_info: Should be a dictionary of field names where the value
         is a dict of:
         ( title (optional) - The column header for this field. Defaults to the
@@ -378,9 +400,9 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
         for row in formatted_rows:
             data = row[field]
             dlen = _plen(data)
-            row[field] = data + ' '*max(0, width - dlen) 
+            row[field] = data + ' '*max(0, width - dlen)
 
-    # Find the total width of the table. 
+    # Find the total width of the table.
     total_width = (sum(column_widths.values())  # column widths
                    + len(fields) - 1)           # | dividers
     if pad:
@@ -437,5 +459,3 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
         # We may get a broken pipe, especially when the output is piped to
         # something like head. It's ok, just move along.
         pass
-
-
