@@ -677,11 +677,6 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
 
                 wrap_rows.append(wrap_row)
 
-            # Adds the row to be used for the division. 
-            new_line = copy.deepcopy(row)
-            new_line = new_line.fromkeys(new_line, '')
-            wrap_rows.append(new_line)
-
         formatted_rows = wrap_rows
 
     try:
