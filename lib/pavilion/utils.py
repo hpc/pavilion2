@@ -461,8 +461,7 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
 
     if border:
         offset = 2
-        window_width = window_width - 2
-
+        window_width = window_width - offset
 
     # Checks to see if table will fit on screen as is. If not then it starts
     # the process of calculating the 'optimal' way to wrap. 
@@ -580,7 +579,14 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
             # text. 
             wrap = False
 
-    title_length = sum(column_widths.values()) + len(title) - 1
+
+    title_length = sum(column_widths.values())
+
+    if pad:
+        title_length = title_length + 2*len(fields)
+    if border:
+        title_length = title_length + 2
+
     title_format = ' {{0:{0}s}} '.format(title_length)
     # Generate the format string for each row.
     col_formats = []
