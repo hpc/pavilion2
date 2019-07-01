@@ -118,6 +118,27 @@ def create_id_dir(id_dir):
     return id_, path
 
 
+def get_login():
+    """Get the current user's login, either through os.getlogin or
+    the environment, or the id command."""
+
+    try:
+        return os.getlogin()
+    except OSError:
+        pass
+
+    if 'USER' in os.environ:
+        return os.environ['USER']
+
+    try:
+        name = subprocess.check_output(['id', '-un'],
+                                       stderr=subprocess.DEVNULL)
+        return name.decode('utf8').strip()
+    except Exception:
+        raise RuntimeError(
+            "Could not get the name of the current user.")
+
+
 def dbg_print(*args, color=33, file=sys.stderr, **kwargs):
     """A colored print statement for debug printing. Use when you want to
     print junk and easily excise it later.
