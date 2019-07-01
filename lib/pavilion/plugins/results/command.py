@@ -69,5 +69,4 @@ class Command(result_parsers.ResultParser):
             print("command unsuccessful")
             return "unsuccessful"
 
-
         return "success"
