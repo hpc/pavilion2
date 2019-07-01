@@ -349,15 +349,13 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
     wrap = False
 
     # Allows users to specify which fields they do not want wrapped. 
-    # Ideally this would be a function parameter, but I didn't want to go
-    # change it everywhere yet. 
     ignore_list = []
     if 'ignore' in field_info:
         ignore_list = field_info['ignore']
 
-    # Unspecified coulmn_Widths will be popuated with the length of the title
-    # being the column min, and the longest string at field being the column
-    # max
+    # Column widths populates with a range of values, the minimum being the
+    # length of the given field title, and the max being the longest entry in
+    # that column
     column_widths = {}
     titles = {}
 
@@ -396,8 +394,8 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
                 raise
 
             # Appends the length of all rows at a given field longer than the
-            # title. Effectively forces that the minimum column width is no
-            # less than the header. 
+            # title. Effectively forces that the minimum column width be no
+            # less than the title.
             if _plen(data) > column_widths[field][0]:
                 column_widths[field].append(_plen(data))
 
@@ -407,7 +405,7 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
     min_widths = dict(column_widths)
     max_widths = dict(column_widths)
 
-    # Gets dictionary with largest width, and smalled width for each field. 
+    # Gets dictionary with largest width, and smallest width for each field. 
     # Also updates the default column_Widths dictionary to hold the max values
     # for each column. 
     for field in fields:
@@ -416,35 +414,34 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
         column_widths[field] = max(column_widths[field])
 
     # If user specified ignoring wrapping on a given field it will, set the
-    # mimimum width equal to the largest entry in that field, since max_widths
-    # currently holds that.
+    # mimimum width equal to the largest entry in that field.
     if ignore_list:
         for field in ignore_list:
             min_widths[field] = max_widths[field]
 
-    # If user defined a max width for a given field it gets updated here.
+    # If user defined a max width for a given field it overrides the current
+    # max width here.
     if 'max_width' in field_info:
         UserMaxWidth = field_info['max_width']
         for field in fields:
             if field in UserMaxWidth:
                 max_widths[field] = UserMaxWidth[field]
 
-    # If user defined a min width for a given field it gets updates here.
+    # If user defined a min width for a given field it overrides the minimum
+    # width here.
     if 'min_width' in field_info:
         UserMinWidth = field_info['min_width']
         for field in fields:
             if field in UserMinWidth:
                 min_widths[field] = UserMinWidth[field]
 
-    # Ensures that the max width for a given field is always, larger or 
+    # Ensures that the max width for a given field is always larger or 
     # atleast equal to the minimum field width. 
     for field in fields:
         if max_widths[field] < min_widths[field]:
             max_widths[field] = min_widths[field]
 
-    # Gets the total width with the max for each column and the min for each
-    # column. 
-    totalMin = getTotalWidth(min_widths, fields, formatted_rows, pad)
+    # Gets the total width of the table with the max width of every column. 
     totalMax = getTotalWidth(max_widths, fields, formatted_rows, pad)
 
     # Gets the effective window width. 
@@ -456,6 +453,16 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
         offset = 2 * len(fields)
         offset = offset + len(fields) - 1
         window_width = window_width - offset
+
+    # Reduce the effective window width for non padded dividers. 
+    else:
+        offset = len(fields) - 1
+        window_width = window_width - offset
+
+    if border:
+        offset = 2
+        window_width = window_width - 2
+
 
     # Checks to see if table will fit on screen as is. If not then it starts
     # the process of calculating the 'optimal' way to wrap. 
@@ -497,7 +504,9 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
                 current.append(min_widths[field])
                 current.append(max_widths[field]+1)
 
-            # Updates the only combination to be the max width for each field
+            # Updates the only combination to be the max width for each field,
+            # provided user column width definitions forced wrapping, but
+            # table could still fit on screen.  
             else:
                 combos.append(max_widths[field])
 
@@ -514,7 +523,7 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
 
         if combos:
             # Calculates the max number of wraps for a given column width
-            # combination. Uses the shorter, combos list. 
+            # combination, if table width is the main issue. Uses the shorter, combos list. 
             wrap_options = []
             min_wraps = sys.maxsize
 
@@ -556,8 +565,10 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
                     if statistics.stdev(config[0]) < best:
                         best = statistics.stdev(config[0])
                         best_config = config
-                        
-            # Just set the best combination to be the max_width of every field.            
+
+            # Just set the best combination to be the max_width of every field,
+            # table will fit on screen, but fields will need to be wrapped
+            # based on provided column widths. 
             else:
                 best_config.append(combos)
 
@@ -569,13 +580,10 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
             # text. 
             wrap = False
 
-    title_format = ' {{0:{0}s}} '.format(window_width-2)
-
+    title_length = sum(column_widths.values()) + len(title) - 1
+    title_format = ' {{0:{0}s}} '.format(title_length)
     # Generate the format string for each row.
     col_formats = []
-
-    if not wrap:
-        column_widths = max_widths
 
     for field in fields:
         format_str = '{{{field_name}:{width}}}'\
@@ -598,7 +606,7 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
     horizontal_break += '\n'
     title_format += '\n'
 
-    new_rows = []
+    wrap_rows = []
     if wrap:
 
         #Reformats all the rows
@@ -616,35 +624,35 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
             #Gets the largest number of lines, so we know how many iterations
             #to do when printing
             for field in wraps.keys():
-                l = len(wraps[field])
+                number_of_wraps = len(wraps[field])
 
-                if l > num_lines:
-                    num_lines = l
+                if number_of_wraps > num_lines:
+                    num_lines = number_of_wraps
 
-            #Populates current row witht the first wrap
+            #Populates current row with the first wrap
             for field in fields:
                 row[field] = wraps[field][0]
 
-            new_rows.append(row)
+            wrap_rows.append(row)
 
             #Creates a new row for each line of text required
             for line in range(1,num_lines):
-                new_row = copy.deepcopy(row)
+                wrap_row = copy.deepcopy(row)
 
                 #Emptys current row
                 for key in fields:
-                    new_row[key] = ''
+                    wrap_row[key] = ''
 
                 #Populates the necessary fields, if they exist
                 for field in fields:
                     if line >= len(wraps[field]):
-                        new_row[field] = ''
+                        wrap_row[field] = ''
                     else:
-                        new_row[field] = wraps[field][line]
+                        wrap_row[field] = wraps[field][line]
 
-                new_rows.append(new_row)
+                wrap_rows.append(wrap_row)
 
-        formatted_rows = new_rows
+        formatted_rows = wrap_rows
 
     try:
         if border:
@@ -658,9 +666,9 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
 
         for row in formatted_rows:
             outfile.write(row_format.format(**row))
-        outfile.write('\n')
         if border:
             outfile.write(horizontal_break)
+        outfile.write('\n')
 
     except IOError:
         pass
