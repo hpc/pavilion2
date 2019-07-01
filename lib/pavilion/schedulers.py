@@ -451,6 +451,10 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
         script.env_change(env_changes)
 
+        # Run Kickoff Env setup commands
+        for command in pav_cfg.env_setup:
+            script.command(command)
+
         # Run the test via pavilion
         script.command('pav _run {t.id}'.format(t=test_obj))
 

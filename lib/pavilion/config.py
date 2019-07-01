@@ -178,7 +178,10 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
             help_text="A list of DNS suffixes to ignore for proxy purposes. "
                       "For example: 'blah.com' would match 'www.blah.com', but "
                       "not 'myblah.com'."),
-
+        yc.ListElem(
+            "env_setup", sub_elem=yc.StrElem(),
+            help_text="A list of commands to be executed at the beginning of "
+                      "every kickoff script."),
         # The following configuration items are for internal use and provide a
         # convenient way to pass around core pavilion components or data.
         # They are not intended to be set by the user, and will generally be
