@@ -337,7 +337,8 @@ def getTotalWidth(column_widths, fields, formatted_rows, pad):
 
     return total_width
 
-def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=None):
+def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
+               divider=False, title=None):
     """Prints a table from the given data, setting column width as needed.
     :param outfile: The output file to write to. 
     :param field_info: Should be a dictionary of field names where the value
@@ -363,6 +364,8 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
     :param border: Put a border around the table. Defaults False.
     :param pad: Put a space on either side of each header and row entry.
         Default True.
+    :param divider: Put a horizontal line beneath each entry in the table.
+        Defaults False.
     :param title: Add the given title above the table. Default None
     :return: None
     """
@@ -605,8 +608,7 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
 
     if pad:
         title_length = title_length + 2*len(fields)
-    if border:
-        title_length = title_length + 2
+    
 
     title_format = ' {{0:{0}s}} '.format(title_length)
     # Generate the format string for each row.
@@ -679,6 +681,15 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
 
                 wrap_rows.append(wrap_row)
 
+            # Adds the row to be used for the division. 
+            if divider:
+                new_line = copy.deepcopy(row)
+
+                for key in fields:
+                    new_line[key] = 'NEW LINE'
+
+                wrap_rows.append(new_line)
+
         formatted_rows = wrap_rows
 
     try:
@@ -692,7 +703,16 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
         outfile.write(horizontal_break)
 
         for row in formatted_rows:
-            outfile.write(row_format.format(**row))
+            if divider and wrap:
+                if 'NEW LINE' in row.values():
+                    outfile.write(horizontal_break)
+                else:
+                    outfile.write(row_format.format(**row))
+            elif divider:
+                outfile.write(row_format.format(**row))
+                outfile.write(horizontal_break)
+            else:
+                outfile.write(row_format.format(**row))
         if border:
             outfile.write(horizontal_break)
         outfile.write('\n')
