@@ -202,7 +202,7 @@ class ScriptComposer(object):
             and values to set. A value of None will unset the variable.
         """
 
-        for key, value in env_dict.items():
+        for key, value in sorted(env_dict.items()):
             if value is not None:
                 self._script_lines.append('export {}={}'.format(key, value))
             else:
