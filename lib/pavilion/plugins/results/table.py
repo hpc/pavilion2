@@ -18,7 +18,7 @@ class Table(result_parsers.ResultParser):
         config_items.extend([
             yc.ListElem(
                 'row_names', sub_elem=yc.StrElem(),
-                help_text="Column names"
+                help_text="Row names"
             ),
             yc.ListElem(
                 'col_names', sub_elem=yc.StrElem(),

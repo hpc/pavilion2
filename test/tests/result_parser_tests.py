@@ -20,9 +20,6 @@ class ResultParserTests(PavTestCase):
 
         plugins.initialize_plugins(self.pav_cfg)
 
-        # We should have exactly one test plugin.
-        self.assertEqual(len(result_parsers.list_plugins()), 1)
-
         test_cfg = {
             'scheduler': 'raw',
             'run': {
@@ -157,9 +154,6 @@ class ResultParserTests(PavTestCase):
 
     def test_check_args(self):
         plugins.initialize_plugins(self.pav_cfg)
-
-        # We should have exactly one test plugin.
-        self.assertEqual(len(result_parsers.list_plugins()), 1)
 
         # Make sure we can check arguments.
         test_cfg = {
