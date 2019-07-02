@@ -1,0 +1,9 @@
+[Core]
+Name = Log command
+Module = log
+
+[Documentation]
+Description = Show (summarized) logs
+Author = Francine Lapid
+Version = 1.0
+Website = 

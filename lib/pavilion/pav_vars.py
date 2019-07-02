@@ -4,6 +4,7 @@ import time
 
 import tzlocal
 from pavilion.var_dict import VarDict, var_method
+from pavilion import utils
 
 
 class PavVars(VarDict):
@@ -48,6 +49,4 @@ class PavVars(VarDict):
     def user(self):
         """The current user's login name."""
 
-        # The environment, in this case, is more reliable than the os module
-        # alternative (os.getlogin(), see `man getlogin`).
-        return os.environ.get('USER')
+        return utils.get_login()

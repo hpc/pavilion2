@@ -1,6 +1,7 @@
 from pathlib import Path
 from pavilion import module_wrapper
 from pavilion.module_actions import ModuleAction
+from pavilion import utils
 import datetime
 import grp
 import os
@@ -154,7 +155,7 @@ class ScriptDetails(object):
     @group.setter
     def group(self, value):
         if value is None:
-            value = os.environ['USER']
+            value = utils.get_login()
 
         self._group = str(value)
 
@@ -202,7 +203,7 @@ class ScriptComposer(object):
             and values to set. A value of None will unset the variable.
         """
 
-        for key, value in env_dict.items():
+        for key, value in sorted(env_dict.items()):
             if value is not None:
                 self._script_lines.append('export {}={}'.format(key, value))
             else:

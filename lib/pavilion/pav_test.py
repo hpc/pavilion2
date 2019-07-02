@@ -24,7 +24,6 @@ import tzlocal
 import urllib.parse
 import zipfile
 
-
 class PavTestError(RuntimeError):
     """For general test errors. Whatever was being attempted has failed in a
     non-recoverable way."""
@@ -91,7 +90,7 @@ class PavTest:
 
         # Get an id for the test, if we weren't given one.
         if _id is None:
-            self.id, self.path = utils.create_id_dir(tests_path)
+            self.id, self.path = self.create_id_dir(tests_path)
             self._save_config()
         else:
             self.id = _id
@@ -413,6 +412,17 @@ class PavTest:
                         STATES.BUILDING,
                         "Build {} created while waiting for build lock."
                         .format(self.build_hash))
+
+                # Make a symlink in the build directory that points to
+                # the original test that built it
+                try:
+                    dst = self.build_origin / 'test'
+                    src = self.path
+                    dst.symlink_to(src, True)
+                    dst.resolve()
+                except: 
+                    self.LOGGER.warning("Could not create symlink to test")
+
         else:
             self.status.set(STATES.BUILDING,
                             "Build {} already exists.".format(self.build_hash))
@@ -492,6 +502,7 @@ class PavTest:
                             # Only wait a max of BUILD_SILENT_TIMEOUT next
                             # 'wait'
                             timeout = self.BUILD_SILENT_TIMEOUT - quiet_time
+
 
         except subprocess.CalledProcessError as err:
             self.status.set(STATES.BUILD_ERROR,
@@ -822,6 +833,8 @@ class PavTest:
             if run_complete_file.exists():
                 return
 
+            time.sleep(self.WAIT_INTERVAL)
+
             if timeout is not None and time.time() > timeout:
                 raise TimeoutError("Timed out waiting for test '{}' to "
                                    "complete".format(self.id))
@@ -1114,5 +1127,39 @@ class PavTest:
                                "run script'{}': {}"
                                .format(tmpl_path, script_path, err))
 
+    @staticmethod
+    def create_id_dir(id_dir):
+        """In the given directory, create the lowest numbered (positive integer)
+        directory that doesn't already exist.
+        :param Path id_dir: Path to the directory that contains these 'id'
+            directories
+        :returns: The id and path to the created directory.
+        :rtype: list(int, Path)
+        :raises OSError: on directory creation failure.
+        :raises TimeoutError: If we couldn't get the lock in time.
+
+        """
+
+        lockfile_path = id_dir/'.lockfile'
+        with lockfile.LockFile(lockfile_path, timeout=1):
+            ids = os.listdir(str(id_dir))
+            # Only return the test directories that could be integers.
+            ids = filter(str.isdigit, ids)
+            ids = filter(lambda d: (id_dir/d).is_dir(), ids)
+            ids = list(map(int, ids))
+            ids.sort()
+
+            # Find the first unused id.
+            id_ = 1
+            while id_ in ids:
+                id_ += 1
+
+            path = utils.make_id_path(id_dir, id_)
+            path.mkdir()
+
+        return id_, path
+
     def __repr__(self):
         return "PavTest({s.name}-{s.id})".format(s=self)
+
+
