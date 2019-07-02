@@ -1,9 +1,0 @@
-[Core]
-Name = Match Count Result Parser
-Module = match_count
-
-[Documentation]
-Description = Counts the number of matches in a given output.
-Author = Nicholas C. Sly
-Version = 1.0
-Website =
