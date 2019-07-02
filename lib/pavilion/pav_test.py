@@ -24,7 +24,6 @@ import tzlocal
 import urllib.parse
 import zipfile
 
-
 class PavTestError(RuntimeError):
     """For general test errors. Whatever was being attempted has failed in a
     non-recoverable way."""
@@ -413,6 +412,17 @@ class PavTest:
                         STATES.BUILDING,
                         "Build {} created while waiting for build lock."
                         .format(self.build_hash))
+
+                # Make a symlink in the build directory that points to
+                # the original test that built it
+                try:
+                    dst = self.build_origin / 'test'
+                    src = self.path
+                    dst.symlink_to(src, True)
+                    dst.resolve()
+                except: 
+                    self.LOGGER.warning("Could not create symlink to test")
+
         else:
             self.status.set(STATES.BUILDING,
                             "Build {} already exists.".format(self.build_hash))
@@ -492,6 +502,7 @@ class PavTest:
                             # Only wait a max of BUILD_SILENT_TIMEOUT next
                             # 'wait'
                             timeout = self.BUILD_SILENT_TIMEOUT - quiet_time
+
 
         except subprocess.CalledProcessError as err:
             self.status.set(STATES.BUILD_ERROR,

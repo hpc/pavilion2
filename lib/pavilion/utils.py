@@ -339,7 +339,7 @@ def getTotalWidth(column_widths, fields, formatted_rows, pad):
 
 def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=None):
     """Prints a table from the given data, setting column width as needed.
-    :param outfile: The output file to write to. 
+    :param outfile: The output file to write to.
     :param field_info: Should be a dictionary of field names where the value
         is a dict of:
         ( title (optional) - The column header for this field. Defaults to the
@@ -395,12 +395,12 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
     for row in rows:
         formatted_row = {}
         if row is None:
-            # 'None' rows just produce an empty row
+            # 'None' rows just produce an empty row.
             formatted_rows.append(blank_row)
             continue
 
         for field in fields:
-            # Get the data, or it's default if provided
+            # Get the data, or it's default if provided.
             info = field_info.get(field, {})
             data = row.get(field, info.get('default', ''))
             # Transform the data, if a transform is given
@@ -634,11 +634,9 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
 
     wrap_rows = []
     if wrap:
-
         #Reformats all the rows
         for row in formatted_rows:
             wraps = {}
-
             #Creates wrap list that holds list of strings for the wrapped text
             for field in fields:
                 my_wrap = textwrap.TextWrapper(width = column_widths[field])
@@ -646,12 +644,10 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
                 wraps[field] = wrap_list
 
             num_lines = 0
-
             #Gets the largest number of lines, so we know how many iterations
             #to do when printing
             for field in wraps.keys():
                 number_of_wraps = len(wraps[field])
-
                 if number_of_wraps > num_lines:
                     num_lines = number_of_wraps
 
@@ -660,14 +656,11 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
                 row[field] = wraps[field][0]
 
             wrap_rows.append(row)
-
             #Creates a new row for each line of text required
             for line in range(1,num_lines):
                 wrap_row = copy.deepcopy(row)
-
                 #Emptys current row
                 wrap_row = wrap_row.fromkeys(wrap_row, '')
-
                 #Populates the necessary fields, if they exist
                 for field in fields:
                     if line >= len(wraps[field]):
@@ -688,13 +681,16 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
 
         outfile.write(row_format.format(**titles))
         outfile.write(horizontal_break)
-
         for row in formatted_rows:
             outfile.write(row_format.format(**row))
+
         if border:
             outfile.write(horizontal_break)
         outfile.write('\n')
 
+        outfile.write('\n')
     except IOError:
+        # We may get a broken pipe, especially when the output is piped to
+        # something like head. It's ok, just move along.
         pass
 
