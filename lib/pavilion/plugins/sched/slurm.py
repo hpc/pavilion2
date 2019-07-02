@@ -232,6 +232,17 @@ class Slurm(SchedulerPlugin):
                 yc.StrElem('reservation',
                            help_text="The reservation that this test should "
                                      "run under."),
+                yc.StrElem('chunk_min',
+                           help_text="Minimum nodes per chunk, if chunking "
+                                     "tests."),
+                yc.StrElem('chunk_max',
+                           help_text="Maximum nodes per chunk, if chunking "
+                                     "tests."),
+                yc.StrElem('chunk_concurrent', choices=['true', 'false'], default='false',
+                           help_text="Whether the chunked tests should run "
+                                     "together, or should force a dependency "
+                                     "chain in slurm so they don't all run at "
+                                     "once."),
                 yc.RegexElem(
                     'time_limit', regex=r'^(\d+-)?(\d+:)?\d+(:\d+)?$',
                     help_text="The time limit to specify for the slurm job in"
