@@ -140,7 +140,10 @@ class ResultParserTests(PavTestCase):
         self.assertEqual(results['fullname']['other.log']['fullname'],
                          'In a World')
 
-        self.assertEqual(results['name']['other']['name'], 'In a World')
+        self.assertIn(results['name']['other']['name'], 
+                      ['In a World', "I'm here to cause World"])
+        self.assertIn("Duplicate file key 'other' matched by name",
+                      [e['msg'] for e in results['errors']])
 
         self.assertEqual(sorted(results['lists']),
                          sorted(['and someone saves the World',
