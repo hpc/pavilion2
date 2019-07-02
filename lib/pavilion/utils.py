@@ -1,7 +1,7 @@
 # This file contains assorted utility functions.
 
+
 from pathlib import Path
-from pavilion import lockfile
 import csv
 import json
 import os
@@ -9,7 +9,8 @@ import re
 import subprocess
 import sys
 import textwrap
-
+import shutil
+import copy
 
 def flat_walk(path, *args, **kwargs):
     """Perform an os.walk on path, but return a flattened list of every file
@@ -80,38 +81,6 @@ def make_id_path(base_path, id_):
     """
 
     return base_path/(ID_FMT.format(id=id_, digits=ID_DIGITS))
-
-
-def create_id_dir(id_dir):
-    """In the given directory, create the lowest numbered (positive integer)
-    directory that doesn't already exist.
-    :param Path id_dir: Path to the directory that contains these 'id'
-        directories
-    :returns: The id and path to the created directory.
-    :rtype: list(int, Path)
-    :raises OSError: on directory creation failure.
-    :raises TimeoutError: If we couldn't get the lock in time.
-
-    """
-
-    lockfile_path = id_dir/'.lockfile'
-    with lockfile.LockFile(lockfile_path, timeout=1):
-        ids = os.listdir(str(id_dir))
-        # Only return the test directories that could be integers.
-        ids = filter(str.isdigit, ids)
-        ids = filter(lambda d: (id_dir/d).is_dir(), ids)
-        ids = list(map(int, ids))
-        ids.sort()
-
-        # Find the first unused id.
-        id_ = 1
-        while id_ in ids:
-            id_ += 1
-
-        path = make_id_path(id_dir, id_)
-        path.mkdir()
-
-    return id_, path
 
 
 def get_login():
@@ -325,12 +294,11 @@ def _plen(string):
     unescaped = ANSI_ESCAPE_RE.sub('', string)
 
     return len(unescaped)
- 
 
 def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
                title=None):
     """Prints a table from the given data, setting column width as needed.
-    :param outfile: The output file to write to. 
+    :param outfile: The output file to write to.
     :param field_info: Should be a dictionary of field names where the value
         is a dict of:
         ( title (optional) - The column header for this field. Defaults to the
@@ -399,9 +367,9 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
         for row in formatted_rows:
             data = row[field]
             dlen = _plen(data)
-            row[field] = data + ' '*max(0, width - dlen) 
+            row[field] = data + ' '*max(0, width - dlen)
 
-    # Find the total width of the table. 
+    # Find the total width of the table.
     total_width = (sum(column_widths.values())  # column widths
                    + len(fields) - 1)           # | dividers
     if pad:
@@ -458,5 +426,3 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
         # We may get a broken pipe, especially when the output is piped to
         # something like head. It's ok, just move along.
         pass
-
-

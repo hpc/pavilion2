@@ -3,8 +3,9 @@ from pathlib import Path
 from collections import OrderedDict
 from pavilion import scriptcomposer
 from pavilion.unittest import PavTestCase
+from pavilion import utils
 
-class TestConfig(PavTestCase):
+class TestScriptWriter(PavTestCase):
 
     script_path = 'testName.batch'
 
@@ -18,7 +19,7 @@ class TestConfig(PavTestCase):
     def _other_group(self):
         """Find a group other than the user's default group to use when creating files.
         :returns: The name of the found group."""
-
+    
         for gid in os.getgroups():
 
             if gid == os.getgid():
@@ -48,7 +49,7 @@ class TestConfig(PavTestCase):
     def test_details(self):
         """Testing the ScriptDetails class."""
 
-        testPath = 'testScript.sh'
+        testPath = self.pav_cfg.working_dir/'testScript.sh'
 
         testGroup = 'anonymous'
 
@@ -59,7 +60,7 @@ class TestConfig(PavTestCase):
         # Testing initialization and defaults.
         testDetails = scriptcomposer.ScriptDetails()
 
-        self.assertEqual(testDetails.group, os.environ['USER'])
+        self.assertEqual(testDetails.group, utils.get_login())
         self.assertEqual(testDetails.perms, oct(0o770))
 
         # Testing individual assignment.
@@ -74,7 +75,7 @@ class TestConfig(PavTestCase):
         # Testing reset.
         testDetails.reset()
 
-        self.assertEqual(testDetails.group, os.environ['USER'])
+        self.assertEqual(testDetails.group, utils.get_login())
         self.assertEqual(testDetails.perms, oct(0o770))
 
         # Testing initialization assignment.
@@ -123,7 +124,7 @@ class TestConfig(PavTestCase):
         self.assertEqual(testComposer.header.shell_path, '#!/bin/bash')
         self.assertEqual(testComposer.header.scheduler_headers, [])
 
-        self.assertEqual(testComposer.details.group, os.environ['USER'])
+        self.assertEqual(testComposer.details.group, utils.get_login())
         self.assertEqual(testComposer.details.perms, oct(0o770))
 
         # Testing individual assignment
@@ -161,7 +162,7 @@ class TestConfig(PavTestCase):
         self.assertEqual(testComposer.header.shell_path, '#!/bin/bash')
         self.assertEqual(testComposer.header.scheduler_headers, [])
 
-        self.assertEqual(testComposer.details.group, os.environ['USER'])
+        self.assertEqual(testComposer.details.group, utils.get_login())
         self.assertEqual(testComposer.details.perms, oct(0o770))
 
         # Testing object assignment.
@@ -188,7 +189,7 @@ class TestConfig(PavTestCase):
         testHeaderShell = "/usr/env/python"
         testHeaderScheduler = ['-G pam', '-N fam']
 
-        testDetailsPath = 'testPath'
+        testDetailsPath = self.pav_cfg.working_dir/'testPath'
         testDetailsGroup = self._other_group()
         testDetailsPerms = 0o760
 
@@ -205,9 +206,9 @@ class TestConfig(PavTestCase):
 
         testComposer.write()
 
-        self.assertTrue(os.path.isfile(testDetailsPath))
+        self.assertTrue(testDetailsPath.exists())
 
-        with open(testDetailsPath, 'r') as testFile:
+        with testDetailsPath.open() as testFile:
             testLines = testFile.readlines()
 
         for i in range(0, len(testLines)):
@@ -221,7 +222,7 @@ class TestConfig(PavTestCase):
 
         self.assertEqual(len(testLines), 5)
 
-        testStat = os.stat(testDetailsPath)
+        testStat = testDetailsPath.stat()
         expectedStat=stat.S_IFREG + stat.S_IRWXU + stat.S_IRGRP + stat.S_IWGRP
 
         self.assertEqual(testStat.st_mode, expectedStat)
@@ -232,4 +233,4 @@ class TestConfig(PavTestCase):
 
         self.assertEqual(testGID, testDetailsGroup)
 
-        os.remove(testDetailsPath)
+        testDetailsPath.unlink()

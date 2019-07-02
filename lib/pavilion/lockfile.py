@@ -4,6 +4,7 @@ import logging
 import os
 import time
 import uuid
+from pavilion import utils
 
 LOGGER = logging.getLogger('pav.' + __name__)
 
@@ -176,7 +177,7 @@ class LockFile(object):
 
         fd = os.open(path, os.O_EXCL | os.O_CREAT | os.O_RDWR)
         expiration = time.time() + expires
-        file_note = ",".join([os.uname()[1], os.getlogin(), str(expiration),
+        file_note = ",".join([os.uname()[1], utils.get_login(), str(expiration),
                               lock_id])
         file_note = file_note.encode('utf8')
         os.write(fd, file_note)
