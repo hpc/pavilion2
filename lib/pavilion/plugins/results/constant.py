@@ -13,20 +13,20 @@ class Constant(result_parsers.ResultParser):
         config_items = super().get_config_items()
         config_items.extend([
             yc.StrElem(
-                'result_constant', required=True, default='constant_default',
-                help_text="what will show up in the result"
+                'const', required=True,
+                help_text="Constant that will be placed in result."
             )
         ])
 
         return config_items
 
-    def _check_args(self, result_constant=None):
+    def _check_args(self, const=None):
         
-        if result_constant == "":
+        if const == "":
             raise result_parsers.ResultParserError(
-                "constant required"
+                "Constant required."
         )
 
-    def __call__(self, test, file, result_constant=None):
+    def __call__(self, test, file, const=None):
 
-        return result_constant
+        return const
