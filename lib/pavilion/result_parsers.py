@@ -515,7 +515,7 @@ def parse_results(test, results):
                             'result_parser': parser_name,
                             'file': fname,
                             'key': key,
-                            'msg': "Duplicate file '{}' matched by {}"
+                            'msg': "Duplicate file key '{}' matched by {}"
                                    .format(name, per_file)})
                         continue
 

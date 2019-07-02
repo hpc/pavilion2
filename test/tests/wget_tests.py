@@ -1,6 +1,6 @@
 from hashlib import sha1
 from pathlib import Path
-import dbm
+import json
 import logging
 import tempfile
 
@@ -65,9 +65,12 @@ class TestWGet(PavTestCase):
         ctime = new_ctime
 
         # We'll muck up the info file data, to force an update.
-        with dbm.open(str(info_fn), 'w') as db:
-            db['ETag'] = 'nope'
-            db['Content-Length'] = '-1'
+        db_data = {
+            'ETag': 'nope',
+            'Content-Length': '-1'
+        }
+        with info_fn.open('w') as info_file:
+            json.dump(db_data, info_file)
         wget.update(self.pav_cfg, self.GET_TARGET, dest_fn)
         new_ctime = dest_fn.stat().st_ctime
         self.assertNotEqual(new_ctime, ctime)

@@ -10,7 +10,7 @@ import inspect
 from pavilion import arguments
 from pavilion import config
 from pavilion.pav_test import PavTest
-from pavilion.utils import dbg_print
+from pavilion.utils import dbg_print, get_login
 from pavilion.test_config.format import TestConfigLoader
 
 
@@ -37,7 +37,9 @@ class PavTestCase(unittest.TestCase):
         raw_pav_cfg.config_dirs = [self.TEST_DATA_ROOT/'pav_config_dir',
                                    self.PAV_LIB_DIR]
 
-        raw_pav_cfg.working_dir = Path('/tmp')/os.getlogin()/'pav_tests'
+        raw_pav_cfg.working_dir = Path('/tmp')/get_login()/'pav_tests'
+
+        raw_pav_cfg.result_log = raw_pav_cfg.working_dir/'results.log'
 
         if not raw_pav_cfg.working_dir.exists():
             raw_pav_cfg.working_dir.mkdir()
@@ -89,14 +91,14 @@ class PavTestCase(unittest.TestCase):
 
         cls = super().__getattribute__('__class__')
         cname = cls.__name__.lower()
-        fname = Path(inspect.getfile(cls)).with_suffix('').name
+        fname = Path(inspect.getfile(cls)).with_suffix('').name.lower()
 
         # Wrap our test functions in a function that dynamically wraps
         # them so they only execute under certain conditions.
         if (isinstance(attr, types.MethodType) and
                 attr.__name__.startswith('test_')):
 
-            name = attr.__name__[len('test_'):]
+            name = attr.__name__[len('test_'):].lower()
 
             if self.SKIP:
                 for skip_glob in self.SKIP:
