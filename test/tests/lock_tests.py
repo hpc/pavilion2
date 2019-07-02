@@ -11,9 +11,10 @@ import time
 # NOTE: The lockfile class is designed to work over NFS, but these tests don't
 # actually check for that.
 class TestLocking(PavTestCase):
-    lock_path = pathlib.Path('lock_test.lock')
 
     def setUp(self):
+        self.lock_path = self.pav_cfg.working_dir/'lock_test.lock'
+
         if self.lock_path.exists():
             print("\nRemoving lockfile {} from old (failed) run."
                   .format(self.lock_path),
@@ -54,19 +55,22 @@ class TestLocking(PavTestCase):
         # Make sure we can set the group on the lockfile.
         # We need a group other than our default.
         groups = os.getgroups()
-        groups.remove(os.getuid())
-        if not groups:
-            print("Could not test group permissions with lockfile, "
-                  "no suitable alternate group "
-                  "found.", file=sys.stderr)
-        else:
-            group = groups.pop()
-            with lockfile.LockFile(self.lock_path,
-                                   group=grp.getgrgid(group).gr_name):
-                stat = self.lock_path.stat()
-                self.assertEqual(stat.st_gid, group)
-                self.assertEqual(stat.st_mode & 0o777,
-                                 lockfile.LockFile.LOCK_PERMS)
+        if os.getuid() != 0:
+            # This is only valid for non-root users.
+            groups.remove(os.getuid())
+
+            if not groups:
+                print("Could not test group permissions with lockfile, "
+                      "no suitable alternate group "
+                      "found.", file=sys.stderr)
+            else:
+                group = groups.pop()
+                with lockfile.LockFile(self.lock_path,
+                                       group=grp.getgrgid(group).gr_name):
+                    stat = self.lock_path.stat()
+                    self.assertEqual(stat.st_gid, group)
+                    self.assertEqual(stat.st_mode & 0o777,
+                                     lockfile.LockFile.LOCK_PERMS)
 
     def test_lock_contention(self):
 
