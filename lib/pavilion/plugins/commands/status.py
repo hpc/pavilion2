@@ -4,6 +4,7 @@ from pavilion.status_file import STATES
 from pavilion import utils
 from pavilion import series
 from pavilion.pav_test import PavTest, PavTestError, PavTestNotFoundError
+from pavilion.utils import dbg_print
 import errno
 import sys
 
@@ -38,6 +39,40 @@ def status_from_test_obj(pav_cfg, test_obj):
     test_statuses.sort(key=lambda x: x['test_id'])
     return test_statuses
 
+def get_all_tests(pav_cfg, args, errfile):
+    """function to handle if user wants all tests"""
+
+    test_list = []
+    limit = args.limit
+    # get latest test
+    last_series = series.TestSeries.load_user_series_id(pav_cfg)
+    last_tests = series.TestSeries.from_id(pav_cfg, int(last_series[1:])).tests
+    last_test = max(last_tests, key=int)
+    while limit is not 0:
+        test_list.append(last_test)
+        last_test = last_test - 1
+        limit = limit - 1
+
+    test_statuses = []
+    test_obj_list = []
+    for test_id in test_list:
+        try:
+            test = PavTest.load(pav_cfg, test_id)
+            test_obj_list.append(test)
+        except (PavTestError, PavTestNotFoundError) as err:
+            test_statuses.append({
+                'test_id': test_id,
+                'name': "",
+                'state': STATES.UNKNOWN,
+                'time': "",
+                'note': "Test not found.",
+            })
+    statuses = status_from_test_obj(pav_cfg, test_obj_list)
+
+    if statuses is not None:
+        test_statuses = test_statuses + statuses
+    return test_statuses
+
 def get_statuses(pav_cfg, args, errfile):
     """Get the statuses of the listed tests or series.
     :param pav_cfg: The pavilion config.
@@ -48,7 +83,8 @@ def get_statuses(pav_cfg, args, errfile):
               note.
     """
 
-    if (not args.tests) and (not args.all):
+    #if (not args.tests) and (not args.all):
+    if not args.tests:
         # Get the last series ran by this user.
         series_id = series.TestSeries.load_user_series_id(pav_cfg)
         if series_id is not None:
@@ -58,7 +94,7 @@ def get_statuses(pav_cfg, args, errfile):
                     "was found.")
 
     test_list = []
-
+    """
     # user wants all tests
     if args.all:
         limit = args.limit
@@ -70,6 +106,7 @@ def get_statuses(pav_cfg, args, errfile):
             test_list.append(last_test)
             last_test = last_test - 1
             limit = limit - 1
+    """
 
     for test_id in args.tests:
         # Series 
@@ -175,7 +212,7 @@ class StatusCommand(commands.Command):
                  'recent series submitted by this user is checked.'
         )
         parser.add_argument(
-            '-a', '--all', action='store_true',
+            '-a', '--all', action='store_true', 
             help='Displays all tests within a certain limit.'
         )
         parser.add_argument(
@@ -185,7 +222,11 @@ class StatusCommand(commands.Command):
         )
 
     def run(self, pav_cfg, args):
-        test_statuses = get_statuses(pav_cfg, args, self.errfile)
+
+        if not args.all:
+            test_statuses = get_statuses(pav_cfg, args, self.errfile)
+        else:
+            test_statuses = get_all_tests(pav_cfg, args, self.errfile)
 
         return print_status(test_statuses, self.outfile, args.json)
 
