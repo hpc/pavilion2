@@ -235,7 +235,7 @@ class ResultParser(IPlugin.IPlugin):
                           "  {FULLNAME} - Store the results on a per file "
                           "basis under results[<filename>][<key>]\n"
                           "  {NAME} - As '{FULLNAME}', except use the "
-                          "filename minux extension (foo.bar.log -> foo.bar)\n"
+                          "filename minus extension (foo.bar.log -> foo.bar)\n"
                           "  {LIST} - Merge all each result and result list "
                           "into a single list.\n"
                           "  {ALL} - Use only with the 'store_true' or "

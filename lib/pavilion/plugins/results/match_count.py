@@ -1,34 +1,15 @@
 from pavilion import result_parsers
 import yaml_config as yc
 
+import collections
 
-class MatchCount(result_parsers.ResultParser):
-    """Count matches against a word to inform success or failure."""
 
-    PASS = result_parsers.PASS
-    FAIL = result_parsers.FAIL
-    ERROR = result_parsers.ERROR
-
-    ACTION_STORE = result_parsers.ACTION_STORE
-    ACTION_TRUE = result_parsers.ACTION_TRUE
-    ACTION_FALSE = result_parsers.ACTION_FALSE
-    ACTION_COUNT = result_parsers.ACTION_COUNT
-
-    PER_FIRST = result_parsers.PER_FIRST
-    PER_LAST = result_parsers.PER_LAST
-    PER_FULLNAME = result_parsers.PER_FULLNAME
-    PER_NAME = result_parsers.PER_NAME
-    PER_LIST = result_parsers.PER_LIST
-    PER_ANY = result_parsers.PER_ANY
-    PER_ALL = result_parsers.PER_ALL
-
-    MATCH_FIRST = result_parsers.MATCH_FIRST
-    MATCH_LAST = result_parsers.MATCH_LAST
-    MATCH_ALL = result_parsers.MATCH_ALL
+class Match(result_parsers.ResultParser):
+    """Collects matches against a word to inform success or failure."""
 
     def __init__(self):
         # Using the default open_mode of 'r' and default priority.
-        super().__init__(name='match_count')
+        super().__init__(name='match')
 
     def get_config_items(self):
 
@@ -52,7 +33,7 @@ class MatchCount(result_parsers.ResultParser):
 
         return config_items
 
-    def check_args(self, file=None, search=None, threshold=None):
+    def check_args(self, files=None, search=None, threshold=None, action=None):
 
         if threshold is not None:
             try:
@@ -70,18 +51,13 @@ class MatchCount(result_parsers.ResultParser):
 
     def __call__(self, test, file=None, search=None, threshold=None):
 
-        if file is None:
-            file = []
+        line_list = []
 
-        res_dict = {}
-
-        for res in file:
-            total = 0
-            for line in res.readlines():
-                total += line.count(search)
+        for line in file:
+            if search in line:
+                line_list.append(line)
 
         if threshold is None:
-            return total
-        elif total < int(threshold):
-                return self.FAIL
-        return self.PASS
+            return line_list
+
+        return (len(line_list) >= threshold)
