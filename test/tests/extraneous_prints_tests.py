@@ -13,10 +13,10 @@ class ExtraPrintsTest(PavTestCase):
         plugins._reset_plugins()
 
     def test_for_extra_prints(self):
-        """greps for unnecessary print statements."""
-        #self.assertNotEqual(1,1)
+        """greps for unnecessary dbg_print statements."""
 
-        cmd = ["""grep -R --exclude={run,show,cancel,set_status,view,log,utils,status}.py -i 'print(' ../lib/pavilion/"""]
+        #cmd = ["""grep -R --exclude={run,show,cancel,set_status,view,log,utils,status}.py -i 'print(' ../lib/pavilion/"""]
+        cmd = "grep -R -i -I 'dbg_print' ../lib/pavilion/ --exclude=unittest.py --exclude=utils.py"
         output = subprocess.call(cmd, shell=True)
 
         self.assertNotEqual(output, 0)
