@@ -20,12 +20,12 @@ class Command(result_parsers.ResultParser):
                 help_text="Command that will be run."
             ),
             yc.StrElem(
-                'success', required=True,
+                'success',
                 default='return_value',
                 help_text="needs to be either return_value or output"
             ),
             yc.StrElem(
-                'success_value', required=True,
+                'success_value',
                 default='0',
                 help_text="success value"
             )
@@ -35,9 +35,9 @@ class Command(result_parsers.ResultParser):
 
     def _check_args(self, command=None, success=None, success_value=None):
 
-        if (command == "") or (success == "") or (success_value == ""):
+        if (command == ""):
             raise result_parsers.ResultParserError(
-                "command, success, and success_value are required"
+                "Command required."
             )
 
     def __call__(self, test, file, command=None, success=None, success_value=None):
@@ -51,22 +51,19 @@ class Command(result_parsers.ResultParser):
                     stderr=subprocess.STDOUT,
                     shell=True).decode("utf-8")
                 cmd_result = str(cmd_result)
-                print("out: " + cmd_result)
             except:
-                print("output: command did not work")
+                raise result_parsers.ResultParserError(
+                    "Command cannot be executed.")
         # get return value
         else:
             try:
                 cmd_result = str(subprocess.call(command, shell=True))
-                print("return value: " + cmd_result)
             except:
-                print("return value: command did not work")
+                raise result_parsers.ResultParserError(
+                    "Command cannot be executed."
+                )
         # compare cmd_result with success value
         if cmd_result == str(success_value):
-            print("command success")
-            return "successful"
+            return True
         else:
-            print("command unsuccessful")
-            return "unsuccessful"
-
-        return "success"
+            return False
