@@ -16,7 +16,7 @@ world:
         cmds:
             - echo "Running World"
 
-    scheduler: "raw"
+    scheduler: "slurm"
 
 narf:
     inherits_from: world

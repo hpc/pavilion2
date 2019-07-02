@@ -1,5 +1,5 @@
 from pathlib import Path
-import dbm
+import json
 import logging
 import requests
 import tempfile
@@ -36,10 +36,10 @@ def get(pav_cfg, url, dest):
     dest_dir = dest.parent.resolve()
 
     try:
-        with session.get(url, proxies=proxies, stream=True,
-                         timeout=pav_cfg.wget_timeout) as response, \
-              tempfile.NamedTemporaryFile(dir=str(dest_dir),
-                                          delete=False) as tmp:
+        response = session.get(url, proxies=proxies, stream=True,
+                               timeout=pav_cfg.wget_timeout)
+        with tempfile.NamedTemporaryFile(dir=str(dest_dir),
+                                         delete=False) as tmp:
             for chunk in response.iter_content(chunk_size=4096):
                 tmp.write(chunk)
     except requests.exceptions.RequestException as err:
@@ -130,15 +130,13 @@ def _get_info(path):
 
     if info_fn.is_file():
         try:
-            with dbm.open(str(info_fn)) as db:
+            with info_fn.open() as info_file:
+                info = json.load(info_file)
 
-                for key in db.keys():
-                    # Convert everything to unicode.
-                    info[key.decode('utf-8')] = db[key].decode('utf-8')
-
-        except dbm.error as err:
-            LOGGER.warning("Error reading dbm file '{}': {}"
+        except (ValueError, IOError, OSError) as err:
+            LOGGER.warning("Error reading json file '{}': {}"
                            .format(info_fn, err))
+
 
     stat = path.stat()
 
@@ -166,13 +164,17 @@ def _save_info(path, head_data):
 
     info_fn = path.with_suffix(path.suffix + '.info')
 
+    data = {}
+    for field in INFO_HEADER_FIELDS:
+        if field in head_data:
+            data[field] = head_data[field]
+
     try:
-        with dbm.open(str(info_fn), 'n') as db:
-            for field in INFO_HEADER_FIELDS:
-                if field in head_data:
-                    db[field] = head_data[field]
-    except dbm.error as err:
-        LOGGER.warning("Error writing dbm file '{}': {}".format(info_fn, err))
+        with info_fn.open('w') as info_file:
+            json.dump(data, info_file)
+
+    except (ValueError, TypeError, IOError, OSError) as err:
+        LOGGER.warning("Error writing info file '{}': {}".format(info_fn, err))
 
 
 def update(pav_cfg, url, dest):

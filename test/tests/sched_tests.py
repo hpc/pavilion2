@@ -4,7 +4,7 @@ from pavilion import schedulers
 from pavilion.test_config import variables
 from pavilion.pav_test import PavTest
 from pavilion.unittest import PavTestCase
-
+import re
 
 class RawSchedTests(PavTestCase):
 
@@ -15,6 +15,7 @@ class RawSchedTests(PavTestCase):
         # Do a default pav config, which will load from
         # the pavilion lib path.
         self.pav_config = config.PavilionConfigLoader().load_empty()
+        self.pav_config.config_dirs = [self.TEST_DATA_ROOT/'pav_config_dir']
 
     def setUp(self):
 
@@ -83,3 +84,30 @@ class RawSchedTests(PavTestCase):
         dummy_sched.in_alloc_var = True
         del svars['bar']
         self.assertEqual(svars['bar'], 'bar')
+
+    def test_kickoff_env(self):
+
+        pav_cfg = self.pav_cfg
+        pav_cfg['env_setup'] = ['test1', 'test2', 'test3']
+
+        test = PavTest(
+            self.pav_cfg,
+            {
+                'name': 'sched-vars',
+                'scheduler': 'dummy'
+            },
+            {}
+        )
+
+        dummy_sched = schedulers.get_scheduler_plugin('dummy')
+        path = dummy_sched._create_kickoff_script(pav_cfg, test)
+        with path.open() as file:
+            lines = file.readlines()
+        for i in range(0,len(lines)):
+            lines[i] = lines[i].strip()
+        testlist = pav_cfg['env_setup']
+        self.assertTrue(set(testlist).issubset(lines))
+        self.assertTrue(re.match(r'pav _run.*', lines[-1]))
+
+
+
