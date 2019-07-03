@@ -230,8 +230,8 @@ class ResultParser(IPlugin.IPlugin):
                 ],
                 help_text="How to save results for multiple file matches.\n"
                           "  {FIRST} - The result from the first file with a "
-                          "result. (default)\n"
-                          "  {LAST} - As '{FIRST}', but reversed.\n"
+                          "non-empty result. (default)\n"
+                          "  {LAST} - As '{FIRST}', but last result.\n"
                           "  {FULLNAME} - Store the results on a per file "
                           "basis under results[<filename>][<key>]\n"
                           "  {NAME} - As '{FULLNAME}', except use the "
@@ -240,7 +240,7 @@ class ResultParser(IPlugin.IPlugin):
                           "into a single list.\n"
                           "  {ALL} - Use only with the 'store_true' or "
                           "'store_false' action. Set true if all files had a "
-                          "true result.\n"
+                          "true result. Note that 0 is a false result.\n"
                           "  {ANY} - As '{ALL}', but set true if any file had"
                           "a true result.\n"
                           .format(
@@ -363,6 +363,10 @@ def check_args(parser_configs):
             parser.check_args(**args)
 
 
+NON_MATCH_VALUES = (None, [], False)
+EMPTY_VALUES = (None, [])
+
+
 def parse_results(test, results):
     """
     :param pavilion.pav_test.PavTest test: The pavilion test run to gather
@@ -430,7 +434,7 @@ def parse_results(test, results):
                         'result_parser': parser_name,
                         'file': path,
                         'key': key,
-                        'msg': "Error reading file: {}".format(path, err)})
+                        'msg': "Error reading file: {}".format(err)})
                     continue
                 except Exception as err:
                     errors.append({
@@ -450,16 +454,16 @@ def parse_results(test, results):
                     # Simply store the whole result.
                     presults[path] = res
                 elif action == ACTION_TRUE:
-                    # Any value that evaluates to python True is True
-                    presults[path] = bool(res)
+                    # Any non-null/empty value is true
+                    presults[path] = res not in NON_MATCH_VALUES
                 elif action == ACTION_FALSE:
-                    # Any value that evaluates to python True is False
-                    presults[path] = not bool(res)
+                    # Any null/empty value is false
+                    presults[path] = res in NON_MATCH_VALUES
                 elif action == ACTION_COUNT:
                     # Count the returned items.
                     if isinstance(res, (list, tuple)):
                         presults[path] = len(res)
-                    elif res is not None:
+                    elif res not in NON_MATCH_VALUES:
                         presults[path] = 1
                     else:
                         presults[path] = 0
@@ -485,7 +489,7 @@ def parse_results(test, results):
                 results[key] = None
 
                 for pres in presults:
-                    if pres == [] or pres is None:
+                    if pres in EMPTY_VALUES:
                         continue
 
                     # Store the first non-empty item.
@@ -531,7 +535,7 @@ def parse_results(test, results):
                 for value in presults.values():
                     if isinstance(value, list):
                         result_list.extend(value)
-                    elif value is not None:
+                    elif value not in EMPTY_VALUES:
                         result_list.append(value)
 
                 results[key] = result_list
