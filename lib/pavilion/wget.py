@@ -1,11 +1,31 @@
 from pathlib import Path
 import json
 import logging
-import requests
 import tempfile
 import urllib.parse
 
+_MISSING_LIBS = []
+try:
+    import requests
+except ImportError as err:
+    if hasattr(err, 'name'):
+        _MISSING_LIBS.append(err.name)
+    else:
+        _MISSING_LIBS.append(err)
+
+    requests = None
+
+try:
+    import ssl
+except ImportError:
+    _MISSING_LIBS.append('ssl')
+    ssl = None
+
 LOGGER = logging.getLogger('pavilion.' + __file__)
+
+
+def missing_libs():
+    return _MISSING_LIBS
 
 
 class WGetError(RuntimeError):

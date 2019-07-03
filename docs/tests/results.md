@@ -118,9 +118,8 @@ By default, each result parser reads through the test's `run.log` file. You
 can specify a different file, a file glob, or even multiple file globs to 
 match an assortment of files. 
 
-If you need to reference the run log in 
-addition to other files, it is one directory up from the test's run 
-directory, in `../run.log`.
+If you need to reference the run log in addition to other files, it is one 
+directory up from the test's run directory, in `../run.log`.
 
 This test runs across a bunch of nodes, and produces an output file for each.
 
@@ -132,6 +131,7 @@ mytest2:
     
     run:
       cmds:
-        - srun "hostname > ${SL
+        - srun "hostname > 
+        
 ```
 
