@@ -1,16 +1,19 @@
-from pathlib import Path
-from pavilion import unittest
-from pavilion.status_file import STATES
-from pavilion.series import TestSeries
-from pavilion.test_config import variables
-from pavilion.pav_test import PavTestError, PavTest
 import copy
 import os
 import shutil
 import tempfile
+import unittest
+from pathlib import Path
+
+from pavilion import wget
+from pavilion.pav_test import PavTestError, PavTest
+from pavilion.series import TestSeries
+from pavilion.status_file import STATES
+from pavilion.test_config import variables
+from pavilion.unittest import PavTestCase
 
 
-class PavTestTests(unittest.PavTestCase):
+class PavTestTests(PavTestCase):
 
     def test_obj(self):
         """Test pavtest object initialization."""
@@ -151,6 +154,8 @@ class PavTestTests(unittest.PavTestCase):
 
     README_HASH = '275fa3c8aeb10d145754388446be1f24bb16fb00'
 
+    @unittest.skipIf(wget.missing_libs(),
+                     "The wget module is missing required libs.")
     def test_src_urls(self):
 
         base_config = {
