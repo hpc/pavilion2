@@ -1,5 +1,4 @@
 # Pavilion
-![Pavilion](docs/imgs/logo.png "Pavilion Test Harness")
 
 
 LA-CC-15-041
