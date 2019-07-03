@@ -23,7 +23,7 @@ here.
 
 ![Config Directory Layout](imgs/config_dir.png "Pavilion Config Directory")
 
-##Pavilion.yaml
+## Pavilion.yaml
 Pavilion looks for a `pavilion.yaml` in the default config hierarchy, and 
 uses the first one it finds. 
 
