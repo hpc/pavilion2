@@ -1,3 +1,4 @@
+# Pavilion
 ![Pavilion](docs/imgs/logo.png "Pavilion Test Harness")
 
 
