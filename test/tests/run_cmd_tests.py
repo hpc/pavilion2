@@ -2,7 +2,8 @@ from pavilion import plugins
 from pavilion import commands
 from pavilion.unittest import PavTestCase
 from pavilion import arguments
-
+import io
+import json
 
 class RunCmdTests(PavTestCase):
 
@@ -34,9 +35,14 @@ class RunCmdTests(PavTestCase):
             configs_by_sched=tests,
         )
 
+        t1, t2 = tests['raw']
+        # Make sure our tests are in the right order
+        if t1.name != 'hello':
+            t1, t2 = t2, t1
+
         # Make sure all the tests are there, under the right schedulers.
-        self.assertEqual(tests['slurm'][0].name, 'hello')
-        self.assertEqual(tests['raw'][0].name, 'world')
+        self.assertEqual(t1.name, 'hello')
+        self.assertEqual(t2.name, 'world')
         self.assertEqual(tests['dummy'][0].name, 'narf')
 
         tests_file = self.TEST_DATA_ROOT/'run_test_list'
@@ -71,10 +77,46 @@ class RunCmdTests(PavTestCase):
         ])
 
         run_cmd = commands.get_command(args.command_name)
+        run_cmd.outfile = io.StringIO()
 
         self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
 
+    def test_run_status(self):
+        '''Tests run command with status flag.'''
 
+        arg_parser = arguments.get_parser()
 
+        args = arg_parser.parse_args([
+            'run',
+            '-s',
+            'hello_world'
+        ])
 
+        run_cmd = commands.get_command(args.command_name)
+        run_cmd.outfile = io.StringIO()
 
+        run_cmd.outfile = io.StringIO()
+
+        self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
+
+    def test_run_status_json(self):
+        '''Tests run command with status and json flags'''
+
+        arg_parser = arguments.get_parser()
+
+        args = arg_parser.parse_args([
+            'run',
+            '-s', '-j',
+            'hello_world'
+        ])
+
+        run_cmd = commands.get_command(args.command_name)
+        run_cmd.outfile = io.StringIO()
+
+        self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
+
+        status = run_cmd.outfile.getvalue().split('\n')[-1].strip().encode('UTF-8')
+        status = status[4:].decode('UTF-8')
+        status = json.loads(status)
+
+        self.assertNotEqual(len(status), 0)

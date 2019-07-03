@@ -1,0 +1,126 @@
+from pavilion import commands
+from pavilion import plugins
+from pavilion import status_file
+from pavilion import system_variables
+from pavilion.series import TestSeries
+from pavilion.test_config import format
+from pavilion.unittest import PavTestCase
+from pavilion.pav_test import PavTest
+import argparse
+import io
+
+
+class WaitCmdTests(PavTestCase):
+
+    def setUp(self):
+        plugins.initialize_plugins(self.pav_cfg)
+
+    def tearDown(self):
+        plugins._reset_plugins()
+
+    def test_wait_arguments(self):
+        wait_cmd = commands.get_command('wait')
+
+        parser = argparse.ArgumentParser()
+        wait_cmd._setup_arguments(parser)
+        args = parser.parse_args(['test1', 'test2'])
+
+        self.assertEqual(args.tests[0], 'test1')
+        self.assertEqual(args.tests[1], 'test2')
+        self.assertEqual(args.json, False)
+        self.assertEqual(args.timeout, '60')
+
+        parser = argparse.ArgumentParser()
+        wait_cmd._setup_arguments(parser)
+        args = parser.parse_args(['-j', '-t', '22' , 'test0', 'test9'])
+
+        self.assertEqual(args.tests[0], 'test0')
+        self.assertEqual(args.tests[1], 'test9')
+        self.assertEqual(args.json, True)
+        self.assertEqual(args.timeout, '22')
+
+    def test_wait_command(self):
+        """Test wait command by generating a suite of tests."""
+
+        config1 = format.TestConfigLoader().validate({
+            'scheduler': 'raw',
+            'run': {
+                'env': {
+                    'foo': 'bar',
+                },
+                'cmds': ['echo 0'],
+            },
+        })
+
+        config1['name'] = 'run_test0'
+
+        config2 = format.TestConfigLoader().validate({
+            'scheduler': 'raw',
+            'run': {
+                'env': {
+                    'too': 'tar',
+                },
+                'cmds': ['echo 1'],
+            },
+        })
+
+        config2['name'] = 'run_test1'
+
+        config3 = format.TestConfigLoader().validate({
+            'scheduler': 'raw',
+            'run': {
+                'env': {
+                    'too': 'tar',
+                },
+                'cmds': ['sleep 1'],
+            },
+        })
+
+        config3['name'] = 'run_test2'
+
+        configs = [config1, config2, config3]
+
+        sys_vars = system_variables.get_vars(False)
+
+        tests = [PavTest(self.pav_cfg, test, sys_vars)
+                 for test in configs]
+
+        for test in tests:
+            test.RUN_SILENT_TIMEOUT = 1
+
+        # Make sure this doesn't explode
+        suite = TestSeries(self.pav_cfg, tests)
+        test_str = " ".join([str(test) for test in suite.tests])
+
+        wait_cmd = commands.get_command('wait')
+        wait_cmd.outfile = io.StringIO()
+
+        # Testing for individual tests with json output
+        for test in suite.tests:
+            parser = argparse.ArgumentParser()
+            wait_cmd._setup_arguments(parser)
+            arg_list = ['-j', '-t', '1', str(test)]
+            args = parser.parse_args(arg_list)
+            self.assertEqual(wait_cmd.run(self.pav_cfg, args), 0)
+
+        # Testing for multiple tests with json output
+        parser = argparse.ArgumentParser()
+        wait_cmd._setup_arguments(parser)
+        arg_list = ['-j', '-t', '1'] + test_str.split()
+        args = parser.parse_args(arg_list)
+        self.assertEqual(wait_cmd.run(self.pav_cfg, args), 0)
+
+        # Testing for individual tests with tabular output
+        for test in suite.tests:
+            parser = argparse.ArgumentParser()
+            wait_cmd._setup_arguments(parser)
+            arg_list = ['-j', '-t', '1', str(test)]
+            args = parser.parse_args(arg_list)
+            self.assertEqual(wait_cmd.run(self.pav_cfg, args), 0)
+
+        # Testing for multiple tests with tabular output
+        parser = argparse.ArgumentParser()
+        wait_cmd._setup_arguments(parser)
+        arg_list = ['-j', '-t', '1'] + test_str.split()
+        args = parser.parse_args(arg_list)
+        self.assertEqual(wait_cmd.run(self.pav_cfg, args), 0)

@@ -7,8 +7,12 @@ import sys
 import unittest
 import argparse
 
+# Setup our paths to the pavilion libraries.
+sys.path.append(os.path.abspath('../lib'))
 
-logging_root = '/tmp/{user}'.format(user=os.getlogin())
+from pavilion import utils
+
+logging_root = '/tmp/{user}'.format(user=utils.get_login())
 if not os.path.exists(logging_root):
     os.makedirs(logging_root)
 log_path = os.path.join(logging_root, 'pavilion_tests.log')
@@ -19,9 +23,6 @@ console.setFormatter(logging.Formatter(fmt='\x1b[2m{message}\x1b[0m',
                                        style='{'))
 
 logging.getLogger('').handlers.pop(0)
-
-# Setup our paths to the pavilion libraries.
-sys.path.append(os.path.abspath('../lib'))
 
 
 def main():
@@ -64,8 +65,9 @@ def main():
     runner = unittest.TextTestRunner(
         resultclass=ColorResult,
         verbosity=2)
-    runner.run(suite)
+    result = runner.run(suite)
+    return len(result.errors) + len(result.failures)
 
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())

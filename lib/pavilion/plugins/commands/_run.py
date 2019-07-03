@@ -1,10 +1,12 @@
+import logging
+
 from pavilion import commands
+from pavilion import result_parsers
 from pavilion import schedulers
 from pavilion import system_variables
 from pavilion import utils
 from pavilion.pav_test import PavTest, PavTestError
 from pavilion.status_file import STATES
-import logging
 
 
 class _RunCommand(commands.Command):
@@ -57,7 +59,7 @@ class _RunCommand(commands.Command):
 
         try:
             run_result = test.run(sched.get_vars(test),
-                              system_variables.get_vars(defer=False))
+                                  system_variables.get_vars(defer=False))
         except PavTestError as err:
             test.status.set(STATES.RUN_ERROR, err)
             test.set_run_complete()
@@ -76,6 +78,22 @@ class _RunCommand(commands.Command):
             return
 
         try:
+            rp_errors = []
+            # Make sure the result parsers have reasonable arguments.
+            # We check here because the parser code itself will likely assume
+            # the args are valid form _check_args, but those might not be
+            # checkable before kickoff due to deferred variables.
+            try:
+                result_parsers.check_args(test.config['results'])
+            except PavTestError as err:
+                rp_errors.append(str(err))
+
+            if rp_errors:
+                for msg in rp_errors:
+                    test.status.set(STATES.RESULTS_ERROR, msg)
+                test.set_run_complete()
+                return
+
             results = test.gather_results(run_result)
         except Exception as err:
             self.logger.error("Unexpected error gathering results: {}"
