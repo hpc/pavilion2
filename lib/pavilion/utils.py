@@ -116,10 +116,10 @@ def dbg_print(*args, color=33, file=sys.stderr, end="", **kwargs):
 
     print(start_escape)
     print(*args, file=file, end=end, **kwargs)
-    print('\x1b[0m', end="")
+    print('\x1b[0m')
 
 
-def fprint(*args, color=None, bullet='', width=80,
+def fprint(*args, color=None, bullet='', width=100,
            sep=' ', file=sys.stdout):
     """Print with automatic wrapping, bullets, and other features.
     :param args: Standard print function args
@@ -136,10 +136,14 @@ def fprint(*args, color=None, bullet='', width=80,
         print('\x1b[{}m'.format(color), end='', file=file)
 
     out_str = sep.join(args)
-    lines = textwrap.wrap(out_str, width=width)
-    for line in lines:
-        line = textwrap.indent(line, bullet, lambda l: l is lines[0])
-        print(line, file=file)
+    for paragraph in str.splitlines(out_str):
+        lines = textwrap.wrap(paragraph, width=width)
+
+        for line in lines:
+            line = textwrap.indent(line, bullet, lambda l: l is lines[0])
+            print(line, file=file)
+        if not lines:
+            print(file=file)
 
     if color is not None:
         print('\x1b[0m', end='', file=file)

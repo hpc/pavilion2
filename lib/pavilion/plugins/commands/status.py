@@ -129,6 +129,7 @@ def print_status(statuses, outfile, json=False):
 
     return ret_val
 
+
 def print_from_test_obj(pav_cfg, test_obj, outfile, json=False):
     """Print the statuses given a list of test objects or a single test object.
     :param dict pav_cfg: Base pavilion configuration.
@@ -161,7 +162,11 @@ class StatusCommand(commands.Command):
         )
 
     def run(self, pav_cfg, args):
-        test_statuses = get_statuses(pav_cfg, args, self.errfile)
+        try:
+            test_statuses = get_statuses(pav_cfg, args, self.errfile)
+        except commands.CommandError as err:
+            utils.fprint("Status Error:", err, color=utils.RED)
+            return 1
 
         return print_status(test_statuses, self.outfile, args.json)
 
