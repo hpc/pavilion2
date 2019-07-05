@@ -63,8 +63,12 @@ def find_all_tests(pav_cfg):
                 # It's ok if the tests aren't completely validated. They
                 # may have been written to require a real host/mode file.
                 with file.open('r') as suite_file:
-                    suite_cfg = TestSuiteLoader().load(suite_file,
-                                                       partial=True)
+                    try:
+                        suite_cfg = TestSuiteLoader().load(suite_file,
+                                                           partial=True)
+                    except (TypeError, KeyError, ValueError) as err:
+                        suites[suite_name]['err'] = err
+                        continue
                 suite_name = file.stem
 
                 if suite_name not in suites:
@@ -287,7 +291,12 @@ def resolve_inheritance(base_config, suite_cfg, suite_path):
         else:
             depended_on_by[test_cfg['inherits_from']].append(test_cfg_name)
 
-        suite_tests[test_cfg_name] = TestConfigLoader().normalize(test_cfg)
+        try:
+            suite_tests[test_cfg_name] = TestConfigLoader().normalize(test_cfg)
+        except (TypeError, KeyError, ValueError) as err:
+            raise TestConfigError(
+                "Test {} in suite {} has an error: {}"
+                .format(test_cfg_name, suite_path, err))
 
     # Add this so we can cleanly depend on it.
     suite_tests['__base__'] = base_config
