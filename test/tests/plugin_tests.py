@@ -188,7 +188,7 @@ class PluginTests(PavTestCase):
         plugins.initialize_plugins(self.pav_cfg)
 
         # We should have exactly one test plugin.
-        self.assertEqual(len(result_parsers.list_plugins()), 4)
+        self.assertEqual(len(result_parsers.list_plugins()), 1)
 
         regex = result_parsers.get_plugin('regex')
 

@@ -1,6 +1,7 @@
 from pavilion import result_parsers
 import yaml_config as yc
 import re
+import sre_constants
 
 
 class Regex(result_parsers.ResultParser):
@@ -26,7 +27,7 @@ class Regex(result_parsers.ResultParser):
             # Use the built-in matches element.
             result_parsers.MATCHES_ELEM,
             yc.StrElem(
-                'threshold', default=None,
+                'threshold', default='0',
                 help_text="If a threshold is defined, 'pass' will be returned "
                           "if greater than or equal to that many instances "
                           "of the specified word are found.  If fewer "
@@ -51,13 +52,24 @@ class Regex(result_parsers.ResultParser):
 
         try:
             re.compile(regex)
-        except ValueError as err:
+        except (ValueError, sre_constants.error) as err:
             raise result_parsers.ResultParserError(
                 "Invalid regular expression: {}".format(err))
 
         if not isinstance(expected, list):
             raise result_parsers.ResultParserError(
                 "Expected should be a list.")
+
+        if threshold is not None:
+            try:
+                int(threshold)
+            except ValueError as err:
+                raise result_parsers.ResultParserError(
+                    "Non-integer value provided for 'threshold'.")
+
+            if int(threshold) < 0:
+                raise result_parsers.ResultParserError(
+                    "'threshold' must be a non-negative integer.")
 
         for item in expected:
             test_list = []
@@ -96,38 +108,43 @@ class Regex(result_parsers.ResultParser):
         matches = []
 
         for line in file.readlines():
-            match = regex.search(line)
+            # Find all non-overlapping matches and return them as a list.
+            # if more than one capture is used, list contains tuples of
+            # captured strings.
+            match = regex.findall(line)
 
-            if match is not None:
-                matches.append(match.group())
+            matches.extend(match)
 
         # Test if the number of matches meets the specified threshold
-        if threshold is not None:
-            return (len(matches) >= threshold)
-        # Test if the found values are within any of the specified expected
-        # ranges.
-        elif expected is not None:
-            # Initially set to false for all matches.
-            ret_vals = [False for x in range(0,len(matches))]
-            for i in range(0,len(ret_vals)):
-                for j in range(0,len(expected)):
-                    # Not a range, checking for exact match.
-                    if '-' not in expected[j][1:] and \
-                            float(matches[i]) == float(expected[j]):
-                                ret_vals[i] = True
-                    # Checking if found value is in this range.
-                    elif '-' in expected[j][1:]:
-                        low, high = self.range_re.search(expected[j]).groups()
-                        if float(low) <= float(matches[i]) <= float(high):
-                            ret_vals[i] = True
-            return ret_vals
+        if int(threshold) > 0:
+            return (len(matches) >= int(threshold))
         elif match_type == result_parsers.MATCH_FIRST:
-            return matches[0] if matches else None
+            matches = None if not matches else matches[0]
         elif match_type == result_parsers.MATCH_LAST:
-            return matches[-1] if matches else None
+            matches = None if not matches else matches[-1]
         elif match_type == result_parsers.MATCH_ALL:
-            return matches
+            pass
         else:
             raise result_parsers.ResultParserError(
                 "Invalid 'matches' value '{}'".format('matches')
             )
+
+        # Test if the found values are within any of the specified expected
+        # ranges.
+        if not expected:
+            return matches# if matches else None
+        else:
+            # Initially set to false for all matches.
+            ret_vals = []
+            for i in range(0,len(matches)):
+                for j in range(0,len(expected)):
+                    # Not a range, checking for exact match.
+                    if '-' not in expected[j][1:] and \
+                            float(matches[i]) == float(expected[j]):
+                                ret_vals.append(True)
+                    # Checking if found value is in this range.
+                    elif '-' in expected[j][1:]:
+                        low, high = self.range_re.search(expected[j]).groups()
+                        if float(low) <= float(matches[i]) <= float(high):
+                            ret_vals.append(True)
+            return ret_vals
