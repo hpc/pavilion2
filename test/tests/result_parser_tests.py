@@ -331,7 +331,7 @@ class ResultParserTests(PavTestCase):
 
         plugins._reset_plugins()
 
-    def test_regex_value_parser(self):
+    def test_regex_expected(self):
         """Ensure the regex-value parser works appropriately."""
 
         plugins.initialize_plugins(self.pav_cfg)
@@ -510,7 +510,7 @@ class ResultParserTests(PavTestCase):
 
         self.assertFalse(results['key12'])
 
-    def test_match_count_parser(self):
+    def test_regex_threshold(self):
         """Ensure the match_count parser works appropriately."""
 
         plugins.initialize_plugins(self.pav_cfg)
