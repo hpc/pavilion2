@@ -71,7 +71,7 @@ pav --help
 Pavilion doesn't come with any tests itself, it's just a system for running 
 them on HPC clusters. Each test needs a configuration script, and most will 
 need some source files. Both of these will live in one of your [config 
-directories](docs/config_dirs.md) under the `tests/` and `test_src/` 
+directories](docs/config.md#config-directories) under the `tests/` and `test_src/` 
 sub-directories. 
 
 Test configs tell pavilion what environment it needs to build and run your 
@@ -124,7 +124,7 @@ kicked off on a host with a hostname of `my_host`. Pavilion uses the contents
  provided via a built-in
   [system variable plugin](docs/plugins/sys_vars.md). 
  This behaviour can be overridden by providing your own sys_var plugin, which
-  is especially useful on clusters with multiple frontends.
+  is especially useful on clusters with multiple front-ends.
 
 #### Mode Configs
 In addition to host config files, you can provide mode config files that you 
