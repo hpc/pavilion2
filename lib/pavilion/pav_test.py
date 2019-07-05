@@ -692,7 +692,7 @@ class PavTest:
             path = self._find_file(extra, 'test_src')
             dest = build_path/path.name
             try:
-                shutil.copyfile(path.as_posix(), dest.as_posix())
+                shutil.copy(path.as_posix(), dest.as_posix())
             except OSError as err:
                 raise PavTestError(
                     "Could not copy extra file '{}' to dest '{}': {}"
