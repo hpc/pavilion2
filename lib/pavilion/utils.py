@@ -115,7 +115,7 @@ def dbg_print(*args, color=33, file=sys.stderr, end="", **kwargs):
     start_escape = '\x1b[{}m'.format(color)
 
     print(start_escape)
-    print(*args, file=file, **kwargs, end=end)
+    print(*args, file=file, end=end, **kwargs)
     print('\x1b[0m', end="")
 
 
