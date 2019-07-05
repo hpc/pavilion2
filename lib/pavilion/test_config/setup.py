@@ -484,7 +484,7 @@ def resolve_permutations(raw_test_cfg, pav_vars, sys_vars):
 
     # Replace every variable reference in permutations with the 
     # correct variable before adding it to the variable manager
-    dbg_print("old per_vars: " + str(per_vars))
+    updated_per_vars = per_vars
     for per_key in per_vars:
         for i in range(len(per_vars[per_key])):
             per_value = per_vars[per_key][i]
@@ -492,13 +492,15 @@ def resolve_permutations(raw_test_cfg, pav_vars, sys_vars):
                 per_value = per_value.replace('{{','')
                 per_value = per_value.replace('}}','')
                 var_set, var = per_value.split(".")
-                value = base_var_man.variable_sets[var_set].get(var, None, None)
-                dbg_print(value)
-                per_vars[per_key][i] = value
-    dbg_print("new per_vars: " + str(per_vars))
+                if var_set == 'per':
+                    updated_per_vars[per_key].extend(per_vars[var])
+                    updated_per_vars[per_key].pop(i)
+                else:
+                    value = base_var_man.variable_sets[var_set].get(var, None, None)
+                    updated_per_vars[per_key][i] = value
 
     try:
-        base_var_man.add_var_set('per', per_vars)
+        base_var_man.add_var_set('per', updated_per_vars)
     except variables.VariableError as err:
         raise TestConfigError("Error in permutations section: {}".format(err))
 
