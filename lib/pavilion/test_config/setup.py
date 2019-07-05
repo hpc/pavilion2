@@ -8,6 +8,8 @@ import copy
 import logging
 import os
 
+from pavilion.utils import dbg_print
+
 # Config file types
 CONF_HOST = 'hosts'
 CONF_MODE = 'modes'
@@ -431,10 +433,12 @@ def resolve_permutations(raw_test_cfg, pav_vars, sys_vars):
         per_vars = {}
 
     base_var_man = variables.VariableSetManager()
+    """
     try:
         base_var_man.add_var_set('per', per_vars)
     except variables.VariableError as err:
         raise TestConfigError("Error in permutations section: {}".format(err))
+    """
 
     # We don't resolve variables within the variables section, so we remove
     # those parts now.
@@ -452,12 +456,14 @@ def resolve_permutations(raw_test_cfg, pav_vars, sys_vars):
     # We only want to permute over the permutation variables that are
     # actually used.  This also provides a convenient place to catch any
     # problems with how those variables are used.
+    """
     try:
         used_per_vars = _get_used_per_vars(test_cfg, base_var_man)
     except RuntimeError as err:
         raise TestConfigError(
             "In suite file '{}' test name '{}': {}"
             .format(test_cfg['suite'], test_cfg['name'], err))
+    """
 
     # Since per vars are the highest in resolution order, we can make things
     # a bit faster by adding these after we find the used per vars.
@@ -475,6 +481,33 @@ def resolve_permutations(raw_test_cfg, pav_vars, sys_vars):
         base_var_man.add_var_set('pav', pav_vars)
     except variables.VariableError as err:
         raise TestConfigError("Error in pav variables: {}".format(err))
+
+    # Replace every variable reference in permutations with the 
+    # correct variable before adding it to the variable manager
+    dbg_print("old per_vars: " + str(per_vars))
+    for per_key in per_vars:
+        for i in range(len(per_vars[per_key])):
+            per_value = per_vars[per_key][i]
+            if '{{' in per_value:
+                per_value = per_value.replace('{{','')
+                per_value = per_value.replace('}}','')
+                var_set, var = per_value.split(".")
+                value = base_var_man.variable_sets[var_set].get(var, None, None)
+                dbg_print(value)
+                per_vars[per_key][i] = value
+    dbg_print("new per_vars: " + str(per_vars))
+
+    try:
+        base_var_man.add_var_set('per', per_vars)
+    except variables.VariableError as err:
+        raise TestConfigError("Error in permutations section: {}".format(err))
+
+    try:
+        used_per_vars = _get_used_per_vars(test_cfg, base_var_man)
+    except RuntimeError as err:
+        raise TestConfigError(
+            "In suite file '{}' test name '{}': {}"
+            .format(test_cfg['suite'], test_cfg['name'], err))
 
     return test_cfg, base_var_man.get_permutations(used_per_vars)
 
