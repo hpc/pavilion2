@@ -1,12 +1,13 @@
+import copy
+import logging
+import os
+from collections import defaultdict
+
+from yaml_config import RequiredError
 from . import string_parser
 from . import variables
 from .format import TestConfigError, KEY_NAME_RE
 from .format import TestConfigLoader, TestSuiteLoader
-from collections import defaultdict
-from yaml_config import RequiredError
-import copy
-import logging
-import os
 
 # Config file types
 CONF_HOST = 'hosts'
@@ -528,7 +529,7 @@ def _get_used_per_vars(component, var_man):
     used_per_vars = set()
 
     if isinstance(component, dict):
-        for key in component.keys():
+        for key in sorted(component.keys()):
             try:
                 used_per_vars = used_per_vars.union(
                     _get_used_per_vars(component[key], var_man))
@@ -545,7 +546,10 @@ def _get_used_per_vars(component, var_man):
 
     elif isinstance(component, string_parser.PavString):
         for var in component.variables:
-            var_set, var, idx, sub = var_man.resolve_key(var)
+            try:
+                var_set, var, idx, sub = var_man.resolve_key(var)
+            except KeyError:
+                continue
 
             # Grab just 'per' vars. Also, if per variables are used by index,
             # we just resolve that value normally rather than permuting over

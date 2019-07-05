@@ -104,22 +104,22 @@ def get_login():
             "Could not get the name of the current user.")
 
 
-def dbg_print(*args, color=33, file=sys.stderr, **kwargs):
+def dbg_print(*args, color=33, file=sys.stderr, end="", **kwargs):
     """A colored print statement for debug printing. Use when you want to
     print junk and easily excise it later.
+    :param file: The file object to write to.
+    :param end: Default the ending to no newline (we do a pre-newline because
+        of how unittest prints stuff.
     :param int color: ANSI color code to print the string under.
     """
     start_escape = '\x1b[{}m'.format(color)
 
-    args = list(args)
-    args[0] = start_escape + '\n' + str(args[0])
-
-    args.append('\x1b[0m')
-
-    return print(*args, file=file, **kwargs)
+    print(start_escape)
+    print(*args, file=file, **kwargs, end=end)
+    print('\x1b[0m', end="")
 
 
-def fprint(*args, color=None, bullet='', width=60,
+def fprint(*args, color=None, bullet='', width=80,
            sep=' ', file=sys.stdout):
     """Print with automatic wrapping, bullets, and other features.
     :param args: Standard print function args
