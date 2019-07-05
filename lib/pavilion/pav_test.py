@@ -680,7 +680,7 @@ class PavTest:
                 dest = build_path/src_path.name
                 try:
                     build_path.mkdir()
-                    shutil.copyfile(src_path.as_posix(), dest.as_posix())
+                    shutil.copy(src_path.as_posix(), dest.as_posix())
                 except OSError as err:
                     raise PavTestError(
                         "Could not copy test src '{}' to '{}': {}"
@@ -692,7 +692,7 @@ class PavTest:
             path = self._find_file(extra, 'test_src')
             dest = build_path/path.name
             try:
-                shutil.copyfile(path.as_posix(), dest.as_posix())
+                shutil.copy(path.as_posix(), dest.as_posix())
             except OSError as err:
                 raise PavTestError(
                     "Could not copy extra file '{}' to dest '{}': {}"
