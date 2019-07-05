@@ -28,19 +28,19 @@ class Regex(result_parsers.ResultParser):
             result_parsers.MATCHES_ELEM,
             yc.StrElem(
                 'threshold', default='0',
-                help_text="If a threshold is defined, 'pass' will be returned "
+                help_text="If a threshold is defined, 'True' will be returned "
                           "if greater than or equal to that many instances "
                           "of the specified word are found.  If fewer "
-                          "instances are found, 'fail' is returned.  If no "
-                          "threshold is defined, the count will be returned."
+                          "instances are found, 'False' is returned.  The "
+                          "value must be an integer greater than zero."
             ),
             yc.ListElem(
                 'expected', sub_elem=yc.StrElem(),
-                help_text="Optional expected value(s) and/or range(s).  If "
-                          "provided, the result will be 'PASS' if all of the "
-                          "found values (determined by the 'results' value) "
-                          "are within the expected range(s) or value(s).  "
-                          "Otherwise, the result is 'FAIL'. Supports "
+                help_text="Expected value(s) and/or range(s).  If provided, "
+                          "the result will be 'True' if all of the found "
+                          "values (determined by the 'results' value) are "
+                          "within the expected range(s) or value(s).  "
+                          "Otherwise, the result is 'False'. Supports "
                           "integers and floats."
             )
         ])
