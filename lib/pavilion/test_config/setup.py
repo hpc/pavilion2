@@ -580,6 +580,7 @@ def resolve_all_vars(config, var_man, no_deferred_allowed):
     :return: The component, resolved.
     """
 
+    #dbg_print("\nresolve_all_vars input config: " + str(config))
     resolved_dict = {}
 
     for key in config:
@@ -588,6 +589,7 @@ def resolve_all_vars(config, var_man, no_deferred_allowed):
         resolved_dict[key] = _resolve_section_vars(config[key],
                                                    var_man, allow_deferred)
 
+    #dbg_print("\nresolve_all_vars output config: " + str(resolved_dict))
     return resolved_dict
 
 
@@ -627,9 +629,37 @@ def _resolve_section_vars(component, var_man, allow_deferred):
                               "resolving strings."
                               .format(type(component), component))
 
-def resolve_cir_dep(raw_test_cfg):
+def resolve_cir_ref(raw_test_cfg):
     
-    dbg_print("resolve circular dependencies")
+    test_cfg = {}
     if 'variables' in raw_test_cfg:
         test_cfg = raw_test_cfg['variables']
-    dbg_print("test_cfg: " + str(test_cfg))
+
+    dbg_print("OLD VARIABLES: " + str(test_cfg))
+    # traverse dictionary, look for values that references keys
+    for k,v in test_cfg.items():
+        for i in range(len(v)):
+            ele = v[i]
+            #dbg_print(ele + "\n")
+            if '{{' in ele:
+                #dbg_print(ele + "\n")
+                ele = ele.replace('{{','')
+                ele = ele.replace('}}','')
+                try:
+                    new_val = _resolve_cir_ref(test_cfg,ele)
+                    #dbg_print("new val: " + str(new_val))
+                    #dbg_print(test_cfg[k][i])
+                    test_cfg[k] = new_val
+                except:
+                    print("circular references don't have source")
+
+    dbg_print("\nNEW VARIABLES: " + str(test_cfg))
+
+def _resolve_cir_ref(config_dict, ref):
+    # input: variable reference
+    # needs to return the proper value
+    
+    dbg_print("REF: " + ref + " config_dict: " + str(config_dict))
+    if str(ref) in config_dict:
+        dbg_print("found reference: " + str(config_dict[ref]))
+        return config_dict[ref]
