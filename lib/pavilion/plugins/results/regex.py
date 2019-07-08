@@ -111,9 +111,7 @@ class Regex(result_parsers.ResultParser):
             # Find all non-overlapping matches and return them as a list.
             # if more than one capture is used, list contains tuples of
             # captured strings.
-            match = regex.findall(line)
-
-            matches.extend(match)
+            matches.extend(regex.findall(line))
 
         # Test if the number of matches meets the specified threshold
         if int(threshold) > 0:

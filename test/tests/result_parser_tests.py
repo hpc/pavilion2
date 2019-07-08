@@ -646,3 +646,46 @@ class ResultParserTests(PavTestCase):
         self.assertFalse(results['key8'])
 
         self.assertTrue(results['result'])
+
+    def test_regex_expected_sanity(self):
+        """Sanity check for the expected parser."""
+
+        plugins.initialize_plugins(self.pav_cfg)
+
+        test_cfg = {
+            'scheduler': 'raw',
+            'run': {
+                # This will result in 4 output files.
+                # run.log, other.log, other2.log, other3.log
+                'cmds': [
+                    "echo I am a test's output.\n",
+                    "echo Short and stout.\n",
+                    "echo My min speed is 438.5\n",
+                    "echo and my max is 968.3\n",
+                    "echo What do you think of that, punk?\n",
+                    "echo Also, here's another number to confuse you. 3.7. Take that."
+                ]
+            },
+            'results': {
+                'regex': [
+                    {
+                        # A test using the 'result' key is required.
+                        'key': 'result',
+                        'regex': r'max is (.*)$',
+                        'expected': ['900-1000'],
+                        'action': result_parsers.ACTION_TRUE,
+                    }
+                ]
+            }
+        }
+
+        test = self._quick_test(test_cfg, 'result_parser_test')
+        test.build()
+        test.run({}, {})
+
+        results = result_parsers.parse_results(
+            test=test,
+            results={}
+        )
+
+        self.assertFalse(results['result'])
