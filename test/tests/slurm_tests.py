@@ -2,7 +2,7 @@ from pavilion import config
 from pavilion import plugins
 from pavilion import schedulers
 from pavilion.unittest import PavTestCase
-from pavilion.test_config.format import TestConfigLoader
+from pavilion.test_config.file_format import TestConfigLoader
 from pavilion.status_file import STATES
 from pavilion.pav_test import PavTest
 import subprocess

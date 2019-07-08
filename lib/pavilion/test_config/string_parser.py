@@ -30,7 +30,7 @@
 import re
 from . import variables
 from .variables import VariableSetManager as VarSetMan
-from . import format
+from . import file_format
 
 
 class ScanError(ValueError):
@@ -128,11 +128,11 @@ def tokenize(string):
 
             # Var_set and index problems are caught in parse_key. Var and
             # sub_var names are enforced here.
-            if var is not None and format.KEY_NAME_RE.match(var) is None:
+            if var is not None and file_format.KEY_NAME_RE.match(var) is None:
                 raise ScanError("Invalid var name '{}' in var '{}'"
                                 .format(var, var_name), pos, var_end)
             elif (sub_var is not None and
-                    format.KEY_NAME_RE.match(sub_var) is None):
+                  file_format.KEY_NAME_RE.match(sub_var) is None):
                 raise ScanError("Invalid sub_var name '{}' in var '{}'"
                                 .format(sub_var, var_name), pos, var_end)
 

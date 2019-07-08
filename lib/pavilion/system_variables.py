@@ -1,9 +1,12 @@
+# pylint: disable=W0603
+
 import collections
-from pavilion.test_config import variables
-from yapsy import IPlugin
+import inspect
 import logging
 import re
-import inspect
+
+from pavilion.test_config import variables
+from yapsy import IPlugin
 
 LOGGER = logging.getLogger('pav.{}'.format(__name__))
 
@@ -22,7 +25,7 @@ class SysVarDict(collections.UserDict):
         global _SYS_VAR_DICT
         if _SYS_VAR_DICT is not None:
             raise SystemPluginError(
-                     "Dictionary of system plugins can't be generated twice.")
+                "Dictionary of system plugins can't be generated twice.")
         super().__init__({})
         _SYS_VAR_DICT = self
 
@@ -129,8 +132,9 @@ class SystemPlugin(IPlugin.IPlugin):
         self.is_deferable = is_deferable
 
         if self.NAME_VERS_RE.match(plugin_name) is None:
-            raise SystemPluginError("Invalid module name: '{}'".format(
-                                                                  plugin_name))
+            raise SystemPluginError(
+                "Invalid module name: '{}'"
+                .format(plugin_name))
 
         self.help_text = help_text
         self.name = plugin_name
@@ -170,16 +174,15 @@ class SystemPlugin(IPlugin.IPlugin):
             _LOADED_PLUGINS[name] = self
         elif self.priority > _LOADED_PLUGINS[name].priority:
             _LOADED_PLUGINS[name] = self
-            LOGGER.warning("System plugin {} replaced due to priority."
-                           .format(name))
+            LOGGER.warning("System plugin %s replaced due to priority.", name)
         elif self.priority < _LOADED_PLUGINS[name].priority:
-            LOGGER.warning("System plugin {} ignored due to priority."
-                           .format(self.path))
+            LOGGER.warning("System plugin %s ignored due to priority.",
+                           self.path)
         elif self.priority == _LOADED_PLUGINS[name].priority:
             raise SystemPluginError(
                 "Two plugins for the same system plugin have "
                 "the same priority: \n{} and \n{}."
-                .format(self, _LOADED_PLUGINS[name], name))
+                .format(_LOADED_PLUGINS[name], name))
 
     def deactivate(self):
         """Remove this plugin from the system plugin list."""

@@ -1,6 +1,5 @@
 import errno
 import pprint
-import sys
 
 from pavilion import commands
 from pavilion import system_variables
@@ -10,9 +9,10 @@ from pavilion.utils import fprint
 
 class ViewCommand(run.RunCommand):
 
-    def __init__(self):
+    def __init__(self):  # pylint: disable=W0231
 
         # Use the base command class init
+        # pylint: disable=W0233
         commands.Command.__init__(
             self=self,
             name='view',

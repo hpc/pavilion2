@@ -1,5 +1,4 @@
 import errno
-import sys
 
 from pavilion import commands
 from pavilion import utils
@@ -33,10 +32,10 @@ class SetStatusCommand(commands.Command):
                  'used.'
         )
 
-    def run(self, pav_config, args):
+    def run(self, pav_cfg, args):
 
         try:
-            test = PavTest.load(pav_config, args.test)
+            test = PavTest.load(pav_cfg, args.test)
         except (PavTestError, PavTestNotFoundError) as err:
             utils.fprint(
                 "Test {} could not be opened.\n{}".format(args.test, err),

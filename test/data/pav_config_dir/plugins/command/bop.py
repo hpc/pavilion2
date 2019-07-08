@@ -6,6 +6,6 @@ class Bop(commands.Command):
 
         super().__init__('bop', 'Goes bop!')
 
-    def run(self, pav_config, args):
+    def run(self, pav_cfg, args):
         pass
 

@@ -1,18 +1,19 @@
-from functools import wraps
-from pathlib import Path
-from pavilion import scriptcomposer
-from pavilion.lockfile import LockFile
-from pavilion.status_file import STATES, StatusInfo
-from pavilion.test_config import format
-from pavilion.test_config.variables import DeferredVariable
-from pavilion.var_dict import VarDict, var_method
-from yapsy import IPlugin
 import datetime
 import inspect
 import logging
 import os
 import subprocess
+from functools import wraps
+from pathlib import Path
+
 import tzlocal
+from pavilion import scriptcomposer
+from pavilion.lockfile import LockFile
+from pavilion.status_file import STATES, StatusInfo
+from pavilion.test_config import file_format
+from pavilion.test_config.variables import DeferredVariable
+from pavilion.var_dict import VarDict, var_method
+from yapsy import IPlugin
 
 LOGGER = logging.getLogger('pav.{}'.format(__name__))
 
@@ -21,7 +22,7 @@ class SchedulerPluginError(RuntimeError):
     pass
 
 
-_SCHEDULER_PLUGINS = None  # type: dict
+_SCHEDULER_PLUGINS = {}
 
 
 def dfr_var_method(*sub_keys):
@@ -45,6 +46,7 @@ def dfr_var_method(*sub_keys):
     def _dfr_var(func):
 
         # The scheduler plugin class will search for these.
+        # pylint: disable=W0212
         func._is_var_method = True
         func._is_deferable = True
 
@@ -123,14 +125,13 @@ class SchedulerVariables(VarDict):
         """Get a minimum number of cpus we have available on the local
         system. Defaults to 1 on error (and logs the error)."""
         try:
-            out, err = subprocess.check_output(['nproc'])
+            out = subprocess.check_output(['nproc'])
             try:
                 return int(out)
             except ValueError:
-                LOGGER.warning("nproc result wasn't an int: {}"
-                               .format(out))
+                LOGGER.warning("nproc result wasn't an int: %s", out)
         except subprocess.CalledProcessError as err:
-            LOGGER.warning("Problem calling nproc: {}".format(err))
+            LOGGER.warning("Problem calling nproc: %s", err)
 
         return 1
 
@@ -157,7 +158,7 @@ class SchedulerVariables(VarDict):
                         mem_line = line
 
         except (OSError, IOError) as err:
-            LOGGER.warning("Error reading /proc/meminfo: {}".format(err))
+            LOGGER.warning("Error reading /proc/meminfo: %s", err)
             return 1
 
         if mem_line is None:
@@ -168,14 +169,14 @@ class SchedulerVariables(VarDict):
         try:
             mem_num = int(parts[1])
         except ValueError:
-            LOGGER.warning("Could not parse memory size '{}' in /proc/meminfo"
-                           .format(parts[1]))
+            LOGGER.warning("Could not parse memory size '%s' in /proc/meminfo",
+                           parts[1])
             return 1
 
         mem_unit = parts[-1]
         if mem_unit not in self.BYTE_SIZE_UNITS:
-            LOGGER.warning("Could not parse memory size '{}' in /proc/meminfo,"
-                           "unknown unit.".format(mem_line))
+            LOGGER.warning("Could not parse memory size '%s' in /proc/meminfo,"
+                           "unknown unit.", mem_line)
             return 1
 
         return mem_num/self.BYTE_SIZE_UNITS[mem_unit]
@@ -183,8 +184,6 @@ class SchedulerVariables(VarDict):
 
 def __reset():
     """This exists for testing purposes only."""
-
-    global _SCHEDULER_PLUGINS
 
     if _SCHEDULER_PLUGINS is not None:
         for plugin in list(_SCHEDULER_PLUGINS.values()):
@@ -196,7 +195,6 @@ def get_scheduler_plugin(name):
     :param str name: The name of the scheduler plugin.
     :rtype: SchedulerPlugin
     """
-    global _SCHEDULER_PLUGINS
 
     if _SCHEDULER_PLUGINS is None:
         raise SchedulerPluginError("No scheduler plugins loaded.")
@@ -228,7 +226,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
     KICKOFF_SCRIPT_EXT = '.sh'
 
-    VAR_CLASS = None
+    VAR_CLASS = SchedulerVariables
 
     def __init__(self, name, description, priority=PRIO_DEFAULT):
         """Scheduler plugin that is expected to be overriden by subclasses.
@@ -315,13 +313,16 @@ class SchedulerPlugin(IPlugin.IPlugin):
     def run_suite(self, tests):
         """Run each of the given tests using a single allocation."""
 
-        raise Exception("This has not yet been implemented.")
+        raise NotImplementedError
 
     def lock_concurrency(self, pav_cfg, test):
         """Acquire the concurrency lock for this scheduler, if necessary.
         :param pav_cfg: The pavilion config.
         :param test: A test object
         """
+
+        # Unused variables
+        del pav_cfg, test
 
         return None
 
@@ -389,10 +390,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
         :rtype: pavilion.status_file.StatusInfo
         """
 
-        # Jobid's are assumed to be re-used, so the test is included to
-        # make it easier to check that it's definitely the same job.
-
-        raise NotImplemented
+        raise NotImplementedError
 
     def schedule_test(self, pav_cfg, test_obj):
         """Create the test script and schedule the job.
@@ -463,12 +461,17 @@ class SchedulerPlugin(IPlugin.IPlugin):
         return script.details.path
 
     def _get_kickoff_script_header(self, test):
+        # Unused in the base class
+        del test
+
         return scriptcomposer.ScriptHeader()
 
     @staticmethod
     def _add_schedule_script_body(script, test):
         """Add the script body to the given script object. This default
         simply adds a comment and the test run command."""
+
+        del test
 
         script.comment("Within the allocation, run the command.")
         script.command(test.run_cmd())
@@ -503,21 +506,16 @@ class SchedulerPlugin(IPlugin.IPlugin):
     def activate(self):
         """Add this plugin to the scheduler plugin list."""
 
-        global _SCHEDULER_PLUGINS
         name = self.name
-
-        if _SCHEDULER_PLUGINS is None:
-            _SCHEDULER_PLUGINS = {}
 
         if name not in _SCHEDULER_PLUGINS:
             _SCHEDULER_PLUGINS[name] = self
-            format.TestConfigLoader.add_subsection(self.get_conf())
+            file_format.TestConfigLoader.add_subsection(self.get_conf())
         else:
             ex_plugin = _SCHEDULER_PLUGINS[name]
             if ex_plugin.priority > self.priority:
                 LOGGER.warning(
-                    "Scheduler plugin {} ignored due to priority"
-                    .format(name))
+                    "Scheduler plugin %s ignored due to priority", name)
             elif ex_plugin.priority == self.priority:
                 raise SchedulerPluginError(
                     "Two plugins for the same system plugin have the same "
@@ -527,9 +525,8 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
     def deactivate(self):
         """Remove this plugin from the scheduler plugin list."""
-        global _SCHEDULER_PLUGINS
         name = self.name
 
         if name in _SCHEDULER_PLUGINS:
-            format.TestConfigLoader.remove_subsection(name)
+            file_format.TestConfigLoader.remove_subsection(name)
             del _SCHEDULER_PLUGINS[name]

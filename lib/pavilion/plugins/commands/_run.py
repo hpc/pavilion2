@@ -30,8 +30,8 @@ class _RunCommand(commands.Command):
         try:
             test = PavTest.load(pav_cfg, args.test_id)
         except PavTestError as err:
-            self.logger.error("Error loading test '{}': {}"
-                              .format(args.test_id, err))
+            self.logger.error("Error loading test '%s': %s",
+                              args.test_id, err)
             raise
 
         try:
@@ -63,7 +63,7 @@ class _RunCommand(commands.Command):
         except PavTestError as err:
             test.status.set(STATES.RUN_ERROR, err)
             test.set_run_complete()
-            return
+            return 1
         except Exception:
             test.status.set(
                 STATES.RUN_ERROR,
@@ -75,7 +75,7 @@ class _RunCommand(commands.Command):
         # The test.run() method should have already logged the error and
         # set an appropriate status.
         if run_result in (STATES.RUN_ERROR, STATES.RUN_TIMEOUT):
-            return
+            return 1
 
         try:
             rp_errors = []
@@ -92,16 +92,15 @@ class _RunCommand(commands.Command):
                 for msg in rp_errors:
                     test.status.set(STATES.RESULTS_ERROR, msg)
                 test.set_run_complete()
-                return
+                return 1
 
             results = test.gather_results(run_result)
-        except Exception as err:
-            self.logger.error("Unexpected error gathering results: {}"
-                              .format(err))
+        except result_parsers.ResultParserError as err:
+            self.logger.error("Unexpected error gathering results: %s", err)
             test.status.set(STATES.RESULTS_ERROR,
                             "Error parsing results: {}".format(err))
             test.set_run_complete()
-            return
+            return 1
 
         try:
             test.save_results(results)

@@ -1,7 +1,8 @@
+import time
+
 from pavilion import commands
 from pavilion.plugins.commands import status
 from pavilion.status_file import STATES
-import time
 
 
 class WaitCommand(commands.Command):
@@ -55,7 +56,7 @@ class WaitCommand(commands.Command):
             final_statuses = 0
             for test in tmp_statuses:
                 if test['state'] in self.comp_list:
-                    final_statuses+= 1
+                    final_statuses += 1
 
             tmp_statuses = status.get_statuses(pav_cfg, args, self.errfile)
 

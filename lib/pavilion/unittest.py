@@ -11,7 +11,7 @@ from pavilion import arguments
 from pavilion import config
 from pavilion.pav_test import PavTest
 from pavilion.utils import dbg_print, get_login
-from pavilion.test_config.format import TestConfigLoader
+from pavilion.test_config.file_format import TestConfigLoader
 
 
 class PavTestCase(unittest.TestCase):

@@ -1,4 +1,3 @@
-from pathlib import Path
 import datetime
 import logging
 import os
@@ -137,7 +136,7 @@ class StatusFile:
 
     def __init__(self, path):
         """Create the status file object.
-        :param Path path: The path to the status file.
+        :param pathlib.Path path: The path to the status file.
         """
 
         if isinstance(path, str):
@@ -175,8 +174,9 @@ class StatusFile:
                 status.when = datetime.datetime.strptime(parts.pop(0),
                                                          self.TIME_FORMAT)
             except ValueError as err:
-                self.LOGGER.warning("Bad date in log line '{}' in file '{}': {}"
-                                    .format(line, self.path, err))
+                self.LOGGER.warning(
+                    "Bad date in log line '%s' in file '%s': %s",
+                    line, self.path, err)
 
         if parts:
             status.state = parts.pop(0)

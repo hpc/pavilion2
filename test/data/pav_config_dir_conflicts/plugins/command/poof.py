@@ -6,6 +6,6 @@ class Poof(commands.Command):
 
         super().__init__('poof', 'Goes POOF?')
 
-    def run(self, pav_config, args):
+    def run(self, pav_cfg, args):
 
         print("Poof?")
