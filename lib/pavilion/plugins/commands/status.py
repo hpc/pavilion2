@@ -94,19 +94,6 @@ def get_statuses(pav_cfg, args, errfile):
                     "was found.")
 
     test_list = []
-    """
-    # user wants all tests
-    if args.all:
-        limit = args.limit
-        # Get latest test
-        last_series = series.TestSeries.load_user_series_id(pav_cfg)
-        last_tests = series.TestSeries.from_id(pav_cfg, int(last_series[1:])).tests
-        last_test = max(last_tests, key=int)
-        while limit is not 0:
-            test_list.append(last_test)
-            last_test = last_test - 1
-            limit = limit - 1
-    """
 
     for test_id in args.tests:
         # Series 
