@@ -39,10 +39,6 @@ class WaitCommand(commands.Command):
                  'test IDs and series IDs.  If no value is provided, the most '
                  'recent series submitted by this user is checked.'
         )
-        parser.add_argument(
-            '-a', '--all', action='store_true',
-            help='Status --all flag.'
-        )
 
     def run(self, pav_cfg, args):
         # Store the initial time for timeout functionality.
