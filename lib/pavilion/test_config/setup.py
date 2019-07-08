@@ -9,6 +9,8 @@ from . import variables
 from .format import TestConfigError, KEY_NAME_RE
 from .format import TestConfigLoader, TestSuiteLoader
 
+from pavilion.utils import dbg_print
+
 # Config file types
 CONF_HOST = 'hosts'
 CONF_MODE = 'modes'
@@ -624,3 +626,10 @@ def _resolve_section_vars(component, var_man, allow_deferred):
         raise TestConfigError("Invalid value type '{}' for '{}' when "
                               "resolving strings."
                               .format(type(component), component))
+
+def resolve_cir_dep(raw_test_cfg):
+    
+    dbg_print("resolve circular dependencies")
+    if 'variables' in raw_test_cfg:
+        test_cfg = raw_test_cfg['variables']
+    dbg_print("test_cfg: " + str(test_cfg))

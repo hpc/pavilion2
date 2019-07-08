@@ -16,6 +16,8 @@ from pavilion.test_config.string_parser import ResolveError
 from pavilion.utils import fprint
 from pavilion import result_parsers
 
+from pavilion.utils import dbg_print
+
 class RunCommand(commands.Command):
 
     def __init__(self):
@@ -252,7 +254,7 @@ class RunCommand(commands.Command):
         except test_config.TestConfigError as err:
             self.logger.error(str(err))
             raise commands.CommandError(str(err))
-            
+        
         raw_tests_by_sched = defaultdict(lambda: [])
         tests_by_scheduler = defaultdict(lambda: [])
 
@@ -280,6 +282,13 @@ class RunCommand(commands.Command):
             except test_config.TestConfigError as err:
                 msg = 'Error resolving permutations for test {} from {}: {}'\
                       .format(test_cfg['name'], test_cfg['suite_path'], err)
+                self.logger.error(msg)
+                raise commands.CommandError(msg)
+
+            try:
+                test_config.resolve_cir_dep(test_cfg)
+            except test_config.TestConfigError as err:
+                msg = 'Error resolving circular dependendencies for test'
                 self.logger.error(msg)
                 raise commands.CommandError(msg)
 
