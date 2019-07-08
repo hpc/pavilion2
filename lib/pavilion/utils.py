@@ -329,10 +329,45 @@ def _plen(string):
 
     return len(unescaped)
 
-def getTotalWidth(column_widths, fields, formatted_rows, pad):
-     # Find the total width of the table.
-    total_width = (sum(column_widths.values())  # column widths
-                   + len(fields) - 1)           # | dividers
+def removeFormatting(width, fields, border, pad):
+    # Reduced the effective window width if we have padded dividers. 
+    if pad:
+        offset = 2 * len(fields)
+        offset = offset + len(fields) - 1
+        width = width - offset
+
+    # Reduce the effective window width for non padded dividers. 
+    else:
+        offset = len(fields) - 1
+        width = width - offset
+
+    if border:
+        offset = 2
+        width = width - offset
+
+    return width
+
+def addFormatting(width, fields, border, pad):
+
+    if pad:
+        offset = 2*len(fields)
+        offset = offset + len(fields) - 1
+        width = width + offset
+
+    else:
+        offset = len(fields) - 1
+        width = width + offset
+
+    if border:
+        offset = 2
+        width = width + offset
+
+    return width
+
+def getTotalWidth(column_widths, fields, border, pad):
+    # Find the total width of the table.
+    total_width = (sum(column_widths.values()))  # column widths
+    total_width = addFormatting(total_width, fields, border, pad)
 
     return total_width
 
@@ -441,32 +476,23 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
         if max_widths[field] < min_widths[field]:
             max_widths[field] = min_widths[field]
 
-    # Gets the total width of the table with the max width of every column. 
-    totalMax = getTotalWidth(max_widths, fields, formatted_rows, pad)
+    totalMax = getTotalWidth(max_widths, fields, border, pad)
+    totalMin = getTotalWidth(min_widths, fields, border, pad)
 
     # Gets the effective window width. 
     window_width = shutil.get_terminal_size().columns
 
-    # Reduced the effective window width if we have padded dividers. 
-    if pad:
-        offset = 2 * len(fields)
-        offset = offset + len(fields) - 1
-        window_width = window_width - offset
-
-    # Reduce the effective window width for non padded dividers. 
-    else:
-        offset = len(fields) - 1
-        window_width = window_width - offset
-
-    if border:
-        offset = 2
-        window_width = window_width - offset
+    # Makes sure window is at least large enough to display are smallest
+    # possible table
+    if totalMin > window_width:
+        lines = shutil.get_terminal_size().lines
+        print("\x1b[8;{};{}t".format(lines, totalMin))
+        window_width = totalMin
 
     # Checks to see if table will fit on screen as is. If not then it starts
     # the process of calculating the 'optimal' way to wrap. 
     if totalMax > window_width:
         wrap = True
-
     # Checks to makes sure an entry in a field isn't larger than current
     # max_width. Essentially determines if wrapping must occur from user
     # specification.
@@ -474,6 +500,10 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
         for field in fields:
             if column_widths[field] > max_widths[field]:
                 wrap = True
+
+    # Reduces the effective window width based on formatting, so we know the
+    # exact width we have for strictly field entries. 
+    window_width = removeFormatting(window_width, fields, border, pad)
 
     if wrap:
         best_config = []
@@ -538,14 +568,8 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
             # min_col_to_wrap list
             best_config = min_col_wrap_list[-1]
 
-
             for i in range(len(fields)):
                 column_widths[fields[i]] = best_config[0][i]
-
-        else:
-            # No optimal solutions could be found, no longer trying to wrap
-            # text. 
-            wrap = False
 
     # No wrapping was required. Must update the column_widths list to include
     # values provided in the field_info dict. 
@@ -639,7 +663,6 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
             outfile.write(horizontal_break)
         outfile.write('\n')
 
-        outfile.write('\n')
     except IOError:
         # We may get a broken pipe, especially when the output is piped to
         # something like head. It's ok, just move along.
