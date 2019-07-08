@@ -658,11 +658,11 @@ class ResultParserTests(PavTestCase):
                 # This will result in 4 output files.
                 # run.log, other.log, other2.log, other3.log
                 'cmds': [
-                    "echo I am a test's output.\n",
-                    "echo Short and stout.\n",
-                    "echo My min speed is 438.5\n",
-                    "echo and my max is 968.3\n",
-                    "echo What do you think of that, punk?\n",
+                    "echo I am a test's output.",
+                    "echo Short and stout.",
+                    "echo My min speed is 438.5",
+                    "echo and my max is 968.3",
+                    "echo What do you think of that, punk?",
                     "echo Also, here's another number to confuse you. 3.7. Take that."
                 ]
             },
@@ -671,10 +671,19 @@ class ResultParserTests(PavTestCase):
                     {
                         # A test using the 'result' key is required.
                         'key': 'result',
+                        'regex': r'max is',
+                    },
+                    {
+                        'key': 'key',
+                        'regex': r'max is (.*)$'
+                    },
+                    {
+                        # A test using the 'result' key is required.
+                        'key': 'key1',
                         'regex': r'max is (.*)$',
                         'expected': ['900-1000'],
                         'action': result_parsers.ACTION_TRUE,
-                    }
+                    },
                 ]
             }
         }
@@ -688,4 +697,6 @@ class ResultParserTests(PavTestCase):
             results={}
         )
 
-        self.assertFalse(results['result'])
+        self.assertEqual(results['key'], '968.3')
+
+        self.assertTrue(results['result'])
