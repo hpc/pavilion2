@@ -14,7 +14,6 @@ import json
 import logging
 import lzma
 import os
-import re
 import shutil
 import stat
 import subprocess
@@ -23,6 +22,7 @@ import time
 import tzlocal
 import urllib.parse
 import zipfile
+
 
 class PavTestError(RuntimeError):
     """For general test errors. Whatever was being attempted has failed in a
@@ -282,6 +282,14 @@ class PavTest:
 
         # For URL's, check if the file needs to be updated, and try to do so.
         if self._isurl(src_loc):
+            missing_libs = wget.missing_libs()
+            if missing_libs:
+                raise PavTestError(
+                    "The dependencies needed for remote source retrieval "
+                    "({}) are not available on this system. Please provide "
+                    "your test source locally."
+                    .format(', '.join(missing_libs)))
+
             dwn_name = build_config.get('source_download_name')
             src_dest = self._download_path(src_loc, dwn_name)
 
@@ -672,7 +680,7 @@ class PavTest:
                 dest = build_path/src_path.name
                 try:
                     build_path.mkdir()
-                    shutil.copyfile(src_path.as_posix(), dest.as_posix())
+                    shutil.copy(src_path.as_posix(), dest.as_posix())
                 except OSError as err:
                     raise PavTestError(
                         "Could not copy test src '{}' to '{}': {}"
@@ -684,7 +692,7 @@ class PavTest:
             path = self._find_file(extra, 'test_src')
             dest = build_path/path.name
             try:
-                shutil.copyfile(path.as_posix(), dest.as_posix())
+                shutil.copy(path.as_posix(), dest.as_posix())
             except OSError as err:
                 raise PavTestError(
                     "Could not copy extra file '{}' to dest '{}': {}"

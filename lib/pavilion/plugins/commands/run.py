@@ -110,7 +110,7 @@ class RunCommand(commands.Command):
                 configs_by_sched=configs_by_sched,
             )
 
-        except test_config.TestConfigError as err:
+        except commands.CommandError as err:
             fprint(err, file=self.errfile)
             return errno.EINVAL
 
@@ -246,8 +246,13 @@ class RunCommand(commands.Command):
                 self.logger.error(msg)
                 raise commands.CommandError(msg)
 
-        raw_tests = test_config.load_test_configs(pav_cfg, host, modes,
-                                                  tests)
+        try:
+            raw_tests = test_config.load_test_configs(pav_cfg, host, modes,
+                                                      tests)
+        except test_config.TestConfigError as err:
+            self.logger.error(str(err))
+            raise commands.CommandError(str(err))
+            
         raw_tests_by_sched = defaultdict(lambda: [])
         tests_by_scheduler = defaultdict(lambda: [])
 
@@ -305,7 +310,8 @@ class RunCommand(commands.Command):
                         no_deferred_allowed=nondeferred_cfg_sctns)
 
                 except (ResolveError, KeyError) as err:
-                    msg = 'Error resolving variables in config: {}'.format(err)
+                    msg = 'Error resolving variables in config at \'{}\': {}'\
+                          .format(test_cfg['suite_path'].resolve(test_var_man), err)
                     self.logger.error(msg)
                     raise commands.CommandError(msg)
 
