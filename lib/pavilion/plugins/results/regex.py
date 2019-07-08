@@ -132,7 +132,8 @@ class Regex(result_parsers.ResultParser):
         if not expected:
             return matches# if matches else None
         else:
-            # Initially set to false for all matches.
+            if not isinstance(matches, list):
+                matches = [matches]
             ret_vals = []
             for i in range(0,len(matches)):
                 for j in range(0,len(expected)):

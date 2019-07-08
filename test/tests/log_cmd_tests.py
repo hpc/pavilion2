@@ -27,7 +27,7 @@ class LogCmdTest(PavTestCase):
         args = parser.parse_args(['kickoff', 'test'])
         self.assertEqual(args.test, 'test')
 
-        # test `pav log kickoff test`     
+        # test `pav log kickoff test`
         args = parser.parse_args(['kickoff', 'test'])
         self.assertEqual(args.test, 'test')
 
