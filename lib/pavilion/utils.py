@@ -478,7 +478,6 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
             tableWidthIssue = False
 
     if wrap:
-        best = sys.maxsize
         best_config = []
         combos = []
         boundaries = []
@@ -493,10 +492,7 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
 
                 # Only updated if the max_Width is less than current max value. 
                 if max_width < max_widths[field]:
-                    if 'max_width' not in field_info:
-                        max_widths[field] = max_width
-                    elif field not in field_info['max_width']:
-                        max_widths[field] = max_width
+                    max_widths[field] = max_width
 
                 boundaries.append([min_widths[field], max_widths[field]+1])
 
@@ -515,7 +511,6 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
                 # size if table width was the reason for wrapping
                 if sum(combo) == window_width:
                     combos.append(list(combo))
-        print(combos)
         if combos:
             # Calculates the max number of wraps for a given column width
             # combination, if table width is the main issue. Uses the shorter, combos list. 
@@ -537,7 +532,7 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
 
                         wrap_count.append(wrap_total)
 
-                    wrap_count = max(wrap_count)
+                    wrap_count = sum(wrap_count)
 
                     # Updates minimum wraps with the smallest amount of wraps seen
                     # so far. 
@@ -553,13 +548,9 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
                     if config[1] == min_wraps:
                         min_col_wrap_list.append(config)
 
-                # Uses standard deviation of column widths to pick the best column
-                # since every configuration left in the list has the same number of
-                # wraps. 
-                for config in min_col_wrap_list:
-                    if statistics.stdev(config[0]) < best:
-                        best = statistics.stdev(config[0])
-                        best_config = config
+                # Picks the best config to be the last config in
+                # min_col_to_wrap list
+                best_config = min_col_wrap_list[-1]
 
             # Just set the best combination to be the max_width of every field,
             # table will fit on screen, but fields will need to be wrapped
