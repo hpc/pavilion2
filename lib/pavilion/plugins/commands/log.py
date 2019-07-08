@@ -1,18 +1,8 @@
-from pavilion import commands
-from pavilion import schedulers
-from pavilion import status_file
-from pavilion import result_parsers
-from pavilion import module_wrapper
-from pavilion import system_variables
-from pavilion import config
-from pavilion import utils
-from pavilion.test_config import DeferredVariable
-from pavilion.test_config import find_all_tests
-from pavilion.utils import fprint
-import argparse
 import errno
-import sys
-import yaml_config
+
+from pavilion import commands
+from pavilion import utils
+from pavilion import pav_test
 
 
 class LogCommand(commands.Command):
@@ -33,28 +23,29 @@ class LogCommand(commands.Command):
 
         self._parser = parser
 
-        run = subparsers.add_parser(
+        subparsers.add_parser(
             'run',
             aliases=['run'],
             help="Displays log of run.",
             description="""Displays log of run."""
         )
 
-        kickoff = subparsers.add_parser(
+        subparsers.add_parser(
             'kickoff',
             aliases=['kickoff'],
             help="Displays summary of kickoff.",
             description="""Displays summary of kickoff."""
         )
 
-        build = subparsers.add_parser(
+        subparsers.add_parser(
             'build',
             aliases=['build'],
             help="Displays summary of build.",
             description="""Displays summary of build."""
         )
 
-        parser.add_argument('test', help="Test number argument.")
+        parser.add_argument('test', type=int,
+                            help="Test number argument.")
 
     def run(self, pav_cfg, args):
 
@@ -64,18 +55,31 @@ class LogCommand(commands.Command):
         else:
             cmd_name = args.log_cmd
 
+        try:
+            test = pav_test.PavTest.load(pav_cfg, args.test)
+        except pav_test.PavTestError as err:
+            utils.fprint("Error loading test: {}".format(err), color=utils.RED)
+            return 1
+
         if 'run'.startswith(cmd_name):
-            file_name = str(pav_cfg.working_dir) + "/tests/" +str(args.test).zfill(7) + "/run.log"
+            file_name = test.path/'run.log'
         elif 'kickoff'.startswith(cmd_name):
-            file_name = str(pav_cfg.working_dir) + "/tests/" + str(args.test).zfill(7)  + "/kickoff.log"
+            file_name = test.path/'kickoff.log'
         elif 'build'.startswith(cmd_name):
-            file_name = str(pav_cfg.working_dir) + "/tests/" + str(args.test).zfill(7) + "/build/pav_build_log"
+            file_name = test.path/'build'/'pav_build_log'
         else:
             raise RuntimeError("Invalid show cmd '{}'".format(cmd_name))
 
-        fprint("test # " + str(args.test).zfill(7))
-        f_log = open(file_name, "r")
-        fprint(f_log.read())
+        if not file_name.exists():
+            utils.fprint("Log file does not exist: {}".format(file_name))
+            return 1
+
+        try:
+            with file_name.open() as file:
+                utils.fprint(file)
+        except (IOError, OSError) as err:
+            utils.fprint("Could not read log file '{}': {}"
+                         .format(file_name, err))
+            return 1
 
         return 0
-

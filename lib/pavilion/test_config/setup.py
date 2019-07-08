@@ -6,8 +6,8 @@ from collections import defaultdict
 from yaml_config import RequiredError
 from . import string_parser
 from . import variables
-from .format import TestConfigError, KEY_NAME_RE
-from .format import TestConfigLoader, TestSuiteLoader
+from .file_format import TestConfigError, KEY_NAME_RE
+from .file_format import TestConfigLoader, TestSuiteLoader
 
 # Config file types
 CONF_HOST = 'hosts'
@@ -64,13 +64,13 @@ def find_all_tests(pav_cfg):
                 # It's ok if the tests aren't completely validated. They
                 # may have been written to require a real host/mode file.
                 with file.open('r') as suite_file:
+                    suite_name = file.stem
                     try:
                         suite_cfg = TestSuiteLoader().load(suite_file,
                                                            partial=True)
                     except (TypeError, KeyError, ValueError) as err:
                         suites[suite_name]['err'] = err
                         continue
-                suite_name = file.stem
 
                 if suite_name not in suites:
                     suites[suite_name] = {
@@ -90,7 +90,7 @@ def find_all_tests(pav_cfg):
                         suite_cfg=suite_cfg,
                         suite_path=file
                     )
-                except Exception as err:
+                except Exception as err:  # pylint: disable=W0703
                     suites[suite_name]['err'] = err
                     continue
 
@@ -185,7 +185,7 @@ def load_test_configs(pav_cfg, host, modes, tests):
                 "should never happen. {}".format(mode_cfg_path, err))
 
     # A dictionary of test suites to a list of subtests to run in that suite.
-    all_tests = defaultdict(lambda: dict())
+    all_tests = defaultdict(dict)
     picked_tests = []
     test_suite_loader = TestSuiteLoader()
 
@@ -278,7 +278,7 @@ def resolve_inheritance(base_config, suite_cfg, suite_path):
     test_config_loader = TestConfigLoader()
 
     # Organize tests into an inheritance tree.
-    depended_on_by = defaultdict(lambda: list())
+    depended_on_by = defaultdict(list)
     # All the tests for this suite.
     suite_tests = {}
     # A list of tests whose parent's have had their dependencies
@@ -375,8 +375,8 @@ def _apply_overrides(test_cfg, overrides, _first_level=True):
 
     for key in overrides.keys():
         if _first_level and key in NOT_OVERRIDABLE:
-            LOGGER.warning("You can't override the '{}' key in a test config."
-                           .format(key))
+            LOGGER.warning("You can't override the '%s' key in a test config.",
+                           key)
             continue
 
         if key not in test_cfg:
@@ -547,7 +547,7 @@ def _get_used_per_vars(component, var_man):
     elif isinstance(component, string_parser.PavString):
         for var in component.variables:
             try:
-                var_set, var, idx, sub = var_man.resolve_key(var)
+                var_set, var, idx, _ = var_man.resolve_key(var)
             except KeyError:
                 continue
 

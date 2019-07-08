@@ -1,17 +1,17 @@
+import errno
+import sys
+
+import yaml_config
 from pavilion import commands
+from pavilion import config
+from pavilion import module_wrapper
+from pavilion import result_parsers
 from pavilion import schedulers
 from pavilion import status_file
-from pavilion import result_parsers
-from pavilion import module_wrapper
 from pavilion import system_variables
-from pavilion import config
 from pavilion import utils
 from pavilion.test_config import DeferredVariable
 from pavilion.test_config import find_all_tests
-import argparse
-import errno
-import sys
-import yaml_config
 
 
 class ShowCommand(commands.Command):
@@ -175,7 +175,6 @@ class ShowCommand(commands.Command):
             """
         )
 
-        # TODO: Documentation links.
         suites = subparsers.add_parser(
             'suites',
             aliases=['suite'],
@@ -388,7 +387,9 @@ class ShowCommand(commands.Command):
             )
 
     @staticmethod
-    def _states_cmd(_, args, outfile=sys.stdout):
+    def _states_cmd(pav_cfg, args, outfile=sys.stdout):
+
+        del pav_cfg, args
 
         states = []
         for state in sorted(status_file.STATES.list()):
@@ -404,7 +405,6 @@ class ShowCommand(commands.Command):
             rows=states,
             title="Pavilion Test States"
         )
-
 
     @staticmethod
     def _config_cmd(pav_cfg, args, outfile=sys.stdout):
@@ -436,7 +436,7 @@ class ShowCommand(commands.Command):
             mw = module_wrapper.get_module_wrapper(mod_name)
             modules.append({
                 'name': mod_name,
-                'version': mw._version,
+                'version': mw._version,  # pylint: disable=W0212
                 'description': mw.help_text,
                 'path': mw.path,
             })
@@ -458,6 +458,8 @@ class ShowCommand(commands.Command):
     @staticmethod
     def _sys_var_cmd(pav_cfg, args, outfile=sys.stdout):
 
+        del pav_cfg
+
         rows = []
 
         sys_vars = system_variables.get_vars(defer=True)
@@ -465,12 +467,12 @@ class ShowCommand(commands.Command):
         for key in sorted(list(sys_vars.keys())):
             value = sys_vars[key]
             deferred = isinstance(value, DeferredVariable)
-            help = sys_vars.help(key)
+            help_str = sys_vars.help(key)
 
             rows.append({
                 'name': key,
                 'value': value if not deferred else '<deferred>',
-                'description': help,
+                'description': help_str,
                 'path': sys_vars.get_obj(key).path,
             })
 

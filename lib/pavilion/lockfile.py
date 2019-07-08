@@ -133,24 +133,25 @@ class LockFile(object):
         """
 
         # There isn't really anything we can do in this case.
-        host, user, expiration, lock_id = self.read_lockfile()
+        host, user, _, lock_id = self.read_lockfile()
 
         if lock_id is not None and lock_id != self._id:
-            LOGGER.error("Lockfile '{}' mysteriously replaced with one from {}."
-                         .format(self._lock_path, (host, user)))
+            LOGGER.error(
+                "Lockfile '%s' mysteriously replaced with one from %s.",
+                self._lock_path, (host, user))
         else:
             try:
                 self._lock_path.unlink()
             except OSError as err:
                 # There isn't really anything we can do in this case.
-                host, user, expiration, lock_id = self.read_lockfile()
+                host, user, _, lock_id = self.read_lockfile()
 
                 if lock_id == self._id:
-                    LOGGER.warning("Lockfile '{}' could not be deleted: '{}'"
-                                   .format(self._lock_path, err))
+                    LOGGER.warning("Lockfile '%s' could not be deleted: '%s'",
+                                   self._lock_path, err)
                 else:
-                    LOGGER.error("Lockfile '{}' mysteriously disappeared."
-                                 .format(self._lock_path))
+                    LOGGER.error("Lockfile '%s' mysteriously disappeared.",
+                                 self._lock_path)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         return self.unlock()
@@ -186,15 +187,15 @@ class LockFile(object):
         try:
             os.chmod(path, cls.LOCK_PERMS)
         except OSError as err:
-            LOGGER.warning("Lockfile at '{}' could not set permissions: {}"
-                           .format(path, err))
+            LOGGER.warning("Lockfile at '%s' could not set permissions: %s",
+                           path, err)
 
         if group_id is not None:
             try:
                 os.chown(path, os.getuid(), group_id)
             except OSError as err:
-                LOGGER.warning("Lockfile at '{}' could not set group: {}"
-                               .format(path, err))
+                LOGGER.warning("Lockfile at '%s' could not set group: %s",
+                               path, err)
 
     def read_lockfile(self):
         """Returns the components of the lockfile content, or None for each of
@@ -210,8 +211,8 @@ class LockFile(object):
                 host, user, expiration, lock_id = data.split(',')
                 expiration = float(expiration)
             except ValueError:
-                LOGGER.warning("Invalid format in lockfile '{}': {}"
-                               .format(self._lock_path, data))
+                LOGGER.warning("Invalid format in lockfile '%s': %s",
+                               self._lock_path, data)
                 return None, None, None, None
 
         except (OSError, IOError):

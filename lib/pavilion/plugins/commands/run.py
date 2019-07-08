@@ -1,5 +1,4 @@
 import errno
-import argparse
 import time
 from collections import defaultdict
 
@@ -143,9 +142,10 @@ class RunCommand(commands.Command):
                 if not test.build():
                     for oth_test in all_tests:
                         if oth_test.build_hash != test.build_hash:
-                            oth_test.status.set(STATES.BUILD_ERROR,
-                                    "Build cancelled because build {} failed."
-                                    .format(test.id)
+                            oth_test.status.set(
+                                STATES.BUILD_ERROR,
+                                "Build cancelled because build {} failed."
+                                .format(test.id)
                             )
                     fprint("Error building test: ", file=self.errfile,
                            color=utils.RED)
@@ -201,11 +201,9 @@ class RunCommand(commands.Command):
                file=self.outfile,
                color=utils.GREEN)
 
-        # TODO: Call pav status on the series.
-
         if args.status:
             tests = list(series.tests.keys())
-            tests, failed = test_obj_from_id(pav_cfg, tests)
+            tests, _ = test_obj_from_id(pav_cfg, tests)
             return print_from_test_obj(pav_cfg, tests, self.outfile, args.json)
 
         return 0
@@ -252,7 +250,7 @@ class RunCommand(commands.Command):
         except test_config.TestConfigError as err:
             self.logger.error(str(err))
             raise commands.CommandError(str(err))
-            
+
         raw_tests_by_sched = defaultdict(lambda: [])
         tests_by_scheduler = defaultdict(lambda: [])
 
@@ -283,7 +281,7 @@ class RunCommand(commands.Command):
                 self.logger.error(msg)
                 raise commands.CommandError(msg)
 
-        # Get the schedulers for the tests, and the scheduler variables. 
+        # Get the schedulers for the tests, and the scheduler variables.
         # The scheduler variables are based on all of the
         for sched_name in raw_tests_by_sched.keys():
             try:
@@ -310,8 +308,9 @@ class RunCommand(commands.Command):
                         no_deferred_allowed=nondeferred_cfg_sctns)
 
                 except (ResolveError, KeyError) as err:
-                    msg = 'Error resolving variables in config at \'{}\': {}'\
-                          .format(test_cfg['suite_path'].resolve(test_var_man), err)
+                    msg = "Error resolving variables in config at '{}': {}"\
+                          .format(test_cfg['suite_path'].resolve(test_var_man),
+                                  err)
                     self.logger.error(msg)
                     raise commands.CommandError(msg)
 

@@ -1,4 +1,7 @@
-import argparse
+# Base classes and methods for Command plugins
+
+# pylint: disable=W0603
+
 import inspect
 import logging
 import sys
@@ -115,11 +118,10 @@ class Command(IPlugin.IPlugin):
     def deactivate(self):
         raise RuntimeError("Command plugins cannot be deactiviated.")
 
-    def run(self, pav_config, args):
+    def run(self, pav_cfg, args):
         """This method should contain the
-        :param pav_config: The pavilion configuration object.
+        :param pav_cfg: The pavilion configuration object.
         :param args: The parsed arguments for this command.
-        :param outfile: Where to direct the command output.
         :return: The return code of the command should denote success (0) or
             failure (not 0).
         """

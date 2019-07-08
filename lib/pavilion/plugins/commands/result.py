@@ -39,14 +39,14 @@ class ResultsCommand(commands.Command):
             help="The tests to show the results for."
         )
 
-    def run(self, pav_config, args):
+    def run(self, pav_cfg, args):
 
-        test_ids = self._get_tests(pav_config, args.tests)
+        test_ids = self._get_tests(pav_cfg, args.tests)
 
         tests = []
         for id_ in test_ids:
             try:
-                tests.append(PavTest.load(pav_config, id_))
+                tests.append(PavTest.load(pav_cfg, id_))
             except PavTestError as err:
                 self.logger.warning("Could not load test '{}': {}"
                                     .format(id_, err))

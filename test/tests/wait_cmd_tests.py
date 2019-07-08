@@ -3,7 +3,7 @@ from pavilion import plugins
 from pavilion import status_file
 from pavilion import system_variables
 from pavilion.series import TestSeries
-from pavilion.test_config import format
+from pavilion.test_config import file_format
 from pavilion.unittest import PavTestCase
 from pavilion.pav_test import PavTest
 import argparse
@@ -42,7 +42,7 @@ class WaitCmdTests(PavTestCase):
     def test_wait_command(self):
         """Test wait command by generating a suite of tests."""
 
-        config1 = format.TestConfigLoader().validate({
+        config1 = file_format.TestConfigLoader().validate({
             'scheduler': 'raw',
             'run': {
                 'env': {
@@ -54,7 +54,7 @@ class WaitCmdTests(PavTestCase):
 
         config1['name'] = 'run_test0'
 
-        config2 = format.TestConfigLoader().validate({
+        config2 = file_format.TestConfigLoader().validate({
             'scheduler': 'raw',
             'run': {
                 'env': {
@@ -66,7 +66,7 @@ class WaitCmdTests(PavTestCase):
 
         config2['name'] = 'run_test1'
 
-        config3 = format.TestConfigLoader().validate({
+        config3 = file_format.TestConfigLoader().validate({
             'scheduler': 'raw',
             'run': {
                 'env': {
