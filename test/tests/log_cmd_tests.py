@@ -17,6 +17,8 @@ class LogCmdTest(PavTestCase):
         parser = argparse.ArgumentParser()
         log_cmd._setup_arguments(parser)
 
+        # TODO: I'm a bit confused as to how this ever worked.
+
         # test `pav log run test`
         args = parser.parse_args(['run', 'test'])
         self.assertEqual(args.test, 'test')

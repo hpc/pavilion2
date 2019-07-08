@@ -76,7 +76,7 @@ class LogCommand(commands.Command):
 
         try:
             with file_name.open() as file:
-                utils.fprint(file)
+                utils.fprint(file.read())
         except (IOError, OSError) as err:
             utils.fprint("Could not read log file '{}': {}"
                          .format(file_name, err))
