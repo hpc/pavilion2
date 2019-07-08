@@ -1,12 +1,13 @@
+import copy
+import logging
+import os
+from collections import defaultdict
+
+from yaml_config import RequiredError
 from . import string_parser
 from . import variables
 from .format import TestConfigError, KEY_NAME_RE
 from .format import TestConfigLoader, TestSuiteLoader
-from collections import defaultdict
-from yaml_config import RequiredError
-import copy
-import logging
-import os
 
 # Config file types
 CONF_HOST = 'hosts'
@@ -63,8 +64,12 @@ def find_all_tests(pav_cfg):
                 # It's ok if the tests aren't completely validated. They
                 # may have been written to require a real host/mode file.
                 with file.open('r') as suite_file:
-                    suite_cfg = TestSuiteLoader().load(suite_file,
-                                                       partial=True)
+                    try:
+                        suite_cfg = TestSuiteLoader().load(suite_file,
+                                                           partial=True)
+                    except (TypeError, KeyError, ValueError) as err:
+                        suites[suite_name]['err'] = err
+                        continue
                 suite_name = file.stem
 
                 if suite_name not in suites:
@@ -287,7 +292,12 @@ def resolve_inheritance(base_config, suite_cfg, suite_path):
         else:
             depended_on_by[test_cfg['inherits_from']].append(test_cfg_name)
 
-        suite_tests[test_cfg_name] = TestConfigLoader().normalize(test_cfg)
+        try:
+            suite_tests[test_cfg_name] = TestConfigLoader().normalize(test_cfg)
+        except (TypeError, KeyError, ValueError) as err:
+            raise TestConfigError(
+                "Test {} in suite {} has an error: {}"
+                .format(test_cfg_name, suite_path, err))
 
     # Add this so we can cleanly depend on it.
     suite_tests['__base__'] = base_config
@@ -519,7 +529,7 @@ def _get_used_per_vars(component, var_man):
     used_per_vars = set()
 
     if isinstance(component, dict):
-        for key in component.keys():
+        for key in sorted(component.keys()):
             try:
                 used_per_vars = used_per_vars.union(
                     _get_used_per_vars(component[key], var_man))
@@ -536,7 +546,10 @@ def _get_used_per_vars(component, var_man):
 
     elif isinstance(component, string_parser.PavString):
         for var in component.variables:
-            var_set, var, idx, sub = var_man.resolve_key(var)
+            try:
+                var_set, var, idx, sub = var_man.resolve_key(var)
+            except KeyError:
+                continue
 
             # Grab just 'per' vars. Also, if per variables are used by index,
             # we just resolve that value normally rather than permuting over
