@@ -3,7 +3,7 @@
 This page an overview of some of the advanced features of Pavilion, to give 
 you a better idea of what it's capable of.
 
-####Contents
+#### Contents
  - [Mode Configs](#mode-configs) - Allow for per-run overrides.
  - [Test Configs](#advanced-test-configs)
    - [Variables](#variables) - Can dynamically alter test configs.
@@ -46,7 +46,7 @@ pav run -m tester -f post_dst_tests.txt
 Test configs aren't just static files. They can be re-shaped dynamically 
 through variable substitution, module file loads, and environment variables. 
 
-###Variables
+### Variables
 
 Test configs can contain variable references within their config values (all 
 of which are read as strings by Pavilion).
@@ -85,7 +85,7 @@ mytest:
    references, and the combination of the two `{{myvar.1.bar}}`. See the full
    [variable documentation](tests/variables.md) for more info.
        
-####Listing Variables
+#### Listing Variables
 Use the `pav show` commands to display what variables are available from 
 various sources. 
 
@@ -125,7 +125,7 @@ Variables are a powerful feature of pavilion, and the above just scratches
 the surface. See the [variables](tests/variables.md) section of the docs for
 detailed information.
 
-###Inheritance
+### Inheritance
 
 Tests within a single test suite file can inherit from each other.
 
@@ -204,7 +204,7 @@ super_magic:
         - ./super_magic -a
 ```
 
-##Environment
+## Environment
 Pavilion provides means to alter environment variables and load environment 
 (or lmod) modules.
 

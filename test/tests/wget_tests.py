@@ -3,11 +3,14 @@ from pathlib import Path
 import json
 import logging
 import tempfile
+import unittest
 
 from pavilion import wget
 from pavilion.unittest import PavTestCase
 
 PAV_DIR = Path(__file__).resolve().parents[2]
+
+WGET_MISSING_LIBS = wget.missing_libs()
 
 
 class TestWGet(PavTestCase):
@@ -17,6 +20,8 @@ class TestWGet(PavTestCase):
 
     _logger = logging.getLogger(__file__)
 
+    @unittest.skipIf(WGET_MISSING_LIBS,
+                     "Missing wget libs: {}".format(WGET_MISSING_LIBS))
     def test_get(self):
 
         # Try to get a configuration from the testing pavilion.yaml file.
@@ -40,6 +45,8 @@ class TestWGet(PavTestCase):
 
         dest_fn.unlink()
 
+    @unittest.skipIf(WGET_MISSING_LIBS,
+                     "Missing wget libs: {}".format(WGET_MISSING_LIBS))
     def test_update(self):
 
         dest_fn = Path(tempfile.mktemp(dir='/tmp'))

@@ -1,11 +1,36 @@
 from pathlib import Path
 import json
 import logging
-import requests
 import tempfile
 import urllib.parse
 
+_MISSING_LIBS = []
+try:
+    import requests
+except ImportError as err:
+    if hasattr(err, 'name'):
+        _MISSING_LIBS.append(err.name)
+    else:
+        _MISSING_LIBS.append(err)
+
+    requests = None
+
+try:
+    import ssl
+except ImportError:
+    _MISSING_LIBS.append('ssl')
+    ssl = None
+
 LOGGER = logging.getLogger('pavilion.' + __file__)
+
+
+def missing_libs():
+    """You should call this before using the wget module functions, to ensure
+    all the dependencies are available.
+    :returns: A list of one or more missing libraries. It won't necessarily
+    catch them all in one pass. An empty list is good.
+    """
+    return _MISSING_LIBS
 
 
 class WGetError(RuntimeError):
