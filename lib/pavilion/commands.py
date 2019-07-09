@@ -25,7 +25,6 @@ def __reset():
 
 class CommandError(RuntimeError):
     """The error type commands should raise for semi-expected errors."""
-    pass
 
 
 def add_command(command):
@@ -85,11 +84,9 @@ class Command(IPlugin.IPlugin):
         """Setup the commands arguments in the Pavilion argument parser.
         :param argparse.ArgumentParser parser:
         """
-        pass
 
     def _setup_other(self):
         """Additional setup actions for this command at activation time."""
-        pass
 
     def activate(self):
 
@@ -127,7 +124,6 @@ class Command(IPlugin.IPlugin):
         :return: The return code of the command should denote success (0) or
             failure (not 0).
         """
-        pass
 
     def __repr__(self):
         return '<{} from file {} named {}>'.format(
