@@ -1,4 +1,5 @@
 import errno
+import sys
 
 from pavilion import commands
 from pavilion import utils
@@ -32,7 +33,7 @@ class SetStatusCommand(commands.Command):
                  'used.'
         )
 
-    def run(self, pav_cfg, args):
+    def run(self, pav_cfg, args, out_file=sys.stdout, err_file=sys.stderr):
 
         try:
             test = PavTest.load(pav_cfg, args.test)

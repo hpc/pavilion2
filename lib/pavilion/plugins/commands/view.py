@@ -1,5 +1,6 @@
 import errno
 import pprint
+import sys
 
 from pavilion import commands
 from pavilion import system_variables
@@ -45,10 +46,12 @@ class ViewCommand(run.RunCommand):
 
     SLEEP_INTERVAL = 1
 
-    def run(self, pav_cfg, args):
+    def run(self, pav_cfg, args, out_file=sys.stdout, err_file=sys.stderr):
         """Resolve the test configurations into individual tests and assign to
         schedulers. Have those schedulers kick off jobs to run the individual
-        tests themselves."""
+        tests themselves.
+        :param out_file:
+        :param err_file: """
 
         overrides = {}
         for ovr in args.overrides:

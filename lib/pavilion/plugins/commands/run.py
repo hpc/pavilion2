@@ -1,4 +1,5 @@
 import errno
+import sys
 import time
 from collections import defaultdict
 
@@ -69,10 +70,12 @@ class RunCommand(commands.Command):
 
     SLEEP_INTERVAL = 1
 
-    def run(self, pav_cfg, args):
+    def run(self, pav_cfg, args, out_file=sys.stdout, err_file=sys.stderr):
         """Resolve the test configurations into individual tests and assign to
         schedulers. Have those schedulers kick off jobs to run the individual
-        tests themselves."""
+        tests themselves.
+        :param out_file:
+        :param err_file: """
 
         # 1. Resolve the test configs
         #   - Get sched vars from scheduler.

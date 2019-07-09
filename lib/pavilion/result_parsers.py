@@ -497,6 +497,7 @@ def parse_results(test, results):
 
                     # Store the first non-empty item.
                     results[key] = pres
+                    break
 
             elif per_file in (PER_NAME, PER_FULLNAME):
                 # Store in results under the 'stem' or 'name' key as a dict

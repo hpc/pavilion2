@@ -88,7 +88,7 @@ class Command(IPlugin.IPlugin):
         pass
 
     def _setup_other(self):
-        """Additional setup actions for this command at activiation time."""
+        """Additional setup actions for this command at activation time."""
         pass
 
     def activate(self):
@@ -116,12 +116,14 @@ class Command(IPlugin.IPlugin):
         add_command(self)
 
     def deactivate(self):
-        raise RuntimeError("Command plugins cannot be deactiviated.")
+        raise RuntimeError("Command plugins cannot be deactivated.")
 
-    def run(self, pav_cfg, args):
+    def run(self, pav_cfg, args, out_file=sys.stdout, err_file=sys.stderr):
         """This method should contain the
         :param pav_cfg: The pavilion configuration object.
         :param args: The parsed arguments for this command.
+        :param out_file: Where to write output for this command.
+        :param err_file: Where to write err output for this command.
         :return: The return code of the command should denote success (0) or
             failure (not 0).
         """

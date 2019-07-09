@@ -1,3 +1,5 @@
+import sys
+
 from pavilion import commands
 from pavilion import schedulers
 from pavilion import series
@@ -162,7 +164,7 @@ class StatusCommand(commands.Command):
                  'recent series submitted by this user is checked.'
         )
 
-    def run(self, pav_cfg, args):
+    def run(self, pav_cfg, args, out_file=sys.stdout, err_file=sys.stderr):
         try:
             test_statuses = get_statuses(pav_cfg, args, self.errfile)
         except commands.CommandError as err:

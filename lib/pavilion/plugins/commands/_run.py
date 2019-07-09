@@ -1,4 +1,5 @@
 import logging
+import sys
 
 from pavilion import commands
 from pavilion import result_parsers
@@ -24,8 +25,11 @@ class _RunCommand(commands.Command):
             'test_id', action='store', type=int,
             help='The id of the test to run.')
 
-    def run(self, pav_cfg, args):
-        """Load and run an already prepped test in the current environment."""
+    def run(self, pav_cfg, args, out_file=sys.stdout, err_file=sys.stderr):
+        """Load and run an already prepped test in the current environment.
+        :param out_file:
+        :param err_file:
+        """
 
         try:
             test = PavTest.load(pav_cfg, args.test_id)
