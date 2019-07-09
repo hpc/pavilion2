@@ -80,19 +80,21 @@ test_object_list, test_failed_list = series.test_obj_from_id(pav_cfg, test_list)
 Note, when using `series.test_obj_from_id` error handling is handled for you, as it will return a tuple made up of a list of test objects, and a list of test IDs that couldn't be found. Because of this, `series.test_obj_from_id` is the preferred way of accessing test objects.
 
 Now that you have a test object you can get valuable information out of it. A test object has quite a few attributes, here are some of the more important ones:
- Attribute | Detail 
----------- | -------
-`test.name`| This will hold the name of the test provided it was specified in the test config.
-`test.scheduler`|This will hold the scheduler specified in the test config.
-`test.id`|This is the pavilion test ID.
-`test.status`| This will return a status object for the given test.
+
+| Attribute | Detail |
+| ------ | ------ |
+| `test.name` | This will hold the name of the test provided it was specified in the test config. |
+| `test.scheduler` | This will hold the scheduler specified in the test config. | 
+| `test.id` | This is the pavilion test ID. |
+| `test.status` | This will return a status object for the given test. |
 
 You can access the most recent status object of the test by calling `status = test.status.current()`. This also has a few attributes that allow you to extract relevant status information, like:
- Attribute | Detail 
----------- | -------
-`status.state`| Returns the state of the test object. 
-`status.when`| Returns the time stamp of this status object. 
-`status.note`| Returns any additional collected information on the test. 
+
+| Attribute | Detail |
+| ------ | ------ |
+| `status.state` | Returns the state of the test object. |
+| `status.when` | Returns the time stamp of this status object. | 
+| `status.note` | Returns any additional collected information on the test. |
 
 An example of using the different attributes and methods can be seen below, this is a simplified version of what is being done in the pavilion cancel command. 
 ```python
