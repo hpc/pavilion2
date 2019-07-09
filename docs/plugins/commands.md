@@ -23,12 +23,12 @@ The `__init__` method should only take one argument, that one argument being sel
 
 In this method you will call `super().__init__()` and pass in the following arguments in this order: name, help string, and short_help = help string.  Below is an example of a command's `__init__` method:
 ```python
-	def __init__(self):
-		super().__init__(
-			'cancel',
-			'Cancel a test, tests, or test series.',
-			short_help = 'Cancel a test, tests, or series."
-		)
+def __init__(self):
+	super().__init__(
+		'cancel',
+		'Cancel a test, tests, or test series.',
+		short_help = 'Cancel a test, tests, or series."
+	)
 ```
 
 Note, that the name you pass in this function will be the name used to run the command, and the help strings will be displayed when a user runs `pav --help` or `pav -h`.
