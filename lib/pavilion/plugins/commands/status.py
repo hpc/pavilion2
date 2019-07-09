@@ -42,6 +42,7 @@ def status_from_test_obj(pav_cfg, test_obj):
 def get_all_tests(pav_cfg, args, errfile):
     """function to handle if user wants all tests"""
 
+    """
     test_list = []
     limit = args.limit
     # get latest test
@@ -67,11 +68,15 @@ def get_all_tests(pav_cfg, args, errfile):
                 'time': "",
                 'note': "Test not found.",
             })
+    """
+    #test_statuses = []
+    test_obj_list = PavTest.get_latest_tests(pav_cfg, args.limit)
     statuses = status_from_test_obj(pav_cfg, test_obj_list)
 
-    if statuses is not None:
-        test_statuses = test_statuses + statuses
-    return test_statuses
+    #if statuses is not None:
+    #    test_statuses = test_statuses + statuses
+    #return test_statuses
+    return statuses
 
 def get_statuses(pav_cfg, args, errfile):
     """Get the statuses of the listed tests or series.
@@ -216,6 +221,7 @@ class StatusCommand(commands.Command):
                 test_statuses = get_statuses(pav_cfg, args, self.errfile)
             else:
                 test_statuses = get_all_tests(pav_cfg, args, self.errfile)
+            #PavTest.get_latest_tests(pav_cfg, 10)
         except commands.CommandError as err:
             utils.fprint("Status Error:", err, color=utils.RED)
             return 1

@@ -4,6 +4,7 @@ from pavilion import result_parsers
 from pavilion import scriptcomposer
 from pavilion import utils
 from pavilion import wget
+#from pavilion import series
 from pavilion.status_file import StatusFile, STATES
 from pavilion.test_config import variables
 import bz2
@@ -22,6 +23,7 @@ import time
 import tzlocal
 import urllib.parse
 import zipfile
+from pavilion.utils import dbg_print
 
 
 class PavTestError(RuntimeError):
@@ -1167,6 +1169,29 @@ class PavTest:
 
         return id_, path
 
+    def get_latest_tests(pav_cfg, limit):
+        # returns a list of pav test objects
+        
+        from pavilion import series
+        test_list = []
+        test_obj_list = []
+        # get latest test
+        last_series = series.TestSeries.load_user_series_id(pav_cfg)
+        #dbg_print(last_series)
+        last_tests = series.TestSeries.from_id(pav_cfg, int(last_series[1:])).tests
+        last_test = max(last_tests, key=int)
+        while len(test_obj_list) is not limit:
+            try:
+                #dbg_print(last_test)
+                test = PavTest.load(pav_cfg, last_test)
+                test_obj_list.append(test)
+                last_test = last_test - 1
+            except (PavTestError, PavTestNotFoundError) as err:
+                raise PavTestError("Cannot find test #{}"
+                                            .format(test_id))
+
+        return test_obj_list
+          
     def __repr__(self):
         return "PavTest({s.name}-{s.id})".format(s=self)
 
