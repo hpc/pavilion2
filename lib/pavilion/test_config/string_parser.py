@@ -389,7 +389,7 @@ class TextToken(Token):
 
         super(TextToken, self).__init__(start, end)
 
-    def resolve(self, var_man, **kwargs):
+    def resolve(self, var_man, **kwargs):  # pylint: disable=arguments-differ
         """Resolve any variables in this token using the variable manager.
         :param var_man: A variable manager with the needed variables.
         :return: The resolved string.
@@ -440,7 +440,7 @@ class VariableToken(Token):
 class SubStringStartToken(Token):
     """The start of a sub string section."""
 
-    def resolve(self, var_man, **kwargs):
+    def resolve(self, var_man, **kwargs):  # pylint: disable=arguments-differ
         raise RuntimeError("This token should never be resolved. They should "
                            "be replaced with PavString tokens.")
 
@@ -453,6 +453,6 @@ class SubStringEndToken(Token):
 
         self.separator = separator
 
-    def resolve(self, var_man, **kwargs):
+    def resolve(self, var_man, **kwargs):  # pylint: disable=arguments-differ
         raise RuntimeError("This token should never be resolved. They should "
                            "be replaced with PavString tokens.")
