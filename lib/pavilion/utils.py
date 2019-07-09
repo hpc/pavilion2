@@ -554,8 +554,7 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
                 # so far. 
                 if wrap_count <= min_wraps:
                     min_wraps = wrap_count
-                    pair = [combo, wrap_count]
-                    wrap_options.append(pair)
+                    wrap_options.append([combo, wrap_count])
 
             min_col_wrap_list = []
             # Goes through and removes any combination that isn't equal to the
