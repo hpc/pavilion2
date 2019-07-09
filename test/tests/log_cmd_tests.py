@@ -22,6 +22,7 @@ class LogCmdTest(PavTestCase):
         parser = argparse.ArgumentParser()
         log_cmd._setup_arguments(parser)
 
+        # run a simple test
         test = self._quick_test()
         test.build()
         raw = schedulers.get_scheduler_plugin('raw')
@@ -50,5 +51,29 @@ class LogCmdTest(PavTestCase):
         self.assertEqual(out.read(), 'Hello World.\n')
         self.assertEqual(result, 0)
 
-    def test_log_command(self):
-        """Test log command by generator a suite of tests."""
+        # test `pav log build test`
+        # note: echo-ing hello world should not require anything to be built
+        out.truncate(0)
+        err.truncate(0)
+        args = parser.parse_args(['build', str(test.id)])
+        result = log_cmd.run(self.pav_cfg, args, out_file=out, err_file=err)
+        out.seek(0)
+        err.seek(0)
+        #self.assertIn('Log file does not exist', err.read()) 
+        self.assertEqual(out.read(), '')
+        #self.assertEqual(result, 0)
+        self.dbg_print("ERR: " + str(err.read()))
+        self.dbg_print("result: " + str(result))
+
+        # test `pav log kickoff test`
+        # note: in general, kickoff.log should be an empty file
+        out.truncate(0)
+        err.truncate(0)
+        args = parser.parse_args(['kickoff', str(test.id)])
+        result = log_cmd.run(self.pav_cfg, args, out_file=out, err_file=err)
+        out.seek(0)
+        err.seek(0)
+        self.assertEqual(out.read(), '')
+        self.assertEqual(err.read(), '')
+        self.assertEqual(result, 0)
+
