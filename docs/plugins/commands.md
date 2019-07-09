@@ -75,12 +75,6 @@ for test_id in args.tests:
 This code will populate a list of all test IDs, but they are still strings so you will need to do one of the following to get each test object.
 ```python
 # Using Imported Series Module
-TestObjectList = series.test_obj_from_id(pav_cfg, test_list)
+test_object_list, test_failed_list = series.test_obj_from_id(pav_cfg, test_list)
 
-# Using Imported PavTest Module 
-test_list = map(int, test_list) # Used to map strings to integers
-for test_id in test_list:
-    test = PavTest.load(pav_cfg, test_id)
-```
-
-Keep in mind that it may be neccesary to wrap everything in `try except` blocks to catch any errors that may occur, i.e. a test or test series doesn't exist. There are some good examples of this in both the `status.py` as well as the `cancel.py` files.
+Note, when using `series.test_obj_from_id` error handling is handled for you, as it will return a tuple made up of a list of test objects, and a list of test IDs that couldn't be found. Because of this, `series.test_obj_from_id` is the preferred way of accessing test objects. 
