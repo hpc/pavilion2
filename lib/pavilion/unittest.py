@@ -214,12 +214,12 @@ class PavTestCase(unittest.TestCase):
                      .format(a_walk, b_walk))
 
     @staticmethod
-    def get_hash(fn):
+    def get_hash(filename):
         """ Get a sha1 hash of the file at the given path.
-        :param Path fn:
+        :param Path filename:
         :return:
         """
-        with fn.open('rb') as file:
+        with filename.open('rb') as file:
             sha = sha1()
             sha.update(file.read())
             return sha.hexdigest()

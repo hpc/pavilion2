@@ -36,6 +36,8 @@ from . import file_format
 class ScanError(ValueError):
     """Error scanning and tokenizing a Pav string."""
     def __init__(self, message, error_start, error_end):
+        super().__init__(message)
+
         self.message = message
         self.error_start = error_start
         self.error_end = error_end
@@ -155,7 +157,7 @@ def tokenize(string):
     return tokens
 
 
-class Token(object):
+class Token:
     def __init__(self, start, end):
         """Scan the string starting at pos to find the end of this token.
         Save the matching part, start and end. These type of token may be empty.
@@ -167,9 +169,13 @@ class Token(object):
         self.end = end
         self.next_token = None
 
-    def resolve(self, var_man):
+    def resolve(self, var_man, _iter_vars=None, allow_deferred=True):
         """Resolve any variables in this token using the variable manager.
         :param var_man: A variable manager with the needed variables.
+        :param dict _iter_vars: Variables that are being iterated over in
+            the resolution of a sub string.
+        :param bool allow_deferred: Whether this string can support deferred
+            variables.
         :return: The resolved string.
         """
 
@@ -193,7 +199,7 @@ class PavString(Token):
         super(PavString, self).__init__(0, 0)
 
         self.next_token = None
-        self._separator = ''
+        self.separator = ''
 
         self._root = self._parse(tokens, is_substr)
 
@@ -217,7 +223,7 @@ class PavString(Token):
                 # This is the end of the substring. If it was followed by a
                 # space, make sure to note that.
                 self.end = token.end
-                self._separator = token.separator
+                self.separator = token.separator
                 return root
             else:
                 # Add any other token to our PavString token list.
@@ -362,8 +368,8 @@ class PavString(Token):
                             _iter_vars[iter_var] += 1
 
                     # Only add the separator between values.
-                    if not done and token._separator:
-                        parts.append(token._separator)
+                    if not done and token.separator:
+                        parts.append(token.separator)
 
             else:
                 # This should not be reachable.
@@ -383,7 +389,7 @@ class TextToken(Token):
 
         super(TextToken, self).__init__(start, end)
 
-    def resolve(self, var_man):
+    def resolve(self, var_man, **kwargs):
         """Resolve any variables in this token using the variable manager.
         :param var_man: A variable manager with the needed variables.
         :return: The resolved string.
@@ -434,7 +440,7 @@ class VariableToken(Token):
 class SubStringStartToken(Token):
     """The start of a sub string section."""
 
-    def resolve(self, var_man):
+    def resolve(self, var_man, **kwargs):
         raise RuntimeError("This token should never be resolved. They should "
                            "be replaced with PavString tokens.")
 
@@ -447,6 +453,6 @@ class SubStringEndToken(Token):
 
         self.separator = separator
 
-    def resolve(self, var_man):
+    def resolve(self, var_man, **kwargs):
         raise RuntimeError("This token should never be resolved. They should "
                            "be replaced with PavString tokens.")

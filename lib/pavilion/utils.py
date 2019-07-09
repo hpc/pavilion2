@@ -185,12 +185,12 @@ def json_dumps(obj, skipkeys=False, ensure_ascii=True,
                       **kw)
 
 
-def json_dump(obj, fp, skipkeys=False, ensure_ascii=True,
+def json_dump(obj, file, skipkeys=False, ensure_ascii=True,
               check_circular=True, allow_nan=True, indent=None,
               separators=None, default=None, sort_keys=False, **kw):
     """Dump data to string as per the json dumps function, but using
     our custom encoder."""
-    return json.dump(obj, fp, cls=PavEncoder,
+    return json.dump(obj, file, cls=PavEncoder,
                      skipkeys=skipkeys,
                      ensure_ascii=ensure_ascii,
                      check_circular=check_circular,
