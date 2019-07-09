@@ -44,8 +44,8 @@ else:
 
 if 'PAV_CONFIG_DIR' in os.environ:
     try:
-        _path = Path(os.environ['PAV_CONFIG_DIR']).resolve()
-        PAV_CONFIG_SEARCH_DIRS.append(_path)
+        PAV_CONFIG_SEARCH_DIRS.append(
+            Path(os.environ['PAV_CONFIG_DIR']).resolve())
     except FileNotFoundError:
         LOGGER.warning("Invalid path in env var PAV_CONFIG_DIR. Ignoring.")
 

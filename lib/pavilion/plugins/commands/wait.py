@@ -1,3 +1,4 @@
+import sys
 import time
 
 from pavilion import commands
@@ -41,7 +42,7 @@ class WaitCommand(commands.Command):
                  'recent series submitted by this user is checked.'
         )
 
-    def run(self, pav_cfg, args):
+    def run(self, pav_cfg, args, out_file=sys.stdout, err_file=sys.stderr):
         # Store the initial time for timeout functionality.
         start_time = time.time()
 

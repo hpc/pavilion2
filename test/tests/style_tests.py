@@ -4,6 +4,9 @@ import subprocess
 import distutils.spawn
 
 _PYLINT3_PATH = distutils.spawn.find_executable('pylint3')
+if _PYLINT3_PATH is None:
+    _PYLINT3_PATH = distutils.spawn.find_executable('pylint')
+
 
 
 class StyleTests(PavTestCase):

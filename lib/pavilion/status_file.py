@@ -144,7 +144,7 @@ class StatusFile:
 
         self.path = path
 
-        self.tz = tzlocal.get_localzone()
+        self.timezone = tzlocal.get_localzone()
 
         if not self.path.is_file():
             # Make sure we can open the file, and create it if it doesn't exist.
@@ -231,7 +231,7 @@ class StatusFile:
         :param note: A note about this particular instance of the state.
         """
 
-        when = self.tz.localize(datetime.datetime.now())
+        when = self.timezone.localize(datetime.datetime.now())
         when = when.strftime(self.TIME_FORMAT)
 
         # If we were given an invalid status, make the status invalid but add
@@ -255,6 +255,6 @@ class StatusFile:
 
     def __eq__(self, other):
         return (
-            type(self) == type(other) and
+            isinstance(self, type(other)) and
             self.path == other.path
         )

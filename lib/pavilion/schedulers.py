@@ -1,3 +1,5 @@
+# pylint: disable=no-self-use
+
 import datetime
 import inspect
 import logging

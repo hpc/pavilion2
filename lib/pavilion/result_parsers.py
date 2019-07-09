@@ -142,8 +142,6 @@ class ResultParser(IPlugin.IPlugin):
         raises ResultParserError: If there are bad arguments.
         """
 
-        pass
-
     def check_args(self, **kwargs):
         """Check the arguments for any errors at test kickoff time, if they
         don't contain deferred variables. We can't check tests with
@@ -497,6 +495,7 @@ def parse_results(test, results):
 
                     # Store the first non-empty item.
                     results[key] = pres
+                    break
 
             elif per_file in (PER_NAME, PER_FULLNAME):
                 # Store in results under the 'stem' or 'name' key as a dict

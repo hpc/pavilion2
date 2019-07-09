@@ -7,7 +7,6 @@ from pavilion.pav_test import PavTest, PavTestError, PavTestNotFoundError
 
 class TestSeriesError(RuntimeError):
     """An error in managing a series of tests."""
-    pass
 
 
 def test_obj_from_id(pav_cfg, test_ids):
@@ -85,7 +84,7 @@ class TestSeries:
         self._logger = logging.getLogger(self.LOGGER_FMT.format(self._id))
 
     @property
-    def id(self):
+    def id(self):  # pylint: disable=invalid-name
         """Return the series id as a string, with an 's' in the front to
         differentiate it from test ids."""
 
@@ -159,7 +158,7 @@ class TestSeries:
             return None
 
     @property
-    def ts(self):
+    def timestamp(self):
         """Return the unix timestamp for this series, based on the last
         modified date for the test directory."""
         # Leave it up to the caller to deal with time properly.

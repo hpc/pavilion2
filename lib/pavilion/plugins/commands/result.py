@@ -39,7 +39,7 @@ class ResultsCommand(commands.Command):
             help="The tests to show the results for."
         )
 
-    def run(self, pav_cfg, args):
+    def run(self, pav_cfg, args, out_file=sys.stdout, err_file=sys.stderr):
 
         test_ids = self._get_tests(pav_cfg, args.tests)
 
