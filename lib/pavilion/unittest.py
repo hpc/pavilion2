@@ -168,12 +168,12 @@ class PavTestCase(unittest.TestCase):
                              "File contents mismatch for {} and {}."
                              .format(a_path, b_path))
 
-    def _cmp_tree(self, a, b):
+    def _cmp_tree(self, path_a, path_b):
         """Compare two directory trees, including the contents of all the
         files."""
 
-        a_walk = list(os.walk(str(a)))
-        b_walk = list(os.walk(str(b)))
+        a_walk = list(os.walk(str(path_a)))
+        b_walk = list(os.walk(str(path_b)))
 
         # Make sure these are in the same order.
         a_walk.sort()
@@ -188,7 +188,7 @@ class PavTestCase(unittest.TestCase):
             self.assertEqual(
                 sorted(a_dirs), sorted(b_dirs),
                 "Extracted archive subdir mismatch for '{}' {} != {}"
-                .format(a, a_dirs, b_dirs))
+                .format(path_a, a_dirs, b_dirs))
 
             # Make sure these are in the same order.
             a_files.sort()
@@ -304,4 +304,3 @@ class ColorResult(unittest.TextTestResult):
         self.stream.write(self.CYAN)
         super().addSkip(test, reason)
         self.stream.write(self.COLOR_RESET)
-

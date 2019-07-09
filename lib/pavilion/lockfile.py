@@ -13,7 +13,7 @@ LOGGER = logging.getLogger('pav.' + __name__)
 NEVER = 10**10
 
 
-class LockFile(object):
+class LockFile:
     """An NFS friendly way to create a lock file. Locks contain information
     on what host and user created the lock, and have a built in expiration
     date. To be used in a 'with' context.
@@ -176,13 +176,13 @@ class LockFile(object):
         # it as a string.
         path = str(path)
 
-        fd = os.open(path, os.O_EXCL | os.O_CREAT | os.O_RDWR)
+        file_num = os.open(path, os.O_EXCL | os.O_CREAT | os.O_RDWR)
         expiration = time.time() + expires
         file_note = ",".join([os.uname()[1], utils.get_login(), str(expiration),
                               lock_id])
         file_note = file_note.encode('utf8')
-        os.write(fd, file_note)
-        os.close(fd)
+        os.write(file_num, file_note)
+        os.close(file_num)
 
         try:
             os.chmod(path, cls.LOCK_PERMS)

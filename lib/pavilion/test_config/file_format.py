@@ -5,7 +5,6 @@ import yaml_config as yc
 
 class TestConfigError(ValueError):
     """An exception specific to errors in configuration."""
-    pass
 
 
 KEY_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_-]*$')
@@ -136,9 +135,9 @@ class TestConfigLoader(yc.YamlConfigLoader):
                         help_text='The sequence of commands to run to perform '
                                   'the build.')
             ],
-            help_text="The test build configuration. This will be used to "
-                      "dynamically generate a build script for building "
-                      "the test."),
+                   help_text="The test build configuration. This will be used "
+                             "to dynamically generate a build script for "
+                             "building the test."),
 
         yc.KeyedElem('run', elements=[
             yc.ListElem('modules', sub_elem=yc.StrElem(),
@@ -272,6 +271,8 @@ class TestConfigLoader(yc.YamlConfigLoader):
         :return:
         """
 
+        # pylint: disabled=protected-access
+
         if hasattr(elem, 'config_elems'):
             for sub_elem in elem.config_elems.values():
                 cls.check_leaves(sub_elem)
@@ -283,8 +284,7 @@ class TestConfigLoader(yc.YamlConfigLoader):
             raise ValueError(elem)
 
 
-# TODO: Fix this name.
-def TestSuiteLoader():
+def TestSuiteLoader():  # pylint: disable=invalid-name
     """Create a new test suite loader instance. This has to be done
     dynamically because of how we add keys to the TestConfig above."""
 

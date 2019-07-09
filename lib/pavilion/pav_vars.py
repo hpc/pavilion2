@@ -1,3 +1,5 @@
+# pylint: disable=no-self-use
+
 import datetime
 import time
 
@@ -15,7 +17,7 @@ class PavVars(VarDict):
         )
 
     @var_method
-    def ts(self):
+    def timestamp(self):
         """The current unix timestamp."""
         return time.time()
 

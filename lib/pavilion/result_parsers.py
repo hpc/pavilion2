@@ -142,8 +142,6 @@ class ResultParser(IPlugin.IPlugin):
         raises ResultParserError: If there are bad arguments.
         """
 
-        pass
-
     def check_args(self, **kwargs):
         """Check the arguments for any errors at test kickoff time, if they
         don't contain deferred variables. We can't check tests with

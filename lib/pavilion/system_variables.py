@@ -70,7 +70,7 @@ class SysVarDict(collections.UserDict):
         return [self[key] for key in self.keys()]
 
     def __iter__(self):
-        return self.keys()
+        return iter(self.keys())
 
     @staticmethod
     def help(key):

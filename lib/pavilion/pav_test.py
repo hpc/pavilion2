@@ -59,7 +59,7 @@ class PavTest:
 
     _BLOCK_SIZE = 4096*1024
 
-    LOGGER = logging.getLogger('pav.PavTest')
+    logger = logging.getLogger('pav.PavTest')
 
     def __init__(self, pav_cfg, config, sys_vars, _id=None):
         """Create an new PavTest object. If loading an existing test instance,
@@ -89,6 +89,8 @@ class PavTest:
 
         self.config = config
 
+        self.id = None  # pylint: disable=invalid-name
+
         # Get an id for the test, if we weren't given one.
         if _id is None:
             self.id, self.path = self.create_id_dir(tests_path)
@@ -101,7 +103,7 @@ class PavTest:
                     "No test with id '{}' could be found.".format(self.id))
 
         # Set a logger more specific to this test.
-        self.LOGGER = logging.getLogger('pav.PavTest.{}'.format(self.id))
+        self.logger = logging.getLogger('pav.PavTest.{}'.format(self.id))
 
         # This will be set by the scheduler
         self._job_id = None
@@ -405,7 +407,7 @@ class PavTest:
                         # The build failed. The reason should already be set
                         # in the status file.
                         def handle_error(_, path, exc_info):
-                            self.LOGGER.error(
+                            self.logger.error(
                                 "Error removing temporary build "
                                 "directory '%s': %s",
                                 path, exc_info)
@@ -428,7 +430,7 @@ class PavTest:
                     dst.symlink_to(src, True)
                     dst.resolve()
                 except OSError:
-                    self.LOGGER.warning(
+                    self.logger.warning(
                         "Could not create symlink to test")
 
         else:
@@ -445,7 +447,7 @@ class PavTest:
         except OSError as err:
             msg = "Could not perform the build directory copy: {}".format(err)
             self.status.set(STATES.BUILD_ERROR, msg)
-            self.LOGGER.error(msg)
+            self.logger.error(msg)
             return False
 
         # Touch the original build directory, so that we know it was used
@@ -454,7 +456,7 @@ class PavTest:
             now = time.time()
             os.utime(self.build_origin.as_posix(), (now, now))
         except OSError as err:
-            self.LOGGER.warning(
+            self.logger.warning(
                 "Could not update timestamp on build directory '%s': %s",
                 self.build_origin, err)
 
@@ -526,7 +528,7 @@ class PavTest:
         try:
             self._fix_build_permissions()
         except OSError as err:
-            self.LOGGER.warning("Error fixing build permissions: %s",
+            self.logger.warning("Error fixing build permissions: %s",
                                 err)
 
         if result != 0:
@@ -745,11 +747,11 @@ class PavTest:
                 msg = ("Error converting run template '{}' into the final "
                        "script: {}"
                        .format(self.run_tmpl_path, err))
-                self.LOGGER.error(msg)
+                self.logger.error(msg)
                 self.status.set(STATES.RUN_ERROR, msg)
                 return STATES.RUN_ERROR
             except PavTestError as err:
-                self.LOGGER.error(err)
+                self.logger.error(err)
                 self.status.set(STATES.RUN_ERROR, err)
                 return STATES.RUN_ERROR
 
@@ -792,7 +794,8 @@ class PavTest:
                         self.status.set(STATES.RUN_FAILED,
                                         "Run timed out after {} seconds."
                                         .format(self.RUN_SILENT_TIMEOUT))
-                        self._finished = local_tz.localize(datetime.datetime.now())
+                        self._finished = local_tz.localize(
+                            datetime.datetime.now())
                         return STATES.RUN_TIMEOUT
                     else:
                         # Only wait a max of BUILD_SILENT_TIMEOUT next 'wait'
@@ -953,7 +956,7 @@ class PavTest:
         except FileNotFoundError:
             return None
         except (OSError, IOError) as err:
-            self.LOGGER.error("Could not read jobid file '%s': %s",
+            self.logger.error("Could not read jobid file '%s': %s",
                               path, err)
             return None
 
@@ -968,7 +971,7 @@ class PavTest:
             with path.open('w') as job_id_file:
                 job_id_file.write(job_id)
         except (IOError, OSError) as err:
-            self.LOGGER.error("Could not write jobid file '%s': %s",
+            self.logger.error("Could not write jobid file '%s': %s",
                               path, err)
 
         self._job_id = job_id
