@@ -42,40 +42,9 @@ def status_from_test_obj(pav_cfg, test_obj):
 def get_all_tests(pav_cfg, args, errfile):
     """function to handle if user wants all tests"""
 
-    """
-    test_list = []
-    limit = args.limit
-    # get latest test
-    last_series = series.TestSeries.load_user_series_id(pav_cfg)
-    last_tests = series.TestSeries.from_id(pav_cfg, int(last_series[1:])).tests
-    last_test = max(last_tests, key=int)
-    while limit is not 0:
-        test_list.append(last_test)
-        last_test = last_test - 1
-        limit = limit - 1
-
-    test_statuses = []
-    test_obj_list = []
-    for test_id in test_list:
-        try:
-            test = PavTest.load(pav_cfg, test_id)
-            test_obj_list.append(test)
-        except (PavTestError, PavTestNotFoundError) as err:
-            test_statuses.append({
-                'test_id': test_id,
-                'name': "",
-                'state': STATES.UNKNOWN,
-                'time': "",
-                'note': "Test not found.",
-            })
-    """
-    #test_statuses = []
     test_obj_list = PavTest.get_latest_tests(pav_cfg, args.limit)
     statuses = status_from_test_obj(pav_cfg, test_obj_list)
 
-    #if statuses is not None:
-    #    test_statuses = test_statuses + statuses
-    #return test_statuses
     return statuses
 
 def get_statuses(pav_cfg, args, errfile):
@@ -221,7 +190,6 @@ class StatusCommand(commands.Command):
                 test_statuses = get_statuses(pav_cfg, args, self.errfile)
             else:
                 test_statuses = get_all_tests(pav_cfg, args, self.errfile)
-            #PavTest.get_latest_tests(pav_cfg, 10)
         except commands.CommandError as err:
             utils.fprint("Status Error:", err, color=utils.RED)
             return 1
