@@ -635,52 +635,21 @@ def check_for_cir_ref(raw_test_cfg):
     if 'variables' in raw_test_cfg:
         test_cfg = raw_test_cfg['variables']
 
-    """
-    # traverse dictionary, look for values that references keys
-    for k,v in test_cfg.items():
-        for i in range(len(v)):
-            ele = v[i]
-            if '{{' in ele:
-                ele = ele.replace('{{','')
-                ele = ele.replace('}}','')
-                if(_is_cir_ref(test_cfg, k, ele)):
-                    raise TestConfigError(
-                        "{}:{} is a circular reference."
-                        .format(k,ele))
-    """
-
     # traverse dictionary
     for k,v in test_cfg.items():
-        dbg_print("\nk: " + str(k) + " v: " + str(v))
         tokens = string_parser.tokenize(str(v))
         vt_list = _get_variable_tokens(tokens)
-        dbg_print("\nVariabletokens: " + str(vt_list))
         for vt in vt_list:
             if(_is_referenced(test_cfg, k)):
-                dbg_print(k + " is referenced by some other variable value\n")
                 if(_is_cir_ref(test_cfg, k, vt.var)):
-                    dbg_print("CIRCULAR REFERENCE!")
-            #if(_is_cir_ref(test_cfg, k, vt.var)):
-            #    dbg_print("circular reference!")
+                    raise TestConfigError(
+                        "{}:{} is a circular reference."
+                        .format(k,vt.var))
 
 def _is_cir_ref(config_dict, key, ref):
     # input: variable reference
     # returns true if circular ref
    
-    """ 
-    dbg_print("\nIs it a circular reference " + key + " " + ref)
-    if key == ref:
-        return 1
-    elif str(ref) in config_dict:
-        new_ref = config_dict[ref][0].replace('{{','')
-        new_ref = new_ref.replace('}}','')
-        return _is_cir_ref(config_dict, key, new_ref)
-
-    return 0
-    """
-
-    dbg_print("\nIS CIR REF now checking: " + key + " " + ref)
-
     if key == ref:
         return 1
     elif str(ref) in config_dict:
