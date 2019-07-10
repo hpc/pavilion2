@@ -640,26 +640,36 @@ def resolve_cir_ref(raw_test_cfg):
     for k,v in test_cfg.items():
         for i in range(len(v)):
             ele = v[i]
-            #dbg_print(ele + "\n")
             if '{{' in ele:
-                #dbg_print(ele + "\n")
                 ele = ele.replace('{{','')
                 ele = ele.replace('}}','')
                 try:
-                    new_val = _resolve_cir_ref(test_cfg,ele)
+                    dbg_print('\n' + k + " " + ele)
+                    if(_resolve_cir_ref(test_cfg, k, ele)):
+                        dbg_print(k + " " + ele + " is a circ. ref.")
+                    else:
+                        dbg_print(k + " " + ele + " works!")
+                    #cir_ref = _resolve_cir_ref(test_cfg,k,ele)
+                    #dbg_print(cir_ref)
                     #dbg_print("new val: " + str(new_val))
                     #dbg_print(test_cfg[k][i])
-                    test_cfg[k] = new_val
+                    #test_cfg[k] = new_val
                 except:
                     print("circular references don't have source")
 
     dbg_print("\nNEW VARIABLES: " + str(test_cfg))
 
-def _resolve_cir_ref(config_dict, ref):
+def _resolve_cir_ref(config_dict, key, ref):
     # input: variable reference
-    # needs to return the proper value
+    # returns true if circular ref
     
-    dbg_print("REF: " + ref + " config_dict: " + str(config_dict))
-    if str(ref) in config_dict:
-        dbg_print("found reference: " + str(config_dict[ref]))
-        return config_dict[ref]
+    if key == ref:
+        dbg_print("variable cannot reference itself")
+        return 1
+    elif str(ref) in config_dict:
+        new_ref = config_dict[ref][0].replace('{{','')
+        new_ref = new_ref.replace('}}','')
+        dbg_print(key + " " + " " + ref + " " + new_ref)
+        return _resolve_cir_ref(config_dict, key, new_ref)
+
+    return 0
