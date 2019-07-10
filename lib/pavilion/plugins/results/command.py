@@ -52,19 +52,19 @@ class Command(result_parsers.ResultParser):
         # run command
         cmd_result = ""
 
-        """
         # where to redirect stderr
-        if stderr_out = "/dev/null":
-            STDERR = FNULL
+        if stderr_out == "/dev/null":
+            err = subprocess.DEVNULL
         else:
-            STDERR = subprocess.STDOUT
-        """
+            err = subprocess.STDOUT
+
+        DEVNULL = open('/dev/null', 'wb')
 
         # get output
         if success == "output":
             try:
                 cmd_result = subprocess.check_output(command,
-                    stderr=subprocess.STDOUT,
+                    stderr=err,
                     shell=True).decode("utf-8")
                 cmd_result = str(cmd_result)
             except:
@@ -73,7 +73,7 @@ class Command(result_parsers.ResultParser):
         # get return value
         else:
             try:
-                cmd_result = str(subprocess.call(command, shell=True))
+                cmd_result = str(subprocess.call(command, stderr=err, shell=True))
             except:
                 raise result_parsers.ResultParserError(
                     "Command cannot be executed."
