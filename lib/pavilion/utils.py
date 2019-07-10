@@ -329,25 +329,25 @@ def _plen(string):
 
     return len(unescaped)
 
-def removeFormatting(width, fields, border, pad):
+def removeFormatting(content_width, fields, border, pad):
     # Reduced the effective window width if we have padded dividers. 
     if pad:
         offset = 2 * len(fields)
         offset = offset + len(fields) - 1
-        width = width - offset
+        content_width = content_width - offset
 
     # Reduce the effective window width for non padded dividers. 
     else:
         offset = len(fields) - 1
-        width = width - offset
+        content_width = content_width - offset
 
     if border:
         offset = 2
-        width = width - offset
+        content_width = content_width - offset
 
-    return width
+    return content_width
 
-def addFormatting(width, fields, border, pad):
+def formattedWidth(width, fields, border, pad):
 
     if pad:
         offset = 2*len(fields)
@@ -367,7 +367,7 @@ def addFormatting(width, fields, border, pad):
 def getTotalWidth(column_widths, fields, border, pad):
     # Find the total width of the table.
     total_width = (sum(column_widths.values()))  # column widths
-    total_width = addFormatting(total_width, fields, border, pad)
+    total_width = formattedWidth(total_width, fields, border, pad)
 
     return total_width
 
@@ -398,8 +398,6 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
     :param title: Add the given title above the table. Default None
     :return: None
     """
-
-    wrap = False
 
     # Column widths populates with a range of values, the minimum being the
     # length of the given field title, and the max being the longest entry in
@@ -489,91 +487,73 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
         print("\x1b[8;{};{}t".format(lines, totalMin))
         window_width = totalMin
 
-    # Checks to see if table will fit on screen as is. If not then it starts
-    # the process of calculating the 'optimal' way to wrap. 
-    if totalMax > window_width:
-        wrap = True
-    # Checks to makes sure an entry in a field isn't larger than current
-    # max_width. Essentially determines if wrapping must occur from user
-    # specification.
-    else:
-        for field in fields:
-            if column_widths[field] > max_widths[field]:
-                wrap = True
-
     # Reduces the effective window width based on formatting, so we know the
     # exact width we have for strictly field entries. 
     window_width = removeFormatting(window_width, fields, border, pad)
 
-    if wrap:
-        best_config = []
-        combos = []
-        boundaries = []
-        for field in fields:
+    best_config = []
+    combos = []
+    boundaries = []
+    for field in fields:
 
-            # Get updated max width for a column provided every other column is
-            # at its minimum width. 
-            max_width = window_width-sum(min_widths.values())+min_widths[field]
+        # Get updated max width for a column provided every other column is
+        # at its minimum width. 
+        max_width = window_width-sum(min_widths.values())+min_widths[field]
 
-            # Only updated if the max_Width is less than current max value. 
-            if max_width < max_widths[field]:
-                max_widths[field] = max_width
+        # Only updated if the max_Width is less than current max value. 
+        if max_width < max_widths[field]:
+            max_widths[field] = max_width
 
-            boundaries.append([min_widths[field], max_widths[field]+1])
+        boundaries.append([min_widths[field], max_widths[field]+1])
 
-        # Creates all possible combinations.
-        for combo in itertools.product(*(range(*bound) for bound in boundaries)):
+    # Creates all possible combinations.
+    for combo in itertools.product(*(range(*bound) for bound in boundaries)):
 
-            # Only populates list with combinations equal to current window
-            # size if table width was the reason for wrapping
-            if sum(combo) == window_width:
-                combos.append(list(combo))
-        if combos:
-            # Calculates the max number of wraps for a given column width
-            # combination.
-            wrap_options = []
-            min_wraps = sys.maxsize
+        # Only populates list with combinations equal to current window
+        # size if table width was the reason for wrapping
+        if sum(combo) == window_width:
+            combos.append(list(combo))
+    if combos:
+        # Calculates the max number of wraps for a given column width
+        # combination.
+        wrap_options = []
+        min_wraps = sys.maxsize
 
-            for combo in combos:
-                wrap_count = []
-
-                for i in range(len(fields)):
-                    column_width = combo[i]
-                    wrap_total = 0
-
-                    for row in rows:
-                        wraps = textwrap.TextWrapper(width=column_width)
-                        wrap_list = wraps.wrap(text=str(row[fields[i]]))
-                        wrap_total = wrap_total + len(wrap_list)
-
-                    wrap_count.append(wrap_total)
-
-                wrap_count = sum(wrap_count)
-
-                # Updates minimum wraps with the smallest amount of wraps seen
-                # so far. 
-                if wrap_count <= min_wraps:
-                    min_wraps = wrap_count
-                    wrap_options.append([combo, wrap_count])
-
-            min_col_wrap_list = []
-            # Goes through and removes any combination that isn't equal to the
-            # minimum number of wraps. 
-            for config in wrap_options:
-                if config[1] == min_wraps:
-                    min_col_wrap_list.append(config)
-
-            # Picks the best config to be the last config in
-            # min_col_to_wrap list
-            best_config = min_col_wrap_list[-1]
+        for combo in combos:
+            wrap_count = []
 
             for i in range(len(fields)):
-                column_widths[fields[i]] = best_config[0][i]
+                column_width = combo[i]
+                wrap_total = 0
 
-    # No wrapping was required. Must update the column_widths list to include
-    # values provided in the field_info dict. 
-    else:
-        column_widths = max_widths
+                for row in rows:
+                    wraps = textwrap.TextWrapper(width=column_width)
+                    wrap_list = wraps.wrap(text=str(row[fields[i]]))
+                    wrap_total = wrap_total + len(wrap_list)
+
+                wrap_count.append(wrap_total)
+
+            wrap_count = sum(wrap_count)
+
+            # Updates minimum wraps with the smallest amount of wraps seen
+            # so far. 
+            if wrap_count <= min_wraps:
+                min_wraps = wrap_count
+                wrap_options.append([combo, wrap_count])
+
+        min_col_wrap_list = []
+        # Goes through and removes any combination that isn't equal to the
+        # minimum number of wraps. 
+        for config in wrap_options:
+            if config[1] == min_wraps:
+                min_col_wrap_list.append(config)
+
+        # Picks the best config to be the last config in
+        # min_col_to_wrap list
+        best_config = min_col_wrap_list[-1]
+
+        for i in range(len(fields)):
+            column_widths[fields[i]] = best_config[0][i]
 
     title_length = sum(column_widths.values())
 
@@ -607,44 +587,41 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
     title_format += '\n'
 
     wrap_rows = []
-    if wrap:
-        #Reformats all the rows
-        for row in formatted_rows:
-            wraps = {}
-            #Creates wrap list that holds list of strings for the wrapped text
+    #Reformats all the rows
+    for row in formatted_rows:
+        wraps = {}
+        #Creates wrap list that holds list of strings for the wrapped text
+        for field in fields:
+            my_wrap = textwrap.TextWrapper(width = column_widths[field])
+            wrap_list = my_wrap.wrap(text = row[field])
+            wraps[field] = wrap_list
+
+        num_lines = 0
+        #Gets the largest number of lines, so we know how many iterations
+        #to do when printing
+        for field in wraps.keys():
+            number_of_wraps = len(wraps[field])
+            if number_of_wraps > num_lines:
+                num_lines = number_of_wraps
+
+        #Populates current row with the first wrap
+        for field in fields:
+            row[field] = wraps[field][0]
+
+        wrap_rows.append(row)
+        #Creates a new row for each line of text required
+        for line in range(1,num_lines):
+            wrap_row = copy.deepcopy(row)
+            #Emptys current row
+            wrap_row = wrap_row.fromkeys(wrap_row, '')
+            #Populates the necessary fields, if they exist
             for field in fields:
-                my_wrap = textwrap.TextWrapper(width = column_widths[field])
-                wrap_list = my_wrap.wrap(text = row[field])
-                wraps[field] = wrap_list
+                if line >= len(wraps[field]):
+                    wrap_row[field] = ''
+                else:
+                    wrap_row[field] = wraps[field][line]
 
-            num_lines = 0
-            #Gets the largest number of lines, so we know how many iterations
-            #to do when printing
-            for field in wraps.keys():
-                number_of_wraps = len(wraps[field])
-                if number_of_wraps > num_lines:
-                    num_lines = number_of_wraps
-
-            #Populates current row with the first wrap
-            for field in fields:
-                row[field] = wraps[field][0]
-
-            wrap_rows.append(row)
-            #Creates a new row for each line of text required
-            for line in range(1,num_lines):
-                wrap_row = copy.deepcopy(row)
-                #Emptys current row
-                wrap_row = wrap_row.fromkeys(wrap_row, '')
-                #Populates the necessary fields, if they exist
-                for field in fields:
-                    if line >= len(wraps[field]):
-                        wrap_row[field] = ''
-                    else:
-                        wrap_row[field] = wraps[field][line]
-
-                wrap_rows.append(wrap_row)
-
-        formatted_rows = wrap_rows
+            wrap_rows.append(wrap_row)
 
     try:
         if border:
@@ -655,7 +632,7 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
 
         outfile.write(row_format.format(**titles))
         outfile.write(horizontal_break)
-        for row in formatted_rows:
+        for row in wrap_rows:
             outfile.write(row_format.format(**row))
 
         if border:
