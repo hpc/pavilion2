@@ -656,8 +656,12 @@ def check_for_cir_ref(raw_test_cfg):
         vt_list = _get_variable_tokens(tokens)
         dbg_print("\nVariabletokens: " + str(vt_list))
         for vt in vt_list:
-            if(_is_cir_ref(test_cfg, k, vt.var)):
-                dbg_print("circular reference!")
+            if(_is_referenced(test_cfg, k)):
+                dbg_print(k + " is referenced by some other variable value\n")
+                if(_is_cir_ref(test_cfg, k, vt.var)):
+                    dbg_print("CIRCULAR REFERENCE!")
+            #if(_is_cir_ref(test_cfg, k, vt.var)):
+            #    dbg_print("circular reference!")
 
 def _is_cir_ref(config_dict, key, ref):
     # input: variable reference
@@ -697,3 +701,16 @@ def _get_variable_tokens(tokens):
             vt_list.append(t)
 
     return vt_list
+
+def _is_referenced(config_dict, key):
+    # returns true if key is referenced in any
+    # value in config_dict
+
+    for k, v in config_dict.items():
+        value_tokens = string_parser.tokenize(str(v))
+        vt_list = _get_variable_tokens(value_tokens)
+        for vt in vt_list:
+            if vt.var == key:
+                return 1
+
+    return 0
