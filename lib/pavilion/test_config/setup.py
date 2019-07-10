@@ -629,12 +629,13 @@ def _resolve_section_vars(component, var_man, allow_deferred):
                               "resolving strings."
                               .format(type(component), component))
 
-def resolve_cir_ref(raw_test_cfg):
+def check_for_cir_ref(raw_test_cfg):
     
     test_cfg = {}
     if 'variables' in raw_test_cfg:
         test_cfg = raw_test_cfg['variables']
 
+    """
     # traverse dictionary, look for values that references keys
     for k,v in test_cfg.items():
         for i in range(len(v)):
@@ -646,11 +647,24 @@ def resolve_cir_ref(raw_test_cfg):
                     raise TestConfigError(
                         "{}:{} is a circular reference."
                         .format(k,ele))
+    """
+
+    # traverse dictionary
+    for k,v in test_cfg.items():
+        dbg_print("\nk: " + str(k) + " v: " + str(v))
+        tokens = string_parser.tokenize(str(v))
+        vt_list = _get_variable_tokens(tokens)
+        dbg_print("\nVariabletokens: " + str(vt_list))
+        for vt in vt_list:
+            if(_is_cir_ref(test_cfg, k, vt.var)):
+                dbg_print("circular reference!")
 
 def _is_cir_ref(config_dict, key, ref):
     # input: variable reference
     # returns true if circular ref
-    
+   
+    """ 
+    dbg_print("\nIs it a circular reference " + key + " " + ref)
     if key == ref:
         return 1
     elif str(ref) in config_dict:
@@ -659,3 +673,27 @@ def _is_cir_ref(config_dict, key, ref):
         return _is_cir_ref(config_dict, key, new_ref)
 
     return 0
+    """
+
+    dbg_print("\nIS CIR REF now checking: " + key + " " + ref)
+
+    if key == ref:
+        return 1
+    elif str(ref) in config_dict:
+        tokens = string_parser.tokenize(str(config_dict[ref]))
+        vt_list = _get_variable_tokens(tokens)
+        for vt in vt_list:
+            return _is_cir_ref(config_dict, key, vt.var)
+
+    return 0
+
+def _get_variable_tokens(tokens):
+    # input: list of tokens
+    # output: items that are VariableTokens (list)
+
+    vt_list = []
+    for t in tokens:
+        if isinstance(t, string_parser.VariableToken):
+            vt_list.append(t)
+
+    return vt_list

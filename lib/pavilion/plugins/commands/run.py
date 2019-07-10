@@ -287,7 +287,7 @@ class RunCommand(commands.Command):
 
             # Resolve circular references
             try:
-                test_config.resolve_cir_ref(test_cfg)
+                test_config.check_for_cir_ref(test_cfg)
             except test_config.TestConfigError as err:
                 msg = 'Error resolving circular dependendencies for test'
                 self.logger.error(msg)
