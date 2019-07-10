@@ -155,6 +155,8 @@ class RunCommand(commands.Command):
                     fprint("status {status.state} - {status.note}"
                            .format(status=test.status.current()),
                            file=self.errfile)
+                    fprint("For more information, run 'pav log build {}'"
+                           .format(test.id), file=self.errfile)
                     return errno.EINVAL
 
         for sched_name, tests in tests_by_sched.items():
