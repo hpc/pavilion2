@@ -22,28 +22,44 @@ class Command(result_parsers.ResultParser):
             yc.StrElem(
                 'success',
                 default='return_value',
+                choices=['return_value','output'],
                 help_text="needs to be either return_value or output"
             ),
             yc.StrElem(
                 'success_value',
                 default='0',
                 help_text="success value"
+            ),
+            yc.StrElem(
+                'stderr_out',
+                choices=['/dev/null','stdout'],
+                default='stdout',
+                help_text="where to redirect stderr"
             )
         ])
 
         return config_items
 
-    def _check_args(self, command=None, success=None, success_value=None):
+    def _check_args(self, command=None, success=None, success_value=None, stderr_out=None):
 
-        if (command == ""):
+        if not command:
             raise result_parsers.ResultParserError(
                 "Command required."
             )
 
-    def __call__(self, test, file, command=None, success=None, success_value=None):
+    def __call__(self, test, file, command=None, success=None, success_value=None, stderr_out=None):
 
         # run command
         cmd_result = ""
+
+        """
+        # where to redirect stderr
+        if stderr_out = "/dev/null":
+            STDERR = FNULL
+        else:
+            STDERR = subprocess.STDOUT
+        """
+
         # get output
         if success == "output":
             try:
