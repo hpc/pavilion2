@@ -408,7 +408,7 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
     for field in fields:
         default_title = field.replace('_', ' ').capitalize()
         field_title = field_info.get(field, {}).get('title', default_title)
-        # Gets the length of column title
+        # Gets the length of column title, adds it to the list of column widths
         column_widths[field] = [len(field_title)]
         titles[field] = field_title
 
@@ -442,7 +442,7 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
             # Appends the length of all rows at a given field longer than the
             # title. Effectively forces that the minimum column width be no
             # less than the title.
-            if _plen(data) > column_widths[field][0]:
+            if _plen(data) > len(titles[field]):
                 column_widths[field].append(_plen(data))
 
             formatted_row[field] = data
