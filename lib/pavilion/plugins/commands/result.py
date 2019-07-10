@@ -49,9 +49,9 @@ class ResultsCommand(commands.Command):
             try:
                 tests.append(PavTest.load(pav_cfg, id_))
             except PavTestError as err:
-                self.logger.warning("Could not load test %\n %s", id_, err)
+                self.logger.warning("Could not load test % \n %s", id_, err)
             except PavTestNotFoundError as err:
-                self.logger.warning("Could not find test %\n %s", id_, err)
+                self.logger.warning("Could not find test % \n %s", id_, err)
 
         results = []
         for test in tests:
