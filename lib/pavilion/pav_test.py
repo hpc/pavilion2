@@ -413,6 +413,9 @@ class PavTest:
 
                         if build_dir.exists():
                             # Cleanup the temporary build tree.
+                            os.mkdir(str(self.build_path))
+                            os.rename(str(build_dir / 'pav_build_log'),
+                                      str(self.build_path / 'pav_build_log'))
                             shutil.rmtree(path=build_dir.as_posix(),
                                           onerror=handle_error)
                 else:
@@ -428,7 +431,7 @@ class PavTest:
                     src = self.path
                     dst.symlink_to(src, True)
                     dst.resolve()
-                except: 
+                except:
                     self.LOGGER.warning("Could not create symlink to test")
 
         else:
@@ -522,6 +525,8 @@ class PavTest:
                             "Error that's probably related to writing the "
                             "build output: {}".format(err))
             return False
+        finally:
+            shutil
 
         try:
             self._fix_build_permissions()
