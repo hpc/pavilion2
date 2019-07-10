@@ -15,6 +15,8 @@ class LogCommand(commands.Command):
             short_help="Displays log for the given test id."
         )
 
+        self._parser = None
+
     def _setup_arguments(self, parser):
 
         subparsers = parser.add_subparsers(
