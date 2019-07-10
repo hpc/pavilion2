@@ -24,6 +24,8 @@ class ShowCommand(commands.Command):
             short_help="Show pavilion plugin/config info."
         )
 
+        self._parser = None
+
     def _setup_arguments(self, parser):
 
         subparsers = parser.add_subparsers(
@@ -355,7 +357,7 @@ class ShowCommand(commands.Command):
 
         if args.config:
             try:
-                rp = result_parsers.get_plugin(args.config)
+                res_plugin = result_parsers.get_plugin(args.config)
             except result_parsers.ResultParserError:
                 utils.fprint(
                     "Invalid result parser '{}'.".format(args.config),
@@ -363,7 +365,7 @@ class ShowCommand(commands.Command):
                 )
                 return errno.EINVAL
 
-            config_items = rp.get_config_items()
+            config_items = res_plugin.get_config_items()
 
             class Loader(yaml_config.YamlConfigLoader):
                 ELEMENTS = config_items
@@ -374,12 +376,12 @@ class ShowCommand(commands.Command):
 
             rps = []
             for rp_name in result_parsers.list_plugins():
-                rp = result_parsers.get_plugin(rp_name)
-                desc = " ".join(rp.__doc__.split())
+                res_plugin = result_parsers.get_plugin(rp_name)
+                desc = " ".join(res_plugin.__doc__.split())
                 rps.append({
                     'name': rp_name,
                     'description': desc,
-                    'path': rp.path
+                    'path': res_plugin.path
                 })
 
             fields = ['name', 'description']
@@ -442,12 +444,12 @@ class ShowCommand(commands.Command):
 
         modules = []
         for mod_name in sorted(module_wrapper.list_module_wrappers()):
-            mw = module_wrapper.get_module_wrapper(mod_name)
+            mod_wrap = module_wrapper.get_module_wrapper(mod_name)
             modules.append({
                 'name': mod_name,
-                'version': mw._version,  # pylint: disable=W0212
-                'description': mw.help_text,
-                'path': mw.path,
+                'version': mod_wrap._version,  # pylint: disable=W0212
+                'description': mod_wrap.help_text,
+                'path': mod_wrap.path,
             })
 
         fields = ['name', 'version', 'description']

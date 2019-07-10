@@ -432,7 +432,7 @@ class PavTest:
                     src = self.path
                     dst.symlink_to(src, True)
                     dst.resolve()
-                except:
+                except OSError:
                     self.LOGGER.warning("Could not create symlink to test")
 
         else:
@@ -526,8 +526,6 @@ class PavTest:
                             "Error that's probably related to writing the "
                             "build output: {}".format(err))
             return False
-        finally:
-            shutil
 
         try:
             self._fix_build_permissions()

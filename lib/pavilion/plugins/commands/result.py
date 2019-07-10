@@ -1,8 +1,9 @@
+import sys
+
 from pavilion import commands
 from pavilion import series
 from pavilion.pav_test import PavTest, PavTestError, PavTestNotFoundError
 from pavilion import utils
-import sys
 
 
 class ResultsCommand(commands.Command):
@@ -48,11 +49,9 @@ class ResultsCommand(commands.Command):
             try:
                 tests.append(PavTest.load(pav_cfg, id_))
             except PavTestError as err:
-                self.logger.warning("Could not load test '{}': {}"
-                                    .format(id_, err))
+                self.logger.warning("Could not load test %s - %s", id_, err)
             except PavTestNotFoundError as err:
-                self.logger.warning("Could not find test '{}': {}"
-                                    .format(id_, err))
+                self.logger.warning("Could not find test %s - %s", id_, err)
 
         results = []
         for test in tests:
@@ -109,8 +108,7 @@ class ResultsCommand(commands.Command):
                             int(test_id[1:])).tests)
                 except series.TestSeriesError as err:
                     self.logger.warning(
-                        "Suite {} could not be found.\n{}"
-                            .format(test_id[1:], err),
+                        "Suite %s could not be found.\n%s", test_id[1:], err
                     )
                     continue
             else:

@@ -61,7 +61,7 @@ class ScriptComposerError(RuntimeError):
     """Class level exception during script composition."""
 
 
-class ScriptHeader(object):
+class ScriptHeader():
     """Class to serve as a struct for the script header."""
 
     def __init__(self, shell_path=None, scheduler_headers=None):
@@ -71,8 +71,11 @@ class ScriptHeader(object):
         :param list scheduler_headers: List of lines for scheduler resource
                                        specifications.
         """
+        self._shell_path = None
+        self._scheduler_headers = None
         self.shell_path = shell_path
         self.scheduler_headers = scheduler_headers
+
 
     @property
     def shell_path(self):
@@ -122,7 +125,7 @@ class ScriptHeader(object):
         self.__init__()
 
 
-class ScriptDetails(object):
+class ScriptDetails():
     """Class to contain the final details of the script."""
 
     def __init__(self, path=None, group=None, perms=None):
@@ -134,6 +137,9 @@ class ScriptDetails(object):
         :param int perms: Value for permission on the file (see
                           `man chmod`).  default = 0o770
         """
+        self._path = None
+        self._group = None
+        self._perms = None
         self.path = path
         self.group = group
         self.perms = perms
@@ -175,7 +181,7 @@ class ScriptDetails(object):
         self.__init__()
 
 
-class ScriptComposer(object):
+class ScriptComposer():
 
     def __init__(self, header=None, details=None):
         """Function to initialize the class and the default values for all of
