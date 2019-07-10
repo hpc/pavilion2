@@ -642,13 +642,10 @@ def resolve_cir_ref(raw_test_cfg):
             if '{{' in ele:
                 ele = ele.replace('{{','')
                 ele = ele.replace('}}','')
-                dbg_print('\n' + k + " " + ele)
                 if(_is_cir_ref(test_cfg, k, ele)):
                     raise TestConfigError(
                         "{}:{} is a circular reference."
                         .format(k,ele))
-                else:
-                    dbg_print(" " + k + " " + ele + " works!")
 
 def _is_cir_ref(config_dict, key, ref):
     # input: variable reference
