@@ -1,0 +1,29 @@
+site_name: Pavilion
+copyright: Copyright © 2015, Los Alamos National Laboratory. All Rights Reserved.
+theme:
+    name: readthedocs
+nav:
+    - Home: index.md
+    - Development Guidelines: DevelopmentGuidelines.md 
+    - Setup:
+        - Installing Pavilion: INSTALL.md
+        - Configuring Pavilion: config.md
+    - Usage:
+        - Pavilion Basic Usage: basic.md
+        - Pavilion Advanced Usage: advanced.md 
+    - Writing Tests:
+        - Basics: tests/basics.md
+        - Building: tests/build.md
+        - Running: tests/run.md
+        - Environment: index.md
+        - Scheduling: index.md
+        - Results: tests/results.md
+        - Variables: tests/variables.md
+        - Permutations: index.md
+    - Plugins and Customization:
+        - System Variables: index.md
+        - Module Wrappers: index.md
+        - Result Parsers: index.md
+        - Schedulers: index.md
+        - Commands: plugins/commands.md
+    - License: LICENSE.md

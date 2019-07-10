@@ -19,7 +19,7 @@
    process has been initiated, but it takes a while. 
  2. For now the primary repository is git.lanl.gov/hpcsoft/Pavilion2
  3. __Do NOT increment the version number.__ You may want to look at 
-  [ARBITRARY_NUMBER.txt](../ARBITRARY_NUMBER.txt) though.
+  [ARBITRARY_NUMBER.txt](ARBITRARY_NUMBER.txt) though.
   
 ## Site Specific Code
 Site specific code should go into plugins that reside in a separate 

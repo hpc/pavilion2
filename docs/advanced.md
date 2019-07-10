@@ -21,7 +21,6 @@ you a better idea of what it's capable of.
    - [Environment](#environment) - Set environment variables in your test.
  - [Schedulers](#schedulers) - Schedule your tests on nodes. 
  give you useful system info. 
- - 
 
 ## Mode Configs
 
