@@ -9,8 +9,6 @@ from . import variables
 from .file_format import TestConfigError, KEY_NAME_RE
 from .file_format import TestConfigLoader, TestSuiteLoader
 
-from pavilion.utils import dbg_print
-
 # Config file types
 CONF_HOST = 'hosts'
 CONF_MODE = 'modes'
@@ -630,26 +628,26 @@ def _resolve_section_vars(component, var_man, allow_deferred):
                               .format(type(component), component))
 
 def check_for_cir_ref(raw_test_cfg):
-    
+
     variables = {} # dictionary of variables from config
     if 'variables' in raw_test_cfg:
         variables = raw_test_cfg['variables']
 
     # traverse dictionary
-    for key,val in variables.items():
+    for key, val in variables.items():
         tokens = string_parser.tokenize(str(val))
         vt_list = _get_variable_tokens(tokens)
         for var_token in vt_list:
-            if(_is_referenced(variables, key)):
-                if(_is_cir_ref(variables, key, var_token.var)):
+            if _is_referenced(variables, key):
+                if _is_cir_ref(variables, key, var_token.var):
                     raise TestConfigError(
                         "{}:{} is a circular reference."
-                        .format(key,var_token.var))
+                        .format(key, var_token.var))
 
 def _is_cir_ref(config_dict, key, ref):
     # input: variable reference
     # returns true if circular ref
-   
+
     if key == ref:
         return 1
     elif str(ref) in config_dict:
@@ -665,9 +663,9 @@ def _get_variable_tokens(tokens):
     # output: items that are VariableTokens (list)
 
     vt_list = []
-    for t in tokens:
-        if isinstance(t, string_parser.VariableToken):
-            vt_list.append(t)
+    for item in tokens:
+        if isinstance(item, string_parser.VariableToken):
+            vt_list.append(item)
 
     return vt_list
 

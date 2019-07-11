@@ -257,7 +257,7 @@ class RunCommand(commands.Command):
         except test_config.TestConfigError as err:
             self.logger.error(str(err))
             raise commands.CommandError(str(err))
-        
+ 
         raw_tests_by_sched = defaultdict(lambda: [])
         tests_by_scheduler = defaultdict(lambda: [])
 
@@ -296,7 +296,7 @@ class RunCommand(commands.Command):
                 self.logger.error(msg)
                 raise commands.CommandError(msg)
 
-        # Get the schedulers for the tests, and the scheduler variables. 
+        # Get the schedulers for the tests, and the scheduler variables.
         # The scheduler variables are based on all of the
         for sched_name in raw_tests_by_sched.keys():
             try:
