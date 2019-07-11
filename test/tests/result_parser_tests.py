@@ -329,6 +329,22 @@ class ResultParserTests(PavTestCase):
         with self.assertRaises(result_parsers.ResultParserError):
             result_parsers.check_args(test.config['results'])
 
+        test_cfg = {
+            'results': {
+                'regex': [
+                    {
+                        'key': 'test',
+                        'regex': 'res',
+                        'threshold': 'A',
+                        'expected': '10-12',
+                    },
+                ]
+            }
+        }
+        test = self._quick_test(test_cfg, 'check_args_test')
+        with self.assertRaises(result_parsers.ResultParserError):
+            result_parsers.check_args(test.config['results'])
+
         plugins._reset_plugins()
 
     def test_regex_expected(self):

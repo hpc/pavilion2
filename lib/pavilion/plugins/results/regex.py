@@ -71,6 +71,11 @@ class Regex(result_parsers.ResultParser):
                 raise result_parsers.ResultParserError(
                     "'threshold' must be a non-negative integer.")
 
+            if expected:
+                raise result_parsers.ResultParserError(
+                    "'threshold' and 'expected' cannot be used at the same "
+                    "time.")
+
         for item in expected:
             test_list = []
 
