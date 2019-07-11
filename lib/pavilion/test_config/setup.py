@@ -631,20 +631,20 @@ def _resolve_section_vars(component, var_man, allow_deferred):
 
 def check_for_cir_ref(raw_test_cfg):
     
-    test_cfg = {}
+    variables = {} # dictionary of variables from config
     if 'variables' in raw_test_cfg:
-        test_cfg = raw_test_cfg['variables']
+        variables = raw_test_cfg['variables']
 
     # traverse dictionary
-    for k,v in test_cfg.items():
-        tokens = string_parser.tokenize(str(v))
+    for key,val in variables.items():
+        tokens = string_parser.tokenize(str(val))
         vt_list = _get_variable_tokens(tokens)
-        for vt in vt_list:
-            if(_is_referenced(test_cfg, k)):
-                if(_is_cir_ref(test_cfg, k, vt.var)):
+        for var_token in vt_list:
+            if(_is_referenced(variables, key)):
+                if(_is_cir_ref(variables, key, var_token.var)):
                     raise TestConfigError(
                         "{}:{} is a circular reference."
-                        .format(k,vt.var))
+                        .format(key,var_token.var))
 
 def _is_cir_ref(config_dict, key, ref):
     # input: variable reference
@@ -655,8 +655,8 @@ def _is_cir_ref(config_dict, key, ref):
     elif str(ref) in config_dict:
         tokens = string_parser.tokenize(str(config_dict[ref]))
         vt_list = _get_variable_tokens(tokens)
-        for vt in vt_list:
-            return _is_cir_ref(config_dict, key, vt.var)
+        for var_token in vt_list:
+            return _is_cir_ref(config_dict, key, var_token.var)
 
     return 0
 
@@ -675,11 +675,11 @@ def _is_referenced(config_dict, key):
     # returns true if key is referenced in any
     # value in config_dict
 
-    for k, v in config_dict.items():
-        value_tokens = string_parser.tokenize(str(v))
+    for key, val in config_dict.items():
+        value_tokens = string_parser.tokenize(str(val))
         vt_list = _get_variable_tokens(value_tokens)
-        for vt in vt_list:
-            if vt.var == key:
+        for var_token in vt_list:
+            if var_token.var == key:
                 return 1
 
     return 0
