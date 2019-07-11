@@ -1,11 +1,12 @@
+import sys
+
 from pavilion import commands
 from pavilion import schedulers
-from pavilion.status_file import STATES
-from pavilion import utils
 from pavilion import series
+from pavilion import utils
 from pavilion.pav_test import PavTest, PavTestError, PavTestNotFoundError
-import errno
-import sys
+from pavilion.status_file import STATES
+
 
 def status_from_test_obj(pav_cfg, test_obj):
     """Takes a test object or list of test objects and creates the dictionary
@@ -38,6 +39,7 @@ def status_from_test_obj(pav_cfg, test_obj):
     test_statuses.sort(key=lambda x: x['test_id'])
     return test_statuses
 
+
 def get_statuses(pav_cfg, args, errfile):
     """Get the statuses of the listed tests or series.
     :param pav_cfg: The pavilion config.
@@ -54,8 +56,8 @@ def get_statuses(pav_cfg, args, errfile):
         if series_id is not None:
             args.tests.append(series_id)
         else:
-            raise commands.CommandError("No tests specified and no last series "
-                    "was found.")
+            raise commands.CommandError(
+                "No tests specified and no last series was found.")
 
     test_list = []
     for test_id in args.tests:
@@ -99,6 +101,7 @@ def get_statuses(pav_cfg, args, errfile):
         test_statuses = test_statuses + statuses
     return test_statuses
 
+
 def print_status(statuses, outfile, json=False):
     """Prints the statuses provided in the statuses parameter.
     :param list statuses: list of dictionary objects containing the test
@@ -112,7 +115,7 @@ def print_status(statuses, outfile, json=False):
 
     ret_val = 1
     for stat in statuses:
-        if (stat['note'] != "Test not found."):
+        if stat['note'] != "Test not found.":
             ret_val = 0
 
     if json:
@@ -161,7 +164,7 @@ class StatusCommand(commands.Command):
                  'recent series submitted by this user is checked.'
         )
 
-    def run(self, pav_cfg, args):
+    def run(self, pav_cfg, args, out_file=sys.stdout, err_file=sys.stderr):
         try:
             test_statuses = get_statuses(pav_cfg, args, self.errfile)
         except commands.CommandError as err:
