@@ -16,7 +16,7 @@ except ImportError as err:
     requests = None
 
 try:
-    import ssl
+    import ssl  # pylint: disable=W0611
 except ImportError:
     _MISSING_LIBS.append('ssl')
     ssl = None
@@ -159,9 +159,8 @@ def _get_info(path):
                 info = json.load(info_file)
 
         except (ValueError, IOError, OSError) as err:
-            LOGGER.warning("Error reading json file '{}': {}"
-                           .format(info_fn, err))
-
+            LOGGER.warning("Error reading json file '%s': %s",
+                           info_fn, err)
 
     stat = path.stat()
 
@@ -199,7 +198,7 @@ def _save_info(path, head_data):
             json.dump(data, info_file)
 
     except (ValueError, TypeError, IOError, OSError) as err:
-        LOGGER.warning("Error writing info file '{}': {}".format(info_fn, err))
+        LOGGER.warning("Error writing info file '%s': %s", info_fn, err)
 
 
 def update(pav_cfg, url, dest):

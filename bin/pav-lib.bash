@@ -314,20 +314,20 @@ function verify_module_loaded() {
         1)
             msg="Module ${module_name}, version ${module_version} was not loaded. See the "\
                 "test log."
-            ${PAV_PATH} status ${test_id} update MODULE_LOAD_FAILURE "${msg}"
+            ${PAV_PATH} set_status -s ENV_FAIL -n "${msg}" ${test_id}
             echo "$msg"
             exit 1
             ;;
         2)
             msg="Expected module ${module_name}, ${module_version}, but ${module_version} was "\
                 "loaded instead."
-            ${PAV_PATH} status ${test_id} update MODULE_LOAD_FAILURE "${msg}"
+            ${PAV_PATH} set_status -s ENV_FAIL -n "${msg}" ${test_id}
             echo "$msg"
             exit 1
             ;;
         3)
             msg="Error checking loaded modules."
-            ${PAV_PATH} status ${test_id} update MODULE_LOAD_FAILURE "${msg}"
+            ${PAV_PATH} set_status -s ENV_FAIL -n "${msg}" ${test_id}
             echo "$msg"
             exit 1
             ;;
@@ -367,8 +367,8 @@ function verify_module_removed() {
         if [[ -z ${loaded_version} ]]; then
             loaded_version="<unversioned>"
         fi
-        pav status ${test_id} update MOD_REMOVE_FAILURE "Module ${module_name} shouldn't be "\
-                "loaded, but a version (${loaded_version}) was."
+        pav set_status -s ENV_FAIL -n "Module ${module_name} shouldn't be "\
+                "loaded, but a version (${loaded_version}) was." ${test_id}
         exit 1
     fi
 
@@ -377,7 +377,7 @@ function verify_module_removed() {
         return 0
     fi
 
-    pav status ${test_id} update MOD_REMOVE_FAILURE "Module ${module_name}/${module_version} "\
-            "shouldn't be loaded, but was."
+    pav set_status -s ENV_FAIL -n "Module ${module_name}/${module_version} "\
+            "shouldn't be loaded, but was." ${test_id}
     exit 1
 }

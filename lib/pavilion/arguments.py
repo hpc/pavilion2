@@ -1,3 +1,8 @@
+"""Sets up a base set of pavilion arguments, and allows plugins and other
+components to add sub-commands.
+"""
+# pylint: disable=W0603
+
 import argparse
 
 _PAV_PARSER = None
@@ -5,8 +10,9 @@ _PAV_SUB_PARSER = None
 
 
 def get_parser():
-    """Get the main pavilion argument parser. This is generally only meant to be used by the
-    main pavilion command. If the main parser hasn't yet been defined, this defines it."""
+    """Get the main pavilion argument parser. This is generally only meant to
+    be used by the main pavilion command. If the main parser hasn't yet been
+    defined, this defines it."""
 
     global _PAV_PARSER
     global _PAV_SUB_PARSER

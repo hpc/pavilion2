@@ -1,5 +1,5 @@
 import errno
-import argparse
+import sys
 import time
 from collections import defaultdict
 
@@ -72,10 +72,12 @@ class RunCommand(commands.Command):
 
     SLEEP_INTERVAL = 1
 
-    def run(self, pav_cfg, args):
+    def run(self, pav_cfg, args, out_file=sys.stdout, err_file=sys.stderr):
         """Resolve the test configurations into individual tests and assign to
         schedulers. Have those schedulers kick off jobs to run the individual
-        tests themselves."""
+        tests themselves.
+        :param out_file:
+        :param err_file: """
 
         # 1. Resolve the test configs
         #   - Get sched vars from scheduler.
@@ -145,15 +147,18 @@ class RunCommand(commands.Command):
                 if not test.build():
                     for oth_test in all_tests:
                         if oth_test.build_hash != test.build_hash:
-                            oth_test.status.set(STATES.BUILD_ERROR,
-                                    "Build cancelled because build {} failed."
-                                    .format(test.id)
+                            oth_test.status.set(
+                                STATES.BUILD_ERROR,
+                                "Build cancelled because build {} failed."
+                                .format(test.id)
                             )
                     fprint("Error building test: ", file=self.errfile,
                            color=utils.RED)
                     fprint("status {status.state} - {status.note}"
                            .format(status=test.status.current()),
                            file=self.errfile)
+                    fprint("For more information, run 'pav log build {}'"
+                           .format(test.id), file=self.errfile)
                     return errno.EINVAL
 
         for sched_name, tests in tests_by_sched.items():
@@ -203,11 +208,9 @@ class RunCommand(commands.Command):
                file=self.outfile,
                color=utils.GREEN)
 
-        # TODO: Call pav status on the series.
-
         if args.status:
             tests = list(series.tests.keys())
-            tests, failed = test_obj_from_id(pav_cfg, tests)
+            tests, _ = test_obj_from_id(pav_cfg, tests)
             return print_from_test_obj(pav_cfg, tests, self.outfile, args.json)
 
         return 0
@@ -254,7 +257,11 @@ class RunCommand(commands.Command):
         except test_config.TestConfigError as err:
             self.logger.error(str(err))
             raise commands.CommandError(str(err))
+<<<<<<< HEAD
         
+=======
+
+>>>>>>> master
         raw_tests_by_sched = defaultdict(lambda: [])
         tests_by_scheduler = defaultdict(lambda: [])
 
@@ -285,7 +292,7 @@ class RunCommand(commands.Command):
                 self.logger.error(msg)
                 raise commands.CommandError(msg)
 
-            # Resolve circular references
+            # Check for circular references
             try:
                 test_config.check_for_cir_ref(test_cfg)
             except test_config.TestConfigError as err:
@@ -320,8 +327,9 @@ class RunCommand(commands.Command):
                         no_deferred_allowed=nondeferred_cfg_sctns)
 
                 except (ResolveError, KeyError) as err:
-                    msg = 'Error resolving variables in config at \'{}\': {}'\
-                          .format(test_cfg['suite_path'].resolve(test_var_man), err)
+                    msg = "Error resolving variables in config at '{}': {}"\
+                          .format(test_cfg['suite_path'].resolve(test_var_man),
+                                  err)
                     self.logger.error(msg)
                     raise commands.CommandError(msg)
 
