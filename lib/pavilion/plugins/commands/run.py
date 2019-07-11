@@ -257,11 +257,7 @@ class RunCommand(commands.Command):
         except test_config.TestConfigError as err:
             self.logger.error(str(err))
             raise commands.CommandError(str(err))
-<<<<<<< HEAD
         
-=======
-
->>>>>>> master
         raw_tests_by_sched = defaultdict(lambda: [])
         tests_by_scheduler = defaultdict(lambda: [])
 
