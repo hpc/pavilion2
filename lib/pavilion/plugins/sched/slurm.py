@@ -238,7 +238,7 @@ class Slurm(SchedulerPlugin):
                 yc.StrElem('chunk_max',
                            help_text="Maximum nodes per chunk, if chunking "
                                      "tests."),
-                yc.StrElem('chunk_concurrent', choices=['true', 'false'], default='false',
+                yc.StrElem('chunk_concurrent', choices=['true', 'false'], default='true',
                            help_text="Whether the chunked tests should run "
                                      "together, or should force a dependency "
                                      "chain in slurm so they don't all run at "
