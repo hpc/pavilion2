@@ -1,6 +1,7 @@
 import errno
 import sys
 import argparse
+import os
 from pavilion import commands
 from pavilion import schedulers
 from pavilion import status_file
@@ -30,6 +31,10 @@ class CancelCommand(commands.Command):
             help='Prints status of cancelled jobs in json format.'
         )
         parser.add_argument(
+            '-a', '--all', action='store_true', default=False,
+            help='Cancels all jobs currently queued.'
+        )
+        parser.add_argument(
             'tests', nargs='*', action='store',
             help='The name(s) of the tests to cancel. These may be any mix of '
                  'test IDs and series IDs. If no value is provided, the most '
@@ -39,10 +44,23 @@ class CancelCommand(commands.Command):
     def run(self, pav_cfg, args, out_file=sys.stdout, err_file=sys.stderr):
 
         if not args.tests:
-            # Get the last series ran by this user.
-            series_id = series.TestSeries.load_user_series_id(pav_cfg)
-            if series_id is not None:
-                args.tests.append(series_id)
+            if args.all:
+                for test in os.listdir(str(pav_cfg.working_dir/'tests')):
+                    try:
+                        test_obj = PavTest.load(pav_cfg, int(test))
+                    except (PavTestError, PavTestNotFound) as err:
+                        utils.fprint("{} is not a valid test, or cannot be found \
+                                     {}.".format(err), file=self.errfile,
+                                     color=utils.RED)
+                        return errno.EINVAL
+                    status = test_obj.status.current().state
+                    if status == STATES.RUNNING or status == STATES.SCHEDULED:
+                        args.tests.append(test)
+            else:
+                # Get the last series ran by this user.
+                series_id = series.TestSeries.load_user_series_id(pav_cfg)
+                if series_id is not None:
+                    args.tests.append(series_id)
 
         test_list = []
         for test_id in args.tests:
