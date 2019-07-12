@@ -1,0 +1,23 @@
+another:
+    build:
+        cmds:
+            - echo "Building Hello"
+    run:
+        cmds:
+            - echo "Running World"
+    scheduler: "slurm"
+
+stupid:
+    build:
+        cmds:
+            - echo "Building World"
+    run:
+        cmds:
+            - echo "Running World"
+
+    scheduler: "raw"
+
+test:
+    inherits_from: stupid
+
+    scheduler: "slurm"
