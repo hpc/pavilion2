@@ -64,20 +64,20 @@ class CleanCommand(commands.Command):
         # Clean Tests
         utils.fprint("Removing Test Directories...", file=self.outfile,
                      color=utils.GREEN)
-        for test in os.listdir(str(tests_dir)):
+        for test in os.listdir(tests_dir.as_posix()):
             test_time = datetime.fromtimestamp(
-                os.path.getmtime(str(tests_dir/test)))
+                os.path.getmtime((tests_dir/test).as_posix()))
             try:
                 test_obj = PavTest.load(pav_cfg, int(test))
                 status = test_obj.status.current().state
             except (PavTestError, PavTestNotFoundError, KeyError) as err:
                 utils.fprint("Removing bad test directory {}".format(test),
                              file=self.outfile)
-                shutil.rmtree(str(tests_dir/test))
+                shutil.rmtree(test_dir.as_posix())
                 continue
             if test_time < cutoff_date and status != STATES.RUNNING \
                                        and status != STATES.SCHEDULED:
-                shutil.rmtree(str(tests_dir/test))
+                shutil.rmtree((tests_dir/test).as_posix())
                 if args.verbose:
                     utils.fprint("Removed test {}".format(test),
                                  file=self.outfile)
@@ -92,14 +92,14 @@ class CleanCommand(commands.Command):
         completed_series = True
         utils.fprint("Removing Series Directories...", file=self.outfile,
                      color=utils.GREEN)
-        for series in os.listdir(str(series_dir)):
+        for series in os.listdir(series_dir.as_posix()):
             series_time = datetime.fromtimestamp(
-                os.path.getmtime(str(series_dir/series)))
+                os.path.getmtime((series_dir/series).as_posix()))
             for test in incomplete_tests:
-                if os.path.exists(str(series_dir/series/test)):
+                if os.path.exists((series_dir/series/test).as_posix()):
                     completed_series = False
             if series_time < cutoff_date and completed_series:
-                shutil.rmtree(str(series_dir/series))
+                shutil.rmtree((series_dir/series).as_posix())
                 if args.verbose:
                     utils.fprint("Removed series {}".format(series),
                                  file=self.outfile)
@@ -111,9 +111,9 @@ class CleanCommand(commands.Command):
         # Clean Downloads
         utils.fprint("Removing Download Directories...", file=self.outfile,
                      color=utils.GREEN)
-        for download in os.listdir(str(download_dir)):
+        for download in os.listdir(download_dir.as_posix()):
             download_time = datetime.fromtimestamp(
-                os.path.getmtime(str(download_dir/download)))
+                os.path.getmtime((download_dir/download).as_posix()))
             if download_time < cutoff_date:
                 try:
                     shutil.rmtree(str(download_dir/download))
@@ -136,11 +136,11 @@ class CleanCommand(commands.Command):
 
         # Clean Builds
         utils.fprint("Removing Builds...", file=self.outfile, color=utils.GREEN)
-        for build in os.listdir(str(build_dir)):
+        for build in os.listdir(build_dir.as_posix()):
             build_time = datetime.fromtimestamp(
-                os.path.getmtime(str(build_dir/build)))
+                os.path.getmtime((build_dir/build).as_posix()))
             if build_time < cutoff_date and build not in dependent_builds:
-                shutil.rmtree(str(build_dir/build))
+                shutil.rmtree((build_dir/build).as_posix())
                 if args.verbose:
                     utils.fprint("Removed build {}".format(build),
                                  file=self.outfile)
