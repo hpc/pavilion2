@@ -45,7 +45,8 @@ class CancelCommand(commands.Command):
 
         if not args.tests:
             if args.all:
-                for test in os.listdir(str(pav_cfg.working_dir/'tests')):
+                tests_dir = pav_cfg.working_dir/'tests'
+                for test in os.listdir(tests_dir.as_posix()):
                     try:
                         test_obj = PavTest.load(pav_cfg, int(test))
                     except (PavTestError, PavTestNotFound) as err:
