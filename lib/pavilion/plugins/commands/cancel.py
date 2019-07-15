@@ -49,8 +49,8 @@ class CancelCommand(commands.Command):
                     try:
                         test_obj = PavTest.load(pav_cfg, int(test))
                     except (PavTestError, PavTestNotFound) as err:
-                        utils.fprint("{} is not a valid test, or cannot be found \
-                                     {}.".format(err), file=self.errfile,
+                        utils.fprint("{} is not a valid test, or cannot be \
+                                     found {}.".format(err), file=self.errfile,
                                      color=utils.RED)
                         return errno.EINVAL
                     status = test_obj.status.current().state
