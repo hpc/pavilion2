@@ -4,6 +4,7 @@ before_script:
     - groupadd pav_tester
     - useradd -G pav_tester -m pav 
     - apt install realpath
+    - git submodule update --recursive --remote
 
 run_tests:
     tags:
