@@ -1172,14 +1172,14 @@ class PavTest:
 
         return id_, path
 
-    def get_latest_tests(self, pav_cfg, limit):
+    def get_latest_tests(pav_cfg, limit):
         # returns a list of the most recently run pav test objects
- 
+
         from pavilion import series
         test_obj_list = []
         # get latest test
         last_series = series.TestSeries.load_user_series_id(pav_cfg)
-        last_tests = series.TestSeries.from_id(pav_cfg, 
+        last_tests = series.TestSeries.from_id(pav_cfg,
                                                int(last_series[1:])).tests
         last_test = max(last_tests, key=int)
 

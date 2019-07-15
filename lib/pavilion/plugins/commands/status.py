@@ -180,8 +180,7 @@ class StatusCommand(commands.Command):
         )
         parser.add_argument(
             '-l', '--limit', type=int, default=10,
-            help='If -a/--all is used, then --limit is the max number of tests '
-                 'display.'
+            help='Max number of tests displayed if --all is used.'
         )
 
     def run(self, pav_cfg, args, out_file=sys.stdout, err_file=sys.stderr):
