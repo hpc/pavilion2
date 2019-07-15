@@ -54,11 +54,9 @@ class Command(result_parsers.ResultParser):
 
         # where to redirect stderr
         if stderr_out == "/dev/null":
-            err = subprocess.DEVNULL
+            err = open('/dev/null','wb')
         else:
             err = subprocess.STDOUT
-
-        DEVNULL = open('/dev/null', 'wb')
 
         # get output
         if success == "output":
