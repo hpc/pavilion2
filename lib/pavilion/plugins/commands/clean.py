@@ -1,5 +1,3 @@
-from pavilion import commands
-from pavilion import utils
 import errno
 import sys
 import argparse
@@ -7,6 +5,8 @@ import os
 import shutil
 import time
 from datetime import datetime, timedelta
+from pavilion import commands
+from pavilion import utils
 from pavilion.pav_test import PavTest, PavTestError, PavTestNotFoundError
 from pavilion.status_file import STATES
 
@@ -26,8 +26,8 @@ class CleanCommand(commands.Command):
         )
         parser.add_argument(
             '--older-than', nargs='+', action='store',
-            help='Set the max age of files to be removed. Can be a date ex:"Jan 1 '
-            '2019" or , or a number of days/weeks ex:"32 weeks"'
+            help='Set the max age of files to be removed. Can be a date ex:'
+            '"Jan 1 2019" or , or a number of days/weeks ex:"32 weeks"'
         )
 
     def run(self, pav_cfg, args):
@@ -124,7 +124,7 @@ class CleanCommand(commands.Command):
                         os.remove(download)
                     except FileNotFoundError as err:
                         utils.fprint("{} could not be found.".format(download),
-                                    file=self.errfile, color=utils.RED)
+                                     file=self.errfile, color=utils.RED)
                         continue
                 if args.verbose:
                     utils.fprint("Removed download {}".format(download),
@@ -150,4 +150,3 @@ class CleanCommand(commands.Command):
                                  file=self.outfile)
 
         return 0
-
