@@ -3,15 +3,12 @@ before_script:
     # because it's generally expected to be run that way.
     - groupadd pav_tester
     - useradd -G pav_tester -m pav 
-    - apt install realpath
-    - pushd /builds/hpcsoft/pavilion2/; git submodule update --recursive --remote
+    - git submodule update --init --resursive --remote
 
 run_tests:
     tags:
         - pavilion
     image: pavilion
-    variables:
-        GIT_SUBMODULE_STRATEGY: recursive
     script:
         # The original is put in place by docker
         - cp /usr/share/pavilion.yaml $CI_PROJECT_DIR/test/data/pav_config_dir/pavilion.yaml
