@@ -1,64 +1,12 @@
-####################################################################
-#
-#  Disclaimer and Notice of Copyright
-#  ==================================
-#
-#  Copyright (c) 2015, Los Alamos National Security, LLC
-#  All rights reserved.
-#
-#  Copyright 2015. Los Alamos National Security, LLC.
-#  This software was produced under U.S. Government contract
-#  DE-AC52-06NA25396 for Los Alamos National Laboratory (LANL),
-#  which is operated by Los Alamos National Security, LLC for
-#  the U.S. Department of Energy. The U.S. Government has rights
-#  to use, reproduce, and distribute this software.  NEITHER
-#  THE GOVERNMENT NOR LOS ALAMOS NATIONAL SECURITY, LLC MAKES
-#  ANY WARRANTY, EXPRESS OR IMPLIED, OR ASSUMES ANY LIABILITY
-#  FOR THE USE OF THIS SOFTWARE.  If software is modified to
-#  produce derivative works, such modified software should be
-#  clearly marked, so as not to confuse it with the version
-#  available from LANL.
-#
-#  Additionally, redistribution and use in source and binary
-#  forms, with or without modification, are permitted provided
-#  that the following conditions are met:
-#  -  Redistributions of source code must retain the
-#     above copyright notice, this list of conditions
-#     and the following disclaimer.
-#  -  Redistributions in binary form must reproduce the
-#     above copyright notice, this list of conditions
-#     and the following disclaimer in the documentation
-#     and/or other materials provided with the distribution.
-#  -  Neither the name of Los Alamos National Security, LLC,
-#     Los Alamos National Laboratory, LANL, the U.S. Government,
-#     nor the names of its contributors may be used to endorse
-#     or promote products derived from this software without
-#     specific prior written permission.
-#
-#  THIS SOFTWARE IS PROVIDED BY LOS ALAMOS NATIONAL SECURITY, LLC
-#  AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
-#  INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
-#  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
-#  IN NO EVENT SHALL LOS ALAMOS NATIONAL SECURITY, LLC OR CONTRIBUTORS
-#  BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY,
-#  OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
-#  OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-#  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
-#  TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
-#  OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY
-#  OF SUCH DAMAGE.
-#
-#  ###################################################################
-
 # This module contains the base configuration for Pavilion itself.
 
 import grp
-import yaml_config as yc
-import os
-from pathlib import Path
-import socket
 import logging
+import os
+import socket
+from pathlib import Path
+
+import yaml_config as yc
 
 LOGGER = logging.getLogger('pavilion.' + __file__)
 
@@ -96,8 +44,8 @@ else:
 
 if 'PAV_CONFIG_DIR' in os.environ:
     try:
-        _path = Path(os.environ['PAV_CONFIG_DIR']).resolve()
-        PAV_CONFIG_SEARCH_DIRS.append(_path)
+        PAV_CONFIG_SEARCH_DIRS.append(
+            Path(os.environ['PAV_CONFIG_DIR']).resolve())
     except FileNotFoundError:
         LOGGER.warning("Invalid path in env var PAV_CONFIG_DIR. Ignoring.")
 
@@ -202,14 +150,17 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
 
 def find(warn=True):
     """Search for a pavilion.yaml configuration file. Use the one pointed
-    to by PAV_CONFIG_FILE. Otherwise, use the first found in these 
+    to by PAV_CONFIG_FILE. Otherwise, use the first found in these
     directories: {}""".format(PAV_CONFIG_SEARCH_DIRS)
 
+    import pathlib
     if PAV_CONFIG_FILE is not None:
-        pav_cfg_file = Path(PAV_CONFIG_FILE)
-        if pav_cfg_file.is_file():
+        pav_cfg_file = pathlib.PosixPath(Path(PAV_CONFIG_FILE))
+        # pylint has a bug that pops up occasionally with pathlib.
+        if pav_cfg_file.is_file():  # pylint: disable=no-member
             try:
-                cfg = PavilionConfigLoader().load(pav_cfg_file.open())
+                cfg = PavilionConfigLoader().load(
+                    pav_cfg_file.open())  # pylint: disable=no-member
                 cfg.pav_cfg_file = pav_cfg_file
                 return cfg
             except Exception as err:
@@ -218,10 +169,11 @@ def find(warn=True):
 
     for config_dir in PAV_CONFIG_SEARCH_DIRS:
         path = config_dir/'pavilion.yaml'
-        if path.is_file():
+        if path.is_file():  # pylint: disable=no-member
             try:
                 # Parse and load the configuration.
-                cfg = PavilionConfigLoader().load(path.open())
+                cfg = PavilionConfigLoader().load(
+                    path.open())  # pylint: disable=no-member
                 cfg.pav_cfg_file = path
                 return cfg
             except Exception as err:

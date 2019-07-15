@@ -1,12 +1,12 @@
+import sys
+
 from pavilion import commands
 from pavilion import schedulers
-from pavilion.status_file import STATES
-from pavilion import utils
 from pavilion import series
+from pavilion import utils
 from pavilion.pav_test import PavTest, PavTestError, PavTestNotFoundError
-from pavilion.utils import dbg_print
-import errno
-import sys
+from pavilion.status_file import STATES
+
 
 def status_from_test_obj(pav_cfg, test_obj):
     """Takes a test object or list of test objects and creates the dictionary
@@ -64,8 +64,8 @@ def get_statuses(pav_cfg, args, errfile):
         if series_id is not None:
             args.tests.append(series_id)
         else:
-            raise commands.CommandError("No tests specified and no last series "
-                    "was found.")
+            raise commands.CommandError(
+                "No tests specified and no last series was found.")
 
     test_list = []
 
@@ -112,6 +112,7 @@ def get_statuses(pav_cfg, args, errfile):
         test_statuses = test_statuses + statuses
     return test_statuses
 
+
 def print_status(statuses, outfile, json=False):
     """Prints the statuses provided in the statuses parameter.
     :param list statuses: list of dictionary objects containing the test
@@ -125,7 +126,7 @@ def print_status(statuses, outfile, json=False):
 
     ret_val = 1
     for stat in statuses:
-        if (stat['note'] != "Test not found."):
+        if stat['note'] != "Test not found.":
             ret_val = 0
 
     if json:
@@ -183,8 +184,7 @@ class StatusCommand(commands.Command):
                 'display.'
         )
 
-    def run(self, pav_cfg, args):
-
+    def run(self, pav_cfg, args, out_file=sys.stdout, err_file=sys.stderr):
         try:
             if not args.all:
                 test_statuses = get_statuses(pav_cfg, args, self.errfile)
