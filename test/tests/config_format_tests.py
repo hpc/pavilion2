@@ -1,6 +1,6 @@
 from __future__ import print_function
 
-from pavilion.test_config import format
+from pavilion.test_config import file_format
 from pavilion.unittest import PavTestCase
 
 
@@ -10,7 +10,7 @@ class TestConfig(PavTestCase):
 
         f = (self.TEST_DATA_ROOT/'config_tests.basics.yaml').open()
 
-        data = format.TestConfigLoader().load(f)
+        data = file_format.TestConfigLoader().load(f)
 
         self.assertEqual(data.inherits_from, 'something_else')
         self.assertEqual(data.scheduler, 'slurm')

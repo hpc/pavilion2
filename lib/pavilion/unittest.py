@@ -11,7 +11,7 @@ from pavilion import arguments
 from pavilion import config
 from pavilion.pav_test import PavTest
 from pavilion.utils import dbg_print, get_login
-from pavilion.test_config.format import TestConfigLoader
+from pavilion.test_config.file_format import TestConfigLoader
 
 
 class PavTestCase(unittest.TestCase):
@@ -168,12 +168,12 @@ class PavTestCase(unittest.TestCase):
                              "File contents mismatch for {} and {}."
                              .format(a_path, b_path))
 
-    def _cmp_tree(self, a, b):
+    def _cmp_tree(self, path_a, path_b):
         """Compare two directory trees, including the contents of all the
         files."""
 
-        a_walk = list(os.walk(str(a)))
-        b_walk = list(os.walk(str(b)))
+        a_walk = list(os.walk(str(path_a)))
+        b_walk = list(os.walk(str(path_b)))
 
         # Make sure these are in the same order.
         a_walk.sort()
@@ -188,7 +188,7 @@ class PavTestCase(unittest.TestCase):
             self.assertEqual(
                 sorted(a_dirs), sorted(b_dirs),
                 "Extracted archive subdir mismatch for '{}' {} != {}"
-                .format(a, a_dirs, b_dirs))
+                .format(path_a, a_dirs, b_dirs))
 
             # Make sure these are in the same order.
             a_files.sort()
@@ -214,12 +214,12 @@ class PavTestCase(unittest.TestCase):
                      .format(a_walk, b_walk))
 
     @staticmethod
-    def get_hash(fn):
+    def get_hash(filename):
         """ Get a sha1 hash of the file at the given path.
-        :param Path fn:
+        :param Path filename:
         :return:
         """
-        with fn.open('rb') as file:
+        with filename.open('rb') as file:
             sha = sha1()
             sha.update(file.read())
             return sha.hexdigest()
@@ -304,4 +304,3 @@ class ColorResult(unittest.TextTestResult):
         self.stream.write(self.CYAN)
         super().addSkip(test, reason)
         self.stream.write(self.COLOR_RESET)
-

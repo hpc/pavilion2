@@ -1,4 +1,5 @@
 from pavilion import commands
+import sys
 
 
 class Poof(commands.Command):
@@ -6,6 +7,6 @@ class Poof(commands.Command):
 
         super().__init__('poof', 'Goes POOF?')
 
-    def run(self, pav_config, args):
+    def run(self, pav_cfg, args, out_file=sys.stdout, err_file=sys.stderr):
 
         print("Poof?")
