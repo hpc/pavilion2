@@ -70,7 +70,7 @@ def get_statuses(pav_cfg, args, errfile):
     test_list = []
 
     for test_id in args.tests:
-        # Series 
+        # Series
         if test_id.startswith('s'):
             try:
                 test_list.extend(
@@ -175,13 +175,13 @@ class StatusCommand(commands.Command):
                  'recent series submitted by this user is checked.'
         )
         parser.add_argument(
-            '-a', '--all', action='store_true', 
+            '-a', '--all', action='store_true',
             help='Displays all tests within a certain limit.'
         )
         parser.add_argument(
             '-l', '--limit', type=int, default=10,
             help='If -a/--all is used, then --limit is the max number of tests '
-                'display.'
+                 'display.'
         )
 
     def run(self, pav_cfg, args, out_file=sys.stdout, err_file=sys.stderr):
