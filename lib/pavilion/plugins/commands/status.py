@@ -42,7 +42,7 @@ def status_from_test_obj(pav_cfg, test_obj):
 def get_all_tests(pav_cfg, args, errfile):
     """function to handle if user wants all tests"""
 
-    test_obj_list = PavTest.get_latest_tests(pav_cfg, args.limit)
+    test_obj_list = series.get_latest_tests(pav_cfg, args.limit)
     statuses = status_from_test_obj(pav_cfg, test_obj_list)
 
     return statuses

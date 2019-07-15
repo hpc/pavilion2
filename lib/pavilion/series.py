@@ -31,6 +31,29 @@ def test_obj_from_id(pav_cfg, test_ids):
 
     return (test_obj_list, test_failed_list)
 
+def get_latest_tests(pav_cfg, limit):
+    # returns a list of the most recently run pav test objects
+
+    test_obj_list = []
+    # get latest test using series class
+    last_series = TestSeries.load_user_series_id(pav_cfg)
+    last_tests = TestSeries.from_id(pav_cfg,
+                                    int(last_series[1:])).tests
+    last_test = max(last_tests, key=int)
+
+    # find the latest tests given the limit
+    # skip over tests that don't exist
+    while len(test_obj_list) is not limit:
+        try:
+            test = PavTest.load(pav_cfg, last_test)
+            test_obj_list.append(test)
+            last_test = last_test - 1
+        except (PavTestError, PavTestNotFoundError) as err:
+            raise PavTestError("Cannot find test {}"
+                               .format(test_id))
+
+    return test_obj_list
+
 
 class TestSeries:
     """Series are a collection of tests. Every time """
