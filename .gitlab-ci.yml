@@ -3,7 +3,8 @@ before_script:
     # because it's generally expected to be run that way.
     - groupadd pav_tester
     - useradd -G pav_tester -m pav 
-    - git submodule update --init --recursive --remote
+    - get submodule sync --recursive
+    - git submodule update --init --recursive
 
 run_tests:
     tags:
