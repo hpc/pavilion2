@@ -33,10 +33,10 @@ class SetStatusCommand(commands.Command):
                  'used.'
         )
 
-    def run(self, pav_config, args):
+    def run(self, pav_cfg, args, out_file=sys.stdout, err_file=sys.stderr):
 
         try:
-            test = PavTest.load(pav_config, args.test)
+            test = PavTest.load(pav_cfg, args.test)
         except (PavTestError, PavTestNotFoundError) as err:
             utils.fprint(
                 "Test {} could not be opened.\n{}".format(args.test, err),

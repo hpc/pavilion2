@@ -1,8 +1,8 @@
-from pavilion.module_actions import ModuleLoad, ModuleSwap, ModuleRemove
-from yapsy import IPlugin
-import inspect
 import logging
 import re
+
+from pavilion.module_actions import ModuleLoad, ModuleSwap, ModuleRemove
+from yapsy import IPlugin
 
 LOGGER = logging.getLogger('pav.{}'.format(__name__))
 
@@ -15,14 +15,15 @@ _WRAPPED_MODULES = {}
 
 
 def __reset():
-    global _WRAPPED_MODULES
+    global _WRAPPED_MODULES  # pylint: disable=W0603
 
     _WRAPPED_MODULES = {}
 
 
 def add_wrapped_module(module_wrapper, version):
     """Add the module wrapper to the set of wrapped modules.
-    :param ModuleWrapper module_wrapper: The module_wrapper class for the module.
+    :param ModuleWrapper module_wrapper: The module_wrapper class for the
+     module.
     :param Union(str, None) version: The version to add it under.
     :return: None
     :raises KeyError: On module version conflict.
@@ -38,14 +39,16 @@ def add_wrapped_module(module_wrapper, version):
     elif priority > _WRAPPED_MODULES[name][version].priority:
         _WRAPPED_MODULES[name][version] = module_wrapper
     elif priority == _WRAPPED_MODULES[name][version].priority:
-        raise ModuleWrapperError("Two modules for the same module/version, with the same "
-                                 "priority {}, {}."
-                                 .format(module_wrapper, _WRAPPED_MODULES[name][version]))
+        raise ModuleWrapperError(
+            "Two modules for the same module/version, with the same "
+            "priority {}, {}."
+            .format(module_wrapper, _WRAPPED_MODULES[name][version]))
 
 
 def remove_wrapped_module(module_wrapper, version):
     """Remove the indicated module_wrapper from the set of wrapped module.
-    :param ModuleWrapper module_wrapper: The module_wrapper to remove, if it exists.
+    :param ModuleWrapper module_wrapper: The module_wrapper to remove,
+     if it exists.
     :param Union(str, None) version: The specific version to remove.
     :returns None:
     """
@@ -89,14 +92,14 @@ class ModuleWrapper(IPlugin.IPlugin):
     NAME_VERS_RE = re.compile(r'^[a-zA-Z0-9_.-]+$')
 
     def __init__(self, name, help_text, version=None, priority=PRIO_DEFAULT):
-        """Initialize the module wrapper instance. This must be overridden in plugins
-        as the plugin system can't handle the arguments
+        """Initialize the module wrapper instance. This must be overridden in
+        plugin as the plugin system can't handle the arguments
         :param str name: The name of the module being wrapped.
         :param str help_text: A description of this wrapper.
-        :param str version: The version of module file to wrap. None denotes a wild version or a
-        version-less modulefile.
-        :param int priority: The priority of this wrapper. It will replace identical wrappers of a
-        lower priority when loaded. Use
+        :param str version: The version of module file to wrap. None denotes a
+            wild version or a version-less modulefile.
+        :param int priority: The priority of this wrapper. It will replace
+            identical wrappers of a lower priority when loaded. Use
         """
 
         super().__init__()
@@ -104,7 +107,8 @@ class ModuleWrapper(IPlugin.IPlugin):
         if self.NAME_VERS_RE.match(name) is None:
             raise ModuleWrapperError("Invalid module name: '{}'".format(name))
         if version is not None and self.NAME_VERS_RE.match(version) is None:
-            raise ModuleWrapperError("Invalid module version: '{}'".format(name))
+            raise ModuleWrapperError(
+                "Invalid module version: '{}'".format(name))
 
         self.name = name
         self._version = version
@@ -115,7 +119,8 @@ class ModuleWrapper(IPlugin.IPlugin):
         """Get the version of the module to load, given the requested
         version and the version set in the instance. This should always be
         used to figure out what version to load.
-        :param Union(str, None) requested_version: The version requested by the user.
+        :param Union(str, None) requested_version: The version requested by
+         the user.
         :return: The version that should be loaded.
         """
 
@@ -157,6 +162,8 @@ class ModuleWrapper(IPlugin.IPlugin):
             this instance.
         """
 
+        del sys_info  # Arguments meant for use when overriding this.
+
         version = self.get_version(requested_version)
 
         return [ModuleLoad(self.name, version)], {}
@@ -175,6 +182,8 @@ class ModuleWrapper(IPlugin.IPlugin):
         with this instance.
         """
 
+        del sys_info  # Arguments meant for use when overriding this.
+
         version = self.get_version(requested_version)
 
         return [ModuleSwap(self.name, version, out_name, out_version)], {}
@@ -190,6 +199,8 @@ class ModuleWrapper(IPlugin.IPlugin):
         :raises ModuleWrapperError: If the requested version does not work with
         this instance.
         """
+
+        del sys_info  # Arguments meant for use when overriding this.
 
         version = self.get_version(requested_version)
 

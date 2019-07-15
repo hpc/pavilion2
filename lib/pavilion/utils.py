@@ -1,6 +1,5 @@
 # This file contains assorted utility functions.
 
-
 from pathlib import Path
 import csv
 import json
@@ -9,8 +8,7 @@ import re
 import subprocess
 import sys
 import textwrap
-import shutil
-import copy
+
 
 def flat_walk(path, *args, **kwargs):
     """Perform an os.walk on path, but return a flattened list of every file
@@ -138,12 +136,12 @@ def fprint(*args, color=None, bullet='', width=100,
     out_str = sep.join(args)
     for paragraph in str.splitlines(out_str):
         lines = textwrap.wrap(paragraph, width=width)
+        lines = '\n'.join(lines)
 
-        for line in lines:
-            line = textwrap.indent(line, bullet, lambda l: l is lines[0])
-            print(line, file=file)
-        if not lines:
-            print(file=file)
+        if bullet:
+            lines = textwrap.indent(lines, bullet, lines.startswith)
+
+        print(lines, file=file)
 
     if color is not None:
         print('\x1b[0m', end='', file=file)
@@ -163,7 +161,7 @@ GRAY = 37
 
 
 class PavEncoder(json.JSONEncoder):
-    def default(self, o):
+    def default(self, o):  # pylint: disable=E0202
         if isinstance(o, Path):
             return super().default(str(o))
         else:
@@ -187,12 +185,12 @@ def json_dumps(obj, skipkeys=False, ensure_ascii=True,
                       **kw)
 
 
-def json_dump(obj, fp, skipkeys=False, ensure_ascii=True,
+def json_dump(obj, file, skipkeys=False, ensure_ascii=True,
               check_circular=True, allow_nan=True, indent=None,
               separators=None, default=None, sort_keys=False, **kw):
     """Dump data to string as per the json dumps function, but using
     our custom encoder."""
-    return json.dump(obj, fp, cls=PavEncoder,
+    return json.dump(obj, file, cls=PavEncoder,
                      skipkeys=skipkeys,
                      ensure_ascii=ensure_ascii,
                      check_circular=check_circular,
@@ -252,13 +250,13 @@ class ANSIStr:
         'bg_magenta':   45,
         'bg_cyan':      46,
         'bg_white':     47,
-    } 
+    }
 
     def __init__(self, string, modes=None):
         """Create a string with an implicit ANSI mode. When formatted, the
         string will be prepended with the ANSI escape for the given modes.
         It will otherwise behave like a normal string."""
-    
+
         if modes is None:
             modes = []
         elif not isinstance(modes, (list, tuple)):
@@ -273,7 +271,6 @@ class ANSIStr:
         self.string = string
 
     def __format__(self, format_spec):
-        
         if self.modes:
             ansi_start = '\x1b[' + ';'.join(self.modes) + 'm'
         else:
