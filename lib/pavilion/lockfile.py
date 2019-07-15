@@ -4,6 +4,7 @@ import logging
 import os
 import time
 import uuid
+from pavilion import utils
 
 LOGGER = logging.getLogger('pav.' + __name__)
 
@@ -12,7 +13,7 @@ LOGGER = logging.getLogger('pav.' + __name__)
 NEVER = 10**10
 
 
-class LockFile(object):
+class LockFile:
     """An NFS friendly way to create a lock file. Locks contain information
     on what host and user created the lock, and have a built in expiration
     date. To be used in a 'with' context.
@@ -132,24 +133,25 @@ class LockFile(object):
         """
 
         # There isn't really anything we can do in this case.
-        host, user, expiration, lock_id = self.read_lockfile()
+        host, user, _, lock_id = self.read_lockfile()
 
         if lock_id is not None and lock_id != self._id:
-            LOGGER.error("Lockfile '{}' mysteriously replaced with one from {}."
-                         .format(self._lock_path, (host, user)))
+            LOGGER.error(
+                "Lockfile '%s' mysteriously replaced with one from %s.",
+                self._lock_path, (host, user))
         else:
             try:
                 self._lock_path.unlink()
             except OSError as err:
                 # There isn't really anything we can do in this case.
-                host, user, expiration, lock_id = self.read_lockfile()
+                host, user, _, lock_id = self.read_lockfile()
 
                 if lock_id == self._id:
-                    LOGGER.warning("Lockfile '{}' could not be deleted: '{}'"
-                                   .format(self._lock_path, err))
+                    LOGGER.warning("Lockfile '%s' could not be deleted: '%s'",
+                                   self._lock_path, err)
                 else:
-                    LOGGER.error("Lockfile '{}' mysteriously disappeared."
-                                 .format(self._lock_path))
+                    LOGGER.error("Lockfile '%s' mysteriously disappeared.",
+                                 self._lock_path)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         return self.unlock()
@@ -174,26 +176,26 @@ class LockFile(object):
         # it as a string.
         path = str(path)
 
-        fd = os.open(path, os.O_EXCL | os.O_CREAT | os.O_RDWR)
+        file_num = os.open(path, os.O_EXCL | os.O_CREAT | os.O_RDWR)
         expiration = time.time() + expires
-        file_note = ",".join([os.uname()[1], os.getlogin(), str(expiration),
+        file_note = ",".join([os.uname()[1], utils.get_login(), str(expiration),
                               lock_id])
         file_note = file_note.encode('utf8')
-        os.write(fd, file_note)
-        os.close(fd)
+        os.write(file_num, file_note)
+        os.close(file_num)
 
         try:
             os.chmod(path, cls.LOCK_PERMS)
         except OSError as err:
-            LOGGER.warning("Lockfile at '{}' could not set permissions: {}"
-                           .format(path, err))
+            LOGGER.warning("Lockfile at '%s' could not set permissions: %s",
+                           path, err)
 
         if group_id is not None:
             try:
                 os.chown(path, os.getuid(), group_id)
             except OSError as err:
-                LOGGER.warning("Lockfile at '{}' could not set group: {}"
-                               .format(path, err))
+                LOGGER.warning("Lockfile at '%s' could not set group: %s",
+                               path, err)
 
     def read_lockfile(self):
         """Returns the components of the lockfile content, or None for each of
@@ -209,8 +211,8 @@ class LockFile(object):
                 host, user, expiration, lock_id = data.split(',')
                 expiration = float(expiration)
             except ValueError:
-                LOGGER.warning("Invalid format in lockfile '{}': {}"
-                               .format(self._lock_path, data))
+                LOGGER.warning("Invalid format in lockfile '%s': %s",
+                               self._lock_path, data)
                 return None, None, None, None
 
         except (OSError, IOError):

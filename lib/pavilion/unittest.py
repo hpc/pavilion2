@@ -10,8 +10,8 @@ import inspect
 from pavilion import arguments
 from pavilion import config
 from pavilion.pav_test import PavTest
-from pavilion.utils import dbg_print
-from pavilion.test_config.format import TestConfigLoader
+from pavilion.utils import dbg_print, get_login
+from pavilion.test_config.file_format import TestConfigLoader
 
 
 class PavTestCase(unittest.TestCase):
@@ -37,7 +37,9 @@ class PavTestCase(unittest.TestCase):
         raw_pav_cfg.config_dirs = [self.TEST_DATA_ROOT/'pav_config_dir',
                                    self.PAV_LIB_DIR]
 
-        raw_pav_cfg.working_dir = Path('/tmp')/os.getlogin()/'pav_tests'
+        raw_pav_cfg.working_dir = Path('/tmp')/get_login()/'pav_tests'
+
+        raw_pav_cfg.result_log = raw_pav_cfg.working_dir/'results.log'
 
         if not raw_pav_cfg.working_dir.exists():
             raw_pav_cfg.working_dir.mkdir()
@@ -89,14 +91,14 @@ class PavTestCase(unittest.TestCase):
 
         cls = super().__getattribute__('__class__')
         cname = cls.__name__.lower()
-        fname = Path(inspect.getfile(cls)).with_suffix('').name
+        fname = Path(inspect.getfile(cls)).with_suffix('').name.lower()
 
         # Wrap our test functions in a function that dynamically wraps
         # them so they only execute under certain conditions.
         if (isinstance(attr, types.MethodType) and
                 attr.__name__.startswith('test_')):
 
-            name = attr.__name__[len('test_'):]
+            name = attr.__name__[len('test_'):].lower()
 
             if self.SKIP:
                 for skip_glob in self.SKIP:
@@ -166,12 +168,12 @@ class PavTestCase(unittest.TestCase):
                              "File contents mismatch for {} and {}."
                              .format(a_path, b_path))
 
-    def _cmp_tree(self, a, b):
+    def _cmp_tree(self, path_a, path_b):
         """Compare two directory trees, including the contents of all the
         files."""
 
-        a_walk = list(os.walk(str(a)))
-        b_walk = list(os.walk(str(b)))
+        a_walk = list(os.walk(str(path_a)))
+        b_walk = list(os.walk(str(path_b)))
 
         # Make sure these are in the same order.
         a_walk.sort()
@@ -186,7 +188,7 @@ class PavTestCase(unittest.TestCase):
             self.assertEqual(
                 sorted(a_dirs), sorted(b_dirs),
                 "Extracted archive subdir mismatch for '{}' {} != {}"
-                .format(a, a_dirs, b_dirs))
+                .format(path_a, a_dirs, b_dirs))
 
             # Make sure these are in the same order.
             a_files.sort()
@@ -212,12 +214,12 @@ class PavTestCase(unittest.TestCase):
                      .format(a_walk, b_walk))
 
     @staticmethod
-    def get_hash(fn):
+    def get_hash(filename):
         """ Get a sha1 hash of the file at the given path.
-        :param Path fn:
+        :param Path filename:
         :return:
         """
-        with fn.open('rb') as file:
+        with filename.open('rb') as file:
             sha = sha1()
             sha.update(file.read())
             return sha.hexdigest()
@@ -302,4 +304,3 @@ class ColorResult(unittest.TextTestResult):
         self.stream.write(self.CYAN)
         super().addSkip(test, reason)
         self.stream.write(self.COLOR_RESET)
-

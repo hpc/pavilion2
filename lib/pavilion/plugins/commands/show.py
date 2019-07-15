@@ -1,17 +1,17 @@
+import errno
+import sys
+
+import yaml_config
 from pavilion import commands
+from pavilion import config
+from pavilion import module_wrapper
+from pavilion import result_parsers
 from pavilion import schedulers
 from pavilion import status_file
-from pavilion import result_parsers
-from pavilion import module_wrapper
 from pavilion import system_variables
-from pavilion import config
 from pavilion import utils
 from pavilion.test_config import DeferredVariable
 from pavilion.test_config import find_all_tests
-import argparse
-import errno
-import sys
-import yaml_config
 
 
 class ShowCommand(commands.Command):
@@ -23,6 +23,8 @@ class ShowCommand(commands.Command):
             'configuration settings.',
             short_help="Show pavilion plugin/config info."
         )
+
+        self._parser = None
 
     def _setup_arguments(self, parser):
 
@@ -175,7 +177,6 @@ class ShowCommand(commands.Command):
             """
         )
 
-        # TODO: Documentation links.
         suites = subparsers.add_parser(
             'suites',
             aliases=['suite'],
@@ -218,8 +219,11 @@ class ShowCommand(commands.Command):
             help='Display any errors encountered while reading the test.'
         )
 
-    def run(self, pav_cfg, args):
-        """Run the show command's chosen sub-command."""
+    def run(self, pav_cfg, args, out_file=sys.stdout, err_file=sys.stderr):
+        """Run the show command's chosen sub-command.
+        :param out_file:
+        :param err_file:
+        """
 
         if args.show_cmd is None:
             # If no sub command is given, print the help for 'show'
@@ -347,7 +351,7 @@ class ShowCommand(commands.Command):
 
         if args.config:
             try:
-                rp = result_parsers.get_plugin(args.config)
+                res_plugin = result_parsers.get_plugin(args.config)
             except result_parsers.ResultParserError:
                 utils.fprint(
                     "Invalid result parser '{}'.".format(args.config),
@@ -355,7 +359,7 @@ class ShowCommand(commands.Command):
                 )
                 return errno.EINVAL
 
-            config_items = rp.get_config_items()
+            config_items = res_plugin.get_config_items()
 
             class Loader(yaml_config.YamlConfigLoader):
                 ELEMENTS = config_items
@@ -366,12 +370,12 @@ class ShowCommand(commands.Command):
 
             rps = []
             for rp_name in result_parsers.list_plugins():
-                rp = result_parsers.get_plugin(rp_name)
-                desc = " ".join(rp.__doc__.split())
+                res_plugin = result_parsers.get_plugin(rp_name)
+                desc = " ".join(res_plugin.__doc__.split())
                 rps.append({
                     'name': rp_name,
                     'description': desc,
-                    'path': rp.path
+                    'path': res_plugin.path
                 })
 
             fields = ['name', 'description']
@@ -388,7 +392,9 @@ class ShowCommand(commands.Command):
             )
 
     @staticmethod
-    def _states_cmd(_, args, outfile=sys.stdout):
+    def _states_cmd(pav_cfg, args, outfile=sys.stdout):
+
+        del pav_cfg, args
 
         states = []
         for state in sorted(status_file.STATES.list()):
@@ -404,7 +410,6 @@ class ShowCommand(commands.Command):
             rows=states,
             title="Pavilion Test States"
         )
-
 
     @staticmethod
     def _config_cmd(pav_cfg, args, outfile=sys.stdout):
@@ -433,12 +438,12 @@ class ShowCommand(commands.Command):
 
         modules = []
         for mod_name in sorted(module_wrapper.list_module_wrappers()):
-            mw = module_wrapper.get_module_wrapper(mod_name)
+            mod_wrap = module_wrapper.get_module_wrapper(mod_name)
             modules.append({
                 'name': mod_name,
-                'version': mw._version,
-                'description': mw.help_text,
-                'path': mw.path,
+                'version': mod_wrap._version,  # pylint: disable=W0212
+                'description': mod_wrap.help_text,
+                'path': mod_wrap.path,
             })
 
         fields = ['name', 'version', 'description']
@@ -458,6 +463,8 @@ class ShowCommand(commands.Command):
     @staticmethod
     def _sys_var_cmd(pav_cfg, args, outfile=sys.stdout):
 
+        del pav_cfg
+
         rows = []
 
         sys_vars = system_variables.get_vars(defer=True)
@@ -465,12 +472,12 @@ class ShowCommand(commands.Command):
         for key in sorted(list(sys_vars.keys())):
             value = sys_vars[key]
             deferred = isinstance(value, DeferredVariable)
-            help = sys_vars.help(key)
+            help_str = sys_vars.help(key)
 
             rows.append({
                 'name': key,
                 'value': value if not deferred else '<deferred>',
-                'description': help,
+                'description': help_str,
                 'path': sys_vars.get_obj(key).path,
             })
 

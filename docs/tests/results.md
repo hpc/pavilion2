@@ -99,39 +99,223 @@ The results for this test run might look like:
 }
 ```
 
+### Keys
+The key attribute is required for every result parser config, as Pavilion needs
+to know under what key in the results to store the parsed result. The 
+default result keys (`id`, `created`, etc) are not allowed, with the 
+exception of `result`.
+
+#### The `result` key
+The result key must always contain either a value of `PASS` or `FAIL`. 
+Setting the `result` key allows you to override the default behavior by 
+setting this value according to the results of any result parser, but there 
+are a few special behaviors:
+ 
+ - The result value must be either `true` or `false`.
+ - The [action](#actions) must either be __store_true__ or __store_false__. 
+ Pavilion overrides the normal __store__ default and replaces it with 
+ __store_true__.
+ - If the `result` value is `true`, `PASS` is stored. The result is otherwise
+  set to `FAIL`.
+
+### Result Value Types
+Result parsers can return any sort of json compatible value. This can be a 
+string, number (int or float), boolean, or a complex structure that includes 
+lists and dictionaries. Pavilion, in handling result values, groups these 
+into a few internal categories.
+  - __empty__ - An empty result is a json `null`, or an 
+  empty list. Everything else is __non-empty__.
+  - __match__ - A __match__ is a __non-empty__ result that is also 
+  not json `false`.
+  - __false__ - False is special, in that it is neither __empty__ nor a 
+  __match__.
+
+The _actions_ and _per_file_ sections below work with these categories when 
+deciding how to handle result parser values.
+
 ### Actions
 
-We saw in the above example that we can use an __action__ to change how the 
-results are stored. There are several additional __actions__ that can be
+We saw in the above example that we can use an _action_ to change how the 
+results are stored. There are several additional _actions_ that can be
 selected:
 
   - __store__ - (Default) Simply store the result parser's output.
-  - __store_true__ - Any result that evaluates to `True` in python is True, 
-    otherwise this is `False`. Generally this means the result is true if the
-    parser found one or more things.
-  - __store_false__ - The opposite of __store_true__
-  - __count__ - Count the number of items matched.
+  - __store_true__ - Store `true` if the result is a __match__ (non-empty and 
+  not false)
+  - __store_false__ - Stores `true` if the result is not a __match__.
+  - __count__ - Count the length of list matches, regardless of contents. 
+  Non-list matches are 1 if a match, 0 otherwise.
 
 ### Files
 
 By default, each result parser reads through the test's `run.log` file. You 
 can specify a different file, a file glob, or even multiple file globs to 
-match an assortment of files. 
+match an assortment of files. The files are parsed in the order given.
 
-If you need to reference the run log in 
-addition to other files, it is one directory up from the test's run 
-directory, in `../run.log`.
+
+If you need to reference the run log in addition to other files, it is one 
+directory up from the test's run directory, in `../run.log`.
 
 This test runs across a bunch of nodes, and produces an output file for each.
+The regex parser runs across each of these, and (because it defaults to 
+returning the first found item only) returns that item or `null` for each of 
+the files found. What it does with those values depends on the __per_file__ 
+attribute for the result parser.
 
 ```yaml
-mytest2: 
+hugetlb_check: 
     scheduler: slurm
     slurm: 
-      num_nodes: 5
+      num_nodes: 4
     
     run:
       cmds:
-        - srun "hostname > ${SL
+        # Use the srun --output option to specify that results are
+        # to be written to separate files.
+        - {{sched.test_cmd}} --output="%N.out" env
+    
+    results: 
+      regex:
+        # This will override the test result
+        key: result
+        regex: 'HUGETLB_DEFAULT_PAGE_SIZE=.+'
+        # Run the parser against all files that end in .out
+        files: '*.out'
+        per_file: # We'll demonstrate these settings below
 ```
 
+### per_file: Manipulating Multiple File Results
+
+The __per_file__ option lets you manipulate how results are stored on a 
+file-by-file basis. Since the choice here will have a drastic effect on your 
+results, we'll demonstrate each from the standpoint of the test config above.
+
+Let's say the test ran on four nodes (node1, node2, node3, and node4), but
+only node2 and node3 found a match. The results would be:
+ - node1 - `<null>`
+ - node2 - `HUGETLB_DEFAULT_PAGE_SIZE=2M`
+ - node3 - `HUGETLB_DEFAULT_PAGE_SIZE=4K`
+ - node4 - `<null>`
+
+#### first - Keep the first result (Default)
+
+Only the result from the first file with a __match__ is kept. In this case, 
+the value from node1 would be ignored in favor of that of node2:
+
+```json
+{
+  "hugetlb": "HUGETLB_DEFAULT_PAGE_SIZE=2M",
+  "result": "PASS",
+  # This would also contain all the default keys, like 'created' and 'id'
+  ... 
+}
+```
+
+#### last - Keep the last result
+
+Just like '__first__', except we work backwards through the files and get the 
+last match value. In this case, that means ignoring node4's result and taking
+ node3's:
+
+```json
+{
+  "hugetlb": "HUGETLB_DEFAULT_PAGE_SIZE=4K",
+  "result": "PASS",
+  ...
+}
+```
+
+#### all - True if each file returned a True result
+
+By itself, '__all__' sets the key to True if the result values for all the 
+files evaluate to True. This means a result of the number 0 or an empty 
+string, which may be valid __matches__, will evaluate to `false`. If you 
+would like matches to evaluate to `true` regardless of content, use this with
+ __store_true__ or __store_false__ as the action.
+ 
+```json
+{
+  "hugetlb": false,
+  "result": "PASS",
+  ...
+}
+```
+
+#### any - True if any file returned a True result
+
+Like '__all__', but is `true` if any of the results evaluates to True.
+
+```json
+{
+  "hugetlb": true,
+ "result": "PASS",
+  ...
+}
+```
+
+#### list - Merge the file results into a single list
+
+For each result from each file, add them into a single list. __empty__ values
+are not added, but `false` is. If the result value is a list already, then each
+of the values in the list is added.
+
+```json
+{
+  "hugetlb": ["HUGETLB_DEFAULT_PAGE_SIZE=2M", "HUGETLB_DEFAULT_PAGE_SIZE=4K"],
+ "result": "PASS",
+  ...
+}
+```
+
+#### fullname - Stores in a filename based dict.
+
+The result from each file is still stored according to the _key_ attribute, but
+in a dictionary by the file's full name instead. This is easier shown than 
+explained:
+
+```json
+ "node1.out": {"hugetlb": null},
+ "node2.out": {"hugetlb": "HUGETLB_DEFAULT_PAGE_SIZE=2M"},
+ "node3.out": {"hugetlb": "HUGETLB_DEFAULT_PAGE_SIZE=4K"},
+ "node4.out": {"hugetlb": null}
+ "result": "PASS",
+```
+
+ - When using the __fullname__ _per_file_ setting, the key cannot be `result`.
+ - The rest of the file's path is ignored, so there is potential for file name
+ collisions, as the same filename could exist in multiple places.
+
+#### name - Stores in a filename (without extension) based dict.
+
+Just like __fullname__, but instead the file extension is removed from 
+filename when determine the key to store under. Only the last extension is 
+removed, so `foo.bar.txt` becomes `foo.bar`. 
+
+```json
+ "node1": {"hugetlb": null},
+ "node2": {"hugetlb": "HUGETLB_DEFAULT_PAGE_SIZE=2M"},
+ "node3": {"hugetlb": "HUGETLB_DEFAULT_PAGE_SIZE=4K"},
+ "node4": {"hugetlb": null}
+ "result": "PASS",
+```
+
+## Errors 
+If an error occurs when parsing results that can be recovered from, a 
+description of the error is recorded under the `error` key. Each of these is 
+a dictionary with some useful values:
+
+```yaml
+{
+  ...
+  "errors": [{
+    # The error happened under this parser.
+    "result_parser": "regex",
+    # The file being processed.
+    "file": "node3.out",
+    # The key being processed
+    "key": "hugetlb",
+    "msg": "Error reading file 'node3.out': Permission error"
+  }]
+}
+
+```

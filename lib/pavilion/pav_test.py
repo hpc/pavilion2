@@ -1,11 +1,5 @@
-from pathlib import Path
-from pavilion import lockfile
-from pavilion import result_parsers
-from pavilion import scriptcomposer
-from pavilion import utils
-from pavilion import wget
-from pavilion.status_file import StatusFile, STATES
-from pavilion.test_config import variables
+# pylint: disable=too-many-lines
+
 import bz2
 import datetime
 import gzip
@@ -14,25 +8,32 @@ import json
 import logging
 import lzma
 import os
-import re
 import shutil
 import stat
 import subprocess
 import tarfile
 import time
-import tzlocal
 import urllib.parse
 import zipfile
+from pathlib import Path
+
+import tzlocal
+from pavilion import lockfile
+from pavilion import result_parsers
+from pavilion import scriptcomposer
+from pavilion import utils
+from pavilion import wget
+from pavilion.status_file import StatusFile, STATES
+from pavilion.test_config import variables
+
 
 class PavTestError(RuntimeError):
     """For general test errors. Whatever was being attempted has failed in a
     non-recoverable way."""
-    pass
 
 
 class PavTestNotFoundError(RuntimeError):
     """For when we try to find an existing test, but it doesn't exist."""
-    pass
 
 
 # Keep track of files we've already hashed and updated before.
@@ -58,7 +59,7 @@ class PavTest:
 
     _BLOCK_SIZE = 4096*1024
 
-    LOGGER = logging.getLogger('pav.PavTest')
+    logger = logging.getLogger('pav.PavTest')
 
     def __init__(self, pav_cfg, config, sys_vars, _id=None):
         """Create an new PavTest object. If loading an existing test instance,
@@ -88,9 +89,11 @@ class PavTest:
 
         self.config = config
 
+        self.id = None  # pylint: disable=invalid-name
+
         # Get an id for the test, if we weren't given one.
         if _id is None:
-            self.id, self.path = utils.create_id_dir(tests_path)
+            self.id, self.path = self.create_id_dir(tests_path)
             self._save_config()
         else:
             self.id = _id
@@ -100,7 +103,7 @@ class PavTest:
                     "No test with id '{}' could be found.".format(self.id))
 
         # Set a logger more specific to this test.
-        self.LOGGER = logging.getLogger('pav.PavTest.{}'.format(self.id))
+        self.logger = logging.getLogger('pav.PavTest.{}'.format(self.id))
 
         # This will be set by the scheduler
         self._job_id = None
@@ -249,25 +252,23 @@ class PavTest:
         parsed = urllib.parse.urlparse(url)
         return parsed.scheme != ''
 
-    def _download_path(self, loc, name):
+    def _download_path(self, loc, filename):
         """Get the path to where a source_download would be downloaded.
         :param str loc: The url for the download, from the config's
             source_location field.
-        :param str name: The name of the download, from the config's
+        :param str filename: The name of the download, from the config's
             source_download_name field."""
 
-        fn = name
-
-        if fn is None:
+        if filename is None:
             url_parts = urllib.parse.urlparse(loc)
             path_parts = url_parts.path.split('/')
             if path_parts and path_parts[-1]:
-                fn = path_parts[-1]
+                filename = path_parts[-1]
             else:
                 # Use a hash of the url if we can't get a name from it.
-                fn = hashlib.sha256(loc.encode()).hexdigest()
+                filename = hashlib.sha256(loc.encode()).hexdigest()
 
-        return self._pav_cfg.working_dir/'downloads'/fn
+        return self._pav_cfg.working_dir/'downloads'/filename
 
     def _update_src(self, build_config):
         """Retrieve and/or check the existence of the files needed for the
@@ -282,6 +283,14 @@ class PavTest:
 
         # For URL's, check if the file needs to be updated, and try to do so.
         if self._isurl(src_loc):
+            missing_libs = wget.missing_libs()
+            if missing_libs:
+                raise PavTestError(
+                    "The dependencies needed for remote source retrieval "
+                    "({}) are not available on this system. Please provide "
+                    "your test source locally."
+                    .format(', '.join(missing_libs)))
+
             dwn_name = build_config.get('source_download_name')
             src_dest = self._download_path(src_loc, dwn_name)
 
@@ -398,13 +407,16 @@ class PavTest:
                         # The build failed. The reason should already be set
                         # in the status file.
                         def handle_error(_, path, exc_info):
-                            self.LOGGER.error(
+                            self.logger.error(
                                 "Error removing temporary build "
-                                "directory '{}': {}"
-                                .format(path, exc_info))
+                                "directory '%s': %s",
+                                path, exc_info)
 
                         if build_dir.exists():
                             # Cleanup the temporary build tree.
+                            os.mkdir(str(self.build_path))
+                            os.rename(str(build_dir / 'pav_build_log'),
+                                      str(self.build_path / 'pav_build_log'))
                             shutil.rmtree(path=build_dir.as_posix(),
                                           onerror=handle_error)
                 else:
@@ -416,11 +428,11 @@ class PavTest:
                 # Make a symlink in the build directory that points to
                 # the original test that built it
                 try:
-                    dst = self.build_origin / 'test'
+                    dst = self.build_origin/'.built_by'
                     src = self.path
                     dst.symlink_to(src, True)
                     dst.resolve()
-                except: 
+                except OSError:
                     self.LOGGER.warning("Could not create symlink to test")
 
         else:
@@ -437,7 +449,7 @@ class PavTest:
         except OSError as err:
             msg = "Could not perform the build directory copy: {}".format(err)
             self.status.set(STATES.BUILD_ERROR, msg)
-            self.LOGGER.error(msg)
+            self.logger.error(msg)
             return False
 
         # Touch the original build directory, so that we know it was used
@@ -446,9 +458,9 @@ class PavTest:
             now = time.time()
             os.utime(self.build_origin.as_posix(), (now, now))
         except OSError as err:
-            self.LOGGER.warning("Could not update timestamp on build directory "
-                                "'{}': {}"
-                                .format(self.build_origin, err))
+            self.logger.warning(
+                "Could not update timestamp on build directory '%s': %s",
+                self.build_origin, err)
 
         return True
 
@@ -518,8 +530,8 @@ class PavTest:
         try:
             self._fix_build_permissions()
         except OSError as err:
-            self.LOGGER.warning("Error fixing build permissions: {}"
-                                .format(err))
+            self.logger.warning("Error fixing build permissions: %s",
+                                err)
 
         if result != 0:
             self.status.set(STATES.BUILD_FAILED,
@@ -672,7 +684,7 @@ class PavTest:
                 dest = build_path/src_path.name
                 try:
                     build_path.mkdir()
-                    shutil.copyfile(src_path.as_posix(), dest.as_posix())
+                    shutil.copy(src_path.as_posix(), dest.as_posix())
                 except OSError as err:
                     raise PavTestError(
                         "Could not copy test src '{}' to '{}': {}"
@@ -684,7 +696,7 @@ class PavTest:
             path = self._find_file(extra, 'test_src')
             dest = build_path/path.name
             try:
-                shutil.copyfile(path.as_posix(), dest.as_posix())
+                shutil.copy(path.as_posix(), dest.as_posix())
             except OSError as err:
                 raise PavTestError(
                     "Could not copy extra file '{}' to dest '{}': {}"
@@ -711,8 +723,8 @@ class PavTest:
             path = Path(path)
             for file in files:
                 file_path = path/file
-                st = file_path.stat()
-                file_path.lchmod(st.st_mode & file_mask)
+                file_stat = file_path.stat()
+                file_path.lchmod(file_stat.st_mode & file_mask)
 
     def run(self, sched_vars, sys_vars):
         """Run the test, returning True on success, False otherwise.
@@ -734,14 +746,14 @@ class PavTest:
                                       self.run_script_path,
                                       var_man)
             except KeyError as err:
-                msg = ("Error converting run template '{}' into the final " 
+                msg = ("Error converting run template '{}' into the final "
                        "script: {}"
                        .format(self.run_tmpl_path, err))
-                self.LOGGER.error(msg)
+                self.logger.error(msg)
                 self.status.set(STATES.RUN_ERROR, msg)
                 return STATES.RUN_ERROR
             except PavTestError as err:
-                self.LOGGER.error(err)
+                self.logger.error(err)
                 self.status.set(STATES.RUN_ERROR, err)
                 return STATES.RUN_ERROR
 
@@ -749,9 +761,9 @@ class PavTest:
             self.status.set(STATES.RUNNING,
                             "Starting the run script.")
 
-            tz = tzlocal.get_localzone()
+            local_tz = tzlocal.get_localzone()
 
-            self._started = tz.localize(datetime.datetime.now())
+            self._started = local_tz.localize(datetime.datetime.now())
 
             # TODO: There should always be a build directory, even if there
             #       isn't a build.
@@ -784,13 +796,14 @@ class PavTest:
                         self.status.set(STATES.RUN_FAILED,
                                         "Run timed out after {} seconds."
                                         .format(self.RUN_SILENT_TIMEOUT))
-                        self._finished = tz.localize(datetime.datetime.now())
+                        self._finished = local_tz.localize(
+                            datetime.datetime.now())
                         return STATES.RUN_TIMEOUT
                     else:
                         # Only wait a max of BUILD_SILENT_TIMEOUT next 'wait'
                         timeout = self.RUN_SILENT_TIMEOUT - quiet_time
 
-        self._finished = tz.localize(datetime.datetime.now())
+        self._finished = local_tz.localize(datetime.datetime.now())
         if result != 0:
             self.status.set(STATES.RUN_FAILED, "Test run failed.")
             return STATES.RUN_FAILED
@@ -832,6 +845,8 @@ class PavTest:
         while 1:
             if run_complete_file.exists():
                 return
+
+            time.sleep(self.WAIT_INTERVAL)
 
             if timeout is not None and time.time() > timeout:
                 raise TimeoutError("Timed out waiting for test '{}' to "
@@ -943,8 +958,8 @@ class PavTest:
         except FileNotFoundError:
             return None
         except (OSError, IOError) as err:
-            self.LOGGER.error("Could not read jobid file '{}': {}"
-                              .format(path, err))
+            self.logger.error("Could not read jobid file '%s': %s",
+                              path, err)
             return None
 
         return self._job_id
@@ -958,13 +973,13 @@ class PavTest:
             with path.open('w') as job_id_file:
                 job_id_file.write(job_id)
         except (IOError, OSError) as err:
-            self.LOGGER.error("Could not write jobid file '{}': {}"
-                              .format(path, err))
+            self.logger.error("Could not write jobid file '%s': %s",
+                              path, err)
 
         self._job_id = job_id
 
     @property
-    def ts(self):
+    def timestamp(self):
         """Return the unix timestamp for this test, based on the last
         modified date for the test directory."""
         return self.path.stat().st_mtime
@@ -1124,6 +1139,38 @@ class PavTest:
             raise PavTestError("Failed processing run template file '{}' into "
                                "run script'{}': {}"
                                .format(tmpl_path, script_path, err))
+
+    @staticmethod
+    def create_id_dir(id_dir):
+        """In the given directory, create the lowest numbered (positive integer)
+        directory that doesn't already exist.
+        :param Path id_dir: Path to the directory that contains these 'id'
+            directories
+        :returns: The id and path to the created directory.
+        :rtype: list(int, Path)
+        :raises OSError: on directory creation failure.
+        :raises TimeoutError: If we couldn't get the lock in time.
+
+        """
+
+        lockfile_path = id_dir/'.lockfile'
+        with lockfile.LockFile(lockfile_path, timeout=1):
+            ids = os.listdir(str(id_dir))
+            # Only return the test directories that could be integers.
+            ids = filter(str.isdigit, ids)
+            ids = filter(lambda d: (id_dir/d).is_dir(), ids)
+            ids = list(map(int, ids))
+            ids.sort()
+
+            # Find the first unused id.
+            id_ = 1
+            while id_ in ids:
+                id_ += 1
+
+            path = utils.make_id_path(id_dir, id_)
+            path.mkdir()
+
+        return id_, path
 
     def __repr__(self):
         return "PavTest({s.name}-{s.id})".format(s=self)

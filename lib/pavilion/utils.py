@@ -1,8 +1,6 @@
 # This file contains assorted utility functions.
 
-
 from pathlib import Path
-from pavilion import lockfile
 import csv
 import json
 import os
@@ -10,8 +8,7 @@ import re
 import subprocess
 import sys
 import textwrap
-import shutil
-import copy
+
 
 def flat_walk(path, *args, **kwargs):
     """Perform an os.walk on path, but return a flattened list of every file
@@ -84,38 +81,6 @@ def make_id_path(base_path, id_):
     return base_path/(ID_FMT.format(id=id_, digits=ID_DIGITS))
 
 
-def create_id_dir(id_dir):
-    """In the given directory, create the lowest numbered (positive integer)
-    directory that doesn't already exist.
-    :param Path id_dir: Path to the directory that contains these 'id'
-        directories
-    :returns: The id and path to the created directory.
-    :rtype: list(int, Path)
-    :raises OSError: on directory creation failure.
-    :raises TimeoutError: If we couldn't get the lock in time.
-
-    """
-
-    lockfile_path = id_dir/'.lockfile'
-    with lockfile.LockFile(lockfile_path, timeout=1):
-        ids = os.listdir(str(id_dir))
-        # Only return the test directories that could be integers.
-        ids = filter(str.isdigit, ids)
-        ids = filter(lambda d: (id_dir/d).is_dir(), ids)
-        ids = list(map(int, ids))
-        ids.sort()
-
-        # Find the first unused id.
-        id_ = 1
-        while id_ in ids:
-            id_ += 1
-
-        path = make_id_path(id_dir, id_)
-        path.mkdir()
-
-    return id_, path
-
-
 def get_login():
     """Get the current user's login, either through os.getlogin or
     the environment, or the id command."""
@@ -137,22 +102,22 @@ def get_login():
             "Could not get the name of the current user.")
 
 
-def dbg_print(*args, color=33, file=sys.stderr, **kwargs):
+def dbg_print(*args, color=33, file=sys.stderr, end="", **kwargs):
     """A colored print statement for debug printing. Use when you want to
     print junk and easily excise it later.
+    :param file: The file object to write to.
+    :param end: Default the ending to no newline (we do a pre-newline because
+        of how unittest prints stuff.
     :param int color: ANSI color code to print the string under.
     """
     start_escape = '\x1b[{}m'.format(color)
 
-    args = list(args)
-    args[0] = start_escape + '\n' + str(args[0])
-
-    args.append('\x1b[0m')
-
-    return print(*args, file=file, **kwargs)
+    print(start_escape)
+    print(*args, file=file, end=end, **kwargs)
+    print('\x1b[0m')
 
 
-def fprint(*args, color=None, bullet='', width=60,
+def fprint(*args, color=None, bullet='', width=100,
            sep=' ', file=sys.stdout):
     """Print with automatic wrapping, bullets, and other features.
     :param args: Standard print function args
@@ -169,10 +134,14 @@ def fprint(*args, color=None, bullet='', width=60,
         print('\x1b[{}m'.format(color), end='', file=file)
 
     out_str = sep.join(args)
-    lines = textwrap.wrap(out_str, width=width)
-    for line in lines:
-        line = textwrap.indent(line, bullet, lambda l: l is lines[0])
-        print(line, file=file)
+    for paragraph in str.splitlines(out_str):
+        lines = textwrap.wrap(paragraph, width=width)
+        lines = '\n'.join(lines)
+
+        if bullet:
+            lines = textwrap.indent(lines, bullet, lines.startswith)
+
+        print(lines, file=file)
 
     if color is not None:
         print('\x1b[0m', end='', file=file)
@@ -192,7 +161,7 @@ GRAY = 37
 
 
 class PavEncoder(json.JSONEncoder):
-    def default(self, o):
+    def default(self, o):  # pylint: disable=E0202
         if isinstance(o, Path):
             return super().default(str(o))
         else:
@@ -216,12 +185,12 @@ def json_dumps(obj, skipkeys=False, ensure_ascii=True,
                       **kw)
 
 
-def json_dump(obj, fp, skipkeys=False, ensure_ascii=True,
+def json_dump(obj, file, skipkeys=False, ensure_ascii=True,
               check_circular=True, allow_nan=True, indent=None,
               separators=None, default=None, sort_keys=False, **kw):
     """Dump data to string as per the json dumps function, but using
     our custom encoder."""
-    return json.dump(obj, fp, cls=PavEncoder,
+    return json.dump(obj, file, cls=PavEncoder,
                      skipkeys=skipkeys,
                      ensure_ascii=ensure_ascii,
                      check_circular=check_circular,
@@ -281,13 +250,13 @@ class ANSIStr:
         'bg_magenta':   45,
         'bg_cyan':      46,
         'bg_white':     47,
-    } 
+    }
 
     def __init__(self, string, modes=None):
         """Create a string with an implicit ANSI mode. When formatted, the
         string will be prepended with the ANSI escape for the given modes.
         It will otherwise behave like a normal string."""
-    
+
         if modes is None:
             modes = []
         elif not isinstance(modes, (list, tuple)):
@@ -302,7 +271,6 @@ class ANSIStr:
         self.string = string
 
     def __format__(self, format_spec):
-        
         if self.modes:
             ansi_start = '\x1b[' + ';'.join(self.modes) + 'm'
         else:

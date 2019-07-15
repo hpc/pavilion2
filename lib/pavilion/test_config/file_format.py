@@ -5,7 +5,6 @@ import yaml_config as yc
 
 class TestConfigError(ValueError):
     """An exception specific to errors in configuration."""
-    pass
 
 
 KEY_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_-]*$')
@@ -88,57 +87,61 @@ class TestConfigLoader(yc.YamlConfigLoader):
                       "permutation of these values."),
         yc.RegexElem('scheduler', regex=r'\w+', default="raw",
                      help_text="The scheduler class to use to run this test."),
-        yc.KeyedElem('build', elements=[
-            yc.StrElem(
-                'on_nodes', default='False',
-                choices=['true', 'false', 'True', 'False'],
-                help_text="Whether to build on or off of the test allocation."
-            ),
-            yc.StrElem(
-                'source_location',
-                help_text="Path to the test source. It may be a directory, "
-                          "a tar file, or a URI. If it's a directory or "
-                          "file, the path is to '$PAV_CONFIG/test_src' by "
-                          "default. For url's, the is automatically checked "
-                          "for updates every time the test run. Downloaded "
-                          "files are placed in a 'downloads' under the "
-                          "pavilion working directory. (set in pavilion.yaml)"),
-            yc.StrElem(
-                'source_download_name',
-                help_text='When downloading source, we by default use the '
-                          'last of the url path as the filename, or a hash '
-                          'of the url if is no suitable name. Use this '
-                          'parameter to override behavior with a pre-defined '
-                          'filename.'),
-            yc.ListElem(
-                'modules', sub_elem=yc.StrElem(),
-                help_text="Modules to load into the build environment."),
-            yc.CategoryElem(
-                'env', sub_elem=yc.StrElem(),
-                help_text="Environment variables to set in the build "
-                          "environment."),
-            yc.ListElem(
-                'extra_files', sub_elem=yc.StrElem(),
-                help_text='Files to copy into the build environment. '
-                          'Relative paths searched for in ~/.pavilion, '
-                          '$PAV_CONFIG. Absolute paths are ok, '
-                          'but not recommended.'),
-            yc.StrElem(
-                'specificity',
-                default='',
-                help_text="Use this string, along with variables, to "
-                          "differentiate builds. A common example would be "
-                          "to make per-host specific by using the "
-                          "sys.sys_name variable. Note _deferred_ system "
-                          "variables aren't a good idea hereas configs are "
-                          "compiled on the host that launches the test."),
-            yc.ListElem('cmds', sub_elem=yc.StrElem(),
-                        help_text='The sequence of commands to run to perform '
-                                  'the build.')
-            ],
-            help_text="The test build configuration. This will be used to "
-                      "dynamically generate a build script for building "
-                      "the test."),
+        yc.KeyedElem(
+            'build',
+            elements=[
+                yc.StrElem(
+                    'on_nodes', default='False',
+                    choices=['true', 'false', 'True', 'False'],
+                    help_text="Whether to build on or off of the test "
+                              "allocation."
+                ),
+                yc.StrElem(
+                    'source_location',
+                    help_text="Path to the test source. It may be a directory, "
+                              "a tar file, or a URI. If it's a directory or "
+                              "file, the path is to '$PAV_CONFIG/test_src' by "
+                              "default. For url's, the is automatically "
+                              "checked for updates every time the test run. "
+                              "Downloaded files are placed in a 'downloads' "
+                              "under the pavilion working directory. (set in "
+                              "pavilion.yaml)"),
+                yc.StrElem(
+                    'source_download_name',
+                    help_text='When downloading source, we by default use the '
+                              'last of the url path as the filename, or a hash '
+                              'of the url if is no suitable name. Use this '
+                              'parameter to override behavior with a '
+                              'pre-defined filename.'),
+                yc.ListElem(
+                    'modules', sub_elem=yc.StrElem(),
+                    help_text="Modules to load into the build environment."),
+                yc.CategoryElem(
+                    'env', sub_elem=yc.StrElem(),
+                    help_text="Environment variables to set in the build "
+                              "environment."),
+                yc.ListElem(
+                    'extra_files', sub_elem=yc.StrElem(),
+                    help_text='Files to copy into the build environment. '
+                              'Relative paths searched for in ~/.pavilion, '
+                              '$PAV_CONFIG. Absolute paths are ok, '
+                              'but not recommended.'),
+                yc.StrElem(
+                    'specificity',
+                    default='',
+                    help_text="Use this string, along with variables, to "
+                              "differentiate builds. A common example would be "
+                              "to make per-host specific by using the "
+                              "sys.sys_name variable. Note _deferred_ system "
+                              "variables aren't a good idea hereas configs are "
+                              "compiled on the host that launches the test."),
+                yc.ListElem('cmds', sub_elem=yc.StrElem(),
+                            help_text='The sequence of commands to run to '
+                                      'perform the build.')
+                ],
+            help_text="The test build configuration. This will be "
+                      "used to dynamically generate a build script for "
+                      "building the test."),
 
         yc.KeyedElem('run', elements=[
             yc.ListElem('modules', sub_elem=yc.StrElem(),
@@ -272,6 +275,8 @@ class TestConfigLoader(yc.YamlConfigLoader):
         :return:
         """
 
+        # pylint: disable=protected-access
+
         if hasattr(elem, 'config_elems'):
             for sub_elem in elem.config_elems.values():
                 cls.check_leaves(sub_elem)
@@ -283,8 +288,7 @@ class TestConfigLoader(yc.YamlConfigLoader):
             raise ValueError(elem)
 
 
-# TODO: Fix this name.
-def TestSuiteLoader():
+def TestSuiteLoader():  # pylint: disable=invalid-name
     """Create a new test suite loader instance. This has to be done
     dynamically because of how we add keys to the TestConfig above."""
 

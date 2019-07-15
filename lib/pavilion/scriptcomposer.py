@@ -1,13 +1,15 @@
-from pathlib import Path
-from pavilion import module_wrapper
-from pavilion.module_actions import ModuleAction
 import datetime
 import grp
 import os
+from pathlib import Path
 
-""" Class to allow for scripts to be written for other modules.
-    Typically, this will be used to write bash or batch scripts. 
-"""
+from pavilion import module_wrapper
+from pavilion import utils
+from pavilion.module_actions import ModuleAction
+
+
+# Class to allow for scripts to be written for other modules.
+# Typically, this will be used to write bash or batch scripts.
 
 
 def get_action(mod_line):
@@ -59,7 +61,7 @@ class ScriptComposerError(RuntimeError):
     """Class level exception during script composition."""
 
 
-class ScriptHeader(object):
+class ScriptHeader():
     """Class to serve as a struct for the script header."""
 
     def __init__(self, shell_path=None, scheduler_headers=None):
@@ -69,8 +71,11 @@ class ScriptHeader(object):
         :param list scheduler_headers: List of lines for scheduler resource
                                        specifications.
         """
+        self._shell_path = None
+        self._scheduler_headers = None
         self.shell_path = shell_path
         self.scheduler_headers = scheduler_headers
+
 
     @property
     def shell_path(self):
@@ -120,18 +125,21 @@ class ScriptHeader(object):
         self.__init__()
 
 
-class ScriptDetails(object):
+class ScriptDetails():
     """Class to contain the final details of the script."""
 
     def __init__(self, path=None, group=None, perms=None):
         """Function to set the final details of the script.
         :param Union(str,Path) path: The path to the script file. default =
             'pav_(date)_(time)'
-        :param string group: Name of group to set as owner of the file. 
+        :param string group: Name of group to set as owner of the file.
                              default = user default group
         :param int perms: Value for permission on the file (see
                           `man chmod`).  default = 0o770
         """
+        self._path = None
+        self._group = None
+        self._perms = None
         self.path = path
         self.group = group
         self.perms = perms
@@ -154,7 +162,7 @@ class ScriptDetails(object):
     @group.setter
     def group(self, value):
         if value is None:
-            value = os.environ['USER']
+            value = utils.get_login()
 
         self._group = str(value)
 
@@ -173,7 +181,7 @@ class ScriptDetails(object):
         self.__init__()
 
 
-class ScriptComposer(object):
+class ScriptComposer():
 
     def __init__(self, header=None, details=None):
         """Function to initialize the class and the default values for all of
@@ -198,8 +206,9 @@ class ScriptComposer(object):
     def env_change(self, env_dict):
         """Function to take the environment variable change requested by the
         user and add the appropriate line to the script.
-        :param dict env_dict: A dictionary (preferably an OrderedDict) of environment keys
-            and values to set. A value of None will unset the variable.
+        :param dict env_dict: A dictionary (preferably an OrderedDict) of
+         environment keys and values to set. A value of None will unset the
+         variable.
         """
 
         for key, value in sorted(env_dict.items()):
@@ -211,8 +220,8 @@ class ScriptComposer(object):
     def module_change(self, module, sys_vars):
         """Function to take the module changes specified in the user config
         and add the appropriate lines to the script.
-        :param str module: Name of a module or a list thereof in the format used in the user
-                           config.
+        :param str module: Name of a module or a list thereof in the format
+         used in the user config.
         :param dict sys_vars: The pavilion system variable dictionary.
         """
 
@@ -271,14 +280,13 @@ class ScriptComposer(object):
         :param str command: String representing the whole command to add.
         """
         if isinstance(command, list):
-            for cmd  in command:
+            for cmd in command:
                 self._script_lines.append(cmd)
         elif isinstance(command, str):
             self._script_lines.append(command)
 
     def write(self):
         """Function to write the script out to file.
-        :param string dirname: Directory to write the file to.  default=$(pwd)
         :return bool result: Returns either True for successfully writing the
                              file or False otherwise.
         """
@@ -295,8 +303,8 @@ class ScriptComposer(object):
         try:
             grp_st = grp.getgrnam(self.details.group)
         except KeyError:
-            error = "Group {} not found on this machine.".format(
-                                                        self.details.group)
+            error = ("Group {} not found on this machine."
+                     .format(self.details.group))
             raise ScriptComposerError(error)
 
         gid = grp_st.gr_gid

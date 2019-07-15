@@ -1,13 +1,16 @@
 from hashlib import sha1
 from pathlib import Path
-import dbm
+import json
 import logging
 import tempfile
+import unittest
 
 from pavilion import wget
 from pavilion.unittest import PavTestCase
 
 PAV_DIR = Path(__file__).resolve().parents[2]
+
+WGET_MISSING_LIBS = wget.missing_libs()
 
 
 class TestWGet(PavTestCase):
@@ -17,6 +20,8 @@ class TestWGet(PavTestCase):
 
     _logger = logging.getLogger(__file__)
 
+    @unittest.skipIf(WGET_MISSING_LIBS,
+                     "Missing wget libs: {}".format(WGET_MISSING_LIBS))
     def test_get(self):
 
         # Try to get a configuration from the testing pavilion.yaml file.
@@ -40,6 +45,8 @@ class TestWGet(PavTestCase):
 
         dest_fn.unlink()
 
+    @unittest.skipIf(WGET_MISSING_LIBS,
+                     "Missing wget libs: {}".format(WGET_MISSING_LIBS))
     def test_update(self):
 
         dest_fn = Path(tempfile.mktemp(dir='/tmp'))
@@ -65,9 +72,12 @@ class TestWGet(PavTestCase):
         ctime = new_ctime
 
         # We'll muck up the info file data, to force an update.
-        with dbm.open(str(info_fn), 'w') as db:
-            db['ETag'] = 'nope'
-            db['Content-Length'] = '-1'
+        db_data = {
+            'ETag': 'nope',
+            'Content-Length': '-1'
+        }
+        with info_fn.open('w') as info_file:
+            json.dump(db_data, info_file)
         wget.update(self.pav_cfg, self.GET_TARGET, dest_fn)
         new_ctime = dest_fn.stat().st_ctime
         self.assertNotEqual(new_ctime, ctime)
