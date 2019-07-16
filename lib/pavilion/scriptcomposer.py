@@ -1,3 +1,4 @@
+import collections
 import datetime
 import grp
 import os
@@ -211,7 +212,13 @@ class ScriptComposer():
          variable.
         """
 
-        for key, value in sorted(env_dict.items()):
+        # Order the keys alphabetically if they don't have an implied order.
+        if not isinstance(env_dict, collections.OrderedDict):
+            new_dict = collections.OrderedDict()
+            for key in sorted(env_dict.keys()):
+                new_dict[key] = env_dict[key]
+
+        for key, value in env_dict.items():
             if value is not None:
                 self._script_lines.append('export {}={}'.format(key, value))
             else:

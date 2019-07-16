@@ -4,6 +4,7 @@ import os
 from collections import defaultdict
 
 from yaml_config import RequiredError
+from yc_yaml import YAMLError
 from . import string_parser
 from . import variables
 from .file_format import TestConfigError, KEY_NAME_RE
@@ -68,7 +69,12 @@ def find_all_tests(pav_cfg):
                     try:
                         suite_cfg = TestSuiteLoader().load(suite_file,
                                                            partial=True)
-                    except (TypeError, KeyError, ValueError) as err:
+                    except (
+                            TypeError,
+                            KeyError,
+                            ValueError,
+                            YAMLError,
+                    ) as err:
                         suites[suite_name]['err'] = err
                         continue
 
@@ -146,6 +152,11 @@ def load_test_configs(pav_cfg, host, modes, tests):
                 raise TestConfigError(
                     "Host config '{}' has an invalid key. {}"
                     .format(host_cfg_path, err))
+            except YAMLError as err:
+                raise TestConfigError(
+                    "Host config '{}' has a YAML Error: {}"
+                    .format(host_cfg_path, err)
+                )
             except TypeError as err:
                 # All config elements in test configs must be strings, and just
                 # about everything converts cleanly to a string.
@@ -177,6 +188,11 @@ def load_test_configs(pav_cfg, host, modes, tests):
             raise TestConfigError(
                 "Mode config '{}' has an invalid key. {}"
                 .format(mode_cfg_path, err))
+        except YAMLError as err:
+            raise TestConfigError(
+                "Mode config '{}' has a YAML Error: {}"
+                .format(mode_cfg_path, err)
+            )
         except TypeError as err:
             # All config elements in test configs must be strings, and just
             # about everything converts cleanly to a string.
@@ -347,6 +363,11 @@ def resolve_inheritance(base_config, suite_cfg, suite_path):
             raise TestConfigError(
                 "Test {} in suite {} has an invalid key. {}"
                 .format(test_name, suite_path, err))
+        except YAMLError as err:
+            raise TestConfigError(
+                "Test {} in suite {} has a YAML Error: {}"
+                .format(test_name, suite_path, err)
+            )
         except TypeError as err:
             # See the same error above when loading host configs.
             raise RuntimeError(
