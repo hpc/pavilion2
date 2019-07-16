@@ -49,17 +49,10 @@ class CancelCommand(commands.Command):
             if args.all:
                 tests_dir = pav_cfg.working_dir/'tests'
                 for test in os.listdir(tests_dir.as_posix()):
-                    try:
-                        test_obj = PavTest.load(pav_cfg, int(test))
-                    except (PavTestError, PavTestNotFound) as err:
-                        utils.fprint("{} is not a valid test, or cannot be \
-                                     found {}.".format(err), file=self.errfile,
-                                     color=utils.RED)
-                        return errno.EINVAL
-                    status = test_obj.status.current().state
                     test_owner_id = os.stat((tests_dir/test).as_posix()).st_uid
-                    if status == STATES.RUNNING or status == STATES.SCHEDULED:
-                        if user_id == test_owner_id:
+                    if test_owner_id == user_id:
+                        test_path = (tests_dir/test/'RUN_COMPLETE').as_posix()
+                        if not os.path.exists(test_path):
                             args.tests.append(test)
             else:
                 # Get the last series ran by this user.
@@ -117,6 +110,7 @@ class CancelCommand(commands.Command):
                     # actually started, ie. build errors/created job states.
                     test.status.set(sched.cancel_job(test).state,
                                     sched.cancel_job(test).note)
+                    test.set_run_complete()
                     utils.fprint("test {} cancelled."
                                  .format(test_id), file=self.outfile,
                                  color=utils.GREEN)
