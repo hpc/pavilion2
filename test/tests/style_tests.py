@@ -8,7 +8,6 @@ if _PYLINT3_PATH is None:
     _PYLINT3_PATH = distutils.spawn.find_executable('pylint')
 
 
-
 class StyleTests(PavTestCase):
 
     @unittest.skipIf(not _PYLINT3_PATH, "pylint3 not found.")
@@ -26,7 +25,6 @@ class StyleTests(PavTestCase):
         disabled = [
             'missing-docstring',
         ]
-
 
         cmd = [
             _PYLINT3_PATH,

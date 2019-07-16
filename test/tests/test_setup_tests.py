@@ -223,7 +223,6 @@ class TestSetupTests(PavTestCase):
         config to the final run scripts."""
 
         test_conf = load_test_configs(self.pav_cfg, 'this', [], ['order'])[0]
-        self.dbg_print(test_conf['build']['env'])
         test = self._quick_test(test_conf, "order")
 
         # Each exported variable in this config has a value that denotes its
@@ -233,7 +232,6 @@ class TestSetupTests(PavTestCase):
         exports = []
         with (test.path/'build.sh').open() as build_script:
             for line in build_script:
-                self.dbg_print(line)
                 if line.startswith('export') and 'TEST_ID' not in line:
                     _, var_val = line.split()
                     var, val = line.split('=')

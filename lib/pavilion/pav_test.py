@@ -1089,6 +1089,7 @@ class PavTest:
                 script.module_change(module, sys_vars)
 
         env = config.get('env', {})
+        print('env', env)
         if env:
             script.newline()
             script.comment("Making any environment changes needed.")

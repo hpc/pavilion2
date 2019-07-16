@@ -256,6 +256,8 @@ def load_test_configs(pav_cfg, host, modes, tests):
                 raise TestConfigError("Could not open test suite config {}: {}"
                                       .format(test_suite_path, err))
 
+            print('raw config', test_suite_cfg)
+
             suite_tests = resolve_inheritance(
                 base_config,
                 test_suite_cfg,
