@@ -37,10 +37,10 @@ class CleanCommand(commands.Command):
         if args.older_than:
             if 'day' in args.older_than or 'days' in args.older_than:
                 cutoff_date = datetime.today().date() - timedelta(
-                days=int(args.older_than[0]))
+                    days=int(args.older_than[0]))
             elif 'week' in args.older_than or 'weeks' in args.older_than:
                 cutoff_date = datetime.today().date() - timedelta(
-                weeks=int(args.older_than[0]))
+                    weeks=int(args.older_than[0]))
             elif 'month' in args.older_than or 'months' in args.older_than:
                 cutoff_date = getMonthDelta(int(args.older_than[0]))
             else:
