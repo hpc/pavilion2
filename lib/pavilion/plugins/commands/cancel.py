@@ -53,8 +53,8 @@ class CancelCommand(commands.Command):
                         test_obj = PavTest.load(pav_cfg, int(test))
                     except (PavTestError, PavTestNotFound) as err:
                         utils.fprint("{} is not a valid test, or cannot be \
-                                 found {}.".format(err), file=self.errfile,
-                                 color=utils.RED)
+                                     found {}.".format(err), file=self.errfile,
+                                     color=utils.RED)
                         return errno.EINVAL
                     status = test_obj.status.current().state
                     test_owner_id = os.stat((tests_dir/test).as_posix()).st_uid
