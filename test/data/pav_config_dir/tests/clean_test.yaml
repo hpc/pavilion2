@@ -15,7 +15,7 @@ stupid:
         cmds:
             - echo "Running World"
 
-    scheduler: "raw"
+    scheduler: "slurm"
 
 test:
     inherits_from: stupid
