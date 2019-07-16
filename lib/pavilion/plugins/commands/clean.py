@@ -42,7 +42,7 @@ class CleanCommand(commands.Command):
                 cutoff_date = datetime.today().date() - timedelta(
                     weeks=int(args.older_than[0]))
             elif 'month' in args.older_than or 'months' in args.older_than:
-                cutoff_date = getMonthDelta(int(args.older_than[0]))
+                cutoff_date = GetMonthDelta(int(args.older_than[0]))
             else:
                 date = ' '.join(args.older_than)
                 try:
@@ -155,7 +155,7 @@ class CleanCommand(commands.Command):
 
         return 0
 
-def getMonthDelta(months):
+def GetMonthDelta(months):
 
     cutoff_date = None
     today = datetime.today()
@@ -165,7 +165,8 @@ def getMonthDelta(months):
 
     if cur_month - months <= 0:
         cut_month = (cur_month - months) % 12
-        cut_year = cur_year - 1
+        diff_years = (cur_month - months) // 12
+        cut_year = cur_year + diff_years
     else:
         cut_month = cur_month - months
         cut_year = cur_year
@@ -177,5 +178,3 @@ def getMonthDelta(months):
         cutoff_date = datetime(cut_year, cut_month, last_day)
 
     return cutoff_date.date()
-
-    
