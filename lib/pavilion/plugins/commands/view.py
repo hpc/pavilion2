@@ -10,9 +10,10 @@ from pavilion.utils import fprint
 
 class ViewCommand(run.RunCommand):
 
-    def __init__(self):
+    def __init__(self):  # pylint: disable=W0231
 
         # Use the base command class init
+        # pylint: disable=non-parent-init-called
         commands.Command.__init__(
             self=self,
             name='view',
@@ -30,7 +31,7 @@ class ViewCommand(run.RunCommand):
         parser.add_argument(
             '-m', '--mode', action='append', dest='modes', default=[],
             help='Mode configurations to overlay on the host configuration for '
-                 'each test. These are overlayed in the order given.')
+                 'each test. These are overlaid in the order given.')
         parser.add_argument(
             '-c', dest='overrides', action='append', default=[],
             help='Overrides for specific configuration options. These are '
@@ -45,10 +46,12 @@ class ViewCommand(run.RunCommand):
 
     SLEEP_INTERVAL = 1
 
-    def run(self, pav_cfg, args):
+    def run(self, pav_cfg, args, out_file=sys.stdout, err_file=sys.stderr):
         """Resolve the test configurations into individual tests and assign to
         schedulers. Have those schedulers kick off jobs to run the individual
-        tests themselves."""
+        tests themselves.
+        :param out_file:
+        :param err_file: """
 
         overrides = {}
         for ovr in args.overrides:

@@ -29,6 +29,9 @@ class VariableError(ValueError):
 
     def __init__(self, message, var_set=None, var=None, index=None,
                  sub_var=None):
+
+        super().__init__(message)
+
         self.var_set = var_set
         self.var = var
         self.index = index
@@ -290,9 +293,10 @@ class VariableSetManager:
         # If we didn't get an explicit var_set, find the first matching one
         # with the given var.
         if var_set is None:
-            for vs in self.reserved_keys:
-                if vs in self.variable_sets and var in self.variable_sets[vs]:
-                    var_set = vs
+            for res_vs in self.reserved_keys:
+                if (res_vs in self.variable_sets and
+                        var in self.variable_sets[res_vs]):
+                    var_set = res_vs
                     break
 
         if var_set is None:
@@ -542,7 +546,7 @@ class VariableList:
             if not isinstance(index, int):
                 raise KeyError("Non-integer index given: '{}'".format(index))
 
-        if not (-len(self.data) <= index < len(self.data)):
+        if not -len(self.data) <= index < len(self.data):
             raise KeyError(
                 "Index out of range. There are only {} items in this variable."
                 .format(len(self.data)))
