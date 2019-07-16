@@ -16,7 +16,12 @@ class ExtraPrintsTest(PavTestCase):
         """greps for unnecessary dbg_print statements."""
         #cmd = ["""grep -R --exclude={run,show,cancel,set_status,view,log,utils,status}.py -i 'print(' ../lib/pavilion/"""]
         
-        # looks for unnecessary dbg_prints
+        # looks for unnecessary dbg_prints in lib/pavilion directory
         cmd = "grep -R -i -I 'dbg_print' ../lib/pavilion/ --exclude=unittest.py --exclude=utils.py"
         output = subprocess.call(cmd, shell=True)
         self.assertNotEqual(output, 0)
+
+        # looks for unnecessary dbg_prints in test directory
+        cmd = "grep -R -i -I 'dbg_print' . --exclude=extraneous_prints_tests.py"
+        output = subprocess.call(cmd, shell=True)
+        self.assertNotEqual(output,0)
