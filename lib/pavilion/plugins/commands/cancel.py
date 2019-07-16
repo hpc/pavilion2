@@ -43,6 +43,8 @@ class CancelCommand(commands.Command):
 
     def run(self, pav_cfg, args, out_file=sys.stdout, err_file=sys.stderr):
 
+        user_id = os.geteuid()
+
         if not args.tests:
             if args.all:
                 tests_dir = pav_cfg.working_dir/'tests'
@@ -51,12 +53,14 @@ class CancelCommand(commands.Command):
                         test_obj = PavTest.load(pav_cfg, int(test))
                     except (PavTestError, PavTestNotFound) as err:
                         utils.fprint("{} is not a valid test, or cannot be \
-                                     found {}.".format(err), file=self.errfile,
-                                     color=utils.RED)
+                                 found {}.".format(err), file=self.errfile,
+                                 color=utils.RED)
                         return errno.EINVAL
                     status = test_obj.status.current().state
+                    test_owner_id = os.stat((tests_dir/test).as_posix()).st_uid
                     if status == STATES.RUNNING or status == STATES.SCHEDULED:
-                        args.tests.append(test)
+                        if user_id == test_owner_id:
+                            args.tests.append(test)
             else:
                 # Get the last series ran by this user.
                 series_id = series.TestSeries.load_user_series_id(pav_cfg)
