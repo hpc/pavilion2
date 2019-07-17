@@ -36,10 +36,10 @@ class CleanCommand(commands.Command):
 
         if args.older_than:
             if 'day' in args.older_than or 'days' in args.older_than:
-                cutoff_date = datetime.today().date() - timedelta(
+                cutoff_date = datetime.today() - timedelta(
                     days=int(args.older_than[0]))
             elif 'week' in args.older_than or 'weeks' in args.older_than:
-                cutoff_date = datetime.today().date() - timedelta(
+                cutoff_date = datetime.today() - timedelta(
                     weeks=int(args.older_than[0]))
             elif 'month' in args.older_than or 'months' in args.older_than:
                 cutoff_date = get_month_delta(int(args.older_than[0]))
@@ -55,13 +55,12 @@ class CleanCommand(commands.Command):
 
         # No cutoff specified, removes everything.
         else:
-            cutoff_date = datetime.today().date()
+            cutoff_date = datetime.today()
 
         tests_dir = pav_cfg.working_dir/'tests'
         series_dir = pav_cfg.working_dir/'series'
         download_dir = pav_cfg.working_dir/'downloads'
         build_dir = pav_cfg.working_dir/'builds'
-
 
         dependent_builds = []
         incomplete_tests = []
@@ -70,11 +69,11 @@ class CleanCommand(commands.Command):
                      color=utils.GREEN)
         for test in os.listdir(tests_dir.as_posix()):
             test_time = datetime.fromtimestamp(
-                os.path.getmtime((tests_dir/test).as_posix())).date()
+                os.path.getmtime((tests_dir/test).as_posix()))
             try:
                 test_obj = PavTest.load(pav_cfg, int(test))
                 status = test_obj.status.current().state
-            except (PavTestError, PavTestNotFoundError, KeyError) as err:
+            except (PavTestError, PavTestNotFoundError) as err:
                 utils.fprint("Removing bad test directory {}".format(test),
                              file=self.outfile)
                 shutil.rmtree(test_dir.as_posix())
@@ -98,7 +97,7 @@ class CleanCommand(commands.Command):
                      color=utils.GREEN)
         for series in os.listdir(series_dir.as_posix()):
             series_time = datetime.fromtimestamp(
-                os.path.getmtime((series_dir/series).as_posix())).date()
+                os.path.getmtime((series_dir/series).as_posix()))
             for test in incomplete_tests:
                 if os.path.exists((series_dir/series/test).as_posix()):
                     completed_series = False
@@ -117,7 +116,7 @@ class CleanCommand(commands.Command):
                      color=utils.GREEN)
         for download in os.listdir(download_dir.as_posix()):
             download_time = datetime.fromtimestamp(
-                os.path.getmtime((download_dir/download).as_posix())).date()
+                os.path.getmtime((download_dir/download).as_posix()))
             if download_time < cutoff_date:
                 try:
                     shutil.rmtree(str(download_dir/download))
@@ -142,7 +141,7 @@ class CleanCommand(commands.Command):
         utils.fprint("Removing Builds...", file=self.outfile, color=utils.GREEN)
         for build in os.listdir(build_dir.as_posix()):
             build_time = datetime.fromtimestamp(
-                os.path.getmtime((build_dir/build).as_posix())).date()
+                os.path.getmtime((build_dir/build).as_posix()))
             if build_time < cutoff_date and build not in dependent_builds:
                 shutil.rmtree((build_dir/build).as_posix())
                 if args.verbose:
@@ -162,6 +161,7 @@ def get_month_delta(months):
     cur_year = today.year
     cur_day = today.day
     cur_month = today.month
+    cur_time = today.time
 
     if cur_month - months <= 0:
         cut_month = (cur_month - months) % 12
@@ -172,9 +172,9 @@ def get_month_delta(months):
         cut_year = cur_year
 
     try:
-        cutoff_date = datetime(cut_year, cut_month, cur_day)
+        cutoff_date = datetime(cut_year, cut_month, cur_day, cur_time)
     except ValueError:
         last_day = monthrange(cut_year, cut_month)[1]
-        cutoff_date = datetime(cut_year, cut_month, last_day)
+        cutoff_date = datetime(cut_year, cut_month, last_day, cur_time)
 
-    return cutoff_date.date()
+    return cutoff_date
