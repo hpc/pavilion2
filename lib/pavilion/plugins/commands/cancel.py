@@ -111,12 +111,12 @@ class CancelCommand(commands.Command):
                     test.status.set(sched.cancel_job(test).state,
                                     sched.cancel_job(test).note)
                     test.set_run_complete()
-                    utils.fprint("test {} cancelled."
+                    utils.fprint("Test {} cancelled."
                                  .format(test_id), file=self.outfile,
                                  color=utils.GREEN)
 
                 else:
-                    utils.fprint("test {} could not be cancelled has state: {}."
+                    utils.fprint("Test {} could not be cancelled has state: {}."
                                  .format(test_id, status.state),
                                  file=self.outfile,
                                  color=utils.RED)
