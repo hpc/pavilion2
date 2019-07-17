@@ -8,12 +8,12 @@ A result parser in Pavilion is made up of two seperate parts, the [source code](
 
 #### Writing the Source
 
-You begin writing the source with the command class definition. We have been using the CamelCase naming convention to keep everything the same. It is simply:
+You begin writing the source with the result parser class definition. Here is an example:
 ```python
 class ResultParserName(result_parsers.ResultParser):
 ```
 
-At the minimum each command will require four methods: `__init__`, `get_config_items`, `_check_args`, and `__call__`. 
+At the minimum each result parser will require four methods: `__init__`, `get_config_items`, `_check_args`, and `__call__`. 
 
 ##### Writing `__init__()`:
 The `__init__` method should only take one argument, that one argument being self, as this will be used to initialize the new command. 
