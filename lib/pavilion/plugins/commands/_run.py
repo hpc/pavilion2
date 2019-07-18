@@ -27,6 +27,8 @@ class _RunCommand(commands.Command):
 
     def run(self, pav_cfg, args, out_file=sys.stdout, err_file=sys.stderr):
         """Load and run an already prepped test in the current environment.
+        :param pav_cfg: The pavilion config object
+        :param args: The parsed command line argument object
         :param out_file:
         :param err_file:
         """
@@ -37,6 +39,14 @@ class _RunCommand(commands.Command):
             self.logger.error("Error loading test '%s': %s",
                               args.test_id, err)
             raise
+
+        try:
+            return self._run(pav_cfg, test)
+        finally:
+            # Regardless of what happens, set the run as complete.
+            test.set_run_complete()
+
+    def _run(self, pav_cfg, test):
 
         try:
             if test.config['build']['on_nodes'] in ['true', 'True']:
@@ -66,7 +76,6 @@ class _RunCommand(commands.Command):
                                   system_variables.get_vars(defer=False))
         except PavTestError as err:
             test.status.set(STATES.RUN_ERROR, err)
-            test.set_run_complete()
             return 1
         except Exception:
             test.status.set(
@@ -95,7 +104,6 @@ class _RunCommand(commands.Command):
             if rp_errors:
                 for msg in rp_errors:
                     test.status.set(STATES.RESULTS_ERROR, msg)
-                test.set_run_complete()
                 return 1
 
             results = test.gather_results(run_result)
@@ -103,7 +111,6 @@ class _RunCommand(commands.Command):
             self.logger.error("Unexpected error gathering results: %s", err)
             test.status.set(STATES.RESULTS_ERROR,
                             "Error parsing results: {}".format(err))
-            test.set_run_complete()
             return 1
 
         try:
@@ -121,7 +128,6 @@ class _RunCommand(commands.Command):
             test.status.set(STATES.COMPLETE,
                             "The test completed with result: {}"
                             .format(results.get('result', '<unknown>')))
-            test.set_run_complete()
         except Exception:
             test.status.set(
                 STATES.UNKNOWN,

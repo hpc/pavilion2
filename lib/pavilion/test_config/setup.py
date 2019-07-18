@@ -35,6 +35,25 @@ def _find_config(pav_cfg, conf_type, conf_name):
     return None
 
 
+def find_tests_by_tag(pav_cfg, tags):
+    """Find all tests that are tagged with one or more of the given tags.
+    Only tags listed in the main test config are considered, host and modes
+    are ignored."""
+
+    all_tests = find_all_tests(pav_cfg)
+    matched = []
+
+    for suite in all_tests:
+        for test in suite.get('tests', []):
+            test_tags = test.get('conf', {}).get('tags', [])
+
+            if any([t in tags for t in test_tags]):
+                if 'name' in test:
+                    matched.append('{}.{}'.format(suite, test['name']))
+
+    return matched
+
+
 def find_all_tests(pav_cfg):
     """Find all the tests within known config directories.
     :param pav_cfg: The pavilion configuration.
@@ -110,15 +129,15 @@ def find_all_tests(pav_cfg):
     return suites
 
 
-def load_test_configs(pav_cfg, host, modes, tests):
+def load_test_configs(pav_cfg, host, modes, test_names):
     """Get a dictionary of raw test configs given a host, list of modes,
     and a list of tests. Each of these configs will be lightly modified with
-    a few extra variables about their name, suite, and suite_file, as well as
+    a few extra variables such as their name, suite, and suite_file, as well as
     guaranteeing that they have 'variables' and 'permutations' sections.
     :param pav_cfg: The pavilion config data
     :param Union(str, None) host: The host the test is running on.
     :param list modes: A list (possibly empty) of modes to layer onto the test.
-    :param list tests: A list (possibly empty) of tests to load. Each test can
+    :param list test_names: A list (possibly empty) of tests to load. Each test can
     be either a '<test_suite>.<test_name>', '<test_suite>',
     or '<test_suite>.*'. A test suite by itself (or with a .*) get every
     test in a suite.
@@ -205,8 +224,12 @@ def load_test_configs(pav_cfg, host, modes, tests):
     picked_tests = []
     test_suite_loader = TestSuiteLoader()
 
+    suites = set()
+    for test_name in test_names:
+
+
     # Find and load all of the requested tests.
-    for test_name in tests:
+    for test_name in test_names:
         # Make sure the test name has the right number of parts.
         # They should look like '<test_suite>.<subtest>', '<test_suite>.*'
         # or just '<test_suite>'

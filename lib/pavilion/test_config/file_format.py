@@ -76,6 +76,13 @@ class TestConfigLoader(yc.YamlConfigLoader):
             'doc', default='',
             help_text="Detailed documentation string for this test."
         ),
+        yc.ListElem(
+            'tags',
+            sub_elem=yc.RegexElem(regex=r'@[a-z][a-z0-9_-]+'),
+            help_text="A list of tags for organizing tests. These must start "
+                      "with an @, but may otherwise be lowercase alpha-numeric "
+                      "(with underscores and dashes)."
+        ),
         VarCatElem(
             'variables', sub_elem=yc.ListElem(sub_elem=VariableElem()),
             help_text="Variables for this test section. These can be "

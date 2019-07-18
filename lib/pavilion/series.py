@@ -29,7 +29,7 @@ def test_obj_from_id(pav_cfg, test_ids):
         except (PavTestError, PavTestNotFoundError):
             test_failed_list.append(test_id)
 
-    return (test_obj_list, test_failed_list)
+    return test_obj_list, test_failed_list
 
 
 class TestSeries:

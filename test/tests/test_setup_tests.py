@@ -57,7 +57,7 @@ class TestSetupTests(PavTestCase):
                         pav_cfg=self.pav_cfg,
                         host=host,
                         modes=modes,
-                        tests=[test])
+                        test_names=[test])
                     self.assertEqual(tests[0]['slurm']['partition'], answer)
 
         plugins._reset_plugins()
