@@ -105,7 +105,7 @@ def get_vars(defer):
 
 class SystemPlugin(IPlugin.IPlugin):
 
-    PRIO_DEFAULT = 0
+    PRIO_CORE = 0
     PRIO_COMMON = 10
     PRIO_USER = 20
 
@@ -113,14 +113,14 @@ class SystemPlugin(IPlugin.IPlugin):
 
     def __init__(self,
                  plugin_name,
-                 help_text,
-                 priority=PRIO_DEFAULT,
+                 description,
+                 priority=PRIO_COMMON,
                  is_deferable=False,
                  sub_keys=None):
         """Initialize the system plugin instance.  This should be overridden in
         each final plugin.
         :param str plugin_name: The name of the system plugin being wrapped.
-        :param str help_text: Short description of this value.
+        :param str description: Short description of this value.
         :param int priority: Priority value of plugin when two plugins have
                              the same name.
         :param bool is_deferable: Whether the plugin is able to be deferred.
@@ -136,7 +136,7 @@ class SystemPlugin(IPlugin.IPlugin):
                 "Invalid module name: '{}'"
                 .format(plugin_name))
 
-        self.help_text = help_text
+        self.help_text = description
         self.name = plugin_name
         self.priority = priority
         self.path = inspect.getfile(self.__class__)

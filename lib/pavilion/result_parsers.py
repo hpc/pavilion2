@@ -98,13 +98,14 @@ class ResultParser(IPlugin.IPlugin):
     config. The doc string of result parser classes is used as the user help
     text for that class, plus the help on the config items."""
 
-    PRIO_DEFAULT = 0
+    PRIO_CORE = 0
     PRIO_COMMON = 10
     PRIO_USER = 20
 
-    def __init__(self, name, open_mode='r', priority=PRIO_COMMON):
+    def __init__(self, name, description, open_mode='r', priority=PRIO_COMMON):
         """Initialize the plugin object
         :param str name: The name of this plugin.
+        :param str description: A short description of this result parser.
         :param open_mode: How to open each file handed to the parser.
         :param int priority: The priority of this plugin, compared to plugins
             of the same name. Higher priority plugins will supersede others.
