@@ -317,17 +317,32 @@ class ANSIStr:
         if attr not in self.__dict__:
             return getattr(self.string, attr)
 
-
 ANSI_ESCAPE_RE = re.compile('\x1b\\[\\d+(;\\d+)*m')
 
-
-def _plen(string):
+def _plen(string, returnString=False):
     """Get the printable length of the given string."""
 
     # Remove ansi escape codes (only handles graphics mode changes)
     unescaped = ANSI_ESCAPE_RE.sub('', string)
 
-    return len(unescaped)
+    if returnString:
+        return unescaped
+    else:
+        return len(unescaped)
+
+ANSI_ESCAPE_RE_COLOR = re.compile('\x1b\\[(\\d+)(;\\d+)*m')
+
+def _grabColor(string):
+
+    unescaped = re.search(ANSI_ESCAPE_RE_COLOR, string)
+    if unescaped is not None:
+        color_code = unescaped.group(1)
+        color_code = int(color_code)
+        for color, c_code in ANSIStr.MODES.items():
+            if c_code == color_code:
+                return color
+    else:
+        return 'white'
 
 def removeFormatting(content_width, fields, border, pad):
     # Reduced the effective window width if we have padded dividers. 
@@ -527,8 +542,10 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
                 wrap_total = 0
 
                 for row in rows:
+                    string = str(row[fields[i]])
                     wraps = textwrap.TextWrapper(width=column_width)
-                    wrap_list = wraps.wrap(text=str(row[fields[i]]))
+                    clean_string = _plen(string, returnString=True)
+                    wrap_list = wraps.wrap(text=string)
                     wrap_total = wrap_total + len(wrap_list)
 
                 wrap_count.append(wrap_total)
@@ -542,7 +559,7 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
                 wrap_options.append([combo, wrap_count])
 
         min_col_wrap_list = []
-        # Goes through and removes any combination that isn't equal to the
+        # Goes through and removes any combination that aren't equal to the
         # minimum number of wraps. 
         for config in wrap_options:
             if config[1] == min_wraps:
@@ -593,7 +610,11 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
         #Creates wrap list that holds list of strings for the wrapped text
         for field in fields:
             my_wrap = textwrap.TextWrapper(width = column_widths[field])
-            wrap_list = my_wrap.wrap(text = row[field])
+            clean_string = _plen(row[field], returnString=True)
+            color = _grabColor(row[field])
+            wrap_list = my_wrap.wrap(text=clean_string)
+            for i in range(len(wrap_list)):
+                wrap_list[i] = ANSIStr(wrap_list[i], color)
             wraps[field] = wrap_list
 
         num_lines = 0
@@ -611,10 +632,7 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
         wrap_rows.append(row)
         #Creates a new row for each line of text required
         for line in range(1,num_lines):
-            wrap_row = copy.deepcopy(row)
-            #Emptys current row
-            wrap_row = wrap_row.fromkeys(wrap_row, '')
-            #Populates the necessary fields, if they exist
+            wrap_row = {}
             for field in fields:
                 if line >= len(wraps[field]):
                     wrap_row[field] = ''
