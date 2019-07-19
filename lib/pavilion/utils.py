@@ -542,10 +542,9 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
                 wrap_total = 0
 
                 for row in rows:
-                    string = str(row[fields[i]])
                     wraps = textwrap.TextWrapper(width=column_width)
-                    clean_string = _plen(string, returnString=True)
-                    wrap_list = wraps.wrap(text=string)
+                    clean_string = _plen(str(row[fields[i]]), returnString=True)
+                    wrap_list = wraps.wrap(text=clean_string)
                     wrap_total = wrap_total + len(wrap_list)
 
                 wrap_count.append(wrap_total)
