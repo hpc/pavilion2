@@ -16,6 +16,7 @@ from pavilion.test_config.string_parser import ResolveError
 from pavilion.utils import fprint
 from pavilion import result_parsers
 
+
 class RunCommand(commands.Command):
 
     def __init__(self):
@@ -74,8 +75,11 @@ class RunCommand(commands.Command):
         """Resolve the test configurations into individual tests and assign to
         schedulers. Have those schedulers kick off jobs to run the individual
         tests themselves.
-        :param out_file:
-        :param err_file: """
+        :param pav_cfg: The pavilion configuration.
+        :param args: The parsed command line argument object.
+        :param out_file: The file object to output to (stdout)
+        :param err_file: The file object to output errors to (stderr)
+        """
 
         # 1. Resolve the test configs
         #   - Get sched vars from scheduler.

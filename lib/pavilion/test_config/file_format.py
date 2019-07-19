@@ -1,4 +1,4 @@
-from collections import defaultdict
+from collections import OrderedDict
 import re
 import yaml_config as yc
 
@@ -42,6 +42,13 @@ class VarCatElem(yc.CategoryElem):
     """Just like a regular category elem, but we override the key regex to
     allow dashes. We won't be using name style references anyway."""
     _NAME_RE = KEY_NAME_RE
+
+
+class EnvCatElem(yc.CategoryElem):
+    """Env vars need to be ordered, and have a different key regex."""
+
+    _NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_]*$')
+    type = OrderedDict
 
 
 class TestConfigLoader(yc.YamlConfigLoader):
@@ -116,7 +123,7 @@ class TestConfigLoader(yc.YamlConfigLoader):
                 yc.ListElem(
                     'modules', sub_elem=yc.StrElem(),
                     help_text="Modules to load into the build environment."),
-                yc.CategoryElem(
+                EnvCatElem(
                     'env', sub_elem=yc.StrElem(),
                     help_text="Environment variables to set in the build "
                               "environment."),
@@ -146,9 +153,9 @@ class TestConfigLoader(yc.YamlConfigLoader):
         yc.KeyedElem('run', elements=[
             yc.ListElem('modules', sub_elem=yc.StrElem(),
                         help_text="Modules to load into the run environment."),
-            yc.CategoryElem('env', sub_elem=yc.StrElem(),
-                            help_text="Environment variables to set in the run "
-                                      "environment."),
+            EnvCatElem('env', sub_elem=yc.StrElem(),
+                       help_text="Environment variables to set in the run "
+                                 "environment."),
             yc.ListElem('cmds', sub_elem=yc.StrElem(),
                         help_text='The sequence of commands to run to run the '
                                   'test.')
