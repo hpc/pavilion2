@@ -10,7 +10,7 @@ from pavilion.status_file import STATES
 from pavilion.utils import dbg_print
 
 
-def get_time_of_subdirectories(pav_cfg, limit):
+def get_latest_tests_mtime(pav_cfg, limit):
     # returns a dictionary of all the test directories
     # and their mtime (test: mtime)
 
@@ -24,7 +24,10 @@ def get_time_of_subdirectories(pav_cfg, limit):
 
     sorted_test_dir = sorted(test_dir_dict.items(), key=lambda kv: kv[1])
     last_tests = sorted_test_dir[-limit:]
-    dbg_print(str(last_tests))
+    #dbg_print(str(last_tests))
+    tests_only = [int(i[0]) for i in last_tests]
+    #dbg_print(str(tests_only))
+    return tests_only
 
 def status_from_test_obj(pav_cfg, test_obj):
     """Takes a test object or list of test objects and creates the dictionary
@@ -60,9 +63,13 @@ def status_from_test_obj(pav_cfg, test_obj):
 def get_all_tests(pav_cfg, args, errfile):
     """function to handle if user wants all tests"""
 
-    get_time_of_subdirectories(pav_cfg, args.limit)
+    latest_tests = get_latest_tests_mtime(pav_cfg, args.limit)
+    test_obj_list = []
+    for lt in latest_tests:
+        test = PavTest.load(pav_cfg, lt)
+        test_obj_list.append(test)
  
-    test_obj_list = series.get_latest_tests(pav_cfg, args.limit)
+    #test_obj_list = series.get_latest_tests(pav_cfg, args.limit)
     statuses = status_from_test_obj(pav_cfg, test_obj_list)
 
     return statuses
