@@ -119,11 +119,11 @@ class CleanCommand(commands.Command):
                 os.path.getmtime((download_dir/download).as_posix()))
             if download_time < cutoff_date:
                 try:
-                    shutil.rmtree(str(download_dir/download))
+                    shutil.rmtree((download_dir/download).as_posix())
                 except NotADirectoryError as err:
                     utils.fprint("{} is not a directory.".format(download),
                                  file=self.errfile, color=utils.RED)
-                    os.remove(download)
+                    os.remove((download_dir/download).as_posix())
                 if args.verbose:
                     utils.fprint("Removed download {}".format(download),
                                  file=self.outfile)
