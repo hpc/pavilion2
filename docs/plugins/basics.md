@@ -59,9 +59,9 @@ import subprocess
 # the what it inherits from.
 class SystemName( system_plugins.SystemPlugin ):
 
-    # Every plugin init should take self and nothing else.
+    # Every plugin's init takes self and nothing else.
     # No arguments (other than self) will be passed.
-    def __init__( self ):
+    def __init__(self):
     
         # You MUST call the super classes __init__.
         super().__init__(
@@ -93,7 +93,28 @@ the base class for your actual plugin.
 
 The base class you inherit from determines the type/category of the plugin.
 
-#### Plugin Priorities
+#### Plugin `__init__()`
+Every plugin base class in Pavilion provides an `__init__()` that must be 
+overridden.  This overridden `__init__()` must then call the base class's
+`__init__()` to define the basic properties of the plugin.
+
+```python
+# Every plugin requires a simple __init__ that calls the init of the base
+# plugin class.
+class MyPlugin(plugin_module.PluginBaseClasse):
+    def __init__(self):
+        super().__init__(
+            # Every plugin takes this argument
+            name='myplugin',
+        )
+```
+
+#### Plugin 'name'
+Every Pavilion plugin takes a `name` argument in the base class's `__init__()
+`. Only one plugin with a given `name` is allowed, but conflicts may be 
+resolved using plugin priorities.
+
+#### Plugin 'priority'
 Most plugins have a priority attribute. If two plugins have the same name, 
 this tells Pavilion which one to use. Each priority is an integer (higher is 
 better), so you can define plugins that are between these categories as well.
@@ -107,9 +128,55 @@ __NOTE:__ Unlike with test configs and src, the order of the
 config_directories does not matter when resolving conflicting plugins. See 
 the [plugin priority](#plugin-priorities) section below.
  
-#### Plugin Help
+#### Plugin 'description'
 All plugin types have a `description` attribute to describe the plugins 
 when listed with the appropriate `pav show` command.
+
+## Plugin Initialization
+
+Plugins go through the following steps when initialized. This section details
+those steps to aid in debugging. Failure or exceptions raised in any of these 
+steps should be logged to the Pavilion log.
+
+Note that these steps are followed every time Pavilion runs a command. Most 
+plugin types are lazily evaluated; schedulers won't get scheduler info 
+until we try to scheduler a job, and sys_var plugins won't gather information
+until we try to resolve variables in a config.
+
+#### 1. Plugin Search
+Each of the Pavilion config directories is searched in their `plugins` 
+directory for plugins. For each `.yapsy-plugin` file found, Yapsy will load 
+that plugin configuration. For Pavilion's purposes, only the `Module` config 
+item actually matters.
+
+#### 2. Plugin Module Load
+The value of the plugin's `Module` attribute determines which module (in the 
+same directory) should be loaded to find the Plugin class. If the module file
+is found, Yapsy will load it. 
+
+#### 3. Finding the Plugin Class
+Yapsy will walk through the plugin module's namespace and find the first 
+class that inherits from `yapsy.IPlugin` (or has an ancestor that inherits 
+from it.) Hopefully this is your plugin, as your plugin should inherit from 
+one of the Pavilion plugin base classes which in turn inherit from `IPlugin`. 
+
+__Note 1:__ If you've imported the `IPlugin` class or a Pavilion plugin base 
+class into the module namespace, Yapsy may find that instead. 
+
+__Note 2:__ You may create new plugin base classes or inherit from other 
+plugins, as long as one of the existing Pavilion plugin base classes is an 
+ancestor. 
+
+#### 4. Plugin init
+Yapsy will then create an instance of the plugin class. No useful information
+can or will be passed to `__init__()`. 
+
+#### 5. Plugin activate
+After an instance of a plugin is created, the `.activate()` method is called.
+This will add your plugin to the list of known plugins of its type, and also 
+handles overrides due to priority.
+
+Congratulations, your plugin is now loaded into Pavilion. 
 
 ## Debugging Plugins
 When you write your first plugin, odds are it won't show up when you try to 
@@ -128,6 +195,9 @@ The `Module` option (under `[Core]`) should match your plugin's module name.
 Any errors should show up in your 
 `<working_dir>/pavilion.log`, but in a few cases even that will be silent. 
 Those cases are considered to be bugs, and you should report them.
+
+### Check your `__init__()`
+ - It must take only se
 
 ### Run Your Plugin
 Run your plugin as a python module.
