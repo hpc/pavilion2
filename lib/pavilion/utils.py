@@ -319,20 +319,20 @@ class ANSIStr:
 
 ANSI_ESCAPE_RE = re.compile('\x1b\\[\\d+(;\\d+)*m')
 
-def _plen(string, returnString=False):
+def _plen(string, return_string=False):
     """Get the printable length of the given string."""
 
     # Remove ansi escape codes (only handles graphics mode changes)
     unescaped = ANSI_ESCAPE_RE.sub('', string)
 
-    if returnString:
+    if return_string:
         return unescaped
     else:
         return len(unescaped)
 
 ANSI_ESCAPE_RE_COLOR = re.compile('\x1b\\[(\\d+)(;\\d+)*m')
 
-def _grabColor(string):
+def _grab_color(string):
 
     unescaped = re.search(ANSI_ESCAPE_RE_COLOR, string)
     if unescaped is not None:
@@ -344,7 +344,7 @@ def _grabColor(string):
     else:
         return 'native'
 
-def removeFormatting(content_width, fields, border, pad):
+def remove_formatting(content_width, fields, border, pad):
     # Reduced the effective window width if we have padded dividers.
     if pad:
         offset = 2 * len(fields)
@@ -362,7 +362,7 @@ def removeFormatting(content_width, fields, border, pad):
 
     return content_width
 
-def formattedWidth(width, fields, border, pad):
+def formatted_width(width, fields, border, pad):
 
     if pad:
         offset = 2*len(fields)
@@ -379,10 +379,10 @@ def formattedWidth(width, fields, border, pad):
 
     return width
 
-def getTotalWidth(column_widths, fields, border, pad):
+def get_total_width(column_widths, fields, border, pad):
     # Find the total width of the table.
     total_width = (sum(column_widths.values()))  # column widths
-    total_width = formattedWidth(total_width, fields, border, pad)
+    total_width = formatted_width(total_width, fields, border, pad)
 
     return total_width
 
@@ -490,22 +490,22 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
         if max_widths[field] < min_widths[field]:
             max_widths[field] = min_widths[field]
 
-    totalMax = getTotalWidth(max_widths, fields, border, pad)
-    totalMin = getTotalWidth(min_widths, fields, border, pad)
+    total_max = get_total_width(max_widths, fields, border, pad)
+    total_min = get_total_width(min_widths, fields, border, pad)
 
     # Gets the effective window width.
     window_width = shutil.get_terminal_size().columns
 
     # Makes sure window is at least large enough to display are smallest
     # possible table
-    if totalMin > window_width:
+    if total_min > window_width:
         lines = shutil.get_terminal_size().lines
-        print("\x1b[8;{};{}t".format(lines, totalMin))
-        window_width = totalMin
+        print("\x1b[8;{};{}t".format(lines, total_min))
+        window_width = total_min
 
     # Reduces the effective window width based on formatting, so we know the
     # exact width we have for strictly field entries.
-    window_width = removeFormatting(window_width, fields, border, pad)
+    window_width = remove_formatting(window_width, fields, border, pad)
 
     best_config = []
     combos = []
@@ -544,7 +544,7 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
 
                 for row in rows:
                     wraps = textwrap.TextWrapper(width=column_width)
-                    clean_string = _plen(str(row[fields[i]]), returnString=True)
+                    clean_string = _plen(str(row[fields[i]]), return_string=True)
                     wrap_list = wraps.wrap(text=clean_string)
                     wrap_total = wrap_total + len(wrap_list)
 
@@ -610,8 +610,8 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
         #Creates wrap list that holds list of strings for the wrapped text
         for field in fields:
             my_wrap = textwrap.TextWrapper(width=column_widths[field])
-            clean_string = _plen(row[field], returnString=True)
-            color = _grabColor(row[field])
+            clean_string = _plen(row[field], return_string=True)
+            color = _grab_color(row[field])
             wrap_list = my_wrap.wrap(text=clean_string)
             for i in range(len(wrap_list)):
                 wrap_list[i] = ANSIStr(wrap_list[i], color)
