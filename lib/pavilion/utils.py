@@ -476,13 +476,13 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
         # If user specified ignoring wrapping on a given field, it will set the
         # minimum width equal to the largest entry in that field.
         if 'no_wrap' in field_info[field].keys():
-                min_widths[field] = max_widths[field]
+            min_widths[field] = max_widths[field]
         # If user defined a max width for a given field it overrides the
-        # maxmimum width here. 
+        # maxmimum width here.
         if 'max_width' in field_info[field].keys():
             max_widths[field] = field_info[field]['max_width']
         # If user defined a min width for a given field it overrides the
-        # minimum width here. 
+        # minimum width here.
         if 'min_width' in field_info[field].keys():
             min_widths[field] = field_info[field]['min_width']
         # Ensures that the max width for a given field is always larger or
@@ -493,7 +493,7 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
     totalMax = getTotalWidth(max_widths, fields, border, pad)
     totalMin = getTotalWidth(min_widths, fields, border, pad)
 
-    # Gets the effective window width. 
+    # Gets the effective window width.
     window_width = shutil.get_terminal_size().columns
 
     # Makes sure window is at least large enough to display are smallest
@@ -504,7 +504,7 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
         window_width = totalMin
 
     # Reduces the effective window width based on formatting, so we know the
-    # exact width we have for strictly field entries. 
+    # exact width we have for strictly field entries.
     window_width = removeFormatting(window_width, fields, border, pad)
 
     best_config = []
@@ -513,10 +513,10 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
     for field in fields:
 
         # Get updated max width for a column provided every other column is
-        # at its minimum width. 
+        # at its minimum width.
         max_width = window_width-sum(min_widths.values())+min_widths[field]
 
-        # Only updated if the max_Width is less than current max value. 
+        # Only updated if the max_Width is less than current max value.
         if max_width < max_widths[field]:
             max_widths[field] = max_width
 
@@ -553,14 +553,14 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
             wrap_count = sum(wrap_count)
 
             # Updates minimum wraps with the smallest amount of wraps seen
-            # so far. 
+            # so far.
             if wrap_count <= min_wraps:
                 min_wraps = wrap_count
                 wrap_options.append([combo, wrap_count])
 
         min_col_wrap_list = []
         # Goes through and removes any combination that aren't equal to the
-        # minimum number of wraps. 
+        # minimum number of wraps.
         for config in wrap_options:
             if config[1] == min_wraps:
                 min_col_wrap_list.append(config)
@@ -609,7 +609,7 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
         wraps = {}
         #Creates wrap list that holds list of strings for the wrapped text
         for field in fields:
-            my_wrap = textwrap.TextWrapper(width = column_widths[field])
+            my_wrap = textwrap.TextWrapper(width=column_widths[field])
             clean_string = _plen(row[field], returnString=True)
             color = _grabColor(row[field])
             wrap_list = my_wrap.wrap(text=clean_string)
@@ -634,7 +634,7 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
 
         wrap_rows.append(row)
         #Creates a new row for each line of text required
-        for line in range(1,num_lines):
+        for line in range(1, num_lines):
             wrap_row = {}
             for field in fields:
                 if line >= len(wraps[field]):
@@ -664,4 +664,3 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
         # We may get a broken pipe, especially when the output is piped to
         # something like head. It's ok, just move along.
         pass
-
