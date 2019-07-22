@@ -1,6 +1,0 @@
-# The following number is entirely arbitrary except in that it increases as this
-# software is updated. This should match the most recent numbered git tag that
-# exists prior to the commit you're viewing.
-# If you're looking for a version number, you should be reading VERSION.txt.
-# That is the version number.
-2.0.0
