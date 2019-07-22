@@ -1,5 +1,3 @@
 # Pavilion is currently version 2.0, and will stay at this version until
-# further LANL/DOE releases are approved. You may want to refer to the git tags
-# and the contents of ARBITRARY_NUMBER.txt, as they may contain numbers that
-# increase as this software is updated.
+# further LANL/DOE releases are approved. See RELEASE.txt for a more usefule number.
 2.0

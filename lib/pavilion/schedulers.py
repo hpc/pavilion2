@@ -222,7 +222,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
     :cvar SchedulerVariables VAR_CLASS: The scheduler's variable class.
     """
 
-    PRIO_DEFAULT = 0
+    PRIO_CORE = 0
     PRIO_COMMON = 10
     PRIO_USER = 20
 
@@ -230,7 +230,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
     VAR_CLASS = SchedulerVariables
 
-    def __init__(self, name, description, priority=PRIO_DEFAULT):
+    def __init__(self, name, description, priority=PRIO_CORE):
         """Scheduler plugin that is expected to be overriden by subclasses.
         The plugin will populate a set of expected 'sched' variables."""
 

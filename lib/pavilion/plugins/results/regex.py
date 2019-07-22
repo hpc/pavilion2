@@ -9,7 +9,9 @@ class Regex(result_parsers.ResultParser):
     or strings are returned as the result."""
 
     def __init__(self):
-        super().__init__(name='regex')
+        super().__init__(name='regex',
+                         description="Find data using a basic regular "
+                                     "expression.")
         self.range_re = re.compile('(-?[0-9]*\.?[0-9]*)-(-?.*)')
 
     def get_config_items(self):
