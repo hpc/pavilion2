@@ -85,17 +85,17 @@ class ModuleWrapper(IPlugin.IPlugin):
     EMOD = 'emod'
     NONE = 'none'
 
-    PRIO_DEFAULT = 0
+    PRIO_CORE = 0
     PRIO_COMMON = 10
     PRIO_USER = 20
 
     NAME_VERS_RE = re.compile(r'^[a-zA-Z0-9_.-]+$')
 
-    def __init__(self, name, help_text, version=None, priority=PRIO_DEFAULT):
+    def __init__(self, name, description, version=None, priority=PRIO_COMMON):
         """Initialize the module wrapper instance. This must be overridden in
         plugin as the plugin system can't handle the arguments
         :param str name: The name of the module being wrapped.
-        :param str help_text: A description of this wrapper.
+        :param str description: A description of this wrapper.
         :param str version: The version of module file to wrap. None denotes a
             wild version or a version-less modulefile.
         :param int priority: The priority of this wrapper. It will replace
@@ -112,7 +112,7 @@ class ModuleWrapper(IPlugin.IPlugin):
 
         self.name = name
         self._version = version
-        self.help_text = help_text
+        self.help_text = description
         self.priority = priority
 
     def get_version(self, requested_version):
