@@ -263,6 +263,7 @@ def output_csv(outfile, field_info, fields, rows):
 
 class ANSIStr:
     MODES = {
+        'native':       '',
         'black':        30,
         'red':          31,
         'green':        32,
@@ -342,7 +343,7 @@ def _grabColor(string):
             if c_code == color_code:
                 return color
     else:
-        return 'white'
+        return 'native'
 
 def removeFormatting(content_width, fields, border, pad):
     # Reduced the effective window width if we have padded dividers. 
