@@ -345,13 +345,13 @@ def _grabColor(string):
         return 'native'
 
 def removeFormatting(content_width, fields, border, pad):
-    # Reduced the effective window width if we have padded dividers. 
+    # Reduced the effective window width if we have padded dividers.
     if pad:
         offset = 2 * len(fields)
         offset = offset + len(fields) - 1
         content_width = content_width - offset
 
-    # Reduce the effective window width for non padded dividers. 
+    # Reduce the effective window width for non padded dividers.
     else:
         offset = len(fields) - 1
         content_width = content_width - offset
@@ -386,7 +386,8 @@ def getTotalWidth(column_widths, fields, border, pad):
 
     return total_width
 
-def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=None):
+def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
+               title=None):
     """Prints a table from the given data, setting column width as needed.
     :param outfile: The output file to write to.
     :param field_info: Should be a dictionary of field names where the value
@@ -463,9 +464,9 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
             formatted_row[field] = data
         formatted_rows.append(formatted_row)
 
-    # Gets dictionary with largest width, and smallest width for each field. 
+    # Gets dictionary with largest width, and smallest width for each field.
     # Also updates the default column_Widths dictionary to hold the max values
-    # for each column. 
+    # for each column.
     min_widths = {field: min(widths) for field, widths in column_widths.items()}
     max_widths = {field: max(widths) for field, widths in column_widths.items()}
     column_widths = {field: max(widths) for field, widths in
