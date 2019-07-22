@@ -7,8 +7,8 @@ class HostName( system_plugins.SystemPlugin ):
     def __init__( self ):
         super().__init__(
             plugin_name='host_name',
-            help_text="The target host's hostname.",
-            priority=self.PRIO_DEFAULT,
+            description="The target host's hostname.",
+            priority=self.PRIO_CORE,
             is_deferable=True,
             sub_keys=None)
 
