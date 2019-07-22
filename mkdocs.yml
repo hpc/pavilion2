@@ -1,12 +1,12 @@
 site_name: Pavilion
-copyright: Copyright © 2015, Los Alamos National Laboratory. All Rights Reserved.
+copyright: © Copyright Triad National Security, LLC. All Rights Reserved.
 theme:
     name: readthedocs
 nav:
     - Home: index.md
     - Development Guidelines: DevelopmentGuidelines.md 
     - Setup:
-        - Installing Pavilion: INSTALL.md
+        - Installing Pavilion: install.md
         - Configuring Pavilion: config.md
     - Usage:
         - Pavilion Basic Usage: basic.md
@@ -21,8 +21,9 @@ nav:
         - Variables: tests/variables.md
         - Permutations: index.md
     - Plugins and Customization:
-        - System Variables: index.md
-        - Module Wrappers: index.md
+        - Basics: plugins/basics.md
+        - System Variables: plugins/sys_vars.md
+        - Module Wrappers: plugins/module_wrappers.md
         - Result Parsers: index.md
         - Schedulers: index.md
         - Commands: plugins/commands.md

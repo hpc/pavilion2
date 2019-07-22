@@ -24,7 +24,7 @@ test results, and more.
 ## Contents
  - [Home](index.md)
  - Setup
-     - [Installation](INSTALL.md)
+     - [Installation](install.md)
      - [Configuring Pavilion](config.md)
  - Usage
      - [Pavilion Basic Usage](basic.md)
@@ -40,8 +40,8 @@ test results, and more.
      - Permutations
      - Documentation
  - Plugins and Customization
-     - System Variables
-     - Module Wrappers
+     - [System Variables](plugins/sys_vars.md)
+     - [Module Wrappers](plugins/module_wrappers.md)
      - Result Parsers
      - Schedulers
      - [Commands](plugins/commands.md)

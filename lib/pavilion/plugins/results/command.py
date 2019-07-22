@@ -1,7 +1,5 @@
 from pavilion import result_parsers
 import yaml_config as yc
-import re
-import os
 import subprocess
 
 
@@ -9,7 +7,11 @@ class Command(result_parsers.ResultParser):
     """Runs a given command."""
 
     def __init__(self):
-        super().__init__(name='command')
+        super().__init__(
+            name='command',
+            description="Runs a command, and uses it's output or return "
+                        "values as a result value."
+        )
 
     def get_config_items(self):
 

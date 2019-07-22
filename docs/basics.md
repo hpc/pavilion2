@@ -1,4 +1,56 @@
-# Pavilion Basic Usage
+# Pavilion
+
+
+LA-CC-15-041
+
+Pavilion is a Python 3 (3.4+) based framework for running and analyzing 
+tests targeting HPC systems. It provides a rich YAML-based configuration 
+system for wrapping test codes and running them against various systems.
+The vast majority of the system is pluggable, giving users the ability
+to modify Pavilion's operation via easy to write plugins. This includes
+components for gathering system data, adding additional schedulers, parsing 
+test results, and more.
+
+## Project goals:
+ - Robust testing in postDST, automated, and acceptance testing
+ (system validation) scenarios.
+ - End-to-end status tracking for all tests.
+ - Simple, powerful test configuration language.
+ - System agnostic test configs.
+   - Hide common platform and environment idiosyncrasies from tests.
+   - System specific defaults.
+ - Eliminate unnecessary build repetition.
+ - Extreme extensibility (plugins everywhere). 
+
+## Contents
+ - [Basic Usage](#basic-usage)
+ - [Advanced Usage](advanced.md)
+ - [Installation](install.md)
+   - [Configuring Pavilion](config.md)
+     - [Config Directories](config.md#config-directories)
+ - [Writing Tests](tests/basics.md)
+   - [Building](tests/build.md)
+   - [Running](tests/run.md)
+   - [Environment](tests/env.md)
+   - [Scheduling](tests/sched.md)
+   - [Results](tests/results.md)
+   - [Variables](tests/variables.md)
+   - [Permutations](tests/)
+   - [Documentation](tests/docs.md)
+ - [Plugins and Customization](plugins/basics.md)
+   - [System Variables](plugins/sys_vars.md)
+   - [Module Wrappers](plugins/module_wrappers.md)
+   - [Result Parsers](plugins/result_parsers.md)
+   - [Schedulers](plugins/schedulers.md)
+   - [Commands](plugins/commands.md)
+ - [License](LICENSE.md)
+
+## Basic Usage
+ - [Setup](#setup)
+ - [Configuring Tests](#configure-tests)
+ - [Running Tests](#running-tests)
+ - [Test Status](#test-status)
+ - [Test Results](#test-results)
 
 ### Setup
 *See the [install docs](install.md) if you need to install Pavilion*
@@ -19,7 +71,7 @@ pav --help
 Pavilion doesn't come with any tests itself, it's just a system for running 
 them on HPC clusters. Each test needs a configuration script, and most will 
 need some source files. Both of these will live in one of your [config 
-directories](config.md) under the `tests/` and `test_src/` 
+directories](config.md#config-directories) under the `tests/` and `test_src/` 
 sub-directories. 
 
 Test configs tell pavilion what environment it needs to build and run your 
@@ -72,7 +124,7 @@ kicked off on a host with a hostname of `my_host`. Pavilion uses the contents
  provided via a built-in
   [system variable plugin](plugins/sys_vars.md). 
  This behaviour can be overridden by providing your own sys_var plugin, which
-  is especially useful on clusters with multiple frontends.
+  is especially useful on clusters with multiple front-ends.
 
 #### Mode Configs
 In addition to host config files, you can provide mode config files that you 
@@ -148,7 +200,7 @@ From the above, you may have noticed that each test gets a series id like `s24`
 and a test id like `41`. You can use these id's to reference tests or suites 
 of tests to get their status, results, and logs through the pavilion 
 interface. The ID's are unique for a given Pavilion
-[working_directory](docs/working_dir.md), but they will get reused as old 
+[working_directory](working_dir.md), but they will get reused as old 
 tests are cleaned up.
 
 ### Test Results
@@ -156,7 +208,7 @@ tests are cleaned up.
 Pavilion builds a mapping of result keys and values for every test that runs.
  You can view the results of any tests using the `pav results` command.
  
-```bash
+ ```bash
  $ pav results 
  Test Results             
 ------------+----+--------

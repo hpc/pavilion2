@@ -88,7 +88,7 @@ updates, and new versions are downloaded as necessary. Downloaded files
 are then treated as an archive or regular file as above.
 
 File downloads depend on the Python __requests__ library 
-[dependency](../INSTALL.md) being installed.
+[dependency](../install.md) being installed.
 
 #### source_download_name
 When downloading source, we by default use the last of the url path as the 
