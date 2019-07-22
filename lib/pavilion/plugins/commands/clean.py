@@ -65,7 +65,7 @@ class CleanCommand(commands.Command):
         dependent_builds = []
         incomplete_tests = []
         # Clean Tests
-        utils.fprint("Removing Test Directories...", file=self.outfile,
+        utils.fprint("Removing Tests...", file=self.outfile,
                      color=utils.GREEN)
         for test in os.listdir(tests_dir.as_posix()):
             test_time = datetime.fromtimestamp(
@@ -93,7 +93,7 @@ class CleanCommand(commands.Command):
 
         # Clean Series
         completed_series = True
-        utils.fprint("Removing Series Directories...", file=self.outfile,
+        utils.fprint("Removing Series...", file=self.outfile,
                      color=utils.GREEN)
         for series in os.listdir(series_dir.as_posix()):
             series_time = datetime.fromtimestamp(
@@ -112,7 +112,7 @@ class CleanCommand(commands.Command):
                                  file=self.outfile)
 
         # Clean Downloads
-        utils.fprint("Removing Download Directories...", file=self.outfile,
+        utils.fprint("Removing Downloads...", file=self.outfile,
                      color=utils.GREEN)
         for download in os.listdir(download_dir.as_posix()):
             download_time = datetime.fromtimestamp(
@@ -123,12 +123,7 @@ class CleanCommand(commands.Command):
                 except NotADirectoryError as err:
                     utils.fprint("{} is not a directory.".format(download),
                                  file=self.errfile, color=utils.RED)
-                    try:
-                        os.remove(download)
-                    except FileNotFoundError as err:
-                        utils.fprint("{} could not be found.".format(download),
-                                     file=self.errfile, color=utils.RED)
-                        continue
+                    os.remove(download)
                 if args.verbose:
                     utils.fprint("Removed download {}".format(download),
                                  file=self.outfile)
