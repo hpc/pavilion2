@@ -1,13 +1,13 @@
-from pavilion.pav_test import PavTest, PavTestError, PavTestNotFoundError
-from pavilion import utils
-from pathlib import Path
 import logging
 import os
+
+from pavilion import utils
+from pavilion.pav_test import PavTest, PavTestError, PavTestNotFoundError
 
 
 class TestSeriesError(RuntimeError):
     """An error in managing a series of tests."""
-    pass
+
 
 def test_obj_from_id(pav_cfg, test_ids):
     """Return the test object(s) associated with the id(s) provided.
@@ -26,7 +26,7 @@ def test_obj_from_id(pav_cfg, test_ids):
         try:
             test = PavTest.load(pav_cfg, test_id)
             test_obj_list.append(test)
-        except (PavTestError, PavTestNotFoundError) as err:
+        except (PavTestError, PavTestNotFoundError):
             test_failed_list.append(test_id)
 
     return (test_obj_list, test_failed_list)
@@ -57,7 +57,7 @@ class TestSeries:
         if _id is None:
             # Get the series id and path.
             try:
-                self._id, self.path = utils.create_id_dir(series_path)
+                self._id, self.path = PavTest.create_id_dir(series_path)
             except (OSError, TimeoutError) as err:
                 raise TestSeriesError(
                     "Could not get id or series directory in '{}': {}"
@@ -84,7 +84,7 @@ class TestSeries:
         self._logger = logging.getLogger(self.LOGGER_FMT.format(self._id))
 
     @property
-    def id(self):
+    def id(self):  # pylint: disable=invalid-name
         """Return the series id as a string, with an 's' in the front to
         differentiate it from test ids."""
 
@@ -110,15 +110,14 @@ class TestSeries:
                     test_id = int(link_path.name)
                 except ValueError:
                     logger.info(
-                        "Bad test id in series from dir '{}'"
-                        .format(link_path))
+                        "Bad test id in series from dir '%s'",
+                        link_path)
                     continue
 
                 tests.append(PavTest.load(pav_cfg, test_id=test_id))
             else:
-                logger.info(
-                    "Polluted series directory in series '{}'"
-                    .format(series_path))
+                logger.info("Polluted series directory in series '%s'",
+                            series_path)
                 raise ValueError(link_path)
 
         return cls(pav_cfg, tests, _id=id_)
@@ -137,8 +136,8 @@ class TestSeries:
                 last_series_file.write(self.id)
         except (IOError, OSError):
             # It's ok if we can't write this file.
-            self._logger.warning("Could not save series id to '{}'"
-                                 .format(last_series_fn))
+            self._logger.warning("Could not save series id to '%s'",
+                                 last_series_fn)
 
     @classmethod
     def load_user_series_id(cls, pav_cfg):
@@ -154,12 +153,12 @@ class TestSeries:
             with last_series_fn.open() as last_series_file:
                 return last_series_file.read().strip()
         except (IOError, OSError) as err:
-            logger.warning("Failed to read series id file '{}': {}"
-                           .format(last_series_fn, err))
+            logger.warning("Failed to read series id file '%s': %s",
+                           last_series_fn, err)
             return None
 
     @property
-    def ts(self):
+    def timestamp(self):
         """Return the unix timestamp for this series, based on the last
         modified date for the test directory."""
         # Leave it up to the caller to deal with time properly.

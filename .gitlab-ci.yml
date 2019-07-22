@@ -1,0 +1,24 @@
+before_script:
+    # Pavilion tests should be run as a normal user, both to find bugs, and
+    # because it's generally expected to be run that way.
+    - groupadd pav_tester
+    - useradd -G pav_tester -m pav 
+    - git submodule sync --recursive
+    - git submodule update --init --recursive
+
+run_tests:
+    tags:
+        - pavilion
+    image: pavilion
+    script:
+        # The original is put in place by docker
+        - cp /usr/share/pavilion.yaml $CI_PROJECT_DIR/test/data/pav_config_dir/pavilion.yaml
+        # Make sure the permissions are readible in the pav project dir.
+        - chmod g+rX $CI_PROJECT_DIR
+        - chgrp -R pav_tester $CI_PROJECT_DIR
+        - pushd $CI_PROJECT_DIR/test
+        # Pavilion will think /root is the home otherwise.
+        - export HOME=/home/pav
+        # Run the tests as the pav user, with the current environment.
+        - sudo -u pav ./run_tests
+

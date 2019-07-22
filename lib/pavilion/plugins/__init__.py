@@ -1,12 +1,12 @@
+import logging
 from pathlib import Path
+
 from pavilion.commands import Command
 from pavilion.module_wrapper import ModuleWrapper
 from pavilion.result_parsers import ResultParser
 from pavilion.schedulers import SchedulerPlugin
 from pavilion.system_variables import SystemPlugin as System
 from yapsy import PluginManager
-from yapsy import log as yapsy_log
-import logging
 
 LOGGER = logging.getLogger('plugins')
 
@@ -42,7 +42,7 @@ def initialize_plugins(pav_cfg):
     :raises RuntimeError: When you try to run this twice.
     """
 
-    global _PLUGIN_MANAGER
+    global _PLUGIN_MANAGER  # pylint: disable=W0603
 
     if _PLUGIN_MANAGER is not None:
         LOGGER.warning("Tried to initialize plugins multiple times.")
@@ -101,12 +101,12 @@ def _reset_plugins():
 
     import inspect
 
-    global _PLUGIN_MANAGER
+    global _PLUGIN_MANAGER  # pylint: disable=W0603
 
     _PLUGIN_MANAGER = None
 
-    for cat, cat_obj in PLUGIN_CATEGORIES.items():
+    for _, cat_obj in PLUGIN_CATEGORIES.items():
         module = inspect.getmodule(cat_obj)
 
         if hasattr(module, '__reset'):
-            module.__reset()
+            module.__reset()  # pylint: disable=W0212

@@ -6,6 +6,7 @@ import logging
 def var_method(func):
     """This decorator marks the given function as a scheduler variable. The
     function must take no arguments (other than self)."""
+    # pylint: disable=W0212
 
     # The scheduler plugin class will search for these.
     func._is_var_method = True
@@ -105,6 +106,6 @@ class VarDict(UserDict):
 
         return {
             'name': key,
-            'deferred': func._is_deferable,
+            'deferred': func._is_deferable,  # pylint: disable=W0212
             'help': help_text,
         }

@@ -1,8 +1,9 @@
+import sys
+
 from pavilion import commands
 from pavilion import series
 from pavilion.pav_test import PavTest, PavTestError, PavTestNotFoundError
 from pavilion import utils
-import sys
 
 
 class ResultsCommand(commands.Command):
@@ -39,20 +40,18 @@ class ResultsCommand(commands.Command):
             help="The tests to show the results for."
         )
 
-    def run(self, pav_config, args):
+    def run(self, pav_cfg, args, out_file=sys.stdout, err_file=sys.stderr):
 
-        test_ids = self._get_tests(pav_config, args.tests)
+        test_ids = self._get_tests(pav_cfg, args.tests)
 
         tests = []
         for id_ in test_ids:
             try:
-                tests.append(PavTest.load(pav_config, id_))
+                tests.append(PavTest.load(pav_cfg, id_))
             except PavTestError as err:
-                self.logger.warning("Could not load test '{}': {}"
-                                    .format(id_, err))
+                self.logger.warning("Could not load test %s - %s", id_, err)
             except PavTestNotFoundError as err:
-                self.logger.warning("Could not find test '{}': {}"
-                                    .format(id_, err))
+                self.logger.warning("Could not find test %s - %s", id_, err)
 
         results = []
         for test in tests:
@@ -72,7 +71,8 @@ class ResultsCommand(commands.Command):
 
         all_keys = list(all_keys.difference(['result', 'name', 'id']))
         # Sort the keys by the size of the data
-        all_keys.sort(key=lambda k: max([len(res[k]) for res in results]))
+        # all_keys.sort(key=lambda k: max([len(res[k]) for res in results]))
+        all_keys.sort(key=lambda k: max([len(res) for res in results]))
 
         if args.json:
             utils.json_dump(results, self.outfile)
@@ -108,8 +108,7 @@ class ResultsCommand(commands.Command):
                             int(test_id[1:])).tests)
                 except series.TestSeriesError as err:
                     self.logger.warning(
-                        "Suite {} could not be found.\n{}"
-                            .format(test_id[1:], err),
+                        "Suite %s could not be found.\n%s", test_id[1:], err
                     )
                     continue
             else:

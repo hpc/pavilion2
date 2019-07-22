@@ -1,12 +1,14 @@
-from . import string_parser
-from . import variables
-from .format import TestConfigError, KEY_NAME_RE
-from .format import TestConfigLoader, TestSuiteLoader
-from collections import defaultdict
-from yaml_config import RequiredError
 import copy
 import logging
 import os
+from collections import defaultdict
+
+from yaml_config import RequiredError
+from yc_yaml import YAMLError
+from . import string_parser
+from . import variables
+from .file_format import TestConfigError, KEY_NAME_RE
+from .file_format import TestConfigLoader, TestSuiteLoader
 
 # Config file types
 CONF_HOST = 'hosts'
@@ -63,9 +65,18 @@ def find_all_tests(pav_cfg):
                 # It's ok if the tests aren't completely validated. They
                 # may have been written to require a real host/mode file.
                 with file.open('r') as suite_file:
-                    suite_cfg = TestSuiteLoader().load(suite_file,
-                                                       partial=True)
-                suite_name = file.stem
+                    suite_name = file.stem
+                    try:
+                        suite_cfg = TestSuiteLoader().load(suite_file,
+                                                           partial=True)
+                    except (
+                            TypeError,
+                            KeyError,
+                            ValueError,
+                            YAMLError,
+                    ) as err:
+                        suites[suite_name]['err'] = err
+                        continue
 
                 if suite_name not in suites:
                     suites[suite_name] = {
@@ -85,7 +96,7 @@ def find_all_tests(pav_cfg):
                         suite_cfg=suite_cfg,
                         suite_path=file
                     )
-                except Exception as err:
+                except Exception as err:  # pylint: disable=W0703
                     suites[suite_name]['err'] = err
                     continue
 
@@ -141,6 +152,11 @@ def load_test_configs(pav_cfg, host, modes, tests):
                 raise TestConfigError(
                     "Host config '{}' has an invalid key. {}"
                     .format(host_cfg_path, err))
+            except YAMLError as err:
+                raise TestConfigError(
+                    "Host config '{}' has a YAML Error: {}"
+                    .format(host_cfg_path, err)
+                )
             except TypeError as err:
                 # All config elements in test configs must be strings, and just
                 # about everything converts cleanly to a string.
@@ -172,6 +188,11 @@ def load_test_configs(pav_cfg, host, modes, tests):
             raise TestConfigError(
                 "Mode config '{}' has an invalid key. {}"
                 .format(mode_cfg_path, err))
+        except YAMLError as err:
+            raise TestConfigError(
+                "Mode config '{}' has a YAML Error: {}"
+                .format(mode_cfg_path, err)
+            )
         except TypeError as err:
             # All config elements in test configs must be strings, and just
             # about everything converts cleanly to a string.
@@ -180,7 +201,7 @@ def load_test_configs(pav_cfg, host, modes, tests):
                 "should never happen. {}".format(mode_cfg_path, err))
 
     # A dictionary of test suites to a list of subtests to run in that suite.
-    all_tests = defaultdict(lambda: dict())
+    all_tests = defaultdict(dict)
     picked_tests = []
     test_suite_loader = TestSuiteLoader()
 
@@ -273,7 +294,7 @@ def resolve_inheritance(base_config, suite_cfg, suite_path):
     test_config_loader = TestConfigLoader()
 
     # Organize tests into an inheritance tree.
-    depended_on_by = defaultdict(lambda: list())
+    depended_on_by = defaultdict(list)
     # All the tests for this suite.
     suite_tests = {}
     # A list of tests whose parent's have had their dependencies
@@ -287,7 +308,12 @@ def resolve_inheritance(base_config, suite_cfg, suite_path):
         else:
             depended_on_by[test_cfg['inherits_from']].append(test_cfg_name)
 
-        suite_tests[test_cfg_name] = TestConfigLoader().normalize(test_cfg)
+        try:
+            suite_tests[test_cfg_name] = TestConfigLoader().normalize(test_cfg)
+        except (TypeError, KeyError, ValueError) as err:
+            raise TestConfigError(
+                "Test {} in suite {} has an error: {}"
+                .format(test_cfg_name, suite_path, err))
 
     # Add this so we can cleanly depend on it.
     suite_tests['__base__'] = base_config
@@ -337,6 +363,11 @@ def resolve_inheritance(base_config, suite_cfg, suite_path):
             raise TestConfigError(
                 "Test {} in suite {} has an invalid key. {}"
                 .format(test_name, suite_path, err))
+        except YAMLError as err:
+            raise TestConfigError(
+                "Test {} in suite {} has a YAML Error: {}"
+                .format(test_name, suite_path, err)
+            )
         except TypeError as err:
             # See the same error above when loading host configs.
             raise RuntimeError(
@@ -365,8 +396,8 @@ def _apply_overrides(test_cfg, overrides, _first_level=True):
 
     for key in overrides.keys():
         if _first_level and key in NOT_OVERRIDABLE:
-            LOGGER.warning("You can't override the '{}' key in a test config."
-                           .format(key))
+            LOGGER.warning("You can't override the '%s' key in a test config.",
+                           key)
             continue
 
         if key not in test_cfg:
@@ -519,7 +550,7 @@ def _get_used_per_vars(component, var_man):
     used_per_vars = set()
 
     if isinstance(component, dict):
-        for key in component.keys():
+        for key in sorted(component.keys()):
             try:
                 used_per_vars = used_per_vars.union(
                     _get_used_per_vars(component[key], var_man))
@@ -536,7 +567,10 @@ def _get_used_per_vars(component, var_man):
 
     elif isinstance(component, string_parser.PavString):
         for var in component.variables:
-            var_set, var, idx, sub = var_man.resolve_key(var)
+            try:
+                var_set, var, idx, _ = var_man.resolve_key(var)
+            except KeyError:
+                continue
 
             # Grab just 'per' vars. Also, if per variables are used by index,
             # we just resolve that value normally rather than permuting over
