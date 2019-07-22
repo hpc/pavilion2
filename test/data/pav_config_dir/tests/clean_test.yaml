@@ -5,7 +5,7 @@ another:
     run:
         cmds:
             - echo "Running World"
-    scheduler: "slurm"
+    scheduler: "raw"
 
 stupid:
     build:
@@ -15,9 +15,9 @@ stupid:
         cmds:
             - echo "Running World"
 
-    scheduler: "slurm"
+    scheduler: "raw"
 
 test:
     inherits_from: stupid
 
-    scheduler: "slurm"
+    scheduler: "raw"
