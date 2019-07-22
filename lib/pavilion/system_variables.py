@@ -156,7 +156,13 @@ class SystemPlugin(IPlugin.IPlugin):
                                               sub_keys=self.sub_keys)
 
         if self.values is None:
-            self.values = self._get()
+            try:
+                self.values = self._get()
+            except Exception as err:
+                raise SystemPluginError(
+                    "Error getting value for system plugin {s.name}: {err}"
+                    .format(s=self, err=err)
+                )
 
         return self.values
 
