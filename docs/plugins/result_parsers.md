@@ -4,7 +4,9 @@ This page is an overview of result parser plugins and how to write them.
 
 ## Writing Result Parser Plugins
 
-A result parser in Pavilion is made up of two seperate parts, the [source code](#writing-the-source) and the [yapsy-plugin](#writing-the-yapsy-plugin).
+Like all [Pavilion plugins](basics.md) A result parser in Pavilion is made up
+the [source module](#writing-the-source) and the 
+[yapsy-plugin](basics.md#).
 
 #### Writing the Source
 
