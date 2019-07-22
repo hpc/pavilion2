@@ -544,7 +544,8 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
 
                 for row in rows:
                     wraps = textwrap.TextWrapper(width=column_width)
-                    clean_string = _plen(str(row[fields[i]]), return_string=True)
+                    clean_string = _plen(str(row[fields[i]]),
+                                         return_string=True)
                     wrap_list = wraps.wrap(text=clean_string)
                     wrap_total = wrap_total + len(wrap_list)
 
