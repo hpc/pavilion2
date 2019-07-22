@@ -6,8 +6,8 @@ class HostArch(system_plugins.SystemPlugin):
     def __init__(self):
         super().__init__(
             plugin_name='host_arch',
-            help_text="The current host's architecture.",
-            priority=self.PRIO_DEFAULT,
+            description="The current host's architecture.",
+            priority=self.PRIO_CORE,
             is_deferable=True,
             sub_keys=None)
 
