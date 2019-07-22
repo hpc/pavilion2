@@ -33,7 +33,7 @@ test results, and more.
      - [Basics](tests/basics.md)
      - [Building](tests/build.md)
      - [Running](tests/run.md)
-     - Environment
+     - [Environment](tests/env.md)
      - Scheduling
      - [Results](tests/results.md)
      - [Variables](tests/variables.md)
