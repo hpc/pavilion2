@@ -627,7 +627,10 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True, title=
 
         #Populates current row with the first wrap
         for field in fields:
-            row[field] = wraps[field][0]
+            try:
+                row[field] = wraps[field][0]
+            except IndexError as err:
+                continue
 
         wrap_rows.append(row)
         #Creates a new row for each line of text required
