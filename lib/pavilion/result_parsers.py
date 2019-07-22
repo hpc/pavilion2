@@ -434,14 +434,14 @@ def parse_results(test, results):
                 except (IOError, PermissionError, OSError) as err:
                     errors.append({
                         'result_parser': parser_name,
-                        'file': path,
+                        'file': str(path),
                         'key': key,
                         'msg': "Error reading file: {}".format(err)})
                     continue
                 except Exception as err:  # pylint: disable=W0703
                     errors.append({
                         'result_parser': parser_name,
-                        'file': path,
+                        'file': str(path),
                         'key': key,
                         'msg': "Unexpected Error: {}".format(err)})
                     continue
@@ -509,9 +509,9 @@ def parse_results(test, results):
 
                 for fname, value in presults.items():
                     if per_file == PER_FULLNAME:
-                        name = fname.name
+                        name = str(fname.name)
                     else:
-                        name = fname.stem
+                        name = str(fname.stem)
 
                     if name not in per_dict:
                         per_dict[name] = dict()
@@ -520,7 +520,7 @@ def parse_results(test, results):
                             name not in per_error_keys):
                         errors.append({
                             'result_parser': parser_name,
-                            'file': fname,
+                            'file': str(fname),
                             'key': key,
                             'msg': "Duplicate file key '{}' matched by {}"
                                    .format(name, per_file)})

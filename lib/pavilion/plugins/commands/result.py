@@ -71,7 +71,8 @@ class ResultsCommand(commands.Command):
 
         all_keys = list(all_keys.difference(['result', 'name', 'id']))
         # Sort the keys by the size of the data
-        all_keys.sort(key=lambda k: max([len(res[k]) for res in results]))
+        # all_keys.sort(key=lambda k: max([len(res[k]) for res in results]))
+        all_keys.sort(key=lambda k: max([len(res) for res in results]))
 
         if args.json:
             utils.json_dump(results, self.outfile)

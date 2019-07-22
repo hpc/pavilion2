@@ -82,6 +82,7 @@ quote_example:
 
 ```bash
 #/bin/bash
+
 export DQUOTED="This will be in double quotes. It is a literal string as far as YAML is concerned."
 export SQUOTED='This $VAR will not be resolved in bash, because this is single quoted.'
 export DDQUOTED="Double quotes to escape them." 
@@ -146,4 +147,3 @@ loaded (or unloaded).
 
 For more information on writing these, see 
 [Module Wrapper Plugins](../plugins/module_wrappers.md).
-

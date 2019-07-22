@@ -72,4 +72,3 @@ class LogCmdTest(PavTestCase):
         self.assertEqual(out.read(), '')
         self.assertEqual(err.read(), '')
         self.assertEqual(result, 0)
-
