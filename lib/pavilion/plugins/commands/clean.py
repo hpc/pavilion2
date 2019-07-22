@@ -76,7 +76,7 @@ class CleanCommand(commands.Command):
             except (PavTestError, PavTestNotFoundError) as err:
                 utils.fprint("Removing bad test directory {}".format(test),
                              file=self.outfile)
-                shutil.rmtree(test_dir.as_posix())
+                shutil.rmtree(tests_dir.as_posix())
                 continue
             if test_time < cutoff_date and status != STATES.RUNNING \
                                        and status != STATES.SCHEDULED:
