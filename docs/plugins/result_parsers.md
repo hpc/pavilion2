@@ -1,4 +1,4 @@
-#Pavilion Result Parser Plugins
+# Pavilion Result Parser Plugins
 
 This page is an overview of result parser plugins and how to write them.
 
@@ -94,5 +94,5 @@ have any elements is the following:
 ```python
 def __call__(self, test, file):
     return 0
-```dbg_print(str(tests_only))
+```
 
