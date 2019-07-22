@@ -11,8 +11,6 @@ from pavilion.utils import dbg_print
 
 
 def get_latest_tests_mtime(pav_cfg, limit):
-    # returns a dictionary of all the test directories
-    # and their mtime (test: mtime)
 
     top_dir = str(pav_cfg.working_dir/'tests')
     test_folders_list = os.listdir(top_dir)
@@ -24,9 +22,7 @@ def get_latest_tests_mtime(pav_cfg, limit):
 
     sorted_test_dir = sorted(test_dir_dict.items(), key=lambda kv: kv[1])
     last_tests = sorted_test_dir[-limit:]
-    #dbg_print(str(last_tests))
     tests_only = [int(i[0]) for i in last_tests]
-    #dbg_print(str(tests_only))
     return tests_only
 
 def status_from_test_obj(pav_cfg, test_obj):
