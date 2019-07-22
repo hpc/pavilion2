@@ -529,6 +529,7 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
         # size if table width was the reason for wrapping
         if sum(combo) == window_width:
             combos.append(list(combo))
+
     if combos:
         # Calculates the max number of wraps for a given column width
         # combination.
