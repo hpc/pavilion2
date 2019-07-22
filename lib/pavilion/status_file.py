@@ -1,4 +1,3 @@
-from pathlib import Path
 import datetime
 import logging
 import os
@@ -137,7 +136,7 @@ class StatusFile:
 
     def __init__(self, path):
         """Create the status file object.
-        :param Path path: The path to the status file.
+        :param pathlib.Path path: The path to the status file.
         """
 
         if isinstance(path, str):
@@ -145,7 +144,7 @@ class StatusFile:
 
         self.path = path
 
-        self.tz = tzlocal.get_localzone()
+        self.timezone = tzlocal.get_localzone()
 
         if not self.path.is_file():
             # Make sure we can open the file, and create it if it doesn't exist.
@@ -175,8 +174,9 @@ class StatusFile:
                 status.when = datetime.datetime.strptime(parts.pop(0),
                                                          self.TIME_FORMAT)
             except ValueError as err:
-                self.LOGGER.warning("Bad date in log line '{}' in file '{}': {}"
-                                    .format(line, self.path, err))
+                self.LOGGER.warning(
+                    "Bad date in log line '%s' in file '%s': %s",
+                    line, self.path, err)
 
         if parts:
             status.state = parts.pop(0)
@@ -231,7 +231,7 @@ class StatusFile:
         :param note: A note about this particular instance of the state.
         """
 
-        when = self.tz.localize(datetime.datetime.now())
+        when = self.timezone.localize(datetime.datetime.now())
         when = when.strftime(self.TIME_FORMAT)
 
         # If we were given an invalid status, make the status invalid but add
@@ -255,6 +255,6 @@ class StatusFile:
 
     def __eq__(self, other):
         return (
-            type(self) == type(other) and
+            isinstance(self, type(other)) and
             self.path == other.path
         )

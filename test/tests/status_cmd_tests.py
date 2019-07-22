@@ -4,7 +4,7 @@ from pavilion import schedulers
 from pavilion import status_file
 from pavilion import system_variables
 from pavilion.series import TestSeries
-from pavilion.test_config import format
+from pavilion.test_config import file_format
 from pavilion.unittest import PavTestCase
 from pavilion.pav_test import PavTest
 from pavilion.plugins.commands import status
@@ -43,7 +43,7 @@ class StatusCmdTests(PavTestCase):
     def test_status_command(self):
         """Test status command by generating a suite of tests."""
 
-        config1 = format.TestConfigLoader().validate({
+        config1 = file_format.TestConfigLoader().validate({
             'scheduler': 'raw',
             'run': {
                 'env': {
@@ -55,7 +55,7 @@ class StatusCmdTests(PavTestCase):
 
         config1['name'] = 'run_test0'
 
-        config2 = format.TestConfigLoader().validate({
+        config2 = file_format.TestConfigLoader().validate({
             'scheduler': 'raw',
             'run': {
                 'env': {
@@ -67,7 +67,7 @@ class StatusCmdTests(PavTestCase):
 
         config2['name'] = 'run_test1'
 
-        config3 = format.TestConfigLoader().validate({
+        config3 = file_format.TestConfigLoader().validate({
             'scheduler': 'raw',
             'run': {
                 'env': {
@@ -128,7 +128,7 @@ class StatusCmdTests(PavTestCase):
     def test_set_status_command(self):
         """Test set status command by generating a suite of tests."""
 
-        config1 = format.TestConfigLoader().validate({
+        config1 = file_format.TestConfigLoader().validate({
             'scheduler': 'raw',
             'run': {
                 'env': {
@@ -140,7 +140,7 @@ class StatusCmdTests(PavTestCase):
 
         config1['name'] = 'run_test0'
 
-        config2 = format.TestConfigLoader().validate({
+        config2 = file_format.TestConfigLoader().validate({
             'scheduler': 'raw',
             'run': {
                 'env': {
@@ -152,7 +152,7 @@ class StatusCmdTests(PavTestCase):
 
         config2['name'] = 'run_test1'
 
-        config3 = format.TestConfigLoader().validate({
+        config3 = file_format.TestConfigLoader().validate({
             'scheduler': 'raw',
             'run': {
                 'env': {
@@ -196,7 +196,7 @@ class StatusCmdTests(PavTestCase):
     def test_status_command_with_sched(self):
         """Test status command when test is 'SCHEDULED'."""
 
-        test = format.TestConfigLoader().validate({
+        test = file_format.TestConfigLoader().validate({
             'scheduler': 'raw',
             'run': {
                 'env': {

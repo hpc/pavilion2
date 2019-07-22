@@ -7,7 +7,7 @@ from pathlib import Path
 
 import yaml_config as yc
 from yapsy import IPlugin
-from .test_config import format
+from .test_config import file_format
 from .test_config import variables
 
 LOGGER = logging.getLogger(__file__)
@@ -36,7 +36,7 @@ def list_plugins():
 def __reset():
     """Reset the plugin setup. This is for testing only."""
 
-    global _RESULT_PARSERS
+    global _RESULT_PARSERS  # pylint: disable=W0603
 
     # Remove all existing parsers.
     for parser in list(_RESULT_PARSERS.values()):
@@ -142,8 +142,6 @@ class ResultParser(IPlugin.IPlugin):
         raises ResultParserError: If there are bad arguments.
         """
 
-        pass
-
     def check_args(self, **kwargs):
         """Check the arguments for any errors at test kickoff time, if they
         don't contain deferred variables. We can't check tests with
@@ -197,16 +195,17 @@ class ResultParser(IPlugin.IPlugin):
                     ACTION_FALSE,
                     ACTION_COUNT
                 ],
-                help_text="What to do with parsed results.\n"
-                          "  {STORE} - Just store the result (default).\n"
-                          "  {TRUE} - Store True if there was a result.\n"
-                          "  {FALSE} - Store True for no result.\n"
-                          "  {COUNT} - Count the number of results.\n"
-                          .format(
-                                STORE=ACTION_STORE,
-                                TRUE=ACTION_TRUE,
-                                FALSE=ACTION_FALSE,
-                                COUNT=ACTION_COUNT)
+                help_text=(
+                    "What to do with parsed results.\n"
+                    "  {STORE} - Just store the result (default).\n"
+                    "  {TRUE} - Store True if there was a result.\n"
+                    "  {FALSE} - Store True for no result.\n"
+                    "  {COUNT} - Count the number of results.\n"
+                    .format(
+                        STORE=ACTION_STORE,
+                        TRUE=ACTION_TRUE,
+                        FALSE=ACTION_FALSE,
+                        COUNT=ACTION_COUNT))
             ),
             # The default for the file is handled by the test object.
             yc.ListElem(
@@ -228,29 +227,30 @@ class ResultParser(IPlugin.IPlugin):
                     PER_ANY,
                     PER_ALL,
                 ],
-                help_text="How to save results for multiple file matches.\n"
-                          "  {FIRST} - The result from the first file with a "
-                          "result. (default)\n"
-                          "  {LAST} - As '{FIRST}', but reversed.\n"
-                          "  {FULLNAME} - Store the results on a per file "
-                          "basis under results[<filename>][<key>]\n"
-                          "  {NAME} - As '{FULLNAME}', except use the "
-                          "filename minux extension (foo.bar.log -> foo.bar)\n"
-                          "  {LIST} - Merge all each result and result list "
-                          "into a single list.\n"
-                          "  {ALL} - Use only with the 'store_true' or "
-                          "'store_false' action. Set true if all files had a "
-                          "true result.\n"
-                          "  {ANY} - As '{ALL}', but set true if any file had"
-                          "a true result.\n"
-                          .format(
-                            FIRST=PER_FIRST,
-                            LAST=PER_LAST,
-                            FULLNAME=PER_FULLNAME,
-                            NAME=PER_NAME,
-                            LIST=PER_LIST,
-                            ALL=PER_ALL,
-                            ANY=PER_ANY)
+                help_text=(
+                    "How to save results for multiple file matches.\n"
+                    "  {FIRST} - The result from the first file with a "
+                    "non-empty result. (default)\n"
+                    "  {LAST} - As '{FIRST}', but last result.\n"
+                    "  {FULLNAME} - Store the results on a per file "
+                    "basis under results[<filename>][<key>]\n"
+                    "  {NAME} - As '{FULLNAME}', except use the "
+                    "filename minux extension (foo.bar.log -> foo.bar)\n"
+                    "  {LIST} - Merge all each result and result list "
+                    "into a single list.\n"
+                    "  {ALL} - Use only with the 'store_true' or "
+                    "'store_false' action. Set true if all files had a "
+                    "true result. Note that 0 is a false result.\n"
+                    "  {ANY} - As '{ALL}', but set true if any file had"
+                    "a true result.\n"
+                    .format(
+                        FIRST=PER_FIRST,
+                        LAST=PER_LAST,
+                        FULLNAME=PER_FULLNAME,
+                        NAME=PER_NAME,
+                        LIST=PER_LIST,
+                        ALL=PER_ALL,
+                        ANY=PER_ANY))
             ),
         ]
 
@@ -269,19 +269,20 @@ class ResultParser(IPlugin.IPlugin):
 
         config_items = self.get_config_items()
 
-        format.TestConfigLoader.add_result_parser_config(self.name,
-                                                         config_items)
-        global _RESULT_PARSERS
+        file_format.TestConfigLoader.add_result_parser_config(self.name,
+                                                              config_items)
 
         if self.name in _RESULT_PARSERS:
             other = _RESULT_PARSERS[self.name]
             if self.priority > other.priority:
-                LOGGER.info("Result parser '{}' at {} is superseded by {}."
-                            .format(self.name, other.path, self.path))
+                LOGGER.info(
+                    "Result parser '%s' at %s is superseded by %s.",
+                    self.name, other.path, self.path)
                 _RESULT_PARSERS[self.name] = self
             elif self.priority < other.priority:
-                LOGGER.info("Result parser '{}' at {} is ignored in lieu of "
-                            "{}.".format(self.name, self.path, other.path))
+                LOGGER.info(
+                    "Result parser '%s' at %s is ignored in lieu of %s.",
+                    self.name, self.path, other.path)
             else:
                 raise RuntimeError("Result parser conflict. Parser '{}' at {}"
                                    "has the same priority as {}"
@@ -292,7 +293,7 @@ class ResultParser(IPlugin.IPlugin):
     def deactivate(self):
 
         # Remove the section from the config.
-        format.TestConfigLoader.remove_result_parser_config(self.name)
+        file_format.TestConfigLoader.remove_result_parser_config(self.name)
 
         # Remove from list of available result parsers.
         del _RESULT_PARSERS[self.name]
@@ -363,6 +364,10 @@ def check_args(parser_configs):
             parser.check_args(**args)
 
 
+NON_MATCH_VALUES = (None, [], False)
+EMPTY_VALUES = (None, [])
+
+
 def parse_results(test, results):
     """
     :param pavilion.pav_test.PavTest test: The pavilion test run to gather
@@ -428,14 +433,14 @@ def parse_results(test, results):
                 except (IOError, PermissionError, OSError) as err:
                     errors.append({
                         'result_parser': parser_name,
-                        'file': path,
+                        'file': str(path),
                         'key': key,
-                        'msg': "Error reading file: {}".format(path, err)})
+                        'msg': "Error reading file: {}".format(err)})
                     continue
-                except Exception as err:
+                except Exception as err:  # pylint: disable=W0703
                     errors.append({
                         'result_parser': parser_name,
-                        'file': path,
+                        'file': str(path),
                         'key': key,
                         'msg': "Unexpected Error: {}".format(err)})
                     continue
@@ -450,16 +455,16 @@ def parse_results(test, results):
                     # Simply store the whole result.
                     presults[path] = res
                 elif action == ACTION_TRUE:
-                    # Any value that evaluates to python True is True
-                    presults[path] = bool(res)
+                    # Any non-null/empty value is true
+                    presults[path] = res not in NON_MATCH_VALUES
                 elif action == ACTION_FALSE:
-                    # Any value that evaluates to python True is False
-                    presults[path] = not bool(res)
+                    # Any null/empty value is false
+                    presults[path] = res in NON_MATCH_VALUES
                 elif action == ACTION_COUNT:
                     # Count the returned items.
                     if isinstance(res, (list, tuple)):
                         presults[path] = len(res)
-                    elif res is not None:
+                    elif res not in NON_MATCH_VALUES:
                         presults[path] = 1
                     else:
                         presults[path] = 0
@@ -485,11 +490,12 @@ def parse_results(test, results):
                 results[key] = None
 
                 for pres in presults:
-                    if pres == [] or pres is None:
+                    if pres in EMPTY_VALUES:
                         continue
 
                     # Store the first non-empty item.
                     results[key] = pres
+                    break
 
             elif per_file in (PER_NAME, PER_FULLNAME):
                 # Store in results under the 'stem' or 'name' key as a dict
@@ -502,9 +508,9 @@ def parse_results(test, results):
 
                 for fname, value in presults.items():
                     if per_file == PER_FULLNAME:
-                        name = fname.name
+                        name = str(fname.name)
                     else:
-                        name = fname.stem
+                        name = str(fname.stem)
 
                     if name not in per_dict:
                         per_dict[name] = dict()
@@ -513,7 +519,7 @@ def parse_results(test, results):
                             name not in per_error_keys):
                         errors.append({
                             'result_parser': parser_name,
-                            'file': fname,
+                            'file': str(fname),
                             'key': key,
                             'msg': "Duplicate file key '{}' matched by {}"
                                    .format(name, per_file)})
@@ -531,7 +537,7 @@ def parse_results(test, results):
                 for value in presults.values():
                     if isinstance(value, list):
                         result_list.extend(value)
-                    elif value is not None:
+                    elif value not in EMPTY_VALUES:
                         result_list.append(value)
 
                 results[key] = result_list

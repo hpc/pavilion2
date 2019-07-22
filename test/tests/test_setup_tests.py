@@ -217,3 +217,32 @@ class TestSetupTests(PavTestCase):
         with self.assertRaises(string_parser.ResolveError):
             # No deferred variables in the build section.
             resolve_all_vars(test, permuted[0], ['build'])
+
+    def test_env_order(self):
+        """Make sure environment variables keep their order from the test
+        config to the final run scripts."""
+
+        test_conf = load_test_configs(self.pav_cfg, 'this', [], ['order'])[0]
+        test = self._quick_test(test_conf, "order")
+
+        # Each exported variable in this config has a value that denotes its
+        # expected place in the order. The variable names are random letter
+        # sequences in a random order; hash order should be decidedly different
+        # than the listed order.
+        exports = []
+        with (test.path/'build.sh').open() as build_script:
+            for line in build_script:
+                if line.startswith('export') and 'TEST_ID' not in line:
+                    _, var_val = line.split()
+                    var, val = line.split('=')
+                    val = int(val)
+
+                    exports.append((var, val))
+
+        # The values should be the numbers for 0..99, in that order.
+        self.assertEqual(list(range(len(exports))),
+                         [val for var, val in exports],
+                         msg="Environment variable order not preserved.  \n"
+                             "Got the following instead: \n{}"
+                             .format(''.join(["{}: {}\n".format(*v) for v in
+                                              exports])))

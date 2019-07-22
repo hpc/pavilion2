@@ -1,4 +1,4 @@
-![Pavilion](docs/imgs/logo.png "Pavilion Test Harness")
+# Pavilion
 
 
 LA-CC-15-041
@@ -29,13 +29,13 @@ test results, and more.
    - [Configuring Pavilion](docs/config.md)
      - [Config Directories](docs/config.md#config-directories)
  - [Writing Tests](docs/tests/basics.md)
-   - [Building](docs/tests/building.md)
-   - [Running](docs/tests/running.md)
+   - [Building](docs/tests/build.md)
+   - [Running](docs/tests/run.md)
    - [Environment](docs/tests/env.md)
    - [Scheduling](docs/tests/sched.md)
    - [Results](docs/tests/results.md)
    - [Variables](docs/tests/variables.md)
-   - [Permutations](docs/tests/permutations.md)
+   - [Permutations](docs/tests/)
    - [Documentation](docs/tests/docs.md)
  - [Plugins and Customization](docs/plugins/basics.md)
    - [System Variables](docs/plugins/sys_vars.md)
@@ -71,7 +71,7 @@ pav --help
 Pavilion doesn't come with any tests itself, it's just a system for running 
 them on HPC clusters. Each test needs a configuration script, and most will 
 need some source files. Both of these will live in one of your [config 
-directories](docs/config_dirs.md) under the `tests/` and `test_src/` 
+directories](docs/config.md#config-directories) under the `tests/` and `test_src/` 
 sub-directories. 
 
 Test configs tell pavilion what environment it needs to build and run your 
@@ -124,7 +124,7 @@ kicked off on a host with a hostname of `my_host`. Pavilion uses the contents
  provided via a built-in
   [system variable plugin](docs/plugins/sys_vars.md). 
  This behaviour can be overridden by providing your own sys_var plugin, which
-  is especially useful on clusters with multiple frontends.
+  is especially useful on clusters with multiple front-ends.
 
 #### Mode Configs
 In addition to host config files, you can provide mode config files that you 
