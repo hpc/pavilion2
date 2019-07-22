@@ -52,7 +52,7 @@ class CancelCommand(commands.Command):
                 for test in os.listdir(tests_dir.as_posix()):
                     test_owner_id = os.stat((tests_dir/test).as_posix()).st_uid
                     if test_owner_id == user_id:
-                        if (tests_dir/test/'RUN_COMPLETE').exists():
+                        if not (tests_dir/test/'RUN_COMPLETE').exists():
                             args.tests.append(test)
             else:
                 # Get the last series ran by this user.
