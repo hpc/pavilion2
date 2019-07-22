@@ -1,12 +1,15 @@
 from pavilion import result_parsers
 import yaml_config as yc
-import re
+
 
 class Constant(result_parsers.ResultParser):
     """Set a constant as result."""
 
     def __init__(self):
-        super().__init__(name='constant')
+        super().__init__(
+            name='constant',
+            description="Insert a constant (can contain Pavilion variables) "
+                        "into the results.")
 
     def get_config_items(self):
 
