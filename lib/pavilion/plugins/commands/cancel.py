@@ -32,7 +32,8 @@ class CancelCommand(commands.Command):
         )
         parser.add_argument(
             '-a', '--all', action='store_true', default=False,
-            help='Cancels all jobs currently queued.'
+            help='Cancels all jobs currently queued that are owned by the '
+                 'current user'
         )
         parser.add_argument(
             'tests', nargs='*', action='store',
@@ -51,8 +52,7 @@ class CancelCommand(commands.Command):
                 for test in os.listdir(tests_dir.as_posix()):
                     test_owner_id = os.stat((tests_dir/test).as_posix()).st_uid
                     if test_owner_id == user_id:
-                        test_path = (tests_dir/test/'RUN_COMPLETE').as_posix()
-                        if not os.path.exists(test_path):
+                        if (tests_dir/test/'RUN_COMPLETE').exists():
                             args.tests.append(test)
             else:
                 # Get the last series ran by this user.
@@ -78,7 +78,7 @@ class CancelCommand(commands.Command):
                 except ValueError as err:
                     utils.fprint(
                         "Series {} is not a valid series.\n{}"
-                        .format(test_id[1:], err), file=self.errfile,
+                        .format(test_id, err), file=self.errfile,
                         color=utils.RED
                     )
                     return errno.EINVAL
@@ -103,13 +103,13 @@ class CancelCommand(commands.Command):
                 status = test.status.current()
                 # Won't try to cancel a completed job or a job that was
                 # previously cancelled.
-                if status.state != STATES.COMPLETE and \
-                   status.state != STATES.SCHED_CANCELLED:
+                if status.state not in (STATES.COMPLETE,
+                                        STATES.SCHED_CANCELLED):
                     # Sets status based on the result of sched.cancel_job.
                     # Ran into trouble when 'cancelling' jobs that never
                     # actually started, ie. build errors/created job states.
-                    test.status.set(sched.cancel_job(test).state,
-                                    sched.cancel_job(test).note)
+                    cancel_status = sched.cancel_job(test)
+                    test.status.set(cancel_status.state, cancel_status.note)
                     test.set_run_complete()
                     utils.fprint("Test {} cancelled."
                                  .format(test_id), file=self.outfile,
