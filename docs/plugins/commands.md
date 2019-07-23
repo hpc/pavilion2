@@ -13,7 +13,11 @@ A command in Pavilion is made up of two seperate parts, the [source code](#writi
 
 You begin writing the source with the command class definition. We have been using the CamelCase naming convention to keep everything the same. It is simply:
 ```python
+from pavilion import commands
+
 class NameCommand(commands.Command):
+    """A basic command class."""
+
 ```
 
 At the minimum each command will require three methods: `__init__`, `_setup_arguments`, and `run`. 
