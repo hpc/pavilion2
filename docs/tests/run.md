@@ -3,7 +3,7 @@ This page covers how the test `run` section is used to create the test run
 script, and what the lifecycle of a test actually looks like.
 
  - [Run Configuration](#run-configuration)
- - [Test Run Lifecycle](#run-lifecycle)
+ - [Test Run Lifecycle](#test-run-lifecycle)
 
 ## Run Configuration
 
@@ -11,7 +11,7 @@ The run section of the test config is used to generate a `run.sh` script,
 which runs the actual test. It's fairly simple, as most of the work involved 
 in getting ready to run the test is configured separately.
 
-How these are used to compose a [run script is covered below](#run-script).
+How these are used to compose a [run script is covered below](#running-runsh).
 
 There are only three attributes:
 
@@ -37,7 +37,7 @@ Null/empty values given will unset. In either case, these are written into the
 script as bash commands, so values are free to refer to other bash variables or
 contain sub-shell escapes. 
 
-See [Env Vars](env.md#env-vars) for more info.
+See [Env Vars](env.md#environment-variables) for more info.
 
 #### cmds (list)
 The list of commands to perform the build. 
@@ -56,16 +56,15 @@ The list of commands to perform the build.
 
 Every test run in Pavilion undergoes the same basic steps.
 
- 1. [Create a Test Instance](#the-test-instance)
- 1. [Create the Run Script Template](#run-template)
+ 1. [Create a Test Instance](#creating-the-test-run)
+ 1. [Create the Run Script Template](#create-the-run-script-template)
  1. [Schedule the Test](#scheduling-a-test)
  1. [Build the Test Source](build.md)
- 1. Resolve the Template
- 1. [Run the Test Script](#)
- 1. [Process Test Results](#)
- 1. [Set the Test as complete]()
+ 1. [Run the Test Script](#running-runsh)
+ 1. [Process Test Results](#gathering-results)
+ 1. [Set the Test as complete](#set-the-test-run-as-complete)
  
-Each of these steps has a corresponding test [state](#states), which is used 
+Each of these steps has a corresponding test __state__, which is used 
 to monitor the progress of each test.
 
 ![Running a Test](../imgs/test_lifecycle.png "Running a Test")
@@ -211,3 +210,11 @@ the run.
 The results, both those gathered by default and through result parsers, are 
 compiled into a single JSON object and written to `results.txt`, and logged 
 to the [result log](../config.md#result_log).
+
+### Set the Test Run as Complete
+Lastly, the test run is set as complete, regardless of whether it passed, 
+failed, or encountered an error. Note that this is separate from the status 
+file; a file named 'RUN_COMPLETE' is created in the test run directory. The 
+file contains only a timestamp of when the run officially ended. Various 
+commands can use this as an easy way to differentiate complete tests from 
+those that may still be running.

@@ -251,7 +251,7 @@ this in your host configs.
 #### build
 This sub-section defines how the test source is built. 
 
-See [Builds](builds.md) for the sub-section keys and usage.
+See [Builds](build.md) for the sub-section keys and usage.
 
 #### run
 This sub-section defines how the test source is run. 
