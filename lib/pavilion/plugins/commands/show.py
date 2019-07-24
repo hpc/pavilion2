@@ -317,7 +317,7 @@ class ShowCommand(commands.Command):
 
         elif args.config is not None:
 
-            sched_config = sched.get_conf()
+            sched_config = sched.get_config()
 
             class Loader(yaml_config.YamlConfigLoader):
                 ELEMENTS = [sched_config]

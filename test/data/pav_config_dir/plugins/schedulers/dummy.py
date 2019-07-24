@@ -17,7 +17,7 @@ class Dummy(schedulers.SchedulerPlugin):
     def __init__(self):
         super().__init__('dummy', 'I am dumb')
 
-    def get_conf(self):
+    def get_config(self):
 
         return yc.KeyedElem('dummy', elements=[])
 

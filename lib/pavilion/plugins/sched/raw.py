@@ -77,7 +77,7 @@ class Raw(SchedulerPlugin):
             "Schedules tests as local processes."
         )
 
-    def get_conf(self):
+    def get_config(self):
         return yc.KeyedElem('raw', elements=[
             yc.StrElem(
                 'concurrent',

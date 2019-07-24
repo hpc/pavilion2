@@ -199,7 +199,7 @@ class Slurm(SchedulerPlugin):
 
         self.node_data = None
 
-    def get_conf(self):
+    def get_config(self):
         return yc.KeyedElem(
             self.name,
             help_text="Configuration for the Slurm scheduler.",

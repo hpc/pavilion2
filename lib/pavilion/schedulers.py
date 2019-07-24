@@ -267,7 +267,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
         raise NotImplementedError
 
-    def get_conf(self):
+    def get_config(self):
         """Return the configuration object suitable for adding to the test
         configuration."""
 
@@ -512,7 +512,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
         if name not in _SCHEDULER_PLUGINS:
             _SCHEDULER_PLUGINS[name] = self
-            file_format.TestConfigLoader.add_subsection(self.get_conf())
+            file_format.TestConfigLoader.add_subsection(self.get_config())
         else:
             ex_plugin = _SCHEDULER_PLUGINS[name]
             if ex_plugin.priority > self.priority:
