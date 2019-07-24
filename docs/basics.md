@@ -24,25 +24,24 @@ test results, and more.
 
 ## Contents
  - [Basic Usage](#basic-usage)
- - [Advanced Usage](docs/advanced.md)
- - [Installation](INSTALL.md)
-   - [Configuring Pavilion](docs/config.md)
-     - [Config Directories](docs/config.md#config-directories)
- - [Writing Tests](docs/tests/basics.md)
-   - [Building](docs/tests/build.md)
-   - [Running](docs/tests/run.md)
-   - [Environment](docs/tests/env.md)
-   - [Scheduling](docs/tests/sched.md)
-   - [Results](docs/tests/results.md)
-   - [Variables](docs/tests/variables.md)
-   - [Permutations](docs/tests/)
-   - [Documentation](docs/tests/docs.md)
- - [Plugins and Customization](docs/plugins/basics.md)
-   - [System Variables](docs/plugins/sys_vars.md)
-   - [Module Wrappers](docs/plugins/module_wrappers.md)
-   - [Result Parsers](docs/plugins/result_parsers.md)
-   - [Schedulers](docs/plugins/schedulers.md)
-   - [Commands](docs/plugins/commands.md)
+ - [Advanced Usage](advanced.md)
+ - [Installation](install.md)
+   - [Configuring Pavilion](config.md)
+     - [Config Directories](config.md#config-directories)
+ - [Writing Tests](tests/basics.md)
+   - [Building](tests/build.md)
+   - [Running](tests/run.md)
+   - [Environment](tests/env.md)
+   - [Scheduling](tests/sched.md) (To be written)
+   - [Results](tests/results.md)
+   - [Variables](tests/variables.md)
+   - [Permutations](tests/variables.md#permutations)
+ - [Plugins and Customization](plugins/basics.md)
+   - [System Variables](plugins/sys_vars.md)
+   - [Module Wrappers](plugins/module_wrappers.md)
+   - [Result Parsers](plugins/result_parsers.md) (To be written)
+   - [Schedulers](plugins/schedulers.md) (To be written)
+   - [Commands](plugins/commands.md)
  - [License](LICENSE.md)
 
 ## Basic Usage
@@ -53,7 +52,7 @@ test results, and more.
  - [Test Results](#test-results)
 
 ### Setup
-*See the [install docs](INSTALL.md) if you need to install Pavilion*
+*See the [install docs](install.md) if you need to install Pavilion*
 
 Add the PAV bin directory to your Path.
 ```bash
@@ -71,7 +70,7 @@ pav --help
 Pavilion doesn't come with any tests itself, it's just a system for running 
 them on HPC clusters. Each test needs a configuration script, and most will 
 need some source files. Both of these will live in one of your [config 
-directories](docs/config.md#config-directories) under the `tests/` and `test_src/` 
+directories](config.md#config-directories) under the `tests/` and `test_src/` 
 sub-directories. 
 
 Test configs tell pavilion what environment it needs to build and run your 
@@ -108,7 +107,7 @@ This config is used to  override the Pavilion defaults for values in every test
 config run on that system. You can use these to set default values for things
 like the max nodes per job in a given scheduler, always loading certain 
 modules when building tests, or setting useful 
-[variables](docs/tests/variables.md) for that system. The format is the same 
+[variables](tests/variables.md) for that system. The format is the same 
 as a test config file, except with only one test and without the name for 
 that test.
 
@@ -122,7 +121,7 @@ The above host config would set the default scheduler to 'slurm' for tests
 kicked off on a host with a hostname of `my_host`. Pavilion uses the contents
  of the `sys_name` test config variable to determine the current host, which is 
  provided via a built-in
-  [system variable plugin](docs/plugins/sys_vars.md). 
+  [system variable plugin](plugins/sys_vars.md). 
  This behaviour can be overridden by providing your own sys_var plugin, which
   is especially useful on clusters with multiple front-ends.
 
@@ -200,7 +199,7 @@ From the above, you may have noticed that each test gets a series id like `s24`
 and a test id like `41`. You can use these id's to reference tests or suites 
 of tests to get their status, results, and logs through the pavilion 
 interface. The ID's are unique for a given Pavilion
-[working_directory](docs/working_dir.md), but they will get reused as old 
+[working_directory](config.md#working_dir), but they will get reused as old 
 tests are cleaned up.
 
 ### Test Results
@@ -232,7 +231,7 @@ Every test has a results object that contains at least the keys listed above.
  - finished - When the test run completed
  
  By default, a test passes if it's last command returns 0. You can 
- override this behaviour by using [result parsers](docs/tests/results.md). You
+ override this behaviour by using [result parsers](tests/results.md). You
  can also use result parsers to add additional, arbitrary values to the test 
  results.
  
