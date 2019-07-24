@@ -12,8 +12,6 @@ class TestScriptWriter(PavTestCase):
     def setUp(self):
         """Set up for the ScriptComposer tests."""
         if os.path.exists(self.script_path):
-            print("\nRemoving scriptfile {} from old (failed) run.".format(
-                   self.script_path), file=sys.stderr)
             os.remove(self.script_path)
 
     def _other_group(self):

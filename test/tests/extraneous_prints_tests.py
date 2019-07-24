@@ -14,7 +14,6 @@ class ExtraPrintsTest(PavTestCase):
 
     def test_for_extra_prints(self):
         """greps for unnecessary dbg_print statements."""
-        #cmd = ["""grep -R --exclude={run,show,cancel,set_status,view,log,utils,status}.py -i 'print(' ../lib/pavilion/"""]
         
         # looks for unnecessary dbg_prints in lib/pavilion directory
         cmd = "grep -R -I '[^fp]print(' ../lib/pavilion/ --exclude=unittest.py --exclude=utils.py"
@@ -26,9 +25,10 @@ class ExtraPrintsTest(PavTestCase):
             pass
 
         # looks for unnecessary dbg_prints in test directory
-        cmd = "grep -R -i -I '[^fp]print(' . --exclude=extraneous_prints_tests.py"
+        cmd = "grep -R -i -I '[^fp]print(' . "
+        excludes = "--exclude=extraneous_prints_tests.py --exclude=run_tests --exclude=blarg.py --exclude=poof.py"
         try:
-            output = subprocess.check_output(cmd, shell=True)
+            output = subprocess.check_output(cmd+excludes, shell=True)
             self.maxDiff = None
             self.assertEqual(output.decode("utf-8"),'')
         except subprocess.CalledProcessError as e:

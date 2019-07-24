@@ -16,9 +16,6 @@ class TestLocking(PavTestCase):
         self.lock_path = self.pav_cfg.working_dir/'lock_test.lock'
 
         if self.lock_path.exists():
-            print("\nRemoving lockfile {} from old (failed) run."
-                  .format(self.lock_path),
-                  file=sys.stderr)
             self.lock_path.unlink()
 
     def test_locks(self):
@@ -59,11 +56,7 @@ class TestLocking(PavTestCase):
             # This is only valid for non-root users.
             groups.remove(os.getuid())
 
-            if not groups:
-                print("Could not test group permissions with lockfile, "
-                      "no suitable alternate group "
-                      "found.", file=sys.stderr)
-            else:
+            if groups:
                 group = groups.pop()
                 with lockfile.LockFile(self.lock_path,
                                        group=grp.getgrgid(group).gr_name):
@@ -91,8 +84,6 @@ class TestLocking(PavTestCase):
             # uncorrupted.
             for i in range(5):
                 with lockfile.LockFile(self.lock_path, timeout=2) as lock:
-                    # print("Test - {} got lock {}".format(os.getpid(),
-                    # lock._id))
                     time.sleep(1)
                     host, user, expires, lock_id = lock.read_lockfile()
 
