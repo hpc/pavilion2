@@ -95,7 +95,7 @@ export NO_QUOTES=$(echo "YAML only cares about the first character where quotes 
 Many clusters employ module systems to allow for easy switching between 
 build environments. Pavilion supports both the environment (TCL) and the LMOD 
 module systems, but other module systems can be supported by overriding the 
-base [module_wrapper plugin](../plugins/module_wrapper.md).
+base [module_wrapper plugin](../plugins/module_wrappers.md).
 
 ### Loading modules
 In either _run_ or _build_ configs, you can have Pavilion import modules by 

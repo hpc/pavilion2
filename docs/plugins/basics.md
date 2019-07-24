@@ -126,7 +126,7 @@ better), so you can define plugins that are between these categories as well.
  
 __NOTE:__ Unlike with test configs and src, the order of the 
 config_directories does not matter when resolving conflicting plugins. See 
-the [plugin priority](#plugin-priorities) section below.
+the [plugin priority](#plugin-priority) section below.
  
 #### Plugin 'description'
 All plugin types have a `description` attribute to describe the plugins 
