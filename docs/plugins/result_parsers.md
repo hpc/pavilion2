@@ -10,10 +10,13 @@ the [yapsy-plugin](basics.md#plugin_nameyapsy-plugin).
 
 #### Writing the Source
 
-You begin writing the source with the command class definition. We have been 
+You begin writing the source with the command class definition.
+Don't forget to include the result_parsers module. We have been 
 using the CamelCase naming convention to 
 keep everything the same. It is simply:
 ```python
+from pavilion import result_parsers
+
 class ResultParserName(result_parsers.ResultParser):
 ```
 
