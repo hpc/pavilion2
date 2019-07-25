@@ -64,13 +64,11 @@ def get_statuses(pav_cfg, args, errfile):
         if test_id.startswith('s'):
             try:
                 test_list.extend(
-                    series.TestSeries.from_id(
-                        pav_cfg,
-                        int(test_id[1:])).tests)
+                    series.TestSeries.from_id(pav_cfg, test_id).tests)
             except series.TestSeriesError as err:
                 utils.fprint(
                     "Suite {} could not be found.\n{}"
-                    .format(test_id[1:], err),
+                    .format(test_id, err),
                     file=errfile,
                     color=utils.RED
                 )
