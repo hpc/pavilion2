@@ -1,6 +1,6 @@
 # Pavilion Command Plugins
 
-Commands are the way that user interact with Pavilion, whether it be for 
+Commands are the way that users interact with Pavilion, whether it be for 
 scheduling tests, showing system variables, cleaning the working directory, etc.
 Nothing can be done without using some sort of command. 
 
