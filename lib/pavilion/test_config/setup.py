@@ -62,10 +62,21 @@ def find_all_tests(pav_cfg):
 
             file = path/file
             if file.suffix == '.yaml' and file.is_file():
+                suite_name = file.stem
+
+                if suite_name not in suites:
+                    suites[suite_name] = {
+                        'path': file,
+                        'err': '',
+                        'tests': {},
+                        'supersedes': [],
+                    }
+                else:
+                    suites[suite_name]['supersedes'].append(file)
+
                 # It's ok if the tests aren't completely validated. They
                 # may have been written to require a real host/mode file.
                 with file.open('r') as suite_file:
-                    suite_name = file.stem
                     try:
                         suite_cfg = TestSuiteLoader().load(suite_file,
                                                            partial=True)
@@ -77,16 +88,6 @@ def find_all_tests(pav_cfg):
                     ) as err:
                         suites[suite_name]['err'] = err
                         continue
-
-                if suite_name not in suites:
-                    suites[suite_name] = {
-                        'path': file,
-                        'err': '',
-                        'tests': {},
-                        'supersedes': [],
-                    }
-                else:
-                    suites[suite_name]['supersedes'].append(file)
 
                 base = TestConfigLoader().load_empty()
 
