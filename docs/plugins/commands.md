@@ -1,8 +1,5 @@
 # Pavilion Command Plugins
 
-dslv bskb;ls bls bkl sls laskf skld sksldk a;ld fkdla dla ldakda ldkda lakdf
-aldkf allda f
-
 Commands are the way that user interact with Pavilion, whether it be for 
 scheduling tests, showing system variables, cleaning the working directory, etc.
 Nothing can be done without using some sort of command. 
