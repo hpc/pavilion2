@@ -47,13 +47,13 @@ import yaml_config as yc
 TestConfigLoader.add_subsection(
     # This subsection is a mapping with well defined keys.
     yc.KeyedElem(
-        # The name of the dict key.
+        # The first argument is the name of the element, which sets
+        # the name in the parent KeyedElem (dict/mapping). 
         "squirrel",
         # Comment to put at the top of this dict when writing a template.
         help_text="Describe the relevant test squirrel",
         # These are the allowed keys of this mapping.
         elements=[
-            # 
             yc.StrElem(
                 'species', 
                 default='Abert\'s Squirrel'),
@@ -71,14 +71,30 @@ TestConfigLoader.add_subsection(
             # The nuts key is a list of zero or more nut strings. 
             yc.ListElem(
                 name='nuts',
-                # The sub_element doesn't require a name, or often any other
-                # parameters. It will be named relative to it's containing
-                # elements.
+                # The sub_element doesn't require a name, since it's parent
+                # isn't a keyed element. It will get a name automatically based 
+                # on it's position in the gern
                 sub_elem=yc.StrElem()
             ),
         ]
     )
 )
+```
+
+The resulting config file might look like.
+```yaml
+
+mytest:
+  run:
+    cmds: "echo 'this is still a test config, just with an extra section.'"
+  
+  # note that this whole section is optional, since it wasn't marked as required
+  squirrel:
+    name: bob
+    color: red
+    nuts:
+      - hazel
+      - pecan
 ```
 
 Woah, that was a lot to take in. Let's break it down a bit.
@@ -105,4 +121,6 @@ class MyScheduler(schedulers.SchedulerPlugin):
 
 Result Parser config sections are added [similarly](result_parsers.md#foo).
 
-### 
+### Keyed Elements
+The `KeyedElem` config elements cause the config to expect a mapping. 
+
