@@ -11,6 +11,7 @@ from pavilion.utils import dbg_print
 
 
 def get_latest_tests_mtime(pav_cfg, limit):
+    # returns latest test given limit
 
     top_dir = str(pav_cfg.working_dir/'tests')
     test_folders_list = os.listdir(top_dir)
