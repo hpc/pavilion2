@@ -184,6 +184,19 @@ def slurm_float(val):
     else:
         return float(val)
 
+def slurm_states(state):
+    states = state.split('+')
+
+    if states:
+        state = states[0]
+    else:
+        return 'UNKNOWN'
+
+    if state.endswith('$'):
+        state = state[:-1]
+
+    return state
+
 
 class Slurm(SchedulerPlugin):
 
@@ -281,6 +294,7 @@ class Slurm(SchedulerPlugin):
         'CPULoad': slurm_float,
         # In MB
         'RealMemory': int,
+        'State': slurm_states,
         'AllocMemory': int,
         'FreeMemory': int,
         'Partitions': lambda s: s.split(','),
