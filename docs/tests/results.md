@@ -5,12 +5,12 @@ with the test, but are also logged to a central `results.log` file that is
 formatted in a Splunk compatible manner. 
 
 These results contain several useful values, but that's just the beginning. 
-[Result Parsers](#result-parsers) are little parsing scripts that can configured
- to parse data from your test's output files. They're designed to be simple 
- enough to pull out small bits of data, but can be combined to extract a 
- complex set of results from each test run. Each result parser is also a 
-[plugin](../plugins/result_parsers.md), so you can easily add custom parsers
-for tests with particularly complex results.
+[Result Parsers](#using-result-parsers) are little parsing scripts that can 
+configured to parse data from your test's output files. They're designed to 
+be simple enough to pull out small bits of data, but can be combined to 
+extract a complex set of results from each test run. Each result parser is 
+also a [plugin](../plugins/result_parsers.md), so you can easily add custom 
+parsers for tests with particularly complex results.
 
  - [Basic Result Keys](#basic-result-keys)
  - [Using Result Parsers](#using-result-parsers)
@@ -45,8 +45,9 @@ a single True or False result. Anything else results in a __FAIL__.
 When using the result key the 'store_true' and 'store_false' 
 [actions](#actions) are the only valid choices. Any other action will be 
 changed to 'store_true', and the change will be noted in the result errors. 
-Similarly, [per_file](#per_file) can only have a setting that produces a 
-single result ('store_first' is forced by default).
+Similarly, [per_file](#per_file-manipulating-multiple-file-results) can only
+have a setting that produces a single result ('store_first' is forced by 
+default).
 
 ## Using Result Parsers
 

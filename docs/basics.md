@@ -32,16 +32,15 @@ test results, and more.
    - [Building](tests/build.md)
    - [Running](tests/run.md)
    - [Environment](tests/env.md)
-   - [Scheduling](tests/sched.md)
+   - [Scheduling](tests/sched.md) (To be written)
    - [Results](tests/results.md)
    - [Variables](tests/variables.md)
-   - [Permutations](tests/)
-   - [Documentation](tests/docs.md)
+   - [Permutations](tests/variables.md#permutations)
  - [Plugins and Customization](plugins/basics.md)
    - [System Variables](plugins/sys_vars.md)
    - [Module Wrappers](plugins/module_wrappers.md)
-   - [Result Parsers](plugins/result_parsers.md)
-   - [Schedulers](plugins/schedulers.md)
+   - [Result Parsers](plugins/result_parsers.md) (To be written)
+   - [Schedulers](plugins/schedulers.md) (To be written)
    - [Commands](plugins/commands.md)
  - [License](LICENSE.md)
 
@@ -200,7 +199,11 @@ From the above, you may have noticed that each test gets a series id like `s24`
 and a test id like `41`. You can use these id's to reference tests or suites 
 of tests to get their status, results, and logs through the pavilion 
 interface. The ID's are unique for a given Pavilion
+<<<<<<< HEAD
 [working_directory](working_dir.md), but they will get reused as old 
+=======
+[working_directory](config.md#working_dir), but they will get reused as old 
+>>>>>>> d8e4d96f02ced42c664f4319c0f28b01d0645a69
 tests are cleaned up.
 
 ### Test Results

@@ -179,7 +179,7 @@ Null/empty values given will unset. In either case, these are written into the
 script as bash commands, so values are free to refer to other bash variables or
 contain sub-shell escapes. 
 
-See [Env Vars](env.md#env-vars) for more info.
+See [Env Vars](env.md#environment-variables) for more info.
 
 #### cmds (list)
 The list of commands to perform the build. 

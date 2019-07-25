@@ -62,7 +62,6 @@ class RawSchedTests(PavTestCase):
         try:
             test.wait(2)
         except:
-            self.dbg_print((test.path/'kickoff.log').open().read())
             self.fail()
 
         self.assertEqual(test.status.current().state, STATES.COMPLETE)
