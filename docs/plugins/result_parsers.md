@@ -2,6 +2,9 @@
 
 This page is an overview of result parser plugins and how to write them.
 
+Result parsers can determine if a benchmark passed or failed as well as collect
+data. 
+
 ## Writing Result Parser Plugins
 
 Like all [Pavilion plugins](basics.md), a result parser in Pavilion is made up of 
