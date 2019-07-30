@@ -8,7 +8,9 @@ import re
 import subprocess
 import sys
 import textwrap
-
+import shutil
+import copy
+import itertools
 
 def flat_walk(path, *args, **kwargs):
     """Perform an os.walk on path, but return a flattened list of every file
@@ -80,6 +82,36 @@ def make_id_path(base_path, id_):
 
     return base_path/(ID_FMT.format(id=id_, digits=ID_DIGITS))
 
+
+def create_id_dir(id_dir):
+    """In the given directory, create the lowest numbered (positive integer)
+    directory that doesn't already exist.
+    :param Path id_dir: Path to the directory that contains these 'id'
+        directories
+    :returns: The id and path to the created directory.
+    :rtype: list(int, Path)
+    :raises OSError: on directory creation failure.
+    :raises TimeoutError: If we couldn't get the lock in time.
+
+    """
+
+    lockfile_path = id_dir/'.lockfile'
+    with lockfile.LockFile(lockfile_path, timeout=1):
+        ids = os.listdir(str(id_dir))
+        # Only return the test directories that could be integers.
+        ids = filter(str.isdigit, ids)
+        ids = filter(lambda d: (id_dir/d).is_dir(), ids)
+        ids = list(map(int, ids))
+        ids.sort()
+
+        # Find the first unused id.
+        id_ = 1
+        while id_ in ids:
+            id_ += 1
+
+        path = make_id_path(id_dir, id_)
+        path.mkdir()
+    return id_, path
 
 def get_login():
     """Get the current user's login, either through os.getlogin or
@@ -231,6 +263,7 @@ def output_csv(outfile, field_info, fields, rows):
 
 class ANSIStr:
     MODES = {
+        'native':       '',
         'black':        30,
         'red':          31,
         'green':        32,
@@ -284,17 +317,74 @@ class ANSIStr:
         if attr not in self.__dict__:
             return getattr(self.string, attr)
 
-
 ANSI_ESCAPE_RE = re.compile('\x1b\\[\\d+(;\\d+)*m')
 
-
-def _plen(string):
+def _plen(string, return_string=False):
     """Get the printable length of the given string."""
 
     # Remove ansi escape codes (only handles graphics mode changes)
     unescaped = ANSI_ESCAPE_RE.sub('', string)
 
-    return len(unescaped)
+    if return_string:
+        return unescaped
+    else:
+        return len(unescaped)
+
+ANSI_ESCAPE_RE_COLOR = re.compile('\x1b\\[(\\d+)(;\\d+)*m')
+
+def _grab_color(string):
+
+    unescaped = re.search(ANSI_ESCAPE_RE_COLOR, string)
+    if unescaped is not None:
+        color_code = unescaped.group(1)
+        color_code = int(color_code)
+        for color, c_code in ANSIStr.MODES.items():
+            if c_code == color_code:
+                return color
+    else:
+        return 'native'
+
+def remove_formatting(content_width, fields, border, pad):
+    # Reduced the effective window width if we have padded dividers.
+    if pad:
+        offset = 2 * len(fields)
+        offset = offset + len(fields) - 1
+        content_width = content_width - offset
+
+    # Reduce the effective window width for non padded dividers.
+    else:
+        offset = len(fields) - 1
+        content_width = content_width - offset
+
+    if border:
+        offset = 2
+        content_width = content_width - offset
+
+    return content_width
+
+def formatted_width(width, fields, border, pad):
+
+    if pad:
+        offset = 2*len(fields)
+        offset = offset + len(fields) - 1
+        width = width + offset
+
+    else:
+        offset = len(fields) - 1
+        width = width + offset
+
+    if border:
+        offset = 2
+        width = width + offset
+
+    return width
+
+def get_total_width(column_widths, fields, border, pad):
+    # Find the total width of the table.
+    total_width = (sum(column_widths.values()))  # column widths
+    total_width = formatted_width(total_width, fields, border, pad)
+
+    return total_width
 
 def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
                title=None):
@@ -309,8 +399,12 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
             into the table.
           format (optional) - a format string in the new style format syntax.
             It will expect the data for that row as arg 0. IE: '{0:2.2f}%'.
-          default (optional) - A default value for the field. A blank is
-          printed by default.
+            default (optional) - A default value for the field. A blank is
+            printed by default.
+          no_wrap (optional) - a boolean that determines if a field will be
+            wrapped or not.
+          max_width (optional) - the max width for a given field.
+          min_width (optional) - the min width for a given field.
     :param fields: A list of the fields to include, in the given order.
     :param rows: A list of data dictionaries. A None may be included to denote
         that a horizontal line row should be inserted.
@@ -321,11 +415,16 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
     :return: None
     """
 
+    # Column widths populates with a range of values, the minimum being the
+    # length of the given field title, and the max being the longest entry in
+    # that column
     column_widths = {}
     titles = {}
+
     for field in fields:
         default_title = field.replace('_', ' ').capitalize()
         field_title = field_info.get(field, {}).get('title', default_title)
+        # Gets the length of column title, adds it to the list of column widths
         column_widths[field] = [len(field_title)]
         titles[field] = field_title
 
@@ -356,36 +455,135 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
                               repr(data)), file=sys.stderr)
                 raise
 
-            column_widths[field].append(_plen(data))
+            # Appends the length of all rows at a given field longer than the
+            # title. Effectively forces that the minimum column width be no
+            # less than the title.
+            if _plen(data) > len(titles[field]):
+                column_widths[field].append(_plen(data))
+
             formatted_row[field] = data
         formatted_rows.append(formatted_row)
 
-    for field in column_widths.keys():
-        column_widths[field] = max(column_widths[field])
+    # Gets dictionary with largest width, and smallest width for each field.
+    # Also updates the default column_Widths dictionary to hold the max values
+    # for each column.
+    min_widths = {field: min(widths) for field, widths in column_widths.items()}
+    max_widths = {field: max(widths) for field, widths in column_widths.items()}
+    column_widths = {field: max(widths) for field, widths in
+                     column_widths.items()}
 
-    # We have to manually pad everything due to unicode and ansi escapes.
-    for field, width in column_widths.items():
-        for row in formatted_rows:
-            data = row[field]
-            dlen = _plen(data)
-            row[field] = data + ' '*max(0, width - dlen)
+    for field in field_info:
+        # If user specified ignoring wrapping on a given field, it will set the
+        # minimum width equal to the largest entry in that field.
+        if 'no_wrap' in field_info[field].keys():
+            min_widths[field] = max_widths[field]
+        # If user defined a max width for a given field it overrides the
+        # maxmimum width here.
+        if 'max_width' in field_info[field].keys():
+            max_widths[field] = field_info[field]['max_width']
+        # If user defined a min width for a given field it overrides the
+        # minimum width here.
+        if 'min_width' in field_info[field].keys():
+            min_widths[field] = field_info[field]['min_width']
+        # Ensures that the max width for a given field is always larger or
+        # atleast equal to the minimum field width.
+        if max_widths[field] < min_widths[field]:
+            max_widths[field] = min_widths[field]
 
-    # Find the total width of the table.
-    total_width = (sum(column_widths.values())  # column widths
-                   + len(fields) - 1)           # | dividers
+    total_max = get_total_width(max_widths, fields, border, pad)
+    total_min = get_total_width(min_widths, fields, border, pad)
+
+    # Gets the effective window width.
+    window_width = shutil.get_terminal_size().columns
+
+    # Makes sure window is at least large enough to display are smallest
+    # possible table
+    if total_min > window_width:
+        lines = shutil.get_terminal_size().lines
+        print("\x1b[8;{};{}t".format(lines, total_min))
+        window_width = total_min
+
+    # Reduces the effective window width based on formatting, so we know the
+    # exact width we have for strictly field entries.
+    window_width = remove_formatting(window_width, fields, border, pad)
+
+    best_config = []
+    combos = []
+    boundaries = []
+    for field in fields:
+
+        # Get updated max width for a column provided every other column is
+        # at its minimum width.
+        max_width = window_width-sum(min_widths.values())+min_widths[field]
+
+        # Only updated if the max_Width is less than current max value.
+        if max_width < max_widths[field]:
+            max_widths[field] = max_width
+
+        boundaries.append([min_widths[field], max_widths[field]+1])
+
+    # Creates all possible combinations.
+    for combo in itertools.product(*(range(*bound) for bound in boundaries)):
+
+        # Only populates list with combinations equal to current window
+        # size if table width was the reason for wrapping
+        if sum(combo) == window_width:
+            combos.append(list(combo))
+
+    if combos:
+        # Calculates the max number of wraps for a given column width
+        # combination.
+        wrap_options = []
+        min_wraps = sys.maxsize
+
+        for combo in combos:
+            wrap_count = []
+
+            for i in range(len(fields)):
+                column_width = combo[i]
+                wrap_total = 0
+
+                for row in rows:
+                    wraps = textwrap.TextWrapper(width=column_width)
+                    clean_string = _plen(str(row[fields[i]]),
+                                         return_string=True)
+                    wrap_list = wraps.wrap(text=clean_string)
+                    wrap_total = wrap_total + len(wrap_list)
+
+                wrap_count.append(wrap_total)
+
+            wrap_count = sum(wrap_count)
+
+            # Updates minimum wraps with the smallest amount of wraps seen
+            # so far.
+            if wrap_count <= min_wraps:
+                min_wraps = wrap_count
+                wrap_options.append([combo, wrap_count])
+
+        min_col_wrap_list = []
+        # Goes through and removes any combination that aren't equal to the
+        # minimum number of wraps.
+        for config in wrap_options:
+            if config[1] == min_wraps:
+                min_col_wrap_list.append(config)
+
+        # Picks the best config to be the last config in
+        # min_col_to_wrap list
+        best_config = min_col_wrap_list[-1]
+
+        for i in range(len(fields)):
+            column_widths[fields[i]] = best_config[0][i]
+
+    title_length = sum(column_widths.values())
+
     if pad:
-        total_width += len(fields)*2            # padding
-    # Widen the last column if the title is longer than everything else.
-    # The +2 is for title padding.
-    title_len = len(title)
-    if title is not None and (title_len + 2 > total_width):
-        diff = title_len + 2 - total_width
-        column_widths[fields[-1]] += diff
+        title_length = title_length + 2*len(fields)
 
-    title_format = ' {{0:{0}s}} '.format(total_width - 2)
 
+    title_format = ' {{0:{0}s}} '.format(title_length)
     # Generate the format string for each row.
     col_formats = []
+
     for field in fields:
         format_str = '{{{field_name}:{width}}}'\
                      .format(field_name=field, width=column_widths[field])
@@ -407,6 +605,47 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
     horizontal_break += '\n'
     title_format += '\n'
 
+    wrap_rows = []
+    #Reformats all the rows
+    for row in formatted_rows:
+        wraps = {}
+        #Creates wrap list that holds list of strings for the wrapped text
+        for field in fields:
+            my_wrap = textwrap.TextWrapper(width=column_widths[field])
+            clean_string = _plen(row[field], return_string=True)
+            color = _grab_color(row[field])
+            wrap_list = my_wrap.wrap(text=clean_string)
+            for i in range(len(wrap_list)):
+                wrap_list[i] = ANSIStr(wrap_list[i], color)
+            wraps[field] = wrap_list
+
+        num_lines = 0
+        #Gets the largest number of lines, so we know how many iterations
+        #to do when printing
+        for field in wraps.keys():
+            number_of_wraps = len(wraps[field])
+            if number_of_wraps > num_lines:
+                num_lines = number_of_wraps
+
+        #Populates current row with the first wrap
+        for field in fields:
+            try:
+                row[field] = wraps[field][0]
+            except IndexError as err:
+                continue
+
+        wrap_rows.append(row)
+        #Creates a new row for each line of text required
+        for line in range(1, num_lines):
+            wrap_row = {}
+            for field in fields:
+                if line >= len(wraps[field]):
+                    wrap_row[field] = ''
+                else:
+                    wrap_row[field] = wraps[field][line]
+
+            wrap_rows.append(wrap_row)
+
     try:
         if border:
             outfile.write(horizontal_break)
@@ -416,13 +655,13 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
 
         outfile.write(row_format.format(**titles))
         outfile.write(horizontal_break)
-        for row in formatted_rows:
+        for row in wrap_rows:
             outfile.write(row_format.format(**row))
 
         if border:
             outfile.write(horizontal_break)
-
         outfile.write('\n')
+
     except IOError:
         # We may get a broken pipe, especially when the output is piped to
         # something like head. It's ok, just move along.

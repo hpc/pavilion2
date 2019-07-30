@@ -43,9 +43,7 @@ from pavilion import lockfile
 while True:
     try:
         with lockfile.LockFile(sys.argv[1], timeout=0.5) as lock:
-            # print("Fight {} - got lock {}".format(os.getpid(), lock._id))
             time.sleep(0.01)
-            # print("Fight {} - bye lock {}".format(os.getpid(), lock._id))
         # If we don't sleep, the sem proc will probably get the lock right back.
         time.sleep(0.2)
     except TimeoutError:

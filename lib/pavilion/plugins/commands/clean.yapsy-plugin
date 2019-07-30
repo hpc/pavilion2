@@ -1,0 +1,9 @@
+[Core]
+Name = Cleanup Command
+Module = clean
+
+[Documentation]
+Description = Command to clean up Pavilion working directory
+Author = Kody  J. Everson
+Version = 1.0
+Website =
