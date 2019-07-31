@@ -47,8 +47,8 @@ def get_all_tests(pav_cfg, args, errfile):
     latest_tests = pav_test.get_latest_tests(pav_cfg, args.limit)
 
     test_obj_list = []
-    for lt in latest_tests:
-        test = PavTest.load(pav_cfg, lt)
+    for test_id in latest_tests:
+        test = PavTest.load(pav_cfg, test_id)
         test_obj_list.append(test)
 
     statuses = status_from_test_obj(pav_cfg, test_obj_list)

@@ -439,7 +439,7 @@ class VariableSetManager:
         return resolved_line
 
     def as_dict(self):
-        """Return the all variable sets as a single dictionary. This is 
+        """Return the all variable sets as a single dictionary. This is
         for testing and bug resolution, not production code."""
 
         var_sets = {}
