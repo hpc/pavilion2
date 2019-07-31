@@ -5,26 +5,10 @@ from pavilion import commands
 from pavilion import schedulers
 from pavilion import series
 from pavilion import utils
+from pavilion import pav_test
 from pavilion.pav_test import PavTest, PavTestError, PavTestNotFoundError
 from pavilion.status_file import STATES
-from pavilion.utils import dbg_print
 
-
-def get_latest_tests_mtime(pav_cfg, limit):
-    # returns latest test given limit
-
-    top_dir = str(pav_cfg.working_dir/'tests')
-    test_folders_list = os.listdir(top_dir)
-    test_dir_dict = {}
-    for t in test_folders_list:
-        cur_folder = top_dir + "/" + t
-        mt = os.stat(cur_folder).st_mtime
-        test_dir_dict[t] = mt
-
-    sorted_test_dir = sorted(test_dir_dict.items(), key=lambda kv: kv[1])
-    last_tests = sorted_test_dir[-limit:]
-    tests_only = [int(i[0]) for i in last_tests]
-    return tests_only
 
 def status_from_test_obj(pav_cfg, test_obj):
     """Takes a test object or list of test objects and creates the dictionary
@@ -60,13 +44,13 @@ def status_from_test_obj(pav_cfg, test_obj):
 def get_all_tests(pav_cfg, args, errfile):
     """function to handle if user wants all tests"""
 
-    latest_tests = get_latest_tests_mtime(pav_cfg, args.limit)
+    latest_tests = pav_test.get_latest_tests(pav_cfg, args.limit)
+
     test_obj_list = []
     for lt in latest_tests:
         test = PavTest.load(pav_cfg, lt)
         test_obj_list.append(test)
- 
-    #test_obj_list = series.get_latest_tests(pav_cfg, args.limit)
+
     statuses = status_from_test_obj(pav_cfg, test_obj_list)
 
     return statuses

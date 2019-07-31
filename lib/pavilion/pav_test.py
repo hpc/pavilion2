@@ -27,6 +27,27 @@ from pavilion.status_file import StatusFile, STATES
 from pavilion.test_config import variables
 
 
+def get_latest_tests(pav_cfg, limit):
+    """
+    Returns ID's of latest test given a limit
+    :param pav_cfg: Pavilion config file
+    :param limit: maximum size of list of test ID's
+    :return: list of test ID's
+    """
+
+    top_dir = str(pav_cfg.working_dir/'tests')
+    test_folders_list = os.listdir(top_dir)
+    test_dir_dict = {}
+    for test in test_folders_list:
+        cur_folder = top_dir + "/" + test
+        mtime = os.stat(cur_folder).st_mtime
+        test_dir_dict[test] = mtime
+
+    sorted_test_dir = sorted(test_dir_dict.items(), key=lambda kv: kv[1])
+    last_tests = sorted_test_dir[-limit:]
+    tests_only = [int(i[0]) for i in last_tests]
+    return tests_only
+
 class PavTestError(RuntimeError):
     """For general test errors. Whatever was being attempted has failed in a
     non-recoverable way."""
