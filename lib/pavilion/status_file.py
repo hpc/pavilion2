@@ -113,37 +113,6 @@ class StatusInfo:
     def __repr__(self):
         return 'StatusInfo({s.when}, {s.state}, {s.note})'.format(s=self)
 
-    def status_from_test_obj_as_dict(self, pav_cfg, test_obj):
-        """Takes a test object or list of test objects and creates the
-        dictionary expected by the print_status function.
-        :param dict pav_cfg: Pavilion base configuration.
-        :param pav_test.PavTest test_obj: Pavilion test object.
-        :return list List of dictionary objects containing the test ID,
-        name, state, time of state update, and note associated with that state.
-        """
-        if not isinstance(test_obj, list):
-            test_obj = [test_obj]
-
-        test_statuses = []
-
-        for test in test_obj:
-            status_f = test.status.current()
-
-            if status_f.state == STATES.SCHEDULED:
-                sched = schedulers.get_scheduler_plugin(test.scheduler)
-                status_f = sched.job_status(pav_cfg, test)
-
-            test_statuses.append({
-                'test_id': test.id,
-                'name': test.name,
-                'state': status_f.state,
-                'time': status_f.when.strftime("%d %b %Y %H:%M:%S %Z"),
-                'note': status_f.note,
-            })
-
-        test_statuses.sort(key=lambda x: x['test_id'])
-        return test_statuses
-
 
 class StatusFile:
     """The wraps the status file that is used in each test, and manages the

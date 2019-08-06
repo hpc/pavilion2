@@ -7,7 +7,7 @@ from pavilion import series
 from pavilion import utils
 from pavilion import pav_test
 from pavilion.pav_test import PavTest, PavTestError, PavTestNotFoundError
-from pavilion.status_file import STATES, StatusInfo
+from pavilion.status_file import STATES
 
 
 def status_from_test_obj(pav_cfg, test_obj):
@@ -52,7 +52,7 @@ def get_all_tests(pav_cfg, args, errfile):
         test = PavTest.load(pav_cfg, test_id)
         test_obj_list.append(test)
 
-    statuses = StatusInfo.status_from_test_obj_as_dict(pav_cfg, test_obj_list)
+    statuses = status_from_test_obj(pav_cfg, test_obj_list)
 
     return statuses
 
@@ -115,7 +115,7 @@ def get_statuses(pav_cfg, args, errfile):
                 'note': "Test not found.",
             })
 
-    statuses = StatusInfo.status_from_test_obj_as_dict(pav_cfg, test_obj_list)
+    statuses = status_from_test_obj(pav_cfg, test_obj_list)
 
     if statuses is not None:
         test_statuses = test_statuses + statuses
@@ -161,7 +161,7 @@ def print_from_test_obj(pav_cfg, test_obj, outfile, json=False):
     :param stream outfile: Stream to which the statuses should be printed.
     :return int 0 for success.
     """
-    status_list = StatusInfo.status_from_test_obj_as_dict(pav_cfg, test_obj)
+    status_list = status_from_test_obj(pav_cfg, test_obj)
     return print_status(status_list, outfile, json)
 
 
