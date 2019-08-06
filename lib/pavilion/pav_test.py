@@ -36,8 +36,8 @@ def get_latest_tests(pav_cfg, limit):
     """
 
     test_dir_dict = {}
-    top_dir = Path(pav_cfg.working_dir/'tests')
-    for child in top_dir.iterdir():
+    p = Path(pav_cfg.working_dir/'tests')
+    for child in p.iterdir():
         mtime = os.stat(str(child)).st_mtime
         test_dir_dict[int(str(child.stem))] = mtime
 
