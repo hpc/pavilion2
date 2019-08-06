@@ -35,13 +35,11 @@ def get_latest_tests(pav_cfg, limit):
     :return: list of test ID's
     """
 
-    top_dir = str(pav_cfg.working_dir/'tests')
-    test_folders_list = os.listdir(top_dir)
     test_dir_dict = {}
-    for test in test_folders_list:
-        cur_folder = top_dir + "/" + test
-        mtime = os.stat(cur_folder).st_mtime
-        test_dir_dict[test] = mtime
+    p = Path(pav_cfg.working_dir/'tests')
+    for child in p.iterdir():
+        mtime = os.stat(str(child)).st_mtime
+        test_dir_dict[int(str(child.stem))] = mtime
 
     sorted_test_dir = sorted(test_dir_dict.items(), key=lambda kv: kv[1])
     last_tests = sorted_test_dir[-limit:]
