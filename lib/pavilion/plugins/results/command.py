@@ -29,7 +29,7 @@ class Command(result_parsers.ResultParser):
             ),
             yc.StrElem(
                 'stderr_out',
-                choices=['/dev/null','stdout'],
+                choices=['null','stdout'],
                 default='stdout',
                 help_text="where to redirect stderr"
             )
@@ -47,7 +47,7 @@ class Command(result_parsers.ResultParser):
     def __call__(self, test, file, command=None, success=None, stderr_out=None):
 
         # where to redirect stderr
-        if stderr_out == "/dev/null":
+        if stderr_out == 'null':
             err = open('/dev/null','wb')
         else:
             err = subprocess.STDOUT
