@@ -1,0 +1,9 @@
+[Core]
+Name = JSON Result Parser
+Module = jsonrp
+
+[Documentation]
+Description = Converts JSON results to dictionary.
+Author = Kody J. Everson
+Version = 1.0
+Website =
