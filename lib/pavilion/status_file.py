@@ -113,13 +113,13 @@ class StatusInfo:
     def __repr__(self):
         return 'StatusInfo({s.when}, {s.state}, {s.note})'.format(s=self)
 
-    def status_from_test_obj_as_dict(pav_cfg, test_obj):
-        """Takes a test object or list of test objects and creates the dictionary
-        expected by the print_status function.
+    def status_from_test_obj_as_dict(self, pav_cfg, test_obj):
+        """Takes a test object or list of test objects and creates the
+        dictionary expected by the print_status function.
         :param dict pav_cfg: Pavilion base configuration.
         :param pav_test.PavTest test_obj: Pavilion test object.
-        :return list List of dictionary objects containing the test ID, name, state,
-                     time of state update, and note associated with that state.
+        :return list List of dictionary objects containing the test ID,
+        name, state, time of state update, and note associated with that state.
         """
         if not isinstance(test_obj, list):
             test_obj = [test_obj]
