@@ -93,7 +93,11 @@ class TestSeries:
     @classmethod
     def from_id(cls, pav_cfg, id_):
 
-        id_ = int(id_[1:])
+        try:
+            id_ = int(id_[1:])
+        except TypeError as err:
+            pass
+
         series_path = pav_cfg.working_dir/'series'
         series_path = utils.make_id_path(series_path, id_)
 
