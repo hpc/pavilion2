@@ -28,13 +28,8 @@ class Command(result_parsers.ResultParser):
                 help_text="needs to be either return_value or output"
             ),
             yc.StrElem(
-                'success_value',
-                default='0',
-                help_text="success value"
-            ),
-            yc.StrElem(
                 'stderr_out',
-                choices=['/dev/null','stdout'],
+                choices=['null','stdout'],
                 default='stdout',
                 help_text="where to redirect stderr"
             )
@@ -42,20 +37,17 @@ class Command(result_parsers.ResultParser):
 
         return config_items
 
-    def _check_args(self, command=None, success=None, success_value=None, stderr_out=None):
+    def _check_args(self, command=None, success=None, stderr_out=None):
 
         if not command:
             raise result_parsers.ResultParserError(
                 "Command required."
             )
 
-    def __call__(self, test, file, command=None, success=None, success_value=None, stderr_out=None):
-
-        # run command
-        cmd_result = ""
+    def __call__(self, test, file, command=None, success=None, stderr_out=None):
 
         # where to redirect stderr
-        if stderr_out == "/dev/null":
+        if stderr_out == 'null':
             err = open('/dev/null','wb')
         else:
             err = subprocess.STDOUT
@@ -67,6 +59,7 @@ class Command(result_parsers.ResultParser):
                     stderr=err,
                     shell=True).decode("utf-8")
                 cmd_result = str(cmd_result)
+                return cmd_result
             except:
                 raise result_parsers.ResultParserError(
                     "Command cannot be executed.")
@@ -74,12 +67,8 @@ class Command(result_parsers.ResultParser):
         else:
             try:
                 cmd_result = str(subprocess.call(command, stderr=err, shell=True))
+                return cmd_result
             except:
                 raise result_parsers.ResultParserError(
                     "Command cannot be executed."
                 )
-        # compare cmd_result with success value
-        if cmd_result == str(success_value):
-            return True
-        else:
-            return False
