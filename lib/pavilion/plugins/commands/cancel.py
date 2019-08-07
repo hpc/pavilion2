@@ -49,11 +49,12 @@ class CancelCommand(commands.Command):
         if not args.tests:
             if args.all:
                 tests_dir = pav_cfg.working_dir/'tests'
-                for test in os.listdir(tests_dir.as_posix()):
-                    test_owner_id = os.stat((tests_dir/test).as_posix()).st_uid
+                for test in tests_dir.iterdir():
+                    test_owner_id = os.stat(test.as_posix()).st_uid
                     if test_owner_id == user_id:
-                        if not (tests_dir/test/'RUN_COMPLETE').exists():
-                            args.tests.append(test)
+                        if not os.path.exists((test/'RUN_COMPLETE').as_posix()):
+                            test_id = os.path.basename(test.as_posix())
+                            args.tests.append(test_id)
             else:
                 # Get the last series ran by this user.
                 series_id = series.TestSeries.load_user_series_id(pav_cfg)
