@@ -30,13 +30,12 @@ class Jsonrp(result_parsers.ResultParser):
 
     def _check_args(self, regex=None):
 
-        try:
-            re.compile(regex)
-        except (ValueError, sre_constants.error) as err:
-            raise result_parsers.ResultParserError(
-                "Invalid regular expression: {}".format(err))
-
-        type in ['list', 'dictionary']
+        if regex:
+            try:
+                re.compile(regex)
+            except (ValueError, sre_constants.error) as err:
+                raise result_parsers.ResultParserError(
+                    "Invalid regular expression: {}".format(err))
 
     def __call__(self, test, file, regex=None):
 
