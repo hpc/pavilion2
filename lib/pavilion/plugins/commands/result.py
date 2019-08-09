@@ -81,7 +81,7 @@ class ResultsCommand(commands.Command):
         if args.full:
             fields = ['name', 'id', 'result'] + all_keys
         else:
-            fields = ['name', 'id', 'result'] + args.key
+            fields = ['name', 'id', 'result'] + sum(args.key, list())
 
         utils.draw_table(
             outfile=self.outfile,
