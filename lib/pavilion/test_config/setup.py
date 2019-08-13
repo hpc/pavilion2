@@ -10,6 +10,8 @@ from . import variables
 from .file_format import TestConfigError, KEY_NAME_RE
 from .file_format import TestConfigLoader, TestSuiteLoader
 
+from pavilion.utils import dbg_print
+
 # Config file types
 CONF_HOST = 'hosts'
 CONF_MODE = 'modes'
@@ -494,11 +496,6 @@ def resolve_permutations(raw_test_cfg, pav_vars, sys_vars):
     # Since per vars are the highest in resolution order, we can make things
     # a bit faster by adding these after we find the used per vars.
     try:
-        base_var_man.add_var_set('var', user_vars)
-    except variables.VariableError as err:
-        raise TestConfigError("Error in variables section: {}".format(err))
-
-    try:
         base_var_man.add_var_set('sys', sys_vars)
     except variables.VariableError as err:
         raise TestConfigError("Error in sys variables: {}".format(err))
@@ -507,6 +504,12 @@ def resolve_permutations(raw_test_cfg, pav_vars, sys_vars):
         base_var_man.add_var_set('pav', pav_vars)
     except variables.VariableError as err:
         raise TestConfigError("Error in pav variables: {}".format(err))
+
+    try:
+        base_var_man.add_var_set('var', user_vars)
+    except variables.VariableError as err:
+        raise TestConfigError("Error in variables section: {}".format(err))
+
 
     return test_cfg, base_var_man.get_permutations(used_per_vars)
 
