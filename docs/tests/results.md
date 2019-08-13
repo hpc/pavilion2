@@ -320,3 +320,62 @@ a dictionary with some useful values:
 }
 
 ```
+
+## How to use included result parsers
+
+### Constant Result Parser (const)
+
+The constant result parser simply inserts a constant (either string or variable)
+into the results. 
+
+Example:
+```
+results:
+    constant:
+        key: username
+        const: "{{pav.user}} ran this test"
+```
+
+The `results.json` will look something like this:
+`{"name": "const_rp_test", "result": "PASS", 
+"username": "lapid ran this test"}`
+
+### Command Result Parser (cmd)
+
+The command result parser runs a given command.
+
+| Additional Key  | Description | Required/Optional | Notes | 
+| ------------- | ------------- | ------------- | ----------|
+| command | command that will be run  | Required | 
+| success | what the result parser looks at | Optional, default:`return_value` | Can either be `output` or `return_value`
+|stderr_out | where stderr will be redirected | Optional, default: `stdout` | Can either be `null` or `stdout`
+
+
+Example:
+```
+results:
+    command: 
+        key: cmd
+        command: "ls"
+        success: "output"
+```
+
+### Regex Result Parser (regex)
+
+Finds matches to the given regex in the results file. The matched string/s is/are
+returned as the result. 
+
+| Additional Key | Description | Required/Optional | Notes |
+| -------------- | -----------| ------------------- | -----|
+| regex | Python regex to use to search file | Required | |
+|threshold | Looks at the number of instances of the regex | Optional, default: 0
+| expected | Expected value or range(s) | Optional | 
+
+Example:
+```
+results:
+    regex:
+        key: result
+        regex: "<results> PASSED"
+        action: "store_true"
+```
