@@ -261,6 +261,6 @@ class StatusFile:
 
     def __eq__(self, other):
         return (
-                isinstance(self, type(other)) and
-                self.path == other.path
+            isinstance(self, type(other)) and
+            self.path == other.path
         )
