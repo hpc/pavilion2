@@ -184,18 +184,19 @@ def slurm_float(val):
     else:
         return float(val)
 
+
 def slurm_states(state):
     states = state.split('+')
 
-    if states:
-        state = states[0]
-    else:
+    if not states:
         return 'UNKNOWN'
 
-    if state.endswith('$'):
-        state = state[:-1]
+    for i in range(len(STATES)):
+        state = states[i]
+        if state.endswith('$'):
+            states[i] = state[:-1]
 
-    return state
+    return states
 
 
 class Slurm(SchedulerPlugin):
@@ -399,7 +400,8 @@ class Slurm(SchedulerPlugin):
 
         # Remove nodes that aren't up.
         up_states = config['up_states']
-        nodes = list(filter(lambda n: n['State'] in up_states, nodes))
+        nodes = list(filter(lambda n: set(n['State']).issubset(up_states),
+                            nodes))
         if min_nodes > len(nodes):
             raise SchedulerPluginError("Insufficient nodes in up states: {}"
                                        .format(up_states))
@@ -413,9 +415,10 @@ class Slurm(SchedulerPlugin):
                                        '{}.'.format(partition))
 
         if config['immediate'] == 'true':
-            states = config['avail_states']
+            avail = config['avail_states']
             # Check for compute nodes in this partition in the right state.
-            nodes = list(filter(lambda n: n['State'] in states, nodes))
+            nodes = list(filter(lambda n: set(n['State']).issubset(avail),
+                                nodes))
 
             if min_nodes > len(nodes):
                 raise SchedulerPluginError('Insufficient nodes in partition'
