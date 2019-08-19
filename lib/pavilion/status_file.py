@@ -113,6 +113,12 @@ class StatusInfo:
     def __repr__(self):
         return 'StatusInfo({s.when}, {s.state}, {s.note})'.format(s=self)
 
+    def as_dict(self):
+        status_dict = {"state": self.state, "note": self.note,
+                       "time": self.when}
+
+        return status_dict
+
 
 class StatusFile:
     """The wraps the status file that is used in each test, and manages the

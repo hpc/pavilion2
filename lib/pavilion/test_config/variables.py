@@ -116,6 +116,10 @@ class DeferredVariable:
         """Deferred variables always have a single value."""
         return 1
 
+    def __repr__(self):
+        return ('DeferredVariable({s.name}, {s.var_set}, {s.sub_keys})'
+                .format(s=self))
+
 
 class VariableSetManager:
     """This class manages the various sets of variables, provides complex key
@@ -433,6 +437,26 @@ class VariableSetManager:
                              .format(resolved_line))
 
         return resolved_line
+
+    def as_dict(self):
+        """Return the all variable sets as a single dictionary. This is
+        for testing and bug resolution, not production code."""
+
+        var_sets = {}
+
+        for var_set in self.variable_sets.values():
+            var_sets[var_set.name] = {}
+
+            for key in var_set.data.keys():
+                var_sets[key] = []
+                item = var_set.data[key]
+
+                if isinstance(item, DeferredVariable):
+                    var_sets[key] = repr(item)
+                else:
+                    for subitem in var_set.data[key].data:
+                        var_sets[key].append(subitem.data)
+        return var_sets
 
 
 class VariableSet:

@@ -98,13 +98,14 @@ class ResultParser(IPlugin.IPlugin):
     config. The doc string of result parser classes is used as the user help
     text for that class, plus the help on the config items."""
 
-    PRIO_DEFAULT = 0
+    PRIO_CORE = 0
     PRIO_COMMON = 10
     PRIO_USER = 20
 
-    def __init__(self, name, open_mode='r', priority=PRIO_COMMON):
+    def __init__(self, name, description, open_mode='r', priority=PRIO_COMMON):
         """Initialize the plugin object
         :param str name: The name of this plugin.
+        :param str description: A short description of this result parser.
         :param open_mode: How to open each file handed to the parser.
         :param int priority: The priority of this plugin, compared to plugins
             of the same name. Higher priority plugins will supersede others.
@@ -433,14 +434,14 @@ def parse_results(test, results):
                 except (IOError, PermissionError, OSError) as err:
                     errors.append({
                         'result_parser': parser_name,
-                        'file': path,
+                        'file': str(path),
                         'key': key,
                         'msg': "Error reading file: {}".format(err)})
                     continue
                 except Exception as err:  # pylint: disable=W0703
                     errors.append({
                         'result_parser': parser_name,
-                        'file': path,
+                        'file': str(path),
                         'key': key,
                         'msg': "Unexpected Error: {}".format(err)})
                     continue
@@ -508,9 +509,9 @@ def parse_results(test, results):
 
                 for fname, value in presults.items():
                     if per_file == PER_FULLNAME:
-                        name = fname.name
+                        name = str(fname.name)
                     else:
-                        name = fname.stem
+                        name = str(fname.stem)
 
                     if name not in per_dict:
                         per_dict[name] = dict()
@@ -519,7 +520,7 @@ def parse_results(test, results):
                             name not in per_error_keys):
                         errors.append({
                             'result_parser': parser_name,
-                            'file': fname,
+                            'file': str(fname),
                             'key': key,
                             'msg': "Duplicate file key '{}' matched by {}"
                                    .format(name, per_file)})

@@ -2,18 +2,18 @@ import pavilion.system_variables as system_plugins
 from pathlib import Path
 
 
-class SystemOS(system_plugins.SystemPlugin):
+class HostOS(system_plugins.SystemPlugin):
 
     def __init__(self):
         super().__init__(
-            plugin_name='sys_os', 
-            help_text="The system os info (name, version).",
-            priority=self.PRIO_DEFAULT,
-            is_deferable=False, 
+            plugin_name='host_os',
+            description="The target host's OS info (name, version).",
+            priority=self.PRIO_CORE,
+            is_deferable=True,
             sub_keys=['name', 'version'])
 
     def _get(self):
-        """Base method for determining the operating system and version."""
+        """Base method for determining the operating host and version."""
 
         with Path('/etc/os-release').open('r') as release:
             rlines = release.readlines()

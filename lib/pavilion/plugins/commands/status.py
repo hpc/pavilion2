@@ -1,9 +1,11 @@
 import sys
+import os
 
 from pavilion import commands
 from pavilion import schedulers
 from pavilion import series
 from pavilion import utils
+from pavilion import pav_test
 from pavilion.pav_test import PavTest, PavTestError, PavTestNotFoundError
 from pavilion.status_file import STATES
 
@@ -40,6 +42,20 @@ def status_from_test_obj(pav_cfg, test_obj):
     return test_statuses
 
 
+def get_all_tests(pav_cfg, args, errfile):
+    """function to handle if user wants all tests"""
+
+    latest_tests = pav_test.get_latest_tests(pav_cfg, args.limit)
+
+    test_obj_list = []
+    for test_id in latest_tests:
+        test = PavTest.load(pav_cfg, test_id)
+        test_obj_list.append(test)
+
+    statuses = status_from_test_obj(pav_cfg, test_obj_list)
+
+    return statuses
+
 def get_statuses(pav_cfg, args, errfile):
     """Get the statuses of the listed tests or series.
     :param pav_cfg: The pavilion config.
@@ -50,6 +66,7 @@ def get_statuses(pav_cfg, args, errfile):
               note.
     """
 
+    #if (not args.tests) and (not args.all):
     if not args.tests:
         # Get the last series ran by this user.
         series_id = series.TestSeries.load_user_series_id(pav_cfg)
@@ -60,7 +77,9 @@ def get_statuses(pav_cfg, args, errfile):
                 "No tests specified and no last series was found.")
 
     test_list = []
+
     for test_id in args.tests:
+        # Series
         if test_id.startswith('s'):
             try:
                 test_list.extend(
@@ -73,6 +92,7 @@ def get_statuses(pav_cfg, args, errfile):
                     color=utils.RED
                 )
                 continue
+        # Test
         else:
             test_list.append(test_id)
 
@@ -161,10 +181,21 @@ class StatusCommand(commands.Command):
                  'test IDs and series IDs.  If no value is provided, the most '
                  'recent series submitted by this user is checked.'
         )
+        parser.add_argument(
+            '-a', '--all', action='store_true',
+            help='Displays all tests within a certain limit.'
+        )
+        parser.add_argument(
+            '-l', '--limit', type=int, default=10,
+            help='Max number of tests displayed if --all is used.'
+        )
 
     def run(self, pav_cfg, args, out_file=sys.stdout, err_file=sys.stderr):
         try:
-            test_statuses = get_statuses(pav_cfg, args, self.errfile)
+            if not args.all:
+                test_statuses = get_statuses(pav_cfg, args, self.errfile)
+            else:
+                test_statuses = get_all_tests(pav_cfg, args, self.errfile)
         except commands.CommandError as err:
             utils.fprint("Status Error:", err, color=utils.RED)
             return 1

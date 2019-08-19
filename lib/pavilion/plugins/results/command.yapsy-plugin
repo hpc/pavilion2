@@ -1,0 +1,9 @@
+[Core]
+Name = Command Result Parser
+Module = command
+
+[Documentation]
+Description = runs given command
+Author = Francine Lapid
+Version = 1.0
+Website =

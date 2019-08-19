@@ -39,8 +39,6 @@ class LogCmdTest(PavTestCase):
         args = parser.parse_args(['run', str(test.id)])
         self.assertEqual(args.test, test.id)
 
-        self.dbg_print(test.id)
-
         out = io.StringIO()
         err = io.StringIO()
 
@@ -72,4 +70,3 @@ class LogCmdTest(PavTestCase):
         self.assertEqual(out.read(), '')
         self.assertEqual(err.read(), '')
         self.assertEqual(result, 0)
-
