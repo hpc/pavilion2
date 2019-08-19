@@ -481,7 +481,9 @@ def resolve_permutations(raw_test_cfg, pav_vars, sys_vars):
 
     # Recursively make our configuration a little less raw, recursively
     # parsing all string values into PavString objects.
+    dbg_print("\n~~~~~test config BEFORE: " + str(test_cfg))
     test_cfg = _parse_strings(test_cfg)
+    dbg_print("\n~~~~~test config AFTER: " + str(test_cfg))
 
     # We only want to permute over the permutation variables that are
     # actually used.  This also provides a convenient place to catch any
@@ -505,6 +507,10 @@ def resolve_permutations(raw_test_cfg, pav_vars, sys_vars):
     except variables.VariableError as err:
         raise TestConfigError("Error in pav variables: {}".format(err))
 
+    dbg_print("\n~~~~~user_vars BEFORE " + str(user_vars))
+    user_vars2 = _parse_vars(user_vars, base_var_man)
+    dbg_print("\n~~~~~user_vars AFTER " + str(user_vars2))
+
     try:
         base_var_man.add_var_set('var', user_vars)
     except variables.VariableError as err:
@@ -512,6 +518,11 @@ def resolve_permutations(raw_test_cfg, pav_vars, sys_vars):
 
 
     return test_cfg, base_var_man.get_permutations(used_per_vars)
+
+
+def _parse_vars(vars_dict, var_man):
+
+    return var_man.__getitem__('pav.month')
 
 
 def _parse_strings(section):
