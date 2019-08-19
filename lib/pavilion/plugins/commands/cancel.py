@@ -11,6 +11,7 @@ from pavilion.status_file import STATES
 from pavilion.pav_test import PavTest, PavTestError, PavTestNotFoundError
 from pavilion.plugins.commands.status import print_from_test_obj
 
+
 class CancelCommand(commands.Command):
 
     def __init__(self):
