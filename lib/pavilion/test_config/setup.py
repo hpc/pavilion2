@@ -512,7 +512,7 @@ def resolve_permutations(raw_test_cfg, pav_vars, sys_vars):
     dbg_print("\n~~~~~user_vars AFTER " + str(user_vars2))
 
     try:
-        base_var_man.add_var_set('var', user_vars)
+        base_var_man.add_var_set('var', user_vars2)
     except variables.VariableError as err:
         raise TestConfigError("Error in variables section: {}".format(err))
 
@@ -522,8 +522,39 @@ def resolve_permutations(raw_test_cfg, pav_vars, sys_vars):
 
 def _parse_vars(vars_dict, var_man):
 
-    return var_man.__getitem__('pav.month')
+    #return var_man.__getitem__('pav.month')
+    temp_vars_dict = vars_dict
+    for key,val in vars_dict.items():
+        for elem in range(len(val)):
+            dbg_print("\n" + str(val[elem]))
+            tokens_list = string_parser.tokenize(val[elem])
+            dbg_print("\ncurrent: " + temp_vars_dict[key][elem])
+            temp_vars_dict[key][elem] = _resolve_and_untokenize(tokens_list,
+                                                                var_man)
+            dbg_print("\nnew: " + temp_vars_dict[key][elem])
 
+    return temp_vars_dict
+
+def _resolve_and_untokenize(tokens_list, var_man):
+    # type: (object, object) -> object
+
+    dbg_print("\ntokens_list: " + str(tokens_list))
+    temp_tokens_list = []
+    for token_index in range(len(tokens_list)):
+        var_resolved = tokens_list[token_index].resolve(var_man)
+        temp_tokens_list.append(string_parser.tokenize(var_resolved))
+        #dbg_print("\n" + var_resolved)
+
+    dbg_print("\ntemp_tokens_list: " + str(temp_tokens_list))
+
+    # untokenize
+    brand_new_string = ""
+    for token in temp_tokens_list:
+        for token_elem in token:
+            brand_new_string += token_elem.resolve(var_man)
+
+    dbg_print("brand new string: " + brand_new_string)
+    return brand_new_string
 
 def _parse_strings(section):
     """Parse all non-key strings in the given config section, and replace
