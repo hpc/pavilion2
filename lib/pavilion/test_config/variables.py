@@ -1,4 +1,5 @@
-# This module contains functions and classes for building variable sets for
+# This module contains functions and classes for building variable sets
+# for
 # string insertion.
 # There are three layers to every variable:
 #   - A list of variable values
@@ -21,7 +22,6 @@
 # run in its final environment.
 
 import re
-from pavilion.utils import dbg_print
 
 
 class VariableError(ValueError):
@@ -153,12 +153,6 @@ class VariableSetManager:
             raise ValueError(
                 "Variable set '{}' already initialized.".format(name))
 
-        if name is "var":
-            dbg_print("\nlooking at vars now")
-            # traverse
-            for key in value_dict:
-                dbg_print(key + " " + str(value_dict[key]))
-
         try:
             var_set = VariableSet(name, self.reserved_keys,
                                   value_dict=value_dict)
@@ -168,11 +162,6 @@ class VariableSetManager:
             raise err
 
         self.variable_sets[name] = var_set
-
-        dbg_print("\nadd_var_set: " + name + " " + str(value_dict))
-
-    def _resolve_vars_vars(self, name):
-        return self.__getitem__(name)
 
     def get_permutations(self, used_per_vars):
         """For every combination of permutation variables (that were used),
@@ -492,9 +481,6 @@ class VariableSet:
 
         if value_dict is not None:
             self._init_from_config(reserved_keys, value_dict)
-
-        #dbg_print("\nVariableSet name: " + name + " value_dict: " + str(
-        #    value_dict))
 
     def _init_from_config(self, reserved_keys, value_dict):
         """Initialize the variable set from a config dictionary.
