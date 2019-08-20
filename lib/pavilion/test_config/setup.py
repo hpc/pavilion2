@@ -5,11 +5,11 @@ from collections import defaultdict
 
 from yaml_config import RequiredError
 from yc_yaml import YAMLError
+from pavilion.utils import fprint
 from . import string_parser
 from . import variables
 from .file_format import TestConfigError, KEY_NAME_RE
 from .file_format import TestConfigLoader, TestSuiteLoader
-from pavilion.utils import fprint
 
 # Config file types
 CONF_HOST = 'hosts'
