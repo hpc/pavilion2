@@ -550,10 +550,13 @@ def _resolve_and_untokenize(tokens_list, var_man):
 def _recursively_resolve(variable, var_man):
 
     replacement = variable.resolve(var_man)
-    tokenized_replacement = string_parser.tokenize(replacement)
-    for item in tokenized_replacement:
-        if isinstance(item, string_parser.VariableToken):
-            replacement = _recursively_resolve(item, var_man)
+    try:
+        tokenized_replacement = string_parser.tokenize(replacement)
+        for item in tokenized_replacement:
+            if isinstance(item, string_parser.VariableToken):
+                replacement = _recursively_resolve(item, var_man)
+    except RuntimeError as e:
+        print("Could not resolve variable {}: {}".format(replacement, e))
 
     return replacement
 
