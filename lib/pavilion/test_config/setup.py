@@ -9,6 +9,7 @@ from . import string_parser
 from . import variables
 from .file_format import TestConfigError, KEY_NAME_RE
 from .file_format import TestConfigLoader, TestSuiteLoader
+from pavilion.utils import fprint
 
 # Config file types
 CONF_HOST = 'hosts'
@@ -555,8 +556,8 @@ def _recursively_resolve(variable, var_man):
         for item in tokenized_replacement:
             if isinstance(item, string_parser.VariableToken):
                 replacement = _recursively_resolve(item, var_man)
-    except RuntimeError as e:
-        print("Could not resolve variable {}: {}".format(replacement, e))
+    except RuntimeError as err:
+        fprint("Could not resolve variable {}: {}".format(replacement, err))
 
     return replacement
 
