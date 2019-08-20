@@ -535,7 +535,7 @@ def _parse_vars(vars_dict, var_man):
 def _resolve_and_untokenize(tokens_list, var_man):
     temp_tokens_list = []
     for token_index in range(len(tokens_list)):
-        var_resolved = tokens_list[token_index].resolve(var_man)
+        var_resolved = _recursively_resolve(tokens_list[token_index], var_man)
         temp_tokens_list.append(string_parser.tokenize(var_resolved))
 
     # untokenize
@@ -545,6 +545,17 @@ def _resolve_and_untokenize(tokens_list, var_man):
             resolved_string += token_elem.resolve(var_man)
 
     return resolved_string
+
+
+def _recursively_resolve(variable, var_man):
+
+    replacement = variable.resolve(var_man)
+    tokenized_replacement = string_parser.tokenize(replacement)
+    for item in tokenized_replacement:
+        if isinstance(item, string_parser.VariableToken):
+            replacement = _recursively_resolve(item, var_man)
+
+    return replacement
 
 
 def _parse_strings(section):
