@@ -28,7 +28,7 @@ def _find_config(pav_cfg, conf_type, conf_name):
     found.
     """
     for conf_dir in pav_cfg.config_dirs:
-        path = conf_dir/conf_type/'{}.yaml'.format(conf_name)
+        path = conf_dir / conf_type / '{}.yaml'.format(conf_name)
         if path.exists():
             return path
 
@@ -53,14 +53,14 @@ def find_all_tests(pav_cfg):
     suites = {}
 
     for conf_dir in pav_cfg.config_dirs:
-        path = conf_dir/'tests'
+        path = conf_dir / 'tests'
 
         if not (path.exists() and path.is_dir()):
             continue
 
         for file in os.listdir(path.as_posix()):
 
-            file = path/file
+            file = path / file
             if file.suffix == '.yaml' and file.is_file():
                 suite_name = file.stem
 
@@ -148,15 +148,15 @@ def load_test_configs(pav_cfg, host, modes, tests):
             except ValueError as err:
                 raise TestConfigError(
                     "Host config '{}' has invalid value. {}"
-                    .format(host_cfg_path, err))
+                        .format(host_cfg_path, err))
             except KeyError as err:
                 raise TestConfigError(
                     "Host config '{}' has an invalid key. {}"
-                    .format(host_cfg_path, err))
+                        .format(host_cfg_path, err))
             except YAMLError as err:
                 raise TestConfigError(
                     "Host config '{}' has a YAML Error: {}"
-                    .format(host_cfg_path, err)
+                        .format(host_cfg_path, err)
                 )
             except TypeError as err:
                 # All config elements in test configs must be strings, and just
@@ -184,15 +184,15 @@ def load_test_configs(pav_cfg, host, modes, tests):
         except ValueError as err:
             raise TestConfigError(
                 "Mode config '{}' has invalid value. {}"
-                .format(mode_cfg_path, err))
+                    .format(mode_cfg_path, err))
         except KeyError as err:
             raise TestConfigError(
                 "Mode config '{}' has an invalid key. {}"
-                .format(mode_cfg_path, err))
+                    .format(mode_cfg_path, err))
         except YAMLError as err:
             raise TestConfigError(
                 "Mode config '{}' has a YAML Error: {}"
-                .format(mode_cfg_path, err)
+                    .format(mode_cfg_path, err)
             )
         except TypeError as err:
             # All config elements in test configs must be strings, and just
@@ -243,7 +243,7 @@ def load_test_configs(pav_cfg, host, modes, tests):
                 raise TestConfigError(
                     "Could not find test suite {}. Looked in these "
                     "locations: {}"
-                    .format(test_suite, pav_cfg.config_dirs))
+                        .format(test_suite, pav_cfg.config_dirs))
 
             try:
                 with test_suite_path.open() as test_suite_file:
@@ -283,7 +283,7 @@ def load_test_configs(pav_cfg, host, modes, tests):
             if requested_test not in all_tests[test_suite]:
                 raise TestConfigError(
                     "Test suite '{}' does not contain a test '{}'."
-                    .format(test_suite, requested_test))
+                        .format(test_suite, requested_test))
 
             picked_tests.append(all_tests[test_suite][requested_test])
 
@@ -291,7 +291,6 @@ def load_test_configs(pav_cfg, host, modes, tests):
 
 
 def resolve_inheritance(base_config, suite_cfg, suite_path):
-
     test_config_loader = TestConfigLoader()
 
     # Organize tests into an inheritance tree.
@@ -314,7 +313,7 @@ def resolve_inheritance(base_config, suite_cfg, suite_path):
         except (TypeError, KeyError, ValueError) as err:
             raise TestConfigError(
                 "Test {} in suite {} has an error: {}"
-                .format(test_cfg_name, suite_path, err))
+                    .format(test_cfg_name, suite_path, err))
 
     # Add this so we can cleanly depend on it.
     suite_tests['__base__'] = base_config
@@ -343,7 +342,7 @@ def resolve_inheritance(base_config, suite_cfg, suite_path):
         raise TestConfigError(
             "Tests in suite '{}' have dependencies on '{}' that "
             "could not be resolved."
-            .format(suite_path, depended_on_by.keys()))
+                .format(suite_path, depended_on_by.keys()))
 
     # Remove the test base
     del suite_tests['__base__']
@@ -355,19 +354,19 @@ def resolve_inheritance(base_config, suite_cfg, suite_path):
         except RequiredError as err:
             raise TestConfigError(
                 "Test {} in suite {} has a missing key. {}"
-                .format(test_name, suite_path, err))
+                    .format(test_name, suite_path, err))
         except ValueError as err:
             raise TestConfigError(
                 "Test {} in suite {} has an invalid value. {}"
-                .format(test_name, suite_path, err))
+                    .format(test_name, suite_path, err))
         except KeyError as err:
             raise TestConfigError(
                 "Test {} in suite {} has an invalid key. {}"
-                .format(test_name, suite_path, err))
+                    .format(test_name, suite_path, err))
         except YAMLError as err:
             raise TestConfigError(
                 "Test {} in suite {} has a YAML Error: {}"
-                .format(test_name, suite_path, err)
+                    .format(test_name, suite_path, err)
             )
         except TypeError as err:
             # See the same error above when loading host configs.
@@ -410,7 +409,7 @@ def _apply_overrides(test_cfg, overrides, _first_level=True):
                 raise TestConfigError(
                     "Cannot override a dictionary of values with a "
                     "non-dictionary. Tried to put {} in key {} valued {}."
-                    .format(overrides[key], key, test_cfg[key]))
+                        .format(overrides[key], key, test_cfg[key]))
         elif isinstance(test_cfg[key], list):
             # We always get lists from overrides as our 'array' type.
             if isinstance(overrides[key], list):
@@ -421,14 +420,14 @@ def _apply_overrides(test_cfg, overrides, _first_level=True):
             else:
                 raise TestConfigError(
                     "Tried to override list key {} with a {} ({})"
-                    .format(key, type(overrides[key]), overrides[key]))
+                        .format(key, type(overrides[key]), overrides[key]))
         elif isinstance(test_cfg[key], str):
             if isinstance(overrides[key], str):
                 test_cfg[key] = overrides[key]
             else:
                 raise TestConfigError(
                     "Tried to override str key {} with a {} ({})"
-                    .format(key, type(overrides[key]), overrides[key]))
+                        .format(key, type(overrides[key]), overrides[key]))
         else:
             raise TestConfigError(
                 "Configuration contains an element of an unrecognized type. "
@@ -489,7 +488,7 @@ def resolve_permutations(raw_test_cfg, pav_vars, sys_vars):
     except RuntimeError as err:
         raise TestConfigError(
             "In suite file '{}' test name '{}': {}"
-            .format(test_cfg['suite'], test_cfg['name'], err))
+                .format(test_cfg['suite'], test_cfg['name'], err))
 
     # Since per vars are the highest in resolution order, we can make things
     # a bit faster by adding these after we find the used per vars.
@@ -511,14 +510,13 @@ def resolve_permutations(raw_test_cfg, pav_vars, sys_vars):
     except variables.VariableError as err:
         raise TestConfigError("Error in variables section: {}".format(err))
 
-
     return test_cfg, base_var_man.get_permutations(used_per_vars)
 
 
 def _parse_vars(vars_dict, var_man):
 
     temp_vars_dict = vars_dict
-    for key,val in vars_dict.items():
+    for key, val in vars_dict.items():
         for elem in range(len(val)):
             tokens_list = string_parser.tokenize(val[elem])
             temp_vars_dict[key][elem] = _resolve_and_untokenize(tokens_list,
@@ -526,8 +524,8 @@ def _parse_vars(vars_dict, var_man):
 
     return temp_vars_dict
 
+
 def _resolve_and_untokenize(tokens_list, var_man):
-    # type: (object, object) -> object
 
     temp_tokens_list = []
     for token_index in range(len(tokens_list)):
@@ -535,12 +533,13 @@ def _resolve_and_untokenize(tokens_list, var_man):
         temp_tokens_list.append(string_parser.tokenize(var_resolved))
 
     # untokenize
-    brand_new_string = ""
+    resolved_string = ""
     for token in temp_tokens_list:
         for token_elem in token:
-            brand_new_string += token_elem.resolve(var_man)
+            resolved_string += token_elem.resolve(var_man)
 
-    return brand_new_string
+    return resolved_string
+
 
 def _parse_strings(section):
     """Parse all non-key strings in the given config section, and replace
