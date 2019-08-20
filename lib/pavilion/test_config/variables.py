@@ -163,6 +163,10 @@ class VariableSetManager:
 
         self.variable_sets[name] = var_set
 
+    def del_var_set(self, name):
+
+        del self.variable_sets[name]
+
     def get_permutations(self, used_per_vars):
         """For every combination of permutation variables (that were used),
         return a new var_set manager.

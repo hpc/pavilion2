@@ -502,9 +502,17 @@ def resolve_permutations(raw_test_cfg, pav_vars, sys_vars):
     except variables.VariableError as err:
         raise TestConfigError("Error in pav variables: {}".format(err))
 
-    # resolve variables in variables
-    user_vars2 = _parse_vars(user_vars, base_var_man)
+    try:
+        base_var_man.add_var_set('var', user_vars)
+    except variables.VariableError as err:
+        raise TestConfigError("Error in variables section: {}".format(err))
 
+    # resolve variables in variables and then re-add it to the
+    # VariableSetManager
+    user_vars2 = _parse_vars(user_vars, base_var_man)
+    base_var_man.del_var_set('var')
+
+    # re-add var variables
     try:
         base_var_man.add_var_set('var', user_vars2)
     except variables.VariableError as err:
