@@ -320,3 +320,9 @@ a dictionary with some useful values:
 }
 
 ```
+
+## Included result parsers
+Currently, Pavilion comes with 3 result parsers.
+* [constant](results/const.md)
+* [command](results/cmd.md)
+* [regex](results/regex.md)
