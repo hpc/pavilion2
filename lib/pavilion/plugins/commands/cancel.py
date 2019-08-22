@@ -10,6 +10,7 @@ from pavilion import series
 from pavilion.status_file import STATES
 from pavilion.pav_test import PavTest, PavTestError, PavTestNotFoundError
 from pavilion.plugins.commands.status import print_from_test_obj
+from pavilion.utils import dbg_print
 
 
 class CancelCommand(commands.Command):
@@ -45,13 +46,15 @@ class CancelCommand(commands.Command):
 
     def run(self, pav_cfg, args, out_file=sys.stdout, err_file=sys.stderr):
 
-        user_id = os.geteuid()
+        user_id = os.geteuid() # gets unique user id
 
         if not args.tests:
+            # user wants to cancel all current tests
             if args.all:
                 tests_dir = pav_cfg.working_dir/'tests'
+                # iterate through all the tests in the tests directory
                 for test in tests_dir.iterdir():
-                    test_owner_id = os.stat(test.as_posix()).st_uid
+                    test_owner_id = test.stat().st_uid
                     if test_owner_id == user_id:
                         if not os.path.exists((test/'RUN_COMPLETE').as_posix()):
                             test_id = os.path.basename(test.as_posix())
