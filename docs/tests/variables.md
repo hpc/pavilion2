@@ -174,7 +174,7 @@ a test runs on its allocation.
      
 ## Substrings
 Substrings give you the ability to insert that string once for every value 
-of a contained variable. 
+of a contained variable. They're bracketed by `[~` and `~]`.
 
 ```yaml
 substr_test:
@@ -182,7 +182,7 @@ substr_test:
       dirs: ['/usr', '/root', '/opt']
       
     run: 
-      cmds: 'ls [{{dirs}} ]'
+      cmds: 'ls [~{{dirs}} ~]'
 ```
 
 This would result in a command of `ls /usr /root /opt `. The space in the 
@@ -194,7 +194,7 @@ super_magic_fs:
       projects: [origami, fusion]
     
     run:
-      cmds: 'srun ./super_magic [-w /opt/proj/{{projects}} ] -a'
+      cmds: 'srun ./super_magic [~-w /opt/proj/{{projects}} ~] -a'
 ```
 
 This would get us a command of: 
@@ -202,8 +202,12 @@ This would get us a command of:
 
 #### Separators
 In the above examples, the trailing space from the substring resulted in an 
-extra space at the end. That's fine in most circumstances, but what if we 
-need a different separator? There's a special bit of syntax for that.
+extra space at the end. That's fine in most circumstances, but what if we need
+to separate the strings with something that can't be repeated at the end?
+
+To do that, simply insert your separator between the tilde `~` and closing 
+square bracket `]`. The separator can be of any length, but can't contain a 
+closing square bracket. 
 
 ```yaml
 substr_test2:
@@ -211,13 +215,10 @@ substr_test2:
       groups: [testers, supertesters]
     
     run:
-      cmds: 'grep --quiet "[{{groups}}:|]" /etc/group'
+      cmds: 'grep --quiet "[~{{groups}}~|]" /etc/group'
 ```
 
 The command would be: `grep --quiet "testers|supertesters" /etc/group`
-
-When you end your substring in `:<sep>]`, pavilion inserts `<sep>` between
-each repeated substring. Note that `<sep>` has to be a single character.
 
 #### Multiple Variables
 Substrings can contain multiple variables, but only one of those variables can 
