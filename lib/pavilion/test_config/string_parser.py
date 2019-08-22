@@ -60,7 +60,7 @@ def parse(string):
     return PavString(tokens)
 
 
-TEXT_END_RE = re.compile(r'\[|\\|{{|}}|(:.)?\]')
+TEXT_END_RE = re.compile(r'\[~|\\|{{|}}|~[^\]]*\]')
 
 
 def tokenize(string):
@@ -94,17 +94,13 @@ def tokenize(string):
         end_str = match.group()
 
         # Process the non-text token (in most cases) that follows.
-        if end_str == '[':
+        if end_str == '[~':
             tokens.append(SubStringStartToken(pos, pos+1))
-            pos += 1
+            pos += 2
         elif end_str.endswith(']'):
 
-            # This must be a sequence of :.], where the dot is the separator
-            # character.
-            if len(end_str) == 3:
-                separator = end_str[1]
-            else:
-                separator = ''
+            # Pull out the separator string (if any)
+            separator = end_str[1:-1]
 
             tokens.append(SubStringEndToken(pos, pos+1, separator))
             pos += len(end_str)
