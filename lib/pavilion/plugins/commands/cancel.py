@@ -10,7 +10,6 @@ from pavilion import series
 from pavilion.status_file import STATES
 from pavilion.pav_test import PavTest, PavTestError, PavTestNotFoundError
 from pavilion.plugins.commands.status import print_from_test_obj
-from pavilion.utils import dbg_print
 
 
 class CancelCommand(commands.Command):
