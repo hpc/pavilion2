@@ -1,0 +1,5 @@
+variables:
+  long_base+: ['you', 'up', 'up']
+  single_base+: 'mode'
+  no_base_mode+: 'mode'
+  null_base_mode+: 'mode'

@@ -62,6 +62,63 @@ class TestSetupTests(PavTestCase):
 
         plugins._reset_plugins()
 
+    def test_defaulted_variables(self):
+        """Make sure default variables work as expected."""
+
+        plugins.initialize_plugins(self.pav_cfg)
+
+        tests = load_test_configs(
+            self.pav_cfg,
+            host='defaulted',
+            modes=['defaulted'],
+            tests=['defaulted.test']
+        )
+
+        test = tests[0]
+        self.assertEqual(test['variables']['host_def'], ['host'])
+        self.assertEqual(test['variables']['mode_def'], ['mode'])
+        self.assertEqual(test['variables']['test_def'], ['test'])
+        self.assertNotIn('no_val', test['variables'])
+
+        with self.assertRaises(TestConfigError):
+            tests = load_test_configs(
+                self.pav_cfg,
+                host='defaulted',
+                modes=['defaulted'],
+                tests=['defaulted_error.error']
+            )
+
+        plugins._reset_plugins()
+
+    def test_extended_variables(self):
+        """Make sure default variables work as expected."""
+
+        plugins.initialize_plugins(self.pav_cfg)
+
+        tests = load_test_configs(
+            self.pav_cfg,
+            host='extended',
+            modes=['extended'],
+            tests=['extended.test']
+        )
+
+        test = tests[0]
+        self.assertEqual(test['variables']['long_base'],
+                         ['what', 'are', 'you', 'up', 'to', 'punk?'])
+        self.assertEqual(test['variables']['single_base'],
+                         ['host', 'mode', 'test'])
+        self.assertEqual(test['variables']['no_base_mode'],
+                         ['mode'])
+        self.assertEqual(test['variables']['no_base'],
+                         ['test'])
+        self.assertEqual(test['variables']['null_base_mode'],
+                         ['mode'])
+        self.assertEqual(test['variables']['null_base'],
+                         ['test'])
+
+
+        plugins._reset_plugins()
+
     def test_apply_overrides(self):
         """Make sure overrides get applied to test configs correctly."""
 
@@ -99,7 +156,7 @@ class TestSetupTests(PavTestCase):
                 'env':
                     {'baz': '{{baz}}'}
             },
-            'permutations': {
+            'variables': {
                 'foo': ['1', '2', '3'],
                 'bar': [
                     {'p': '4', 'q': '4a'},
@@ -107,16 +164,13 @@ class TestSetupTests(PavTestCase):
                 ],
                 'baz': ['6'],
                 'blarg': ['7', '8']
-            }
+            },
+            'permute_on': ['foo', 'bar', 'baz']
         }
 
-        orig_permutations = raw_test['permutations']
+        orig_permutations = raw_test['variables']
 
         test, permuted = resolve_permutations(raw_test, {}, {})
-
-        # This should have been deleted
-        self.assertNotIn('permutations', test)
-        self.assertNotIn('variables', test)
 
         # Foo should triple the permutations, bar should double them -> 6
         # baz shouldn't have an effect (on the permutation count).
@@ -142,6 +196,73 @@ class TestSetupTests(PavTestCase):
 
             self.assertIn(comb_dict, combinations)
 
+    def test_deferred_errors(self):
+        test = {
+            'permute_on': ['sys.def'],
+            'variables': {},
+        }
+
+        with self.assertRaises(TestConfigError):
+            resolve_permutations(
+                test, {}, {'def': variables.DeferredVariable('def')})
+
+        test = {
+            'permute_on': ['foo.1'],
+            'variables': {
+                'foo': 'bleh'
+            }
+        }
+
+        with self.assertRaises(TestConfigError):
+            resolve_permutations(test, {}, {})
+
+        test = {
+            'permute_on': ['no_exist'],
+            'variables': {},
+        }
+
+        with self.assertRaises(TestConfigError):
+            resolve_permutations(test, {}, {})
+
+    def test_resolve_vars_in_vars(self):
+        test = {
+            'permute_on': ['fruit', 'snacks'],
+            'variables': {
+                'fruit': ['apple', 'orange', 'banana'],
+                'snacks': ['{{fruit}}-x', '{{sys.soda}}'],
+                'stuff': 'y{{fruit}}-{{snacks}}'
+            }
+        }
+
+        test, permuted = resolve_permutations(test, {}, {'soda':'pepsi'})
+
+        possible_stuff = ['yapple-apple-x',
+                          'yapple-pepsi',
+                          'yorange-orange-x',
+                          'yorange-pepsi',
+                          'ybanana-banana-x',
+                          'ybanana-pepsi']
+
+        stuff = [var_man['var.stuff'] for var_man in permuted]
+        possible_stuff.sort()
+        stuff.sort()
+        self.assertEqual(possible_stuff, stuff)
+
+    def test_for_circular_variable_references(self):
+        test = {
+            'variables': {
+                'a': '--{{d}}-{{b}}-',
+                'b': '--{{e}}--',
+                'c': '--{{a}}-{{b}}-',
+                'd': '--{{c}}--',
+                'e': '--e--',
+            },
+            'permute_on': []
+        }
+
+        with self.assertRaises(variables.VariableError):
+            resolve_permutations(test, {}, {})
+
     def test_resolve_all_vars(self):
 
         # Most of the variable resolution stuff is tested elsewhere,
@@ -150,7 +271,7 @@ class TestSetupTests(PavTestCase):
             'build': {
                 'cmds':
                     ["echo {{foo}} {{bar.p}}",
-                     "echo {{per.foo}}",
+                     "echo {{var.foo}}",
                      "echo {{bar.q}}"],
                 'env': [
                     {'baz': '{{baz}}'},
@@ -158,16 +279,15 @@ class TestSetupTests(PavTestCase):
                     {'pav': '{{pav.nope}}'},
                     {'sys': '{{nope}}'}]
             },
-            'permutations': {
+            'variables': {
+                'baz': ['6'],
+                'blarg': [{'l': '7', 'r': '8'}],
                 'foo': ['1', '2'],
                 'bar': [
                     {'p': '4', 'q': '4a'},
                 ],
             },
-            'variables': {
-                'baz': ['6'],
-                'blarg': {'l': '7', 'r': '8'}
-            }
+            'permute_on': ['foo', 'bar']
         }
 
         answer1 = {
@@ -207,7 +327,9 @@ class TestSetupTests(PavTestCase):
         test = {
             'build': {
                 'cmds': ['echo {{foo}}']
-            }
+            },
+            'permute_on': [],
+            'variables': {}
         }
 
         dvar = variables.DeferredVariable('foo', 'sys')

@@ -5,8 +5,10 @@ strings. Here we look at these variables in full detail.
 
  - [Variable Sets](#variable-sets)
  - [Variable Types](#variable-types)
+ - [Test Variables](#test-variables)
  - [Deferred Variables](#deferred-variables)
  - [Substrings](#substrings)
+ - [Default Values](#default-values)
  - [Permutations](#permutations)
 
 ## Variable Sets
@@ -29,14 +31,11 @@ foo:
       cmds: "echo {{host_name}}"
 ```
 
-#### Permutation Variables (per)
-These are provided via the test config's `permutations` section. They act 
-differently from all other variables, and are used to generate virtual test 
-configs. See the [Permutations](#permutations) section for more information.
-
 #### Test Variables (var)
 The test's `variables` section provides these variables, as demonstrated in 
-many examples.
+many examples. See the [Test Variables](#test-variables) section for more on 
+these. While these generally come from the test config, they can also be 
+provided via host and mode configuration files.
 
 #### System Variables (sys)
 System variables are provided via system plugins. These are designed to be 
@@ -156,6 +155,70 @@ subkeyed_vars:
 This is especially useful when combined with repeated 
 [substrings](#substrings) and [permuations](#permutations).
 
+
+## Test Variables
+Test variables provide a way to abstract certain values out of your commands, 
+where they can be modified through inheritance or defined by host or mode 
+configurations. Like everything else in test configs, variables defined at 
+the test level override anything defined by host or mode configs. 
+Unlike everything else, however, you can override
+that behavior by appending a special character to the variable name. 
+
+ - The actual variable name won't have the special character.
+ - You can't combine these.
+ - These can be used in host/mode configs too, but they only apply at that 
+ level.
+ 
+### Test Variable References
+Variables may contain references to other variables in their values. 
+These can reference any other variable type (with the exception of 'sched' 
+variables) and can substrings and all the other syntax tricks Pavilion provides.
+
+```yaml
+rec_example:
+    variables:
+      target_mount: '/tmp/'
+      options: '-d {{target_mount}}'
+```
+
+### Expected Variables (?)
+You can denote a variable as 'expected' by adding a question mark `?` to the 
+end of it's name. The value provided then simply acts as the default, and 
+will be overridden if the host or mode configs provide values. You can also 
+leave the value empty, an error will be given if no value is provided by an 
+underlying config file (host/mode).
+
+```yaml
+expected_test:
+  variables:
+    # Pavilion will only use this value if the host or mode configs 
+    # don't define it.
+    intensity?: 1
+    
+    # Pavilion expects the hosts or modes to provide this value.
+    power?:
+    
+    run:
+      cmds:
+        - "./run_test -i {{intensity}} -p {{power}}"
+```
+
+### Appended Variables (+)
+Instead of overriding values from host/mode configs, this lets you append one
+or more additional unique values for that variable. You must add at least one 
+value. 
+
+You'll generally want to use these in [permutations](#permutations) or 
+[substrings](#substrings).
+
+```yaml
+append_test:
+  variables:
+    append_test_options+: [-d, -f]
+    # This will add the single value to the list of test_drives
+    test_drives+: /tmp
+```
+
 ## Deferred Variables
 
 Deferred variables are simply variables whose value is to be determined when 
@@ -200,7 +263,7 @@ super_magic_fs:
 This would get us a command of: 
 `srun ./super_magic -w /opt/proj/origami -w /opt/proj/fusion  -a`
 
-#### Separators
+#### Substring Separators
 In the above examples, the trailing space from the substring resulted in an 
 extra space at the end. That's fine in most circumstances, but what if we need
 to separate the strings with something that can't be repeated at the end?
@@ -221,8 +284,8 @@ substr_test2:
 The command would be: `grep --quiet "testers|supertesters" /etc/group`
 
 #### Multiple Variables
-Substrings can contain multiple variables, but only one of those variables can 
-have multiple values.
+Substrings can contain multiple variables, but only one of those variables 
+can have more multiple values (or no values).
 
 ```yaml
 super_magic_fs:
@@ -238,31 +301,58 @@ If the user `ebronte` were running the tests, we'd get a command of:
 srun ./super_magic -w /opt/proj/origami/ebronte -w /opt/proj/fusion/ebronte -a
 ```
 
+If a single variable in a substring has no values, it's assumed to be the 
+variable we want to expand,
+
+#### Nesting Substrings
+While substrings can be nested, the behavior is not particularly useful in 
+its current form. Nested substring behavior is an __unstable__ feature, as we
+we will likely change it in the future. 
+
+## Default Values
+Variable references may be given a default value 
+
 ## Permutations
-As mentioned, permutation are special. When permutation variables have 
-multiple values they can generate multiple 'virtual' tests, one for each 
-possible value. In each of these virtual tests the permutation variables act as 
-if they only have a single value; the one that corresponds to that permutation.
+Permutations allow you to creat a 'virtual' test for each permutation of the 
+values of one or more variables.
 
 ```yaml
 permuted_test:
-    permutations:
-      msg: ['hello', 'goodbye', 'see you later']
+    permute_on: msg, person, date
+    variables:
+      msg: ['hello', 'goodbye']
+      person: ['Paul', 'Nick']
     run:
-      cmds: 'echo {{msg}}'
+      cmds: 'echo "{{msg}} {{person}} - {{date}}"'
 ```
 
-The above would result in three virtual tests, each one echoing a different 
+The above would result in nine virtual tests, each one echoing a different 
 message.
+ - That's 2 _users_ * 2 _people_ * 1 _date_
+   - `echo "hello Paul - 07/14/19"`
+   - `echo "hello Nick - 07/14/19"`
+   - `echo "goodbye Paul - 07/14/19"`
+   - `echo "goodbye Nick - 07/14/19"`
+ - User comes from the 'pav.user' variable which only has a single value.
  - The tests are scheduled independently when using `pav run`.
- - They have the same test name (permuted_test).
+ - They have the same test name (permuted_test), but different test id's and 
+ run directories.
+
+### Limitations
+ - You can't permute on 'sched' variables. They don't exist until after 
+ permutations are generated.
+ - You can't permute on _Deferred_ variables. They can only have one value, 
+ and we won't know what that is until right before the test runs.
+ - No attempt is made to remove duplicate tests, so if you permute on a 
+ variable you don't use it will create some identical test runs.
 
 #### Complex Variables in Permutations 
 Complex variables are a useful way to group variables together in a permutation.
 
 ```yaml
 mytest:
-    permutations:
+    permute_on: compiler
+    variables:
       compiler: 
         - {name: 'gcc',   mpi: 'openmpi',   cmd: 'mpicc',  openmp: '-fopenmp'}
         - {name: 'intel', mpi: 'intel-mpi', cmd: 'mpiicc', openmp: '-qopenmp'}
@@ -281,39 +371,3 @@ This would create two virtual tests, one built with gcc and one with intel.
  - Note that using a variable multiple times __never__ creates additional 
  permutations. 
 
-#### Multi-Variable Permutations
-When you use multiple permutation variables, you generate a virtual test for 
-every permutation of those variables. 
-
-```yaml
-multi_perm_test:
-    permutations:
-      msg: ['hello', 'hola', 'goodbye', 'hasta la vista']
-      person: ['Doug', 'Korg', 'New Doug']
-    run:
-      cmds: 'echo "{{msg}} {{person}}"'
-```
-
-This would create 12 virtual tests, one for every combination of `msg` and 
-`person`.
-
-#### Unused Permutation Variables
-
-```yaml
-multi_perm_test:
-    permutations:
-      meat: ['buffalo', 'venison', 'bison', 'rabbit']
-      cake: ['chocolate', 'vanilla', 'funfetti']
-      ice_cream: ['strawberry', 'snozberry']
-      
-    run:
-      cmds: echo "Let them eat {{cake}} cake, and {{ice cream}} 
-            flavored ice cream."
-```
-
-This would create six virtual tests, for every combination of `cake` and 
-`ice_cream`. The `meat` permutations won't have any effect since they're not
-used. 
-
-This means it's safe to include permutation variables in your host and mode 
-configs, as they'll only cause permutations if used.

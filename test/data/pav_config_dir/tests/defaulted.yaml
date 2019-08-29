@@ -1,0 +1,5 @@
+test:
+  variables:
+    mode_def?: test
+    host_def?: test
+    test_def: test

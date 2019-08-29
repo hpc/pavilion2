@@ -142,11 +142,11 @@ def dbg_print(*args, color=33, file=sys.stderr, end="", **kwargs):
         of how unittest prints stuff.
     :param int color: ANSI color code to print the string under.
     """
-    start_escape = '\x1b[{}m'.format(color)
+    start_escape = '\n\x1b[{}m'.format(color)
 
-    print(start_escape)
-    print(*args, file=file, end=end, **kwargs)
-    print('\x1b[0m')
+    print(start_escape, end='', file=file)
+    print(*args, file=file, end='', **kwargs)
+    print('\x1b[0m  ', end=end, file=file)
 
 
 def fprint(*args, color=None, bullet='', width=100,
