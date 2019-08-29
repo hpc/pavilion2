@@ -8,6 +8,7 @@ class TestConfigError(ValueError):
 
 
 KEY_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_-]*$')
+VAR_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_-]*[\?\+]?$')
 
 
 class VariableElem(yc.CategoryElem):
@@ -41,7 +42,47 @@ class VariableElem(yc.CategoryElem):
 class VarCatElem(yc.CategoryElem):
     """Just like a regular category elem, but we override the key regex to
     allow dashes. We won't be using name style references anyway."""
-    _NAME_RE = KEY_NAME_RE
+    _NAME_RE = VAR_NAME_RE
+
+    def merge(self, old, new):
+        """Merge, but allow for special keys that change our merge behavior."""
+
+        base = old.copy()
+        for key, value in new.items():
+            # Handle special key properties
+            if key[-1] in '?+':
+                bkey = key[:-1]
+                new_vals = new[key]
+
+                if key.endswith('?'):
+                    if new_vals is None:
+                        raise TestConfigError(
+                            "Key '{key}' in variables section must have a "
+                            "value, either set as the default at this level or "
+                            "provided by an underlying host or mode config."
+                            .format(key=key)
+                        )
+                    # Use the new value only if there isn't an old one.
+                    base[bkey] = base.get(bkey, new[key])
+                elif key.endswith('+'):
+                    if new_vals is None:
+                        raise TestConfigError(
+                            "Key '{key}' in variables section is in extend "
+                            "mode, but provided no values."
+                            .format(key=key))
+
+                    # Appending the additional (unique) values
+                    base[bkey] = base.get(bkey, self._sub_elem.type())
+                    for item in new_vals:
+                        if item not in base[bkey]:
+                            base[bkey].append(item)
+
+            elif key in old:
+                base[key] = self._sub_elem.merge(old[key], new[key])
+            else:
+                base[key] = new[key]
+
+        return base
 
 
 class EnvCatElem(yc.CategoryElem):
@@ -76,6 +117,12 @@ class TestConfigLoader(yc.YamlConfigLoader):
             'doc', default='',
             help_text="Detailed documentation string for this test."
         ),
+        yc.ListElem(
+            'permute_on', sub_elem=yc.StrElem(),
+            help_text="List of permuted variables. For every permutation of "
+                      "the values of these variables, a new virtual test will "
+                      "be generated."
+        ),
         VarCatElem(
             'variables', sub_elem=yc.ListElem(sub_elem=VariableElem()),
             help_text="Variables for this test section. These can be "
@@ -83,15 +130,6 @@ class TestConfigLoader(yc.YamlConfigLoader):
                       "the string syntax. They keys 'var', 'per', 'pav', "
                       "'sys' and 'sched' reserved. Each value may be a "
                       "single or list of strings key/string pairs."),
-        VarCatElem(
-            'permutations', sub_elem=yc.ListElem(sub_elem=VariableElem()),
-            help_text="Permutation variables for this test section. These are "
-                      "just like normal variables, but they if a list of "
-                      "values (whether a single string or key/string pairs) "
-                      "is given, then a virtual test is created for each "
-                      "combination across all variables in each section. The "
-                      "resulting virtual test is thus given a single "
-                      "permutation of these values."),
         yc.RegexElem('scheduler', regex=r'\w+', default="raw",
                      help_text="The scheduler class to use to run this test."),
         yc.KeyedElem(

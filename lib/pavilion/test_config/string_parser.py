@@ -60,7 +60,11 @@ def parse(string):
     return PavString(tokens)
 
 
-TEXT_END_RE = re.compile(r'\[~|\\|{{|}}|~[^\]]*\]')
+TEXT_END_RE = re.compile(r'\[~|'        # Substring start
+                         r'~[^\]]*\]|'  # Substring end (with separator)
+                         r'\\|'         # Escape next char
+                         r'{{|'         # Variable ref start
+                         r'(\|[^}]*)?}}')  # Variable ref end (with default).
 
 
 def tokenize(string):
@@ -107,6 +111,7 @@ def tokenize(string):
 
         elif end_str == '{{':
             var_end = string.find('}}', pos)
+
             if var_end == -1:
                 error_end = string.find(' ', pos)
                 if error_end == -1:
@@ -116,6 +121,11 @@ def tokenize(string):
                     pos - 1, error_end)
 
             var_name = string[pos+2:var_end]
+
+            # See if this variable is optional.
+            default = None
+            if '|' in var_name:
+                var_name, default = var_name.split('|', 1)
 
             # Use the variable manager to parse the key and check for validity.
             try:
@@ -134,7 +144,8 @@ def tokenize(string):
                 raise ScanError("Invalid sub_var name '{}' in var '{}'"
                                 .format(sub_var, var_name), pos, var_end)
 
-            tokens.append(VariableToken(var_name, pos, var_end))
+            tokens.append(VariableToken(
+                var_name, pos, var_end, default))
             pos = var_end + 2
 
         elif end_str == '}}':
@@ -196,6 +207,7 @@ class PavString(Token):
 
         self.next_token = None
         self.separator = ''
+        self.variables = set()
 
         self._root = self._parse(tokens, is_substr)
 
@@ -212,7 +224,7 @@ class PavString(Token):
             if isinstance(token, SubStringStartToken):
                 # Start a new PavString if we're dropping into a sub string.
                 token = PavString(tokens, is_substr=True)
-                last_token.next_token = token
+                self.variables = self.variables.union(token.variables)
                 # The we're consuming tokens from the list as we parse,
                 # so what's left is what was outside the sub string.
             elif isinstance(token, SubStringEndToken):
@@ -221,10 +233,11 @@ class PavString(Token):
                 self.end = token.end
                 self.separator = token.separator
                 return root
-            else:
-                # Add any other token to our PavString token list.
-                last_token.next_token = token
+            elif isinstance(token, VariableToken):
+                self.variables.add(token.var)
 
+            # Add any other token to our PavString token list.
+            last_token.next_token = token
             last_token = token
 
         # Only in the top level PavStr, which isn't a sub string, should
@@ -236,22 +249,6 @@ class PavString(Token):
         self.end = last_token.end
 
         return root
-
-    @property
-    def variables(self):
-        token = self._root
-
-        var_set = set()
-
-        while token:
-            if isinstance(token, VariableToken):
-                var_set.add(token.var)
-            elif isinstance(token, PavString):
-                var_set.union(token.variables)
-
-            token = token.next_token
-
-        return var_set
 
     def get_substr_vars(self, var_man):
         """
@@ -296,7 +293,10 @@ class PavString(Token):
             if isinstance(token, TextToken):
                 parts.append(token.text)
             elif isinstance(token, VariableToken):
-                var_set, var, idx, sub_var = var_man.resolve_key(token.var)
+                try:
+                    var_set, var, idx, _ = var_man.resolve_key(token.var)
+                except KeyError:
+                    var_set, var, idx = None, None, None
 
                 if (var_set, var) in _iter_vars and idx is None:
                     # Resolve the substr var by the given index.
@@ -398,10 +398,11 @@ class TextToken(Token):
 
 
 class VariableToken(Token):
-    def __init__(self, var, start, end):
+    def __init__(self, var, start, end, default):
         super(VariableToken, self).__init__(start, end)
 
         self.var = var
+        self.default = default
 
     def resolve(self, var_man, iter_index=None, allow_deferred=True):
         """Resolve any variables in this token using the variable manager.
@@ -414,7 +415,13 @@ class VariableToken(Token):
         :return:
         """
 
-        var_set, var, idx, subvar = var_man.resolve_key(self.var)
+        try:
+            var_set, var, idx, subvar = var_man.resolve_key(self.var)
+        except KeyError:
+            if self.default is not None:
+                return self.default
+            else:
+                raise
 
         if iter_index is not None:
             idx = iter_index

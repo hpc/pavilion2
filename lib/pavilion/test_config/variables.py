@@ -21,6 +21,7 @@
 # run in its final environment.
 
 import re
+import copy
 
 
 class VariableError(ValueError):
@@ -173,13 +174,13 @@ class VariableSetManager:
         # Get every a dictionary of var:idx for every combination of used
         # permutation variables.
         permutations = [{}]
-        for per_var in used_per_vars:
+        for var_set, var in used_per_vars:
             new_perms = []
 
             for old_perm in permutations:
-                for i in range(self.len('per', per_var)):
+                for i in range(self.len(var_set, var)):
                     new_perm = old_perm.copy()
-                    new_perm[per_var] = i
+                    new_perm[(var_set, var)] = i
                     new_perms.append(new_perm)
 
             permutations = new_perms
@@ -193,17 +194,15 @@ class VariableSetManager:
         for perm in permutations:
             var_man = VariableSetManager()
 
-            var_man.variable_sets = self.variable_sets.copy()
+            var_man.variable_sets = copy.deepcopy(self.variable_sets)
 
-            perm_var_set = VariableSet('per', self.reserved_keys)
-            for var, idx in perm.items():
-                new_list = [self.variable_sets['per'].data[var].data[idx]]
+            for (var_set, var), idx in perm.items():
+                new_list = [self.variable_sets[var_set][var][idx]]
                 vlist = VariableList()
-                vlist.data = new_list
+                vlist.data = copy.deepcopy(new_list)
 
-                perm_var_set.data[var] = vlist
+                var_man.variable_sets[var_set].data[var] = vlist
 
-            var_man.variable_sets['per'] = perm_var_set
             permuted_var_mans.append(var_man)
 
         return permuted_var_mans
@@ -228,7 +227,9 @@ class VariableSetManager:
         elif isinstance(key, str):
             parts = key.split('.')
         else:
-            raise TypeError("Only str keys or tuples/lists are allowed.")
+            raise TypeError(
+                "Only str keys or tuples/lists are allowed. Got '{}'"
+                .format(key))
 
         var_set = None
         if parts[0] in cls.VAR_SETS:
@@ -257,10 +258,11 @@ class VariableSetManager:
             else:
                 try:
                     index = int(parts[0])
-                    parts.pop(0)
                 except ValueError:
                     # If it's not an integer, assume it's a sub_key.
                     pass
+                else:
+                    parts.pop(0)
 
         sub_var = None
         if parts:
@@ -438,6 +440,64 @@ class VariableSetManager:
 
         return resolved_line
 
+    def resolve_references(self, parser):
+        """
+        Resolves variable references
+        :param parser: String parser to parse variable value into a PavString
+        :return:
+        """
+
+        unresolved_vars = {}
+        # We only want to resolve variable references in the variable section
+        # Find all the variable value strings that reference variables
+        for var, var_list in self.variable_sets['var'].data.items():
+            # val is a list of dictionaries
+            for idx in range(len(var_list.data)):
+                sub_var = var_list.data[idx]
+                # We equate idx 0 with None. It just needs consistency.
+                idx = None if idx == 0 else idx
+                for key, val in sub_var.data.items():
+                    pav_str = parser(val)
+                    if pav_str.variables:
+                        # Unresolved variable reference that will be
+                        # resolved below
+                        unresolved_vars[('var', var, idx, key)] = pav_str
+                    else:
+                        # This one is ready to resolve now
+                        sub_var.data[key] = pav_str.resolve(self)
+
+        # unresolved variables form a tree where the leaves should all be
+        # resolved variables. This iteratively finds unresolved variables whose
+        # references are resolved and resolves them. This should collapse the
+        # tree until there are no unresolved variables left.
+        while unresolved_vars:
+            did_resolve = False
+            for uvar, pav_str in unresolved_vars.copy().items():
+                for var_str in pav_str.variables:
+                    var_key = self.resolve_key(var_str)
+                    if var_key in unresolved_vars:
+                        break
+                else:
+                    # All variables referenced in uvar are resolvable
+                    var_set, var_name, index, sub_var = uvar
+                    self.variable_sets[var_set][var_name][index][sub_var] = \
+                        pav_str.resolve(self)
+                    del unresolved_vars[uvar]
+                    did_resolve = True
+            # If no variable is resolved in this iteration, then all remaining
+            # unresolved variables are part of a variable reference loop and
+            # therefore cannot eventually be resolved.
+            if not did_resolve:
+                var_set, var, idx, sub_var = list(unresolved_vars.keys())[0]
+                raise VariableError(
+                    "Variable contained reference loop"
+                    .format([k[1] for k in unresolved_vars.keys()]),
+                    var_set=var_set,
+                    var=var,
+                    index=idx,
+                    sub_var=sub_var
+                )
+
     def as_dict(self):
         """Return the all variable sets as a single dictionary. This is
         for testing and bug resolution, not production code."""
@@ -458,12 +518,30 @@ class VariableSetManager:
                         var_sets[key].append(subitem.data)
         return var_sets
 
+    def __contains__(self, item):
+
+        var_set, var, index, sub_var = self.parse_key(item)
+
+        # If we didn't get an explicit var_set, find the first matching one
+        # with the given var.
+        if var_set is None:
+            for res_vs in self.reserved_keys:
+                if (res_vs in self.variable_sets and
+                        var in self.variable_sets[res_vs]):
+                    var_set = res_vs
+                    break
+
+        if var_set is None:
+            return False
+        else:
+            return True
+
 
 class VariableSet:
     """A set of of variables. Essentially a wrapper around a mapping of var
         names to VariableList objects."""
 
-    def __init__(self, name, reserved_keys, value_dict=None):
+    def __init__(self, name, reserved_keys=None, value_dict=None):
         """Initialize the VariableSet. The data can be set directly by
             assigning to .data, or from a config with the 'init_from_config'
             method.
@@ -476,7 +554,6 @@ class VariableSet:
 
         self.data = {}
         self.name = name
-        reserved_keys = reserved_keys
 
         if value_dict is not None:
             self._init_from_config(reserved_keys, value_dict)
@@ -505,16 +582,29 @@ class VariableSet:
         """Return the value of the var given the var name, index, and sub_var
             name."""
 
-        if var in self.data:
-            return self.data[var].get(index, sub_var)
-        else:
-            raise KeyError(
-                "Variable set '{}' does not contain a variable named '{}'. "
-                "Available variables are: {}"
-                .format(self.name, var, tuple(self.data.keys())))
+        return self[var].get(index, sub_var)
 
     def __contains__(self, item):
         return item in self.data
+
+    def __deepcopy__(self, memodict=None):
+        variable_set = VariableSet(
+            name=self.name
+        )
+        variable_set.data = copy.deepcopy(self.data)
+        return variable_set
+
+    def __getitem__(self, key):
+
+        if key not in self.data:
+            raise KeyError(
+                "Variable set '{}' does not contain a variable named '{}'. "
+                "Available variables are: {}"
+                .format(self.name, key, tuple(self.data.keys())))
+        return self.data[key]
+
+    def __repr__(self):
+        return '<VarSet({}) {}>'.format(id(self.data), self.data)
 
 
 class VariableList:
@@ -564,6 +654,21 @@ class VariableList:
     def get(self, index, sub_var):
         """Return the variable value at the given index and sub_var."""
 
+        return self[index].get(sub_var)
+
+    def __len__(self):
+        return len(self.data)
+
+    def __repr__(self):
+        return "<VariableList({}) {}>".format(id(self.data), self.data)
+
+    def __deepcopy__(self, memodict=None):
+        var_list = VariableList()
+        var_list.data = copy.deepcopy(self.data)
+        return var_list
+
+    def __getitem__(self, index):
+
         if index is None:
             index = 0
         else:
@@ -575,10 +680,7 @@ class VariableList:
                 "Index out of range. There are only {} items in this variable."
                 .format(len(self.data)))
 
-        return self.data[index].get(sub_var)
-
-    def __len__(self):
-        return len(self.data)
+        return self.data[index]
 
 
 class SubVariable:
@@ -613,3 +715,17 @@ class SubVariable:
                 "Variable has sub-values; one must be requested explicitly.")
         else:
             raise KeyError("Unknown sub_var: '{}'".format(sub_var))
+
+    def __repr__(self):
+        return "<SubVariable({}) {}>".format(id(self.data), self.data)
+
+    def __deepcopy__(self, memodict=None):
+        sub_var = SubVariable()
+        sub_var.data = copy.deepcopy(self.data)
+        return sub_var
+
+    def __getitem__(self, key):
+        return self.data[key]
+
+    def __setitem__(self, key, value):
+        self.data[key] = value

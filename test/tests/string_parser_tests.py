@@ -65,7 +65,9 @@ class TestStringParser(PavTestCase):
             ('Hello [~{{var2}}-[~{{var4.subvar1}}~-]~ ] World.',
              'Hello 0-subval0_1-subval1_1 1-subval0_1-subval1_1 '
              '2-subval0_1-subval1_1 World.'),
-
+            # Default values
+            ('Hello {{nope|World}}', 'Hello World'),
+            ('No {{world|}} for you.', 'No  for you.'),
         ]
 
         for test_str, answer_str in test_strings:
@@ -78,7 +80,8 @@ class TestStringParser(PavTestCase):
             ('Hello {{bleh World.', string_parser.ScanError),
             # Bad variable name
             ('Hello {{;;dasd}} World.', string_parser.ScanError),
-            # Bad var_set name (raised by VariableSetManager, re-caught in the tokenizer)
+            # Bad var_set name (raised by VariableSetManager,
+            # re-caught in the tokenizer)
             ('Hello {{;.foo.bar}} World.', string_parser.ScanError),
             # Bad sub_var name
             ('Hello {{pav.bar.;-}} World.', string_parser.ScanError),
@@ -96,8 +99,8 @@ class TestStringParser(PavTestCase):
         show_errors = False
 
         for test_str, error in test_strings:
-            self.assertRaises(error,
-                              lambda: string_parser.parse(test_str).resolve(self.var_set_manager))
+            with self.assertRaises(error):
+                string_parser.parse(test_str).resolve(self.var_set_manager)
 
             if show_errors:
                 try:

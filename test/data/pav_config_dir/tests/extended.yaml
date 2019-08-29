@@ -1,0 +1,6 @@
+test:
+  variables:
+    long_base+: ['to', 'punk?']
+    single_base+: 'test'
+    no_base+: 'test'
+    null_base+: 'test'
