@@ -41,11 +41,14 @@ class Table(result_parsers.ResultParser):
         match_list = []
 
         # generate regular expression
-        value_regex = '(.+| )'
+        value_regex = '(\S+| )'
+        new_delimiter = ' *' + delimiter + ' *'
         value_regex_list = []
         for i in range(int(col_num)):
             value_regex_list.append(value_regex)
-        str_regex = delimiter.join(value_regex_list)
+        str_regex = new_delimiter.join(value_regex_list)
+        str_regex = '^ *' + str_regex + ' *$'
+        #return str_regex
 
         regex = re.compile(str_regex)
         for line in file.readlines():
