@@ -29,19 +29,25 @@ class Table(result_parsers.ResultParser):
             yc.StrElem(
                 'row_col', default='False',
                 help_text="Set True if there is a column for row names."
+            ),
+            yc.ListElem(
+                'col_names', required=False, sub_elem=yc.StrElem(),
+                help_text="Column names if the user knows what they are."
             )
         ])
 
         return config_items
 
-    def _check_args(self, delimiter=None, col_num=None, row_col=None):
+    def _check_args(self, delimiter=None, col_num=None, row_col=None,
+                    col_names = []):
         
         if delimiter == "":
             raise result_parsers.ResultParserError(
                 "Delimiter required."
         )
 
-    def __call__(self, test, file, delimiter=None, col_num=None, row_col=None):
+    def __call__(self, test, file, delimiter=None, col_num=None,
+                 row_col='', col_names = []):
 
         match_list = []
 
@@ -58,11 +64,35 @@ class Table(result_parsers.ResultParser):
         for line in file.readlines():
             match_list.extend(regex.findall(line))
 
-        # assume first list in match_list is the column row
-        result_dict = {}
-        for col in range(len(match_list[0])):
-            result_dict[match_list[0][col]] = []
-            for v_list in match_list[1:]:
-                result_dict[match_list[0][col]].append(v_list[col])
+        # if column names isn't specified, assume column names are the first
+        # in the match_list
+        if not col_names:
+            col_names = match_list[0]
 
+        # table has row names AND column names = dictionary of dictionaries
+        if row_col == "True":
+            result_dict = {}
+            if match_list[0] in col_names:
+                match_list = match_list[1:]
+            col_names = col_names[1:]
+            row_names = [] # assume first element in list is row name
+            for m_idx in range(len(match_list)):
+                row_names.append(match_list[m_idx][0])
+                match_list[m_idx] = match_list[m_idx][1:]
+            if row_names[0] is col_names[0]:
+                row_names = row_names[1:]
+            for col_idx in range(len(col_names)):
+                result_dict[col_names[col_idx]] = {}
+                for row_idx in range(len(row_names)):
+                    result_dict[col_names[col_idx]][row_names[row_idx]] = \
+                        match_list[row_idx][col_idx]
+        # table does not have rows = dictionary of lists
+        else:
+            result_dict = {}
+            for col in range(len(match_list[0])):
+                result_dict[match_list[0][col]] = []
+                for v_list in match_list[1:]:
+                    result_dict[match_list[0][col]].append(v_list[col])
+
+        # return row_col
         return result_dict
