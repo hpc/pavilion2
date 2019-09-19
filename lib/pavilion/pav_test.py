@@ -35,16 +35,18 @@ def get_latest_tests(pav_cfg, limit):
     :return: list of test ID's
     """
 
-    test_dir_dict = {}
+    test_dir_list = []
     top_dir = pav_cfg.working_dir/'tests'
     for child in top_dir.iterdir():
         mtime = child.stat().st_mtime
-        test_dir_dict[int(str(child.stem))] = mtime
+        test_dir_list.append((mtime, child.name))
 
-    sorted_test_dir = sorted(test_dir_dict.items(), key=lambda kv: kv[1])
-    last_tests = sorted_test_dir[-limit:]
-    tests_only = [int(i[0]) for i in last_tests]
+    test_dir_list.sort()
+    last_tests = test_dir_list[-limit:]
+    tests_only = [int(i[1]) for i in last_tests]
+
     return tests_only
+
 
 class PavTestError(RuntimeError):
     """For general test errors. Whatever was being attempted has failed in a
