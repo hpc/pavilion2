@@ -112,7 +112,7 @@ def find_all_tests(pav_cfg):
 
 
 def load_test_configs(pav_cfg, host, modes, tests):
-    """Get a dictionary of raw test configs given a host, list of modes,
+    """Get a list of raw test configs given a host, list of modes,
     and a list of tests. Each of these configs will be lightly modified with
     a few extra variables about their name, suite, and suite_file, as well as
     guaranteeing that they have 'variables' and 'permutations' sections.
@@ -123,7 +123,7 @@ def load_test_configs(pav_cfg, host, modes, tests):
     be either a '<test_suite>.<test_name>', '<test_suite>',
     or '<test_suite>.*'. A test suite by itself (or with a .*) get every
     test in a suite.
-    :return: A mapping of '<test_suite>.<test_name>' -> raw_test_cfg
+    :return: A list of raw test_cfg dictionaries.
     """
 
     test_config_loader = TestConfigLoader()
@@ -287,12 +287,44 @@ def load_test_configs(pav_cfg, host, modes, tests):
 
             picked_tests.append(all_tests[test_suite][requested_test])
 
+    # Get the default configuration for a const result parser.
+    const_elem = TestConfigLoader().find('results.constant.*')
+
+    seen = []
+    # Add the pav_cfg default_result configuration items to each test.
+    for test_cfg in picked_tests:
+        if 'constant' not in test_cfg['results']:
+            test_cfg['results']['constant'] = []
+
+        const_keys = [const['key'] for const in test_cfg['results']['constant']]
+
+        for key, const in pav_cfg.default_results.items():
+
+            if key in const_keys:
+                # Don't override any that are already there.
+                continue
+
+            new_const = const_elem.validate({
+                'key': key,
+                'const': const,
+            })
+            test_cfg['results']['constant'].append(new_const)
+
     return picked_tests
 
 
 def resolve_inheritance(base_config, suite_cfg, suite_path):
+    """Resolve inheritance between tests in a test suite. There's potential
+    for loops in the inheritance hierarchy, so we have to be careful of that."""
 
     test_config_loader = TestConfigLoader()
+
+    # This iterative algorithm recursively resolves the inheritance tree from
+    # the root ('__base__') downward. Nodes that have been resolved are
+    # separated from those that haven't. We then resolve any nodes whose
+    # dependencies are all resolved and then move those nodes to the resolved
+    # list. When we run out of nodes that can be resolved, we're done. If there
+    # are still unresolved nodes, then a loop must exist.
 
     # Organize tests into an inheritance tree.
     depended_on_by = defaultdict(list)
@@ -585,8 +617,8 @@ def resolve_all_vars(config, var_man, no_deferred_allowed):
     """Recursively resolve the given config's variables, using a
     variable manager.
     :param dict config: The config component to resolve.
-    :param var_man: A variable manager. (Presumably a permutation of the
-        base var_man)
+    :param variables.VariableSetManager var_man: A variable manager. (
+    Presumably a permutation of the base var_man)
     :param list no_deferred_allowed: Do not allow deferred variables in
         sections of these names.
     :return: The component, resolved.
