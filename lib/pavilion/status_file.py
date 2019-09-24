@@ -25,6 +25,7 @@ class TestStatesStruct:
     UNKNOWN = "We can't determine the status."
     INVALID = "The status given to set was invalid."
     CREATED = "The test object/directory is being created."
+    ABORTED = "The test run was aborted, through no fault of it's own."
     CREATION_ERROR = "The test object/directory could not be created."
     SCHEDULED = "The test has been scheduled with a scheduler."
     SCHED_ERROR = "There was a scheduler related error."
