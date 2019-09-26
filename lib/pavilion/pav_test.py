@@ -754,7 +754,7 @@ class PavTest:
         :param dict sys_vars: The system variables."""
 
         self.status.set(STATES.PREPPING_RUN,
-                        "Resolving final run script.")
+                        "Converting run template into run script.")
 
         if self.run_tmpl_path is not None:
             # Convert the run script template into the final run script.
