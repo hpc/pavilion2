@@ -2,7 +2,8 @@ import sys
 
 from pavilion import commands
 from pavilion import series
-from pavilion.pav_test import PavTest, PavTestError, PavTestNotFoundError
+from pavilion.pav_test import PavTest, PavTestError, PavTestNotFoundError, \
+    get_latest_tests
 from pavilion import utils
 
 
@@ -42,7 +43,7 @@ class ResultsCommand(commands.Command):
 
     def run(self, pav_cfg, args, out_file=sys.stdout, err_file=sys.stderr):
 
-        test_ids = self._get_tests(pav_cfg, args.tests)
+        test_ids = self._get_tests(pav_cfg, args.tests, args.full)
 
         tests = []
         for id_ in test_ids:
@@ -91,12 +92,15 @@ class ResultsCommand(commands.Command):
             title="Test Results"
         )
 
-    def _get_tests(self, pav_cfg, tests_arg):
-        if not tests_arg:
+    def _get_tests(self, pav_cfg, tests_arg, full_arg):
+        if not tests_arg and not full_arg:
             # Get the last series ran by this user.
             series_id = series.TestSeries.load_user_series_id(pav_cfg)
             if series_id is not None:
                 tests_arg.append(series_id)
+        elif not tests_arg and full_arg:
+            # Get the last test ran by this user
+            tests_arg.append(str(get_latest_tests(pav_cfg, 1)[0]))
 
         test_list = []
         for test_id in tests_arg:
