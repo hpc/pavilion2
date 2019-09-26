@@ -1084,7 +1084,7 @@ class PavTest:
         """
 
         if sys_vars is None:
-            raise RuntimeError("Trying to write script without sys_vars "
+            raise PavTestError("Trying to write script without sys_vars "
                                "in test '{}'.".format(self.id))
 
         script = scriptcomposer.ScriptComposer(
