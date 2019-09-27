@@ -10,6 +10,6 @@ install:
     - find ./test/data
 
 script: 
-    - pwd
+    - cat /home/travis/build/hpc/pavilion2/test/data/pav_config_dir/pavilion.yaml
     - ./test/run_tests
     
