@@ -25,6 +25,7 @@ from pavilion import utils
 from pavilion import wget
 from pavilion.status_file import StatusFile, STATES
 from pavilion.test_config import variables
+from pavilion.utils import fprint
 
 
 def get_latest_tests(pav_cfg, limit):
@@ -45,6 +46,7 @@ def get_latest_tests(pav_cfg, limit):
     last_tests = sorted_test_dir[-limit:]
     tests_only = [int(i[0]) for i in last_tests]
     return tests_only
+
 
 class PavTestError(RuntimeError):
     """For general test errors. Whatever was being attempted has failed in a
@@ -397,6 +399,7 @@ class PavTest:
 
         # Only try to do the build if it doesn't already exist.
         if not self.build_origin.exists():
+            fprint("Using new build hash: {}".format(self.build_hash))
             self.status.set(STATES.BUILDING,
                             "Starting build {}.".format(self.build_hash))
             # Make sure another test doesn't try to do the build at
@@ -455,6 +458,8 @@ class PavTest:
                     self.LOGGER.warning("Could not create symlink to test")
 
         else:
+            fprint("Using already existing build hash {}".format(
+                self.build_hash))
             self.status.set(STATES.BUILDING,
                             "Build {} already exists.".format(self.build_hash))
 
@@ -533,7 +538,6 @@ class PavTest:
                             # Only wait a max of BUILD_SILENT_TIMEOUT next
                             # 'wait'
                             timeout = self.BUILD_SILENT_TIMEOUT - quiet_time
-
 
         except subprocess.CalledProcessError as err:
             self.status.set(STATES.BUILD_ERROR,
