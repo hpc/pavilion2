@@ -6,6 +6,7 @@ python:
 install:
     - pip install -r requirements.txt
     - ln -s test/data/pav_config_dir/pavilion.yaml.travis-ci test/data/pav_config_dir/pavilion.yaml
+    - ls -lh /test/data/pav_config_dir
 
 script: 
     - ./test/run_tests
