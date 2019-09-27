@@ -1,7 +1,11 @@
 language: python
-matrix: 
-    include:
-        name: "UnitTests"
-        python: "3.4"
+python:
+    - "3.4"
+    - "3.6"
 
-    script: ./bin/run_tests
+install:
+    pip install -r requirements.txt
+
+script: 
+    - ./bin/run_tests
+    
