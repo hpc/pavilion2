@@ -182,7 +182,13 @@ class TestConfigLoader(yc.YamlConfigLoader):
                               "compiled on the host that launches the test."),
                 yc.ListElem('cmds', sub_elem=yc.StrElem(),
                             help_text='The sequence of commands to run to '
-                                      'perform the build.')
+                                      'perform the build.'),
+                yc.StrElem(
+                    'timeout',
+                    default='30',
+                    help_text="Time that a build can continue without "
+                              "generating new output before it is cancelled. "
+                              "Can be left empty for no timeout.")
                 ],
             help_text="The test build configuration. This will be "
                       "used to dynamically generate a build script for "
@@ -196,7 +202,11 @@ class TestConfigLoader(yc.YamlConfigLoader):
                                  "environment."),
             yc.ListElem('cmds', sub_elem=yc.StrElem(),
                         help_text='The sequence of commands to run to run the '
-                                  'test.')
+                                  'test.'),
+            yc.StrElem('timeout', default='300',
+                        help_text="Time that a build can continue without "
+                          "generating new output before it is cancelled. Can "
+                          "be left empty for no timeout.")
         ],
                      help_text="The test run configuration. This will be used "
                                "to dynamically generate a run script for the "

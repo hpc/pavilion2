@@ -239,6 +239,7 @@ class PavTestTests(PavTestCase):
             'name': 'build_test',
             'scheduler': 'raw',
             'build': {
+                'timeout': '12',
                 'cmds': ['echo "Hello World [\x1esched.num_nodes\x1e]"'],
                 'source_location': 'binfile.gz',
             },
@@ -260,13 +261,13 @@ class PavTestTests(PavTestCase):
             'name': 'build_test',
             'scheduler': 'raw',
             'build': {
+                'timeout': '1',
                 'cmds': ['sleep 10'],
                 'source_location': 'binfile.gz',
             },
         }
 
         test = PavTest(self.pav_cfg, config, {})
-        test.BUILD_SILENT_TIMEOUT = 1
 
         # This build should fail.
         self.assertFalse(test.build(),
@@ -279,6 +280,7 @@ class PavTestTests(PavTestCase):
             'name': 'build_test',
             'scheduler': 'raw',
             'build': {
+                'timeout': '12',
                 'cmds': ['exit 0'],
                 'source_location': 'binfile.gz',
             },
@@ -310,6 +312,7 @@ class PavTestTests(PavTestCase):
             'name': 'run_test',
             'scheduler': 'raw',
             'run': {
+                'timeout': '',
                 'env': {
                     'foo': 'bar',
                 },
@@ -342,12 +345,12 @@ class PavTestTests(PavTestCase):
             'name': 'sleep_test',
             'scheduler': 'raw',
             'run': {
+                'timeout': '1',
                 'cmds': ['sleep 10']
             }
         }
         test = PavTest(self.pav_cfg, config3, {})
         self.assert_(test.build())
-        test.RUN_SILENT_TIMEOUT = 1
         self.assertEqual(
             test.run({}, {}),
             STATES.RUN_TIMEOUT,
