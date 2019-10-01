@@ -485,8 +485,6 @@ class PavTest:
 
         return True
 
-    # A process should produce some output at least once every this many
-    # seconds.
     NONE_LIST = ['', 'null', 'None', None]
 
     def _build(self, build_dir):
@@ -498,7 +496,14 @@ class PavTest:
         if self.config['build']['timeout'] in self.NONE_LIST:
             build_silent_timeout = None
         else:
-            build_silent_timeout = int(self.config['build']['timeout'])
+            try:
+                build_silent_timeout = int(self.config['build']['timeout'])
+                if build_silent_timeout < 0:
+                    raise ValueError()
+            except ValueError as e:
+                raise  PavTestError('Timeout value must be None or a '
+                        'non-negative integer. Received {}'.format(
+                            self.config['build']['timeout']))
         try:
             self._setup_build_dir(build_dir)
         except PavTestError as err:
@@ -519,8 +524,8 @@ class PavTest:
                                         stdout=build_log,
                                         stderr=subprocess.STDOUT)
 
-                timeout = build_silent_timeout if build_silent_timeout is not \
-                        None else 5
+                timeout = build_silent_timeout
+
                 result = None
                 while result is None:
                     try:
@@ -529,10 +534,7 @@ class PavTest:
                         log_stat = build_log_path.stat()
                         quiet_time = time.time() - log_stat.st_mtime
                         # Has the output file changed recently?
-                        if build_silent_timeout is None:
-                            # No timeout, so run indefinitely.
-                            continue
-                        elif build_silent_timeout < quiet_time:
+                        if build_silent_timeout < quiet_time:
                             # Give up on the build, and call it a failure.
                             proc.kill()
                             self.status.set(STATES.BUILD_FAILED,
@@ -765,7 +767,14 @@ class PavTest:
         if self.config['run']['timeout'] in self.NONE_LIST:
             run_silent_timeout = None
         else:
-            run_silent_timeout = int(self.config['run']['timeout'])
+            try:
+                run_silent_timeout = int(self.config['run']['timeout'])
+                if run_silent_timeout < 0:
+                    raise ValueError()
+            except ValueError as e:
+                raise  PavTestError('Timeout value must be None or a '
+                        'non-negative integer. Received {}'.format(
+                            self.config['run']['timeout']))
 
         if self.run_tmpl_path is not None:
             # Convert the run script template into the final run script.
@@ -813,8 +822,7 @@ class PavTest:
 
             # Run the test, but timeout if it doesn't produce any output every
             # run_silent_timeout seconds
-            timeout = run_silent_timeout if run_silent_timeout is not None \
-                    else 5
+            timeout = run_silent_timeout
             result = None
             while result is None:
                 try:
@@ -823,9 +831,7 @@ class PavTest:
                     out_stat = self.run_log.stat()
                     quiet_time = time.time() - out_stat.st_mtime
                     # Has the output file changed recently?
-                    if run_silent_timeout is None:
-                        continue
-                    elif run_silent_timeout < quiet_time:
+                    if run_silent_timeout < quiet_time:
                         # Give up on the build, and call it a failure.
                         proc.kill()
                         self.status.set(STATES.RUN_FAILED,
