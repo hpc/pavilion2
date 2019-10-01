@@ -485,15 +485,13 @@ class PavTest:
 
         return True
 
-    NONE_LIST = ['', 'null', 'None', None]
-
     def _build(self, build_dir):
         """Perform the build. This assumes there actually is a build to perform.
         :param Path build_dir: The directory in which to perform the build.
         :returns: True or False, depending on whether the build appears to have
             been successful.
         """
-        if self.config['build']['timeout'] in self.NONE_LIST:
+        if self.config['build']['timeout'] is None:
             build_silent_timeout = None
         else:
             try:
@@ -764,7 +762,7 @@ class PavTest:
         self.status.set(STATES.PREPPING_RUN,
                         "Resolving final run script.")
 
-        if self.config['run']['timeout'] in self.NONE_LIST:
+        if self.config['run']['timeout'] is None:
             run_silent_timeout = None
         else:
             try:
