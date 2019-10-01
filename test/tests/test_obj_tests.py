@@ -312,7 +312,7 @@ class PavTestTests(PavTestCase):
             'name': 'run_test',
             'scheduler': 'raw',
             'run': {
-                'timeout': '',
+                'timeout': None,
                 'env': {
                     'foo': 'bar',
                 },
