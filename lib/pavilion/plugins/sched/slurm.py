@@ -13,12 +13,13 @@ from pathlib import Path
 
 
 class SbatchHeader(scriptcomposer.ScriptHeader):
-    def __init__(self, sched_config, nodes, test_id):
+    def __init__(self, sched_config, nodes, cpu, test_id):
         super().__init__()
 
         self._conf = sched_config
         self._test_id = test_id
         self._nodes = nodes
+        self._cpu = cpu
 
     def get_lines(self):
 
@@ -37,8 +38,7 @@ class SbatchHeader(scriptcomposer.ScriptHeader):
             lines.append('#SBATCH --account {s._conf[account]}'.format(s=self))
 
         lines.append('#SBATCH -N {s._nodes}'.format(s=self))
-        lines.append('#SBATCH --tasks-per-node={s._conf['
-                     'tasks_per_node]}'.format(s=self))
+        lines.append('#SBATCH --tasks-per-node={s._cpu}'.format(s=self))
         if self._conf.get('time_limit') is not None:
             lines.append('#SBATCH -t {s._conf[time_limit]}'.format(s=self))
 
@@ -155,8 +155,11 @@ class SlurmVars(SchedulerVariables):
 
         # The requested processors is the number per node times
         # the actual number of nodes.
-        req_procs = int(self.test.config['slurm'].get('tasks_per_node'))
-        req_procs = req_procs * int(self.test_nodes())
+        if self.test.config['slurm'].get('tasks_per_node') != 'all':
+            req_procs = int(self.test.config['slurm'].get('tasks_per_node'))
+            req_procs = req_procs * int(self.test_nodes())
+        else:
+            req_procs = total_procs
 
         # We can't request more processors than there are, nor
         # should we return more than requested.
@@ -223,7 +226,8 @@ class Slurm(SchedulerPlugin):
                     help_text="Number of nodes requested for this test. "
                               "This can be a range (e.g. 12-24)."),
                 yc.StrElem('tasks_per_node', default="1",
-                           help_text="Number of tasks to run per node."),
+                           help_text="Number of tasks to run per node. Can "
+                           "be 'all'."),
                 yc.StrElem(
                     'mem_per_node',
                     help_text="The minimum amount of memory required in GB. "
@@ -233,7 +237,8 @@ class Slurm(SchedulerPlugin):
                     help_text="The partition that the test should be run "
                               "on."),
                 yc.StrElem(
-                    'immediate', choices=['true', 'false'], default='false',
+                    'immediate', choices=['true', 'false', 'True', 'False'],
+                    default='false',
                     help_text="Only consider nodes not currently running jobs"
                               "when determining job size"
                 ),
@@ -412,7 +417,7 @@ class Slurm(SchedulerPlugin):
             raise SchedulerPluginError('Insufficient nodes in partition '
                                        '{}.'.format(partition))
 
-        if config['immediate'] == 'true':
+        if config['immediate'].lower() == 'true':
             states = config['avail_states']
             # Check for compute nodes in this partition in the right state.
             nodes = list(filter(lambda n: n['State'] in states, nodes))
@@ -681,10 +686,15 @@ class Slurm(SchedulerPlugin):
 
         sched_config = test.config.get(self.name)
 
-        nodes = self.get_data()['nodes']
+        node_data = self.get_data()
+
+        nodes = node_data['nodes']
+
+        cpu_per_node = node_data['summary']['min_ppn']
 
         return SbatchHeader(sched_config,
                             self._get_node_range(sched_config, nodes.values()),
+                            cpu_per_node,
                             test.id)
 
     def _get_node_range(self, sched_config, nodes):
