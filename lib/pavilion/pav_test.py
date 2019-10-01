@@ -178,6 +178,19 @@ class PavTest:
         if _id is None:
             self.status.set(STATES.CREATED, "Test directory setup complete.")
 
+        # Checking validity of timeout values.
+        for loc in ['build', 'run']:
+            if loc in config and 'timeout' in config[loc] and \
+                    config[loc]['timeout'] is not None:
+                try:
+                    test_timeout = int(config[loc]['timeout'])
+                    if test_timeout < 0:
+                        raise ValueError()
+                except ValueError:
+                    raise PavTestError("{} timeout must be a non-negative "
+                            "integer or empty.  Received {}.".format(
+                                loc, config[loc]['timeout']))
+
     @classmethod
     def load(cls, pav_cfg, test_id):
         """Load an old PavTest object given a test id.
@@ -491,17 +504,11 @@ class PavTest:
         :returns: True or False, depending on whether the build appears to have
             been successful.
         """
-        if self.config['build']['timeout'] is None:
-            build_silent_timeout = None
+        if self.config['build']['timeout'] is not None:
+            build_silent_timeout = int(self.config['build']['timeout'])
         else:
-            try:
-                build_silent_timeout = int(self.config['build']['timeout'])
-                if build_silent_timeout < 0:
-                    raise ValueError()
-            except ValueError as e:
-                raise  PavTestError('Timeout value must be None or a '
-                        'non-negative integer. Received {}'.format(
-                            self.config['build']['timeout']))
+            build_silent_timeout = self.config['build']['timeout']
+
         try:
             self._setup_build_dir(build_dir)
         except PavTestError as err:
@@ -762,17 +769,10 @@ class PavTest:
         self.status.set(STATES.PREPPING_RUN,
                         "Resolving final run script.")
 
-        if self.config['run']['timeout'] is None:
-            run_silent_timeout = None
+        if self.config['run']['timeout'] is not None:
+            run_silent_timeout = int(self.config['run']['timeout'])
         else:
-            try:
-                run_silent_timeout = int(self.config['run']['timeout'])
-                if run_silent_timeout < 0:
-                    raise ValueError()
-            except ValueError as e:
-                raise  PavTestError('Timeout value must be None or a '
-                        'non-negative integer. Received {}'.format(
-                            self.config['run']['timeout']))
+            run_silent_timeout = self.config['run']['timeout']
 
         if self.run_tmpl_path is not None:
             # Convert the run script template into the final run script.
