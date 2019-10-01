@@ -496,9 +496,9 @@ class PavTest:
             been successful.
         """
         if self.config['build']['timeout'] in self.NONE_LIST:
-            BUILD_SILENT_TIMEOUT = None
+            build_silent_timeout = None
         else:
-            BUILD_SILENT_TIMEOUT = int(self.config['build']['timeout'])
+            build_silent_timeout = int(self.config['build']['timeout'])
         try:
             self._setup_build_dir(build_dir)
         except PavTestError as err:
@@ -519,7 +519,7 @@ class PavTest:
                                         stdout=build_log,
                                         stderr=subprocess.STDOUT)
 
-                timeout = BUILD_SILENT_TIMEOUT if BUILD_SILENT_TIMEOUT is not \
+                timeout = build_silent_timeout if build_silent_timeout is not \
                         None else 5
                 result = None
                 while result is None:
@@ -529,20 +529,20 @@ class PavTest:
                         log_stat = build_log_path.stat()
                         quiet_time = time.time() - log_stat.st_mtime
                         # Has the output file changed recently?
-                        if BUILD_SILENT_TIMEOUT is None:
+                        if build_silent_timeout is None:
                             # No timeout, so run indefinitely.
                             continue
-                        elif BUILD_SILENT_TIMEOUT < quiet_time:
+                        elif build_silent_timeout < quiet_time:
                             # Give up on the build, and call it a failure.
                             proc.kill()
                             self.status.set(STATES.BUILD_FAILED,
                                             "Build timed out after {} seconds."
-                                            .format(BUILD_SILENT_TIMEOUT))
+                                            .format(build_silent_timeout))
                             return False
                         else:
-                            # Only wait a max of BUILD_SILENT_TIMEOUT next
+                            # Only wait a max of build_silent_timeout next
                             # 'wait'
-                            timeout = BUILD_SILENT_TIMEOUT - quiet_time
+                            timeout = build_silent_timeout - quiet_time
 
 
         except subprocess.CalledProcessError as err:
@@ -763,9 +763,9 @@ class PavTest:
                         "Resolving final run script.")
 
         if self.config['run']['timeout'] in self.NONE_LIST:
-            RUN_SILENT_TIMEOUT = None
+            run_silent_timeout = None
         else:
-            RUN_SILENT_TIMEOUT = int(self.config['run']['timeout'])
+            run_silent_timeout = int(self.config['run']['timeout'])
 
         if self.run_tmpl_path is not None:
             # Convert the run script template into the final run script.
@@ -812,8 +812,8 @@ class PavTest:
                                     stderr=subprocess.STDOUT)
 
             # Run the test, but timeout if it doesn't produce any output every
-            # RUN_SILENT_TIMEOUT seconds
-            timeout = RUN_SILENT_TIMEOUT if RUN_SILENT_TIMEOUT is not None \
+            # run_silent_timeout seconds
+            timeout = run_silent_timeout if run_silent_timeout is not None \
                     else 5
             result = None
             while result is None:
@@ -823,20 +823,20 @@ class PavTest:
                     out_stat = self.run_log.stat()
                     quiet_time = time.time() - out_stat.st_mtime
                     # Has the output file changed recently?
-                    if RUN_SILENT_TIMEOUT is None:
+                    if run_silent_timeout is None:
                         continue
-                    elif RUN_SILENT_TIMEOUT < quiet_time:
+                    elif run_silent_timeout < quiet_time:
                         # Give up on the build, and call it a failure.
                         proc.kill()
                         self.status.set(STATES.RUN_FAILED,
                                         "Run timed out after {} seconds."
-                                        .format(RUN_SILENT_TIMEOUT))
+                                        .format(run_silent_timeout))
                         self._finished = local_tz.localize(
                             datetime.datetime.now())
                         return STATES.RUN_TIMEOUT
                     else:
-                        # Only wait a max of RUN_SILENT_TIMEOUT next 'wait'
-                        timeout = RUN_SILENT_TIMEOUT - quiet_time
+                        # Only wait a max of run_silent_timeout next 'wait'
+                        timeout = run_silent_timeout - quiet_time
 
         self._finished = local_tz.localize(datetime.datetime.now())
         if result != 0:
