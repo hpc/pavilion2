@@ -312,6 +312,15 @@ class VariableSetManager:
 
         return var_set, var, index, sub_var
 
+    @staticmethod
+    def key_as_dotted(key):
+        """Turn a tuple based key reference back into a dotted string."""
+
+        if isinstance(key, str):
+            return key
+        else:
+            return '.'.join([str(k) for k in key if k is not None])
+
     def __getitem__(self, key):
         """Find the item that corresponds to the given complex key.
         :param Union(str, list, tuple) key: A variable key. See parse_key for
@@ -328,7 +337,8 @@ class VariableSetManager:
         except KeyError as msg:
             # Make sure our error message gives the full key.
             raise KeyError(
-                "Could not resolve reference '{}': {}".format(key, msg))
+                "Could not resolve reference '{}': {}"
+                .format(self.key_as_dotted(key), msg))
 
     def is_deferred(self, var_set, var):
         """Return whether the given variable in the given varset is a
@@ -502,21 +512,21 @@ class VariableSetManager:
         """Return the all variable sets as a single dictionary. This is
         for testing and bug resolution, not production code."""
 
-        var_sets = {}
+        dvar_sets = {}
 
         for var_set in self.variable_sets.values():
-            var_sets[var_set.name] = {}
+            dvar_sets[var_set.name] = {}
 
-            for key in var_set.data.keys():
-                var_sets[key] = []
-                item = var_set.data[key]
+            for var_name in var_set.data.keys():
+                dvar_sets[var_set.name][var_name] = []
+                item = var_set.data[var_name]
 
                 if isinstance(item, DeferredVariable):
-                    var_sets[key] = repr(item)
+                    dvar_sets[var_name] = repr(item)
                 else:
-                    for subitem in var_set.data[key].data:
-                        var_sets[key].append(subitem.data)
-        return var_sets
+                    for subitem in var_set.data[var_name].data:
+                        dvar_sets[var_set.name][var_name].append(subitem.data)
+        return dvar_sets
 
     def __contains__(self, item):
 

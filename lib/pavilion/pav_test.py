@@ -99,7 +99,9 @@ class PavTest:
         self._pav_cfg = pav_cfg
 
         # Compute the actual name of test, using the subtest config parameter.
-        self.name = config['name']
+        self.name = '.'.join([
+            config.get('suite', '<unknown>'),
+            config.get('name', '<unnamed>')])
         if 'subtest' in config and config['subtest']:
             self.name = self.name + '.' + config['subtest']
 
@@ -155,7 +157,7 @@ class PavTest:
                                sys_vars)
 
         self.build_path = self.path/'build'
-        if self.build_path.is_symlink():
+        if self.build_path.exists():
             build_rp = self.build_path.resolve()
             self.build_hash = build_rp.name
         else:

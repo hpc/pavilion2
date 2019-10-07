@@ -12,6 +12,7 @@ from pavilion import system_variables
 from pavilion import utils
 from pavilion.test_config import DeferredVariable
 from pavilion.test_config import find_all_tests
+from pavilion.test_config import file_format
 
 
 class ShowCommand(commands.Command):
@@ -117,6 +118,14 @@ class ShowCommand(commands.Command):
             help="Show an empty config template for pavilion, rather than the "
                  "current config."
         )
+
+        test_config_p = subparsers.add_parser(
+            'test_config',
+            help="Print a template test config.",
+            description="Prints an example test configuration. Note that test "
+                        "configs should be under a test_name: key in a suite "
+                        "file. The same format applies to host and mode "
+                        "configs, except without the test name.")
 
         subparsers.add_parser(
             'config_dirs',
@@ -246,6 +255,8 @@ class ShowCommand(commands.Command):
             cmd = self._states_cmd
         elif 'config'.startswith(cmd_name):
             cmd = self._config_cmd
+        elif cmd_name == 'test_config':
+            cmd = self._test_config_cmd
         elif 'config_dirs'.startswith(cmd_name):
             cmd = self._config_dirs
         elif cmd_name in [
@@ -427,6 +438,10 @@ class ShowCommand(commands.Command):
                                                values=pav_cfg)
 
     @staticmethod
+    def _test_config_cmd(pav_cfg, args, outfile=sys.stdout):
+        file_format.TestConfigLoader().dump(sys.stdout)
+
+    @staticmethod
     def _config_dirs(pav_cfg, _, outfile=sys.stdout):
 
         rows = [{'path': path} for path in pav_cfg.config_dirs]
@@ -587,6 +602,8 @@ class ShowCommand(commands.Command):
                     'path': suite['path'],
                     'err': suite['err']
                 })
+            elif args.err:
+                continue
 
             for test_name in sorted(list(suite['tests'])):
                 test = suite['tests'][test_name]

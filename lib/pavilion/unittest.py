@@ -9,6 +9,7 @@ import inspect
 
 from pavilion import arguments
 from pavilion import config
+from pavilion import pav_vars
 from pavilion.pav_test import PavTest
 from pavilion.utils import dbg_print, get_login
 from pavilion.test_config.file_format import TestConfigLoader
@@ -31,6 +32,9 @@ class PavTestCase(unittest.TestCase):
 
     def __init__(self, *args, **kwargs):
 
+        # Open the default pav config file (found in
+        # test/data/pav_config_dir/pavilion.yaml), modify it, and then
+        # save the modified file to a temp location and read it instead.
         with self.PAV_CONFIG_PATH.open() as cfg_file:
             raw_pav_cfg = config.PavilionConfigLoader().load(cfg_file)
 
@@ -60,6 +64,8 @@ class PavTestCase(unittest.TestCase):
             self.pav_cfg = config.PavilionConfigLoader().load(cfg_file)
 
         self.pav_cfg.pav_cfg_file = cfg_path
+
+        self.pav_cfg.pav_vars = pav_vars.PavVars()
 
         # Create the basic directories in the working directory
         for path in [
@@ -231,6 +237,7 @@ class PavTestCase(unittest.TestCase):
         """Return the config to use with _quick_test."""
         return {
             'scheduler': 'raw',
+            'suite': 'unittest',
             'run': {
                 'cmds': [
                     'echo "Hello World."'
