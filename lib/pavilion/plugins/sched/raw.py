@@ -62,7 +62,7 @@ class RawVars(SchedulerVariables):
         if unit in self.MEM_UNITS:
             return self.MEM_UNITS[unit] * value // 1024**2
         else:
-            self.logger.warning("Unkown meminfo unit '{}' in key '{}'"
+            self.logger.warning("Unknown meminfo unit '{}' in key '{}'"
                                 .format(unit, key))
             return 0
 
@@ -284,3 +284,6 @@ class Raw(SchedulerPlugin):
                 STATES.SCHED_ERROR,
                 "PID {} refused to die.".format(pid)
             )
+
+    def get_overall_status(self):
+        return RawVars.cpus()
