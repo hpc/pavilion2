@@ -147,7 +147,8 @@ def dbg_print(*args, color=33, file=sys.stderr, end="", **kwargs):
 
     print(start_escape, end='', file=file)
     print(*args, file=file, end='', **kwargs)
-    print('\x1b[0m  ', end=end, file=file)
+    print('\x1b[0m', end=end, file=file)
+    sys.stderr.flush()
 
 
 def fprint(*args, color=None, bullet='', width=100,

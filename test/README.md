@@ -12,12 +12,17 @@ them all.
 
 ### Configuration
 Some tests requires some knowledge about your environment. You'll want to create a 
-`test_data/pav_config_dir/pavilion.yaml` file to deal with that. This file is already git ignored. 
+`data/pav_config_dir/pavilion.yaml` file to deal with that. This file is already git ignored. 
 The following config fields should be filled:
   
   - proxies - You should specify your web proxies, if any.
   - no\_proxy - You should give your internal dns roots (myorg.org) so that pavilion will know
                 when not to use the proxy.
+
+### Slurm Config
+If you need any special configuration for slurm, put in in a mode file in 
+`data/pav_config_dir/modes/local_slurm.yaml`. The `_quick_test_cfg()` method 
+(see below) will include that as the slurm defaults.
 
 ## Adding Unit Tests
 To add a unit test, simply add a new module to the `tests/` directory and utilize the `unitest` 
@@ -35,9 +40,43 @@ class ConfigTests(unittest.TestCase):
         self.assertTrue(True) 
 ```
 
+### Pavilion Configs
+Each `unittest.TestCase` instance comes with a preloaded `pav_cfg` (from the 
+`data/pav_config_dir/pavilion.yaml`file mentioned above) for you to
+use in your tests. It's specific to your whole test class, so if you need to 
+modify it you should either do so in `__init__` or use `copy.deepcopy()` to 
+duplicate it first.
+ 
+Loading a pav_cfg in the unittest environment is a bit involved, as can be 
+seen in the unittest module, so it's best to use the one provided.
+ 
 ### Test data
-Any data relevant to the test should go in the `test_data/` directory, and should be 
-prefixed with the test module name. 
+Any data relevant to the test should go in the `data/` directory, and 
+generally should be prefixed with the test module name. Test-only plugins 
+should go under `data/pav_config_dir/plugins/`.
 
-Tests are assumed to run with the `${REPO_ROOT}/test/` directory as the working directory, so paths
-to test data can be relative to that.
+Use `self.TEST_DATA_ROOT`, a `pathlib.Path` object, to find your data files.
+
+### Pav Tests
+Creating a PavTest instance has been simplified with the `_quick_test()` method
+. By default it returns an instance of a simple 'hello world' test. This test
+is created using a config generated from the config returned by the 
+`_quick_test_cfg()` method. You can use that config as a base, and pass it 
+manually to `_quick_test` as needed.
+
+```python
+class ExampleTest(pavilion.unittest.TestCase):
+  def test_something(self):
+    test_cfg = self._quick_test_cfg()
+    test_cfg['run']['cmds'] = ['echo "Goodbye World"']
+    
+    test = self._quick_test(cfg=test_cfg)
+    
+    # Do stuff with the test...
+```
+
+### Other useful methods
+ - `self._cmp_files()` does a full content file comparison.
+ - `self._cmp_tree()` compares a whole directory structure.
+ - `self.dbg_print()` should be used whenever you want to have the test print
+  something for debugging purposes. It's just 
