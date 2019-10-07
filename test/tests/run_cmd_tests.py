@@ -5,6 +5,7 @@ from pavilion import arguments
 import io
 import json
 
+
 class RunCmdTests(PavTestCase):
 
     def setUp(self):
@@ -37,13 +38,13 @@ class RunCmdTests(PavTestCase):
 
         t1, t2 = tests['raw']
         # Make sure our tests are in the right order
-        if t1.name != 'hello':
+        if t1.name != 'hello_world.hello':
             t1, t2 = t2, t1
 
         # Make sure all the tests are there, under the right schedulers.
-        self.assertEqual(t1.name, 'hello')
-        self.assertEqual(t2.name, 'world')
-        self.assertEqual(tests['dummy'][0].name, 'narf')
+        self.assertEqual(t1.name, 'hello_world.hello')
+        self.assertEqual(t2.name, 'hello_world.world')
+        self.assertEqual(tests['dummy'][0].name, 'hello_world.narf')
 
         tests_file = self.TEST_DATA_ROOT/'run_test_list'
 
@@ -62,8 +63,8 @@ class RunCmdTests(PavTestCase):
             configs_by_sched=tests,
         )
 
-        self.assertEqual(tests['raw'][0].name, 'world')
-        self.assertEqual(tests['dummy'][0].name, 'narf')
+        self.assertEqual(tests['raw'][0].name, 'hello_world.world')
+        self.assertEqual(tests['dummy'][0].name, 'hello_world.narf')
 
     def test_run(self):
 
