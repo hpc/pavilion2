@@ -1,0 +1,106 @@
+from pavilion.unittest import PavTestCase
+import unittest
+import subprocess
+from pathlib import Path
+from pavilion.status_file import STATES
+
+
+MODULE_SYSTEM_ROOT_PATHS = [
+    Path('/usr/share/Modules'),
+    Path('/usr/share/modules'),
+    Path('/usr/share/lmod'),
+]
+
+
+def find_module_init():
+    """Find the bash init file for a locally installed module system."""
+
+    for path in MODULE_SYSTEM_ROOT_PATHS:
+        if not path.exists():
+            continue
+
+        for file in path.iterdir():
+            init_file = file/'init'/'bash'
+            if init_file.exists():
+                return init_file
+
+    return None
+
+
+def has_module_cmd():
+    """Return whether we can find a module system (regardless of """
+
+    # Both LMod and Environment Modules (tmod) define a module
+    # shell function.
+    cmd = [
+        '/bin/bash',
+        '-c',
+        'declare -F'
+    ]
+    functions = subprocess.check_output(cmd).decode('utf8')
+    for line in functions.split('\n'):
+        if 'module' in line.split():
+            return True
+
+    return False
+
+
+class ModWrapperTests(PavTestCase):
+    """Check the module add/remove/swap commands in run/build scripts against
+    the local module system."""
+
+    def _quick_test_cfg(self):
+        """Return a test config with a module system set up added
+        to the preamble."""
+        test_cfg = super()._quick_test_cfg()
+
+        preamble = []
+        if not has_module_cmd():
+            preamble.append(
+                'source {}'.format(find_module_init())
+            )
+        preamble.append('export MODULEPATH={}'
+                        .format(self.TEST_DATA_ROOT/'modules'))
+        test_cfg['run']['preamble'] = preamble
+        return test_cfg
+
+    @unittest.skipIf(not has_module_cmd() and find_module_init() is None,
+                     "Could not find a module system.")
+    def test_add_module(self):
+        """Check that adding a module works."""
+
+        test_cfg = self._quick_test_cfg()
+
+        test_cfg['run']['modules'] = [
+            'test_mod1/1.0',
+            'test_mod1',      # Should load 1.1 as the default.
+            'test_mod2',      # Un-versioned.
+        ]
+        test_cfg['run']['cmds'] = [
+            # test_mod1 only gets added once (no dups)
+            '[[ ${TEST_MODULE_NAME} == "test_mod1:test_mod2" ]] || exit 1'
+            '[[ ${TEST_MODULE_VERSION} == "1.0:1.1: || exit 1'
+        ]
+
+        test = self._quick_test(test_cfg)
+
+        self.assertEqual(test.run({}, {}), STATES.RUN_DONE)
+
+
+
+    @unittest.skipIf(not has_module_cmd() and find_module_init() is None,
+                     "Could not find a module system.")
+    def test_remove_module(self):
+        """Check that removing a module works."""
+
+
+    @unittest.skipIf(not has_module_cmd() and find_module_init() is None,
+                     "Could not find a module system.")
+    def test_swap_module(self):
+        """Check that module swaps work."""
+
+    @unittest.skipIf(not has_module_cmd() and find_module_init() is None,
+                     "Could not find a module system.")
+    def module_fail_test(self):
+        """Check failure conditions for each of module load/swap/remove."""
+

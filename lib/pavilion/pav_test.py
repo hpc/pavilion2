@@ -1115,6 +1115,11 @@ class PavTest:
             script.comment("Making any environment changes needed.")
             script.env_change(config.get('env', {}))
 
+        # List all the module modules for posterity
+        script.command("module -t list")
+        # Output the environment for posterity
+        script.command("env | sort")
+
         script.newline()
         cmds = config.get('cmds', [])
         if cmds:
@@ -1176,7 +1181,7 @@ class PavTest:
 
         lockfile_path = id_dir/'.lockfile'
         with lockfile.LockFile(lockfile_path, timeout=1):
-            ids = os.listdir(str(id_dir))
+            ids = list(map(str, id_dir.iterdir()))
             # Only return the test directories that could be integers.
             ids = filter(str.isdigit, ids)
             ids = filter(lambda d: (id_dir/d).is_dir(), ids)
