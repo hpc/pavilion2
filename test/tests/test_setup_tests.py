@@ -373,7 +373,6 @@ class TestSetupTests(PavTestCase):
                     try:
                         val = int(val)
                     except ValueError:
-                        self.dbg_print(line)
                         raise
 
                     exports.append((var, val))

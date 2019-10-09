@@ -164,7 +164,7 @@ class ModWrapperTests(PavTestCase):
 
         test_cfg['run']['modules'] = [
             'test_mod1->test_mod1',      # Should swap 1.0 for 1.1 (the default)
-            'test_mod_no-exist->test_mod2'  # This will just perform a load.
+            'test_mod_no-exist->test_mod2',  # This will just perform a load.
             'test_mod3/5.0->test_mod3/4.0'
         ]
 
@@ -172,7 +172,7 @@ class ModWrapperTests(PavTestCase):
 
         test_cfg['run']['cmds'] = [
             # test_mod1 only gets added once (no dups)
-            '[[ ${TEST_MODULE_NAME} == "test_mod1::test_modettest_mod3" ]] || '
+            '[[ ${TEST_MODULE_NAME} == "test_mod1:test_mod2:test_mod3" ]] || '
             'exit 1',
             # test_mod2 has no version (but the module file appends it anyway.)
             '[[ ${TEST_MODULE_VERSION} == "1.1::4.0" ]] || exit 1'
