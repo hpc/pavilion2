@@ -3,6 +3,9 @@ python:
     - "3.4"
     #- "3.6"
 
+before_install:
+    - sudo apt-get install -y environment-modules tcl 
+
 install:
     - pip install -r requirements.txt
     - ln -s pavilion.yaml.travis-ci test/data/pav_config_dir/pavilion.yaml
