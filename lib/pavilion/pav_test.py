@@ -141,39 +141,40 @@ class PavTest:
         self.build_path = None          # type: Path
         self.build_name = None
         self.build_hash = None          # type: str
-        self.build_script_path = None   # type: Path
         self.build_origin = None        # type: Path
         self.run_log = self.path/'run.log'
         self.results_path = self.path/'results.json'
 
         build_config = self.config.get('build', {})
 
-        self.build_script_path = self.path/'build.sh'
-        if not self.build_script_path.exists():
-            self._write_script(self.build_script_path,
-                               build_config,
-                               sys_vars)
-
+        self.build_script_path = self.path/'build.sh'  # type: Path
         self.build_path = self.path/'build'
+        if _id is None:
+            self._write_script(
+                path=self.build_script_path,
+                config=build_config,
+                sys_vars=sys_vars)
+
         if self.build_path.exists():
             build_rp = self.build_path.resolve()
             self.build_hash = build_rp.name
-        else:
+        elif _id is None:
             self.build_hash = self._create_build_hash(build_config)
 
-        short_hash = self.build_hash[:self.BUILD_HASH_BYTES*2]
-        self.build_name = '{hash}'.format(hash=short_hash)
-        self.build_origin = pav_cfg.working_dir/'builds'/self.build_name
+        if self.build_hash is not None:
+            short_hash = self.build_hash[:self.BUILD_HASH_BYTES*2]
+            self.build_name = '{hash}'.format(hash=short_hash)
+            self.build_origin = pav_cfg.working_dir/'builds'/self.build_name
 
         run_config = self.config.get('run', {})
-        if run_config:
-            self.run_tmpl_path = self.path/'run.tmpl'
-            self.run_script_path = self.path/'run.sh'
-            if not self.run_tmpl_path.exists():
-                self._write_script(self.run_tmpl_path, run_config, sys_vars)
-        else:
-            self.run_tmpl_path = None
-            self.run_script_path = None
+        self.run_tmpl_path = self.path/'run.tmpl'
+        self.run_script_path = self.path/'run.sh'
+
+        if _id is None:
+            self._write_script(
+                path=self.run_tmpl_path,
+                config=run_config,
+                sys_vars=sys_vars)
 
         if _id is None:
             self.status.set(STATES.CREATED, "Test directory setup complete.")
@@ -825,7 +826,11 @@ class PavTest:
                         timeout = self.RUN_SILENT_TIMEOUT - quiet_time
 
         self._finished = local_tz.localize(datetime.datetime.now())
-        if result != 0:
+
+        status = self.status.current()
+        if status.state == STATES.ENV_FAILED:
+            return STATES.RUN_FAILED
+        elif result != 0:
             self.status.set(STATES.RUN_FAILED, "Test run failed.")
             return STATES.RUN_FAILED
         else:
@@ -1078,7 +1083,7 @@ class PavTest:
     def _write_script(self, path, config, sys_vars):
         """Write a build or run script or template. The formats for each are
             identical.
-        :param str path: Path to the template file to write.
+        :param Path path: Path to the template file to write.
         :param dict config: Configuration dictionary for the script file.
         :return:
         """
@@ -1093,13 +1098,29 @@ class PavTest:
                 group=self._pav_cfg.shared_group,
             ))
 
+        verbose = config.get('verbose', 'false').lower() == 'true'
+
+        if verbose:
+            script.comment('# Echoing all commands to log.')
+            script.command('set -v')
+            script.newline()
+
         pav_lib_bash = self._pav_cfg.pav_root/'bin'/'pav-lib.bash'
 
         # If we include this directly, it breaks build hashing.
         script.comment('The first (and only) argument of the build script is '
                        'the test id.')
-        script.env_change({'TEST_ID': '$1'})
+        script.env_change({
+            'TEST_ID': '$1',
+            'PAV_CONFIG_FILE': self._pav_cfg['pav_cfg_file']
+        })
         script.command('source {}'.format(pav_lib_bash))
+
+        if config.get('preamble', []):
+            script.newline()
+            script.comment('Preamble commands')
+            for cmd in config['preamble']:
+                script.command(cmd)
 
         modules = config.get('modules', [])
         if modules:
@@ -1115,10 +1136,13 @@ class PavTest:
             script.comment("Making any environment changes needed.")
             script.env_change(config.get('env', {}))
 
-        # List all the module modules for posterity
-        script.command("module -t list")
-        # Output the environment for posterity
-        script.command("env | sort")
+        if verbose:
+            script.newline()
+            script.comment('List all the module modules for posterity')
+            script.command("module -t list")
+            script.newline()
+            script.comment('Output the environment for posterity')
+            script.command("declare -p")
 
         script.newline()
         cmds = config.get('cmds', [])
@@ -1181,7 +1205,7 @@ class PavTest:
 
         lockfile_path = id_dir/'.lockfile'
         with lockfile.LockFile(lockfile_path, timeout=1):
-            ids = list(map(str, id_dir.iterdir()))
+            ids = list(os.listdir(str(id_dir)))
             # Only return the test directories that could be integers.
             ids = filter(str.isdigit, ids)
             ids = filter(lambda d: (id_dir/d).is_dir(), ids)

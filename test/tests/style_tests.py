@@ -47,4 +47,4 @@ class StyleTests(PavTestCase):
         stdout, stderr = proc.communicate()
 
         if proc.poll() != 0:
-            self.fail(stdout.decode('utf8'))
+            self.fail('\n' + stdout.decode('utf8'))

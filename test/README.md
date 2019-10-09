@@ -64,15 +64,40 @@ is created using a config generated from the config returned by the
 `_quick_test_cfg()` method. You can use that config as a base, and pass it 
 manually to `_quick_test` as needed.
 
+__Note:__ If you intend to run the given test, it must be built first. Use
+`test.build()` to do so.
+
 ```python
-class ExampleTest(pavilion.unittest.TestCase):
+from pavilion import unittest
+
+class ExampleTest(unittest.PavTestCase):
   def test_something(self):
     test_cfg = self._quick_test_cfg()
     test_cfg['run']['cmds'] = ['echo "Goodbye World"']
     
     test = self._quick_test(cfg=test_cfg)
     
-    # Do stuff with the test...
+    # Make sure to build the test before you try to run it.
+    test.build()
+    
+    # Do stuff with the test object
+```
+
+### Plugins
+If you intend to use any plugins, you must initialize the plugin system, and
+reset it at the end of your test. You can do this using `setUp` and `tearDown`, 
+or manually if it needs to happen more than once per test.
+
+```python
+from pavilion import unittest
+from pavilion import plugins
+
+class PluginTests(unittest.PavTestCase):
+    def setUp(self):
+        plugins.initialize_plugins(self.pav_cfg) 
+       
+    def tearDown(self):
+        plugins._reset_plugins()
 ```
 
 ### Other useful methods

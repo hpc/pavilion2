@@ -1,0 +1,9 @@
+2019-10-09T17:03:15.465293-0600 CREATED Created status file.
+2019-10-09T17:03:15.465438-0600 CREATED Test directory and status file created.
+2019-10-09T17:03:15.466237-0600 CREATED Test directory setup complete.
+2019-10-09T17:03:15.466372-0600 BUILDING Starting build df8b2df3361c98a4.
+2019-10-09T17:03:15.547392-0600 BUILD_DONE Build completed successfully.
+2019-10-09T17:03:15.568093-0600 SCHEDULED Test raw has job ID durkula_11614.
+2019-10-09T17:03:16.166700-0600 PREPPING_RUN Resolving final run script.
+2019-10-09T17:03:16.174735-0600 RUNNING Starting the run script.
+2019-10-09T17:03:16.675140-0600 SCHED_CANCELLED Canceled via pavilion.

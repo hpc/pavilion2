@@ -1,0 +1,11 @@
+2019-10-09T17:03:15.176007-0600 CREATED Created status file.
+2019-10-09T17:03:15.176076-0600 CREATED Test directory and status file created.
+2019-10-09T17:03:15.176500-0600 CREATED Test directory setup complete.
+2019-10-09T17:03:15.184675-0600 BUILDING Starting build 4beb7a8337b2587d.
+2019-10-09T17:03:15.189303-0600 BUILD_DONE Build completed successfully.
+2019-10-09T17:03:15.193368-0600 SCHEDULED Test raw has job ID durkula_11504.
+2019-10-09T17:03:15.794865-0600 PREPPING_RUN Resolving final run script.
+2019-10-09T17:03:15.832141-0600 RUNNING Starting the run script.
+2019-10-09T17:03:15.857595-0600 RUN_DONE Test run has completed successfully.
+2019-10-09T17:03:15.857982-0600 RESULTS Parsing 3 result types.
+2019-10-09T17:03:15.858779-0600 COMPLETE The test completed with result: PASS

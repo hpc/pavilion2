@@ -23,7 +23,6 @@ class ExtraPrintsTest(PavTestCase):
         try:
             output = subprocess.check_output(cmd, shell=True).decode('utf8')
             # Filter out lines with a comment saying they're ok.
-            print(output)
             output = [o for o in output.split('\n') if
                       o and self.IGNORE_RE.search(o) is None]
             print(output)
@@ -42,7 +41,6 @@ class ExtraPrintsTest(PavTestCase):
             'poof.py']
         cmd.extend(['--exclude={}'.format(excl) for excl in excludes])
         cmd.append(str(tests_root))
-        print(' '.join(cmd))
 
         try:
             output = subprocess.check_output(cmd)
