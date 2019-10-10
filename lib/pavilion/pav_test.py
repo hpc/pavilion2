@@ -1211,9 +1211,9 @@ class PavTest:
         with lockfile.LockFile(lockfile_path, timeout=1):
             ids = list(os.listdir(str(id_dir)))
             # Only return the test directories that could be integers.
-            ids = filter(str.isdigit, ids)
-            ids = filter(lambda d: (id_dir/d).is_dir(), ids)
-            ids = list(map(int, ids))
+            ids = [id_ for id_ in ids if id_.isdigit()]
+            ids = [id_ for id_ in ids if (id_dir/id_).is_dir()]
+            ids = [int(id_) for id_ in ids]
             ids.sort()
 
             # Find the first unused id.

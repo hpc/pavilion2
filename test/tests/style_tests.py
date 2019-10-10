@@ -20,6 +20,8 @@ class StyleTests(PavTestCase):
             'exceptions',
             'classes',
             'basic',
+            'W0141',
+            'C0200'
         ]
 
         disabled = [
