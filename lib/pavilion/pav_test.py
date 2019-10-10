@@ -1115,7 +1115,7 @@ class PavTest:
         script.comment('The first (and only) argument of the build script is '
                        'the test id.')
         script.env_change({
-            'TEST_ID': '$1',
+            'TEST_ID': '${1:-0}',   # Default to test id 0 if one isn't given.
             'PAV_CONFIG_FILE': self._pav_cfg['pav_cfg_file']
         })
         script.command('source {}'.format(pav_lib_bash))
