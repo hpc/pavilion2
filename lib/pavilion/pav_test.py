@@ -155,11 +155,15 @@ class PavTest:
                 config=build_config,
                 sys_vars=sys_vars)
 
-        if self.build_path.exists():
-            build_rp = self.build_path.resolve()
-            self.build_hash = build_rp.name
-        elif _id is None:
+        if _id is None:
             self.build_hash = self._create_build_hash(build_config)
+            with (self.path/'build_hash').open('w') as build_hash_file:
+                build_hash_file.write(self.build_hash)
+        else:
+            build_hash_fn = self.path/'build_hash'
+            if build_hash_fn.exists():
+                with build_hash_fn.open() as build_hash_file:
+                    self.build_hash = build_hash_file.read()
 
         if self.build_hash is not None:
             short_hash = self.build_hash[:self.BUILD_HASH_BYTES*2]
@@ -399,7 +403,7 @@ class PavTest:
         """
 
         # Only try to do the build if it doesn't already exist.
-        if not self.build_origin.exists():
+        if not self.build_origin.resolve().exists():
             self.status.set(STATES.BUILDING,
                             "Starting build {}.".format(self.build_hash))
             # Make sure another test doesn't try to do the build at
