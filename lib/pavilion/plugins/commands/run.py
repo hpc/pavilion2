@@ -1,4 +1,5 @@
 import errno
+import pathlib
 import sys
 import time
 from collections import defaultdict
@@ -247,7 +248,7 @@ class RunCommand(commands.Command):
         tests = list(tests)
         for file in test_files:
             try:
-                with file.open() as test_file:
+                with pathlib.PosixPath(file).open() as test_file:
                     for line in test_file.readlines():
                         line = line.strip()
                         if line and not line.startswith('#'):
