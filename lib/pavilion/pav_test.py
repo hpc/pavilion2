@@ -165,10 +165,15 @@ class PavTest:
                 with build_hash_fn.open() as build_hash_file:
                     self.build_hash = build_hash_file.read()
 
+        utils.dbg_print(self.id, 'build_hash', self.build_hash)
+
         if self.build_hash is not None:
             short_hash = self.build_hash[:self.BUILD_HASH_BYTES*2]
             self.build_name = '{hash}'.format(hash=short_hash)
             self.build_origin = pav_cfg.working_dir/'builds'/self.build_name
+
+        utils.dbg_print(self.id, 'build_origin', self.build_origin)
+        utils.dbg_print(self.id, 'build_name', self.build_name)
 
         run_config = self.config.get('run', {})
         self.run_tmpl_path = self.path/'run.tmpl'
@@ -403,7 +408,8 @@ class PavTest:
         """
 
         # Only try to do the build if it doesn't already exist.
-        if not self.build_origin.resolve().exists():
+        utils.dbg_print(self.id, 'build_origin', self.build_origin)
+        if not self.build_origin.exists():
             self.status.set(STATES.BUILDING,
                             "Starting build {}.".format(self.build_hash))
             # Make sure another test doesn't try to do the build at
