@@ -20,12 +20,12 @@ class StyleTests(PavTestCase):
             'exceptions',
             'classes',
             'basic',
-            'W0141',
-            'C0200'
         ]
 
         disabled = [
             'missing-docstring',
+            'consider-using-enumerate',
+            'bad-builtin',
         ]
 
         cmd = [
