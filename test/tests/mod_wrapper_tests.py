@@ -84,6 +84,18 @@ class ModWrapperTests(PavTestCase):
     def tearDown(self):
         plugins._reset_plugins()
 
+
+    SORT_FUNC = '''function sort_mods {
+    awk '{ 
+        split($0, arr, ":");  # Split the values by :
+        asort(arr);           # Sort the values
+        for (i=1; i<length(arr); i++) {  # Arrays are indexed from 1
+            printf "%s:", arr[i]
+        }
+        printf "%s", arr[length(arr)]
+    }'
+}'''
+
     @unittest.skipIf(not has_module_cmd() and find_module_init() is None,
                      "Could not find a module system.")
     def test_add_module(self):
@@ -97,15 +109,18 @@ class ModWrapperTests(PavTestCase):
             'test_mod2',      # Un-versioned.
         ]
         test_cfg['run']['cmds'] = [
+            self.SORT_FUNC,
+            'mods_sorted=$(echo "${TEST_MODULE_NAME}" | sort_mods)',
+            'vers_sorted=$(echo "${TEST_MODULE_VERSION}" | sort_mods)',
             # test_mod1 only gets added once (no dups)
-            '[[ ${TEST_MODULE_NAME} == "test_mod1:test_mod2" ]] || exit 1',
+            '[[ "${mods_sorted}" == "test_mod1:test_mod2" ]] || exit 1',
             # test_mod2 has no version (but the module file appends it anyway.)
-            '[[ ${TEST_MODULE_VERSION} == "1.0:1.1:" ]] || exit 1'
+            '[[ "${vers_sorted}" == "1.0:1.1:" ]] || exit 1'
         ]
 
         test = self._quick_test(test_cfg)
         test.build()
-        run_result = test.run({},{})
+        run_result = test.run({}, {})
 
         self.assertEqual(run_result, STATES.RUN_DONE)
 
@@ -138,9 +153,12 @@ class ModWrapperTests(PavTestCase):
 
         test_cfg['run']['cmds'] = [
             # test_mod1 only gets added once (no dups)
-            '[[ ${TEST_MODULE_NAME} == "test_mod1" ]] || exit 1',
-            # test_mod2 has no version (but the module file appends it anyway.)
-            '[[ ${TEST_MODULE_VERSION} == "1.1" ]] || exit 1'
+            self.SORT_FUNC,
+            'mods_sorted=$(echo "${TEST_MODULE_NAME}" | sort_mods)',
+            'vers_sorted=$(echo "${TEST_MODULE_VERSION}" | sort_mods)',
+            # test_mod1 only gets added once (no dups)
+            '[[ "${mods_sorted}" == "test_mod1" ]] || exit 1',
+            '[[ "${vers_sorted}" == "1.1" ]] || exit 1'
         ]
 
         test = self._quick_test(test_cfg)
@@ -148,7 +166,6 @@ class ModWrapperTests(PavTestCase):
         run_result = test.run({},{})
 
         self.assertEqual(run_result, STATES.RUN_DONE)
-
 
     @unittest.skipIf(not has_module_cmd() and find_module_init() is None,
                      "Could not find a module system.")
@@ -171,19 +188,19 @@ class ModWrapperTests(PavTestCase):
         test_cfg['run']['verbose'] = 'true'
 
         test_cfg['run']['cmds'] = [
+            self.SORT_FUNC,
+            'mods_sorted=$(echo ${TEST_MODULE_NAME} | sort_mods)',
+            'vers_sorted=$(echo ${TEST_MODULE_VERSION} | sort_mods)',
             # test_mod1 only gets added once (no dups)
-            '[[ ${TEST_MODULE_NAME} == "test_mod1:test_mod2:test_mod3" ]] || '
+            '[[ "${mods_sorted}" == "test_mod1:test_mod2:test_mod3" ]] || '
             'exit 1',
             # test_mod2 has no version (but the module file appends it anyway.)
-            '[[ ${TEST_MODULE_VERSION} == "1.1::4.0" ]] || exit 1'
+            '[[ "${vers_sorted}" == "1.1:4.0:" ]] || exit 1'
         ]
 
         test = self._quick_test(test_cfg)
         test.build()
         run_result = test.run({}, {})
-        if run_result != STATES.RUN_DONE:
-            self.dbg_print((test.path/'run.sh').open().read())
-            self.dbg_print((test.path/'run.log').open().read(), color=35)
 
         self.assertEqual(run_result, STATES.RUN_DONE)
 

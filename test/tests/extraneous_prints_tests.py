@@ -18,10 +18,22 @@ class ExtraPrintsTest(PavTestCase):
         """greps for unnecessary dbg_print statements."""
 
         # looks for unnecessary dbg_prints in lib/pavilion directory
-        cmd = "grep -R -I '[^f]print(' ../lib/pavilion/ " \
-              "--exclude=unittest.py --exclude=utils.py"
-        proc = subprocess.Popen(cmd, shell=True)
+        base_cmd = [
+            "grep",
+            "-R",
+            "-I",
+            '[^f]print('
+        ]
+
+        cmd = base_cmd.copy()
+        cmd.extend([
+            "--exclude=unittest.py",
+            "--exclude=utils.py",
+            str(self.PAV_LIB_DIR)
+        ])
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE)
         output, _ = proc.communicate()
+        output = output.decode('utf8')
         # Filter out lines with a comment saying they're ok.
         output = [o for o in output.split('\n') if
                   o and self.IGNORE_RE.search(o) is None]
@@ -31,7 +43,7 @@ class ExtraPrintsTest(PavTestCase):
         tests_root = self.PAV_ROOT_DIR/'test'/'tests'
 
         # looks for unnecessary dbg_prints in test directory
-        cmd = ["grep", "-R", "-i", "-I", "[^f]print("]
+        cmd = base_cmd.copy()
         excludes = [
             'extraneous_prints_tests.py',
             'blarg.py',
@@ -39,7 +51,10 @@ class ExtraPrintsTest(PavTestCase):
         cmd.extend(['--exclude={}'.format(excl) for excl in excludes])
         cmd.append(str(tests_root))
 
-        proc = subprocess.Popen(cmd)
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE)
         output, _ = proc.communicate()
+        output = output.decode('utf8')
+        output = [o for o in output.split('\n') if
+                  o and self.IGNORE_RE.search(o) is None]
         self.maxDiff = None
-        self.assertEqual(output.decode("utf-8"), '')
+        self.assertEqual(output, [])
