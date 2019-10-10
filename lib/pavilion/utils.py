@@ -11,7 +11,6 @@ import textwrap
 import shutil
 import itertools
 from collections import defaultdict
-from pavilion import lockfile
 
 def flat_walk(path, *args, **kwargs):
     """Perform an os.walk on path, but return a flattened list of every file
