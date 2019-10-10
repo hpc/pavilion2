@@ -132,7 +132,6 @@ class ModWrapperTests(PavTestCase):
         test_cfg = self._quick_test_cfg()
 
         modules = [
-            'test_mod1',
             'test_mod1/1.0',
             'test_mod2',
             'test_mod3/5.0',
@@ -145,7 +144,7 @@ class ModWrapperTests(PavTestCase):
             )
 
         test_cfg['run']['modules'] = [
-            '-test_mod1',      # Should unload/1.0 only.
+            '-test_mod1',
             '-test_mod2',      # Un-versioned.
             '-test_mod3/5.0',
             '-test_mod_no-exist',  # Non-existent modules are fine to unload.
@@ -157,16 +156,14 @@ class ModWrapperTests(PavTestCase):
             'mods_sorted=$(echo "${TEST_MODULE_NAME}" | sort_mods)',
             'vers_sorted=$(echo "${TEST_MODULE_VERSION}" | sort_mods)',
             # test_mod1 only gets added once (no dups)
-            '[[ "${mods_sorted}" == "test_mod1" ]] || exit 1',
-            '[[ "${vers_sorted}" == "1.1" ]] || exit 1'
+            '[[ "${mods_sorted}" == "" ]] || exit 1',
+            '[[ "${vers_sorted}" == "" ]] || exit 1'
         ]
         test_cfg['run']['verbose'] = 'true'
 
         test = self._quick_test(test_cfg)
         test.build()
         run_result = test.run({},{})
-
-        self.dbg_print((test.path/'run.log').open().read())
 
         self.assertEqual(run_result, STATES.RUN_DONE)
 
