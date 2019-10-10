@@ -20,16 +20,13 @@ class ExtraPrintsTest(PavTestCase):
         # looks for unnecessary dbg_prints in lib/pavilion directory
         cmd = "grep -R -I '[^f]print(' ../lib/pavilion/ " \
               "--exclude=unittest.py --exclude=utils.py"
-        try:
-            output = subprocess.check_output(cmd, shell=True).decode('utf8')
-            # Filter out lines with a comment saying they're ok.
-            output = [o for o in output.split('\n') if
-                      o and self.IGNORE_RE.search(o) is None]
-            print(output)
-            self.maxDiff = None
-            self.assertEqual(output, [])
-        except subprocess.CalledProcessError as e:
-            pass
+        proc = subprocess.Popen(cmd, shell=True)
+        output, _ = proc.communicate()
+        # Filter out lines with a comment saying they're ok.
+        output = [o for o in output.split('\n') if
+                  o and self.IGNORE_RE.search(o) is None]
+        self.maxDiff = None
+        self.assertEqual(output, [])
 
         tests_root = self.PAV_ROOT_DIR/'test'/'tests'
 
@@ -42,9 +39,7 @@ class ExtraPrintsTest(PavTestCase):
         cmd.extend(['--exclude={}'.format(excl) for excl in excludes])
         cmd.append(str(tests_root))
 
-        try:
-            output = subprocess.check_output(cmd)
-            self.maxDiff = None
-            self.assertEqual(output.decode("utf-8"), '')
-        except subprocess.CalledProcessError as e:
-            pass
+        proc = subprocess.Popen(cmd)
+        output, _ = proc.communicate()
+        self.maxDiff = None
+        self.assertEqual(output.decode("utf-8"), '')

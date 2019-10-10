@@ -180,7 +180,10 @@ class ModWrapperTests(PavTestCase):
 
         test = self._quick_test(test_cfg)
         test.build()
-        run_result = test.run({},{})
+        run_result = test.run({}, {})
+        if run_result != STATES.RUN_DONE:
+            self.dbg_print((test.path/'run.sh').open().read())
+            self.dbg_print((test.path/'run.log').open().read(), color=35)
 
         self.assertEqual(run_result, STATES.RUN_DONE)
 
