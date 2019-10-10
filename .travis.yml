@@ -12,5 +12,3 @@ install:
 
 script: 
     - ./test/run_tests
-    - ls -l test/working_dir/builds
-    
