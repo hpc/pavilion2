@@ -160,10 +160,13 @@ class ModWrapperTests(PavTestCase):
             '[[ "${mods_sorted}" == "test_mod1" ]] || exit 1',
             '[[ "${vers_sorted}" == "1.1" ]] || exit 1'
         ]
+        test_cfg['run']['verbose'] = 'true'
 
         test = self._quick_test(test_cfg)
         test.build()
         run_result = test.run({},{})
+
+        self.dbg_print((test.path/'run.log').open().read())
 
         self.assertEqual(run_result, STATES.RUN_DONE)
 
