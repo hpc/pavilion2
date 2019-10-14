@@ -37,7 +37,7 @@ def find_module_init():
 
 
 def has_module_cmd():
-    """Return whether we can find a module system (regardless of """
+    """Return whether we can find a module command."""
 
     # Both LMod and Environment Modules (tmod) define a module
     # shell function.
@@ -83,7 +83,6 @@ class ModWrapperTests(PavTestCase):
 
     def tearDown(self):
         plugins._reset_plugins()
-
 
     SORT_FUNC = '''function sort_mods {
     awk '{ 
