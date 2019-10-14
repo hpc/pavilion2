@@ -1,5 +1,6 @@
 import errno
 import sys
+import os
 
 import yaml_config
 from pavilion import commands
@@ -12,6 +13,7 @@ from pavilion import system_variables
 from pavilion import utils
 from pavilion.test_config import DeferredVariable
 from pavilion.test_config import find_all_tests
+from pavilion.test_config import file_format
 
 
 class ShowCommand(commands.Command):
@@ -118,6 +120,14 @@ class ShowCommand(commands.Command):
                  "current config."
         )
 
+        test_config_p = subparsers.add_parser(
+            'test_config',
+            help="Print a template test config.",
+            description="Prints an example test configuration. Note that test "
+                        "configs should be under a test_name: key in a suite "
+                        "file. The same format applies to host and mode "
+                        "configs, except without the test name.")
+
         subparsers.add_parser(
             'config_dirs',
             aliases=['config_dir'],
@@ -219,6 +229,34 @@ class ShowCommand(commands.Command):
             help='Display any errors encountered while reading the test.'
         )
 
+        hosts = subparsers.add_parser(
+            'hosts',
+            aliases=['host'],
+            help="Show available hosts and their information.",
+            description="""Pavilion can support different default configs 
+            depending on the host."""
+        )
+        hosts_group = hosts.add_mutually_exclusive_group()
+        hosts_group.add_argument(
+            '--verbose','-v',
+            action='store_true', default=False,
+            help="Display paths to the host files"
+        )
+
+        modes = subparsers.add_parser(
+            'modes',
+            aliases=['mode'],
+            help="Show available hosts and their information.",
+            description="""Pavilion can support different default configs 
+            depending on the mode that is specified."""
+        )
+        modes_group = modes.add_mutually_exclusive_group()
+        modes_group.add_argument(
+            '--verbose','-v',
+            action='store_true', default=False,
+            help="Display paths to mode files"
+        )
+
     def run(self, pav_cfg, args, out_file=sys.stdout, err_file=sys.stderr):
         """Run the show command's chosen sub-command.
         :param out_file:
@@ -246,6 +284,8 @@ class ShowCommand(commands.Command):
             cmd = self._states_cmd
         elif 'config'.startswith(cmd_name):
             cmd = self._config_cmd
+        elif cmd_name == 'test_config':
+            cmd = self._test_config_cmd
         elif 'config_dirs'.startswith(cmd_name):
             cmd = self._config_dirs
         elif cmd_name in [
@@ -275,6 +315,14 @@ class ShowCommand(commands.Command):
                 'test',
                 'tests']:
             cmd = self._tests_cmd
+        elif cmd_name in [
+                'hosts',
+                'host']:
+            cmd = self._hosts_cmd
+        elif cmd_name in [
+                'modes',
+                'mode']:
+            cmd = self._modes_cmd
         else:
             raise RuntimeError("Invalid show cmd '{}'".format(cmd_name))
 
@@ -425,6 +473,10 @@ class ShowCommand(commands.Command):
         else:
             config.PavilionConfigLoader().dump(outfile,
                                                values=pav_cfg)
+
+    @staticmethod
+    def _test_config_cmd(pav_cfg, args, outfile=sys.stdout):
+        file_format.TestConfigLoader().dump(sys.stdout)
 
     @staticmethod
     def _config_dirs(pav_cfg, _, outfile=sys.stdout):
@@ -587,6 +639,8 @@ class ShowCommand(commands.Command):
                     'path': suite['path'],
                     'err': suite['err']
                 })
+            elif args.err:
+                continue
 
             for test_name in sorted(list(suite['tests'])):
                 test = suite['tests'][test_name]
@@ -611,4 +665,66 @@ class ShowCommand(commands.Command):
             fields=fields,
             rows=rows,
             title="Available Tests"
+        )
+
+    @staticmethod
+    def _hosts_cmd(pav_cfg, args, outfile=sys.stdout):
+
+        hosts = []
+        col_names = ['Name']
+        if args.verbose:
+            col_names.append('Path')
+        for conf_dir in pav_cfg.config_dirs:
+            path = conf_dir/'hosts'
+
+            if not (path.exists() and path.is_dir()):
+                continue
+
+            for file in os.listdir(path.as_posix()):
+
+                file = path/file
+                if file.suffix == '.yaml' and file.is_file():
+                    host_id = file.stem
+                    host_path = file
+                    hosts.append({
+                        'Name': host_id,
+                        'Path': host_path
+                    })
+
+        utils.draw_table(
+            outfile,
+            field_info={},
+            fields=col_names,
+            rows=hosts
+        )
+
+    @staticmethod
+    def _modes_cmd(pav_cfg, args, outfile=sys.stdout):
+
+        modes = []
+        col_names = ['Name']
+        if args.verbose:
+            col_names.append('Path')
+        for conf_dir in pav_cfg.config_dirs:
+            path = conf_dir/'modes'
+
+            if not (path.exists() and path.is_dir()):
+                continue
+
+            for file in os.listdir(path.as_posix()):
+
+                file = path/file
+                if file.suffix == '.yaml' and file.is_file():
+                    mode_id = file.stem
+                    mode_path = file
+                    modes.append({
+                        'Name': mode_id,
+                        'Path': mode_path
+                    })
+
+        utils.draw_table(
+            outfile,
+            field_info={},
+            fields=col_names,
+            rows=modes
         )
