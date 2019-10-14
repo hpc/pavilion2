@@ -104,8 +104,8 @@ class ResultsCommand(commands.Command):
             # Get the last test ran by this user
             tests_arg.append(str(get_latest_tests(pav_cfg, 1)[0]))
 
-        # if len(tests_arg) > 1 and full_arg:
-        #     tests_arg = [tests_arg[0]]
+        if len(tests_arg) > 1 and full_arg:
+            tests_arg = [tests_arg[0]]
 
         test_list = []
         for test_id in tests_arg:
