@@ -64,6 +64,7 @@ is created using a config generated from the config returned by the
 `_quick_test_cfg()` method. You can use that config as a base, and pass it 
 manually to `_quick_test` as needed.
 
+
 __Note:__ If you intend to run the given test, it must be built first. Use
 `test.build()` to do so.
 
@@ -71,12 +72,14 @@ __Note:__ If you intend to run the given test, it must be built first. Use
 from pavilion import unittest
 
 class ExampleTest(unittest.PavTestCase):
+
   def test_something(self):
     test_cfg = self._quick_test_cfg()
     test_cfg['run']['cmds'] = ['echo "Goodbye World"']
     
     test = self._quick_test(cfg=test_cfg)
     
+
     # Make sure to build the test before you try to run it.
     test.build()
     

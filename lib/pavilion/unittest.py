@@ -43,6 +43,7 @@ class PavTestCase(unittest.TestCase):
         raw_pav_cfg.config_dirs = [self.TEST_DATA_ROOT/'pav_config_dir',
                                    self.PAV_LIB_DIR]
 
+
         raw_pav_cfg.working_dir = self.PAV_ROOT_DIR/'test'/'working_dir'
 
         raw_pav_cfg.result_log = raw_pav_cfg.working_dir/'results.log'

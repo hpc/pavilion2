@@ -44,6 +44,7 @@ class ExtraPrintsTest(PavTestCase):
 
         # looks for unnecessary dbg_prints in test directory
         cmd = base_cmd.copy()
+
         excludes = [
             'extraneous_prints_tests.py',
             'blarg.py',
