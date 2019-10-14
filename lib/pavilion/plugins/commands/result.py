@@ -1,4 +1,5 @@
 import sys
+import pprint
 
 from pavilion import commands
 from pavilion import series
@@ -80,7 +81,8 @@ class ResultsCommand(commands.Command):
             return 0
 
         if args.full:
-            fields = ['name', 'id', 'result'] + all_keys
+            pprint.pprint(results)
+            return 0
         else:
             fields = ['name', 'id', 'result'] + sum(args.key, list())
 
@@ -101,6 +103,9 @@ class ResultsCommand(commands.Command):
         elif not tests_arg and full_arg:
             # Get the last test ran by this user
             tests_arg.append(str(get_latest_tests(pav_cfg, 1)[0]))
+
+        # if len(tests_arg) > 1 and full_arg:
+        #     tests_arg = [tests_arg[0]]
 
         test_list = []
         for test_id in tests_arg:
