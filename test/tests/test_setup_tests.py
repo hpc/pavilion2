@@ -364,10 +364,16 @@ class TestSetupTests(PavTestCase):
         exports = []
         with (test.path/'build.sh').open() as build_script:
             for line in build_script:
-                if line.startswith('export') and 'TEST_ID' not in line:
+                if line.startswith('export'):
+                    if 'TEST_ID' in line or 'PAV_CONFIG_FILE' in line:
+                        continue
+
                     _, var_val = line.split()
                     var, val = line.split('=')
-                    val = int(val)
+                    try:
+                        val = int(val)
+                    except ValueError:
+                        raise
 
                     exports.append((var, val))
 
