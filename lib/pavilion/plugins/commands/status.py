@@ -8,7 +8,6 @@ from pavilion import utils
 from pavilion import pav_test
 from pavilion.pav_test import PavTest, PavTestError, PavTestNotFoundError
 from pavilion.status_file import STATES
-from pavilion.utils import dbg_print
 
 
 def status_from_test_obj(pav_cfg, test_obj):
