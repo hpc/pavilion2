@@ -130,6 +130,13 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
             "env_setup", sub_elem=yc.StrElem(),
             help_text="A list of commands to be executed at the beginning of "
                       "every kickoff script."),
+        yc.CategoryElem(
+            "default_results", sub_elem=yc.StrElem(),
+            help_text="Each of these will be added as a constant result "
+                      "parser with the corresponding key and constant value. "
+                      "Generally, the values should contain a pavilion "
+                      "variable of some sort to resolve."),
+
         # The following configuration items are for internal use and provide a
         # convenient way to pass around core pavilion components or data.
         # They are not intended to be set by the user, and will generally be

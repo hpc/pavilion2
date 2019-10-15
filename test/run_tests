@@ -6,17 +6,20 @@ import os
 import sys
 import unittest
 import argparse
+from pathlib import Path
+
+this_file = Path(__file__).resolve()
+lib_dir = this_file.parents[1]/'lib'
+tests_dir = this_file.parent/'tests'
 
 # Setup our paths to the pavilion libraries.
-sys.path.append(os.path.abspath('../lib'))
+sys.path.append(str(lib_dir))
 
-from pavilion import utils
-
-logging_root = '/tmp/{user}'.format(user=utils.get_login())
-if not os.path.exists(logging_root):
-    os.makedirs(logging_root)
-log_path = os.path.join(logging_root, 'pavilion_tests.log')
-logging.basicConfig(filename=log_path)
+logging_root = this_file.parent/'working_dir'
+if not logging_root.exists():
+    os.makedirs(str(logging_root))
+log_path = logging_root/'pav.log'
+logging.basicConfig(filename=str(log_path))
 console = logging.StreamHandler()
 console.setLevel(logging.INFO)
 console.setFormatter(logging.Formatter(fmt='\x1b[2m{message}\x1b[0m',
@@ -61,7 +64,7 @@ def main():
         logging.getLogger('').addHandler(console)
 
     loader = unittest.TestLoader()
-    suite = loader.discover('./tests', pattern='*_tests.py')
+    suite = loader.discover(tests_dir.as_posix(), pattern='*_tests.py')
     runner = unittest.TextTestRunner(
         resultclass=ColorResult,
         verbosity=2)

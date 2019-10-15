@@ -14,6 +14,8 @@ class TestSetupTests(PavTestCase):
     def test_loading_tests(self):
         """Make sure get_tests can find tests and resolve inheritance."""
 
+        plugins.initialize_plugins(self.pav_cfg)
+
         tests = load_test_configs(self.pav_cfg, 'this', [], ['hello_world'])
         self.assertEqual(sorted(['narf', 'hello', 'world']),
                          sorted([test['name'] for test in tests]))
@@ -35,6 +37,8 @@ class TestSetupTests(PavTestCase):
         self.assertEqual(narf['scheduler'], 'dummy')
         # Make sure this didn't get lost.
         self.assertEqual(narf['run']['cmds'], ['echo "Running World"'])
+
+        plugins._reset_plugins()
 
     def test_layering(self):
         """Make sure test config layering works as expected."""
@@ -122,6 +126,8 @@ class TestSetupTests(PavTestCase):
     def test_apply_overrides(self):
         """Make sure overrides get applied to test configs correctly."""
 
+        plugins.initialize_plugins(self.pav_cfg)
+
         tests = load_test_configs(self.pav_cfg, 'this', [], ['hello_world'])
 
         overrides = {
@@ -143,6 +149,8 @@ class TestSetupTests(PavTestCase):
             # Make sure other stuff wasn't changed.
             self.assertEqual(test['build'], otest['build'])
             self.assertEqual(test['run']['cmds'], otest['run']['cmds'])
+
+        plugins._reset_plugins()
 
     def test_resolve_permutations(self):
         """Make sure permutations are applied correctly."""
@@ -344,6 +352,8 @@ class TestSetupTests(PavTestCase):
         """Make sure environment variables keep their order from the test
         config to the final run scripts."""
 
+        plugins.initialize_plugins(self.pav_cfg)
+
         test_conf = load_test_configs(self.pav_cfg, 'this', [], ['order'])[0]
         test = self._quick_test(test_conf, "order")
 
@@ -354,10 +364,16 @@ class TestSetupTests(PavTestCase):
         exports = []
         with (test.path/'build.sh').open() as build_script:
             for line in build_script:
-                if line.startswith('export') and 'TEST_ID' not in line:
+                if line.startswith('export'):
+                    if 'TEST_ID' in line or 'PAV_CONFIG_FILE' in line:
+                        continue
+
                     _, var_val = line.split()
                     var, val = line.split('=')
-                    val = int(val)
+                    try:
+                        val = int(val)
+                    except ValueError:
+                        raise
 
                     exports.append((var, val))
 
@@ -368,3 +384,5 @@ class TestSetupTests(PavTestCase):
                              "Got the following instead: \n{}"
                              .format(''.join(["{}: {}\n".format(*v) for v in
                                               exports])))
+
+        plugins._reset_plugins()
