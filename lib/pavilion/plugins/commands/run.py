@@ -1,4 +1,5 @@
 import errno
+import pathlib
 import sys
 import time
 from collections import defaultdict
@@ -130,6 +131,7 @@ class RunCommand(commands.Command):
 
         rp_errors = []
         for test in all_tests:
+
             # Make sure the result parsers have reasonable arguments.
             try:
                 result_parsers.check_args(test.config['results'])
@@ -143,17 +145,11 @@ class RunCommand(commands.Command):
                 fprint(msg, bullet=' - ', file=self.errfile)
             return errno.EINVAL
 
+        failed_build = None
         # Building any tests that specify that they should be built before
         for test in all_tests:
             if test.config['build']['on_nodes'] not in ['true', 'True']:
                 if not test.build():
-                    for oth_test in all_tests:
-                        if oth_test.build_hash != test.build_hash:
-                            oth_test.status.set(
-                                STATES.BUILD_ERROR,
-                                "Build cancelled because build {} failed."
-                                .format(test.id)
-                            )
                     fprint("Error building test: ", file=self.errfile,
                            color=utils.RED)
                     fprint("status {status.state} - {status.note}"
@@ -161,7 +157,16 @@ class RunCommand(commands.Command):
                            file=self.errfile)
                     fprint("For more information, run 'pav log build {}'"
                            .format(test.id), file=self.errfile)
-                    return errno.EINVAL
+                    failed_build = test
+                    break
+
+        if failed_build is not None:
+            for test in all_tests:
+                if test is not failed_build:
+                    test.status.set(
+                        STATES.ABORTED,
+                        "Canceled due to problems with other tests in run")
+            return errno.EINVAL
 
         for sched_name, tests in tests_by_sched.items():
             sched = schedulers.get_scheduler_plugin(sched_name)
@@ -243,7 +248,7 @@ class RunCommand(commands.Command):
         tests = list(tests)
         for file in test_files:
             try:
-                with file.open() as test_file:
+                with pathlib.PosixPath(file).open() as test_file:
                     for line in test_file.readlines():
                         line = line.strip()
                         if line and not line.startswith('#'):
@@ -324,7 +329,6 @@ class RunCommand(commands.Command):
                     raise commands.CommandError(msg)
 
                 tests_by_scheduler[sched.name].append(resolved_config)
-
         return tests_by_scheduler
 
     @staticmethod
@@ -342,6 +346,7 @@ class RunCommand(commands.Command):
                     config=configs_by_sched[sched_name][i],
                     sys_vars=sys_vars
                 ))
+
 
         return tests_by_sched
 

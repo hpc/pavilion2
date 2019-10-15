@@ -35,6 +35,11 @@ class SetStatusCommand(commands.Command):
 
     def run(self, pav_cfg, args, out_file=sys.stdout, err_file=sys.stderr):
 
+        # Zero is given as the default when running test scripts outside of
+        # Pavilion.
+        if args.test == 0:
+            return 0
+
         try:
             test = PavTest.load(pav_cfg, args.test)
         except (PavTestError, PavTestNotFoundError) as err:
