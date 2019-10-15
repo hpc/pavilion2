@@ -21,7 +21,6 @@ class SbatchHeader(scriptcomposer.ScriptHeader):
         self._nodes = nodes
 
     def get_lines(self):
-        """Get the sbatch header lines."""
 
         lines = super().get_lines()
 
@@ -47,8 +46,6 @@ class SbatchHeader(scriptcomposer.ScriptHeader):
 
 
 class SlurmVars(SchedulerVariables):
-    """Scheduler variables for the Slurm scheduler."""
-
     @var_method
     def min_ppn(self):
         """The minimum processors per node across all nodes."""
@@ -139,17 +136,12 @@ class SlurmVars(SchedulerVariables):
 
         num_nodes = self.test.config['slurm'].get('num_nodes')
 
-        if '-' in num_nodes:
-            _, nmax = num_nodes.split('-', 1)
-        else:
-            nmax = num_nodes
+        _, nmax = num_nodes.split('-') if '-' in num_nodes else None, num_nodes
 
         if nmax == 'all':
             return self.alloc_nodes()
         else:
-            # This assumes we'll never have an allocation less than the min
-            # number of requested nodes.
-            return min(nmax, self.alloc_nodes())
+            return nmax
 
     @dfr_var_method
     def test_procs(self):
@@ -687,7 +679,7 @@ class Slurm(SchedulerPlugin):
     def _get_kickoff_script_header(self, test):
         """Get the kickoff header. Most of the work here """
 
-        sched_config = test.config[self.name]
+        sched_config = test.config.get(self.name)
 
         nodes = self.get_data()['nodes']
 
@@ -706,7 +698,7 @@ class Slurm(SchedulerPlugin):
         num_nodes = sched_config.get('num_nodes')
         min_all = False
         if '-' in num_nodes:
-            min_nodes, max_nodes = num_nodes.split('-')
+            min_nodes, max_nodes = num_nodes.split()
         else:
             min_nodes = max_nodes = num_nodes
 
@@ -772,3 +764,9 @@ class Slurm(SchedulerPlugin):
                 STATES.SCHED_ERROR,
                 stderr
             )
+
+    def get_overall_status(self):
+        vars_dict = self.get_vars(None)
+        info = {'nodes': vars_dict['alloc_nodes'],
+                'cpus': vars_dict['alloc_cpu_total']}
+        return info

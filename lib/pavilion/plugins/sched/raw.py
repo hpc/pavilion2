@@ -286,4 +286,7 @@ class Raw(SchedulerPlugin):
             )
 
     def get_overall_status(self):
-        return RawVars.cpus()
+        vars_dict = self.get_vars(None)
+        info = {'cpus:': vars_dict['cpus'],
+                'total_mem': vars_dict['total_mem']}
+        return info
