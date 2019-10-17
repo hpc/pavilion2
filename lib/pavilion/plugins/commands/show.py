@@ -233,12 +233,12 @@ class ShowCommand(commands.Command):
             'hosts',
             aliases=['host'],
             help="Show available hosts and their information.",
-            description="""Pavilion can support different default configs 
-            depending on the host."""
+            description="Pavilion can support different default configs "
+                        "depending on the host."
         )
         hosts_group = hosts.add_mutually_exclusive_group()
         hosts_group.add_argument(
-            '--verbose','-v',
+            '--verbose', '-v',
             action='store_true', default=False,
             help="Display paths to the host files"
         )
@@ -247,12 +247,12 @@ class ShowCommand(commands.Command):
             'modes',
             aliases=['mode'],
             help="Show available hosts and their information.",
-            description="""Pavilion can support different default configs 
-            depending on the mode that is specified."""
+            description="Pavilion can support different default configs "
+                        "depending on the mode that is specified."
         )
         modes_group = modes.add_mutually_exclusive_group()
         modes_group.add_argument(
-            '--verbose','-v',
+            '--verbose', '-v',
             action='store_true', default=False,
             help="Display paths to mode files"
         )

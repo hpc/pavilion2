@@ -1,3 +1,5 @@
+# pylint: disable=C0413
+
 from pathlib import Path
 import json
 import logging
@@ -5,6 +7,12 @@ import tempfile
 import urllib.parse
 
 _MISSING_LIBS = []
+try:
+    import ssl  # pylint: disable=W0611
+except ImportError:
+    _MISSING_LIBS.append('ssl')
+    ssl = None
+
 try:
     import requests
 except ImportError as err:
@@ -14,12 +22,6 @@ except ImportError as err:
         _MISSING_LIBS.append(err)
 
     requests = None
-
-try:
-    import ssl  # pylint: disable=W0611
-except ImportError:
-    _MISSING_LIBS.append('ssl')
-    ssl = None
 
 LOGGER = logging.getLogger('pavilion.' + __file__)
 

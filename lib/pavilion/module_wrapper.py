@@ -1,7 +1,7 @@
 import logging
 import re
 
-from pavilion.module_actions import ModuleLoad, ModuleSwap, ModuleRemove
+from pavilion.module_actions import ModuleLoad, ModuleSwap, ModuleUnload
 from yapsy import IPlugin
 
 LOGGER = logging.getLogger('pav.{}'.format(__name__))
@@ -188,11 +188,11 @@ class ModuleWrapper(IPlugin.IPlugin):
 
         return [ModuleSwap(self.name, version, out_name, out_version)], {}
 
-    def remove(self, sys_info, requested_version=None):
+    def unload(self, sys_info, requested_version=None):
         """Remove this module from the environment.
         :param sys_info: The system info dictionary of variables, from the
         system plugins.
-        :param requested_version: The version requested to load.
+        :param requested_version: The version requested to remove.
         :return: A list of actions (or bash command strings), and a dict of
         environment changes.
         :rtype: (Union(str, ModuleAction), dict)
@@ -204,4 +204,4 @@ class ModuleWrapper(IPlugin.IPlugin):
 
         version = self.get_version(requested_version)
 
-        return [ModuleRemove(self.name, version)], {}
+        return [ModuleUnload(self.name, version)], {}
