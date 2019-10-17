@@ -54,13 +54,26 @@ def get_all_tests(pav_cfg, args, errfile):
     latest_tests = pav_test.get_latest_tests(pav_cfg, args.limit)
 
     test_obj_list = []
+    test_statuses = []
     for test_id in latest_tests:
-        test = PavTest.load(pav_cfg, test_id)
-        test_obj_list.append(test)
+        try:
+            test = PavTest.load(pav_cfg, test_id)
+            test_obj_list.append(test)
+        except (PavTestError, PavTestNotFoundError) as err:
+            test_statuses.append({
+                'test_id': test_id,
+                'name': "",
+                'state': STATES.UNKNOWN,
+                'time': "",
+                'note': "Test not found."
+            })
 
     statuses = status_from_test_obj(pav_cfg, test_obj_list)
 
-    return statuses
+    if statuses is not None:
+        test_statuses = test_statuses + statuses
+
+    return test_statuses
 
 def get_statuses(pav_cfg, args, errfile):
     """Get the statuses of the listed tests or series.
