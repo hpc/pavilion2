@@ -285,8 +285,24 @@ class Raw(SchedulerPlugin):
                 "PID {} refused to die.".format(pid)
             )
 
-    def get_overall_status(self):
-        vars_dict = self.get_vars(None)
-        info = {'cpus:': vars_dict['cpus'],
-                'total_mem': vars_dict['total_mem']}
-        return info
+    def get_overall_status(self, test):
+
+        try:
+            host, pid = test.job_id.rsplit('_', 1)
+        except:
+            return "No currently running processes for this job."
+
+        try:
+            with Path('/proc/' + str(pid) + "/status").open() as proc_file:
+                for line in proc_file.readlines():
+                    if 'VmSize' in line:
+                        return line
+        except:
+            return "No currently running processes for this job."
+
+        # total_mem: /proc/<pid>/status grep for VmSize
+        # cpus:
+        # vars_dict = self.get_vars(None)
+        # info = {'cpus:': vars_dict['cpus'],
+        #         'total_mem': vars_dict['total_mem']}
+        # return info

@@ -28,7 +28,7 @@ def status_from_test_obj(pav_cfg, test_obj):
 
         try:
             sched = schedulers.get_scheduler_plugin(test.scheduler)
-            scheduler_status = sched.get_overall_status()
+            scheduler_status = sched.get_overall_status(test)
         except schedulers.SchedulerPluginError:
             scheduler_status = ""
 
