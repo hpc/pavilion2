@@ -83,4 +83,4 @@ class ViewCommand(run.RunCommand):
         configs = sum(configs.values(), [])
 
         for config in configs:
-            pprint.pprint(config, stream=self.outfile)
+            pprint.pprint(config, stream=self.outfile)  # ext-print: ignore

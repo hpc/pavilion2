@@ -9,7 +9,6 @@ import subprocess
 import sys
 import textwrap
 import shutil
-import copy
 import itertools
 from collections import defaultdict
 
@@ -84,36 +83,6 @@ def make_id_path(base_path, id_):
     return base_path/(ID_FMT.format(id=id_, digits=ID_DIGITS))
 
 
-def create_id_dir(id_dir):
-    """In the given directory, create the lowest numbered (positive integer)
-    directory that doesn't already exist.
-    :param Path id_dir: Path to the directory that contains these 'id'
-        directories
-    :returns: The id and path to the created directory.
-    :rtype: list(int, Path)
-    :raises OSError: on directory creation failure.
-    :raises TimeoutError: If we couldn't get the lock in time.
-
-    """
-
-    lockfile_path = id_dir/'.lockfile'
-    with lockfile.LockFile(lockfile_path, timeout=1):
-        ids = os.listdir(str(id_dir))
-        # Only return the test directories that could be integers.
-        ids = filter(str.isdigit, ids)
-        ids = filter(lambda d: (id_dir/d).is_dir(), ids)
-        ids = list(map(int, ids))
-        ids.sort()
-
-        # Find the first unused id.
-        id_ = 1
-        while id_ in ids:
-            id_ += 1
-
-        path = make_id_path(id_dir, id_)
-        path.mkdir()
-    return id_, path
-
 def get_login():
     """Get the current user's login, either through os.getlogin or
     the environment, or the id command."""
@@ -147,7 +116,8 @@ def dbg_print(*args, color=33, file=sys.stderr, end="", **kwargs):
 
     print(start_escape, end='', file=file)
     print(*args, file=file, end='', **kwargs)
-    print('\x1b[0m  ', end=end, file=file)
+    print('\x1b[0m', end=end, file=file)
+    sys.stderr.flush()
 
 
 def fprint(*args, color=None, bullet='', width=100,
@@ -162,7 +132,7 @@ def fprint(*args, color=None, bullet='', width=100,
     :param int width: Wrap the text to this width.
     """
 
-    args = list(map(str, args))
+    args = [str(a) for a in args]
     if color is not None:
         print('\x1b[{}m'.format(color), end='', file=file)
 
@@ -532,7 +502,7 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
     # Pre-calculate the total wraps for each field at each possible
     # column width.
     field_wraps_by_width = defaultdict(dict)
-    for fld in range(len(fields)):
+    for fld in range(len(fields)):  # pylint: disable=C0200
         field = fields[fld]
         for width in range(*boundaries[fld]):
             wrap_total = 0
@@ -557,7 +527,7 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
             continue
 
         wrap_count = 0
-        for fld in range(len(fields)):
+        for fld in range(len(fields)):  # pylint: disable=C0200
             wrap_count += field_wraps_by_width[fld][combo[fld]]
 
         # Updates minimum wraps with the smallest amount of wraps seen
@@ -614,7 +584,7 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
             clean_string = _plen(row[field], return_string=True)
             color = _grab_color(row[field])
             wrap_list = my_wrap.wrap(text=clean_string)
-            for i in range(len(wrap_list)):
+            for i in range(len(wrap_list)):  # pylint: disable=C0200
                 wrap_list[i] = ANSIStr(wrap_list[i], color)
             wraps[field] = wrap_list
 

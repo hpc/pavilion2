@@ -2,10 +2,12 @@ from pavilion import config
 from pavilion import plugins
 from pavilion import schedulers
 from pavilion.unittest import PavTestCase
+from pavilion import result_parsers
 from pavilion.test_config.file_format import TestConfigLoader
 from pavilion.status_file import STATES
 from pavilion.pav_test import PavTest
 import subprocess
+import time
 import unittest
 
 
@@ -47,8 +49,6 @@ class SlurmTests(PavTestCase):
     def test_job_status(self):
         """Make sure all the slurm scheduler variable methods work when
         not on a node."""
-
-        slurm = schedulers.get_scheduler_plugin('slurm')
 
         cfg = TestConfigLoader().validate({
             'scheduler': 'slurm',
@@ -102,21 +102,12 @@ class SlurmTests(PavTestCase):
 
     @unittest.skipIf(not has_slurm(), "Only runs on a system with slurm.")
     def test_schedule_test(self):
-        """Try to schedule a test. It doesn't have to run (but it can!) """
+        """Try to schedule a test."""
 
         slurm = schedulers.get_scheduler_plugin('slurm')
-
-        cfg = TestConfigLoader().validate({
-            'scheduler': 'slurm',
-            'run': {
-                'cmds': [
-                    'echo "Hello World."'
-                ]
-            },
-        })
-        cfg['name'] = 'slurm_test'
-
-        test = PavTest(self.pav_cfg, cfg, {})
+        cfg = self._quick_test_cfg()
+        cfg['scheduler'] = 'slurm'
+        test = self._quick_test(cfg=cfg, name='slurm_test')
 
         slurm.schedule_test(self.pav_cfg, test)
 
@@ -127,3 +118,41 @@ class SlurmTests(PavTestCase):
         status = slurm.cancel_job(test)
 
         self.assertEqual(status.state, STATES.SCHED_CANCELLED)
+
+    TEST_TIMEOUT = 5
+
+    @unittest.skipIf(not has_slurm(), "Only runs on a system with slurm.")
+    def test_node_range(self):
+        """Make sure node ranges work properly."""
+
+        slurm = schedulers.get_scheduler_plugin('slurm')
+
+        cfg = self._quick_test_cfg()
+        cfg['scheduler'] = 'slurm'
+
+        for num_nodes in '1-10000000', '1-all':
+            # We're testing that everything works we we ask for a max number
+            # of nodes and don't get them all.
+            cfg['slurm']['num_nodes'] = num_nodes
+
+            test = self._quick_test(cfg=cfg, name='slurm_test')
+            test.build()
+
+            slurm.schedule_test(self.pav_cfg, test)
+            timeout = time.time() + self.TEST_TIMEOUT
+
+            while time.time() < timeout:
+                status = slurm.job_status(self.pav_cfg, test)
+                if status.state == STATES.COMPLETE:
+                    break
+                time.sleep(.5)
+            else:
+                # We timed out.
+                slurm.cancel_job(test)
+                self.fail(
+                    "Test {} at {} did not complete within {} secs with "
+                    "num_nodes of {}."
+                    .format(test.id, test.path, self.TEST_TIMEOUT, num_nodes))
+
+        results = test.load_results()
+        self.assertEqual(results['result'], result_parsers.PASS)
