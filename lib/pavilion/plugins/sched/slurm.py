@@ -775,16 +775,13 @@ class Slurm(SchedulerPlugin):
 
     def get_overall_status(self, test):
 
+        jobid = test.job_id
+
         try:
-            jobid = test.job_id
             sc_out = subprocess.check_output(['scontrol', 'show', 'job', jobid])
             num_nodes = (re.search('NumNodes=(\d+)', str(sc_out))).group(0)
             num_cpus = (re.search('NumCPUs=(\d+)', str(sc_out))).group(0)
             return num_nodes, num_cpus
-        except:
-            return "output not found"
+        except subprocess.CalledProcessError:
+            return ""
 
-        # vars_dict = self.get_vars(None)
-        # info = {'nodes': vars_dict['alloc_nodes'],
-        #         'cpus': vars_dict['alloc_cpu_total']}
-        # return info

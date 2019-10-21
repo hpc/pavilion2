@@ -4,6 +4,7 @@ import signal
 import socket
 import subprocess
 import time
+import re
 from pathlib import Path
 
 import tzlocal
@@ -287,22 +288,18 @@ class Raw(SchedulerPlugin):
 
     def get_overall_status(self, test):
 
-        try:
-            host, pid = test.job_id.rsplit('_', 1)
-        except:
-            return "No currently running processes for this job."
+        host, pid = test.job_id.rsplit('_', 1)
 
+        sched_stat = {}
+
+        regex = re.compile("(VmSize|Cpus_allowed_list):\s(.+)")
         try:
             with Path('/proc/' + str(pid) + "/status").open() as proc_file:
-                for line in proc_file.readlines():
-                    if 'VmSize' in line:
-                        return line
-        except:
-            return "No currently running processes for this job."
+                for line in proc_file:
+                    match = regex.search(line)
+                    if match is not None:
+                        sched_stat[match.group(1)] = match.group(2)
+        except FileNotFoundError:
+            return ""
 
-        # total_mem: /proc/<pid>/status grep for VmSize
-        # cpus:
-        # vars_dict = self.get_vars(None)
-        # info = {'cpus:': vars_dict['cpus'],
-        #         'total_mem': vars_dict['total_mem']}
-        # return info
+        return sched_stat
