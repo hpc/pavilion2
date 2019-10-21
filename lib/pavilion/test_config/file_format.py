@@ -179,6 +179,12 @@ class TestConfigLoader(yc.YamlConfigLoader):
                               "sys.sys_name variable. Note _deferred_ system "
                               "variables aren't a good idea hereas configs are "
                               "compiled on the host that launches the test."),
+                yc.StrElem(
+                    'timeout',
+                    default='30',
+                    help_text="Time (in seconds) that a build can continue "
+                              "without generating new output before it is "
+                              "cancelled.  Can be left empty for no timeout."),
                 yc.ListElem(
                     'cmds', sub_elem=yc.StrElem(),
                     help_text='The sequence of commands to run to perform '
@@ -223,6 +229,11 @@ class TestConfigLoader(yc.YamlConfigLoader):
                     help_text="Echo commands (including sourced files) in the "
                               "build log, and print the modules loaded and "
                               "environment before the cmds run."),
+                yc.StrElem(
+                    'timeout', default='300',
+                    help_text="Time that a build can continue without "
+                              "generating new output before it is cancelled. "
+                              "Can be left empty for no timeout.")
             ],
             help_text="The test run configuration. This will be used "
                       "to dynamically generate a run script for the "
