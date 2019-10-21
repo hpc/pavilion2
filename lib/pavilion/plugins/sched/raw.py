@@ -288,7 +288,10 @@ class Raw(SchedulerPlugin):
 
     def get_overall_status(self, test):
 
-        host, pid = test.job_id.rsplit('_', 1)
+        if not test.job_id:
+            return "Job ID not found."
+        else:
+            host, pid = test.job_id.rsplit('_', 1)
 
         sched_stat = {}
 

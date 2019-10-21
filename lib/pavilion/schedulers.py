@@ -533,6 +533,6 @@ class SchedulerPlugin(IPlugin.IPlugin):
             file_format.TestConfigLoader.remove_subsection(name)
             del _SCHEDULER_PLUGINS[name]
 
-    def get_overall_status(self):
+    def get_overall_status(self, test):
         """Gets called by status module. """
-        return self.name
+        return ""
