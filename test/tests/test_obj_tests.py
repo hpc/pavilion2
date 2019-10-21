@@ -35,16 +35,19 @@ class PavTestTests(PavTestCase):
             'build': {
                 'modules': ['gcc'],
                 'cmds': ['echo "Hello World"'],
+                'timeout': '30',
             },
             'run': {
                 'modules': ['gcc', 'openmpi'],
                 'cmds': ['echo "Running dis stuff"'],
                 'env': {'BLARG': 'foo'},
+                'timeout': '30',
             }
         }
 
         # Make sure we can create a test from a fairly populated config.
         t = PavTest(self.pav_cfg, config, {})
+        t.build()
 
         # Make sure we can recreate the object from id.
         t2 = PavTest.load(self.pav_cfg, t.id)
@@ -56,7 +59,8 @@ class PavTestTests(PavTestCase):
         #  - get_test_path
         #  - write_tmpl
         for key in set(t.__dict__.keys()).union(t2.__dict__.keys()):
-            self.assertEqual(t.__dict__[key], t2.__dict__[key])
+            self.assertEqual(t.__dict__[key], t2.__dict__[key],
+                             msg="Mismatch for key {}".format(key))
 
     def test_setup_build_dir(self):
         """Make sure we can correctly handle all of the various archive
@@ -311,6 +315,9 @@ class PavTestTests(PavTestCase):
         config1 = {
             'name': 'run_test',
             'scheduler': 'raw',
+            'build': {
+                'timeout': '30',
+                },
             'run': {
                 'timeout': None,
                 'env': {
