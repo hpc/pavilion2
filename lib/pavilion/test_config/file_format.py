@@ -186,9 +186,9 @@ class TestConfigLoader(yc.YamlConfigLoader):
                 yc.StrElem(
                     'timeout',
                     default='30',
-                    help_text="Time that a build can continue without "
-                              "generating new output before it is cancelled. "
-                              "Can be left empty for no timeout.")
+                    help_text="Time (in seconds) that a build can continue "
+                              "without generating new output before it is "
+                              "cancelled.  Can be left empty for no timeout.")
                 ],
             help_text="The test build configuration. This will be "
                       "used to dynamically generate a build script for "

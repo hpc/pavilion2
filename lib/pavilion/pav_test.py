@@ -180,16 +180,23 @@ class PavTest:
 
         # Checking validity of timeout values.
         for loc in ['build', 'run']:
-            if loc in config and 'timeout' in config[loc] and \
-                    config[loc]['timeout'] is not None:
+            if loc in config and 'timeout' in config[loc]:
                 try:
-                    test_timeout = int(config[loc]['timeout'])
-                    if test_timeout < 0:
-                        raise ValueError()
+                    if config[loc]['timeout'] is None:
+                        test_timeout = None
+                    else:
+                        test_timeout = int(config[loc]['timeout'])
+                        if test_timeout < 0:
+                            raise ValueError()
                 except ValueError:
                     raise PavTestError("{} timeout must be a non-negative "
                             "integer or empty.  Received {}.".format(
                                 loc, config[loc]['timeout']))
+                else:
+                    if loc == 'build':
+                        self._build_timeout = test_timeout
+                    else:
+                        self._run_timeout = test_timeout
 
     @classmethod
     def load(cls, pav_cfg, test_id):
@@ -504,11 +511,6 @@ class PavTest:
         :returns: True or False, depending on whether the build appears to have
             been successful.
         """
-        if self.config['build']['timeout'] is not None:
-            build_silent_timeout = int(self.config['build']['timeout'])
-        else:
-            build_silent_timeout = self.config['build']['timeout']
-
         try:
             self._setup_build_dir(build_dir)
         except PavTestError as err:
@@ -529,7 +531,7 @@ class PavTest:
                                         stdout=build_log,
                                         stderr=subprocess.STDOUT)
 
-                timeout = build_silent_timeout
+                timeout = self._build_timeout
 
                 result = None
                 while result is None:
@@ -539,17 +541,17 @@ class PavTest:
                         log_stat = build_log_path.stat()
                         quiet_time = time.time() - log_stat.st_mtime
                         # Has the output file changed recently?
-                        if build_silent_timeout < quiet_time:
+                        if self._build_timeout < quiet_time:
                             # Give up on the build, and call it a failure.
                             proc.kill()
                             self.status.set(STATES.BUILD_FAILED,
                                             "Build timed out after {} seconds."
-                                            .format(build_silent_timeout))
+                                            .format(self._build_timeout))
                             return False
                         else:
-                            # Only wait a max of build_silent_timeout next
+                            # Only wait a max of self._build_timeout next
                             # 'wait'
-                            timeout = build_silent_timeout - quiet_time
+                            timeout = self._build_timeout - quiet_time
 
 
         except subprocess.CalledProcessError as err:
@@ -769,11 +771,6 @@ class PavTest:
         self.status.set(STATES.PREPPING_RUN,
                         "Resolving final run script.")
 
-        if self.config['run']['timeout'] is not None:
-            run_silent_timeout = int(self.config['run']['timeout'])
-        else:
-            run_silent_timeout = self.config['run']['timeout']
-
         if self.run_tmpl_path is not None:
             # Convert the run script template into the final run script.
             try:
@@ -819,8 +816,8 @@ class PavTest:
                                     stderr=subprocess.STDOUT)
 
             # Run the test, but timeout if it doesn't produce any output every
-            # run_silent_timeout seconds
-            timeout = run_silent_timeout
+            # self._run_timeout seconds
+            timeout = self._run_timeout
             result = None
             while result is None:
                 try:
@@ -829,18 +826,18 @@ class PavTest:
                     out_stat = self.run_log.stat()
                     quiet_time = time.time() - out_stat.st_mtime
                     # Has the output file changed recently?
-                    if run_silent_timeout < quiet_time:
+                    if self._run_timeout < quiet_time:
                         # Give up on the build, and call it a failure.
                         proc.kill()
                         self.status.set(STATES.RUN_FAILED,
                                         "Run timed out after {} seconds."
-                                        .format(run_silent_timeout))
+                                        .format(self._run_timeout))
                         self._finished = local_tz.localize(
                             datetime.datetime.now())
                         return STATES.RUN_TIMEOUT
                     else:
                         # Only wait a max of run_silent_timeout next 'wait'
-                        timeout = run_silent_timeout - quiet_time
+                        timeout = timeout - quiet_time
 
         self._finished = local_tz.localize(datetime.datetime.now())
         if result != 0:
