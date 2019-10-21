@@ -229,7 +229,8 @@ class TestConfigLoader(yc.YamlConfigLoader):
                     help_text="Echo commands (including sourced files) in the "
                               "build log, and print the modules loaded and "
                               "environment before the cmds run."),
-                yc.StrElem('timeout', default='300',
+                yc.StrElem(
+                    'timeout', default='300',
                     help_text="Time that a build can continue without "
                               "generating new output before it is cancelled. "
                               "Can be left empty for no timeout.")

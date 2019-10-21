@@ -197,8 +197,8 @@ class PavTest:
                             raise ValueError()
                 except ValueError:
                     raise PavTestError("{} timeout must be a non-negative "
-                            "integer or empty.  Received {}.".format(
-                                loc, config[loc]['timeout']))
+                                       "integer or empty.  Received {}."
+                                       .format(loc, config[loc]['timeout']))
                 else:
                     if loc == 'build':
                         self._build_timeout = test_timeout
