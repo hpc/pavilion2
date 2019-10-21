@@ -1,3 +1,5 @@
 *.pyc
 PAV/scripts/site
 .idea
+*.swp
+*.swo
