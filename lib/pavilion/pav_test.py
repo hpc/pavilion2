@@ -15,6 +15,7 @@ import tarfile
 import time
 import urllib.parse
 import zipfile
+import sys
 from pathlib import Path
 
 import tzlocal
@@ -25,6 +26,7 @@ from pavilion import utils
 from pavilion import wget
 from pavilion.status_file import StatusFile, STATES
 from pavilion.test_config import variables
+from pavilion.utils import fprint
 
 
 def get_latest_tests(pav_cfg, limit):
@@ -426,6 +428,8 @@ class PavTest:
 
         # Only try to do the build if it doesn't already exist.
         if not self.build_origin.exists():
+            fprint("Creating new build directory: {}".format(self.build_origin),
+                   file=sys.stderr)
             self.status.set(STATES.BUILDING,
                             "Starting build {}.".format(self.build_hash))
             # Make sure another test doesn't try to do the build at
@@ -484,6 +488,8 @@ class PavTest:
                     self.LOGGER.warning("Could not create symlink to test")
 
         else:
+            fprint("Using already existing build directory {}".format(
+                self.build_origin), file=sys.stderr)
             self.status.set(STATES.BUILDING,
                             "Build {} already exists.".format(self.build_hash))
 
@@ -559,7 +565,6 @@ class PavTest:
                             # Only wait a max of self._build_timeout next
                             # 'wait'
                             timeout = self._build_timeout - quiet_time
-
 
         except subprocess.CalledProcessError as err:
             self.status.set(STATES.BUILD_ERROR,
