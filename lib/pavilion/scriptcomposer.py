@@ -55,7 +55,7 @@ def get_old_swap(mod_line):
        :param str mod_line: String provided by the user in the config.
        :return str mod_old: Name of module to be swapped out.
     """
-    return mod_line[:mod_line.find('->')-1]
+    return mod_line[:mod_line.find('->')]
 
 
 class ScriptComposerError(RuntimeError):
@@ -246,7 +246,7 @@ class ScriptComposer():
             mod_act, mod_env = module_obj.load(sys_vars, version)
 
         elif action == 'unload':
-            mod_act, mod_env = module_obj.unload()
+            mod_act, mod_env = module_obj.unload(sys_vars, version)
 
         elif action == 'swap':
             old = get_old_swap(module)
@@ -256,8 +256,10 @@ class ScriptComposer():
                 oldname = old
                 oldver = None
 
-            mod_act, mod_env = module_obj.swap(old_module_name=oldname,
-                                               old_version=oldver)
+            mod_act, mod_env = module_obj.swap(sys_vars,
+                                               oldname,
+                                               oldver,
+                                               requested_version=version)
         else:
             # This is not an expected error
             raise RuntimeError("Invalid Module action '{}'".format(action))

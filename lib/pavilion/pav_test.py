@@ -35,16 +35,18 @@ def get_latest_tests(pav_cfg, limit):
     :return: list of test ID's
     """
 
-    test_dir_dict = {}
+    test_dir_list = []
     top_dir = pav_cfg.working_dir/'tests'
     for child in top_dir.iterdir():
         mtime = child.stat().st_mtime
-        test_dir_dict[int(str(child.stem))] = mtime
+        test_dir_list.append((mtime, child.name))
 
-    sorted_test_dir = sorted(test_dir_dict.items(), key=lambda kv: kv[1])
-    last_tests = sorted_test_dir[-limit:]
-    tests_only = [int(i[0]) for i in last_tests]
+    test_dir_list.sort()
+    last_tests = test_dir_list[-limit:]
+    tests_only = [int(i[1]) for i in last_tests]
+
     return tests_only
+
 
 class PavTestError(RuntimeError):
     """For general test errors. Whatever was being attempted has failed in a
@@ -97,7 +99,9 @@ class PavTest:
         self._pav_cfg = pav_cfg
 
         # Compute the actual name of test, using the subtest config parameter.
-        self.name = config['name']
+        self.name = '.'.join([
+            config.get('suite', '<unknown>'),
+            config.get('name', '<unnamed>')])
         if 'subtest' in config and config['subtest']:
             self.name = self.name + '.' + config['subtest']
 
@@ -139,42 +143,67 @@ class PavTest:
         self.build_path = None          # type: Path
         self.build_name = None
         self.build_hash = None          # type: str
-        self.build_script_path = None   # type: Path
         self.build_origin = None        # type: Path
         self.run_log = self.path/'run.log'
         self.results_path = self.path/'results.json'
 
         build_config = self.config.get('build', {})
 
-        self.build_script_path = self.path/'build.sh'
-        if not self.build_script_path.exists():
-            self._write_script(self.build_script_path,
-                               build_config,
-                               sys_vars)
-
+        self.build_script_path = self.path/'build.sh'  # type: Path
         self.build_path = self.path/'build'
-        if self.build_path.is_symlink():
-            build_rp = self.build_path.resolve()
-            self.build_hash = build_rp.name
-        else:
-            self.build_hash = self._create_build_hash(build_config)
+        if _id is None:
+            self._write_script(
+                path=self.build_script_path,
+                config=build_config,
+                sys_vars=sys_vars)
 
-        short_hash = self.build_hash[:self.BUILD_HASH_BYTES*2]
-        self.build_name = '{hash}'.format(hash=short_hash)
-        self.build_origin = pav_cfg.working_dir/'builds'/self.build_name
+        if _id is None:
+            self.build_hash = self._create_build_hash(build_config)
+            with (self.path/'build_hash').open('w') as build_hash_file:
+                build_hash_file.write(self.build_hash)
+        else:
+            build_hash_fn = self.path/'build_hash'
+            if build_hash_fn.exists():
+                with build_hash_fn.open() as build_hash_file:
+                    self.build_hash = build_hash_file.read()
+
+        if self.build_hash is not None:
+            short_hash = self.build_hash[:self.BUILD_HASH_BYTES*2]
+            self.build_name = '{hash}'.format(hash=short_hash)
+            self.build_origin = pav_cfg.working_dir/'builds'/self.build_name
 
         run_config = self.config.get('run', {})
-        if run_config:
-            self.run_tmpl_path = self.path/'run.tmpl'
-            self.run_script_path = self.path/'run.sh'
-            if not self.run_tmpl_path.exists():
-                self._write_script(self.run_tmpl_path, run_config, sys_vars)
-        else:
-            self.run_tmpl_path = None
-            self.run_script_path = None
+        self.run_tmpl_path = self.path/'run.tmpl'
+        self.run_script_path = self.path/'run.sh'
+
+        if _id is None:
+            self._write_script(
+                path=self.run_tmpl_path,
+                config=run_config,
+                sys_vars=sys_vars)
 
         if _id is None:
             self.status.set(STATES.CREATED, "Test directory setup complete.")
+
+        # Checking validity of timeout values.
+        for loc in ['build', 'run']:
+            if loc in config and 'timeout' in config[loc]:
+                try:
+                    if config[loc]['timeout'] is None:
+                        test_timeout = None
+                    else:
+                        test_timeout = int(config[loc]['timeout'])
+                        if test_timeout < 0:
+                            raise ValueError()
+                except ValueError:
+                    raise PavTestError("{} timeout must be a non-negative "
+                                       "integer or empty.  Received {}."
+                                       .format(loc, config[loc]['timeout']))
+                else:
+                    if loc == 'build':
+                        self._build_timeout = test_timeout
+                    else:
+                        self._run_timeout = test_timeout
 
     @classmethod
     def load(cls, pav_cfg, test_id):
@@ -483,10 +512,6 @@ class PavTest:
 
         return True
 
-    # A process should produce some output at least once every this many
-    # seconds.
-    BUILD_SILENT_TIMEOUT = 30
-
     def _build(self, build_dir):
         """Perform the build. This assumes there actually is a build to perform.
         :param Path build_dir: The directory in which to perform the build.
@@ -513,7 +538,8 @@ class PavTest:
                                         stdout=build_log,
                                         stderr=subprocess.STDOUT)
 
-                timeout = self.BUILD_SILENT_TIMEOUT
+                timeout = self._build_timeout
+
                 result = None
                 while result is None:
                     try:
@@ -522,17 +548,17 @@ class PavTest:
                         log_stat = build_log_path.stat()
                         quiet_time = time.time() - log_stat.st_mtime
                         # Has the output file changed recently?
-                        if self.BUILD_SILENT_TIMEOUT < quiet_time:
+                        if self._build_timeout < quiet_time:
                             # Give up on the build, and call it a failure.
                             proc.kill()
                             self.status.set(STATES.BUILD_FAILED,
                                             "Build timed out after {} seconds."
-                                            .format(self.BUILD_SILENT_TIMEOUT))
+                                            .format(self._build_timeout))
                             return False
                         else:
-                            # Only wait a max of BUILD_SILENT_TIMEOUT next
+                            # Only wait a max of self._build_timeout next
                             # 'wait'
-                            timeout = self.BUILD_SILENT_TIMEOUT - quiet_time
+                            timeout = self._build_timeout - quiet_time
 
 
         except subprocess.CalledProcessError as err:
@@ -721,8 +747,6 @@ class PavTest:
                     "Could not copy extra file '{}' to dest '{}': {}"
                     .format(path, dest, err))
 
-    RUN_SILENT_TIMEOUT = 5*60
-
     def _fix_build_permissions(self):
         """The files in a build directory should never be writable, but
             directories should be. Users are thus allowed to delete build
@@ -752,7 +776,7 @@ class PavTest:
         :param dict sys_vars: The system variables."""
 
         self.status.set(STATES.PREPPING_RUN,
-                        "Resolving final run script.")
+                        "Converting run template into run script.")
 
         if self.run_tmpl_path is not None:
             # Convert the run script template into the final run script.
@@ -799,8 +823,8 @@ class PavTest:
                                     stderr=subprocess.STDOUT)
 
             # Run the test, but timeout if it doesn't produce any output every
-            # RUN_SILENT_TIMEOUT seconds
-            timeout = self.RUN_SILENT_TIMEOUT
+            # self._run_timeout seconds
+            timeout = self._run_timeout
             result = None
             while result is None:
                 try:
@@ -809,21 +833,25 @@ class PavTest:
                     out_stat = self.run_log.stat()
                     quiet_time = time.time() - out_stat.st_mtime
                     # Has the output file changed recently?
-                    if self.RUN_SILENT_TIMEOUT < quiet_time:
+                    if self._run_timeout < quiet_time:
                         # Give up on the build, and call it a failure.
                         proc.kill()
                         self.status.set(STATES.RUN_FAILED,
                                         "Run timed out after {} seconds."
-                                        .format(self.RUN_SILENT_TIMEOUT))
+                                        .format(self._run_timeout))
                         self._finished = local_tz.localize(
                             datetime.datetime.now())
                         return STATES.RUN_TIMEOUT
                     else:
-                        # Only wait a max of BUILD_SILENT_TIMEOUT next 'wait'
-                        timeout = self.RUN_SILENT_TIMEOUT - quiet_time
+                        # Only wait a max of run_silent_timeout next 'wait'
+                        timeout = timeout - quiet_time
 
         self._finished = local_tz.localize(datetime.datetime.now())
-        if result != 0:
+
+        status = self.status.current()
+        if status.state == STATES.ENV_FAILED:
+            return STATES.RUN_FAILED
+        elif result != 0:
             self.status.set(STATES.RUN_FAILED, "Test run failed.")
             return STATES.RUN_FAILED
         else:
@@ -1076,13 +1104,13 @@ class PavTest:
     def _write_script(self, path, config, sys_vars):
         """Write a build or run script or template. The formats for each are
             identical.
-        :param str path: Path to the template file to write.
+        :param Path path: Path to the template file to write.
         :param dict config: Configuration dictionary for the script file.
         :return:
         """
 
         if sys_vars is None:
-            raise RuntimeError("Trying to write script without sys_vars "
+            raise PavTestError("Trying to write script without sys_vars "
                                "in test '{}'.".format(self.id))
 
         script = scriptcomposer.ScriptComposer(
@@ -1091,13 +1119,29 @@ class PavTest:
                 group=self._pav_cfg.shared_group,
             ))
 
+        verbose = config.get('verbose', 'false').lower() == 'true'
+
+        if verbose:
+            script.comment('# Echoing all commands to log.')
+            script.command('set -v')
+            script.newline()
+
         pav_lib_bash = self._pav_cfg.pav_root/'bin'/'pav-lib.bash'
 
         # If we include this directly, it breaks build hashing.
         script.comment('The first (and only) argument of the build script is '
                        'the test id.')
-        script.env_change({'TEST_ID': '$1'})
+        script.env_change({
+            'TEST_ID': '${1:-0}',   # Default to test id 0 if one isn't given.
+            'PAV_CONFIG_FILE': self._pav_cfg['pav_cfg_file']
+        })
         script.command('source {}'.format(pav_lib_bash))
+
+        if config.get('preamble', []):
+            script.newline()
+            script.comment('Preamble commands')
+            for cmd in config['preamble']:
+                script.command(cmd)
 
         modules = config.get('modules', [])
         if modules:
@@ -1112,6 +1156,14 @@ class PavTest:
             script.newline()
             script.comment("Making any environment changes needed.")
             script.env_change(config.get('env', {}))
+
+        if verbose:
+            script.newline()
+            script.comment('List all the module modules for posterity')
+            script.command("module -t list")
+            script.newline()
+            script.comment('Output the environment for posterity')
+            script.command("declare -p")
 
         script.newline()
         cmds = config.get('cmds', [])
@@ -1174,11 +1226,11 @@ class PavTest:
 
         lockfile_path = id_dir/'.lockfile'
         with lockfile.LockFile(lockfile_path, timeout=1):
-            ids = os.listdir(str(id_dir))
+            ids = list(os.listdir(str(id_dir)))
             # Only return the test directories that could be integers.
-            ids = filter(str.isdigit, ids)
-            ids = filter(lambda d: (id_dir/d).is_dir(), ids)
-            ids = list(map(int, ids))
+            ids = [id_ for id_ in ids if id_.isdigit()]
+            ids = [id_ for id_ in ids if (id_dir/id_).is_dir()]
+            ids = [int(id_) for id_ in ids]
             ids.sort()
 
             # Find the first unused id.
