@@ -85,7 +85,7 @@ class ModWrapperTests(PavTestCase):
         plugins._reset_plugins()
 
     SORT_FUNC = '''function sort_mods {
-    awk '{ 
+    awk '{
         split($0, arr, ":");  # Split the values by :
         asort(arr);           # Sort the values
         for (i=1; i<length(arr); i++) {  # Arrays are indexed from 1
