@@ -295,13 +295,23 @@ class Raw(SchedulerPlugin):
 
         sched_stat = {}
 
-        regex = re.compile("(VmSize|Cpus_allowed_list):\s(.+)")
+        memsize_regex = re.compile("VmSize:\s(.+)")
+        runtime_regex = re.compile("se\.sum_exec_runtime\s+:\s+(\d+.\d+)")
+
         try:
-            with Path('/proc/' + str(pid) + "/status").open() as proc_file:
-                for line in proc_file:
-                    match = regex.search(line)
+            
+            with Path('/proc/' + str(pid) + "/status").open() as stat_file:
+                for line in stat_file:
+                    match = memsize_regex.search(line)
                     if match is not None:
-                        sched_stat[match.group(1)] = match.group(2)
+                        sched_stat['Memory Size'] = match.group(1)
+
+            with Path('/proc/' + str(pid) + "/sched").open() as sched_file:
+                for line in sched_file:
+                    match = runtime_regex.search(line)
+                    if match is not None:
+                        sched_stat["Runtime"] = match.group(1)
+
         except FileNotFoundError:
             return ""
 
