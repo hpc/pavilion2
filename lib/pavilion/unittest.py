@@ -242,12 +242,14 @@ class PavTestCase(unittest.TestCase):
             'suite': 'unittest',
             'build': {
                 'verbose': 'false',
+                'timeout': '30',
             },
             'run': {
                 'cmds': [
                     'echo "Hello World."'
                 ],
                 'verbose': 'false',
+                'timeout': '300',
             },
             'slurm': {},
         }
