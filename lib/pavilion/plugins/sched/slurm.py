@@ -42,8 +42,7 @@ class SbatchHeader(scriptcomposer.ScriptHeader):
         tasks = self._conf['tasks_per_node']
         if tasks == 'all':
             tasks = self._vars['min_ppn']
-        lines.append('#SBATCH --tasks-per-node={tasks_per_node}'
-                     .format(tasks_per_node=tasks))
+        lines.append('#SBATCH --tasks-per-node={}'.format(tasks))
         if self._conf.get('time_limit') is not None:
             lines.append('#SBATCH -t {s._conf[time_limit]}'.format(s=self))
 
