@@ -15,6 +15,7 @@ import tarfile
 import time
 import urllib.parse
 import zipfile
+import sys
 from pathlib import Path
 
 import tzlocal
@@ -427,7 +428,8 @@ class PavTest:
 
         # Only try to do the build if it doesn't already exist.
         if not self.build_origin.exists():
-            fprint("Using new build hash: {}".format(self.build_hash))
+            fprint("Creating new build directory: {}".format(self.build_origin),
+                   file=sys.stderr)
             self.status.set(STATES.BUILDING,
                             "Starting build {}.".format(self.build_hash))
             # Make sure another test doesn't try to do the build at
@@ -486,8 +488,8 @@ class PavTest:
                     self.LOGGER.warning("Could not create symlink to test")
 
         else:
-            fprint("Using already existing build hash {}".format(
-                self.build_hash))
+            fprint("Using already existing build directory {}".format(
+                self.build_origin), file=sys.stderr)
             self.status.set(STATES.BUILDING,
                             "Build {} already exists.".format(self.build_hash))
 
