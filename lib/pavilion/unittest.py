@@ -1,24 +1,27 @@
+import copy
 import fnmatch
-from hashlib import sha1
-import os
-from pathlib import Path
-import tempfile
-import unittest
-import types
 import inspect
+import os
+import tempfile
+import types
+import unittest
+from hashlib import sha1
+from pathlib import Path
 
 from pavilion import arguments
 from pavilion import config
+from pavilion import pav_vars
 from pavilion.pav_test import PavTest
-from pavilion.utils import dbg_print, get_login
 from pavilion.test_config.file_format import TestConfigLoader
+from pavilion.utils import dbg_print
 
 
 class PavTestCase(unittest.TestCase):
     """This is a base class for other test suites."""
 
     PAV_LIB_DIR = Path(__file__).resolve().parent
-    TEST_DATA_ROOT = PAV_LIB_DIR.parents[1]/'test'/'data'
+    PAV_ROOT_DIR = PAV_LIB_DIR.parents[1]
+    TEST_DATA_ROOT = PAV_ROOT_DIR/'test'/'data'  # type: Path
 
     PAV_CONFIG_PATH = TEST_DATA_ROOT/'pav_config_dir'/'pavilion.yaml'
 
@@ -31,13 +34,17 @@ class PavTestCase(unittest.TestCase):
 
     def __init__(self, *args, **kwargs):
 
+        # Open the default pav config file (found in
+        # test/data/pav_config_dir/pavilion.yaml), modify it, and then
+        # save the modified file to a temp location and read it instead.
         with self.PAV_CONFIG_PATH.open() as cfg_file:
             raw_pav_cfg = config.PavilionConfigLoader().load(cfg_file)
 
         raw_pav_cfg.config_dirs = [self.TEST_DATA_ROOT/'pav_config_dir',
                                    self.PAV_LIB_DIR]
 
-        raw_pav_cfg.working_dir = Path('/tmp')/get_login()/'pav_tests'
+
+        raw_pav_cfg.working_dir = self.PAV_ROOT_DIR/'test'/'working_dir'
 
         raw_pav_cfg.result_log = raw_pav_cfg.working_dir/'results.log'
 
@@ -60,6 +67,8 @@ class PavTestCase(unittest.TestCase):
             self.pav_cfg = config.PavilionConfigLoader().load(cfg_file)
 
         self.pav_cfg.pav_cfg_file = cfg_path
+
+        self.pav_cfg.pav_vars = pav_vars.PavVars()
 
         # Create the basic directories in the working directory
         for path in [
@@ -226,17 +235,36 @@ class PavTestCase(unittest.TestCase):
 
     dbg_print = staticmethod(dbg_print)
 
-    @staticmethod
-    def _quick_test_cfg():
+    def _quick_test_cfg(self):
         """Return the config to use with _quick_test."""
-        return {
+        cfg = {
             'scheduler': 'raw',
+            'suite': 'unittest',
+            'build': {
+                'verbose': 'false',
+                'timeout': '30',
+            },
             'run': {
                 'cmds': [
                     'echo "Hello World."'
-                ]
+                ],
+                'verbose': 'false',
+                'timeout': '300',
             },
+            'slurm': {},
         }
+
+        loc_slurm = (self.TEST_DATA_ROOT/'pav_config_dir'/'modes' /
+                     'local_slurm.yaml')
+
+        if loc_slurm.exists():
+            with loc_slurm.open() as loc_slurm_file:
+                slurm_cfg = TestConfigLoader().load(loc_slurm_file,
+                                                    partial=True)
+
+            cfg['slurm'] = slurm_cfg['slurm']
+
+        return cfg
 
     def _quick_test(self, cfg=None, name="quick_test"):
         """Create a test object to work with.
@@ -247,6 +275,8 @@ class PavTestCase(unittest.TestCase):
 
         if cfg is None:
             cfg = self._quick_test_cfg()
+
+        cfg = copy.deepcopy(cfg)
 
         cfg = TestConfigLoader().validate(cfg)
         cfg['name'] = name

@@ -133,8 +133,7 @@ class TestConfigLoader(yc.YamlConfigLoader):
         yc.RegexElem('scheduler', regex=r'\w+', default="raw",
                      help_text="The scheduler class to use to run this test."),
         yc.KeyedElem(
-            'build',
-            elements=[
+            'build', elements=[
                 yc.StrElem(
                     'on_nodes', default='False',
                     choices=['true', 'false', 'True', 'False'],
@@ -180,27 +179,65 @@ class TestConfigLoader(yc.YamlConfigLoader):
                               "sys.sys_name variable. Note _deferred_ system "
                               "variables aren't a good idea hereas configs are "
                               "compiled on the host that launches the test."),
-                yc.ListElem('cmds', sub_elem=yc.StrElem(),
-                            help_text='The sequence of commands to run to '
-                                      'perform the build.')
+                yc.StrElem(
+                    'timeout',
+                    default='30',
+                    help_text="Time (in seconds) that a build can continue "
+                              "without generating new output before it is "
+                              "cancelled.  Can be left empty for no timeout."),
+                yc.ListElem(
+                    'cmds', sub_elem=yc.StrElem(),
+                    help_text='The sequence of commands to run to perform '
+                              'the build.'),
+                yc.ListElem(
+                    'preamble', sub_elem=yc.StrElem(),
+                    help_text="Setup commands for the beginning of the build "
+                              "script. Added to the beginning of the run "
+                              "script.  These are generally expected to "
+                              "be host rather than test specific."),
+                yc.StrElem(
+                    'verbose', choices=['true', 'True', 'False', 'false'],
+                    default='False',
+                    help_text="Echo commands (including sourced files) in the"
+                              " build log, and print the modules loaded and "
+                              "environment before the cmds run."),
                 ],
             help_text="The test build configuration. This will be "
                       "used to dynamically generate a build script for "
                       "building the test."),
 
-        yc.KeyedElem('run', elements=[
-            yc.ListElem('modules', sub_elem=yc.StrElem(),
-                        help_text="Modules to load into the run environment."),
-            EnvCatElem('env', sub_elem=yc.StrElem(),
-                       help_text="Environment variables to set in the run "
-                                 "environment."),
-            yc.ListElem('cmds', sub_elem=yc.StrElem(),
-                        help_text='The sequence of commands to run to run the '
-                                  'test.')
-        ],
-                     help_text="The test run configuration. This will be used "
-                               "to dynamically generate a run script for the "
-                               "test."),
+        yc.KeyedElem(
+            'run', elements=[
+                yc.ListElem(
+                    'modules', sub_elem=yc.StrElem(),
+                    help_text="Modules to load into the run environment."),
+                EnvCatElem('env', sub_elem=yc.StrElem(),
+                           help_text="Environment variables to set in the run "
+                                     "environment."),
+                yc.ListElem('cmds', sub_elem=yc.StrElem(),
+                            help_text='The sequence of commands to run to run '
+                                      'the test.'),
+                yc.ListElem(
+                    'preamble', sub_elem=yc.StrElem(),
+                    help_text="Setup commands for the beginning of the build "
+                              "script. Added to the beginning of the run "
+                              "script. These are generally expected to "
+                              "be host rather than test specific."),
+                yc.StrElem(
+                    'verbose', choices=['true', 'True', 'False', 'false'],
+                    default='False',
+                    help_text="Echo commands (including sourced files) in the "
+                              "build log, and print the modules loaded and "
+                              "environment before the cmds run."),
+                yc.StrElem(
+                    'timeout', default='300',
+                    help_text="Time that a build can continue without "
+                              "generating new output before it is cancelled. "
+                              "Can be left empty for no timeout.")
+            ],
+            help_text="The test run configuration. This will be used "
+                      "to dynamically generate a run script for the "
+                      "test."),
     ]
 
     # We'll append the result parsers separately, to have an easy way to

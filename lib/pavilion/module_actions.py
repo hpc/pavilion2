@@ -37,10 +37,10 @@ class ModuleLoad(ModuleAction):
                 .format(s=self)]
 
 
-class ModuleRemove(ModuleAction):
+class ModuleUnload(ModuleAction):
 
     def action(self):
-        return ['module remove {s.module}'.format(s=self)]
+        return ['module unload {s.module}'.format(s=self)]
 
     def verify(self):
         return ['verify_module_removed $TEST_ID {s.name} {s.version}'
@@ -50,7 +50,7 @@ class ModuleRemove(ModuleAction):
 class ModuleSwap(ModuleAction):
 
     def __init__(self, module_name, version, old_module_name, old_version):
-        super(ModuleSwap).__init__(module_name, version)
+        super().__init__(module_name, version)
 
         self.old_name = old_module_name
         self.old_version = old_version
@@ -63,9 +63,8 @@ class ModuleSwap(ModuleAction):
             return self.old_name
 
     def action(self):
-        actions = ['if $(module list 2>&1 | grep {s.old_name}) then',
-                   '    module swap $(module list 2>&1 | '
-                   'grep {s.old_name}) {s.module}'
+        actions = ['if module -t list 2>&1 | grep "^{s.old_name}/"; then',
+                   '    module swap {s.old_module} {s.module}',
                    'else',
                    '    module load {s.module}',
                    'fi']
