@@ -482,7 +482,7 @@ def parse_results(test, results):
                 # Empty lists (not tuples!) and None are considered empty.
                 # See the result parser docs.
 
-                presults = presults.values()
+                presults = list(presults.values())
 
                 # Do this backwards, if we want the last one.
                 if per_file == PER_LAST:

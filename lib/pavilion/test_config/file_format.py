@@ -8,6 +8,7 @@ class TestConfigError(ValueError):
 
 
 KEY_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_-]*$')
+VAR_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_-]*[\?\+]?$')
 
 
 class VariableElem(yc.CategoryElem):
@@ -41,7 +42,47 @@ class VariableElem(yc.CategoryElem):
 class VarCatElem(yc.CategoryElem):
     """Just like a regular category elem, but we override the key regex to
     allow dashes. We won't be using name style references anyway."""
-    _NAME_RE = KEY_NAME_RE
+    _NAME_RE = VAR_NAME_RE
+
+    def merge(self, old, new):
+        """Merge, but allow for special keys that change our merge behavior."""
+
+        base = old.copy()
+        for key, value in new.items():
+            # Handle special key properties
+            if key[-1] in '?+':
+                bkey = key[:-1]
+                new_vals = new[key]
+
+                if key.endswith('?'):
+                    if new_vals is None:
+                        raise TestConfigError(
+                            "Key '{key}' in variables section must have a "
+                            "value, either set as the default at this level or "
+                            "provided by an underlying host or mode config."
+                            .format(key=key)
+                        )
+                    # Use the new value only if there isn't an old one.
+                    base[bkey] = base.get(bkey, new[key])
+                elif key.endswith('+'):
+                    if new_vals is None:
+                        raise TestConfigError(
+                            "Key '{key}' in variables section is in extend "
+                            "mode, but provided no values."
+                            .format(key=key))
+
+                    # Appending the additional (unique) values
+                    base[bkey] = base.get(bkey, self._sub_elem.type())
+                    for item in new_vals:
+                        if item not in base[bkey]:
+                            base[bkey].append(item)
+
+            elif key in old:
+                base[key] = self._sub_elem.merge(old[key], new[key])
+            else:
+                base[key] = new[key]
+
+        return base
 
 
 class EnvCatElem(yc.CategoryElem):
@@ -76,6 +117,12 @@ class TestConfigLoader(yc.YamlConfigLoader):
             'doc', default='',
             help_text="Detailed documentation string for this test."
         ),
+        yc.ListElem(
+            'permute_on', sub_elem=yc.StrElem(),
+            help_text="List of permuted variables. For every permutation of "
+                      "the values of these variables, a new virtual test will "
+                      "be generated."
+        ),
         VarCatElem(
             'variables', sub_elem=yc.ListElem(sub_elem=VariableElem()),
             help_text="Variables for this test section. These can be "
@@ -83,20 +130,10 @@ class TestConfigLoader(yc.YamlConfigLoader):
                       "the string syntax. They keys 'var', 'per', 'pav', "
                       "'sys' and 'sched' reserved. Each value may be a "
                       "single or list of strings key/string pairs."),
-        VarCatElem(
-            'permutations', sub_elem=yc.ListElem(sub_elem=VariableElem()),
-            help_text="Permutation variables for this test section. These are "
-                      "just like normal variables, but they if a list of "
-                      "values (whether a single string or key/string pairs) "
-                      "is given, then a virtual test is created for each "
-                      "combination across all variables in each section. The "
-                      "resulting virtual test is thus given a single "
-                      "permutation of these values."),
         yc.RegexElem('scheduler', regex=r'\w+', default="raw",
                      help_text="The scheduler class to use to run this test."),
         yc.KeyedElem(
-            'build',
-            elements=[
+            'build', elements=[
                 yc.StrElem(
                     'on_nodes', default='False',
                     choices=['true', 'false', 'True', 'False'],
@@ -142,27 +179,65 @@ class TestConfigLoader(yc.YamlConfigLoader):
                               "sys.sys_name variable. Note _deferred_ system "
                               "variables aren't a good idea hereas configs are "
                               "compiled on the host that launches the test."),
-                yc.ListElem('cmds', sub_elem=yc.StrElem(),
-                            help_text='The sequence of commands to run to '
-                                      'perform the build.')
+                yc.StrElem(
+                    'timeout',
+                    default='30',
+                    help_text="Time (in seconds) that a build can continue "
+                              "without generating new output before it is "
+                              "cancelled.  Can be left empty for no timeout."),
+                yc.ListElem(
+                    'cmds', sub_elem=yc.StrElem(),
+                    help_text='The sequence of commands to run to perform '
+                              'the build.'),
+                yc.ListElem(
+                    'preamble', sub_elem=yc.StrElem(),
+                    help_text="Setup commands for the beginning of the build "
+                              "script. Added to the beginning of the run "
+                              "script.  These are generally expected to "
+                              "be host rather than test specific."),
+                yc.StrElem(
+                    'verbose', choices=['true', 'True', 'False', 'false'],
+                    default='False',
+                    help_text="Echo commands (including sourced files) in the"
+                              " build log, and print the modules loaded and "
+                              "environment before the cmds run."),
                 ],
             help_text="The test build configuration. This will be "
                       "used to dynamically generate a build script for "
                       "building the test."),
 
-        yc.KeyedElem('run', elements=[
-            yc.ListElem('modules', sub_elem=yc.StrElem(),
-                        help_text="Modules to load into the run environment."),
-            EnvCatElem('env', sub_elem=yc.StrElem(),
-                       help_text="Environment variables to set in the run "
-                                 "environment."),
-            yc.ListElem('cmds', sub_elem=yc.StrElem(),
-                        help_text='The sequence of commands to run to run the '
-                                  'test.')
-        ],
-                     help_text="The test run configuration. This will be used "
-                               "to dynamically generate a run script for the "
-                               "test."),
+        yc.KeyedElem(
+            'run', elements=[
+                yc.ListElem(
+                    'modules', sub_elem=yc.StrElem(),
+                    help_text="Modules to load into the run environment."),
+                EnvCatElem('env', sub_elem=yc.StrElem(),
+                           help_text="Environment variables to set in the run "
+                                     "environment."),
+                yc.ListElem('cmds', sub_elem=yc.StrElem(),
+                            help_text='The sequence of commands to run to run '
+                                      'the test.'),
+                yc.ListElem(
+                    'preamble', sub_elem=yc.StrElem(),
+                    help_text="Setup commands for the beginning of the build "
+                              "script. Added to the beginning of the run "
+                              "script. These are generally expected to "
+                              "be host rather than test specific."),
+                yc.StrElem(
+                    'verbose', choices=['true', 'True', 'False', 'false'],
+                    default='False',
+                    help_text="Echo commands (including sourced files) in the "
+                              "build log, and print the modules loaded and "
+                              "environment before the cmds run."),
+                yc.StrElem(
+                    'timeout', default='300',
+                    help_text="Time that a build can continue without "
+                              "generating new output before it is cancelled. "
+                              "Can be left empty for no timeout.")
+            ],
+            help_text="The test run configuration. This will be used "
+                      "to dynamically generate a run script for the "
+                      "test."),
     ]
 
     # We'll append the result parsers separately, to have an easy way to

@@ -1,0 +1,4 @@
+variables:
+  mode_def: host
+  host_def: host
+  test_def: host

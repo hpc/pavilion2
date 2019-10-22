@@ -1,0 +1,4 @@
+variables:
+  long_base: ['what', 'are']
+  single_base: 'host'
+  null_base:

@@ -112,7 +112,7 @@ def find_all_tests(pav_cfg):
 
 
 def load_test_configs(pav_cfg, host, modes, tests):
-    """Get a dictionary of raw test configs given a host, list of modes,
+    """Get a list of raw test configs given a host, list of modes,
     and a list of tests. Each of these configs will be lightly modified with
     a few extra variables about their name, suite, and suite_file, as well as
     guaranteeing that they have 'variables' and 'permutations' sections.
@@ -123,7 +123,7 @@ def load_test_configs(pav_cfg, host, modes, tests):
     be either a '<test_suite>.<test_name>', '<test_suite>',
     or '<test_suite>.*'. A test suite by itself (or with a .*) get every
     test in a suite.
-    :return: A mapping of '<test_suite>.<test_name>' -> raw_test_cfg
+    :return: A list of raw test_cfg dictionaries.
     """
 
     test_config_loader = TestConfigLoader()
@@ -287,12 +287,44 @@ def load_test_configs(pav_cfg, host, modes, tests):
 
             picked_tests.append(all_tests[test_suite][requested_test])
 
+    # Get the default configuration for a const result parser.
+    const_elem = TestConfigLoader().find('results.constant.*')
+
+    seen = []
+    # Add the pav_cfg default_result configuration items to each test.
+    for test_cfg in picked_tests:
+        if 'constant' not in test_cfg['results']:
+            test_cfg['results']['constant'] = []
+
+        const_keys = [const['key'] for const in test_cfg['results']['constant']]
+
+        for key, const in pav_cfg.default_results.items():
+
+            if key in const_keys:
+                # Don't override any that are already there.
+                continue
+
+            new_const = const_elem.validate({
+                'key': key,
+                'const': const,
+            })
+            test_cfg['results']['constant'].append(new_const)
+
     return picked_tests
 
 
 def resolve_inheritance(base_config, suite_cfg, suite_path):
+    """Resolve inheritance between tests in a test suite. There's potential
+    for loops in the inheritance hierarchy, so we have to be careful of that."""
 
     test_config_loader = TestConfigLoader()
+
+    # This iterative algorithm recursively resolves the inheritance tree from
+    # the root ('__base__') downward. Nodes that have been resolved are
+    # separated from those that haven't. We then resolve any nodes whose
+    # dependencies are all resolved and then move those nodes to the resolved
+    # list. When we run out of nodes that can be resolved, we're done. If there
+    # are still unresolved nodes, then a loop must exist.
 
     # Organize tests into an inheritance tree.
     depended_on_by = defaultdict(list)
@@ -452,44 +484,18 @@ def resolve_permutations(raw_test_cfg, pav_vars, sys_vars):
     :raises TestConfigError: When there are problems with variables or the
         permutations.
     """
-
     test_cfg = copy.deepcopy(raw_test_cfg)
-
-    if 'permutations' in test_cfg:
-        per_vars = test_cfg['permutations']
-        # This is no longer used in the config.
-        del test_cfg['permutations']
-    else:
-        per_vars = {}
-
     base_var_man = variables.VariableSetManager()
-    try:
-        base_var_man.add_var_set('per', per_vars)
-    except variables.VariableError as err:
-        raise TestConfigError("Error in permutations section: {}".format(err))
 
-    # We don't resolve variables within the variables section, so we remove
-    # those parts now.
-
-    if 'variables' in test_cfg:
-        user_vars = test_cfg['variables']
-        del test_cfg['variables']
-    else:
-        user_vars = {}
+    permute_on = test_cfg['permute_on']
+    del test_cfg['permute_on']
+    del test_cfg['variables']
 
     # Recursively make our configuration a little less raw, recursively
     # parsing all string values into PavString objects.
     test_cfg = _parse_strings(test_cfg)
 
-    # We only want to permute over the permutation variables that are
-    # actually used.  This also provides a convenient place to catch any
-    # problems with how those variables are used.
-    try:
-        used_per_vars = _get_used_per_vars(test_cfg, base_var_man)
-    except RuntimeError as err:
-        raise TestConfigError(
-            "In suite file '{}' test name '{}': {}"
-            .format(test_cfg['suite'], test_cfg['name'], err))
+    user_vars = raw_test_cfg.get('variables', {})
 
     # Since per vars are the highest in resolution order, we can make things
     # a bit faster by adding these after we find the used per vars.
@@ -508,7 +514,76 @@ def resolve_permutations(raw_test_cfg, pav_vars, sys_vars):
     except variables.VariableError as err:
         raise TestConfigError("Error in pav variables: {}".format(err))
 
-    return test_cfg, base_var_man.get_permutations(used_per_vars)
+    used_per_vars = set()
+    for per_var in permute_on:
+        try:
+            var_set, var, index, subvar = base_var_man.resolve_key(per_var)
+        except KeyError:
+            raise TestConfigError(
+                "Permutation variable '{}' is not defined."
+                .format(per_var))
+        if index is not None or subvar is not None:
+            raise TestConfigError(
+                "Permutation variable '{}' contains index or subvar."
+                .format(per_var))
+        elif base_var_man.is_deferred(var_set, var):
+            raise TestConfigError(
+                "Permutation variable '{}' references a deferred variable."
+                .format(per_var))
+        used_per_vars.add((var_set, var))
+
+    # var_men is a list of variable managers, one for each permutation
+    var_men = base_var_man.get_permutations(used_per_vars)
+    for var_man in var_men:
+        var_man.resolve_references(string_parser.parse)
+    return test_cfg, var_men
+
+
+def _resolve_references(var_man):
+
+    # We only want to resolve variable references in the variable section
+    vars = var_man.variable_sets['var']
+    unresolved_vars = {}
+    # Find all the variable value strings that reference variables
+    for var, var_list in vars.data.items():
+        # val is a list of dictionaries
+        for idx in range(len(var_list.data)):
+            sub_var = var_list.data[idx]
+            for key, val in sub_var.data.items():
+                pav_str = string_parser.parse(val)
+                if pav_str.variables:
+                    # Unresolved variable reference that will be resolved below
+                    unresolved_vars[('var', var, idx, key)] = pav_str
+                else:
+                    # This one is ready to resolve now
+                    sub_var.data[key] = pav_str.resolve(var_man)
+
+    # unresolved variables form a tree where the leaves should all be
+    # resolved variables. This iteratively finds unresolved variables whose
+    # references are resolved and resolves them. This should collapse the
+    # tree until there are no unresolved variables left.
+    while unresolved_vars:
+        did_resolve = False
+        for uvar, pav_str in unresolved_vars.items():
+            var_key = None
+            for var_str in pav_str.variables:
+                var_key = var_man.resolve_key(var_str)
+                if var_key in unresolved_vars:
+                    break
+            else:
+                # All variables referenced in uvar are resolvable
+                var_set, var_name, index, sub_var = var_key
+                var_man[var_set][var_name][index][sub_var] = pav_str.resolve(
+                    var_man)
+                del unresolved_vars[uvar]
+                did_resolve = True
+        # If no variable is resolved in this iteration, then all remaining
+        # unresolved variables are part of a variable reference loop and
+        # therefore cannot eventually be resolved.
+        if not did_resolve:
+            raise TestConfigError(
+                "Variables '{}' contained reference loop"
+                .format([k[1] for k in unresolved_vars.keys()]))
 
 
 def _parse_strings(section):
@@ -538,63 +613,12 @@ def _parse_strings(section):
                            .format(type(section), section))
 
 
-def _get_used_per_vars(component, var_man):
-    """Recursively get all the variables used by this test config, in canonical
-        form.
-    :param component: A section of the configuration file to look for per vars
-        in.
-    :param variables.VariableSetManager: The variable set manager.
-    :returns: A list of used 'per' variables names (Just the 'var' component).
-    :raises RuntimeError: For invalid sections.
-    """
-
-    used_per_vars = set()
-
-    if isinstance(component, dict):
-        for key in sorted(component.keys()):
-            try:
-                used_per_vars = used_per_vars.union(
-                    _get_used_per_vars(component[key], var_man))
-            except KeyError:
-                pass
-
-    elif isinstance(component, list):
-        for i in range(len(component)):
-            try:
-                used_per_vars = used_per_vars.union(
-                    _get_used_per_vars(component[i], var_man))
-            except KeyError:
-                pass
-
-    elif isinstance(component, string_parser.PavString):
-        for var in component.variables:
-            try:
-                var_set, var, idx, _ = var_man.resolve_key(var)
-            except KeyError:
-                continue
-
-            # Grab just 'per' vars. Also, if per variables are used by index,
-            # we just resolve that value normally rather than permuting over
-            # it.
-            if var_set == 'per' and idx is None:
-                used_per_vars.add(var)
-    elif component is None:
-        # It's ok if this is None.
-        pass
-    else:
-        # This should be unreachable.
-        raise RuntimeError("Unknown config component type '{}' of '{}'"
-                           .format(type(component), component))
-
-    return used_per_vars
-
-
 def resolve_all_vars(config, var_man, no_deferred_allowed):
     """Recursively resolve the given config's variables, using a
     variable manager.
     :param dict config: The config component to resolve.
-    :param var_man: A variable manager. (Presumably a permutation of the
-        base var_man)
+    :param variables.VariableSetManager var_man: A variable manager. (
+    Presumably a permutation of the base var_man)
     :param list no_deferred_allowed: Do not allow deferred variables in
         sections of these names.
     :return: The component, resolved.
