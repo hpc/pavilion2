@@ -1,0 +1,218 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Installing Pavilion &#8212; Pavilion2 2.0.0 documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '2.0.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="installing-pavilion">
+<h1>Installing Pavilion<a class="headerlink" href="#installing-pavilion" title="Permalink to this headline">¶</a></h1>
+<p>Installing Pavilion is mostly a matter of placing it’s source somewhere,
+providing it’s (few) dependencies, and creating a pavilion.yaml config
+file.</p>
+<div class="section" id="requirements">
+<h2>Requirements<a class="headerlink" href="#requirements" title="Permalink to this headline">¶</a></h2>
+<p>Pavilion has <a class="reference external" href="docs/requirements.md">a few requirements</a> beyond just
+dependencies. In summary, it needs: - Python 3.4 or newer - A writeable
+space on a filesystem shared across all (tested) hosts in each cluster.
+- The path to this directory must be consistent across all cluster
+hosts. - It must support atomic file creation and appends of &lt; 4kb.</p>
+<div class="section" id="filesystems">
+<h3>Filesystems<a class="headerlink" href="#filesystems" title="Permalink to this headline">¶</a></h3>
+<p>Pavilion works by recursively running itself in different modes at
+different points in the testing process. This means certain paths, like
+the Pavilion <strong>root directory</strong>, <strong>working directory</strong>, and used
+<strong>config directories</strong> must have paths that are consistent across the
+nodes and front-ends of any given system.</p>
+<p>Pavilion places all builds, test working spaces, and lockfiles in a
+<strong>working directory</strong> specified in the pavilion configuration (defaults
+to <code class="docutils literal"><span class="pre">~/.pavilion/</span></code>). - Atomic (O_EXCL) file creation is needed here
+for the creation of lock files. - Atomic small appends are needed for
+writing to the status file. Not having this has a small chance of
+resulting in corrupted test status files. - Both of these requirements
+are probably already satisfied by one or more of your cluster NFS
+partitions. Lustre filesystems are not recommended, mostly due to the
+type of load Pavilion presents to these.</p>
+</div>
+<div class="section" id="result-log">
+<h3>Result Log<a class="headerlink" href="#result-log" title="Permalink to this headline">¶</a></h3>
+<p>The result log can be configured to write to an arbitrary filesystem.
+That filesystem should be shared and have consistent paths as well, as
+the log is written as the final on-node step in tests.</p>
+</div>
+</div>
+<div class="section" id="install">
+<h2>Install<a class="headerlink" href="#install" title="Permalink to this headline">¶</a></h2>
+<p>Pavilion installs are meant to be dropped into place as a complete
+directory that contains the source and any
+<a class="reference external" href="#dependencies">dependencies</a> missing on your system. This generally
+starts with a git pull of the latest release of Pavilion.</p>
+<div class="code bash highlight-default"><div class="highlight"><pre><span></span>$ git clone &lt;pav_repo&gt;
+$ git checkout &lt;release_tag&gt;
+</pre></div>
+</div>
+<p>You can also simply download and extract the source.</p>
+</div>
+<div class="section" id="dependencies">
+<h2>Dependencies<a class="headerlink" href="#dependencies" title="Permalink to this headline">¶</a></h2>
+<p>Pavilion has a few dependencies, and most aren’t required. Pavilion was
+designed and tested against fairly recent (as of 2019-05) versions of
+these, but it’s likely that older, system provided versions may work
+just as well. Conversely, the latest version should be fine as well. The
+supported and tests versions for each are recorded in
+<a href="#id1"><span class="problematic" id="id2">`requirements.txt &lt;&gt;`__</span></a>.</p>
+<ul class="simple">
+<li><a class="reference external" href="https://github.com/lanl/yaml_config">**yaml_config**</a> (required)
+- Used to define the test and pavilion configurations.</li>
+<li><a class="reference external" href="https://github.com/pflarr/yc_yaml">**yc_yaml**</a> (required) - A
+modified pyyaml used by yaml_config.</li>
+<li><a class="reference external" href="http://yapsy.sourceforge.net/">**yapsy**</a> (required) - The basis
+for Pavilion’s plugin architecture.</li>
+<li><a class="reference external" href="https://pypi.org/project/tzlocal/">tzlocal</a> - Used for local
+timezones. Without this (or pytz), all saved timestamps will be
+<em>naive</em>.</li>
+<li><a class="reference external" href="http://pytz.sourceforge.net/">pytz</a> - Used for timezone tracking.</li>
+<li><a class="reference external" href="https://pypi.org/project/requests/2.7.0/">requests</a> - Used for
+automatic downloads of test source files. This feature is disabled in
+the absence of this library, and tests that use it will fail with an
+error. The remaining dependencies are needed by requests.</li>
+<li><a class="reference external" href="https://pypi.org/project/chardet/">chardet</a></li>
+<li><a class="reference external" href="https://github.com/kjd/idna">idna</a></li>
+<li><a class="reference external" href="https://pypi.org/project/certifi/">python-certifi</a></li>
+<li><a class="reference external" href="https://urllib3.readthedocs.io/en/latest/">urllib3</a></li>
+</ul>
+<div class="section" id="installing-dependencies">
+<h3>Installing Dependencies<a class="headerlink" href="#installing-dependencies" title="Permalink to this headline">¶</a></h3>
+<p>There are two methods for installing the dependencies, via sub-repos or
+using PIP and virtual environments.</p>
+<div class="section" id="sub-repos">
+<h4>Sub-repos<a class="headerlink" href="#sub-repos" title="Permalink to this headline">¶</a></h4>
+<p>The Pavilion repository comes with all of it’s dependencies as
+sub-repos. To download them in this manner, simply run:</p>
+<div class="code bash highlight-default"><div class="highlight"><pre><span></span><span class="n">git</span> <span class="n">submodule</span> <span class="n">update</span> <span class="o">--</span><span class="n">init</span>
+</pre></div>
+</div>
+<p>This clones each of the dependencies into lib/sub_repos. A softlink in
+lib for each of the dependencies is included in lib that points to the
+correct sub-directory for each of these. If you would prefer to use the
+system version of a particular dependency, simply delete the
+corresponding softlink in your install.</p>
+<div class="section" id="pytz">
+<h5>pytz<a class="headerlink" href="#pytz" title="Permalink to this headline">¶</a></h5>
+<p>Pytz is special, in that it has to be built. The build process is
+simple, and requires nothing more than make and gcc. While Pavilion
+doesn’t actually use the compiled components of pytz, the python
+components are dynamically generated and required.</p>
+<div class="code bash highlight-default"><div class="highlight"><pre><span></span><span class="n">pushd</span> <span class="n">lib</span><span class="o">/</span><span class="n">sub_repos</span><span class="o">/</span><span class="n">pytz</span>
+<span class="n">make</span> <span class="n">build</span>
+</pre></div>
+</div>
+<p>The softlink in lib already points to the expected location of the built
+pytz.</p>
+</div>
+</div>
+<div class="section" id="virtualenv-and-pip">
+<h4>virtualenv and pip<a class="headerlink" href="#virtualenv-and-pip" title="Permalink to this headline">¶</a></h4>
+<p>You can also build pavilion dependencies using virtualenv and pip. If
+you’re unfamiliar, virtualenv sets up a custom python environment that
+uses your system python and it’s libraries as a base. You can then use
+the virtual env’s PIP package manager to download any additional (or
+just newer) libraries needed by an application. As long as you use the
+/bin/python, you’ll have access to those additional libs.</p>
+<p>It comes with a couple of caveats: 1. You will have to activate the
+virtual environment before running Pavilion, and in Pavilion scheduled
+jobs using the pavilion.yaml ‘pre_kickoff’ option. 2. All tests will
+run under this environment. That could cause problems for tests that
+utilize python (especially python2.x).</p>
+<div class="code bash highlight-default"><div class="highlight"><pre><span></span>pushd /your/pavilion/install
+VENV_PATH=/your/virtualenv/path
+# Setup a virtual environment
+virtualenv -p /usr/lib/python3 ${VENV_PATH}
+# Update pip, because older versions sometimes have issues.
+${VENV_PATH}/bin/pip install --update pip
+# Install all the pavilion requirements.
+${VENV_PATH}/bin/pip install -f requirements.txt
+# This has to be run before pav will work.
+${VENV_PATH}/bin/activate
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, LANL Pre-Team.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.7</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.8</a>
+      
+      |
+      <a href="_sources/install.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

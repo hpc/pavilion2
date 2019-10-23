@@ -1,0 +1,441 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Pavilion Advanced Usage &#8212; Pavilion2 2.0.0 documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '2.0.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="pavilion-advanced-usage">
+<h1>Pavilion Advanced Usage<a class="headerlink" href="#pavilion-advanced-usage" title="Permalink to this headline">¶</a></h1>
+<p>This page an overview of some of the advanced features of Pavilion, to
+give you a better idea of what it’s capable of.</p>
+<div class="section" id="contents">
+<h2>Contents<a class="headerlink" href="#contents" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><a class="reference external" href="#mode-configs">Mode Configs</a> - Allow for per-run overrides.</li>
+<li><a class="reference external" href="#advanced-test-configs">Test Configs</a></li>
+<li><a class="reference external" href="#variables">Variables</a> - Can dynamically alter test configs.</li>
+<li><a class="reference external" href="#inheritance">Inheritance</a> - Lets you base one test off another
+(within a suite file).</li>
+<li><a class="reference external" href="#permutations">Permutations</a> - Variables that dynamically
+generate multiple tests.</li>
+<li><a class="reference external" href="#environment">Test/Build Environment</a><ul>
+<li><a class="reference external" href="#environment-variables">Environment Variables</a> - Set/unset
+environment variables in your test/build scripts.</li>
+<li><a class="reference external" href="#modules">Modules</a> - Load (and unload) modules dynamically for
+each test/build.</li>
+<li><a class="reference external" href="#module-wrappers">Module Wrappers</a> - Plugins that allow for
+customizing module handling.</li>
+</ul>
+</li>
+<li><a class="reference external" href="#environment">Environment</a> - Set environment variables in your
+test.</li>
+<li><a class="reference external" href="#schedulers">Schedulers</a> - Schedule your tests on nodes. give you
+useful system info.</li>
+<li></li>
+</ul>
+<div class="section" id="mode-configs">
+<h3>Mode Configs<a class="headerlink" href="#mode-configs" title="Permalink to this headline">¶</a></h3>
+<p>In addition to host config files, you can provide mode config files that
+you can apply to any test when you run it. They have the same format as
+the host configs, but multiple can be provided per test.</p>
+<p>For example, the following mode file could be used to set a particular
+set of slurm vars:</p>
+<div class="code yaml highlight-default"><div class="highlight"><pre><span></span><span class="n">slurm</span><span class="p">:</span>
+    <span class="n">account</span><span class="p">:</span> <span class="n">tester</span>
+    <span class="n">partition</span><span class="p">:</span> <span class="n">post</span><span class="o">-</span><span class="n">dst</span>
+</pre></div>
+</div>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">pav</span> <span class="n">run</span> <span class="o">-</span><span class="n">m</span> <span class="n">tester</span> <span class="o">-</span><span class="n">f</span> <span class="n">post_dst_tests</span><span class="o">.</span><span class="n">txt</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="advanced-test-configs">
+<h3>Advanced Test Configs<a class="headerlink" href="#advanced-test-configs" title="Permalink to this headline">¶</a></h3>
+<p>Test configs aren’t just static files. They can be re-shaped dynamically
+through variable substitution, module file loads, and environment
+variables.</p>
+<div class="section" id="variables">
+<h4>Variables<a class="headerlink" href="#variables" title="Permalink to this headline">¶</a></h4>
+<p>Test configs can contain variable references within their config values
+(all of which are read as strings by Pavilion).</p>
+<p>These variables come from a variety of sources (this is also the
+resolution order): - The test config’s permutations section (per) - The
+test config’s variables section (var) - System Plugins (sys) - Pavilion
+hardcoded variables (pav) - The selected scheduler (sched)</p>
+<p>Variable names must be in lowercase and start with a letter, but may
+contain numbers, dashes and underscores.</p>
+<div class="code yaml highlight-default"><div class="highlight"><pre><span></span><span class="n">mytest</span><span class="p">:</span>
+  <span class="n">scheduler</span><span class="p">:</span> <span class="n">slurm</span>
+
+  <span class="n">variables</span><span class="p">:</span>
+    <span class="n">sleep_time</span><span class="p">:</span> <span class="mi">24</span>
+
+  <span class="n">run</span><span class="p">:</span>
+    <span class="n">cmds</span><span class="p">:</span>
+      <span class="o">-</span> <span class="s2">&quot;sleep {{var.sleep_time}}&quot;</span>
+      <span class="o">-</span> <span class="s1">&#39;echo &quot;Slept {{sleep_time}} seconds on node $</span><span class="si">{sched.node_num}</span><span class="s1">.&quot;&#39;</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+<div class="section" id="variable-references">
+<h2>Variable References<a class="headerlink" href="#variable-references" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li>Use double curly brackets <code class="docutils literal"><span class="pre">{{var.myvar}}</span></code>.</li>
+<li>Variable category is optional. <code class="docutils literal"><span class="pre">{{myvar}}</span></code> is fine.</li>
+<li>Name conflicts are resolved in the order of categories listed above.</li>
+<li>In fact, it’s recommended to not use the category component unless
+you need to make the reference explicit.</li>
+<li>You’ll also see <code class="docutils literal"><span class="pre">{{myvar.2}}</span></code> list references, <code class="docutils literal"><span class="pre">{{myvar.foo}}</span></code>
+attribute references, and the combination of the two
+<code class="docutils literal"><span class="pre">{{myvar.1.bar}}</span></code>. See the full <a class="reference external" href="tests/variables.md">variable
+documentation</a> for more info.</li>
+</ul>
+</div>
+<div class="section" id="listing-variables">
+<h2>Listing Variables<a class="headerlink" href="#listing-variables" title="Permalink to this headline">¶</a></h2>
+<p>Use the <code class="docutils literal"><span class="pre">pav</span> <span class="pre">show</span></code> commands to display what variables are available
+from various sources.</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="c1"># pav show sched --vars slurm</span>
+<span class="c1"># pav show pav_vars</span>
+
+<span class="n">pav</span> <span class="n">show</span> <span class="n">sys_vars</span>
+
+ <span class="n">Available</span> <span class="n">System</span> <span class="n">Variables</span>
+<span class="o">-----------+-------------------------------------+---------------------------------------------</span>
+ <span class="n">Name</span>      <span class="o">|</span> <span class="n">Value</span>                               <span class="o">|</span> <span class="n">Description</span>
+<span class="o">-----------+-------------------------------------+---------------------------------------------</span>
+ <span class="n">host_arch</span> <span class="o">|</span> <span class="o">&lt;</span><span class="n">deferred</span><span class="o">&gt;</span>                          <span class="o">|</span> <span class="n">The</span> <span class="n">current</span> <span class="n">host</span><span class="s1">&#39;s architecture.</span>
+ <span class="n">host_name</span> <span class="o">|</span> <span class="o">&lt;</span><span class="n">deferred</span><span class="o">&gt;</span>                          <span class="o">|</span> <span class="n">The</span> <span class="n">target</span> <span class="n">host</span><span class="s1">&#39;s hostname.</span>
+ <span class="n">host_os</span>   <span class="o">|</span> <span class="o">&lt;</span><span class="n">deferred</span><span class="o">&gt;</span>                          <span class="o">|</span> <span class="n">The</span> <span class="n">target</span> <span class="n">host</span><span class="s1">&#39;s OS info (name, version).</span>
+ <span class="n">sys_arch</span>  <span class="o">|</span> <span class="n">x86_64</span>                              <span class="o">|</span> <span class="n">The</span> <span class="n">system</span> <span class="n">architecture</span><span class="o">.</span>
+ <span class="n">sys_host</span>  <span class="o">|</span> <span class="n">myhost</span>                              <span class="o">|</span> <span class="n">The</span> <span class="n">system</span> <span class="p">(</span><span class="n">kickoff</span><span class="p">)</span> <span class="n">hostname</span><span class="o">.</span>
+ <span class="n">sys_name</span>  <span class="o">|</span> <span class="n">myhost</span>                              <span class="o">|</span> <span class="n">The</span> <span class="n">system</span> <span class="n">name</span> <span class="p">(</span><span class="ow">not</span> <span class="n">necessarily</span> <span class="n">hostname</span><span class="p">)</span><span class="o">.</span>
+ <span class="n">sys_os</span>    <span class="o">|</span> <span class="p">{</span><span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="s1">&#39;sles&#39;</span><span class="p">,</span> <span class="s1">&#39;version&#39;</span><span class="p">:</span> <span class="s1">&#39;12.3&#39;</span><span class="p">}</span> <span class="o">|</span> <span class="n">The</span> <span class="n">system</span> <span class="n">os</span> <span class="n">info</span> <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">version</span><span class="p">)</span><span class="o">.</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="deferred-variables">
+<h2>Deferred Variables<a class="headerlink" href="#deferred-variables" title="Permalink to this headline">¶</a></h2>
+<p>Deferred variables are those that can’t be resolved at test kickoff
+time. They need to know something about the node the test is being
+started on (which we won’t know till the scheduler gives us nodes), or
+something about the allocation.</p>
+<p>Because some parts of the test are resolved at kickoff time (usually on
+a front-end) rather than on the nodes, deferred variables aren’t allowed
+in those sections. Namely, this includes the <code class="docutils literal"><span class="pre">build</span></code> and various
+scheduler config sections, as well as root level config values. Pavilion
+will tell you when you make this mistake.</p>
+</div>
+<div class="section" id="more-info">
+<h2>More Info<a class="headerlink" href="#more-info" title="Permalink to this headline">¶</a></h2>
+<p>Variables are a powerful feature of pavilion, and the above just
+scratches the surface. See the <a class="reference external" href="tests/variables.md">variables</a>
+section of the docs for detailed information.</p>
+<p>Tests within a single test suite file can inherit from each other.</p>
+<div class="code yaml highlight-default"><div class="highlight"><pre><span></span><span class="n">super_magic</span><span class="p">:</span>
+    <span class="n">summary</span><span class="p">:</span> <span class="n">Run</span> <span class="nb">all</span> <span class="n">standard</span> <span class="n">super_magic</span> <span class="n">tests</span><span class="o">.</span>
+    <span class="n">scheduler</span><span class="p">:</span> <span class="n">slurm</span>
+    <span class="n">build</span><span class="p">:</span>
+      <span class="n">modules</span><span class="p">:</span>
+        <span class="o">-</span> <span class="n">gcc</span>
+        <span class="o">-</span> <span class="n">openmpi</span>
+      <span class="n">cmds</span><span class="p">:</span>
+        <span class="o">-</span> <span class="n">mpicc</span> <span class="o">-</span><span class="n">o</span> <span class="n">super_magic</span> <span class="n">super_magic</span><span class="o">.</span><span class="n">c</span>
+
+    <span class="n">run</span><span class="p">:</span>
+      <span class="n">modules</span><span class="p">:</span>
+        <span class="o">-</span> <span class="n">gcc</span>
+        <span class="o">-</span> <span class="n">openmpi</span>
+      <span class="n">cmds</span><span class="p">:</span>
+        <span class="o">-</span> <span class="n">echo</span> <span class="s2">&quot;Running supermagic&quot;</span>
+        <span class="o">-</span> <span class="n">srun</span> <span class="o">./</span><span class="n">supermagic</span> <span class="o">-</span><span class="n">a</span>
+
+    <span class="n">results</span><span class="p">:</span>
+      <span class="o">...</span> <span class="c1"># Various result parser configurations.</span>
+
+<span class="c1"># This gets all the attributes of supermagic, but overwrites the summary</span>
+<span class="c1"># and the test commands.</span>
+<span class="n">super_magic</span><span class="o">-</span><span class="n">fs</span><span class="p">:</span>
+    <span class="n">summary</span><span class="p">:</span> <span class="n">Run</span> <span class="nb">all</span> <span class="n">standard</span> <span class="n">super_magic</span> <span class="n">tests</span><span class="p">,</span> <span class="ow">and</span> <span class="n">the</span> <span class="n">write</span> <span class="n">test</span> <span class="n">too</span><span class="o">.</span>
+    <span class="n">inherits_from</span><span class="p">:</span> <span class="n">super_magic</span>
+    <span class="n">run</span><span class="p">:</span>
+      <span class="n">cmds</span><span class="p">:</span>
+        <span class="o">-</span> <span class="n">srun</span> <span class="o">./</span><span class="n">supermagic</span> <span class="o">-</span><span class="n">a</span> <span class="o">-</span><span class="n">w</span> <span class="o">/</span><span class="n">mnt</span><span class="o">/</span><span class="n">projects</span><span class="o">/</span><span class="n">myproject</span><span class="o">/</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="rules-of-inheritance">
+<h2>Rules of Inheritance<a class="headerlink" href="#rules-of-inheritance" title="Permalink to this headline">¶</a></h2>
+<ol class="arabic simple">
+<li>Every field in a test config can be inherited (except for
+inherits_from).</li>
+<li>A field that takes a list (modules, cmds, etc.) are always completely
+overwritten by a new list. (In the above example, the single command
+in the fs test command list overwrites the entire original command
+list.)</li>
+<li>A test can inherit from a test, which inherits from a test, and so
+on.</li>
+<li>Inheritance is resolved before permutations or any variables
+substitutions.</li>
+</ol>
+<p>Variables that appear in the permutation section are special. If they
+have multiple values, they generate a new virtual test for every
+combination of values.</p>
+<div class="code yaml highlight-default"><div class="highlight"><pre><span></span><span class="n">super_magic</span><span class="p">:</span>
+    <span class="n">scheduler</span><span class="p">:</span> <span class="n">slurm</span>
+    <span class="n">permutations</span><span class="p">:</span>
+      <span class="c1"># Generate a virtual test for each of these compilers</span>
+      <span class="n">compiler</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;gcc&#39;</span><span class="p">,</span> <span class="s1">&#39;pgi&#39;</span><span class="p">,</span> <span class="s1">&#39;intel&#39;</span><span class="p">]</span>
+      <span class="c1"># Also generate tests for each mpi.</span>
+      <span class="n">mpi</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;openmpi&#39;</span><span class="p">,</span> <span class="s1">&#39;mvapich2&#39;</span><span class="p">]</span>
+      <span class="c1"># A total of six tests (3 compilers x 2 mpis) will be generated,</span>
+      <span class="c1"># built, and run if we run this supermagic test.</span>
+
+    <span class="c1"># We can dynamically generate a subtitle for the test.</span>
+    <span class="n">subtitle</span><span class="p">:</span> <span class="s1">&#39;{{compiler}}-{{mpi}}&#39;</span>
+    <span class="n">build</span><span class="p">:</span>
+      <span class="c1"># Each test will load a different compiler and mpi module for the build</span>
+       <span class="ow">and</span> <span class="n">run</span><span class="o">.</span>
+      <span class="n">modules</span><span class="p">:</span>
+        <span class="o">-</span> <span class="s1">&#39;{{compiler}}&#39;</span>
+        <span class="o">-</span> <span class="s1">&#39;{{mpi}}&#39;</span>
+      <span class="n">cmds</span><span class="p">:</span>
+        <span class="o">-</span> <span class="n">mpicc</span> <span class="o">-</span><span class="n">o</span> <span class="n">super_magic</span> <span class="n">super_magic</span><span class="o">.</span><span class="n">c</span>
+    <span class="n">run</span><span class="p">:</span>
+      <span class="n">modules</span><span class="p">:</span>
+        <span class="o">-</span> <span class="s1">&#39;{{compiler}}&#39;</span>
+        <span class="o">-</span> <span class="s1">&#39;{{mpi}}&#39;</span>
+      <span class="n">cmds</span><span class="p">:</span>
+        <span class="o">-</span> <span class="o">./</span><span class="n">super_magic</span> <span class="o">-</span><span class="n">a</span>
+</pre></div>
+</div>
+<div class="section" id="environment">
+<h3>Environment<a class="headerlink" href="#environment" title="Permalink to this headline">¶</a></h3>
+<p>Pavilion provides means to alter environment variables and load
+environment (or lmod) modules.</p>
+<div class="section" id="environment-variables">
+<h4>Environment Variables<a class="headerlink" href="#environment-variables" title="Permalink to this headline">¶</a></h4>
+<p>You can set/unset environment variables in your test configs, and use
+them in your scripts.</p>
+<div class="code yaml highlight-default"><div class="highlight"><pre><span></span><span class="n">python_test</span><span class="p">:</span>
+    <span class="n">run</span><span class="p">:</span>
+      <span class="n">env</span><span class="p">:</span>
+        <span class="c1"># Unset the python path environment variable.</span>
+        <span class="n">PYTHONPATH</span><span class="p">:</span>
+        <span class="c1"># Use a different python home</span>
+        <span class="n">PYTHONHOME</span><span class="p">:</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">mario</span><span class="o">/</span><span class="n">python_root</span><span class="o">/</span>
+      <span class="n">cmds</span><span class="p">:</span>
+        <span class="o">-</span> <span class="s1">&#39;python$</span><span class="si">{PY_VERS}</span><span class="s1"> -c &quot;print(</span><span class="se">\&quot;</span><span class="s1">hello world</span><span class="se">\&quot;</span><span class="s1">)&quot;&#39;</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="modules">
+<h4>Modules<a class="headerlink" href="#modules" title="Permalink to this headline">¶</a></h4>
+<p>You can have pavilion load module files automatically for each test or
+build. This assumes the modules (and module build combinations) are
+available on your system. If the test can’t load a module, the test will
+report a ENV_FAILED status and fail.</p>
+<div class="code yaml highlight-default"><div class="highlight"><pre><span></span><span class="n">super_magic</span><span class="p">:</span>
+    <span class="n">scheduler</span><span class="p">:</span> <span class="n">slurm</span>
+    <span class="n">build</span><span class="p">:</span>
+      <span class="n">modules</span><span class="p">:</span>
+        <span class="o">-</span> <span class="n">gcc</span><span class="o">/</span><span class="mf">7.4</span><span class="o">.</span><span class="mi">0</span>
+        <span class="o">-</span> <span class="n">openmpi</span>
+      <span class="n">cmds</span><span class="p">:</span>
+        <span class="o">-</span> <span class="n">mpicc</span> <span class="o">-</span><span class="n">o</span> <span class="n">super_magic</span> <span class="n">super_magic</span><span class="o">.</span><span class="n">c</span>
+    <span class="n">run</span><span class="p">:</span>
+      <span class="c1"># This runs as a separate script from the build, so you</span>
+      <span class="c1"># have to specify modules for both the build and run.</span>
+      <span class="n">modules</span><span class="p">:</span>
+        <span class="o">-</span> <span class="n">gcc</span><span class="o">/</span><span class="mf">7.4</span><span class="o">.</span><span class="mi">0</span>
+        <span class="o">-</span> <span class="n">openmpi</span>
+      <span class="n">cmds</span><span class="p">:</span>
+        <span class="o">-</span> <span class="n">srun</span> <span class="o">./</span><span class="n">super_magic</span> <span class="o">-</span><span class="n">a</span>
+</pre></div>
+</div>
+<p>Pavilion assumes everything is starting from a clean system state in
+regards to modules, which is essentially the environment you get by
+default when logging in. That state may include modules that you don’t
+want loaded, so Pavilion provides a means for removing and swapping
+modules as well.</p>
+<div class="code yaml highlight-default"><div class="highlight"><pre><span></span><span class="n">super_magic</span><span class="p">:</span>
+    <span class="n">build</span><span class="p">:</span>
+      <span class="n">modules</span><span class="p">:</span>
+        <span class="c1"># Swap the gcc module for the intel module.</span>
+        <span class="o">-</span> <span class="s1">&#39;gcc -&gt; intel/18.0.3&#39;</span>
+        <span class="c1"># Remove the python module</span>
+        <span class="o">-</span> <span class="s1">&#39;-python&#39;</span>
+      <span class="o">...</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+<div class="section" id="module-wrappers">
+<h2>Module Wrappers<a class="headerlink" href="#module-wrappers" title="Permalink to this headline">¶</a></h2>
+<p>When tell pavilion to load/remove/swap modules, the code to do this is
+added to the test or build script automatically using module wrapper
+plugins. The default module wrapper performs the module command, and
+then verifies that the module is actually loaded.</p>
+<p>More complicated setups are possible by adding additional plugins
+replace this default behaviour, modify it for particular modules, or
+even modify it for particular module versions. The plugins allow you to
+change what is loaded and how it is loaded, and also set additional
+environment variables. You can use this to enhance the existing module
+files for interoperability by adding environment variables that are
+consistent across certain modules.</p>
+<div class="code yaml highlight-default"><div class="highlight"><pre><span></span><span class="n">openmp_test</span><span class="p">:</span>
+    <span class="n">build</span><span class="p">:</span>
+      <span class="n">modules</span><span class="p">:</span>
+        <span class="c1"># Normally intel-mpi would require that we use mpiicc to build.</span>
+        <span class="c1"># In our case though, we use module_wrappers (not shown) to set the</span>
+        <span class="c1"># $MPICC env variable consistently across different MPI modules.</span>
+        <span class="c1"># We also set $OPENMP_FLAG to value, as it varies across compilers.</span>
+        <span class="o">-</span> <span class="n">intel</span>
+        <span class="o">-</span> <span class="n">intel</span><span class="o">-</span><span class="n">mpi</span>
+      <span class="n">cmds</span><span class="p">:</span>
+        <span class="o">-</span> <span class="s1">&#39;$MPICC $OPENMP_FLAG -o openmp_test openmp_test.c</span>
+
+<span class="c1"># This test will use the same command, but it will work thanks to our</span>
+<span class="c1"># module wrapper plugins.</span>
+<span class="n">openmp_test2</span><span class="p">:</span>
+    <span class="n">inherits_from</span><span class="p">:</span> <span class="n">openmp_test</span>
+    <span class="n">build</span><span class="p">:</span>
+      <span class="n">modules</span><span class="p">:</span>
+        <span class="o">-</span> <span class="n">gcc</span>
+        <span class="o">-</span> <span class="n">openmpi</span>
+</pre></div>
+</div>
+<p>Module wrappers are also useful for smoothing the differences between
+systems when using a shared Pavilion install across clusters. For
+instance, one might wrap the gcc module such that it loads normally on
+some systems, but it performs a module swap on an odd system that loads
+a different compiler by default. This can allow for a single,
+host-agnostic set of tests.</p>
+<div class="section" id="schedulers">
+<h3>Schedulers<a class="headerlink" href="#schedulers" title="Permalink to this headline">¶</a></h3>
+<p>An HPC testing framework wouldn’t be complete without allowing you to
+schedule your tests. Most of the above example tests reference a
+scheduler, but don’t configure one. It’s time to rectify that.</p>
+<div class="code yaml highlight-default"><div class="highlight"><pre><span></span><span class="n">super_magic</span><span class="p">:</span>
+    <span class="n">scheduler</span><span class="p">:</span> <span class="n">slurm</span>
+    <span class="n">slurm</span><span class="p">:</span>
+      <span class="c1"># Slurm lets us set a number of nodes as a range.</span>
+      <span class="n">num_nodes</span><span class="p">:</span> <span class="mi">2</span><span class="o">-</span><span class="nb">all</span>
+      <span class="c1"># These are standard slurm options.</span>
+      <span class="n">tasks_per_node</span><span class="p">:</span> <span class="mi">3</span>
+      <span class="n">partition</span><span class="p">:</span> <span class="n">test_partition</span>
+      <span class="n">reservation</span><span class="p">:</span> <span class="n">testing</span>
+      <span class="n">qos</span><span class="p">:</span> <span class="n">test</span>
+
+    <span class="n">build</span><span class="p">:</span>
+      <span class="n">modules</span><span class="p">:</span> <span class="p">[</span><span class="n">gcc</span><span class="p">,</span> <span class="n">openmpi</span><span class="p">]</span>
+      <span class="n">cmds</span><span class="p">:</span>
+        <span class="o">-</span> <span class="n">mpicc</span> <span class="o">-</span><span class="n">o</span> <span class="n">super_magic</span> <span class="n">super_magic</span><span class="o">.</span><span class="n">c</span>
+
+    <span class="n">run</span><span class="p">:</span>
+      <span class="n">modules</span><span class="p">:</span> <span class="p">[</span><span class="n">gcc</span><span class="p">,</span> <span class="n">openmpi</span><span class="p">]</span>
+      <span class="n">cmds</span><span class="p">:</span>
+        <span class="c1"># Regardless of scheduler used, scheduler vars are in the &#39;sched&#39;</span>
+        <span class="c1"># category. This var generates an srun command based on the slurm args</span>
+        <span class="c1"># given above. Assuming we got 10 nodes, it will look like:</span>
+        <span class="c1"># srun -N 10 -n 30 ./supermagic -a</span>
+        <span class="c1"># Note that this would run in an sbatch script within an allocation</span>
+        <span class="c1"># that conforms to the rest of the slurm settings.</span>
+        <span class="o">-</span> <span class="p">{</span><span class="n">sched</span><span class="o">.</span><span class="n">test_cmd</span><span class="p">}</span> <span class="o">./</span><span class="n">supermagic</span> <span class="o">-</span><span class="n">a</span>
+</pre></div>
+</div>
+<p>Schedulers are plugins in Pavilion, and are fairly loosely defined. They
+must at least do the following: - Provide a scheduler variable set for
+use in configs (the set may be empty). - The available keys/values are
+up to the plugin writer. - See <code class="docutils literal"><span class="pre">pav</span> <span class="pre">show</span> <span class="pre">sched</span> <span class="pre">--vars</span> <span class="pre">&lt;sched_name&gt;</span></code>
+for a listing of what’s available for a given scheduler. - Define a
+configuration section for test configs. - See
+<code class="docutils literal"><span class="pre">pav</span> <span class="pre">show</span> <span class="pre">sched</span> <span class="pre">--config</span> <span class="pre">&lt;sched_name</span></code> for the definition. - Provide a
+means to kickoff tests. - The scheduler writes a script that does little
+more than call Pavilion again to actually run a test. - The Slurm plugin
+runs this script using <code class="docutils literal"><span class="pre">sbatch</span></code>. - The Raw plugin simply runs it as a
+subprocess. - Provide a means to monitor scheduled tests. - Provide a
+means to cancel scheduled tests.</p>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, LANL Pre-Team.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.7</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.8</a>
+      
+      |
+      <a href="_sources/advanced.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

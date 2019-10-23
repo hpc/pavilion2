@@ -1,0 +1,315 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Running Tests &#8212; Pavilion2 2.0.0 documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '2.0.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="running-tests">
+<h1>Running Tests<a class="headerlink" href="#running-tests" title="Permalink to this headline">¶</a></h1>
+<p>This page covers how the test <code class="docutils literal"><span class="pre">run</span></code> section is used to create the test
+run script, and what the lifecycle of a test actually looks like.</p>
+<ul class="simple">
+<li><a class="reference external" href="#run-configuration">Run Configuration</a></li>
+<li><a class="reference external" href="#test-run-lifecycle">Test Run Lifecycle</a></li>
+</ul>
+<div class="section" id="run-configuration">
+<h2>Run Configuration<a class="headerlink" href="#run-configuration" title="Permalink to this headline">¶</a></h2>
+<p>The run section of the test config is used to generate a <code class="docutils literal"><span class="pre">run.sh</span></code>
+script, which runs the actual test. It’s fairly simple, as most of the
+work involved in getting ready to run the test is configured separately.</p>
+<p>How these are used to compose a <a class="reference external" href="#running-runsh">run script is covered
+below</a>.</p>
+<p>There are only three attributes:</p>
+<ul class="simple">
+<li><a class="reference external" href="#modules-list">modules</a> - Add/remove/swap modules.</li>
+<li><a class="reference external" href="#env-mapping">env</a> - Alter environment variables</li>
+<li><a class="reference external" href="#cmds-list">cmds</a> - Run these commands.</li>
+</ul>
+<div class="section" id="modules-list">
+<h3>modules (list)<a class="headerlink" href="#modules-list" title="Permalink to this headline">¶</a></h3>
+<p>Modules to <code class="docutils literal"><span class="pre">module</span> <span class="pre">load</span></code> (or swap/remove) from the environment using
+your cluster’s module system.</p>
+<p>For each module listed, a relevant module command will be added to the
+build script.</p>
+<p>See <a class="reference external" href="env.md#modules">Module Environment</a> for more info.</p>
+</div>
+<div class="section" id="env-mapping">
+<h3>env (mapping)<a class="headerlink" href="#env-mapping" title="Permalink to this headline">¶</a></h3>
+<p>A mapping of environment variable names to values.</p>
+<p>Each environment variable will be set (and exported) to the given value
+in the build script. Null/empty values given will unset. In either case,
+these are written into the script as bash commands, so values are free
+to refer to other bash variables or contain sub-shell escapes.</p>
+<p>See <a class="reference external" href="env.md#environment-variables">Env Vars</a> for more info.</p>
+</div>
+<div class="section" id="cmds-list">
+<h3>cmds (list)<a class="headerlink" href="#cmds-list" title="Permalink to this headline">¶</a></h3>
+<p>The list of commands to perform the build.</p>
+<ul class="simple">
+<li>Each string in the list is put into the build script as a separate
+line.</li>
+<li>The return value of the last command in this list will be the return
+value of the build script.<ul>
+<li>The build script return value is one way to denote build success
+or failure.</li>
+</ul>
+</li>
+<li>If your script failures don’t cascade (a failed <code class="docutils literal"><span class="pre">./configure</span></code>
+doesn’t result in a failed <code class="docutils literal"><span class="pre">make</span></code>, etc), append <code class="docutils literal"><span class="pre">||</span> <span class="pre">exit</span> <span class="pre">1</span></code> to
+your commands as needed. You can also use <code class="docutils literal"><span class="pre">set</span> <span class="pre">-e</span></code> to exit on any
+failure.</li>
+</ul>
+</div>
+</div>
+<div class="section" id="test-run-lifecycle">
+<h2>Test Run LifeCycle<a class="headerlink" href="#test-run-lifecycle" title="Permalink to this headline">¶</a></h2>
+<p>Every test run in Pavilion undergoes the same basic steps.</p>
+<ol class="arabic simple">
+<li><a class="reference external" href="#creating-the-test-run">Create a Test Instance</a></li>
+<li><a class="reference external" href="#create-the-run-script-template">Create the Run Script Template</a></li>
+<li><a class="reference external" href="#scheduling-a-test">Schedule the Test</a></li>
+<li><a class="reference external" href="build.md">Build the Test Source</a></li>
+<li><a class="reference external" href="#running-runsh">Run the Test Script</a></li>
+<li><a class="reference external" href="#gathering-results">Process Test Results</a></li>
+<li><a class="reference external" href="#set-the-test-run-as-complete">Set the Test as complete</a></li>
+</ol>
+<p>Each of these steps has a corresponding test <strong>state</strong>, which is used to
+monitor the progress of each test.</p>
+<div class="figure" id="id1">
+<img alt="Running a Test" src="../_images/test_lifecycle.png" />
+<p class="caption"><span class="caption-text">Running a Test</span></p>
+</div>
+<div class="section" id="disambiguation">
+<h3>Disambiguation<a class="headerlink" href="#disambiguation" title="Permalink to this headline">¶</a></h3>
+<p>Note the difference between a ‘test suite’, ‘test config’, and a ‘test
+run’. - A ‘test suite’ is a config file that can contain multiple raw
+‘test configs’ - A ‘test config’ is the set of attributes used to define
+a test. - A finalized ‘test config’ is the config with all the
+variables, permutations, and other bits resolved. - A ‘test run’ is a
+finalized ‘test config’ turned into an actual, running test. - A ‘test
+series’ is one or more ‘test runs’ that were started as a single
+invocation of the <code class="docutils literal"><span class="pre">pav</span> <span class="pre">run</span></code> command.</p>
+<p>This section of the documentation covers the lifecycle of a single ‘test
+run’.</p>
+<div class="section" id="creating-the-test-run">
+<h4>Creating the Test Run<a class="headerlink" href="#creating-the-test-run" title="Permalink to this headline">¶</a></h4>
+<p>Each test run created in Pavilion is given a unique <strong>ID</strong>. This <strong>ID</strong>
+corresponds to a directory in <code class="docutils literal"><span class="pre">&lt;working_dir&gt;/tests</span></code>, which contains
+everything there is to know about a test.</p>
+<div class="figure" id="id2">
+<img alt="Test Run Directory" src="../_images/test_run_dir.png" />
+<p class="caption"><span class="caption-text">Test Run Directory</span></p>
+</div>
+<ul class="simple">
+<li><strong>status</strong> - Contains all the statuses that a test has had. The last
+listed is the current test status.</li>
+<li><strong>config</strong> - The finalized configuration for the test run, in json.</li>
+<li><strong>job_id</strong> - The job_id assigned by the scheduler. The format
+depends on the scheduler plugin.</li>
+<li><strong>kickoff.sh</strong> - The kickoff script, written by the scheduler plugin.
+This simply calls pavilion again to run this particular test inside
+of an allocation. The extension may vary depending on the scheduler
+plugin.</li>
+<li><strong>build.sh</strong> - The <a class="reference external" href="build.md#create-a-build-script">build script</a>.</li>
+<li><strong>run.tmpl</strong> - The <a class="reference external" href="#create-the-run-script-template">run script
+template</a>.</li>
+<li><strong>run.sh</strong> - The final run script.</li>
+<li><strong>(kickoff/build/run).log</strong> - The stdout and stderr of each of the
+above scripts when they were run.</li>
+<li><strong>build</strong> - The build directory. The test will run within this
+directory.</li>
+<li>The files in here are softlinks to the <a class="reference external" href="build.md#copy-the-build">actual
+build</a>.</li>
+</ul>
+</div>
+<div class="section" id="create-the-run-script-template">
+<h4>Create the Run Script Template<a class="headerlink" href="#create-the-run-script-template" title="Permalink to this headline">¶</a></h4>
+<p>Because the run config can contain <a class="reference external" href="variables.md#deferred-variables">Deferred
+Variables</a>, we’ll need to replace
+those variable values with their actual values once the run is in an
+allocation. As a result, we first generate a run script template using
+the run config.</p>
+<div class="code yaml highlight-default"><div class="highlight"><pre><span></span><span class="n">run_example</span><span class="p">:</span>
+    <span class="n">build</span><span class="p">:</span>
+      <span class="n">source_location</span><span class="p">:</span> <span class="n">run_example</span>
+
+    <span class="n">run</span><span class="p">:</span>
+      <span class="n">modules</span><span class="p">:</span> <span class="p">[</span><span class="n">python</span><span class="p">]</span>
+      <span class="n">env</span><span class="p">:</span>
+        <span class="n">PYTHONPATH</span><span class="p">:</span> <span class="o">./</span><span class="n">libs</span>
+
+      <span class="n">cmds</span><span class="p">:</span>
+        <span class="c1"># Host CPU&#39;s is a deferred variable.</span>
+        <span class="o">-</span> <span class="n">python</span> <span class="n">run_example</span><span class="o">.</span><span class="n">py</span> <span class="p">{{</span><span class="n">sys</span><span class="o">.</span><span class="n">host_cpus</span><span class="p">}}</span>
+</pre></div>
+</div>
+<p>would result in a run script template that looks like:</p>
+<div class="code bash highlight-default"><div class="highlight"><pre><span></span><span class="ch">#!/bin/bash</span>
+
+<span class="c1"># This contains utility functions used in Pavilion scripts.</span>
+<span class="n">source</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">bob</span><span class="o">/</span><span class="n">pavilion</span><span class="o">/</span><span class="nb">bin</span><span class="o">/</span><span class="n">pav</span><span class="o">-</span><span class="n">lib</span><span class="o">.</span><span class="n">bash</span>
+
+<span class="c1"># Load the modules, and make sure they&#39;re loaded</span>
+<span class="n">module</span> <span class="n">load</span> <span class="n">python</span>
+<span class="n">check_module_loaded</span> <span class="n">python</span>
+
+<span class="c1"># Set environment variables</span>
+<span class="n">export</span> <span class="n">PYTHONPATH</span><span class="o">=./</span><span class="n">lib</span>
+
+<span class="c1"># Run the test cmds</span>
+<span class="n">python</span> <span class="n">run_example</span><span class="o">.</span><span class="n">py</span> <span class="p">[</span>\<span class="n">x1bsys</span><span class="o">.</span><span class="n">host_cpus</span>\<span class="n">x1b</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>Once in an allocation, pavilion will replace the escaped sys.host_cpus
+reference with the actual value.</p>
+</div>
+<div class="section" id="scheduling-a-test">
+<h4>Scheduling a Test<a class="headerlink" href="#scheduling-a-test" title="Permalink to this headline">¶</a></h4>
+<p>When you run a ‘test series’, each test is scheduled separately and gets
+a separate allocation. Pavilion leaves it up to the scheduler plugin,
+and the scheduler itself, to handle exactly when and how a test is
+scheduled. Each test’s scheduler configuration section determines the
+exact setting used by the scheduler plugin when scheduling a test.</p>
+<p>Generally speaking, scheduler plugins write a <strong>kickoff</strong> script and
+tell their scheduler to run that script. These scripts simply use
+Pavilion to perform the actual test run for the specific test ID using
+the super-secret <code class="docutils literal"><span class="pre">pav</span> <span class="pre">_run</span> <span class="pre">&lt;run</span> <span class="pre">id&gt;</span></code> command.</p>
+<div class="code bash highlight-default"><div class="highlight"><pre><span></span>#!/bin/bash
+#SBATCH --job-name &quot;pav test #3&quot;
+#SBATCH -p standard
+#SBATCH -N 2-2
+#SBATCH --tasks-per-node=2
+
+# Redirect all output to kickoff.log
+exec &gt;/usr/projects/hpctest/pav2/working_dir/tests/0000003/kickoff.log 2&gt;&amp;1
+export PATH=/home/bob/pavilion/src/bin:${PATH}
+export PAV_CONFIG_FILE=/home/bob/.pavilion/pavilion.yaml
+pav _run 3
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="slurm">
+<h3>slurm<a class="headerlink" href="#slurm" title="Permalink to this headline">¶</a></h3>
+<p>For the existing <strong>slurm</strong> scheduler, this means writing an sbatch
+script (<code class="docutils literal"><span class="pre">kickoff.sbatch</span></code>), and scheduling it via the sbatch command.
+Since slurm sbatch script allows us to set all options within the
+script, we do so to allow for easier debugging of Pavilion.</p>
+<p>It’s up to the Pavilion user to make sure the test’s slurm settings are
+such that the test will eventually get an allocation.</p>
+</div>
+<div class="section" id="raw">
+<h3>raw<a class="headerlink" href="#raw" title="Permalink to this headline">¶</a></h3>
+<p>The <strong>raw</strong> scheduler simply runs tests as an independent sub-process.
+It can let them all run simultaneously, or limit them to one-at-time
+depending on the scheduler settings.</p>
+<div class="section" id="running-run-sh">
+<h4>Running run.sh<a class="headerlink" href="#running-run-sh" title="Permalink to this headline">¶</a></h4>
+<p>Within the <code class="docutils literal"><span class="pre">pav</span> <span class="pre">_run</span></code> command, after we’ve <a class="reference external" href="build.md">build the test
+src</a> and resolved <code class="docutils literal"><span class="pre">run.tmpl</span></code> into the final <code class="docutils literal"><span class="pre">run.sh</span></code>
+script, we simply have to run it.</p>
+<ul class="simple">
+<li>The script is run in the default login environment of the user.</li>
+<li>The return value of the script, which is the return value of the
+script’s last command by default, is the default PASS/FAIL result of
+the script.</li>
+</ul>
+</div>
+<div class="section" id="gathering-results">
+<h4>Gathering Results<a class="headerlink" href="#gathering-results" title="Permalink to this headline">¶</a></h4>
+<p>After the test completes, Pavilion gathers the results. It does this
+whether the test passed or failed, but not if Pavilion encountered an
+error during the run.</p>
+<p>The results, both those gathered by default and through result parsers,
+are compiled into a single JSON object and written to <code class="docutils literal"><span class="pre">results.txt</span></code>,
+and logged to the <a class="reference external" href="../config.md#result_log">result log</a>.</p>
+</div>
+<div class="section" id="set-the-test-run-as-complete">
+<h4>Set the Test Run as Complete<a class="headerlink" href="#set-the-test-run-as-complete" title="Permalink to this headline">¶</a></h4>
+<p>Lastly, the test run is set as complete, regardless of whether it
+passed, failed, or encountered an error. Note that this is separate from
+the status file; a file named ‘RUN_COMPLETE’ is created in the test run
+directory. The file contains only a timestamp of when the run officially
+ended. Various commands can use this as an easy way to differentiate
+complete tests from those that may still be running.</p>
+</div>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, LANL Pre-Team.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.7</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.8</a>
+      
+      |
+      <a href="../_sources/tests/run.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

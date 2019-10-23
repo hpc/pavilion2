@@ -1,0 +1,402 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Test Results &#8212; Pavilion2 2.0.0 documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '2.0.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="test-results">
+<h1>Test Results<a class="headerlink" href="#test-results" title="Permalink to this headline">¶</a></h1>
+<p>Every successful test run generates a set of results in JSON. These are
+saved with the test, but are also logged to a central <code class="docutils literal"><span class="pre">results.log</span></code>
+file that is formatted in a Splunk compatible manner.</p>
+<p>These results contain several useful values, but that’s just the
+beginning. <a class="reference external" href="#using-result-parsers">Result Parsers</a> are little parsing
+scripts that can configured to parse data from your test’s output files.
+They’re designed to be simple enough to pull out small bits of data, but
+can be combined to extract a complex set of results from each test run.
+Each result parser is also a <a class="reference external" href="../plugins/result_parsers.md">plugin</a>,
+so you can easily add custom parsers for tests with particularly complex
+results.</p>
+<ul class="simple">
+<li><a class="reference external" href="#basic-result-keys">Basic Result Keys</a></li>
+<li><a class="reference external" href="#using-result-parsers">Using Result Parsers</a></li>
+</ul>
+<div class="section" id="basic-result-keys">
+<h2>Basic Result Keys<a class="headerlink" href="#basic-result-keys" title="Permalink to this headline">¶</a></h2>
+<p>These keys are present in the results for every test, whether the test
+passed or failed.</p>
+<ul class="simple">
+<li><strong>name</strong> - The name of the test.</li>
+<li><strong>id</strong> - The test’s run id.</li>
+<li><strong>created</strong> - When the test run was created.</li>
+<li><strong>started</strong> - When the test run actually started running in a
+scheduled allocation.</li>
+<li><strong>finished</strong> - When the test run finished.</li>
+<li><strong>duration</strong> - How long the test ran. Examples: <code class="docutils literal"><span class="pre">0:01:04.304421</span></code> or
+<code class="docutils literal"><span class="pre">2</span> <span class="pre">days,</span> <span class="pre">10:05:12.833312</span></code></li>
+<li><strong>result</strong> - The PASS/FAIL result of the test.</li>
+</ul>
+<p>All time fields are in ISO8601 format, with timezone offsets.</p>
+<div class="section" id="result">
+<h3>result<a class="headerlink" href="#result" title="Permalink to this headline">¶</a></h3>
+<p>The ‘result’ key denotes the final test result, and will always be
+either ‘<strong>PASS</strong>’ or ‘<strong>FAIL</strong>’.</p>
+<p>By default a test passes if it’s run script returns a zero result, which
+generally means the last command in the test’s <code class="docutils literal"><span class="pre">run.cmds</span></code> list also
+returned zero.</p>
+<p>Result Parsers may override this value, but they must be configured to
+return a single True or False result. Anything else results in a
+<strong>FAIL</strong>.</p>
+<p>When using the result key the ‘store_true’ and ‘store_false’
+<a class="reference external" href="#actions">actions</a> are the only valid choices. Any other action will
+be changed to ‘store_true’, and the change will be noted in the result
+errors. Similarly,
+<a class="reference external" href="#per_file-manipulating-multiple-file-results">per_file</a> can only
+have a setting that produces a single result (‘store_first’ is forced
+by default).</p>
+</div>
+</div>
+<div class="section" id="using-result-parsers">
+<h2>Using Result Parsers<a class="headerlink" href="#using-result-parsers" title="Permalink to this headline">¶</a></h2>
+<p>The <code class="docutils literal"><span class="pre">results</span></code> section of each test config lets us configure additional
+result parsers that can pull data out of test output files. By default
+each parser reads from the run log, which contains the stdout and stderr
+from the run script and your test.</p>
+<div class="code yaml highlight-default"><div class="highlight"><pre><span></span><span class="n">mytest</span><span class="p">:</span>
+  <span class="n">scheduler</span><span class="p">:</span> <span class="n">raw</span>
+  <span class="n">run</span><span class="p">:</span>
+    <span class="n">cmds</span><span class="p">:</span>
+      <span class="o">-</span> <span class="n">ping</span> <span class="o">-</span><span class="n">c</span> <span class="mi">10</span> <span class="n">google</span><span class="o">.</span><span class="n">com</span>
+
+  <span class="n">results</span><span class="p">:</span>
+    <span class="c1"># The results section is comprised of configs for result parsers,</span>
+    <span class="c1"># identified by name. In this case, we&#39;ll use the &#39;regex&#39; parser.</span>
+    <span class="n">regex</span><span class="p">:</span>
+      <span class="c1"># Each result parser can have multiple configs.</span>
+      <span class="o">-</span> <span class="p">{</span>
+        <span class="c1"># The value matched will be stored in this key</span>
+        <span class="n">key</span><span class="p">:</span> <span class="n">loss</span>
+        <span class="c1"># This tells the regex parser what regular expression to use.</span>
+        <span class="c1"># Single quotes are recommended, as they are literal in yaml.</span>
+        <span class="n">regex</span><span class="p">:</span> <span class="s1">&#39;\d+% packet loss&#39;</span>
+      <span class="p">}</span>
+      <span class="o">-</span> <span class="p">{</span>
+        <span class="c1"># We&#39;re storing this value in the result key. If it&#39;s found</span>
+        <span class="c1"># (and has a value of &#39;True&#39;, then the test will &#39;PASS&#39;.</span>
+        <span class="n">key</span><span class="p">:</span> <span class="n">result</span>
+        <span class="n">regex</span><span class="p">:</span> <span class="s1">&#39;10 received&#39;</span>
+        <span class="c1"># The action denotes how to handle the parser&#39;s data. In this case</span>
+        <span class="c1"># a successful match will give a &#39;True&#39; value.</span>
+        <span class="n">action</span><span class="p">:</span> <span class="n">store_true</span>
+      <span class="p">}</span>
+</pre></div>
+</div>
+<p>The results for this test run might look like:</p>
+<div class="code json highlight-default"><div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;mytest&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="mi">51</span><span class="p">,</span>
+  <span class="s2">&quot;created&quot;</span><span class="p">:</span> <span class="s2">&quot;2019-06-18 16:00:35.692878-06:00&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;started&quot;</span><span class="p">:</span> <span class="s2">&quot;2019-06-18 16:00:36.744221-06:00&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;finished&quot;</span><span class="p">:</span> <span class="s2">&quot;2019-06-18 16:01:39.997299-06:00&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;duration&quot;</span><span class="p">:</span> <span class="s2">&quot;0:01:04.304421&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;result&quot;</span><span class="p">:</span> <span class="s2">&quot;PASS&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;loss&quot;</span><span class="p">:</span> <span class="s2">&quot;0% packet loss&quot;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>The key attribute is required for every result parser config, as
+Pavilion needs to know under what key in the results to store the parsed
+result. The default result keys (<code class="docutils literal"><span class="pre">id</span></code>, <code class="docutils literal"><span class="pre">created</span></code>, etc) are not
+allowed, with the exception of <code class="docutils literal"><span class="pre">result</span></code>.</p>
+<div class="section" id="the-result-key">
+<h3>The <code class="docutils literal"><span class="pre">result</span></code> key<a class="headerlink" href="#the-result-key" title="Permalink to this headline">¶</a></h3>
+<p>The result key must always contain either a value of <code class="docutils literal"><span class="pre">PASS</span></code> or
+<code class="docutils literal"><span class="pre">FAIL</span></code>. Setting the <code class="docutils literal"><span class="pre">result</span></code> key allows you to override the default
+behavior by setting this value according to the results of any result
+parser, but there are a few special behaviors:</p>
+<ul class="simple">
+<li>The result value must be either <code class="docutils literal"><span class="pre">true</span></code> or <code class="docutils literal"><span class="pre">false</span></code>.</li>
+<li>The <a class="reference external" href="#actions">action</a> must either be <strong>store_true</strong> or
+<strong>store_false</strong>. Pavilion overrides the normal <strong>store</strong> default and
+replaces it with <strong>store_true</strong>.</li>
+<li>If the <code class="docutils literal"><span class="pre">result</span></code> value is <code class="docutils literal"><span class="pre">true</span></code>, <code class="docutils literal"><span class="pre">PASS</span></code> is stored. The result
+is otherwise set to <code class="docutils literal"><span class="pre">FAIL</span></code>.</li>
+</ul>
+<div class="section" id="result-value-types">
+<h4>Result Value Types<a class="headerlink" href="#result-value-types" title="Permalink to this headline">¶</a></h4>
+<p>Result parsers can return any sort of json compatible value. This can be
+a string, number (int or float), boolean, or a complex structure that
+includes lists and dictionaries. Pavilion, in handling result values,
+groups these into a few internal categories. - <strong>empty</strong> - An empty
+result is a json <code class="docutils literal"><span class="pre">null</span></code>, or an empty list. Everything else is
+<strong>non-empty</strong>. - <strong>match</strong> - A <strong>match</strong> is a <strong>non-empty</strong> result that
+is also not json <code class="docutils literal"><span class="pre">false</span></code>. - <strong>false</strong> - False is special, in that it
+is neither <strong>empty</strong> nor a <strong>match</strong>.</p>
+<p>The <em>actions</em> and <em>per_file</em> sections below work with these categories
+when deciding how to handle result parser values.</p>
+</div>
+<div class="section" id="actions">
+<h4>Actions<a class="headerlink" href="#actions" title="Permalink to this headline">¶</a></h4>
+<p>We saw in the above example that we can use an <em>action</em> to change how
+the results are stored. There are several additional <em>actions</em> that can
+be selected:</p>
+<ul class="simple">
+<li><strong>store</strong> - (Default) Simply store the result parser’s output.</li>
+<li><strong>store_true</strong> - Store <code class="docutils literal"><span class="pre">true</span></code> if the result is a <strong>match</strong>
+(non-empty and not false)</li>
+<li><strong>store_false</strong> - Stores <code class="docutils literal"><span class="pre">true</span></code> if the result is not a <strong>match</strong>.</li>
+<li><strong>count</strong> - Count the length of list matches, regardless of contents.
+Non-list matches are 1 if a match, 0 otherwise.</li>
+</ul>
+</div>
+<div class="section" id="files">
+<h4>Files<a class="headerlink" href="#files" title="Permalink to this headline">¶</a></h4>
+<p>By default, each result parser reads through the test’s <code class="docutils literal"><span class="pre">run.log</span></code>
+file. You can specify a different file, a file glob, or even multiple
+file globs to match an assortment of files. The files are parsed in the
+order given.</p>
+<p>If you need to reference the run log in addition to other files, it is
+one directory up from the test’s run directory, in <code class="docutils literal"><span class="pre">../run.log</span></code>.</p>
+<p>This test runs across a bunch of nodes, and produces an output file for
+each. The regex parser runs across each of these, and (because it
+defaults to returning the first found item only) returns that item or
+<code class="docutils literal"><span class="pre">null</span></code> for each of the files found. What it does with those values
+depends on the <strong>per_file</strong> attribute for the result parser.</p>
+<div class="code yaml highlight-default"><div class="highlight"><pre><span></span><span class="n">hugetlb_check</span><span class="p">:</span>
+    <span class="n">scheduler</span><span class="p">:</span> <span class="n">slurm</span>
+    <span class="n">slurm</span><span class="p">:</span>
+      <span class="n">num_nodes</span><span class="p">:</span> <span class="mi">4</span>
+
+    <span class="n">run</span><span class="p">:</span>
+      <span class="n">cmds</span><span class="p">:</span>
+        <span class="c1"># Use the srun --output option to specify that results are</span>
+        <span class="c1"># to be written to separate files.</span>
+        <span class="o">-</span> <span class="p">{{</span><span class="n">sched</span><span class="o">.</span><span class="n">test_cmd</span><span class="p">}}</span> <span class="o">--</span><span class="n">output</span><span class="o">=</span><span class="s2">&quot;%N.out&quot;</span> <span class="n">env</span>
+
+    <span class="n">results</span><span class="p">:</span>
+      <span class="n">regex</span><span class="p">:</span>
+        <span class="c1"># This will override the test result</span>
+        <span class="n">key</span><span class="p">:</span> <span class="n">result</span>
+        <span class="n">regex</span><span class="p">:</span> <span class="s1">&#39;HUGETLB_DEFAULT_PAGE_SIZE=.+&#39;</span>
+        <span class="c1"># Run the parser against all files that end in .out</span>
+        <span class="n">files</span><span class="p">:</span> <span class="s1">&#39;*.out&#39;</span>
+        <span class="n">per_file</span><span class="p">:</span> <span class="c1"># We&#39;ll demonstrate these settings below</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="per-file-manipulating-multiple-file-results">
+<h4>per_file: Manipulating Multiple File Results<a class="headerlink" href="#per-file-manipulating-multiple-file-results" title="Permalink to this headline">¶</a></h4>
+<p>The <strong>per_file</strong> option lets you manipulate how results are stored on a
+file-by-file basis. Since the choice here will have a drastic effect on
+your results, we’ll demonstrate each from the standpoint of the test
+config above.</p>
+<p>Let’s say the test ran on four nodes (node1, node2, node3, and node4),
+but only node2 and node3 found a match. The results would be: - node1 -
+<code class="docutils literal"><span class="pre">&lt;null&gt;</span></code> - node2 - <code class="docutils literal"><span class="pre">HUGETLB_DEFAULT_PAGE_SIZE=2M</span></code> - node3 -
+<code class="docutils literal"><span class="pre">HUGETLB_DEFAULT_PAGE_SIZE=4K</span></code> - node4 - <code class="docutils literal"><span class="pre">&lt;null&gt;</span></code></p>
+</div>
+</div>
+<div class="section" id="first-keep-the-first-result-default">
+<h3>first - Keep the first result (Default)<a class="headerlink" href="#first-keep-the-first-result-default" title="Permalink to this headline">¶</a></h3>
+<p>Only the result from the first file with a <strong>match</strong> is kept. In this
+case, the value from node1 would be ignored in favor of that of node2:</p>
+<div class="code json highlight-default"><div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="s2">&quot;hugetlb&quot;</span><span class="p">:</span> <span class="s2">&quot;HUGETLB_DEFAULT_PAGE_SIZE=2M&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;result&quot;</span><span class="p">:</span> <span class="s2">&quot;PASS&quot;</span><span class="p">,</span>
+  <span class="c1"># This would also contain all the default keys, like &#39;created&#39; and &#39;id&#39;</span>
+  <span class="o">...</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="last-keep-the-last-result">
+<h3>last - Keep the last result<a class="headerlink" href="#last-keep-the-last-result" title="Permalink to this headline">¶</a></h3>
+<p>Just like ‘<strong>first</strong>’, except we work backwards through the files and
+get the last match value. In this case, that means ignoring node4’s
+result and taking node3’s:</p>
+<div class="code json highlight-default"><div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="s2">&quot;hugetlb&quot;</span><span class="p">:</span> <span class="s2">&quot;HUGETLB_DEFAULT_PAGE_SIZE=4K&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;result&quot;</span><span class="p">:</span> <span class="s2">&quot;PASS&quot;</span><span class="p">,</span>
+  <span class="o">...</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="all-true-if-each-file-returned-a-true-result">
+<h3>all - True if each file returned a True result<a class="headerlink" href="#all-true-if-each-file-returned-a-true-result" title="Permalink to this headline">¶</a></h3>
+<p>By itself, ‘<strong>all</strong>’ sets the key to True if the result values for all
+the files evaluate to True. This means a result of the number 0 or an
+empty string, which may be valid <strong>matches</strong>, will evaluate to
+<code class="docutils literal"><span class="pre">false</span></code>. If you would like matches to evaluate to <code class="docutils literal"><span class="pre">true</span></code> regardless
+of content, use this with <strong>store_true</strong> or <strong>store_false</strong> as the
+action.</p>
+<div class="code json highlight-default"><div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="s2">&quot;hugetlb&quot;</span><span class="p">:</span> <span class="n">false</span><span class="p">,</span>
+  <span class="s2">&quot;result&quot;</span><span class="p">:</span> <span class="s2">&quot;PASS&quot;</span><span class="p">,</span>
+  <span class="o">...</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="any-true-if-any-file-returned-a-true-result">
+<h3>any - True if any file returned a True result<a class="headerlink" href="#any-true-if-any-file-returned-a-true-result" title="Permalink to this headline">¶</a></h3>
+<p>Like ‘<strong>all</strong>’, but is <code class="docutils literal"><span class="pre">true</span></code> if any of the results evaluates to True.</p>
+<div class="code json highlight-default"><div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="s2">&quot;hugetlb&quot;</span><span class="p">:</span> <span class="n">true</span><span class="p">,</span>
+ <span class="s2">&quot;result&quot;</span><span class="p">:</span> <span class="s2">&quot;PASS&quot;</span><span class="p">,</span>
+  <span class="o">...</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="list-merge-the-file-results-into-a-single-list">
+<h3>list - Merge the file results into a single list<a class="headerlink" href="#list-merge-the-file-results-into-a-single-list" title="Permalink to this headline">¶</a></h3>
+<p>For each result from each file, add them into a single list. <strong>empty</strong>
+values are not added, but <code class="docutils literal"><span class="pre">false</span></code> is. If the result value is a list
+already, then each of the values in the list is added.</p>
+<div class="code json highlight-default"><div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="s2">&quot;hugetlb&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;HUGETLB_DEFAULT_PAGE_SIZE=2M&quot;</span><span class="p">,</span> <span class="s2">&quot;HUGETLB_DEFAULT_PAGE_SIZE=4K&quot;</span><span class="p">],</span>
+ <span class="s2">&quot;result&quot;</span><span class="p">:</span> <span class="s2">&quot;PASS&quot;</span><span class="p">,</span>
+  <span class="o">...</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="fullname-stores-in-a-filename-based-dict">
+<h3>fullname - Stores in a filename based dict.<a class="headerlink" href="#fullname-stores-in-a-filename-based-dict" title="Permalink to this headline">¶</a></h3>
+<p>The result from each file is still stored according to the <em>key</em>
+attribute, but in a dictionary by the file’s full name instead. This is
+easier shown than explained:</p>
+<div class="code json highlight-default"><div class="highlight"><pre><span></span><span class="s2">&quot;node1.out&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;hugetlb&quot;</span><span class="p">:</span> <span class="n">null</span><span class="p">},</span>
+<span class="s2">&quot;node2.out&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;hugetlb&quot;</span><span class="p">:</span> <span class="s2">&quot;HUGETLB_DEFAULT_PAGE_SIZE=2M&quot;</span><span class="p">},</span>
+<span class="s2">&quot;node3.out&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;hugetlb&quot;</span><span class="p">:</span> <span class="s2">&quot;HUGETLB_DEFAULT_PAGE_SIZE=4K&quot;</span><span class="p">},</span>
+<span class="s2">&quot;node4.out&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;hugetlb&quot;</span><span class="p">:</span> <span class="n">null</span><span class="p">}</span>
+<span class="s2">&quot;result&quot;</span><span class="p">:</span> <span class="s2">&quot;PASS&quot;</span><span class="p">,</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li>When using the <strong>fullname</strong> <em>per_file</em> setting, the key cannot be
+<code class="docutils literal"><span class="pre">result</span></code>.</li>
+<li>The rest of the file’s path is ignored, so there is potential for
+file name collisions, as the same filename could exist in multiple
+places.</li>
+</ul>
+</div>
+<div class="section" id="name-stores-in-a-filename-without-extension-based-dict">
+<h3>name - Stores in a filename (without extension) based dict.<a class="headerlink" href="#name-stores-in-a-filename-without-extension-based-dict" title="Permalink to this headline">¶</a></h3>
+<p>Just like <strong>fullname</strong>, but instead the file extension is removed from
+filename when determine the key to store under. Only the last extension
+is removed, so <code class="docutils literal"><span class="pre">foo.bar.txt</span></code> becomes <code class="docutils literal"><span class="pre">foo.bar</span></code>.</p>
+<div class="code json highlight-default"><div class="highlight"><pre><span></span><span class="s2">&quot;node1&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;hugetlb&quot;</span><span class="p">:</span> <span class="n">null</span><span class="p">},</span>
+<span class="s2">&quot;node2&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;hugetlb&quot;</span><span class="p">:</span> <span class="s2">&quot;HUGETLB_DEFAULT_PAGE_SIZE=2M&quot;</span><span class="p">},</span>
+<span class="s2">&quot;node3&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;hugetlb&quot;</span><span class="p">:</span> <span class="s2">&quot;HUGETLB_DEFAULT_PAGE_SIZE=4K&quot;</span><span class="p">},</span>
+<span class="s2">&quot;node4&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;hugetlb&quot;</span><span class="p">:</span> <span class="n">null</span><span class="p">}</span>
+<span class="s2">&quot;result&quot;</span><span class="p">:</span> <span class="s2">&quot;PASS&quot;</span><span class="p">,</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="errors">
+<h2>Errors<a class="headerlink" href="#errors" title="Permalink to this headline">¶</a></h2>
+<p>If an error occurs when parsing results that can be recovered from, a
+description of the error is recorded under the <code class="docutils literal"><span class="pre">error</span></code> key. Each of
+these is a dictionary with some useful values:</p>
+<div class="code yaml highlight-default"><div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="o">...</span>
+  <span class="s2">&quot;errors&quot;</span><span class="p">:</span> <span class="p">[{</span>
+    <span class="c1"># The error happened under this parser.</span>
+    <span class="s2">&quot;result_parser&quot;</span><span class="p">:</span> <span class="s2">&quot;regex&quot;</span><span class="p">,</span>
+    <span class="c1"># The file being processed.</span>
+    <span class="s2">&quot;file&quot;</span><span class="p">:</span> <span class="s2">&quot;node3.out&quot;</span><span class="p">,</span>
+    <span class="c1"># The key being processed</span>
+    <span class="s2">&quot;key&quot;</span><span class="p">:</span> <span class="s2">&quot;hugetlb&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;msg&quot;</span><span class="p">:</span> <span class="s2">&quot;Error reading file &#39;node3.out&#39;: Permission error&quot;</span>
+  <span class="p">}]</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="included-result-parsers">
+<h2>Included result parsers<a class="headerlink" href="#included-result-parsers" title="Permalink to this headline">¶</a></h2>
+<p>Currently, Pavilion comes with 3 result parsers. *
+<a class="reference external" href="results/const.md">constant</a> * <a class="reference external" href="results/cmd.md">command</a> *
+<a class="reference external" href="results/regex.md">regex</a></p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, LANL Pre-Team.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.7</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.8</a>
+      
+      |
+      <a href="../_sources/tests/results.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

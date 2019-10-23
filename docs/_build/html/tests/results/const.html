@@ -1,0 +1,131 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Constant Result Parser (const) &#8212; Pavilion2 2.0.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '2.0.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="constant-result-parser-const">
+<h1>Constant Result Parser (const)<a class="headerlink" href="#constant-result-parser-const" title="Permalink to this headline">¶</a></h1>
+<p>The constant result parser simply inserts a constant into the results.
+The constant may reference variables.</p>
+<p>This result parser can be used to insert a variable or other information
+into the test results that isn’t already there. For example, you can
+specify who ran the test (<code class="docutils literal"><span class="pre">{{pav.user}}</span></code>) or the host name
+(<code class="docutils literal"><span class="pre">{{sys.sys_name}}</span></code>) in the results.</p>
+<p>The constant result parser requires one other additional configuration
+item, which is the constant.</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="29%" />
+<col width="29%" />
+<col width="24%" />
+<col width="18%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Config Item</th>
+<th class="head">Description</th>
+<th class="head">Required?</th>
+<th class="head">Notes</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>const</td>
+<td>constant
+that will be
+placed in
+the results</td>
+<td>Required</td>
+<td>can be
+a
+variabl
+e</td>
+</tr>
+</tbody>
+</table>
+<p>Example:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">results</span><span class="p">:</span>
+    <span class="n">constant</span><span class="p">:</span>
+        <span class="n">key</span><span class="p">:</span> <span class="n">username</span>
+        <span class="n">const</span><span class="p">:</span> <span class="s2">&quot;{{pav.user}} ran this test&quot;</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal"><span class="pre">results.json</span></code> will look something like this:
+<code class="docutils literal"><span class="pre">{&quot;name&quot;:</span> <span class="pre">&quot;const_rp_test&quot;,</span> <span class="pre">&quot;result&quot;:</span> <span class="pre">&quot;PASS&quot;,</span>&#160; <span class="pre">&quot;username&quot;:</span> <span class="pre">&quot;lapid</span> <span class="pre">ran</span> <span class="pre">this</span> <span class="pre">test&quot;}</span></code></p>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, LANL Pre-Team.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.7</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.8</a>
+      
+      |
+      <a href="../../_sources/tests/results/const.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

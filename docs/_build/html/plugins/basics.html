@@ -1,0 +1,299 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Plugins &#8212; Pavilion2 2.0.0 documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '2.0.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="plugins">
+<h1>Plugins<a class="headerlink" href="#plugins" title="Permalink to this headline">¶</a></h1>
+<p>The majority of Pavilion works via several plugin systems. This
+documentation describes how to work with and debug Pavilion plugins in
+general.</p>
+<div class="section" id="plugin-files">
+<h2>Plugin Files<a class="headerlink" href="#plugin-files" title="Permalink to this headline">¶</a></h2>
+<p>As mentioned in the general <a class="reference external" href="../config.md">config</a> documentation,
+Pavilion can have several configuration directories. Within each of
+these there can be a <code class="docutils literal"><span class="pre">plugins/</span></code> directory. While Pavilion organizes
+plugins in sub-directories by type (<code class="docutils literal"><span class="pre">/schedulers</span></code>,
+<code class="docutils literal"><span class="pre">/module_wrappers</span></code>, <code class="docutils literal"><span class="pre">/commands</span></code>, <code class="docutils literal"><span class="pre">/sys_vars</span></code>, <code class="docutils literal"><span class="pre">/results</span></code>), they
+can be arranged however you like under <code class="docutils literal"><span class="pre">plugins/</span></code>.</p>
+<p>Regardless of how they’re organized, plugins require at least two files
+to work: - .py - A python module containing the plugin code. -
+.yapsy-plugin - A config file that describes the plugin.</p>
+<p>These files must be in the same directory.</p>
+<div class="section" id="yapsy-plugin">
+<h3>.yapsy-plugin<a class="headerlink" href="#yapsy-plugin" title="Permalink to this headline">¶</a></h3>
+<p>Here’s the slurm.yapsy-plugin file for Pavilion’s slurm plugin, with
+added comments.</p>
+<div class="code ini highlight-default"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">Core</span><span class="p">]</span>
+<span class="c1"># The display name of the plugin</span>
+<span class="n">Name</span> <span class="o">=</span> <span class="n">Slurm</span> <span class="n">Scheduler</span>
+<span class="c1"># The name of the module to load (in this directory) to find the plugin.</span>
+<span class="n">Module</span> <span class="o">=</span> <span class="n">slurm</span>
+
+<span class="c1"># You should fill this out for your plugins, for attribution purposes.</span>
+<span class="c1"># It is not currently used or visible within Pavilion, however.</span>
+<span class="p">[</span><span class="n">Documentation</span><span class="p">]</span>
+<span class="n">Description</span> <span class="o">=</span> <span class="n">Slurm</span> <span class="n">scheduler</span> <span class="n">wrapper</span><span class="o">.</span>
+<span class="n">Author</span> <span class="o">=</span> <span class="n">Nicholas</span> <span class="n">Sly</span><span class="o">/</span><span class="n">Paul</span> <span class="n">Ferrell</span>
+<span class="n">Version</span> <span class="o">=</span> <span class="mf">1.0</span>
+<span class="c1"># We leave this blank, since it&#39;s part of the base pavilion code.</span>
+<span class="n">Website</span> <span class="o">=</span>
+</pre></div>
+</div>
+<p>The most important thing here is the <code class="docutils literal"><span class="pre">Module</span></code> option, which tells the
+plugin manager <em>which</em> python module to load to find the plugin. It’s ok
+if this is named the same as other plugins elsewhere.</p>
+</div>
+<div class="section" id="py">
+<h3>.py<a class="headerlink" href="#py" title="Permalink to this headline">¶</a></h3>
+<p>Every plugin needs an associated python module, and that module can
+contain one and only one plugin.</p>
+<p>Here’s a plugin module for the default sys_name plugin under sys_vars,
+with extra notes:</p>
+<div class="code python highlight-default"><div class="highlight"><pre><span></span><span class="c1"># Always import the containing module for the plugin base class,and reference</span>
+<span class="c1"># the plugin via that.</span>
+<span class="kn">import</span> <span class="nn">pavilion.system_variables</span> <span class="k">as</span> <span class="nn">system_plugins</span>
+
+<span class="kn">import</span> <span class="nn">subprocess</span>
+
+<span class="c1"># You can call your plugin whatever you like, as long as it inherits</span>
+<span class="c1"># from the base plugin class. The type/category of plugin is determined by</span>
+<span class="c1"># the what it inherits from.</span>
+<span class="k">class</span> <span class="nc">SystemName</span><span class="p">(</span> <span class="n">system_plugins</span><span class="o">.</span><span class="n">SystemPlugin</span> <span class="p">):</span>
+
+    <span class="c1"># Every plugin&#39;s init takes self and nothing else.</span>
+    <span class="c1"># No arguments (other than self) will be passed.</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+        <span class="c1"># You MUST call the super classes __init__.</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="c1"># Every plugin has some sort of name attribute. Regardless of</span>
+            <span class="c1"># everything else, this defines the name of the plugin.</span>
+            <span class="n">plugin_name</span><span class="o">=</span><span class="s1">&#39;sys_name&#39;</span><span class="p">,</span>
+            <span class="c1"># This is displayed when listing plugins of this type.</span>
+            <span class="n">help_text</span><span class="o">=</span><span class="s1">&#39;The system name (not necessarily hostname).&#39;</span><span class="p">,</span>
+            <span class="c1"># Plugins with the same name will override others with lower</span>
+            <span class="c1"># priorities (PRIO_CORE is the lowest)</span>
+            <span class="n">priority</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">PRIO_CORE</span><span class="p">,</span>
+            <span class="c1"># These define the properties for this plugin type.</span>
+            <span class="n">is_deferable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">sub_keys</span><span class="o">=</span><span class="kc">None</span> <span class="p">)</span>
+
+    <span class="c1"># Most plugins require that you override only a single method.</span>
+    <span class="k">def</span> <span class="nf">_get</span><span class="p">(</span> <span class="bp">self</span> <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Base method for determining the system name.&quot;&quot;&quot;</span>
+
+        <span class="n">name</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">check_output</span><span class="p">([</span><span class="s1">&#39;hostname&#39;</span><span class="p">,</span> <span class="s1">&#39;-s&#39;</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">name</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;UTF-8&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="section" id="plugin-base-class">
+<h4>Plugin Base Class<a class="headerlink" href="#plugin-base-class" title="Permalink to this headline">¶</a></h4>
+<p>As mentioned above, always import the module for the plugin’s base
+class, and never the base class itself. Yapsy uses the first class it
+finds that inherits from YapsyPlugin to be THE plugin for this module,
+and may mistake the base class for your actual plugin.</p>
+<p>The base class you inherit from determines the type/category of the
+plugin.</p>
+</div>
+<div class="section" id="plugin-init">
+<h4>Plugin <code class="docutils literal"><span class="pre">__init__()</span></code><a class="headerlink" href="#plugin-init" title="Permalink to this headline">¶</a></h4>
+<p>Every plugin base class in Pavilion provides an <code class="docutils literal"><span class="pre">__init__()</span></code> that must
+be overridden. This overridden <code class="docutils literal"><span class="pre">__init__()</span></code> must then call the base
+class’s <code class="docutils literal"><span class="pre">__init__()</span></code> to define the basic properties of the plugin.</p>
+<div class="code python highlight-default"><div class="highlight"><pre><span></span><span class="c1"># Every plugin requires a simple __init__ that calls the init of the base</span>
+<span class="c1"># plugin class.</span>
+<span class="k">class</span> <span class="nc">MyPlugin</span><span class="p">(</span><span class="n">plugin_module</span><span class="o">.</span><span class="n">PluginBaseClasse</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="c1"># Every plugin takes this argument</span>
+            <span class="n">name</span><span class="o">=</span><span class="s1">&#39;myplugin&#39;</span><span class="p">,</span>
+        <span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="plugin-name">
+<h4>Plugin ‘name’<a class="headerlink" href="#plugin-name" title="Permalink to this headline">¶</a></h4>
+<p>Every Pavilion plugin takes a <code class="docutils literal"><span class="pre">name</span></code> argument in the base class’s
+<code class="docutils literal"><span class="pre">__init__()</span></code>. Only one plugin with a given <code class="docutils literal"><span class="pre">name</span></code> is allowed, but
+conflicts may be resolved using plugin priorities.</p>
+</div>
+<div class="section" id="plugin-priority">
+<h4>Plugin ‘priority’<a class="headerlink" href="#plugin-priority" title="Permalink to this headline">¶</a></h4>
+<p>Most plugins have a priority attribute. If two plugins have the same
+name, this tells Pavilion which one to use. Each priority is an integer
+(higher is better), so you can define plugins that are between these
+categories as well.</p>
+<ul class="simple">
+<li>PRIO_CORE (0) - The lowest priority, for built-in plugins only.</li>
+<li>PRIO_COMMON (10) - The default priority, for plugins shared amongst
+users.</li>
+<li>PRIO_USER (20) - This is for plugins, typically in your
+<code class="docutils literal"><span class="pre">~/.pavilion/plugins</span></code> directory, that should override all others.</li>
+</ul>
+<p><strong>NOTE:</strong> Unlike with test configs and src, the order of the
+config_directories does not matter when resolving conflicting plugins.
+See the <a class="reference external" href="#plugin-priority">plugin priority</a> section below.</p>
+</div>
+<div class="section" id="plugin-description">
+<h4>Plugin ‘description’<a class="headerlink" href="#plugin-description" title="Permalink to this headline">¶</a></h4>
+<p>All plugin types have a <code class="docutils literal"><span class="pre">description</span></code> attribute to describe the
+plugins when listed with the appropriate <code class="docutils literal"><span class="pre">pav</span> <span class="pre">show</span></code> command.</p>
+</div>
+</div>
+</div>
+<div class="section" id="plugin-initialization">
+<h2>Plugin Initialization<a class="headerlink" href="#plugin-initialization" title="Permalink to this headline">¶</a></h2>
+<p>Plugins go through the following steps when initialized. This section
+details those steps to aid in debugging. Failure or exceptions raised in
+any of these steps should be logged to the Pavilion log.</p>
+<p>Note that these steps are followed every time Pavilion runs a command.
+Most plugin types are lazily evaluated; schedulers won’t get scheduler
+info until we try to scheduler a job, and sys_var plugins won’t gather
+information until we try to resolve variables in a config.</p>
+<p>Each of the Pavilion config directories is searched in their <code class="docutils literal"><span class="pre">plugins</span></code>
+directory for plugins. For each <code class="docutils literal"><span class="pre">.yapsy-plugin</span></code> file found, Yapsy will
+load that plugin configuration. For Pavilion’s purposes, only the
+<code class="docutils literal"><span class="pre">Module</span></code> config item actually matters.</p>
+<p>The value of the plugin’s <code class="docutils literal"><span class="pre">Module</span></code> attribute determines which module
+(in the same directory) should be loaded to find the Plugin class. If
+the module file is found, Yapsy will load it.</p>
+<p>Yapsy will walk through the plugin module’s namespace and find the first
+class that inherits from <code class="docutils literal"><span class="pre">yapsy.IPlugin</span></code> (or has an ancestor that
+inherits from it.) Hopefully this is your plugin, as your plugin should
+inherit from one of the Pavilion plugin base classes which in turn
+inherit from <code class="docutils literal"><span class="pre">IPlugin</span></code>.</p>
+<p><strong>Note 1:</strong> If you’ve imported the <code class="docutils literal"><span class="pre">IPlugin</span></code> class or a Pavilion
+plugin base class into the module namespace, Yapsy may find that
+instead.</p>
+<p><strong>Note 2:</strong> You may create new plugin base classes or inherit from other
+plugins, as long as one of the existing Pavilion plugin base classes is
+an ancestor.</p>
+<p>Yapsy will then create an instance of the plugin class. No useful
+information can or will be passed to <code class="docutils literal"><span class="pre">__init__()</span></code>.</p>
+<p>After an instance of a plugin is created, the <code class="docutils literal"><span class="pre">.activate()</span></code> method is
+called. This will add your plugin to the list of known plugins of its
+type, and also handles overrides due to priority.</p>
+<p>Congratulations, your plugin is now loaded into Pavilion.</p>
+</div>
+<div class="section" id="debugging-plugins">
+<h2>Debugging Plugins<a class="headerlink" href="#debugging-plugins" title="Permalink to this headline">¶</a></h2>
+<p>When you write your first plugin, odds are it won’t show up when you try
+to list or use it. This is generally due to an error in your python code
+or an error loading the plugin.</p>
+<div class="section" id="check-your-config-directories">
+<h3>Check your config directories<a class="headerlink" href="#check-your-config-directories" title="Permalink to this headline">¶</a></h3>
+<p>Run <code class="docutils literal"><span class="pre">pav</span> <span class="pre">show</span> <span class="pre">config</span></code> to print your Pavilion config, and check your
+list of ‘config_dirs’, your plugin should be in the plugins directories
+under one of those paths.</p>
+</div>
+<div class="section" id="check-the-yapsy-plugin-file">
+<h3>Check the .yapsy-plugin file<a class="headerlink" href="#check-the-yapsy-plugin-file" title="Permalink to this headline">¶</a></h3>
+<p>The <code class="docutils literal"><span class="pre">Module</span></code> option (under <code class="docutils literal"><span class="pre">[Core]</span></code>) should match your plugin’s
+module name.</p>
+</div>
+<div class="section" id="check-the-logs">
+<h3>Check the Logs<a class="headerlink" href="#check-the-logs" title="Permalink to this headline">¶</a></h3>
+<p>Any errors should show up in your <code class="docutils literal"><span class="pre">&lt;working_dir&gt;/pavilion.log</span></code>, but in
+a few cases even that will be silent. Those cases are considered to be
+bugs, and you should report them.</p>
+</div>
+<div class="section" id="check-your-init">
+<h3>Check your <code class="docutils literal"><span class="pre">__init__()</span></code><a class="headerlink" href="#check-your-init" title="Permalink to this headline">¶</a></h3>
+<ul class="simple">
+<li>It must take only se</li>
+</ul>
+</div>
+<div class="section" id="run-your-plugin">
+<h3>Run Your Plugin<a class="headerlink" href="#run-your-plugin" title="Permalink to this headline">¶</a></h3>
+<p>Run your plugin as a python module.</p>
+<div class="code bash highlight-default"><div class="highlight"><pre><span></span>$ export PYTHONPATH=&lt;Pavilion&#39;&#39;s lib directory&gt;
+$ cd &lt;your plugin dir&gt;
+$ python3
+&gt;&gt;&gt; import myplugin
+&gt;&gt;&gt; myplugin.MyPluginClass()
+</pre></div>
+</div>
+<p>The plugin module should be able to run and you should be able to create
+an instance without throwing an error.</p>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, LANL Pre-Team.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.7</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.8</a>
+      
+      |
+      <a href="../_sources/plugins/basics.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

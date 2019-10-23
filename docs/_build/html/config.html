@@ -1,0 +1,160 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Configuring Pavilion &#8212; Pavilion2 2.0.0 documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '2.0.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="configuring-pavilion">
+<h1>Configuring Pavilion<a class="headerlink" href="#configuring-pavilion" title="Permalink to this headline">¶</a></h1>
+<p>Pavilion is driven largely by configurations: - The
+<a class="reference external" href="#pavilion.yaml">pavilion.yaml</a> file sets global pavilion settings. -
+<a class="reference external" href="tests/basics.md">Test Configs</a> for defining tests. - <a class="reference external" href="tests/basics.md#host-configs">Host
+Configs</a> for setting host defaults for
+tests. - <a class="reference external" href="tests/basics.md#mode-configs">Mode Configs</a> for addition
+test default sets. - <a class="reference external" href="plugins/basics.md">Plugins</a> allow you to
+customize pavilion beyond just configs.</p>
+<div class="section" id="config-directories">
+<h2>Config Directories<a class="headerlink" href="#config-directories" title="Permalink to this headline">¶</a></h2>
+<p>Pavilion looks for configs in the following hierarchy by default, and
+uses the first one it finds.</p>
+<ul class="simple">
+<li>The current directory</li>
+<li>The user’s home directory</li>
+<li>The directory given via the <code class="docutils literal"><span class="pre">PAV_CONFIG_DIR</span></code> environment variable.</li>
+<li>The Pavilion lib directory <strong>(don’t put configs here)</strong></li>
+</ul>
+<p>Each config directory can (optionally) have any of the sub-directories
+shown here.</p>
+<div class="figure" id="id1">
+<img alt="Pavilion Config Directory" src="_images/config_dir.png" />
+<p class="caption"><span class="caption-text">Config Directory Layout</span></p>
+</div>
+</div>
+<div class="section" id="pavilion-yaml">
+<h2>Pavilion.yaml<a class="headerlink" href="#pavilion-yaml" title="Permalink to this headline">¶</a></h2>
+<p>Pavilion looks for a <code class="docutils literal"><span class="pre">pavilion.yaml</span></code> in the default config hierarchy,
+and uses the first one it finds.</p>
+<p>It’s ok to run pavilion without a config; the defaults should be good
+enough in many cases.</p>
+<div class="section" id="generating-a-pavilion-yaml-template">
+<h3>Generating a pavilion.yaml template<a class="headerlink" href="#generating-a-pavilion-yaml-template" title="Permalink to this headline">¶</a></h3>
+<p>Pavilion can print template files, with documentation, for all of it’s
+config files. In this case, use the command
+<code class="docutils literal"><span class="pre">pav</span> <span class="pre">show</span> <span class="pre">config</span> <span class="pre">--template</span></code>. Since all config values are optional,
+you can just use the pieces you need.</p>
+</div>
+<div class="section" id="setting-you-should-set">
+<h3>Setting You Should Set<a class="headerlink" href="#setting-you-should-set" title="Permalink to this headline">¶</a></h3>
+<p>While everything is optional, these are some things you probably want to
+set.</p>
+<div class="section" id="working-dir">
+<h4>working_dir<a class="headerlink" href="#working-dir" title="Permalink to this headline">¶</a></h4>
+<p>This determines where your test run information is stored. If you don’t
+set this, everyone will have a separate history in
+<code class="docutils literal"><span class="pre">$HOME/.pavilion/working_dir</span></code>.</p>
+</div>
+<div class="section" id="shared-group">
+<h4>shared_group<a class="headerlink" href="#shared-group" title="Permalink to this headline">¶</a></h4>
+<p>If you have a shared working directory, you need a shared group to share
+those files. Pavilion will automatically write all files as this group.</p>
+</div>
+<div class="section" id="result-log">
+<h4>result_log<a class="headerlink" href="#result-log" title="Permalink to this headline">¶</a></h4>
+<p>The result log holds all the result json for every test you run. If you
+want to feed that into splunk, you may want to specify where to write
+it.</p>
+</div>
+<div class="section" id="proxies">
+<h4>proxies<a class="headerlink" href="#proxies" title="Permalink to this headline">¶</a></h4>
+<p>Pavilion can auto-download and update source for tests, but it needs to
+be able to get to the internet.</p>
+<div class="code yaml highlight-default"><div class="highlight"><pre><span></span><span class="n">proxies</span><span class="p">:</span>
+    <span class="n">http</span><span class="p">:</span> <span class="n">myproxy</span><span class="o">.</span><span class="n">example</span><span class="o">.</span><span class="n">com</span><span class="p">:</span><span class="mi">8080</span>
+    <span class="n">https</span><span class="p">:</span> <span class="n">myproxy</span><span class="o">.</span><span class="n">example</span><span class="o">.</span><span class="n">com</span><span class="p">:</span> <span class="mi">8080</span>
+
+<span class="n">no_proxy</span><span class="p">:</span>
+  <span class="o">-</span> <span class="n">example</span><span class="o">.</span><span class="n">com</span>
+  <span class="o">-</span> <span class="n">alsolocal</span><span class="o">.</span><span class="n">com</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, LANL Pre-Team.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.7</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.8</a>
+      
+      |
+      <a href="_sources/config.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

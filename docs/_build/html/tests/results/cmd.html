@@ -1,0 +1,151 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Command Result Parser (cmd) &#8212; Pavilion2 2.0.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '2.0.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="command-result-parser-cmd">
+<h1>Command Result Parser (cmd)<a class="headerlink" href="#command-result-parser-cmd" title="Permalink to this headline">¶</a></h1>
+<p>The command result parser runs a given command and puts the result of
+the command into the results. The result of the command can either be
+the output or the return value.</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="26%" />
+<col width="26%" />
+<col width="26%" />
+<col width="21%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Additional Key</th>
+<th class="head">Description</th>
+<th class="head">Required/Optio
+nal</th>
+<th class="head">Notes</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>command</td>
+<td>command that
+will be run</td>
+<td>Required</td>
+<td>&#160;</td>
+</tr>
+<tr class="row-odd"><td>success</td>
+<td>what the
+result parser
+looks at</td>
+<td>Optional,
+default:<code class="docutils literal"><span class="pre">re</span>
+<span class="pre">turn_value</span></code></td>
+<td>Can either
+be
+<code class="docutils literal"><span class="pre">output</span></code>
+or
+<code class="docutils literal"><span class="pre">return_va</span>
+<span class="pre">lue</span></code></td>
+</tr>
+<tr class="row-even"><td>stderr_out</td>
+<td>where stderr
+will be
+redirected</td>
+<td>Optional,
+default:
+<code class="docutils literal"><span class="pre">stdout</span></code></td>
+<td>Can either
+be <code class="docutils literal"><span class="pre">null</span></code>
+or
+<code class="docutils literal"><span class="pre">stdout</span></code></td>
+</tr>
+</tbody>
+</table>
+<p>Example:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">results</span><span class="p">:</span>
+    <span class="n">command</span><span class="p">:</span>
+        <span class="n">key</span><span class="p">:</span> <span class="n">cmd</span>
+        <span class="n">command</span><span class="p">:</span> <span class="s2">&quot;abc&quot;</span>
+        <span class="n">success</span><span class="p">:</span> <span class="s2">&quot;return_value&quot;</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal"><span class="pre">results.json</span></code> will look something like this:
+<code class="docutils literal"><span class="pre">{&quot;cmd&quot;:</span> <span class="pre">&quot;127&quot;,</span> <span class="pre">&quot;result&quot;:</span> <span class="pre">&quot;PASS&quot;,</span>&#160; <span class="pre">&quot;name&quot;:</span> <span class="pre">&quot;cmd_rp_test&quot;}</span></code>. The key
+<code class="docutils literal"><span class="pre">cmd</span></code> has a value of <code class="docutils literal"><span class="pre">127</span></code> because <code class="docutils literal"><span class="pre">abc</span></code> is not a real command and
+therefore returned the error code 127.</p>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, LANL Pre-Team.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.7</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.8</a>
+      
+      |
+      <a href="../../_sources/tests/results/cmd.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
