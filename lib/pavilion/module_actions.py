@@ -64,9 +64,10 @@ class ModuleSwap(ModuleAction):
 
     def action(self):
         actions = [
-            # Find the currently loaded matching module. Note, some people (Nick) 
+            # Find the currently loaded matching module. Note, some people 
             # like to rely on the regex in their module_wrapper plugins.
-            'old_module=$(module -t list 2>&1 | grep -E \'^{s.old_name}(/|$)\')',
+            'old_module=$(module -t list 2>&1 | '
+            'grep -E \'^{s.old_name}(/|$)\')',
             # Check the result of the last command.
             'if [[ $? == 0 ]]; then',
             '    module swap $old_module {s.module}',
