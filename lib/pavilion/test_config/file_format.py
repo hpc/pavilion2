@@ -137,7 +137,7 @@ class TestConfigLoader(yc.YamlConfigLoader):
             sub_elem=StrElem())],
             help_text="Variable only_if takes a key and dictionary to check for"
                       "matches in order to allow the test to complete. If a non"
-                      "match occurs the test is skipped".
+                      "match occurs the test is skipped."
         ),
 
         yc.KeyedElem(
