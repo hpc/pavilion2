@@ -5,7 +5,7 @@
 
 .. contents:: Table of Contents
 
-#.. toctree::
+.. toctree::
    :hidden: true
    :maxdepth: 2
    :caption: Contents:
