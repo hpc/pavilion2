@@ -3,7 +3,6 @@ import sys
 import argparse
 import os
 import shutil
-import time
 from calendar import monthrange
 from datetime import datetime, timedelta
 from pavilion import commands
@@ -148,6 +147,7 @@ class CleanCommand(commands.Command):
                                  file=self.outfile)
 
         return 0
+
 
 def get_month_delta(months):
 

@@ -4,6 +4,7 @@
    contain the root `toctree` directive.
 
 .. toctree::
+   :hidden: true
    :maxdepth: 2
    :caption: Contents:
 
