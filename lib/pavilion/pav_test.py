@@ -1,6 +1,7 @@
 # pylint: disable=too-many-lines
 
 import bz2
+from collections import OrderedDict
 import datetime
 import gzip
 import hashlib
@@ -15,6 +16,7 @@ import tarfile
 import time
 import urllib.parse
 import zipfile
+import sys
 from pathlib import Path
 
 import tzlocal
@@ -25,6 +27,7 @@ from pavilion import utils
 from pavilion import wget
 from pavilion.status_file import StatusFile, STATES
 from pavilion.test_config import variables
+from pavilion.utils import fprint
 
 
 def get_latest_tests(pav_cfg, limit):
@@ -35,16 +38,18 @@ def get_latest_tests(pav_cfg, limit):
     :return: list of test ID's
     """
 
-    test_dir_dict = {}
+    test_dir_list = []
     top_dir = pav_cfg.working_dir/'tests'
     for child in top_dir.iterdir():
         mtime = child.stat().st_mtime
-        test_dir_dict[int(str(child.stem))] = mtime
+        test_dir_list.append((mtime, child.name))
 
-    sorted_test_dir = sorted(test_dir_dict.items(), key=lambda kv: kv[1])
-    last_tests = sorted_test_dir[-limit:]
-    tests_only = [int(i[0]) for i in last_tests]
+    test_dir_list.sort()
+    last_tests = test_dir_list[-limit:]
+    tests_only = [int(i[1]) for i in last_tests]
+
     return tests_only
+
 
 class PavTestError(RuntimeError):
     """For general test errors. Whatever was being attempted has failed in a
@@ -182,6 +187,26 @@ class PavTest:
 
         if _id is None:
             self.status.set(STATES.CREATED, "Test directory setup complete.")
+
+        # Checking validity of timeout values.
+        for loc in ['build', 'run']:
+            if loc in config and 'timeout' in config[loc]:
+                try:
+                    if config[loc]['timeout'] is None:
+                        test_timeout = None
+                    else:
+                        test_timeout = int(config[loc]['timeout'])
+                        if test_timeout < 0:
+                            raise ValueError()
+                except ValueError:
+                    raise PavTestError("{} timeout must be a non-negative "
+                                       "integer or empty.  Received {}."
+                                       .format(loc, config[loc]['timeout']))
+                else:
+                    if loc == 'build':
+                        self._build_timeout = test_timeout
+                    else:
+                        self._run_timeout = test_timeout
 
     @classmethod
     def load(cls, pav_cfg, test_id):
@@ -404,6 +429,9 @@ class PavTest:
 
         # Only try to do the build if it doesn't already exist.
         if not self.build_origin.exists():
+            fprint(
+                "Test {s.name} run {s.id} building {s.build_hash}"
+                .format(s=self), file=sys.stderr)
             self.status.set(STATES.BUILDING,
                             "Starting build {}.".format(self.build_hash))
             # Make sure another test doesn't try to do the build at
@@ -462,6 +490,9 @@ class PavTest:
                     self.LOGGER.warning("Could not create symlink to test")
 
         else:
+            fprint(
+                "Test {s.name} run {s.id} reusing build {s.build_hash}"
+                .format(s=self), file=sys.stderr)
             self.status.set(STATES.BUILDING,
                             "Build {} already exists.".format(self.build_hash))
 
@@ -490,10 +521,6 @@ class PavTest:
 
         return True
 
-    # A process should produce some output at least once every this many
-    # seconds.
-    BUILD_SILENT_TIMEOUT = 30
-
     def _build(self, build_dir):
         """Perform the build. This assumes there actually is a build to perform.
         :param Path build_dir: The directory in which to perform the build.
@@ -520,7 +547,8 @@ class PavTest:
                                         stdout=build_log,
                                         stderr=subprocess.STDOUT)
 
-                timeout = self.BUILD_SILENT_TIMEOUT
+                timeout = self._build_timeout
+
                 result = None
                 while result is None:
                     try:
@@ -529,18 +557,17 @@ class PavTest:
                         log_stat = build_log_path.stat()
                         quiet_time = time.time() - log_stat.st_mtime
                         # Has the output file changed recently?
-                        if self.BUILD_SILENT_TIMEOUT < quiet_time:
+                        if self._build_timeout < quiet_time:
                             # Give up on the build, and call it a failure.
                             proc.kill()
                             self.status.set(STATES.BUILD_FAILED,
                                             "Build timed out after {} seconds."
-                                            .format(self.BUILD_SILENT_TIMEOUT))
+                                            .format(self._build_timeout))
                             return False
                         else:
-                            # Only wait a max of BUILD_SILENT_TIMEOUT next
+                            # Only wait a max of self._build_timeout next
                             # 'wait'
-                            timeout = self.BUILD_SILENT_TIMEOUT - quiet_time
-
+                            timeout = self._build_timeout - quiet_time
 
         except subprocess.CalledProcessError as err:
             self.status.set(STATES.BUILD_ERROR,
@@ -728,8 +755,6 @@ class PavTest:
                     "Could not copy extra file '{}' to dest '{}': {}"
                     .format(path, dest, err))
 
-    RUN_SILENT_TIMEOUT = 5*60
-
     def _fix_build_permissions(self):
         """The files in a build directory should never be writable, but
             directories should be. Users are thus allowed to delete build
@@ -759,7 +784,7 @@ class PavTest:
         :param dict sys_vars: The system variables."""
 
         self.status.set(STATES.PREPPING_RUN,
-                        "Resolving final run script.")
+                        "Converting run template into run script.")
 
         if self.run_tmpl_path is not None:
             # Convert the run script template into the final run script.
@@ -806,8 +831,8 @@ class PavTest:
                                     stderr=subprocess.STDOUT)
 
             # Run the test, but timeout if it doesn't produce any output every
-            # RUN_SILENT_TIMEOUT seconds
-            timeout = self.RUN_SILENT_TIMEOUT
+            # self._run_timeout seconds
+            timeout = self._run_timeout
             result = None
             while result is None:
                 try:
@@ -816,18 +841,18 @@ class PavTest:
                     out_stat = self.run_log.stat()
                     quiet_time = time.time() - out_stat.st_mtime
                     # Has the output file changed recently?
-                    if self.RUN_SILENT_TIMEOUT < quiet_time:
+                    if self._run_timeout < quiet_time:
                         # Give up on the build, and call it a failure.
                         proc.kill()
                         self.status.set(STATES.RUN_FAILED,
                                         "Run timed out after {} seconds."
-                                        .format(self.RUN_SILENT_TIMEOUT))
+                                        .format(self._run_timeout))
                         self._finished = local_tz.localize(
                             datetime.datetime.now())
                         return STATES.RUN_TIMEOUT
                     else:
-                        # Only wait a max of BUILD_SILENT_TIMEOUT next 'wait'
-                        timeout = self.RUN_SILENT_TIMEOUT - quiet_time
+                        # Only wait a max of run_silent_timeout next 'wait'
+                        timeout = timeout - quiet_time
 
         self._finished = local_tz.localize(datetime.datetime.now())
 
@@ -1093,7 +1118,7 @@ class PavTest:
         """
 
         if sys_vars is None:
-            raise RuntimeError("Trying to write script without sys_vars "
+            raise PavTestError("Trying to write script without sys_vars "
                                "in test '{}'.".format(self.id))
 
         script = scriptcomposer.ScriptComposer(

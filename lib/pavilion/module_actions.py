@@ -57,7 +57,7 @@ class ModuleSwap(ModuleAction):
 
     @property
     def old_module(self):
-        if self.old_version is not None:
+        if self.old_version:
             return '{s.old_name}/{s.old_version}'.format(s=self)
         else:
             return self.old_name
