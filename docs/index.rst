@@ -8,6 +8,9 @@
    :maxdepth: 2
    :caption: Contents:
 
+.. contents:: Table of Contents
+
+
    install.rst
    advanced.rst
    config.rst
