@@ -28,7 +28,7 @@ from pavilion import wget
 from pavilion.status_file import StatusFile, STATES
 from pavilion.test_config import variables
 from pavilion.utils import fprint
-
+from pavilion.utils import dbg_print
 
 def get_latest_tests(pav_cfg, limit):
     """
@@ -84,7 +84,7 @@ class PavTest:
     _BLOCK_SIZE = 4096*1024
 
     logger = logging.getLogger('pav.PavTest')
-
+    
     def __init__(self, pav_cfg, config, sys_vars, _id=None):
         """Create an new PavTest object. If loading an existing test instance,
         use the PavTest.from_id method.
@@ -114,9 +114,12 @@ class PavTest:
         tests_path = pav_cfg.working_dir/'tests'
 
         self.config = config
+         
+        if 'only_if' in config:
+            dbg_print("Found an only if")
 
         self.id = None  # pylint: disable=invalid-name
-
+        
         # Get an id for the test, if we weren't given one.
         if _id is None:
             self.id, self.path = self.create_id_dir(tests_path)
