@@ -132,7 +132,8 @@ class TestConfigLoader(yc.YamlConfigLoader):
                       "single or list of strings key/string pairs."),
         yc.RegexElem('scheduler', regex=r'\w+', default="raw",
                      help_text="The scheduler class to use to run this test."),
-        yc.KeyedElem('only_if,'elements=[yc.VariableElem(),yc.ListElem(
+
+        yc.KeyedElem('only_if',elements=[yc.VariableElem(),yc.ListElem(
             sub_elem=StrElem())],
             help_text="Variable only_if takes a key and dictionary to check for"
                       "matches in order to allow the test to complete. If a non"
