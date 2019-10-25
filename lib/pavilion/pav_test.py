@@ -1,6 +1,7 @@
 # pylint: disable=too-many-lines
 
 import bz2
+from collections import OrderedDict
 import datetime
 import gzip
 import hashlib
@@ -15,6 +16,7 @@ import tarfile
 import time
 import urllib.parse
 import zipfile
+import sys
 from pathlib import Path
 
 import tzlocal
@@ -25,6 +27,7 @@ from pavilion import utils
 from pavilion import wget
 from pavilion.status_file import StatusFile, STATES
 from pavilion.test_config import variables
+from pavilion.utils import fprint
 
 
 def get_latest_tests(pav_cfg, limit):
@@ -426,6 +429,9 @@ class PavTest:
 
         # Only try to do the build if it doesn't already exist.
         if not self.build_origin.exists():
+            fprint(
+                "Test {s.name} run {s.id} building {s.build_hash}"
+                .format(s=self), file=sys.stderr)
             self.status.set(STATES.BUILDING,
                             "Starting build {}.".format(self.build_hash))
             # Make sure another test doesn't try to do the build at
@@ -484,6 +490,9 @@ class PavTest:
                     self.LOGGER.warning("Could not create symlink to test")
 
         else:
+            fprint(
+                "Test {s.name} run {s.id} reusing build {s.build_hash}"
+                .format(s=self), file=sys.stderr)
             self.status.set(STATES.BUILDING,
                             "Build {} already exists.".format(self.build_hash))
 
@@ -559,7 +568,6 @@ class PavTest:
                             # Only wait a max of self._build_timeout next
                             # 'wait'
                             timeout = self._build_timeout - quiet_time
-
 
         except subprocess.CalledProcessError as err:
             self.status.set(STATES.BUILD_ERROR,
@@ -1131,10 +1139,10 @@ class PavTest:
         # If we include this directly, it breaks build hashing.
         script.comment('The first (and only) argument of the build script is '
                        'the test id.')
-        script.env_change({
-            'TEST_ID': '${1:-0}',   # Default to test id 0 if one isn't given.
-            'PAV_CONFIG_FILE': self._pav_cfg['pav_cfg_file']
-        })
+        base_env = OrderedDict()
+        base_env['TEST_ID'] = '${1:-0}'
+        base_env['PAV_CONFIG_FILE'] = self._pav_cfg['pav_cfg_file']
+        script.env_change(base_env)
         script.command('source {}'.format(pav_lib_bash))
 
         if config.get('preamble', []):
