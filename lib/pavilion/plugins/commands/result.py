@@ -81,7 +81,7 @@ class ResultsCommand(commands.Command):
             return 0
 
         if args.full:
-            pprint.pprint(results)
+            pprint.pprint(results) # ext-print: ignore
             return 0
         else:
             fields = ['name', 'id', 'result'] + sum(args.key, list())
