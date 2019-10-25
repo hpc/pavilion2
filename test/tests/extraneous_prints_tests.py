@@ -22,7 +22,7 @@ class ExtraPrintsTest(PavTestCase):
             "grep",
             "-R",
             "-I",
-            '[^fp]print('
+            '[^f]print('
         ]
 
         cmd = base_cmd.copy()
