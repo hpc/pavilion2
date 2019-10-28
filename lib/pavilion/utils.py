@@ -1,16 +1,45 @@
 # This file contains assorted utility functions.
 
-from pathlib import Path
 import csv
+import itertools
 import json
 import os
+import pytz
 import re
+import shutil
 import subprocess
 import sys
 import textwrap
-import shutil
-import itertools
 from collections import defaultdict
+from datetime import datetime
+from pathlib import Path
+from tzlocal import get_localzone
+
+def get_relative_timestamp(obj):
+    """Print formatted time string based on the delta of time objects.
+    :param obj timezone aware datetime object
+    :rtype string
+    """
+    tz = get_localzone()
+    dt = tz.localize(datetime.now())
+
+    # year, month, day, time, timezone (utc offset)
+    format_ = ['%Y', '%b', '%a', '%H:%M:%S', '%z']
+
+    # TODO: determine how to handle invalid input, e.g., naive datetime object
+    if obj.tzinfo is None:
+        sys.stderr.write("parameter: datetime object is naive")
+        return obj.strftime(" ".join(format_))
+
+    fargs = list()
+    for e in format_:
+        if dt.strftime(e) != obj.strftime(e):
+            fargs.append(e)
+
+    if len(fargs) == 0:
+        return dt.strftime(" ".join(format_)):
+
+    return dt.strftime(str(" ".join(fargs_)))
 
 def flat_walk(path, *args, **kwargs):
     """Perform an os.walk on path, but return a flattened list of every file
