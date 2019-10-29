@@ -134,11 +134,16 @@ class TestConfigLoader(yc.YamlConfigLoader):
                      help_text="The scheduler class to use to run this test."),
 
         yc.ListElem('only_if',sub_elem=yc.StrElem(),
-            help_text="Variable only_if takes a key and dictionary to check for"
-                      "matches in order to allow the test to complete. If a non"
-                      "match occurs the test is skipped."
+            help_text="Variable only_if takes a list and key and will create a"
+                      "test object if a match occurs"
         ),
-
+   
+        #VarCatElem('only_if',sub_elem=yc.ListElem(sub_elem=VariableElem())), 
+ 
+        yc.ListElem('not_if',sub_elem=yc.StrElem(),
+            help_text="Variable not_if takes list and key and will not create"
+                      "test object if a match occurs."
+        ),
         yc.KeyedElem(
             'build', elements=[
                 yc.StrElem(

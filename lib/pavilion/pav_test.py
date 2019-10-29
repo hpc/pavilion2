@@ -50,6 +50,9 @@ def get_latest_tests(pav_cfg, limit):
 
     return tests_only
 
+def conditional_choice(condition, choice):
+    for lists in condition:
+        dbg_print(lists)
 
 class PavTestError(RuntimeError):
     """For general test errors. Whatever was being attempted has failed in a
@@ -114,9 +117,14 @@ class PavTest:
         tests_path = pav_cfg.working_dir/'tests'
 
         self.config = config
-         
-        if 'only_if' in config:
-            dbg_print("Found an only if")
+
+        #Checking conditional only_if/not_if to create test object 
+        if 'only_if' in config and config['only_if']:
+            dbg_print(config['only_if'])
+
+        if 'not_if' in config and config['not_if']:
+            conditional_choice(config['not_if'],'not_if') 
+                     
 
         self.id = None  # pylint: disable=invalid-name
         
@@ -299,7 +307,7 @@ class PavTest:
                 return path
 
         return None
-
+    
     @staticmethod
     def _isurl(url):
         """Determine if the given path is a url."""
@@ -909,7 +917,7 @@ class PavTest:
             if timeout is not None and time.time() > timeout:
                 raise TimeoutError("Timed out waiting for test '{}' to "
                                    "complete".format(self.id))
-
+    
     def gather_results(self, run_result):
         """Process and log the results of the test, including the default set
         of result keys.
