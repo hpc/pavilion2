@@ -133,17 +133,21 @@ class TestConfigLoader(yc.YamlConfigLoader):
         yc.RegexElem('scheduler', regex=r'\w+', default="raw",
                      help_text="The scheduler class to use to run this test."),
 
-        yc.ListElem('only_if',sub_elem=yc.StrElem(),
-            help_text="Variable only_if takes a list and key and will create a"
-                      "test object if a match occurs"
-        ),
-   
-        #VarCatElem('only_if',sub_elem=yc.ListElem(sub_elem=VariableElem())), 
- 
-        yc.ListElem('not_if',sub_elem=yc.StrElem(),
-            help_text="Variable not_if takes list and key and will not create"
-                      "test object if a match occurs."
-        ),
+        #yc.ListElem('only_if',sub_elem=yc.StrElem(),
+        #    help_text="Variable only_if takes a list and key and will create a"
+        #              "test object if a match occurs"
+        #),
+
+        yc.CategoryElem(
+            'only_if', sub_elem=yc.ListElem(sub_elem=yc.StrElem())),
+
+        #yc.ListElem('not_if',sub_elem=yc.StrElem(),
+        #    help_text="Variable not_if takes list and key and will not create"
+        #              "test object if a match occurs."
+        #),
+       
+        yc.CategoryElem('not_if', sub_elem=yc.ListElem(sub_elem=yc.StrElem())),
+
         yc.KeyedElem(
             'build', elements=[
                 yc.StrElem(
