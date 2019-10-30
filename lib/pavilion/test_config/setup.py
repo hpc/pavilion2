@@ -9,6 +9,7 @@ from . import string_parser
 from . import variables
 from .file_format import TestConfigError, KEY_NAME_RE
 from .file_format import TestConfigLoader, TestSuiteLoader
+from pavilion.utils import dbg_print #calvins
 
 # Config file types
 CONF_HOST = 'hosts'
@@ -513,7 +514,7 @@ def resolve_permutations(raw_test_cfg, pav_vars, sys_vars):
         base_var_man.add_var_set('pav', pav_vars)
     except variables.VariableError as err:
         raise TestConfigError("Error in pav variables: {}".format(err))
-
+    
     used_per_vars = set()
     for per_var in permute_on:
         try:
@@ -536,9 +537,18 @@ def resolve_permutations(raw_test_cfg, pav_vars, sys_vars):
     var_men = base_var_man.get_permutations(used_per_vars)
     for var_man in var_men:
         var_man.resolve_references(string_parser.parse)
+
+    if 'only_if' in raw_test_cfg and raw_test_cfg['only_if']:
+        cond_choice(raw_test_cfg['only_if'],'only',base_var_man)
+    
     return test_cfg, var_men
 
-
+def cond_choice(conditional,choice,variables):
+    for key in conditional:
+        complex_key = variables.resolve_key(key)
+        data = variables.__getitem__(complex_key)
+        dbg_print(data)
+  
 def _resolve_references(var_man):
 
     # We only want to resolve variable references in the variable section

@@ -17,6 +17,7 @@ import time
 import urllib.parse
 import zipfile
 import sys
+import re #added for calvins testing
 from pathlib import Path
 
 import tzlocal
@@ -28,7 +29,10 @@ from pavilion import wget
 from pavilion.status_file import StatusFile, STATES
 from pavilion.test_config import variables
 from pavilion.utils import fprint
-from pavilion.utils import dbg_print
+from pavilion.utils import dbg_print #added for calvins testing
+from pavilion.test_config import variables #added for calvins testing
+from pavilion.test_config import DeferredVariable #added for calvins testing 
+
 
 def get_latest_tests(pav_cfg, limit):
     """
@@ -50,9 +54,10 @@ def get_latest_tests(pav_cfg, limit):
 
     return tests_only
 
-def conditional_choice(condition, choice):
-    for lists in condition:
-        dbg_print(lists)
+    if choice=="only_if":
+        success = len(condition)
+               
+         
 
 class PavTestError(RuntimeError):
     """For general test errors. Whatever was being attempted has failed in a
@@ -117,14 +122,6 @@ class PavTest:
         tests_path = pav_cfg.working_dir/'tests'
 
         self.config = config
-
-        #Checking conditional only_if/not_if to create test object 
-        if 'only_if' in config and config['only_if']:
-            dbg_print(config['only_if'])
-
-        if 'not_if' in config and config['not_if']:
-            conditional_choice(config['not_if'],'not_if') 
-                     
 
         self.id = None  # pylint: disable=invalid-name
         
@@ -198,7 +195,7 @@ class PavTest:
 
         if _id is None:
             self.status.set(STATES.CREATED, "Test directory setup complete.")
-
+        
         # Checking validity of timeout values.
         for loc in ['build', 'run']:
             if loc in config and 'timeout' in config[loc]:
