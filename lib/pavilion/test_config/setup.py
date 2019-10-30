@@ -539,15 +539,30 @@ def resolve_permutations(raw_test_cfg, pav_vars, sys_vars):
         var_man.resolve_references(string_parser.parse)
 
     if 'only_if' in raw_test_cfg and raw_test_cfg['only_if']:
-        cond_choice(raw_test_cfg['only_if'],'only',base_var_man)
-    
+        cond_choice(raw_test_cfg['only_if'],'only_if',base_var_man)
+    if 'not_if' in raw_test_cfg and raw_test_cfg['not_if']:
+        cond_choice(raw_test_cfg['not_if'],'not_if',base_var_name)    
+
+ 
     return test_cfg, var_men
 
 def cond_choice(conditional,choice,variables):
+    match = 0
     for key in conditional:
         complex_key = variables.resolve_key(key)
-        data = variables.__getitem__(complex_key)
-        dbg_print(data)
+        real_key = variables.__getitem__(complex_key)
+        for value in conditional[key]:
+            dbg_print("Key: " + real_key + " Val: " + value)
+            if choice is 'only_if' and real_key == value:
+                #dbg_print(real_key)
+                match += 1
+                break
+            if choice is 'not_if' and real_key == value:
+                dbg_print("kill everything, we have a not if")
+    if match >= len(conditional.keys()):
+        dbg_print("we have at least 1 match per entry, make the test...")
+    else:
+        dbg_print("one of the tests did not match, don't make test")
   
 def _resolve_references(var_man):
 
