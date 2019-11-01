@@ -514,7 +514,7 @@ def resolve_permutations(raw_test_cfg, pav_vars, sys_vars):
         base_var_man.add_var_set('pav', pav_vars)
     except variables.VariableError as err:
         raise TestConfigError("Error in pav variables: {}".format(err))
-    
+
     used_per_vars = set()
     for per_var in permute_on:
         try:
@@ -538,32 +538,62 @@ def resolve_permutations(raw_test_cfg, pav_vars, sys_vars):
     for var_man in var_men:
         var_man.resolve_references(string_parser.parse)
 
-    if 'only_if' in raw_test_cfg and raw_test_cfg['only_if']:
-        cond_choice(raw_test_cfg['only_if'],'only_if',base_var_man)
-    if 'not_if' in raw_test_cfg and raw_test_cfg['not_if']:
-        cond_choice(raw_test_cfg['not_if'],'not_if',base_var_name)    
+    #if 'only_if' in raw_test_cfg and raw_test_cfg['only_if']:
+    #    cond_choice(raw_test_cfg['only_if'],'only_if',base_var_man)
+    #if 'not_if' in raw_test_cfg and raw_test_cfg['not_if']:
+    #    cond_choice(raw_test_cfg['not_if'],'not_if',base_var_man)
 
- 
+    if 'only_if' or 'not_if' in raw_test_cfg:
+        cond(raw_test_cfg,base_var_man)
+
     return test_cfg, var_men
 
-def cond_choice(conditional,choice,variables):
-    match = 0
-    for key in conditional:
-        complex_key = variables.resolve_key(key)
-        real_key = variables.__getitem__(complex_key)
-        for value in conditional[key]:
-            dbg_print("Key: " + real_key + " Val: " + value)
-            if choice is 'only_if' and real_key == value:
-                #dbg_print(real_key)
-                match += 1
+def cond(config,base_var_man):
+    if 'not_if' in config and 'only_if' not in config:
+        if get_match_not_if(config['not_if'],base_var_man):
+           dbg_print("Dont make Test")
+        else:
+            dbg_print("Make Test")
+            pass
+    if 'not_if' in config and 'only_if' in config:
+        if get_match_not_if(config['not_if'],base_var_man) is False:
+            if get_match_only_if(config['only_if'],base_var_man):
+                dbg_print("Make Test")
+                pass
+            else:
+                dbg_print("Dont make Test")
+        else:
+            dbg_print("Dont make Test")
+    if 'only_if' in config and 'not_if' not in config:
+        if get_match_only_if(config['only_if'],base_var_man):
+            dbg_print("Make Test")
+            pass
+        else:
+            dbg_print("Dont make Test")
+
+
+def get_match_not_if(d,v):
+    for key in d:
+        complex_key = v.resolve_key(key)
+        real_key    = v.__getitem__(complex_key)
+        for value in d[key]:
+           #only need 1 match for 'not_if' to stop build.
+           if real_key == value :
+               return True
+    return False
+
+def get_match_only_if(d,v):
+    for key in d:
+        match = False
+        real_key = v.__getitem__(v.resolve_key(key))
+        for value in d[key]:
+            if real_key == value:
+                match = True
                 break
-            if choice is 'not_if' and real_key == value:
-                dbg_print("kill everything, we have a not if")
-    if match >= len(conditional.keys()):
-        dbg_print("we have at least 1 match per entry, make the test...")
-    else:
-        dbg_print("one of the tests did not match, don't make test")
-  
+        if match is False:
+            return False #if a key can't match a value return false.
+    return True #There has been at least 1 match per key.
+
 def _resolve_references(var_man):
 
     # We only want to resolve variable references in the variable section

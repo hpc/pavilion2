@@ -132,22 +132,22 @@ class TestConfigLoader(yc.YamlConfigLoader):
                       "single or list of strings key/string pairs."),
         yc.RegexElem('scheduler', regex=r'\w+', default="raw",
                      help_text="The scheduler class to use to run this test."),
-
-        #yc.ListElem('only_if',sub_elem=yc.StrElem(),
-        #    help_text="Variable only_if takes a list and key and will create a"
-        #              "test object if a match occurs"
-        #),
-
         yc.CategoryElem(
-            'only_if', sub_elem=yc.ListElem(sub_elem=yc.StrElem())),
-
-        #yc.ListElem('not_if',sub_elem=yc.StrElem(),
-        #    help_text="Variable not_if takes list and key and will not create"
-        #              "test object if a match occurs."
-        #),
-       
-        yc.CategoryElem('not_if', sub_elem=yc.ListElem(sub_elem=yc.StrElem())),
-
+            'only_if', sub_elem=yc.ListElem(sub_elem=yc.StrElem()),
+            help_text="Only_if for this test section. These are strings at "
+                      "the top of the config that contain dictionaries. The "
+                      "key consists of variables from VAR_SETS such as: 'var', "
+                      "'per', 'pav', 'sys' and 'sched'. The values are a single"
+                      " or list of strings."
+        ),
+        yc.CategoryElem(
+            'not_if', sub_elem=yc.ListElem(sub_elem=yc.StrElem()),
+             help_text="Not_if for this test section. These are strings at the "
+                       "top of the config that contain dictionaries. The key "
+                       "consists of variables from VAR_SETS such as: 'var', "
+                       "'per', 'pav', 'sys' and 'sched'. The values are a"
+                       " single or list of strings."
+        ),
         yc.KeyedElem(
             'build', elements=[
                 yc.StrElem(
