@@ -9,7 +9,6 @@ from . import string_parser
 from . import variables
 from .file_format import TestConfigError, KEY_NAME_RE
 from .file_format import TestConfigLoader, TestSuiteLoader
-from pavilion.utils import dbg_print #calvins
 
 # Config file types
 CONF_HOST = 'hosts'
@@ -538,50 +537,53 @@ def resolve_permutations(raw_test_cfg, pav_vars, sys_vars):
     for var_man in var_men:
         var_man.resolve_references(string_parser.parse)
 
-
-    if len(raw_test_cfg['only_if']) != 0 or len(raw_test_cfg['not_if']) != 0:
-        cond(raw_test_cfg,base_var_man)
-
+    #If only_if or not_if exist we want to check the conditions.
+    try:
+        if len(raw_test_cfg['only_if']) != 0 or len(raw_test_cfg['not_if']) != 0:
+            cond(raw_test_cfg,base_var_man)
+    except variables.VariableError as err:
+        raise TestConfigError("Broken".format(err)) 
     return test_cfg, var_men
 
 def cond(config,base_var_man):
+    #If not_if is the only key we check for a match.
     if len(config['not_if']) > 0 and len(config['only_if']) == 0:
-        dbg_print("not")
         if get_match_not_if(config['not_if'],base_var_man):
-           dbg_print("Dont make Test")
+           raise TestConfigError("Not_if '{}' matches".format(config['not_if']))
         else:
-            dbg_print("Make Test")
             pass
+    #If both keys exist check not_if first for faster execution.
     if len(config['not_if']) > 0 and len(config['only_if']) > 0:
-        dbg_print("only & not")
-        if get_match_not_if(config['not_if'],base_var_man) is False:
+        if get_match_not_if(config['not_if'],base_var_man) == False:
             if get_match_only_if(config['only_if'],base_var_man):
-                dbg_print("Make Test")
                 pass
             else:
-                dbg_print("Dont make Test")
+                raise TestConfigError(
+                    "Only_if '{}' no matches".format(config['only_if']))
         else:
-            dbg_print("Dont make Test")
+            raise TestConfigError(
+                "Not_if '{}' matches".format(config['not_if']))
+    #If only_if is key check all values to the key for matches.
     if len(config['only_if']) > 0 and len(config['not_if']) == 0:
-        dbg_print("only")
         if get_match_only_if(config['only_if'],base_var_man):
-            dbg_print("Make Test")
             pass
         else:
-            dbg_print("Dont make Test")
+            raise TestConfigError(
+                "Only_if '{}' no matches".format(config['only_if']))
 
 
 def get_match_not_if(d,v):
+    #Not_if loops through values and returns true at first match.
     for key in d:
-        complex_key = v.resolve_key(key)
-        real_key    = v.__getitem__(complex_key)
+        real_key    = v.__getitem__(v.resolve_key(key))
         for value in d[key]:
            #only need 1 match for 'not_if' to stop build.
-           if real_key == value :
+           if real_key == value:
                return True
     return False
 
 def get_match_only_if(d,v):
+    #Only_if looks for a match for all keys.
     for key in d:
         match = False
         real_key = v.__getitem__(v.resolve_key(key))
