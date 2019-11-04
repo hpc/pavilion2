@@ -17,7 +17,6 @@ import time
 import urllib.parse
 import zipfile
 import sys
-import re #added for calvins testing
 from pathlib import Path
 
 import tzlocal
@@ -31,7 +30,7 @@ from pavilion.test_config import variables
 from pavilion.utils import fprint
 from pavilion.utils import dbg_print #added for calvins testing
 from pavilion.test_config import variables #added for calvins testing
-from pavilion.test_config import DeferredVariable #added for calvins testing 
+from pavilion.test_config import DeferredVariable #added for calvins testing
 
 
 def get_latest_tests(pav_cfg, limit):
@@ -56,8 +55,6 @@ def get_latest_tests(pav_cfg, limit):
 
     if choice=="only_if":
         success = len(condition)
-               
-         
 
 class PavTestError(RuntimeError):
     """For general test errors. Whatever was being attempted has failed in a
@@ -92,7 +89,7 @@ class PavTest:
     _BLOCK_SIZE = 4096*1024
 
     logger = logging.getLogger('pav.PavTest')
-    
+
     def __init__(self, pav_cfg, config, sys_vars, _id=None):
         """Create an new PavTest object. If loading an existing test instance,
         use the PavTest.from_id method.
@@ -124,7 +121,6 @@ class PavTest:
         self.config = config
 
         self.id = None  # pylint: disable=invalid-name
-        
         # Get an id for the test, if we weren't given one.
         if _id is None:
             self.id, self.path = self.create_id_dir(tests_path)
@@ -195,7 +191,7 @@ class PavTest:
 
         if _id is None:
             self.status.set(STATES.CREATED, "Test directory setup complete.")
-        
+
         # Checking validity of timeout values.
         for loc in ['build', 'run']:
             if loc in config and 'timeout' in config[loc]:
@@ -215,6 +211,9 @@ class PavTest:
                         self._build_timeout = test_timeout
                     else:
                         self._run_timeout = test_timeout
+
+        if len(config['only_if']) > 0:
+            self.status.set(STATES.SKIPPED, "Skipped because only_if no match")
 
     @classmethod
     def load(cls, pav_cfg, test_id):
