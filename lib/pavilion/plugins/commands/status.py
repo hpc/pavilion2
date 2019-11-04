@@ -34,7 +34,7 @@ def status_from_test_obj(pav_cfg, test_obj):
             'test_id': test.id,
             'name': test.name,
             'state': status_f.state,
-            'time': status_f.when.strftime("%d %b %Y %H:%M:%S %Z"),
+            'time': status_f.when.strftime("%d %b %Y %H:%M:%S"),
             'note': status_f.note,
         })
 
@@ -156,7 +156,9 @@ def print_status(statuses, outfile, json=False):
         fields = ['test_id', 'name', 'state', 'time', 'note']
         utils.draw_table(
             outfile=outfile,
-            field_info={},
+            field_info={
+                'time': {'transform': utils.get_relative_timestamp}
+            },
             fields=fields,
             rows=statuses,
             title='Test statuses')

@@ -8,7 +8,6 @@ import subprocess
 from functools import wraps
 from pathlib import Path
 
-import tzlocal
 from pavilion import scriptcomposer
 from pavilion.lockfile import LockFile
 from pavilion.status_file import STATES, StatusInfo
@@ -377,9 +376,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
     def _now():
         """Convenience method for getting a reasonable current time object."""
 
-        return tzlocal.get_localzone().localize(
-            datetime.datetime.now()
-        )
+        return datetime.datetime.now()
 
     def job_status(self, pav_cfg, test):
         """Get the job state from the scheduler, and map it to one of the

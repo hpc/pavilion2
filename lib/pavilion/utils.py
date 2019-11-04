@@ -1,45 +1,39 @@
 # This file contains assorted utility functions.
 
 import csv
+import datetime
 import itertools
 import json
 import os
-import pytz
 import re
 import shutil
 import subprocess
 import sys
 import textwrap
 from collections import defaultdict
-from datetime import datetime
 from pathlib import Path
-from tzlocal import get_localzone
 
-def get_relative_timestamp(obj):
+def get_relative_timestamp(base_dt):
     """Print formatted time string based on the delta of time objects.
-    :param obj timezone aware datetime object
+    :param obj datetime object
     :rtype string
     """
-    tz = get_localzone()
-    dt = tz.localize(datetime.now())
+    now = datetime.datetime.now()
+    format_ = ['%Y', '%b', '%a', '%H:%M:%S'] # year, month, day, time
 
-    # year, month, day, time, timezone (utc offset)
-    format_ = ['%Y', '%b', '%a', '%H:%M:%S', '%z']
+    if now.strftime("%Y") != base_dt.strftime("%Y"):
+        return now.strftime(" ".join(format_))
 
-    # TODO: determine how to handle invalid input, e.g., naive datetime object
-    if obj.tzinfo is None:
-        sys.stderr.write("parameter: datetime object is naive")
-        return obj.strftime(" ".join(format_))
+    if now.strftime("%b") != base_dt.strftime("%b"):
+        return now.strftime(" ".join(format_[1:]))
 
-    fargs = list()
-    for e in format_:
-        if dt.strftime(e) != obj.strftime(e):
-            fargs.append(e)
+    if now.strftime("%a") != base_dt.strftime("%a"):
+        return now.strftime(" ".join(format_[2:]))
 
-    if len(fargs) == 0:
-        return dt.strftime(" ".join(format_)):
+    if now.strftime("%H:%M") != base_dt.strftime("%H:%M:%S"):
+        return now.strftime(" ".join(format_[3:]))
 
-    return dt.strftime(str(" ".join(fargs_)))
+    return base_dt.strftime(str(" ".join(format_)))
 
 def flat_walk(path, *args, **kwargs):
     """Perform an os.walk on path, but return a flattened list of every file
