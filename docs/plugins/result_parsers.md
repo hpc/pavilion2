@@ -13,7 +13,7 @@ the [yapsy-plugin](basics.md#plugin_nameyapsy-plugin).
 
 #### Writing the Source
 
-You begin writing the source with the command class definition.
+You begin writing the source with the result parser class definition.
 Don't forget to include the result_parsers module. We have been 
 using the CamelCase naming convention to 
 keep everything the same. It is simply:
@@ -23,12 +23,12 @@ from pavilion import result_parsers
 class ResultParserName(result_parsers.ResultParser):
 ```
 
-At the minimum each command will require four methods: 
+At the minimum each result parser class will require four methods: 
 `__init__`, `get_config_items`, `_check_args`, and `__call__`. 
 
 ##### Writing `__init__()`:
 The `__init__` method should only take one argument, that one argument being 
-`self`, as this will be used to initialize the new command. 
+`self`, as this will be used to initialize the new result parser. 
 
 In this method, you will call `super().__init__()` and
 pass the following arguments: 
