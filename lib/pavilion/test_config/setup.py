@@ -540,57 +540,42 @@ def resolve_permutations(raw_test_cfg, pav_vars, sys_vars):
 
     #If only_if or not_if exist we want to check the conditions.
     if len(raw_test_cfg['only_if']) != 0 or len(raw_test_cfg['not_if']) != 0:
-        cond(raw_test_cfg,base_var_man)
-
+        cond_check(raw_test_cfg,base_var_man)
     return test_cfg, var_men
 
-def cond(config,base_var_man):
-    #This is getting removed to have a single check that always
-    # goes through both not_if and only_if and adds it to log
-    #If not_if is the only key we check for a match.
-    if len(config['not_if']) > 0 and len(config['only_if']) == 0:
-        if get_match_not_if(config['not_if'],base_var_man):
-           pass #set test object to SKIPPED
-        else:
-            pass
-    #If both keys exist check not_if first for faster execution.
-    if len(config['not_if']) > 0 and len(config['only_if']) > 0:
-        if get_match_not_if(config['not_if'],base_var_man) == False:
-            if get_match_only_if(config['only_if'],base_var_man):
-                pass
-            else:
-                pass #set test object to SKIPPED
-        else:
-            pass #set test object to SKIPPED
-    #If only_if is key check all values to the key for matches.
-    if len(config['only_if']) > 0 and len(config['not_if']) == 0:
-        if get_match_only_if(config['only_if'],base_var_man):
-            pass
-        else:
-            pass #set test object to SKIPPED
+def cond_check(config, base_var):
+    cond_err_list = []
+    cond_err_list = get_match_not_if(config['not_if'],base_var,cond_err_list)
+    cond_err_list = get_match_only_if(config['only_if'],base_var,cond_err_list)
+    for i in range(0,len(cond_err_list)):
+        dbg_print(cond_err_list[i])
 
-def get_match_not_if(dictionary,variable_base):
+def get_match_not_if(not_if_dict,variable_base,cond_err_list):
     #Not_if loops through values and returns true at first match.
-    for key in dictionary:
+    for key in not_if_dict:
         real_key = variable_base[variable_base.resolve_key(key)]
-        for value in dictionary[key]:
+        for value in not_if_dict[key]:
            #only need 1 match for 'not_if' to stop build.
            if real_key == value:
-               return True
-    return False
+               cond_err_list.append("Test SKIPPED, Condition invalid. "
+                   "Not if "+key+" is "+value+". Found "+real_key+".")
+    return cond_err_list
 
-def get_match_only_if(dictionary,variable_base):
+def get_match_only_if(only_if_dict,variable_base,cond_err_list):
     #Only_if looks for a match for all keys.
-    for key in dictionary:
+    for key in only_if_dict:
         match = False
         real_key = variable_base[variable_base.resolve_key(key)]
-        for value in dictionary[key]:
+        for value in only_if_dict[key]:
             if real_key == value:
                 match = True
                 break
         if match is False:
-            return False #if a key can't match a value return false.
-    return True #There has been at least 1 match per key.
+            cond_err_list.append("Test SKIPPED, Condition inavlid. "
+                "Only if "+key+" is one of: "+str(only_if_dict[key]) + "."
+                " Found "+real_key+".")
+     #if a key can't match a value return false.
+    return cond_err_list #There has been at least 1 match per key.
 
 def _resolve_references(var_man):
 

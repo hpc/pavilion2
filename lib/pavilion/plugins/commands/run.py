@@ -16,7 +16,7 @@ from pavilion.series import TestSeries, test_obj_from_id
 from pavilion.test_config.string_parser import ResolveError
 from pavilion.utils import fprint
 from pavilion import result_parsers
-
+from pavilion.utils import dbg_print # added by calvin for testing
 
 class RunCommand(commands.Command):
 
@@ -122,7 +122,6 @@ class RunCommand(commands.Command):
             return errno.EINVAL
 
         all_tests = sum(tests_by_sched.values(), [])
-
         if not all_tests:
             fprint("You must specify at least one test.", file=self.errfile)
             return errno.EINVAL

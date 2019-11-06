@@ -789,7 +789,6 @@ class PavTest:
         :param dict sched_vars: The scheduler variables for resolving the build
             template.
         :param dict sys_vars: The system variables."""
-
         self.status.set(STATES.PREPPING_RUN,
                         "Converting run template into run script.")
 
@@ -862,7 +861,6 @@ class PavTest:
                         timeout = timeout - quiet_time
 
         self._finished = local_tz.localize(datetime.datetime.now())
-
         status = self.status.current()
         if status.state == STATES.ENV_FAILED:
             return STATES.RUN_FAILED
