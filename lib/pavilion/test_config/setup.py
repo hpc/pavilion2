@@ -538,44 +538,68 @@ def resolve_permutations(raw_test_cfg, pav_vars, sys_vars):
     for var_man in var_men:
         var_man.resolve_references(string_parser.parse)
 
-    #If only_if or not_if exist we want to check the conditions.
-    if len(raw_test_cfg['only_if']) != 0 or len(raw_test_cfg['not_if']) != 0:
-        cond_check(raw_test_cfg,base_var_man)
+    # If only_if or not_if exist we want to check the conditions.
+    #if len(raw_test_cfg['only_if']) != 0 or len(raw_test_cfg['not_if']) != 0:
+    #    cond_check(raw_test_cfg,base_var_man)
+
     return test_cfg, var_men
 
-def cond_check(config, base_var):
-    cond_err_list = []
-    cond_err_list = get_match_not_if(config['not_if'],base_var,cond_err_list)
-    cond_err_list = get_match_only_if(config['only_if'],base_var,cond_err_list)
+def cond_check(raw_test_cfg, pav_vars, sys_vars):
+    config = copy.deepcopy(raw_test_cfg)
+    base_var_man = variables.VariableSetManager()
+    user_vars = config.get('variables',{})
+
+    try:
+        base_var_man.add_var_set('var', user_vars)
+    except variables.VariableError as err:
+        raise TestConfigError("Error in variables section: {}".format(err))
+
+    try:
+        base_var_man.add_var_set('sys', sys_vars)
+    except variables.VariableError as err:
+        raise TestConfigError("Error in sys variables: {}".format(err))
+
+    try:
+        base_var_man.add_var_set('pav', pav_vars)
+    except variables.VariableError as err:
+        raise TestConfigError("Error in pav variables: {}".format(err))
+
+
+    cond_err_list = [] # List is populated with not_if and only_if methods.
+    cond_err_list = get_match_not_if(config['not_if'],base_var_man,cond_err_list)
+    cond_err_list = get_match_only_if(config['only_if'],base_var_man,cond_err_list)
+    #If cond_err_list length is 0 we had no conditional conflicts.
     for i in range(0,len(cond_err_list)):
-        dbg_print(cond_err_list[i])
+        LOGGER.warning(cond_err_list[i])
+        #dbg_print(cond_err_list[i])
+    return cond_err_list
 
 def get_match_not_if(not_if_dict,variable_base,cond_err_list):
-    #Not_if loops through values and returns true at first match.
+    # Not_if loops through values and returns a list of matches.
     for key in not_if_dict:
         real_key = variable_base[variable_base.resolve_key(key)]
         for value in not_if_dict[key]:
-           #only need 1 match for 'not_if' to stop build.
+           # If a key has a match log it.
            if real_key == value:
                cond_err_list.append("Test SKIPPED, Condition invalid. "
-                   "Not if "+key+" is "+value+". Found "+real_key+".")
-    return cond_err_list
+                   "Not if "+key+" is "+value+". The current "
+                   +key+ " is "+real_key+".")
+    return cond_err_list # Return the list of conditional errors, can be None.
 
 def get_match_only_if(only_if_dict,variable_base,cond_err_list):
-    #Only_if looks for a match for all keys.
+    # Only_if looks for a match for all keys to succeed.
     for key in only_if_dict:
         match = False
         real_key = variable_base[variable_base.resolve_key(key)]
         for value in only_if_dict[key]:
             if real_key == value:
-                match = True
+                match = True # One match is a success in the value.
                 break
-        if match is False:
+        if match is False: # There was no match in value list, log it.
             cond_err_list.append("Test SKIPPED, Condition inavlid. "
                 "Only if "+key+" is one of: "+str(only_if_dict[key]) + "."
-                " Found "+real_key+".")
-     #if a key can't match a value return false.
-    return cond_err_list #There has been at least 1 match per key.
+                " The current "+key+" is "+real_key+".")
+    return cond_err_list # Return the lsit of conditional errors, can be None.
 
 def _resolve_references(var_man):
 

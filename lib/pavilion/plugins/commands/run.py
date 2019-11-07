@@ -14,6 +14,7 @@ from pavilion.status_file import STATES
 from pavilion.plugins.commands.status import print_from_test_obj
 from pavilion.series import TestSeries, test_obj_from_id
 from pavilion.test_config.string_parser import ResolveError
+from pavilion.test_config import setup
 from pavilion.utils import fprint
 from pavilion import result_parsers
 from pavilion.utils import dbg_print # added by calvin for testing
@@ -129,6 +130,14 @@ class RunCommand(commands.Command):
         series = TestSeries(pav_cfg, all_tests)
 
         rp_errors = []
+
+        for test in all_tests:
+            cond_list = []
+            cond_list = setup.cond_check(test.config,pav_cfg.pav_vars,sys_vars)
+            dbg_print(cond_list)
+            dbg_print("@@"*50)
+            if len(cond_list) >  0:
+               test.status.set(STATES.SKIPPED,cond_list[0]) 
         for test in all_tests:
 
             # Make sure the result parsers have reasonable arguments.
@@ -293,6 +302,14 @@ class RunCommand(commands.Command):
                       .format(test_cfg['name'], test_cfg['suite_path'], err)
                 self.logger.error(msg)
                 raise commands.CommandError(msg)
+
+            #cond_list = setup.cond_check(test_cfg,pav_cfg.pav_vars,sys_vars)
+            #dbg_print(cond_list[0])
+            #if len(cond_list) >= 0:
+              # test.status.set(STATES.SKIPPED,cond_list[0]) 
+
+            #except test_config.TestConfigError as err
+            #    dbg_print(err)
 
         # Get the schedulers for the tests, and the scheduler variables.
         # The scheduler variables are based on all of the
