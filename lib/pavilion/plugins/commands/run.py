@@ -136,16 +136,11 @@ class RunCommand(commands.Command):
             cond_list = setup.cond_check(test.config,pav_cfg.pav_vars,sys_vars)
             if len(cond_list) > 0:
                test.status.set(STATES.SKIPPED,cond_list[0])
-               all_tests.remove(test)
+               #all_tests.remove(test)
+               return 0 #this halt the execution of other tests, delete.
                break
             else:
                pass
-
-        #for test in all_tests:
-        #    status = test.status.current()
-        #    dbg_print(status)
-        #    if status == STATES.SKIPPED:
-        #        tests.remove(test)
 
         for test in all_tests:
 
@@ -198,15 +193,6 @@ class RunCommand(commands.Command):
                        file=self.errfile)
                 self._cancel_all(tests_by_sched)
 
-
-
-        #for test in tests:
-        #    status = test.status.current()
-        #    dbg_print(status)
-        #    if status == STATES.SKIPPED:
-        #        tests.remove(test)
-
-        #dbg_print(tests)
         # Tests should all be scheduled now, and have the SCHEDULED state
         # (at some point, at least). Wait until something isn't scheduled
         # anymore (either running or dead), or our timeout expires.
