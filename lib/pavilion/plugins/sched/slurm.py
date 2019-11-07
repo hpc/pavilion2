@@ -208,7 +208,7 @@ def slurm_states(state):
     else:
         return 'UNKNOWN'
 
-    if state.endswith('$'):
+    if state.endswith('$') or state.endswith('*'):
         state = state[:-1]
 
     return state
