@@ -828,7 +828,7 @@ class ResultParserTests(PavTestCase):
                         'key': 'table3',
                         'delimiter': ',',
                         'col_num': '8',
-                        'row_col': 'True',
+                        'has_header': 'True',
                         'col_names': [' ', 'calc_deposit', 'OMP Barrier',
                                       'Scaled Serial Ref', 'Bestcase OMP',
                                       'Static OMP', 'Dynamic OMP', 'Manual OMP']

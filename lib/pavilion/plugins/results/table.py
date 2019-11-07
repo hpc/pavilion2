@@ -18,7 +18,7 @@ class Table(result_parsers.ResultParser):
         config_items = super().get_config_items()
         config_items.extend([
             yc.StrElem(
-                'delimiter', required=True,
+                'delimiter', default=' ',
                 help_text="Constant that will be placed in result."
             ),
             yc.StrElem(
@@ -27,7 +27,7 @@ class Table(result_parsers.ResultParser):
                           "if there is such a column."
             ),
             yc.StrElem(
-                'row_col', default='False',
+                'has_header', default='False',
                 help_text="Set True if there is a column for row names."
             ),
             yc.ListElem(
@@ -38,8 +38,14 @@ class Table(result_parsers.ResultParser):
 
         return config_items
 
-    def _check_args(self, delimiter=None, col_num=None, row_col=None,
+    def _check_args(self, delimiter=None, col_num=None, has_header=None,
                     col_names = []):
+
+        if len(col_names) is not 0:
+            if len(col_names) is not col_num:
+                raise result_parsers.ResultParserError(
+                    "Length of `col_names` does not match `col_num`."
+                )
         
         if delimiter == "":
             raise result_parsers.ResultParserError(
@@ -47,18 +53,18 @@ class Table(result_parsers.ResultParser):
         )
 
     def __call__(self, test, file, delimiter=None, col_num=None,
-                 row_col='', col_names = []):
+                 has_header='', col_names = []):
 
         match_list = []
 
         # generate regular expression
         value_regex = '(\S+| )'
-        new_delimiter = ' *' + delimiter + ' *'
+        new_delimiter = '\s*' + delimiter + '\s*'
         value_regex_list = []
         for i in range(int(col_num)):
             value_regex_list.append(value_regex)
         str_regex = new_delimiter.join(value_regex_list)
-        str_regex = '^ *' + str_regex + ' *$'
+        str_regex = '^\s*' + str_regex + '\s*$'
 
         regex = re.compile(str_regex)
         for line in file.readlines():
@@ -70,7 +76,7 @@ class Table(result_parsers.ResultParser):
             col_names = match_list[0]
 
         # table has row names AND column names = dictionary of dictionaries
-        if row_col == "True":
+        if has_header == "True":
             result_dict = {}
             if match_list[0] in col_names:
                 match_list = match_list[1:]
@@ -94,5 +100,4 @@ class Table(result_parsers.ResultParser):
                 for v_list in match_list[1:]:
                     result_dict[match_list[0][col]].append(v_list[col])
 
-        # return row_col
         return result_dict
