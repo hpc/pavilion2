@@ -9,7 +9,7 @@ class SlurmMPIVars(slurm.SlurmVars):
     @dfr_var_method
     def test_cmd(self):
         """Overrides test_cmd in SlurmVars to use mpirun instead of srun"""
-        return 'mpirun'
+        return ['mpirun', '-N', self.test_procs()]
 
 
 class SlurmMPI(slurm.Slurm):
