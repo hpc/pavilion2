@@ -13,12 +13,13 @@ from pathlib import Path
 
 
 class SbatchHeader(scriptcomposer.ScriptHeader):
-    def __init__(self, sched_config, nodes, test_id):
+    def __init__(self, sched_config, nodes, test_id, vars):
         super().__init__()
 
         self._conf = sched_config
         self._test_id = test_id
         self._nodes = nodes
+        self._vars = vars
 
     def get_lines(self):
         """Get the sbatch header lines."""
@@ -38,8 +39,10 @@ class SbatchHeader(scriptcomposer.ScriptHeader):
             lines.append('#SBATCH --account {s._conf[account]}'.format(s=self))
 
         lines.append('#SBATCH -N {s._nodes}'.format(s=self))
-        lines.append('#SBATCH --tasks-per-node={s._conf['
-                     'tasks_per_node]}'.format(s=self))
+        tasks = self._conf['tasks_per_node']
+        if tasks == 'all':
+            tasks = self._vars['min_ppn']
+        lines.append('#SBATCH --tasks-per-node={}'.format(tasks))
         if self._conf.get('time_limit') is not None:
             lines.append('#SBATCH -t {s._conf[time_limit]}'.format(s=self))
 
@@ -163,7 +166,12 @@ class SlurmVars(SchedulerVariables):
 
         # The requested processors is the number per node times
         # the actual number of nodes.
-        req_procs = int(self.test.config['slurm'].get('tasks_per_node'))
+        
+        req_procs = self.test.config['slurm'].get('tasks_per_node')
+        if req_procs == 'all':
+            req_procs = int(self['min_ppn'])
+        else:
+            req_procs = int(req_procs)
         req_procs = req_procs * int(self.test_nodes())
 
         # We can't request more processors than there are, nor
@@ -693,7 +701,8 @@ class Slurm(SchedulerPlugin):
 
         return SbatchHeader(sched_config,
                             self._get_node_range(sched_config, nodes.values()),
-                            test.id)
+                            test.id,
+                            self.get_vars(test))
 
     def _get_node_range(self, sched_config, nodes):
         """Translate user requests for a number of nodes into a numerical
