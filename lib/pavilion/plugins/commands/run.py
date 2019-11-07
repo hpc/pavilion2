@@ -134,10 +134,15 @@ class RunCommand(commands.Command):
         for test in all_tests:
             cond_list = []
             cond_list = setup.cond_check(test.config,pav_cfg.pav_vars,sys_vars)
-            dbg_print(cond_list)
-            dbg_print("@@"*50)
-            if len(cond_list) >  0:
-               test.status.set(STATES.SKIPPED,cond_list[0]) 
+            #dbg_print(str(len(cond_list)))
+            dbg_print("@"*50)
+            dbg_print(str(test.status.history()))
+            if len(cond_list) > 0:
+               test.status.set(STATES.SKIPPED,cond_list[0])
+               dbg_print("This was SKIPPED")
+            else:
+               dbg_print("hello!!?!?!?!")
+               test.status.set(STATES.UNKNOWN,"Hurray")
         for test in all_tests:
 
             # Make sure the result parsers have reasonable arguments.
@@ -167,7 +172,10 @@ class RunCommand(commands.Command):
                            .format(test.id), file=self.errfile)
                     failed_build = test
                     break
-
+            #cond_list = []
+            #cond_list = setup.cond_check(test.config,pav_cfg.pav_vars,sys_vars)
+            #if len(cond_test) > 0:
+                
         if failed_build is not None:
             for test in all_tests:
                 if test is not failed_build:
