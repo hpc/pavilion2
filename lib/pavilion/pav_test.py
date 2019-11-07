@@ -212,9 +212,6 @@ class PavTest:
                     else:
                         self._run_timeout = test_timeout
 
-        if len(config['only_if']) > 0:
-            self.status.set(STATES.SKIPPED, "Skipped because only_if no match")
-
     @classmethod
     def load(cls, pav_cfg, test_id):
         """Load an old PavTest object given a test id.
@@ -303,7 +300,7 @@ class PavTest:
                 return path
 
         return None
-    
+
     @staticmethod
     def _isurl(url):
         """Determine if the given path is a url."""
