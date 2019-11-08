@@ -25,6 +25,7 @@ from pavilion import result_parsers
 from pavilion import scriptcomposer
 from pavilion import utils
 from pavilion import wget
+from pavilion import schedulers
 from pavilion.status_file import StatusFile, STATES
 from pavilion.test_config import variables
 from pavilion.utils import fprint
@@ -808,9 +809,12 @@ class PavTest:
                 self.status.set(STATES.RUN_ERROR, err)
                 return STATES.RUN_ERROR
 
+        test_sched =  schedulers.get_scheduler_plugin(self.scheduler)
+
         with self.run_log.open('wb') as run_log:
             self.status.set(STATES.RUNNING,
-                            "Starting the run script.")
+                            "Starting the run script. {}".format(
+                                test_sched.get_overall_status(self)))
 
             local_tz = tzlocal.get_localzone()
 

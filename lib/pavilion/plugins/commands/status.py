@@ -26,13 +26,8 @@ def status_from_test_obj(pav_cfg, test_obj):
     for test in test_obj:
         status_f = test.status.current()
 
-        try:
-            sched = schedulers.get_scheduler_plugin(test.scheduler)
-            scheduler_status = sched.get_overall_status(test)
-        except schedulers.SchedulerPluginError:
-            scheduler_status = ""
-
         if status_f.state == STATES.SCHEDULED:
+            sched = schedulers.get_scheduler_plugin(test.scheduler)
             status_f = sched.job_status(pav_cfg, test)
 
         test_statuses.append({
@@ -41,7 +36,6 @@ def status_from_test_obj(pav_cfg, test_obj):
             'state': status_f.state,
             'time': status_f.when.strftime("%d %b %Y %H:%M:%S %Z"),
             'note': status_f.note,
-            'scheduler info': scheduler_status
         })
 
     test_statuses.sort(key=lambda x: x['test_id'])
@@ -159,7 +153,7 @@ def print_status(statuses, outfile, json=False):
         json_data = {'statuses': statuses}
         utils.json_dump(json_data, outfile)
     else:
-        fields = ['test_id', 'name', 'state', 'time', 'note', 'scheduler info']
+        fields = ['test_id', 'name', 'state', 'time', 'note']
         utils.draw_table(
             outfile=outfile,
             field_info={},
