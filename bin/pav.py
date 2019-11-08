@@ -14,6 +14,8 @@ import socket
 import sys
 import traceback
 
+import cProfile
+
 
 def main():
     # Pavilion is compatible with python >= 3.4
@@ -151,4 +153,7 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    # main()
+    print("start")
+    cProfile.run('main()')
+    print("end")
