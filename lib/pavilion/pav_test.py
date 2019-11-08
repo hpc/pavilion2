@@ -812,7 +812,7 @@ class PavTest:
         with self.run_log.open('wb') as run_log:
             try:
                 test_sched = schedulers.get_scheduler_plugin(self.scheduler)
-                self.status.set(STATES.RUNNING,"Starting the run script. {}"
+                self.status.set(STATES.RUNNING, "Starting the run script. {}"
                                 .format(test_sched.get_overall_status(self)))
             except schedulers.SchedulerPluginError:
                 self.status.set(STATES.RUNNING,
