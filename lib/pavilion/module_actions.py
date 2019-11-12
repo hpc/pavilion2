@@ -1,3 +1,4 @@
+import os
 
 class ModuleAction:
 
@@ -43,7 +44,9 @@ class ModuleUnload(ModuleAction):
         return ['module unload {s.module}'.format(s=self)]
 
     def verify(self):
-        return ['verify_module_removed $TEST_ID {s.name} {s.version}'
+        # return ['verify_module_removed $TEST_ID {s.name} {s.version}'
+        #         .format(s=self)]
+        return ['verify_module_removed {s.name} {s.version}'
                 .format(s=self)]
 
 

@@ -298,9 +298,12 @@ function module_loaded() {
 function verify_module_loaded() {
     echo "Verifying module loaded."
 
-    local test_id=$1
-    local module_name=$2
-    local module_version=$3
+#    local test_id=$1
+#    local module_name=$2
+#    local module_version=$3
+
+    local module_name=$1
+    local module_version=$2
 
     local module_loaded_result
 
@@ -313,20 +316,20 @@ function verify_module_loaded() {
         1)
             msg="Module ${module_name}, version ${module_version} was not "
             msg="${msg}loaded. See the test log."
-            ${PAV_PATH} set_status -s ENV_FAILED -n "${msg}" ${test_id}
+#            ${PAV_PATH} set_status -s ENV_FAILED -n "${msg}" ${test_id}
             echo "$msg"
             exit 1
             ;;
         2)
             msg="Expected module ${module_name}, ${module_version}, but "
             msg="${msg}${module_version} was loaded instead."
-            ${PAV_PATH} set_status -s ENV_FAILED -n "${msg}" ${test_id}
+#            ${PAV_PATH} set_status -s ENV_FAILED -n "${msg}" ${test_id}
             echo "$msg"
             exit 1
             ;;
         3)
             msg="Error checking loaded modules."
-            ${PAV_PATH} set_status -s ENV_FAILED -n "${msg}" ${test_id}
+#            ${PAV_PATH} set_status -s ENV_FAILED -n "${msg}" ${test_id}
             echo "$msg"
             exit 1
             ;;
