@@ -17,7 +17,6 @@ from pavilion.test_config.string_parser import ResolveError
 from pavilion.test_config import setup
 from pavilion.utils import fprint
 from pavilion import result_parsers
-from pavilion.utils import dbg_print # added by calvin for testing
 
 class RunCommand(commands.Command):
 
@@ -82,7 +81,6 @@ class RunCommand(commands.Command):
         :param out_file: The file object to output to (stdout)
         :param err_file: The file object to output errors to (stderr)
         """
-
         # 1. Resolve the test configs
         #   - Get sched vars from scheduler.
         #   - Compile variables.
@@ -132,19 +130,11 @@ class RunCommand(commands.Command):
         rp_errors = []
 
         for test in all_tests:
-            cond_list = []
             cond_list = setup.cond_check(test.config,pav_cfg.pav_vars,sys_vars)
             if len(cond_list) > 0:
                test.status.set(STATES.SKIPPED,cond_list[0])
-               #all_tests.remove(test)
-               return 0 #this halt the execution of other tests, delete.
-               break
-            else:
-               pass
 
         for test in all_tests:
-
-            # Make sure the result parsers have reasonable arguments.
             try:
                 result_parsers.check_args(test.config['results'])
             except PavTestError as err:
@@ -160,6 +150,9 @@ class RunCommand(commands.Command):
         failed_build = None
         # Building any tests that specify that they should be built before
         for test in all_tests:
+            if test.status.current().state == 'SKIPPED':
+                continue
+
             if test.config['build']['on_nodes'] not in ['true', 'True']:
                 if not test.build():
                     fprint("Error building test: ", file=self.errfile,
@@ -181,6 +174,10 @@ class RunCommand(commands.Command):
             return errno.EINVAL
 
         for sched_name, tests in tests_by_sched.items():
+            for test in tests:
+                if test.status.current().state == 'SKIPPED':
+                    tests.remove(test)
+
             sched = schedulers.get_scheduler_plugin(sched_name)
 
             try:
@@ -226,7 +223,6 @@ class RunCommand(commands.Command):
                        series.id),
                file=self.outfile,
                color=utils.GREEN)
-        dbg_print(args.status)
         if args.status:
             tests = list(series.tests.keys())
             tests, _ = test_obj_from_id(pav_cfg, tests)
@@ -306,14 +302,6 @@ class RunCommand(commands.Command):
                       .format(test_cfg['name'], test_cfg['suite_path'], err)
                 self.logger.error(msg)
                 raise commands.CommandError(msg)
-
-            #cond_list = setup.cond_check(test_cfg,pav_cfg.pav_vars,sys_vars)
-            #dbg_print(cond_list[0])
-            #if len(cond_list) >= 0:
-              # test.status.set(STATES.SKIPPED,cond_list[0]) 
-
-            #except test_config.TestConfigError as err
-            #    dbg_print(err)
 
         # Get the schedulers for the tests, and the scheduler variables.
         # The scheduler variables are based on all of the

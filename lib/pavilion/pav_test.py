@@ -28,10 +28,6 @@ from pavilion import wget
 from pavilion.status_file import StatusFile, STATES
 from pavilion.test_config import variables
 from pavilion.utils import fprint
-from pavilion.utils import dbg_print #added for calvins testing
-from pavilion.test_config import variables #added for calvins testing
-from pavilion.test_config import DeferredVariable #added for calvins testing
-
 
 def get_latest_tests(pav_cfg, limit):
     """
@@ -52,9 +48,6 @@ def get_latest_tests(pav_cfg, limit):
     tests_only = [int(i[1]) for i in last_tests]
 
     return tests_only
-
-    if choice=="only_if":
-        success = len(condition)
 
 class PavTestError(RuntimeError):
     """For general test errors. Whatever was being attempted has failed in a
@@ -908,7 +901,7 @@ class PavTest:
             if timeout is not None and time.time() > timeout:
                 raise TimeoutError("Timed out waiting for test '{}' to "
                                    "complete".format(self.id))
-    
+
     def gather_results(self, run_result):
         """Process and log the results of the test, including the default set
         of result keys.

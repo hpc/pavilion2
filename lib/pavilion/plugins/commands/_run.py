@@ -9,7 +9,6 @@ from pavilion import utils
 from pavilion.pav_test import PavTest, PavTestError
 from pavilion.status_file import STATES
 
-
 class _RunCommand(commands.Command):
 
     def __init__(self):

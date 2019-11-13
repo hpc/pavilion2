@@ -9,8 +9,6 @@ from . import string_parser
 from . import variables
 from .file_format import TestConfigError, KEY_NAME_RE
 from .file_format import TestConfigLoader, TestSuiteLoader
-from pavilion.status_file import STATES # added by calvin for cond
-from pavilion.utils import dbg_print
 # Config file types
 CONF_HOST = 'hosts'
 CONF_MODE = 'modes'
@@ -538,10 +536,6 @@ def resolve_permutations(raw_test_cfg, pav_vars, sys_vars):
     for var_man in var_men:
         var_man.resolve_references(string_parser.parse)
 
-    # If only_if or not_if exist we want to check the conditions.
-    #if len(raw_test_cfg['only_if']) != 0 or len(raw_test_cfg['not_if']) != 0:
-    #    cond_check(raw_test_cfg,base_var_man)
-
     return test_cfg, var_men
 
 def cond_check(raw_test_cfg, pav_vars, sys_vars):
@@ -568,10 +562,10 @@ def cond_check(raw_test_cfg, pav_vars, sys_vars):
     cond_err_list = [] # List is populated with not_if and only_if methods.
     cond_err_list = get_match_not_if(config['not_if'],base_var_man,cond_err_list)
     cond_err_list = get_match_only_if(config['only_if'],base_var_man,cond_err_list)
-    #If cond_err_list length is 0 we had no conditional conflicts.
+    # If cond_err_list length is 0 we had no conditional conflicts.
     for i in range(0,len(cond_err_list)):
         LOGGER.warning(cond_err_list[i])
-        #dbg_print(cond_err_list[i])
+
     return cond_err_list
 
 def get_match_not_if(not_if_dict,variable_base,cond_err_list):
@@ -581,9 +575,10 @@ def get_match_not_if(not_if_dict,variable_base,cond_err_list):
         for value in not_if_dict[key]:
            # If a key has a match log it.
            if real_key == value:
-               cond_err_list.append("Test SKIPPED, Condition invalid. "
+               cond_err_list.append("Condition invalid. "
                    "Not if "+key+" is "+value+". The current "
                    +key+ " is "+real_key+".")
+
     return cond_err_list # Return the list of conditional errors, can be None.
 
 def get_match_only_if(only_if_dict,variable_base,cond_err_list):
@@ -593,12 +588,13 @@ def get_match_only_if(only_if_dict,variable_base,cond_err_list):
         real_key = variable_base[variable_base.resolve_key(key)]
         for value in only_if_dict[key]:
             if real_key == value:
-                match = True # One match is a success in the value.
+                match = True # One match is a success so break.
                 break
         if match is False: # There was no match in value list, log it.
-            cond_err_list.append("Test SKIPPED, Condition inavlid. "
+            cond_err_list.append("Condition inavlid. "
                 "Only if "+key+" is one of: "+str(only_if_dict[key]) + "."
                 " The current "+key+" is "+real_key+".")
+
     return cond_err_list # Return the lsit of conditional errors, can be None.
 
 def _resolve_references(var_man):
