@@ -2,6 +2,7 @@ from pavilion import plugins
 from pavilion import commands
 from pavilion.unittest import PavTestCase
 from pavilion import arguments
+from pavilion.test_config.file_format import TestConfigError
 import io
 import json
 
@@ -121,3 +122,31 @@ class RunCmdTests(PavTestCase):
         status = json.loads(status)
 
         self.assertNotEqual(len(status), 0)
+
+    def test_build_src_location(self):
+        """src_download_name and src_location"""
+
+        arg_parser = arguments.get_parser()
+
+        args = arg_parser.parse_args([
+            'run',
+            'build_config.fine'
+        ])
+
+        run_cmd = commands.get_command(args.command_name)
+        run_cmd.outfile = io.StringIO()
+
+        self.dbg_print(run_cmd.run(self.pav_cfg, args))
+
+        with self.assertRaises(TestConfigError):
+            arg_parser = arguments.get_parser()
+
+            args = arg_parser.parse_args([
+                'run',
+                'build_config.not_fine'
+            ])
+
+            run_cmd = commands.get_command(args.command_name)
+            run_cmd.outfile = io.StringIO()
+
+            run_cmd.run(self.pav_cfg, args)
