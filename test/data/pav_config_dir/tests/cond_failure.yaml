@@ -1,0 +1,122 @@
+one:
+    only_if:
+        user: ['Bob','Eggman','notcalvindseamons']
+
+    scheduler: raw
+    raw:
+        concurrent: False
+    build:
+        cmds:
+            - 'echo "building test"'
+    run:
+        cmds:
+            - 'echo "test completed"'
+two:
+    not_if:
+        user: ['Bob','Eggman','calvindseamons']
+
+    scheduler: raw
+    raw:
+        concurrent: False
+    build:
+        cmds:
+            - 'echo "building test"'
+    run:
+        cmds:
+            - 'echo "test completed"'
+three:
+    only_if:
+        user: ['Bob','Eggman','calvindseamons']
+
+    not_if:
+        sys_name: ['Trinity', 'fg-fey1']
+
+    scheduler: raw
+    raw:
+        concurrent: False
+    build:
+        cmds:
+            - 'echo "building test"'
+    run:
+        cmds:
+            - 'echo "test completed"'
+four:
+    only_if:
+        user: ['Bob','Eggman','calvindseamons']
+        sys_name: ['Trinity', 'not_fog']
+
+    scheduler: raw
+    raw:
+        concurrent: False
+    build:
+        cmds:
+            - 'echo "building test"'
+    run:
+        cmds:
+            - 'echo "test completed"'
+five:
+    only_if:
+        user: ['Bob','Eggman','calvindseamons']
+        sys_name: ['Trinity', 'fg-fey1']
+
+    not_if:
+        sys_arch: ['x86_64']
+
+    scheduler: raw
+    raw:
+        concurrent: False
+    build:
+        cmds:
+            - 'echo "building test"'
+    run:
+        cmds:
+            - 'echo "test completed"'
+six:
+    only_if:
+        user: ['Bob','Eggman','notcalvindseamons']
+        sys_name: ['not_fog']
+
+    not_if:
+        sys_arch: ['aarch64']
+
+    scheduler: raw
+    raw:
+        concurrent: False
+    build:
+        cmds:
+            - 'echo "building test"'
+    run:
+        cmds:
+            - 'echo "test completed"'
+seven:
+    not_if:
+        user: ['Bob','Eggman','notcalvindseamons']
+        sys_arch: ['x86_64']
+
+    scheduler: raw
+    raw:
+        concurrent: False
+    build:
+        cmds:
+            - 'echo "building test"'
+    run:
+        cmds:
+            - 'echo "test completed"'
+eight:
+    only_if:
+        user: ['Bob','Eggman','calvindseamons']
+        sys_name: ['Trinity','not_fog','fg-fey1']
+
+    not_if:
+        sys_name: ['Trinty']
+        sys_arch: ['aarch64','x86_64']
+
+    scheduler: raw
+    raw:
+        concurrent: False
+    build:
+        cmds:
+            - 'echo "building test"'
+    run:
+        cmds:
+            - 'echo "test completed"'

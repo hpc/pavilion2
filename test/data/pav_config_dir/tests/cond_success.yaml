@@ -1,0 +1,71 @@
+one:
+    only_if:
+        user: ['Bob','Eggman','calvindseamons']
+
+    scheduler: raw
+    raw:
+        concurrent: False
+    build:
+        cmds:
+            - 'echo "building test"'
+    run:
+        cmds:
+            - 'echo "test completed"'
+two:
+    only_if:
+        user: ['Bob','Eggman','notcalvindseamons']
+        sys_name: ['Trinity','macbook','fg-fey1']
+
+    scheduler: raw
+    raw:
+        concurrent: False
+    build:
+        cmds:
+            - 'echo "building test"'
+    run:
+        cmds:
+            - 'echo "test completed"'
+three:
+    only_if:
+        user: ['Bob','Eggman','calvindseamons']
+
+    not_if:
+        sys_arch: ['haswell','arrch64']
+
+    scheduler: raw
+    raw:
+        concurrent: False
+    build:
+        cmds:
+            - 'echo "building test"'
+    run:
+        cmds:
+            - 'echo "test completed"'
+four:
+    only_if:
+        user: ['Bob','Eggman','notcalvindseamons']
+        sys_name: ['Trinity','macbook','fg-fey1']
+
+    not_if:
+        sys_arch: ['haswell','aarch64']
+    scheduler: raw
+    raw:
+        concurrent: False
+    build:
+        cmds:
+            - 'echo "building test"'
+    run:
+        cmds:
+            - 'echo "test completed"'
+five:
+    not_if:
+        sys_arch: ['haswell','aarch64']
+    scheduler: raw
+    raw:
+        concurrent: False
+    build:
+        cmds:
+            - 'echo "building test"'
+    run:
+        cmds:
+            - 'echo "test completed"'

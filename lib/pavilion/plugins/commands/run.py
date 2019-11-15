@@ -24,7 +24,7 @@ class RunCommand(commands.Command):
 
         super().__init__('run', 'Setup and run a set of tests.',
                          short_help="Setup and run a set of tests.")
-
+        self.test_list=[]
     def _setup_arguments(self, parser):
 
         parser.add_argument(
@@ -133,6 +133,7 @@ class RunCommand(commands.Command):
             cond_list = setup.cond_check(test.config,pav_cfg.pav_vars,sys_vars)
             if len(cond_list) > 0:
                test.status.set(STATES.SKIPPED,cond_list[0])
+            self.test_list.append(test)
 
         for test in all_tests:
             try:
@@ -199,6 +200,9 @@ class RunCommand(commands.Command):
             while time.time() < end_time and wait_result is None:
                 last_time = time.time()
                 for sched_name, tests in tests_by_sched.items():
+                    for test in tests:
+                        if test.status.current().state == 'SKIPPED':
+                            tests.remove(test)
                     sched = schedulers.get_scheduler_plugin(sched_name)
                     for test in tests:
                         status = test.status.current()
