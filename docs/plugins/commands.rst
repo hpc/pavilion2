@@ -171,7 +171,7 @@ you return an appropriate error code from the ``errno`` library.
         def run(self, pav_cfg, args):
             """Print the number test runs in the working_dir."""
 
-            runs_dir = pav_cfg.working_dir/'tests'
+            runs_dir = pav_cfg.working_dir/'test_runs'
             try:
                 runs = list(runs_dir.iterdir())
             except PermissionError as err:

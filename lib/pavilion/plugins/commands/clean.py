@@ -56,7 +56,7 @@ class CleanCommand(commands.Command):
         else:
             cutoff_date = datetime.today()
 
-        tests_dir = pav_cfg.working_dir/'tests'
+        tests_dir = pav_cfg.working_dir/'test_runs'
         series_dir = pav_cfg.working_dir/'series'
         download_dir = pav_cfg.working_dir/'downloads'
         build_dir = pav_cfg.working_dir/'builds'

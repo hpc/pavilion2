@@ -104,7 +104,7 @@ Creating the Test Run
 ~~~~~~~~~~~~~~~~~~~~~
 
 Each test run created in Pavilion is given a unique **ID**. This **ID**
-corresponds to a directory in ``<working_dir>/tests``, which contains
+corresponds to a directory in ``<working_dir>/test_runs``, which contains
 everything there is to know about a test.
 
 .. figure:: ../imgs/test_run_dir.png
@@ -201,7 +201,7 @@ the super-secret ``pav _run <run id>`` command.
     #SBATCH --tasks-per-node=2
 
     # Redirect all output to kickoff.log
-    exec >/usr/projects/hpctest/pav2/working_dir/tests/0000003/kickoff.log 2>&1
+    exec >/usr/projects/hpctest/pav2/working_dir/test_runs/0000003/kickoff.log 2>&1
     export PATH=/home/bob/pavilion/src/bin:${PATH}
     export PAV_CONFIG_FILE=/home/bob/.pavilion/pavilion.yaml
     pav _run 3

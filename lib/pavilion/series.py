@@ -100,6 +100,11 @@ differentiate it from test ids."""
         """Load a series object from the given id, along with all of its
 associated tests."""
 
+        try:
+            id_ = int(id_[1:])
+        except TypeError as err:
+            pass
+
         series_path = pav_cfg.working_dir/'series'
         series_path = utils.make_id_path(series_path, id_)
 

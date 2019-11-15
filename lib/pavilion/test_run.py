@@ -116,7 +116,7 @@ tests.
         self.scheduler = config['scheduler']
 
         # Create the tests directory if it doesn't already exist.
-        tests_path = pav_cfg.working_dir/'tests'
+        tests_path = pav_cfg.working_dir/'test_runs'
 
         self.config = config
 
@@ -221,7 +221,7 @@ tests.
 :param int test_id: The test's id number.
 """
 
-        path = utils.make_id_path(pav_cfg.working_dir/'tests', test_id)
+        path = utils.make_id_path(pav_cfg.working_dir/'test_runs', test_id)
 
         if not path.is_dir():
             raise TestRunError("Test directory for test id {} does not exist "

@@ -75,7 +75,7 @@ class CancelCmdTests(PavTestCase):
         test.append(series_id)
         test_list = []
         test_list.extend(series.TestSeries.from_id(self.pav_cfg,
-                                                   int(test[0][1:])).tests)
+                                                   test[0]).tests)
         for test_id in test_list:
             test = TestRun.load(self.pav_cfg, test_id)
             if test.status.current().state != STATES.COMPLETE:
@@ -191,7 +191,7 @@ class CancelCmdTests(PavTestCase):
         tests.append(series_id)
 
         tests.extend(series.TestSeries.from_id(self.pav_cfg,
-                                               int(series_id[1:])).tests)
+                                               series_id).tests)
 
         args = arg_parser.parse_args([
             'cancel',
