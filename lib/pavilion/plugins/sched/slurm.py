@@ -1,15 +1,16 @@
+import os
+import re
+import subprocess
+from pathlib import Path
+
+import yaml_config as yc
 from pavilion import scriptcomposer
 from pavilion.schedulers import SchedulerPlugin
 from pavilion.schedulers import SchedulerPluginError
 from pavilion.schedulers import SchedulerVariables
 from pavilion.schedulers import dfr_var_method
-from pavilion.var_dict import var_method
 from pavilion.status_file import STATES, StatusInfo
-import os
-import yaml_config as yc
-import re
-import subprocess
-from pathlib import Path
+from pavilion.var_dict import var_method
 
 
 class SbatchHeader(scriptcomposer.ScriptHeader):
@@ -54,6 +55,7 @@ class SbatchHeader(scriptcomposer.ScriptHeader):
 
 class SlurmVars(SchedulerVariables):
     """Scheduler variables for the Slurm scheduler."""
+    # pylint: disable=no-self-use
 
     @var_method
     def min_ppn(self):
@@ -169,7 +171,7 @@ class SlurmVars(SchedulerVariables):
 
         # The requested processors is the number per node times
         # the actual number of nodes.
-        
+
         req_procs = self.test.config['slurm'].get('tasks_per_node')
         if req_procs == 'all':
             req_procs = int(self['min_ppn'])
@@ -356,11 +358,11 @@ class Slurm(SchedulerPlugin):
         for node_section in sinfo.split('\n\n'):
 
             node_info = self._scontrol_parse(node_section)
-            for k, v in node_info.items():
-                if k in self.NODE_FIELD_TYPES:
-                    node_info[k] = self.NODE_FIELD_TYPES[k](v)
+            for key, val in node_info.items():
+                if key in self.NODE_FIELD_TYPES:
+                    node_info[key] = self.NODE_FIELD_TYPES[key](val)
                 else:
-                    node_info[k] = v
+                    node_info[key] = val
 
             if 'NodeName' in node_info:
                 node_data[node_info['NodeName']] = node_info
@@ -414,6 +416,7 @@ class Slurm(SchedulerPlugin):
 
         return data
 
+    # pylint: disable=arguments-differ
     def _filter_nodes(self, min_nodes, config, nodes):
         """Filter the system nodes down to just those we can use. For each step,
         we check to make sure we still have the minimum nodes needed in order
@@ -568,8 +571,7 @@ class Slurm(SchedulerPlugin):
             stdout, stderr = proc.communicate(timeout=timeout)
         except subprocess.TimeoutExpired:
             self.logger.warning("Error getting scontrol output with cmd "
-                                "'{}'. Process timed out."
-                                .format(cmd))
+                                "'%s'. Process timed out.", cmd)
             return []
 
         stdout = stdout.decode('utf8')
@@ -584,7 +586,7 @@ class Slurm(SchedulerPlugin):
                 results.append(self._scontrol_parse(section))
             except (KeyError, ValueError) as err:
                 self.logger.warning("Error parsing scontrol output with cmd"
-                                    "'{}': {}".format(cmd, err))
+                                    "'%s': %s", cmd, err)
 
         return results
 
@@ -657,8 +659,7 @@ class Slurm(SchedulerPlugin):
         # list though.
         job_info = job_info.pop(0)
         if job_info:
-            self.logger.info("Extra items in show job output: {}"
-                             .format(job_info))
+            self.logger.info("Extra items in show job output: %s", job_info)
 
         job_state = job_info.get('JobState', 'UNKNOWN')
         if job_state in self.SCHED_WAITING:
@@ -702,8 +703,8 @@ class Slurm(SchedulerPlugin):
             )
             return test.status.current()
 
-        self.logger.warning("Encountered unhandled job state '{}' for"
-                            "job '{}'.".format(job_state, test.job_id))
+        self.logger.warning("Encountered unhandled job state '%s' for"
+                            "job '%s'.", job_state, test.job_id)
         # The best we can say is that the test is still SCHEDULED. After all,
         # it might be! Who knows.
         return StatusInfo(

@@ -1,5 +1,5 @@
-Pavilion Variable Components
-============================
+Variable Components
+===================
 
 .. contents:: Table of Contents
 

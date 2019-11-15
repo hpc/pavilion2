@@ -195,7 +195,7 @@ in one of three formats:
 """
         old_mod = None
         if '->' in mod_line:
-            old_mod, mod = '->'.split()
+            old_mod, mod = mod_line.split('->')
             action = 'swap'
         elif mod_line.startswith('-'):
             action = 'unload'

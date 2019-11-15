@@ -278,7 +278,7 @@ The default config is: ::
 {}
 """
 
-        cfg = self.QUICK_TEST_BASE_CFG
+        cfg = copy.deepcopy(self.QUICK_TEST_BASE_CFG)
 
         loc_slurm = (self.TEST_DATA_ROOT/'pav_config_dir'/'modes' /
                      'local_slurm.yaml')

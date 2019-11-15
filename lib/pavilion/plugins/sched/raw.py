@@ -54,8 +54,7 @@ class RawVars(SchedulerVariables):
         if key in meminfo:
             value, unit = meminfo[key]
         else:
-            self.logger.warning("Unknown meminfo key '{}'"
-                                .format(key))
+            self.logger.warning("Unknown meminfo key '%s'", key)
             return 0
 
         unit = unit.lower()
@@ -63,8 +62,8 @@ class RawVars(SchedulerVariables):
         if unit in self.MEM_UNITS:
             return self.MEM_UNITS[unit] * value // 1024**2
         else:
-            self.logger.warning("Unkown meminfo unit '{}' in key '{}'"
-                                .format(unit, key))
+            self.logger.warning("Unkown meminfo unit '%s' in key '%s'",
+                                unit, key)
             return 0
 
 
@@ -91,6 +90,7 @@ class Raw(SchedulerPlugin):
             )
         ])
 
+    # pylint: disable=arguments-differ
     def _filter_nodes(self):
         """Do nothing, and like it."""
         return []
@@ -119,8 +119,7 @@ class Raw(SchedulerPlugin):
                         value = int(value)
                     except ValueError:
                         self.logger.warning(
-                            "Could not parse /var/meminfo value: {}"
-                            .format(line))
+                            "Could not parse /var/meminfo value: %s", line)
                         value = 0
                     meminfo[key] = value, unit
 
@@ -147,9 +146,11 @@ class Raw(SchedulerPlugin):
             return StatusInfo(
                 when=now,
                 state=STATES.SCHEDULED,
-                note="Can't determine the scheduler status of a 'raw' "
-                     "test started on a different host ({} vs {})."
-                     .format(host, local_host))
+                note=(
+                    "Can't determine the scheduler status of a 'raw' "
+                    "test started on a different host ({} vs {})."
+                    .format(host, local_host))
+            )
 
         cmd_fn = Path('/proc')/pid/'cmdline'
         cmdline = None

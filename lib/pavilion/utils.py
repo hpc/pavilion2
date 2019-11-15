@@ -49,12 +49,12 @@ COLORS = {
     'UNDERLINE': UNDERLINE,
 }
 """
-Pavilion provides the standard 3/4 bit colors. They can be accessed through 
+Pavilion provides the standard 3/4 bit colors. They can be accessed through
 this dictionary, or directly as attributes in the utils modules. ::
 
     utils.COLORS['RED']
     utils.RED
-    
+
 **Available Colors:**
 
 - BLACK
@@ -484,8 +484,8 @@ used when the string is formatted.
         # Reverse all of our output if our step was negative
         if reverse:
             for i in range(len(bits)):
-                substr, bc = bits[i]
-                bits[i] = ''.join(list(reversed(substr))), bc
+                substr, bcode = bits[i]
+                bits[i] = ''.join(list(reversed(substr))), bcode
         else:
             # We need to bits normally, so don't do it if
             # things should be backwards.
@@ -495,24 +495,24 @@ used when the string is formatted.
         out_str = []
         last_code = None
         bit = None
-        bc = None
+        bcode = None
         while bits:
             bit_parts = []
             if bit is None:
-                bit, bc = bits.pop()
+                bit, bcode = bits.pop()
                 bit_parts.append(bit)
-                last_code = bc
+                last_code = bcode
 
-            while bits and bc == last_code:
+            while bits and bcode == last_code:
                 bit_parts.append(bit)
-                bit, bc = bits.pop()
+                bit, bcode = bits.pop()
             if last_code is not None:
                 out_str.append(self.ANSI_FMT.format(
                     data=''.join(bit_parts),
                     code=last_code))
             else:
                 out_str.append(''.join(bit_parts))
-            last_code = bc
+            last_code = bcode
 
         return ANSIString(''.join(out_str))
 

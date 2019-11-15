@@ -328,9 +328,8 @@ class SchedulerPlugin(IPlugin.IPlugin):
             self.schedule_test(pav_cfg, test)
 
     def run_suite(self, tests):
-        """Run each of the given tests using a single allocation."""
-
-        raise NotImplementedError
+        """Run each of the given tests using a single allocation. This
+        is effectively a placeholder."""
 
     def lock_concurrency(self, pav_cfg, test):
         """Acquire the concurrency lock for this scheduler, if necessary.

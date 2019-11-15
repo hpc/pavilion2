@@ -3,9 +3,8 @@
 import grp
 import logging
 import os
-import pathlib
 import socket
-from pathlib import Path
+from pathlib import Path, PosixPath
 
 import yaml_config as yc
 
@@ -170,7 +169,7 @@ found in these directories the default config search paths:
 """
 
     if PAV_CONFIG_FILE is not None:
-        pav_cfg_file = pathlib.PosixPath(Path(PAV_CONFIG_FILE))
+        pav_cfg_file = PosixPath(Path(PAV_CONFIG_FILE))
         # pylint has a bug that pops up occasionally with pathlib.
         if pav_cfg_file.is_file():  # pylint: disable=no-member
             try:

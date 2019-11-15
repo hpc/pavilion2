@@ -1,5 +1,5 @@
-Pavilion Command Plugins
-========================
+Command Plugins
+===============
 
 .. contents:: Table of Contents
 

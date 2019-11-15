@@ -18,7 +18,7 @@ Usage: ::
 
     state = status.current()
 
-    print(state.note)
+    state.note
 """
 
 import datetime
