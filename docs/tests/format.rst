@@ -3,15 +3,8 @@ Test Format
 
 This page contains in-depth documentation on the test format.
 
-Contents
-~~~~~~~~
+.. contents::
 
--  `Tests and Suites <#tests-and-suites>`__
--  `Formatting and Structure <#test-formatting-and-structure>`__
--  `Host Configs <#host-configs>`__
--  `Mode Configs <#mode-configs>`__
--  `Order of Resolution <#order-of-resolution>`__
--  `Top Level Test Config Keys <#top-level-test-config-keys>`__
 
 Tests and Suites
 ----------------
@@ -245,7 +238,7 @@ Top Level Test Config Keys
 --------------------------
 
 inherits\_from
-^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~
 
 Sets the test (by test base name) that this test inherits from, out of
 the tests in this suite file. The resulting test will be composed of all
@@ -254,7 +247,7 @@ config. See `Inheritance <../advanced.md#inheritance>`__ in the advanced
 pavilion overview.
 
 subtitle
-^^^^^^^^
+~~~~~~~~
 
 This will be added to the test name for logging and documentation
 purposes. A test named ``foo`` with a subtitle of ``bar`` will be
@@ -264,18 +257,18 @@ logs and when printing information about tests, but subtitles aren't
 considered when selecting tests to run.
 
 summary
-^^^^^^^
+~~~~~~~
 
 The short test summary. Pavilion will include this description when it
 lists tests, but only the first 100 characters will be printed.
 
 doc
-^^^
+~~~
 
 A longer documentation string for a test.
 
 variables
-^^^^^^^^^
+~~~~~~~~~
 
 A mapping of variables that are specific to this test. Each variable
 value can be a string, a list of strings, a mapping of strings, or a
@@ -283,41 +276,41 @@ list of mappings (with the same keys) of strings. See the
 `variables <variables.md>`__ documentation for more info.
 
 permutations
-^^^^^^^^^^^^
+~~~~~~~~~~~~
 
 Like variables, but multi-valued items will generate test permutations
 for all combinations of the (used) permutation variables. See the
 `Permutations <variables.md#permutations>`__ documentation.
 
 scheduler
-^^^^^^^^^
+~~~~~~~~~
 
 Sets the scheduler for this test. Defaults to 'raw'. It's recommended to
 set this in your host configs.
 
 build
-^^^^^
+~~~~~
 
 This sub-section defines how the test source is built.
 
 See `Builds <build.md>`__ for the sub-section keys and usage.
 
 run
-^^^
+~~~
 
 This sub-section defines how the test source is run.
 
 See `Run <run.md>`__ for the sub-section keys and usage.
 
 results
-^^^^^^^
+~~~~~~~
 
 This sub-section defines how test results are parsed.
 
 See `Results <results.md>`__ for the sub-section keys and usage.
 
 <schedulers>
-^^^^^^^^^^^^
+~~~~~~~~~~~~
 
 Each loaded scheduler plugin defines a sub-section for configuring that
 scheduler, such as ``slurm`` and ``raw``.
@@ -325,3 +318,4 @@ scheduler, such as ``slurm`` and ``raw``.
 To see documentation on these, use
 ``pav show sched --config <scheduler>`` to get the config documentation
 for that scheduler.
+

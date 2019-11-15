@@ -1,3 +1,9 @@
+"""This module contains a variety of helper functions that implement
+common tasks, like command-line output and date formatting. These should
+generally be used to help make Pavilion consistent across its code and
+plugins.
+"""
+
 # This file contains assorted utility functions.
 
 from pathlib import Path
@@ -10,16 +16,72 @@ import sys
 import textwrap
 import shutil
 import itertools
-from collections import defaultdict
+from collections import defaultdict, UserString
+
+# Setup colors as part of the fprint function itself.
+BLACK = 30
+RED = 31
+GREEN = 32
+YELLOW = 33
+BLUE = 34
+MAGENTA = 35
+CYAN = 36
+WHITE = 37
+GREY = 37
+GRAY = 37
+BOLD = 1
+FAINT = 2
+UNDERLINE = 4
+
+COLORS = {
+    'BLACK': BLACK,
+    'RED': RED,
+    'GREEN': GREEN,
+    'YELLOW': YELLOW,
+    'BLUE': BLUE,
+    'MAGENTA': MAGENTA,
+    'CYAN': CYAN,
+    'WHITE': WHITE,
+    'GREY': WHITE,
+    'GRAY': WHITE,
+    'BOLD': BOLD,
+    'FAINT': FAINT,
+    'UNDERLINE': UNDERLINE,
+}
+"""
+Pavilion provides the standard 3/4 bit colors. They can be accessed through 
+this dictionary, or directly as attributes in the utils modules. ::
+
+    utils.COLORS['RED']
+    utils.RED
+    
+**Available Colors:**
+
+- BLACK
+- RED
+- GREEN
+- YELLOW
+- BLUE
+- MAGENTA
+- CYAN
+- WHITE
+- GREY
+- GRAY
+- BOLD
+- FAINT
+- UNDERLINE
+"""
+
 
 def flat_walk(path, *args, **kwargs):
     """Perform an os.walk on path, but return a flattened list of every file
     and directory found.
-    :param Path path: The path to walk with os.walk.
-    :param args: Any additional positional args for os.walk.
-    :param kwargs: Any additional kwargs for os.walk.
-    :returns: A list of all directories and files in or under the given path.
-    :rtype list[Path]:
+
+:param Path path: The path to walk with os.walk.
+:param args: Any additional positional args for os.walk.
+:param kwargs: Any additional kwargs for os.walk.
+:returns: A list of all directories and files in or under the given path.
+:rtype list[Path]:
     """
 
     paths = []
@@ -27,10 +89,10 @@ def flat_walk(path, *args, **kwargs):
     for directory, dirnames, filenames in os.walk(str(path), *args, **kwargs):
         directory = Path(directory)
         for dirname in dirnames:
-            paths.append(directory/dirname)
+            paths.append(directory / dirname)
 
         for filename in filenames:
-            paths.append(directory/filename)
+            paths.append(directory / filename)
 
     return paths
 
@@ -38,8 +100,9 @@ def flat_walk(path, *args, **kwargs):
 def get_mime_type(path):
     """Use a filemagic command to get the mime type of a file. Returned as a
     tuple of category and subtype.
-    :param Path path: The path to the file to examine.
-    :returns: category, subtype"""
+
+:param Path path: The path to the file to examine.
+:returns: category, subtype"""
 
     ftype = subprocess.check_output(['file',
                                      # Don't print the filename
@@ -80,7 +143,7 @@ def make_id_path(base_path, id_):
     :rtype: Path
     """
 
-    return base_path/(ID_FMT.format(id=id_, digits=ID_DIGITS))
+    return base_path / (ID_FMT.format(id=id_, digits=ID_DIGITS))
 
 
 def get_login():
@@ -104,14 +167,15 @@ def get_login():
             "Could not get the name of the current user.")
 
 
-def dbg_print(*args, color=33, file=sys.stderr, end="", **kwargs):
+def dbg_print(*args, color=YELLOW, file=sys.stderr, end="", **kwargs):
     """A colored print statement for debug printing. Use when you want to
-    print junk and easily excise it later.
-    :param file: The file object to write to.
-    :param end: Default the ending to no newline (we do a pre-newline because
-        of how unittest prints stuff.
-    :param int color: ANSI color code to print the string under.
-    """
+print dbg statements and easily excise it later.
+
+:param file: The file object to write to.
+:param end: Default the ending to no newline (we do a pre-newline because
+    of how unittest prints stuff.
+:param int color: ANSI color code to print the string under.
+"""
     start_escape = '\n\x1b[{}m'.format(color)
 
     print(start_escape, end='', file=file)
@@ -123,14 +187,15 @@ def dbg_print(*args, color=33, file=sys.stderr, end="", **kwargs):
 def fprint(*args, color=None, bullet='', width=100,
            sep=' ', file=sys.stdout):
     """Print with automatic wrapping, bullets, and other features.
-    :param args: Standard print function args
-    :param int color: ANSI color code to print with.
-    :param str bullet: Print the first line with this bullet,
-        and the rest with that much space prepended.
-    :param str sep: The standard print sep argument.
-    :param file: Stream to print.
-    :param int width: Wrap the text to this width.
-    """
+
+:param args: Standard print function args
+:param int color: ANSI color code to print with.
+:param str bullet: Print the first line with this bullet,
+    and the rest with that much space prepended.
+:param str sep: The standard print sep argument.
+:param file: Stream to print.
+:param int width: Wrap the text to this width.
+"""
 
     args = [str(a) for a in args]
     if color is not None:
@@ -150,20 +215,9 @@ def fprint(*args, color=None, bullet='', width=100,
         print('\x1b[0m', end='', file=file)
 
 
-# Setup colors as part of the fprint function itself.
-BLACK = 30
-RED = 31
-GREEN = 32
-YELLOW = 33
-BLUE = 34
-MAGENTA = 35
-CYAN = 36
-WHITE = 37
-GREY = 37
-GRAY = 37
-
-
 class PavEncoder(json.JSONEncoder):
+    """Adds Path encoding to our JSON encoder."""
+
     def default(self, o):  # pylint: disable=E0202
         if isinstance(o, Path):
             return super().default(str(o))
@@ -175,7 +229,8 @@ def json_dumps(obj, skipkeys=False, ensure_ascii=True,
                check_circular=True, allow_nan=True, indent=None,
                separators=None, default=None, sort_keys=False, **kw):
     """Dump data to string as per the json dumps function, but using
-    our custom encoder."""
+our custom encoder."""
+
     return json.dumps(obj, cls=PavEncoder,
                       skipkeys=skipkeys,
                       ensure_ascii=ensure_ascii,
@@ -192,7 +247,8 @@ def json_dump(obj, file, skipkeys=False, ensure_ascii=True,
               check_circular=True, allow_nan=True, indent=None,
               separators=None, default=None, sort_keys=False, **kw):
     """Dump data to string as per the json dumps function, but using
-    our custom encoder."""
+our custom encoder."""
+
     return json.dump(obj, file, cls=PavEncoder,
                      skipkeys=skipkeys,
                      ensure_ascii=ensure_ascii,
@@ -207,13 +263,14 @@ def json_dump(obj, file, skipkeys=False, ensure_ascii=True,
 
 def output_csv(outfile, field_info, fields, rows):
     """Write the given rows out as a CSV
-    :param outfile: The file object to write to.
-    :param field_info: A dict of information on each field. See 'draw_table'
-        below. Only the title field is used.
-    :param fields: A list of fields to write, and in what order.
-    :param rows: A list of dictionaries to write, in the given order.
-    :return: None
-    """
+
+:param outfile: The file object to write to.
+:param field_info: A dict of information on each field. See 'draw_table'
+    below. Only the title field is used.
+:param fields: A list of fields to write, and in what order.
+:param rows: A list of dictionaries to write, in the given order.
+:return: None
+"""
 
     # Generate a header row, using the title from field_info for each row if
     # given.
@@ -232,90 +289,280 @@ def output_csv(outfile, field_info, fields, rows):
         pass
 
 
-class ANSIStr:
-    MODES = {
-        'native':       '',
-        'black':        30,
-        'red':          31,
-        'green':        32,
-        'yellow':       33,
-        'blue':         34,
-        'magenta':      35,
-        'cyan':         36,
-        'white':        37,
-        'bold':         1,
-        'underscore':   4,
-        'concealed':    8,
-        'bg_black':     40,
-        'bg_red':       41,
-        'bg_green':     42,
-        'bg_yellow':    43,
-        'bg_blue':      44,
-        'bg_magenta':   45,
-        'bg_cyan':      46,
-        'bg_white':     47,
+class ANSIString(UserString):
+    """Create a string with an implicit ANSI display mode. The ansi code will be
+used when the string is formatted.
+
+    hello = ANSIStr("Hello World", utils.RED)
+    print(hello)
+"""
+
+    CODE_RE = re.compile(r'^[0-9;]+$')
+    ANSI_RE = re.compile(r'\x1b\[([0-9;]*)m')
+    ANSI_FMT = '\x1b[{code}m{data}\x1b[0m'
+
+    def __init__(self, data, code=None):
+
+        if code is not None:
+            code = str(code)
+            if not self.CODE_RE.match(code):
+                raise ValueError("Invalid ANSI code: '{}'".format(code))
+
+        parts = self._parse(data)
+        formatted = []
+        pcode = None
+
+        for part, pcode in parts:
+            if pcode is None:
+                pcode = code
+
+            if pcode is None:
+                formatted.append(part)
+            elif part:
+                formatted.append(self.ANSI_FMT.format(code=pcode, data=part))
+
+        self.data = ''
+
+        super().__init__(''.join([str(s) for s in formatted]))
+        self.carryover_code = pcode
+
+
+    def _parse(self, data):
+
+        matches = list(self.ANSI_RE.finditer(str(data)))
+
+        start = 0
+        parts = []
+        code = None
+
+        for match in matches:
+            parts.append((data[start:match.start()], code))
+
+            start = match.end()
+            code = match.groups()[0]
+            code_parts = code.split(';')
+            # If a code ends in 0 or nothing, that's a reset.
+            if code_parts[-1] in ('0', ''):
+                code = None
+
+        parts.append((data[start:], code))
+
+        return parts
+
+    def __len__(self):
+        """Return the length without escapes."""
+        return len(self.clean())
+
+    def clean(self):
+        """Remove all ANSI escapes from the string data."""
+
+        return self.ANSI_RE.sub('', self.data)
+
+    _WHITESPACE = ' \t\n\r\x0b\x0c'
+    WORD_PUNCT = r'[\w!"\'&.,?]'
+    WHITESPACE = r'[%s]' % re.escape(_WHITESPACE)
+    NOWHITESPACE = '[^' + WHITESPACE[1:]
+    WORDSEP_RE = re.compile(r'''
+        ( # any whitespace
+          {ws}+ |
+          -
+        )'''.format(ws=WHITESPACE), re.VERBOSE)
+    del WORD_PUNCT, NOWHITESPACE
+
+    def _chunks(self):
+        """Break the text into chunks. Only non-empty chunks are returned."""
+
+        chunks = []
+        carryover = None
+        for chunk in self.WORDSEP_RE.split(self.data):
+            if not chunk:
+                continue
+
+            if not chunk.strip():
+                chunk = ' '
+            chunk = ANSIString(chunk, code=carryover)
+            carryover = chunk.carryover_code
+            chunks.append(chunk)
+
+        return chunks
+
+    def wrap(self, width):
+        """Wrap this string to the given width, much like the textwrap module
+        does.
+
+- Colorization wraps too.
+- All whitespace is transformed into a single space.
+- Words are broken on single hyphens or whitespace only.
+- Long words are wrapped.
+
+:param int width: The width to wrap to.
+:returns: A list of wrapped ANSIStrings
+"""
+
+        if width <= 0:
+            raise ValueError(
+                "Width parameter must be a positive int. Got {}"
+                .format(width))
+
+        chunks = self._chunks()
+        chunks.reverse()
+
+        lines = []
+
+        line = []
+        line_len = 0
+        while chunks:
+            chunk = chunks.pop()
+
+            # Skip whitespace that would start a line
+            if chunk.clean() == ' ' and line_len == 0:
+                continue
+
+            c_len = len(ANSIString(chunk))
+
+            # If the line is empty, put the next (non-whitespace) thing there.
+            if line_len == 0:
+                line.append(chunk[:width])
+                # Our chunk may exceed the width. Save the rest for next time.
+                remainder = ANSIString(chunk[width:], chunk.carryover_code)
+                if remainder:
+                    chunks.append(remainder)
+
+                line_len += len(chunk[:width])
+
+            # Add the next chunk if it's small enough.
+            elif c_len + line_len <= width:
+                line.append(chunk)
+                line_len += c_len
+
+            # No more space for the next line -- wrap.
+            else:
+                # We'll use this chunk next time.
+                chunks.append(chunk)
+                line = [str(l) for l in line]
+                lines.append(ANSIString(''.join(line)))
+                line = []
+                line_len = 0
+
+        return lines
+
+    def __getitem__(self, item):
+        parts = self._parse(self.data)
+        parts.reverse()
+        length = len(self)
+
+
+        if isinstance(item, slice):
+            start = item.start if item.start is not None else 0
+            stop = item.stop if item.stop is not None else length
+            step = item.step if item.step is not None else 1
+        else:
+            start = item
+            stop = item + 1
+            step = 1
+
+        reverse = False
+        if start < 0:
+            start = length + start
+        if stop < 0:
+            stop = length + stop
+        if step < 0:
+            reverse = True
+            start, stop = stop, start
+            step = -step
+
+        pos = 0
+        # Tuples of (str_part, color)
+        bits = []
+        while pos < stop and parts:
+            substr, color = parts.pop()
+            if start > pos + len(substr):
+                continue
+            bits.append((substr[start-pos:stop-pos:step], color))
+            pos += len(substr)
+
+        # Reverse all of our output if our step was negative
+        if reverse:
+            for i in range(len(bits)):
+                substr, bc = bits[i]
+                bits[i] = ''.join(list(reversed(substr))), bc
+        else:
+            # We need to bits normally, so don't do it if
+            # things should be backwards.
+            bits.reverse()
+
+        # Combine bits that are the same color.
+        out_str = []
+        last_code = None
+        bit = None
+        bc = None
+        while bits:
+            bit_parts = []
+            if bit is None:
+                bit, bc = bits.pop()
+                bit_parts.append(bit)
+                last_code = bc
+
+            while bits and bc == last_code:
+                bit_parts.append(bit)
+                bit, bc = bits.pop()
+            if last_code is not None:
+                out_str.append(self.ANSI_FMT.format(
+                    data=''.join(bit_parts),
+                    code=last_code))
+            else:
+                out_str.append(''.join(bit_parts))
+            last_code = bc
+
+        return ANSIString(''.join(out_str))
+
+    FORMAT_RE = re.compile(
+        r'''
+        (?:(?P<fill>.)?(?P<align>[<>^]))?  # The fill and alignment
+        (?P<min_width>\d+)?                # Minimum field width
+        (?P<type>s)?$                     # Field type conversion
+        ''',
+        flags=re.VERBOSE)
+
+    FORMAT_DEFAULTS = {
+        'fill': ' ',
+        'align': '<',
+        'min_width': 0,
+        'type': 's',
     }
 
-    def __init__(self, string, modes=None):
-        """Create a string with an implicit ANSI mode. When formatted, the
-        string will be prepended with the ANSI escape for the given modes.
-        It will otherwise behave like a normal string."""
-
-        if modes is None:
-            modes = []
-        elif not isinstance(modes, (list, tuple)):
-            modes = [modes]
-
-        self.modes = []
-        for mode in modes:
-            if mode not in self.MODES:
-                raise ValueError("Unknown ANSI graphics mode: {0}".format(mode))
-            self.modes.append(str(self.MODES[mode]))
-
-        self.string = string
-
     def __format__(self, format_spec):
-        if self.modes:
-            ansi_start = '\x1b[' + ';'.join(self.modes) + 'm'
-        else:
-            ansi_start = ''
-        ansi_end = '\x1b[0m'
-        formatted = format(self.string, format_spec)
 
-        return ansi_start + formatted + ansi_end
+        match = self.FORMAT_RE.match(format_spec)
 
-    def __getattr__(self, attr):
-        if attr not in self.__dict__:
-            return getattr(self.string, attr)
+        if match is None:
+            raise ValueError(
+                "Invalid format for ANSIString: '{}'"
+                .format(format_spec)
+            )
 
-ANSI_ESCAPE_RE = re.compile('\x1b\\[\\d+(;\\d+)*m')
+        fmt = match.groupdict()
+        for key in self.FORMAT_DEFAULTS.keys():
+            if fmt[key] is None:
+                fmt[key] = self.FORMAT_DEFAULTS[key]
 
-def _plen(string, return_string=False):
-    """Get the printable length of the given string."""
+        min_width = int(fmt['min_width'])
 
-    # Remove ansi escape codes (only handles graphics mode changes)
-    unescaped = ANSI_ESCAPE_RE.sub('', string)
+        length = len(self)
 
-    if return_string:
-        return unescaped
-    else:
-        return len(unescaped)
+        padding_left = ''
+        padding_right = ''
 
+        if fmt['align'] == '<':
+            padding_right = (min_width - length) * fmt['fill']
+        elif fmt['align'] == '>':
+            padding_left = (min_width - length) * fmt['fill']
+        elif fmt['align'] == '^':
+            diff = min_width - length
+            padding_left = (diff//2) * fmt['fill']
+            padding_right = (diff//2 + diff % 2) * fmt['fill']
 
-ANSI_ESCAPE_RE_COLOR = re.compile('\x1b\\[(\\d+)(;\\d+)*m')
-
-
-def _grab_color(string):
-
-    unescaped = re.search(ANSI_ESCAPE_RE_COLOR, string)
-    if unescaped is not None:
-        color_code = unescaped.group(1)
-        color_code = int(color_code)
-        for color, c_code in ANSIStr.MODES.items():
-            if c_code == color_code:
-                return color
-    else:
-        return 'native'
+        return padding_left + self.data + padding_right
 
 
 def remove_formatting(content_width, fields, border, pad):
@@ -338,9 +585,8 @@ def remove_formatting(content_width, fields, border, pad):
 
 
 def formatted_width(width, fields, border, pad):
-
     if pad:
-        offset = 2*len(fields)
+        offset = 2 * len(fields)
         offset = offset + len(fields) - 1
         width = width + offset
 
@@ -365,32 +611,131 @@ def get_total_width(column_widths, fields, border, pad):
 
 def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
                title=None):
-    """Prints a table from the given data, setting column width as needed.
-    :param outfile: The output file to write to.
-    :param field_info: Should be a dictionary of field names where the value
-        is a dict of:
-        ( title (optional) - The column header for this field. Defaults to the
-            field name, capitalized.
-          transform (optional) - a function that takes the field value,
-            transforms it in some way, and returns the result to be inserted
-            into the table.
-          format (optional) - a format string in the new style format syntax.
-            It will expect the data for that row as arg 0. IE: '{0:2.2f}%'.
-            default (optional) - A default value for the field. A blank is
-            printed by default.
-          no_wrap (optional) - a boolean that determines if a field will be
-            wrapped or not.
-          max_width (optional) - the max width for a given field.
-          min_width (optional) - the min width for a given field.
-    :param fields: A list of the fields to include, in the given order.
-    :param rows: A list of data dictionaries. A None may be included to denote
-        that a horizontal line row should be inserted.
-    :param border: Put a border around the table. Defaults False.
-    :param pad: Put a space on either side of each header and row entry.
-        Default True.
-    :param title: Add the given title above the table. Default None
-    :return: None
-    """
+    """Prints a table from the given data, dynamically setting
+the column width.
+
+:param outfile: The output file to write to.
+:param field_info: Should be a dictionary of field names where the value
+  is a dict of:
+
+  - title (optional) - The column header for this field. Defaults to the
+    field name, capitalized.
+  - transform (optional) - a function that takes the field value,
+    transforms it in some way, and returns the result to be inserted
+    into the table.
+  - format (optional) - a format string in the new style format syntax.
+    It will expect the data for that row as arg 0. IE: '{0:2.2f}%'.
+  - default (optional) - A default value for the field. A blank is
+    printed by default.
+  - no_wrap (optional) - a boolean that determines if a field will be
+    wrapped or not.
+  - max_width (optional) - the max width for a given field.
+  - min_width (optional) - the min width for a given field.
+:param fields: A list of the fields to include, in the given order. These
+    also serve as the default column titles (Capitalized).
+:param rows: A list of data dictionaries. A None may be included to denote
+    that a horizontal line row should be inserted.
+:param border: Put a border around the table. Defaults False.
+:param pad: Put a space on either side of each header and row entry.
+    Default True.
+:param title: Add the given title above the table. Default None
+:return: None
+
+**Examples**
+
+A simple table: ::
+
+    from pavilion import utils
+
+    # The table data is expected as a list of dictionaries with identical keys.
+    # Not all dictionary fields will necessarily be used. Commands will
+    # typically generate the rows dynamically...
+    rows = [
+        {'color': 'BLACK',  'code': 30, 'usage': 'Default'},
+        {'color': 'RED',    'code': 31, 'usage': 'Fatal Errors'},
+        {'color': 'GREEN',  'code': 32, 'usage': 'Warnings'},
+        {'color': 'YELLOW', 'code': 33, 'usage': 'Discouraged'},
+        {'color': 'BLUE',   'code': 34, 'usage': 'Info'}
+    ]
+    # The data columns to print (and their default column labels).
+    columns = ['color', 'usage']
+
+    utils.draw_table(
+        outfile=sys.stdout,
+        field_info={},
+
+    # Produces a table like this:
+    #
+    #  Color  | Usage
+    # --------+--------------
+    #  BLACK  | Default
+    #  RED    | Fatal Errors
+    #  GREEN  | Warnings
+    #  YELLOW | Discouraged
+    #  BLUE   | Info
+
+A more complicated example: ::
+
+    from pavilion import utils
+    import sys
+
+    rows = [
+        {'color': 'BLACK',   'code': 30, 'usage': 'Default'},
+        {'color': 'RED',     'code': 31, 'usage': 'Fatal Errors'},
+        {'color': 'GREEN',   'code': 32, 'usage': 'Warnings'},
+        {'color': 'YELLOW',  'code': 33, 'usage': 'Discouraged'},
+        {'color': 'BLUE',    'code': 34, 'usage': 'Info'},
+        {'color': 'CYAN',    'code': 35},
+        {'color': 'MAGENTA', 'code': 36},
+
+    ]
+
+    columns = ['color', 'code', 'usage']
+    field_info = {
+        # Colorize the color column with a transform function.
+        'color': {
+            'transform': lambda t: utils.ANSIString(t, utils.COLORS.get(t)),
+        },
+        # Format and add a better column header to the 'code' column.
+        'code': {
+            'title': 'ANSI Code',
+            'format': '0x{0:x}',
+        },
+        # Put in a default for our missing usage values.
+        # (The default is just to leave the column empty.)
+        'usage': {
+            'default': 'Whatever you want.'
+        }
+    }
+
+    utils.draw_table(
+        outfile=sys.stdout,
+        field_info=field_info,
+        fields=columns,
+        rows=rows,
+        # Add a border. Why not?
+        border=True,
+        # No padding between the data and column seperators.
+        pad=False,
+        title="A Demo Table."
+    )
+
+    # Produces a table like this (plus with the color names in color):
+    #
+    # +-------+---------+------------------+
+    # | A Demo Table.                      |
+    # +-------+---------+------------------+
+    # |Color  |ANSI Code|Usage             |
+    # +-------+---------+------------------+
+    # |BLACK  |0x1e     |Default           |
+    # |RED    |0x1f     |Fatal Errors      |
+    # |GREEN  |0x20     |Warnings          |
+    # |YELLOW |0x21     |Discouraged       |
+    # |BLUE   |0x22     |Info              |
+    # |CYAN   |0x23     |Whatever you want.|
+    # |MAGENTA|0x24     |Whatever you want.|
+    # +-------+---------+------------------+
+"""
 
     # Column widths populates with a range of values, the minimum being the
     # length of the given field title, and the max being the longest entry in
@@ -407,7 +752,7 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
 
     blank_row = {}
     for field in fields:
-        blank_row[field] = ''
+        blank_row[field] = ANSIString('')
 
     formatted_rows = []
     for row in rows:
@@ -432,11 +777,15 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
                               repr(data)), file=sys.stderr)
                 raise
 
+            # Cast all data as ANSI strings, so we can get accurate lengths
+            # and use ANSI friendly text wrapping.
+            data = ANSIString(data)
+
             # Appends the length of all rows at a given field longer than the
             # title. Effectively forces that the minimum column width be no
             # less than the title.
-            if _plen(data) > len(titles[field]):
-                column_widths[field].append(_plen(data))
+            if len(data) > len(titles[field]):
+                column_widths[field].append(len(data))
 
             formatted_row[field] = data
         formatted_rows.append(formatted_row)
@@ -467,7 +816,6 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
         if max_widths[field] < min_widths[field]:
             max_widths[field] = min_widths[field]
 
-    total_max = get_total_width(max_widths, fields, border, pad)
     total_min = get_total_width(min_widths, fields, border, pad)
 
     # Gets the effective window width.
@@ -476,28 +824,24 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
     # Makes sure window is at least large enough to display are smallest
     # possible table
     if total_min > window_width:
-        lines = shutil.get_terminal_size().lines
-        print("\x1b[8;{};{}t".format(lines, total_min))
         window_width = total_min
 
     # Reduces the effective window width based on formatting, so we know the
     # exact width we have for strictly field entries.
     window_width = remove_formatting(window_width, fields, border, pad)
 
-    best_config = []
-    combos = []
     boundaries = []
     for field in fields:
 
         # Get updated max width for a column provided every other column is
         # at its minimum width.
-        max_width = window_width-sum(min_widths.values())+min_widths[field]
+        max_width = window_width - sum(min_widths.values()) + min_widths[field]
 
         # Only updated if the max_Width is less than current max value.
         if max_width < max_widths[field]:
             max_widths[field] = max_width
 
-        boundaries.append([min_widths[field], max_widths[field]+1])
+        boundaries.append([min_widths[field], max_widths[field] + 1])
 
     # Pre-calculate the total wraps for each field at each possible
     # column width.
@@ -507,10 +851,8 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
         for width in range(*boundaries[fld]):
             wrap_total = 0
 
-            for row in rows:
-                wrapper = textwrap.TextWrapper(width=width)
-                clean_string = _plen(str(row[field]), return_string=True)
-                wrap_total += len(wrapper.wrap(text=clean_string)) - 1
+            for row in formatted_rows:
+                wrap_total += len(row[field].wrap(width=width))
 
             field_wraps_by_width[fld][width] = wrap_total
 
@@ -546,16 +888,15 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
     title_length = sum(column_widths.values())
 
     if pad:
-        title_length = title_length + 2*len(fields)
-
+        title_length = title_length + 2 * len(fields)
 
     title_format = ' {{0:{0}s}} '.format(title_length)
     # Generate the format string for each row.
     col_formats = []
 
     for field in fields:
-        format_str = '{{{field_name}:{width}}}'\
-                     .format(field_name=field, width=column_widths[field])
+        format_str = '{{{field_name}:{width}s}}' \
+            .format(field_name=field, width=column_widths[field])
         if pad:
             format_str = ' ' + format_str + ' '
         col_formats.append(format_str)
@@ -563,7 +904,7 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
 
     # Add 2 dashes to each break line if we're padding the data
     brk_pad_extra = 2 if pad else 0
-    horizontal_break = '+'.join(['-'*(column_widths[field]+brk_pad_extra)
+    horizontal_break = '+'.join(['-' * (column_widths[field] + brk_pad_extra)
                                  for field in fields])
     if border:
         row_format = '|' + row_format + '|'
@@ -580,13 +921,7 @@ def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
         wraps = {}
         # Creates wrap list that holds list of strings for the wrapped text
         for field in fields:
-            my_wrap = textwrap.TextWrapper(width=column_widths[field])
-            clean_string = _plen(row[field], return_string=True)
-            color = _grab_color(row[field])
-            wrap_list = my_wrap.wrap(text=clean_string)
-            for i in range(len(wrap_list)):  # pylint: disable=C0200
-                wrap_list[i] = ANSIStr(wrap_list[i], color)
-            wraps[field] = wrap_list
+            wraps[field] = row[field].wrap(width=column_widths[field])
 
         num_lines = 0
         # Gets the largest number of lines, so we know how many iterations

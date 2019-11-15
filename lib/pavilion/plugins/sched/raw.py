@@ -15,6 +15,7 @@ from pavilion.status_file import STATES, StatusInfo
 
 
 class RawVars(SchedulerVariables):
+    """Variables for running tests locally on a system."""
 
     @var_method
     def cpus(self):
@@ -78,6 +79,8 @@ class Raw(SchedulerPlugin):
         )
 
     def get_conf(self):
+        """Define the configuration attributes."""
+
         return yc.KeyedElem('raw', elements=[
             yc.StrElem(
                 'concurrent',
@@ -89,6 +92,7 @@ class Raw(SchedulerPlugin):
         ])
 
     def _filter_nodes(self):
+        """Do nothing, and like it."""
         return []
 
     def _in_alloc(self):
@@ -96,6 +100,7 @@ class Raw(SchedulerPlugin):
         return True
 
     def _get_data(self):
+        """Mostly we need the number of cpus and memory informaton."""
 
         cpus = subprocess.check_output(['nproc']).strip().decode('utf8')
 
@@ -127,6 +132,7 @@ class Raw(SchedulerPlugin):
     def job_status(self, pav_cfg, test):
         """Raw jobs will either be scheduled (waiting on a concurrency
         lock), or in an unknown state (as there aren't records of dead jobs).
+
         :rtype: StatusInfo
         """
 
@@ -184,7 +190,8 @@ class Raw(SchedulerPlugin):
     def _schedule(self, test_obj, kickoff_path):
         """Run the kickoff script in a separate process. The job id a
         combination of the hostname and pid.
-        :param pavilion.test_config.PavTest test_obj: The test to schedule.
+
+        :param pavilion.test_config.TestRun test_obj: The test to schedule.
         :param Path kickoff_path: - Path to the submission script.
         :return: '<host>_<pid>'
         """
@@ -206,6 +213,7 @@ class Raw(SchedulerPlugin):
     def _verify_pid(pid, test_id):
         """Verify that the test is running under the given pid. Note that this
         may change before, after, or during this call.
+
         :param str pid: The pid to search for.
         :param int test_id: The id of the test started under that pid.
         :return: True - If the given pid is for the given test_id
@@ -239,7 +247,8 @@ class Raw(SchedulerPlugin):
 
     def _cancel_job(self, test):
         """Try to kill the given test's pid (if it is the right pid).
-        :param pavilion.pav_test.PavTest test: The test to cancel.
+
+        :param pavilion.test_run.TestRun test: The test to cancel.
         """
 
         host, pid = test.job_id.rsplit('_', 1)

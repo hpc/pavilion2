@@ -3,7 +3,7 @@ import sys
 
 from pavilion import commands
 from pavilion import utils
-from pavilion import pav_test
+from pavilion import test_run
 
 
 class LogCommand(commands.Command):
@@ -59,8 +59,8 @@ class LogCommand(commands.Command):
             cmd_name = args.log_cmd
 
         try:
-            test = pav_test.PavTest.load(pav_cfg, args.test)
-        except pav_test.PavTestError as err:
+            test = test_run.TestRun.load(pav_cfg, args.test)
+        except test_run.TestRunError as err:
             utils.fprint("Error loading test: {}".format(err),
                          color=utils.RED,
                          file=err_file)

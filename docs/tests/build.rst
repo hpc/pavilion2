@@ -5,6 +5,8 @@ The ``build`` section of the pavilion config defines how a test should
 be built . This documentation covers how that's accomplished, as well as
 detailed information on the ``build`` config section itself.
 
+.. contents:: Table of Contents
+
 Build Config Keys
 -----------------
 
@@ -28,14 +30,6 @@ configuring, and compiling some source. Every build follows the same
 steps in Pavilion, though in many cases those steps may be 'empty'. In
 addition, Pavilion reuses existing builds where possible, which allows
 for skipping most of the build steps.
-
-1. `General Build Section Notes <>`__
-2. `Find all source files <#finding-source-files>`__
-3. `Create a Build Script <#create-a-build-script>`__
-4. `Generate a Build Hash <#generate-a-build-hash>`__
-5. `Create and Populate the Build Directory <#create-a-build-script>`__
-6. `Perform the Build <#perform-the-build>`__
-7. `Copy the Build <#copy-the-build>`__
 
 Finding Source Files
 ~~~~~~~~~~~~~~~~~~~~
@@ -117,7 +111,7 @@ directory. This typically includes patches, external build/run scripts,
 or archives that shouldn't be extracted.
 
 Create a Build Script
-~~~~~~~~~~~~~~~~~~~~~
+---------------------
 
 Most of the build config goes into automatically writing a build script.
 This script is what sets up the build environment and then runs the
@@ -135,7 +129,7 @@ hash, but the build might not even run in a scheduled environment where
 the deferred value is available.
 
 An example config and build script
-''''''''''''''''''''''''''''''''''
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: yaml
 
@@ -270,12 +264,12 @@ downloaded). The ``extra_files`` are then copied into that directory.
 There are three basic cases.
 
 No source
-'''''''''
+^^^^^^^^^
 
 An empty source directory is created.
 
 Single Directory
-''''''''''''''''
+^^^^^^^^^^^^^^^^
 
 If the file (or extracted archive) is a single directory, that directory
 becomes the build directory.
@@ -293,7 +287,7 @@ becomes the build directory.
       mytest.c
 
 File/s
-''''''
+^^^^^^
 
 In all other cases, the build directory will simply contain the files.
 

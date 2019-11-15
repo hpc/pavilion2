@@ -1,66 +1,13 @@
-Pavilion
-========
+Getting Started
+===============
 
-Pavilion is a Python 3 (3.4+) based framework for running and analyzing
-tests targeting HPC systems. It provides a rich YAML-based configuration
-system for wrapping test codes and running them against various systems.
-The vast majority of the system is defined via plugins,, giving users
-the ability to extend and modify Pavilion's operation to suit their
-needs. Plugin components include those for gathering system data, adding
-additional schedulers, parsing test results, and more.
 
-Project goals:
---------------
-
--  Robust testing in postDST, automated, and acceptance testing (system
-   validation) scenarios.
--  End-to-end status tracking for all tests.
--  Simple, powerful test configuration language.
--  System agnostic test configs.
--  Hide common platform and environment idiosyncrasies from tests.
--  System specific defaults.
--  Eliminate unnecessary build repetition.
--  Extreme extensibility (plugins everywhere).
-
-Contents
---------
-
--  `Basic Usage <#basic-usage>`__
--  `Advanced Usage <advanced.md>`__
--  `Installation <install.md>`__
--  `Configuring Pavilion <config.md>`__
-
-   -  `Config Directories <config.md#config-directories>`__
-
--  `Writing Tests <tests/basics.md>`__
--  `Building <tests/build.md>`__
--  `Running <tests/run.md>`__
--  `Environment <tests/env.md>`__
--  `Scheduling <tests/sched.md>`__ (To be written)
--  `Results <tests/results.md>`__
--  `Variables <tests/variables.md>`__
--  `Permutations <tests/variables.md#permutations>`__
--  `Plugins and Customization <plugins/basics.md>`__
--  `System Variables <plugins/sys_vars.md>`__
--  `Module Wrappers <plugins/module_wrappers.md>`__
--  `Result Parsers <plugins/result_parsers.md>`__ (To be written)
--  `Schedulers <plugins/schedulers.md>`__ (To be written)
--  `Commands <plugins/commands.md>`__
--  `License <LICENSE.md>`__
-
-Basic Usage
------------
-
--  `Setup <#setup>`__
--  `Configuring Tests <#configure-tests>`__
--  `Running Tests <#running-tests>`__
--  `Test Status <#test-status>`__
--  `Test Results <#test-results>`__
+.. contents:: Table of Contents
 
 Setup
 ~~~~~
 
-*See the `install docs <install.md>`__ if you need to install Pavilion*
+See the `install docs <install.html>`__ if you need to install Pavilion*
 
 Add the PAV bin directory to your Path.
 
@@ -82,7 +29,7 @@ Configure Tests
 Pavilion doesn't come with any tests itself, it's just a system for
 running them on HPC clusters. Each test needs a configuration script,
 and most will need some source files. Both of these will live in one of
-your `config directories <config.md#config-directories>`__ under the
+your `config directories <config.html#config-directories>`__ under the
 ``tests/`` and ``test_src/`` sub-directories.
 
 Test configs tell pavilion what environment it needs to build and run
@@ -122,7 +69,7 @@ This config is used to override the Pavilion defaults for values in
 every test config run on that system. You can use these to set default
 values for things like the max nodes per job in a given scheduler,
 always loading certain modules when building tests, or setting useful
-`variables <tests/variables.md>`__ for that system. The format is the
+`variables <tests/variables.html>`__ for that system. The format is the
 same as a test config file, except with only one test and without the
 name for that test.
 
@@ -136,7 +83,7 @@ The above host config would set the default scheduler to 'slurm' for
 tests kicked off on a host with a hostname of ``my_host``. Pavilion uses
 the contents of the ``sys_name`` test config variable to determine the
 current host, which is provided via a built-in `system variable
-plugin <plugins/sys_vars.md>`__. This behaviour can be overridden by
+plugin <plugins/sys_vars.html>`__. This behaviour can be overridden by
 providing your own sys\_var plugin, which is especially useful on
 clusters with multiple front-ends.
 
@@ -221,7 +168,7 @@ From the above, you may have noticed that each test gets a series id
 like ``s24`` and a test id like ``41``. You can use these id's to
 reference tests or suites of tests to get their status, results, and
 logs through the pavilion interface. The ID's are unique for a given
-Pavilion `working\_directory <config.md#working_dir>`__, but they will
+Pavilion `working\_directory <config.html#working_dir>`__, but they will
 get reused as old tests are cleaned up.
 
 Test Results
@@ -231,16 +178,20 @@ Pavilion builds a mapping of result keys and values for every test that
 runs. You can view the results of any tests using the ``pav results``
 command.
 
-| \`\`\`bash $ pav results Test Results
-| ------------+----+-------- Name \| Id \| Result
-  ------------+----+-------- supermagic \| 41 \| PASS
+.. code:: bash
 
-| $ pav results --full Test Results
-| ------------+----+--------+----------+----------------+----------------+-----------------
-  Name \| Id \| Result \| Duration \| Created \| Started \| Finished
-| ------------+----+--------+----------+----------------+----------------+-----------------
-  supermagic \| 41 \| PASS \| 3.825702 \| 19-05-16 10:38 \| 19-05-16
-  10:38 \| 19-05-16 10:38 \`\`\`
+    $ pav results Test Results
+    ------------+----+--------
+    Name        | Id | Result
+    ------------+----+--------
+    supermagic  | 41 | PASS
+
+    $ pav results --full Test Results
+    ------------+----+--------+----------+----------------+----------------+-----------------
+      Name      | Id | Result | Duration | Created        | Started        |  Finished
+    ------------+----+--------+----------+----------------+----------------+-----------------
+     supermagic | 41 | PASS   | 3.825702 | 19-05-16 10:38 | 19-05-16 10:38 | 19-05-16 10:38
+
 
 Every test has a results object that contains at least the keys listed
 above. - result - The PASS/FAIL/ERROR result for the test. - duration -
@@ -249,7 +200,7 @@ When the test run was created - started - When the test actually started
 - finished - When the test run completed
 
 By default, a test passes if it's last command returns 0. You can
-override this behaviour by using `result parsers <tests/results.md>`__.
+override this behaviour by using `result parsers <tests/results.html>`__.
 You can also use result parsers to add additional, arbitrary values to
 the test results.
 

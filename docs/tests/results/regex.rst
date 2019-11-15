@@ -11,10 +11,10 @@ string/s is/are returned as the result.
 |                 | to use to    |                      |        |
 |                 | search file  |                      |        |
 +-----------------+--------------+----------------------+--------+
-| threshold       | Looks at the | Optional, default: 0 |
-|                 | number of    |                      |
-|                 | instances of |                      |
-|                 | the regex    |                      |
+| threshold       | Looks at the | Optional, default: 0 |        |
+|                 | number of    |                      |        |
+|                 | instances of |                      |        |
+|                 | the regex    |                      |        |
 +-----------------+--------------+----------------------+--------+
 | expected        | Expected     | Optional             |        |
 |                 | value or     |                      |        |

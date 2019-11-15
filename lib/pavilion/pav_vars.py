@@ -1,3 +1,7 @@
+""" This module provides the 'pav' variables, hardcoded into a VarDict
+object.
+"""
+
 # pylint: disable=no-self-use
 
 import datetime
@@ -9,6 +13,9 @@ from pavilion import utils
 
 
 class PavVars(VarDict):
+    """The pavilion provided variables. Note that these values are generated
+    once, then reused."""
+
     def __init__(self):
         super().__init__('pav')
 

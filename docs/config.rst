@@ -1,13 +1,16 @@
 Configuring Pavilion
 ====================
 
-Pavilion is driven largely by configurations: - The
-`pavilion.yaml <#pavilion.yaml>`__ file sets global pavilion settings. -
-`Test Configs <tests/basics.md>`__ for defining tests. - `Host
-Configs <tests/basics.md#host-configs>`__ for setting host defaults for
-tests. - `Mode Configs <tests/basics.md#mode-configs>`__ for addition
-test default sets. - `Plugins <plugins/basics.md>`__ allow you to
-customize pavilion beyond just configs.
+Pavilion is driven largely by configurations. This documentation page covers
+the ``pavilion.yaml`` file, which sets global pavilion settings.
+
+See `Test Configs <tests/basics.html>`__,
+`Host Configs <tests/basics.html#host-configs>`__,
+`Mode Configs <tests/basics.html#mode-configs>`__, and
+`Plugins <plugins/basics.html>`__ for information on the other types of
+pavilion configuration.
+
+.. contents::
 
 Config Directories
 ------------------
@@ -41,15 +44,15 @@ Generating a pavilion.yaml template
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Pavilion can print template files, with documentation, for all of it's
-config files. In this case, use the command
-``pav show config --template``. Since all config values are optional,
-you can just use the pieces you need.
+config files. In this case, use the command ``pav show config --template``.
+Since this file is self documenting, refer to it for more information about
+each of the configuration settings.
 
 Setting You Should Set
 ~~~~~~~~~~~~~~~~~~~~~~
 
-While everything is optional, these are some things you probably want to
-set.
+While everything has a workable default, you'll probably want to set the
+following.
 
 working\_dir
 ^^^^^^^^^^^^

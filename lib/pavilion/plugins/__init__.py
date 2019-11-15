@@ -55,7 +55,6 @@ def initialize_plugins(pav_cfg):
         pman = PluginManager.PluginManager(directories_list=plugin_dirs,
                                            categories_filter=PLUGIN_CATEGORIES)
 
-        pman.locatePlugins()
         pman.collectPlugins()
     except Exception as err:
         raise PluginError("Error initializing plugin system: {}".format(err))

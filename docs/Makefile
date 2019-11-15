@@ -1,4 +1,4 @@
-# Minimal makefile for Sphinx documentation
+#Minimal makefile for Sphinx documentation
 #
 
 # You can set these variables from the command line.
@@ -14,7 +14,10 @@ help:
 
 .PHONY: help Makefile
 
+autodoc: ../lib/pavilion/*
+	sphinx-apidoc -o ./source ../lib/pavilion
+
 # Catch-all target: route all unknown targets to Sphinx using the new
 # "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).
-%: Makefile
+%: Makefile 
 	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)

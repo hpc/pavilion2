@@ -2,6 +2,7 @@
 # It shouldn't be run directly; use bin/pav instead.
 
 from logging.handlers import RotatingFileHandler
+from logging import StreamHandler
 from pavilion import arguments
 from pavilion import commands
 from pavilion import config
@@ -34,7 +35,7 @@ def main():
             pav_cfg.working_dir/'builds',
             pav_cfg.working_dir/'downloads',
             pav_cfg.working_dir/'series',
-            pav_cfg.working_dir/'tests',
+            pav_cfg.working_dir/'test_runs',
             pav_cfg.working_dir/'users']:
         if not path.exists():
             try:
@@ -97,6 +98,17 @@ def main():
                                                   style='{'))
     result_logger.setLevel(logging.INFO)
     result_logger.addHandler(result_handler)
+
+    # Setup the yapsy logger to log to terminal. We need to know immediatly
+    # when yapsy encounters errors.
+    yapsy_logger = logging.getLogger('yapsy')
+    yapsy_handler = StreamHandler(stream=sys.stderr)
+    # Color all these error messages red.
+    yapsy_handler.setFormatter(
+        logging.Formatter("\x1b[31m{asctime} {message}\x1b[0m",
+                          style='{'))
+    yapsy_logger.setLevel(logging.INFO)
+    yapsy_logger.addHandler(yapsy_handler)
 
     # This has to be done before we initialize plugins
     parser = arguments.get_parser()

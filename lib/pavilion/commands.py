@@ -28,7 +28,10 @@ class CommandError(RuntimeError):
 
 
 def add_command(command):
-    """Add the given command instance to the dictionary of commands."""
+    """Add the given command instance to the dictionary of commands.
+
+:param Command command: The command object to add
+"""
 
     global _COMMANDS
 
@@ -43,6 +46,7 @@ def add_command(command):
 
 def get_command(command_name):
     """Return the command of the given name.
+
     :param str command_name: The name of the command to search for.
     :rtype: Command
     """
@@ -61,11 +65,12 @@ class Command(IPlugin.IPlugin):
 
         :param name: The name of this command. Will be used as the subcommand
             name.
-        :param description: The full description and help header for this
+        :param str description: The full description and help header for this
             command. Displayed with 'pav <cmd> --help'.
-        :param short_help: A short description of the command displayed
+        :param str short_help: A short description of the command displayed
             when doing a 'pav --help'. If this is None, the command won't
             be listed.
+        :param list aliases: A list of aliases for the command.
         """
         super().__init__()
 
@@ -82,13 +87,23 @@ class Command(IPlugin.IPlugin):
 
     def _setup_arguments(self, parser):
         """Setup the commands arguments in the Pavilion argument parser.
+
         :param argparse.ArgumentParser parser:
         """
 
     def _setup_other(self):
-        """Additional setup actions for this command at activation time."""
+        """Additional setup actions for this command at activation time.
+        The base version of this does nothing.."""
 
     def activate(self):
+        """The Yapsy plugin system calls this to setup the plugin. In this
+case that includes:
+
+- Adding the command's sub-command arguments to the general pavilion argument
+  parser.
+- Running the _setup_other method.
+- Adding the command to Pavilion's known commands.
+"""
 
         # Add the arguments for this command to the
         sub_parser = arguments.get_subparser()
@@ -116,14 +131,18 @@ class Command(IPlugin.IPlugin):
         raise RuntimeError("Command plugins cannot be deactivated.")
 
     def run(self, pav_cfg, args, out_file=sys.stdout, err_file=sys.stderr):
-        """This method should contain the
-        :param pav_cfg: The pavilion configuration object.
-        :param args: The parsed arguments for this command.
-        :param out_file: Where to write output for this command.
-        :param err_file: Where to write err output for this command.
-        :return: The return code of the command should denote success (0) or
-            failure (not 0).
-        """
+        """Override this method with your command's code.
+
+:param pav_cfg: The pavilion configuration object.
+:param args: The parsed arguments for pavilion.
+:param out_file: Where to write output for this command.
+:param err_file: Where to write err output for this command.
+:return: The return code of the command should denote success (0) or
+    failure (not 0).
+"""
+
+        raise NotImplementedError(
+            "Command plugins must override the 'run' method.")
 
     def __repr__(self):
         return '<{} from file {} named {}>'.format(

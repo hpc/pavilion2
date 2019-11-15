@@ -1,3 +1,7 @@
+"""System Variables provide a way for pavilion users to add additional
+variables for Pavilion tests to use. In particular, these are useful
+for gathering site-specific information for your tests."""
+
 # pylint: disable=W0603
 
 import collections
@@ -12,7 +16,7 @@ LOGGER = logging.getLogger('pav.{}'.format(__name__))
 
 
 class SystemPluginError(RuntimeError):
-    pass
+    """Error thrown when a system plugin encounters an error."""
 
 
 _SYS_VAR_DICT = None
@@ -20,6 +24,10 @@ _LOADED_PLUGINS = None  # type : dict
 
 
 class SysVarDict(collections.UserDict):
+    """This dictionary based object provides lazy, cached lookups of
+all system variable values according to what system variable plugins
+are actually loaded.  The values, once retrieved, are thus static
+for a given run of the pavilion command."""
 
     def __init__(self, defer=False):
         global _SYS_VAR_DICT
@@ -58,15 +66,19 @@ class SysVarDict(collections.UserDict):
         return _LOADED_PLUGINS[name]
 
     def keys(self):
+        """As per dict.keys() (except we're really listing the loaded
+plugins.)"""
 
         global _LOADED_PLUGINS
 
         return _LOADED_PLUGINS.keys()
 
     def items(self):
+        """As per dict.items()"""
         return [(key, self[key]) for key in self.keys()]
 
     def values(self):
+        """As per dict.values()"""
         return [self[key] for key in self.keys()]
 
     def __iter__(self):
@@ -91,9 +103,10 @@ def __reset():
 
 def get_vars(defer):
     """Get the dictionary of system plugins.
-    :param bool defer: Whether the deferable plugins should be deferred.
-    :rtype: SysVarDict
-    """
+
+:param bool defer: Whether the deferable plugins should be deferred.
+:rtype: SysVarDict
+"""
 
     global _SYS_VAR_DICT
 
@@ -118,15 +131,16 @@ class SystemPlugin(IPlugin.IPlugin):
                  is_deferable=False,
                  sub_keys=None):
         """Initialize the system plugin instance.  This should be overridden in
-        each final plugin.
-        :param str plugin_name: The name of the system plugin being wrapped.
-        :param str description: Short description of this value.
-        :param int priority: Priority value of plugin when two plugins have
-                             the same name.
-        :param bool is_deferable: Whether the plugin is able to be deferred.
-            Note that deferable variables can't return a list.
-        :param str/dict sub_keys: Key or list of keys used with this plugin.
-        """
+each final plugin.
+
+:param str plugin_name: The name of the system plugin being wrapped.
+:param str description: Short description of this value.
+:param int priority: Priority value of plugin when two plugins have
+    the same name.
+:param bool is_deferable: Whether the plugin is able to be deferred.
+    Note that deferable variables can't return a list.
+:param str/dict sub_keys: Key or list of keys used with this plugin.
+"""
         super().__init__()
 
         self.is_deferable = is_deferable
@@ -147,10 +161,16 @@ class SystemPlugin(IPlugin.IPlugin):
 
     def _get(self):
         """This should be overridden to implement gathering of data for the
-        system variable."""
+system variable.
+"""
         raise NotImplementedError
 
     def get(self, defer):
+        """Get the value for this system variable.
+
+:params bool defer: If the variable is deferable, return a DeferredVariable
+    object instead.
+"""
         if defer and self.is_deferable:
             return variables.DeferredVariable(self.name, var_set='sys',
                                               sub_keys=self.sub_keys)

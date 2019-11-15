@@ -9,7 +9,7 @@ from pavilion import schedulers
 from pavilion import system_variables
 from pavilion import test_config
 from pavilion import utils
-from pavilion.pav_test import PavTest, PavTestError
+from pavilion.test_run import TestRun, TestRunError
 from pavilion.status_file import STATES
 from pavilion.plugins.commands.status import print_from_test_obj
 from pavilion.series import TestSeries, test_obj_from_id
@@ -135,7 +135,7 @@ class RunCommand(commands.Command):
             # Make sure the result parsers have reasonable arguments.
             try:
                 result_parsers.check_args(test.config['results'])
-            except PavTestError as err:
+            except TestRunError as err:
                 rp_errors.append(str(err))
 
         if rp_errors:
@@ -341,7 +341,7 @@ class RunCommand(commands.Command):
         for sched_name in configs_by_sched.keys():
             tests_by_sched[sched_name] = []
             for i in range(len(configs_by_sched[sched_name])):
-                tests_by_sched[sched_name].append(PavTest(
+                tests_by_sched[sched_name].append(TestRun(
                     pav_cfg=pav_cfg,
                     config=configs_by_sched[sched_name][i],
                     sys_vars=sys_vars

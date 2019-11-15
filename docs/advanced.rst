@@ -4,30 +4,7 @@ Pavilion Advanced Usage
 This page an overview of some of the advanced features of Pavilion, to
 give you a better idea of what it's capable of.
 
-Contents
-^^^^^^^^
-
--  `Mode Configs <#mode-configs>`__ - Allow for per-run overrides.
--  `Test Configs <#advanced-test-configs>`__
--  `Variables <#variables>`__ - Can dynamically alter test configs.
--  `Inheritance <#inheritance>`__ - Lets you base one test off another
-   (within a suite file).
--  `Permutations <#permutations>`__ - Variables that dynamically
-   generate multiple tests.
--  `Test/Build Environment <#environment>`__
-
-   -  `Environment Variables <#environment-variables>`__ - Set/unset
-      environment variables in your test/build scripts.
-   -  `Modules <#modules>`__ - Load (and unload) modules dynamically for
-      each test/build.
-   -  `Module Wrappers <#module-wrappers>`__ - Plugins that allow for
-      customizing module handling.
-
--  `Environment <#environment>`__ - Set environment variables in your
-   test.
--  `Schedulers <#schedulers>`__ - Schedule your tests on nodes. give you
-   useful system info.
--  
+.. contents::
 
 Mode Configs
 ------------
@@ -94,7 +71,7 @@ Variable References
 -  You'll also see ``{{myvar.2}}`` list references, ``{{myvar.foo}}``
    attribute references, and the combination of the two
    ``{{myvar.1.bar}}``. See the full `variable
-   documentation <tests/variables.md>`__ for more info.
+   documentation <tests/variables.html>`__ for more info.
 
 Listing Variables
 ^^^^^^^^^^^^^^^^^
@@ -139,7 +116,7 @@ More Info
 ^^^^^^^^^
 
 Variables are a powerful feature of pavilion, and the above just
-scratches the surface. See the `variables <tests/variables.md>`__
+scratches the surface. See the `variables <tests/variables.html>`__
 section of the docs for detailed information.
 
 Inheritance
@@ -301,17 +278,15 @@ Module Wrappers
 ^^^^^^^^^^^^^^^
 
 When tell pavilion to load/remove/swap modules, the code to do this is
-added to the test or build script automatically using module wrapper
+added to the test or build script automatically using
+`module wrapper <plugins/module_wrappers.html>`__
 plugins. The default module wrapper performs the module command, and
 then verifies that the module is actually loaded.
 
 More complicated setups are possible by adding additional plugins
-replace this default behaviour, modify it for particular modules, or
-even modify it for particular module versions. The plugins allow you to
-change what is loaded and how it is loaded, and also set additional
-environment variables. You can use this to enhance the existing module
-files for interoperability by adding environment variables that are
-consistent across certain modules.
+that replace this default behaviour for particular modules or module versions.
+You could, for instance, wrap all your compiler modules to set a consistent
+compiler wrapper environment variable.
 
 .. code:: yaml
 
@@ -336,12 +311,11 @@ consistent across certain modules.
             - gcc
             - openmpi
 
-Module wrappers are also useful for smoothing the differences between
-systems when using a shared Pavilion install across clusters. For
-instance, one might wrap the gcc module such that it loads normally on
-some systems, but it performs a module swap on an odd system that loads
-a different compiler by default. This can allow for a single,
-host-agnostic set of tests.
+Module wrappers are also useful for smoothing the differences clusters that
+have distinct module setups. For instance, one might wrap the gcc module
+such that it loads normally on some systems, but it performs a module swap
+on an odd system that loads a different compiler by default. This can allow
+for a single, host-agnostic set of tests.
 
 Schedulers
 ----------
@@ -379,15 +353,23 @@ scheduler, but don't configure one. It's time to rectify that.
             # that conforms to the rest of the slurm settings.
             - {sched.test_cmd} ./supermagic -a 
 
-Schedulers are plugins in Pavilion, and are fairly loosely defined. They
-must at least do the following: - Provide a scheduler variable set for
-use in configs (the set may be empty). - The available keys/values are
-up to the plugin writer. - See ``pav show sched --vars <sched_name>``
-for a listing of what's available for a given scheduler. - Define a
-configuration section for test configs. - See
-``pav show sched --config <sched_name`` for the definition. - Provide a
-means to kickoff tests. - The scheduler writes a script that does little
-more than call Pavilion again to actually run a test. - The Slurm plugin
-runs this script using ``sbatch``. - The Raw plugin simply runs it as a
-subprocess. - Provide a means to monitor scheduled tests. - Provide a
-means to cancel scheduled tests.
+`Schedulers are plugins <plugins/schedulers.html>`__ in Pavilion, and are
+fairly loosely defined. They must at least do the following:
+
+* Provide a scheduler variable set for use in configs (the set may be empty).
+* The available keys/values are up to the plugin writer.
+
+  - See ``pav show sched --vars <sched_name>`` for a listing of what's
+    available for a given scheduler.
+* Define a configuration section for test configs.
+
+  - See ``pav show sched --config <sched_name`` for the definition.
+* Provide a means to kickoff tests.
+
+  - The scheduler writes a script that does little more than call Pavilion
+    again to actually run a test.
+  - The Slurm plugin runs this script using ``sbatch``.
+  - The Raw plugin simply runs it as a subprocess.
+* Provide a means to monitor scheduled tests.
+* Provide a means to cancel scheduled tests.
+

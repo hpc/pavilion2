@@ -7,7 +7,7 @@ from calendar import monthrange
 from datetime import datetime, timedelta
 from pavilion import commands
 from pavilion import utils
-from pavilion.pav_test import PavTest, PavTestError, PavTestNotFoundError
+from pavilion.test_run import TestRun, TestRunError, TestRunNotFoundError
 from pavilion.status_file import STATES
 
 
@@ -70,9 +70,9 @@ class CleanCommand(commands.Command):
             test_time = datetime.fromtimestamp(
                 os.path.getmtime((tests_dir/test).as_posix()))
             try:
-                test_obj = PavTest.load(pav_cfg, int(test))
+                test_obj = TestRun.load(pav_cfg, int(test))
                 status = test_obj.status.current().state
-            except (PavTestError, PavTestNotFoundError) as err:
+            except (TestRunError, TestRunNotFoundError) as err:
                 utils.fprint("Removing bad test directory {}".format(test),
                              file=self.outfile)
                 shutil.rmtree(tests_dir.as_posix())

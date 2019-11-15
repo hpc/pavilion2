@@ -1,16 +1,16 @@
 import errno
 import sys
-import argparse
 from pavilion import commands
 from pavilion import schedulers
-from pavilion import status_file
 from pavilion import utils
 from pavilion import series
 from pavilion.status_file import STATES
-from pavilion.pav_test import PavTest, PavTestError, PavTestNotFoundError
+from pavilion.test_run import TestRun, TestRunError
 from pavilion.plugins.commands.status import print_from_test_obj
 
+
 class CancelCommand(commands.Command):
+    """Cancel a set of commands using the appropriate scheduler."""
 
     def __init__(self):
         super().__init__(
@@ -80,7 +80,7 @@ class CancelCommand(commands.Command):
         test_object_list = []
         for test_id in test_list:
             try:
-                test = PavTest.load(pav_cfg, test_id)
+                test = TestRun.load(pav_cfg, test_id)
                 sched = schedulers.get_scheduler_plugin(test.scheduler)
                 test_object_list.append(test)
 
@@ -104,7 +104,7 @@ class CancelCommand(commands.Command):
                                  file=self.outfile,
                                  color=utils.RED)
 
-            except PavTestError as err:
+            except TestRunError as err:
                 utils.fprint("Test {} could not be cancelled, cannot be" \
                              " found. \n{}".format(test_id, err),
                              file=self.errfile,

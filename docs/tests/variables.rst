@@ -92,7 +92,7 @@ variables' set, variables from any variable set may have such data
 structures.**
 
 Single Value
-~~~~~~~~~~~~
+^^^^^^^^^^^^
 
 Single value variables are the simplest, and are what is generally shown
 in the Pavilion documentation for simplicities sake. Variable references
@@ -108,7 +108,7 @@ are simply replaced with the variable's value.
         cmds: "echo {{bar}}"
 
 Multiple Values
-~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^
 
 Variables may have multiple values, and referenced with an index
 (counting from 0).
@@ -142,7 +142,7 @@ This can be used with repeated `substrings <#substrings>`__ to produce
 dynamic test arguments, among other things.
 
 Complex Variables
-~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^
 
 | Variables may also contain multiple sub-keys, as a way to group
   related values.
@@ -194,11 +194,11 @@ behavior by appending a special character to the variable name.
    that level.
 
 Test Variable References
-~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 Variables may contain references to other variables in their values.
-These can reference any other variable type (with the exception of
-'sched' variables) and can substrings and all the other syntax tricks
+These can reference any other variable set (with the exception of
+'sched' variables) and can contain substrings and all the other syntax tricks
 Pavilion provides.
 
 .. code:: yaml
@@ -209,13 +209,13 @@ Pavilion provides.
           options: '-d {{target_mount}}'
 
 Expected Variables (?)
-~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^
 
 You can denote a variable as 'expected' by adding a question mark ``?``
 to the end of it's name. The value provided then simply acts as the
 default, and will be overridden if the host or mode configs provide
 values. You can also leave the value empty, an error will be given if no
-value is provided by an underlying config file (host/mode).
+value is provided by an underlying host/mode config files.
 
 .. code:: yaml
 
@@ -233,7 +233,7 @@ value is provided by an underlying config file (host/mode).
             - "./run_test -i {{intensity}} -p {{power}}"
 
 Appended Variables (+)
-~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^
 
 Instead of overriding values from host/mode configs, this lets you
 append one or more additional unique values for that variable. You must
@@ -246,7 +246,7 @@ or `substrings <#substrings>`__.
 
     append_test:
       variables:
-        append_test_options+: [-d, -f]
+        test_options+: [-d, -f]
         # This will add the single value to the list of test_drives
         test_drives+: /tmp
 
@@ -357,7 +357,7 @@ Variable references may be given a default value
 Permutations
 ------------
 
-Permutations allow you to creat a 'virtual' test for each permutation of
+Permutations allow you to create a 'virtual' test for each permutation of
 the values of one or more variables.
 
 .. code:: yaml
@@ -371,16 +371,23 @@ the values of one or more variables.
           cmds: 'echo "{{msg}} {{person}} - {{date}}"'
 
 The above would result in nine virtual tests, each one echoing a
-different message. - That's 2 *users* \* 2 *people* \* 1 *date* -
-``echo "hello Paul - 07/14/19"`` - ``echo "hello Nick - 07/14/19"`` -
-``echo "goodbye Paul - 07/14/19"`` - ``echo "goodbye Nick - 07/14/19"``
+different message.
+
+- That's 2 *users* \* 2 *people* \* 1 *date*
+
+   - ``echo "hello Paul - 07/14/19"``
+   - ``echo "hello Nick - 07/14/19"``
+   - ``echo "goodbye Paul - 07/14/19"``
+   - ``echo "goodbye Nick - 07/14/19"``
 - User comes from the 'pav.user' variable which only has a single value.
-- The tests are scheduled independently when using ``pav run``. - They
-have the same test name (permuted\_test), but different test id's and
-run directories.
+- The tests are scheduled independently when using ``pav run``.
+- They have the same test name (permuted\_test), but different test id's and
+  run directories.
+
+
 
 Limitations
-~~~~~~~~~~~
+^^^^^^^^^^^
 
 -  You can't permute on 'sched' variables. They don't exist until after
    permutations are generated.

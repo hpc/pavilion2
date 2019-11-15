@@ -5,14 +5,19 @@ Installing Pavilion is mostly a matter of placing it's source somewhere,
 providing it's (few) dependencies, and creating a pavilion.yaml config
 file.
 
+.. contents::
+
 Requirements
 ------------
 
-Pavilion has `a few requirements <docs/requirements.md>`__ beyond just
-dependencies. In summary, it needs: - Python 3.4 or newer - A writeable
-space on a filesystem shared across all (tested) hosts in each cluster.
-- The path to this directory must be consistent across all cluster
-hosts. - It must support atomic file creation and appends of < 4kb.
+Pavilion has beyond just
+dependencies. In summary, it needs:
+
+- Python 3.4 or newer
+- A writeable space on a filesystem shared across all (tested) hosts in each cluster.
+
+  - The path to this directory must be consistent across all cluster hosts.
+  - It must support atomic file creation and appends of < 4kb.
 
 Filesystems
 ~~~~~~~~~~~
@@ -25,13 +30,14 @@ nodes and front-ends of any given system.
 
 Pavilion places all builds, test working spaces, and lockfiles in a
 **working directory** specified in the pavilion configuration (defaults
-to ``~/.pavilion/``). - Atomic (O\_EXCL) file creation is needed here
-for the creation of lock files. - Atomic small appends are needed for
-writing to the status file. Not having this has a small chance of
-resulting in corrupted test status files. - Both of these requirements
-are probably already satisfied by one or more of your cluster NFS
-partitions. Lustre filesystems are not recommended, mostly due to the
-type of load Pavilion presents to these.
+to ``~/.pavilion/``).
+
+- Atomic (O\_EXCL) file creation is needed here for the creation of lock files.
+- Atomic small appends are needed for writing to the status file. Not having
+  this has a small chance of resulting in corrupted test status files.
+- Both of these requirements are probably already satisfied by one or more of
+  your cluster NFS partitions. Lustre filesystems are not recommended, mostly
+  due to the type of load Pavilion presents to these.
 
 Result Log
 ~~~~~~~~~~
@@ -62,19 +68,14 @@ Pavilion has a few dependencies, and most aren't required. Pavilion was
 designed and tested against fairly recent (as of 2019-05) versions of
 these, but it's likely that older, system provided versions may work
 just as well. Conversely, the latest version should be fine as well. The
-supported and tests versions for each are recorded in
-`requirements.txt <>`__.
+supported and tests versions for each are recorded in ``requirements.txt``.
 
--  `**yaml\_config** <https://github.com/lanl/yaml_config>`__ (required)
+-  `yaml\_config <https://github.com/lanl/yaml_config>`__ **(required)**
    - Used to define the test and pavilion configurations.
--  `**yc\_yaml** <https://github.com/pflarr/yc_yaml>`__ (required) - A
+-  `**yc\_yaml** <https://github.com/pflarr/yc_yaml>`__ **(required)** - A
    modified pyyaml used by yaml\_config.
--  `**yapsy** <http://yapsy.sourceforge.net/>`__ (required) - The basis
+-  `**yapsy** <http://yapsy.sourceforge.net/>`__ **(required)** - The basis
    for Pavilion's plugin architecture.
--  `tzlocal <https://pypi.org/project/tzlocal/>`__ - Used for local
-   timezones. Without this (or pytz), all saved timestamps will be
-   *naive*.
--  `pytz <http://pytz.sourceforge.net/>`__ - Used for timezone tracking.
 -  `requests <https://pypi.org/project/requests/2.7.0/>`__ - Used for
    automatic downloads of test source files. This feature is disabled in
    the absence of this library, and tests that use it will fail with an
@@ -132,11 +133,13 @@ the virtual env's PIP package manager to download any additional (or
 just newer) libraries needed by an application. As long as you use the
 /bin/python, you'll have access to those additional libs.
 
-It comes with a couple of caveats: 1. You will have to activate the
-virtual environment before running Pavilion, and in Pavilion scheduled
-jobs using the pavilion.yaml 'pre\_kickoff' option. 2. All tests will
-run under this environment. That could cause problems for tests that
-utilize python (especially python2.x).
+It comes with a couple of caveats:
+
+#. You will have to activate the virtual environment before running
+   Pavilion, and in Pavilion scheduled jobs using the pavilion.yaml
+   'pre\_kickoff' option.
+#. All tests will run under this environment. That could cause problems for
+   tests that utilize python (especially python2.x).
 
 .. code:: bash
 

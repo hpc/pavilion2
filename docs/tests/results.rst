@@ -14,8 +14,13 @@ Each result parser is also a `plugin <../plugins/result_parsers.md>`__,
 so you can easily add custom parsers for tests with particularly complex
 results.
 
--  `Basic Result Keys <#basic-result-keys>`__
--  `Using Result Parsers <#using-result-parsers>`__
+.. toctree::
+    :maxdepth: 2
+    :caption: Contents:
+
+    results/cmd.rst
+    results/regex.rst
+    results/const.rst
 
 Basic Result Keys
 -----------------
@@ -111,7 +116,7 @@ The results for this test run might look like:
     }
 
 Keys
-~~~~
+----
 
 The key attribute is required for every result parser config, as
 Pavilion needs to know under what key in the results to store the parsed

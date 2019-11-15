@@ -13,6 +13,9 @@ from pathlib import Path
 
 
 class SbatchHeader(scriptcomposer.ScriptHeader):
+    """Provides header information specific to sbatch files for the
+    slurm kickoff script."""
+
     def __init__(self, sched_config, nodes, test_id, vars):
         super().__init__()
 
@@ -195,12 +198,15 @@ class SlurmVars(SchedulerVariables):
 
 
 def slurm_float(val):
+    """Slurm 'float' values might also be 'N/A'."""
     if val == 'N/A':
         return None
     else:
         return float(val)
 
+
 def slurm_states(state):
+    """Parse a slurm state down to something reasonable."""
     states = state.split('+')
 
     if states:
@@ -215,6 +221,7 @@ def slurm_states(state):
 
 
 class Slurm(SchedulerPlugin):
+    """Schedule tests with Slurm!"""
 
     KICKOFF_SCRIPT_EXT = '.sbatch'
 
@@ -229,6 +236,8 @@ class Slurm(SchedulerPlugin):
         self.node_data = None
 
     def get_conf(self):
+        """Set up the Slurm configuration attributes."""
+
         return yc.KeyedElem(
             self.name,
             help_text="Configuration for the Slurm scheduler.",
@@ -284,6 +293,11 @@ class Slurm(SchedulerPlugin):
                 ])
 
     def _get_data(self):
+        """Get the slurm node state information.
+
+        :returns: A dict with individual node and summary information.
+        :rtype: dict
+        """
 
         data = dict()
         data['nodes'] = self._collect_node_data()
@@ -321,6 +335,7 @@ class Slurm(SchedulerPlugin):
     def _collect_node_data(self, nodes=None):
         """Use the `scontrol show node` command to collect data on nodes.
         Types are converted according to self.FIELD_TYPES.
+
         :param str nodes: The nodes to collect data on. If None, collect
             data on all nodes. The format is slurm standard node list,
             which can include compressed series eg 'n00[20-99],n0101'
@@ -355,14 +370,17 @@ class Slurm(SchedulerPlugin):
     @staticmethod
     def _make_summary(nodes):
         """Get aggregate data about the given nodes. This includes:
-            - min_ppn - min procs per node
-            - max_ppn - max procs per node
-            - min_mem - min mem per node (in MiB)
-            - max_mem - min mem per node (in MiB)
-            - total_cpu - Total cpu's on these nodes.
-        :param typing.Iterable nodes: Node dictionaries as returned by
-        _collect_node_data.
-        :rtype: dict"""
+
+- min_ppn - min procs per node
+- max_ppn - max procs per node
+- min_mem - min mem per node (in MiB)
+- max_mem - min mem per node (in MiB)
+- total_cpu - Total cpu's on these nodes.
+
+:param typing.Iterable nodes: Node dictionaries as returned by
+    _collect_node_data.
+:rtype: dict
+"""
 
         min_ppn = 0
         max_ppn = 0
@@ -405,7 +423,7 @@ class Slurm(SchedulerPlugin):
         :param dict config: The scheduler config for a test.
         :param [list] nodes: Nodes (as defined by collect node data)
         :returns: A list of node names that are compatible with the given
-        config.
+            config.
         :rtype: list
         """
 
@@ -457,7 +475,8 @@ class Slurm(SchedulerPlugin):
 
     def _schedule(self, test, kickoff_path):
         """Submit the kick off script using sbatch.
-        :param PavTest test: The PavTest we're kicking off.
+
+        :param TestRun test: The TestRun we're kicking off.
         :param Path kickoff_path: The kickoff script path.
         """
 
@@ -534,6 +553,7 @@ class Slurm(SchedulerPlugin):
 
     def _scontrol_show(self, *args, timeout=10):
         """Run scontrol show and return the parsed output.
+
         :param list(str) args: Additional args to scontrol.
         :param int timeout: How long to wait for results.
         """
@@ -615,6 +635,7 @@ class Slurm(SchedulerPlugin):
     ]
 
     def job_status(self, pav_cfg, test):
+        """Get the current status of the slurm job for the given test."""
 
         try:
             job_info = self._scontrol_show('job', test.job_id)
@@ -707,9 +728,11 @@ class Slurm(SchedulerPlugin):
     def _get_node_range(self, sched_config, nodes):
         """Translate user requests for a number of nodes into a numerical
         range based on the number of nodes on the actual system.
+
         :param dict sched_config: The scheduler config for a particular test.
         :param list nodes: A list of nodes.
-        :returns: A range suitable for the num_nodes argument of slurm."""
+        :returns: A range suitable for the num_nodes argument of slurm.
+        """
 
         # Figure out the requested number of nodes
         num_nodes = sched_config.get('num_nodes')
@@ -736,7 +759,6 @@ class Slurm(SchedulerPlugin):
                     "Invalid num_nodes minimum value: {}"
                     .format(min_nodes))
 
-
         if max_nodes == 'all':
             max_nodes = len(nodes)
         else:
@@ -749,8 +771,11 @@ class Slurm(SchedulerPlugin):
         return '{}-{}'.format(min_nodes, max_nodes)
 
     def _cancel_job(self, test):
-        """Scancel the job.
-        :param pavilion.pav_test.PavTest test: The test to cancel.
+        """Scancel the job attached to the given test.
+
+        :param pavilion.test_run.TestRun test: The test to cancel.
+        :returns: A statusInfo object with the latest scheduler state.
+        :rtype: StatusInfo
         """
 
         # TODO: check this
