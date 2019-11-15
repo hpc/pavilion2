@@ -209,7 +209,9 @@ class PluginTests(PavTestCase):
         yapsy_logger.addHandler(hndlr)
 
         pav_cfg = self.pav_cfg.copy()
-        pav_cfg['config_dirs'].append(self.TEST_DATA_ROOT/'bad_plugins')
+        cfg_dirs = list(pav_cfg.config_dirs)
+        cfg_dirs.append(self.TEST_DATA_ROOT/'bad_plugins')
+        pav_cfg.config_dirs = cfg_dirs
 
         # A bunch of plugins should fail to load, but this should be fine
         # anyway.
