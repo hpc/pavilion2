@@ -15,7 +15,8 @@ from pavilion.var_dict import var_method
 
 class SbatchHeader(scriptcomposer.ScriptHeader):
     """Provides header information specific to sbatch files for the
-    slurm kickoff script."""
+slurm kickoff script.
+"""
 
     def __init__(self, sched_config, nodes, test_id, vars):
         super().__init__()
