@@ -29,7 +29,7 @@ class Regex(result_parsers.ResultParser):
             # Use the built-in matches element.
             result_parsers.MATCHES_ELEM,
             yc.StrElem(
-                'threshold', default='0',
+                'threshold', default="",
                 help_text="If a threshold is defined, 'True' will be returned "
                           "if greater than or equal to that many instances "
                           "of the specified word are found.  If fewer "
@@ -62,7 +62,7 @@ class Regex(result_parsers.ResultParser):
             raise result_parsers.ResultParserError(
                 "Expected should be a list.")
 
-        if threshold is not None:
+        if threshold:
             try:
                 int(threshold)
             except ValueError as err:
@@ -121,7 +121,7 @@ class Regex(result_parsers.ResultParser):
             matches.extend(regex.findall(line))
 
         # Test if the number of matches meets the specified threshold
-        if int(threshold) > 0:
+        if threshold and int(threshold) > 0:
             return (len(matches) >= int(threshold))
         elif match_type == result_parsers.MATCH_FIRST:
             matches = None if not matches else matches[0]
