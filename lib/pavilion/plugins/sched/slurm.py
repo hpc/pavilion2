@@ -19,6 +19,14 @@ slurm kickoff script.
 """
 
     def __init__(self, sched_config, nodes, test_id, vars):
+        """Build a header for an sbatch file.
+
+        :param sched_config: The slurm section of the test config.
+        :param nodes: The node list
+        :param test_id: The test's id.
+        :param vars: The test variables.
+        """
+
         super().__init__()
 
         self._conf = sched_config
