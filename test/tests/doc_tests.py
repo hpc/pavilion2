@@ -27,6 +27,15 @@ class DocTests(unittest.PavTestCase):
             if 'WARNING' in line:
                 warnings.append(line)
 
+        import pickle
+        data = pickle.load(
+            (self.PAV_ROOT_DIR/'docs'/'_build'/
+             'doctrees'/'environment.pickle').open('rb'))
+
+        self.dbg_print('labels')
+        for k,v in data.domaindata['std']['labels'].items():
+            self.dbg_print(k, v)
+
         self.assertTrue(len(warnings) == 0,
                         msg='{} warnings in documentation build:\n{}\n\n{}'
                             .format(len(warnings), '\n'.join(warnings), out))
