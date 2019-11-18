@@ -27,6 +27,6 @@ class DocTests(unittest.PavTestCase):
             if 'WARNING' in line:
                 warnings.append(line)
 
-        self.assertFalse(warnings,
-                         msg='{} warnings in documentation build:\n{}'
-                             .format(len(warnings), '\n'.join(warnings)))
+        self.assertTrue(len(warnings) == 0,
+                        msg='{} warnings in documentation build:\n{}\n\n{}'
+                            .format(len(warnings), '\n'.join(warnings), out))
