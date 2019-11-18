@@ -17,9 +17,9 @@
    id="svg8"
    inkscape:version="0.92.3 (2405546, 2018-03-11)"
    sodipodi:docname="pavilion_logo2_dark.svg"
-   inkscape:export-filename="/home/pflarr/repos/pavilion/docs/imgs/logo.png"
-   inkscape:export-xdpi="300"
-   inkscape:export-ydpi="300">
+   inkscape:export-filename="/home/pflarr/repos/pavilion/docs/imgs/logo_small_dark.png"
+   inkscape:export-xdpi="40.577393"
+   inkscape:export-ydpi="40.577393">
   <defs
      id="defs2">
     <linearGradient
@@ -97,7 +97,7 @@
      inkscape:pageshadow="2"
      inkscape:zoom="2.8"
      inkscape:cx="346.95933"
-     inkscape:cy="139.00986"
+     inkscape:cy="96.152719"
      inkscape:document-units="mm"
      inkscape:current-layer="layer2"
      showgrid="false"
