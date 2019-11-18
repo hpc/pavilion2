@@ -33,8 +33,8 @@ base class. It provides:
 - self._quick_test() - Instant test run objects.
 """
 
-    PAV_LIB_DIR = Path(__file__).resolve().parent
-    PAV_ROOT_DIR = PAV_LIB_DIR.parents[1]
+    PAV_LIB_DIR = Path(__file__).resolve().parent  # type: Path
+    PAV_ROOT_DIR = PAV_LIB_DIR.parents[1]  # type: Path
     TEST_DATA_ROOT = PAV_ROOT_DIR/'test'/'data'  # type: Path
 
     PAV_CONFIG_PATH = TEST_DATA_ROOT/'pav_config_dir'/'pavilion.yaml'
