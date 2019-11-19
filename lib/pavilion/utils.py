@@ -30,7 +30,7 @@ def get_relative_timestamp(base_dt):
     if now.strftime("%a") != base_dt.strftime("%a"):
         return now.strftime(" ".join(format_[2:]))
 
-    if now.strftime("%H:%M") != base_dt.strftime("%H:%M:%S"):
+    if now.strftime("%H:%M:%S") != base_dt.strftime("%H:%M:%S"):
         return now.strftime(" ".join(format_[3:]))
 
     return base_dt.strftime(str(" ".join(format_)))
