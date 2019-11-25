@@ -5,6 +5,7 @@ from pavilion import schedulers
 from pavilion.status_file import STATES
 import argparse
 import io
+import sys
 import time
 
 
@@ -42,7 +43,10 @@ class LogCmdTest(PavTestCase):
         out = io.StringIO()
         err = io.StringIO()
 
-        result = log_cmd.run(self.pav_cfg, args, out_file=out, err_file=err)
+        log_cmd.outfile = out
+        log_cmd.errfile = err
+
+        result = log_cmd.run(self.pav_cfg, args)
         err.seek(0)
         out.seek(0)
         self.assertEqual(err.read(), '')
@@ -54,7 +58,7 @@ class LogCmdTest(PavTestCase):
         out.truncate(0)
         err.truncate(0)
         args = parser.parse_args(['build', str(test.id)])
-        log_cmd.run(self.pav_cfg, args, out_file=out, err_file=err)
+        log_cmd.run(self.pav_cfg, args)
         out.seek(0)
         err.seek(0)
         self.assertEqual(out.read(), '')
@@ -64,9 +68,12 @@ class LogCmdTest(PavTestCase):
         out.truncate(0)
         err.truncate(0)
         args = parser.parse_args(['kickoff', str(test.id)])
-        result = log_cmd.run(self.pav_cfg, args, out_file=out, err_file=err)
+        result = log_cmd.run(self.pav_cfg, args)
         out.seek(0)
         err.seek(0)
         self.assertEqual(out.read(), '')
         self.assertEqual(err.read(), '')
         self.assertEqual(result, 0)
+
+        log_cmd.outfile = sys.stdout
+        log_cmd.outfile = sys.stderr
