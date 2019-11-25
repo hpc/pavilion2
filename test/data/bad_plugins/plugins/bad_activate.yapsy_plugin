@@ -1,0 +1,6 @@
+[Core]
+Name = Bad Activation
+Module = bad_activate
+
+[Documentation]
+Description = Has an error in activate
