@@ -34,7 +34,7 @@ def status_from_test_obj(pav_cfg, test_obj):
             'test_id': test.id,
             'name': test.name,
             'state': status_f.state,
-            'time': status_f.when.strftime("%d %b %Y %H:%M:%S"),
+            'time': status_f.when,
             'note': status_f.note,
         })
 
