@@ -1,0 +1,9 @@
+[Core]
+Name = Module Plugin Test
+Module = module_plugin_test
+
+[Documentation]
+Description = Converts module loads of 'itsa' into loads of 'real'
+Author = Some Author
+Version = 1.0
+Website =
