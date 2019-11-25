@@ -139,9 +139,9 @@ class ResultParserTests(PavTestCase):
                          'In a World')
 
         self.assertIn(results['name']['other']['name'],
-                ['In a World', "I'm here to cause World"])
+                      ['In a World', "I'm here to cause World"])
         self.assertIn("Duplicate file key 'other' matched by name",
-                [e['msg'] for e in results['errors']])
+                      [e['msg'] for e in results['errors']])
 
         self.assertEqual(sorted(results['lists']),
                          sorted(['and someone saves the World',
@@ -457,7 +457,7 @@ class ResultParserTests(PavTestCase):
                         # list of integer values
                         'key': 'key10',
                         'regex': r'^result.*=(.*)$',
-                        'expected': ['100','101'],
+                        'expected': ['100', '101'],
                         'action': result_parsers.ACTION_TRUE,
                         'match_type': result_parsers.MATCH_ALL,
                     },
@@ -749,3 +749,150 @@ class ResultParserTests(PavTestCase):
         self.assertEqual(results['key'], '968.3')
 
         self.assertTrue(results['result'])
+
+    def test_table_result_parser(self):
+        """
+        Makes sure Table Result Parser Works
+        :return:
+        """
+        plugins.initialize_plugins(self.pav_cfg)
+
+        # line+space delimiter
+        table_test1 = {
+            'scheduler': 'raw',
+            'run': {
+                'cmds': [
+                    'echo "SAMPLE TABLE"',
+                    'echo "Col1 | Col2 | Col3"',
+                    'echo "------------------"',
+                    'echo "data1 | 3 | data2"',
+                    'echo "data3 | 8 | data4"',
+                    'echo "data5 |   | data6"',
+                    'echo "some other text that doesnt matter"'
+                ]
+            },
+            'results': {
+                'table': [
+                    {
+                        'key': 'table1',
+                        'delimiter': '\\|',
+                        'col_num': '3'
+                    }
+                ],
+                'constant': [
+                    {
+                        'key': 'result',
+                        'const': 'table1'
+                    }
+                ]
+            }
+        }
+
+        test = self._quick_test(table_test1, 'result_parser_test')
+        test.build()
+        test.run({}, {})
+
+        results = result_parsers.parse_results(
+            test=test,
+            results={}
+        )
+
+        self.assertEqual(['data1', 'data3', 'data5'], results['table1']['Col1'])
+        self.assertEqual(['3', '8', ' '], results['table1']['Col2'])
+        self.assertEqual(['data2', 'data4', 'data6'], results['table1']['Col3'])
+
+        # space delimiter
+        table_test2 = {
+            'scheduler': 'raw',
+            'run': {
+                'cmds': [
+                    'echo "SAMPLE TABLE"',
+                    'echo "d1 d2 d3"',
+                    'echo "d4 d5 d6"',
+                    'echo "d7   d9"',
+                    'echo "some other text that doesnt matter"'
+                ]
+            },
+            'results': {
+                'table': [
+                    {
+                        'key': 'table2',
+                        'delimiter': ' ',
+                        'col_num': '3'
+                    }
+                ],
+                'constant': [
+                    {
+                        'key': 'result',
+                        'const': 'table2'
+                    }
+                ]
+            }
+        }
+
+        test = self._quick_test(table_test2, 'result_parser_test')
+        test.build()
+        test.run({}, {})
+
+        results = result_parsers.parse_results(
+            test=test,
+            results={}
+        )
+
+        self.assertEqual(['d4', 'd7'], results['table2']['d1'])
+        self.assertEqual(['d5', ' '], results['table2']['d2'])
+        self.assertEqual(['d6', 'd9'], results['table2']['d3'])
+
+        # comma delimiter
+        table_test3 = {
+            'scheduler': 'raw',
+            'run': {
+                'cmds': [
+                    'echo "----------- Comma-delimited summary ---------"',
+                    'echo "./clomp_hwloc 4 -1 256 10 32 1 100, calc_deposit, OMP Barrier, Scaled Serial Ref, Bestcase OMP, Static OMP, Dynamic OMP, Manual OMP"',
+                    'echo "Runtime,   0.000,   0.919,   2.641,   0.517,   2.345,  16.392,   2.324"',
+                    'echo "us/Loop,    0.00,    9.41,   27.04,    5.29,   24.01,  167.85,   23.79"',
+                    'echo "Speedup,     N/A,     N/A,    1.00,     5.1,     1.1,     0.2,     1.1"',
+                    'echo "Efficacy,    N/A,     N/A,     N/A,   100%,   22.0%,    3.2%, 22.2%"',
+                    'echo "Overhead,    N/A,     N/A,     N/A,    0.00,   18.72,  162.56,   18.50"',
+                    'echo "CORAL2 RFP, 4 -1 256 10 32 1 100, 1.00, 27.04, 27.04, 9.41, 5.1, 18.72, 1.1, 162.56, 0.2, 18.50, 1.1"'
+                ]
+            },
+            'results': {
+                'table': [
+                    {
+                        'key': 'table3',
+                        'delimiter': ',',
+                        'col_num': '8',
+                        'has_header': 'True',
+                        'col_names': [' ', 'calc_deposit', 'OMP Barrier',
+                                      'Scaled Serial Ref', 'Bestcase OMP',
+                                      'Static OMP', 'Dynamic OMP', 'Manual OMP']
+                    }
+                ],
+                'constant': [
+                    {
+                        'key': 'result',
+                        'const': 'table3'
+                    }
+                ]
+            }
+        }
+
+        test = self._quick_test(table_test3, 'result_parser_test')
+        test.build()
+        test.run({}, {})
+
+        results = result_parsers.parse_results(
+            test=test,
+            results={}
+        )
+
+        self.assertEqual('0.000', results['table3']['calc_deposit']['Runtime'])
+        self.assertEqual('9.41', results['table3']['OMP Barrier']['us/Loop'])
+        self.assertEqual('1.00',
+                         results['table3']['Scaled Serial Ref']['Speedup'])
+        self.assertEqual('100%', results['table3']['Bestcase OMP']['Efficacy'])
+        self.assertEqual('18.72', results['table3']['Static OMP']['Overhead'])
+        self.assertEqual('16.392', results['table3']['Dynamic OMP']['Runtime'])
+        self.assertEqual('23.79', results['table3']['Manual OMP']['us/Loop'])

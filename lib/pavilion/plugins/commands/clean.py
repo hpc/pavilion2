@@ -3,12 +3,11 @@ import sys
 import argparse
 import os
 import shutil
-import time
 from calendar import monthrange
 from datetime import datetime, timedelta
 from pavilion import commands
 from pavilion import utils
-from pavilion.pav_test import PavTest, PavTestError, PavTestNotFoundError
+from pavilion.test_run import TestRun, TestRunError, TestRunNotFoundError
 from pavilion.status_file import STATES
 
 
@@ -32,7 +31,7 @@ class CleanCommand(commands.Command):
             '"Jan 1 2019" or , or a number of days/weeks ex:"32 weeks"'
         )
 
-    def run(self, pav_cfg, args, out_file=sys.stdout, err_file=sys.stderr):
+    def run(self, pav_cfg, args):
 
         if args.older_than:
             if 'day' in args.older_than or 'days' in args.older_than:
@@ -57,7 +56,7 @@ class CleanCommand(commands.Command):
         else:
             cutoff_date = datetime.today()
 
-        tests_dir = pav_cfg.working_dir/'tests'
+        tests_dir = pav_cfg.working_dir/'test_runs'
         series_dir = pav_cfg.working_dir/'series'
         download_dir = pav_cfg.working_dir/'downloads'
         build_dir = pav_cfg.working_dir/'builds'
@@ -71,9 +70,9 @@ class CleanCommand(commands.Command):
             test_time = datetime.fromtimestamp(
                 os.path.getmtime((tests_dir/test).as_posix()))
             try:
-                test_obj = PavTest.load(pav_cfg, int(test))
+                test_obj = TestRun.load(pav_cfg, int(test))
                 status = test_obj.status.current().state
-            except (PavTestError, PavTestNotFoundError) as err:
+            except (TestRunError, TestRunNotFoundError) as err:
                 utils.fprint("Removing bad test directory {}".format(test),
                              file=self.outfile)
                 shutil.rmtree(tests_dir.as_posix())
@@ -148,6 +147,7 @@ class CleanCommand(commands.Command):
                                  file=self.outfile)
 
         return 0
+
 
 def get_month_delta(months):
 

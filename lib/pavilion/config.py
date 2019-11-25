@@ -1,17 +1,17 @@
-# This module contains the base configuration for Pavilion itself.
+"""This module defines the base configuration for Pavilion itself."""
 
 import grp
 import logging
 import os
 import socket
-from pathlib import Path
+from pathlib import Path, PosixPath
 
 import yaml_config as yc
 
 LOGGER = logging.getLogger('pavilion.' + __file__)
 
 
-def group_validate(_, group):
+def _group_validate(_, group):
     """Make sure the group specified in the config exists and the user is
     in it."""
 
@@ -59,6 +59,9 @@ PAV_CONFIG_FILE = os.environ.get('PAV_CONFIG_FILE', None)
 
 
 class PavilionConfigLoader(yc.YamlConfigLoader):
+    """This object uses YamlConfig to define Pavilion's base configuration
+    format and options. If you're looking to add an option to the general
+    pavilion.yaml format, this is the place to do it."""
 
     # Each and every configuration element needs to either not be required,
     # or have a sensible default. Essentially, Pavilion needs to work if no
@@ -81,7 +84,7 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
                       "example, 'module.gcc' would disable the gcc module "
                       "wrapper."),
         yc.StrElem(
-            "shared_group", post_validator=group_validate,
+            "shared_group", post_validator=_group_validate,
             help_text="Pavilion can automatically set group permissions on all "
                       "created files, so that users can share relevant "
                       "results, etc."),
@@ -157,12 +160,16 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
 
 def find(warn=True):
     """Search for a pavilion.yaml configuration file. Use the one pointed
-    to by PAV_CONFIG_FILE. Otherwise, use the first found in these
-    directories: {}""".format(PAV_CONFIG_SEARCH_DIRS)
+to by the PAV_CONFIG_FILE environment variable. Otherwise, use the first
+found in these directories the default config search paths:
 
-    import pathlib
+- The current directory
+- The ~/.pavilion directory
+- The Pavilion source directory (don't put your config here).
+"""
+
     if PAV_CONFIG_FILE is not None:
-        pav_cfg_file = pathlib.PosixPath(Path(PAV_CONFIG_FILE))
+        pav_cfg_file = PosixPath(Path(PAV_CONFIG_FILE))
         # pylint has a bug that pops up occasionally with pathlib.
         if pav_cfg_file.is_file():  # pylint: disable=no-member
             try:
