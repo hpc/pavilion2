@@ -33,7 +33,7 @@ Environment Variables
 The ``env`` attribute allows you to set environment variables in either
 the *run* or *build* scripts. They are configured as a YAML
 mapping/dict, and (unlike the rest of Pavilion) can have upper-case keys
-(but no dashes). Like with the run/build commands, the values are can
+(but no dashes). Like with the run/build commands, the values can
 contain any bash shell syntax without issue.
 
 .. code:: yaml

@@ -238,7 +238,7 @@ depending on the scheduler settings.
 Running run.sh
 ~~~~~~~~~~~~~~
 
-Within the ``pav _run`` command, after we've `build the test
+Within the ``pav _run`` command, after we've `built the test
 src <build.md>`__ and resolved ``run.tmpl`` into the final ``run.sh``
 script, we simply have to run it.
 
