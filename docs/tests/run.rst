@@ -49,14 +49,14 @@ See `Env Vars <env.md#environment-variables>`__ for more info.
 cmds (list)
 ^^^^^^^^^^^
 
-The list of commands to perform the build.
+The list of commands to perform when running the test.
 
--  Each string in the list is put into the build script as a separate
+-  Each string in the list is put into the run script as a separate
    line.
 -  The return value of the last command in this list will be the return
-   value of the build script.
+   value of the run script.
 
-   -  The build script return value is one way to denote build success
+   -  The run script return value is one way to denote build success
       or failure.
 
 -  If your script failures don't cascade (a failed ``./configure``
@@ -112,25 +112,36 @@ everything there is to know about a test.
 
    Test Run Directory
 
--  **status** - Contains all the statuses that a test has had. The last
-   listed is the current test status.
--  **config** - The finalized configuration for the test run, in json.
--  **job\_id** - The job\_id assigned by the scheduler. The format
-   depends on the scheduler plugin.
--  **kickoff.sh** - The kickoff script, written by the scheduler plugin.
-   This simply calls pavilion again to run this particular test inside
-   of an allocation. The extension may vary depending on the scheduler
-   plugin.
--  **build.sh** - The `build script <build.md#create-a-build-script>`__.
--  **run.tmpl** - The `run script
-   template <#create-the-run-script-template>`__.
--  **run.sh** - The final run script.
--  **(kickoff/build/run).log** - The stdout and stderr of each of the
-   above scripts when they were run.
--  **build** - The build directory. The test will run within this
-   directory.
--  The files in here are softlinks to the `actual
-   build <build.md#copy-the-build>`__.
+<run_id>/**status**
+  Contains all the statuses that a test has had. The last
+  listed is the current test status.
+<run_id>/**config**
+  The finalized configuration for the test run, in json.
+<run_id>/**job\_id**
+  The job\_id assigned by the scheduler. The format depends on the scheduler
+  plugin.
+<run_id>/**kickoff.sh**
+  The kickoff script, written by the scheduler plugin.
+  This simply calls pavilion again to run this particular test inside
+  of an allocation. The extension may vary depending on the scheduler
+  plugin.
+<run_id>/**build.sh**
+  The `build script <build.html#create-a-build-script>`__.
+<run_id>/**run.tmpl**
+  The `run script template <#create-the-run-script-template>`__.
+<run_id>/**run.sh**
+  The final run script.
+<run_id>/**(kickoff/build/run).log**
+  The stdout and stderr of each of the above scripts when they were run.
+<run_id>/**build**
+  The build directory. The test will run within this directory.
+
+  - The files in here are softlinks to the
+    `actual build <build.html#copy-the-build>`__.
+<run_id>/**RUN_COMPLETE**
+  Created when the run has completed, and contains just the completion time.
+<run_id>/**result.json**
+  The json of the test results.
 
 Create the Run Script Template
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -210,9 +221,9 @@ slurm
 ^^^^^
 
 For the existing **slurm** scheduler, this means writing an sbatch
-script (``kickoff.sbatch``), and scheduling it via the sbatch command.
-Since slurm sbatch script allows us to set all options within the
-script, we do so to allow for easier debugging of Pavilion.
+script (``kickoff.sbatch``) and scheduling it via the sbatch command.
+Since the slurm sbatch script allows us to set all options within the
+script header, we do so to allow for easier debugging of Pavilion.
 
 It's up to the Pavilion user to make sure the test's slurm settings are
 such that the test will eventually get an allocation.

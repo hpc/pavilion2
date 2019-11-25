@@ -10,8 +10,7 @@ file.
 Requirements
 ------------
 
-Pavilion has beyond just
-dependencies. In summary, it needs:
+Pavilion has very few dependencies and requirements:
 
 - Python 3.4 or newer
 - A writeable space on a filesystem shared across all (tested) hosts in each cluster.

@@ -33,7 +33,7 @@ class SetStatusCommand(commands.Command):
                  'used.'
         )
 
-    def run(self, pav_cfg, args, out_file=sys.stdout, err_file=sys.stderr):
+    def run(self, pav_cfg, args):
 
         # Zero is given as the default when running test scripts outside of
         # Pavilion.

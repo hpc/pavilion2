@@ -24,10 +24,10 @@ class ScriptHeader:
 
     def __init__(self, shell_path=None, scheduler_headers=None):
         """The header values for a script.
-:param string shell_path: Shell path specification.  Typically
-                          '/bin/bash'.  default = None.
-:param list scheduler_headers: List of lines for scheduler resource
-                               specifications.
+        :param string shell_path: Shell path specification.  Typically
+                                  '/bin/bash'.  default = None.
+        :param list scheduler_headers: List of lines for scheduler resource
+                                       specifications.
         """
         self._shell_path = None
         self._scheduler_headers = None
@@ -88,13 +88,13 @@ class ScriptDetails():
     def __init__(self, path=None, group=None, perms=None):
         """Function to set the final details of the script.
 
-:param Union(str,Path) path: The path to the script file. default =
-    'pav_(date)_(time)'
-:param string group: Name of group to set as owner of the file.
-                     default = user default group
-:param int perms: Value for permission on the file (see
-                  `man chmod`).  default = 0o770
-"""
+        :param Union(str,Path) path: The path to the script file. default =
+            'pav_(date)_(time)'
+        :param string group: Name of group to set as owner of the file.
+                             default = user default group
+        :param int perms: Value for permission on the file (see
+                          `man chmod`).  default = 0o770
+        """
         self._path = None
         self._group = None
         self._perms = None
@@ -141,12 +141,12 @@ class ScriptComposer:
 
     def __init__(self, header=None, details=None):
         """Function to initialize the class and the default values for all of
-the variables.
+        the variables.
 
-:param ScriptHeader header: The header class to use. Defaults to one that
-    simply adds ``#!/bin/bash`` as the file header.
-:param ScriptDetails details: The metadata class to use.
-"""
+        :param ScriptHeader header: The header class to use. Defaults to one
+            that simply adds ``#!/bin/bash`` as the file header.
+        :param ScriptDetails details: The metadata class to use.
+        """
 
         if header is None:
             header = ScriptHeader()
@@ -161,12 +161,12 @@ the variables.
 
     def env_change(self, env_dict):
         """Function to take the environment variable change requested by the
-user and add the appropriate line to the script.
+        user and add the appropriate line to the script.
 
-:param dict env_dict: A dictionary (preferably an OrderedDict) of
-    environment keys and values to set. A value of None will unset the
-    variable.
-"""
+        :param dict env_dict: A dictionary (preferably an OrderedDict) of
+            environment keys and values to set. A value of None will unset the
+            variable.
+        """
 
         # Order the keys alphabetically if they don't have an implied order.
         if not isinstance(env_dict, collections.OrderedDict):
@@ -191,6 +191,7 @@ in one of three formats:
    module for the new one.
 
 :param str mod_line: String provided by the user in the config.
+:rtype: (str, (str, str), (str, str))
 :return: action, (name, vers), (old_name, old_vers)
 """
         old_mod = None
@@ -223,14 +224,14 @@ in one of three formats:
 
     def module_change(self, module, sys_vars):
         """Take the module changes specified in the user config and add the
-appropriate lines to the script. This will parse the module name into various
-actions, find the appropriate module_wrapper plugin, and use that to get
-the lines to add to the script.
+        appropriate lines to the script. This will parse the module name into
+        various actions, find the appropriate module_wrapper plugin, and use
+        that to get the lines to add to the script.
 
-:param str module: Name of a module or a list thereof in the format
-    used in the user config.
-:param dict sys_vars: The pavilion system variable dictionary.
-"""
+        :param str module: Name of a module or a list thereof in the format
+            used in the user config.
+        :param dict sys_vars: The pavilion system variable dictionary.
+        """
 
         action, (name, version), (oldname, oldver) = self.parse_module(module)
 
@@ -267,15 +268,15 @@ the lines to add to the script.
     def comment(self, comment):
         """Function for adding a comment to the script.
 
-:param str comment: Text to be put in comment without the leading '# '.
-"""
+        :param str comment: Text to be put in comment without the leading '# '.
+        """
         self._script_lines.append("# {}".format(comment))
 
     def command(self, command):
         """Add a line unadulterated to the script lines.
 
-:param str command: String representing the whole command to add.
-"""
+        :param str command: String representing the whole command to add.
+        """
         if isinstance(command, list):
             for cmd in command:
                 self._script_lines.append(cmd)
@@ -285,9 +286,9 @@ the lines to add to the script.
     def write(self):
         """Function to write the script out to file.
 
-:return bool result: Returns either True for successfully writing the
-                     file or False otherwise.
-"""
+        :return bool result: Returns either True for successfully writing the
+                             file or False otherwise.
+        """
 
         with self.details.path.open('w') as script_file:
             script_file.write('\n'.join(self.header.get_lines()))

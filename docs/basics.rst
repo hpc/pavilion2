@@ -52,11 +52,13 @@ optional.
         cmds: 'test -d /var/log/messages'
 
 The above test checks to see if the ``/var/log/messages`` directory
-exits. - The test will PASS if that command returns 0. - It will run as
-a process on the local machine, as your user. - Pavilion doesn't have
-any special priviledges. It's meant to test things, from a normal users
-perspective. If you want to test stuff as root, you'll have to run
-pavilion as root.
+exits.
+
+- The test will PASS if that command returns 0.
+- It will run as a process on the local machine, as your user.
+- Pavilion doesn't have any special priviledges. It's meant to test things,
+  from a normal user's perspective. If you want to test stuff as root, you'll
+  have to run pavilion as root.
 
 Host Configs
 ^^^^^^^^^^^^
@@ -68,10 +70,9 @@ config directory.
 This config is used to override the Pavilion defaults for values in
 every test config run on that system. You can use these to set default
 values for things like the max nodes per job in a given scheduler,
-always loading certain modules when building tests, or setting useful
-`variables <tests/variables.html>`__ for that system. The format is the
-same as a test config file, except with only one test and without the
-name for that test.
+or setting useful `variables <tests/variables.html>`__ for that system. The
+format is the same as a test config file, except with only one test and
+without the name for that test.
 
 .. code:: bash
 

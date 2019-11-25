@@ -25,10 +25,8 @@ class _RunCommand(commands.Command):
             'test_id', action='store', type=int,
             help='The id of the test to run.')
 
-    def run(self, pav_cfg, args, out_file=sys.stdout, err_file=sys.stderr):
+    def run(self, pav_cfg, args):
         """Load and run an already prepped test in the current environment.
-        :param out_file:
-        :param err_file:
         """
 
         try:

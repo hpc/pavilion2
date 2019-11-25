@@ -241,9 +241,10 @@ files."""
     def get_hash(filename):
         """ Get a sha1 hash of the file at the given path.
 
-:param Path filename:
-:return: The sha1 hexdigest of the file contents.
-"""
+        :param Path filename:
+        :return: The sha1 hexdigest of the file contents.
+        :rtype: str
+        """
         with filename.open('rb') as file:
             sha = sha1()
             sha.update(file.read())
@@ -298,12 +299,13 @@ The default config is: ::
     del __config_lines
 
     def _quick_test(self, cfg=None, name="quick_test"):
-        """Create a test object to work with.
-The default is a simple hello world test with the raw scheduler.
+        """Create a test run object to work with.
+        The default is a simple hello world test with the raw scheduler.
 
-:param dict cfg: An optional config dict to create the test from.
-:param str name: The name of the test.
-"""
+        :param dict cfg: An optional config dict to create the test from.
+        :param str name: The name of the test.
+        :rtype: test_run.TestRun
+        """
 
         if cfg is None:
             cfg = self._quick_test_cfg()

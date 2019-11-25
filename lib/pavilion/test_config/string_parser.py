@@ -193,7 +193,8 @@ Save the matching part, start and end. These type of token may be empty.
     def resolve(self, var_man, _iter_vars=None, allow_deferred=True):
         """Resolve any variables in this token using the variable manager.
 
-:param var_man: A variable manager with the needed variables.
+:param variables.VariableSetManager var_man: A variable manager with the needed
+    variables.
 :param dict _iter_vars: Variables that are being iterated over in
     the resolution of a sub string.
 :param bool allow_deferred: Whether this string can support deferred

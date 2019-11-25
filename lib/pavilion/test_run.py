@@ -37,8 +37,9 @@ def get_latest_tests(pav_cfg, limit):
     """Returns ID's of latest test given a limit
 
 :param pav_cfg: Pavilion config file
-:param limit: maximum size of list of test ID's
+:param int limit: maximum size of list of test ID's
 :return: list of test ID's
+:rtype: list(int)
 """
 
     test_dir_list = []
@@ -71,7 +72,7 @@ class TestRun:
     """The central pavilion test object. Handle saving, monitoring and running
 tests.
 
-:cvar TEST_ID_DIGITS: How many digits should be in the test folder names.
+:cvar int TEST_ID_DIGITS: How many digits should be in the test folder names.
 """
 
     # By default we support up to 10 million tests.
@@ -92,10 +93,10 @@ tests.
     instance, use the ``TestRun.from_id()`` method.
 
 :param pav_cfg: The pavilion configuration.
-:param config: The test configuration dictionary.
+:param dict config: The test configuration dictionary.
 :param Union(dict,None) sys_vars: The system variables dictionary. This may be
     None when loading an existing test.
-:param _id: The test id of an existing test. (You should be using
+:param int _id: The test id of an existing test. (You should be using
             TestRun.load).
 """
 
@@ -281,7 +282,7 @@ test."""
         are searched for in all config directories under 'test_src'.
 
 :param Path file: The path to the file.
-:param sub_dir: The subdirectory in each config directory in which to
+:param str sub_dir: The subdirectory in each config directory in which to
     search.
 :returns: The full path to the found file, or None if no such file
     could be found.
@@ -1002,6 +1003,7 @@ result
         """Load results from the results file.
 
 :returns A dict of results, or None if the results file doesn't exist.
+:rtype: dict
 """
 
         if self.results_path.exists():
@@ -1016,6 +1018,7 @@ result
 
 :returns: True if the build exists (or the test doesn't have a build),
           False otherwise.
+:rtype: bool
 """
 
         if self.build_path.resolve().exists():

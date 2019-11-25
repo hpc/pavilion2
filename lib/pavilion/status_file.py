@@ -44,7 +44,7 @@ Rules:
 - Failure states should end in '_FAILED'
 
 **Note**: The states are written in the class as ``<state_name> = <help_text>``,
-howver, on class init the help text is stored separately, and the state value
+however, on class init the help text is stored separately, and the state value
 is set to the name of the state itself. So STATES.ENV_FAILED will have a
 value of 'ENV_FAILED' when used.
 

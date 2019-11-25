@@ -21,10 +21,10 @@ slurm kickoff script.
     def __init__(self, sched_config, nodes, test_id, vars):
         """Build a header for an sbatch file.
 
-        :param sched_config: The slurm section of the test config.
-        :param nodes: The node list
-        :param test_id: The test's id.
-        :param vars: The test variables.
+        :param dict sched_config: The slurm section of the test config.
+        :param list nodes: The node list
+        :param int test_id: The test's id.
+        :param dict vars: The test variables.
         """
 
         super().__init__()
@@ -741,6 +741,7 @@ class Slurm(SchedulerPlugin):
 
         :param dict sched_config: The scheduler config for a particular test.
         :param list nodes: A list of nodes.
+        :rtype: str
         :returns: A range suitable for the num_nodes argument of slurm.
         """
 

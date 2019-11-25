@@ -42,7 +42,7 @@ class WaitCommand(commands.Command):
                  'recent series submitted by this user is checked.'
         )
 
-    def run(self, pav_cfg, args, out_file=sys.stdout, err_file=sys.stderr):
+    def run(self, pav_cfg, args):
         # Store the initial time for timeout functionality.
         start_time = time.time()
 

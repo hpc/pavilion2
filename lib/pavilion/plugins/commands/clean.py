@@ -31,7 +31,7 @@ class CleanCommand(commands.Command):
             '"Jan 1 2019" or , or a number of days/weeks ex:"32 weeks"'
         )
 
-    def run(self, pav_cfg, args, out_file=sys.stdout, err_file=sys.stderr):
+    def run(self, pav_cfg, args):
 
         if args.older_than:
             if 'day' in args.older_than or 'days' in args.older_than:

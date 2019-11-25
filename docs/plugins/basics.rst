@@ -147,7 +147,6 @@ categories as well.
 
 **NOTE:** Unlike with test configs and src, the order of the
 config\_directories does not matter when resolving conflicting plugins.
-See the `plugin priority <#plugin-priority>`__ section below.
 
 Plugin 'description'
 ~~~~~~~~~~~~~~~~~~~~

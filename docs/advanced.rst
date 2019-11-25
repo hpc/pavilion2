@@ -40,9 +40,12 @@ Test configs can contain variable references within their config values
 (all of which are read as strings by Pavilion).
 
 These variables come from a variety of sources (this is also the
-resolution order): - The test config's permutations section (per) - The
-test config's variables section (var) - System Plugins (sys) - Pavilion
-hardcoded variables (pav) - The selected scheduler (sched)
+resolution order):
+
+- The test config's variables section (var)
+- System Plugins (sys)
+- Pavilion hardcoded variables (pav)
+- The selected scheduler (sched)
 
 Variable names must be in lowercase and start with a letter, but may
 contain numbers, dashes and underscores.
@@ -70,8 +73,8 @@ Variable References
    you need to make the reference explicit.
 -  You'll also see ``{{myvar.2}}`` list references, ``{{myvar.foo}}``
    attribute references, and the combination of the two
-   ``{{myvar.1.bar}}``. See the full `variable
-   documentation <tests/variables.html>`__ for more info.
+   ``{{myvar.1.bar}}``. See the full
+   `variable documentation <tests/variables.html>`__ for more info.
 
 Listing Variables
 ^^^^^^^^^^^^^^^^^
@@ -173,38 +176,39 @@ Rules of Inheritance
 Permutations
 ~~~~~~~~~~~~
 
-Variables that appear in the permutation section are special. If they
-have multiple values, they generate a new virtual test for every
-combination of values.
+Let's say you want to create ten mostly identical tests, but each test takes
+slightly different input. In Pavilion, you can assign those different input
+values to a variable, and then create test 'permutations' over those values.
+Each permutation of a test is an instance of that test where that variable takes
+on just one of the values from your variable.
 
 .. code:: yaml
 
-    super_magic:
-        scheduler: slurm
-        permutations:
-          # Generate a virtual test for each of these compilers
-          compiler: ['gcc', 'pgi', 'intel']
-          # Also generate tests for each mpi.
-          mpi: ['openmpi', 'mvapich2']
-          # A total of six tests (3 compilers x 2 mpis) will be generated,
-          # built, and run if we run this supermagic test.
-          
-        # We can dynamically generate a subtitle for the test. 
-        subtitle: '{{compiler}}-{{mpi}}'
-        build:
-          # Each test will load a different compiler and mpi module for the build
-           and run.
-          modules:
-            - '{{compiler}}'
-            - '{{mpi}}'
-          cmds:
-            - mpicc -o super_magic super_magic.c
+    nbodies:
+
+        variables:
+            bodies: [2, 3, 10, 1000, 10000, 100000]
+        permute_on: bodies
+
         run:
-          modules:
-            - '{{compiler}}'
-            - '{{mpi}}'
-          cmds:
-            - ./super_magic -a
+            cmds:
+                - "nbodies -n {{bodies}} -s 1000"
+
+        build:
+            ...
+
+This will create six test configurations (and thus six test runs), one for each
+ of the values of ``bodies`` with run commands that look like:
+
+ - nbodies -n 2 -s 1000
+ - nbodies -n 3 -s 1000
+ - nbodies -n 10 -s 1000
+ - etc.
+
+You also can permute over multiple variables at once, producing a test run for
+each possible permutation of values. See
+`Test Permutations <tests/variables.html#permutations>`__
+for more info.
 
 Environment
 -----------
@@ -363,7 +367,7 @@ fairly loosely defined. They must at least do the following:
     available for a given scheduler.
 * Define a configuration section for test configs.
 
-  - See ``pav show sched --config <sched_name`` for the definition.
+  - See ``pav show sched --config <sched_name>`` for the definition.
 * Provide a means to kickoff tests.
 
   - The scheduler writes a script that does little more than call Pavilion

@@ -217,15 +217,20 @@ The list of commands to perform the build.
 Generate a Build Hash
 ~~~~~~~~~~~~~~~~~~~~~
 
-Paraview uniquely identifies each build by generating a hash based on
+Pavilion uniquely identifies each build by generating a hash based on
 the build source and build script. If a build directory with that build
-hash exists, then Paraview simply uses that existing build.
+hash exists, then Pavilion simply uses that existing build.
 
-The build hash is composed from: 1. The build script. 1. The build's
-``specificity``. 1. The source file or archive gotten using
-``source_location``. 2. Source directories are scanned for changes,
-rather than recursively hashed. The most recent mtime of the directory
-is hashed. 1. Each of the ``extra_files``.
+The build hash is composed from:
+
+1) The build script.
+#) The build's ``specificity``.
+#) The source file or archive gotten using ``source_location``.
+
+   a) Source directories are scanned for changes, rather than recursive hashed.
+      The most recent mtime of the directory is hashed.
+
+#) Each of the ``extra_files``.
 
 specificity
 ^^^^^^^^^^^
@@ -326,8 +331,8 @@ Once the build directory is set up, we can run the build itself.
 on\_nodes
 ^^^^^^^^^
 
-If true (default), build the test on an allocation right before the test
-is run. Otherwise, build before kicking of the test on the kickoff host.
+If true (default is false), build the test on an allocation right before the
+test is run. Otherwise, build before kicking of the test on the kickoff host.
 It's assumed that the kickoff host has an environment (and module
 system) comparable to a node.
 

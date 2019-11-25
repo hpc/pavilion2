@@ -131,16 +131,17 @@ class SystemPlugin(IPlugin.IPlugin):
                  is_deferable=False,
                  sub_keys=None):
         """Initialize the system plugin instance.  This should be overridden in
-each final plugin.
+        each final plugin.
 
-:param str plugin_name: The name of the system plugin being wrapped.
-:param str description: Short description of this value.
-:param int priority: Priority value of plugin when two plugins have
-    the same name.
-:param bool is_deferable: Whether the plugin is able to be deferred.
-    Note that deferable variables can't return a list.
-:param str/dict sub_keys: Key or list of keys used with this plugin.
-"""
+        :param str plugin_name: The name of the system plugin being wrapped.
+        :param str description: Short description of this value.
+        :param int priority: Priority value of plugin when two plugins have
+            the same name.
+        :param bool is_deferable: Whether the plugin is able to be deferred.
+            Note that deferable variables can't return a list.
+        :param Union(str,dict) sub_keys: Key or list of keys used with this
+        plugin.
+        """
         super().__init__()
 
         self.is_deferable = is_deferable
@@ -161,16 +162,16 @@ each final plugin.
 
     def _get(self):
         """This should be overridden to implement gathering of data for the
-system variable.
-"""
+        system variable.
+        """
         raise NotImplementedError
 
     def get(self, defer):
         """Get the value for this system variable.
 
-:params bool defer: If the variable is deferable, return a DeferredVariable
-    object instead.
-"""
+        :params bool defer: If the variable is deferable, return a
+            DeferredVariable object instead.
+        """
         if defer and self.is_deferable:
             return variables.DeferredVariable(self.name, var_set='sys',
                                               sub_keys=self.sub_keys)

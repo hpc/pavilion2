@@ -22,13 +22,13 @@ class LockFile:
 on what host and user created the lock, and have a built in expiration
 date. To be used in a 'with' context.
 
-:cvar DEFAULT_EXPIRE: Time till file is considered stale, in seconds. (5
+:cvar int DEFAULT_EXPIRE: Time till file is considered stale, in seconds. (5
     minute default)
-:cvar SLEEP_PERIOD: How long to sleep between lock attempts.
+:cvar int SLEEP_PERIOD: How long to sleep between lock attempts.
     This shouldn't be any less than 0.01 or so on a regular filesystem.
     0.2 is pretty reasonable for an nfs filesystem and sporadically used
     locks.
-:cvar LOCK_PERMS: Default lock permissions
+:cvar int LOCK_PERMS: Default lock permissions
 """
 
     DEFAULT_EXPIRE = 60 * 60 * 5
@@ -47,9 +47,9 @@ date. To be used in a 'with' context.
     the user.
 :param str group: The name of the group to set lockfiles to. If
     this is given,
-:param timeout: When to quit trying to acquire the lock in seconds.
+:param int timeout: When to quit trying to acquire the lock in seconds.
     None (default) denotes non-blocking mode.
-:param expires_after: When to consider the lock dead,
+:param int expires_after: When to consider the lock dead,
     and overwritable (in seconds). The NEVER module variable is
     provided as easily named long time. (10^10 secs, 317 years)
 """

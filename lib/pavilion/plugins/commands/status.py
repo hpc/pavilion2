@@ -211,7 +211,7 @@ class StatusCommand(commands.Command):
             help='Max number of tests displayed if --all is used.'
         )
 
-    def run(self, pav_cfg, args, out_file=sys.stdout, err_file=sys.stderr):
+    def run(self, pav_cfg, args):
         try:
             if not args.all:
                 test_statuses = get_statuses(pav_cfg, args, self.errfile)

@@ -25,7 +25,7 @@ that affect compilation.
 
 Lastly, Pavilion writes and runs *BASH* scripts. It assumes that
 whatever your environment is, the module system will work under *BASH*
-as just as well as your native environment.
+just as well as your native environment.
 
 Environment Variables
 ---------------------
@@ -44,7 +44,8 @@ contain any bash shell syntax without issue.
         env:
           PYTHONPATH: $(pwd)/libs
           TEST_PARAM1: 37
-          AN_ARRAY: {hello world}
+          # The starting { means this has to be quoted.
+          AN_ARRAY: "{hello world}"
       
         cmds:
           - for value in ${AN_ARRAY[@]}; do echo $value; done
@@ -81,8 +82,8 @@ twice, once for YAML and once for the quotes you actually need.
                    quoted.'"
           DDQUOTED: """Double quotes to escape them."""
           SSQUOTED: '"That goes for single quotes '' too."'
-          NO_QUOTES: $(echo "YAML only cares about the first character where quotes 
-                     are concerned.")
+          NO_QUOTES: $(echo "YAML only quotes things if the first character
+          is a quote. These are safe.")
 
 .. code:: bash
 
@@ -92,7 +93,7 @@ twice, once for YAML and once for the quotes you actually need.
     export SQUOTED='This $VAR will not be resolved in bash, because this is single quoted.'
     export DDQUOTED="Double quotes to escape them." 
     export SSQUOTED="That goes for single quotes '' too."
-    export NO_QUOTES=$(echo "YAML only cares about the first character where quotes are concerned.")
+    export NO_QUOTES=$(echo "YAML only quotes things if the first character is a quote. These are safe.")
 
 Modules
 -------
@@ -144,7 +145,7 @@ You can also unload and swap modules.
         source_location: test_code.xz
       run:
         # This assumes gcc and openmpi are already loaded by default.
-        modules [gcc->intel/18.0.4, -openmpi, intel-mpi]
+        modules: [gcc->intel/18.0.4, -openmpi, intel-mpi]
         cmds: 
           - $MPICC -o test_code test_code.c
 
@@ -152,9 +153,9 @@ Module Wrappers
 ---------------
 
 Module wrappers allow you to change how Pavilion loads specific modules,
-module version, and even modules in general. The default module wrapper
-is what provides support for lmod and tmod, generates the source to load
-modules within run and build scripts, and check to see if they've been
+module versions, and even modules in general. The default module wrapper
+provides support for lmod and tmod, generates the source to load
+modules within run and build scripts, and checks to see if they've been
 successfully loaded (or unloaded).
 
 For more information on writing these, see `Module Wrapper

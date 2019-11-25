@@ -72,7 +72,7 @@ circumstances, and output an escape sequence when converted to a str.
         time. Additionally, they need to be aware of their valid sub-keys.
         They cannot have more than one value, like normal variables.
 
-:param name: The name of this variable.
+:param str name: The name of this variable.
 :param var_set: The variable set this deferred variable belongs to.
     Only some varsets are allowed, as defined in
     DeferredVariable.ALLOWED_VARSETS.
@@ -383,6 +383,7 @@ deferred variable.
 
 :param str var_set: The var set to fetch from.
 :param str var: The variable to fetch.
+:rtype: int
 :return: The number of items in the found 'var_set.var'.
 :raises KeyError: When the key has problems, or can't be found.
 """
@@ -486,8 +487,8 @@ the result.
         """Resolves variable references that are within the variables
 themselves.
 
-:param parser: String Parser instance. This must be passed to avoid
-    module dependency loops.
+:param string_parser.PavString parser: String Parser instance. This must be
+    passed to avoid module dependency loops.
 """
 
         unresolved_vars = {}
@@ -592,7 +593,7 @@ names to VariableList objects."""
 assigning to .data, or from a config with the 'init_from_config'
 method.
 
-:param name: The name of this var set.
+:param str name: The name of this var set.
 :param reserved_keys: The list of reserved keys. Needed to check the
     given var names.
 :param value_dict: A mapping of var names to strings (str), a list of
@@ -660,7 +661,7 @@ class VariableList:
 end up as a list (of one)."""
 
     def __init__(self, values=None):
-        """Initialize the Varialbe list.
+        """Initialize the Variable list.
 
 :param values: A list of strings (str) or dicts of strings. The dicts
     must have the same keys.

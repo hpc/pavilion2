@@ -2,6 +2,7 @@
 
 # pylint: disable=W0603
 
+import argparse
 import inspect
 import logging
 import sys
@@ -86,10 +87,16 @@ class Command(IPlugin.IPlugin):
         self.errfile = sys.stderr
 
     def _setup_arguments(self, parser):
-        """Setup the commands arguments in the Pavilion argument parser.
+        """Setup the commands arguments in the Pavilion argument parser. This
+is handed a pre-created sub-command parser for this command. Simply
+add arguments to it like you would a base parser. ::
 
-        :param argparse.ArgumentParser parser:
-        """
+    parser.add_arguemnt('-x', '--extra',
+                        action='store_true',
+                        help="Add extra stuff.")
+
+:param argparse.ArgumentParser parser: The parser object.
+"""
 
     def _setup_other(self):
         """Additional setup actions for this command at activation time.
@@ -128,19 +135,17 @@ case that includes:
         add_command(self)
 
     def deactivate(self):
+        """You can't deactivate commands."""
         raise RuntimeError("Command plugins cannot be deactivated.")
 
-    def run(self, pav_cfg, args, out_file=sys.stdout, err_file=sys.stderr):
+    def run(self, pav_cfg, args):
         """Override this method with your command's code.
 
 :param pav_cfg: The pavilion configuration object.
-:param args: The parsed arguments for pavilion.
-:param out_file: Where to write output for this command.
-:param err_file: Where to write err output for this command.
+:param argparse.Namespace args: The parsed arguments for pavilion.
 :return: The return code of the command should denote success (0) or
     failure (not 0).
 """
-
         raise NotImplementedError(
             "Command plugins must override the 'run' method.")
 

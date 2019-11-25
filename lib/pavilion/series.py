@@ -14,11 +14,11 @@ class TestSeriesError(RuntimeError):
 def test_obj_from_id(pav_cfg, test_ids):
     """Return the test object(s) associated with the id(s) provided.
 
-:param dict pav_cfg: Base pavilion configuration.
-:param list/str test_ids: One or more test IDs."
-:return tuple(list(test_obj),list(failed_ids)): tuple containing a list of
-    test objects and a list of test IDs for which no test could be found.
-"""
+    :param dict pav_cfg: Base pavilion configuration.
+    :param Union(list,str) test_ids: One or more test IDs."
+    :return tuple(list(test_obj),list(failed_ids)): tuple containing a list of
+        test objects and a list of test IDs for which no test could be found.
+    """
 
     test_obj_list = []
     test_failed_list = []
@@ -44,11 +44,11 @@ class TestSeries:
     def __init__(self, pav_cfg, tests, _id=None):
         """Initialize the series.
 
-:param pav_cfg: The pavilion configuration object.
-:param list tests: The list of test objects that belong to this series.
-:param int _id: The test id number. If this is given, it implies that
-    we're regenerating this series from saved files.
-"""
+        :param pav_cfg: The pavilion configuration object.
+        :param list tests: The list of test objects that belong to this series.
+        :param int _id: The test id number. If this is given, it implies that
+            we're regenerating this series from saved files.
+        """
 
         self.pav_cfg = pav_cfg
         self.tests = {test.id: test for test in tests}

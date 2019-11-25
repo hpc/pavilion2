@@ -11,7 +11,8 @@ Tests and Suites
 
 Each Suite is a file (with a ``.yaml`` extension) which can contain
 multiple tests. Suite files must reside in ``<config_dir>/tests/``,
-where ``<config_dir>`` is one of your configuration directories. Tests
+where ``<config_dir>`` is one of your
+`configuration directories <../conf.html>`__. Tests
 in a suite can be run as a group or independently, and can even inherit
 from one another.
 
@@ -66,8 +67,8 @@ All config keys in pavilion are **lowercase**, including test names.
         
         # The documentation string is for longer test documentation.
         doc: Note that YAML strings only have to be quoted if they contain 
-             special characters, and can wrap lines. The extra tabbing and newlines
-             are automatically removed.
+             special characters. They can wrap lines with or without quotes.
+             The extra tabbing and newlines are automatically removed.
              
              A double newline will force a newline, however.
              
@@ -240,8 +241,8 @@ Top Level Test Config Keys
 inherits\_from
 ~~~~~~~~~~~~~~
 
-Sets the test (by test base name) that this test inherits from, out of
-the tests in this suite file. The resulting test will be composed of all
+Sets the test (by test base name) that this test inherits from *which must be *
+*a test from this file*. The resulting test will be composed of all
 keys in the test it inherits from, plus any specified in this test
 config. See `Inheritance <../advanced.md#inheritance>`__ in the advanced
 pavilion overview.
@@ -274,13 +275,6 @@ A mapping of variables that are specific to this test. Each variable
 value can be a string, a list of strings, a mapping of strings, or a
 list of mappings (with the same keys) of strings. See the
 `variables <variables.md>`__ documentation for more info.
-
-permutations
-~~~~~~~~~~~~
-
-Like variables, but multi-valued items will generate test permutations
-for all combinations of the (used) permutation variables. See the
-`Permutations <variables.md#permutations>`__ documentation.
 
 scheduler
 ~~~~~~~~~

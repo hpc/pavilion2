@@ -42,7 +42,7 @@ class CancelCommand(commands.Command):
                  'recent series submitted by the user is cancelled. '
         )
 
-    def run(self, pav_cfg, args, out_file=sys.stdout, err_file=sys.stderr):
+    def run(self, pav_cfg, args):
 
         user_id = os.geteuid() # gets unique user id
 

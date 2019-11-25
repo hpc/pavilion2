@@ -16,7 +16,7 @@ Variable Sets
 -------------
 
 Variables can come several different variable sets. Each set has a
-category name ('per', 'var', 'sys', 'pav', 'sched'), that is used in the
+category name ('var', 'sys', 'pav', 'sched') that is used in the
 variable reference to remove ambiguity about the source of the variable,
 but is otherwise optional. This ordering of variable sets also
 determines the order in which the system resolves variable names where
@@ -75,8 +75,8 @@ variable naming, however:
 -  test\_\* - Variables that are specific to a currently running test.
 -  alloc\_\* - Variables specific to the current allocation.
 
-Note that the current allocation and what the test wants may differ, as
-the scheduler is allowed to request more resources than specifically
+Note that the current allocation resources and what the test wants may
+differ, as the scheduler is allowed to request more resources than specifically
 asked for by the test. Scheduler plugin writers are encouraged to
 provide helper variables to simplify the launching of tests within an
 arbitrary allocation.
@@ -144,9 +144,9 @@ dynamic test arguments, among other things.
 Complex Variables
 ^^^^^^^^^^^^^^^^^
 
-| Variables may also contain multiple sub-keys, as a way to group
-  related values.
-| It is an error to refer to a variable with sub-keys without a sub-key.
+Variables may also contain multiple sub-keys, as a way to group
+related values. It is an error to refer to a variable that contains
+sub-keys without specifying a sub-key.
 
 .. code:: yaml
 
@@ -254,15 +254,24 @@ Deferred Variables
 ------------------
 
 Deferred variables are simply variables whose value is to be determined
-when a test runs on its allocation. - They cannot have multiple values.
+when a test runs on its allocation.
+
+- They cannot have multiple values.
 - They **can** have complex values, as their sub-keys are defined in
-advance. - Only the system and scheduler variable sets can contained
-deferred values. - Deferred values **are not allowed** in certain config
-sections: - Any base values (summary, scheduler, etc.) - The build
-section - The build script is built at kickoff time, and may execute
-before the test runs. - More importantly, the build hash is generated at
-kickoff time. - The scheduler section. - Everything needs to be known
-here **before** a test is kicked off.
+  advance.
+- Only the system and scheduler variable sets can contained deferred values.
+- Deferred values **are not allowed** in certain config sections:
+
+  - Any base values (summary, scheduler, etc.)
+  - The build section
+
+    - The build script and build hash are generated as soon as the test
+      run is created, which is long before we know the values of
+      deferred variables.
+
+  - The scheduler section.
+
+    - Everything needs to be known here **before** a test is kicked off.
 
 Substrings
 ----------
@@ -352,7 +361,27 @@ feature, as we we will likely change it in the future.
 Default Values
 --------------
 
-Variable references may be given a default value
+Variable references may be given a default value in their references. If the
+variable isn't defined, the default is inserted directly instead. ::
+
+{{var_name|default}}
+
+This is particularly useful for providing places where inherited tests may
+insert values, but the basic test doesn't need to.
+
+.. code:: yaml
+
+    mytest:
+        run:
+            cmds:
+                - "./mytest {{options|}} -m {{mode|simple}}"
+
+    complex_test:
+        inherits_from: mytest
+
+        variables:
+            options: -a
+            mode: complex
 
 Permutations
 ------------
@@ -383,8 +412,6 @@ different message.
 - The tests are scheduled independently when using ``pav run``.
 - They have the same test name (permuted\_test), but different test id's and
   run directories.
-
-
 
 Limitations
 ^^^^^^^^^^^
@@ -424,3 +451,11 @@ intel. - The ``subtitle`` test attribute lets us give each a specific
 name. In this case ``mytest.gcc`` and ``mytest.intel``. - Note that
 using a variable multiple times **never** creates additional
 permutations.
+
+Permutations vs Combinations
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Are they 'permutations' or 'combinations'? These words have very specific
+meaning in a mathematical sense, and our usage here can be a bit confusing.
+We are *permuting* over the *combinations* of multiple sets, and in neither
+case are we are we using the word in a purely combinatorial sense.

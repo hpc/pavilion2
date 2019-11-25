@@ -7,7 +7,7 @@ file that is formatted in a Splunk compatible manner.
 
 These results contain several useful values, but that's just the
 beginning. `Result Parsers <#using-result-parsers>`__ are little parsing
-scripts that can configured to parse data from your test's output files.
+scripts that can be configured to parse data from your test's output files.
 They're designed to be simple enough to pull out small bits of data, but
 can be combined to extract a complex set of results from each test run.
 Each result parser is also a `plugin <../plugins/result_parsers.md>`__,
@@ -38,7 +38,7 @@ passed or failed.
    ``2 days, 10:05:12.833312``
 -  **result** - The PASS/FAIL result of the test.
 
-All time fields are in ISO8601 format, with timezone offsets.
+All time fields are in ISO8601 format.
 
 result
 ^^^^^^
@@ -54,7 +54,7 @@ Result Parsers may override this value, but they must be configured to
 return a single True or False result. Anything else results in a
 **FAIL**.
 
-When using the result key the 'store\_true' and 'store\_false'
+When using the result key, 'store\_true' and 'store\_false'
 `actions <#actions>`__ are the only valid choices. Any other action will
 be changed to 'store\_true', and the change will be noted in the result
 errors. Similarly,

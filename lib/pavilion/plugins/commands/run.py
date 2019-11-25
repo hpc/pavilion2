@@ -72,14 +72,12 @@ class RunCommand(commands.Command):
 
     SLEEP_INTERVAL = 1
 
-    def run(self, pav_cfg, args, out_file=sys.stdout, err_file=sys.stderr):
+    def run(self, pav_cfg, args):
         """Resolve the test configurations into individual tests and assign to
         schedulers. Have those schedulers kick off jobs to run the individual
         tests themselves.
         :param pav_cfg: The pavilion configuration.
         :param args: The parsed command line argument object.
-        :param out_file: The file object to output to (stdout)
-        :param err_file: The file object to output errors to (stderr)
         """
 
         # 1. Resolve the test configs

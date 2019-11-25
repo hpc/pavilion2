@@ -98,11 +98,12 @@ def flat_walk(path, *args, **kwargs):
 
 
 def get_mime_type(path):
-    """Use a filemagic command to get the mime type of a file. Returned as a
+    """Use the filemagic command to get the mime type of a file. Returned as a
     tuple of category and subtype.
 
-:param Path path: The path to the file to examine.
-:returns: category, subtype"""
+    :param Path path: The path to the file to examine.
+    :rtype: (str, str)
+    :returns: category, subtype"""
 
     ftype = subprocess.check_output(['file',
                                      # Don't print the filename
@@ -188,14 +189,14 @@ def fprint(*args, color=None, bullet='', width=100,
            sep=' ', file=sys.stdout):
     """Print with automatic wrapping, bullets, and other features.
 
-:param args: Standard print function args
-:param int color: ANSI color code to print with.
-:param str bullet: Print the first line with this bullet,
-    and the rest with that much space prepended.
-:param str sep: The standard print sep argument.
-:param file: Stream to print.
-:param int width: Wrap the text to this width.
-"""
+    :param args: Standard print function args
+    :param int color: ANSI color code to print with.
+    :param str bullet: Print the first line with this 'bullet' string,
+        and the following lines indented to match..
+    :param str sep: The standard print sep argument.
+    :param file: Stream to print.
+    :param int width: Wrap the text to this width.
+    """
 
     args = [str(a) for a in args]
     if color is not None:
@@ -262,15 +263,15 @@ our custom encoder."""
 
 
 def output_csv(outfile, field_info, fields, rows):
-    """Write the given rows out as a CSV
+    """Write the given rows out as a CSV.
 
-:param outfile: The file object to write to.
-:param field_info: A dict of information on each field. See 'draw_table'
-    below. Only the title field is used.
-:param fields: A list of fields to write, and in what order.
-:param rows: A list of dictionaries to write, in the given order.
-:return: None
-"""
+    :param outfile: The file object to write to.
+    :param field_info: A dict of information on each field. See 'draw_table'
+        below. Only the title field is used.
+    :param fields: A list of fields to write, and in what order.
+    :param rows: A list of dictionaries to write, in the given order.
+    :return: None
+    """
 
     # Generate a header row, using the title from field_info for each row if
     # given.
@@ -302,6 +303,12 @@ used when the string is formatted.
     ANSI_FMT = '\x1b[{code}m{data}\x1b[0m'
 
     def __init__(self, data, code=None):
+        """Parse the given data string into ANSI code colored blocks, and then
+        wrap any components that aren't colored in the given code.
+        :param str data: The string to color.
+        :param str code: The code to color it with. Should be an ANSI argument
+        set; integers separated by semicolons.
+        """
 
         if code is not None:
             code = str(code)
@@ -326,8 +333,13 @@ used when the string is formatted.
         super().__init__(''.join([str(s) for s in formatted]))
         self.carryover_code = pcode
 
-
     def _parse(self, data):
+        """Break data into separate ansi coded chunks.
+        :param str data:
+        :returns A list of (str, code) tuples for each part of the string.
+            Uncoded segments will have None as the code.
+        :rtype: list((str,str))
+        """
 
         matches = list(self.ANSI_RE.finditer(str(data)))
 
@@ -370,7 +382,10 @@ used when the string is formatted.
     del WORD_PUNCT, NOWHITESPACE
 
     def _chunks(self):
-        """Break the text into chunks. Only non-empty chunks are returned."""
+        """Break the text into chunks. Only non-empty chunks are returned.
+
+        :rtype: list(ANSIString)
+        """
 
         chunks = []
         carryover = None
@@ -396,6 +411,7 @@ used when the string is formatted.
 - Long words are wrapped.
 
 :param int width: The width to wrap to.
+:raises ValueError: For invalid widths.
 :returns: A list of wrapped ANSIStrings
 """
 
@@ -565,57 +581,13 @@ used when the string is formatted.
         return padding_left + self.data + padding_right
 
 
-def remove_formatting(content_width, fields, border, pad):
-    # Reduced the effective window width if we have padded dividers.
-    if pad:
-        offset = 2 * len(fields)
-        offset = offset + len(fields) - 1
-        content_width = content_width - offset
-
-    # Reduce the effective window width for non padded dividers.
-    else:
-        offset = len(fields) - 1
-        content_width = content_width - offset
-
-    if border:
-        offset = 2
-        content_width = content_width - offset
-
-    return content_width
-
-
-def formatted_width(width, fields, border, pad):
-    if pad:
-        offset = 2 * len(fields)
-        offset = offset + len(fields) - 1
-        width = width + offset
-
-    else:
-        offset = len(fields) - 1
-        width = width + offset
-
-    if border:
-        offset = 2
-        width = width + offset
-
-    return width
-
-
-def get_total_width(column_widths, fields, border, pad):
-    # Find the total width of the table.
-    total_width = (sum(column_widths.values()))  # column widths
-    total_width = formatted_width(total_width, fields, border, pad)
-
-    return total_width
-
-
 def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
                title=None):
     """Prints a table from the given data, dynamically setting
 the column width.
 
-:param outfile: The output file to write to.
-:param field_info: Should be a dictionary of field names where the value
+:param outfile: The file-like object to write to.
+:param dict field_info: Should be a dictionary of field names where the value
   is a dict of:
 
   - title (optional) - The column header for this field. Defaults to the
@@ -631,14 +603,14 @@ the column width.
     wrapped or not.
   - max_width (optional) - the max width for a given field.
   - min_width (optional) - the min width for a given field.
-:param fields: A list of the fields to include, in the given order. These
+:param list fields: A list of the fields to include, in the given order. These
     also serve as the default column titles (Capitalized).
-:param rows: A list of data dictionaries. A None may be included to denote
-    that a horizontal line row should be inserted.
-:param border: Put a border around the table. Defaults False.
-:param pad: Put a space on either side of each header and row entry.
+:param list(dict) rows: A list of data dictionaries. A None may be included to
+    denote that a horizontal line row should be inserted.
+:param bool border: Put a border around the table. Defaults False.
+:param bool pad: Put a space on either side of each header and row entry.
     Default True.
-:param title: Add the given title above the table. Default None
+:param str title: Add the given title above the table. Default None
 :return: None
 
 **Examples**
@@ -804,7 +776,7 @@ A more complicated example: ::
         if 'no_wrap' in field_info[field].keys():
             min_widths[field] = max_widths[field]
         # If user defined a max width for a given field it overrides the
-        # maxmimum width here.
+        # maximum width here.
         if 'max_width' in field_info[field].keys():
             max_widths[field] = field_info[field]['max_width']
         # If user defined a min width for a given field it overrides the
@@ -812,23 +784,27 @@ A more complicated example: ::
         if 'min_width' in field_info[field].keys():
             min_widths[field] = field_info[field]['min_width']
         # Ensures that the max width for a given field is always larger or
-        # atleast equal to the minimum field width.
+        # at least equal to the minimum field width.
         if max_widths[field] < min_widths[field]:
             max_widths[field] = min_widths[field]
 
-    total_min = get_total_width(min_widths, fields, border, pad)
+    # Add divider widths
+    divider_size = 3 if pad else 1
+    deco_size = divider_size * (len(fields) - 1)
+    # Add border widths
+    if border:
+        border_size = 2 if pad else 1
+        deco_size += border_size * 2
 
     # Gets the effective window width.
     window_width = shutil.get_terminal_size().columns
+    window_width -= deco_size
 
     # Makes sure window is at least large enough to display are smallest
     # possible table
+    total_min = sum(min_widths.values())
     if total_min > window_width:
         window_width = total_min
-
-    # Reduces the effective window width based on formatting, so we know the
-    # exact width we have for strictly field entries.
-    window_width = remove_formatting(window_width, fields, border, pad)
 
     boundaries = []
     for field in fields:
@@ -859,7 +835,7 @@ A more complicated example: ::
     # Calculates the max number of wraps for a given column width
     # combination.
     best_combo = None
-    min_wraps = None
+    least_wraps = None
 
     # Checks all possible combinations.
     for combo in itertools.product(*(range(*bound) for bound in boundaries)):
@@ -874,8 +850,8 @@ A more complicated example: ::
 
         # Updates minimum wraps with the smallest amount of wraps seen
         # so far.
-        if min_wraps is None or wrap_count <= min_wraps:
-            min_wraps = wrap_count
+        if least_wraps is None or wrap_count <= least_wraps:
+            least_wraps = wrap_count
             best_combo = combo
             if wrap_count == 0:
                 break

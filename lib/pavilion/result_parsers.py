@@ -109,7 +109,8 @@ text for that class, along with the help from the config items."""
 
 :param str name: The name of this plugin.
 :param str description: A short description of this result parser.
-:param open_mode: How to open each file handed to the parser.
+:param Union(str, None) open_mode: How to open each file handed to the parser.
+    None denotes that a path rather than a file object is expected.
 :param int priority: The priority of this plugin, compared to plugins
     of the same name. Higher priority plugins will supersede others.
 """
@@ -155,6 +156,7 @@ don't contain deferred variables. We can't check tests with
 deferred args. On error, should raise a ResultParserError.
 
 :param dict kwargs: The arguments from the config.
+:raises ResultParserError: When bad arguments are given.
 """
 
         # The presence or absence of needed args should be enforced by

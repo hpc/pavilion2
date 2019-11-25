@@ -32,6 +32,7 @@ def _find_config(pav_cfg, conf_type, conf_name):
     :param pav_cfg: The pavilion config data.
     :param str conf_type: 'host', 'mode', or 'test'
     :param str conf_name: The name of the config (without a file extension).
+    :rtype: Path
     :return: The path to the first matching config found, or None if one wasn't
         found.
     """
@@ -137,6 +138,7 @@ def load_test_configs(pav_cfg, host, modes, tests):
         be either a '<test_suite>.<test_name>', '<test_suite>',
         or '<test_suite>.*'. A test suite by itself (or with a .*) get every
         test in a suite.
+    :rtype: list(dict)
     :return: A list of raw test_cfg dictionaries.
     """
 

@@ -53,7 +53,7 @@ def remove_wrapped_module(module_wrapper, version):
 :param ModuleWrapper module_wrapper: The module_wrapper to remove,
                                      if it exists.
 :param Union(str, None) version: The specific version to remove.
-:returns None:
+:returns: None
 """
 
     name = module_wrapper.name
@@ -142,6 +142,7 @@ used to figure out what version to load.
 
 :param Union(str, None) requested_version: The version requested by
  the user.
+:rtype: str
 :return: The version that should be loaded.
 """
 
@@ -176,9 +177,9 @@ used to figure out what version to load.
         """Generate the list of module actions and environment changes to load
 this module.
 
-:param sys_info: The system info dictionary of variables, from the
+:param dict sys_info: The system info dictionary of variables, from the
                  system plugins.
-:param requested_version: The version requested to load.
+:param str requested_version: The version requested to load.
 :return: A list of actions (or bash command strings), and a dict of
          environment changes.
 :rtype: (Union(str, ModuleAction), dict)
@@ -195,11 +196,11 @@ this module.
     def swap(self, sys_info, out_name, out_version, requested_version=None):
         """Swap out the 'out' module and swap in the new module.
 
-:param sys_info: The system info dictionary of variables, from the
+:param dict sys_info: The system info dictionary of variables, from the
                  system plugins.
-:param out_name: The name of the module to swap out.
-:param out_version: The version of the module to swap out.
-:param requested_version: The version requested to load.
+:param str out_name: The name of the module to swap out.
+:param str out_version: The version of the module to swap out.
+:param str requested_version: The version requested to load.
 :return: A list of actions (or bash command strings), and a dict of
          environment changes.
 :rtype: (Union(str, ModuleAction), dict)
@@ -216,9 +217,9 @@ this module.
     def unload(self, sys_info, requested_version=None):
         """Remove this module from the environment.
 
-:param sys_info: The system info dictionary of variables, from the
+:param dict sys_info: The system info dictionary of variables, from the
                  system plugins.
-:param requested_version: The version requested to remove.
+:param str requested_version: The version requested to remove.
 :return: A list of actions (or bash command strings), and a dict of
          environment changes.
 :rtype: (Union(str, ModuleAction), dict)
