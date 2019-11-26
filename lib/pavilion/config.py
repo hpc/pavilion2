@@ -111,9 +111,9 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
                       "configs (other than this core config) are searched for "
                       "in the given order. In the case of identically named "
                       "files, directories listed earlier take precedence."),
-        yc.BoolElem(
+        yc.StrElem(
             "user_config",
-            default=True,
+            default='.pavilion',
             help_text="Whether to automatically add the user's config "
                       "directory at ~/.pavilion to the config_dirs. Configs "
                       "in this directory always take precedence."
