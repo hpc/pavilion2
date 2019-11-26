@@ -645,6 +645,11 @@ build.
 
         elif src_path.is_dir():
             # Recursively copy the src directory to the build directory.
+            self.status.set(
+                STATES.BUILDING,
+                "Copying source directory {} for build {} "
+                "as the build directory."
+                .format(src_path, build_path))
             shutil.copytree(src_path.as_posix(),
                             build_path.as_posix(),
                             symlinks=True)
@@ -666,6 +671,11 @@ build.
                             # make that directory the build directory. This
                             # should be the default in most cases.
                             if len(top_level) == 1 and top_level[0].isdir():
+                                self.status.set(
+                                    STATES.BUILDING,
+                                    "Extracting tarfile {} for build {} "
+                                    "as the build directory."
+                                    .format(src_path, build_path))
                                 tmpdir = build_path.with_suffix('.extracted')
                                 tmpdir.mkdir()
                                 tar.extractall(tmpdir.as_posix())
@@ -675,6 +685,11 @@ build.
                             else:
                                 # Otherwise, the build path will contain the
                                 # extracted contents of the archive.
+                                self.status.set(
+                                    STATES.BUILDING,
+                                    "Extracting tarfile {} for build {} "
+                                    "into the build directory."
+                                    .format(src_path, build_path))
                                 build_path.mkdir()
                                 tar.extractall(build_path.as_posix())
                     except (OSError, IOError,
@@ -703,6 +718,11 @@ build.
                         raise RuntimeError("Unhandled compression type. '{}'"
                                            .format(subtype))
 
+                    self.status.set(
+                        STATES.BUILDING,
+                        "Extracting {} file {} for build {} "
+                        "into the build directory."
+                        .format(subtype, src_path, build_path))
                     decomp_fn = src_path.with_suffix('').name
                     decomp_fn = build_path/decomp_fn
                     build_path.mkdir()
@@ -729,10 +749,20 @@ build.
 
                         files = os.listdir(tmpdir.as_posix())
                         if len(files) == 1 and (tmpdir/files[0]).is_dir():
+                            self.status.set(
+                                STATES.BUILDING,
+                                "Extracting zip file {} for build {} "
+                                "as the build directory."
+                                .format(src_path, build_path))
                             # Make the zip's root directory the build dir.
                             (tmpdir/files[0]).rename(build_path)
                             tmpdir.rmdir()
                         else:
+                            self.status.set(
+                                STATES.BUILDING,
+                                "Extracting zip file {} for build {} "
+                                "into the build directory."
+                                .format(src_path, build_path))
                             # The overall contents of the zip are the build dir.
                             tmpdir.rename(build_path)
 
@@ -744,6 +774,11 @@ build.
             else:
                 # Finally, simply copy any other types of files into the build
                 # directory.
+                self.status.set(
+                    STATES.BUILDING,
+                    "Copying file {} for build {} "
+                    "into the build directory."
+                    .format(src_path, build_path))
                 dest = build_path/src_path.name
                 try:
                     build_path.mkdir()
@@ -839,6 +874,9 @@ build.
                                     cwd=run_wd,
                                     stdout=run_log,
                                     stderr=subprocess.STDOUT)
+
+            self.status.set(STATES.RUNNING,
+                            "Currently running.")
 
             # Run the test, but timeout if it doesn't produce any output every
             # self._run_timeout seconds

@@ -269,7 +269,8 @@ class Slurm(SchedulerPlugin):
                     help_text="The partition that the test should be run "
                               "on."),
                 yc.StrElem(
-                    'immediate', choices=['true', 'false'], default='false',
+                    'immediate', choices=['true', 'false', 'True', 'False'],
+                    default='false',
                     help_text="Only consider nodes not currently running jobs"
                               "when determining job size"
                 ),
@@ -458,7 +459,7 @@ class Slurm(SchedulerPlugin):
             raise SchedulerPluginError('Insufficient nodes in partition '
                                        '{}.'.format(partition))
 
-        if config['immediate'] == 'true':
+        if config['immediate'].lower() == 'true':
             states = config['avail_states']
             # Check for compute nodes in this partition in the right state.
             nodes = list(filter(lambda n: n['State'] in states, nodes))

@@ -120,7 +120,7 @@ class ShowCommand(commands.Command):
                  "current config."
         )
 
-        test_config_p = subparsers.add_parser(
+        subparsers.add_parser(
             'test_config',
             help="Print a template test config.",
             description="Prints an example test configuration. Note that test "
@@ -324,11 +324,10 @@ class ShowCommand(commands.Command):
         else:
             raise RuntimeError("Invalid show cmd '{}'".format(cmd_name))
 
-        result = cmd(pav_cfg, args, outfile=self.outfile)
+        result = cmd(pav_cfg, args)
         return 0 if result is None else result
 
-    @staticmethod
-    def _scheduler_cmd(_, args, outfile=sys.stdout):
+    def _scheduler_cmd(self, _, args):
         """
         :param argparse.Namespace args:
         """
@@ -354,7 +353,7 @@ class ShowCommand(commands.Command):
                 sched_vars.append(svars.info(key))
 
             utils.draw_table(
-                outfile,
+                self.outfile,
                 field_info={},
                 fields=['name', 'deferred', 'help'],
                 rows=sched_vars,
@@ -370,7 +369,7 @@ class ShowCommand(commands.Command):
 
             defaults = Loader().load_empty()
 
-            Loader().dump(sys.stdout, values=defaults)
+            Loader().dump(self.outfile, values=defaults)
 
         else:
             # Assuming --list was given
@@ -391,15 +390,14 @@ class ShowCommand(commands.Command):
                 fields.append('path')
 
             utils.draw_table(
-                outfile,
+                self.outfile,
                 field_info={},
                 fields=fields,
                 rows=scheds,
                 title="Available Scheduler Plugins"
             )
 
-    @staticmethod
-    def _result_parsers_cmd(_, args, outfile=sys.stdout):
+    def _result_parsers_cmd(self, _, args):
 
         if args.config:
             try:
@@ -416,7 +414,7 @@ class ShowCommand(commands.Command):
             class Loader(yaml_config.YamlConfigLoader):
                 ELEMENTS = config_items
 
-            Loader().dump(sys.stdout)
+            Loader().dump(self.outfile)
 
         else:
 
@@ -436,15 +434,14 @@ class ShowCommand(commands.Command):
                 fields.append('path')
 
             utils.draw_table(
-                outfile,
+                self.outfile,
                 field_info={},
                 fields=fields,
                 rows=rps,
                 title="Available Result Parsers"
             )
 
-    @staticmethod
-    def _states_cmd(pav_cfg, args, outfile=sys.stdout):
+    def _states_cmd(self, pav_cfg, args):
 
         del pav_cfg, args
 
@@ -456,41 +453,37 @@ class ShowCommand(commands.Command):
             })
 
         utils.draw_table(
-            outfile,
+            self.outfile,
             field_info={},
             fields=['name', 'description'],
             rows=states,
             title="Pavilion Test States"
         )
 
-    @staticmethod
-    def _config_cmd(pav_cfg, args, outfile=sys.stdout):
+    def _config_cmd(self, pav_cfg, args):
 
         if args.template:
-            config.PavilionConfigLoader().dump(sys.stdout)
+            config.PavilionConfigLoader().dump(self.outfile)
         else:
-            config.PavilionConfigLoader().dump(outfile,
+            config.PavilionConfigLoader().dump(self.outfile,
                                                values=pav_cfg)
 
-    @staticmethod
-    def _test_config_cmd(pav_cfg, args, outfile=sys.stdout):
-        file_format.TestConfigLoader().dump(sys.stdout)
+    def _test_config_cmd(self, *_):
+        file_format.TestConfigLoader().dump(self.outfile)
 
-    @staticmethod
-    def _config_dirs(pav_cfg, _, outfile=sys.stdout):
+    def _config_dirs(self, pav_cfg, _):
 
         rows = [{'path': path} for path in pav_cfg.config_dirs]
 
         utils.draw_table(
-            outfile,
+            self.outfile,
             field_info={},
             fields=['path'],
             rows=rows,
             title="Config directories by priority."
         )
 
-    @staticmethod
-    def _module_cmd(_, args, outfile=sys.stdout):
+    def _module_cmd(self, _, args):
 
         modules = []
         for mod_name in sorted(module_wrapper.list_module_wrappers()):
@@ -508,16 +501,14 @@ class ShowCommand(commands.Command):
             fields.append('path')
 
         utils.draw_table(
-            outfile,
+            self.outfile,
             field_info={},
             fields=fields,
             rows=modules,
             title="Available Module Wrapper Plugins"
         )
 
-
-    @staticmethod
-    def _sys_var_cmd(pav_cfg, args, outfile=sys.stdout):
+    def _sys_var_cmd(self, pav_cfg, args):
 
         del pav_cfg
 
@@ -543,15 +534,14 @@ class ShowCommand(commands.Command):
             fields.append('path')
 
         utils.draw_table(
-            outfile,
+            self.outfile,
             field_info={},
             fields=fields,
             rows=rows,
             title="Available System Variables"
         )
 
-    @staticmethod
-    def _pav_var_cmd(pav_cfg, _, outfile=sys.stdout):
+    def _pav_var_cmd(self, pav_cfg, _):
 
         rows = []
 
@@ -563,15 +553,14 @@ class ShowCommand(commands.Command):
             })
 
         utils.draw_table(
-            outfile,
+            self.outfile,
             field_info={},
             fields=['name', 'value', 'description'],
             rows=rows,
             title="Available Pavilion Variables"
         )
 
-    @staticmethod
-    def _suites_cmd(pav_cfg, args, outfile=sys.stdout):
+    def _suites_cmd(self, pav_cfg, args):
         suites = find_all_tests(pav_cfg)
 
         rows = []
@@ -579,7 +568,7 @@ class ShowCommand(commands.Command):
             suite = suites[suite_name]
 
             if suite['err']:
-                name = utils.ANSIStr(suite_name, 'red')
+                name = utils.ANSIString(suite_name, utils.RED)
             else:
                 name = suite_name
 
@@ -594,8 +583,8 @@ class ShowCommand(commands.Command):
                 for path in suite['supersedes']:
                     rows.append({
                         # Make these rows appear faded.
-                        'name': utils.ANSIStr(suite_name, 'white'),
-                        'path': utils.ANSIStr(path, 'white'),
+                        'name': utils.ANSIString(suite_name, utils.WHITE),
+                        'path': utils.ANSIString(path, utils.WHITE),
                         'tests': '?',
                         'err': ''
                     })
@@ -608,9 +597,8 @@ class ShowCommand(commands.Command):
             if args.err:
                 fields.append('err')
 
-
         utils.draw_table(
-            outfile,
+            self.outfile,
             field_info={},
             fields=fields,
             rows=rows,
@@ -619,7 +607,7 @@ class ShowCommand(commands.Command):
 
     SUMMARY_SIZE_LIMIT = 100
 
-    def _tests_cmd(self, pav_cfg, args, outfile=sys.stdout):
+    def _tests_cmd(self, pav_cfg, args):
 
         suites = find_all_tests(pav_cfg)
         rows = []
@@ -628,7 +616,7 @@ class ShowCommand(commands.Command):
             suite = suites[suite_name]
 
             if suite['err']:
-                suite_name = utils.ANSIStr(suite_name, 'red')
+                suite_name = utils.ANSIString(suite_name, utils.RED)
 
                 rows.append({
                     'name': '{}.*'.format(suite_name),
@@ -658,15 +646,14 @@ class ShowCommand(commands.Command):
                 fields.append('err')
 
         utils.draw_table(
-            outfile,
+            self.outfile,
             field_info={},
             fields=fields,
             rows=rows,
             title="Available Tests"
         )
 
-    @staticmethod
-    def _hosts_cmd(pav_cfg, args, outfile=sys.stdout):
+    def _hosts_cmd(self, pav_cfg, args):
 
         hosts = []
         col_names = ['Name']
@@ -690,14 +677,13 @@ class ShowCommand(commands.Command):
                     })
 
         utils.draw_table(
-            outfile,
+            self.outfile,
             field_info={},
             fields=col_names,
             rows=hosts
         )
 
-    @staticmethod
-    def _modes_cmd(pav_cfg, args, outfile=sys.stdout):
+    def _modes_cmd(self, pav_cfg, args):
 
         modes = []
         col_names = ['Name']
@@ -721,7 +707,7 @@ class ShowCommand(commands.Command):
                     })
 
         utils.draw_table(
-            outfile,
+            self.outfile,
             field_info={},
             fields=col_names,
             rows=modes

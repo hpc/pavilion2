@@ -79,11 +79,17 @@ class ModuleSwap(ModuleAction):
             return self.old_name
 
     def action(self):
-        actions = ['if module -t list 2>&1 | grep "^{s.old_name}/"; then',
-                   '    module swap {s.old_module} {s.module}',
-                   'else',
-                   '    module load {s.module}',
-                   'fi']
+        actions = [
+            # Find the currently loaded matching module. Note, some people
+            # like to rely on the regex in their module_wrapper plugins.
+            'old_module=$(module -t list 2>&1 | '
+            'grep -E \'^{s.old_name}(/|$)\')',
+            # Check the result of the last command.
+            'if [[ $? == 0 ]]; then',
+            '    module swap $old_module {s.module}',
+            'else',
+            '    module load {s.module}',
+            'fi']
         return [a.format(s=self) for a in actions]
 
     def verify(self):
