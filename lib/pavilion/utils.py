@@ -6,17 +6,19 @@ plugins.
 
 # This file contains assorted utility functions.
 
-from pathlib import Path
 import csv
+import datetime
+import itertools
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import textwrap
-import shutil
-import itertools
+
 from collections import defaultdict, UserString
+from pathlib import Path
 
 # Setup colors as part of the fprint function itself.
 BLACK = 30
@@ -71,6 +73,21 @@ this dictionary, or directly as attributes in the utils modules. ::
 - FAINT
 - UNDERLINE
 """
+
+def get_relative_timestamp(base_dt):
+    """Print formatted time string based on the delta of time objects.
+    :param datetime base_dt: The datetime object to compare and format from.
+    :returns: A formatted time string.
+    :rtype str:
+    """
+    now = datetime.datetime.now()
+    format_ = ['%Y', '%b', '%a', '%H:%M:%S'] # year, month, day, time
+
+    for i in range(0, len(format_)):
+        if now.strftime(format_[i]) != base_dt.strftime(format_[i]):
+            return now.strftime(" ".join(format_[i:]))
+
+    return base_dt.strftime(str(" ".join(format_)))
 
 
 def flat_walk(path, *args, **kwargs):
@@ -221,10 +238,12 @@ class PavEncoder(json.JSONEncoder):
 
     def default(self, o):  # pylint: disable=E0202
         if isinstance(o, Path):
-            return super().default(str(o))
-        else:
-            return super().default(str(o))
+            return str(o)
 
+        if isinstance(o, (datetime.datetime)):
+            return o.isoformat()
+
+        return super().default(o)
 
 def json_dumps(obj, skipkeys=False, ensure_ascii=True,
                check_circular=True, allow_nan=True, indent=None,
