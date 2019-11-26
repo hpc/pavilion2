@@ -159,7 +159,6 @@ def main():
         sys.exit(0)
 
     try:
-        raise ValueError
         cmd = commands.get_command(args.command_name)
     except KeyError:
         print("Unknown command {}.".format(args.command_name), file=sys.stderr)
@@ -170,9 +169,13 @@ def main():
     except Exception as err:
         exc_info = {
             'traceback': traceback.format_exc(),
-            'args': args,
+            'args': vars(args),
             'config': pav_cfg,
         }
+
+        json_data = utils.json_dumps(exc_info)
+        logger = logging.getLogger('exceptions')
+        logger.error(json_data)
 
         utils.fprint(
             "Unknown error running command {}: {}."
