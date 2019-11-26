@@ -1,16 +1,17 @@
 import errno
+import os
 import sys
-import argparse
 from pavilion import commands
 from pavilion import schedulers
-from pavilion import status_file
 from pavilion import utils
 from pavilion import series
 from pavilion.status_file import STATES
-from pavilion.pav_test import PavTest, PavTestError, PavTestNotFoundError
+from pavilion.test_run import TestRun, TestRunError
 from pavilion.plugins.commands.status import print_from_test_obj
 
+
 class CancelCommand(commands.Command):
+    """Cancel a set of commands using the appropriate scheduler."""
 
     def __init__(self):
         super().__init__(
@@ -30,30 +31,48 @@ class CancelCommand(commands.Command):
             help='Prints status of cancelled jobs in json format.'
         )
         parser.add_argument(
+            '-a', '--all', action='store_true', default=False,
+            help='Cancels all jobs currently queued that are owned by the '
+                 'current user'
+        )
+        parser.add_argument(
             'tests', nargs='*', action='store',
             help='The name(s) of the tests to cancel. These may be any mix of '
                  'test IDs and series IDs. If no value is provided, the most '
                  'recent series submitted by the user is cancelled. '
         )
 
-    def run(self, pav_cfg, args, out_file=sys.stdout, err_file=sys.stderr):
+    def run(self, pav_cfg, args):
+
+        user_id = os.geteuid() # gets unique user id
 
         if not args.tests:
-            # Get the last series ran by this user.
-            series_id = series.TestSeries.load_user_series_id(pav_cfg)
-            if series_id is not None:
-                args.tests.append(series_id)
+            # user wants to cancel all current tests
+            if args.all:
+                tests_dir = pav_cfg.working_dir/'test_runs'
+                # iterate through all the tests in the tests directory
+                for test in tests_dir.iterdir():
+                    test_owner_id = test.stat().st_uid
+                    if test_owner_id == user_id:
+                        if not (test/'RUN_COMPLETE').exists():
+                            test_id = test.name
+                            args.tests.append(test_id)
+            else:
+                # Get the last series ran by this user.
+                series_id = series.TestSeries.load_user_series_id(pav_cfg)
+                if series_id is not None:
+                    args.tests.append(series_id)
 
         test_list = []
         for test_id in args.tests:
             if test_id.startswith('s'):
                 try:
                     test_list.extend(series.TestSeries.from_id(pav_cfg,
-                                                               int(test_id[1:]))
+                                                               test_id)
                                      .tests)
                 except series.TestSeriesError as err:
                     utils.fprint(
-                        "Series {} could not be found.\n{}".format(test_id[1:],
+                        "Series {} could not be found.\n{}".format(test_id,
                                                                    err),
                         file=self.errfile,
                         color=utils.RED
@@ -62,7 +81,7 @@ class CancelCommand(commands.Command):
                 except ValueError as err:
                     utils.fprint(
                         "Series {} is not a valid series.\n{}"
-                        .format(test_id[1:], err), file=self.errfile,
+                        .format(test_id, err), file=self.errfile,
                         color=utils.RED
                     )
                     return errno.EINVAL
@@ -80,31 +99,32 @@ class CancelCommand(commands.Command):
         test_object_list = []
         for test_id in test_list:
             try:
-                test = PavTest.load(pav_cfg, test_id)
+                test = TestRun.load(pav_cfg, test_id)
                 sched = schedulers.get_scheduler_plugin(test.scheduler)
                 test_object_list.append(test)
 
                 status = test.status.current()
                 # Won't try to cancel a completed job or a job that was
                 # previously cancelled.
-                if status.state != STATES.COMPLETE and \
-                   status.state != STATES.SCHED_CANCELLED:
+                if status.state not in (STATES.COMPLETE,
+                                        STATES.SCHED_CANCELLED):
                     # Sets status based on the result of sched.cancel_job.
                     # Ran into trouble when 'cancelling' jobs that never
                     # actually started, ie. build errors/created job states.
-                    test.status.set(sched.cancel_job(test).state,
-                                    sched.cancel_job(test).note)
-                    utils.fprint("test {} cancelled."
+                    cancel_status = sched.cancel_job(test)
+                    test.status.set(cancel_status.state, cancel_status.note)
+                    test.set_run_complete()
+                    utils.fprint("Test {} cancelled."
                                  .format(test_id), file=self.outfile,
                                  color=utils.GREEN)
 
                 else:
-                    utils.fprint("test {} could not be cancelled has state: {}."
+                    utils.fprint("Test {} could not be cancelled has state: {}."
                                  .format(test_id, status.state),
                                  file=self.outfile,
                                  color=utils.RED)
 
-            except PavTestError as err:
+            except TestRunError as err:
                 utils.fprint("Test {} could not be cancelled, cannot be" \
                              " found. \n{}".format(test_id, err),
                              file=self.errfile,

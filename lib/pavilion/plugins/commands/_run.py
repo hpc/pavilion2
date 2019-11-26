@@ -6,7 +6,7 @@ from pavilion import result_parsers
 from pavilion import schedulers
 from pavilion import system_variables
 from pavilion import utils
-from pavilion.pav_test import PavTest, PavTestError
+from pavilion.test_run import TestRun, TestRunError
 from pavilion.status_file import STATES
 
 
@@ -25,15 +25,13 @@ class _RunCommand(commands.Command):
             'test_id', action='store', type=int,
             help='The id of the test to run.')
 
-    def run(self, pav_cfg, args, out_file=sys.stdout, err_file=sys.stderr):
+    def run(self, pav_cfg, args):
         """Load and run an already prepped test in the current environment.
-        :param out_file:
-        :param err_file:
         """
 
         try:
-            test = PavTest.load(pav_cfg, args.test_id)
-        except PavTestError as err:
+            test = TestRun.load(pav_cfg, args.test_id)
+        except TestRunError as err:
             self.logger.error("Error loading test '%s': %s",
                               args.test_id, err)
             raise
@@ -64,7 +62,7 @@ class _RunCommand(commands.Command):
         try:
             run_result = test.run(sched.get_vars(test),
                                   system_variables.get_vars(defer=False))
-        except PavTestError as err:
+        except TestRunError as err:
             test.status.set(STATES.RUN_ERROR, err)
             test.set_run_complete()
             return 1
@@ -89,7 +87,7 @@ class _RunCommand(commands.Command):
             # checkable before kickoff due to deferred variables.
             try:
                 result_parsers.check_args(test.config['results'])
-            except PavTestError as err:
+            except TestRunError as err:
                 rp_errors.append(str(err))
 
             if rp_errors:

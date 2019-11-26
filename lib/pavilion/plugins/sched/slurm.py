@@ -1,24 +1,38 @@
+import os
+import re
+import subprocess
+from pathlib import Path
+
+import yaml_config as yc
 from pavilion import scriptcomposer
 from pavilion.schedulers import SchedulerPlugin
 from pavilion.schedulers import SchedulerPluginError
 from pavilion.schedulers import SchedulerVariables
 from pavilion.schedulers import dfr_var_method
-from pavilion.var_dict import var_method
 from pavilion.status_file import STATES, StatusInfo
-import os
-import yaml_config as yc
-import re
-import subprocess
-from pathlib import Path
+from pavilion.var_dict import var_method
 
 
 class SbatchHeader(scriptcomposer.ScriptHeader):
-    def __init__(self, sched_config, nodes, test_id):
+    """Provides header information specific to sbatch files for the
+slurm kickoff script.
+"""
+
+    def __init__(self, sched_config, nodes, test_id, vars):
+        """Build a header for an sbatch file.
+
+        :param dict sched_config: The slurm section of the test config.
+        :param list nodes: The node list
+        :param int test_id: The test's id.
+        :param dict vars: The test variables.
+        """
+
         super().__init__()
 
         self._conf = sched_config
         self._test_id = test_id
         self._nodes = nodes
+        self._vars = vars
 
     def get_lines(self):
         """Get the sbatch header lines."""
@@ -38,8 +52,10 @@ class SbatchHeader(scriptcomposer.ScriptHeader):
             lines.append('#SBATCH --account {s._conf[account]}'.format(s=self))
 
         lines.append('#SBATCH -N {s._nodes}'.format(s=self))
-        lines.append('#SBATCH --tasks-per-node={s._conf['
-                     'tasks_per_node]}'.format(s=self))
+        tasks = self._conf['tasks_per_node']
+        if tasks == 'all':
+            tasks = self._vars['min_ppn']
+        lines.append('#SBATCH --tasks-per-node={}'.format(tasks))
         if self._conf.get('time_limit') is not None:
             lines.append('#SBATCH -t {s._conf[time_limit]}'.format(s=self))
 
@@ -48,6 +64,7 @@ class SbatchHeader(scriptcomposer.ScriptHeader):
 
 class SlurmVars(SchedulerVariables):
     """Scheduler variables for the Slurm scheduler."""
+    # pylint: disable=no-self-use
 
     @var_method
     def min_ppn(self):
@@ -163,7 +180,12 @@ class SlurmVars(SchedulerVariables):
 
         # The requested processors is the number per node times
         # the actual number of nodes.
-        req_procs = int(self.test.config['slurm'].get('tasks_per_node'))
+
+        req_procs = self.test.config['slurm'].get('tasks_per_node')
+        if req_procs == 'all':
+            req_procs = int(self['min_ppn'])
+        else:
+            req_procs = int(req_procs)
         req_procs = req_procs * int(self.test_nodes())
 
         # We can't request more processors than there are, nor
@@ -187,12 +209,15 @@ class SlurmVars(SchedulerVariables):
 
 
 def slurm_float(val):
+    """Slurm 'float' values might also be 'N/A'."""
     if val == 'N/A':
         return None
     else:
         return float(val)
 
+
 def slurm_states(state):
+    """Parse a slurm state down to something reasonable."""
     states = state.split('+')
 
     if states:
@@ -200,13 +225,14 @@ def slurm_states(state):
     else:
         return 'UNKNOWN'
 
-    if state.endswith('$'):
+    if state.endswith('$') or state.endswith('*'):
         state = state[:-1]
 
     return state
 
 
 class Slurm(SchedulerPlugin):
+    """Schedule tests with Slurm!"""
 
     KICKOFF_SCRIPT_EXT = '.sbatch'
 
@@ -221,6 +247,8 @@ class Slurm(SchedulerPlugin):
         self.node_data = None
 
     def get_conf(self):
+        """Set up the Slurm configuration attributes."""
+
         return yc.KeyedElem(
             self.name,
             help_text="Configuration for the Slurm scheduler.",
@@ -276,6 +304,11 @@ class Slurm(SchedulerPlugin):
                 ])
 
     def _get_data(self):
+        """Get the slurm node state information.
+
+        :returns: A dict with individual node and summary information.
+        :rtype: dict
+        """
 
         data = dict()
         data['nodes'] = self._collect_node_data()
@@ -313,6 +346,7 @@ class Slurm(SchedulerPlugin):
     def _collect_node_data(self, nodes=None):
         """Use the `scontrol show node` command to collect data on nodes.
         Types are converted according to self.FIELD_TYPES.
+
         :param str nodes: The nodes to collect data on. If None, collect
             data on all nodes. The format is slurm standard node list,
             which can include compressed series eg 'n00[20-99],n0101'
@@ -333,11 +367,11 @@ class Slurm(SchedulerPlugin):
         for node_section in sinfo.split('\n\n'):
 
             node_info = self._scontrol_parse(node_section)
-            for k, v in node_info.items():
-                if k in self.NODE_FIELD_TYPES:
-                    node_info[k] = self.NODE_FIELD_TYPES[k](v)
+            for key, val in node_info.items():
+                if key in self.NODE_FIELD_TYPES:
+                    node_info[key] = self.NODE_FIELD_TYPES[key](val)
                 else:
-                    node_info[k] = v
+                    node_info[key] = val
 
             if 'NodeName' in node_info:
                 node_data[node_info['NodeName']] = node_info
@@ -347,14 +381,17 @@ class Slurm(SchedulerPlugin):
     @staticmethod
     def _make_summary(nodes):
         """Get aggregate data about the given nodes. This includes:
-            - min_ppn - min procs per node
-            - max_ppn - max procs per node
-            - min_mem - min mem per node (in MiB)
-            - max_mem - min mem per node (in MiB)
-            - total_cpu - Total cpu's on these nodes.
-        :param typing.Iterable nodes: Node dictionaries as returned by
-        _collect_node_data.
-        :rtype: dict"""
+
+- min_ppn - min procs per node
+- max_ppn - max procs per node
+- min_mem - min mem per node (in MiB)
+- max_mem - min mem per node (in MiB)
+- total_cpu - Total cpu's on these nodes.
+
+:param typing.Iterable nodes: Node dictionaries as returned by
+    _collect_node_data.
+:rtype: dict
+"""
 
         min_ppn = 0
         max_ppn = 0
@@ -388,6 +425,7 @@ class Slurm(SchedulerPlugin):
 
         return data
 
+    # pylint: disable=arguments-differ
     def _filter_nodes(self, min_nodes, config, nodes):
         """Filter the system nodes down to just those we can use. For each step,
         we check to make sure we still have the minimum nodes needed in order
@@ -397,7 +435,7 @@ class Slurm(SchedulerPlugin):
         :param dict config: The scheduler config for a test.
         :param [list] nodes: Nodes (as defined by collect node data)
         :returns: A list of node names that are compatible with the given
-        config.
+            config.
         :rtype: list
         """
 
@@ -449,7 +487,8 @@ class Slurm(SchedulerPlugin):
 
     def _schedule(self, test, kickoff_path):
         """Submit the kick off script using sbatch.
-        :param PavTest test: The PavTest we're kicking off.
+
+        :param TestRun test: The TestRun we're kicking off.
         :param Path kickoff_path: The kickoff script path.
         """
 
@@ -526,6 +565,7 @@ class Slurm(SchedulerPlugin):
 
     def _scontrol_show(self, *args, timeout=10):
         """Run scontrol show and return the parsed output.
+
         :param list(str) args: Additional args to scontrol.
         :param int timeout: How long to wait for results.
         """
@@ -540,8 +580,7 @@ class Slurm(SchedulerPlugin):
             stdout, stderr = proc.communicate(timeout=timeout)
         except subprocess.TimeoutExpired:
             self.logger.warning("Error getting scontrol output with cmd "
-                                "'{}'. Process timed out."
-                                .format(cmd))
+                                "'%s'. Process timed out.", cmd)
             return []
 
         stdout = stdout.decode('utf8')
@@ -556,7 +595,7 @@ class Slurm(SchedulerPlugin):
                 results.append(self._scontrol_parse(section))
             except (KeyError, ValueError) as err:
                 self.logger.warning("Error parsing scontrol output with cmd"
-                                    "'{}': {}".format(cmd, err))
+                                    "'%s': %s", cmd, err)
 
         return results
 
@@ -607,6 +646,7 @@ class Slurm(SchedulerPlugin):
     ]
 
     def job_status(self, pav_cfg, test):
+        """Get the current status of the slurm job for the given test."""
 
         try:
             job_info = self._scontrol_show('job', test.job_id)
@@ -628,8 +668,7 @@ class Slurm(SchedulerPlugin):
         # list though.
         job_info = job_info.pop(0)
         if job_info:
-            self.logger.info("Extra items in show job output: {}"
-                             .format(job_info))
+            self.logger.info("Extra items in show job output: %s", job_info)
 
         job_state = job_info.get('JobState', 'UNKNOWN')
         if job_state in self.SCHED_WAITING:
@@ -673,8 +712,8 @@ class Slurm(SchedulerPlugin):
             )
             return test.status.current()
 
-        self.logger.warning("Encountered unhandled job state '{}' for"
-                            "job '{}'.".format(job_state, test.job_id))
+        self.logger.warning("Encountered unhandled job state '%s' for"
+                            "job '%s'.", job_state, test.job_id)
         # The best we can say is that the test is still SCHEDULED. After all,
         # it might be! Who knows.
         return StatusInfo(
@@ -693,14 +732,18 @@ class Slurm(SchedulerPlugin):
 
         return SbatchHeader(sched_config,
                             self._get_node_range(sched_config, nodes.values()),
-                            test.id)
+                            test.id,
+                            self.get_vars(test))
 
     def _get_node_range(self, sched_config, nodes):
         """Translate user requests for a number of nodes into a numerical
         range based on the number of nodes on the actual system.
+
         :param dict sched_config: The scheduler config for a particular test.
         :param list nodes: A list of nodes.
-        :returns: A range suitable for the num_nodes argument of slurm."""
+        :rtype: str
+        :returns: A range suitable for the num_nodes argument of slurm.
+        """
 
         # Figure out the requested number of nodes
         num_nodes = sched_config.get('num_nodes')
@@ -727,7 +770,6 @@ class Slurm(SchedulerPlugin):
                     "Invalid num_nodes minimum value: {}"
                     .format(min_nodes))
 
-
         if max_nodes == 'all':
             max_nodes = len(nodes)
         else:
@@ -740,8 +782,11 @@ class Slurm(SchedulerPlugin):
         return '{}-{}'.format(min_nodes, max_nodes)
 
     def _cancel_job(self, test):
-        """Scancel the job.
-        :param pavilion.pav_test.PavTest test: The test to cancel.
+        """Scancel the job attached to the given test.
+
+        :param pavilion.test_run.TestRun test: The test to cancel.
+        :returns: A statusInfo object with the latest scheduler state.
+        :rtype: StatusInfo
         """
 
         # TODO: check this

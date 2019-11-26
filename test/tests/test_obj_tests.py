@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 
 from pavilion import wget
-from pavilion.pav_test import PavTestError, PavTest
+from pavilion.test_run import TestRunError, TestRun
 from pavilion.series import TestSeries
 from pavilion.status_file import STATES
 from pavilion.test_config import variables
@@ -26,7 +26,7 @@ class PavTestTests(PavTestCase):
         }
 
         # Making sure this doesn't throw errors from missing params.
-        PavTest(self.pav_cfg, config, {})
+        TestRun(self.pav_cfg, config, {})
 
         config = {
             'subtest': 'st',
@@ -35,20 +35,22 @@ class PavTestTests(PavTestCase):
             'build': {
                 'modules': ['gcc'],
                 'cmds': ['echo "Hello World"'],
+                'timeout': '30',
             },
             'run': {
                 'modules': ['gcc', 'openmpi'],
                 'cmds': ['echo "Running dis stuff"'],
                 'env': {'BLARG': 'foo'},
+                'timeout': '30',
             }
         }
 
         # Make sure we can create a test from a fairly populated config.
-        t = PavTest(self.pav_cfg, config, {})
+        t = TestRun(self.pav_cfg, config, {})
         t.build()
 
         # Make sure we can recreate the object from id.
-        t2 = PavTest.load(self.pav_cfg, t.id)
+        t2 = TestRun.load(self.pav_cfg, t.id)
 
         # Make sure the objects are identical
         # This tests the following functions
@@ -91,7 +93,7 @@ class PavTestTests(PavTestCase):
             config = copy.deepcopy(base_config)
             config['build']['source_location'] = archive
 
-            test = PavTest(self.pav_cfg, config, {})
+            test = TestRun(self.pav_cfg, config, {})
 
             if test.build_origin.exists():
                 shutil.rmtree(str(test.build_origin))
@@ -109,7 +111,7 @@ class PavTestTests(PavTestCase):
         # Check directory copying
         config = copy.deepcopy(base_config)
         config['build']['source_location'] = 'src'
-        test = PavTest(self.pav_cfg, config, {})
+        test = TestRun(self.pav_cfg, config, {})
 
         if test.build_origin.exists():
             shutil.rmtree(str(test.build_origin))
@@ -127,7 +129,7 @@ class PavTestTests(PavTestCase):
         for file in files:
             config = copy.deepcopy(base_config)
             config['build']['source_location'] = file
-            test = PavTest(self.pav_cfg, config, {})
+            test = TestRun(self.pav_cfg, config, {})
 
             if test.build_origin.exists():
                 shutil.rmtree(str(test.build_origin))
@@ -143,7 +145,7 @@ class PavTestTests(PavTestCase):
             'src.tar.gz',
             'src.xz',
         ]
-        test = PavTest(self.pav_cfg, config, {})
+        test = TestRun(self.pav_cfg, config, {})
 
         if test.build_origin.exists():
             shutil.rmtree(str(test.build_origin))
@@ -176,7 +178,7 @@ class PavTestTests(PavTestCase):
         shutil.rmtree(str(downloads_path))
         downloads_path.mkdir()
 
-        test = PavTest(self.pav_cfg, config, {})
+        test = TestRun(self.pav_cfg, config, {})
         if test.build_origin.exists():
             shutil.rmtree(str(test.build_origin))
 
@@ -201,7 +203,7 @@ class PavTestTests(PavTestCase):
         })
 
         script_path = Path(tempfile.mktemp())
-        PavTest.resolve_template(tmpl_path, script_path, var_man)
+        TestRun._resolve_template(tmpl_path, script_path, var_man)
         good_path = self.TEST_DATA_ROOT/'resolve_template_good.sh'
 
         with script_path.open() as gen_script,\
@@ -219,7 +221,7 @@ class PavTestTests(PavTestCase):
             with self.assertRaises(
                     KeyError,
                     msg="Error not raised on bad file '{}'".format(bad_tmpl)):
-                PavTest.resolve_template(tmpl_path, script_path, var_man)
+                TestRun._resolve_template(tmpl_path, script_path, var_man)
 
             if script_path.exists():
                 script_path.unlink()
@@ -227,9 +229,9 @@ class PavTestTests(PavTestCase):
         script_path = Path(tempfile.mktemp())
         tmpl_path = self.TEST_DATA_ROOT/'resolve_template_extra_escape.tmpl'
         with self.assertRaises(
-                PavTestError,
+                TestRunError,
                 msg="Error not raised on bad file '{}'".format(bad_tmpl)):
-            PavTest.resolve_template(tmpl_path, script_path, var_man)
+            TestRun._resolve_template(tmpl_path, script_path, var_man)
 
         if script_path.exists():
             script_path.unlink()
@@ -241,12 +243,13 @@ class PavTestTests(PavTestCase):
             'name': 'build_test',
             'scheduler': 'raw',
             'build': {
+                'timeout': '12',
                 'cmds': ['echo "Hello World [\x1esched.num_nodes\x1e]"'],
                 'source_location': 'binfile.gz',
             },
         }
 
-        test = PavTest(self.pav_cfg, config1, {})
+        test = TestRun(self.pav_cfg, config1, {})
 
         # Test a basic build, with a gzip file and an actual build script.
         self.assertTrue(test.build(), msg="Build failed")
@@ -262,13 +265,13 @@ class PavTestTests(PavTestCase):
             'name': 'build_test',
             'scheduler': 'raw',
             'build': {
+                'timeout': '1',
                 'cmds': ['sleep 10'],
                 'source_location': 'binfile.gz',
             },
         }
 
-        test = PavTest(self.pav_cfg, config, {})
-        test.BUILD_SILENT_TIMEOUT = 1
+        test = TestRun(self.pav_cfg, config, {})
 
         # This build should fail.
         self.assertFalse(test.build(),
@@ -281,26 +284,27 @@ class PavTestTests(PavTestCase):
             'name': 'build_test',
             'scheduler': 'raw',
             'build': {
+                'timeout': '12',
                 'cmds': ['exit 0'],
                 'source_location': 'binfile.gz',
             },
         }
 
         #  Check that building, and then re-using, a build directory works.
-        test = PavTest(self.pav_cfg, config, {})
+        test = TestRun(self.pav_cfg, config, {})
         # Remove the build tree to ensure we do the build fresh.
         if test.build_origin.is_dir():
             shutil.rmtree(str(test.build_origin))
         self.assertTrue(test.build())
 
-        test2 = PavTest(self.pav_cfg, config, {})
+        test2 = TestRun(self.pav_cfg, config, {})
         self.assertTrue(test2.build())
         self.assertEqual(test.build_origin, test2.build_origin)
 
         config3 = copy.deepcopy(config)
         config3['build']['cmds'] = ['exit 1']
         # This should fail because the build exits non-zero
-        test3 = PavTest(self.pav_cfg, config3, {})
+        test3 = TestRun(self.pav_cfg, config3, {})
         self.assertFalse(test3.build(),
                          "Build succeeded when it should have failed.")
         current_note = test3.status.current().note
@@ -311,7 +315,11 @@ class PavTestTests(PavTestCase):
         config1 = {
             'name': 'run_test',
             'scheduler': 'raw',
+            'build': {
+                'timeout': '30',
+                },
             'run': {
+                'timeout': None,
                 'env': {
                     'foo': 'bar',
                 },
@@ -320,7 +328,7 @@ class PavTestTests(PavTestCase):
             },
         }
 
-        test = PavTest(self.pav_cfg, config1, {})
+        test = TestRun(self.pav_cfg, config1, {})
         self.assert_(test.build())
 
         self.assertTrue(test.run({}, {}), msg="Test failed to run.")
@@ -328,7 +336,7 @@ class PavTestTests(PavTestCase):
         config2 = config1.copy()
         config2['run']['modules'] = ['asdlfkjae', 'adjwerloijeflkasd']
 
-        test = PavTest(self.pav_cfg, config2, {})
+        test = TestRun(self.pav_cfg, config2, {})
         self.assert_(test.build())
 
         self.assertEqual(
@@ -344,12 +352,12 @@ class PavTestTests(PavTestCase):
             'name': 'sleep_test',
             'scheduler': 'raw',
             'run': {
+                'timeout': '1',
                 'cmds': ['sleep 10']
             }
         }
-        test = PavTest(self.pav_cfg, config3, {})
+        test = TestRun(self.pav_cfg, config3, {})
         self.assert_(test.build())
-        test.RUN_SILENT_TIMEOUT = 1
         self.assertEqual(
             test.run({}, {}),
             STATES.RUN_TIMEOUT,
@@ -373,7 +381,7 @@ class PavTestTests(PavTestCase):
 
         tests = []
         for i in range(3):
-            tests.append(PavTest(self.pav_cfg, config1, {}))
+            tests.append(TestRun(self.pav_cfg, config1, {}))
 
         # Make sure this doesn't explode
         suite = TestSeries(self.pav_cfg, tests)

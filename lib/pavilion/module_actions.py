@@ -1,26 +1,41 @@
+"""Defines the how to perform module loads, swaps and unloads."""
+
+
 import os
 
+
 class ModuleAction:
+    """The base module action class."""
 
     def __init__(self, module_name, version=None):
-        """Initialize the action.
-        :param str module_name: The name of the module
-        :param Union(str, None) version: The version of the module. None
-        denotes both unversioned modules and loading the default (as
-        interpreted by the module system)
-        """
+        """Each module action is specific to a module name and optional version.
+
+:param str module_name: The name of the module
+:param Union(str, None) version: The version of the module. None
+    denotes both un-versioned modules and loading the default (as
+    interpreted by the module system)
+"""
 
         self.name = module_name
         self.version = version if version is not None else ''
 
     def action(self):
+        """Returns a list of bash commands that should perform the action for
+the given module.
+
+:rtype: list(str)
+"""
         raise NotImplementedError
 
     def verify(self):
+        """Returns a list of bash commands that should verify that the module
+action has been performed successfully. These should set the test
+status to ENV_FAILED, and exit the bash script with a non-zero return code."""
         raise NotImplementedError
 
     @property
     def module(self):
+        """A properly formatted module name for the given module and version."""
         if self.version:
             return '{s.name}/{s.version}'.format(s=self)
         else:
@@ -28,6 +43,7 @@ class ModuleAction:
 
 
 class ModuleLoad(ModuleAction):
+    """Provides module loading commands and verification."""
 
     def action(self):
         return ['module load {s.module}'
@@ -39,6 +55,7 @@ class ModuleLoad(ModuleAction):
 
 
 class ModuleUnload(ModuleAction):
+    """Provides module unloading commands and verification."""
 
     def action(self):
         return ['module unload {s.module}'.format(s=self)]
@@ -51,6 +68,7 @@ class ModuleUnload(ModuleAction):
 
 
 class ModuleSwap(ModuleAction):
+    """Provides module swapping commands and verification."""
 
     def __init__(self, module_name, version, old_module_name, old_version):
         super().__init__(module_name, version)
@@ -60,7 +78,7 @@ class ModuleSwap(ModuleAction):
 
     @property
     def old_module(self):
-        if self.old_version is not None:
+        if self.old_version:
             return '{s.old_name}/{s.old_version}'.format(s=self)
         else:
             return self.old_name
