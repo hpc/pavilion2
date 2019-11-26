@@ -3,6 +3,7 @@ import os
 import sys
 
 from pavilion import commands
+from pavilion import utils
 
 class FileCommand(commands.Command):
 
@@ -27,16 +28,16 @@ class FileCommand(commands.Command):
     def run(self, pav_cfg, args, out_file=sys.stdout, err_file=sys.stderr):
 
         test_dir = pav_cfg.working_dir/'tests'
-        job_dir  = test_dir/args.job_id
+        job_dir = test_dir/args.job_id
 
         if os.path.isdir(job_dir.as_posix()) is True:
             if args.filename is not None:
                 print_file(job_dir/args.filename)
             else:
                 for f in os.listdir(job_dir):
-                    print(f, file = out_file)
+                    utils.fprint(f, file=out_file)
         else:
-            print("file '{}' does not exist.".format(job_dir.as_posix()),
+            utils.fprint("file '{}' does not exist.".format(job_dir.as_posix()),
                   file = err_file)
             sys.exit()
         return 0
@@ -49,9 +50,12 @@ def print_file(filename, out_file=sys.stdout, err_file=sys.stderr):
                 block = f.read(4096)
                 if not block:
                     break
-                print(block, file = out_file)
+                utils.fprint(block, file=out_file)
+
     except IsADirectoryError:
-        print("{} is a directory.".format(filename), err_file)
+        utils.fprint("{} is a directory.".format(filename), err_file)
         sys.exit()
+
     except FileNotFoundError:
-        print("file '{}' does not exist.".format(filename), err_file)
+        utils.fprint("file '{}' does not exist.".format(filename), err_file)
+        sys.exit()
