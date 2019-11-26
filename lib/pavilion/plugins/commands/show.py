@@ -414,7 +414,7 @@ class ShowCommand(commands.Command):
             class Loader(yaml_config.YamlConfigLoader):
                 ELEMENTS = config_items
 
-            Loader().dump(sys.stdout)
+            Loader().dump(self.outfile)
 
         else:
 
@@ -463,14 +463,13 @@ class ShowCommand(commands.Command):
     def _config_cmd(self, pav_cfg, args):
 
         if args.template:
-            config.PavilionConfigLoader().dump(sys.stdout)
+            config.PavilionConfigLoader().dump(self.outfile)
         else:
             config.PavilionConfigLoader().dump(self.outfile,
                                                values=pav_cfg)
 
-    @staticmethod
-    def _test_config_cmd(*_):
-        file_format.TestConfigLoader().dump(sys.stdout)
+    def _test_config_cmd(self, *_):
+        file_format.TestConfigLoader().dump(self.outfile)
 
     def _config_dirs(self, pav_cfg, _):
 
