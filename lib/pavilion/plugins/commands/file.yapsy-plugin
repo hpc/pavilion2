@@ -1,0 +1,9 @@
+[Core]
+Name = File Command
+Module = file
+
+[Documentation]
+Description = Command that lists files and file contents of pavilion job.
+Author = Jordan A. Ogas
+Version = 1.0
+Website =
