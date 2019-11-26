@@ -1,3 +1,9 @@
+"""Pavilion Test configurations, like the base Pavilion configuration,
+utilize the YamlConfig library to define the config structure. Because of the
+dynamic nature of test configs, there are a few extra complications this module
+handles that are documented below.
+"""
+
 from collections import OrderedDict
 import re
 import yaml_config as yc
@@ -12,19 +18,26 @@ VAR_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_-]*[\?\+]?$')
 
 
 class VariableElem(yc.CategoryElem):
-    """A variable entry can be either a single string value or a dictionary
-    of values. If we get a single value, we'll return it instead of a dict."""
+    """This is for values in the 'variables' section of a test config.
+
+    A variable entry can be either a single string value or an
+    arbitrary dictionary of strings. If we get a single value, we'll return it
+    instead of a dict.  Pavilion's variable handling code handles the
+    normalization of these values.
+    """
 
     _NAME_RE = KEY_NAME_RE
 
     def __init__(self, name=None, **kwargs):
-        """Just like a CategoryElem, but we force some of the params."""
+        """Just like a CategoryElem, but the sub_elem must be a StrElem
+        and it can't have defaults."""
         super(VariableElem, self).__init__(name=name,
                                            sub_elem=yc.StrElem(),
                                            defaults=None,
                                            **kwargs)
 
     def normalize(self, values):
+        """Normalize to either a dict of strings or just a string."""
         if isinstance(values, str):
             return values
 
@@ -40,12 +53,25 @@ class VariableElem(yc.CategoryElem):
 
 
 class VarCatElem(yc.CategoryElem):
-    """Just like a regular category elem, but we override the key regex to
-    allow dashes. We won't be using name style references anyway."""
+    """For describing how the variables section itself works.
+
+    Just like a regular category elem (any conforming key, but values must
+    be the same type), but with some special magic when merging values.
+
+    :cvar _NAME_RE: Unlike normal categoryElem keys, these can have dashes.
+    """
     _NAME_RE = VAR_NAME_RE
 
     def merge(self, old, new):
-        """Merge, but allow for special keys that change our merge behavior."""
+        """Merge, but allow for special keys that change our merge behavior.
+
+        'key?: value'
+          Allows values from lower levels in the config stack to override this
+          one. The value is only used if no other value is given.
+        'key+: value/s'
+          The values are appended to the list of whatever is given by lower
+          levels of the config stack.
+        """
 
         base = old.copy()
         for key, value in new.items():
@@ -86,7 +112,8 @@ class VarCatElem(yc.CategoryElem):
 
 
 class EnvCatElem(yc.CategoryElem):
-    """Env vars need to be ordered, and have a different key regex."""
+    """A category element that ensures environment variables retain their
+    order."""
 
     _NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_]*$')
     type = OrderedDict
@@ -94,7 +121,24 @@ class EnvCatElem(yc.CategoryElem):
 
 class TestConfigLoader(yc.YamlConfigLoader):
     """This class describes a test section in a Pavilion config file. It is
-    expected to be added to by various plugins."""
+expected to be added to by various plugins.
+
+:cvar list(yc.YamlConfig) ELEMENTS: Each YamlConfig instance in this
+    list defines a key for the test config.
+
+- Each element must result in a string (which is why you see a lot of StrElem
+  below), or a structure that contains only strings at the lowest layer.
+
+  - So lists of dicts of strings are fine, etc.
+  - yc.RegexElem also produces a string.
+- Everything should have a sensible default.
+
+  - An empty config should be a valid test.
+- For bool values, accept ['true', 'false', 'True', 'False'].
+
+  - They should be checked with val.lower() == 'true', etc.
+- Every element must have a useful 'help_text'.
+"""
 
     ELEMENTS = [
         yc.RegexElem(
@@ -254,6 +298,7 @@ class TestConfigLoader(yc.YamlConfigLoader):
     @classmethod
     def add_subsection(cls, subsection):
         """Use this method to add additional sub-sections to the config.
+
         :param yc.ConfigElem subsection: A yaml config element to add. Keyed
             elements are expected, though any ConfigElem based instance
             (whose leave elements are StrElems) should work.
@@ -341,8 +386,8 @@ class TestConfigLoader(yc.YamlConfigLoader):
     def remove_result_parser_config(cls, name):
         """Remove the given result parser from the result parser configuration
         section.
+
         :param str name: The name of the parser to remove.
-        :return:
         """
 
         for section in list(cls._RESULT_PARSERS.config_elems.values()):
@@ -352,9 +397,10 @@ class TestConfigLoader(yc.YamlConfigLoader):
 
     @classmethod
     def check_leaves(cls, elem):
-        """
+        """Make sure all of the config elements have a string element or
+        equivalent as the final node.
+
         :param yc.ConfigElement elem:
-        :return:
         """
 
         # pylint: disable=protected-access
@@ -371,8 +417,10 @@ class TestConfigLoader(yc.YamlConfigLoader):
 
 
 def TestSuiteLoader():  # pylint: disable=invalid-name
-    """Create a new test suite loader instance. This has to be done
-    dynamically because of how we add keys to the TestConfig above."""
+    """Create a new test suite loader instance. This is a function
+    masquerading as a constructor because the class has to be defined
+    dynamically after plugins have modified the test config.
+    """
 
     class _TestSuiteLoader(yc.CatYamlConfigLoader):
         """An actual test config file consists of multiple config sections."""

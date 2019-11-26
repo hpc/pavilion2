@@ -1,3 +1,9 @@
+"""The script composer makes it easy to build up a script with a
+prescribed environ in a programmatic way.
+
+It also handles translating our module specifications into
+specific actions to add to the script."""
+
 import collections
 import datetime
 import grp
@@ -9,64 +15,15 @@ from pavilion import utils
 from pavilion.module_actions import ModuleAction
 
 
-# Class to allow for scripts to be written for other modules.
-# Typically, this will be used to write bash or batch scripts.
-
-
-def get_action(mod_line):
-    """Function to return the type of action requested by the user for a
-       given module, using the pavilion configuration syntax.  The string can
-       be in one of three formats:
-       1) '[mod-name]' - The module 'mod-name' is to be loaded.
-       2) '[old-mod-name]->[mod-name]' - The module 'old-mod-name' is to be
-                                         swapped out for the module 'mod-name'.
-       3) '-[mod-name]' - The module 'mod-name' is to be unlaoded.
-       :param str mod_line: String provided by the user in the config.
-       :return object action: Return the appropriate object as provided by
-                              the module_actions file.
-    """
-    if '->' in mod_line:
-        return 'swap'
-    elif mod_line.startswith('-'):
-        return 'unload'
-    else:
-        return 'load'
-
-
-def get_name(mod_line):
-    """Function to return the name of the module based on the config string
-       provided by the user.  The string can be in one of three formats:
-       1) '[mod-name]' - The module 'mod-name' is the name returned.
-       2) '[old-mod-name]->[mod-name]' - The module 'mod-name' is returned.
-       3) '-[mod-name]' - The module 'mod-name' is the name returned.
-       :param str mod_line: String provided by the user in the config.
-       :return str modn_name: The name of the module to be returned.
-    """
-    if '->' in mod_line:
-        return mod_line[mod_line.find('->')+2:]
-    elif mod_line.startswith('-'):
-        return mod_line[1:]
-    else:
-        return mod_line
-
-
-def get_old_swap(mod_line):
-    """Function to return the old module name in the case of a swap.
-       :param str mod_line: String provided by the user in the config.
-       :return str mod_old: Name of module to be swapped out.
-    """
-    return mod_line[:mod_line.find('->')]
-
-
 class ScriptComposerError(RuntimeError):
     """Class level exception during script composition."""
 
 
-class ScriptHeader():
+class ScriptHeader:
     """Class to serve as a struct for the script header."""
 
     def __init__(self, shell_path=None, scheduler_headers=None):
-        """Function to set the header values for the script.
+        """The header values for a script.
         :param string shell_path: Shell path specification.  Typically
                                   '/bin/bash'.  default = None.
         :param list scheduler_headers: List of lines for scheduler resource
@@ -76,7 +33,6 @@ class ScriptHeader():
         self._scheduler_headers = None
         self.shell_path = shell_path
         self.scheduler_headers = scheduler_headers
-
 
     @property
     def shell_path(self):
@@ -131,6 +87,7 @@ class ScriptDetails():
 
     def __init__(self, path=None, group=None, perms=None):
         """Function to set the final details of the script.
+
         :param Union(str,Path) path: The path to the script file. default =
             'pav_(date)_(time)'
         :param string group: Name of group to set as owner of the file.
@@ -178,15 +135,17 @@ class ScriptDetails():
 
         self._perms = oct(value)
 
-    def reset(self):
-        self.__init__()
 
-
-class ScriptComposer():
+class ScriptComposer:
+    """Manages the building of bash scripts for Pavilion."""
 
     def __init__(self, header=None, details=None):
         """Function to initialize the class and the default values for all of
         the variables.
+
+        :param ScriptHeader header: The header class to use. Defaults to one
+            that simply adds ``#!/bin/bash`` as the file header.
+        :param ScriptDetails details: The metadata class to use.
         """
 
         if header is None:
@@ -200,22 +159,19 @@ class ScriptComposer():
 
         self._script_lines = []
 
-    def reset(self):
-        """Function to reset all variables to the default."""
-        self.__init__()
-
     def env_change(self, env_dict):
         """Function to take the environment variable change requested by the
         user and add the appropriate line to the script.
+
         :param dict env_dict: A dictionary (preferably an OrderedDict) of
-         environment keys and values to set. A value of None will unset the
-         variable.
+            environment keys and values to set. A value of None will unset the
+            variable.
         """
 
         # Order the keys alphabetically if they don't have an implied order.
         if not isinstance(env_dict, collections.OrderedDict):
             new_dict = collections.OrderedDict()
-            for key in sorted(env_dict.keys()):
+            for key in env_dict.keys():
                 new_dict[key] = env_dict[key]
 
         for key, value in env_dict.items():
@@ -224,21 +180,60 @@ class ScriptComposer():
             else:
                 self._script_lines.append('unset {}'.format(key))
 
+    @staticmethod
+    def parse_module(mod_line):
+        """Parse a module specification into it's components. These can come
+in one of three formats:
+
+1. 'mod-name[/version]' - Load the given module name and version
+2. '-mod-name[/version]' - Unload the given module/version.
+3. 'old_name[/old_vers]->mod-name[/version]' - Swap the given old
+   module for the new one.
+
+:param str mod_line: String provided by the user in the config.
+:rtype: (str, (str, str), (str, str))
+:return: action, (name, vers), (old_name, old_vers)
+"""
+        old_mod = None
+        if '->' in mod_line:
+            old_mod, mod = mod_line.split('->')
+            action = 'swap'
+        elif mod_line.startswith('-'):
+            action = 'unload'
+            mod = mod_line[1:]
+        else:
+            action = 'load'
+            mod = mod_line
+
+        if '/' in mod:
+            mod_name, mod_vers = mod.split('/')
+        else:
+            mod_name = mod
+            mod_vers = None
+
+        if old_mod is not None:
+            if '/' in old_mod:
+                old_mod_name, old_mod_vers = old_mod.split('/')
+            else:
+                old_mod_name = old_mod
+                old_mod_vers = None
+
+            return action, (mod_name, mod_vers), (old_mod_name, old_mod_vers)
+        else:
+            return action, (mod_name, mod_vers), (None, None)
+
     def module_change(self, module, sys_vars):
-        """Function to take the module changes specified in the user config
-        and add the appropriate lines to the script.
+        """Take the module changes specified in the user config and add the
+        appropriate lines to the script. This will parse the module name into
+        various actions, find the appropriate module_wrapper plugin, and use
+        that to get the lines to add to the script.
+
         :param str module: Name of a module or a list thereof in the format
-         used in the user config.
+            used in the user config.
         :param dict sys_vars: The pavilion system variable dictionary.
         """
 
-        fullname = get_name(module)
-        if '/' in fullname:
-            name, version = fullname.split('/')
-        else:
-            name = fullname
-            version = None
-        action = get_action(module)
+        action, (name, version), (oldname, oldver) = self.parse_module(module)
 
         module_obj = module_wrapper.get_module_wrapper(name, version)
 
@@ -247,15 +242,7 @@ class ScriptComposer():
 
         elif action == 'unload':
             mod_act, mod_env = module_obj.unload(sys_vars, version)
-
         elif action == 'swap':
-            old = get_old_swap(module)
-            if '/' in old:
-                oldname, oldver = old.split('/')
-            else:
-                oldname = old
-                oldver = None
-
             mod_act, mod_env = module_obj.swap(sys_vars,
                                                oldname,
                                                oldver,
@@ -280,12 +267,14 @@ class ScriptComposer():
 
     def comment(self, comment):
         """Function for adding a comment to the script.
+
         :param str comment: Text to be put in comment without the leading '# '.
         """
         self._script_lines.append("# {}".format(comment))
 
     def command(self, command):
-        """Function to add a line unadulterated to the script lines.
+        """Add a line unadulterated to the script lines.
+
         :param str command: String representing the whole command to add.
         """
         if isinstance(command, list):
@@ -296,6 +285,7 @@ class ScriptComposer():
 
     def write(self):
         """Function to write the script out to file.
+
         :return bool result: Returns either True for successfully writing the
                              file or False otherwise.
         """

@@ -2,7 +2,7 @@ import sys
 
 from pavilion import commands
 from pavilion import series
-from pavilion.pav_test import PavTest, PavTestError, PavTestNotFoundError
+from pavilion.test_run import TestRun, TestRunError, TestRunNotFoundError
 from pavilion import utils
 
 
@@ -40,17 +40,17 @@ class ResultsCommand(commands.Command):
             help="The tests to show the results for."
         )
 
-    def run(self, pav_cfg, args, out_file=sys.stdout, err_file=sys.stderr):
+    def run(self, pav_cfg, args):
 
         test_ids = self._get_tests(pav_cfg, args.tests)
 
         tests = []
         for id_ in test_ids:
             try:
-                tests.append(PavTest.load(pav_cfg, id_))
-            except PavTestError as err:
+                tests.append(TestRun.load(pav_cfg, id_))
+            except TestRunError as err:
                 self.logger.warning("Could not load test %s - %s", id_, err)
-            except PavTestNotFoundError as err:
+            except TestRunNotFoundError as err:
                 self.logger.warning("Could not find test %s - %s", id_, err)
 
         results = []
