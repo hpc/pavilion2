@@ -239,7 +239,7 @@ class PavEncoder(json.JSONEncoder):
     def default(self, o):  # pylint: disable=E0202
         if isinstance(o, Path):
             return str(o)
-        else
+        else:
             return super().default(o)
 
         if isinstance(o, (datetime.datetime)):
