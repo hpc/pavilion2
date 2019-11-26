@@ -30,16 +30,18 @@ class FileCommand(commands.Command):
         test_dir = pav_cfg.working_dir/'tests'
         job_dir = test_dir/args.job_id
 
-        if os.path.isdir(job_dir.as_posix()) is True:
-            if args.filename is not None:
-                print_file(job_dir/args.filename)
-            else:
-                for file_ in os.listdir(job_dir):
-                    utils.fprint(file_, file=sys.stdout)
-        else:
-            utils.fprint("file '{}' does not exist.".format(job_dir.as_posix()),
+        if os.path.isdir(job_dir.as_posix()) is False:
+            utils.fprint("directory '{}' does not exist."
+                         .format(job_dir.as_posix()),
                          file=sys.stderr, color=utils.RED)
             sys.exit()
+
+        if args.filename is not None:
+            print_file(job_dir/args.filename)
+        else:
+            for file_ in os.listdir(job_dir):
+                utils.fprint(file_, file=sys.stdout)
+
         return 0
 
 
