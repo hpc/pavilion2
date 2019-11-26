@@ -6,7 +6,6 @@ import subprocess
 import time
 from pathlib import Path
 
-import tzlocal
 import yaml_config as yc
 from pavilion.pav_vars import var_method
 from pavilion.schedulers import SchedulerPlugin
@@ -137,9 +136,7 @@ class Raw(SchedulerPlugin):
 
         host, pid = test.job_id.rsplit('_', 1)
 
-        now = tzlocal.get_localzone().localize(
-            datetime.datetime.now()
-        )
+        now = datetime.datetime.now()
 
         local_host = socket.gethostname()
         if host != local_host:

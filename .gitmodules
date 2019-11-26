@@ -7,9 +7,6 @@
 [submodule "lib/pavilion/dependencies/sub_repos/requests"]
 	path = lib/sub_repos/requests
 	url = https://github.com/requests/requests.git
-[submodule "lib/pavilion/dependencies/sub_repos/tzlocal"]
-	path = lib/sub_repos/tzlocal
-	url = https://github.com/regebro/tzlocal.git
 [submodule "lib/pavilion/dependencies/sub_repos/urllib3"]
 	path = lib/sub_repos/urllib3
 	url = https://github.com/shazow/urllib3.git
@@ -22,6 +19,3 @@
 [submodule "lib/pavilion/dependencies/sub_repos/idna"]
 	path = lib/sub_repos/idna
 	url = https://github.com/kjd/idna.git
-[submodule "lib/sub_repos/pytz"]
-	path = lib/sub_repos/pytz
-	url = https://github.com/stub42/pytz.git
