@@ -15,23 +15,16 @@ from pathlib import Path
 
 def get_relative_timestamp(base_dt):
     """Print formatted time string based on the delta of time objects.
-    :param obj datetime object
-    :rtype string
+    :param datetime base_dt: The datetime object to compare and format from.
+    :returns: A formatted time string.
+    :rtype str:
     """
     now = datetime.datetime.now()
     format_ = ['%Y', '%b', '%a', '%H:%M:%S'] # year, month, day, time
 
-    if now.strftime("%Y") != base_dt.strftime("%Y"):
-        return now.strftime(" ".join(format_))
-
-    if now.strftime("%b") != base_dt.strftime("%b"):
-        return now.strftime(" ".join(format_[1:]))
-
-    if now.strftime("%a") != base_dt.strftime("%a"):
-        return now.strftime(" ".join(format_[2:]))
-
-    if now.strftime("%H:%M:%S") != base_dt.strftime("%H:%M:%S"):
-        return now.strftime(" ".join(format_[3:]))
+    for i in range(0, len(format_)):
+        if now.strftime(format_[i]) != base_dt.strftime(format_[i]):
+            return now.strftime(" ".join(format_[i:]))
 
     return base_dt.strftime(str(" ".join(format_)))
 
