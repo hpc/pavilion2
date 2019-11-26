@@ -239,12 +239,11 @@ class PavEncoder(json.JSONEncoder):
     def default(self, o):  # pylint: disable=E0202
         if isinstance(o, Path):
             return str(o)
-        else:
-            return super().default(o)
 
         if isinstance(o, (datetime.datetime)):
             return o.isoformat()
 
+        return super().default(o)
 
 def json_dumps(obj, skipkeys=False, ensure_ascii=True,
                check_circular=True, allow_nan=True, indent=None,
