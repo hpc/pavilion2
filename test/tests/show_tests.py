@@ -51,5 +51,3 @@ class ShowTests(unittest.PavTestCase):
             show_cmd.run(self.pav_cfg, args)
 
         plugins._reset_plugins()
-
-
