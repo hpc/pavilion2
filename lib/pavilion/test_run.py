@@ -646,7 +646,8 @@ build.
 
         elif src_path.is_dir():
             # Recursively copy the src directory to the build directory.
-            self.status.set(STATES.BUILDING,
+            self.status.set(
+                STATES.BUILDING,
                 "Copying source directory {} for build {} "
                 "as the build directory."
                 .format(src_path, build_path))
@@ -671,7 +672,8 @@ build.
                             # make that directory the build directory. This
                             # should be the default in most cases.
                             if len(top_level) == 1 and top_level[0].isdir():
-                                self.status.set(STATES.BUILDING,
+                                self.status.set(
+                                    STATES.BUILDING,
                                     "Extracting tarfile {} for build {} "
                                     "as the build directory."
                                     .format(src_path, build_path))
@@ -684,7 +686,8 @@ build.
                             else:
                                 # Otherwise, the build path will contain the
                                 # extracted contents of the archive.
-                                self.status.set(STATES.BUILDING,
+                                self.status.set(
+                                    STATES.BUILDING,
                                     "Extracting tarfile {} for build {} "
                                     "into the build directory."
                                     .format(src_path, build_path))
@@ -716,7 +719,8 @@ build.
                         raise RuntimeError("Unhandled compression type. '{}'"
                                            .format(subtype))
 
-                    self.status.set(STATES.BUILDING,
+                    self.status.set(
+                        STATES.BUILDING,
                         "Extracting {} file {} for build {} "
                         "into the build directory."
                         .format(subtype, src_path, build_path))
@@ -746,7 +750,8 @@ build.
 
                         files = os.listdir(tmpdir.as_posix())
                         if len(files) == 1 and (tmpdir/files[0]).is_dir():
-                            self.status.set(STATES.BUILDING,
+                            self.status.set(
+                                STATES.BUILDING,
                                 "Extracting zip file {} for build {} "
                                 "as the build directory."
                                 .format(src_path, build_path))
@@ -754,7 +759,8 @@ build.
                             (tmpdir/files[0]).rename(build_path)
                             tmpdir.rmdir()
                         else:
-                            self.status.set(STATES.BUILDING,
+                            self.status.set(
+                                STATES.BUILDING,
                                 "Extracting zip file {} for build {} "
                                 "into the build directory."
                                 .format(src_path, build_path))
@@ -769,7 +775,8 @@ build.
             else:
                 # Finally, simply copy any other types of files into the build
                 # directory.
-                self.status.set(STATES.BUILDING,
+                self.status.set(
+                    STATES.BUILDING,
                     "Copying file {} for build {} "
                     "into the build directory."
                     .format(src_path, build_path))
