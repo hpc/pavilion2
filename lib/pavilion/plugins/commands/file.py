@@ -36,17 +36,22 @@ class FileCommand(commands.Command):
                 for f in os.listdir(job_dir):
                     print(f, file = out_file)
         else:
-            print(f"file '{job_dir.as_posix()}' does not exist.",
+            print("file '{}' does not exist.".format(job_dir.as_posix()),
                   file = err_file)
             sys.exit()
         return 0
 
 
 def print_file(filename, out_file=sys.stdout, err_file=sys.stderr):
-    with open(filename, 'r') as f:
-        while True:
-            block = f.read(4096)
-            if not block:
-                break
-            print(block, file = out_file)
-
+    try:
+        with open(filename, 'r') as f:
+            while True:
+                block = f.read(4096)
+                if not block:
+                    break
+                print(block, file = out_file)
+    except IsADirectoryError:
+        print("{} is a directory.".format(filename), err_file)
+        sys.exit()
+    except FileNotFoundError:
+        print("file '{}' does not exist.".format(filename), err_file)
