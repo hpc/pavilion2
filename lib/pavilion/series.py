@@ -1,8 +1,10 @@
+"""Series are a collection of test runs."""
+
 import logging
 import os
 
 from pavilion import utils
-from pavilion.pav_test import PavTest, PavTestError, PavTestNotFoundError
+from pavilion.test_run import TestRun, TestRunError, TestRunNotFoundError
 
 
 class TestSeriesError(RuntimeError):
@@ -11,10 +13,12 @@ class TestSeriesError(RuntimeError):
 
 def test_obj_from_id(pav_cfg, test_ids):
     """Return the test object(s) associated with the id(s) provided.
+
     :param dict pav_cfg: Base pavilion configuration.
-    :param list/str test_ids: One or more test IDs."
+    :param Union(list,str) test_ids: One or more test IDs."
     :return tuple(list(test_obj),list(failed_ids)): tuple containing a list of
-    test objects and a list of test IDs for which no test could be found."""
+        test objects and a list of test IDs for which no test could be found.
+    """
 
     test_obj_list = []
     test_failed_list = []
@@ -24,12 +28,12 @@ def test_obj_from_id(pav_cfg, test_ids):
 
     for test_id in test_ids:
         try:
-            test = PavTest.load(pav_cfg, test_id)
+            test = TestRun.load(pav_cfg, test_id)
             test_obj_list.append(test)
-        except (PavTestError, PavTestNotFoundError):
+        except (TestRunError, TestRunNotFoundError):
             test_failed_list.append(test_id)
 
-    return (test_obj_list, test_failed_list)
+    return test_obj_list, test_failed_list
 
 
 class TestSeries:
@@ -39,6 +43,7 @@ class TestSeries:
 
     def __init__(self, pav_cfg, tests, _id=None):
         """Initialize the series.
+
         :param pav_cfg: The pavilion configuration object.
         :param list tests: The list of test objects that belong to this series.
         :param int _id: The test id number. If this is given, it implies that
@@ -57,7 +62,7 @@ class TestSeries:
         if _id is None:
             # Get the series id and path.
             try:
-                self._id, self.path = PavTest.create_id_dir(series_path)
+                self._id, self.path = TestRun.create_id_dir(series_path)
             except (OSError, TimeoutError) as err:
                 raise TestSeriesError(
                     "Could not get id or series directory in '{}': {}"
@@ -86,12 +91,14 @@ class TestSeries:
     @property
     def id(self):  # pylint: disable=invalid-name
         """Return the series id as a string, with an 's' in the front to
-        differentiate it from test ids."""
+differentiate it from test ids."""
 
         return 's{}'.format(self._id)
 
     @classmethod
     def from_id(cls, pav_cfg, id_):
+        """Load a series object from the given id, along with all of its
+associated tests."""
 
         try:
             id_ = int(id_[1:])
@@ -119,7 +126,7 @@ class TestSeries:
                         link_path)
                     continue
 
-                tests.append(PavTest.load(pav_cfg, test_id=test_id))
+                tests.append(TestRun.load(pav_cfg, test_id=test_id))
             else:
                 logger.info("Polluted series directory in series '%s'",
                             series_path)
@@ -165,6 +172,6 @@ class TestSeries:
     @property
     def timestamp(self):
         """Return the unix timestamp for this series, based on the last
-        modified date for the test directory."""
+modified date for the test directory."""
         # Leave it up to the caller to deal with time properly.
         return self.path.stat().st_mtime

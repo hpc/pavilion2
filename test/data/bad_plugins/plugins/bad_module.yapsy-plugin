@@ -1,0 +1,6 @@
+[Core]
+Name = Bad Module
+Module = bad_module
+
+[Documentation]
+Description = Has a syntax error in the module.

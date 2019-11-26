@@ -1,3 +1,7 @@
+"""Scheduler plugins give you the ability to (fairly) easily add new scheduling
+mechanisms to Pavilion.
+"""
+
 # pylint: disable=no-self-use
 
 import datetime
@@ -20,7 +24,7 @@ LOGGER = logging.getLogger('pav.{}'.format(__name__))
 
 
 class SchedulerPluginError(RuntimeError):
-    pass
+    """Raised when scheduler plugins encounter an error."""
 
 
 _SCHEDULER_PLUGINS = {}
@@ -30,6 +34,7 @@ def dfr_var_method(*sub_keys):
     """This decorator marks the following function as a deferred variable. It
     can optionally be given sub_keys for the variable as positional
     arguments.
+
     :param list(str) sub_keys: The variable sub-keys.
     """
 
@@ -79,17 +84,19 @@ class SchedulerVariables(VarDict):
     value. Methods that start with '_' are ignored.
 
     Naming Conventions:
-        'alloc_*' - Variable names should be prefixed with 'alloc_' if they are
-            deferred.
-        'test_*' - Variable names prefixed with test denote that the variable
-            is specific to a test. These also tend to be deferred.
+
+    'alloc_*'
+      Variable names should be prefixed with 'alloc\_' if they are deferred.
+    'test_*'
+      Variable names prefixed with test denote that the variable
+      is specific to a test. These also tend to be deferred.
     """
 
     def __init__(self, scheduler, test):
         """Initialize the scheduler var dictionary.
         :param SchedulerPlugin scheduler: The scheduler for this set of
         variables.
-        :param pavilion.pav_test.PavTest test: The test object for which this
+        :param pavilion.test_run.TestRun test: The test object for which this
         set of variables is relevant.
         """
 
@@ -193,6 +200,7 @@ def __reset():
 
 def get_scheduler_plugin(name):
     """Return a scheduler plugin
+
     :param str name: The name of the scheduler plugin.
     :rtype: SchedulerPlugin
     """
@@ -206,8 +214,11 @@ def get_scheduler_plugin(name):
 
     return _SCHEDULER_PLUGINS[name]
 
-
 def list_scheduler_plugins():
+    """Return a list of all available scheduler plugin names.
+
+    :rtype: list
+    """
     if _SCHEDULER_PLUGINS is None:
         raise SchedulerPluginError("Scheduler Plugins aren't loaded.")
 
@@ -217,6 +228,7 @@ def list_scheduler_plugins():
 class SchedulerPlugin(IPlugin.IPlugin):
     """The base scheduler plugin class. Scheduler plugins should inherit from
     this.
+
     :cvar KICKOFF_SCRIPT_EXT: The extension for the kickoff script.
     :cvar SchedulerVariables VAR_CLASS: The scheduler's variable class.
     """
@@ -250,6 +262,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
         """Filter the system nodes down to just those we can use. This
         should check to make sure the nodes available are compatible with
         the test. The arguments for this function will vary by scheduler.
+
         :returns: A list of compatible node names.
         :rtype: list
         """
@@ -276,6 +289,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
         """Get data relevant to this scheduler. This is a wrapper method; child
         classes should override _get_data instead. This simply ensures we only
         gather the data once.
+
         :returns: A dictionary of gathered scheduler data.
         :rtype: dict
         """
@@ -290,8 +304,8 @@ class SchedulerPlugin(IPlugin.IPlugin):
         broad amounts of data about the scheduling system. The resulting
         data structure is generally expected to be a dictionary, though that's
         entirely up to the scheduler plugin.
-        :rtype: dict
 
+        :rtype: dict
         """
         raise NotImplementedError
 
@@ -303,8 +317,9 @@ class SchedulerPlugin(IPlugin.IPlugin):
     def schedule_tests(self, pav_cfg, tests):
         """Schedule each of the given tests using this scheduler using a
         separate allocation (if applicable) for each.
+
         :param pav_cfg: The pavilion config
-        :param list[pavilion.pav_test.PavTest] tests: A list of pavilion tests
+        :param list[pavilion.test_run.TestRun] tests: A list of pavilion tests
             to schedule.
         """
 
@@ -312,12 +327,12 @@ class SchedulerPlugin(IPlugin.IPlugin):
             self.schedule_test(pav_cfg, test)
 
     def run_suite(self, tests):
-        """Run each of the given tests using a single allocation."""
-
-        raise NotImplementedError
+        """Run each of the given tests using a single allocation. This
+        is effectively a placeholder."""
 
     def lock_concurrency(self, pav_cfg, test):
         """Acquire the concurrency lock for this scheduler, if necessary.
+
         :param pav_cfg: The pavilion config.
         :param test: A test object
         """
@@ -334,8 +349,9 @@ class SchedulerPlugin(IPlugin.IPlugin):
     #   lock_concurrency = SchedulerPlugin._do_lock_concurrency
     def _do_lock_concurrency(self, pav_cfg, test):
         """Acquire the concurrency lock for this scheduler, if necessary.
+
         :param pav_cfg: The pavilion configuration.
-        :param pavilion.pav_config.test.PavTest test: The pavilion test
+        :param pavilion.pav_config.test.TestRun test: The pavilion test
             to lock concurrency for.
         """
 
@@ -366,6 +382,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
     @staticmethod
     def unlock_concurrency(lock):
         """Unlock the concurrency lock, if one exists.
+
         :param Union(Lockfile, None) lock:
         """
 
@@ -383,8 +400,9 @@ class SchedulerPlugin(IPlugin.IPlugin):
         on of the following states: SCHEDULED, SCHED_ERROR, SCHED_CANCELLED.
         This may also simply re-fetch the latest state from the state file,
         and return that if necessary.
+
         :param pav_cfg: The pavilion configuration.
-        :param pavilion.pav_test.PavTest test: The test we're checking on.
+        :param pavilion.test_run.TestRun test: The test we're checking on.
         :return: A StatusInfo object representing the status.
         :rtype: pavilion.status_file.StatusInfo
         """
@@ -393,8 +411,9 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
     def schedule_test(self, pav_cfg, test_obj):
         """Create the test script and schedule the job.
+
         :param pav_cfg: The pavilion cfg.
-        :param pavilion.test_config.PavTest test_obj: The pavilion test to
+        :param pavilion.test_config.TestRun test_obj: The pavilion test to
         start.
         """
 
@@ -408,7 +427,8 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
     def _schedule(self, test_obj, kickoff_path):
         """Run the kickoff script at script path with this scheduler.
-        :param pavilion.test_config.PavTest test_obj: The test to schedule.
+
+        :param pavilion.test_config.TestRun test_obj: The test to schedule.
         :param Path kickoff_path: - Path to the submission script.
         :return str - Job ID number.
         """
@@ -421,8 +441,9 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
     def _create_kickoff_script(self, pav_cfg, test_obj):
         """Function to accept a list of lines and generate a script that is
-           then submitted to the scheduler.
-           :param pavilion.test_config.PavTest test_obj:
+        then submitted to the scheduler.
+
+        :param pavilion.test_config.TestRun test_obj:
         """
 
         header = self._get_kickoff_script_header(test_obj)
@@ -480,7 +501,8 @@ class SchedulerPlugin(IPlugin.IPlugin):
         simply try it's best for the test given, and note in the test status
         (with a SCHED_ERROR) if there were problems. Update the test status to
         SCHED_CANCELLED if it succeeds.
-        :param pavilion.pav_test.PavTest test: The test to cancel.
+
+        :param pavilion.test_run.TestRun test: The test to cancel.
         :returns: A status info object describing the state. If we actually
             cancel the job the test status will be set to SCHED_CANCELLED.
             This should return SCHED_ERROR when something goes wrong.
@@ -495,7 +517,8 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
     def _cancel_job(self, test):
         """Override in scheduler plugins to handle cancelling a job.
-        :param pavilion.pav_test.PavTest test: The test to cancel.
+
+        :param pavilion.test_run.TestRun test: The test to cancel.
         :returns: Whether we're confident the job was canceled, and an
             explanation.
         :rtype: StatusInfo

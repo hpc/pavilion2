@@ -257,10 +257,8 @@ class ShowCommand(commands.Command):
             help="Display paths to mode files"
         )
 
-    def run(self, pav_cfg, args, out_file=sys.stdout, err_file=sys.stderr):
+    def run(self, pav_cfg, args):
         """Run the show command's chosen sub-command.
-        :param out_file:
-        :param err_file:
         """
 
         if args.show_cmd is None:

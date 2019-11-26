@@ -162,7 +162,7 @@ class ModWrapperTests(PavTestCase):
 
         test = self._quick_test(test_cfg)
         test.build()
-        run_result = test.run({},{})
+        run_result = test.run({}, {})
 
         self.assertEqual(run_result, STATES.RUN_DONE)
 

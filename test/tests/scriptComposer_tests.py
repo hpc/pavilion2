@@ -56,55 +56,49 @@ class TestScriptWriter(PavTestCase):
         # Testing valid uses.
 
         # Testing initialization and defaults.
-        testDetails = scriptcomposer.ScriptDetails()
+        test_details = scriptcomposer.ScriptDetails()
 
-        self.assertEqual(testDetails.group, utils.get_login())
-        self.assertEqual(testDetails.perms, oct(0o770))
+        self.assertEqual(test_details.group, utils.get_login())
+        self.assertEqual(test_details.perms, oct(0o770))
 
         # Testing individual assignment.
-        testDetails.path = testPath
-        testDetails.group = testGroup
-        testDetails.perms = testPerms
+        test_details.path = testPath
+        test_details.group = testGroup
+        test_details.perms = testPerms
 
-        self.assertEqual(testDetails.path, Path(testPath))
-        self.assertEqual(testDetails.group, testGroup)
-        self.assertEqual(testDetails.perms, oct(testPerms))
-
-        # Testing reset.
-        testDetails.reset()
-
-        self.assertEqual(testDetails.group, utils.get_login())
-        self.assertEqual(testDetails.perms, oct(0o770))
+        self.assertEqual(test_details.path, Path(testPath))
+        self.assertEqual(test_details.group, testGroup)
+        self.assertEqual(test_details.perms, oct(testPerms))
 
         # Testing initialization assignment.
-        testDetails = scriptcomposer.ScriptDetails(path=testPath,
-                                                   group=testGroup,
-                                                   perms=testPerms)
+        test_details = scriptcomposer.ScriptDetails(path=testPath,
+                                                    group=testGroup,
+                                                    perms=testPerms)
 
-        self.assertEqual(testDetails.path, Path(testPath))
-        self.assertEqual(testDetails.group, testGroup)
-        self.assertEqual(testDetails.perms, oct(testPerms))
+        self.assertEqual(test_details.path, Path(testPath))
+        self.assertEqual(test_details.group, testGroup)
+        self.assertEqual(test_details.perms, oct(testPerms))
 
-        testDetails.reset()
+        test_details = scriptcomposer.ScriptDetails()
 
         # Testing invalid uses.
         with self.assertRaises(TypeError):
-            testDetails.path = True
+            test_details.path = True
 
         with self.assertRaises(TypeError):
-            testDetails.perms = 'string'
+            test_details.perms = 'string'
 
         with self.assertRaises(TypeError):
-            testDetails.perms = u'fail'
+            test_details.perms = u'fail'
 
         with self.assertRaises(TypeError):
-            testDetails.perms = 7.5
+            test_details.perms = 7.5
 
         # Testing invalid initialization.
         with self.assertRaises(TypeError):
-            testDetails = scriptcomposer.ScriptDetails(path=testPath,
-                                                       group=testGroup,
-                                                       perms=u'fail')
+            scriptcomposer.ScriptDetails(path=testPath,
+                                         group=testGroup,
+                                         perms='fail')
 
     def test_scriptComposer(self):
         """Testing ScriptComposer class variable setting."""
@@ -112,74 +106,76 @@ class TestScriptWriter(PavTestCase):
         # Testing valid uses.
 
         # Testing initialization defaults.
-        testComposer = scriptcomposer.ScriptComposer()
+        composer = scriptcomposer.ScriptComposer()
 
-        self.assertIsInstance(testComposer.header,
+        self.assertIsInstance(composer.header,
                               scriptcomposer.ScriptHeader)
-        self.assertIsInstance(testComposer.details,
+        self.assertIsInstance(composer.details,
                               scriptcomposer.ScriptDetails)
 
-        self.assertEqual(testComposer.header.shell_path, '#!/bin/bash')
-        self.assertEqual(testComposer.header.scheduler_headers, [])
+        self.assertEqual(composer.header.shell_path, '#!/bin/bash')
+        self.assertEqual(composer.header.scheduler_headers, [])
 
-        self.assertEqual(testComposer.details.group, utils.get_login())
-        self.assertEqual(testComposer.details.perms, oct(0o770))
+        self.assertEqual(composer.details.group, utils.get_login())
+        self.assertEqual(composer.details.perms, oct(0o770))
 
         # Testing individual assignment
-        testHeaderShell = "/usr/env/python"
-        testHeaderScheduler = OrderedDict()
-        testHeaderScheduler['-G'] = 'pam'
-        testHeaderScheduler['-N'] = 'fam'
+        test_header_shell = "/usr/env/python"
+        test_header_scheduler = OrderedDict()
+        test_header_scheduler['-G'] = 'pam'
+        test_header_scheduler['-N'] = 'fam'
 
-        testComposer.newline()
+        composer.newline()
 
-        testComposer.command(['taco', 'burrito', 'nachos'])
+        composer.command(['taco', 'burrito', 'nachos'])
 
-        testDetailsPath = 'testPath'
-        testDetailsGroup = 'groupies'
-        testDetailsPerms = 0o543
+        test_details_path = 'testPath'
+        test_details_group = 'groupies'
+        test_details_perms = 0o543
 
-        testComposer.header.shell_path = testHeaderShell
-        testComposer.header.scheduler_headers = testHeaderScheduler
+        composer.header.shell_path = test_header_shell
+        composer.header.scheduler_headers = test_header_scheduler
 
-        testComposer.details.path = testDetailsPath
-        testComposer.details.group = testDetailsGroup
-        testComposer.details.perms = testDetailsPerms
+        composer.details.path = test_details_path
+        composer.details.group = test_details_group
+        composer.details.perms = test_details_perms
 
-        self.assertEqual(testComposer.header.shell_path, testHeaderShell)
-        self.assertEqual(testComposer.header.scheduler_headers,
-                                                          testHeaderScheduler)
+        self.assertEqual(composer.header.shell_path, test_header_shell)
+        self.assertEqual(composer.header.scheduler_headers,
+                                                          test_header_scheduler)
 
-        self.assertEqual(testComposer.details.path, Path(testDetailsPath))
-        self.assertEqual(testComposer.details.group, testDetailsGroup)
-        self.assertEqual(testComposer.details.perms, oct(testDetailsPerms))
+        self.assertEqual(composer.details.path, Path(test_details_path))
+        self.assertEqual(composer.details.group, test_details_group)
+        self.assertEqual(composer.details.perms, oct(test_details_perms))
 
-        # Testing reset.
-        testComposer.reset()
+        composer = scriptcomposer.ScriptComposer()
 
-        self.assertEqual(testComposer.header.shell_path, '#!/bin/bash')
-        self.assertEqual(testComposer.header.scheduler_headers, [])
+        self.assertEqual(composer.header.shell_path, '#!/bin/bash')
+        self.assertEqual(composer.header.scheduler_headers, [])
 
-        self.assertEqual(testComposer.details.group, utils.get_login())
-        self.assertEqual(testComposer.details.perms, oct(0o770))
+        self.assertEqual(composer.details.group, utils.get_login())
+        self.assertEqual(composer.details.perms, oct(0o770))
 
         # Testing object assignment.
-        testHeaderObj = scriptcomposer.ScriptHeader(shell_path=testHeaderShell,
-            scheduler_headers=testHeaderScheduler)
+        header = scriptcomposer.ScriptHeader(
+            shell_path=test_header_shell,
+            scheduler_headers=test_header_scheduler)
 
-        testDetailsObj = scriptcomposer.ScriptDetails(path=testDetailsPath,
-            group = testDetailsGroup, perms = testDetailsPerms)
+        testDetailsObj = scriptcomposer.ScriptDetails(
+            path=test_details_path,
+            group=test_details_group,
+            perms=test_details_perms)
 
-        testComposer.header = testHeaderObj
-        testComposer.details = testDetailsObj
+        composer.header = header
+        composer.details = testDetailsObj
 
-        self.assertEqual(testComposer.header.shell_path, testHeaderShell)
-        self.assertEqual(testComposer.header.scheduler_headers,
-                                                          testHeaderScheduler)
+        self.assertEqual(composer.header.shell_path, test_header_shell)
+        self.assertEqual(composer.header.scheduler_headers,
+                                                          test_header_scheduler)
 
-        self.assertEqual(testComposer.details.path, Path(testDetailsPath))
-        self.assertEqual(testComposer.details.group, testDetailsGroup)
-        self.assertEqual(testComposer.details.perms, oct(testDetailsPerms))
+        self.assertEqual(composer.details.path, Path(test_details_path))
+        self.assertEqual(composer.details.group, test_details_group)
+        self.assertEqual(composer.details.perms, oct(test_details_perms))
 
 
     def test_writeScript(self):
