@@ -25,7 +25,7 @@ class FileCommand(commands.Command):
             help="name of a file within working_dir/tests/<job id>/"
         )
 
-    def run(self, pav_cfg, args, out_file=sys.stdout, err_file=sys.stderr):
+    def run(self, pav_cfg, args):
 
         test_dir = pav_cfg.working_dir/'tests'
         job_dir = test_dir/args.job_id
