@@ -35,27 +35,29 @@ class FileCommand(commands.Command):
                 print_file(job_dir/args.filename)
             else:
                 for file_ in os.listdir(job_dir):
-                    utils.fprint(file_, file=out_file)
+                    utils.fprint(file_, file=sys.stdout)
         else:
             utils.fprint("file '{}' does not exist.".format(job_dir.as_posix()),
-                         file=err_file)
+                         file=sys.stderr, color=utils.RED)
             sys.exit()
         return 0
 
 
-def print_file(filename, out_file=sys.stdout, err_file=sys.stderr):
+def print_file(filename):
     try:
         with open(filename, 'r') as file_:
             while True:
                 block = file_.read(4096)
                 if not block:
                     break
-                utils.fprint(block, file=out_file)
+                utils.fprint(block, file=sys.stdout)
 
     except IsADirectoryError:
-        utils.fprint("{} is a directory.".format(filename), err_file)
+        utils.fprint("{} is a directory.".format(filename), sys.stderr,
+                     color=utils.RED)
         sys.exit()
 
     except FileNotFoundError:
-        utils.fprint("file '{}' does not exist.".format(filename), err_file)
+        utils.fprint("file '{}' does not exist.".format(filename), sys.stderr,
+                     color=utils.RED)
         sys.exit()
