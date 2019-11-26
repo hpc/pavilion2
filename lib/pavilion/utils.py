@@ -89,6 +89,7 @@ def get_relative_timestamp(base_dt):
 
     return base_dt.strftime(str(" ".join(format_)))
 
+
 def flat_walk(path, *args, **kwargs):
     """Perform an os.walk on path, but return a flattened list of every file
     and directory found.
@@ -237,7 +238,10 @@ class PavEncoder(json.JSONEncoder):
 
     def default(self, o):  # pylint: disable=E0202
         if isinstance(o, Path):
-            return super().default(str(o))
+            return str(o)
+        else
+            return super().default(o)
+
         if isinstance(o, (datetime.datetime)):
             return o.isoformat()
 
