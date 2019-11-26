@@ -34,20 +34,20 @@ class FileCommand(commands.Command):
             if args.filename is not None:
                 print_file(job_dir/args.filename)
             else:
-                for f in os.listdir(job_dir):
-                    utils.fprint(f, file=out_file)
+                for file_ in os.listdir(job_dir):
+                    utils.fprint(file_, file=out_file)
         else:
             utils.fprint("file '{}' does not exist.".format(job_dir.as_posix()),
-                  file = err_file)
+                         file=err_file)
             sys.exit()
         return 0
 
 
 def print_file(filename, out_file=sys.stdout, err_file=sys.stderr):
     try:
-        with open(filename, 'r') as f:
+        with open(filename, 'r') as file_:
             while True:
-                block = f.read(4096)
+                block = file_.read(4096)
                 if not block:
                     break
                 utils.fprint(block, file=out_file)
