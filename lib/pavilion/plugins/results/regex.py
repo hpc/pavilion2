@@ -12,7 +12,7 @@ class Regex(result_parsers.ResultParser):
         super().__init__(name='regex',
                          description="Find data using a basic regular "
                                      "expression.")
-        self.range_re = re.compile('(-?[0-9]*\.?[0-9]*)-(-?.*)')
+        self.range_re = re.compile('(-?[0-9]*\.?[0-9]*):(-?.*)')
 
     def get_config_items(self):
 
@@ -81,29 +81,44 @@ class Regex(result_parsers.ResultParser):
         for item in expected:
             test_list = []
 
-            if '-' in item[1:]:
+            if ':' in item:
                 test_list = list(self.range_re.search(item).groups())
-                # Check for valid second part of range.
-                if '-' in test_list[1][1:]:
-                    raise result_parsers.ResultParserError(
-                        "Invalid range: {}".format(item)
-                    )
             else:
                 test_list = [ item ]
 
+            none_used = False
             for test_item in test_list:
-                # Check for values as integers.
-                try:
-                    float(test_item)
-                except ValueError as err:
-                    raise result_parsers.ResultParserError(
-                        "Invalid value: {}".format(test_item)
-                    )
+                if test_item is '':
+                    if not none_used:
+                        none_used = True
+                    else:
+                        raise result_parsers.ResultParserError(
+                                "No values provided in range: {}"
+                                .format(test_list))
+                else:
+                    try:
+                        # If the value is an int, it seems to work better to
+                        # cast it as a float first, just in case it is a float.
+                        float(test_item)
+                    except ValueError as err:
+                        raise result_parsers.ResultParserError(
+                            "Invalid value: {}".format(test_item)
+                        )
 
             if len(test_list) > 1:
+                if '.' in test_list[0]:
+                    low = float(test_list[0])
+                elif test_list[0] != '':
+                    low = int(test_list[0])
+
+                if '.' in test_list[1]:
+                    high = float(test_list[1])
+                elif test_list[1] != '':
+                    high = int(test_list[1])
+
                 # Check for range specification as
-                # (<lesser value>-<greater value>)
-                if float(test_list[1]) < float(test_list[0]):
+                # (<lesser value>:<greater value>)
+                if '' not in test_list and high < low:
                     raise result_parsers.ResultParserError(
                         "Invalid range: {}".format(item))
 
@@ -143,14 +158,42 @@ class Regex(result_parsers.ResultParser):
                 matches = [matches]
             ret_vals = []
             for i in range(0,len(matches)):
+                match = matches[i]
+                if '.' in match:
+                    match = float(match)
+                elif match != '':
+                    match = int(match)
+
                 for j in range(0,len(expected)):
                     # Not a range, checking for exact match.
-                    if '-' not in expected[j][1:] and \
-                            float(matches[i]) == float(expected[j]):
-                                ret_vals.append(True)
+                    if ':' not in expected[j]:
+                        expect = expected[j]
+                        if '.' in expect:
+                            expect = float(expect)
+                        elif expect != '':
+                            expect = int(expect)
+
+                        if match == expect:
+                            ret_vals.append(True)
+
                     # Checking if found value is in this range.
-                    elif '-' in expected[j][1:]:
+                    elif ':' in expected[j]:
                         low, high = self.range_re.search(expected[j]).groups()
-                        if float(low) <= float(matches[i]) <= float(high):
+
+                        if '.' in low:
+                            low = float(low)
+                        elif low != '':
+                            low = int(low)
+
+                        if '.' in high:
+                            high = float(high)
+                        elif high != '':
+                            high = int(high)
+
+                        if low is '' and match <= high:
+                            ret_vals.append(True)
+                        elif high is '' and match >= low:
+                            ret_vals.append(True)
+                        elif low <= match <= high:
                             ret_vals.append(True)
             return ret_vals
