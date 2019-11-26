@@ -22,7 +22,6 @@ import zipfile
 import sys
 from pathlib import Path
 
-import tzlocal
 from pavilion import lockfile
 from pavilion import result_parsers
 from pavilion import scriptcomposer
@@ -860,9 +859,7 @@ build.
             self.status.set(STATES.RUNNING,
                             "Starting the run script.")
 
-            local_tz = tzlocal.get_localzone()
-
-            self._started = local_tz.localize(datetime.datetime.now())
+            self._started = datetime.datetime.now()
 
             # TODO: There should always be a build directory, even if there
             #       isn't a build.
@@ -898,14 +895,13 @@ build.
                         self.status.set(STATES.RUN_FAILED,
                                         "Run timed out after {} seconds."
                                         .format(self._run_timeout))
-                        self._finished = local_tz.localize(
-                            datetime.datetime.now())
+                        self._finished = datetime.datetime.now()
                         return STATES.RUN_TIMEOUT
                     else:
                         # Only wait a max of run_silent_timeout next 'wait'
                         timeout = timeout - quiet_time
 
-        self._finished = local_tz.localize(datetime.datetime.now())
+        self._finished = datetime.datetime.now()
 
         status = self.status.current()
         if status.state == STATES.ENV_FAILED:
@@ -927,11 +923,7 @@ when we're sure their won't be any more status changes."""
         # of the file, but it's nice to have another record of when this was
         # run.
         with (self.path/'RUN_COMPLETE').open('w') as run_complete:
-            run_complete.write(
-                tzlocal.get_localzone().localize(
-                    datetime.datetime.now()
-                ).isoformat()
-            )
+            run_complete.write(datetime.datetime.now().isoformat())
 
     WAIT_INTERVAL = 0.5
 
@@ -997,10 +989,8 @@ result
 
         # Create a human readable timestamp from the test directories
         # modified (should be creation) timestamp.
-        created = tzlocal.get_localzone().localize(
-            datetime.datetime.fromtimestamp(
-                self.path.stat().st_mtime
-            )
+        created = datetime.datetime.fromtimestamp(
+            self.path.stat().st_mtime
         ).isoformat(" ")
 
         if run_result == STATES.RUN_DONE:
