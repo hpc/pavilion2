@@ -119,7 +119,16 @@ def main():
     # Setup the exception logger.
     # Exceptions will be logged to this directory, along with other useful info.
     exc_logger = logging.getLogger('exceptions')
-    pav_cfg.exception_log.parent.mkdir(mode=0o775, parents=True, exist_ok=True)
+    try:
+        if not pav_cfg.exception_log.exists():
+            pav_cfg.exception_log.parent.mkdir(
+                mode=0o775,
+                parents=True,
+                #exist_ok=True  # Doesn't work in python 3.4 (added in 3.5)
+            )
+    except (PermissionError, OSError, IOError, FileExistsError) as err:
+        utils.dbg_print("Could not create exception log")
+
     exc_handler = RotatingFileHandler(
         filename=pav_cfg.exception_log.as_posix(),
         maxBytes=20 * 1024 **2,
