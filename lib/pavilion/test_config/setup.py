@@ -593,9 +593,10 @@ def get_match_not_if(not_if_dict,variable_base,cond_err_list):
         for value in not_if_dict[key]:
            # If a key has a match log it.
            if real_key == value:
-               cond_err_list.append("Condition invalid. "
-                   "Not if "+key+" is "+value+". The current "
-                   +key+ " is "+real_key+".")
+               data = (key, value, key, real_key)
+               message = "Condition invalid. Not if %s is %s. " \
+                         "The current %s is %s"
+               cond_err_list.append(message % data)
 
     return cond_err_list # Return the list of conditional errors, can be None.
 
@@ -609,9 +610,10 @@ def get_match_only_if(only_if_dict,variable_base,cond_err_list):
                 match = True # One match is a success so break.
                 break
         if match is False: # There was no match in value list, log it.
-            cond_err_list.append("Condition inavlid. "
-                "Only if "+key+" is one of: "+str(only_if_dict[key]) + "."
-                " The current "+key+" is "+real_key+".")
+            data = (key, only_if_dict[key], key, real_key)
+            message = "Condition Invalid. Only if %s is on of %s." \
+                      "Current %s is %s."
+            cond_err_list.append(message % data)
 
     return cond_err_list # Return the lsit of conditional errors, can be None.
 

@@ -25,6 +25,8 @@ class RunCommand(commands.Command):
         super().__init__('run', 'Setup and run a set of tests.',
                          short_help="Setup and run a set of tests.")
         self.test_list=[]
+        self.skipped = False
+
     def _setup_arguments(self, parser):
 
         parser.add_argument(
@@ -131,6 +133,9 @@ class RunCommand(commands.Command):
             cond_list = setup.cond_check(test.config,pav_cfg.pav_vars,sys_vars)
             if len(cond_list) > 0:
                test.status.set(STATES.SKIPPED,cond_list[0])
+               test.skipped=True
+            else:
+               test.skipped=False
             self.test_list.append(test)
 
         for test in all_tests:
@@ -149,10 +154,10 @@ class RunCommand(commands.Command):
         failed_build = None
         # Building any tests that specify that they should be built before
         for test in all_tests:
-            if test.status.current().state == 'SKIPPED':
+            if test.skipped:
                 continue
 
-            if test.config['build']['on_nodes'] not in ['true', 'True']:
+            elif test.config['build']['on_nodes'] not in ['true', 'True']:
                 if not test.build():
                     fprint("Error building test: ", file=self.errfile,
                            color=utils.RED)
@@ -171,26 +176,14 @@ class RunCommand(commands.Command):
                         STATES.ABORTED,
                         "Canceled due to problems with other tests in run")
             return errno.EINVAL
-        #for test in all_tests:
-            #dbg_print(test.status.current().state)
 
         for sched_name, tests in tests_by_sched.items():
-            #dbg_print("Key:" + str(sched_name) + " Val:" + str(tests))
-            #for test in tests:
-            #    dbg_print(test.config)
-            dbg_print(tests_by_sched[sched_name])
-
-        for sched_name, tests in tests_by_sched.items():
-            skip = False
-            for test in tests:
-                #dbg_print(test.status.current().state)
-                if test.status.current().state == 'SKIPPED':
-                     
-            if skip == True:
-                hi = False
-            else:
+                    valid_tests = []
+                    for i in range(0,len(tests)):
+                        if not tests[i].skipped:
+                            valid_tests.append(tests[i])
+                    tests=valid_tests
                     sched = schedulers.get_scheduler_plugin(sched_name)
-                    dbg_print(sched)
                     try:
                         sched.schedule_tests(pav_cfg, tests)
                     except schedulers.SchedulerPluginError as err:
@@ -200,8 +193,6 @@ class RunCommand(commands.Command):
                         fprint('Cancelling already kicked off tests.',
                               file=self.errfile)
                         self._cancel_all(tests_by_sched)
-        #for test in all_tests:
-       #     dbg_print(test.status.current().state)
         # Tests should all be scheduled now, and have the SCHEDULED state
         # (at some point, at least). Wait until something isn't scheduled
         # anymore (either running or dead), or our timeout expires.
