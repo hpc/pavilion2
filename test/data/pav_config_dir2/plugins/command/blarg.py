@@ -7,5 +7,5 @@ class Blarg(commands.Command):
 
         super().__init__('blarg', 'Goes Blarg!')
 
-    def run(self, pav_cfg, args, out_file=sys.stdout, err_file=sys.stderr):
+    def run(self, pav_cfg, args):
         print("Blarg!")
