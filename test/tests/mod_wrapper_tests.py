@@ -124,6 +124,7 @@ class ModWrapperTests(PavTestCase):
         test.build()
         run_result = test.run({}, {})
 
+        self.dbg_print(open(test.path/'kickoff.log').read())
         self.dbg_print(open(test.path/'run.log').read())
         self.assertEqual(run_result, STATES.RUN_DONE)
 
