@@ -124,8 +124,6 @@ class ModWrapperTests(PavTestCase):
         test.build()
         run_result = test.run({}, {})
 
-        self.dbg_print('\n'.join(map(str, test.path.iterdir())))
-        self.dbg_print((test.path/'run.log').open().read())
         self.assertEqual(run_result, STATES.RUN_DONE)
 
     @unittest.skipIf(not has_module_cmd() and find_module_init() is None,
