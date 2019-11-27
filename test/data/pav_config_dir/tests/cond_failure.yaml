@@ -57,7 +57,6 @@ four:
 five:
     only_if:
         user: ['Bob','Eggman','calvindseamons']
-        sys_name: ['Trinity', 'fg-fey1']
 
     not_if:
         sys_arch: ['x86_64']
@@ -105,7 +104,7 @@ seven:
 eight:
     only_if:
         user: ['Bob','Eggman','calvindseamons']
-        sys_name: ['Trinity','not_fog','fg-fey1']
+        sys_name: ['Trinity','not_fog']
 
     not_if:
         sys_name: ['Trinty']

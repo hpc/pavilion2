@@ -17,7 +17,7 @@ from pavilion.test_config.string_parser import ResolveError
 from pavilion.test_config import setup
 from pavilion.utils import fprint
 from pavilion import result_parsers
-
+from pavilion.utils import dbg_print
 class RunCommand(commands.Command):
 
     def __init__(self):
@@ -173,24 +173,37 @@ class RunCommand(commands.Command):
                         STATES.ABORTED,
                         "Canceled due to problems with other tests in run")
             return errno.EINVAL
+        #for test in all_tests:
+            #dbg_print(test.status.current().state)
 
         for sched_name, tests in tests_by_sched.items():
+            #dbg_print("Key:" + str(sched_name) + " Val:" + str(tests))
+            #for test in tests:
+            #    dbg_print(test.config)
+            dbg_print(tests_by_sched[sched_name])
+
+        for sched_name, tests in tests_by_sched.items():
+            skip = False
             for test in tests:
+                #dbg_print(test.status.current().state)
                 if test.status.current().state == 'SKIPPED':
-                    tests.remove(test)
-
-            sched = schedulers.get_scheduler_plugin(sched_name)
-
-            try:
-                sched.schedule_tests(pav_cfg, tests)
-            except schedulers.SchedulerPluginError as err:
-                fprint('Error scheduling tests:', file=self.errfile,
-                       color=utils.RED)
-                fprint(err, bullet='  ', file=self.errfile)
-                fprint('Cancelling already kicked off tests.',
-                       file=self.errfile)
-                self._cancel_all(tests_by_sched)
-
+                     
+            if skip == True:
+                hi = False
+            else:
+                    sched = schedulers.get_scheduler_plugin(sched_name)
+                    dbg_print(sched)
+                    try:
+                        sched.schedule_tests(pav_cfg, tests)
+                    except schedulers.SchedulerPluginError as err:
+                        fprint('Error scheduling tests:', file=self.errfile,
+                                color=utils.RED)
+                        fprint(err, bullet='  ', file=self.errfile)
+                        fprint('Cancelling already kicked off tests.',
+                              file=self.errfile)
+                        self._cancel_all(tests_by_sched)
+        #for test in all_tests:
+       #     dbg_print(test.status.current().state)
         # Tests should all be scheduled now, and have the SCHEDULED state
         # (at some point, at least). Wait until something isn't scheduled
         # anymore (either running or dead), or our timeout expires.
@@ -200,9 +213,6 @@ class RunCommand(commands.Command):
             while time.time() < end_time and wait_result is None:
                 last_time = time.time()
                 for sched_name, tests in tests_by_sched.items():
-                    for test in tests:
-                        if test.status.current().state == 'SKIPPED':
-                            tests.remove(test)
                     sched = schedulers.get_scheduler_plugin(sched_name)
                     for test in tests:
                         status = test.status.current()

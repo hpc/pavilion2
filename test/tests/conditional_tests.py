@@ -31,6 +31,9 @@ class ConditionalTest(PavTestCase):
         run_cmd = commands.get_command(args.command_name)
         run_cmd.outfile = io.StringIO()
         run_cmd.run(self.pav_cfg,args)
+        tests = run_cmd.test_list
+        for i in range(0,len(tests)):
+            self.assertEqual(tests[i].status.current().state, 'SCHEDULED')
 
     def test_not_if(self):
         arg_parser = arguments.get_parser()
@@ -50,8 +53,5 @@ class ConditionalTest(PavTestCase):
         run_cmd.outfile = io.StringIO()
         run_cmd.run(self.pav_cfg,args)
         tests = run_cmd.test_list
-        print(len(tests))
         for i in range(0,len(tests)):
-             #self.assertEqual(tests[i].status.current().state, 'SKIPPED')
-             print("@"*75)
-             print(tests[i].status.current().state)
+             self.assertEqual(tests[i].status.current().state, 'SKIPPED')
