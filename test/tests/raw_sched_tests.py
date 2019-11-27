@@ -127,6 +127,9 @@ class RawSchedTests(PavTestCase):
                 and time.time() < timeout):
             time.sleep(.1)
 
+        self.dbg_print((test.path/'kickoff.log').open().read())
+        self.dbg_print((test.path/'run.log').open().read())
+
         # The test should be running
         self.assertEqual(test.status.current().state,
                          STATES.RUNNING)

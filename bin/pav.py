@@ -16,6 +16,22 @@ import socket
 import sys
 import traceback
 
+try:
+    import yc_yaml
+except ImportError:
+    utils.fprint(
+        "Could not find python module 'yc_yaml'. Did you run "
+        "`submodule update --init --recursive` to get all the dependencies?"
+    )
+
+try:
+    import yaml_config
+except ImportError:
+    utils.fprint(
+        "Could not find python module 'yaml_config'. Did you run "
+        "`submodule update --init --recursive` to get all the dependencies?"
+    )
+
 
 def main():
     # Pavilion is compatible with python >= 3.4
