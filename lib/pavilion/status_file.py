@@ -174,7 +174,7 @@ appends of a size such that those writes should be atomic.
     STATES = STATES
 
     TIME_FORMAT = '%Y-%m-%dT%H:%M:%S.%f'
-    TS_LEN = 5 + 3 + 3 + 3 + 3 + 3 + 6 + 14
+    TS_LEN = 5 + 3 + 3 + 3 + 3 + 3 + 6
 
     LOGGER = logging.getLogger('pav.{}'.format(__file__))
 
@@ -188,9 +188,6 @@ appends of a size such that those writes should be atomic.
 
 :param pathlib.Path path: The path to the status file.
 """
-
-        if isinstance(path, str):
-            raise ValueError('NOOO')
 
         self.path = path
 

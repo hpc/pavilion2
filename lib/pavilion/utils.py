@@ -17,7 +17,7 @@ import subprocess
 import sys
 import textwrap
 
-from collections import defaultdict, UserString
+from collections import defaultdict, UserString, UserDict
 from pathlib import Path
 
 # Setup colors as part of the fprint function itself.
@@ -234,16 +234,20 @@ def fprint(*args, color=None, bullet='', width=100,
 
 
 class PavEncoder(json.JSONEncoder):
-    """Adds Path encoding to our JSON encoder."""
+    """Adds various pavilion types to our JSON encoder, so it can
+    automatically encode them."""
 
     def default(self, o):  # pylint: disable=E0202
         if isinstance(o, Path):
             return str(o)
-
-        if isinstance(o, (datetime.datetime)):
+        elif isinstance(o, datetime.datetime):
             return o.isoformat()
+        # Just auto-convert anything that looks like a dict.
+        elif isinstance(o, (dict, UserDict)):
+            return dict(o)
 
         return super().default(o)
+
 
 def json_dumps(obj, skipkeys=False, ensure_ascii=True,
                check_circular=True, allow_nan=True, indent=None,

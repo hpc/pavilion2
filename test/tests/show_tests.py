@@ -52,4 +52,3 @@ class ShowTests(unittest.PavTestCase):
 
         plugins._reset_plugins()
 
-
