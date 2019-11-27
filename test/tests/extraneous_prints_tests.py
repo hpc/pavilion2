@@ -59,4 +59,4 @@ class ExtraPrintsTest(PavTestCase):
                   o and self.IGNORE_RE.search(o) is None]
         self.maxDiff = None
         self.assertEqual(output, [],
-                         msg='\n'.join[output])
+                         msg='\n'.join([output]))
