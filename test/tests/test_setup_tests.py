@@ -40,6 +40,22 @@ class TestSetupTests(PavTestCase):
 
         plugins._reset_plugins()
 
+    def test_loading_hidden(self):
+        """Make sure we only get hidden tests when specifically requested."""
+
+        plugins.initialize_plugins(self.pav_cfg)
+
+        tests = load_test_configs(self.pav_cfg, 'this', [], ['hidden'])
+        names = sorted([t['name'] for t in tests])
+        self.assertEqual(names, ['hello', 'narf'])
+
+        tests = load_test_configs(self.pav_cfg, 'this', [],
+                                  ['hidden._hidden'])
+        names = sorted([t['name'] for t in tests])
+        self.assertEqual(names, ['_hidden'])
+
+        plugins._reset_plugins()
+
     def test_layering(self):
         """Make sure test config layering works as expected."""
 
