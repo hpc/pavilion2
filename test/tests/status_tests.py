@@ -6,7 +6,6 @@ import datetime
 import subprocess
 import tempfile
 import time
-import tzlocal
 
 
 class StatusTests(PavTestCase):
@@ -22,9 +21,8 @@ class StatusTests(PavTestCase):
         status_info = status.current()
         self.assertEqual(status_info.state, 'CREATED')
 
-        # Get a non-naive timestamp, set to our local time zone.
+        # Get timestamp.
         now = datetime.datetime.now()
-        now = tzlocal.get_localzone().localize(now)
 
         # Make sure the timestamp is before now.
         self.assertLess(status_info.when, now)
@@ -33,15 +31,15 @@ class StatusTests(PavTestCase):
         # farther off than this.
         self.assertGreater(now + datetime.timedelta(seconds=5),
                            status_info.when)
-        
+
         self.assertEqual(status_info.note, 'Created status file.')
-        
+
         # Dump a bunch of states to the status file.
         states = [STATES.UNKNOWN, STATES.INVALID, STATES.CREATED,
                   STATES.RUNNING, STATES.RESULTS]
         for state in states:
             status.set(state, '{}_{}'.format(state, state.lower()))
-        
+
         self.assertEqual(len(status.history()), 6)
         self.assertEqual(status.current().state, 'RESULTS')
         self.assertEqual([s.state for s in status.history()].sort(),

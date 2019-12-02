@@ -35,11 +35,14 @@ def get_parser():
 
 def get_subparser():
     """Get the pavilion subparser object. This should be used by command
-    plugins to add sub-commands and their arguments to Pavilion.
-    See https://docs.python.org/3/library/argparse.html#sub-commands
+plugins to add sub-commands and their arguments to Pavilion. (If you're
+writing a command, use the ``_setup_arguments`` method on automatically
+provided sub-command parser.)
 
-    :rtype: argparse._SubParsersAction
-    """
+See https://docs.python.org/3/library/argparse.html#sub-commands
+
+:rtype: argparse._SubParsersAction
+"""
 
     if _PAV_PARSER is None:
         raise RuntimeError("get_parser() must be called to setup the base "
