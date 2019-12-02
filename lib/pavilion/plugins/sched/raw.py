@@ -62,13 +62,8 @@ class RawVars(SchedulerVariables):
         if unit in self.MEM_UNITS:
             return self.MEM_UNITS[unit] * value // 1024**2
         else:
-<<<<<<< HEAD
-            self.logger.warning("Unknown meminfo unit '{}' in key '{}'"
-                                .format(unit, key))
-=======
             self.logger.warning("Unkown meminfo unit '%s' in key '%s'",
                                 unit, key)
->>>>>>> origin
             return 0
 
 
