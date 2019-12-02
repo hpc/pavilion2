@@ -102,7 +102,10 @@ class ResultsCommand(commands.Command):
                 tests_arg.append(series_id)
         elif not tests_arg and full_arg:
             # Get the last test ran by this user
-            tests_arg.append(str(get_latest_tests(pav_cfg, 1)[0]))
+            try:
+                tests_arg.append(str(get_latest_tests(pav_cfg, 1)[0]))
+            except IndexError:
+                self.logger.error("Could not find tests.")
 
         if len(tests_arg) > 1 and full_arg:
             tests_arg = [tests_arg[0]]
