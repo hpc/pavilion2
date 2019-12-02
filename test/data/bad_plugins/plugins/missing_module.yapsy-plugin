@@ -1,0 +1,6 @@
+[Core]
+Name = Missing Module
+Module = you_can_not_find_this
+
+[Documentation]
+Description = A plugin missing a module

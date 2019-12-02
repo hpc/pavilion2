@@ -7,6 +7,6 @@ class Poof(commands.Command):
 
         super().__init__('poof', 'Goes POOF!')
 
-    def run(self, pav_cfg, args, out_file=sys.stdout, err_file=sys.stderr):
+    def run(self, pav_cfg, args):
         pass
 
