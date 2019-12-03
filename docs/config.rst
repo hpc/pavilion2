@@ -64,10 +64,11 @@ set this, everyone will have a separate history in
 shared\_group
 ^^^^^^^^^^^^^
 
-If you have a shared working directory, you need a shared group to share
-those files. Pavilion will automatically write all files as this group.
+If you have a shared working directory for multiple users, you need a shared
+group to share those files. Pavilion will automatically write all files as
+this group.
 
-result\_log
+result_log
 ^^^^^^^^^^^
 
 The result log holds all the result json for every test you run. If you

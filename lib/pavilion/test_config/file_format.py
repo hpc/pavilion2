@@ -207,7 +207,7 @@ expected to be added to by various plugins.
                     'modules', sub_elem=yc.StrElem(),
                     help_text="Modules to load into the build environment."),
                 EnvCatElem(
-                    'env', sub_elem=yc.StrElem(),
+                    'env', sub_elem=yc.StrElem(), key_case=EnvCatElem.KC_MIXED,
                     help_text="Environment variables to set in the build "
                               "environment."),
                 yc.ListElem(
@@ -257,9 +257,10 @@ expected to be added to by various plugins.
                 yc.ListElem(
                     'modules', sub_elem=yc.StrElem(),
                     help_text="Modules to load into the run environment."),
-                EnvCatElem('env', sub_elem=yc.StrElem(),
-                           help_text="Environment variables to set in the run "
-                                     "environment."),
+                EnvCatElem(
+                    'env', sub_elem=yc.StrElem(), key_case=EnvCatElem.KC_MIXED,
+                    help_text="Environment variables to set in the run "
+                              "environment."),
                 yc.ListElem('cmds', sub_elem=yc.StrElem(),
                             help_text='The sequence of commands to run to run '
                                       'the test.'),
