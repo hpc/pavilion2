@@ -16,6 +16,7 @@ import shutil
 import subprocess
 import sys
 import textwrap
+import zipfile
 
 from collections import defaultdict, UserString, UserDict
 from pathlib import Path
@@ -73,6 +74,7 @@ this dictionary, or directly as attributes in the utils modules. ::
 - FAINT
 - UNDERLINE
 """
+
 
 def get_relative_timestamp(base_dt):
     """Print formatted time string based on the delta of time objects.
@@ -183,6 +185,28 @@ def get_login():
     except Exception:
         raise RuntimeError(
             "Could not get the name of the current user.")
+
+
+class ZipFileFixed(zipfile.ZipFile):
+    """Overrides the default behavior in ZipFile to preserve execute
+    permissions."""
+    def _extract_member(self, member, targetpath, pwd):
+
+        ret = super()._extract_member(member, targetpath, pwd)
+
+        if not isinstance(member, zipfile.ZipInfo):
+            member = self.getinfo(member)
+
+        perms = member.external_attr >> 16
+
+        file_path = os.path.join(targetpath, member.filename)
+        if perms != 0:
+            try:
+                os.chmod(file_path, perms)
+            except OSError:
+                pass
+
+        return ret
 
 
 def dbg_print(*args, color=YELLOW, file=sys.stderr, end="", **kwargs):
