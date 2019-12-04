@@ -29,7 +29,7 @@ three:
         user: ['Bob','Eggman','calvindseamons']
 
     not_if:
-        sys_name: ['Trinity', 'fg-fey1']
+        sys_name: ['trinity','fog']
 
     scheduler: raw
     raw:
@@ -60,7 +60,7 @@ five:
 
     not_if:
         sys_arch: ['x86_64']
-
+        user: ['calvindseamons']
     scheduler: raw
     raw:
         concurrent: False
@@ -73,7 +73,7 @@ five:
 six:
     only_if:
         user: ['Bob','Eggman','notcalvindseamons']
-        sys_name: ['not_fog']
+        sys_name: ['fog']
 
     not_if:
         sys_arch: ['aarch64']

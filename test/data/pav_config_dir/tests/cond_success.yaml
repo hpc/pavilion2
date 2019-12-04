@@ -13,8 +13,8 @@ one:
             - 'echo "test completed"'
 two:
     only_if:
-        user: ['Bob','Eggman','notcalvindseamons']
-        sys_name: ['Trinity','macbook','fg-fey1']
+        user: ['Bob','Eggman','calvindseamons']
+        sys_name: ['Trinity','macbook','fog']
 
     scheduler: raw
     raw:
@@ -43,8 +43,8 @@ three:
             - 'echo "test completed"'
 four:
     only_if:
-        user: ['Bob','Eggman','notcalvindseamons']
-        sys_name: ['Trinity','macbook','fg-fey1']
+        user: ['Bob','Eggman','calvindseamons']
+        sys_name: ['Trinity','macbook','fog']
 
     not_if:
         sys_arch: ['haswell','aarch64']
