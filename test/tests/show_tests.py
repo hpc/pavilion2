@@ -34,6 +34,7 @@ class ShowTests(unittest.PavTestCase):
             ('show', 'tests'),
             ('show', 'tests', '--verbose'),
             ('show', 'tests', '--err'),
+            ('show', 'tests', '--hidden'),
             ('show', 'hosts'),
             ('show', 'hosts', '--verbose'),
             ('show', 'modes'),
