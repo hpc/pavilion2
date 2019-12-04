@@ -178,21 +178,22 @@ class RunCommand(commands.Command):
             return errno.EINVAL
 
         for sched_name, tests in tests_by_sched.items():
-                    valid_tests = []
-                    for i in range(0,len(tests)):
-                        if not tests[i].skipped:
-                            valid_tests.append(tests[i])
-                    tests=valid_tests
-                    sched = schedulers.get_scheduler_plugin(sched_name)
-                    try:
-                        sched.schedule_tests(pav_cfg, tests)
-                    except schedulers.SchedulerPluginError as err:
-                        fprint('Error scheduling tests:', file=self.errfile,
-                                color=utils.RED)
-                        fprint(err, bullet='  ', file=self.errfile)
-                        fprint('Cancelling already kicked off tests.',
-                              file=self.errfile)
-                        self._cancel_all(tests_by_sched)
+            valid_tests = []
+            for i in range(0,len(tests)):
+                if not tests[i].skipped:
+                    valid_tests.append(tests[i])
+            tests=valid_tests
+            sched = schedulers.get_scheduler_plugin(sched_name)
+            try:
+                sched.schedule_tests(pav_cfg, tests)
+            except schedulers.SchedulerPluginError as err:
+                fprint('Error scheduling tests:', file=self.errfile,
+                      color=utils.RED)
+                fprint(err, bullet='  ', file=self.errfile)
+                fprint('Cancelling already kicked off tests.',
+                      file=self.errfile)
+                self._cancel_all(tests_by_sched)
+
         # Tests should all be scheduled now, and have the SCHEDULED state
         # (at some point, at least). Wait until something isn't scheduled
         # anymore (either running or dead), or our timeout expires.
