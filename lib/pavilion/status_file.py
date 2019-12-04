@@ -24,7 +24,6 @@ Usage: ::
 import datetime
 import logging
 import os
-import tzlocal
 
 
 class TestStatusError(RuntimeError):
@@ -142,9 +141,7 @@ class StatusInfo:
         self.note = note
 
         if when is None:
-            self.when = tzlocal.get_localzone().localize(
-                datetime.datetime.now()
-            )
+            self.when = datetime.datetime.now()
         else:
             self.when = when
 
@@ -176,8 +173,8 @@ appends of a size such that those writes should be atomic.
 
     STATES = STATES
 
-    TIME_FORMAT = '%Y-%m-%dT%H:%M:%S.%f%z'
-    TS_LEN = 5 + 3 + 3 + 3 + 3 + 3 + 6 + 14
+    TIME_FORMAT = '%Y-%m-%dT%H:%M:%S.%f'
+    TS_LEN = 5 + 3 + 3 + 3 + 3 + 3 + 6
 
     LOGGER = logging.getLogger('pav.{}'.format(__file__))
 
@@ -192,12 +189,7 @@ appends of a size such that those writes should be atomic.
 :param pathlib.Path path: The path to the status file.
 """
 
-        if isinstance(path, str):
-            raise ValueError('NOOO')
-
         self.path = path
-
-        self.timezone = tzlocal.get_localzone()
 
         if not self.path.is_file():
             # Make sure we can open the file, and create it if it doesn't exist.
@@ -288,7 +280,7 @@ could be wrong with the file format.
 :param note: A note about this particular instance of the state.
 """
 
-        when = self.timezone.localize(datetime.datetime.now())
+        when = datetime.datetime.now()
         when = when.strftime(self.TIME_FORMAT)
 
         # If we were given an invalid status, make the status invalid but add

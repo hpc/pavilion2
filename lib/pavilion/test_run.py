@@ -22,7 +22,6 @@ import zipfile
 import sys
 from pathlib import Path
 
-import tzlocal
 from pavilion import lockfile
 from pavilion import result_parsers
 from pavilion import scriptcomposer
@@ -646,6 +645,11 @@ build.
 
         elif src_path.is_dir():
             # Recursively copy the src directory to the build directory.
+            self.status.set(
+                STATES.BUILDING,
+                "Copying source directory {} for build {} "
+                "as the build directory."
+                .format(src_path, build_path))
             shutil.copytree(src_path.as_posix(),
                             build_path.as_posix(),
                             symlinks=True)
@@ -667,6 +671,11 @@ build.
                             # make that directory the build directory. This
                             # should be the default in most cases.
                             if len(top_level) == 1 and top_level[0].isdir():
+                                self.status.set(
+                                    STATES.BUILDING,
+                                    "Extracting tarfile {} for build {} "
+                                    "as the build directory."
+                                    .format(src_path, build_path))
                                 tmpdir = build_path.with_suffix('.extracted')
                                 tmpdir.mkdir()
                                 tar.extractall(tmpdir.as_posix())
@@ -676,6 +685,11 @@ build.
                             else:
                                 # Otherwise, the build path will contain the
                                 # extracted contents of the archive.
+                                self.status.set(
+                                    STATES.BUILDING,
+                                    "Extracting tarfile {} for build {} "
+                                    "into the build directory."
+                                    .format(src_path, build_path))
                                 build_path.mkdir()
                                 tar.extractall(build_path.as_posix())
                     except (OSError, IOError,
@@ -704,6 +718,11 @@ build.
                         raise RuntimeError("Unhandled compression type. '{}'"
                                            .format(subtype))
 
+                    self.status.set(
+                        STATES.BUILDING,
+                        "Extracting {} file {} for build {} "
+                        "into the build directory."
+                        .format(subtype, src_path, build_path))
                     decomp_fn = src_path.with_suffix('').name
                     decomp_fn = build_path/decomp_fn
                     build_path.mkdir()
@@ -730,10 +749,20 @@ build.
 
                         files = os.listdir(tmpdir.as_posix())
                         if len(files) == 1 and (tmpdir/files[0]).is_dir():
+                            self.status.set(
+                                STATES.BUILDING,
+                                "Extracting zip file {} for build {} "
+                                "as the build directory."
+                                .format(src_path, build_path))
                             # Make the zip's root directory the build dir.
                             (tmpdir/files[0]).rename(build_path)
                             tmpdir.rmdir()
                         else:
+                            self.status.set(
+                                STATES.BUILDING,
+                                "Extracting zip file {} for build {} "
+                                "into the build directory."
+                                .format(src_path, build_path))
                             # The overall contents of the zip are the build dir.
                             tmpdir.rename(build_path)
 
@@ -745,6 +774,11 @@ build.
             else:
                 # Finally, simply copy any other types of files into the build
                 # directory.
+                self.status.set(
+                    STATES.BUILDING,
+                    "Copying file {} for build {} "
+                    "into the build directory."
+                    .format(src_path, build_path))
                 dest = build_path/src_path.name
                 try:
                     build_path.mkdir()
@@ -825,9 +859,7 @@ build.
             self.status.set(STATES.RUNNING,
                             "Starting the run script.")
 
-            local_tz = tzlocal.get_localzone()
-
-            self._started = local_tz.localize(datetime.datetime.now())
+            self._started = datetime.datetime.now()
 
             # TODO: There should always be a build directory, even if there
             #       isn't a build.
@@ -842,6 +874,9 @@ build.
                                     cwd=run_wd,
                                     stdout=run_log,
                                     stderr=subprocess.STDOUT)
+
+            self.status.set(STATES.RUNNING,
+                            "Currently running.")
 
             # Run the test, but timeout if it doesn't produce any output every
             # self._run_timeout seconds
@@ -860,14 +895,13 @@ build.
                         self.status.set(STATES.RUN_FAILED,
                                         "Run timed out after {} seconds."
                                         .format(self._run_timeout))
-                        self._finished = local_tz.localize(
-                            datetime.datetime.now())
+                        self._finished = datetime.datetime.now()
                         return STATES.RUN_TIMEOUT
                     else:
                         # Only wait a max of run_silent_timeout next 'wait'
                         timeout = timeout - quiet_time
 
-        self._finished = local_tz.localize(datetime.datetime.now())
+        self._finished = datetime.datetime.now()
 
         status = self.status.current()
         if status.state == STATES.ENV_FAILED:
@@ -889,11 +923,7 @@ when we're sure their won't be any more status changes."""
         # of the file, but it's nice to have another record of when this was
         # run.
         with (self.path/'RUN_COMPLETE').open('w') as run_complete:
-            run_complete.write(
-                tzlocal.get_localzone().localize(
-                    datetime.datetime.now()
-                ).isoformat()
-            )
+            run_complete.write(datetime.datetime.now().isoformat())
 
     WAIT_INTERVAL = 0.5
 
@@ -959,10 +989,8 @@ result
 
         # Create a human readable timestamp from the test directories
         # modified (should be creation) timestamp.
-        created = tzlocal.get_localzone().localize(
-            datetime.datetime.fromtimestamp(
-                self.path.stat().st_mtime
-            )
+        created = datetime.datetime.fromtimestamp(
+            self.path.stat().st_mtime
         ).isoformat(" ")
 
         if run_result == STATES.RUN_DONE:

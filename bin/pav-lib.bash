@@ -260,23 +260,26 @@ function module_loaded() {
                      grep ",default" | head -1 | awk -F, '{ print $2 }')
   fi
 
-  echo "module_version ${module_version}"
 
   # Get the version of the module that is currently loaded, if at all.
   local loaded_version=$(module_loaded_version $1)
   if [[ ${loaded_version} == "<none>" ]]; then
+    echo "Error: module ${module_name} was not loaded."
     return 1
   fi
 
-  echo "+${module_version}+ +${loaded_version}+"
   if [[ -z "$module_version" ]]; then
     # No version was specified, and we couldn't find a default to check against.
+    echo "module ${module_name} loaded as expected."
     return 0
   # Check if the loaded version matches what we want.
   elif [[ "${module_version}" == "${loaded_version}" ]]; then
+    echo "module ${module_name}/${module_version} loaded as expected."
     return 0
   else
    # The versions don't match.
+   echo "Error: module ${module_name}/${loaded_version} loaded, but expected"
+   echo "       version ${module_version}"
    return 2
   fi
 }

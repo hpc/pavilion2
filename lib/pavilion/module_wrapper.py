@@ -44,7 +44,8 @@ def add_wrapped_module(module_wrapper, version):
         raise ModuleWrapperError(
             "Two modules for the same module/version, with the same "
             "priority {}, {}."
-            .format(module_wrapper, _WRAPPED_MODULES[name][version]))
+            .format(module_wrapper.path,
+                    _WRAPPED_MODULES[name][version].path))
 
 
 def remove_wrapped_module(module_wrapper, version):
