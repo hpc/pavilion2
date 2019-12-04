@@ -181,7 +181,6 @@ class ScriptComposer:
             else:
                 self._script_lines.append('unset {}'.format(key))
 
-
     @staticmethod
     def parse_module(mod_line):
         """Parse a module specification into it's components. These can come

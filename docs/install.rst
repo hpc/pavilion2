@@ -181,7 +181,8 @@ that supports multiple compilers and conflicting builds of libraries.
 
 It is assumed that the module environment is set up before you run Pavilion. If
 you need to set up this environment separately on allocations, use the
-'env_setup' option in the general Pavilion configuration to add the commands
+'env_setup' option in the
+`general Pavilion configuration <config.rst>`__ to add the commands
 to do so.
 
 

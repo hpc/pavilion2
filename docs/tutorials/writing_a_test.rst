@@ -99,9 +99,9 @@ Note:
     -----------------+------------------------
     supermagic.basic | A basic supermagic run.
 
-If your suite or test is highlighted in red, there was an error in your
-config. Use '``pav show tests --err``' to get information on what the problem
-is in your yaml file.
+If your suite or test is highlighted in red and/or followed by an asterisk,
+there was an error in your config. Use '``pav show tests --err``' to get
+information on what and where the problem is in your yaml file.
 
 
 Test Building
@@ -259,7 +259,7 @@ Add the following to your supermagic test config:
         # We could also put in a range, or even 'all'.
         slurm:
             num_nodes: 2
-            procs_per_node: 2
+            tasks_per_node: 2
 
         # Tell pavilion to use the slurm scheduler for this test.
         scheduler: slurm
@@ -341,16 +341,14 @@ There are few things to point out.
 1.  The result of a test defaults to the whether run script returns zero. This
     usually just ends up being the return value of the last of your test
     commands.
-    If there are critical commands before that make sure to add an
-    ``|| exit 1`` to them. (This isn't needed here).
+    If there are critical commands before that, make sure to add an
+    ``|| exit 1`` to them. (This isn't needed in this case).
 2.  Our test script cmd was '``{{sched.test_cmd}} ./supermagic``. The part in
     double curly braces is a Pavilion variable reference, which our scheduler
     replaces with an srun command based on our scheduler settings.
 3.  It's important to use '``{{sched.test_cmd}}``'  rather than srun directly.
     Pavilion tests may run in larger allocations than you request, and this
     makes sure each test only runs under what it requested.
-4.  The run script is executed from inside our build directory. It's free to
-    create or overwrite any files contained within, as
 
 Debugging Test Runs
 ^^^^^^^^^^^^^^^^^^^
