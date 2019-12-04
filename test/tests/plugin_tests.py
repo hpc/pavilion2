@@ -7,6 +7,7 @@ from pavilion import result_parsers
 from pavilion import system_variables
 from pavilion.test_config import variables
 from pavilion.unittest import PavTestCase
+import io
 import logging
 import subprocess
 
@@ -191,4 +192,36 @@ class PluginTests(PavTestCase):
 
         plugins._reset_plugins()
 
-        # TODO: Write more extensive tests.
+
+    def test_bad_plugins(self):
+        """Make sure bad plugins don't kill Pavilion and print appropriate
+        errors."""
+
+        error_strs = [
+            'Plugin candidate rejected:',
+            'Unable to create plugin object:',
+            'Unable to import plugin:',
+        ]
+
+        yapsy_logger = logging.getLogger('yapsy')
+        stream = io.StringIO()
+        hndlr = logging.StreamHandler(stream)
+        yapsy_logger.addHandler(hndlr)
+
+        pav_cfg = self.pav_cfg.copy()
+        cfg_dirs = list(pav_cfg.config_dirs)
+        cfg_dirs.append(self.TEST_DATA_ROOT/'bad_plugins')
+        pav_cfg.config_dirs = cfg_dirs
+
+        # A bunch of plugins should fail to load, but this should be fine
+        # anyway.
+        plugins.initialize_plugins(pav_cfg)
+
+        yapsy_logger.removeHandler(hndlr)
+
+        stream.seek(0)
+        logs = stream.read()
+        for error_str in error_strs:
+            self.assertIn(error_str, logs)
+
+        plugins._reset_plugins()

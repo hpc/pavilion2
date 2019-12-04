@@ -1,0 +1,9 @@
+[Core]
+Name = Table Result Parser
+Module = table
+
+[Documentation]
+Description = Parses results that are in table form
+Author = Francine Lapid
+Version = 1.0
+Website =

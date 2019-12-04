@@ -58,7 +58,7 @@ should go under `data/pav_config_dir/plugins/`.
 Use `self.TEST_DATA_ROOT`, a `pathlib.Path` object, to find your data files.
 
 ### Pav Tests
-Creating a PavTest instance has been simplified with the `_quick_test()` method
+Creating a TestRun instance has been simplified with the `_quick_test()` method
 . By default it returns an instance of a simple 'hello world' test. This test
 is created using a config generated from the config returned by the 
 `_quick_test_cfg()` method. You can use that config as a base, and pass it 

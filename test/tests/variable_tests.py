@@ -133,13 +133,6 @@ class TestVariables(PavTestCase):
         with self.assertRaises(ValueError):
             vsetm.add_var_set('var', {})
 
-        # Using reserved names
-        with self.assertRaises(VariableError):
-            vsetm.add_var_set('per', {'per': '3'})
-
-        # Successful add after a failure.
-        vsetm.add_var_set('per', {})
-
         # Mismatched subvars
         data = {
             'var4': [{'subvar1': 'subval0_1',

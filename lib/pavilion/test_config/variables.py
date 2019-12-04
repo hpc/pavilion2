@@ -1,24 +1,23 @@
-# This module contains functions and classes for building variable sets for
-# string insertion.
-# There are three layers to every variable:
-#   - A list of variable values
-#   - A dictionary of sub-keys
-#   - The values of those sub keys.
-#   ie: [{key:value},...]
-#
-# From the user perspective, however, all but the value itself is optional.
-#
-# While variables are stored in this manner, these layers are automatically
-# resolved in the trivial cases such as when there is only one element, or a
-# single value instead of a set of key/value pairs.
-#
-# There are expected to be multiple variable sets; plain variables (var),
-# permutations (per), plugin provided via 'sys', core pavilion provided (pav),
-# and scheduler provided (sched).
-#
-# Additionally, variables can have a deferred value. These objects result
-# in an escape sequence being inserted that is resolved before the test is
-# run in its final environment.
+"""This module contains functions and classes for building variable sets for
+string insertion.
+
+There are three layers to every variable:
+
+- A list of variable values
+- A dictionary of sub-keys
+- The values of those sub keys.
+  ie: [{key:value},...]
+
+From the user perspective, however, all but the value itself is optional.
+
+While variables are stored in this manner, these layers are automatically
+resolved in the trivial cases such as when there is only one element, or a
+single value instead of a set of key/value pairs.
+
+There are expected to be multiple variable sets: plain variables (var),
+plugin provided via sys_vars (sys), core pavilion provided (pav), and scheduler
+provided (sched).
+"""
 
 import re
 import copy
@@ -26,7 +25,7 @@ import copy
 
 class VariableError(ValueError):
     """This error should be thrown when processing variable data,
-    and something goes wrong."""
+and something goes wrong."""
 
     def __init__(self, message, var_set=None, var=None, index=None,
                  sub_var=None):
@@ -58,7 +57,9 @@ class VariableError(ValueError):
 
 class DeferredVariable:
     """The value for some variables may not be available until a test is
-    actually running."""
+actually running. Deferred variables act as a placeholder in such
+circumstances, and output an escape sequence when converted to a str.
+"""
 
     # NOTE: Other than __init__, this should always have the same interface
     # as VariableList.
@@ -70,13 +71,14 @@ class DeferredVariable:
         """Deferred variables need to know their name and var_set at definition
         time. Additionally, they need to be aware of their valid sub-keys.
         They cannot have more than one value, like normal variables.
-        :param name: The name of this variable.
-        :param var_set: The variable set this deferred variable belongs to.
-            Only some varsets are allowed, as defined in
-            DeferredVariable.ALLOWED_VARSETS.
-        :param list sub_keys: A list of subkey names for the variable. None
-            denotes sub-keys aren't used.
-        """
+
+:param str name: The name of this variable.
+:param var_set: The variable set this deferred variable belongs to.
+    Only some varsets are allowed, as defined in
+    DeferredVariable.ALLOWED_VARSETS.
+:param list sub_keys: A list of subkey names for the variable. None
+    denotes sub-keys aren't used.
+"""
 
         if var_set not in self.ALLOWED_VARSETS:
             raise ValueError("The allowed values of var_set are {}. Got {}."
@@ -91,6 +93,13 @@ class DeferredVariable:
         self.sub_keys = sub_keys
 
     def get(self, index, sub_var):
+        """Get the 'value' of this deferred variable.
+The value is actually an escape sequence that will be replaced later.
+
+:param int index: Must be 0. Deferred variables can only have one item.
+:param str sub_var: The name of the sub_variable.
+"""
+
         if index not in [0, None]:
             raise KeyError("Deferred variables only have a single value.")
 
@@ -124,10 +133,22 @@ class DeferredVariable:
 
 class VariableSetManager:
     """This class manages the various sets of variables, provides complex key
-    based lookups, manages conflict resolution, and so on."""
+based lookups, manages conflict resolution, and so on. Anything that works
+with pavilion variables should do so through an instance of this class.
+
+Usage: ::
+
+    var_man = VariableSetManager()
+    # pav_vars and sys_vars should be dictionary like objects
+    var_man.add_var_set('sys', sys_vars)
+    var_man.add_var_set('pav', pav_vars)
+
+    var_man['sys.sys_name']
+    var_man['sys_name']
+"""
 
     # The variable sets, in order of resolution.
-    VAR_SETS = ('per', 'var', 'sys', 'pav', 'sched')
+    VAR_SETS = ('var', 'sys', 'pav', 'sched')
 
     def __init__(self):
         """Initialize the var set manager."""
@@ -139,12 +160,13 @@ class VariableSetManager:
 
     def add_var_set(self, name, value_dict):
         """Add a new variable set to this variable set manager. Variables in
-        the set can then be retrieved by complex key.
-        :param str name: The name of the var set. Must be one of the reserved
-            keys.
-        :param dict value_dict: A dictionary of values to populate the var set.
-        :return: None
-        :raises VariableError: On problems with the name or data.
+the set can then be retrieved by complex key.
+
+:param str name: The name of the var set. Must be one of the reserved
+    keys.
+:param dict value_dict: A dictionary of values to populate the var set.
+:return: None
+:raises VariableError: On problems with the name or data.
         """
         if name not in self.reserved_keys:
             raise ValueError("Unknown variable set name: '{}'".format(name))
@@ -165,11 +187,15 @@ class VariableSetManager:
 
     def get_permutations(self, used_per_vars):
         """For every combination of permutation variables (that were used),
-        return a new var_set manager.
-        :param set used_per_vars: A list of permutation variable names that
-            were used.
-        :return:
-        """
+return a new var_set manager that contains only a single value
+(possibly a complex one) for each permutation var, in every possible
+permutation.
+
+:param set used_per_vars: A list of permutation variable names that
+    were used.
+:return: A list of permuted variable managers.
+:rtype: VariableSetManager
+"""
 
         # Get every a dictionary of var:idx for every combination of used
         # permutation variables.
@@ -210,17 +236,18 @@ class VariableSetManager:
     @classmethod
     def parse_key(cls, key):
         """Parse the given complex key, and return a reasonable (var_set, var,
-            index, sub_var) tuple.
-        :param Union(str,list,tuple) key: A 1-4 part key. These may either be
-            given as a list/tuple of strings, or dot separated in a string. The
-            components are var_set, var, index, and sub_var. Var is required,
-            the rest are optional. Index is expected to be an integer, and
-            var_set is expected to be a key category.
-        :raises KeyError: For bad keys.
-        :raises TypeError: When the key isn't a string.
-        :returns: A (var_set, var, index, sub_var) tuple. Any component except
-            var may be None.
-        """
+index, sub_var) tuple.
+
+:param Union(str,list,tuple) key: A 1-4 part key. These may either be
+    given as a list/tuple of strings, or dot separated in a string. The
+    components are var_set, var, index, and sub_var. Var is required,
+    the rest are optional. Index is expected to be an integer, and
+    var_set is expected to be a key category.
+:raises KeyError: For bad keys.
+:raises TypeError: When the key isn't a string.
+:returns: A (var_set, var, index, sub_var) tuple. Any component except
+    var may be None.
+"""
 
         if isinstance(key, list) or isinstance(key, tuple):
             parts = list(key)
@@ -281,18 +308,19 @@ class VariableSetManager:
 
     def resolve_key(self, key):
         """Resolve the given key using this known var sets. Unlike parse_key,
-            the var_set returned will never be None, as the key must
-            correspond to a found variable in a var_set. In case of
-            conflicts, the var_set will be resolved in order.
-        :param Union(str,list,tuple) key: A 1-4 part key. These may either be
-            given as a list/tuple of strings, or dot separated in a string.
-            The components are var_set, var, index, and sub_var. Var is
-            required, the rest are optional. Index is expected to be an
-            integer, and var_set is expected to be a key category.
-        :raises KeyError: For bad keys, and when the var_set can't be found.
-        :returns: A tuple of (var_set, var, index, sub_var), index and sub_var
-            may be None.
-        """
+the var_set returned will never be None, as the key must
+correspond to a found variable in a var_set. In case of
+conflicts, the var_set will be resolved in order.
+
+:param Union(str,list,tuple) key: A 1-4 part key. These may either be
+    given as a list/tuple of strings, or dot separated in a string.
+    The components are var_set, var, index, and sub_var. Var is
+    required, the rest are optional. Index is expected to be an
+    integer, and var_set is expected to be a key category.
+:raises KeyError: For bad keys, and when the var_set can't be found.
+:returns: A tuple of (var_set, var, index, sub_var), index and sub_var
+    may be None.
+"""
 
         var_set, var, index, sub_var = self.parse_key(key)
 
@@ -342,20 +370,23 @@ class VariableSetManager:
 
     def is_deferred(self, var_set, var):
         """Return whether the given variable in the given varset is a
-        deferred variable."""
+deferred variable.
+
+:rtype: bool
+"""
 
         return isinstance(self.variable_sets[var_set].data[var],
                           DeferredVariable)
 
     def len(self, var_set, var):
-        """
-        Get the length of the given key.
-        :param str var_set: The var set to fetch from.
-        :param str var: The variable to fetch.
-        :return: The number of items in the found 'var_set.var', the index and
-            sub_var are ignored.
-        :raises KeyError: When the key has problems, or can't be found.
-        """
+        """Get the length of the given key.
+
+:param str var_set: The var set to fetch from.
+:param str var: The variable to fetch.
+:rtype: int
+:return: The number of items in the found 'var_set.var'.
+:raises KeyError: When the key has problems, or can't be found.
+"""
 
         if var_set not in self.variable_sets:
             raise KeyError("Unknown variable set '{}'".format(var_set))
@@ -374,7 +405,7 @@ class VariableSetManager:
     @classmethod
     def has_deferred(cls, struct):
         """Return True if the config structure contains any deferred
-        variables."""
+variables."""
 
         if isinstance(struct, str):
             if '[\x1b' in struct and '\x1b]' in struct:
@@ -391,10 +422,11 @@ class VariableSetManager:
 
     def resolve_deferred(self, struct):
         """Traverse the given config structure and resolve any deferred
-        variables found.
-        :param Union(list, dict, str) struct: The config structure to resolve.
-        :rtype: Union(list, dict, str)
-        """
+variables found.
+
+:param Union(list, dict, str) struct: The config structure to resolve.
+:rtype: Union(list, dict, str)
+"""
 
         if isinstance(struct, str):
             return self.resolve_deferred_str(struct)
@@ -417,10 +449,11 @@ class VariableSetManager:
 
     def resolve_deferred_str(self, line):
         """Resolve any deferred variables in the given string, and return
-        the result.
-        :param str line: The text to resolve.
-        :rtype: str
-        """
+the result.
+
+:param str line: The text to resolve.
+:rtype: str
+"""
 
         resolved_line = []
         offset = 0
@@ -451,11 +484,12 @@ class VariableSetManager:
         return resolved_line
 
     def resolve_references(self, parser):
-        """
-        Resolves variable references
-        :param parser: String parser to parse variable value into a PavString
-        :return:
-        """
+        """Resolves variable references that are within the variables
+themselves.
+
+:param string_parser.PavString parser: String Parser instance. This must be
+    passed to avoid module dependency loops.
+"""
 
         unresolved_vars = {}
         # We only want to resolve variable references in the variable section
@@ -510,7 +544,10 @@ class VariableSetManager:
 
     def as_dict(self):
         """Return the all variable sets as a single dictionary. This is
-        for testing and bug resolution, not production code."""
+for testing and bug resolution, not production code.
+
+:rtype: dict
+"""
 
         dvar_sets = {}
 
@@ -549,18 +586,19 @@ class VariableSetManager:
 
 class VariableSet:
     """A set of of variables. Essentially a wrapper around a mapping of var
-        names to VariableList objects."""
+names to VariableList objects."""
 
     def __init__(self, name, reserved_keys=None, value_dict=None):
         """Initialize the VariableSet. The data can be set directly by
-            assigning to .data, or from a config with the 'init_from_config'
-            method.
-        :param name: The name of this var set.
-        :param reserved_keys: The list of reserved keys. Needed to check the
-            given var names.
-        :param value_dict: A mapping of var names to strings (str), a list of
-            strings, a dict of strings, or a list of dict of strings.
-        """
+assigning to .data, or from a config with the 'init_from_config'
+method.
+
+:param str name: The name of this var set.
+:param reserved_keys: The list of reserved keys. Needed to check the
+    given var names.
+:param value_dict: A mapping of var names to strings (str), a list of
+    strings, a dict of strings, or a list of dict of strings.
+"""
 
         self.data = {}
         self.name = name
@@ -570,9 +608,10 @@ class VariableSet:
 
     def _init_from_config(self, reserved_keys, value_dict):
         """Initialize the variable set from a config dictionary.
-        :param value_dict: A mapping of var names to strings (str), a list of
-            strings, a dict of strings, or a list of dict of strings.
-        """
+
+:param value_dict: A mapping of var names to strings (str), a list of
+    strings, a dict of strings, or a list of dict of strings.
+"""
 
         for key, value in value_dict.items():
             if key in reserved_keys:
@@ -590,7 +629,7 @@ class VariableSet:
 
     def get(self, var, index, sub_var):
         """Return the value of the var given the var name, index, and sub_var
-            name."""
+name."""
 
         return self[var].get(index, sub_var)
 
@@ -619,13 +658,14 @@ class VariableSet:
 
 class VariableList:
     """Wraps a list of SubVariable objects. Even variables with a single value
-        end up as a list (of one)."""
+end up as a list (of one)."""
 
     def __init__(self, values=None):
-        """Initialize the Varialbe list.
-        :param values: A list of strings (str) or dicts of strings. The dicts
-            must have the same keys.
-        """
+        """Initialize the Variable list.
+
+:param values: A list of strings (str) or dicts of strings. The dicts
+    must have the same keys.
+"""
 
         self.data = []
 
@@ -634,9 +674,10 @@ class VariableList:
 
     def _init_from_config(self, values):
         """Initialize the variable list from the given config values.
-        :param values: A list of strings (str) or dicts of strings. The dicts
-            must have the same keys.
-        """
+
+:param values: A list of strings (str) or dicts of strings. The dicts
+    must have the same keys.
+"""
 
         sub_vars = None
 
@@ -694,14 +735,15 @@ class VariableList:
 
 
 class SubVariable:
-    """The final variable tier. Variables with no sub-var end up with a dict
-        with a single None: value pair."""
+    """The final variable tier. Variables with no sub-var end up with a
+dict with a single None: value pair."""
 
     def __init__(self, value_pairs=None):
         """Initialize the sub_variable.
-        :param dict value_pairs: The value of the sub_variable, via a
-            configuration.
-        """
+
+:param dict value_pairs: The value of the sub_variable, via a
+    configuration.
+"""
 
         self.data = {}
 
@@ -718,6 +760,8 @@ class SubVariable:
             self.data[key] = value
 
     def get(self, sub_var):
+        """Gets the actual variable value."""
+
         if sub_var in self.data:
             return self.data[sub_var]
         elif sub_var is None:
