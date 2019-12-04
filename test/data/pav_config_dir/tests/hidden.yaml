@@ -1,0 +1,21 @@
+hello:
+    run:
+        cmds:
+            - echo "Running World"
+
+    scheduler: "raw"
+
+_hidden:
+    build:
+        cmds:
+            - echo "Building World"
+    run:
+        cmds:
+            - echo "Running World"
+
+    scheduler: "raw"
+
+narf:
+    inherits_from: _hidden
+
+    scheduler: "dummy"

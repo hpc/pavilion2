@@ -1,0 +1,6 @@
+[Core]
+Name = No Plugin
+Module = no_plugin
+
+[Documentation]
+Description = No YapsyPlugin based class exists in the found module.

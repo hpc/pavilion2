@@ -1,0 +1,6 @@
+[Core]
+Name = Bad Init
+Module = bad_init
+
+[Documentation]
+Description = Has an error in __init__
