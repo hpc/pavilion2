@@ -36,7 +36,7 @@ Writing a Test
 
 .. _supermagic: https://github.com/hpc/supermagic
 
-We're going to use the `supermagic`_ as our example.
+We're going to use the `supermagic`_ hpc test as our example.
 
 1. Download an archive of the source.
 
