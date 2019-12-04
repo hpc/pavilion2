@@ -146,7 +146,7 @@ Let's try it:
 
     $ pav run supermagic.basic
 
-    Test tutorial.basic run 72 building 787aceaa19ac9a21
+    Test supermagic.basic run 72 building 787aceaa19ac9a21
     Error building test:
     status BUILD_FAILED - Build returned a non-zero result.
     For more information, run 'pav log build 72'
@@ -178,7 +178,8 @@ So let's modify the build section of our test config to load those modules.
 Note:
   Module loading works with lmod and environment modules (tmod), and
   assumes the module environment is set up automatically on login. This is
-  covered in more details in the install instructions.
+  covered in more details in the 
+  `install instructions <install.html>`__.
 
 .. code-block:: yaml
 
@@ -397,7 +398,7 @@ Now when we run the test, we get the 'num_tests' value added to our results.
     $ pav results -f 29
 
     {
-        "name": "tutorial.basic",
+        "name": "supermagic.basic",
         "id": "19",
         "result": "PASS",
         "created": "2019-12-03 15:46:13.241378",
