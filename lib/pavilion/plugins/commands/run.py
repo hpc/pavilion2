@@ -236,8 +236,8 @@ class RunCommand(commands.Command):
         :param list(str) tests: The tests to run.
         :param list(str) overrides: Overrides to apply to the configurations.
         :param system_variables.SysVarDict sys_vars: The system variables dict.
-        :returns: A dictionary (by scheduler type name) of lists of test
-            configs.
+        :returns: A dictionary (by scheduler type name) of lists of tuples
+            test configs and their variable managers.
         """
         self.logger.debug("Finding Configs")
 
@@ -328,7 +328,8 @@ class RunCommand(commands.Command):
                     self.logger.error(msg)
                     raise commands.CommandError(msg)
 
-                tests_by_scheduler[sched.name].append(resolved_config)
+                tests_by_scheduler[sched.name].append(
+                    (resolved_config, test_var_man))
         return tests_by_scheduler
 
     @staticmethod
@@ -341,12 +342,12 @@ class RunCommand(commands.Command):
         for sched_name in configs_by_sched.keys():
             tests_by_sched[sched_name] = []
             for i in range(len(configs_by_sched[sched_name])):
+                cfg, var_man = configs_by_sched[sched_name][i]
                 tests_by_sched[sched_name].append(TestRun(
                     pav_cfg=pav_cfg,
-                    config=configs_by_sched[sched_name][i],
-                    sys_vars=sys_vars
+                    config=cfg,
+                    var_man=var_man,
                 ))
-
 
         return tests_by_sched
 

@@ -87,21 +87,16 @@ tests.
 
     logger = logging.getLogger('pav.TestRun')
 
-    def __init__(self, pav_cfg, config, sys_vars, _id=None):
+    def __init__(self, pav_cfg, config, var_man, _id=None):
         """Create an new TestRun object. If loading an existing test
     instance, use the ``TestRun.from_id()`` method.
 
 :param pav_cfg: The pavilion configuration.
 :param dict config: The test configuration dictionary.
-:param Union(dict,None) sys_vars: The system variables dictionary. This may be
-    None when loading an existing test.
+:param var_man: The variable manager for this test.
 :param int _id: The test id of an existing test. (You should be using
             TestRun.load).
 """
-
-        if _id is None and sys_vars is None:
-            raise RuntimeError(
-                "New TestRun objects require a sys_vars dict. ")
 
         # Just about every method needs this
         self._pav_cfg = pav_cfg
@@ -163,7 +158,7 @@ tests.
             self._write_script(
                 path=self.build_script_path,
                 config=build_config,
-                sys_vars=sys_vars)
+                var_man=var_man)
 
         if _id is None:
             self.build_hash = self._create_build_hash(build_config)
@@ -188,7 +183,7 @@ tests.
             self._write_script(
                 path=self.run_tmpl_path,
                 config=run_config,
-                sys_vars=sys_vars)
+                var_man=var_man)
 
         if _id is None:
             self.status.set(STATES.CREATED, "Test directory setup complete.")
@@ -1153,17 +1148,13 @@ modified date for the test directory."""
         if src_stat.st_mtime != latest:
             os.utime(base_path.as_posix(), (src_stat.st_atime, latest))
 
-    def _write_script(self, path, config, sys_vars):
+    def _write_script(self, path, config, var_man):
         """Write a build or run script or template. The formats for each are
             identical.
         :param Path path: Path to the template file to write.
         :param dict config: Configuration dictionary for the script file.
         :return:
         """
-
-        if sys_vars is None:
-            raise TestRunError("Trying to write script without sys_vars "
-                               "in test '{}'.".format(self.id))
 
         script = scriptcomposer.ScriptComposer(
             details=scriptcomposer.ScriptDetails(
@@ -1201,7 +1192,7 @@ modified date for the test directory."""
             script.comment('Perform module related changes to the environment.')
 
             for module in config.get('modules', []):
-                script.module_change(module, sys_vars)
+                script.module_change(module, var_man)
 
         env = config.get('env', {})
         if env:
