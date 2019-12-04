@@ -224,6 +224,11 @@ class ShowCommand(commands.Command):
             help='Display the path for each test.'
         )
         tests.add_argument(
+            '--hidden',
+            action='store_true', default=False,
+            help="Show hidden tests (whose name start with an underscore)."
+        )
+        tests.add_argument(
             '--err',
             action='store_true', default=False,
             help='Display any errors encountered while reading the test.'
@@ -630,6 +635,10 @@ class ShowCommand(commands.Command):
 
             for test_name in sorted(list(suite['tests'])):
                 test = suite['tests'][test_name]
+
+                if test_name.startswith('_') and not args.hidden:
+                    # Skip any hidden tests.
+                    continue
 
                 rows.append({
                     'name': '{}.{}'.format(suite_name, test_name),
