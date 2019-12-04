@@ -17,7 +17,7 @@ Pavilion has very few dependencies and requirements:
 
   - The path to this directory must be consistent across all cluster hosts.
   - It must support atomic file creation and appends of < 4kb.
-- Lmod or environment modules are recommended.
+- Lmod or 'environment modules' is recommended.
 
 Filesystems
 ~~~~~~~~~~~
