@@ -95,17 +95,11 @@ class ResultsCommand(commands.Command):
         )
 
     def _get_tests(self, pav_cfg, tests_arg, full_arg):
-        if not tests_arg and not full_arg:
+        if not tests_arg:
             # Get the last series ran by this user.
             series_id = series.TestSeries.load_user_series_id(pav_cfg)
             if series_id is not None:
                 tests_arg.append(series_id)
-        elif not tests_arg and full_arg:
-            # Get the last test ran by this user
-            try:
-                tests_arg.append(str(get_latest_tests(pav_cfg, 1)[0]))
-            except IndexError:
-                self.logger.error("Could not find tests.")
 
         if len(tests_arg) > 1 and full_arg:
             tests_arg = [tests_arg[0]]
@@ -125,5 +119,12 @@ class ResultsCommand(commands.Command):
                     continue
             else:
                 test_list.append(test_id)
+
+        if full_arg:
+            if len(test_list) > 1:
+                self.logger.warning(
+                    "Requested for full test but provided multiple tests."
+                )
+                test_list = [test_list[0]]
 
         return map(int, test_list)
