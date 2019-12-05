@@ -14,7 +14,6 @@ from pavilion.status_file import STATES
 from pavilion.plugins.commands.status import print_from_test_obj
 from pavilion.series import TestSeries, test_obj_from_id
 from pavilion.test_config.string_parser import ResolveError
-from pavilion.test_config.file_format import TestConfigError
 from pavilion.utils import fprint
 from pavilion import result_parsers
 
@@ -149,11 +148,6 @@ class RunCommand(commands.Command):
         failed_build = None
         # Building any tests that specify that they should be built before
         for test in all_tests:
-            # make sure source_download_name is not set without source_location
-            if test.config['build']['source_download_name'] is not None:
-                if test.config['build']['source_location'] is None:
-                    raise TestConfigError("'source_location' required")
-
             if test.config['build']['on_nodes'] not in ['true', 'True']:
                 if not test.build():
                     fprint("Error building test: ", file=self.errfile,

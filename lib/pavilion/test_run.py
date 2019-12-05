@@ -30,6 +30,7 @@ from pavilion.status_file import StatusFile, STATES
 from pavilion.test_config import variables
 from pavilion.utils import fprint
 from pavilion.utils import ZipFileFixed as ZipFile
+from pavilion.test_config.file_format import TestConfigError
 
 
 def get_latest_tests(pav_cfg, limit):
@@ -435,6 +436,10 @@ directory into our test directory, and note that we've used the given
 build.
 :return: True if these steps completed successfully.
 """
+
+        if self.config['build']['source_download_name'] is not None:
+            if self.config['build']['source_location'] is None:
+                raise TestConfigError("'source_location required")
 
         # Only try to do the build if it doesn't already exist.
         if not self.build_origin.exists():
