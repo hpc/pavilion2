@@ -437,7 +437,8 @@ build.
 :return: True if these steps completed successfully.
 """
 
-        if self.config['build']['source_download_name'] is not None:
+        if self.config['build']['source_download_name'] is not None or \
+                'source_download_name' in self.config['build']:
             if self.config['build']['source_location'] is None:
                 fprint(
                     "Test could not be built. Need 'source_location'."
