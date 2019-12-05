@@ -122,8 +122,11 @@ class ResultsCommand(commands.Command):
 
         if full_arg:
             if len(test_list) > 1:
-                self.logger.warning(
-                    "Requested for full test but provided multiple tests."
+                utils.fprint(
+                    "Requested full test results but provided multiple tests. " 
+                    "Giving results for only the first found.",
+                    color=utils.YELLOW,
+                    file=sys.stdout,
                 )
                 test_list = [test_list[0]]
 
