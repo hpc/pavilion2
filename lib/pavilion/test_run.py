@@ -439,7 +439,13 @@ build.
 
         if self.config['build']['source_download_name'] is not None:
             if self.config['build']['source_location'] is None:
-                raise TestConfigError("'source_location required")
+                fprint(
+                    "Test could not be built. Need 'source_location'."
+                )
+                self.status.set(STATES.BUILD_ERROR,
+                                "'source_download_name is set without a "
+                                "'source_location'")
+                return False
 
         # Only try to do the build if it doesn't already exist.
         if not self.build_origin.exists():
