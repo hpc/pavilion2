@@ -2,17 +2,35 @@
 # It shouldn't be run directly; use bin/pav instead.
 
 from logging.handlers import RotatingFileHandler
+from logging import StreamHandler
 from pavilion import arguments
 from pavilion import commands
 from pavilion import config
 from pavilion import plugins
 from pavilion import pav_vars
+from pavilion import utils
 import logging
 from pathlib import Path
 import os
 import socket
 import sys
 import traceback
+
+try:
+    import yc_yaml
+except ImportError:
+    utils.fprint(
+        "Could not find python module 'yc_yaml'. Did you run "
+        "`submodule update --init --recursive` to get all the dependencies?"
+    )
+
+try:
+    import yaml_config
+except ImportError:
+    utils.fprint(
+        "Could not find python module 'yaml_config'. Did you run "
+        "`submodule update --init --recursive` to get all the dependencies?"
+    )
 
 
 def main():
@@ -34,7 +52,7 @@ def main():
             pav_cfg.working_dir/'builds',
             pav_cfg.working_dir/'downloads',
             pav_cfg.working_dir/'series',
-            pav_cfg.working_dir/'tests',
+            pav_cfg.working_dir/'test_runs',
             pav_cfg.working_dir/'users']:
         if not path.exists():
             try:
@@ -98,6 +116,42 @@ def main():
     result_logger.setLevel(logging.INFO)
     result_logger.addHandler(result_handler)
 
+    # Setup the exception logger.
+    # Exceptions will be logged to this directory, along with other useful info.
+    exc_logger = logging.getLogger('exceptions')
+    try:
+        if not pav_cfg.exception_log.exists():
+            pav_cfg.exception_log.parent.mkdir(
+                mode=0o775,
+                parents=True,
+                #exist_ok=True  # Doesn't work in python 3.4 (added in 3.5)
+            )
+    except (PermissionError, OSError, IOError, FileExistsError) as err:
+        utils.dbg_print("Could not create exception log")
+
+    exc_handler = RotatingFileHandler(
+        filename=pav_cfg.exception_log.as_posix(),
+        maxBytes=20 * 1024 **2,
+        backupCount=3,
+    )
+    exc_handler.setFormatter(logging.Formatter(
+        "{asctime} {message}",
+        style='{',
+    ))
+    exc_logger.setLevel(logging.ERROR)
+    exc_logger.addHandler(exc_handler)
+
+    # Setup the yapsy logger to log to terminal. We need to know immediatly
+    # when yapsy encounters errors.
+    yapsy_logger = logging.getLogger('yapsy')
+    yapsy_handler = StreamHandler(stream=sys.stderr)
+    # Color all these error messages red.
+    yapsy_handler.setFormatter(
+        logging.Formatter("\x1b[31m{asctime} {message}\x1b[0m",
+                          style='{'))
+    yapsy_logger.setLevel(logging.INFO)
+    yapsy_logger.addHandler(yapsy_handler)
+
     # This has to be done before we initialize plugins
     parser = arguments.get_parser()
 
@@ -139,14 +193,29 @@ def main():
     try:
         sys.exit(cmd.run(pav_cfg, args))
     except Exception as err:
-        print("Unknown error running command {}: {}."
-              .format(args.command_name, err))
-        traceback_file = tracebacks_dir/str(os.getpid())
-        traceback.print_exc()
+        exc_info = {
+            'traceback': traceback.format_exc(),
+            'args': vars(args),
+            'config': pav_cfg,
+        }
 
-        with traceback_file.open('w') as tb:
-            tb.write(traceback.format_exc())
-        print("Traceback saved in {}".format(traceback_file))
+        json_data = utils.json_dumps(exc_info)
+        logger = logging.getLogger('exceptions')
+        logger.error(json_data)
+
+        utils.fprint(
+            "Unknown error running command {}: {}."
+            .format(args.command_name, err),
+            color=utils.RED,
+            file=sys.stderr,
+        )
+        traceback.print_exc(file=sys.stderr)
+
+        utils.fprint(
+            "Traceback logged to {}".format(pav_cfg.exception_log),
+            color=utils.RED,
+            file=sys.stderr,
+        )
         sys.exit(-1)
 
 

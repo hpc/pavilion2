@@ -20,6 +20,7 @@ additional schedulers, parsing test results, and more.
  - Extreme extensibility (plugins everywhere). 
 
 ## Documentation 
-The [general documentation](docs/basics.md) is available in the `docs` directory.
-[Install documentation](docs/install.md) is similarly available.
+The [general documentation](https://pavilion2.readthedocs.io/en/latest/) is 
+available via readthedocs, along with documentation for the Pavilion code 
+itself.
 

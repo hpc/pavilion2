@@ -4,7 +4,7 @@ from pavilion import schedulers
 from pavilion.unittest import PavTestCase
 from pavilion import arguments
 from pavilion import series
-from pavilion.pav_test import PavTest
+from pavilion.test_run import TestRun
 from pavilion.status_file import STATES
 from pavilion.plugins.commands.status import get_statuses
 from io import StringIO
@@ -77,7 +77,7 @@ class CancelCmdTests(PavTestCase):
         test_list.extend(series.TestSeries.from_id(self.pav_cfg,
                                                    test[0]).tests)
         for test_id in test_list:
-            test = PavTest.load(self.pav_cfg, test_id)
+            test = TestRun.load(self.pav_cfg, test_id)
             if test.status.current().state != STATES.COMPLETE:
                 sched = schedulers.get_scheduler_plugin(test.scheduler)
                 sched_status = sched.job_status(self.pav_cfg, test)

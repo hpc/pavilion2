@@ -1,3 +1,10 @@
+"""
+Pavilion has to take a bunch of raw Suite/Test configurations, incorporate
+various Pavilion variables, resolve test inheritance and permutations,
+and finally produce a bunch of TestRun objects. These steps, and more,
+are all handled by functions in this module.
+"""
+
 import copy
 import logging
 import os
@@ -7,7 +14,7 @@ from yaml_config import RequiredError
 from yc_yaml import YAMLError
 from . import string_parser
 from . import variables
-from .file_format import TestConfigError, KEY_NAME_RE
+from .file_format import TestConfigError, TEST_NAME_RE, KEY_NAME_RE
 from .file_format import TestConfigLoader, TestSuiteLoader
 
 # Config file types
@@ -21,11 +28,13 @@ LOGGER = logging.getLogger('pav.' + __name__)
 def _find_config(pav_cfg, conf_type, conf_name):
     """Search all of the known configuration directories for a config of the
     given type and name.
+
     :param pav_cfg: The pavilion config data.
     :param str conf_type: 'host', 'mode', or 'test'
     :param str conf_name: The name of the config (without a file extension).
+    :rtype: Path
     :return: The path to the first matching config found, or None if one wasn't
-    found.
+        found.
     """
     for conf_dir in pav_cfg.config_dirs:
         path = conf_dir/conf_type/'{}.yaml'.format(conf_name)
@@ -37,18 +46,23 @@ def _find_config(pav_cfg, conf_type, conf_name):
 
 def find_all_tests(pav_cfg):
     """Find all the tests within known config directories.
-    :param pav_cfg: The pavilion configuration.
-    :return: Returns a data structure that looks like:
-        suite_name -> {
-            'path': Path to the suite file.
-            'err': Error loading suite file.
-            'supersedes': [superseded_suite_files]
-            'tests': name -> {
-                    'conf': The full test config (inheritance resolved),
-                    'summary': Test summary string,
-                    'doc': Test doc string,
-            }
-    """
+
+:param pav_cfg: The pavilion configuration.
+:return: Returns a dictionary of suite names to an info dict.
+:rtype: dict(dict)
+
+The returned data structure looks like: ::
+
+    suite_name -> {
+        'path': Path to the suite file.
+        'err': Error loading suite file.
+        'supersedes': [superseded_suite_files]
+        'tests': name -> {
+                'conf': The full test config (inheritance resolved),
+                'summary': Test summary string,
+                'doc': Test doc string,
+        }
+"""
 
     suites = {}
 
@@ -116,13 +130,15 @@ def load_test_configs(pav_cfg, host, modes, tests):
     and a list of tests. Each of these configs will be lightly modified with
     a few extra variables about their name, suite, and suite_file, as well as
     guaranteeing that they have 'variables' and 'permutations' sections.
+
     :param pav_cfg: The pavilion config data
     :param Union(str, None) host: The host the test is running on.
     :param list modes: A list (possibly empty) of modes to layer onto the test.
     :param list tests: A list (possibly empty) of tests to load. Each test can
-    be either a '<test_suite>.<test_name>', '<test_suite>',
-    or '<test_suite>.*'. A test suite by itself (or with a .*) get every
-    test in a suite.
+        be either a '<test_suite>.<test_name>', '<test_suite>',
+        or '<test_suite>.*'. A test suite by itself (or with a .*) get every
+        test in a suite.
+    :rtype: list(dict)
     :return: A list of raw test_cfg dictionaries.
     """
 
@@ -231,7 +247,7 @@ def load_test_configs(pav_cfg, host, modes, tests):
         if KEY_NAME_RE.match(test_suite) is None:
             raise TestConfigError("Invalid test suite name: '{}'"
                                   .format(test_suite))
-        if requested_test != '*' and KEY_NAME_RE.match(requested_test) is None:
+        if requested_test != '*' and TEST_NAME_RE.match(requested_test) is None:
             raise TestConfigError("Invalid subtest for requested test: '{}'"
                                   .format(test_name))
 
@@ -276,7 +292,8 @@ def load_test_configs(pav_cfg, host, modes, tests):
         if requested_test == '*':
             # All tests were requested.
             for test_cfg_name, test_cfg in all_tests[test_suite].items():
-                picked_tests.append(test_cfg)
+                if not test_cfg_name.startswith('_'):
+                    picked_tests.append(test_cfg)
 
         else:
             # Get the one specified test.
@@ -415,6 +432,7 @@ NOT_OVERRIDABLE = ['name', 'suite', 'suite_path']
 
 def apply_overrides(test_cfg, overrides):
     """Apply overrides to this test.
+
     :param dict test_cfg: The test configuration.
     :param dict overrides: A dictionary of values to override in all
         configs. This occurs at the highest level, after inheritance is
@@ -472,6 +490,7 @@ def resolve_permutations(raw_test_cfg, pav_vars, sys_vars):
     variable manager for each permuted version of the test config. We use
     this opportunity to populate the variable manager with most other
     variable types as well.
+
     :param dict raw_test_cfg: The raw test configuration dictionary.
     :param dict pav_vars: The pavilion provided variable set.
     :param Union(dict, pavilion.system_variables.SysVarDict) sys_vars: The
@@ -540,12 +559,20 @@ def resolve_permutations(raw_test_cfg, pav_vars, sys_vars):
 
 
 def _resolve_references(var_man):
+    """Resolve all variable references that are within variable values
+    defined in the 'variables' section of the test config.
+
+    :param variables.VariableSetManager var_man: The variables to resolve
+        (and the values to use to resolve them).
+    :raises TestConfigError: When reference loops are found.
+    :raises KeyError: When an unknown variable is referenced.
+    """
 
     # We only want to resolve variable references in the variable section
-    vars = var_man.variable_sets['var']
+    var_vars = var_man.variable_sets['var']
     unresolved_vars = {}
     # Find all the variable value strings that reference variables
-    for var, var_list in vars.data.items():
+    for var, var_list in var_vars.data.items():
         # val is a list of dictionaries
         for idx in range(len(var_list.data)):
             sub_var = var_list.data[idx]
@@ -590,6 +617,7 @@ def _parse_strings(section):
     """Parse all non-key strings in the given config section, and replace
     them with a PavString object. This involves recursively walking any
     data-structures in the given section.
+
     :param section: The config section to process.
     :return: The original dict with the non-key strings replaced.
     """
@@ -616,9 +644,10 @@ def _parse_strings(section):
 def resolve_all_vars(config, var_man, no_deferred_allowed):
     """Recursively resolve the given config's variables, using a
     variable manager.
+
     :param dict config: The config component to resolve.
     :param variables.VariableSetManager var_man: A variable manager. (
-    Presumably a permutation of the base var_man)
+        Presumably a permutation of the base var_man)
     :param list no_deferred_allowed: Do not allow deferred variables in
         sections of these names.
     :return: The component, resolved.
@@ -638,6 +667,7 @@ def resolve_all_vars(config, var_man, no_deferred_allowed):
 def _resolve_section_vars(component, var_man, allow_deferred):
     """Recursively resolve the given config component's  variables, using a
      variable manager.
+
     :param dict component: The config component to resolve.
     :param var_man: A variable manager. (Presumably a permutation of the
         base var_man)

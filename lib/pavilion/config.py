@@ -1,17 +1,78 @@
-# This module contains the base configuration for Pavilion itself.
+"""This module defines the base configuration for Pavilion itself."""
 
 import grp
 import logging
 import os
 import socket
-from pathlib import Path
+import sys
+from pathlib import Path, PosixPath
 
+from pavilion import utils
 import yaml_config as yc
 
 LOGGER = logging.getLogger('pavilion.' + __file__)
 
 
-def group_validate(_, group):
+# Figure out what directories we'll search for configuration files.
+PAV_CONFIG_SEARCH_DIRS = [Path('./').resolve()]
+
+if 'HOME' in os.environ:
+    USER_HOME_PAV = Path(os.environ['HOME'], '.pavilion')
+    PAV_CONFIG_SEARCH_DIRS.append(USER_HOME_PAV)
+else:
+    USER_HOME_PAV = None
+
+PAV_CONFIG_DIR = os.environ.get('PAV_CONFIG_DIR', None)
+
+if PAV_CONFIG_DIR is not None:
+    PAV_CONFIG_DIR = Path(PAV_CONFIG_DIR)
+
+    if PAV_CONFIG_DIR.exists():
+        PAV_CONFIG_SEARCH_DIRS.append(
+            Path(PAV_CONFIG_DIR)
+        )
+    else:
+        utils.fprint(
+            "Invalid path in env var PAV_CONFIG_DIR: '{}'. Ignoring."
+            .format(PAV_CONFIG_DIR),
+            color=utils.YELLOW,
+            file=sys.stderr
+        )
+
+PAV_ROOT = Path(__file__).resolve().parents[2]
+
+# Use this config file, if it exists.
+PAV_CONFIG_FILE = os.environ.get('PAV_CONFIG_FILE', None)
+
+
+def config_dirs_validator(config, values):
+    """Get all of the configurations directories and convert them
+    into path objects."""
+
+    config_dirs = []
+
+    if config['user_config'] and USER_HOME_PAV:
+        config_dirs.append(USER_HOME_PAV)
+
+    if PAV_CONFIG_DIR is not None and PAV_CONFIG_DIR.exists():
+        config_dirs.append(PAV_CONFIG_DIR)
+
+    for value in values:
+        path = Path(value)
+        if not path.exists():
+            utils.fprint(
+                "Config directory {} does not exist. Ignoring."
+                .format(value),
+                file=sys.stderr,
+                color=utils.YELLOW
+            )
+        else:
+            config_dirs.append(path)
+
+    return config_dirs
+
+
+def _group_validate(_, group):
     """Make sure the group specified in the config exists and the user is
     in it."""
 
@@ -33,32 +94,10 @@ def group_validate(_, group):
     return group
 
 
-# Figure out what directories we'll search for configuration files.
-PAV_CONFIG_SEARCH_DIRS = [Path('./').resolve()]
-
-if 'HOME' in os.environ:
-    USER_HOME_PAV = Path(os.environ['HOME'], '.pavilion')
-    PAV_CONFIG_SEARCH_DIRS.append(USER_HOME_PAV)
-else:
-    USER_HOME_PAV = None
-
-if 'PAV_CONFIG_DIR' in os.environ:
-    try:
-        PAV_CONFIG_SEARCH_DIRS.append(
-            Path(os.environ['PAV_CONFIG_DIR']).resolve())
-    except FileNotFoundError:
-        LOGGER.warning("Invalid path in env var PAV_CONFIG_DIR. Ignoring.")
-
-# Include the pavilion source directory.
-PAV_CONFIG_SEARCH_DIRS.append(Path(__file__).resolve().parent)
-
-PAV_ROOT = Path(__file__).resolve().parents[2]
-
-# Use this config file, if it exists.
-PAV_CONFIG_FILE = os.environ.get('PAV_CONFIG_FILE', None)
-
-
 class PavilionConfigLoader(yc.YamlConfigLoader):
+    """This object uses YamlConfig to define Pavilion's base configuration
+    format and options. If you're looking to add an option to the general
+    pavilion.yaml format, this is the place to do it."""
 
     # Each and every configuration element needs to either not be required,
     # or have a sensible default. Essentially, Pavilion needs to work if no
@@ -66,12 +105,19 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
     ELEMENTS = [
         yc.ListElem(
             "config_dirs",
-            defaults=PAV_CONFIG_SEARCH_DIRS,
             sub_elem=yc.PathElem(),
+            post_validator=config_dirs_validator,
             help_text="Paths to search for Pavilion config files. Pavilion "
                       "configs (other than this core config) are searched for "
                       "in the given order. In the case of identically named "
-                      "files, directories listed earlier take precedent."),
+                      "files, directories listed earlier take precedence."),
+        yc.StrElem(
+            "user_config",
+            default='.pavilion',
+            help_text="Whether to automatically add the user's config "
+                      "directory at ~/.pavilion to the config_dirs. Configs "
+                      "in this directory always take precedence."
+        ),
         yc.PathElem(
             'working_dir', default=USER_HOME_PAV/'working_dir', required=True,
             help_text="Where pavilion puts it's run files, downloads, etc."),
@@ -81,7 +127,7 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
                       "example, 'module.gcc' would disable the gcc module "
                       "wrapper."),
         yc.StrElem(
-            "shared_group", post_validator=group_validate,
+            "shared_group", post_validator=_group_validate,
             help_text="Pavilion can automatically set group permissions on all "
                       "created files, so that users can share relevant "
                       "results, etc."),
@@ -111,6 +157,15 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
             help_text="Results are put in both the general log and a specific "
                       "results log. This defaults to 'results.log' in the "
                       "working directory."),
+        yc.PathElem(
+            'exception_log',
+            # Derive the default from the working directory, if a value isn't
+            # given.
+            post_validator=(lambda d, v: v if v is not None else
+                            d['working_dir']/'exceptions.log'),
+            help_text="Full exception tracebacks and related debugging "
+                      "information is logged here."
+        ),
         yc.IntElem(
             "wget_timeout", default=5,
             help_text="How long to wait on web requests before timing out. On "
@@ -157,12 +212,15 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
 
 def find(warn=True):
     """Search for a pavilion.yaml configuration file. Use the one pointed
-    to by PAV_CONFIG_FILE. Otherwise, use the first found in these
-    directories: {}""".format(PAV_CONFIG_SEARCH_DIRS)
+to by the PAV_CONFIG_FILE environment variable. Otherwise, use the first
+found in these directories the default config search paths:
 
-    import pathlib
+- The ~/.pavilion directory
+- The Pavilion source directory (don't put your config here).
+"""
+
     if PAV_CONFIG_FILE is not None:
-        pav_cfg_file = pathlib.PosixPath(Path(PAV_CONFIG_FILE))
+        pav_cfg_file = PosixPath(Path(PAV_CONFIG_FILE))
         # pylint has a bug that pops up occasionally with pathlib.
         if pav_cfg_file.is_file():  # pylint: disable=no-member
             try:
