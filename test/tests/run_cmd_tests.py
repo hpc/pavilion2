@@ -2,7 +2,6 @@ from pavilion import plugins
 from pavilion import commands
 from pavilion.unittest import PavTestCase
 from pavilion import arguments
-from pavilion.test_config.file_format import TestConfigError
 import io
 import json
 
