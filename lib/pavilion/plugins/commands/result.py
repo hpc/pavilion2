@@ -123,7 +123,7 @@ class ResultsCommand(commands.Command):
         if full_arg:
             if len(test_list) > 1:
                 utils.fprint(
-                    "Requested full test results but provided multiple tests. " 
+                    "Requested full test results but provided multiple tests. "
                     "Giving results for only the first found.",
                     color=utils.YELLOW,
                     file=sys.stdout,
