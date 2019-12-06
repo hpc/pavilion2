@@ -831,4 +831,3 @@ class Slurm(SchedulerPlugin):
             return num_nodes, num_cpus, node_list
         except subprocess.CalledProcessError:
             return ""
-
