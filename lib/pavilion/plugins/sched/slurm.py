@@ -827,7 +827,8 @@ class Slurm(SchedulerPlugin):
             sc_out = subprocess.check_output(['scontrol', 'show', 'job', jobid])
             num_nodes = (re.search('NumNodes=(\d+)', str(sc_out))).group(0)
             num_cpus = (re.search('NumCPUs=(\d+)', str(sc_out))).group(0)
-            return num_nodes, num_cpus
+            node_list = (re.search('NodeList=(\w+)', str(sc_out))).group(0)
+            return num_nodes, num_cpus, node_list
         except subprocess.CalledProcessError:
             return ""
 
