@@ -12,7 +12,7 @@ class SlurmMPIVars(slurm.SlurmVars):
         return ['mpirun', '-N', self.test_procs()]
 
 
-class SlurmMPI(slurm.Slurm):
+class SlurmMPI(SchedulerPlugin):
 
     VAR_CLASS = SlurmMPIVars
 
