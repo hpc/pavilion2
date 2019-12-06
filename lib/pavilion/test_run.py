@@ -4,7 +4,6 @@ the list of all known test runs."""
 # pylint: disable=too-many-lines
 
 import bz2
-from collections import OrderedDict
 import datetime
 import gzip
 import hashlib
@@ -18,8 +17,8 @@ import subprocess
 import tarfile
 import time
 import urllib.parse
-import zipfile
 import sys
+import zipfile
 from pathlib import Path
 
 from pavilion import lockfile
@@ -31,6 +30,7 @@ from pavilion import schedulers
 from pavilion.status_file import StatusFile, STATES
 from pavilion.test_config import variables
 from pavilion.utils import fprint
+from pavilion.utils import ZipFileFixed as ZipFile
 
 
 def get_latest_tests(pav_cfg, limit):
@@ -470,20 +470,9 @@ build.
                     finally:
                         # The build failed. The reason should already be set
                         # in the status file.
-                        def handle_error(_, path, exc_info):
-                            """Ignore errors"""
-                            self.logger.error(
-                                "Error removing temporary build "
-                                "directory '%s': %s",
-                                path, exc_info)
 
                         if build_dir.exists():
-                            # Cleanup the temporary build tree.
-                            os.mkdir(str(self.build_path))
-                            os.rename(str(build_dir / 'pav_build_log'),
-                                      str(self.build_path / 'pav_build_log'))
-                            shutil.rmtree(path=build_dir.as_posix(),
-                                          onerror=handle_error)
+                            build_dir.rename(self.build_path)
                 else:
                     self.status.set(
                         STATES.BUILDING,
@@ -742,7 +731,7 @@ build.
                 try:
                     # Extract the zipfile, under the same conditions as
                     # above with tarfiles.
-                    with zipfile.ZipFile(src_path.as_posix()) as zipped:
+                    with ZipFile(src_path.as_posix()) as zipped:
 
                         tmpdir = build_path.with_suffix('.unzipped')
                         tmpdir.mkdir()
@@ -867,8 +856,6 @@ build.
 
             self._started = datetime.datetime.now()
 
-            # TODO: There should always be a build directory, even if there
-            #       isn't a build.
             # Set the working directory to the build path, if there is one.
             run_wd = None
             if self.build_path is not None:
