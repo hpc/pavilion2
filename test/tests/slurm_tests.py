@@ -5,7 +5,7 @@ from pavilion.unittest import PavTestCase
 from pavilion import result_parsers
 from pavilion.test_config.file_format import TestConfigLoader
 from pavilion.status_file import STATES
-from pavilion.pav_test import PavTest
+from pavilion.test_run import TestRun
 import subprocess
 import time
 import unittest
@@ -60,7 +60,7 @@ class SlurmTests(PavTestCase):
         })
         cfg['name'] = 'slurm_test'
 
-        test = PavTest(self.pav_cfg, cfg, {})
+        test = TestRun(self.pav_cfg, cfg, {})
         test.status.set(STATES.SCHEDULED, "not really though.")
 
         # Grab a random jobid, and get the status of it.
@@ -90,7 +90,7 @@ class SlurmTests(PavTestCase):
         })
         cfg['name'] = 'slurm_test'
 
-        test = PavTest(self.pav_cfg, cfg, {})
+        test = TestRun(self.pav_cfg, cfg, {})
 
         for k, v in slurm.get_vars(test).items():
             # Make sure everything has a value of some sort.

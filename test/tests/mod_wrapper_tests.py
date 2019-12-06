@@ -111,10 +111,13 @@ class ModWrapperTests(PavTestCase):
             self.SORT_FUNC,
             'mods_sorted=$(echo "${TEST_MODULE_NAME}" | sort_mods)',
             'vers_sorted=$(echo "${TEST_MODULE_VERSION}" | sort_mods)',
+            'echo "mods_sorted ${mods_sorted}"',
+            'echo "vers_sorted ${vers_sorted}"',
             # test_mod1 only gets added once (no dups)
             '[[ "${mods_sorted}" == "test_mod1:test_mod2" ]] || exit 1',
             # test_mod2 has no version (but the module file appends it anyway.)
-            '[[ "${vers_sorted}" == "1.0:1.1:" ]] || exit 1'
+            '[[ "${vers_sorted}" == "1.0:1.1:" ]] || '
+            '[[ "${vers_sorted}" == "1.1::" ]] || exit 1'
         ]
 
         test = self._quick_test(test_cfg)
@@ -162,7 +165,7 @@ class ModWrapperTests(PavTestCase):
 
         test = self._quick_test(test_cfg)
         test.build()
-        run_result = test.run({},{})
+        run_result = test.run({}, {})
 
         self.assertEqual(run_result, STATES.RUN_DONE)
 
@@ -191,10 +194,10 @@ class ModWrapperTests(PavTestCase):
             'mods_sorted=$(echo ${TEST_MODULE_NAME} | sort_mods)',
             'vers_sorted=$(echo ${TEST_MODULE_VERSION} | sort_mods)',
             # test_mod1 only gets added once (no dups)
-            '[[ "${mods_sorted}" == "test_mod1:test_mod2:test_mod3" ]] || '
+            '[[ "${mods_sorted}" = "test_mod1:test_mod2:test_mod3" ]] || '
             'exit 1',
             # test_mod2 has no version (but the module file appends it anyway.)
-            '[[ "${vers_sorted}" == "1.1:4.0:" ]] || exit 1'
+            '[[ "${vers_sorted}" = "1.1:4.0:" ]] || exit 1'
         ]
 
         test = self._quick_test(test_cfg)
@@ -228,5 +231,26 @@ class ModWrapperTests(PavTestCase):
         test = self._quick_test(test_cfg)
         test.build()
         test.run({}, {})
-        self.assertEqual(test.status.current().state, STATES.ENV_FAILED)
+        self.assertEqual(test.status.current().state, STATES.ENV_FAILED,
+                         msg=(test.path/'run.log').open().read())
+
+    @unittest.skipIf(not has_module_cmd() and find_module_init() is None,
+                     "Could not find a module system.")
+    def test_module_plugin(self):
+        """Make sure module wrapper plugins work as expected."""
+
+        test_cfg = self._quick_test_cfg()
+
+        test_cfg['run']['preamble'].append('set -v')
+        test_cfg['run']['modules'] = ['itsa']
+        test_cfg['run']['cmds'] = [
+            '[[ "${TEST_MODULE_NAME}" = "fake" ]] || exit 1',
+            '[[ "${FAKE_VAR}" = "Itsa_real" ]] || exit 1',
+        ]
+
+        # Make sure we fail for a non-existent module.
+        test = self._quick_test(test_cfg)
+        test.build()
+        test.run({}, {})
+        self.assertEqual(test.status.current().state, STATES.RUN_DONE)
 

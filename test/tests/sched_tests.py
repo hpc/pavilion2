@@ -2,7 +2,7 @@ from pavilion import config
 from pavilion import plugins
 from pavilion import schedulers
 from pavilion.test_config import variables
-from pavilion.pav_test import PavTest
+from pavilion.test_run import TestRun
 from pavilion.unittest import PavTestCase
 import re
 
@@ -61,7 +61,7 @@ class RawSchedTests(PavTestCase):
             def _in_alloc(self):
                 return self.in_alloc_var
 
-        test = PavTest(
+        test = TestRun(
             self.pav_cfg,
             {
                 'name': 'sched-vars',
@@ -90,7 +90,7 @@ class RawSchedTests(PavTestCase):
         pav_cfg = self.pav_cfg
         pav_cfg['env_setup'] = ['test1', 'test2', 'test3']
 
-        test = PavTest(
+        test = TestRun(
             self.pav_cfg,
             {
                 'name': 'sched-vars',

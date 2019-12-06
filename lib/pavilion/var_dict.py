@@ -1,3 +1,9 @@
+"""
+This provides a dictionary class that can register functions to dynamically
+provide ``<function_name>:<return value>`` key:value pairs. The functions are
+lazily executed, and the results are cached.
+"""
+
 from collections import UserDict
 from functools import wraps
 import logging
