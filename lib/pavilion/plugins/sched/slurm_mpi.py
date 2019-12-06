@@ -12,12 +12,12 @@ class SlurmMPIVars(slurm.SlurmVars):
         return ['mpirun', '-N', self.test_procs()]
 
 
-class SlurmMPI(SchedulerPlugin):
+class SlurmMPI(slurm.Slurm):
 
     VAR_CLASS = SlurmMPIVars
 
-    def __init__(self):
-        SchedulerPlugin.__init__(
+    def __init__(self): # pylint: disable=W0231
+        SchedulerPlugin.__init__( # pylint: disable=W0233
             self,
             'slurm_mpi',
             'Schedules tests via Slurm but runs them using mpirun',
