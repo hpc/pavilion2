@@ -306,7 +306,7 @@ class Raw(SchedulerPlugin):
         runtime_regex = re.compile("se\.sum_exec_runtime\s+:\s+(\d+.\d+)")
 
         try:
-            
+
             with Path('/proc/' + str(pid) + "/status").open() as stat_file:
                 for line in stat_file:
                     match = memsize_regex.search(line)
