@@ -39,17 +39,17 @@ class FileCommand(commands.Command):
         if args.filename is not None:
             print_file(job_dir/args.filename)
         else:
-            for file_ in os.listdir(job_dir):
-                utils.fprint(file_, file=sys.stdout)
+            for file in os.listdir(job_dir):
+                utils.fprint(file, file=sys.stdout)
 
         return 0
 
 
 def print_file(filename):
     try:
-        with open(filename, 'r') as file_:
+        with open(filename, 'r') as file:
             while True:
-                block = file_.read(4096)
+                block = file.read(4096)
                 if not block:
                     break
                 utils.fprint(block, file=sys.stdout)
