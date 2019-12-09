@@ -175,6 +175,7 @@ class ScriptComposer:
                 new_dict[key] = env_dict[key]
 
         for key, value in env_dict.items():
+
             if value is not None:
                 self._script_lines.append('export {}={}'.format(key, value))
             else:

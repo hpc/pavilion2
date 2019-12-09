@@ -137,7 +137,7 @@ class Regex(result_parsers.ResultParser):
 
         # Test if the number of matches meets the specified threshold
         if threshold and int(threshold) > 0:
-            return (len(matches) >= int(threshold))
+            return len(matches) >= int(threshold)
         elif match_type == result_parsers.MATCH_FIRST:
             matches = None if not matches else matches[0]
         elif match_type == result_parsers.MATCH_LAST:

@@ -4,7 +4,6 @@ the list of all known test runs."""
 # pylint: disable=too-many-lines
 
 import bz2
-from collections import OrderedDict
 import datetime
 import gzip
 import hashlib
@@ -18,8 +17,8 @@ import subprocess
 import tarfile
 import time
 import urllib.parse
-import zipfile
 import sys
+import zipfile
 from pathlib import Path
 
 from pavilion import lockfile
@@ -30,6 +29,7 @@ from pavilion import wget
 from pavilion.status_file import StatusFile, STATES
 from pavilion.test_config import variables
 from pavilion.utils import fprint
+from pavilion.utils import ZipFileFixed as ZipFile
 
 
 def get_latest_tests(pav_cfg, limit):
@@ -469,20 +469,9 @@ build.
                     finally:
                         # The build failed. The reason should already be set
                         # in the status file.
-                        def handle_error(_, path, exc_info):
-                            """Ignore errors"""
-                            self.logger.error(
-                                "Error removing temporary build "
-                                "directory '%s': %s",
-                                path, exc_info)
 
                         if build_dir.exists():
-                            # Cleanup the temporary build tree.
-                            os.mkdir(str(self.build_path))
-                            os.rename(str(build_dir / 'pav_build_log'),
-                                      str(self.build_path / 'pav_build_log'))
-                            shutil.rmtree(path=build_dir.as_posix(),
-                                          onerror=handle_error)
+                            build_dir.rename(self.build_path)
                 else:
                     self.status.set(
                         STATES.BUILDING,
@@ -645,6 +634,11 @@ build.
 
         elif src_path.is_dir():
             # Recursively copy the src directory to the build directory.
+            self.status.set(
+                STATES.BUILDING,
+                "Copying source directory {} for build {} "
+                "as the build directory."
+                .format(src_path, build_path))
             shutil.copytree(src_path.as_posix(),
                             build_path.as_posix(),
                             symlinks=True)
@@ -666,6 +660,11 @@ build.
                             # make that directory the build directory. This
                             # should be the default in most cases.
                             if len(top_level) == 1 and top_level[0].isdir():
+                                self.status.set(
+                                    STATES.BUILDING,
+                                    "Extracting tarfile {} for build {} "
+                                    "as the build directory."
+                                    .format(src_path, build_path))
                                 tmpdir = build_path.with_suffix('.extracted')
                                 tmpdir.mkdir()
                                 tar.extractall(tmpdir.as_posix())
@@ -675,6 +674,11 @@ build.
                             else:
                                 # Otherwise, the build path will contain the
                                 # extracted contents of the archive.
+                                self.status.set(
+                                    STATES.BUILDING,
+                                    "Extracting tarfile {} for build {} "
+                                    "into the build directory."
+                                    .format(src_path, build_path))
                                 build_path.mkdir()
                                 tar.extractall(build_path.as_posix())
                     except (OSError, IOError,
@@ -703,6 +707,11 @@ build.
                         raise RuntimeError("Unhandled compression type. '{}'"
                                            .format(subtype))
 
+                    self.status.set(
+                        STATES.BUILDING,
+                        "Extracting {} file {} for build {} "
+                        "into the build directory."
+                        .format(subtype, src_path, build_path))
                     decomp_fn = src_path.with_suffix('').name
                     decomp_fn = build_path/decomp_fn
                     build_path.mkdir()
@@ -721,7 +730,7 @@ build.
                 try:
                     # Extract the zipfile, under the same conditions as
                     # above with tarfiles.
-                    with zipfile.ZipFile(src_path.as_posix()) as zipped:
+                    with ZipFile(src_path.as_posix()) as zipped:
 
                         tmpdir = build_path.with_suffix('.unzipped')
                         tmpdir.mkdir()
@@ -729,10 +738,20 @@ build.
 
                         files = os.listdir(tmpdir.as_posix())
                         if len(files) == 1 and (tmpdir/files[0]).is_dir():
+                            self.status.set(
+                                STATES.BUILDING,
+                                "Extracting zip file {} for build {} "
+                                "as the build directory."
+                                .format(src_path, build_path))
                             # Make the zip's root directory the build dir.
                             (tmpdir/files[0]).rename(build_path)
                             tmpdir.rmdir()
                         else:
+                            self.status.set(
+                                STATES.BUILDING,
+                                "Extracting zip file {} for build {} "
+                                "into the build directory."
+                                .format(src_path, build_path))
                             # The overall contents of the zip are the build dir.
                             tmpdir.rename(build_path)
 
@@ -744,6 +763,11 @@ build.
             else:
                 # Finally, simply copy any other types of files into the build
                 # directory.
+                self.status.set(
+                    STATES.BUILDING,
+                    "Copying file {} for build {} "
+                    "into the build directory."
+                    .format(src_path, build_path))
                 dest = build_path/src_path.name
                 try:
                     build_path.mkdir()
@@ -826,8 +850,6 @@ build.
 
             self._started = datetime.datetime.now()
 
-            # TODO: There should always be a build directory, even if there
-            #       isn't a build.
             # Set the working directory to the build path, if there is one.
             run_wd = None
             if self.build_path is not None:
@@ -839,6 +861,9 @@ build.
                                     cwd=run_wd,
                                     stdout=run_log,
                                     stderr=subprocess.STDOUT)
+
+            self.status.set(STATES.RUNNING,
+                            "Currently running.")
 
             # Run the test, but timeout if it doesn't produce any output every
             # self._run_timeout seconds

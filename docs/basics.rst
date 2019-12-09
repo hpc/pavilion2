@@ -54,6 +54,8 @@ optional.
 The above test checks to see if the ``/var/log/messages`` directory
 exits.
 
+- The test is named 'mytest'. The name of the yaml file determines the
+  test's *suite*.
 - The test will PASS if that command returns 0.
 - It will run as a process on the local machine, as your user.
 - Pavilion doesn't have any special priviledges. It's meant to test things,

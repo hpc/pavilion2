@@ -16,8 +16,9 @@ import shutil
 import subprocess
 import sys
 import textwrap
+import zipfile
 
-from collections import defaultdict, UserString
+from collections import defaultdict, UserString, UserDict
 from pathlib import Path
 
 # Setup colors as part of the fprint function itself.
@@ -73,6 +74,7 @@ this dictionary, or directly as attributes in the utils modules. ::
 - FAINT
 - UNDERLINE
 """
+
 
 def get_relative_timestamp(base_dt):
     """Print formatted time string based on the delta of time objects.
@@ -185,6 +187,28 @@ def get_login():
             "Could not get the name of the current user.")
 
 
+class ZipFileFixed(zipfile.ZipFile):
+    """Overrides the default behavior in ZipFile to preserve execute
+    permissions."""
+    def _extract_member(self, member, targetpath, pwd):
+
+        ret = super()._extract_member(member, targetpath, pwd)
+
+        if not isinstance(member, zipfile.ZipInfo):
+            member = self.getinfo(member)
+
+        perms = member.external_attr >> 16
+
+        file_path = os.path.join(targetpath, member.filename)
+        if perms != 0:
+            try:
+                os.chmod(file_path, perms)
+            except OSError:
+                pass
+
+        return ret
+
+
 def dbg_print(*args, color=YELLOW, file=sys.stderr, end="", **kwargs):
     """A colored print statement for debug printing. Use when you want to
 print dbg statements and easily excise it later.
@@ -234,16 +258,20 @@ def fprint(*args, color=None, bullet='', width=100,
 
 
 class PavEncoder(json.JSONEncoder):
-    """Adds Path encoding to our JSON encoder."""
+    """Adds various pavilion types to our JSON encoder, so it can
+    automatically encode them."""
 
     def default(self, o):  # pylint: disable=E0202
         if isinstance(o, Path):
             return str(o)
-
-        if isinstance(o, (datetime.datetime)):
+        elif isinstance(o, datetime.datetime):
             return o.isoformat()
+        # Just auto-convert anything that looks like a dict.
+        elif isinstance(o, (dict, UserDict)):
+            return dict(o)
 
         return super().default(o)
+
 
 def json_dumps(obj, skipkeys=False, ensure_ascii=True,
                check_circular=True, allow_nan=True, indent=None,
