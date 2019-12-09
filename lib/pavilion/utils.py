@@ -87,9 +87,9 @@ def get_relative_timestamp(base_dt):
 
     for i in range(0, len(format_)):
         if now.strftime(format_[i]) != base_dt.strftime(format_[i]):
-            return now.strftime(" ".join(format_[i:]))
+            return base_dt.strftime(" ".join(format_[i:]))
 
-    return now.strftime(str(format_[3]))
+    return base_dt.strftime(str(format_[3]))
 
 
 def flat_walk(path, *args, **kwargs):
