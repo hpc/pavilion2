@@ -10,7 +10,7 @@ class FileCommand(commands.Command):
 
     def __init__(self):
         super().__init__(
-            'tree',
+            'ls',
             'List test artifact files of pav <job id>.',
             short_help="List pavilion <job id> files"
         )
@@ -19,6 +19,11 @@ class FileCommand(commands.Command):
         parser.add_argument(
             'job_id',
             help="Job id number."
+        )
+
+        parser.add_argument(
+            '--simple',
+            help="don't print color"
         )
 
     def run(self, pav_cfg, args):
