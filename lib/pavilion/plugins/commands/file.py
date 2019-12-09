@@ -27,7 +27,7 @@ class FileCommand(commands.Command):
 
     def run(self, pav_cfg, args):
 
-        test_dir = pav_cfg.working_dir/'tests'
+        test_dir = pav_cfg.working_dir/'test_runs'
         job_dir = test_dir/args.job_id
 
         if os.path.isdir(job_dir.as_posix()) is False:
