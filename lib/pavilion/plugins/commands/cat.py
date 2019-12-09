@@ -9,9 +9,9 @@ class FileCommand(commands.Command):
 
     def __init__(self):
         super().__init__(
-            'file',
-            'List files and file contents associated with pav <job id>.',
-            short_help="List file information of <job id>"
+            'cat',
+            'Print the contents of a pav <job id> file.',
+            short_help="Print file information of <job id>"
         )
 
     def _setup_arguments(self, parser):
@@ -20,7 +20,7 @@ class FileCommand(commands.Command):
             help="Job id number."
         )
         parser.add_argument(
-            '--filename',
+            'file',
             type=str,
             help="name of a file within working_dir/tests/<job id>/"
         )
@@ -36,18 +36,14 @@ class FileCommand(commands.Command):
                          file=sys.stderr, color=utils.RED)
             sys.exit()
 
-        if args.filename is not None:
-            print_file(job_dir/args.filename)
-        else:
-            for file in os.listdir(job_dir):
-                utils.fprint(file, file=sys.stdout)
+        print_file(job_dir/args.file)
 
         return 0
 
 
-def print_file(filename):
+def print_file(file):
     try:
-        with open(filename, 'r') as file:
+        with open(file, 'r') as file:
             while True:
                 block = file.read(4096)
                 if not block:
@@ -55,11 +51,11 @@ def print_file(filename):
                 utils.fprint(block, file=sys.stdout)
 
     except IsADirectoryError:
-        utils.fprint("{} is a directory.".format(filename), sys.stderr,
+        utils.fprint("{} is a directory.".format(file), sys.stderr,
                      color=utils.RED)
         sys.exit()
 
     except FileNotFoundError:
-        utils.fprint("file '{}' does not exist.".format(filename), sys.stderr,
+        utils.fprint("file '{}' does not exist.".format(file), sys.stderr,
                      color=utils.RED)
         sys.exit()
