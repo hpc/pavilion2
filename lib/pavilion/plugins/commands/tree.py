@@ -39,7 +39,11 @@ class FileCommand(commands.Command):
 def print_directory(level, path):
     for file in os.listdir(path):
         filename = os.path.join(path, file)
-        if os.path.isdir(filename):
+        if os.path.islink(filename):
+            utils.fprint("{}{} -> {}".format(' '*4*level, file,
+                                             os.path.realpath(filename)),
+                         file=sys.stdout, color=utils.CYAN)
+        elif os.path.isdir(filename):
             utils.fprint("{}{}/".format(' '*4*level, file),
                          file=sys.stdout, color=utils.BLUE)
             print_directory(level + 1, filename)
