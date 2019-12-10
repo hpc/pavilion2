@@ -22,8 +22,9 @@ class FileCommand(commands.Command):
         )
 
         parser.add_argument(
-            '--simple',
-            help="don't print color"
+            'subdir',
+            help="don't print color",
+            nargs='?'
         )
 
     def run(self, pav_cfg, args):
@@ -32,20 +33,32 @@ class FileCommand(commands.Command):
         job_dir = test_dir/args.job_id
 
         if os.path.isdir(job_dir.as_posix()) is False:
-            utils.fprint("directory '{}' does not exist."
-                         .format(job_dir.as_posix()),
-                         file=sys.stderr, color=utils.RED)
-            sys.exit()
+            err_dir(job_dir)
 
-        level = 0
-        print_directory(level, job_dir)
+        if args.subdir:
+            print_directory(job_dir/args.subdir)
+        else:
+            print_directory(job_dir)
+
         return 0
 
-def print_directory(level, path):
+def print_directory(path):
+    if os.path.isdir(path) is False:
+        err_dir(path)
+
     for file in os.listdir(path):
-        if os.path.isdir(os.path.join(path, file)):
-            utils.fprint("{}{}/".format(' '*4*level, str(file)),
-                         file=sys.stdout, color=utils.BLUE)
-            print_directory(level + 1, os.path.join(path, file))
+        filename = os.path.join(path, file)
+        if os.path.isdir(filename):
+            utils.fprint(file, file=sys.stdout, color=utils.BLUE)
+        elif os.path.islink(filename) is True:
+            utils.fprint("{} -> {}".format(file, os.path.realpath(filename),
+                                           file=sys.stdout))
         else:
-            utils.fprint("{}{}".format(' '*4*level, file), file=sys.stdout)
+            utils.fprint(file, file=sys.stdout)
+
+
+def err_dir(dir_):
+    utils.fprint("directory '{}' does not exist."
+                 .format(job_dir.as_posix()),
+                 file=sys.stderr, color=utils.RED)
+    sys.exit()
