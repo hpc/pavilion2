@@ -9,7 +9,7 @@ This page contains in-depth documentation on the test format.
 Tests and Suites
 ----------------
 
-Each Suite is a file (with a ``.yaml`` extension) which can contain
+Each Suite is a yaml file (with a ``.yaml`` extension) which can contain
 multiple tests. Suite files must reside in ``<config_dir>/tests/``,
 where ``<config_dir>`` is one of your
 `configuration directories <../conf.html>`__. Tests
@@ -152,6 +152,35 @@ automatically interprets that as a list of that single value.
             - {bar: 1}
             - {bar: 2}
           baz: {buz: "hello"}
+
+Hidden Tests
+------------
+
+Tests can be hidden by starting their name with an underscore '_' character.
+This is often useful when you have a base test that others inherit from, but
+the base test is never supposed to run on its own.
+
+- Hidden tests never run when you run a whole suite.
+- To run them, you must specify the full name of the test:
+  ``pav run mytestsuite._base``.
+- The ``pav show tests`` commands won't show them unless give the
+  ``--hidden`` flag.
+
+.. code:: yaml
+
+    # This won't run
+    _base:
+        build:
+            cmds: make
+
+        run:
+            cmds: ./mytest -n {count|5}
+
+    big_run:
+        inherits_from: _base
+
+        variables:
+            count: 1000
 
 Host Configs
 ------------

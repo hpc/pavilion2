@@ -14,7 +14,7 @@ from yaml_config import RequiredError
 from yc_yaml import YAMLError
 from . import string_parser
 from . import variables
-from .file_format import TestConfigError, KEY_NAME_RE
+from .file_format import TestConfigError, TEST_NAME_RE, KEY_NAME_RE
 from .file_format import TestConfigLoader, TestSuiteLoader
 # Config file types
 CONF_HOST = 'hosts'
@@ -246,7 +246,7 @@ def load_test_configs(pav_cfg, host, modes, tests):
         if KEY_NAME_RE.match(test_suite) is None:
             raise TestConfigError("Invalid test suite name: '{}'"
                                   .format(test_suite))
-        if requested_test != '*' and KEY_NAME_RE.match(requested_test) is None:
+        if requested_test != '*' and TEST_NAME_RE.match(requested_test) is None:
             raise TestConfigError("Invalid subtest for requested test: '{}'"
                                   .format(test_name))
 
@@ -291,7 +291,8 @@ def load_test_configs(pav_cfg, host, modes, tests):
         if requested_test == '*':
             # All tests were requested.
             for test_cfg_name, test_cfg in all_tests[test_suite].items():
-                picked_tests.append(test_cfg)
+                if not test_cfg_name.startswith('_'):
+                    picked_tests.append(test_cfg)
 
         else:
             # Get the one specified test.

@@ -17,6 +17,7 @@ Pavilion has very few dependencies and requirements:
 
   - The path to this directory must be consistent across all cluster hosts.
   - It must support atomic file creation and appends of < 4kb.
+- Lmod or 'environment modules' is recommended.
 
 Filesystems
 ~~~~~~~~~~~
@@ -44,6 +45,23 @@ Result Log
 The result log can be configured to write to an arbitrary filesystem.
 That filesystem should be shared and have consistent paths as well, as
 the log is written as the final on-node step in tests.
+
+Recommended Directory Structure
+-------------------------------
+
+We recommend the following directory structure for Pavilion.
+
+- ``<root>/pavilion/src`` - Clone/install pavilion here.
+- ``<root>/pavilion/config`` - Your pavilion configuration files. See
+  '`configuring pavilion <config.html>`__'.
+- ``<root>/pavilion/working_dir`` - Where test runs and builds will be written.
+
+The ``<root>/pavilion/config`` directory will contain all of your site
+specific tests, plugins, and test source files. If you organize your tests in
+separate repositories, you may check them out here, and simply link the
+appropriate files into ``config/tests`` and ``config/test_src``.
+Alternatively, you can make the entire config directory, source tarballs and
+all, its own repository.
 
 Install
 -------
@@ -152,4 +170,24 @@ It comes with a couple of caveats:
     ${VENV_PATH}/bin/pip install -f requirements.txt
     # This has to be run before pav will work.
     ${VENV_PATH}/bin/activate
+
+Environment Modules
+===================
+
+Pavilion uses the ``module`` command to load modules for tests. It will work
+with either lmod or the tcl based 'environment modules' systems. This is
+generally only needed if your cluster/s have a complex software environment
+that supports multiple compilers and conflicting builds of libraries.
+
+It is assumed that the module environment is set up before you run Pavilion. If
+you need to set up this environment separately on allocations, use the
+'env_setup' option in the
+`general Pavilion configuration <config.rst>`__ to add the commands
+to do so.
+
+
+
+
+
+
 

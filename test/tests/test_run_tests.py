@@ -13,7 +13,7 @@ from pavilion.test_config import variables
 from pavilion.unittest import PavTestCase
 
 
-class PavTestTests(PavTestCase):
+class TestRunTests(PavTestCase):
 
     def test_obj(self):
         """Test pavtest object initialization."""

@@ -35,6 +35,12 @@ Project goals:
 
 .. toctree::
    :maxdepth: 2
+   :caption: Tutorials
+
+   tutorials/index.rst
+
+.. toctree::
+   :maxdepth: 2
    :caption: API Documentation
 
    source/index.rst
