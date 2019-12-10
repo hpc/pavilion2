@@ -42,12 +42,12 @@ class FileCommand(commands.Command):
 
         return 0
 
-def print_directory(path):
-    if os.path.isdir(path) is False:
-        err_dir(path)
+def print_directory(dir_):
+    if os.path.isdir(dir_) is False:
+        err_dir(dir_)
 
-    for file in os.listdir(path):
-        filename = os.path.join(path, file)
+    for file in os.listdir(dir_):
+        filename = os.path.join(dir_, file)
         if os.path.isdir(filename):
             utils.fprint(file, file=sys.stdout, color=utils.BLUE)
         elif os.path.islink(filename) is True:
@@ -58,7 +58,6 @@ def print_directory(path):
 
 
 def err_dir(dir_):
-    utils.fprint("directory '{}' does not exist."
-                 .format(job_dir.as_posix()),
+    utils.fprint("directory '{}' does not exist." .format(dir_),
                  file=sys.stderr, color=utils.RED)
     sys.exit()
