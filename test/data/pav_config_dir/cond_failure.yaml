@@ -13,7 +13,7 @@ one:
             - 'echo "test completed"'
 two:
     not_if:
-        user: ['Bob','Eggman','calvindseamons']
+        user: ['Bob','Eggman','calvin']
 
     scheduler: raw
     raw:

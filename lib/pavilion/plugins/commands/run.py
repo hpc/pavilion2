@@ -17,7 +17,6 @@ from pavilion.test_config.string_parser import ResolveError
 from pavilion.test_config import setup
 from pavilion.utils import fprint
 from pavilion import result_parsers
-from pavilion.utils import dbg_print
 class RunCommand(commands.Command):
 
     def __init__(self):

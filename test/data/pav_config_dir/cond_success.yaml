@@ -1,6 +1,6 @@
 one:
     only_if:
-        user: ['Bob','Eggman','calvindseamons']
+        sys_name: ['Bob','Eggman','calvindseamons','bieber']
 
     scheduler: raw
     raw:

@@ -4,6 +4,7 @@ from pavilion import arguments
 from pavilion.test_config import file_format
 from pavilion import plugins
 from pavilion.status_file import STATES
+from pavilion.test_config import variables
 import os
 import io
 class ConditionalTest(PavTestCase):
@@ -16,6 +17,14 @@ class ConditionalTest(PavTestCase):
         plugins._reset_plugins()
 
     def test_success(self): # this methed runs a suite of conditional successes
+
+        sys_data = {
+             'sys_name': 'bieber',
+             'sys_os': 'centos',
+             'sys_arch': 'x86_64'}
+
+        base_var = variables.VariableSetManager()
+        base_var.add_var_set('sys',sys_data)
 
         arg_parser = arguments.get_parser()
 
@@ -34,9 +43,11 @@ class ConditionalTest(PavTestCase):
         tests = run_cmd.test_list
         print('#'*75)
         for i in range(0,len(tests)):
-            print(tests[i])
-            #self.assertFalse(tests[i].skipped)
+            print(tests[i].status.current().state + "--")
+            print(tests[i]) # + tests[i])
+            #self.assertFalse(tests[i].status.current().state == 'COMPLETED')
         print('#'*75)
+
     def test_failure(self): #this method runs a suite of conditional failures
         arg_parser = arguments.get_parser()
 
