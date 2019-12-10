@@ -10,9 +10,9 @@ class FileCommand(commands.Command):
 
     def __init__(self):
         super().__init__(
-            'ls',
-            'List test artifact files of pav <job id>.',
-            short_help="List pavilion <job id> files"
+            'tree',
+            'Print pav <job id> test directory file tree.',
+            short_help="List <job id> file tree"
         )
 
     def _setup_arguments(self, parser):
