@@ -40,8 +40,7 @@ class CancelCmdTests(PavTestCase):
             'cancel'
         ])
 
-        stats = get_statuses(self.pav_cfg, args, StringIO())
-        dbg_print(stats)
+        get_statuses(self.pav_cfg, args, StringIO())
 
         cancel_cmd = commands.get_command(args.command_name)
         cancel_cmd.outfile = StringIO()

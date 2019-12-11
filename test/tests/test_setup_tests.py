@@ -36,7 +36,8 @@ class TestSetupTests(PavTestCase):
         # Make sure this got overridden from 'world'
         self.assertEqual(narf['scheduler'], 'dummy')
         # Make sure this didn't get lost.
-        self.assertEqual(narf['run']['cmds'], ['echo "Running World"'])
+        self.assertEqual(narf['run']['cmds'], ['sleep 1m', 'echo "Running '
+                                               'World"'])
 
         plugins._reset_plugins()
 
