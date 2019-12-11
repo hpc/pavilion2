@@ -174,13 +174,14 @@ def print_status(statuses, outfile, json=False):
 def print_from_test_obj(pav_cfg, test_obj, outfile, json=False):
     """Print the statuses given a list of test objects or a single test object.
 
-:param dict pav_cfg: Base pavilion configuration.
-:param test_run.TestRun test_obj: Single or list of test objects.
-:param bool json: Whether the output should be a JSON object or not.
-:param stream outfile: Stream to which the statuses should be printed.
-:return: 0 for success.
-:rtype: int
-"""
+    :param dict pav_cfg: Base pavilion configuration.
+    :param test_run.TestRun test_obj: Single or list of test objects.
+    :param bool json: Whether the output should be a JSON object or not.
+    :param stream outfile: Stream to which the statuses should be printed.
+    :return: 0 for success.
+    :rtype: int
+    """
+
     status_list = status_from_test_obj(pav_cfg, test_obj)
     return print_status(status_list, outfile, json)
 

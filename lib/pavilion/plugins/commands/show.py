@@ -522,9 +522,15 @@ class ShowCommand(commands.Command):
         sys_vars = system_variables.get_vars(defer=True)
 
         for key in sorted(list(sys_vars.keys())):
-            value = sys_vars[key]
-            deferred = isinstance(value, DeferredVariable)
-            help_str = sys_vars.help(key)
+            try:
+                value = sys_vars[key]
+                deferred = isinstance(value, DeferredVariable)
+                help_str = sys_vars.help(key)
+
+            except system_variables.SystemPluginError as err:
+                value = utils.ANSIString('error', code=utils.RED)
+                deferred = False
+                help_str = utils.ANSIString(str(err), code=utils.RED)
 
             rows.append({
                 'name': key,

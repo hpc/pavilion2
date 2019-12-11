@@ -388,14 +388,15 @@ used when the string is formatted.
         :rtype: list((str,str))
         """
 
-        matches = list(self.ANSI_RE.finditer(str(data)))
+        data_str = str(data)
+        matches = list(self.ANSI_RE.finditer(data_str))
 
         start = 0
         parts = []
         code = None
 
         for match in matches:
-            parts.append((data[start:match.start()], code))
+            parts.append((data_str[start:match.start()], code))
 
             start = match.end()
             code = match.groups()[0]
@@ -404,7 +405,7 @@ used when the string is formatted.
             if code_parts[-1] in ('0', ''):
                 code = None
 
-        parts.append((data[start:], code))
+        parts.append((data_str[start:], code))
 
         return parts
 
@@ -475,13 +476,14 @@ used when the string is formatted.
         line = []
         line_len = 0
         while chunks:
-            chunk = chunks.pop()
+            chunk = ANSIString(chunks.pop())
+            clean_chunk = chunk.clean()
 
             # Skip whitespace that would start a line
-            if chunk.clean() == ' ' and line_len == 0:
+            if clean_chunk == ' ' and line_len == 0:
                 continue
 
-            c_len = len(ANSIString(chunk))
+            c_len = len(clean_chunk)
 
             # If the line is empty, put the next (non-whitespace) thing there.
             if line_len == 0:
@@ -490,8 +492,10 @@ used when the string is formatted.
                 remainder = ANSIString(chunk[width:], chunk.carryover_code)
                 if remainder:
                     chunks.append(remainder)
+                if len(remainder) > 200:
+                    raise Exception
 
-                line_len += len(chunk[:width])
+                line_len += len(ANSIString(chunk[:width]))
 
             # Add the next chunk if it's small enough.
             elif c_len + line_len <= width:

@@ -46,7 +46,6 @@ def dfr_var_method(*sub_keys):
     given_func = None
     if sub_keys and callable(sub_keys[0]):
         given_func = sub_keys[0]
-        sub_keys = []
 
     # This is the actual decorator that will be used.
     def _dfr_var(func):
@@ -58,11 +57,9 @@ def dfr_var_method(*sub_keys):
 
         @wraps(func)
         def defer(self):
-            # Return a deferred variable if we aren't on a node.
+            """Return a deferred variable if we aren't on a node."""
             if not self.sched.in_alloc:
-                return DeferredVariable(func.__name__,
-                                        var_set='sched',
-                                        sub_keys=sub_keys)
+                return DeferredVariable()
             else:
                 return str(func(self))
         return defer
@@ -92,18 +89,18 @@ class SchedulerVariables(VarDict):
       is specific to a test. These also tend to be deferred.
     """
 
-    def __init__(self, scheduler, test):
+    def __init__(self, scheduler, sched_config):
         """Initialize the scheduler var dictionary.
         :param SchedulerPlugin scheduler: The scheduler for this set of
         variables.
-        :param pavilion.test_run.TestRun test: The test object for which this
-        set of variables is relevant.
+        :param pavilion.test_run.TestRun sched_config: The test object for
+            which this set of variables is relevant.
         """
 
         super().__init__('sched')
 
         self.sched = scheduler
-        self.test = test
+        self.sched_config = sched_config
 
         self._keys = self._find_vars()
 
@@ -214,6 +211,7 @@ def get_scheduler_plugin(name):
 
     return _SCHEDULER_PLUGINS[name]
 
+
 def list_scheduler_plugins():
     """Return a list of all available scheduler plugin names.
 
@@ -309,10 +307,10 @@ class SchedulerPlugin(IPlugin.IPlugin):
         """
         raise NotImplementedError
 
-    def get_vars(self, test):
+    def get_vars(self, sched_config):
         """Returns the dictionary of scheduler variables."""
 
-        return self.VAR_CLASS(self, test)
+        return self.VAR_CLASS(self, sched_config)
 
     def schedule_tests(self, pav_cfg, tests):
         """Schedule each of the given tests using this scheduler using a
@@ -337,8 +335,8 @@ class SchedulerPlugin(IPlugin.IPlugin):
         :param test: A test object
         """
 
-        # Unused variables
-        del pav_cfg, test
+        # For syntax highlighting. These vars may be used when overridden.
+        del pav_cfg, test, self
 
         return None
 

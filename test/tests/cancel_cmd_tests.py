@@ -13,6 +13,7 @@ import errno
 import time
 import json
 
+
 class CancelCmdTests(PavTestCase):
 
     def setUp(self):
@@ -52,15 +53,27 @@ class CancelCmdTests(PavTestCase):
 
         arg_parser = arguments.get_parser()
 
-        args = arg_parser.parse_args([
-            'run',
-            '-H', 'this'
-            'hello_world2'
-        ])
+        # This test will just sleep for a bit.
+        cfg = self._quick_test_cfg()
+        cfg['run']['cmds'] = ['sleep 100']
 
-        run_cmd = commands.get_command(args.command_name)
-        run_cmd.outfile = StringIO()
-        run_cmd.run(self.pav_cfg, args)
+        test = self._quick_test(cfg=cfg)
+        test.build()
+
+        raw = schedulers.get_scheduler_plugin('raw')
+
+        raw.schedule_test(self.pav_cfg, test)
+
+        timeout = time.time() + 1
+        while (raw.job_status(self.pav_cfg, test).state == STATES.SCHEDULED
+               and time.time() < timeout):
+            time.sleep(.1)
+
+        # The test should be running
+        self.assertEqual(test.status.current().state,
+                         STATES.RUNNING)
+
+        self.assertEqual(raw.cancel_job(test).state, STATES.SCHED_CANCELLED)
 
         args = arg_parser.parse_args([
             'cancel'
@@ -70,18 +83,8 @@ class CancelCmdTests(PavTestCase):
         cancel_cmd.outfile = StringIO()
         cancel_cmd.errfile = StringIO()
 
-        test = []
-        series_id = series.TestSeries.load_user_series_id(self.pav_cfg)
-        test.append(series_id)
-        test_list = []
-        test_list.extend(series.TestSeries.from_id(self.pav_cfg,
-                                                   test[0]).tests)
-        for test_id in test_list:
-            test = TestRun.load(self.pav_cfg, test_id)
-            if test.status.current().state != STATES.COMPLETE:
-                sched = schedulers.get_scheduler_plugin(test.scheduler)
-                sched_status = sched.job_status(self.pav_cfg, test)
-                self.assertIn("SCHED_CANCELLED", str(sched_status))
+        sched_status = raw.job_status(self.pav_cfg, test)
+        self.assertIn("SCHED_CANCELLED", str(sched_status))
 
     def test_wait_cancel(self):
         """Test cancel command after waiting for tests to start."""
@@ -190,18 +193,13 @@ class CancelCmdTests(PavTestCase):
         series_id = series.TestSeries.load_user_series_id(self.pav_cfg)
         tests.append(series_id)
 
-        tests.extend(series.TestSeries.from_id(self.pav_cfg,
-                                               series_id).tests)
-
         args = arg_parser.parse_args([
             'cancel',
             tests[0],
-            str(tests[1]),
-            str(tests[2])
         ])
 
         cancel_cmd = commands.get_command(args.command_name)
-        cancel_cmd.outfile = StringIO()
+        cancel_cmd.outfile = sys.stdout
         cancel_cmd.errfile = StringIO()
 
         self.assertEqual(cancel_cmd.run(self.pav_cfg, args), 0)

@@ -19,8 +19,8 @@ plugin provided via sys_vars (sys), core pavilion provided (pav), and scheduler
 provided (sched).
 """
 
-import re
 import copy
+import json
 
 
 class VariableError(ValueError):
@@ -64,71 +64,19 @@ circumstances, and output an escape sequence when converted to a str.
     # NOTE: Other than __init__, this should always have the same interface
     # as VariableList.
 
-    VAR_TEMPLATE = '[\x1e{key}\x1e]'
-    ALLOWED_VARSETS = ['sys', 'pav', 'sched']
+    def get(self, index, sub_var):      # pylint: disable=no-self-use
+        """Deferred variables should never have their value retrieved."""
 
-    def __init__(self, name, var_set='sys', sub_keys=None):
-        """Deferred variables need to know their name and var_set at definition
-        time. Additionally, they need to be aware of their valid sub-keys.
-        They cannot have more than one value, like normal variables.
-
-:param str name: The name of this variable.
-:param var_set: The variable set this deferred variable belongs to.
-    Only some varsets are allowed, as defined in
-    DeferredVariable.ALLOWED_VARSETS.
-:param list sub_keys: A list of subkey names for the variable. None
-    denotes sub-keys aren't used.
-"""
-
-        if var_set not in self.ALLOWED_VARSETS:
-            raise ValueError("The allowed values of var_set are {}. Got {}."
-                             .format(self.ALLOWED_VARSETS, var_set))
-
-        self.name = name
-        self.var_set = var_set
-
-        if sub_keys is None:
-            sub_keys = list()
-
-        self.sub_keys = sub_keys
-
-    def get(self, index, sub_var):
-        """Get the 'value' of this deferred variable.
-The value is actually an escape sequence that will be replaced later.
-
-:param int index: Must be 0. Deferred variables can only have one item.
-:param str sub_var: The name of the sub_variable.
-"""
-
-        if index not in [0, None]:
-            raise KeyError("Deferred variables only have a single value.")
-
-        key = [self.var_set, self.name]
-
-        if sub_var is None and self.sub_keys:
-            raise KeyError('Sub variable not requested, but must be one of {}'
-                           .format(self.sub_keys))
-        elif sub_var is not None and not self.sub_keys:
-            raise KeyError(
-                'Sub variable {} requested for a deferred variable with no '
-                'sub-keys.'.format(sub_var))
-        elif sub_var is not None and sub_var not in self.sub_keys:
-            raise KeyError(
-                'Sub variable requested ({}) that is not in the known sub-key '
-                'list ({})'.format(sub_var, self.sub_keys))
-
-        if sub_var is not None:
-            key.append(sub_var)
-
-        return self.VAR_TEMPLATE.format(key='.'.join(key))
+        raise KeyError(
+            "Attempted to get the value of a deferred variable."
+        )
 
     def __len__(self):
         """Deferred variables always have a single value."""
-        return 1
 
-    def __repr__(self):
-        return ('DeferredVariable({s.name}, {s.var_set}, {s.sub_keys})'
-                .format(s=self))
+        raise VariableError(
+            "Attempted to get the length of a deferred variable."
+        )
 
 
 class VariableSetManager:
@@ -158,15 +106,19 @@ Usage: ::
         self.reserved_keys = []
         self.reserved_keys.extend(self.VAR_SETS)
 
+        # A dictionary of the known deferred variables.
+        self.deferred = set()
+
     def add_var_set(self, name, value_dict):
         """Add a new variable set to this variable set manager. Variables in
-the set can then be retrieved by complex key.
+        the set can then be retrieved by complex key.
 
-:param str name: The name of the var set. Must be one of the reserved
-    keys.
-:param dict value_dict: A dictionary of values to populate the var set.
-:return: None
-:raises VariableError: On problems with the name or data.
+        :param str name: The name of the var set. Must be one of the reserved
+            keys.
+        :param Union(dict,collections.UserDict) value_dict: A dictionary of
+            values to populate the var set.
+        :return: None
+        :raises VariableError: On problems with the name or data.
         """
         if name not in self.reserved_keys:
             raise ValueError("Unknown variable set name: '{}'".format(name))
@@ -176,12 +128,15 @@ the set can then be retrieved by complex key.
                 "Variable set '{}' already initialized.".format(name))
 
         try:
-            var_set = VariableSet(name, self.reserved_keys,
-                                  value_dict=value_dict)
+            var_set = VariableSet(name, value_dict=value_dict)
         except VariableError as err:
             # Update the error to include the var set.
             err.var_set = name
             raise err
+
+        for var, val in var_set.data.items():
+            if isinstance(val, DeferredVariable):
+                self.set_deferred(name, var)
 
         self.variable_sets[name] = var_set
 
@@ -221,6 +176,7 @@ permutation.
             var_man = VariableSetManager()
 
             var_man.variable_sets = copy.deepcopy(self.variable_sets)
+            var_man.deferred = self.deferred
 
             for (var_set, var), idx in perm.items():
                 new_list = [self.variable_sets[var_set][var][idx]]
@@ -308,19 +264,19 @@ index, sub_var) tuple.
 
     def resolve_key(self, key):
         """Resolve the given key using this known var sets. Unlike parse_key,
-the var_set returned will never be None, as the key must
-correspond to a found variable in a var_set. In case of
-conflicts, the var_set will be resolved in order.
+        the var_set returned will never be None, as the key must
+        correspond to a found variable in a var_set. In case of
+        conflicts, the var_set will be resolved in order.
 
-:param Union(str,list,tuple) key: A 1-4 part key. These may either be
-    given as a list/tuple of strings, or dot separated in a string.
-    The components are var_set, var, index, and sub_var. Var is
-    required, the rest are optional. Index is expected to be an
-    integer, and var_set is expected to be a key category.
-:raises KeyError: For bad keys, and when the var_set can't be found.
-:returns: A tuple of (var_set, var, index, sub_var), index and sub_var
-    may be None.
-"""
+        :param Union(str,list,tuple) key: A 1-4 part key. These may either be
+            given as a list/tuple of strings, or dot separated in a string.
+            The components are var_set, var, index, and sub_var. Var is
+            required, the rest are optional. Index is expected to be an
+            integer, and var_set is expected to be a key category.
+        :raises KeyError: For bad keys, and when the var_set can't be found.
+        :returns: A tuple of (var_set, var, index, sub_var), index and sub_var
+            may be None.
+        """
 
         var_set, var, index, sub_var = self.parse_key(key)
 
@@ -349,6 +305,83 @@ conflicts, the var_set will be resolved in order.
         else:
             return '.'.join([str(k) for k in key if k is not None])
 
+    def resolve_references(self, parser):
+        """Resolve all variable references that are within variable values
+        defined in the 'variables' section of the test config.
+
+        :param function parser: The Parser function from string_parser. This
+            must be passed to avoid import loops.
+        :raises TestConfigError: When reference loops are found.
+        :raises KeyError: When an unknown variable is referenced.
+        """
+
+        # We only want to resolve variable references in the variable section
+        var_vars = self.variable_sets['var']
+        unresolved_vars = {}
+
+        # Find all the variable value strings that reference variables
+        for var, var_list in var_vars.data.items():
+            # val is a list of dictionaries
+
+            for idx in range(len(var_list.data)):
+                sub_var = var_list.data[idx]
+                for key, val in sub_var.data.items():
+                    pav_str = parser(val)
+
+                    if pav_str.variables:
+                        # Unresolved variable reference that will be resolved
+                        # below.
+                        unresolved_vars[('var', var, idx, key)] = pav_str
+                    else:
+                        # This one is ready to resolve now. While it might not
+                        # contain variables, it may contain other escapes and
+                        # Pavilion specific syntax.
+                        val = pav_str.resolve(self)
+                        if val is None:
+                            # This variable references a deferred variable, and
+                            # is thus deferred itself.
+                            sub_var.data[key] = pav_str.resolve(self)
+
+        # unresolved variables form a tree where the leaves should all be
+        # resolved variables. This iteratively finds unresolved variables whose
+        # references are resolved and resolves them. This should collapse the
+        # tree until there are no unresolved variables left.
+        while unresolved_vars:
+
+            did_resolve = False
+            for uvar, pav_str in unresolved_vars.copy().items():
+                for var_str in pav_str.variables:
+                    var_key = self.resolve_key(var_str)
+                    # Set the index 0 if it is None
+                    if var_key[2] is None:
+                        var_key = (var_key[0], var_key[1], 0, var_key[2])
+
+                    if var_key in unresolved_vars:
+                        break
+                else:
+                    # All variables referenced in uvar are resolvable
+                    var_set, var_name, index, sub_var = uvar
+                    res_val = pav_str.resolve(self)
+                    if res_val is None:
+                        # One or more of the variables is deferred, so we can't
+                        # resolve this now. Mark it as deferred.
+                        self.set_deferred(var_set, var_name, index, sub_var)
+                    else:
+                        # Otherwise, save the resolved value.
+                        self._set_value((var_set, var_name, index, sub_var),
+                                        res_val)
+
+                    del unresolved_vars[uvar]
+                    did_resolve = True
+
+            # If no variable is resolved in this iteration, then all remaining
+            # unresolved variables are part of a variable reference loop and
+            # therefore cannot eventually be resolved.
+            if not did_resolve:
+                raise VariableError(
+                    "Variables '{}' contained reference loop"
+                    .format([k[1] for k in unresolved_vars.keys()]))
+
     def __getitem__(self, key):
         """Find the item that corresponds to the given complex key.
         :param Union(str, list, tuple) key: A variable key. See parse_key for
@@ -368,25 +401,51 @@ conflicts, the var_set will be resolved in order.
                 "Could not resolve reference '{}': {}"
                 .format(self.key_as_dotted(key), msg))
 
-    def is_deferred(self, var_set, var):
-        """Return whether the given variable in the given varset is a
-deferred variable.
+    def _set_value(self, key, value):
+        """Set the value at 'key' to the new value. A value must already
+        exist at this location."""
 
-:rtype: bool
-"""
+        var_set, var, index, sub_var = self.resolve_key(key)
 
-        return isinstance(self.variable_sets[var_set].data[var],
-                          DeferredVariable)
+        self.variable_sets[var_set].set_value(var, index, sub_var, value)
+
+    def is_deferred(self, var_set, var, idx=None, sub_var=None):
+        """Return whether the given variable is deferred. Fully specified
+        variables (with idx and sub_var set) may be deferred specifically
+        or in general at various levels.
+
+        :rtype: bool
+        """
+
+        return ((var_set, var, None, None) in self.deferred or
+                (var_set, var, idx, None) in self.deferred or
+                (var_set, var, idx, sub_var) in self.deferred)
+
+    def set_deferred(self, var_set, var, idx=None, sub_var=None):
+        """Set the given variable as deferred. Variables may be deferred
+        as a whole, or as individual list or sub_var items.
+
+        :param str var_set: The var_set of the deferred var.
+        :param str var: The variable name.
+        :param Union(int, None) idx: The idx of the deferred var. If set to
+            None, the variable is deferred for all indexes. Note that single
+            valued variables have an index of zero.
+        :param Union(str, None) sub_var: The sub_variable name that is
+            deferred.
+
+        """
+
+        self.deferred.add((var_set, var, idx, sub_var))
 
     def len(self, var_set, var):
         """Get the length of the given key.
 
-:param str var_set: The var set to fetch from.
-:param str var: The variable to fetch.
-:rtype: int
-:return: The number of items in the found 'var_set.var'.
-:raises KeyError: When the key has problems, or can't be found.
-"""
+        :param str var_set: The var set to fetch from.
+        :param str var: The variable to fetch.
+        :rtype: int
+        :return: The number of items in the found 'var_set.var'.
+        :raises KeyError: When the key has problems, or can't be found.
+        """
 
         if var_set not in self.variable_sets:
             raise KeyError("Unknown variable set '{}'".format(var_set))
@@ -402,152 +461,14 @@ deferred variable.
 
         return len(_var_set.data[var])
 
-    @classmethod
-    def has_deferred(cls, struct):
-        """Return True if the config structure contains any deferred
-variables."""
-
-        if isinstance(struct, str):
-            if '[\x1b' in struct and '\x1b]' in struct:
-                return True
-            else:
-                return False
-        elif isinstance(struct, list):
-            return any([cls.has_deferred(val) for val in struct])
-        elif isinstance(struct, dict):
-            return any([cls.has_deferred(val) for val in struct.values()])
-        else:
-            raise RuntimeError("Config structure contains invalid data types:"
-                               "{}".format(struct))
-
-    def resolve_deferred(self, struct):
-        """Traverse the given config structure and resolve any deferred
-variables found.
-
-:param Union(list, dict, str) struct: The config structure to resolve.
-:rtype: Union(list, dict, str)
-"""
-
-        if isinstance(struct, str):
-            return self.resolve_deferred_str(struct)
-        elif isinstance(struct, list):
-            for i in range(len(struct)):
-                struct[i] = self.resolve_deferred(struct)
-            return struct
-        elif isinstance(struct, dict):
-            for key in struct.keys():
-                struct[key] = self.resolve_deferred(struct[key])
-            return struct
-        else:
-            raise RuntimeError("Config structure contains invalid data types:"
-                               "{}".format(struct))
-
-    # Deferred variables will be enclosed in ascii record separators enclosed
-    # in square brackets. We look for this, even with keys that can't be
-    # correct, to more easily find errors in how we write these files.
-    DEFERRED_VAR_RE = re.compile(r'\[\x1E((?:\x1E[^\]]|[^\x1E])*)\x1E\]')
-
-    def resolve_deferred_str(self, line):
-        """Resolve any deferred variables in the given string, and return
-the result.
-
-:param str line: The text to resolve.
-:rtype: str
-"""
-
-        resolved_line = []
-        offset = 0
-
-        match = self.DEFERRED_VAR_RE.search(line, offset)
-
-        # Walk through the line, and lookup the real value of
-        # each matched deferred variable.
-        while match is not None:
-            resolved_line.append(line[offset:match.start()])
-            offset = match.end()
-            var_name = match.groups()[0]
-            # This may raise a KeyError, which callers should
-            # expect.
-            resolved_line.append(self[var_name])
-            match = self.DEFERRED_VAR_RE.search(line, offset)
-
-        # Don't forget the remainder of the line.
-        resolved_line.append(line[offset:])
-
-        resolved_line = ''.join(resolved_line)
-
-        # Make sure all of our escape sequences are accounted for.
-        if '\x1e]' in resolved_line or '[\x1e' in resolved_line:
-            raise ValueError("Errant escape sequence '{}'"
-                             .format(resolved_line))
-
-        return resolved_line
-
-    def resolve_references(self, parser):
-        """Resolves variable references that are within the variables
-themselves.
-
-:param string_parser.PavString parser: String Parser instance. This must be
-    passed to avoid module dependency loops.
-"""
-
-        unresolved_vars = {}
-        # We only want to resolve variable references in the variable section
-        # Find all the variable value strings that reference variables
-        for var, var_list in self.variable_sets['var'].data.items():
-            # val is a list of dictionaries
-            for idx in range(len(var_list.data)):
-                sub_var = var_list.data[idx]
-                # We equate idx 0 with None. It just needs consistency.
-                idx = None if idx == 0 else idx
-                for key, val in sub_var.data.items():
-                    pav_str = parser(val)
-                    if pav_str.variables:
-                        # Unresolved variable reference that will be
-                        # resolved below
-                        unresolved_vars[('var', var, idx, key)] = pav_str
-                    else:
-                        # This one is ready to resolve now
-                        sub_var.data[key] = pav_str.resolve(self)
-
-        # unresolved variables form a tree where the leaves should all be
-        # resolved variables. This iteratively finds unresolved variables whose
-        # references are resolved and resolves them. This should collapse the
-        # tree until there are no unresolved variables left.
-        while unresolved_vars:
-            did_resolve = False
-            for uvar, pav_str in unresolved_vars.copy().items():
-                for var_str in pav_str.variables:
-                    var_key = self.resolve_key(var_str)
-                    if var_key in unresolved_vars:
-                        break
-                else:
-                    # All variables referenced in uvar are resolvable
-                    var_set, var_name, index, sub_var = uvar
-                    self.variable_sets[var_set][var_name][index][sub_var] = \
-                        pav_str.resolve(self)
-                    del unresolved_vars[uvar]
-                    did_resolve = True
-            # If no variable is resolved in this iteration, then all remaining
-            # unresolved variables are part of a variable reference loop and
-            # therefore cannot eventually be resolved.
-            if not did_resolve:
-                var_set, var, idx, sub_var = list(unresolved_vars.keys())[0]
-                raise VariableError(
-                    "Variable contained reference loop"
-                    .format([k[1] for k in unresolved_vars.keys()]),
-                    var_set=var_set,
-                    var=var,
-                    index=idx,
-                    sub_var=sub_var
-                )
-
     def as_dict(self):
-        """Return the all variable sets as a single dictionary. This is
-for testing and bug resolution, not production code.
+        """Return the all variable sets as a single dictionary. This will
+        be structured as the config data is expected to be received.
+        (A dict of variables where the values are lists of either structs
+        or string values).
 
-:rtype: dict
-"""
+        :rtype: dict
+        """
 
         dvar_sets = {}
 
@@ -555,15 +476,134 @@ for testing and bug resolution, not production code.
             dvar_sets[var_set.name] = {}
 
             for var_name in var_set.data.keys():
-                dvar_sets[var_set.name][var_name] = []
+                dvar_sets[var_set.name][var_name] = dvar_set = []
                 item = var_set.data[var_name]
 
                 if isinstance(item, DeferredVariable):
-                    dvar_sets[var_name] = repr(item)
+                    dvar_sets[var_name] = None
                 else:
-                    for subitem in var_set.data[var_name].data:
-                        dvar_sets[var_set.name][var_name].append(subitem.data)
+                    for subitem in item.data:
+                        if None in subitem.data:
+                            dvar_set.append(subitem.data[None])
+                        else:
+                            dvar_set.append(subitem.data)
         return dvar_sets
+
+    def save(self, path):
+        """Save the variable set to the given stream as JSON.
+
+        :param pathlib.Path path: The file path to write to.
+        """
+
+        try:
+            with path.open('w') as outfile:
+                data = self.as_dict()
+                # Save our set of deferred variables too.
+                data['__deferred'] = list(self.deferred)
+
+                json.dump(data, outfile)
+        except (OSError, IOError, FileNotFoundError) as err:
+            raise VariableError(
+                "Could not write variable file at '{}': {}"
+                .format(path, err)
+            )
+
+    @classmethod
+    def load(cls, path):
+        """Load a saved variable set.
+
+        :param pathlib.Path path: The variable file to load.
+
+        """
+
+        try:
+            with path.open() as stream:
+                data = json.load(stream)
+        except (json.decoder.JSONDecodeError, IOError, FileNotFoundError) \
+                as err:
+            raise VariableError(
+                "Could not load variable file '{}': {}"
+                .format(path, err)
+            )
+
+        var_man = cls()
+
+        var_man.deferred = set([tuple(k) for k in data['__deferred']])
+        del data['__deferred']
+
+        for var_set_name, var_set_vars in data.items():
+
+            # Get a list of all top level deferred variables for this var_set,
+            # and then make them into deferred var objects.
+            deferred = [
+                dfr_name
+                for dfr_set, dfr_name, dfr_idx, dfr_subvar in var_man.deferred
+                if (dfr_set, dfr_idx, dfr_subvar) == (var_set_name, None, None)
+            ]
+            for dvar_name in deferred:
+                var_set_vars[dvar_name] = DeferredVariable()
+
+            var_man.variable_sets[var_set_name] = VariableSet(
+                name=var_set_name,
+                value_dict=var_set_vars,
+            )
+
+        return var_man
+
+    def undefer(self, new_vars, parser):
+        """Get non-deferred values for all the deferred values in
+        this variable set, leaving the non-deferred values intact.
+
+        :param VariableSetManager new_vars: A completely non-deferred
+            variable set manager.
+        :param function parser: The parse function from string_parser.
+        """
+
+        # There are a lot of assumptions in here about what variables exist
+        # in new_vars. new_vars should have a value for every variable in
+        # self, because it should be from the same pavilion instance, with
+        # the same config, and the same test config. Crazy stuff can happen
+        # though, like people removing plugins between when a test starts
+        # and when it runs.
+
+        # Get values for all the top level deferred variables.
+        for d_var_set, d_var, d_idx, d_subvar in self.deferred.copy():
+            if not (d_idx is None and d_subvar is None):
+                # Skip the fine-grained deferred variables ( all of which
+                # should be in the 'var' variable set).
+                continue
+
+            # Replace the old value with the new.
+            var_set = self.variable_sets[d_var_set]
+            var_set.data[d_var] = new_vars.variable_sets[d_var_set].data[d_var]
+
+            # Remove this variable from or set of deferred.
+            self.deferred.remove((d_var_set, d_var, d_idx, d_subvar))
+
+        # Now we have to go through the very specifically deferred variables
+        # (an artifact of when we resolved variable value references)
+        # and resolve them. This will look a lot like resolve_references
+        def_parsed = {key: parser(self[key]) for key in self.deferred}
+
+        while def_parsed:
+            resolved_any = False
+            for key, p_val in def_parsed.items():
+                for var in p_val.variables:
+                    var_key = self.resolve_key(var)
+                    if self.is_deferred(*var_key):
+                        break
+                else:
+                    # This variable can be resolved.
+                    self._set_value(*key, p_val.resolve(self))
+                    self.deferred.remove(key)
+                    del def_parsed[key]
+                    resolved_any = True
+
+            if not resolved_any:
+                raise VariableError(
+                    "Reference loop in variable resolution for variables: {}."
+                    .format(list(def_parsed.keys()))
+                )
 
     def __contains__(self, item):
 
@@ -588,13 +628,12 @@ class VariableSet:
     """A set of of variables. Essentially a wrapper around a mapping of var
 names to VariableList objects."""
 
-    def __init__(self, name, reserved_keys=None, value_dict=None):
+    def __init__(self, name, value_dict=None):
         """Initialize the VariableSet. The data can be set directly by
 assigning to .data, or from a config with the 'init_from_config'
 method.
 
 :param str name: The name of this var set.
-:param reserved_keys: The list of reserved keys. Needed to check the
     given var names.
 :param value_dict: A mapping of var names to strings (str), a list of
     strings, a dict of strings, or a list of dict of strings.
@@ -604,9 +643,9 @@ method.
         self.name = name
 
         if value_dict is not None:
-            self._init_from_config(reserved_keys, value_dict)
+            self._init_from_config(value_dict)
 
-    def _init_from_config(self, reserved_keys, value_dict):
+    def _init_from_config(self, value_dict):
         """Initialize the variable set from a config dictionary.
 
 :param value_dict: A mapping of var names to strings (str), a list of
@@ -614,10 +653,6 @@ method.
 """
 
         for key, value in value_dict.items():
-            if key in reserved_keys:
-                raise VariableError("Var name '{}' is reserved.".format(key),
-                                    var=key)
-
             if isinstance(value, DeferredVariable):
                 self.data[key] = value
             else:
@@ -633,13 +668,16 @@ name."""
 
         return self[var].get(index, sub_var)
 
+    def set_value(self, var, index, sub_var, value):
+        """Set the value at the given location to value."""
+
+        self[var].set_value(index, sub_var, value)
+
     def __contains__(self, item):
         return item in self.data
 
     def __deepcopy__(self, memodict=None):
-        variable_set = VariableSet(
-            name=self.name
-        )
+        variable_set = VariableSet(name=self.name)
         variable_set.data = copy.deepcopy(self.data)
         return variable_set
 
@@ -707,6 +745,11 @@ end up as a list (of one)."""
 
         return self[index].get(sub_var)
 
+    def set_value(self, index, sub_var, value):
+        """Set the value at the given location to value."""
+
+        self[index].set_value(sub_var, value)
+
     def __len__(self):
         return len(self.data)
 
@@ -769,6 +812,11 @@ dict with a single None: value pair."""
                 "Variable has sub-values; one must be requested explicitly.")
         else:
             raise KeyError("Unknown sub_var: '{}'".format(sub_var))
+
+    def set_value(self, sub_var, value):
+        """Set the value at the given location to value."""
+
+        self.data[sub_var] = value
 
     def __repr__(self):
         return "<SubVariable({}) {}>".format(id(self.data), self.data)

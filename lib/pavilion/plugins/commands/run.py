@@ -111,7 +111,6 @@ class RunCommand(commands.Command):
 
             tests_by_sched = self._configs_to_tests(
                 pav_cfg=pav_cfg,
-                sys_vars=sys_vars,
                 configs_by_sched=configs_by_sched,
             )
 
@@ -287,7 +286,14 @@ class RunCommand(commands.Command):
                     sys_vars
                 )
                 for p_var_man in permutes:
-                    sched = p_cfg['scheduler'].resolve(p_var_man)
+                    # Get the scheduler from the config.
+                    sched = p_cfg['scheduler']
+                    sched = test_config.resolve_section_vars(
+                        component=sched,
+                        var_man=p_var_man,
+                        allow_deferred=False,
+                        deferred_only=False,
+                    )
                     raw_tests_by_sched[sched].append((p_cfg, p_var_man))
             except test_config.TestConfigError as err:
                 msg = 'Error resolving permutations for test {} from {}: {}'\
@@ -312,11 +318,19 @@ class RunCommand(commands.Command):
 
             # Set the scheduler variables for each test.
             for test_cfg, test_var_man in raw_tests_by_sched[sched_name]:
-                test_var_man.add_var_set('sched', sched.get_vars(test_cfg))
 
-                # Resolve all variables for the test.
+                sched_config = test_config.resolve_section_vars(
+                    component=test_cfg[sched_name],
+                    var_man=test_var_man,
+                    allow_deferred=False,
+                    deferred_only=False,
+                )
+
+                test_var_man.add_var_set('sched', sched.get_vars(sched_config))
+
+                # Resolve all variables for the test (that aren't deferred).
                 try:
-                    resolved_config = test_config.resolve_all_vars(
+                    resolved_config = test_config.resolve_config(
                         test_cfg,
                         test_var_man,
                         no_deferred_allowed=nondeferred_cfg_sctns)
@@ -333,7 +347,7 @@ class RunCommand(commands.Command):
         return tests_by_scheduler
 
     @staticmethod
-    def _configs_to_tests(pav_cfg, sys_vars, configs_by_sched):
+    def _configs_to_tests(pav_cfg, configs_by_sched):
         """Convert the dictionary of test configs by scheduler into actual
         tests."""
 

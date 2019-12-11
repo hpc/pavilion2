@@ -116,7 +116,7 @@ sub-repos. To download them in this manner, simply run:
 
 .. code:: bash
 
-    git submodule update --init
+    git submodule update --init --recursive
 
 This clones each of the dependencies into lib/sub\_repos. A softlink in
 lib for each of the dependencies is included in lib that points to the

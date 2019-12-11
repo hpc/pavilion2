@@ -107,13 +107,14 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
             "config_dirs",
             sub_elem=yc.PathElem(),
             post_validator=config_dirs_validator,
-            help_text="Paths to search for Pavilion config files. Pavilion "
-                      "configs (other than this core config) are searched for "
-                      "in the given order. In the case of identically named "
-                      "files, directories listed earlier take precedence."),
-        yc.StrElem(
+            help_text="Additional Paths to search for Pavilion config files. "
+                      "Pavilion configs (other than this core config) are "
+                      "searched for in the given order. In the case of "
+                      "identically named files, directories listed earlier "
+                      "take precedence."),
+        yc.BoolElem(
             "user_config",
-            default='.pavilion',
+            default=True,
             help_text="Whether to automatically add the user's config "
                       "directory at ~/.pavilion to the config_dirs. Configs "
                       "in this directory always take precedence."

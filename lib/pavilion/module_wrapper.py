@@ -174,11 +174,11 @@ used to figure out what version to load.
 
         remove_wrapped_module(self, self._version)
 
-    def load(self, sys_info, requested_version=None):
+    def load(self, var_man, requested_version=None):
         """Generate the list of module actions and environment changes to load
 this module.
 
-:param dict sys_info: The system info dictionary of variables, from the
+:param dict var_man: The system info dictionary of variables, from the
                  system plugins.
 :param str requested_version: The version requested to load.
 :return: A list of actions (or bash command strings), and a dict of
@@ -188,17 +188,17 @@ this module.
                             this instance.
 """
 
-        del sys_info  # Arguments meant for use when overriding this.
+        del var_man  # Arguments meant for use when overriding this.
 
         version = self.get_version(requested_version)
 
         return [ModuleLoad(self.name, version)], {}
 
-    def swap(self, sys_info, out_name, out_version, requested_version=None):
+    def swap(self, var_man, out_name, out_version, requested_version=None):
         """Swap out the 'out' module and swap in the new module.
 
-:param dict sys_info: The system info dictionary of variables, from the
-                 system plugins.
+:param var_man: The test's variable manager. Module wrappers can use this
+    to lookup any non-deferred test variable.
 :param str out_name: The name of the module to swap out.
 :param str out_version: The version of the module to swap out.
 :param str requested_version: The version requested to load.
@@ -209,17 +209,17 @@ this module.
                             with this instance.
 """
 
-        del sys_info  # Arguments meant for use when overriding this.
+        del var_man  # Arguments meant for use when overriding this.
 
         version = self.get_version(requested_version)
 
         return [ModuleSwap(self.name, version, out_name, out_version)], {}
 
-    def unload(self, sys_info, requested_version=None):
+    def unload(self, var_man, requested_version=None):
         """Remove this module from the environment.
 
-:param dict sys_info: The system info dictionary of variables, from the
-                 system plugins.
+:param var_man: The test's variable manager. Module wrappers can use this
+    to lookup any non-deferred test variable.
 :param str requested_version: The version requested to remove.
 :return: A list of actions (or bash command strings), and a dict of
          environment changes.
@@ -228,7 +228,7 @@ this module.
                             this instance.
 """
 
-        del sys_info  # Arguments meant for use when overriding this.
+        del var_man  # Arguments meant for use when overriding this.
 
         version = self.get_version(requested_version)
 

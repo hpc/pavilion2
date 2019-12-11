@@ -96,6 +96,7 @@ class CancelCommand(commands.Command):
                     )
                     return errno.EINVAL
 
+        cancel_failed = False
         test_object_list = []
         for test_id in test_list:
             try:
@@ -134,7 +135,8 @@ class CancelCommand(commands.Command):
         # Only prints statuses of tests if option is selected
         # and test_list is not empty
         if args.status and test_object_list:
-            return print_from_test_obj(pav_cfg, test_object_list, self.outfile,
-                                       args.json)
+            print_from_test_obj(pav_cfg, test_object_list, self.outfile,
+                                args.json)
+            return cancel_failed
 
-        return 0
+        return cancel_failed
