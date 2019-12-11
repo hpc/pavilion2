@@ -13,6 +13,7 @@ import errno
 import time
 import json
 
+
 class CancelCmdTests(PavTestCase):
 
     def setUp(self):
@@ -39,7 +40,8 @@ class CancelCmdTests(PavTestCase):
             'cancel'
         ])
 
-        get_statuses(self.pav_cfg, args, StringIO())
+        stats = get_statuses(self.pav_cfg, args, StringIO())
+        dbg_print(stats)
 
         cancel_cmd = commands.get_command(args.command_name)
         cancel_cmd.outfile = StringIO()
