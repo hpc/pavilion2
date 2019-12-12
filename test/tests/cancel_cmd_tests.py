@@ -30,7 +30,7 @@ class CancelCmdTests(PavTestCase):
         args = arg_parser.parse_args([
             'run',
             '-H', 'this',
-            'hello_world'
+            'cancel_test'
         ])
         run_cmd = commands.get_command(args.command_name)
         run_cmd.outfile = StringIO()
@@ -56,7 +56,7 @@ class CancelCmdTests(PavTestCase):
         args = arg_parser.parse_args([
             'run',
             '-H', 'this'
-            'hello_world2'
+            'cancel_test'
         ])
 
         run_cmd = commands.get_command(args.command_name)
@@ -92,7 +92,7 @@ class CancelCmdTests(PavTestCase):
         args = arg_parser.parse_args([
             'run',
             '-H', 'this',
-            'hello_world'
+            'cancel_test'
         ])
         run_cmd = commands.get_command(args.command_name)
         run_cmd.outfile = StringIO()
@@ -119,7 +119,7 @@ class CancelCmdTests(PavTestCase):
         args = arg_parser.parse_args([
             'run',
             '-H', 'this',
-            'hello_world'
+            'cancel_test'
         ])
         run_cmd = commands.get_command(args.command_name)
         run_cmd.outfile = StringIO()
@@ -178,8 +178,8 @@ class CancelCmdTests(PavTestCase):
         args = arg_parser.parse_args([
             'run',
             '-H', 'this',
-            'hello_world.hello',
-            'hello_world.world'
+            'cancel_test.test1',
+            'cancel_test.test2'
         ])
 
         run_cmd = commands.get_command(args.command_name)
@@ -215,7 +215,7 @@ class CancelCmdTests(PavTestCase):
         args = arg_parser.parse_args([
             'run',
             '-H', 'this',
-            'hello_world.world'
+            'cancel_test.test1'
         ])
 
         run_cmd = commands.get_command(args.command_name)
@@ -241,7 +241,7 @@ class CancelCmdTests(PavTestCase):
         args = arg_parser.parse_args([
             'run',
             '-H', 'this',
-            'hello_world.world'
+            'cancel_test.test1'
         ])
 
         run_cmd = commands.get_command(args.command_name)

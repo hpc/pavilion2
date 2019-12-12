@@ -4,7 +4,6 @@ hello:
             - echo "Building Hello"
     run:
         cmds:
-            - sleep 1m
             - echo "Running World"
 
     scheduler: "raw"
@@ -15,7 +14,6 @@ world:
             - echo "Building World"
     run:
         cmds:
-            - sleep 1m
             - echo "Running World"
 
     scheduler: "raw"
