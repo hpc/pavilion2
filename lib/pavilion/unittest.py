@@ -302,12 +302,16 @@ The default config is: ::
     del __config_lines
 
     def _quick_test(self, cfg=None, name="quick_test",
-                    build=True, finalize=True):
+                    build=True, finalize=True,
+                    sched_vars=None):
         """Create a test run object to work with.
         The default is a simple hello world test with the raw scheduler.
 
         :param dict cfg: An optional config dict to create the test from.
         :param str name: The name of the test.
+        :param bool build: Build this test, while we're at it.
+        :param bool finalize: Finalize this test.
+        :param dict sched_vars: Add these scheduler variables to our var set.
         :rtype: TestRun
         """
 
@@ -323,6 +327,8 @@ The default config is: ::
         var_man.add_var_set('var', cfg['variables'])
         var_man.add_var_set('sys', system_variables.get_vars(defer=True))
         var_man.add_var_set('pav', self.pav_cfg.pav_vars)
+        if sched_vars is not None:
+            var_man.add_var_set('sched', sched_vars)
 
         cfg = resolve_config(cfg, var_man, [])
 

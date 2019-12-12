@@ -48,7 +48,8 @@ class _RunCommand(commands.Command):
         try:
             var_man = VariableSetManager()
             var_man.add_var_set('sys', system_variables.get_vars(defer=False))
-            var_man.add_var_set('sched', sched.get_vars(test))
+            sched_config = test.config[test.scheduler]
+            var_man.add_var_set('sched', sched.get_vars(sched_config))
         except Exception:
             test.status.set(STATES.RUN_ERROR,
                             "Unknown error getting pavilion variables at "

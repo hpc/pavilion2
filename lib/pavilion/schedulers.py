@@ -95,7 +95,7 @@ Naming Conventions:
 
         :param SchedulerPlugin scheduler: The scheduler for this set of
             variables.
-        :param pavilion.test_run.TestRun sched_config: The test object for
+        :param dict sched_config: The test object for
             which this set of variables is relevant.
         """
 
@@ -310,7 +310,10 @@ class SchedulerPlugin(IPlugin.IPlugin):
         raise NotImplementedError
 
     def get_vars(self, sched_config):
-        """Returns the dictionary of scheduler variables."""
+        """Returns the dictionary of scheduler variables.
+
+        :param dict sched_config: The scheduler config for a given test.
+        """
 
         return self.VAR_CLASS(self, sched_config)
 
