@@ -1,0 +1,9 @@
+[Core]
+Name = Cat Command
+Module = cat
+
+[Documentation]
+Description = Print contents of a test artifact
+Author = jogas
+Version = 1.0
+Website =
