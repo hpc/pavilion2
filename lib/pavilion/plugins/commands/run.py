@@ -97,7 +97,6 @@ class RunCommand(commands.Command):
             overrides[key] = value
 
         sys_vars = system_variables.get_vars(True)
-
         try:
             configs_by_sched = self._get_tests(
                 pav_cfg=pav_cfg,

@@ -584,7 +584,6 @@ def cond_check(raw_test_cfg, pav_vars, sys_vars):
     # If cond_err_list length is 0 we had no conditional conflicts.
     for i in range(0,len(cond_err_list)):
         LOGGER.warning(cond_err_list[i])
-
     return cond_err_list
 
 def get_match_not_if(not_if_dict,variable_base,cond_err_list):

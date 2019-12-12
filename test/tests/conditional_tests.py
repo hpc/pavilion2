@@ -4,7 +4,7 @@ from pavilion import arguments
 from pavilion.test_config import file_format
 from pavilion import plugins
 from pavilion.status_file import STATES
-from pavilion.test_config import variables
+from pavilion.test_config import variables, setup
 import os
 import io
 class ConditionalTest(PavTestCase):
@@ -18,13 +18,12 @@ class ConditionalTest(PavTestCase):
 
     def test_success(self): # this methed runs a suite of conditional successes
 
-        sys_data = {
+        sys_vars = {
              'sys_name': 'bieber',
              'sys_os': 'centos',
              'sys_arch': 'x86_64'}
-
-        base_var = variables.VariableSetManager()
-        base_var.add_var_set('sys',sys_data)
+        pav_vars = {}
+        user_vars = {}
 
         arg_parser = arguments.get_parser()
 
@@ -41,14 +40,20 @@ class ConditionalTest(PavTestCase):
         run_cmd.outfile = io.StringIO()
         run_cmd.run(self.pav_cfg,args)
         tests = run_cmd.test_list
-        print('#'*75)
+
         for i in range(0,len(tests)):
-            print(tests[i].status.current().state + "--")
-            print(tests[i]) # + tests[i])
-            #self.assertFalse(tests[i].status.current().state == 'COMPLETED')
-        print('#'*75)
+            cond = setup.cond_check(tests[i].config,pav_vars,sys_vars)
+            self.assertTrue(len(cond)==0)
 
     def test_failure(self): #this method runs a suite of conditional failures
+
+        sys_vars = {
+            'sys_name':'bieber',
+            'sys_host':'centos',
+            'sys_arch':'x86_64'}
+
+        pav_vars = {}
+
         arg_parser = arguments.get_parser()
 
         args = arg_parser.parse_args([
@@ -60,11 +65,16 @@ class ConditionalTest(PavTestCase):
             'cond_failure.five',
             'cond_failure.six',
             'cond_failure.seven',
-            'cond_failure.eight'])
+            'cond_failure.eight'
+        ])
 
         run_cmd = commands.get_command(args.command_name)
         run_cmd.outfile = io.StringIO()
         run_cmd.run(self.pav_cfg,args)
         tests = run_cmd.test_list
+
         for i in range(0,len(tests)):
-             self.assertTrue(tests[i].skipped)
+            cond = setup.cond_check(tests[i].config,pav_vars,sys_vars)
+            self.assertTrue(len(cond)>0)
+
+

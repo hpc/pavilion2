@@ -1,7 +1,6 @@
 one:
     only_if:
-        user: ['Bob','Eggman','calvindseamons']
-
+        sys_name: ['bieber','calvin']
     scheduler: raw
     raw:
         concurrent: False
@@ -13,8 +12,7 @@ one:
             - 'echo "test completed"'
 two:
     only_if:
-        user: ['Bob','Eggman','calvindseamons']
-        sys_name: ['Trinity','macbook','fog']
+        sys_name: ['Trinity','macbook','bieber']
 
     scheduler: raw
     raw:
@@ -27,7 +25,7 @@ two:
             - 'echo "test completed"'
 three:
     only_if:
-        user: ['Bob','Eggman','calvindseamons']
+        sys_name: ['Bob','Eggman','bieber']
 
     not_if:
         sys_arch: ['haswell','arrch64']
@@ -43,8 +41,7 @@ three:
             - 'echo "test completed"'
 four:
     only_if:
-        user: ['Bob','Eggman','calvindseamons']
-        sys_name: ['Trinity','macbook','fog']
+        sys_name: ['bieber','Trinity','macbook']
 
     not_if:
         sys_arch: ['haswell','aarch64']
