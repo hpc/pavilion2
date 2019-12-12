@@ -13,6 +13,8 @@ class TestConfigError(ValueError):
     """An exception specific to errors in configuration."""
 
 
+TEST_NAME_RE_STR = r'^[a-zA-Z_][a-zA-Z0-9_-]*$'
+TEST_NAME_RE = re.compile(TEST_NAME_RE_STR)
 KEY_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_-]*$')
 VAR_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_-]*[\?\+]?$')
 
@@ -142,7 +144,7 @@ expected to be added to by various plugins.
 
     ELEMENTS = [
         yc.RegexElem(
-            'inherits_from', regex=r'\w+',
+            'inherits_from', regex=TEST_NAME_RE_STR,
             help_text="Inherit from the given test section, and override "
                       "parameters those specified in this one. Lists are "
                       "overridden entirely"),
@@ -205,7 +207,7 @@ expected to be added to by various plugins.
                     'modules', sub_elem=yc.StrElem(),
                     help_text="Modules to load into the build environment."),
                 EnvCatElem(
-                    'env', sub_elem=yc.StrElem(),
+                    'env', sub_elem=yc.StrElem(), key_case=EnvCatElem.KC_MIXED,
                     help_text="Environment variables to set in the build "
                               "environment."),
                 yc.ListElem(
@@ -255,9 +257,10 @@ expected to be added to by various plugins.
                 yc.ListElem(
                     'modules', sub_elem=yc.StrElem(),
                     help_text="Modules to load into the run environment."),
-                EnvCatElem('env', sub_elem=yc.StrElem(),
-                           help_text="Environment variables to set in the run "
-                                     "environment."),
+                EnvCatElem(
+                    'env', sub_elem=yc.StrElem(), key_case=EnvCatElem.KC_MIXED,
+                    help_text="Environment variables to set in the run "
+                              "environment."),
                 yc.ListElem('cmds', sub_elem=yc.StrElem(),
                             help_text='The sequence of commands to run to run '
                                       'the test.'),
@@ -425,7 +428,7 @@ def TestSuiteLoader():  # pylint: disable=invalid-name
     class _TestSuiteLoader(yc.CatYamlConfigLoader):
         """An actual test config file consists of multiple config sections."""
 
-        _NAME_RE = KEY_NAME_RE
+        _NAME_RE = TEST_NAME_RE
 
         # We use the list of ELEMENTS from TestConfigLoader. since this is the
         # same object, subsections added to TestConfigLoader will get picked up

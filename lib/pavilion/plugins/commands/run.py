@@ -1,6 +1,6 @@
+import codecs
 import errno
 import pathlib
-import sys
 import time
 from collections import defaultdict
 
@@ -116,6 +116,8 @@ class RunCommand(commands.Command):
             )
 
         except commands.CommandError as err:
+            # Our error messages get escaped to a silly degree
+            err = codecs.decode(str(err), 'unicode-escape')
             fprint(err, file=self.errfile)
             return errno.EINVAL
 

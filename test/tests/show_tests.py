@@ -34,6 +34,7 @@ class ShowTests(unittest.PavTestCase):
             ('show', 'tests'),
             ('show', 'tests', '--verbose'),
             ('show', 'tests', '--err'),
+            ('show', 'tests', '--hidden'),
             ('show', 'hosts'),
             ('show', 'hosts', '--verbose'),
             ('show', 'modes'),
@@ -51,5 +52,4 @@ class ShowTests(unittest.PavTestCase):
             show_cmd.run(self.pav_cfg, args)
 
         plugins._reset_plugins()
-
 
