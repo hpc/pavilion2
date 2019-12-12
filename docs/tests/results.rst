@@ -21,6 +21,7 @@ results.
     results/cmd.rst
     results/regex.rst
     results/const.rst
+    results/table.rst
 
 Basic Result Keys
 -----------------
