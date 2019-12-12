@@ -72,27 +72,29 @@ def dfr_var_method(*sub_keys):
 
 class SchedulerVariables(VarDict):
     """The base scheduler variables class. Each scheduler should have a child
-    class of this that contains all the variable functions it provides.
+class of this that contains all the variable functions it provides.
 
-    Usage:
-    To add a scheduler variable, create a method and decorate it with
-    either '@sched_var' or '@dfr_sched_var()'. The method name will be the
-    variable name, and the method will be called to resolve the variable
-    value. Methods that start with '_' are ignored.
+To add a scheduler variable, create a method and decorate it with
+either '@sched_var' or '@dfr_sched_var()'. The method name will be the
+variable name, and the method will be called to resolve the variable
+value. Methods that start with '_' are ignored.
 
-    Naming Conventions:
+Naming Conventions:
 
-    'alloc_*'
-      Variable names should be prefixed with 'alloc\_' if they are deferred.
-    'test_*'
-      Variable names prefixed with test denote that the variable
-      is specific to a test. These also tend to be deferred.
-    """
+'alloc_*'
+  Variable names should be prefixed with 'alloc\_' if they are deferred.
+
+'test_*'
+  Variable names prefixed with test denote that the variable
+  is specific to a test. These also tend to be deferred.
+
+"""
 
     def __init__(self, scheduler, sched_config):
         """Initialize the scheduler var dictionary.
+
         :param SchedulerPlugin scheduler: The scheduler for this set of
-        variables.
+            variables.
         :param pavilion.test_run.TestRun sched_config: The test object for
             which this set of variables is relevant.
         """
