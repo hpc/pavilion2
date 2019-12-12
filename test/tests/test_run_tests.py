@@ -28,6 +28,7 @@ class TestRunTests(PavTestCase):
         # Making sure this doesn't throw errors from missing params.
         TestRun(self.pav_cfg, config, VariableSetManager())
 
+
         config = {
             'subtest': 'st',
             'name': 'test',
@@ -146,6 +147,7 @@ class TestRunTests(PavTestCase):
             'src.tar.gz',
             'src.xz',
         ]
+
         test = TestRun(self.pav_cfg, config, VariableSetManager())
 
         if test.build_origin.exists():
@@ -245,6 +247,7 @@ class TestRunTests(PavTestCase):
 
         #  Check that building, and then re-using, a build directory works.
         test = TestRun(self.pav_cfg, config, var_man)
+
         # Remove the build tree to ensure we do the build fresh.
         if test.build_origin.is_dir():
             shutil.rmtree(str(test.build_origin))
@@ -314,6 +317,7 @@ class TestRunTests(PavTestCase):
                 'cmds': ['sleep 10']
             }
         }
+
         test = TestRun(self.pav_cfg, config3, VariableSetManager())
         self.assert_(test.build())
         test.finalize(VariableSetManager())

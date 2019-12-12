@@ -19,7 +19,7 @@ class Table(result_parsers.ResultParser):
         config_items.extend([
             yc.StrElem(
                 'delimiter', default=' ',
-                help_text="Constant that will be placed in result."
+                help_text="Delimiter that splits the data."
             ),
             yc.StrElem(
                 'col_num', required=True,

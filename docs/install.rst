@@ -17,7 +17,9 @@ Pavilion has very few dependencies and requirements:
 
   - The path to this directory must be consistent across all cluster hosts.
   - It must support atomic file creation and appends of < 4kb.
-- Lmod or environment modules are recommended.
+
+- Lmod or 'environment modules' is recommended.
+
 
 Filesystems
 ~~~~~~~~~~~
@@ -181,7 +183,8 @@ that supports multiple compilers and conflicting builds of libraries.
 
 It is assumed that the module environment is set up before you run Pavilion. If
 you need to set up this environment separately on allocations, use the
-'env_setup' option in the general Pavilion configuration to add the commands
+'env_setup' option in the
+`general Pavilion configuration <config.rst>`__ to add the commands
 to do so.
 
 

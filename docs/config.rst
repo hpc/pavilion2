@@ -54,14 +54,14 @@ Setting You Should Set
 While everything has a workable default, you'll probably want to set the
 following.
 
-working\_dir
+working_dir
 ^^^^^^^^^^^^
 
 This determines where your test run information is stored. If you don't
 set this, everyone will have a separate history in
 ``$HOME/.pavilion/working_dir``.
 
-shared\_group
+shared_group
 ^^^^^^^^^^^^^
 
 If you have a shared working directory for multiple users, you need a shared
