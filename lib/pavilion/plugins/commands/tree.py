@@ -1,10 +1,10 @@
 import errno
 import os
-import re
 import sys
 
 from pavilion import commands
 from pavilion import utils
+
 
 class FileCommand(commands.Command):
 
@@ -17,24 +17,25 @@ class FileCommand(commands.Command):
 
     def _setup_arguments(self, parser):
         parser.add_argument(
-            'job_id',
+            'job_id', type=int,
             help="Job id number."
         )
 
     def run(self, pav_cfg, args):
 
         test_dir = pav_cfg.working_dir/'test_runs'
-        job_dir = test_dir/args.job_id
+        job_dir = utils.make_id_path(test_dir, args.job_id)
 
         if os.path.isdir(job_dir.as_posix()) is False:
             utils.fprint("directory '{}' does not exist."
                          .format(job_dir.as_posix()),
                          file=sys.stderr, color=utils.RED)
-            sys.exit()
+            return errno.EEXIST
 
         level = 0
         print_directory(level, job_dir)
         return 0
+
 
 def print_directory(level, path):
     for file in os.listdir(path):

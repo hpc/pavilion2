@@ -16,7 +16,7 @@ class FileCommand(commands.Command):
 
     def _setup_arguments(self, parser):
         parser.add_argument(
-            'job_id',
+            'job_id', type=int,
             help="Job id number."
         )
         parser.add_argument(
@@ -28,17 +28,15 @@ class FileCommand(commands.Command):
     def run(self, pav_cfg, args):
 
         test_dir = pav_cfg.working_dir/'test_runs'
-        job_dir = test_dir/args.job_id
+        job_dir = utils.make_id_path(test_dir, args.job_id)
 
         if os.path.isdir(job_dir.as_posix()) is False:
             utils.fprint("directory '{}' does not exist."
                          .format(job_dir.as_posix()),
                          file=sys.stderr, color=utils.RED)
-            sys.exit()
+            return errno.EEXIST
 
-        print_file(job_dir/args.file)
-
-        return 0
+        return print_file(job_dir/args.file)
 
 
 def print_file(file):
@@ -53,9 +51,9 @@ def print_file(file):
     except IsADirectoryError:
         utils.fprint("{} is a directory.".format(file), sys.stderr,
                      color=utils.RED)
-        sys.exit()
+        return errno.EINVAL
 
     except FileNotFoundError:
         utils.fprint("file '{}' does not exist.".format(file), sys.stderr,
                      color=utils.RED)
-        sys.exit()
+        return errno.EEXIST
