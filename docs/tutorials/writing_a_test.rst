@@ -272,7 +272,7 @@ Add the following to your supermagic test config:
 
             cmd:
                 # We'll go over this in a second.
-                - {{sched.run_cmd}} ./supermagic
+                - '{{sched.test_cmd}} ./supermagic'
 
 Kickoff Scripts
 ~~~~~~~~~~~~~~~
