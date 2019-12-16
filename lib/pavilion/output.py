@@ -29,10 +29,12 @@ UNDERLINE = 4
 
 """
 Pavilion provides the standard 3/4 bit colors. They can be accessed through
-this dictionary, or directly as attributes in the utils modules. ::
+this dictionary, or directly as attributes in the utils modules. 
 
+..code:: python
     utils.COLORS['RED']
     utils.RED
+
 
 **Available Colors:**
 
@@ -49,6 +51,7 @@ this dictionary, or directly as attributes in the utils modules. ::
 - BOLD
 - FAINT
 - UNDERLINE
+
 """
 COLORS = {
     'BLACK': BLACK,

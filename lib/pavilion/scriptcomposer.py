@@ -168,11 +168,17 @@ class ScriptComposer:
             variable.
         """
 
+        from pavilion import output
+
+        output.dbg_print('before', type(env_dict), env_dict)
+
         # Order the keys alphabetically if they don't have an implied order.
         if not isinstance(env_dict, collections.OrderedDict):
             new_dict = collections.OrderedDict()
             for key in env_dict.keys():
                 new_dict[key] = env_dict[key]
+
+        output.dbg_print('after', type(env_dict), env_dict)
 
         for key, value in env_dict.items():
 
@@ -180,7 +186,6 @@ class ScriptComposer:
                 self._script_lines.append('export {}={}'.format(key, value))
             else:
                 self._script_lines.append('unset {}'.format(key))
-
 
     @staticmethod
     def parse_module(mod_line):
