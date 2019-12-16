@@ -511,13 +511,16 @@ used when the string is formatted.
                 line = []
                 line_len = 0
 
+        if line:
+            line = [str(l) for l in line]
+            lines.append(''.join(line))
+
         return lines
 
     def __getitem__(self, item):
         parts = self._parse(self.data)
         parts.reverse()
         length = len(self)
-
 
         if isinstance(item, slice):
             start = item.start if item.start is not None else 0
@@ -842,6 +845,8 @@ A more complicated example: ::
     # Add divider widths
     divider_size = 3 if pad else 1
     deco_size = divider_size * (len(fields) - 1)
+    # Add the side spacing
+    deco_size += 0 if pad else 2
     # Add border widths
     if border:
         border_size = 2 if pad else 1
