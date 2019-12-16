@@ -594,7 +594,7 @@ index, sub_var) tuple.
                         break
                 else:
                     # This variable can be resolved.
-                    self._set_value(*key, p_val.resolve(self))
+                    self._set_value(key, p_val.resolve(self))
                     self.deferred.remove(key)
                     del def_parsed[key]
                     resolved_any = True
