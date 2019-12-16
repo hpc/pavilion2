@@ -27,6 +27,12 @@ class FileCommand(commands.Command):
             nargs='?'
         )
 
+        parser.add_argument(
+            '--tree',
+            help="List <job id> file tree",
+            action='store_true'
+        )
+
     def run(self, pav_cfg, args):
 
         test_dir = pav_cfg.working_dir/'test_runs'
@@ -37,13 +43,20 @@ class FileCommand(commands.Command):
                          file=sys.stderr, color=utils.RED)
             return errno.EEXIST
 
+        utils.fprint("\nListing files in {}:\n\n".format(job_dir),
+                     file=sys.stdout)
+
+        if args.tree is True:
+            level = 0
+            tree_(level, job_dir)
+            return 0
+
         if args.subdir:
-            return print_directory(job_dir/args.subdir)
+            return ls_(job_dir/args.subdir)
         else:
-            return print_directory(job_dir)
+            return ls_(job_dir)
 
-
-def print_directory(dir_):
+def ls_(dir_):
     if os.path.isdir(dir_) is False:
         utils.fprint("directory '{}' does not exist." .format(dir_),
                      file=sys.stderr, color=utils.RED)
@@ -60,3 +73,17 @@ def print_directory(dir_):
             utils.fprint(file, file=sys.stdout)
 
     return 0
+
+def tree_(level, path):
+    for file in os.listdir(path):
+        filename = os.path.join(path, file)
+        if os.path.islink(filename):
+            utils.fprint("{}{} -> {}".format(' '*4*level, file,
+                                             os.path.realpath(filename)),
+                         file=sys.stdout, color=utils.CYAN)
+        elif os.path.isdir(filename):
+            utils.fprint("{}{}/".format(' '*4*level, file),
+                         file=sys.stdout, color=utils.BLUE)
+            tree_(level + 1, filename)
+        else:
+            utils.fprint("{}{}".format(' '*4*level, file), file=sys.stdout)
