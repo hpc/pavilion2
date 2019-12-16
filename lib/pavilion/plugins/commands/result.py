@@ -1,8 +1,10 @@
 import sys
+import pprint
 
 from pavilion import commands
 from pavilion import series
-from pavilion.test_run import TestRun, TestRunError, TestRunNotFoundError
+from pavilion.test_run import TestRun, TestRunError, TestRunNotFoundError, \
+    get_latest_tests
 from pavilion import utils
 
 
@@ -42,7 +44,7 @@ class ResultsCommand(commands.Command):
 
     def run(self, pav_cfg, args):
 
-        test_ids = self._get_tests(pav_cfg, args.tests)
+        test_ids = self._get_tests(pav_cfg, args.tests, args.full)
 
         tests = []
         for id_ in test_ids:
@@ -79,7 +81,8 @@ class ResultsCommand(commands.Command):
             return 0
 
         if args.full:
-            fields = ['name', 'id', 'result'] + all_keys
+            pprint.pprint(results) # ext-print: ignore
+            return 0
         else:
             fields = ['name', 'id', 'result'] + sum(args.key, list())
 
@@ -91,12 +94,15 @@ class ResultsCommand(commands.Command):
             title="Test Results"
         )
 
-    def _get_tests(self, pav_cfg, tests_arg):
+    def _get_tests(self, pav_cfg, tests_arg, full_arg):
         if not tests_arg:
             # Get the last series ran by this user.
             series_id = series.TestSeries.load_user_series_id(pav_cfg)
             if series_id is not None:
                 tests_arg.append(series_id)
+
+        if len(tests_arg) > 1 and full_arg:
+            tests_arg = [tests_arg[0]]
 
         test_list = []
         for test_id in tests_arg:
@@ -113,5 +119,15 @@ class ResultsCommand(commands.Command):
                     continue
             else:
                 test_list.append(test_id)
+
+        if full_arg:
+            if len(test_list) > 1:
+                utils.fprint(
+                    "Requested full test results but provided multiple tests. "
+                    "Giving results for only the first found.",
+                    color=utils.YELLOW,
+                    file=sys.stdout,
+                )
+                test_list = [test_list[0]]
 
         return map(int, test_list)
