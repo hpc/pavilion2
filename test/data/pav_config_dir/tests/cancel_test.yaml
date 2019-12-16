@@ -1,0 +1,11 @@
+test1:
+
+    run:
+        cmds:
+            - sleep 1m
+
+test2:
+
+    run:
+        cmds:
+            - sleep 1m
