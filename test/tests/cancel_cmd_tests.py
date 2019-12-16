@@ -23,72 +23,7 @@ class CancelCmdTests(PavTestCase):
         plugins._reset_plugins()
 
     def test_cancel(self):
-        """Cancel Test and make sure it is cancelled through scheduler."""
-
-        arg_parser = arguments.get_parser()
-
-        args = arg_parser.parse_args([
-            'run',
-            '-H', 'this'
-            'cancel_test'
-        ])
-
-        run_cmd = commands.get_command(args.command_name)
-        run_cmd.outfile = StringIO()
-        run_cmd.run(self.pav_cfg, args)
-
-        args = arg_parser.parse_args([
-            'cancel'
-        ])
-
-        cancel_cmd = commands.get_command(args.command_name)
-        cancel_cmd.outfile = StringIO()
-        cancel_cmd.errfile = StringIO()
-
-        self.assertEqual(cancel_cmd.run(self.pav_cfg, args), 0)
-
-        test = []
-        series_id = series.TestSeries.load_user_series_id(self.pav_cfg)
-        test.append(series_id)
-        test_list = []
-        test_list.extend(series.TestSeries.from_id(self.pav_cfg,
-                                                   test[0]).tests)
-        for test_id in test_list:
-            test = TestRun.load(self.pav_cfg, test_id)
-            if test.status.current().state != STATES.COMPLETE:
-                sched = schedulers.get_scheduler_plugin(test.scheduler)
-                sched_status = sched.job_status(self.pav_cfg, test)
-                self.assertIn("SCHED_CANCELLED", str(sched_status))
-
-    def test_wait_cancel(self):
-        """Test cancel command after waiting for tests to start."""
-
-        arg_parser = arguments.get_parser()
-
-        args = arg_parser.parse_args([
-            'run',
-            '-H', 'this',
-            'cancel_test'
-        ])
-        run_cmd = commands.get_command(args.command_name)
-        run_cmd.outfile = StringIO()
-        run_cmd.run(self.pav_cfg, args)
-
-        args = arg_parser.parse_args([
-            'cancel'
-        ])
-
-        time.sleep(5)
-        get_statuses(self.pav_cfg, args, StringIO())
-
-        cancel_cmd = commands.get_command(args.command_name)
-        cancel_cmd.outfile = StringIO()
-        cancel_cmd.errfile = StringIO()
-
-        self.assertEqual(cancel_cmd.run(self.pav_cfg, args), 0)
-
-    def test_cancel_cancelled_test(self):
-        """Test cancelling a previously cancelled test."""
+        """Test cancel command with no arguments."""
 
         arg_parser = arguments.get_parser()
 
@@ -111,7 +46,6 @@ class CancelCmdTests(PavTestCase):
         cancel_cmd.outfile = StringIO()
         cancel_cmd.errfile = StringIO()
 
-        cancel_cmd.run(self.pav_cfg, args)
         self.assertEqual(cancel_cmd.run(self.pav_cfg, args), 0)
 
     def test_cancel_invalid_test(self):
@@ -122,22 +56,6 @@ class CancelCmdTests(PavTestCase):
         args = arg_parser.parse_args([
             'cancel',
             '{}'.format(sys.maxsize)
-        ])
-
-        cancel_cmd = commands.get_command(args.command_name)
-        cancel_cmd.outfile = StringIO()
-        cancel_cmd.errfile = StringIO()
-
-        self.assertEqual(cancel_cmd.run(self.pav_cfg, args), errno.EINVAL)
-
-    def test_cancel_invalid_series(self):
-        """Test cancel command with invalid series."""
-
-        arg_parser = arguments.get_parser()
-
-        args = arg_parser.parse_args([
-            'cancel',
-            's{}'.format(sys.maxsize)
         ])
 
         cancel_cmd = commands.get_command(args.command_name)
