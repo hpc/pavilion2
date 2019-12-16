@@ -1,27 +1,5 @@
 """
 This module provides helper functions for printing and general output.
-
-Pavilion provides the standard 3/4 bit colors. They can be accessed through
-this dictionary, or directly as attributes in the utils modules. ::
-
-    utils.COLORS['RED']
-    utils.RED
-
-**Available Colors:**
-
-- BLACK
-- RED
-- GREEN
-- YELLOW
-- BLUE
-- MAGENTA
-- CYAN
-- WHITE
-- GREY
-- GRAY
-- BOLD
-- FAINT
-- UNDERLINE
 """
 
 import csv
@@ -48,6 +26,30 @@ GRAY = 37
 BOLD = 1
 FAINT = 2
 UNDERLINE = 4
+
+"""
+Pavilion provides the standard 3/4 bit colors. They can be accessed through
+this dictionary, or directly as attributes in the utils modules. ::
+
+    utils.COLORS['RED']
+    utils.RED
+
+**Available Colors:**
+
+- BLACK
+- RED
+- GREEN
+- YELLOW
+- BLUE
+- MAGENTA
+- CYAN
+- WHITE
+- GREY
+- GRAY
+- BOLD
+- FAINT
+- UNDERLINE
+"""
 COLORS = {
     'BLACK': BLACK,
     'RED': RED,

@@ -409,6 +409,10 @@ class TestSetupTests(PavTestCase):
         plugins.initialize_plugins(self.pav_cfg)
 
         test_conf = load_test_configs(self.pav_cfg, 'this', [], ['order'])[0]
+        self.dbg_print(type(test_conf['build']['env']), color=35)
+        for key, val in test_conf['build']['env'].items():
+            self.dbg_print(key, val)
+
         test = self._quick_test(test_conf, "order")
 
         # Each exported variable in this config has a value that denotes its

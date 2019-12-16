@@ -64,9 +64,10 @@ class CancelCmdTests(PavTestCase):
 
         raw.schedule_test(self.pav_cfg, test)
 
-        timeout = time.time() + 1
+        timeout = time.time() + 10
         while (raw.job_status(self.pav_cfg, test).state == STATES.SCHEDULED
                and time.time() < timeout):
+            print(raw.job_status(self.pav_cfg, test))
             time.sleep(.1)
 
         # The test should be running
