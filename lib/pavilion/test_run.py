@@ -20,6 +20,7 @@ import sys
 import zipfile
 from pathlib import Path
 
+import pavilion.output
 from pavilion import lockfile
 from pavilion import result_parsers
 from pavilion import scriptcomposer
@@ -27,7 +28,7 @@ from pavilion import utils
 from pavilion import wget
 from pavilion.status_file import StatusFile, STATES
 from pavilion.test_config import variables, string_parser, resolve_deferred
-from pavilion.utils import fprint
+from pavilion.output import fprint
 from pavilion.utils import ZipFileFixed as ZipFile
 
 
@@ -262,7 +263,7 @@ tests.
 
         try:
             with config_path.open('w') as json_file:
-                utils.json_dump(self.config, json_file)
+                pavilion.output.json_dump(self.config, json_file)
         except (OSError, IOError) as err:
             raise TestRunError("Could not save TestRun ({}) config at {}: {}"
                                .format(self.name, self.path, err))

@@ -1,19 +1,18 @@
 import errno
-import sys
 import os
 
 import yaml_config
 from pavilion import commands
 from pavilion import config
 from pavilion import module_wrapper
+from pavilion import output
 from pavilion import result_parsers
 from pavilion import schedulers
 from pavilion import status_file
 from pavilion import system_variables
-from pavilion import utils
 from pavilion.test_config import DeferredVariable
-from pavilion.test_config import find_all_tests
 from pavilion.test_config import file_format
+from pavilion.test_config import find_all_tests
 
 
 class ShowCommand(commands.Command):
@@ -344,20 +343,20 @@ class ShowCommand(commands.Command):
             try:
                 sched = schedulers.get_scheduler_plugin(sched_name)
             except schedulers.SchedulerPluginError:
-                utils.fprint(
+                output.fprint(
                     "Invalid scheduler plugin '{}'.".format(sched_name),
-                    color=utils.RED,
+                    color=output.RED,
                 )
                 return errno.EINVAL
 
         if args.vars is not None:
             sched_vars = []
-            svars = sched.get_vars(None)
+            svars = sched.get_vars({})
 
             for key in sorted(list(svars.keys())):
                 sched_vars.append(svars.info(key))
 
-            utils.draw_table(
+            output.draw_table(
                 self.outfile,
                 field_info={},
                 fields=['name', 'deferred', 'help'],
@@ -384,9 +383,9 @@ class ShowCommand(commands.Command):
                 sched = schedulers.get_scheduler_plugin(sched_name)
 
                 scheds.append({
-                    'name': sched_name,
+                    'name':        sched_name,
                     'description': sched.description,
-                    'path': sched.path
+                    'path':        sched.path
                 })
 
             fields = ['name', 'description']
@@ -394,7 +393,7 @@ class ShowCommand(commands.Command):
             if args.verbose:
                 fields.append('path')
 
-            utils.draw_table(
+            output.draw_table(
                 self.outfile,
                 field_info={},
                 fields=fields,
@@ -408,9 +407,9 @@ class ShowCommand(commands.Command):
             try:
                 res_plugin = result_parsers.get_plugin(args.config)
             except result_parsers.ResultParserError:
-                utils.fprint(
+                output.fprint(
                     "Invalid result parser '{}'.".format(args.config),
-                    color=utils.RED
+                    color=output.RED
                 )
                 return errno.EINVAL
 
@@ -428,9 +427,9 @@ class ShowCommand(commands.Command):
                 res_plugin = result_parsers.get_plugin(rp_name)
                 desc = " ".join(res_plugin.__doc__.split())
                 rps.append({
-                    'name': rp_name,
+                    'name':        rp_name,
                     'description': desc,
-                    'path': res_plugin.path
+                    'path':        res_plugin.path
                 })
 
             fields = ['name', 'description']
@@ -438,7 +437,7 @@ class ShowCommand(commands.Command):
             if args.verbose:
                 fields.append('path')
 
-            utils.draw_table(
+            output.draw_table(
                 self.outfile,
                 field_info={},
                 fields=fields,
@@ -453,11 +452,11 @@ class ShowCommand(commands.Command):
         states = []
         for state in sorted(status_file.STATES.list()):
             states.append({
-                'name': state,
+                'name':        state,
                 'description': status_file.STATES.help(state)
             })
 
-        utils.draw_table(
+        output.draw_table(
             self.outfile,
             field_info={},
             fields=['name', 'description'],
@@ -480,7 +479,7 @@ class ShowCommand(commands.Command):
 
         rows = [{'path': path} for path in pav_cfg.config_dirs]
 
-        utils.draw_table(
+        output.draw_table(
             self.outfile,
             field_info={},
             fields=['path'],
@@ -494,10 +493,10 @@ class ShowCommand(commands.Command):
         for mod_name in sorted(module_wrapper.list_module_wrappers()):
             mod_wrap = module_wrapper.get_module_wrapper(mod_name)
             modules.append({
-                'name': mod_name,
-                'version': mod_wrap._version,  # pylint: disable=W0212
+                'name':        mod_name,
+                'version':     mod_wrap._version,  # pylint: disable=W0212
                 'description': mod_wrap.help_text,
-                'path': mod_wrap.path,
+                'path':        mod_wrap.path,
             })
 
         fields = ['name', 'version', 'description']
@@ -505,7 +504,7 @@ class ShowCommand(commands.Command):
         if args.verbose:
             fields.append('path')
 
-        utils.draw_table(
+        output.draw_table(
             self.outfile,
             field_info={},
             fields=fields,
@@ -528,15 +527,15 @@ class ShowCommand(commands.Command):
                 help_str = sys_vars.help(key)
 
             except system_variables.SystemPluginError as err:
-                value = utils.ANSIString('error', code=utils.RED)
+                value = output.ANSIString('error', code=output.RED)
                 deferred = False
-                help_str = utils.ANSIString(str(err), code=utils.RED)
+                help_str = output.ANSIString(str(err), code=output.RED)
 
             rows.append({
-                'name': key,
-                'value': value if not deferred else '<deferred>',
+                'name':        key,
+                'value':       value if not deferred else '<deferred>',
                 'description': help_str,
-                'path': sys_vars.get_obj(key).path,
+                'path':        sys_vars.get_obj(key).path,
             })
 
         fields = ['name', 'value', 'description']
@@ -544,7 +543,7 @@ class ShowCommand(commands.Command):
         if args.verbose:
             fields.append('path')
 
-        utils.draw_table(
+        output.draw_table(
             self.outfile,
             field_info={},
             fields=fields,
@@ -558,12 +557,12 @@ class ShowCommand(commands.Command):
 
         for key in sorted(list(pav_cfg.pav_vars.keys())):
             rows.append({
-                'name': key,
-                'value': pav_cfg.pav_vars[key],
+                'name':        key,
+                'value':       pav_cfg.pav_vars[key],
                 'description': pav_cfg.pav_vars.info(key)['help'],
             })
 
-        utils.draw_table(
+        output.draw_table(
             self.outfile,
             field_info={},
             fields=['name', 'value', 'description'],
@@ -579,25 +578,28 @@ class ShowCommand(commands.Command):
             suite = suites[suite_name]
 
             if suite['err']:
-                name = utils.ANSIString(suite_name, utils.RED)
+                name = output.ANSIString(suite_name,
+                                         output.RED)
             else:
                 name = suite_name
 
             rows.append({
-                'name': name,
-                'path': suite['path'],
+                'name':  name,
+                'path':  suite['path'],
                 'tests': len(suite['tests']),
-                'err': suite['err']
+                'err':   suite['err']
             })
 
             if args.supersedes and suite['supersedes']:
                 for path in suite['supersedes']:
                     rows.append({
                         # Make these rows appear faded.
-                        'name': utils.ANSIString(suite_name, utils.WHITE),
-                        'path': utils.ANSIString(path, utils.WHITE),
+                        'name':  output.ANSIString(suite_name,
+                                                   output.WHITE),
+                        'path':  output.ANSIString(path,
+                                                   output.WHITE),
                         'tests': '?',
-                        'err': ''
+                        'err':   ''
                     })
 
         fields = ['name', 'tests']
@@ -608,7 +610,7 @@ class ShowCommand(commands.Command):
             if args.err:
                 fields.append('err')
 
-        utils.draw_table(
+        output.draw_table(
             self.outfile,
             field_info={},
             fields=fields,
@@ -627,14 +629,15 @@ class ShowCommand(commands.Command):
             suite = suites[suite_name]
 
             if suite['err']:
-                suite_name = utils.ANSIString(suite_name, utils.RED)
+                suite_name = output.ANSIString(suite_name,
+                                               output.RED)
 
                 rows.append({
-                    'name': '{}.*'.format(suite_name),
+                    'name':    '{}.*'.format(suite_name),
                     'summary': 'Loading the suite failed.  '
                                'For more info, run `pav show tests --err`.',
-                    'path': suite['path'],
-                    'err': suite['err']
+                    'path':    suite['path'],
+                    'err':     suite['err']
                 })
             elif args.err:
                 continue
@@ -647,10 +650,10 @@ class ShowCommand(commands.Command):
                     continue
 
                 rows.append({
-                    'name': '{}.{}'.format(suite_name, test_name),
+                    'name':    '{}.{}'.format(suite_name, test_name),
                     'summary': test['summary'][:self.SUMMARY_SIZE_LIMIT],
-                    'path': suite['path'],
-                    'err': 'None'
+                    'path':    suite['path'],
+                    'err':     'None'
                 })
 
         fields = ['name', 'summary']
@@ -660,7 +663,7 @@ class ShowCommand(commands.Command):
             if args.err:
                 fields.append('err')
 
-        utils.draw_table(
+        output.draw_table(
             self.outfile,
             field_info={},
             fields=fields,
@@ -675,14 +678,14 @@ class ShowCommand(commands.Command):
         if args.verbose:
             col_names.append('Path')
         for conf_dir in pav_cfg.config_dirs:
-            path = conf_dir/'hosts'
+            path = conf_dir / 'hosts'
 
             if not (path.exists() and path.is_dir()):
                 continue
 
             for file in os.listdir(path.as_posix()):
 
-                file = path/file
+                file = path / file
                 if file.suffix == '.yaml' and file.is_file():
                     host_id = file.stem
                     host_path = file
@@ -691,7 +694,7 @@ class ShowCommand(commands.Command):
                         'Path': host_path
                     })
 
-        utils.draw_table(
+        output.draw_table(
             self.outfile,
             field_info={},
             fields=col_names,
@@ -705,14 +708,14 @@ class ShowCommand(commands.Command):
         if args.verbose:
             col_names.append('Path')
         for conf_dir in pav_cfg.config_dirs:
-            path = conf_dir/'modes'
+            path = conf_dir / 'modes'
 
             if not (path.exists() and path.is_dir()):
                 continue
 
             for file in os.listdir(path.as_posix()):
 
-                file = path/file
+                file = path / file
                 if file.suffix == '.yaml' and file.is_file():
                     mode_id = file.stem
                     mode_path = file
@@ -721,7 +724,7 @@ class ShowCommand(commands.Command):
                         'Path': mode_path
                     })
 
-        utils.draw_table(
+        output.draw_table(
             self.outfile,
             field_info={},
             fields=col_names,

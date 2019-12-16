@@ -20,7 +20,7 @@ from pavilion.test_run import TestRun
 from pavilion.test_config.file_format import TestConfigLoader
 from pavilion.test_config import VariableSetManager
 from pavilion.test_config import resolve_config
-from pavilion.utils import dbg_print
+from pavilion.output import dbg_print
 
 
 class PavTestCase(unittest.TestCase):

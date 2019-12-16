@@ -1,10 +1,10 @@
 import logging
 
+from pavilion import output
 from pavilion import commands
 from pavilion import result_parsers
 from pavilion import schedulers
 from pavilion import system_variables
-from pavilion import utils
 from pavilion.test_config import VariableSetManager
 from pavilion.test_run import TestRun, TestRunError
 from pavilion.status_file import STATES
@@ -126,7 +126,7 @@ class _RunCommand(commands.Command):
             test.save_results(results)
 
             result_logger = logging.getLogger('results')
-            result_logger.info(utils.json_dumps(results))
+            result_logger.info(output.json_dumps(results))
         except Exception:
             test.status.set(
                 STATES.RESULTS_ERROR,

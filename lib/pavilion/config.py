@@ -7,6 +7,7 @@ import socket
 import sys
 from pathlib import Path, PosixPath
 
+import pavilion.output
 from pavilion import utils
 import yaml_config as yc
 
@@ -32,10 +33,10 @@ if PAV_CONFIG_DIR is not None:
             Path(PAV_CONFIG_DIR)
         )
     else:
-        utils.fprint(
+        pavilion.output.fprint(
             "Invalid path in env var PAV_CONFIG_DIR: '{}'. Ignoring."
             .format(PAV_CONFIG_DIR),
-            color=utils.YELLOW,
+            color=pavilion.output.YELLOW,
             file=sys.stderr
         )
 
@@ -60,11 +61,11 @@ def config_dirs_validator(config, values):
     for value in values:
         path = Path(value)
         if not path.exists():
-            utils.fprint(
+            pavilion.output.fprint(
                 "Config directory {} does not exist. Ignoring."
                 .format(value),
                 file=sys.stderr,
-                color=utils.YELLOW
+                color=pavilion.output.YELLOW
             )
         else:
             config_dirs.append(path)

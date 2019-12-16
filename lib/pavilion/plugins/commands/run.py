@@ -5,17 +5,17 @@ import time
 from collections import defaultdict
 
 from pavilion import commands
+from pavilion import output
+from pavilion.output import fprint
+from pavilion import result_parsers
 from pavilion import schedulers
 from pavilion import system_variables
 from pavilion import test_config
-from pavilion import utils
-from pavilion.test_run import TestRun, TestRunError
-from pavilion.status_file import STATES
 from pavilion.plugins.commands.status import print_from_test_obj
 from pavilion.series import TestSeries, test_obj_from_id
+from pavilion.status_file import STATES
 from pavilion.test_config.string_parser import ResolveError
-from pavilion.utils import fprint
-from pavilion import result_parsers
+from pavilion.test_run import TestRun, TestRunError
 
 
 class RunCommand(commands.Command):
@@ -139,7 +139,7 @@ class RunCommand(commands.Command):
 
         if rp_errors:
             fprint("Result Parser configurations had errors:",
-                   file=self.errfile, color=utils.RED)
+                   file=self.errfile, color=output.RED)
             for msg in rp_errors:
                 fprint(msg, bullet=' - ', file=self.errfile)
             return errno.EINVAL
@@ -150,7 +150,7 @@ class RunCommand(commands.Command):
             if test.config['build']['on_nodes'] not in ['true', 'True']:
                 if not test.build():
                     fprint("Error building test: ", file=self.errfile,
-                           color=utils.RED)
+                           color=output.RED)
                     fprint("status {status.state} - {status.note}"
                            .format(status=test.status.current()),
                            file=self.errfile)
@@ -174,7 +174,7 @@ class RunCommand(commands.Command):
                 sched.schedule_tests(pav_cfg, tests)
             except schedulers.SchedulerPluginError as err:
                 fprint('Error scheduling tests:', file=self.errfile,
-                       color=utils.RED)
+                       color=output.RED)
                 fprint(err, bullet='  ', file=self.errfile)
                 fprint('Cancelling already kicked off tests.',
                        file=self.errfile)
@@ -212,7 +212,7 @@ class RunCommand(commands.Command):
                        's' if len(all_tests) > 1 else '',
                        series.id),
                file=self.outfile,
-               color=utils.GREEN)
+               color=output.GREEN)
 
         if args.status:
             tests = list(series.tests.keys())
@@ -273,8 +273,8 @@ class RunCommand(commands.Command):
             try:
                 test_config.apply_overrides(test_cfg, overrides)
             except test_config.TestConfigError as err:
-                msg = 'Error applying overrides to test {} from {}: {}'\
-                      .format(test_cfg['name'], test_cfg['suite_path'], err)
+                msg = 'Error applying overrides to test {} from {}: {}' \
+                    .format(test_cfg['name'], test_cfg['suite_path'], err)
                 self.logger.error(msg)
                 raise commands.CommandError(msg)
 
@@ -296,8 +296,8 @@ class RunCommand(commands.Command):
                     )
                     raw_tests_by_sched[sched].append((p_cfg, p_var_man))
             except test_config.TestConfigError as err:
-                msg = 'Error resolving permutations for test {} from {}: {}'\
-                      .format(test_cfg['name'], test_cfg['suite_path'], err)
+                msg = 'Error resolving permutations for test {} from {}: {}' \
+                    .format(test_cfg['name'], test_cfg['suite_path'], err)
                 self.logger.error(msg)
                 raise commands.CommandError(msg)
 
@@ -336,9 +336,9 @@ class RunCommand(commands.Command):
                         no_deferred_allowed=nondeferred_cfg_sctns)
 
                 except (ResolveError, KeyError) as err:
-                    msg = "Error resolving variables in config at '{}': {}"\
-                          .format(test_cfg['suite_path'].resolve(test_var_man),
-                                  err)
+                    msg = "Error resolving variables in config at '{}': {}" \
+                        .format(test_cfg['suite_path'].resolve(test_var_man),
+                                err)
                     self.logger.error(msg)
                     raise commands.CommandError(msg)
 
