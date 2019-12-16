@@ -640,7 +640,7 @@ def resolve_section_vars(component, var_man, allow_deferred, deferred_only):
     """
 
     if isinstance(component, dict):
-        resolved_dict = {}
+        resolved_dict = type(component)()
         for key in component.keys():
             resolved_dict[key] = resolve_section_vars(component[key], var_man,
                                                       allow_deferred,
@@ -648,7 +648,7 @@ def resolve_section_vars(component, var_man, allow_deferred, deferred_only):
         return resolved_dict
 
     elif isinstance(component, list):
-        resolved_list = []
+        resolved_list = type(component)()
         for i in range(len(component)):
             resolved_list.append(resolve_section_vars(component[i], var_man,
                                                       allow_deferred,
