@@ -4,7 +4,6 @@ from pavilion import schedulers
 from pavilion.unittest import PavTestCase
 from pavilion import arguments
 from pavilion import series
-from pavilion.test_run import TestRun
 from pavilion.status_file import STATES
 from pavilion.plugins.commands.status import get_statuses
 from io import StringIO
@@ -67,7 +66,6 @@ class CancelCmdTests(PavTestCase):
         timeout = time.time() + 10
         while (raw.job_status(self.pav_cfg, test).state == STATES.SCHEDULED
                and time.time() < timeout):
-            print(raw.job_status(self.pav_cfg, test))
             time.sleep(.1)
 
         # The test should be running

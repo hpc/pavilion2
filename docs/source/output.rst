@@ -1,8 +1,6 @@
 Utilities
 =========
 
-.. automodule:: pavilion.output
-
 .. contents:: Table of Contents
 
 Command Output

@@ -1,5 +1,28 @@
 """
 This module provides helper functions for printing and general output.
+
+Pavilion provides the standard 3/4 bit colors. They can be accessed through
+this dictionary, or directly as attributes in the utils modules.
+
+..code:: python
+utils.COLORS['RED']
+utils.RED
+
+**Available Colors:**
+
+- BLACK
+- RED
+- GREEN
+- YELLOW
+- BLUE
+- MAGENTA
+- CYAN
+- WHITE
+- GREY
+- GRAY
+- BOLD
+- FAINT
+- UNDERLINE
 """
 
 import csv
@@ -27,32 +50,7 @@ BOLD = 1
 FAINT = 2
 UNDERLINE = 4
 
-"""
-Pavilion provides the standard 3/4 bit colors. They can be accessed through
-this dictionary, or directly as attributes in the utils modules. 
-
-..code:: python
-    utils.COLORS['RED']
-    utils.RED
-
-
-**Available Colors:**
-
-- BLACK
-- RED
-- GREEN
-- YELLOW
-- BLUE
-- MAGENTA
-- CYAN
-- WHITE
-- GREY
-- GRAY
-- BOLD
-- FAINT
-- UNDERLINE
-
-"""
+#: Available colors.
 COLORS = {
     'BLACK': BLACK,
     'RED': RED,
@@ -77,7 +75,7 @@ def get_relative_timestamp(base_dt):
     :rtype str:
     """
     now = datetime.datetime.now()
-    format_ = ['%Y', '%b', '%a', '%H:%M:%S'] # year, month, day, time
+    format_ = ['%Y', '%b', '%a', '%H:%M:%S']  # year, month, day, time
 
     for i in range(0, len(format_)):
         if now.strftime(format_[i]) != base_dt.strftime(format_[i]):
