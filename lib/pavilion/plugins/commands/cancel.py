@@ -104,7 +104,7 @@ class CancelCommand(commands.Command):
         for test_id in test_list:
             try:
                 test = TestRun.load(pav_cfg, test_id)
-                sched = schedulers.get_scheduler_plugin(test.scheduler)
+                sched = schedulers.get_plugin(test.scheduler)
                 test_object_list.append(test)
 
                 status = test.status.current()

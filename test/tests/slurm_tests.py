@@ -115,7 +115,7 @@ class SlurmTests(PavTestCase):
     def test_sched_vars(self):
         """Make sure the scheduler vars are reasonable when not on a node."""
 
-        slurm = schedulers.get_scheduler_plugin('slurm')
+        slurm = schedulers.get_plugin('slurm')
 
         cfg = self._quick_test_cfg()
         cfg['scheduler'] = 'slurm'
@@ -158,7 +158,7 @@ class SlurmTests(PavTestCase):
     def test_schedule_test(self):
         """Try to schedule a test."""
 
-        slurm = schedulers.get_scheduler_plugin('slurm')
+        slurm = schedulers.get_plugin('slurm')
         cfg = self._quick_test_cfg()
         cfg['scheduler'] = 'slurm'
         test = self._quick_test(cfg=cfg, name='slurm_test')
@@ -177,7 +177,7 @@ class SlurmTests(PavTestCase):
     def test_node_range(self):
         """Make sure node ranges work properly."""
 
-        slurm = schedulers.get_scheduler_plugin('slurm')
+        slurm = schedulers.get_plugin('slurm')
 
         cfg = self._quick_test_cfg()
         cfg['scheduler'] = 'slurm'

@@ -100,7 +100,7 @@ class RawSchedTests(PavTestCase):
             VariableSetManager(),
         )
 
-        dummy_sched = schedulers.get_scheduler_plugin('dummy')
+        dummy_sched = schedulers.get_plugin('dummy')
         path = dummy_sched._create_kickoff_script(pav_cfg, test)
         with path.open() as file:
             lines = file.readlines()

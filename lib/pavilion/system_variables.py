@@ -126,6 +126,9 @@ def get_vars(defer):
 
 
 class SystemPlugin(IPlugin.IPlugin):
+    """Each system variable plugin provides a key and value for the system
+    variables dictionary. These are only evaluated if asked for,
+    and generally only once."""
 
     PRIO_CORE = 0
     PRIO_COMMON = 10

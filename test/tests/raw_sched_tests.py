@@ -42,7 +42,7 @@ class RawSchedTests(PavTestCase):
         """Make sure all the slurm scheduler variable methods work when
         not on a node."""
 
-        raw = schedulers.get_scheduler_plugin('raw')
+        raw = schedulers.get_plugin('raw')
 
         svars = raw.get_vars(self._quick_test())
 
@@ -52,7 +52,7 @@ class RawSchedTests(PavTestCase):
     def test_schedule_test(self):
         """Make sure the scheduler can run a test."""
 
-        raw = schedulers.get_scheduler_plugin('raw')
+        raw = schedulers.get_plugin('raw')
 
         test = self._quick_test(build=False, finalize=False)
 
@@ -81,7 +81,7 @@ class RawSchedTests(PavTestCase):
 
         hostname = socket.gethostname()
 
-        raw = schedulers.get_scheduler_plugin('raw')
+        raw = schedulers.get_plugin('raw')
 
         # Make a test from another host.
         test.job_id = 'garbledhostnameasldfkjasd_{}'.format(os.getpid())
@@ -119,7 +119,7 @@ class RawSchedTests(PavTestCase):
         test = self._quick_test(cfg=cfg)
         test.build()
 
-        raw = schedulers.get_scheduler_plugin('raw')
+        raw = schedulers.get_plugin('raw')
 
         raw.schedule_test(self.pav_cfg, test)
 

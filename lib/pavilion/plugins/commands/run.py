@@ -168,7 +168,7 @@ class RunCommand(commands.Command):
             return errno.EINVAL
 
         for sched_name, tests in tests_by_sched.items():
-            sched = schedulers.get_scheduler_plugin(sched_name)
+            sched = schedulers.get_plugin(sched_name)
 
             try:
                 sched.schedule_tests(pav_cfg, tests)
@@ -189,7 +189,7 @@ class RunCommand(commands.Command):
             while time.time() < end_time and wait_result is None:
                 last_time = time.time()
                 for sched_name, tests in tests_by_sched.items():
-                    sched = schedulers.get_scheduler_plugin(sched_name)
+                    sched = schedulers.get_plugin(sched_name)
                     for test in tests:
                         status = test.status.current()
                         if status == STATES.SCHEDULED:
@@ -305,13 +305,13 @@ class RunCommand(commands.Command):
         # The scheduler variables are based on all of the
         for sched_name in raw_tests_by_sched.keys():
             try:
-                sched = schedulers.get_scheduler_plugin(sched_name)
+                sched = schedulers.get_plugin(sched_name)
             except KeyError:
                 msg = "Could not find scheduler '{}'.".format(sched_name)
                 self.logger.error(msg)
                 raise commands.CommandError(msg)
 
-            nondeferred_cfg_sctns = schedulers.list_scheduler_plugins()
+            nondeferred_cfg_sctns = schedulers.list_plugins()
 
             # Builds must have the values of all their variables now.
             nondeferred_cfg_sctns.append('build')
@@ -370,7 +370,7 @@ class RunCommand(commands.Command):
         """Cancel each of the given tests using the appropriate scheduler."""
         for sched_name, tests in tests_by_sched.items():
 
-            sched = schedulers.get_scheduler_plugin(sched_name)
+            sched = schedulers.get_plugin(sched_name)
 
             for test in tests:
                 sched.cancel_job(test)

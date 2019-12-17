@@ -209,7 +209,7 @@ class StatusCmdTests(PavTestCase):
         test = TestRun(self.pav_cfg, test, VariableSetManager())
 
         test.build()
-        schedulers.get_scheduler_plugin(test.scheduler) \
+        schedulers.get_plugin(test.scheduler) \
             .schedule_test(self.pav_cfg, test)
 
         status_cmd = commands.get_command('status')
