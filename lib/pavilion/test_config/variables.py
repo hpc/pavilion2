@@ -521,10 +521,10 @@ index, sub_var) tuple.
                 data = json.load(stream)
         except (json.decoder.JSONDecodeError, IOError, FileNotFoundError) \
                 as err:
-            raise VariableError(
-                "Could not load variable file '{}': {}"
-                .format(path, err)
-            )
+            raise \
+                RuntimeError(
+                    "Could not load variable file '{}': {}"
+                    .format(path, err))
 
         var_man = cls()
 

@@ -125,6 +125,8 @@ class TestRun:
         # Just about every method needs this
         self._pav_cfg = pav_cfg
 
+        self.load_ok = True
+
         # Compute the actual name of test, using the subtitle config parameter.
         self.name = '.'.join([
             config.get('suite', '<unknown>'),
@@ -153,9 +155,12 @@ class TestRun:
             if not self.path.is_dir():
                 raise TestRunNotFoundError(
                     "No test with id '{}' could be found.".format(self.id))
-            self.var_man = variables.VariableSetManager.load(
-                self.path/'variables'
-            )
+            try:
+                self.var_man = variables.VariableSetManager.load(
+                    self.path/'variables'
+                )
+            except RuntimeError as err:
+                raise TestRunError(*err.args)
 
         # Set a logger more specific to this test.
         self.logger = logging.getLogger('pav.TestRun.{}'.format(self.id))
