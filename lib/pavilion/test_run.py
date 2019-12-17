@@ -181,6 +181,16 @@ class TestRun:
 
         build_config = self.config.get('build', {})
 
+        # make sure build section is copacetic
+        if build_config['source_download_name'] is not None:
+            if build_config['source_location'] is None:
+                msg = "Test could not be build. Need 'source_location'."
+                fprint(msg)
+                self.status.set(STATES.BUILD_ERROR,
+                                "'source_download_name is set without a "
+                                "'source_location'")
+                raise TestConfigError(msg)
+
         self.build_script_path = self.path/'build.sh'  # type: Path
         self.build_path = self.path/'build'
         if _id is None:
@@ -459,16 +469,6 @@ directory into our test directory, and note that we've used the given
 build.
 :return: True if these steps completed successfully.
 """
-
-        if self.config['build']['source_download_name'] is not None:
-            if self.config['build']['source_location'] is None:
-                fprint(
-                    "Test could not be built. Need 'source_location'."
-                )
-                self.status.set(STATES.BUILD_ERROR,
-                                "'source_download_name is set without a "
-                                "'source_location'")
-                return False
 
         # Only try to do the build if it doesn't already exist.
         if not self.build_origin.exists():
