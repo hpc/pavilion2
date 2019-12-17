@@ -8,6 +8,7 @@ from pavilion import plugins
 from pavilion import schedulers
 from pavilion.status_file import STATES
 from pavilion.unittest import PavTestCase
+from pavilion.test_config import variables
 
 _HAS_SLURM = None
 
@@ -53,15 +54,15 @@ class RawSchedTests(PavTestCase):
 
         raw = schedulers.get_plugin('raw')
 
-        test = self._quick_test()
+        test = self._quick_test(build=False, finalize=False)
 
-        self.assertTrue(test.build())
+        self.assertTrue(test.build(), msg=test)
 
         raw.schedule_tests(self.pav_cfg, [test])
 
         try:
             test.wait(2)
-        except:
+        except Exception:
             self.fail()
 
         self.assertEqual(test.status.current().state, STATES.COMPLETE)

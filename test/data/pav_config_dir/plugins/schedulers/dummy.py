@@ -1,5 +1,7 @@
 from pavilion import schedulers
 from pavilion.status_file import STATES
+from pavilion.test_config import VariableSetManager
+from pavilion.system_variables import SysVarDict
 import yaml_config as yc
 
 
@@ -18,7 +20,6 @@ class Dummy(schedulers.SchedulerPlugin):
         super().__init__('dummy', 'I am dumb')
 
     def get_conf(self):
-
         return yc.KeyedElem('dummy', elements=[])
 
     def _schedule(self, test_obj, kickoff_path):
