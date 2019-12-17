@@ -69,13 +69,19 @@ __HASHED_FILES = {}
 
 class TestRun:
     """The central pavilion test object. Handle saving, monitoring and running
-tests.
+    tests.
 
-:cvar int TEST_ID_DIGITS: How many digits should be in the test folder names.
-"""
-
-    # By default we support up to 10 million tests.
-    TEST_ID_DIGITS = 7
+    :ivar int id: The test id.
+    :ivar dict config: The test's configuration.
+    :ivar Path test.path: The path to the test's test_run directory.
+    :ivar str build_hash: The full build hash.
+    :ivar str build_name: The shortened build hash (the build directory name
+        in working_dir/builds).
+    :ivar Path build_path: The path to the test's copied build directory.
+    :ivar Path build_origin: The build the test will copy (in the build
+        directory).
+    :ivar StatusFile status: The status object for this test.
+    """
 
     # We have to worry about hash collisions, but we don't need all the bytes
     # of hash most algorithms give us. The birthday attack math for 64 bits (
