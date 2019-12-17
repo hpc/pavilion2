@@ -17,9 +17,7 @@ Pavilion has very few dependencies and requirements:
 
   - The path to this directory must be consistent across all cluster hosts.
   - It must support atomic file creation and appends of < 4kb.
-
 - Lmod or 'environment modules' is recommended.
-
 
 Filesystems
 ~~~~~~~~~~~
@@ -118,7 +116,7 @@ sub-repos. To download them in this manner, simply run:
 
 .. code:: bash
 
-    git submodule update --init --recursive
+    git submodule update --init
 
 This clones each of the dependencies into lib/sub\_repos. A softlink in
 lib for each of the dependencies is included in lib that points to the

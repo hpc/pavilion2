@@ -160,25 +160,32 @@ class TestVariables(PavTestCase):
         }
 
         sys_data = {
-            'var1': variables.DeferredVariable(),
+            'var1': variables.DeferredVariable('var1'),
+            'var3': variables.DeferredVariable('var3',
+                                               sub_keys=['subvar1', 'subvar2']),
         }
+
+        with self.assertRaises(ValueError):
+            variables.DeferredVariable('test', var_set='var')
 
         slurm_data = {
             'num_nodes': '45'
         }
 
-        var_man = variables.VariableSetManager()
-        var_man.add_var_set('var', data)
-        var_man.add_var_set('sys', sys_data)
-        var_man.add_var_set('sched', slurm_data)
+        vsetm = variables.VariableSetManager()
+        vsetm.add_var_set('var', data)
+        vsetm.add_var_set('sys', sys_data)
+        vsetm.add_var_set('sched', slurm_data)
 
-        with self.assertRaises(ValueError):
-            var_man.len('sys', 'var1')
-
+        self.assertEqual(vsetm.len('sys', 'var1'), 1)
+        self.assertEqual(vsetm['sys.var1'], '[\x1esys.var1\x1e]')
+        self.assertEqual(vsetm['sys.var3.subvar1'],
+                         '[\x1esys.var3.subvar1\x1e]')
         for key in (
-                'sys.var1',
                 'sys.var1.3',
                 'sys.var1.1.subvar1',
-                'sys.var1.noexist'):
+                'sys.var3.noexist',
+                'sys.var1.noexist',
+                'sys.var3'):
             with self.assertRaises(KeyError):
-                _ = var_man[key]
+                _ = vsetm[key]

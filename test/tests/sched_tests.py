@@ -4,7 +4,6 @@ from pavilion import schedulers
 from pavilion.test_config import variables
 from pavilion.test_run import TestRun
 from pavilion.unittest import PavTestCase
-from pavilion.test_config import VariableSetManager
 import re
 
 class RawSchedTests(PavTestCase):
@@ -68,7 +67,7 @@ class RawSchedTests(PavTestCase):
                 'name': 'sched-vars',
                 'scheduler': 'dummy'
             },
-            VariableSetManager(),
+            {}
         )
 
         dummy_sched = DummySched()
@@ -97,7 +96,7 @@ class RawSchedTests(PavTestCase):
                 'name': 'sched-vars',
                 'scheduler': 'dummy'
             },
-            VariableSetManager(),
+            {}
         )
 
         dummy_sched = schedulers.get_plugin('dummy')

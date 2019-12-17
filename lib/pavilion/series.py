@@ -53,6 +53,9 @@ class TestSeries:
         self.pav_cfg = pav_cfg
         self.tests = {test.id: test for test in tests}
 
+        if not tests:
+            raise TestSeriesError("You cannot create a series of zero tests.")
+
         series_path = self.pav_cfg.working_dir/'series'
 
         # We're creating this series from scratch.
@@ -123,14 +126,7 @@ associated tests."""
                         link_path)
                     continue
 
-                try:
-                    tests.append(TestRun.load(pav_cfg, test_id=test_id))
-                except TestRunError as err:
-                    logger.info(
-                        "Error loading test %s: %s",
-                        test_id, err
-                    )
-
+                tests.append(TestRun.load(pav_cfg, test_id=test_id))
             else:
                 logger.info("Polluted series directory in series '%s'",
                             series_path)

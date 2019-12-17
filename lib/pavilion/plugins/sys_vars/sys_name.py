@@ -6,7 +6,7 @@ class SystemName( system_plugins.SystemPlugin ):
 
     def __init__( self ):
         super().__init__(
-            name='sys_name',
+            plugin_name='sys_name', 
             description='The system name (not necessarily hostname).',
             priority=self.PRIO_CORE,
             is_deferable=False, 

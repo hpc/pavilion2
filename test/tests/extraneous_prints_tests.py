@@ -28,7 +28,7 @@ class ExtraPrintsTest(PavTestCase):
         cmd = base_cmd.copy()
         cmd.extend([
             "--exclude=unittest.py",
-            "--exclude=output.py",
+            "--exclude=utils.py",
             str(self.PAV_LIB_DIR)
         ])
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE)

@@ -1,15 +1,13 @@
-"""Cancels tests as prescribed by the user."""
-
 import errno
 import os
-
+import sys
 from pavilion import commands
-from pavilion import output
 from pavilion import schedulers
+from pavilion import utils
 from pavilion import series
-from pavilion.plugins.commands.status import print_from_test_obj
 from pavilion.status_file import STATES
 from pavilion.test_run import TestRun, TestRunError
+from pavilion.plugins.commands.status import print_from_test_obj
 
 
 class CancelCommand(commands.Command):
@@ -45,9 +43,8 @@ class CancelCommand(commands.Command):
         )
 
     def run(self, pav_cfg, args):
-        """Cancel the given tests."""
 
-        user_id = os.geteuid()  # gets unique user id
+        user_id = os.geteuid() # gets unique user id
 
         if not args.tests:
             # user wants to cancel all current tests
@@ -74,32 +71,31 @@ class CancelCommand(commands.Command):
                                                                test_id)
                                      .tests)
                 except series.TestSeriesError as err:
-                    output.fprint(
+                    utils.fprint(
                         "Series {} could not be found.\n{}".format(test_id,
                                                                    err),
                         file=self.errfile,
-                        color=output.RED
+                        color=utils.RED
                     )
                     return errno.EINVAL
                 except ValueError as err:
-                    output.fprint(
+                    utils.fprint(
                         "Series {} is not a valid series.\n{}"
                         .format(test_id, err), file=self.errfile,
-                        color=output.RED
+                        color=utils.RED
                     )
                     return errno.EINVAL
             else:
                 try:
                     test_list.append(int(test_id))
                 except ValueError as err:
-                    output.fprint(
+                    utils.fprint(
                         "Test {} is not a valid test.\n{}".format(test_id,
                                                                   err),
-                        file=self.errfile, color=output.RED
+                        file=self.errfile, color=utils.RED
                     )
                     return errno.EINVAL
 
-        cancel_failed = False
         test_object_list = []
         for test_id in test_list:
             try:
@@ -118,31 +114,27 @@ class CancelCommand(commands.Command):
                     cancel_status = sched.cancel_job(test)
                     test.status.set(cancel_status.state, cancel_status.note)
                     test.set_run_complete()
-                    output.fprint(
-                        "Test {} cancelled."
-                        .format(test_id), file=self.outfile,
-                        color=output.GREEN)
+                    utils.fprint("Test {} cancelled."
+                                 .format(test_id), file=self.outfile,
+                                 color=utils.GREEN)
 
                 else:
-                    output.fprint(
-                        "Test {} could not be cancelled has state: {}."
-                        .format(test_id, status.state),
-                        file=self.outfile,
-                        color=output.RED)
+                    utils.fprint("Test {} could not be cancelled has state: {}."
+                                 .format(test_id, status.state),
+                                 file=self.outfile,
+                                 color=utils.RED)
 
             except TestRunError as err:
-                output.fprint(
-                    "Test {} could not be cancelled, cannot be found. \n{}"
-                    .format(test_id, err),
-                    file=self.errfile,
-                    color=output.RED)
+                utils.fprint("Test {} could not be cancelled, cannot be" \
+                             " found. \n{}".format(test_id, err),
+                             file=self.errfile,
+                             color=utils.RED)
                 return errno.EINVAL
 
         # Only prints statuses of tests if option is selected
         # and test_list is not empty
         if args.status and test_object_list:
-            print_from_test_obj(pav_cfg, test_object_list, self.outfile,
-                                args.json)
-            return cancel_failed
+            return print_from_test_obj(pav_cfg, test_object_list, self.outfile,
+                                       args.json)
 
-        return cancel_failed
+        return 0

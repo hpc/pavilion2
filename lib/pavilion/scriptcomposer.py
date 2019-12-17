@@ -168,6 +168,12 @@ class ScriptComposer:
             variable.
         """
 
+        # Order the keys alphabetically if they don't have an implied order.
+        if not isinstance(env_dict, collections.OrderedDict):
+            new_dict = collections.OrderedDict()
+            for key in env_dict.keys():
+                new_dict[key] = env_dict[key]
+
         for key, value in env_dict.items():
 
             if value is not None:

@@ -32,6 +32,7 @@ class RunCmdTests(PavTestCase):
 
         tests = run_cmd._configs_to_tests(
             pav_cfg=self.pav_cfg,
+            sys_vars={},
             configs_by_sched=tests,
         )
 
@@ -58,6 +59,7 @@ class RunCmdTests(PavTestCase):
 
         tests = run_cmd._configs_to_tests(
             pav_cfg=self.pav_cfg,
+            sys_vars={},
             configs_by_sched=tests,
         )
 

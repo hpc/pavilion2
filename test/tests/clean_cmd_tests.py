@@ -54,7 +54,7 @@ class CancelCmdTests(PavTestCase):
         run_cmd.outfile = StringIO()
         run_cmd.run(self.pav_cfg, args)
 
-        time.sleep(1)
+        time.sleep(5)
 
         args = arg_parser.parse_args([
             'clean'

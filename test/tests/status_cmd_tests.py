@@ -4,11 +4,13 @@ from pavilion import schedulers
 from pavilion import status_file
 from pavilion import system_variables
 from pavilion.series import TestSeries
-from pavilion.test_config import file_format, VariableSetManager
+from pavilion.test_config import file_format
 from pavilion.unittest import PavTestCase
 from pavilion.test_run import TestRun
+from pavilion.plugins.commands import status
 import argparse
 import io
+import sys
 
 
 class StatusCmdTests(PavTestCase):
@@ -79,9 +81,9 @@ class StatusCmdTests(PavTestCase):
 
         configs = [config1, config2, config3]
 
-        var_man = VariableSetManager()
+        sys_vars = system_variables.get_vars(False)
 
-        tests = [TestRun(self.pav_cfg, test, var_man)
+        tests = [TestRun(self.pav_cfg, test, sys_vars)
                  for test in configs]
 
         for test in tests:
@@ -164,9 +166,9 @@ class StatusCmdTests(PavTestCase):
 
         configs = [config1, config2, config3]
 
-        var_man = VariableSetManager()
+        sys_vars = system_variables.get_vars(False)
 
-        tests = [TestRun(self.pav_cfg, test, var_man)
+        tests = [TestRun(self.pav_cfg, test, sys_vars)
                  for test in configs]
 
         for test in tests:
@@ -206,7 +208,9 @@ class StatusCmdTests(PavTestCase):
 
         test['name'] = 'testytest'
 
-        test = TestRun(self.pav_cfg, test, VariableSetManager())
+        sys_vars = system_variables.get_vars(False)
+
+        test = TestRun(self.pav_cfg, test, sys_vars)
 
         test.build()
         schedulers.get_plugin(test.scheduler) \

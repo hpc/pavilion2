@@ -307,6 +307,7 @@ def load_test_configs(pav_cfg, host, modes, tests):
     # Get the default configuration for a const result parser.
     const_elem = TestConfigLoader().find('results.constant.*')
 
+    seen = []
     # Add the pav_cfg default_result configuration items to each test.
     for test_cfg in picked_tests:
         if 'constant' not in test_cfg['results']:
@@ -494,7 +495,7 @@ def resolve_permutations(raw_test_cfg, pav_vars, sys_vars):
     :param dict pav_vars: The pavilion provided variable set.
     :param Union(dict, pavilion.system_variables.SysVarDict) sys_vars: The
         system plugin provided variable set.
-    :returns: The modified configuration, and a list of variable set
+    :returns: The parsed, modified configuration, and a list of variable set
         managers, one for each permutation. These will already contain all the
         var, sys, pav, and (resolved) permutation (per) variable sets. The
         'sched' variable set will have to be added later.
@@ -508,6 +509,10 @@ def resolve_permutations(raw_test_cfg, pav_vars, sys_vars):
     permute_on = test_cfg['permute_on']
     del test_cfg['permute_on']
     del test_cfg['variables']
+
+    # Recursively make our configuration a little less raw, recursively
+    # parsing all string values into PavString objects.
+    test_cfg = _parse_strings(test_cfg)
 
     user_vars = raw_test_cfg.get('variables', {})
 
@@ -553,35 +558,99 @@ def resolve_permutations(raw_test_cfg, pav_vars, sys_vars):
     return test_cfg, var_men
 
 
-DEFERRED_PREFIX = '!deferred!'
+def _resolve_references(var_man):
+    """Resolve all variable references that are within variable values
+    defined in the 'variables' section of the test config.
 
-
-def was_deferred(val):
-    """Return true if config item val was deferred when we tried to resolve
-    the config.
-
-    :param str val: The config value to check.
-    :rtype: bool
+    :param variables.VariableSetManager var_man: The variables to resolve
+        (and the values to use to resolve them).
+    :raises TestConfigError: When reference loops are found.
+    :raises KeyError: When an unknown variable is referenced.
     """
 
-    return val.startswith(DEFERRED_PREFIX)
+    # We only want to resolve variable references in the variable section
+    var_vars = var_man.variable_sets['var']
+    unresolved_vars = {}
+    # Find all the variable value strings that reference variables
+    for var, var_list in var_vars.data.items():
+        # val is a list of dictionaries
+        for idx in range(len(var_list.data)):
+            sub_var = var_list.data[idx]
+            for key, val in sub_var.data.items():
+                pav_str = string_parser.parse(val)
+                if pav_str.variables:
+                    # Unresolved variable reference that will be resolved below
+                    unresolved_vars[('var', var, idx, key)] = pav_str
+                else:
+                    # This one is ready to resolve now
+                    sub_var.data[key] = pav_str.resolve(var_man)
+
+    # unresolved variables form a tree where the leaves should all be
+    # resolved variables. This iteratively finds unresolved variables whose
+    # references are resolved and resolves them. This should collapse the
+    # tree until there are no unresolved variables left.
+    while unresolved_vars:
+        did_resolve = False
+        for uvar, pav_str in unresolved_vars.items():
+            var_key = None
+            for var_str in pav_str.variables:
+                var_key = var_man.resolve_key(var_str)
+                if var_key in unresolved_vars:
+                    break
+            else:
+                # All variables referenced in uvar are resolvable
+                var_set, var_name, index, sub_var = var_key
+                var_man[var_set][var_name][index][sub_var] = pav_str.resolve(
+                    var_man)
+                del unresolved_vars[uvar]
+                did_resolve = True
+        # If no variable is resolved in this iteration, then all remaining
+        # unresolved variables are part of a variable reference loop and
+        # therefore cannot eventually be resolved.
+        if not did_resolve:
+            raise TestConfigError(
+                "Variables '{}' contained reference loop"
+                .format([k[1] for k in unresolved_vars.keys()]))
 
 
-def resolve_config(config, var_man, no_deferred_allowed):
-    """Recursively resolve the variables in the value strings in the given
-    configuration.
+def _parse_strings(section):
+    """Parse all non-key strings in the given config section, and replace
+    them with a PavString object. This involves recursively walking any
+    data-structures in the given section.
 
-    Deferred Variable Handling
-      When a config value references a deferred variable, it is left unresolved
-      and prepended with the DEFERRED_PREFIX. To complete these, use
-      resolve_deferred().
+    :param section: The config section to process.
+    :return: The original dict with the non-key strings replaced.
+    """
 
-    :param dict config: The config dict to resolve recursively.
+    if isinstance(section, dict):
+        for key in section.keys():
+            section[key] = _parse_strings(section[key])
+        return section
+    elif isinstance(section, list):
+        for i in range(len(section)):
+            section[i] = _parse_strings(section[i])
+        return section
+    elif isinstance(section, str):
+        return string_parser.parse(section)
+    elif section is None:
+        return None
+    else:
+        # Should probably never happen (We're going to see this error a lot
+        # until we get a handle on strings vs unicode though).
+        raise RuntimeError("Invalid value type '{}' of value '{}'."
+                           .format(type(section), section))
+
+
+def resolve_all_vars(config, var_man, no_deferred_allowed):
+    """Recursively resolve the given config's variables, using a
+    variable manager.
+
+    :param dict config: The config component to resolve.
     :param variables.VariableSetManager var_man: A variable manager. (
         Presumably a permutation of the base var_man)
     :param list no_deferred_allowed: Do not allow deferred variables in
-        sections of with these names.
-    :return: The resolved config,
+        sections of these names.
+    :return: The component, resolved.
     """
 
     resolved_dict = {}
@@ -589,43 +658,13 @@ def resolve_config(config, var_man, no_deferred_allowed):
     for key in config:
         allow_deferred = False if key in no_deferred_allowed else True
 
-        resolved_dict[key] = resolve_section_vars(
-            component=config[key],
-            var_man=var_man,
-            allow_deferred=allow_deferred,
-            deferred_only=False,
-        )
+        resolved_dict[key] = _resolve_section_vars(config[key],
+                                                   var_man, allow_deferred)
 
     return resolved_dict
 
 
-def resolve_deferred(config, var_man):
-    """Resolve only those values prepended with the DEFERRED_PREFIX. All
-    other values are presumed to be resolved already.
-
-    :param dict config: The configuration
-    :param variables.VariableSetManager var_man: The variable manager. The must
-        not contain any deferred variables.
-    """
-
-    if var_man.deferred:
-        deferred = [
-            ".".join([part for part in var_parts if part is not None])
-            for var_parts in var_man.deferred
-        ]
-
-        raise RuntimeError(
-            "The variable set manager must not contain any deferred "
-            "variables, but contained these: {}"
-            .format(deferred)
-        )
-
-    return resolve_section_vars(config, var_man,
-                                allow_deferred=False,
-                                deferred_only=True)
-
-
-def resolve_section_vars(component, var_man, allow_deferred, deferred_only):
+def _resolve_section_vars(component, var_man, allow_deferred):
     """Recursively resolve the given config component's  variables, using a
      variable manager.
 
@@ -633,73 +672,28 @@ def resolve_section_vars(component, var_man, allow_deferred, deferred_only):
     :param var_man: A variable manager. (Presumably a permutation of the
         base var_man)
     :param bool allow_deferred: Do not allow deferred variables in this section.
-    :param bool deferred_only: Only resolve values prepended with
-        the DEFERRED_PREFIX, and throw an error if such values can't be
-        resolved.
     :return: The component, resolved.
     """
 
     if isinstance(component, dict):
-        resolved_dict = type(component)()
+        resolved_dict = {}
         for key in component.keys():
-            resolved_dict[key] = resolve_section_vars(component[key], var_man,
-                                                      allow_deferred,
-                                                      deferred_only)
+            resolved_dict[key] = _resolve_section_vars(component[key], var_man,
+                                                       allow_deferred)
         return resolved_dict
 
     elif isinstance(component, list):
-        resolved_list = type(component)()
+        resolved_list = []
         for i in range(len(component)):
-            resolved_list.append(resolve_section_vars(component[i], var_man,
-                                                      allow_deferred,
-                                                      deferred_only))
+            resolved_list.append(_resolve_section_vars(component[i], var_man,
+                                                       allow_deferred))
         return resolved_list
 
+    elif isinstance(component, string_parser.PavString):
+        return component.resolve(var_man, allow_deferred=allow_deferred)
     elif isinstance(component, str):
-
-        if deferred_only:
-            # We're only resolving deferred value strings.
-
-            if component.startswith(DEFERRED_PREFIX):
-                component = component[len(DEFERRED_PREFIX):]
-
-                resolved = string_parser.parse(component).resolve(var_man)
-                if resolved is None:
-                    raise RuntimeError(
-                        "Tried to resolve a deferred config component, but it "
-                        "was still deferred: {}"
-                        .format(component)
-                    )
-                return resolved
-
-            else:
-                # This string has already been resolved in the past.
-                return component
-
-        else:
-            if component.startswith(DEFERRED_PREFIX):
-                # This should never happen
-                raise RuntimeError(
-                    "Tried to resolve a pavilion config string, but it was "
-                    "started with the deferred prefix '{}'. This probably "
-                    "happened because Pavilion called setup.resolve_config "
-                    "when it should have called resolve_deferred."
-                    .format(DEFERRED_PREFIX)
-                )
-
-            resolved = string_parser.parse(component).resolve(var_man)
-
-            if resolved is None:
-                if allow_deferred:
-                    return DEFERRED_PREFIX + component
-                else:
-                    raise string_parser.ResolveError(
-                        "Deferred variable in section where it isn't allowed."
-                        "'{}'".format(component)
-                    )
-
-            else:
-                return resolved
+        # Some PavStrings may have already been resolved.
+        return component
     elif component is None:
         return None
     else:

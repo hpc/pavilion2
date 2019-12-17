@@ -1,11 +1,10 @@
 
 from pavilion.unittest import PavTestCase
-from pavilion import system_variables
 from pavilion.test_config import (load_test_configs,
                                   TestConfigError,
                                   apply_overrides,
                                   resolve_permutations,
-                                  resolve_config)
+                                  resolve_all_vars)
 from pavilion.test_config import variables, string_parser
 from pavilion import plugins
 
@@ -229,7 +228,7 @@ class TestSetupTests(PavTestCase):
 
         with self.assertRaises(TestConfigError):
             resolve_permutations(
-                test, {}, {'def': variables.DeferredVariable()})
+                test, {}, {'def': variables.DeferredVariable('def')})
 
         test = {
             'permute_on': ['foo.1'],
@@ -288,43 +287,6 @@ class TestSetupTests(PavTestCase):
         with self.assertRaises(variables.VariableError):
             resolve_permutations(test, {}, {})
 
-    def test_finalize(self):
-
-        plugins.initialize_plugins(self.pav_cfg)
-
-        cfg = self._quick_test_cfg()
-
-        cfg['run']['cmds'] = [
-            'echo "{{sys.host_name}}"'
-        ]
-
-        cfg['results'] = {
-            'regex': [{
-                'key': 'foo',
-                'regex': '{{sys.host_name}}',
-            }]
-        }
-
-        test = self._quick_test(cfg, 'finalize_test',
-                                build=False, finalize=False)
-
-        test.build()
-
-        undefered_sys_vars = system_variables.SysVarDict(
-            defer=False,
-            unique=True,
-        )
-
-        fin_var_man = variables.VariableSetManager()
-        fin_var_man.add_var_set('sys', undefered_sys_vars)
-
-        test.finalize(fin_var_man)
-
-        results = test.gather_results(test.run())
-        test.save_results(results)
-
-        plugins._reset_plugins()
-
     def test_resolve_all_vars(self):
 
         # Most of the variable resolution stuff is tested elsewhere,
@@ -381,7 +343,7 @@ class TestSetupTests(PavTestCase):
 
         # Make sure each of our permuted results is in the list of answers.
         for var_man in permuted:
-            out_test = resolve_config(test, var_man, ['build'])
+            out_test = resolve_all_vars(test, var_man, ['build'])
             self.assertIn(out_test, answers)
 
         # Make sure we can successfully disallow deferred variables in a
@@ -394,13 +356,13 @@ class TestSetupTests(PavTestCase):
             'variables': {}
         }
 
-        dvar = variables.DeferredVariable()
+        dvar = variables.DeferredVariable('foo', 'sys')
 
         test, permuted = resolve_permutations(test, {}, {'foo': dvar})
 
         with self.assertRaises(string_parser.ResolveError):
             # No deferred variables in the build section.
-            resolve_config(test, permuted[0], ['build'])
+            resolve_all_vars(test, permuted[0], ['build'])
 
     def test_env_order(self):
         """Make sure environment variables keep their order from the test
@@ -409,7 +371,6 @@ class TestSetupTests(PavTestCase):
         plugins.initialize_plugins(self.pav_cfg)
 
         test_conf = load_test_configs(self.pav_cfg, 'this', [], ['order'])[0]
-
         test = self._quick_test(test_conf, "order")
 
         # Each exported variable in this config has a value that denotes its

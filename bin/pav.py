@@ -3,8 +3,6 @@
 
 from logging.handlers import RotatingFileHandler
 from logging import StreamHandler
-
-import pavilion.output
 from pavilion import arguments
 from pavilion import commands
 from pavilion import config
@@ -21,7 +19,7 @@ import traceback
 try:
     import yc_yaml
 except ImportError:
-    pavilion.output.fprint(
+    utils.fprint(
         "Could not find python module 'yc_yaml'. Did you run "
         "`submodule update --init --recursive` to get all the dependencies?"
     )
@@ -29,7 +27,7 @@ except ImportError:
 try:
     import yaml_config
 except ImportError:
-    pavilion.output.fprint(
+    utils.fprint(
         "Could not find python module 'yaml_config'. Did you run "
         "`submodule update --init --recursive` to get all the dependencies?"
     )
@@ -129,7 +127,7 @@ def main():
                 #exist_ok=True  # Doesn't work in python 3.4 (added in 3.5)
             )
     except (PermissionError, OSError, IOError, FileExistsError) as err:
-        pavilion.output.dbg_print("Could not create exception log")
+        utils.dbg_print("Could not create exception log")
 
     exc_handler = RotatingFileHandler(
         filename=pav_cfg.exception_log.as_posix(),
@@ -201,21 +199,21 @@ def main():
             'config': pav_cfg,
         }
 
-        json_data = pavilion.output.json_dumps(exc_info)
+        json_data = utils.json_dumps(exc_info)
         logger = logging.getLogger('exceptions')
         logger.error(json_data)
 
-        pavilion.output.fprint(
+        utils.fprint(
             "Unknown error running command {}: {}."
             .format(args.command_name, err),
-            color=pavilion.output.RED,
+            color=utils.RED,
             file=sys.stderr,
         )
         traceback.print_exc(file=sys.stderr)
 
-        pavilion.output.fprint(
+        utils.fprint(
             "Traceback logged to {}".format(pav_cfg.exception_log),
-            color=pavilion.output.RED,
+            color=utils.RED,
             file=sys.stderr,
         )
         sys.exit(-1)

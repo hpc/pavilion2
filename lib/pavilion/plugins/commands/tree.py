@@ -3,7 +3,6 @@ import os
 import sys
 
 from pavilion import commands
-from pavilion import output
 from pavilion import utils
 
 
@@ -23,13 +22,14 @@ class FileCommand(commands.Command):
         )
 
     def run(self, pav_cfg, args):
-        test_dir = pav_cfg.working_dir / 'test_runs'
+
+        test_dir = pav_cfg.working_dir/'test_runs'
         job_dir = utils.make_id_path(test_dir, args.job_id)
 
         if os.path.isdir(job_dir.as_posix()) is False:
-            output.fprint("directory '{}' does not exist."
-                          .format(job_dir.as_posix()),
-                          file=sys.stderr, color=output.RED)
+            utils.fprint("directory '{}' does not exist."
+                         .format(job_dir.as_posix()),
+                         file=sys.stderr, color=utils.RED)
             return errno.EEXIST
 
         level = 0
@@ -41,12 +41,12 @@ def print_directory(level, path):
     for file in os.listdir(path):
         filename = os.path.join(path, file)
         if os.path.islink(filename):
-            output.fprint("{}{} -> {}".format(' ' * 4 * level, file,
-                                              os.path.realpath(filename)),
-                          file=sys.stdout, color=output.CYAN)
+            utils.fprint("{}{} -> {}".format(' '*4*level, file,
+                                             os.path.realpath(filename)),
+                         file=sys.stdout, color=utils.CYAN)
         elif os.path.isdir(filename):
-            output.fprint("{}{}/".format(' ' * 4 * level, file),
-                          file=sys.stdout, color=output.BLUE)
+            utils.fprint("{}{}/".format(' '*4*level, file),
+                         file=sys.stdout, color=utils.BLUE)
             print_directory(level + 1, filename)
         else:
-            output.fprint("{}{}".format(' ' * 4 * level, file), file=sys.stdout)
+            utils.fprint("{}{}".format(' '*4*level, file), file=sys.stdout)

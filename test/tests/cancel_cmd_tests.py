@@ -4,6 +4,7 @@ from pavilion import schedulers
 from pavilion.unittest import PavTestCase
 from pavilion import arguments
 from pavilion import series
+from pavilion.test_run import TestRun
 from pavilion.status_file import STATES
 from pavilion.plugins.commands.status import get_statuses
 from io import StringIO
@@ -84,13 +85,18 @@ class CancelCmdTests(PavTestCase):
         series_id = series.TestSeries.load_user_series_id(self.pav_cfg)
         tests.append(series_id)
 
+        tests.extend(series.TestSeries.from_id(self.pav_cfg,
+                                               series_id).tests)
+
         args = arg_parser.parse_args([
             'cancel',
             tests[0],
+            str(tests[1]),
+            str(tests[2])
         ])
 
         cancel_cmd = commands.get_command(args.command_name)
-        cancel_cmd.outfile = sys.stdout
+        cancel_cmd.outfile = StringIO()
         cancel_cmd.errfile = StringIO()
 
         self.assertEqual(cancel_cmd.run(self.pav_cfg, args), 0)

@@ -6,7 +6,7 @@ class SystemOS(system_plugins.SystemPlugin):
 
     def __init__(self):
         super().__init__(
-            name='sys_os',
+            plugin_name='sys_os', 
             description="The system os info (name, version).",
             priority=self.PRIO_CORE,
             is_deferable=False, 
