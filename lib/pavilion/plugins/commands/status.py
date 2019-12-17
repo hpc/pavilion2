@@ -28,7 +28,7 @@ def status_from_test_obj(pav_cfg, test_obj):
         status_f = test.status.current()
 
         if status_f.state == STATES.SCHEDULED:
-            sched = schedulers.get_scheduler_plugin(test.scheduler)
+            sched = schedulers.get_plugin(test.scheduler)
             status_f = sched.job_status(pav_cfg, test)
 
         test_statuses.append({
