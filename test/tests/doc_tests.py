@@ -7,6 +7,11 @@ class DocTests(unittest.PavTestCase):
     def test_doc_build(self):
         """Build the documentation and check for warnings/errors."""
 
+        subprocess.call(['make', 'clean'],
+                        cwd=(self.PAV_ROOT_DIR/'docs').as_posix(),
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL)
+
         cmd = ['make', 'html']
 
         proc = subprocess.Popen(
