@@ -71,6 +71,23 @@ class TestRun:
     """The central pavilion test object. Handle saving, monitoring and running
     tests.
 
+    **Test LifeCycle**
+    1. Test Object is Created -- ``TestRun.__init__``
+
+       1. Test id and directory (``working_dir/test_runs/0000001``) are created.
+       2. Most test information files (config, status, etc) are created.
+       3. Build script is created.
+       4. Build hash is generated.
+       5. Run script dry run generation is performed.
+
+    2. Test is built. -- ``test.build()``
+    3. Test is finalized. -- ``test.finalize()``
+
+       1. Variables and config go through final resolution.
+       2. Final run script is generated.
+    4. Test is run. -- ``test.run()``
+    5. Results are gathered. -- ``test.gather_results()``
+
     :ivar int id: The test id.
     :ivar dict config: The test's configuration.
     :ivar Path test.path: The path to the test's test_run directory.

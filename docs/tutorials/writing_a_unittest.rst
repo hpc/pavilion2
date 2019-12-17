@@ -5,6 +5,27 @@ This tutorial is for developers writing unittests of the Pavilion code itself.
 
 .. contents::
 
+What You Need To Test
+---------------------
+
+Here are some basic tenants:
+
+1.  Test the end results, not intermediate results.
+
+    - Trust that Python works. Test what a setting/argument effects rather
+      than the fact that the variable got set.
+2.  Exercise each code path.
+
+    - **Don't** test every combination of code path.
+3.  When reasonable test that bad values are handled sanely.
+
+    - You can assume a reasonable type is always passed.
+4.  Your test should be fast.
+
+    - If waiting for something, sleep in .1s increments.
+5.  You can combine multiple 'subtests' into a single test method, but at least
+    separate them by 'theme'.
+
 Unit Test Files
 ---------------
 
@@ -192,7 +213,7 @@ Each plugin type in Pavilion provides a function to find a plugin by name
             plugins._reset_plugins()
 
 Test Run Objects
-----------------
+^^^^^^^^^^^^^^^^
 
 It's very likely that your test will require one or more test run objects. Your
 PavTestCase can help with that via the
@@ -228,48 +249,65 @@ methods.
 
             plugins._reset_plugins()
 
-Test LifeCycle
-^^^^^^^^^^^^^^
-
-Before we go further, you need to know about the test life cycle.
-
-1. Test Object is Created -- ``TestRun.__init__``
-
-   1. Test id and directory (``working_dir/test_runs/0000001``) are created.
-   2. Most test information files (config, status, etc) are created.
-   3. Build script is created.
-   4. Build hash is generated.
-   5. Run script dry run generation is performed.
-
-2. Test is built. -- ``test.build()``
-3. Test is finalized. -- ``test.finalize()``
-
-   1. Variables and config go through final resolution.
-   2. Final run script is generated.
-4. Test is run. -- ``test.run()``
-5. Results are gathered. -- ``test.gather_results()``
-
+You **must** be cognizant of the
+`test lifecycle <../source/test_run.html#pavilion.test_run.TestRun>`_.
 Before a test can be run, it must be built and finalized. The ``._quick_test()``
 method does this for you by default, but it can be turned off through the
 ``build`` and ``finalize`` options to ``._quick_test()``.
 
-What You Need To Test
----------------------
+Testing Commands
+----------------
 
-Here are some basic tenants:
+Commands need an argument object, which we can get from the pavilion argument
+parser using the ``.get_parser()`` method. The parser returned is just a
+standard Python
+`argparse.ArgumentParser <https://docs.python.org/3.7/library/argparse.html#argumentparser-objects>`_
+object.
 
-1.  Test the end results, not intermediate results.
+.. code-block:: python
 
-    - Trust that Python works. Test what a setting/argument effects rather
-      than the fact that the variable got set.
-2.  Exercise each code path.
+    from pavilion import unittests
+    from pavilion import arguments
+    from pavilion import commands
+    import io
 
-    - **Don't** test every combination of code path.
-3.  When reasonable test that bad values are handled sanely.
+    class LogTests(unittests.PavTestCase):
 
-    - You can assume a reasonable type is always passed.
-4.  Your test should be fast.
+        def test_log_cmd(self):
 
-    - If waiting for something, sleep in .1s increments.
-5.  You can combine multiple 'subtests' into a single test method, but at least
-    separate them by 'theme'.
+            plugins.initialize_plugins(self.pav_config)
+
+            # To check the logs, we need a test to check the logs of.
+            test = self._quick_test()
+            test.run()
+
+            # Get the command itself.
+            log_cmd = commands.get_plugin('log')
+            # Instead of printing to stdout and stderr, we should capture the
+            # command output. Remember, we'll reload the plugins for each test,
+            # so this change won't be permanent.
+            log_cmd.outfile = io.StringIO()
+            log_cmd.errfile = io.StringIO()
+
+            # Get the argument parser.
+            arg_parser = arguments.get_parser()
+
+            # We can test a whole bunch of argument combinations at once by
+            # iterating over them.
+            arg_sets = (
+                ['log', 'kickoff', str(test.id)],
+                ['log', 'run', str(test.id)],
+                ['log', 'build', str(test.id)],
+            )
+
+            for arg_set in arg_sets:
+                # Parse the arguments
+                args = arg_parser.parse_args(arg_set)
+                # Run the command with the given args.
+                log.run(self.pav_cfg, args)
+
+                # We could check that the output is sane here (in this case
+                # we can do so easily, so we should). The StringIO objects
+                # we used above would make that fairly easy.
+
+            plugins._reset_plugins()
