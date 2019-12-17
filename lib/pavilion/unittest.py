@@ -23,14 +23,20 @@ from pavilion.utils import dbg_print
 class PavTestCase(unittest.TestCase):
     """A unittest.TestCase with a lot of useful Pavilion features baked in.
 All pavilion unittests (in test/tests) should use this as their
-base class. It provides:
+base class.
 
-- self.pav_cfg: A pavilion config set up properly for
-- Setup of all the directories pavilion needs.
-- The ability to skip (or only run) tests based on name globs.
-- self.dbg_print - Convenient access to utils.dbg_print
-- self._quick_test_cfg() - An instant test configuration.
-- self._quick_test() - Instant test run objects.
+:cvar Path PAV_LIB_DIR: The Path to Pavilion's lib directory (where this
+    module resides).
+:cvar Path PAV_ROOT_DIR: The Path to Pavilion's root directory (the root of the
+    git repo).
+:cvar Path TEST_DATA_ROOT: The unit test data directory.
+:cvar Path PAV_CONFIG_PATH: The path to the configuration used by unit tests.
+:cvar dict QUICK_TEST_BASE_CFG: The base configuration for tests generated
+    by the ``_quick_test()`` and ``_quick_test_cfg()`` methods.
+
+:ivar yaml_config.ConfigDict pav_cfg: A pavilion config setup properly for
+    use by unit tests. Unit tests should **always** use this pav_cfg. If it
+    needs to be modified, copy it using copy.deepcopy.
 """
 
     PAV_LIB_DIR = Path(__file__).resolve().parent  # type: Path
@@ -47,6 +53,8 @@ base class. It provides:
     ONLY = []
 
     def __init__(self, *args, **kwargs):
+        """Setup the pav_cfg object, and do other initialization required by
+        pavilion."""
 
         # Open the default pav config file (found in
         # test/data/pav_config_dir/pavilion.yaml), modify it, and then
@@ -58,6 +66,7 @@ base class. It provides:
                                    self.PAV_LIB_DIR]
 
         raw_pav_cfg.working_dir = self.PAV_ROOT_DIR/'test'/'working_dir'
+        raw_pav_cfg.user_config = False
 
         raw_pav_cfg.result_log = raw_pav_cfg.working_dir/'results.log'
 
@@ -181,11 +190,11 @@ though."""
                              .format(target_path, file_path))
 
     def _cmp_files(self, a_path, b_path):
-        """Compare two files.
+        """Compare the contents of two files.
 
-:param Path a_path:
-:param Path b_path:
-"""
+        :param Path a_path:
+        :param Path b_path:
+        """
 
         with a_path.open('rb') as a_file, b_path.open('rb') as b_file:
             self.assertEqual(a_file.read(), b_file.read(),
@@ -194,7 +203,7 @@ though."""
 
     def _cmp_tree(self, path_a, path_b):
         """Compare two directory trees, including the contents of all the
-files."""
+        files."""
 
         a_walk = list(os.walk(str(path_a)))
         b_walk = list(os.walk(str(path_b)))

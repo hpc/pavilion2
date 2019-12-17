@@ -342,7 +342,7 @@ class ShowCommand(commands.Command):
             sched_name = args.vars if args.vars is not None else args.config
 
             try:
-                sched = schedulers.get_scheduler_plugin(sched_name)
+                sched = schedulers.get_plugin(sched_name)
             except schedulers.SchedulerPluginError:
                 utils.fprint(
                     "Invalid scheduler plugin '{}'.".format(sched_name),
@@ -380,8 +380,8 @@ class ShowCommand(commands.Command):
             # Assuming --list was given
 
             scheds = []
-            for sched_name in schedulers.list_scheduler_plugins():
-                sched = schedulers.get_scheduler_plugin(sched_name)
+            for sched_name in schedulers.list_plugins():
+                sched = schedulers.get_plugin(sched_name)
 
                 scheds.append({
                     'name': sched_name,

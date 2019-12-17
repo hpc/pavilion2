@@ -198,7 +198,7 @@ def __reset():
             plugin.deactivate()
 
 
-def get_scheduler_plugin(name):
+def get_plugin(name):
     """Return a scheduler plugin
 
     :param str name: The name of the scheduler plugin.
@@ -214,7 +214,8 @@ def get_scheduler_plugin(name):
 
     return _SCHEDULER_PLUGINS[name]
 
-def list_scheduler_plugins():
+
+def list_plugins():
     """Return a list of all available scheduler plugin names.
 
     :rtype: list
