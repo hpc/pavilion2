@@ -37,7 +37,7 @@ class _RunCommand(commands.Command):
             raise
 
         try:
-            sched = schedulers.get_scheduler_plugin(test.scheduler)
+            sched = schedulers.get_plugin(test.scheduler)
         except Exception:
             test.status.set(STATES.BUILD_ERROR,
                             "Unknown error getting the scheduler. Refer to "
