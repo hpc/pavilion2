@@ -173,7 +173,7 @@ this multiple times in a single test.
             # Given the default Pavilion config, this will find all the plugins
             # that come with Pavilion, and all the plugins in
             # test/data/pav_config_dir/plugins
-            plugins.initialize_plugins(self.pav_config)
+            plugins.initialize_plugins(self.pav_cfg)
 
         # This method is run after each test in this class.
         def tearDown(self):
@@ -199,7 +199,7 @@ Each plugin type in Pavilion provides a function to find a plugin by name
     class MyTests(PavTestCase):
 
         def test_plugins(self):
-            plugins.initialize_plugins(self.pav_config)
+            plugins.initialize_plugins(self.pav_cfg)
 
             run_cmd = pavilion.commands.get_plugin('run')
             slurm = pavilion.schedulers.get_plugin('slurm')
@@ -230,7 +230,7 @@ methods.
 
     class MyTests(PavTestCase):
         def test_foo(self):
-            plugins.initialize_plugins(self.pav_config)
+            plugins.initialize_plugins(self.pav_cfg)
 
             # This will create a test run object, along with its run directory.
 
@@ -304,7 +304,7 @@ object.
                 # Parse the arguments
                 args = arg_parser.parse_args(arg_set)
                 # Run the command with the given args.
-                log.run(self.pav_cfg, args)
+                log_cmd.run(self.pav_cfg, args)
 
                 # We could check that the output is sane here (in this case
                 # we can do so easily, so we should). The StringIO objects
