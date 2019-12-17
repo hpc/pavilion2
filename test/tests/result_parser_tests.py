@@ -110,7 +110,7 @@ class ResultParserTests(PavTestCase):
 
         test = self._quick_test(test_cfg, 'result_parser_test')
         test.build()
-        test.run()
+        test.run({}, {})
 
         results = result_parsers.parse_results(
             test=test,
@@ -526,7 +526,7 @@ class ResultParserTests(PavTestCase):
 
         test = self._quick_test(test_cfg, 'result_parser_test')
         test.build()
-        test.run()
+        test.run({}, {})
 
         results = result_parsers.parse_results(
             test=test,
@@ -669,7 +669,7 @@ class ResultParserTests(PavTestCase):
 
         test = self._quick_test(test_cfg, 'result_parser_test')
         test.build()
-        test.run()
+        test.run({}, {})
 
         results = result_parsers.parse_results(
             test=test,
@@ -739,7 +739,7 @@ class ResultParserTests(PavTestCase):
 
         test = self._quick_test(test_cfg, 'result_parser_test')
         test.build()
-        test.run()
+        test.run({}, {})
 
         results = result_parsers.parse_results(
             test=test,
@@ -775,7 +775,7 @@ class ResultParserTests(PavTestCase):
                 'table': [
                     {
                         'key': 'table1',
-                        'delimiter': r'\\|',
+                        'delimiter': '\\|',
                         'col_num': '3'
                     }
                 ],
@@ -789,7 +789,8 @@ class ResultParserTests(PavTestCase):
         }
 
         test = self._quick_test(table_test1, 'result_parser_test')
-        test.run()
+        test.build()
+        test.run({}, {})
 
         results = result_parsers.parse_results(
             test=test,
@@ -831,7 +832,7 @@ class ResultParserTests(PavTestCase):
 
         test = self._quick_test(table_test2, 'result_parser_test')
         test.build()
-        test.run()
+        test.run({}, {})
 
         results = result_parsers.parse_results(
             test=test,
@@ -880,7 +881,7 @@ class ResultParserTests(PavTestCase):
 
         test = self._quick_test(table_test3, 'result_parser_test')
         test.build()
-        test.run()
+        test.run({}, {})
 
         results = result_parsers.parse_results(
             test=test,

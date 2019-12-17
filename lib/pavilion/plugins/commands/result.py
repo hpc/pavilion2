@@ -1,10 +1,11 @@
-import pprint
 import sys
+import pprint
 
 from pavilion import commands
-from pavilion import output
 from pavilion import series
-from pavilion.test_run import TestRun, TestRunError, TestRunNotFoundError
+from pavilion.test_run import TestRun, TestRunError, TestRunNotFoundError, \
+    get_latest_tests
+from pavilion import utils
 
 
 class ResultsCommand(commands.Command):
@@ -76,7 +77,7 @@ class ResultsCommand(commands.Command):
         all_keys.sort(key=lambda k: max([len(res) for res in results]))
 
         if args.json:
-            output.json_dump(results, self.outfile)
+            utils.json_dump(results, self.outfile)
             return 0
 
         if args.full:
@@ -85,7 +86,7 @@ class ResultsCommand(commands.Command):
         else:
             fields = ['name', 'id', 'result'] + sum(args.key, list())
 
-        output.draw_table(
+        utils.draw_table(
             outfile=self.outfile,
             field_info={},
             fields=fields,
@@ -121,10 +122,10 @@ class ResultsCommand(commands.Command):
 
         if full_arg:
             if len(test_list) > 1:
-                output.fprint(
+                utils.fprint(
                     "Requested full test results but provided multiple tests. "
                     "Giving results for only the first found.",
-                    color=output.YELLOW,
+                    color=utils.YELLOW,
                     file=sys.stdout,
                 )
                 test_list = [test_list[0]]

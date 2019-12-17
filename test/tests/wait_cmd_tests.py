@@ -1,7 +1,9 @@
 from pavilion import commands
 from pavilion import plugins
+from pavilion import status_file
+from pavilion import system_variables
 from pavilion.series import TestSeries
-from pavilion.test_config import file_format, VariableSetManager
+from pavilion.test_config import file_format
 from pavilion.unittest import PavTestCase
 from pavilion.test_run import TestRun
 import argparse
@@ -38,7 +40,7 @@ class WaitCmdTests(PavTestCase):
         self.assertEqual(args.timeout, '22')
 
     def test_wait_command(self):
-        """Test wait command."""
+        """Test wait command by generating a suite of tests."""
 
         config1 = file_format.TestConfigLoader().validate({
             'scheduler': 'raw',
@@ -78,7 +80,9 @@ class WaitCmdTests(PavTestCase):
 
         configs = [config1, config2, config3]
 
-        tests = [TestRun(self.pav_cfg, test, VariableSetManager())
+        sys_vars = system_variables.get_vars(False)
+
+        tests = [TestRun(self.pav_cfg, test, sys_vars)
                  for test in configs]
 
         for test in tests:

@@ -154,7 +154,7 @@ class SlurmVars(SchedulerVariables):
         """The number of nodes allocated for this test (may be less than the
         total in this allocation)."""
 
-        num_nodes = self.sched_config.get('num_nodes')
+        num_nodes = self.test.config['slurm'].get('num_nodes')
 
         if '-' in num_nodes:
             _, nmax = num_nodes.split('-', 1)
@@ -181,7 +181,7 @@ class SlurmVars(SchedulerVariables):
         # The requested processors is the number per node times
         # the actual number of nodes.
 
-        req_procs = self.sched_config.get('tasks_per_node')
+        req_procs = self.test.config['slurm'].get('tasks_per_node')
         if req_procs == 'all':
             req_procs = int(self['min_ppn'])
         else:

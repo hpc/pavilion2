@@ -7,7 +7,6 @@ import socket
 import sys
 from pathlib import Path, PosixPath
 
-import pavilion.output
 from pavilion import utils
 import yaml_config as yc
 
@@ -33,10 +32,10 @@ if PAV_CONFIG_DIR is not None:
             Path(PAV_CONFIG_DIR)
         )
     else:
-        pavilion.output.fprint(
+        utils.fprint(
             "Invalid path in env var PAV_CONFIG_DIR: '{}'. Ignoring."
             .format(PAV_CONFIG_DIR),
-            color=pavilion.output.YELLOW,
+            color=utils.YELLOW,
             file=sys.stderr
         )
 
@@ -61,11 +60,11 @@ def config_dirs_validator(config, values):
     for value in values:
         path = Path(value)
         if not path.exists():
-            pavilion.output.fprint(
+            utils.fprint(
                 "Config directory {} does not exist. Ignoring."
                 .format(value),
                 file=sys.stderr,
-                color=pavilion.output.YELLOW
+                color=utils.YELLOW
             )
         else:
             config_dirs.append(path)
@@ -108,14 +107,13 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
             "config_dirs",
             sub_elem=yc.PathElem(),
             post_validator=config_dirs_validator,
-            help_text="Additional Paths to search for Pavilion config files. "
-                      "Pavilion configs (other than this core config) are "
-                      "searched for in the given order. In the case of "
-                      "identically named files, directories listed earlier "
-                      "take precedence."),
+            help_text="Paths to search for Pavilion config files. Pavilion "
+                      "configs (other than this core config) are searched for "
+                      "in the given order. In the case of identically named "
+                      "files, directories listed earlier take precedence."),
         yc.BoolElem(
             "user_config",
-            default=True,
+            default='.pavilion',
             help_text="Whether to automatically add the user's config "
                       "directory at ~/.pavilion to the config_dirs. Configs "
                       "in this directory always take precedence."

@@ -1,7 +1,7 @@
 from pavilion import result_parsers
 import yaml_config as yc
 import re
-
+from pavilion.utils import dbg_print
 
 class Table(result_parsers.ResultParser):
 
