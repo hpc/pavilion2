@@ -37,6 +37,7 @@ def status_from_test_obj(pav_cfg, test_obj):
             'state': status_f.state,
             'time': status_f.when,
             'note': status_f.note,
+            'sched_info': test.sched_info
         })
 
     test_statuses.sort(key=lambda x: x['test_id'])
@@ -60,7 +61,8 @@ def get_all_tests(pav_cfg, args, errfile):
                 'name': "",
                 'state': STATES.UNKNOWN,
                 'time': "",
-                'note': "Test not found."
+                'note': "Test not found.",
+                'sched_info': ""
             })
 
     statuses = status_from_test_obj(pav_cfg, test_obj_list)
@@ -127,6 +129,7 @@ def get_statuses(pav_cfg, args, errfile):
                 'state': STATES.UNKNOWN,
                 'time': "",
                 'note': "Test not found.",
+                'sched_info': ""
             })
 
     statuses = status_from_test_obj(pav_cfg, test_obj_list)
@@ -158,7 +161,7 @@ def print_status(statuses, outfile, json=False):
         json_data = {'statuses': statuses}
         utils.json_dump(json_data, outfile)
     else:
-        fields = ['test_id', 'name', 'state', 'time', 'note']
+        fields = ['test_id', 'name', 'state', 'time', 'note', 'sched_info']
         utils.draw_table(
             outfile=outfile,
             field_info={

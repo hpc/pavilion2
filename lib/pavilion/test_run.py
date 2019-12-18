@@ -162,6 +162,7 @@ class TestRun:
 
         # This will be set by the scheduler
         self._job_id = None
+        self._sched_info = None
 
         # Setup the initial status file.
         self.status = StatusFile(self.path/'status')
@@ -544,6 +545,34 @@ build.
 
         return True
 
+    @property
+    def sched_info(self):
+
+        path = self.path / 'sched_info'
+
+        try:
+            with path.open('r') as sched_info_file:
+                self._sched_info = sched_info_file.read()
+        except FileNotFoundError:
+            return None
+        except (OSError, IOError) as err:
+            self.logger.error("Could not read sched_info file '%s': %s",
+                              path, err)
+
+        return self._sched_info
+
+    @sched_info.setter
+    def sched_info(self, sched_info):
+
+        path = self.path / 'sched_info'
+
+        try:
+            with path.open('w') as sched_info_file:
+                sched_info_file.write(sched_info)
+        except (IOError, OSError) as err:
+            self.logger.error("Could not write sched_info file '%s': %s",
+                              path, err)
+
     def _build(self, build_dir):
         """Perform the build. This assumes there actually is a build to perform.
         :param Path build_dir: The directory in which to perform the build.
@@ -886,14 +915,8 @@ build.
                                     stdout=run_log,
                                     stderr=subprocess.STDOUT)
 
-            try:
-                test_sched = schedulers.get_scheduler_plugin(self.scheduler)
-                self.status.set(STATES.RUNNING,
-                                "Currently running. {}"
-                                .format(test_sched.get_overall_status(self)))
-            except schedulers.SchedulerPluginError:
-                self.status.set(STATES.RUNNING,
-                                "Currently running.")
+            self.status.set(STATES.RUNNING,
+                            "Currently running.")
 
             # Run the test, but timeout if it doesn't produce any output every
             # self._run_timeout seconds

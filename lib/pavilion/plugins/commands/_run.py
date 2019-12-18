@@ -49,6 +49,11 @@ class _RunCommand(commands.Command):
 
         try:
             sched = schedulers.get_plugin(test.scheduler)
+            info_from_sched = sched.get_overall_status(test)
+            test.sched_info = str(info_from_sched)
+            test.status.set(STATES.SCHEDULED,
+                            "Sched Info: {}"
+                            .format(info_from_sched))
         except Exception:
             test.status.set(STATES.BUILD_ERROR,
                             "Unknown error getting the scheduler. Refer to "
