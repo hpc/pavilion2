@@ -109,7 +109,7 @@ def main():
     try:
         log_fn.touch()
     except (PermissionError, FileNotFoundError) as err:
-        output.fprint("Could write create pavilion log at '{}': {}"
+        output.fprint("Could not write to pavilion log at '{}': {}"
                       .format(log_fn, err),
                       color=output.YELLOW,
                       file=sys.stderr,
@@ -134,7 +134,7 @@ def main():
         pav_cfg.result_log.touch()
     except (PermissionError, FileNotFoundError) as err:
         output.fprint(
-            "Could write create result log at '{}': {}"
+            "Could not write to result log at '{}': {}"
             .format(pav_cfg.result_log, err),
             color=output.YELLOW,
             file=sys.stderr
@@ -157,7 +157,7 @@ def main():
         pav_cfg.exception_log.touch()
     except (PermissionError, FileNotFoundError) as err:
         output.fprint(
-            "Could write create exception log at '{}': {}"
+            "Could not write to exception log at '{}': {}"
             .format(pav_cfg.exception_log, err),
             color=output.YELLOW,
             file=sys.stderr
