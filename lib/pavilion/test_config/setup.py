@@ -236,7 +236,7 @@ def load_test_configs(pav_cfg, host, modes, tests):
                 "followed by a specific test. Eg: 'supermagic' or "
                 "'supermagic.fs_tests'")
 
-        # Divide the test name into it's parts.
+        # Divide the test name into its parts.
         if len(name_parts) == 2:
             test_suite, requested_test = name_parts
         else:

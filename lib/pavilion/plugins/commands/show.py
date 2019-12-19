@@ -251,7 +251,7 @@ class ShowCommand(commands.Command):
         modes = subparsers.add_parser(
             'modes',
             aliases=['mode'],
-            help="Show available hosts and their information.",
+            help="Show available modes and their information.",
             description="Pavilion can support different default configs "
                         "depending on the mode that is specified."
         )
@@ -260,6 +260,17 @@ class ShowCommand(commands.Command):
             '--verbose', '-v',
             action='store_true', default=False,
             help="Display paths to mode files"
+        )
+
+        series = subparsers.add_parser(
+            'series',
+            help="Show available series and their information.",
+            description="Pavilion series."
+        )
+        series.add_argument(
+            '--tests', '-t',
+            action='store_true', default=False,
+            help="Display tests involved in series."
         )
 
     def run(self, pav_cfg, args):
@@ -326,6 +337,8 @@ class ShowCommand(commands.Command):
                 'modes',
                 'mode']:
             cmd = self._modes_cmd
+        elif cmd_name in ['series']:
+            cmd = self._series_cmd
         else:
             raise RuntimeError("Invalid show cmd '{}'".format(cmd_name))
 
@@ -720,4 +733,36 @@ class ShowCommand(commands.Command):
             field_info={},
             fields=col_names,
             rows=modes
+        )
+
+    def _series_cmd(self, pav_cfg, args):
+
+        series = []
+        col_names = ['Name']
+
+        if args.tests:
+            col_names.append('Tests')
+
+        for conf_dir in pav_cfg.config_dirs:
+            path = conf_dir/'series'
+
+            if not (path.exists() and path.is_dir()):
+                continue
+
+            for file in os.listdir(path.as_posix()):
+
+                file = path/file
+                if file.suffix == '.yaml' and file.is_file():
+                    series_id = file.stem
+                    series_path = file
+                    series.append({
+                        'Name': series_id,
+                        'Tests': ''
+                    })
+
+        utils.draw_table(
+            self.outfile,
+            field_info={},
+            fields=col_names,
+            rows=series
         )
