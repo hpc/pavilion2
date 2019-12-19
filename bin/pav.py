@@ -165,7 +165,7 @@ def main():
     else:
         exc_handler = RotatingFileHandler(
             filename=pav_cfg.exception_log.as_posix(),
-            maxBytes=20 * 1024 **2,
+            maxBytes=20 * 1024 ** 2,
             backupCount=3,
         )
         exc_handler.setFormatter(logging.Formatter(
