@@ -86,6 +86,7 @@ class TestRunTests(PavTestCase):
             # These archives don't have a containing directory.
             'no_encaps.tgz',
             'no_encaps.zip',
+            'softlink.zip',
         ]
 
         test_archives = self.TEST_DATA_ROOT/'pav_config_dir'/'test_src'
