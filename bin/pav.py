@@ -99,7 +99,7 @@ def main():
     try:
         log_fn.touch()
     except (PermissionError, FileNotFoundError) as err:
-        output.dbg_print("Could write create pavilion log at '{}': {}"
+        output.dbg_print("Could not create pavilion log at '{}': {}"
                          .format(log_fn, err))
     else:
         file_handler = RotatingFileHandler(filename=str(log_fn),
@@ -120,7 +120,7 @@ def main():
     try:
         pav_cfg.result_log.touch()
     except (PermissionError, FileNotFoundError) as err:
-        output.dbg_print("Could write create result log at '{}': {}"
+        output.dbg_print("Could not create result log at '{}': {}"
                          .format(pav_cfg.result_log, err))
     else:
         result_logger = logging.getLogger('results')
@@ -139,7 +139,7 @@ def main():
     try:
         pav_cfg.exception_log.touch()
     except (PermissionError, FileNotFoundError) as err:
-        output.dbg_print("Could write create exception log at '{}': {}"
+        output.dbg_print("Could not create exception log at '{}': {}"
                                   .format(pav_cfg.exception_log, err))
     else:
         exc_handler = RotatingFileHandler(
