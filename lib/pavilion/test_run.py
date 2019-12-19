@@ -30,6 +30,7 @@ from pavilion.status_file import StatusFile, STATES
 from pavilion.test_config import variables, string_parser, resolve_deferred
 from pavilion.output import fprint
 from pavilion.utils import ZipFileFixed as ZipFile
+from pavilion.test_config.file_format import TestConfigError
 
 
 def get_latest_tests(pav_cfg, limit):
@@ -185,6 +186,22 @@ class TestRun:
         self.results_path = self.path/'results.json'
 
         build_config = self.config.get('build', {})
+
+        # make sure build source_download_name is not set without
+        # source_location
+        try:
+            if build_config['source_download_name'] is not None:
+                if build_config['source_location'] is None:
+                    msg = "Test could not be build. Need 'source_location'."
+                    fprint(msg)
+                    self.status.set(STATES.BUILD_ERROR,
+                                    "'source_download_name is set without a "
+                                    "'source_location'")
+                    raise TestConfigError(msg)
+        except KeyError:
+            # this is mostly for unit tests that create test configs without a
+            # build section at all
+            pass
 
         self.build_script_path = self.path/'build.sh'  # type: Path
         self.build_path = self.path/'build'
