@@ -8,7 +8,6 @@ import sys
 from pathlib import Path, PosixPath
 
 import pavilion.output
-from pavilion import utils
 import yaml_config as yc
 
 LOGGER = logging.getLogger('pavilion.' + __file__)
@@ -18,7 +17,8 @@ LOGGER = logging.getLogger('pavilion.' + __file__)
 PAV_CONFIG_SEARCH_DIRS = [Path('./').resolve()]
 
 try:
-    USER_HOME_PAV = Path.home()/'.pavilion'
+    # 3.4ism
+    USER_HOME_PAV = Path(os.path.expanduser('~'))/'.pavilion'
 except OSError:
     # I'm not entirely sure this is the right error to catch.
     USER_HOME_PAV = Path('/tmp')/os.getlogin()/'.pavilion'
