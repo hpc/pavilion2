@@ -123,7 +123,7 @@ class ModWrapperTests(PavTestCase):
         test = self._quick_test(test_cfg)
         run_result = test.run()
 
-        self.assertEqual(run_result, STATES.RUN_DONE)
+        self.assertEqual(run_result, True)
 
     @unittest.skipIf(not has_module_cmd() and find_module_init() is None,
                      "Could not find a module system.")
@@ -165,7 +165,7 @@ class ModWrapperTests(PavTestCase):
         test = self._quick_test(test_cfg)
         run_result = test.run()
 
-        self.assertEqual(run_result, STATES.RUN_DONE)
+        self.assertEqual(run_result, True)
 
     @unittest.skipIf(not has_module_cmd() and find_module_init() is None,
                      "Could not find a module system.")
@@ -201,7 +201,7 @@ class ModWrapperTests(PavTestCase):
         test = self._quick_test(test_cfg)
         run_result = test.run()
 
-        self.assertEqual(run_result, STATES.RUN_DONE)
+        self.assertEqual(run_result, True)
 
     @unittest.skipIf(not has_module_cmd() and find_module_init() is None,
                      "Could not find a module system.")
@@ -217,7 +217,7 @@ class ModWrapperTests(PavTestCase):
         # Make sure we fail for a non-existent module.
         test = self._quick_test(test_cfg)
         test.run()
-        self.assertEqual(test.status.current().state, STATES.ENV_FAILED)
+        self.assertTrue(test.status.has_state(STATES.ENV_FAILED))
 
         test_cfg['run']['modules'] = [
             'test_mod1',
@@ -226,8 +226,8 @@ class ModWrapperTests(PavTestCase):
 
         test = self._quick_test(test_cfg)
         test.run()
-        self.assertEqual(test.status.current().state, STATES.ENV_FAILED,
-                         msg=(test.path/'run.log').open().read())
+        self.assertTrue(test.status.has_state(STATES.ENV_FAILED),
+                        msg=(test.path/'run.log').open().read())
 
     @unittest.skipIf(not has_module_cmd() and find_module_init() is None,
                      "Could not find a module system.")

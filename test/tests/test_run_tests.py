@@ -303,7 +303,7 @@ class TestRunTests(PavTestCase):
 
         self.assertEqual(
             test.run(),
-            STATES.RUN_FAILED,
+            False,
             msg="Test should have failed because a module couldn't be "
                 "loaded. {}".format(test.path))
         # TODO: Make sure this is the exact reason for the failure
@@ -322,11 +322,10 @@ class TestRunTests(PavTestCase):
         test = TestRun(self.pav_cfg, config3, VariableSetManager())
         self.assert_(test.build())
         test.finalize(VariableSetManager())
-        self.assertEqual(
-            test.run(),
-            STATES.RUN_TIMEOUT,
-            msg="Test should have failed due to timeout. {}"
-                .format(test.path))
+        with self.assertRaises(TimeoutError,
+                               msg="Test should have failed due "
+                                   "to timeout. {}"):
+            test.run()
 
     def test_suites(self):
         """Test suite creation and regeneration."""
