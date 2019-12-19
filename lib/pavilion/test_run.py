@@ -686,6 +686,8 @@ class TestRun:
             if src_path is None:
                 raise TestRunError("Could not find source file '{}'"
                                    .format(src_path))
+            # Resolve any softlinks to get the real file.
+            src_path = src_path.resolve()
 
         if src_path is None:
             # If there is no source archive or data, just make the build
