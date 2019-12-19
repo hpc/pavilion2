@@ -1,4 +1,3 @@
-import sys
 import time
 
 from pavilion import commands
@@ -17,10 +16,10 @@ class WaitCommand(commands.Command):
                           STATES.SCHED_ERROR,
                           STATES.SCHED_CANCELLED,
                           STATES.BUILD_FAILED,
+                          STATES.BUILD_TIMEOUT,
                           STATES.BUILD_ERROR,
                           STATES.ENV_FAILED,
                           STATES.RUN_TIMEOUT,
-                          STATES.RUN_FAILED,
                           STATES.RUN_ERROR,
                           STATES.RESULTS_ERROR,
                           STATES.COMPLETE]

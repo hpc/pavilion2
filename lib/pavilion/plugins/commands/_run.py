@@ -26,8 +26,7 @@ class _RunCommand(commands.Command):
             help='The id of the test to run.')
 
     def run(self, pav_cfg, args):
-        """Load and run an already prepped test in the current environment.
-        """
+        """Load and run an already prepped test."""
 
         try:
             test = TestRun.load(pav_cfg, args.test_id)
@@ -35,6 +34,15 @@ class _RunCommand(commands.Command):
             self.logger.error("Error loading test '%s': %s",
                               args.test_id, err)
             raise
+
+        try:
+            self._run(pav_cfg, test)
+        finally:
+            test.set_run_complete()
+
+    def _run(self, pav_cfg, test):
+        """Run an already prepped test in the current environment.
+        """
 
         try:
             sched = schedulers.get_plugin(test.scheduler)
@@ -82,7 +90,8 @@ class _RunCommand(commands.Command):
             run_result = test.run()
         except TestRunError as err:
             test.status.set(STATES.RUN_ERROR, err)
-            test.set_run_complete()
+            return 1
+        except TimeoutError:
             return 1
         except Exception:
             test.status.set(
@@ -91,11 +100,6 @@ class _RunCommand(commands.Command):
             raise
         finally:
             sched.unlock_concurrency(lock)
-
-        # The test.run() method should have already logged the error and
-        # set an appropriate status.
-        if run_result in (STATES.RUN_ERROR, STATES.RUN_TIMEOUT):
-            return 1
 
         try:
             rp_errors = []
@@ -119,7 +123,6 @@ class _RunCommand(commands.Command):
             self.logger.error("Unexpected error gathering results: %s", err)
             test.status.set(STATES.RESULTS_ERROR,
                             "Error parsing results: {}".format(err))
-            test.set_run_complete()
             return 1
 
         try:
@@ -137,7 +140,6 @@ class _RunCommand(commands.Command):
             test.status.set(STATES.COMPLETE,
                             "The test completed with result: {}"
                             .format(results.get('result', '<unknown>')))
-            test.set_run_complete()
         except Exception:
             test.status.set(
                 STATES.UNKNOWN,
