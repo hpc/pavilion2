@@ -121,8 +121,7 @@ class ModWrapperTests(PavTestCase):
         ]
 
         test = self._quick_test(test_cfg)
-        test.build()
-        run_result = test.run({}, {})
+        run_result = test.run()
 
         self.assertEqual(run_result, STATES.RUN_DONE)
 
@@ -164,8 +163,7 @@ class ModWrapperTests(PavTestCase):
         test_cfg['run']['verbose'] = 'true'
 
         test = self._quick_test(test_cfg)
-        test.build()
-        run_result = test.run({}, {})
+        run_result = test.run()
 
         self.assertEqual(run_result, STATES.RUN_DONE)
 
@@ -201,8 +199,7 @@ class ModWrapperTests(PavTestCase):
         ]
 
         test = self._quick_test(test_cfg)
-        test.build()
-        run_result = test.run({}, {})
+        run_result = test.run()
 
         self.assertEqual(run_result, STATES.RUN_DONE)
 
@@ -219,8 +216,7 @@ class ModWrapperTests(PavTestCase):
 
         # Make sure we fail for a non-existent module.
         test = self._quick_test(test_cfg)
-        test.build()
-        test.run({}, {})
+        test.run()
         self.assertEqual(test.status.current().state, STATES.ENV_FAILED)
 
         test_cfg['run']['modules'] = [
@@ -229,8 +225,7 @@ class ModWrapperTests(PavTestCase):
         ]
 
         test = self._quick_test(test_cfg)
-        test.build()
-        test.run({}, {})
+        test.run()
         self.assertEqual(test.status.current().state, STATES.ENV_FAILED,
                          msg=(test.path/'run.log').open().read())
 
@@ -250,7 +245,6 @@ class ModWrapperTests(PavTestCase):
 
         # Make sure we fail for a non-existent module.
         test = self._quick_test(test_cfg)
-        test.build()
-        test.run({}, {})
+        test.run()
         self.assertEqual(test.status.current().state, STATES.RUN_DONE)
 

@@ -190,15 +190,13 @@ Save the matching part, start and end. These type of token may be empty.
         self.end = end
         self.next_token = None
 
-    def resolve(self, var_man, _iter_vars=None, allow_deferred=True):
+    def resolve(self, var_man, _iter_vars=None):
         """Resolve any variables in this token using the variable manager.
 
 :param variables.VariableSetManager var_man: A variable manager with the needed
     variables.
 :param dict _iter_vars: Variables that are being iterated over in
     the resolution of a sub string.
-:param bool allow_deferred: Whether this string can support deferred
-    variables.
 :return: The resolved string.
 """
 
@@ -288,18 +286,17 @@ token of the parse tree."""
 
         return sorted(local_iter_vars)
 
-    def resolve(self, var_man, _iter_vars=None, allow_deferred=True):
+    def resolve(self, var_man, _iter_vars=None):
         """Resolve all variables in this string to the values given in
 the variable managers.
 
 :param variables.VariableSetManager var_man: Provides the variable values.
 :param dict _iter_vars: Variables that are being iterated over in
     the resolution of a sub string.
-:param bool allow_deferred: Whether this string can support deferred
-    variables.
-:return: The string with all variables resolved.
-:rtype: str
-:raises ResolveError:
+:return: The string with all variables resolved, or None (if resolution is
+    deferred).
+:rtype: Union(str,None)
+:raises ResolveError: Usually if deferred variables are not allowed
 """
 
         if _iter_vars is None:
@@ -318,16 +315,16 @@ the variable managers.
                 except KeyError:
                     var_set, var, idx = None, None, None
 
-                if (var_set, var) in _iter_vars and idx is None:
-                    # Resolve the substr var by the given index.
-                    parts.append(token.resolve(
-                        var_man,
-                        iter_index=_iter_vars[(var_set, var)],
-                        allow_deferred=allow_deferred))
+                iter_idx = _iter_vars.get((var_set, var), None)
+                res_var = token.resolve(
+                    var_man,
+                    iter_index=iter_idx)
+
+                if res_var is None:
+                    # We should defer resolution of this string.
+                    return None
                 else:
-                    # A single valued var, or one referenced directly by index.
-                    parts.append(token.resolve(var_man,
-                                               allow_deferred=allow_deferred))
+                    parts.append(res_var)
 
             elif isinstance(token, PavString):
                 # We have a substring to resolve.
@@ -348,6 +345,12 @@ the variable managers.
                 # they needed to be in some consistent order).
                 while not done:
                     part = token.resolve(var_man, _iter_vars)
+
+                    if part is None:
+                        # Some variable in the substring is deferred. Defer
+                        # the whole thing.
+                        return None
+
                     parts.append(part)
 
                     # If there aren't any local iter vars, we're done now.
@@ -426,15 +429,13 @@ class VariableToken(Token):
         self.var = var
         self.default = default
 
-    def resolve(self, var_man, iter_index=None, allow_deferred=True):
+    def resolve(self, var_man, iter_index=None):
         """Resolve any variables in this token using the variable manager.
 
 :param variables.VariableSetManager var_man: The variable manager to
     use for resolution.
 :param int iter_index: The index to force for this variable, when it's
     being iterated over.
-:param bool allow_deferred: Whether to allow the resolution of
-    deferred variables.
 :return:
 """
 
@@ -446,18 +447,14 @@ class VariableToken(Token):
             else:
                 raise
 
-        if iter_index is not None:
+        if var_man.is_deferred(var_set, var):
+            # Tell the caller that resolution of this string should be deferred.
+            return None
+
+        if iter_index is not None and idx is None:
             idx = iter_index
 
-        value = var_man[(var_set, var, idx, subvar)]
-
-        is_deferred = var_man.is_deferred(var_set, var)
-
-        if (not allow_deferred) and is_deferred:
-            raise ResolveError("Deferred variables like ({}) are not allowed "
-                               "in this config section.".format(self.var))
-        else:
-            return value
+        return var_man[(var_set, var, idx, subvar)]
 
     def __repr__(self):
         return "{}('{}')".format(self.__class__.__name__, self.var)

@@ -1,8 +1,7 @@
 import errno
-import sys
 
 from pavilion import commands
-from pavilion import utils
+from pavilion import output
 from pavilion import test_run
 
 
@@ -61,35 +60,35 @@ class LogCommand(commands.Command):
         try:
             test = test_run.TestRun.load(pav_cfg, args.test)
         except test_run.TestRunError as err:
-            utils.fprint("Error loading test: {}".format(err),
-                         color=utils.RED,
-                         file=self.errfile)
+            output.fprint("Error loading test: {}".format(err),
+                          color=output.RED,
+                          file=self.errfile)
             return 1
 
         if 'run'.startswith(cmd_name):
-            file_name = test.path/'run.log'
+            file_name = test.path / 'run.log'
         elif 'kickoff'.startswith(cmd_name):
-            file_name = test.path/'kickoff.log'
+            file_name = test.path / 'kickoff.log'
         elif 'build'.startswith(cmd_name):
-            file_name = test.path/'build'/'pav_build_log'
+            file_name = test.path / 'build' / 'pav_build_log'
         else:
             raise RuntimeError("Invalid log cmd '{}'".format(cmd_name))
 
         if not file_name.exists():
-            utils.fprint("Log file does not exist: {}"
-                         .format(file_name),
-                         color=utils.RED,
-                         file=self.errfile)
+            output.fprint("Log file does not exist: {}"
+                          .format(file_name),
+                          color=output.RED,
+                          file=self.errfile)
             return 1
 
         try:
             with file_name.open() as file:
-                utils.fprint(file.read(), file=self.outfile)
+                output.fprint(file.read(), file=self.outfile)
         except (IOError, OSError) as err:
-            utils.fprint("Could not read log file '{}': {}"
-                         .format(file_name, err),
-                         color=utils.RED,
-                         file=out_file)
+            output.fprint("Could not read log file '{}': {}"
+                          .format(file_name, err),
+                          color=output.RED,
+                          file=self.errfile)
             return 1
 
         return 0

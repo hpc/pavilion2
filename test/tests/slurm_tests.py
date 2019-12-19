@@ -1,15 +1,15 @@
-from pavilion import config
-from pavilion import plugins
-from pavilion import schedulers
-from pavilion.unittest import PavTestCase
-from pavilion import result_parsers
-from pavilion.test_config.file_format import TestConfigLoader
-from pavilion.status_file import STATES
-from pavilion.test_run import TestRun
 import subprocess
 import time
 import unittest
 
+from pavilion import config
+from pavilion import plugins
+from pavilion import result_parsers
+from pavilion import schedulers
+from pavilion.status_file import STATES
+from pavilion.test_config.file_format import TestConfigLoader
+from pavilion.test_run import TestRun
+from pavilion.unittest import PavTestCase
 
 _HAS_SLURM = None
 
@@ -29,6 +29,9 @@ def has_slurm():
 
 class SlurmTests(PavTestCase):
 
+    # How long to wait for tests to complete
+    TEST_TIMEOUT = 30
+
     def __init__(self, *args, **kwargs):
 
         super().__init__(*args, **kwargs)
@@ -45,60 +48,111 @@ class SlurmTests(PavTestCase):
 
         plugins._reset_plugins()
 
+    def _get_job(self, match):
+        """Get a job id that from a job that contains match.
+        :param str match: The string to look for in the job id.
+        :return: A job id.
+        """
+
+        jobs = subprocess.check_output(['scontrol', 'show', 'jobs', '-o'])
+        jobs = jobs.decode('utf-8').split('\n')
+
+        id_field = 'JobId='
+
+        for job in jobs:
+            if match in job:
+                id_pos = job.find(id_field)
+                if id_pos >= 0:
+                    id_pos += len(id_field)
+                else:
+                    self.fail(
+                        "Could not find job id in matched job: {}"
+                        .format(job)
+                    )
+
+                end_pos = job.find(' ', id_pos)
+                return job[id_pos:end_pos]
+
+        else:
+            self.fail(
+                "Could not find a job matching {} to impersonate."
+                .format(match))
+
     @unittest.skipIf(not has_slurm(), "Only runs on a system with slurm.")
     def test_job_status(self):
-        """Make sure all the slurm scheduler variable methods work when
-        not on a node."""
+        """Make sure we can get a slurm job status."""
 
-        cfg = TestConfigLoader().validate({
-            'scheduler': 'slurm',
-            'run': {
-                'cmds': [
-                    'echo "Hello World."'
-                ]
-            },
-        })
-        cfg['name'] = 'slurm_test'
+        cfg = self._quick_test_cfg()
+        cfg['scheduler'] = 'slurm'
+        test = self._quick_test(cfg, name='slurm_job_status', finalize=False)
 
-        test = TestRun(self.pav_cfg, cfg, {})
+        slurm = schedulers.get_scheduler_plugin('slurm')
+
+        # Steal a running job's ID, and then check our status.
         test.status.set(STATES.SCHEDULED, "not really though.")
+        test.job_id = self._get_job('JobState=RUNNING')
+        status = slurm.job_status(self.pav_cfg, test)
+        self.assertEqual(status.state, STATES.SCHEDULED)
+        self.assertIn('RUNNING', status.note)
 
-        # Grab a random jobid, and get the status of it.
-        jobs = subprocess.check_output(['squeue', '-o', "%i %T"])
-        jobs = jobs.decode('utf-8')
-        try:
-            last_job = jobs.strip().split('\n')[-1]
-            jobid, status = last_job.strip().split()
-        except Exception:
-            raise RuntimeError("No available test from which to borrow a"
-                               "job id.")
-        test.job_id = jobid
+        # Steal a canceled jobs id
+        test.status.set(STATES.SCHEDULED, "not really though.")
+        test.job_id = self._get_job('JobState=CANCELLED')
+        sched_status = slurm.job_status(self.pav_cfg, test)
+        self.assertEqual(sched_status.state, STATES.SCHED_CANCELLED)
+        status = test.status.current()
+        self.assertEqual(status.state, STATES.SCHED_CANCELLED)
+
+        # Check another random state. In this case, all pavilion will
+        # just consider the test still scheduled.
+        test.status.set(STATES.SCHEDULED, "not really though.")
+        test.job_id = self._get_job('JobState=COMPLETED')
+        sched_status = slurm.job_status(self.pav_cfg, test)
+        self.assertEqual(sched_status.state, STATES.SCHEDULED)
+        self.assertIn('COMPLETED', sched_status.note)
 
     @unittest.skipIf(not has_slurm(), "Only runs on a system with slurm.")
     def test_sched_vars(self):
-        """Make sure the scheduler vars are reasonable."""
+        """Make sure the scheduler vars are reasonable when not on a node."""
 
         slurm = schedulers.get_plugin('slurm')
 
-        cfg = TestConfigLoader().validate({
-            'scheduler': 'slurm',
-            'run': {
-                'cmds': [
-                    'echo "Hello World."'
-                ]
-            },
-        })
-        cfg['name'] = 'slurm_test'
+        cfg = self._quick_test_cfg()
+        cfg['scheduler'] = 'slurm'
+        test = self._quick_test(cfg, name='slurm_vars', finalize=False)
 
-        test = TestRun(self.pav_cfg, cfg, {})
+        sched_conf = test.config['slurm']
 
-        for k, v in slurm.get_vars(test).items():
+        # Check all the variables to make sure they work outside an allocation,
+        # or at least return a DeferredVariable
+        var_list = list()
+        for k, v in slurm.get_vars(sched_conf).items():
             # Make sure everything has a value of some sort.
             self.assertNotIn(v, ['None', ''])
+            var_list.append(k)
 
-        # There's not much we can do to automatically test deferred slurm
-        # vars without a dedicated slurm host. Maybe we'll set up such a test
-        # harness eventually.
+        # Now check all the vars for real, when a test is running.
+        cfg = self._quick_test_cfg()
+        cfg['scheduler'] = 'slurm'
+        # Ask for each var in our test comands.
+        cfg['run']['cmds'] = [
+            'echo "{var}={{{{sched.{var}}}}}"'.format(var=var)
+            for var in var_list
+        ]
+        sched_vars = slurm.get_vars(sched_conf)
+        test = self._quick_test(cfg, name='slurm_vars2', finalize=False,
+                                sched_vars=sched_vars)
+
+        slurm.schedule_test(self.pav_cfg, test)
+
+        timeout = time.time() + self.TEST_TIMEOUT
+        state = test.status.current()
+        while time.time() < timeout:
+            state = test.status.current()
+            if state.state == STATES.COMPLETE:
+                return 0
+        else:
+            self.fail("Test never completed. Has state: {}".format(state))
 
     @unittest.skipIf(not has_slurm(), "Only runs on a system with slurm.")
     def test_schedule_test(self):
@@ -119,8 +173,6 @@ class SlurmTests(PavTestCase):
 
         self.assertEqual(status.state, STATES.SCHED_CANCELLED)
 
-    TEST_TIMEOUT = 5
-
     @unittest.skipIf(not has_slurm(), "Only runs on a system with slurm.")
     def test_node_range(self):
         """Make sure node ranges work properly."""
@@ -131,7 +183,7 @@ class SlurmTests(PavTestCase):
         cfg['scheduler'] = 'slurm'
 
         for num_nodes in '1-10000000', '1-all':
-            # We're testing that everything works we we ask for a max number
+            # We're testing that everything works when we ask for a max number
             # of nodes and don't get them all.
             cfg['slurm']['num_nodes'] = num_nodes
 
@@ -156,3 +208,4 @@ class SlurmTests(PavTestCase):
 
         results = test.load_results()
         self.assertEqual(results['result'], result_parsers.PASS)
+
