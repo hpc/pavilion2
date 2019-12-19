@@ -1,12 +1,10 @@
-import sys
-
 from pavilion import commands
+from pavilion import output
 from pavilion import schedulers
 from pavilion import series
-from pavilion import utils
 from pavilion import test_run
-from pavilion.test_run import TestRun, TestRunError, TestRunNotFoundError
 from pavilion.status_file import STATES
+from pavilion.test_run import TestRun, TestRunError, TestRunNotFoundError
 
 
 def status_from_test_obj(pav_cfg, test_obj):
@@ -33,10 +31,10 @@ def status_from_test_obj(pav_cfg, test_obj):
 
         test_statuses.append({
             'test_id': test.id,
-            'name': test.name,
-            'state': status_f.state,
-            'time': status_f.when,
-            'note': status_f.note,
+            'name':    test.name,
+            'state':   status_f.state,
+            'time':    status_f.when,
+            'note':    status_f.note,
         })
 
     test_statuses.sort(key=lambda x: x['test_id'])
@@ -57,10 +55,10 @@ def get_all_tests(pav_cfg, args, errfile):
         except (TestRunError, TestRunNotFoundError) as err:
             test_statuses.append({
                 'test_id': test_id,
-                'name': "",
-                'state': STATES.UNKNOWN,
-                'time': "",
-                'note': "Test not found."
+                'name':    "",
+                'state':   STATES.UNKNOWN,
+                'time':    "",
+                'note':    "Test not found."
             })
 
     statuses = status_from_test_obj(pav_cfg, test_obj_list)
@@ -101,11 +99,11 @@ def get_statuses(pav_cfg, args, errfile):
                 test_list.extend(
                     series.TestSeries.from_id(pav_cfg, test_id).tests)
             except series.TestSeriesError as err:
-                utils.fprint(
+                output.fprint(
                     "Suite {} could not be found.\n{}"
                     .format(test_id, err),
                     file=errfile,
-                    color=utils.RED
+                    color=output.RED
                 )
                 continue
         # Test
@@ -123,10 +121,10 @@ def get_statuses(pav_cfg, args, errfile):
         except (TestRunError, TestRunNotFoundError) as err:
             test_statuses.append({
                 'test_id': test_id,
-                'name': "",
-                'state': STATES.UNKNOWN,
-                'time': "",
-                'note': "Test not found.",
+                'name':    "",
+                'state':   STATES.UNKNOWN,
+                'time':    "",
+                'note':    "Test not found.",
             })
 
     statuses = status_from_test_obj(pav_cfg, test_obj_list)
@@ -156,13 +154,13 @@ def print_status(statuses, outfile, json=False):
 
     if json:
         json_data = {'statuses': statuses}
-        utils.json_dump(json_data, outfile)
+        output.json_dump(json_data, outfile)
     else:
         fields = ['test_id', 'name', 'state', 'time', 'note']
-        utils.draw_table(
+        output.draw_table(
             outfile=outfile,
             field_info={
-                'time': {'transform': utils.get_relative_timestamp}
+                'time': {'transform': output.get_relative_timestamp}
             },
             fields=fields,
             rows=statuses,
@@ -174,13 +172,15 @@ def print_status(statuses, outfile, json=False):
 def print_from_test_obj(pav_cfg, test_obj, outfile, json=False):
     """Print the statuses given a list of test objects or a single test object.
 
-:param dict pav_cfg: Base pavilion configuration.
-:param test_run.TestRun test_obj: Single or list of test objects.
-:param bool json: Whether the output should be a JSON object or not.
-:param stream outfile: Stream to which the statuses should be printed.
-:return: 0 for success.
-:rtype: int
-"""
+    :param dict pav_cfg: Base pavilion configuration.
+    :param Union(test_run.TestRun,list(test_run.TestRun) test_obj:
+        Single or list of test objects.
+    :param bool json: Whether the output should be a JSON object or not.
+    :param stream outfile: Stream to which the statuses should be printed.
+    :return: 0 for success.
+    :rtype: int
+    """
+
     status_list = status_from_test_obj(pav_cfg, test_obj)
     return print_status(status_list, outfile, json)
 
@@ -190,7 +190,8 @@ class StatusCommand(commands.Command):
 
     def __init__(self):
         super().__init__('status', 'Check the status of a test, list of tests,'
-                         ' or test series.', short_help="Get status of tests.")
+                                   ' or test series.',
+                         short_help="Get status of tests.")
 
     def _setup_arguments(self, parser):
 
@@ -220,7 +221,7 @@ class StatusCommand(commands.Command):
             else:
                 test_statuses = get_all_tests(pav_cfg, args, self.errfile)
         except commands.CommandError as err:
-            utils.fprint("Status Error:", err, color=utils.RED)
+            output.fprint("Status Error:", err, color=output.RED)
             return 1
 
         return print_status(test_statuses, self.outfile, args.json)

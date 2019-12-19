@@ -24,8 +24,7 @@ class LogCmdTest(PavTestCase):
         log_cmd._setup_arguments(parser)
 
         # run a simple test
-        test = self._quick_test()
-        test.build()
+        test = self._quick_test(finalize=False)
         raw = schedulers.get_plugin('raw')
 
         raw.schedule_test(self.pav_cfg, test)

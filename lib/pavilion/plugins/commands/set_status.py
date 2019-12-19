@@ -1,10 +1,9 @@
 import errno
-import sys
 
 from pavilion import commands
-from pavilion import utils
-from pavilion.test_run import TestRunNotFoundError, TestRunError, TestRun
+from pavilion import output
 from pavilion.status_file import STATES
+from pavilion.test_run import TestRunNotFoundError, TestRunError, TestRun
 
 
 class SetStatusCommand(commands.Command):
@@ -43,9 +42,9 @@ class SetStatusCommand(commands.Command):
         try:
             test = TestRun.load(pav_cfg, args.test)
         except (TestRunError, TestRunNotFoundError) as err:
-            utils.fprint(
+            output.fprint(
                 "Test {} could not be opened.\n{}".format(args.test, err),
-                color=utils.RED,
+                color=output.RED,
                 file=self.errfile,
             )
             return errno.EINVAL

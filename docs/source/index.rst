@@ -7,6 +7,7 @@ API Documentation
     commands.rst
     misc.rst
     modules.rst
+    output.rst
     result_parsers.rst
     schedulers.rst
     series.rst

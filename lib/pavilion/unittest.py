@@ -15,9 +15,12 @@ from pathlib import Path
 from pavilion import arguments
 from pavilion import config
 from pavilion import pav_vars
+from pavilion import system_variables
 from pavilion.test_run import TestRun
 from pavilion.test_config.file_format import TestConfigLoader
-from pavilion.utils import dbg_print
+from pavilion.test_config import VariableSetManager
+from pavilion.test_config import resolve_config
+from pavilion.output import dbg_print
 
 
 class PavTestCase(unittest.TestCase):
@@ -307,13 +310,18 @@ The default config is: ::
         '\n'.join(['    ' + line for line in __config_lines]))
     del __config_lines
 
-    def _quick_test(self, cfg=None, name="quick_test"):
+    def _quick_test(self, cfg=None, name="quick_test",
+                    build=True, finalize=True,
+                    sched_vars=None):
         """Create a test run object to work with.
         The default is a simple hello world test with the raw scheduler.
 
         :param dict cfg: An optional config dict to create the test from.
         :param str name: The name of the test.
-        :rtype: test_run.TestRun
+        :param bool build: Build this test, while we're at it.
+        :param bool finalize: Finalize this test.
+        :param dict sched_vars: Add these scheduler variables to our var set.
+        :rtype: TestRun
         """
 
         if cfg is None:
@@ -324,11 +332,29 @@ The default config is: ::
         cfg = TestConfigLoader().validate(cfg)
         cfg['name'] = name
 
-        return TestRun(
+        var_man = VariableSetManager()
+        var_man.add_var_set('var', cfg['variables'])
+        var_man.add_var_set('sys', system_variables.get_vars(defer=True))
+        var_man.add_var_set('pav', self.pav_cfg.pav_vars)
+        if sched_vars is not None:
+            var_man.add_var_set('sched', sched_vars)
+
+        cfg = resolve_config(cfg, var_man, [])
+
+        test = TestRun(
             self.pav_cfg,
             cfg,
-            {}
+            var_man,
         )
+
+        if build:
+            test.build()
+        if finalize:
+            fin_sys = system_variables.SysVarDict(defer=False, unique=True)
+            fin_var_man = VariableSetManager()
+            fin_var_man.add_var_set('sys', fin_sys)
+            test.finalize(fin_var_man)
+        return test
 
 
 class ColorResult(unittest.TextTestResult):
