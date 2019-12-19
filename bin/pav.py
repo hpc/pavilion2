@@ -37,19 +37,25 @@ except ImportError:
 def main():
     # Pavilion is compatible with python >= 3.4
     if sys.version_info[0] != 3 or sys.version_info[1] < 4:
-        print("Pavilion requires python 3.4 or higher.", file=sys.stderr)
+        output.fprint("Pavilion requires python 3.4 or higher.",
+                      color=output.RED,
+                      file=sys.stderr)
         sys.exit(-1)
 
     # Get the config, and
     try:
         pav_cfg = config.find()
     except Exception as err:
-        print(err, file=sys.stderr)
+        output.fprint(
+            "Error getting config, exiting: {}"
+            .format(err),
+            file=sys.stderr,
+            color=output.RED)
         sys.exit(-1)
 
-    # Create the user's .pavilion directory
+    # Create the user's .pavilion directory and local working_directory.
     if not config.USER_HOME_PAV.exists():
-        config.USER_HOME_PAV.mkdir(parents=True)
+        (config.USER_HOME_PAV/'working_dir').mkdir(parents=True)
 
     # Create the basic directories in the working directory
     for path in [
@@ -68,8 +74,12 @@ def main():
                     # Something else created the directory
                     pass
                 else:
-                    print("Could not create base directory '{}': {}"
-                          .format(path, err))
+                    output.fprint(
+                        "Could not create base directory '{}': {}"
+                        .format(path, err),
+                        color=output.RED,
+                        file=sys.stderr,
+                    )
                     sys.exit(1)
 
     root_logger = logging.getLogger()
@@ -99,8 +109,11 @@ def main():
     try:
         log_fn.touch()
     except (PermissionError, FileNotFoundError) as err:
-        output.dbg_print("Could write create pavilion log at '{}': {}"
-                         .format(log_fn, err))
+        output.fprint("Could write create pavilion log at '{}': {}"
+                      .format(log_fn, err),
+                      color=output.YELLOW,
+                      file=sys.stderr,
+                      )
     else:
         file_handler = RotatingFileHandler(filename=str(log_fn),
                                            maxBytes=1024 ** 2,
@@ -120,8 +133,12 @@ def main():
     try:
         pav_cfg.result_log.touch()
     except (PermissionError, FileNotFoundError) as err:
-        output.dbg_print("Could write create result log at '{}': {}"
-                         .format(pav_cfg.result_log, err))
+        output.fprint(
+            "Could write create result log at '{}': {}"
+            .format(pav_cfg.result_log, err),
+            color=output.YELLOW,
+            file=sys.stderr
+        )
     else:
         result_logger = logging.getLogger('results')
         result_handler = RotatingFileHandler(filename=str(pav_cfg.result_log),
@@ -139,8 +156,12 @@ def main():
     try:
         pav_cfg.exception_log.touch()
     except (PermissionError, FileNotFoundError) as err:
-        output.dbg_print("Could write create exception log at '{}': {}"
-                                  .format(pav_cfg.exception_log, err))
+        output.fprint(
+            "Could write create exception log at '{}': {}"
+            .format(pav_cfg.exception_log, err),
+            color=output.YELLOW,
+            file=sys.stderr
+        )
     else:
         exc_handler = RotatingFileHandler(
             filename=pav_cfg.exception_log.as_posix(),
@@ -172,7 +193,11 @@ def main():
     try:
         plugins.initialize_plugins(pav_cfg)
     except plugins.PluginError as err:
-        print("Error initializing plugins: {}".format(err), file=sys.stderr)
+        output.fprint(
+            "Error initializing plugins: {}"
+            .format(err),
+            color=output.RED,
+            file=sys.stderr)
         sys.exit(-1)
 
     pav_cfg.pav_vars = pav_vars.PavVars()
@@ -200,7 +225,11 @@ def main():
     try:
         cmd = commands.get_command(args.command_name)
     except KeyError:
-        print("Unknown command {}.".format(args.command_name), file=sys.stderr)
+        output.fprint(
+            "Unknown command '{}'."
+            .format(args.command_name),
+            color=output.RED,
+            file=sys.stderr)
         sys.exit(-1)
 
     try:
