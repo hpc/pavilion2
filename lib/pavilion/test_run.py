@@ -475,10 +475,10 @@ class TestRun:
 
     def build(self):
         """Perform the build if needed, do a soft-link copy of the build
-directory into our test directory, and note that we've used the given
-build.
-:return: True if these steps completed successfully.
-"""
+        directory into our test directory, and note that we've used the given
+        build.
+        :return: True if these steps completed successfully.
+        """
 
         # Only try to do the build if it doesn't already exist.
         if not self.build_origin.exists():
@@ -499,23 +499,21 @@ build.
                 if not self.build_origin.exists():
                     build_dir = self.build_origin.with_suffix('.tmp')
 
-                    try:
-                        # Attempt to perform the actual build, this shouldn't
-                        # raise an exception unless something goes terribly
-                        # wrong.
-                        # This will also set the test status for
-                        # non-catastrophic cases.
-                        if not self._build(build_dir):
-                            return False
-
-                        # Rename the build to it's final location.
-                        build_dir.rename(self.build_origin)
-                    finally:
-                        # The build failed. The reason should already be set
-                        # in the status file.
-
+                    # Attempt to perform the actual build, this shouldn't
+                    # raise an exception unless something goes terribly
+                    # wrong.
+                    # This will also set the test status for
+                    # non-catastrophic cases.
+                    if not self._build(build_dir):
+                        # If the build didn't succeed, copy the attempted build
+                        # into the test run, and set the run as complete.
                         if build_dir.exists():
                             build_dir.rename(self.build_path)
+                        self.set_run_complete()
+                        return False
+
+                    # Rename the build to it's final location.
+                    build_dir.rename(self.build_origin)
                 else:
                     self.status.set(
                         STATES.BUILDING,
@@ -550,6 +548,7 @@ build.
             msg = "Could not perform the build directory copy: {}".format(err)
             self.status.set(STATES.BUILD_ERROR, msg)
             self.logger.error(msg)
+            self.set_run_complete()
             return False
 
         # Touch the original build directory, so that we know it was used
@@ -603,7 +602,7 @@ build.
                         if self._build_timeout < quiet_time:
                             # Give up on the build, and call it a failure.
                             proc.kill()
-                            self.status.set(STATES.BUILD_FAILED,
+                            self.status.set(STATES.BUILD_TIMEOUT,
                                             "Build timed out after {} seconds."
                                             .format(self._build_timeout))
                             return False
@@ -856,7 +855,14 @@ build.
                 file_path.lchmod(file_stat.st_mode & file_mask)
 
     def run(self):
-        """Run the test, returning True on success, False otherwise."""
+        """Run the test.
+
+        :rtype: bool
+        :returns: True if the test completed and returned zero, false otherwise.
+        :raises TimeoutError: When the run times out.
+        :raises TestRunError: We don't actually raise this, but might in the
+            future.
+        """
 
         self.status.set(STATES.PREPPING_RUN,
                         "Converting run template into run script.")
@@ -896,38 +902,37 @@ build.
                     if self._run_timeout < quiet_time:
                         # Give up on the build, and call it a failure.
                         proc.kill()
-                        self.status.set(STATES.RUN_FAILED,
-                                        "Run timed out after {} seconds."
-                                        .format(self._run_timeout))
+                        msg = ("Run timed out after {} seconds"
+                               .format(self._run_timeout))
+                        self.status.set(STATES.RUN_TIMEOUT, msg)
                         self._finished = datetime.datetime.now()
-                        return STATES.RUN_TIMEOUT
+                        raise TimeoutError(msg)
                     else:
                         # Only wait a max of run_silent_timeout next 'wait'
                         timeout = timeout - quiet_time
 
         self._finished = datetime.datetime.now()
 
-        status = self.status.current()
-        if status.state == STATES.ENV_FAILED:
-            return STATES.RUN_FAILED
-        elif result != 0:
-            self.status.set(STATES.RUN_FAILED, "Test run failed.")
-            return STATES.RUN_FAILED
-        else:
-            self.status.set(STATES.RUN_DONE,
-                            "Test run has completed successfully.")
-            return STATES.RUN_DONE
+        self.status.set(STATES.RUN_DONE,
+                        "Test run has completed.")
+        if result == 0:
+            return True
+
+        # Return False in all other circumstances.
+        return False
 
     def set_run_complete(self):
         """Write a file in the test directory that indicates that the test
-has completed a run, one way or another. This should only be called
-when we're sure their won't be any more status changes."""
+    has completed a run, one way or another. This should only be called
+    when we're sure their won't be any more status changes."""
 
         # Write the current time to the file. We don't actually use the contents
         # of the file, but it's nice to have another record of when this was
         # run.
         with (self.path/'RUN_COMPLETE').open('w') as run_complete:
-            run_complete.write(datetime.datetime.now().isoformat())
+            json.dump({
+                'ended': datetime.datetime.now().isoformat(),
+            }, run_complete)
 
     WAIT_INTERVAL = 0.5
 
@@ -974,9 +979,11 @@ finished
 duration
     Length of the test run.
 user
-    The user who ran the test
+    The user who ran the test.
 sys_name
-    The system (cluster) on which the test ran
+    The system (cluster) on which the test ran.
+job_id
+    The job id set by the scheduler.
 result
     Defaults to PASS if the test completed (with a zero
     exit status). Is generally expected to be overridden by other
@@ -1001,7 +1008,7 @@ result
             self.path.stat().st_mtime
         ).isoformat(" ")
 
-        if run_result == STATES.RUN_DONE:
+        if run_result:
             default_result = result_parsers.PASS
         else:
             default_result = result_parsers.FAIL

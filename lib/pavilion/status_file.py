@@ -39,8 +39,10 @@ Rules:
 - The constants have a max length of 15 characters.
 - The constants are in all caps.
 - The constants must be a valid python identifier that starts with a letter.
-- Error states should end in '_ERROR'
-- Failure states should end in '_FAILED'
+- Error states should end in '_ERROR'. They should be the result of an OS
+  level problem (like missing directories), or problems with Pavilion itself.
+- Failure states should end in '_FAILED'. They should be the result of trying
+  something, and it just not succeeding.
 
 **Note**: The states are written in the class as ``<state_name> = <help_text>``,
 however, on class init the help text is stored separately, and the state value
@@ -63,13 +65,13 @@ Known States:
     SCHED_CANCELLED = "The job was cancelled."
     BUILDING = "The test is currently being built."
     BUILD_FAILED = "The build has failed."
+    BUILD_TIMEOUT = "The build has timed out."
     BUILD_ERROR = "An unexpected error occurred while setting up the build."
     BUILD_DONE = "The build step has completed."
     ENV_FAILED = "Unable to load the environment requested by the test."
     PREPPING_RUN = "Performing final (on node) steps before the test run."
     RUNNING = "For when we're currently running the test."
     RUN_TIMEOUT = "The test run went long without any output."
-    RUN_FAILED = "The test run has failed."
     RUN_ERROR = "An unexpected error has occurred when setting up the test run."
     RUN_USER = "Jobs can report extra status using pav set_status and " \
                "this status value."
@@ -245,6 +247,12 @@ could be wrong with the file format.
                                   .format(self.path, err))
 
         return [self._parse_status_line(line) for line in lines]
+
+    def has_state(self, state):
+        """Check if the given state is somewhere in the history of this
+        status file."""
+
+        return any([state == h.state for h in self.history()])
 
     def current(self):
         """Return the most recent status object.
