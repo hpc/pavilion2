@@ -711,6 +711,7 @@ class Slurm(SchedulerPlugin):
                 STATES.SCHED_CANCELLED,
                 "Job cancelled, has job state '{}'".format(job_state)
             )
+            test.set_run_complete()
             return test.status.current()
 
         self.logger.warning("Encountered unhandled job state '%s' for"
