@@ -17,11 +17,13 @@ LOGGER = logging.getLogger('pavilion.' + __file__)
 # Figure out what directories we'll search for configuration files.
 PAV_CONFIG_SEARCH_DIRS = [Path('./').resolve()]
 
-if 'HOME' in os.environ:
-    USER_HOME_PAV = Path(os.environ['HOME'], '.pavilion')
-    PAV_CONFIG_SEARCH_DIRS.append(USER_HOME_PAV)
-else:
-    USER_HOME_PAV = None
+try:
+    USER_HOME_PAV = Path('~/.pavilion').expanduser()
+except OSError:
+    # I'm not entirely sure this is the right error to catch.
+    USER_HOME_PAV = Path('/tmp')/os.getlogin()/'.pavilion'
+
+PAV_CONFIG_SEARCH_DIRS.append(USER_HOME_PAV)
 
 PAV_CONFIG_DIR = os.environ.get('PAV_CONFIG_DIR', None)
 
