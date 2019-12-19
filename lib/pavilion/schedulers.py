@@ -417,17 +417,22 @@ class SchedulerPlugin(IPlugin.IPlugin):
         """Create the test script and schedule the job.
 
         :param pav_cfg: The pavilion cfg.
-        :param pavilion.test_config.TestRun test_obj: The pavilion test to
+        :param pavilion.test_run.TestRun test_obj: The pavilion test to
         start.
         """
 
         kick_off_path = self._create_kickoff_script(pav_cfg, test_obj)
 
-        test_obj.job_id = self._schedule(test_obj, kick_off_path)
+        try:
+            test_obj.job_id = self._schedule(test_obj, kick_off_path)
 
-        test_obj.status.set(test_obj.status.STATES.SCHEDULED,
-                            "Test {} has job ID {}."
-                            .format(self.name, test_obj.job_id))
+            test_obj.status.set(test_obj.status.STATES.SCHEDULED,
+                                "Test {} has job ID {}."
+                                .format(self.name, test_obj.job_id))
+        except Exception:
+            # If this fails, consider this test done.
+            test_obj.set_run_complete()
+            raise
 
     def _schedule(self, test_obj, kickoff_path):
         """Run the kickoff script at script path with this scheduler.
