@@ -121,6 +121,16 @@ class EnvCatElem(yc.CategoryElem):
     type = OrderedDict
 
 
+class SeriesConfigLoader(yc.YamlConfigLoader):
+
+    ELEMENTS = [
+        yc.StrElem(
+            'series',
+            help_text="series"
+        )
+    ]
+
+
 class TestConfigLoader(yc.YamlConfigLoader):
     """This class describes a test section in a Pavilion config file. It is
 expected to be added to by various plugins.
