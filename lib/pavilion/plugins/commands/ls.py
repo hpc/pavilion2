@@ -3,6 +3,7 @@ import os
 import sys
 
 from pavilion import commands
+from pavilion import output
 from pavilion import utils
 
 
@@ -35,12 +36,12 @@ class FileCommand(commands.Command):
 
     def run(self, pav_cfg, args):
 
-        test_dir = pav_cfg.working_dir/'test_runs'
+        test_dir = pav_cfg.working_dir / 'test_runs'
         job_dir = utils.make_id_path(test_dir, args.job_id)
 
         if os.path.isdir(job_dir.as_posix()) is False:
-            utils.fprint("directory '{}' does not exist." .format(job_dir),
-                         file=sys.stderr, color=utils.RED)
+            output.fprint("directory '{}' does not exist.".format(job_dir),
+                          file=sys.stderr, color=output.RED)
             return errno.EEXIST
 
         utils.fprint("\nListing files in {}:\n\n".format(job_dir),
@@ -52,25 +53,25 @@ class FileCommand(commands.Command):
             return 0
 
         if args.subdir:
-            return ls_(job_dir/args.subdir)
+            return ls_(job_dir / args.subdir)
         else:
             return ls_(job_dir)
 
 def ls_(dir_):
     if os.path.isdir(dir_) is False:
-        utils.fprint("directory '{}' does not exist." .format(dir_),
-                     file=sys.stderr, color=utils.RED)
+        output.fprint("directory '{}' does not exist.".format(dir_),
+                      file=sys.stderr, color=output.RED)
         return errno.EEXIST
 
     for file in os.listdir(dir_):
         filename = os.path.join(dir_, file)
         if os.path.isdir(filename):
-            utils.fprint(file, file=sys.stdout, color=utils.BLUE)
+            output.fprint(file, file=sys.stdout, color=output.BLUE)
         elif os.path.islink(filename) is True:
-            utils.fprint("{} -> {}".format(file, os.path.realpath(filename),
-                                           file=sys.stdout))
+            output.fprint("{} -> {}".format(file, os.path.realpath(filename),
+                                            file=sys.stdout))
         else:
-            utils.fprint(file, file=sys.stdout)
+            output.fprint(file, file=sys.stdout)
 
     return 0
 

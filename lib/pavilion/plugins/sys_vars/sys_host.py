@@ -6,7 +6,7 @@ class SystemHost(system_plugins.SystemPlugin):
 
     def __init__(self):
         super().__init__(
-            plugin_name='sys_host', 
+            name='sys_host',
             description="The system (kickoff) hostname.",
             priority=self.PRIO_CORE,
             is_deferable=False, 

@@ -15,22 +15,31 @@ from pathlib import Path
 from pavilion import arguments
 from pavilion import config
 from pavilion import pav_vars
+from pavilion import system_variables
 from pavilion.test_run import TestRun
 from pavilion.test_config.file_format import TestConfigLoader
-from pavilion.utils import dbg_print
+from pavilion.test_config import VariableSetManager
+from pavilion.test_config import resolve_config
+from pavilion.output import dbg_print
 
 
 class PavTestCase(unittest.TestCase):
     """A unittest.TestCase with a lot of useful Pavilion features baked in.
 All pavilion unittests (in test/tests) should use this as their
-base class. It provides:
+base class.
 
-- self.pav_cfg: A pavilion config set up properly for
-- Setup of all the directories pavilion needs.
-- The ability to skip (or only run) tests based on name globs.
-- self.dbg_print - Convenient access to utils.dbg_print
-- self._quick_test_cfg() - An instant test configuration.
-- self._quick_test() - Instant test run objects.
+:cvar Path PAV_LIB_DIR: The Path to Pavilion's lib directory (where this
+    module resides).
+:cvar Path PAV_ROOT_DIR: The Path to Pavilion's root directory (the root of the
+    git repo).
+:cvar Path TEST_DATA_ROOT: The unit test data directory.
+:cvar Path PAV_CONFIG_PATH: The path to the configuration used by unit tests.
+:cvar dict QUICK_TEST_BASE_CFG: The base configuration for tests generated
+    by the ``_quick_test()`` and ``_quick_test_cfg()`` methods.
+
+:ivar yaml_config.ConfigDict pav_cfg: A pavilion config setup properly for
+    use by unit tests. Unit tests should **always** use this pav_cfg. If it
+    needs to be modified, copy it using copy.deepcopy.
 """
 
     PAV_LIB_DIR = Path(__file__).resolve().parent  # type: Path
@@ -47,6 +56,8 @@ base class. It provides:
     ONLY = []
 
     def __init__(self, *args, **kwargs):
+        """Setup the pav_cfg object, and do other initialization required by
+        pavilion."""
 
         # Open the default pav config file (found in
         # test/data/pav_config_dir/pavilion.yaml), modify it, and then
@@ -58,6 +69,7 @@ base class. It provides:
                                    self.PAV_LIB_DIR]
 
         raw_pav_cfg.working_dir = self.PAV_ROOT_DIR/'test'/'working_dir'
+        raw_pav_cfg.user_config = False
 
         raw_pav_cfg.result_log = raw_pav_cfg.working_dir/'results.log'
 
@@ -181,11 +193,11 @@ though."""
                              .format(target_path, file_path))
 
     def _cmp_files(self, a_path, b_path):
-        """Compare two files.
+        """Compare the contents of two files.
 
-:param Path a_path:
-:param Path b_path:
-"""
+        :param Path a_path:
+        :param Path b_path:
+        """
 
         with a_path.open('rb') as a_file, b_path.open('rb') as b_file:
             self.assertEqual(a_file.read(), b_file.read(),
@@ -194,7 +206,7 @@ though."""
 
     def _cmp_tree(self, path_a, path_b):
         """Compare two directory trees, including the contents of all the
-files."""
+        files."""
 
         a_walk = list(os.walk(str(path_a)))
         b_walk = list(os.walk(str(path_b)))
@@ -298,13 +310,18 @@ The default config is: ::
         '\n'.join(['    ' + line for line in __config_lines]))
     del __config_lines
 
-    def _quick_test(self, cfg=None, name="quick_test"):
+    def _quick_test(self, cfg=None, name="quick_test",
+                    build=True, finalize=True,
+                    sched_vars=None):
         """Create a test run object to work with.
         The default is a simple hello world test with the raw scheduler.
 
         :param dict cfg: An optional config dict to create the test from.
         :param str name: The name of the test.
-        :rtype: test_run.TestRun
+        :param bool build: Build this test, while we're at it.
+        :param bool finalize: Finalize this test.
+        :param dict sched_vars: Add these scheduler variables to our var set.
+        :rtype: TestRun
         """
 
         if cfg is None:
@@ -315,11 +332,29 @@ The default config is: ::
         cfg = TestConfigLoader().validate(cfg)
         cfg['name'] = name
 
-        return TestRun(
+        var_man = VariableSetManager()
+        var_man.add_var_set('var', cfg['variables'])
+        var_man.add_var_set('sys', system_variables.get_vars(defer=True))
+        var_man.add_var_set('pav', self.pav_cfg.pav_vars)
+        if sched_vars is not None:
+            var_man.add_var_set('sched', sched_vars)
+
+        cfg = resolve_config(cfg, var_man, [])
+
+        test = TestRun(
             self.pav_cfg,
             cfg,
-            {}
+            var_man,
         )
+
+        if build:
+            test.build()
+        if finalize:
+            fin_sys = system_variables.SysVarDict(defer=False, unique=True)
+            fin_var_man = VariableSetManager()
+            fin_var_man.add_var_set('sys', fin_sys)
+            test.finalize(fin_var_man)
+        return test
 
 
 class ColorResult(unittest.TextTestResult):

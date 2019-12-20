@@ -11,3 +11,5 @@ UnitTests
     :exclude-members: ColorResult
 
     .. autoclass:: ColorResult
+        :undoc-members:
+        :private-members:
