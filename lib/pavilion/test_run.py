@@ -12,7 +12,6 @@ import logging
 import lzma
 import os
 import shutil
-import stat
 import subprocess
 import tarfile
 import time
@@ -21,15 +20,17 @@ import sys
 import zipfile
 from pathlib import Path
 
+import pavilion.output
 from pavilion import lockfile
 from pavilion import result_parsers
 from pavilion import scriptcomposer
 from pavilion import utils
 from pavilion import wget
 from pavilion.status_file import StatusFile, STATES
-from pavilion.test_config import variables
-from pavilion.utils import fprint
+from pavilion.test_config import variables, string_parser, resolve_deferred
+from pavilion.output import fprint
 from pavilion.utils import ZipFileFixed as ZipFile
+from pavilion.test_config.file_format import TestConfigError
 
 
 def get_latest_tests(pav_cfg, limit):
@@ -110,31 +111,29 @@ class TestRun:
 
     logger = logging.getLogger('pav.TestRun')
 
-    def __init__(self, pav_cfg, config, sys_vars, _id=None):
+    def __init__(self, pav_cfg, config, var_man=None, _id=None):
         """Create an new TestRun object. If loading an existing test
     instance, use the ``TestRun.from_id()`` method.
 
 :param pav_cfg: The pavilion configuration.
 :param dict config: The test configuration dictionary.
-:param Union(dict,None) sys_vars: The system variables dictionary. This may be
-    None when loading an existing test.
+:param variables.VariableSetManager var_man: The variable set manager for this
+    test.
 :param int _id: The test id of an existing test. (You should be using
             TestRun.load).
 """
 
-        if _id is None and sys_vars is None:
-            raise RuntimeError(
-                "New TestRun objects require a sys_vars dict. ")
-
         # Just about every method needs this
         self._pav_cfg = pav_cfg
 
-        # Compute the actual name of test, using the subtest config parameter.
+        self.load_ok = True
+
+        # Compute the actual name of test, using the subtitle config parameter.
         self.name = '.'.join([
             config.get('suite', '<unknown>'),
             config.get('name', '<unnamed>')])
-        if 'subtest' in config and config['subtest']:
-            self.name = self.name + '.' + config['subtest']
+        if 'subtitle' in config and config['subtitle']:
+            self.name = self.name + '.' + config['subtitle']
 
         self.scheduler = config['scheduler']
 
@@ -149,12 +148,20 @@ class TestRun:
         if _id is None:
             self.id, self.path = self.create_id_dir(tests_path)
             self._save_config()
+            self.var_man = var_man
+            self.var_man.save(self.path/'variables')
         else:
             self.id = _id
             self.path = utils.make_id_path(tests_path, self.id)
             if not self.path.is_dir():
                 raise TestRunNotFoundError(
                     "No test with id '{}' could be found.".format(self.id))
+            try:
+                self.var_man = variables.VariableSetManager.load(
+                    self.path/'variables'
+                )
+            except RuntimeError as err:
+                raise TestRunError(*err.args)
 
         # Set a logger more specific to this test.
         self.logger = logging.getLogger('pav.TestRun.{}'.format(self.id))
@@ -180,13 +187,28 @@ class TestRun:
 
         build_config = self.config.get('build', {})
 
+        # make sure build source_download_name is not set without
+        # source_location
+        try:
+            if build_config['source_download_name'] is not None:
+                if build_config['source_location'] is None:
+                    msg = "Test could not be build. Need 'source_location'."
+                    fprint(msg)
+                    self.status.set(STATES.BUILD_ERROR,
+                                    "'source_download_name is set without a "
+                                    "'source_location'")
+                    raise TestConfigError(msg)
+        except KeyError:
+            # this is mostly for unit tests that create test configs without a
+            # build section at all
+            pass
+
         self.build_script_path = self.path/'build.sh'  # type: Path
         self.build_path = self.path/'build'
         if _id is None:
             self._write_script(
                 path=self.build_script_path,
-                config=build_config,
-                sys_vars=sys_vars)
+                config=build_config)
 
         if _id is None:
             self.build_hash = self._create_build_hash(build_config)
@@ -210,8 +232,7 @@ class TestRun:
         if _id is None:
             self._write_script(
                 path=self.run_tmpl_path,
-                config=run_config,
-                sys_vars=sys_vars)
+                config=run_config)
 
         if _id is None:
             self.status.set(STATES.CREATED, "Test directory setup complete.")
@@ -240,9 +261,9 @@ class TestRun:
     def load(cls, pav_cfg, test_id):
         """Load an old TestRun object given a test id.
 
-:param pav_cfg: The pavilion config
-:param int test_id: The test's id number.
-"""
+        :param pav_cfg: The pavilion config
+        :param int test_id: The test's id number.
+        """
 
         path = utils.make_id_path(pav_cfg.working_dir/'test_runs', test_id)
 
@@ -253,11 +274,28 @@ class TestRun:
 
         config = cls._load_config(path)
 
-        return TestRun(pav_cfg, config, None, _id=test_id)
+        return TestRun(pav_cfg, config, _id=test_id)
+
+    def finalize(self, var_man):
+        """Resolve any remaining deferred variables, and generate the final
+        run script."""
+
+        self.var_man.undefer(
+            new_vars=var_man,
+            parser=string_parser.parse
+        )
+
+        self.config = resolve_deferred(self.config, self.var_man)
+        self._save_config()
+
+        self._write_script(
+            self.run_script_path,
+            self.config['run'],
+        )
 
     def run_cmd(self):
         """Construct a shell command that would cause pavilion to run this
-test."""
+        test."""
 
         pav_path = self._pav_cfg.pav_root/'bin'/'pav'
 
@@ -270,7 +308,7 @@ test."""
 
         try:
             with config_path.open('w') as json_file:
-                utils.json_dump(self.config, json_file)
+                pavilion.output.json_dump(self.config, json_file)
         except (OSError, IOError) as err:
             raise TestRunError("Could not save TestRun ({}) config at {}: {}"
                                .format(self.name, self.path, err))
@@ -454,10 +492,10 @@ test."""
 
     def build(self):
         """Perform the build if needed, do a soft-link copy of the build
-directory into our test directory, and note that we've used the given
-build.
-:return: True if these steps completed successfully.
-"""
+        directory into our test directory, and note that we've used the given
+        build.
+        :return: True if these steps completed successfully.
+        """
 
         # Only try to do the build if it doesn't already exist.
         if not self.build_origin.exists():
@@ -478,23 +516,21 @@ build.
                 if not self.build_origin.exists():
                     build_dir = self.build_origin.with_suffix('.tmp')
 
-                    try:
-                        # Attempt to perform the actual build, this shouldn't
-                        # raise an exception unless something goes terribly
-                        # wrong.
-                        # This will also set the test status for
-                        # non-catastrophic cases.
-                        if not self._build(build_dir):
-                            return False
-
-                        # Rename the build to it's final location.
-                        build_dir.rename(self.build_origin)
-                    finally:
-                        # The build failed. The reason should already be set
-                        # in the status file.
-
+                    # Attempt to perform the actual build, this shouldn't
+                    # raise an exception unless something goes terribly
+                    # wrong.
+                    # This will also set the test status for
+                    # non-catastrophic cases.
+                    if not self._build(build_dir):
+                        # If the build didn't succeed, copy the attempted build
+                        # into the test run, and set the run as complete.
                         if build_dir.exists():
                             build_dir.rename(self.build_path)
+                        self.set_run_complete()
+                        return False
+
+                    # Rename the build to it's final location.
+                    build_dir.rename(self.build_origin)
                 else:
                     self.status.set(
                         STATES.BUILDING,
@@ -529,6 +565,7 @@ build.
             msg = "Could not perform the build directory copy: {}".format(err)
             self.status.set(STATES.BUILD_ERROR, msg)
             self.logger.error(msg)
+            self.set_run_complete()
             return False
 
         # Touch the original build directory, so that we know it was used
@@ -582,7 +619,7 @@ build.
                         if self._build_timeout < quiet_time:
                             # Give up on the build, and call it a failure.
                             proc.kill()
-                            self.status.set(STATES.BUILD_FAILED,
+                            self.status.set(STATES.BUILD_TIMEOUT,
                                             "Build timed out after {} seconds."
                                             .format(self._build_timeout))
                             return False
@@ -649,6 +686,8 @@ build.
             if src_path is None:
                 raise TestRunError("Could not find source file '{}'"
                                    .format(src_path))
+            # Resolve any softlinks to get the real file.
+            src_path = src_path.resolve()
 
         if src_path is None:
             # If there is no source archive or data, just make the build
@@ -834,38 +873,18 @@ build.
                 file_stat = file_path.stat()
                 file_path.lchmod(file_stat.st_mode & file_mask)
 
-    def run(self, sched_vars, sys_vars):
-        """Run the test, returning True on success, False otherwise.
+    def run(self):
+        """Run the test.
 
-:param dict sched_vars: The scheduler variables for resolving the build
-                        template.
-:param dict sys_vars: The system variables.
-"""
+        :rtype: bool
+        :returns: True if the test completed and returned zero, false otherwise.
+        :raises TimeoutError: When the run times out.
+        :raises TestRunError: We don't actually raise this, but might in the
+            future.
+        """
 
         self.status.set(STATES.PREPPING_RUN,
                         "Converting run template into run script.")
-
-        if self.run_tmpl_path is not None:
-            # Convert the run script template into the final run script.
-            try:
-                var_man = variables.VariableSetManager()
-                var_man.add_var_set('sched', sched_vars)
-                var_man.add_var_set('sys', sys_vars)
-
-                self._resolve_template(self.run_tmpl_path,
-                                       self.run_script_path,
-                                       var_man)
-            except KeyError as err:
-                msg = ("Error converting run template '{}' into the final "
-                       "script: {}"
-                       .format(self.run_tmpl_path, err))
-                self.logger.error(msg)
-                self.status.set(STATES.RUN_ERROR, msg)
-                return STATES.RUN_ERROR
-            except TestRunError as err:
-                self.logger.error(err)
-                self.status.set(STATES.RUN_ERROR, err)
-                return STATES.RUN_ERROR
 
         with self.run_log.open('wb') as run_log:
             self.status.set(STATES.RUNNING,
@@ -902,49 +921,48 @@ build.
                     if self._run_timeout < quiet_time:
                         # Give up on the build, and call it a failure.
                         proc.kill()
-                        self.status.set(STATES.RUN_FAILED,
-                                        "Run timed out after {} seconds."
-                                        .format(self._run_timeout))
+                        msg = ("Run timed out after {} seconds"
+                               .format(self._run_timeout))
+                        self.status.set(STATES.RUN_TIMEOUT, msg)
                         self._finished = datetime.datetime.now()
-                        return STATES.RUN_TIMEOUT
+                        raise TimeoutError(msg)
                     else:
                         # Only wait a max of run_silent_timeout next 'wait'
                         timeout = timeout - quiet_time
 
         self._finished = datetime.datetime.now()
 
-        status = self.status.current()
-        if status.state == STATES.ENV_FAILED:
-            return STATES.RUN_FAILED
-        elif result != 0:
-            self.status.set(STATES.RUN_FAILED, "Test run failed.")
-            return STATES.RUN_FAILED
-        else:
-            self.status.set(STATES.RUN_DONE,
-                            "Test run has completed successfully.")
-            return STATES.RUN_DONE
+        self.status.set(STATES.RUN_DONE,
+                        "Test run has completed.")
+        if result == 0:
+            return True
+
+        # Return False in all other circumstances.
+        return False
 
     def set_run_complete(self):
         """Write a file in the test directory that indicates that the test
-has completed a run, one way or another. This should only be called
-when we're sure their won't be any more status changes."""
+    has completed a run, one way or another. This should only be called
+    when we're sure their won't be any more status changes."""
 
         # Write the current time to the file. We don't actually use the contents
         # of the file, but it's nice to have another record of when this was
         # run.
         with (self.path/'RUN_COMPLETE').open('w') as run_complete:
-            run_complete.write(datetime.datetime.now().isoformat())
+            json.dump({
+                'ended': datetime.datetime.now().isoformat(),
+            }, run_complete)
 
     WAIT_INTERVAL = 0.5
 
     def wait(self, timeout=None):
         """Wait for the test run to be complete. This works across hosts, as
-it simply checks for files in the run directory.
+        it simply checks for files in the run directory.
 
-:param Union(None,float) timeout: How long to wait in seconds. If
-    this is None, wait forever.
-:raises TimeoutError: if the timeout expires.
-"""
+        :param Union(None,float) timeout: How long to wait in seconds. If
+            this is None, wait forever.
+        :raises TimeoutError: if the timeout expires.
+        """
 
         run_complete_file = self.path/'RUN_COMPLETE'
 
@@ -979,6 +997,12 @@ finished
     When the test finished running (or failed).
 duration
     Length of the test run.
+user
+    The user who ran the test.
+sys_name
+    The system (cluster) on which the test ran.
+job_id
+    The job id set by the scheduler.
 result
     Defaults to PASS if the test completed (with a zero
     exit status). Is generally expected to be overridden by other
@@ -1003,7 +1027,7 @@ result
             self.path.stat().st_mtime
         ).isoformat(" ")
 
-        if run_result == STATES.RUN_DONE:
+        if run_result:
             default_result = result_parsers.PASS
         else:
             default_result = result_parsers.FAIL
@@ -1016,6 +1040,9 @@ result
             'started': self._started.isoformat(" "),
             'finished': self._finished.isoformat(" "),
             'duration': str(self._finished - self._started),
+            'user': self.var_man['pav.user'],
+            'job_id': self.job_id,
+            'sys_name': self.var_man['sys.sys_name'],
             # This may be overridden by result parsers.
             'result': default_result
         }
@@ -1176,17 +1203,13 @@ modified date for the test directory."""
         if src_stat.st_mtime != latest:
             os.utime(base_path.as_posix(), (src_stat.st_atime, latest))
 
-    def _write_script(self, path, config, sys_vars):
+    def _write_script(self, path, config):
         """Write a build or run script or template. The formats for each are
             identical.
         :param Path path: Path to the template file to write.
         :param dict config: Configuration dictionary for the script file.
         :return:
         """
-
-        if sys_vars is None:
-            raise TestRunError("Trying to write script without sys_vars "
-                               "in test '{}'.".format(self.id))
 
         script = scriptcomposer.ScriptComposer(
             details=scriptcomposer.ScriptDetails(
@@ -1224,7 +1247,7 @@ modified date for the test directory."""
             script.comment('Perform module related changes to the environment.')
 
             for module in config.get('modules', []):
-                script.module_change(module, sys_vars)
+                script.module_change(module, self.var_man)
 
         env = config.get('env', {})
         if env:
@@ -1251,41 +1274,6 @@ modified date for the test directory."""
             script.comment('No commands given for this script.')
 
         script.write()
-
-    @classmethod
-    def _resolve_template(cls, tmpl_path, script_path, var_man):
-        """Resolve the test deferred variables using the appropriate escape
-sequence.
-
-:param Path tmpl_path: Path to the template file to read.
-:param Path script_path: Path to the script file to write.
-:param variables.VariableSetManager var_man: A variable set manager for
-    retrieving found variables. Is expected to contain the sys and
-    sched variable sets.
-:raises KeyError: For unknown variables in the template.
-"""
-
-        try:
-            with tmpl_path.open('r') as tmpl, \
-                 script_path.open('w') as script:
-
-                for line in tmpl.readlines():
-                    script.write(var_man.resolve_deferred_str(line))
-
-            # Add group and owner execute permissions to the produced script.
-            new_mode = (script_path.stat().st_mode |
-                        stat.S_IXGRP |
-                        stat.S_IXUSR)
-            os.chmod(script_path.as_posix(), new_mode)
-
-        except ValueError as err:
-            raise TestRunError("Problem escaping run template file '{}': {}"
-                               .format(tmpl_path, err))
-
-        except (IOError, OSError) as err:
-            raise TestRunError("Failed processing run template file '{}' into "
-                               "run script'{}': {}"
-                               .format(tmpl_path, script_path, err))
 
     @staticmethod
     def create_id_dir(id_dir):

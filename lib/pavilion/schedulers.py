@@ -46,7 +46,6 @@ def dfr_var_method(*sub_keys):
     given_func = None
     if sub_keys and callable(sub_keys[0]):
         given_func = sub_keys[0]
-        sub_keys = []
 
     # This is the actual decorator that will be used.
     def _dfr_var(func):
@@ -58,11 +57,9 @@ def dfr_var_method(*sub_keys):
 
         @wraps(func)
         def defer(self):
-            # Return a deferred variable if we aren't on a node.
+            """Return a deferred variable if we aren't on a node."""
             if not self.sched.in_alloc:
-                return DeferredVariable(func.__name__,
-                                        var_set='sched',
-                                        sub_keys=sub_keys)
+                return DeferredVariable()
             else:
                 return str(func(self))
         return defer
@@ -75,35 +72,37 @@ def dfr_var_method(*sub_keys):
 
 class SchedulerVariables(VarDict):
     """The base scheduler variables class. Each scheduler should have a child
-    class of this that contains all the variable functions it provides.
+class of this that contains all the variable functions it provides.
 
-    Usage:
-    To add a scheduler variable, create a method and decorate it with
-    either '@sched_var' or '@dfr_sched_var()'. The method name will be the
-    variable name, and the method will be called to resolve the variable
-    value. Methods that start with '_' are ignored.
+To add a scheduler variable, create a method and decorate it with
+either '@sched_var' or '@dfr_sched_var()'. The method name will be the
+variable name, and the method will be called to resolve the variable
+value. Methods that start with '_' are ignored.
 
-    Naming Conventions:
+Naming Conventions:
 
-    'alloc_*'
-      Variable names should be prefixed with 'alloc\_' if they are deferred.
-    'test_*'
-      Variable names prefixed with test denote that the variable
-      is specific to a test. These also tend to be deferred.
-    """
+'alloc_*'
+  Variable names should be prefixed with 'alloc\_' if they are deferred.
 
-    def __init__(self, scheduler, test):
+'test_*'
+  Variable names prefixed with test denote that the variable
+  is specific to a test. These also tend to be deferred.
+
+"""
+
+    def __init__(self, scheduler, sched_config):
         """Initialize the scheduler var dictionary.
+
         :param SchedulerPlugin scheduler: The scheduler for this set of
-        variables.
-        :param pavilion.test_run.TestRun test: The test object for which this
-        set of variables is relevant.
+            variables.
+        :param dict sched_config: The test object for
+            which this set of variables is relevant.
         """
 
         super().__init__('sched')
 
         self.sched = scheduler
-        self.test = test
+        self.sched_config = sched_config
 
         self._keys = self._find_vars()
 
@@ -215,6 +214,7 @@ def get_plugin(name):
     return _SCHEDULER_PLUGINS[name]
 
 
+
 def list_plugins():
     """Return a list of all available scheduler plugin names.
 
@@ -310,10 +310,13 @@ class SchedulerPlugin(IPlugin.IPlugin):
         """
         raise NotImplementedError
 
-    def get_vars(self, test):
-        """Returns the dictionary of scheduler variables."""
+    def get_vars(self, sched_config):
+        """Returns the dictionary of scheduler variables.
 
-        return self.VAR_CLASS(self, test)
+        :param dict sched_config: The scheduler config for a given test.
+        """
+
+        return self.VAR_CLASS(self, sched_config)
 
     def schedule_tests(self, pav_cfg, tests):
         """Schedule each of the given tests using this scheduler using a
@@ -338,8 +341,8 @@ class SchedulerPlugin(IPlugin.IPlugin):
         :param test: A test object
         """
 
-        # Unused variables
-        del pav_cfg, test
+        # For syntax highlighting. These vars may be used when overridden.
+        del pav_cfg, test, self
 
         return None
 
@@ -414,17 +417,22 @@ class SchedulerPlugin(IPlugin.IPlugin):
         """Create the test script and schedule the job.
 
         :param pav_cfg: The pavilion cfg.
-        :param pavilion.test_config.TestRun test_obj: The pavilion test to
+        :param pavilion.test_run.TestRun test_obj: The pavilion test to
         start.
         """
 
         kick_off_path = self._create_kickoff_script(pav_cfg, test_obj)
 
-        test_obj.job_id = self._schedule(test_obj, kick_off_path)
+        try:
+            test_obj.job_id = self._schedule(test_obj, kick_off_path)
 
-        test_obj.status.set(test_obj.status.STATES.SCHEDULED,
-                            "Test {} has job ID {}."
-                            .format(self.name, test_obj.job_id))
+            test_obj.status.set(test_obj.status.STATES.SCHEDULED,
+                                "Test {} has job ID {}."
+                                .format(self.name, test_obj.job_id))
+        except Exception:
+            # If this fails, consider this test done.
+            test_obj.set_run_complete()
+            raise
 
     def _schedule(self, test_obj, kickoff_path):
         """Run the kickoff script at script path with this scheduler.
