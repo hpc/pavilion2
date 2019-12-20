@@ -30,7 +30,7 @@ def status_from_test_obj(pav_cfg, test_obj):
             status_f = sched.job_status(pav_cfg, test)
 
         if status_f.state in [STATES.SCHEDULED, STATES.RUNNING]:
-            status_f.note += " " + test.sched_info
+            status_f.note += " " + str(test.sched_info)
 
         test_statuses.append({
             'test_id': test.id,
