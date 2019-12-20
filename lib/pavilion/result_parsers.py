@@ -9,8 +9,7 @@ from pathlib import Path
 
 import yaml_config as yc
 from yapsy import IPlugin
-from .test_config import file_format
-from .test_config import variables
+from .test_config import variables, was_deferred, file_format
 
 LOGGER = logging.getLogger(__file__)
 
@@ -163,8 +162,9 @@ deferred args. On error, should raise a ResultParserError.
         # setting 'required' in the yaml_config config items.
 
         # Don't check args if they have deferred values.
-        if variables.VariableSetManager.has_deferred(kwargs):
-            return
+        for arg in kwargs:
+            if was_deferred(arg):
+                return
 
         self._check_args(**kwargs)
 

@@ -5,7 +5,7 @@ import sys
 from pavilion import commands
 from pavilion import system_variables
 from pavilion.plugins.commands import run
-from pavilion.utils import fprint
+from pavilion.output import fprint
 
 
 class ViewCommand(run.RunCommand):

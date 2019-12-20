@@ -1,11 +1,11 @@
 import logging
-import sys
 
+from pavilion import output
 from pavilion import commands
 from pavilion import result_parsers
 from pavilion import schedulers
 from pavilion import system_variables
-from pavilion import utils
+from pavilion.test_config import VariableSetManager
 from pavilion.test_run import TestRun, TestRunError
 from pavilion.status_file import STATES
 
@@ -26,8 +26,7 @@ class _RunCommand(commands.Command):
             help='The id of the test to run.')
 
     def run(self, pav_cfg, args):
-        """Load and run an already prepped test in the current environment.
-        """
+        """Load and run an already prepped test."""
 
         try:
             test = TestRun.load(pav_cfg, args.test_id)
@@ -37,15 +36,13 @@ class _RunCommand(commands.Command):
             raise
 
         try:
-            if test.config['build']['on_nodes'] in ['true', 'True']:
-                if not test.build():
-                    self.logger.warning(
-                        "Test {t.id} failed to build:"
-                    )
-        except Exception:
-            test.status.set(STATES.BUILD_ERROR,
-                            "Unknown build error. Refer to the kickoff log.")
-            raise
+            self._run(pav_cfg, test)
+        finally:
+            test.set_run_complete()
+
+    def _run(self, pav_cfg, test):
+        """Run an already prepped test in the current environment.
+        """
 
         try:
             sched = schedulers.get_plugin(test.scheduler)
@@ -60,16 +57,46 @@ class _RunCommand(commands.Command):
                             "the kickoff log.")
             raise
 
+        # Re-add var sets that may have had deferred variables.
+        try:
+            var_man = VariableSetManager()
+            var_man.add_var_set('sys', system_variables.get_vars(defer=False))
+            sched_config = test.config[test.scheduler]
+            var_man.add_var_set('sched', sched.get_vars(sched_config))
+        except Exception:
+            test.status.set(STATES.RUN_ERROR,
+                            "Unknown error getting pavilion variables at "
+                            "run time.")
+            raise
+
+        try:
+            test.finalize(var_man)
+        except Exception:
+            test.status.set(STATES.RUN_ERROR,
+                            "Unknown error finalizing test.")
+            raise
+
+        try:
+            if test.config['build']['on_nodes'] in ['true', 'True']:
+                if not test.build():
+                    self.logger.warning(
+                        "Test {t.id} failed to build:"
+                    )
+        except Exception:
+            test.status.set(STATES.BUILD_ERROR,
+                            "Unknown build error. Refer to the kickoff log.")
+            raise
+
         # Optionally wait on other tests running under the same scheduler.
         # This depends on the scheduler and the test configuration.
         lock = sched.lock_concurrency(pav_cfg, test)
 
         try:
-            run_result = test.run(sched.get_vars(test),
-                                  system_variables.get_vars(defer=False))
+            run_result = test.run()
         except TestRunError as err:
             test.status.set(STATES.RUN_ERROR, err)
-            test.set_run_complete()
+            return 1
+        except TimeoutError:
             return 1
         except Exception:
             test.status.set(
@@ -78,11 +105,6 @@ class _RunCommand(commands.Command):
             raise
         finally:
             sched.unlock_concurrency(lock)
-
-        # The test.run() method should have already logged the error and
-        # set an appropriate status.
-        if run_result in (STATES.RUN_ERROR, STATES.RUN_TIMEOUT):
-            return 1
 
         try:
             rp_errors = []
@@ -106,14 +128,13 @@ class _RunCommand(commands.Command):
             self.logger.error("Unexpected error gathering results: %s", err)
             test.status.set(STATES.RESULTS_ERROR,
                             "Error parsing results: {}".format(err))
-            test.set_run_complete()
             return 1
 
         try:
             test.save_results(results)
 
             result_logger = logging.getLogger('results')
-            result_logger.info(utils.json_dumps(results))
+            result_logger.info(output.json_dumps(results))
         except Exception:
             test.status.set(
                 STATES.RESULTS_ERROR,
@@ -124,7 +145,6 @@ class _RunCommand(commands.Command):
             test.status.set(STATES.COMPLETE,
                             "The test completed with result: {}"
                             .format(results.get('result', '<unknown>')))
-            test.set_run_complete()
         except Exception:
             test.status.set(
                 STATES.UNKNOWN,
