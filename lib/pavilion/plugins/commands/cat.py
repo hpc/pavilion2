@@ -4,8 +4,8 @@ import errno
 import os
 import sys
 
-from pavilion import output
 from pavilion import commands
+from pavilion import output
 from pavilion import utils
 
 
@@ -22,12 +22,14 @@ class FileCommand(commands.Command):
     def _setup_arguments(self, parser):
         parser.add_argument(
             'job_id', type=int,
-            help="Job id number."
+            help="job id",
+            metavar='JOB_ID'
         )
         parser.add_argument(
             'file',
+            help="filename",
+            metavar = 'FILE',
             type=str,
-            help="name of a file within working_dir/tests/<job id>/"
         )
 
     def run(self, pav_cfg, args):

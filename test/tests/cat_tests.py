@@ -17,23 +17,19 @@ class StatusTests(PavTestCase):
     def teatDown(self):
         plugins._reset_plugins()
 
-    def test_ls(self):
-        """Checking ls command functionality"""
+    def test_cat(self):
+        """Checking cat command functionality"""
         test = self._quick_test()
 
-        ls_cmd = commands.get_command('ls')
-        ls_cmd.outfile = io.StringIO()
-        ls_cmd.errfile = io.StringIO()
+        cat_cmd = commands.get_command('cat')
+        cat_cmd.outfile = io.StringIO()
+        cat_cmd.errfile = io.StringIO()
 
         arg_parser = arguments.get_parser()
-        arg_sets = (
-            ['ls', str(test.id)],
-            ['ls', str(test.id), '--tree'],
-            ['ls', str(test.id), '--subdir', 'build' ],
-        )
+        arg_sets = (['cat', str(test.id), 'build.sh'])
 
         for arg_set in arg_sets:
             args = arg_parser.parse_args(arg_set)
-            ls_cmd.run(self.pav_cfg, args)
-            output.fprint(ls_cmd.outfile)
-            output.fprint(ls_cmd.errfile)
+            cat_cmd.run(self.pav_cfg, args)
+            output.fprint(cat_cmd.outfile)
+            output.fprint(cat_cmd.errfile)
