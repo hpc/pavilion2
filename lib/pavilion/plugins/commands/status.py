@@ -29,13 +29,15 @@ def status_from_test_obj(pav_cfg, test_obj):
             sched = schedulers.get_plugin(test.scheduler)
             status_f = sched.job_status(pav_cfg, test)
 
+        if status_f.state in [STATES.SCHEDULED, STATES.RUNNING]:
+            status_f.note += " " + test.sched_info
+
         test_statuses.append({
             'test_id': test.id,
             'name': test.name,
             'state': status_f.state,
             'time': status_f.when,
             'note': status_f.note,
-            'sched_info': test.sched_info
         })
 
     test_statuses.sort(key=lambda x: x['test_id'])
