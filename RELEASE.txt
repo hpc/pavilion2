@@ -1,3 +1,26 @@
 # This number should track progressive changes in this software, and correspond to git tags
 # denoting releases. It is entirely independent of the the Pavilion's VERSION.
-2.0
+RELEASE=2.1
+
+# Release History
+
+## 2.1
+ - Quite a few bugfixes.
+ - Simplified time output (and dropped pytz dependency)
+ - Updated regex parser.
+ - Migrated documentation to Readthedocs and restructured text format.
+   - Added API documentation
+   - Added some tutorials
+ - Add ls and cat commands
+ - Moved exception tracking to a single log file.
+ - Added the concept of hidden tests.
+ - Re-organized how deferred variables work.
+   - run.sh files are now regenerated when a test _run's
+   - test variables are now saved in the test run directory.
+ - Fixed RUN_COMPLETE files. They are now made when a test is finished,
+   fails, is cancelled, and in most error cases.
+
+## 2.0
+
+ - All new Pavilion 2.0 redesign
+   - Pavilion was completely redesigned and reimplemented for this release.
