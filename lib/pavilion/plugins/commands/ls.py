@@ -19,19 +19,25 @@ class FileCommand(commands.Command):
     def _setup_arguments(self, parser):
         parser.add_argument(
             'job_id', type=int,
-            help="Job id number."
+            help="Job id number.",
+            metavar='JOB_ID',
         )
-
         parser.add_argument(
-            'subdir',
-            help="Subdirectory to print.",
-            nargs='?'
+            '--path',
+            action='store_true',
+            help='print job_id absolute path',
+        )
+        parser.add_argument(
+            '--subdir',
+            help="print subdirectory DIR.",
+            metavar = 'DIR',
+            nargs=1
         )
 
         parser.add_argument(
             '--tree',
-            help="List <job id> file tree",
-            action='store_true'
+            action='store_true',
+            help="List JOB_ID file tree",
         )
 
     def run(self, pav_cfg, args):
@@ -44,8 +50,11 @@ class FileCommand(commands.Command):
                           file=sys.stderr, color=output.RED)
             return errno.EEXIST
 
-        utils.fprint("\nListing files in {}:\n\n".format(job_dir),
-                     file=sys.stdout)
+        if args.path is True:
+            output.fprint(job_dir)
+            return 0
+
+        output.fprint(str(job_dir) + ':', file=sys.stdout)
 
         if args.tree is True:
             level = 0
@@ -79,12 +88,12 @@ def tree_(level, path):
     for file in os.listdir(path):
         filename = os.path.join(path, file)
         if os.path.islink(filename):
-            utils.fprint("{}{} -> {}".format(' '*4*level, file,
+            output.fprint("{}{} -> {}".format(' '*4*level, file,
                                              os.path.realpath(filename)),
-                         file=sys.stdout, color=utils.CYAN)
+                         file=sys.stdout, color=output.CYAN)
         elif os.path.isdir(filename):
-            utils.fprint("{}{}/".format(' '*4*level, file),
-                         file=sys.stdout, color=utils.BLUE)
+            output.fprint("{}{}/".format(' '*4*level, file),
+                         file=sys.stdout, color=output.BLUE)
             tree_(level + 1, filename)
         else:
-            utils.fprint("{}{}".format(' '*4*level, file), file=sys.stdout)
+            output.fprint("{}{}".format(' '*4*level, file), file=sys.stdout)

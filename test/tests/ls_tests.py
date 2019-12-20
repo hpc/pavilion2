@@ -6,7 +6,7 @@ import sys
 from pavilion import arguments
 from pavilion import commands
 from pavilion import plugins
-from pavilion import utils
+from pavilion import output
 from pavilion.unittest import PavTestCase
 
 class StatusTests(PavTestCase):
@@ -18,31 +18,22 @@ class StatusTests(PavTestCase):
         plugins._reset_plugins()
 
     def test_ls(self):
-        """Checking basic ls functionality"""
+        """Checking ls command functionality"""
         test = self._quick_test()
 
-        job_id = test.id
-
-        ls_cmd = commands.get_plugin('ls')
+        ls_cmd = commands.get_command('ls')
         ls_cmd.outfile = io.StringIO()
         ls_cmd.errfile = io.StringIO()
 
         arg_parser = arguments.get_parser()
         arg_sets = (
-            ['ls', job_id ],
-            ['ls', job_id, '--tree']
-            ['ls', job_id, 'build' ]
+            ['ls', str(test.id) ],
+            ['ls', str(test.id), '--tree'],
+            ['ls', str(test.id), 'build' ],
         )
 
         for arg_set in arg_sets:
             args = arg_parser.parse_args(arg_set)
-            ls_cmd.run(args)
-            utils.fprint(ls_cmd.outfile)
-            utils.fprint(ls_cmd.errfile)
-
-    def test_ls_error(self):
-        """Checking ls error functionality"""
-        test = self._quick_test()
-        job_id = test.id
-        utils.fprint("JOB ID: {}".format(str(job_id)))
-        utils.fprint(str(job_id))
+            ls_cmd.run(self.pav_cfg, args)
+            output.fprint(ls_cmd.outfile)
+            output.fprint(ls_cmd.errfile)
