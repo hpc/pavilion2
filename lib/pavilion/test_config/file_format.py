@@ -124,9 +124,24 @@ class EnvCatElem(yc.CategoryElem):
 class SeriesConfigLoader(yc.YamlConfigLoader):
 
     ELEMENTS = [
-        yc.KeyedElem(
-            'series',
-            help_text="Series.",
+        yc.CategoryElem(
+            'series', sub_elem=yc.KeyedElem(
+                elements=[
+                    yc.ListElem('modes', sub_elem=yc.StrElem()),
+                    yc.CategoryElem(
+                        'only_if', sub_elem=yc.ListElem(sub_elem=yc.StrElem())
+                    ),
+                    yc.CategoryElem(
+                        'not_if', sub_elem=yc.ListElem(sub_elem=yc.StrElem())
+                    )
+                ]
+            )
+        ),
+        yc.ListElem(
+            'modes', sub_elem=yc.StrElem()
+        ),
+        yc.ListElem(
+            'on_complete', sub_elem=yc.StrElem()
         )
     ]
 
