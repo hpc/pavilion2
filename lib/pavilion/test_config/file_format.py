@@ -124,9 +124,9 @@ class EnvCatElem(yc.CategoryElem):
 class SeriesConfigLoader(yc.YamlConfigLoader):
 
     ELEMENTS = [
-        yc.StrElem(
+        yc.KeyedElem(
             'series',
-            help_text="series"
+            help_text="Series.",
         )
     ]
 
