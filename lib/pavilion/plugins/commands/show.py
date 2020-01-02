@@ -769,7 +769,7 @@ class ShowCommand(commands.Command):
                         'Tests': ''
                     })
 
-        utils.draw_table(
+        output.draw_table(
             self.outfile,
             field_info={},
             fields=col_names,
