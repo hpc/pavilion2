@@ -135,14 +135,14 @@ class SeriesConfigLoader(yc.YamlConfigLoader):
                         'not_if', sub_elem=yc.ListElem(sub_elem=yc.StrElem())
                     )
                 ]
-            )
+            ),
         ),
         yc.ListElem(
             'modes', sub_elem=yc.StrElem()
         ),
         yc.ListElem(
             'on_complete', sub_elem=yc.StrElem()
-        )
+        ),
     ]
 
 

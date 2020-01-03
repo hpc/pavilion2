@@ -13,7 +13,6 @@ class RunSeries(commands.Command):
             name='run_series',
             description='Run Series.',
             short_help='Run complicated series.',
-            aliases=['series']
         )
 
     def _setup_arguments(self, parser):
@@ -33,6 +32,7 @@ class RunSeries(commands.Command):
 
         with series_path.open() as series_file:
             series_cfg = series_config_loader.load(series_file)
+            # series_cfg = series_config_loader.load_raw(series_file)
             pp = pprint.PrettyPrinter(indent=2)
             pp.pprint(series_cfg)
 
