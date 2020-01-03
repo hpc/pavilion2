@@ -125,7 +125,7 @@ class SeriesConfigLoader(yc.YamlConfigLoader):
 
     ELEMENTS = [
         yc.CategoryElem(
-            'sets', sub_elem=yc.KeyedElem(
+            'series', sub_elem=yc.KeyedElem(
                 elements=[
                     yc.ListElem('test_names', sub_elem=yc.StrElem()),
                     yc.ListElem('modes', sub_elem=yc.StrElem()),

@@ -1,9 +1,8 @@
 from pavilion import commands
+from pavilion import arguments
 from pavilion.test_config.setup import _find_config
 from pavilion.test_config.file_format import SeriesConfigLoader
 
-from pavilion.output import dbg_print
-import pprint
 
 class RunSeries(commands.Command):
     """Command to kickoff series."""
@@ -32,8 +31,17 @@ class RunSeries(commands.Command):
 
         with series_path.open() as series_file:
             series_cfg = series_config_loader.load(series_file)
-            # series_cfg = series_config_loader.load_raw(series_file)
-            pp = pprint.PrettyPrinter(indent=2)
-            pp.pprint(series_cfg)
+
+            run_cmd = commands.get_command('run')
+            arg_parser = arguments.get_parser()
+
+            sets = series_cfg['series']
+            for set_name, set_info in sets.items():
+                # create arguments
+                args_list = ['run']
+                args_list.extend(set_info['test_names'])
+                args = arg_parser.parse_args(args_list)
+                # call run command to run tests
+                run_cmd.run(pav_cfg, args)
 
         return 0
