@@ -122,6 +122,9 @@ class EnvCatElem(yc.CategoryElem):
 
 
 class SeriesConfigLoader(yc.YamlConfigLoader):
+    """
+    Loads Test Series Files
+    """
 
     ELEMENTS = [
         yc.CategoryElem(
