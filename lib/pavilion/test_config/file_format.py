@@ -124,6 +124,9 @@ class EnvCatElem(yc.CategoryElem):
 class SeriesConfigLoader(yc.YamlConfigLoader):
     """
     Loads Test Series Files
+
+:cvar list(yc.YamlConfig) ELEMENTS: Describes the yaml config elements found
+in series files.
     """
 
     ELEMENTS = [
