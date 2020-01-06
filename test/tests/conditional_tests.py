@@ -1,29 +1,28 @@
-from pavilion import commands
-from pavilion.unittest import PavTestCase
+import io
+import os
+
 from pavilion import arguments
-from pavilion.test_config import file_format
+from pavilion import commands
 from pavilion import plugins
 from pavilion.status_file import STATES
-from pavilion.test_config import variables, setup
-import os
-import io
+from pavilion.test_config import file_format, setup, variables
+from pavilion.unittest import PavTestCase
+
 class ConditionalTest(PavTestCase):
 
     def setUp(self):
         plugins.initialize_plugins(self.pav_cfg)
 
-
     def tearDown(self):
         plugins._reset_plugins()
 
-    def test_success(self): # this methed runs a suite of conditional successes
+    def test_success(self): # this method runs some conditional successes
 
         sys_vars = {
              'sys_name': 'bieber',
              'sys_os': 'centos',
              'sys_arch': 'x86_64'}
         pav_vars = {}
-        user_vars = {}
 
         arg_parser = arguments.get_parser()
 
@@ -43,9 +42,9 @@ class ConditionalTest(PavTestCase):
 
         for i in range(0,len(tests)):
             cond = setup.cond_check(tests[i].config,pav_vars,sys_vars)
-            self.assertTrue(len(cond)==0)
+            self.assertTrue(len(cond)==0) #check if any matches occur
 
-    def test_failure(self): #this method runs a suite of conditional failures
+    def test_failure(self): #this method runs some conditional failures
 
         sys_vars = {
             'sys_name':'bieber',

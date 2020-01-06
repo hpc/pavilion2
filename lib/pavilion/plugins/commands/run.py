@@ -15,15 +15,10 @@ from pavilion.plugins.commands.status import print_from_test_obj
 from pavilion.series import TestSeries, test_obj_from_id
 from pavilion.status_file import STATES
 from pavilion.test_config.string_parser import ResolveError
-<<<<<<< HEAD
 from pavilion.test_config import setup
-from pavilion.utils import fprint
-from pavilion import result_parsers
-=======
 from pavilion.test_run import TestRun, TestRunError
 
 
->>>>>>> master
 class RunCommand(commands.Command):
 
     def __init__(self):
@@ -188,8 +183,7 @@ class RunCommand(commands.Command):
             for i in range(0,len(tests)):
                 if not tests[i].skipped:
                     valid_tests.append(tests[i])
-            tests=valid_tests
-            sched = schedulers.get_scheduler_plugin(sched_name)
+            tests = valid_tests
             sched = schedulers.get_plugin(sched_name)
 
             try:

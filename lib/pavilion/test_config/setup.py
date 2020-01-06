@@ -555,7 +555,7 @@ def resolve_permutations(raw_test_cfg, pav_vars, sys_vars):
 def cond_check(raw_test_cfg, pav_vars, sys_vars):
     config = copy.deepcopy(raw_test_cfg)
     base_var_man = variables.VariableSetManager()
-    user_vars = config.get('variables',{})
+    user_vars = config.get('variables', {})
 
     try:
         base_var_man.add_var_set('var', user_vars)
