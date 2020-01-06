@@ -5,18 +5,25 @@ import time
 from collections import defaultdict
 
 from pavilion import commands
+from pavilion import output
+from pavilion.output import fprint
+from pavilion import result_parsers
 from pavilion import schedulers
 from pavilion import system_variables
 from pavilion import test_config
-from pavilion import utils
-from pavilion.test_run import TestRun, TestRunError
-from pavilion.status_file import STATES
 from pavilion.plugins.commands.status import print_from_test_obj
 from pavilion.series import TestSeries, test_obj_from_id
+from pavilion.status_file import STATES
 from pavilion.test_config.string_parser import ResolveError
+<<<<<<< HEAD
 from pavilion.test_config import setup
 from pavilion.utils import fprint
 from pavilion import result_parsers
+=======
+from pavilion.test_run import TestRun, TestRunError
+
+
+>>>>>>> master
 class RunCommand(commands.Command):
 
     def __init__(self):
@@ -110,7 +117,6 @@ class RunCommand(commands.Command):
 
             tests_by_sched = self._configs_to_tests(
                 pav_cfg=pav_cfg,
-                sys_vars=sys_vars,
                 configs_by_sched=configs_by_sched,
             )
 
@@ -146,7 +152,7 @@ class RunCommand(commands.Command):
 
         if rp_errors:
             fprint("Result Parser configurations had errors:",
-                   file=self.errfile, color=utils.RED)
+                   file=self.errfile, color=output.RED)
             for msg in rp_errors:
                 fprint(msg, bullet=' - ', file=self.errfile)
             return errno.EINVAL
@@ -160,7 +166,7 @@ class RunCommand(commands.Command):
             elif test.config['build']['on_nodes'] not in ['true', 'True']:
                 if not test.build():
                     fprint("Error building test: ", file=self.errfile,
-                           color=utils.RED)
+                           color=output.RED)
                     fprint("status {status.state} - {status.note}"
                            .format(status=test.status.current()),
                            file=self.errfile)
@@ -184,11 +190,13 @@ class RunCommand(commands.Command):
                     valid_tests.append(tests[i])
             tests=valid_tests
             sched = schedulers.get_scheduler_plugin(sched_name)
+            sched = schedulers.get_plugin(sched_name)
+
             try:
                 sched.schedule_tests(pav_cfg, tests)
             except schedulers.SchedulerPluginError as err:
                 fprint('Error scheduling tests:', file=self.errfile,
-                      color=utils.RED)
+                       color=output.RED)
                 fprint(err, bullet='  ', file=self.errfile)
                 fprint('Cancelling already kicked off tests.',
                       file=self.errfile)
@@ -203,7 +211,7 @@ class RunCommand(commands.Command):
             while time.time() < end_time and wait_result is None:
                 last_time = time.time()
                 for sched_name, tests in tests_by_sched.items():
-                    sched = schedulers.get_scheduler_plugin(sched_name)
+                    sched = schedulers.get_plugin(sched_name)
                     for test in tests:
                         status = test.status.current()
                         if status == STATES.SCHEDULED:
@@ -226,7 +234,8 @@ class RunCommand(commands.Command):
                        's' if len(all_tests) > 1 else '',
                        series.id),
                file=self.outfile,
-               color=utils.GREEN)
+               color=output.GREEN)
+
         if args.status:
             tests = list(series.tests.keys())
             tests, _ = test_obj_from_id(pav_cfg, tests)
@@ -248,8 +257,8 @@ class RunCommand(commands.Command):
         :param list(str) tests: The tests to run.
         :param list(str) overrides: Overrides to apply to the configurations.
         :param system_variables.SysVarDict sys_vars: The system variables dict.
-        :returns: A dictionary (by scheduler type name) of lists of test
-            configs.
+        :returns: A dictionary (by scheduler type name) of lists of tuples
+            test configs and their variable managers.
         """
         self.logger.debug("Finding Configs")
 
@@ -286,8 +295,8 @@ class RunCommand(commands.Command):
             try:
                 test_config.apply_overrides(test_cfg, overrides)
             except test_config.TestConfigError as err:
-                msg = 'Error applying overrides to test {} from {}: {}'\
-                      .format(test_cfg['name'], test_cfg['suite_path'], err)
+                msg = 'Error applying overrides to test {} from {}: {}' \
+                    .format(test_cfg['name'], test_cfg['suite_path'], err)
                 self.logger.error(msg)
                 raise commands.CommandError(msg)
 
@@ -299,11 +308,18 @@ class RunCommand(commands.Command):
                     sys_vars
                 )
                 for p_var_man in permutes:
-                    sched = p_cfg['scheduler'].resolve(p_var_man)
+                    # Get the scheduler from the config.
+                    sched = p_cfg['scheduler']
+                    sched = test_config.resolve_section_vars(
+                        component=sched,
+                        var_man=p_var_man,
+                        allow_deferred=False,
+                        deferred_only=False,
+                    )
                     raw_tests_by_sched[sched].append((p_cfg, p_var_man))
             except test_config.TestConfigError as err:
-                msg = 'Error resolving permutations for test {} from {}: {}'\
-                      .format(test_cfg['name'], test_cfg['suite_path'], err)
+                msg = 'Error resolving permutations for test {} from {}: {}' \
+                    .format(test_cfg['name'], test_cfg['suite_path'], err)
                 self.logger.error(msg)
                 raise commands.CommandError(msg)
 
@@ -311,40 +327,49 @@ class RunCommand(commands.Command):
         # The scheduler variables are based on all of the
         for sched_name in raw_tests_by_sched.keys():
             try:
-                sched = schedulers.get_scheduler_plugin(sched_name)
+                sched = schedulers.get_plugin(sched_name)
             except KeyError:
                 msg = "Could not find scheduler '{}'.".format(sched_name)
                 self.logger.error(msg)
                 raise commands.CommandError(msg)
 
-            nondeferred_cfg_sctns = schedulers.list_scheduler_plugins()
+            nondeferred_cfg_sctns = schedulers.list_plugins()
 
             # Builds must have the values of all their variables now.
             nondeferred_cfg_sctns.append('build')
 
             # Set the scheduler variables for each test.
             for test_cfg, test_var_man in raw_tests_by_sched[sched_name]:
-                test_var_man.add_var_set('sched', sched.get_vars(test_cfg))
 
-                # Resolve all variables for the test.
+                sched_config = test_config.resolve_section_vars(
+                    component=test_cfg[sched_name],
+                    var_man=test_var_man,
+                    allow_deferred=False,
+                    deferred_only=False,
+                )
+
+                test_var_man.add_var_set('sched', sched.get_vars(sched_config))
+
+                # Resolve all variables for the test (that aren't deferred).
                 try:
-                    resolved_config = test_config.resolve_all_vars(
+                    resolved_config = test_config.resolve_config(
                         test_cfg,
                         test_var_man,
                         no_deferred_allowed=nondeferred_cfg_sctns)
 
                 except (ResolveError, KeyError) as err:
-                    msg = "Error resolving variables in config at '{}': {}"\
-                          .format(test_cfg['suite_path'].resolve(test_var_man),
-                                  err)
+                    msg = "Error resolving variables in config at '{}': {}" \
+                        .format(test_cfg['suite_path'].resolve(test_var_man),
+                                err)
                     self.logger.error(msg)
                     raise commands.CommandError(msg)
 
-                tests_by_scheduler[sched.name].append(resolved_config)
+                tests_by_scheduler[sched.name].append(
+                    (resolved_config, test_var_man))
         return tests_by_scheduler
 
     @staticmethod
-    def _configs_to_tests(pav_cfg, sys_vars, configs_by_sched):
+    def _configs_to_tests(pav_cfg, configs_by_sched):
         """Convert the dictionary of test configs by scheduler into actual
         tests."""
 
@@ -353,12 +378,12 @@ class RunCommand(commands.Command):
         for sched_name in configs_by_sched.keys():
             tests_by_sched[sched_name] = []
             for i in range(len(configs_by_sched[sched_name])):
+                cfg, var_man = configs_by_sched[sched_name][i]
                 tests_by_sched[sched_name].append(TestRun(
                     pav_cfg=pav_cfg,
-                    config=configs_by_sched[sched_name][i],
-                    sys_vars=sys_vars
+                    config=cfg,
+                    var_man=var_man,
                 ))
-
 
         return tests_by_sched
 
@@ -367,7 +392,7 @@ class RunCommand(commands.Command):
         """Cancel each of the given tests using the appropriate scheduler."""
         for sched_name, tests in tests_by_sched.items():
 
-            sched = schedulers.get_scheduler_plugin(sched_name)
+            sched = schedulers.get_plugin(sched_name)
 
             for test in tests:
                 sched.cancel_job(test)

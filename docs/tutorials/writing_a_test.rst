@@ -38,6 +38,7 @@ Writing a Test
 
 We're going to use the `supermagic`_ hpc test as our example.
 
+
 1. Download an archive of the source.
 
    - Put it in ``~/.pavilion/test_src``
@@ -145,8 +146,8 @@ Let's try it:
 .. code-block:: shell
 
     $ pav run supermagic.basic
-
     Test supermagic.basic run 72 building 787aceaa19ac9a21
+
     Error building test:
     status BUILD_FAILED - Build returned a non-zero result.
     For more information, run 'pav log build 72'
@@ -272,7 +273,7 @@ Add the following to your supermagic test config:
 
             cmd:
                 # We'll go over this in a second.
-                - {{sched.run_cmd}} ./supermagic
+                - '{{sched.test_cmd}} ./supermagic'
 
 Kickoff Scripts
 ~~~~~~~~~~~~~~~

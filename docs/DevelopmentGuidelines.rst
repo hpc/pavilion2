@@ -17,11 +17,8 @@ Style
 Publishing
 ----------
 
-1. Pavilion is currently not approved for public release; the release
-   process has been initiated, but it takes a while.
-2. For now the primary repository is git.lanl.gov/hpcsoft/Pavilion2
-3. **Do NOT increment the version number.** You may want to look at
-   `ARBITRARY\_NUMBER.txt <../ARBITRARY_NUMBER.txt>`__ though.
+1. **Do NOT increment the version number.** You may want to look at
+   `ARBITRARY\_NUMBER.txt <../RELEASE.txt>`__ though.
 
 Site Specific Code
 ------------------

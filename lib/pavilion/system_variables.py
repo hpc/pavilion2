@@ -29,13 +29,22 @@ all system variable values according to what system variable plugins
 are actually loaded.  The values, once retrieved, are thus static
 for a given run of the pavilion command."""
 
-    def __init__(self, defer=False):
-        global _SYS_VAR_DICT
-        if _SYS_VAR_DICT is not None:
-            raise SystemPluginError(
-                "Dictionary of system plugins can't be generated twice.")
+    def __init__(self, defer=False, unique=False):
+        """Create a new system variable dictionary. Typically the first one
+        created is reused for the entire run of Pavilion.
+        :param bool defer: Whether to defer deferrable variables.
+        :param bool unique: Usually, creating more than one of these is an
+            error. Ignore that if this is true. (For testing).
+        """
+
         super().__init__({})
-        _SYS_VAR_DICT = self
+
+        if not unique:
+            global _SYS_VAR_DICT
+            if _SYS_VAR_DICT is not None:
+                raise SystemPluginError(
+                    "Dictionary of system plugins can't be generated twice.")
+            _SYS_VAR_DICT = self
 
         self.defer = defer
 
@@ -117,6 +126,9 @@ def get_vars(defer):
 
 
 class SystemPlugin(IPlugin.IPlugin):
+    """Each system variable plugin provides a key and value for the system
+    variables dictionary. These are only evaluated if asked for,
+    and generally only once."""
 
     PRIO_CORE = 0
     PRIO_COMMON = 10
@@ -125,7 +137,7 @@ class SystemPlugin(IPlugin.IPlugin):
     NAME_VERS_RE = re.compile(r'^[a-zA-Z0-9_.-]+$')
 
     def __init__(self,
-                 plugin_name,
+                 name,
                  description,
                  priority=PRIO_COMMON,
                  is_deferable=False,
@@ -133,7 +145,7 @@ class SystemPlugin(IPlugin.IPlugin):
         """Initialize the system plugin instance.  This should be overridden in
         each final plugin.
 
-        :param str plugin_name: The name of the system plugin being wrapped.
+        :param str name: The name of the system plugin being wrapped.
         :param str description: Short description of this value.
         :param int priority: Priority value of plugin when two plugins have
             the same name.
@@ -146,19 +158,18 @@ class SystemPlugin(IPlugin.IPlugin):
 
         self.is_deferable = is_deferable
 
-        if self.NAME_VERS_RE.match(plugin_name) is None:
+        if self.NAME_VERS_RE.match(name) is None:
             raise SystemPluginError(
                 "Invalid module name: '{}'"
-                .format(plugin_name))
+                .format(name))
 
         self.help_text = description
-        self.name = plugin_name
+        self.name = name
         self.priority = priority
         self.path = inspect.getfile(self.__class__)
         if sub_keys is None:
             sub_keys = []
         self.sub_keys = sub_keys
-        self.values = None
 
     def _get(self):
         """This should be overridden to implement gathering of data for the
@@ -173,19 +184,33 @@ class SystemPlugin(IPlugin.IPlugin):
             DeferredVariable object instead.
         """
         if defer and self.is_deferable:
-            return variables.DeferredVariable(self.name, var_set='sys',
-                                              sub_keys=self.sub_keys)
+            return variables.DeferredVariable()
 
-        if self.values is None:
-            try:
-                self.values = self._get()
-            except Exception as err:
-                raise SystemPluginError(
-                    "Error getting value for system plugin {s.name}: {err}"
-                    .format(s=self, err=err)
-                )
+        try:
+            values = self._get()
+        except Exception as err:
+            raise SystemPluginError(
+                "Error getting value for system plugin {s.name}: {err}"
+                .format(s=self, err=err)
+            )
 
-        return self.values
+        chk_vals = values
+        if not isinstance(chk_vals, list):
+            chk_vals = [chk_vals]
+
+        for i in range(len(chk_vals)):
+            if not isinstance(chk_vals[i], dict):
+                chk_vals[i] = {None: chk_vals[i]}
+
+        for vals in chk_vals:
+            for key, val in vals.items():
+                if not isinstance(val, str):
+                    raise SystemPluginError(
+                        "System variable plugin {s.path} called {s.name} "
+                        "returned non-string value '{val}' in '{values}'"
+                        .format(s=self, val=val, values=values))
+
+        return values
 
     def activate(self):
         """Add this plugin to the system plugin list."""
