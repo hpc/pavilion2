@@ -17,6 +17,8 @@ from pavilion.status_file import STATES
 from pavilion.test_config.string_parser import ResolveError
 from pavilion.test_run import TestRun, TestRunError
 
+from pavilion.output import dbg_print
+
 
 class RunCommand(commands.Command):
 
@@ -63,6 +65,10 @@ class RunCommand(commands.Command):
         parser.add_argument(
             '-s', '--status', action='store_true', default=False,
             help='Display test statuses'
+        )
+        parser.add_argument(
+            '-r', '--series_id',
+            help='Provide series ID if test is already part of a series.'
         )
         parser.add_argument(
             'tests', nargs='*', action='store',
@@ -126,7 +132,12 @@ class RunCommand(commands.Command):
             fprint("You must specify at least one test.", file=self.errfile)
             return errno.EINVAL
 
-        series = TestSeries(pav_cfg, all_tests)
+        dbg_print(args.series_id)
+        if args.series_id is None:
+            series = TestSeries(pav_cfg, all_tests)
+        else:
+            series = TestSeries.from_id(pav_cfg, args.series_id)
+            series.add_tests(all_tests)
 
         rp_errors = []
         for test in all_tests:

@@ -41,7 +41,7 @@ class TestSeries:
 
     LOGGER_FMT = 'series({})'
 
-    def __init__(self, pav_cfg, tests, _id=None):
+    def __init__(self, pav_cfg, tests=None, _id=None):
         """Initialize the series.
 
         :param pav_cfg: The pavilion configuration object.
@@ -51,7 +51,10 @@ class TestSeries:
         """
 
         self.pav_cfg = pav_cfg
-        self.tests = {test.id: test for test in tests}
+        self.tests = {}
+
+        if tests:
+            self.tests = {test.id: test for test in tests}
 
         series_path = self.pav_cfg.working_dir/'series'
 
@@ -65,17 +68,18 @@ class TestSeries:
                     "Could not get id or series directory in '{}': {}"
                     .format(series_path, err))
 
-            # Create a soft link to the test directory of each test in the
-            # series.
-            for test in tests:
-                link_path = utils.make_id_path(self.path, test.id)
+            if tests:
+                # Create a soft link to the test directory of each test in the
+                # series.
+                for test in tests:
+                    link_path = utils.make_id_path(self.path, test.id)
 
-                try:
-                    link_path.symlink_to(test.path)
-                except OSError as err:
-                    raise TestSeriesError(
-                        "Could not link test '{}' in series at '{}': {}"
-                        .format(test.path, link_path, err))
+                    try:
+                        link_path.symlink_to(test.path)
+                    except OSError as err:
+                        raise TestSeriesError(
+                            "Could not link test '{}' in series at '{}': {}"
+                            .format(test.path, link_path, err))
 
             self._save_series_id()
 
@@ -137,6 +141,26 @@ associated tests."""
                 raise ValueError(link_path)
 
         return cls(pav_cfg, tests, _id=id_)
+
+    def add_tests(self, test_objs):
+        """
+        Adds tests to existing series.
+        :param test_objs: List of test objects
+        :return: None
+        """
+
+        for test in test_objs:
+            self.tests[test.id] = test
+
+            # attempt to make symlink
+            link_path = utils.make_id_path(self.path, test.id)
+
+            try:
+                link_path.symlink_to(test.path)
+            except OSError as err:
+                raise TestSeriesError(
+                    "Could not link test '{}' in series at '{}': {}"
+                        .format(test.path, link_path, err))
 
     def _save_series_id(self):
         """Save the series id to the user's .pavilion directory."""
