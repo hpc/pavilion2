@@ -17,8 +17,6 @@ from pavilion.status_file import STATES
 from pavilion.test_config.string_parser import ResolveError
 from pavilion.test_run import TestRun, TestRunError
 
-from pavilion.output import dbg_print
-
 
 class RunCommand(commands.Command):
 
@@ -132,7 +130,6 @@ class RunCommand(commands.Command):
             fprint("You must specify at least one test.", file=self.errfile)
             return errno.EINVAL
 
-        dbg_print(args.series_id)
         if args.series_id is None:
             series = TestSeries(pav_cfg, all_tests)
         else:

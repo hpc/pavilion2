@@ -160,7 +160,7 @@ associated tests."""
             except OSError as err:
                 raise TestSeriesError(
                     "Could not link test '{}' in series at '{}': {}"
-                        .format(test.path, link_path, err))
+                    .format(test.path, link_path, err))
 
     def _save_series_id(self):
         """Save the series id to the user's .pavilion directory."""
