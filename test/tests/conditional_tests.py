@@ -9,12 +9,12 @@ from pavilion.test_config import file_format, setup, variables
 from pavilion.unittest import PavTestCase
 
 
-class ConditionalTest(PavTestCase):
+class conditionalTest(PavTestCase):
 
-    def setup(self):
+    def setUp(self):
         plugins.initialize_plugins(self.pav_cfg)
 
-    def teardown(self):
+    def tearDown(self):
         plugins._reset_plugins()
 
     def test_success(self):  # this method runs some conditional successes
