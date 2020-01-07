@@ -17,7 +17,7 @@ from pavilion.status_file import STATES
 from pavilion.test_config.string_parser import ResolveError
 from pavilion.test_config import setup
 from pavilion.test_run import TestRun, TestRunError
-
+from pavilion.output import dbg_print
 
 class RunCommand(commands.Command):
 
@@ -25,7 +25,7 @@ class RunCommand(commands.Command):
 
         super().__init__('run', 'Setup and run a set of tests.',
                          short_help="Setup and run a set of tests.")
-        self.test_list=[]
+        self.test_list = []
         self.skipped = False
 
     def _setup_arguments(self, parser):
@@ -131,12 +131,12 @@ class RunCommand(commands.Command):
         rp_errors = []
 
         for test in all_tests:
-            cond_list = setup.cond_check(test.config,pav_cfg.pav_vars,sys_vars)
+            cond_list = setup.cond_check(test.config, pav_cfg.pav_vars, sys_vars)
             if len(cond_list) > 0:
-               test.status.set(STATES.SKIPPED,cond_list[0])
-               test.skipped=True
+                test.status.set(STATES.SKIPPED, cond_list[0])
+                test.skipped = True
             else:
-               test.skipped=False
+                test.skipped = False
             self.test_list.append(test)
 
         for test in all_tests:
@@ -180,7 +180,7 @@ class RunCommand(commands.Command):
 
         for sched_name, tests in tests_by_sched.items():
             valid_tests = []
-            for i in range(0,len(tests)):
+            for i in range(0, len(tests)):
                 if not tests[i].skipped:
                     valid_tests.append(tests[i])
             tests = valid_tests
@@ -193,7 +193,7 @@ class RunCommand(commands.Command):
                        color=output.RED)
                 fprint(err, bullet='  ', file=self.errfile)
                 fprint('Cancelling already kicked off tests.',
-                      file=self.errfile)
+                       file=self.errfile)
                 self._cancel_all(tests_by_sched)
 
         # Tests should all be scheduled now, and have the SCHEDULED state

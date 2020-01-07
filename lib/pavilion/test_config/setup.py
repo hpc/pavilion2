@@ -552,6 +552,7 @@ def resolve_permutations(raw_test_cfg, pav_vars, sys_vars):
 
     return test_cfg, var_men
 
+
 def cond_check(raw_test_cfg, pav_vars, sys_vars):
     config = copy.deepcopy(raw_test_cfg)
     base_var_man = variables.VariableSetManager()
@@ -572,47 +573,49 @@ def cond_check(raw_test_cfg, pav_vars, sys_vars):
     except variables.VariableError as err:
         raise TestConfigError("Error in pav variables: {}".format(err))
 
-
-    cond_err_list = [] # List is populated with not_if and only_if methods.
-    cond_err_list = get_match_not_if(config['not_if'],base_var_man,cond_err_list)
-    cond_err_list = get_match_only_if(config['only_if'],base_var_man,cond_err_list)
+    cond_err_list = []  # List is populated with not_if and only_if methods.
+    cond_err_list = get_match_not_if(config['not_if'], base_var_man, cond_err_list)
+    cond_err_list = get_match_only_if(config['only_if'], base_var_man, cond_err_list)
     # If cond_err_list length is 0 we had no conditional conflicts.
-    for i in range(0,len(cond_err_list)):
+    for i in range(0, len(cond_err_list)):
         LOGGER.warning(cond_err_list[i])
     return cond_err_list
 
-def get_match_not_if(not_if_dict,variable_base,cond_err_list):
+
+def get_match_not_if(not_if_dict, variable_base, cond_err_list):
     # Not_if loops through values and returns a list of matches.
     for key in not_if_dict:
         real_key = variable_base[variable_base.resolve_key(key)]
         for value in not_if_dict[key]:
-           # If a key has a match log it.
-           if real_key == value:
-               message = ("Condition invalid. Not if {0} is {1}. "
-               "The current {0} is {2}."
-               .format(key,value,real_key))
+            # If a key has a match log it.
+            if real_key == value:
+                message = ("Condition invalid. Not if {0} is {1}. "
+                           "The current {0} is {2}."
+                           .format(key, value, real_key))
 
-               cond_err_list.append(message)
+                cond_err_list.append(message)
 
-    return cond_err_list # Return the list of conditional errors, can be None.
+    return cond_err_list  # Return the list of conditional errors, can be None.
 
-def get_match_only_if(only_if_dict,variable_base,cond_err_list):
+
+def get_match_only_if(only_if_dict, variable_base, cond_err_list):
     # Only_if looks for a match for all keys to succeed.
     for key in only_if_dict:
         match = False
         real_key = variable_base[variable_base.resolve_key(key)]
         for value in only_if_dict[key]:
             if real_key == value:
-                match = True # One match is a success so break.
+                match = True  # One match is a success so break.
                 break
-        if match is False: # There was no match in value list, log it.
+        if match is False:  # There was no match in value list, log it.
             message = ("Condition Invalid. Only if {0} is one of {1}. "
-            "Current {0} is {2}."
-            .format(key,only_if_dict[key],real_key))
+                       "Current {0} is {2}."
+                       .format(key, only_if_dict[key], real_key))
 
             cond_err_list.append(message)
 
-    return cond_err_list # Return the lsit of conditional errors, can be None.
+    return cond_err_list  # Return the lsit of conditional errors, can be None.
+
 
 DEFERRED_PREFIX = '!deferred!'
 
