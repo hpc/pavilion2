@@ -4,7 +4,6 @@ from pavilion import series
 from pavilion.test_config.setup import _find_config
 from pavilion.test_config.file_format import SeriesConfigLoader
 
-from pavilion.output import dbg_print
 
 class RunSeries(commands.Command):
     """Command to kickoff series."""
@@ -42,7 +41,8 @@ class RunSeries(commands.Command):
             sets = series_cfg['series']
             for set_name, set_info in sets.items():
                 # create arguments
-                args_list = ['run', '-r {}'.format(series_obj._id)] # pylint: disable W0212
+                # pylint: disable=W0212
+                args_list = ['run', '-r {}'.format(series_obj._id)]
                 args_list.extend(set_info['test_names'])
                 args = arg_parser.parse_args(args_list)
                 # call run command to run tests
