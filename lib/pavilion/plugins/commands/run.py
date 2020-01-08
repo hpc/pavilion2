@@ -129,7 +129,7 @@ class RunCommand(commands.Command):
         series = TestSeries(pav_cfg, all_tests)
 
         rp_errors = []
-
+        dbg_print(':thumbs_up:')
         for test in all_tests:
             cond_list = setup.cond_check(test.config, pav_cfg.pav_vars, sys_vars)
             if len(cond_list) > 0:
