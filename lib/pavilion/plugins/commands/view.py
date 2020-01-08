@@ -64,7 +64,7 @@ class ViewCommand(run.RunCommand):
             overrides[key] = value
 
         tests = [args.test]
-        
+
         self.logger.debug("Finding Configs")
 
         sys_vars = system_variables.get_vars(True)
@@ -80,7 +80,7 @@ class ViewCommand(run.RunCommand):
             )
         except Exception as err:
             fprint(err, file=self.errfile, color=31)
-            quit(0)
+            sys.exit(1)
 
         configs = sum(configs.values(), [])
 
