@@ -17,7 +17,7 @@ from pavilion.status_file import STATES
 from pavilion.test_config.string_parser import ResolveError
 from pavilion.test_config import setup
 from pavilion.test_run import TestRun, TestRunError
-from pavilion.output import dbg_print
+
 
 class RunCommand(commands.Command):
 
@@ -129,9 +129,10 @@ class RunCommand(commands.Command):
         series = TestSeries(pav_cfg, all_tests)
 
         rp_errors = []
-        dbg_print(':thumbs_up:')
+
         for test in all_tests:
-            cond_list = setup.cond_check(test.config, pav_cfg.pav_vars, sys_vars)
+            cond_list = setup.cond_check(test.config, pav_cfg.pav_vars,
+                                         sys_vars)
             if len(cond_list) > 0:
                 test.status.set(STATES.SKIPPED, cond_list[0])
                 test.skipped = True

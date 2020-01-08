@@ -188,11 +188,11 @@ expected to be added to by various plugins.
         ),
         yc.CategoryElem(
             'not_if', sub_elem=yc.ListElem(sub_elem=yc.StrElem()),
-             help_text="Not_if for this test section. These are strings at the "
-                       "top of the config that contain dictionaries. The key "
-                       "consists of variables from VAR_SETS such as: 'var', "
-                       "'per', 'pav', 'sys' and 'sched'. The values are a"
-                       " single or list of strings."
+            help_text="Not_if for this test section. These are strings at the "
+                      "top of the config that contain dictionaries. The key "
+                      "consists of variables from VAR_SETS such as: 'var', "
+                      "'per', 'pav', 'sys' and 'sched'. The values are a"
+                      " single or list of strings."
         ),
         yc.KeyedElem(
             'build', elements=[

@@ -574,8 +574,10 @@ def cond_check(raw_test_cfg, pav_vars, sys_vars):
         raise TestConfigError("Error in pav variables: {}".format(err))
 
     cond_err_list = []  # List is populated with not_if and only_if methods.
-    cond_err_list = get_match_not_if(config['not_if'], base_var_man, cond_err_list)
-    cond_err_list = get_match_only_if(config['only_if'], base_var_man, cond_err_list)
+    cond_err_list = get_match_not_if(config['not_if'], base_var_man,
+                                     cond_err_list)
+    cond_err_list = get_match_only_if(config['only_if'], base_var_man,
+                                      cond_err_list)
     # If cond_err_list length is 0 we had no conditional conflicts.
     for i in range(0, len(cond_err_list)):
         LOGGER.warning(cond_err_list[i])
