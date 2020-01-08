@@ -38,13 +38,26 @@ class RunSeries(commands.Command):
 
             series_obj = series.TestSeries(pav_cfg)
 
+            # get universal modes
+            universal_modes = series_cfg['modes']
+
+            # set up series
             sets = series_cfg['series']
             for set_name, set_info in sets.items():
+
+                # get all appropriate modes
+                set_modes = set_info['modes']
+                all_modes = universal_modes + set_modes
+
                 # create arguments
                 # pylint: disable=W0212
                 args_list = ['run', '-r {}'.format(series_obj._id)]
+                for mode in all_modes:
+                    args_list.append('-m{}'.format(mode))
                 args_list.extend(set_info['test_names'])
+                dbg_print(args_list)
                 args = arg_parser.parse_args(args_list)
+
                 # call run command to run tests
                 run_cmd.run(pav_cfg, args)
 
