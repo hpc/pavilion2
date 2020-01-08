@@ -64,20 +64,22 @@ class ViewCommand(run.RunCommand):
             overrides[key] = value
 
         tests = [args.test]
-
         self.logger.debug("Finding Configs")
 
         sys_vars = system_variables.get_vars(True)
-
-        configs = self._get_tests(
-            pav_cfg=pav_cfg,
-            host=args.host,
-            test_files=[],
-            tests=tests,
-            modes=args.modes,
-            overrides=overrides,
-            sys_vars=sys_vars,
-        )
+        try:
+            configs = self._get_tests(
+                pav_cfg=pav_cfg,
+                host=args.host,
+                test_files=[],
+                tests=tests,
+                modes=args.modes,
+                overrides=overrides,
+                sys_vars=sys_vars,
+            )
+        except Exception as err:
+            fprint(err, file=self.errfile, color=31)
+            quit(0)
 
         configs = sum(configs.values(), [])
 
