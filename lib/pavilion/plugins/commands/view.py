@@ -78,7 +78,7 @@ class ViewCommand(run.RunCommand):
                 overrides=overrides,
                 sys_vars=sys_vars,
             )
-        except Exception as err:
+        except Exception as err:  # pylint: disable=W0703
             fprint(err, file=self.errfile, color=31)
             sys.exit(1)
 
