@@ -64,6 +64,7 @@ class ViewCommand(run.RunCommand):
             overrides[key] = value
 
         tests = [args.test]
+        
         self.logger.debug("Finding Configs")
 
         sys_vars = system_variables.get_vars(True)
