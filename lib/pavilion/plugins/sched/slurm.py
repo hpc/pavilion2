@@ -238,6 +238,17 @@ class Slurm(SchedulerPlugin):
 
     VAR_CLASS = SlurmVars
 
+    NODE_SEQ_REGEX_STR = (
+        # The characters in a valid hostname.
+        r'[a-zA-Z][a-zA-Z_-]*\d*'  
+        # A numeric range of nodes in square brackets.
+        r'(?:\[\d+-\d+\])?'
+    )
+    NODE_LIST_RE = re.compile(
+        # Match a comma separated list of these things.
+        r'{0}(?:,{0})*$'.format(NODE_SEQ_REGEX_STR)
+    )
+
     def __init__(self):
         super().__init__(
             'slurm',
@@ -272,7 +283,8 @@ class Slurm(SchedulerPlugin):
                     'immediate', choices=['true', 'false', 'True', 'False'],
                     default='false',
                     help_text="Only consider nodes not currently running jobs"
-                              "when determining job size"
+                              "when determining job size. Will set the minimum"
+                              "number of nodes "
                 ),
                 yc.StrElem('qos',
                            help_text="The QOS that this test should use."),
@@ -287,6 +299,20 @@ class Slurm(SchedulerPlugin):
                     help_text="The time limit to specify for the slurm job in"
                               "the formats accepted by slurm "
                               "(<hours>:<minutes> is typical)"),
+                yc.StrElem(
+                    'include_nodes',
+                    post_validator=lambda _, v: Slurm._parse_node_list(v),
+                    help_text="The nodes to include, in the same format "
+                              "that Slurm expects with the -w or -x option. "
+                              "This will automatically increase num_nodes to "
+                              "at least this node count."
+                ),
+                yc.StrElem(
+                    'exclude_nodes',
+                    post_validator=lambda _, v: Slurm._parse_node_list(v),
+                    help_text="A list of nodes to exclude, in the same format "
+                              "that Slurm expects with the -w or -x option."
+                ),
                 yc.ListElem(name='avail_states',
                             sub_elem=yc.StrElem(),
                             defaults=['IDLE', 'MAINT'],
@@ -343,6 +369,54 @@ class Slurm(SchedulerPlugin):
         'AvailableFeatures': lambda s: s.split(','),
         'ActiveFeatures': lambda s: s.split(','),
     }
+
+    @classmethod
+    def _parse_node_list(cls, node_list):
+        if node_list is None or node_list == '':
+            return []
+
+        match = cls.NODE_LIST_RE.match(node_list)
+        if match is None:
+            node_part_re = re.compile(cls.NODE_SEQ_REGEX_STR + r'$')
+            for part in node_list.split(','):
+                if not node_part_re.match(part):
+                    raise ValueError(
+                        "Invalid Node List: '{}'. Syntax error in item '{}'. "
+                        "Node lists components be a hostname or hostname "
+                        "prefix followed by a range of node numbers. "
+                        "Ex: foo003,foo0[10-20],foo[103-104]"
+                        .format(node_list, part)
+                    )
+            else:
+                # If all the parts matched, then it's an overall format issue.
+                raise ValueError("Invalid Node List: '{}' "
+                                 "Good Example: foo003,foo0[10-20],"
+                                 "foo[103-104]")
+
+        nodes = []
+        for part in node_list.split(','):
+            if '[' in part:
+                base, nrange = part.split('[')
+                # Drop the closing bracket
+                nrange = nrange[:-1]
+                start, end = nrange.split('-')
+                digits = min(len(start), len(end))
+                start = int(start)
+                end = int(end)
+                if end < start:
+                    raise ValueError(
+                        "In node list '{}' part '{}', node range ends before"
+                        "it starts."
+                        .format(node_list, part)
+                    )
+                for i in range(start, end+1):
+                    node = ('{base}{num:0{digits}d}'
+                            .format(base=base, num=i, digits=digits))
+                    nodes.append(node)
+            else:
+                nodes.append(part)
+
+        return nodes
 
     def _collect_node_data(self, nodes=None):
         """Use the `scontrol show node` command to collect data on nodes.
@@ -444,9 +518,11 @@ class Slurm(SchedulerPlugin):
         nodes = list(filter(lambda n: 'Partitions' in n and 'State' in n,
                             nodes))
 
-        # Remove nodes that aren't up.
         up_states = config['up_states']
-        nodes = list(filter(lambda n: n['State'] in up_states, nodes))
+        # Nodes can be in multiple simultaneous states. Only include nodes
+        # for which all of their states are in the 'up_states'.
+        nodes = [node for node in nodes if
+                 all(map(lambda state: state in up_states, node['State']))]
         if min_nodes > len(nodes):
             raise SchedulerPluginError("Insufficient nodes in up states: {}"
                                        .format(up_states))

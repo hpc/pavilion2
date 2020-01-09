@@ -533,7 +533,7 @@ class TestRun:
                     build_dir.rename(self.build_origin)
                 else:
                     self.status.set(
-                        STATES.BUILDING,
+                        STATES.BUILD_DONE,
                         "Build {} created while waiting for build lock."
                         .format(self.build_hash))
 
@@ -551,7 +551,7 @@ class TestRun:
             fprint(
                 "Test {s.name} run {s.id} reusing build {s.build_hash}"
                 .format(s=self), file=sys.stderr)
-            self.status.set(STATES.BUILDING,
+            self.status.set(STATES.BUILD_DONE,
                             "Build {} already exists.".format(self.build_hash))
 
         # Perform a symlink copy of the original build directory into our test
