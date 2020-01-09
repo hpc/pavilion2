@@ -67,7 +67,7 @@ class FileCommand(commands.Command):
             return ls_(job_dir)
 
 def ls_(dir_):
-    if dir_.isdir is False:
+    if os.path.isdir(dir_) is False:
         output.fprint("directory '{}' does not exist.".format(dir_),
                       file=sys.stderr, color=output.RED)
         return errno.EEXIST

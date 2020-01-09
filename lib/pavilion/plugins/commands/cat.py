@@ -28,7 +28,7 @@ class FileCommand(commands.Command):
         parser.add_argument(
             'file',
             help="filename",
-            metavar = 'FILE',
+            metavar='FILE',
             type=str,
         )
 
