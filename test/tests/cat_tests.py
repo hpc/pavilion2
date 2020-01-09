@@ -26,7 +26,7 @@ class StatusTests(PavTestCase):
         cat_cmd.errfile = io.StringIO()
 
         arg_parser = arguments.get_parser()
-        arg_sets = (['cat', str(test.id), 'build.sh'])
+        arg_sets = (['cat', str(test.id), 'build.sh'],)
 
         for arg_set in arg_sets:
             args = arg_parser.parse_args(arg_set)
