@@ -30,7 +30,7 @@ class FileCommand(commands.Command):
         parser.add_argument(
             '--subdir',
             help="print subdirectory DIR.",
-            metavar = 'DIR',
+            metavar='DIR',
             nargs=1
         )
 
