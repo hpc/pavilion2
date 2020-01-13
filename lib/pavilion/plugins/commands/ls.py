@@ -62,7 +62,7 @@ class FileCommand(commands.Command):
             return 0
 
         if args.subdir:
-            return ls_(job_dir / args.subdir)
+            return ls_(job_dir / args.subdir[0])
         else:
             return ls_(job_dir)
 
