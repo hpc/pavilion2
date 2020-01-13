@@ -77,8 +77,10 @@ def ls_(dir_):
         if filename.is_dir():
             output.fprint(filename.name, file=sys.stdout, color=output.BLUE)
         elif filename.is_symlink():
-            output.fprint("{} -> {}".format(filename.name, filename.resolve(),
-                                            file=sys.stdout))
+            output.fprint("{} -> {}".format(filename.name,
+                                            filename.resolve()),
+                                            file=sys.stdout,
+                                            color=output.CYAN)
         else:
             output.fprint(filename.name, file=sys.stdout)
 
