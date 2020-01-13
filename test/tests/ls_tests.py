@@ -35,5 +35,3 @@ class StatusTests(PavTestCase):
         for arg_set in arg_sets:
             args = arg_parser.parse_args(arg_set)
             ls_cmd.run(self.pav_cfg, args)
-            output.fprint(ls_cmd.outfile)
-            output.fprint(ls_cmd.errfile)
