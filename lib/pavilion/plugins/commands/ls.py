@@ -89,11 +89,11 @@ def tree_(level, path):
         filename = os.path.join(path, file)
         if os.path.islink(filename):
             output.fprint("{}{} -> {}".format(' '*4*level, file,
-                                             os.path.realpath(filename)),
-                         file=sys.stdout, color=output.CYAN)
+                                              os.path.realpath(filename)),
+                          file=sys.stdout, color=output.CYAN)
         elif os.path.isdir(filename):
             output.fprint("{}{}/".format(' '*4*level, file),
-                         file=sys.stdout, color=output.BLUE)
+                          file=sys.stdout, color=output.BLUE)
             tree_(level + 1, filename)
         else:
             output.fprint("{}{}".format(' '*4*level, file), file=sys.stdout)
