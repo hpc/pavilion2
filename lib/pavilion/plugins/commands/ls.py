@@ -79,8 +79,8 @@ def ls_(dir_):
         elif filename.is_symlink():
             output.fprint("{} -> {}".format(filename.name,
                                             filename.resolve()),
-                                            file=sys.stdout,
-                                            color=output.CYAN)
+                          file=sys.stdout,
+                          color=output.CYAN)
         else:
             output.fprint(filename.name, file=sys.stdout)
 
@@ -92,13 +92,13 @@ def tree_(level, path):
             output.fprint("{}{} -> {}".format('    '*level,
                                               filename.name,
                                               filename.resolve()),
-                                              file=sys.stdout,
-                                              color=output.CYAN)
+                          file=sys.stdout,
+                          color=output.CYAN)
         elif filename.is_dir():
             output.fprint("{}{}/".format('    '*level,
                                          filename.name),
-                                         file=sys.stdout,
-                                         color=output.BLUE)
+                          file=sys.stdout,
+                          color=output.BLUE)
             tree_(level + 1, filename)
         else:
             output.fprint("{}{}".format('    '*level, filename.name),
