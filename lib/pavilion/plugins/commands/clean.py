@@ -8,6 +8,7 @@ from pavilion import output
 from pavilion import commands
 from pavilion.status_file import STATES
 from pavilion.test_run import TestRun, TestRunError, TestRunNotFoundError
+from pavilion.output import fprint
 
 
 class CleanCommand(commands.Command):
@@ -78,6 +79,10 @@ class CleanCommand(commands.Command):
                               file=self.outfile)
                 shutil.rmtree(tests_dir.as_posix())
                 continue
+            except PermissionError as err:
+                err = str(err).split("'")
+                output.fprint("Permission Error: {} cannot be removed"
+                              .format(err[1]), file=self.errfile, color=31)
             if test_time < cutoff_date and status != STATES.RUNNING \
                     and status != STATES.SCHEDULED:
                 shutil.rmtree((tests_dir / test).as_posix())
@@ -96,61 +101,76 @@ class CleanCommand(commands.Command):
         output.fprint("Removing Series...", file=self.outfile,
                       color=output.GREEN)
         for series in os.listdir(series_dir.as_posix()):
-            series_time = datetime.fromtimestamp(
-                os.path.getmtime((series_dir / series).as_posix()))
-            for test in incomplete_tests:
-                if os.path.exists((series_dir / series / test).as_posix()):
-                    completed_series = False
-            if series_time < cutoff_date and completed_series:
-                shutil.rmtree((series_dir / series).as_posix())
-                if args.verbose:
-                    output.fprint("Removed series {}".format(series),
-                                  file=self.outfile)
-            else:
-                if args.verbose:
-                    output.fprint("Skipped series {}".format(series),
-                                  file=self.outfile)
+            try:
+                series_time = datetime.fromtimestamp(
+                    os.path.getmtime((series_dir / series).as_posix()))
+                for test in incomplete_tests:
+                    if os.path.exists((series_dir / series / test).as_posix()):
+                        completed_series = False
+                if series_time < cutoff_date and completed_series:
+                    shutil.rmtree((series_dir / series).as_posix())
+                    if args.verbose:
+                        output.fprint("Removed series {}".format(series),
+                                      file=self.outfile)
+                else:
+                    if args.verbose:
+                        output.fprint("Skipped series {}".format(series),
+                                      file=self.outfile)
+            except PermissionError as err:
+                err = str(err).split("'")
+                output.fprint("Permission Error: {} cannot be removed"
+                              .format(err[1]), file=self.errfile, color=31)
 
         # Clean Downloads
         output.fprint("Removing Downloads...", file=self.outfile,
                       color=output.GREEN)
         for download in os.listdir(download_dir.as_posix()):
-            download_time = datetime.fromtimestamp(
-                os.path.getmtime((download_dir / download).as_posix()))
-            if download_time < cutoff_date:
-                try:
-                    shutil.rmtree((download_dir / download).as_posix())
-                except NotADirectoryError:
-                    output.fprint("{} is not a directory.".format(download),
-                                  file=self.errfile, color=output.RED)
-                    os.remove((download_dir / download).as_posix())
-                if args.verbose:
-                    output.fprint("Removed download {}".format(download),
-                                  file=self.outfile)
-            else:
-                if args.verbose:
-                    output.fprint("Skipped download {}".format(download),
-                                  file=self.outfile)
+            try:
+                download_time = datetime.fromtimestamp(
+                    os.path.getmtime((download_dir / download).as_posix()))
+                if download_time < cutoff_date:
+                    try:
+                        shutil.rmtree((download_dir / download).as_posix())
+                    except NotADirectoryError:
+                        output.fprint("{} is not a directory.".format(download),
+                                      file=self.errfile, color=output.RED)
+                        os.remove((download_dir / download).as_posix())
+                    if args.verbose:
+                        output.fprint("Removed download {}".format(download),
+                                      file=self.outfile)
+                else:
+                    if args.verbose:
+                        output.fprint("Skipped download {}".format(download),
+                                      file=self.outfile)
+            except PermissionError as err:
+                err = str(err).split("'")
+                output.fprint("Permission Error: {} cannot be removed"
+                              .format(err[1]), file=self.errfile, color=31)
 
         # Clean Builds
         output.fprint("Removing Builds...", file=self.outfile,
                       color=output.GREEN)
         for build in os.listdir(build_dir.as_posix()):
-            build_time = datetime.fromtimestamp(
-                os.path.getmtime((build_dir / build).as_posix()))
-            if build_time < cutoff_date and build not in dependent_builds:
-                shutil.rmtree((build_dir / build).as_posix())
-                if args.verbose:
-                    output.fprint("Removed build {}".format(build),
-                                  file=self.outfile)
-            else:
-                if args.verbose:
-                    output.fprint("Skipped build {}".format(build),
-                                  file=self.outfile)
+            try:
+                build_time = datetime.fromtimestamp(
+                    os.path.getmtime((build_dir / build).as_posix()))
+                if build_time < cutoff_date and build not in dependent_builds:
+                    shutil.rmtree((build_dir / build).as_posix())
+                    if args.verbose:
+                        output.fprint("Removed build {}".format(build),
+                                      file=self.outfile)
+                else:
+                    if args.verbose:
+                        output.fprint("Skipped build {}".format(build),
+                                      file=self.outfile)
+            except PermissionError as err:
+                err = str(err).split("'")
+                output.fprint("Permission Error: {} cannot be removed. "
+                              .format(err[1]), file=self.errfile, color=31)
 
         return 0
 
-
+    
 def get_month_delta(months):
     """Turn a number of months in the future into a concrete date."""
 
