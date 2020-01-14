@@ -95,7 +95,7 @@ class CleanCommand(commands.Command):
                 incomplete_tests.append(test)
                 dependent_builds.append(test_obj.build_name)
 
-                # Clean Series
+        # Clean Series
         completed_series = True
         output.fprint("Removing Series...", file=self.outfile,
                       color=output.GREEN)
@@ -120,7 +120,7 @@ class CleanCommand(commands.Command):
                 output.fprint("Permission Error: {} cannot be removed"
                               .format(err[1]), file=self.errfile, color=31)
 
-                # Clean Downloads
+        # Clean Downloads
         output.fprint("Removing Downloads...", file=self.outfile,
                       color=output.GREEN)
         for download in os.listdir(download_dir.as_posix()):
@@ -146,7 +146,7 @@ class CleanCommand(commands.Command):
                 output.fprint("Permission Error: {} cannot be removed"
                               .format(err[1]), file=self.errfile, color=31)
 
-                # Clean Builds
+        # Clean Builds
         output.fprint("Removing Builds...", file=self.outfile,
                       color=output.GREEN)
         for build in os.listdir(build_dir.as_posix()):
