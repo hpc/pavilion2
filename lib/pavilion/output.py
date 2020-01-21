@@ -661,7 +661,7 @@ A more complicated example: ::
         for row_i in range(len(rows)):
             row = rows[row_i]
 
-            wrap_rows = defaultdict(lambda : defaultdict(lambda: ''))
+            wrap_rows = defaultdict(lambda: defaultdict(lambda: ''))
             # Creates wrap list that holds list of strings for the wrapped text
             for field in fields:
                 wraps = row[field].wrap(width=final_widths[field])
