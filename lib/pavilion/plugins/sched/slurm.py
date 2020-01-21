@@ -58,6 +58,10 @@ slurm kickoff script.
         lines.append('#SBATCH --tasks-per-node={}'.format(tasks))
         if self._conf.get('time_limit') is not None:
             lines.append('#SBATCH -t {s._conf[time_limit]}'.format(s=self))
+        if self._conf.get('include_nodes') is not None:
+            lines.append('#SBATCH -w {s._conf[include_nodes]}'.format(s=self))
+        if self._conf.get('exclude_nodes') is not None:
+            lines.append('#SBATCH -w {s._conf[exclude_nodes]}'.format(s=self))
 
         return lines
 
@@ -856,6 +860,13 @@ class Slurm(SchedulerPlugin):
             except ValueError:
                 raise SchedulerPluginError(
                     "Invalid num_nodes maximum value: {}".format(max_nodes))
+
+        # If we're including specific nodes, the max nodes requested must be
+        # at least as large as the nodes asked for. If the node list includes
+        # duplicates, they will count multiple times, just as Slurm counts them
+        # (erroneously, according to the documentation).
+        include_nodes = self._parse_node_list(sched_config['include_nodes'])
+        max_nodes = max(len(include_nodes), max_nodes)
 
         return '{}-{}'.format(min_nodes, max_nodes)
 
