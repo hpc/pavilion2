@@ -22,7 +22,7 @@ describing the format:
     VAR_ID   -> [a-z][a-z0-9_-]+
     VAR_IDX  -> [0-9]+
     # The default value, if none was provided.
-    DEFAULT  -> [^}]+
+    DEFAULT  -> [^{}]+
 
     ESCAPE   -> \.
     # A substring is a pav string surrounded by squared brackets. It's used to
@@ -74,7 +74,7 @@ TEXT_END_RE = re.compile(r'\[~|'        # Substring start
                          r'~[^\]]*\]|'  # Substring end (with separator)
                          r'\\|'         # Escape next char
                          r'{{|'         # Variable ref start
-                         r'(\|[^}]*)?}}')  # Variable ref end (with default).
+                         r'(\|[^{}]*)?}}')  # Variable ref end (with default).
 
 
 def tokenize(string):
