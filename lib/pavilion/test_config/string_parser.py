@@ -1,31 +1,37 @@
-# The module file contains the functions and classes needed for parsing
-# strings and performing variable insertion in pavilion configurations.
-#
-# While we don't use a context free grammar for parsing, it is convenient for
-# describing the format:
+"""The module contains the functions and classes needed for parsing
+strings and performing variable insertion in pavilion configurations.
 
-# # pav strings can contain variable references, escapes, or sub strings.
-# PAV_STR  -> TEXT | TEXT VAR PAV_STR | TEXT ESC PAV_STR | TEXT SUB_STR PAV_STR
-# Text is anything that doesn't start an escape, sub string, or variable
-# reference
-# It may also be an empty string.
-# TEXT     -> [^\{[]*
-# Variable references are a bracket surrounded variable name. These can
-# consist of a var_set name, variable name, variable index, and sub-variable
-# name. All but the variable name are optional.
-# VAR      -> {VAR_KEY}
-# VAR_KEY  -> VAR_BASE | VAR_BASE.VAR_IDX | VAR_BASE.VAR_ID |
-#             VAR_BASE.VAR_IDX.VAR_ID
-# VAR_BASE -> VAR_ID | VAR_ID.VAR_ID
-# VAR_ID   -> [a-z][a-z0-9_-]+
-# VAR_IDX  -> [0-9]+
-#
-# ESCAPE   -> \.
-# A substring is a pav string surrounded by squared brackets. It's used to
-# denote an area that can be copied as a unit when used with multi-valued
-# variables.
-# SUB_STR  -> [PAV_STR] | [PAV_STR:SEP]
-# SEP      -> .
+While we don't use a context free grammar for parsing, it is convenient for
+describing the format:
+
+.. code::
+
+    # pav strings can contain variable references, escapes, or sub strings.
+    PAV_STR  -> TEXT | TEXT VAR PAV_STR | TEXT ESC PAV_STR |
+                TEXT SUB_STR PAV_STR
+    # Text is anything that doesn't start an escape, sub string, or variable
+    # reference. It may also be an empty string.
+    TEXT     -> [^\{[]*
+    # Variable references are a bracket surrounded variable name. These can
+    # consist of a var_set name, variable name, variable index, and sub-variable
+    # name. All but the variable name are optional.
+    VAR      -> {{VAR_KEY}} | {{VAR_KEY|DEFAULT}}
+    VAR_KEY  -> VAR_BASE | VAR_BASE.VAR_IDX | VAR_BASE.VAR_ID |
+                VAR_BASE.VAR_IDX.VAR_ID
+    VAR_BASE -> VAR_ID | VAR_ID.VAR_ID
+    VAR_ID   -> [a-z][a-z0-9_-]+
+    VAR_IDX  -> [0-9]+
+    # The default value, if none was provided.
+    DEFAULT  -> [^}]+
+
+    ESCAPE   -> \.
+    # A substring is a pav string surrounded by squared brackets. It's used to
+    # denote an area that can be copied as a unit when used with multi-valued
+    # variables.
+    SUB_STR  -> [~PAV_STR~] | [~PAV_STR~SEP]
+    # A separator to insert between each substring instance.
+    SEP      -> [^\]]+
+"""
 
 import re
 from . import variables
@@ -55,6 +61,10 @@ class ResolveError(ValueError):
 
 
 def parse(string):
+    """Tokenize the given string and then parse it into a tree.
+
+:rtype: PavString
+"""
     tokens = tokenize(string)
 
     return PavString(tokens)
@@ -69,12 +79,13 @@ TEXT_END_RE = re.compile(r'\[~|'        # Substring start
 
 def tokenize(string):
     """Tokenize the given string.
-    - Plain text data will become TextTokens.
-    - Variable references will become Variable Tokens.
-    - Substrings will be marked at beginning and end SubString*Tokens.
-    - Escaped characters become their own TextToken.
-    - Detects Unmatched var brackets.
-    """
+
+- Plain text data will become TextTokens.
+- Variable references will become Variable Tokens.
+- Substrings will be marked as beginning and end SubString*Tokens.
+- Escaped characters become their own TextToken.
+- Detects Unmatched var brackets.
+"""
 
     tokens = [TextToken('', 0, 0)]
 
@@ -165,26 +176,29 @@ def tokenize(string):
 
 
 class Token:
+    """The base token class."""
+
     def __init__(self, start, end):
         """Scan the string starting at pos to find the end of this token.
-        Save the matching part, start and end. These type of token may be empty.
-        :param int start:
-        :param int end:
-        """
+Save the matching part, start and end. These type of token may be empty.
+
+:param int start: The start offset to the token
+:param int end: The end offset to the token.
+"""
 
         self.start = start
         self.end = end
         self.next_token = None
 
-    def resolve(self, var_man, _iter_vars=None, allow_deferred=True):
+    def resolve(self, var_man, _iter_vars=None):
         """Resolve any variables in this token using the variable manager.
-        :param var_man: A variable manager with the needed variables.
-        :param dict _iter_vars: Variables that are being iterated over in
-            the resolution of a sub string.
-        :param bool allow_deferred: Whether this string can support deferred
-            variables.
-        :return: The resolved string.
-        """
+
+:param variables.VariableSetManager var_man: A variable manager with the needed
+    variables.
+:param dict _iter_vars: Variables that are being iterated over in
+    the resolution of a sub string.
+:return: The resolved string.
+"""
 
         raise NotImplementedError
 
@@ -194,14 +208,15 @@ class Token:
 
 class PavString(Token):
     """Provides a tokenized representation of a pavilion string, including
-    summary information about variables used, etc. It is itself the root
-    token of the parse tree."""
+summary information about variables used, etc. It is itself the root
+token of the parse tree."""
 
     def __init__(self, tokens, is_substr=False):
-        """
-        Tokenize the given pav_string.
-        :param list tokens:
-        """
+        """Parse the given list of tokens.
+
+:param list tokens:
+:param bool is_substr: Denote this token as a substring.
+"""
 
         super(PavString, self).__init__(0, 0)
 
@@ -251,10 +266,10 @@ class PavString(Token):
         return root
 
     def get_substr_vars(self, var_man):
-        """
-        :param variables.VariableSetManager var_man:
-        :return:
-        """
+        """Get the variables we need to iterate over in all nested substrings.
+
+:param variables.VariableSetManager var_man:
+"""
 
         token = self._root
 
@@ -271,16 +286,18 @@ class PavString(Token):
 
         return sorted(local_iter_vars)
 
-    def resolve(self, var_man, _iter_vars=None, allow_deferred=True):
-        """
-        :param variables.VariableSetManager var_man:
-        :param dict _iter_vars: Variables that are being iterated over in
-            the resolution of a sub string.
-        :param bool allow_deferred: Whether this string can support deferred
-            variables.
-        :return: The string with all variables resolved.
-        :raises ResolveError:
-        """
+    def resolve(self, var_man, _iter_vars=None):
+        """Resolve all variables in this string to the values given in
+the variable managers.
+
+:param variables.VariableSetManager var_man: Provides the variable values.
+:param dict _iter_vars: Variables that are being iterated over in
+    the resolution of a sub string.
+:return: The string with all variables resolved, or None (if resolution is
+    deferred).
+:rtype: Union(str,None)
+:raises ResolveError: Usually if deferred variables are not allowed
+"""
 
         if _iter_vars is None:
             _iter_vars = dict()
@@ -298,16 +315,16 @@ class PavString(Token):
                 except KeyError:
                     var_set, var, idx = None, None, None
 
-                if (var_set, var) in _iter_vars and idx is None:
-                    # Resolve the substr var by the given index.
-                    parts.append(token.resolve(
-                        var_man,
-                        iter_index=_iter_vars[(var_set, var)],
-                        allow_deferred=allow_deferred))
+                iter_idx = _iter_vars.get((var_set, var), None)
+                res_var = token.resolve(
+                    var_man,
+                    iter_index=iter_idx)
+
+                if res_var is None:
+                    # We should defer resolution of this string.
+                    return None
                 else:
-                    # A single valued var, or one referenced directly by index.
-                    parts.append(token.resolve(var_man,
-                                               allow_deferred=allow_deferred))
+                    parts.append(res_var)
 
             elif isinstance(token, PavString):
                 # We have a substring to resolve.
@@ -328,6 +345,12 @@ class PavString(Token):
                 # they needed to be in some consistent order).
                 while not done:
                     part = token.resolve(var_man, _iter_vars)
+
+                    if part is None:
+                        # Some variable in the substring is deferred. Defer
+                        # the whole thing.
+                        return None
+
                     parts.append(part)
 
                     # If there aren't any local iter vars, we're done now.
@@ -398,22 +421,23 @@ class TextToken(Token):
 
 
 class VariableToken(Token):
+    """A token representing a variable value."""
+
     def __init__(self, var, start, end, default):
         super(VariableToken, self).__init__(start, end)
 
         self.var = var
         self.default = default
 
-    def resolve(self, var_man, iter_index=None, allow_deferred=True):
+    def resolve(self, var_man, iter_index=None):
         """Resolve any variables in this token using the variable manager.
-        :param variables.VariableSetManager var_man: The variable manager to
-        use for resolution.
-        :param int iter_index: The index to force for this variable, when it's
-        being iterated over.
-        :param bool allow_deferred: Whether to allow the resolution of
-            deferred variables.
-        :return:
-        """
+
+:param variables.VariableSetManager var_man: The variable manager to
+    use for resolution.
+:param int iter_index: The index to force for this variable, when it's
+    being iterated over.
+:return:
+"""
 
         try:
             var_set, var, idx, subvar = var_man.resolve_key(self.var)
@@ -423,18 +447,14 @@ class VariableToken(Token):
             else:
                 raise
 
-        if iter_index is not None:
+        if var_man.is_deferred(var_set, var):
+            # Tell the caller that resolution of this string should be deferred.
+            return None
+
+        if iter_index is not None and idx is None:
             idx = iter_index
 
-        value = var_man[(var_set, var, idx, subvar)]
-
-        is_deferred = var_man.is_deferred(var_set, var)
-
-        if (not allow_deferred) and is_deferred:
-            raise ResolveError("Deferred variables like ({}) are not allowed "
-                               "in this config section.".format(self.var))
-        else:
-            return value
+        return var_man[(var_set, var, idx, subvar)]
 
     def __repr__(self):
         return "{}('{}')".format(self.__class__.__name__, self.var)
@@ -444,6 +464,7 @@ class SubStringStartToken(Token):
     """The start of a sub string section."""
 
     def resolve(self, var_man, **kwargs):  # pylint: disable=arguments-differ
+        """This should never be called."""
         raise RuntimeError("This token should never be resolved. They should "
                            "be replaced with PavString tokens.")
 
@@ -457,5 +478,6 @@ class SubStringEndToken(Token):
         self.separator = separator
 
     def resolve(self, var_man, **kwargs):  # pylint: disable=arguments-differ
+        """This should never be called."""
         raise RuntimeError("This token should never be resolved. They should "
                            "be replaced with PavString tokens.")

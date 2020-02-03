@@ -5,7 +5,7 @@ import sys
 from pavilion import commands
 from pavilion import system_variables
 from pavilion.plugins.commands import run
-from pavilion.utils import fprint
+from pavilion.output import fprint
 
 
 class ViewCommand(run.RunCommand):
@@ -46,11 +46,10 @@ class ViewCommand(run.RunCommand):
 
     SLEEP_INTERVAL = 1
 
-    def run(self, pav_cfg, args, out_file=sys.stdout, err_file=sys.stderr):
+    def run(self, pav_cfg, args):
         """Resolve the test configurations into individual tests and assign to
         schedulers. Have those schedulers kick off jobs to run the individual
         tests themselves.
-        :param out_file:
         :param err_file: """
 
         overrides = {}

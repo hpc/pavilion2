@@ -6,7 +6,7 @@ class SystemArch( system_plugins.SystemPlugin ):
 
     def __init__( self ):
         super().__init__(
-            plugin_name='sys_arch', 
+            name='sys_arch',
             description="The system architecture.",
             priority=self.PRIO_CORE,
             is_deferable=False, 

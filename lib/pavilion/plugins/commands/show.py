@@ -1,19 +1,18 @@
 import errno
-import sys
 import os
 
 import yaml_config
 from pavilion import commands
 from pavilion import config
 from pavilion import module_wrapper
+from pavilion import output
 from pavilion import result_parsers
 from pavilion import schedulers
 from pavilion import status_file
 from pavilion import system_variables
-from pavilion import utils
 from pavilion.test_config import DeferredVariable
-from pavilion.test_config import find_all_tests
 from pavilion.test_config import file_format
+from pavilion.test_config import find_all_tests
 
 
 class ShowCommand(commands.Command):
@@ -120,7 +119,7 @@ class ShowCommand(commands.Command):
                  "current config."
         )
 
-        test_config_p = subparsers.add_parser(
+        subparsers.add_parser(
             'test_config',
             help="Print a template test config.",
             description="Prints an example test configuration. Note that test "
@@ -224,6 +223,11 @@ class ShowCommand(commands.Command):
             help='Display the path for each test.'
         )
         tests.add_argument(
+            '--hidden',
+            action='store_true', default=False,
+            help="Show hidden tests (whose name start with an underscore)."
+        )
+        tests.add_argument(
             '--err',
             action='store_true', default=False,
             help='Display any errors encountered while reading the test.'
@@ -257,10 +261,8 @@ class ShowCommand(commands.Command):
             help="Display paths to mode files"
         )
 
-    def run(self, pav_cfg, args, out_file=sys.stdout, err_file=sys.stderr):
+    def run(self, pav_cfg, args):
         """Run the show command's chosen sub-command.
-        :param out_file:
-        :param err_file:
         """
 
         if args.show_cmd is None:
@@ -326,11 +328,10 @@ class ShowCommand(commands.Command):
         else:
             raise RuntimeError("Invalid show cmd '{}'".format(cmd_name))
 
-        result = cmd(pav_cfg, args, outfile=self.outfile)
+        result = cmd(pav_cfg, args)
         return 0 if result is None else result
 
-    @staticmethod
-    def _scheduler_cmd(_, args, outfile=sys.stdout):
+    def _scheduler_cmd(self, _, args):
         """
         :param argparse.Namespace args:
         """
@@ -340,23 +341,23 @@ class ShowCommand(commands.Command):
             sched_name = args.vars if args.vars is not None else args.config
 
             try:
-                sched = schedulers.get_scheduler_plugin(sched_name)
+                sched = schedulers.get_plugin(sched_name)
             except schedulers.SchedulerPluginError:
-                utils.fprint(
+                output.fprint(
                     "Invalid scheduler plugin '{}'.".format(sched_name),
-                    color=utils.RED,
+                    color=output.RED,
                 )
                 return errno.EINVAL
 
         if args.vars is not None:
             sched_vars = []
-            svars = sched.get_vars(None)
+            svars = sched.get_vars({})
 
             for key in sorted(list(svars.keys())):
                 sched_vars.append(svars.info(key))
 
-            utils.draw_table(
-                outfile,
+            output.draw_table(
+                self.outfile,
                 field_info={},
                 fields=['name', 'deferred', 'help'],
                 rows=sched_vars,
@@ -372,19 +373,19 @@ class ShowCommand(commands.Command):
 
             defaults = Loader().load_empty()
 
-            Loader().dump(sys.stdout, values=defaults)
+            Loader().dump(self.outfile, values=defaults)
 
         else:
             # Assuming --list was given
 
             scheds = []
-            for sched_name in schedulers.list_scheduler_plugins():
-                sched = schedulers.get_scheduler_plugin(sched_name)
+            for sched_name in schedulers.list_plugins():
+                sched = schedulers.get_plugin(sched_name)
 
                 scheds.append({
-                    'name': sched_name,
+                    'name':        sched_name,
                     'description': sched.description,
-                    'path': sched.path
+                    'path':        sched.path
                 })
 
             fields = ['name', 'description']
@@ -392,24 +393,23 @@ class ShowCommand(commands.Command):
             if args.verbose:
                 fields.append('path')
 
-            utils.draw_table(
-                outfile,
+            output.draw_table(
+                self.outfile,
                 field_info={},
                 fields=fields,
                 rows=scheds,
                 title="Available Scheduler Plugins"
             )
 
-    @staticmethod
-    def _result_parsers_cmd(_, args, outfile=sys.stdout):
+    def _result_parsers_cmd(self, _, args):
 
         if args.config:
             try:
                 res_plugin = result_parsers.get_plugin(args.config)
             except result_parsers.ResultParserError:
-                utils.fprint(
+                output.fprint(
                     "Invalid result parser '{}'.".format(args.config),
-                    color=utils.RED
+                    color=output.RED
                 )
                 return errno.EINVAL
 
@@ -418,7 +418,7 @@ class ShowCommand(commands.Command):
             class Loader(yaml_config.YamlConfigLoader):
                 ELEMENTS = config_items
 
-            Loader().dump(sys.stdout)
+            Loader().dump(self.outfile)
 
         else:
 
@@ -427,9 +427,9 @@ class ShowCommand(commands.Command):
                 res_plugin = result_parsers.get_plugin(rp_name)
                 desc = " ".join(res_plugin.__doc__.split())
                 rps.append({
-                    'name': rp_name,
+                    'name':        rp_name,
                     'description': desc,
-                    'path': res_plugin.path
+                    'path':        res_plugin.path
                 })
 
             fields = ['name', 'description']
@@ -437,71 +437,66 @@ class ShowCommand(commands.Command):
             if args.verbose:
                 fields.append('path')
 
-            utils.draw_table(
-                outfile,
+            output.draw_table(
+                self.outfile,
                 field_info={},
                 fields=fields,
                 rows=rps,
                 title="Available Result Parsers"
             )
 
-    @staticmethod
-    def _states_cmd(pav_cfg, args, outfile=sys.stdout):
+    def _states_cmd(self, pav_cfg, args):
 
         del pav_cfg, args
 
         states = []
         for state in sorted(status_file.STATES.list()):
             states.append({
-                'name': state,
+                'name':        state,
                 'description': status_file.STATES.help(state)
             })
 
-        utils.draw_table(
-            outfile,
+        output.draw_table(
+            self.outfile,
             field_info={},
             fields=['name', 'description'],
             rows=states,
             title="Pavilion Test States"
         )
 
-    @staticmethod
-    def _config_cmd(pav_cfg, args, outfile=sys.stdout):
+    def _config_cmd(self, pav_cfg, args):
 
         if args.template:
-            config.PavilionConfigLoader().dump(sys.stdout)
+            config.PavilionConfigLoader().dump(self.outfile)
         else:
-            config.PavilionConfigLoader().dump(outfile,
+            config.PavilionConfigLoader().dump(self.outfile,
                                                values=pav_cfg)
 
-    @staticmethod
-    def _test_config_cmd(pav_cfg, args, outfile=sys.stdout):
-        file_format.TestConfigLoader().dump(sys.stdout)
+    def _test_config_cmd(self, *_):
+        file_format.TestConfigLoader().dump(self.outfile)
 
-    @staticmethod
-    def _config_dirs(pav_cfg, _, outfile=sys.stdout):
+    def _config_dirs(self, pav_cfg, _):
 
         rows = [{'path': path} for path in pav_cfg.config_dirs]
 
-        utils.draw_table(
-            outfile,
+        output.draw_table(
+            self.outfile,
             field_info={},
             fields=['path'],
             rows=rows,
             title="Config directories by priority."
         )
 
-    @staticmethod
-    def _module_cmd(_, args, outfile=sys.stdout):
+    def _module_cmd(self, _, args):
 
         modules = []
         for mod_name in sorted(module_wrapper.list_module_wrappers()):
             mod_wrap = module_wrapper.get_module_wrapper(mod_name)
             modules.append({
-                'name': mod_name,
-                'version': mod_wrap._version,  # pylint: disable=W0212
+                'name':        mod_name,
+                'version':     mod_wrap._version,  # pylint: disable=W0212
                 'description': mod_wrap.help_text,
-                'path': mod_wrap.path,
+                'path':        mod_wrap.path,
             })
 
         fields = ['name', 'version', 'description']
@@ -509,17 +504,15 @@ class ShowCommand(commands.Command):
         if args.verbose:
             fields.append('path')
 
-        utils.draw_table(
-            outfile,
+        output.draw_table(
+            self.outfile,
             field_info={},
             fields=fields,
             rows=modules,
             title="Available Module Wrapper Plugins"
         )
 
-
-    @staticmethod
-    def _sys_var_cmd(pav_cfg, args, outfile=sys.stdout):
+    def _sys_var_cmd(self, pav_cfg, args):
 
         del pav_cfg
 
@@ -528,15 +521,21 @@ class ShowCommand(commands.Command):
         sys_vars = system_variables.get_vars(defer=True)
 
         for key in sorted(list(sys_vars.keys())):
-            value = sys_vars[key]
-            deferred = isinstance(value, DeferredVariable)
-            help_str = sys_vars.help(key)
+            try:
+                value = sys_vars[key]
+                deferred = isinstance(value, DeferredVariable)
+                help_str = sys_vars.help(key)
+
+            except system_variables.SystemPluginError as err:
+                value = output.ANSIString('error', code=output.RED)
+                deferred = False
+                help_str = output.ANSIString(str(err), code=output.RED)
 
             rows.append({
-                'name': key,
-                'value': value if not deferred else '<deferred>',
+                'name':        key,
+                'value':       value if not deferred else '<deferred>',
                 'description': help_str,
-                'path': sys_vars.get_obj(key).path,
+                'path':        sys_vars.get_obj(key).path,
             })
 
         fields = ['name', 'value', 'description']
@@ -544,36 +543,34 @@ class ShowCommand(commands.Command):
         if args.verbose:
             fields.append('path')
 
-        utils.draw_table(
-            outfile,
+        output.draw_table(
+            self.outfile,
             field_info={},
             fields=fields,
             rows=rows,
             title="Available System Variables"
         )
 
-    @staticmethod
-    def _pav_var_cmd(pav_cfg, _, outfile=sys.stdout):
+    def _pav_var_cmd(self, pav_cfg, _):
 
         rows = []
 
         for key in sorted(list(pav_cfg.pav_vars.keys())):
             rows.append({
-                'name': key,
-                'value': pav_cfg.pav_vars[key],
+                'name':        key,
+                'value':       pav_cfg.pav_vars[key],
                 'description': pav_cfg.pav_vars.info(key)['help'],
             })
 
-        utils.draw_table(
-            outfile,
+        output.draw_table(
+            self.outfile,
             field_info={},
             fields=['name', 'value', 'description'],
             rows=rows,
             title="Available Pavilion Variables"
         )
 
-    @staticmethod
-    def _suites_cmd(pav_cfg, args, outfile=sys.stdout):
+    def _suites_cmd(self, pav_cfg, args):
         suites = find_all_tests(pav_cfg)
 
         rows = []
@@ -581,25 +578,28 @@ class ShowCommand(commands.Command):
             suite = suites[suite_name]
 
             if suite['err']:
-                name = utils.ANSIStr(suite_name, 'red')
+                name = output.ANSIString(suite_name,
+                                         output.RED)
             else:
                 name = suite_name
 
             rows.append({
-                'name': name,
-                'path': suite['path'],
+                'name':  name,
+                'path':  suite['path'],
                 'tests': len(suite['tests']),
-                'err': suite['err']
+                'err':   suite['err']
             })
 
             if args.supersedes and suite['supersedes']:
                 for path in suite['supersedes']:
                     rows.append({
                         # Make these rows appear faded.
-                        'name': utils.ANSIStr(suite_name, 'white'),
-                        'path': utils.ANSIStr(path, 'white'),
+                        'name':  output.ANSIString(suite_name,
+                                                   output.WHITE),
+                        'path':  output.ANSIString(path,
+                                                   output.WHITE),
                         'tests': '?',
-                        'err': ''
+                        'err':   ''
                     })
 
         fields = ['name', 'tests']
@@ -610,9 +610,8 @@ class ShowCommand(commands.Command):
             if args.err:
                 fields.append('err')
 
-
-        utils.draw_table(
-            outfile,
+        output.draw_table(
+            self.outfile,
             field_info={},
             fields=fields,
             rows=rows,
@@ -621,7 +620,7 @@ class ShowCommand(commands.Command):
 
     SUMMARY_SIZE_LIMIT = 100
 
-    def _tests_cmd(self, pav_cfg, args, outfile=sys.stdout):
+    def _tests_cmd(self, pav_cfg, args):
 
         suites = find_all_tests(pav_cfg)
         rows = []
@@ -630,14 +629,15 @@ class ShowCommand(commands.Command):
             suite = suites[suite_name]
 
             if suite['err']:
-                suite_name = utils.ANSIStr(suite_name, 'red')
+                suite_name = output.ANSIString(suite_name,
+                                               output.RED)
 
                 rows.append({
-                    'name': '{}.*'.format(suite_name),
+                    'name':    '{}.*'.format(suite_name),
                     'summary': 'Loading the suite failed.  '
                                'For more info, run `pav show tests --err`.',
-                    'path': suite['path'],
-                    'err': suite['err']
+                    'path':    suite['path'],
+                    'err':     suite['err']
                 })
             elif args.err:
                 continue
@@ -645,11 +645,15 @@ class ShowCommand(commands.Command):
             for test_name in sorted(list(suite['tests'])):
                 test = suite['tests'][test_name]
 
+                if test_name.startswith('_') and not args.hidden:
+                    # Skip any hidden tests.
+                    continue
+
                 rows.append({
-                    'name': '{}.{}'.format(suite_name, test_name),
+                    'name':    '{}.{}'.format(suite_name, test_name),
                     'summary': test['summary'][:self.SUMMARY_SIZE_LIMIT],
-                    'path': suite['path'],
-                    'err': 'None'
+                    'path':    suite['path'],
+                    'err':     'None'
                 })
 
         fields = ['name', 'summary']
@@ -659,30 +663,29 @@ class ShowCommand(commands.Command):
             if args.err:
                 fields.append('err')
 
-        utils.draw_table(
-            outfile,
+        output.draw_table(
+            self.outfile,
             field_info={},
             fields=fields,
             rows=rows,
             title="Available Tests"
         )
 
-    @staticmethod
-    def _hosts_cmd(pav_cfg, args, outfile=sys.stdout):
+    def _hosts_cmd(self, pav_cfg, args):
 
         hosts = []
         col_names = ['Name']
         if args.verbose:
             col_names.append('Path')
         for conf_dir in pav_cfg.config_dirs:
-            path = conf_dir/'hosts'
+            path = conf_dir / 'hosts'
 
             if not (path.exists() and path.is_dir()):
                 continue
 
             for file in os.listdir(path.as_posix()):
 
-                file = path/file
+                file = path / file
                 if file.suffix == '.yaml' and file.is_file():
                     host_id = file.stem
                     host_path = file
@@ -691,29 +694,28 @@ class ShowCommand(commands.Command):
                         'Path': host_path
                     })
 
-        utils.draw_table(
-            outfile,
+        output.draw_table(
+            self.outfile,
             field_info={},
             fields=col_names,
             rows=hosts
         )
 
-    @staticmethod
-    def _modes_cmd(pav_cfg, args, outfile=sys.stdout):
+    def _modes_cmd(self, pav_cfg, args):
 
         modes = []
         col_names = ['Name']
         if args.verbose:
             col_names.append('Path')
         for conf_dir in pav_cfg.config_dirs:
-            path = conf_dir/'modes'
+            path = conf_dir / 'modes'
 
             if not (path.exists() and path.is_dir()):
                 continue
 
             for file in os.listdir(path.as_posix()):
 
-                file = path/file
+                file = path / file
                 if file.suffix == '.yaml' and file.is_file():
                     mode_id = file.stem
                     mode_path = file
@@ -722,8 +724,8 @@ class ShowCommand(commands.Command):
                         'Path': mode_path
                     })
 
-        utils.draw_table(
-            outfile,
+        output.draw_table(
+            self.outfile,
             field_info={},
             fields=col_names,
             rows=modes

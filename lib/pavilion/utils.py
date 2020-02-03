@@ -1,25 +1,29 @@
+"""This module contains a variety of helper functions that implement
+common tasks, like command-line output and date formatting. These should
+generally be used to help make Pavilion consistent across its code and
+plugins.
+"""
+
 # This file contains assorted utility functions.
 
-from pathlib import Path
-import csv
-import json
 import os
-import re
 import subprocess
-import sys
-import textwrap
-import shutil
-import itertools
-from collections import defaultdict
+import zipfile
+
+from pathlib import Path
+
+# Setup colors as part of the fprint function itself.
+
 
 def flat_walk(path, *args, **kwargs):
     """Perform an os.walk on path, but return a flattened list of every file
     and directory found.
-    :param Path path: The path to walk with os.walk.
-    :param args: Any additional positional args for os.walk.
-    :param kwargs: Any additional kwargs for os.walk.
-    :returns: A list of all directories and files in or under the given path.
-    :rtype list[Path]:
+
+:param Path path: The path to walk with os.walk.
+:param args: Any additional positional args for os.walk.
+:param kwargs: Any additional kwargs for os.walk.
+:returns: A list of all directories and files in or under the given path.
+:rtype list[Path]:
     """
 
     paths = []
@@ -27,18 +31,20 @@ def flat_walk(path, *args, **kwargs):
     for directory, dirnames, filenames in os.walk(str(path), *args, **kwargs):
         directory = Path(directory)
         for dirname in dirnames:
-            paths.append(directory/dirname)
+            paths.append(directory / dirname)
 
         for filename in filenames:
-            paths.append(directory/filename)
+            paths.append(directory / filename)
 
     return paths
 
 
 def get_mime_type(path):
-    """Use a filemagic command to get the mime type of a file. Returned as a
+    """Use the filemagic command to get the mime type of a file. Returned as a
     tuple of category and subtype.
+
     :param Path path: The path to the file to examine.
+    :rtype: (str, str)
     :returns: category, subtype"""
 
     ftype = subprocess.check_output(['file',
@@ -75,12 +81,13 @@ ID_FMT = '{id:0{digits}d}'
 def make_id_path(base_path, id_):
     """Create the full path to an id directory given its base path and
     the id.
+
     :param Path base_path: The path to where id directories are stored.
     :param int id_: The id number
     :rtype: Path
     """
 
-    return base_path/(ID_FMT.format(id=id_, digits=ID_DIGITS))
+    return base_path / (ID_FMT.format(id=id_, digits=ID_DIGITS))
 
 
 def get_login():
@@ -104,534 +111,23 @@ def get_login():
             "Could not get the name of the current user.")
 
 
-def dbg_print(*args, color=33, file=sys.stderr, end="", **kwargs):
-    """A colored print statement for debug printing. Use when you want to
-    print junk and easily excise it later.
-    :param file: The file object to write to.
-    :param end: Default the ending to no newline (we do a pre-newline because
-        of how unittest prints stuff.
-    :param int color: ANSI color code to print the string under.
-    """
-    start_escape = '\n\x1b[{}m'.format(color)
+class ZipFileFixed(zipfile.ZipFile):
+    """Overrides the default behavior in ZipFile to preserve execute
+    permissions."""
+    def _extract_member(self, member, targetpath, pwd):
 
-    print(start_escape, end='', file=file)
-    print(*args, file=file, end='', **kwargs)
-    print('\x1b[0m', end=end, file=file)
-    sys.stderr.flush()
+        ret = super()._extract_member(member, targetpath, pwd)
 
+        if not isinstance(member, zipfile.ZipInfo):
+            member = self.getinfo(member)
 
-def fprint(*args, color=None, bullet='', width=100,
-           sep=' ', file=sys.stdout):
-    """Print with automatic wrapping, bullets, and other features.
-    :param args: Standard print function args
-    :param int color: ANSI color code to print with.
-    :param str bullet: Print the first line with this bullet,
-        and the rest with that much space prepended.
-    :param str sep: The standard print sep argument.
-    :param file: Stream to print.
-    :param int width: Wrap the text to this width.
-    """
+        perms = member.external_attr >> 16
 
-    args = [str(a) for a in args]
-    if color is not None:
-        print('\x1b[{}m'.format(color), end='', file=file)
-
-    out_str = sep.join(args)
-    for paragraph in str.splitlines(out_str):
-        lines = textwrap.wrap(paragraph, width=width)
-        lines = '\n'.join(lines)
-
-        if bullet:
-            lines = textwrap.indent(lines, bullet, lines.startswith)
-
-        print(lines, file=file)
-
-    if color is not None:
-        print('\x1b[0m', end='', file=file)
-
-
-# Setup colors as part of the fprint function itself.
-BLACK = 30
-RED = 31
-GREEN = 32
-YELLOW = 33
-BLUE = 34
-MAGENTA = 35
-CYAN = 36
-WHITE = 37
-GREY = 37
-GRAY = 37
-
-
-class PavEncoder(json.JSONEncoder):
-    def default(self, o):  # pylint: disable=E0202
-        if isinstance(o, Path):
-            return super().default(str(o))
-        else:
-            return super().default(str(o))
-
-
-def json_dumps(obj, skipkeys=False, ensure_ascii=True,
-               check_circular=True, allow_nan=True, indent=None,
-               separators=None, default=None, sort_keys=False, **kw):
-    """Dump data to string as per the json dumps function, but using
-    our custom encoder."""
-    return json.dumps(obj, cls=PavEncoder,
-                      skipkeys=skipkeys,
-                      ensure_ascii=ensure_ascii,
-                      check_circular=check_circular,
-                      allow_nan=allow_nan,
-                      indent=indent,
-                      separators=separators,
-                      default=default,
-                      sort_keys=sort_keys,
-                      **kw)
-
-
-def json_dump(obj, file, skipkeys=False, ensure_ascii=True,
-              check_circular=True, allow_nan=True, indent=None,
-              separators=None, default=None, sort_keys=False, **kw):
-    """Dump data to string as per the json dumps function, but using
-    our custom encoder."""
-    return json.dump(obj, file, cls=PavEncoder,
-                     skipkeys=skipkeys,
-                     ensure_ascii=ensure_ascii,
-                     check_circular=check_circular,
-                     allow_nan=allow_nan,
-                     indent=indent,
-                     separators=separators,
-                     default=default,
-                     sort_keys=sort_keys,
-                     **kw)
-
-
-def output_csv(outfile, field_info, fields, rows):
-    """Write the given rows out as a CSV
-    :param outfile: The file object to write to.
-    :param field_info: A dict of information on each field. See 'draw_table'
-        below. Only the title field is used.
-    :param fields: A list of fields to write, and in what order.
-    :param rows: A list of dictionaries to write, in the given order.
-    :return: None
-    """
-
-    # Generate a header row, using the title from field_info for each row if
-    # given.
-    header_row = [field_info.get(field, {}).get('title', field)
-                  for field in fields]
-    row_data = [header_row]
-    for row in rows:
-        row_list = [row[f] for f in fields]
-        row_data.append(row_list)
-
-    try:
-        writer = csv.writer(outfile)
-        writer.writerows(row_data)
-    except IOError:
-        # Handle broken pipes. It's ok when this happens.
-        pass
-
-
-class ANSIStr:
-    MODES = {
-        'native':       '',
-        'black':        30,
-        'red':          31,
-        'green':        32,
-        'yellow':       33,
-        'blue':         34,
-        'magenta':      35,
-        'cyan':         36,
-        'white':        37,
-        'bold':         1,
-        'underscore':   4,
-        'concealed':    8,
-        'bg_black':     40,
-        'bg_red':       41,
-        'bg_green':     42,
-        'bg_yellow':    43,
-        'bg_blue':      44,
-        'bg_magenta':   45,
-        'bg_cyan':      46,
-        'bg_white':     47,
-    }
-
-    def __init__(self, string, modes=None):
-        """Create a string with an implicit ANSI mode. When formatted, the
-        string will be prepended with the ANSI escape for the given modes.
-        It will otherwise behave like a normal string."""
-
-        if modes is None:
-            modes = []
-        elif not isinstance(modes, (list, tuple)):
-            modes = [modes]
-
-        self.modes = []
-        for mode in modes:
-            if mode not in self.MODES:
-                raise ValueError("Unknown ANSI graphics mode: {0}".format(mode))
-            self.modes.append(str(self.MODES[mode]))
-
-        self.string = string
-
-    def __format__(self, format_spec):
-        if self.modes:
-            ansi_start = '\x1b[' + ';'.join(self.modes) + 'm'
-        else:
-            ansi_start = ''
-        ansi_end = '\x1b[0m'
-        formatted = format(self.string, format_spec)
-
-        return ansi_start + formatted + ansi_end
-
-    def __getattr__(self, attr):
-        if attr not in self.__dict__:
-            return getattr(self.string, attr)
-
-ANSI_ESCAPE_RE = re.compile('\x1b\\[\\d+(;\\d+)*m')
-
-def _plen(string, return_string=False):
-    """Get the printable length of the given string."""
-
-    # Remove ansi escape codes (only handles graphics mode changes)
-    unescaped = ANSI_ESCAPE_RE.sub('', string)
-
-    if return_string:
-        return unescaped
-    else:
-        return len(unescaped)
-
-
-ANSI_ESCAPE_RE_COLOR = re.compile('\x1b\\[(\\d+)(;\\d+)*m')
-
-
-def _grab_color(string):
-
-    unescaped = re.search(ANSI_ESCAPE_RE_COLOR, string)
-    if unescaped is not None:
-        color_code = unescaped.group(1)
-        color_code = int(color_code)
-        for color, c_code in ANSIStr.MODES.items():
-            if c_code == color_code:
-                return color
-    else:
-        return 'native'
-
-
-def remove_formatting(content_width, fields, border, pad):
-    # Reduced the effective window width if we have padded dividers.
-    if pad:
-        offset = 2 * len(fields)
-        offset = offset + len(fields) - 1
-        content_width = content_width - offset
-
-    # Reduce the effective window width for non padded dividers.
-    else:
-        offset = len(fields) - 1
-        content_width = content_width - offset
-
-    if border:
-        offset = 2
-        content_width = content_width - offset
-
-    return content_width
-
-
-def formatted_width(width, fields, border, pad):
-
-    if pad:
-        offset = 2*len(fields)
-        offset = offset + len(fields) - 1
-        width = width + offset
-
-    else:
-        offset = len(fields) - 1
-        width = width + offset
-
-    if border:
-        offset = 2
-        width = width + offset
-
-    return width
-
-
-def get_total_width(column_widths, fields, border, pad):
-    # Find the total width of the table.
-    total_width = (sum(column_widths.values()))  # column widths
-    total_width = formatted_width(total_width, fields, border, pad)
-
-    return total_width
-
-
-def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
-               title=None):
-    """Prints a table from the given data, setting column width as needed.
-    :param outfile: The output file to write to.
-    :param field_info: Should be a dictionary of field names where the value
-        is a dict of:
-        ( title (optional) - The column header for this field. Defaults to the
-            field name, capitalized.
-          transform (optional) - a function that takes the field value,
-            transforms it in some way, and returns the result to be inserted
-            into the table.
-          format (optional) - a format string in the new style format syntax.
-            It will expect the data for that row as arg 0. IE: '{0:2.2f}%'.
-            default (optional) - A default value for the field. A blank is
-            printed by default.
-          no_wrap (optional) - a boolean that determines if a field will be
-            wrapped or not.
-          max_width (optional) - the max width for a given field.
-          min_width (optional) - the min width for a given field.
-    :param fields: A list of the fields to include, in the given order.
-    :param rows: A list of data dictionaries. A None may be included to denote
-        that a horizontal line row should be inserted.
-    :param border: Put a border around the table. Defaults False.
-    :param pad: Put a space on either side of each header and row entry.
-        Default True.
-    :param title: Add the given title above the table. Default None
-    :return: None
-    """
-
-    # Column widths populates with a range of values, the minimum being the
-    # length of the given field title, and the max being the longest entry in
-    # that column
-    column_widths = {}
-    titles = {}
-
-    for field in fields:
-        default_title = field.replace('_', ' ').capitalize()
-        field_title = field_info.get(field, {}).get('title', default_title)
-        # Gets the length of column title, adds it to the list of column widths
-        column_widths[field] = [len(field_title)]
-        titles[field] = field_title
-
-    blank_row = {}
-    for field in fields:
-        blank_row[field] = ''
-
-    formatted_rows = []
-    for row in rows:
-        formatted_row = {}
-        if row is None:
-            # 'None' rows just produce an empty row.
-            formatted_rows.append(blank_row)
-            continue
-
-        for field in fields:
-            # Get the data, or it's default if provided.
-            info = field_info.get(field, {})
-            data = row.get(field, info.get('default', ''))
-            # Transform the data, if a transform is given
-            data = info.get('transform', lambda a: a)(data)
-            # Format the data
+        file_path = os.path.join(targetpath, member.filename)
+        if perms != 0:
             try:
-                data = info.get('format', '{0}').format(data)
-            except ValueError:
-                print("Bad format for data. Format: {0}, data: {1}"
-                      .format(info.get('format', '{0}'),
-                              repr(data)), file=sys.stderr)
-                raise
+                os.chmod(file_path, perms)
+            except OSError:
+                pass
 
-            # Appends the length of all rows at a given field longer than the
-            # title. Effectively forces that the minimum column width be no
-            # less than the title.
-            if _plen(data) > len(titles[field]):
-                column_widths[field].append(_plen(data))
-
-            formatted_row[field] = data
-        formatted_rows.append(formatted_row)
-
-    # Gets dictionary with largest width, and smallest width for each field.
-    # Also updates the default column_Widths dictionary to hold the max values
-    # for each column.
-    min_widths = {field: min(widths) for field, widths in column_widths.items()}
-    max_widths = {field: max(widths) for field, widths in column_widths.items()}
-    column_widths = {field: max(widths) for field, widths in
-                     column_widths.items()}
-
-    for field in field_info:
-        # If user specified ignoring wrapping on a given field, it will set the
-        # minimum width equal to the largest entry in that field.
-        if 'no_wrap' in field_info[field].keys():
-            min_widths[field] = max_widths[field]
-        # If user defined a max width for a given field it overrides the
-        # maxmimum width here.
-        if 'max_width' in field_info[field].keys():
-            max_widths[field] = field_info[field]['max_width']
-        # If user defined a min width for a given field it overrides the
-        # minimum width here.
-        if 'min_width' in field_info[field].keys():
-            min_widths[field] = field_info[field]['min_width']
-        # Ensures that the max width for a given field is always larger or
-        # atleast equal to the minimum field width.
-        if max_widths[field] < min_widths[field]:
-            max_widths[field] = min_widths[field]
-
-    total_max = get_total_width(max_widths, fields, border, pad)
-    total_min = get_total_width(min_widths, fields, border, pad)
-
-    # Gets the effective window width.
-    window_width = shutil.get_terminal_size().columns
-
-    # Makes sure window is at least large enough to display are smallest
-    # possible table
-    if total_min > window_width:
-        lines = shutil.get_terminal_size().lines
-        print("\x1b[8;{};{}t".format(lines, total_min))
-        window_width = total_min
-
-    # Reduces the effective window width based on formatting, so we know the
-    # exact width we have for strictly field entries.
-    window_width = remove_formatting(window_width, fields, border, pad)
-
-    best_config = []
-    combos = []
-    boundaries = []
-    for field in fields:
-
-        # Get updated max width for a column provided every other column is
-        # at its minimum width.
-        max_width = window_width-sum(min_widths.values())+min_widths[field]
-
-        # Only updated if the max_Width is less than current max value.
-        if max_width < max_widths[field]:
-            max_widths[field] = max_width
-
-        boundaries.append([min_widths[field], max_widths[field]+1])
-
-    # Pre-calculate the total wraps for each field at each possible
-    # column width.
-    field_wraps_by_width = defaultdict(dict)
-    for fld in range(len(fields)):  # pylint: disable=C0200
-        field = fields[fld]
-        for width in range(*boundaries[fld]):
-            wrap_total = 0
-
-            for row in rows:
-                wrapper = textwrap.TextWrapper(width=width)
-                clean_string = _plen(str(row[field]), return_string=True)
-                wrap_total += len(wrapper.wrap(text=clean_string)) - 1
-
-            field_wraps_by_width[fld][width] = wrap_total
-
-    # Calculates the max number of wraps for a given column width
-    # combination.
-    best_combo = None
-    min_wraps = None
-
-    # Checks all possible combinations.
-    for combo in itertools.product(*(range(*bound) for bound in boundaries)):
-        # Only populates list with combinations equal to current window
-        # size if table width was the reason for wrapping
-        if sum(combo) != window_width:
-            continue
-
-        wrap_count = 0
-        for fld in range(len(fields)):  # pylint: disable=C0200
-            wrap_count += field_wraps_by_width[fld][combo[fld]]
-
-        # Updates minimum wraps with the smallest amount of wraps seen
-        # so far.
-        if min_wraps is None or wrap_count <= min_wraps:
-            min_wraps = wrap_count
-            best_combo = combo
-            if wrap_count == 0:
-                break
-
-    # The base width of the table may be less the the terminal width.
-    if best_combo is not None:
-        for fld in range(len(fields)):
-            column_widths[fields[fld]] = best_combo[fld]
-
-    title_length = sum(column_widths.values())
-
-    if pad:
-        title_length = title_length + 2*len(fields)
-
-
-    title_format = ' {{0:{0}s}} '.format(title_length)
-    # Generate the format string for each row.
-    col_formats = []
-
-    for field in fields:
-        format_str = '{{{field_name}:{width}}}'\
-                     .format(field_name=field, width=column_widths[field])
-        if pad:
-            format_str = ' ' + format_str + ' '
-        col_formats.append(format_str)
-    row_format = '|'.join(col_formats)
-
-    # Add 2 dashes to each break line if we're padding the data
-    brk_pad_extra = 2 if pad else 0
-    horizontal_break = '+'.join(['-'*(column_widths[field]+brk_pad_extra)
-                                 for field in fields])
-    if border:
-        row_format = '|' + row_format + '|'
-        horizontal_break = '+' + horizontal_break + '+'
-        title_format = '|' + title_format + '|'
-
-    row_format += '\n'
-    horizontal_break += '\n'
-    title_format += '\n'
-
-    wrap_rows = []
-    # Reformats all the rows
-    for row in formatted_rows:
-        wraps = {}
-        # Creates wrap list that holds list of strings for the wrapped text
-        for field in fields:
-            my_wrap = textwrap.TextWrapper(width=column_widths[field])
-            clean_string = _plen(row[field], return_string=True)
-            color = _grab_color(row[field])
-            wrap_list = my_wrap.wrap(text=clean_string)
-            for i in range(len(wrap_list)):  # pylint: disable=C0200
-                wrap_list[i] = ANSIStr(wrap_list[i], color)
-            wraps[field] = wrap_list
-
-        num_lines = 0
-        # Gets the largest number of lines, so we know how many iterations
-        # to do when printing
-        for field in wraps.keys():
-            number_of_wraps = len(wraps[field])
-            if number_of_wraps > num_lines:
-                num_lines = number_of_wraps
-
-        # Populates current row with the first wrap
-        for field in fields:
-            try:
-                row[field] = wraps[field][0]
-            except IndexError as err:
-                continue
-
-        wrap_rows.append(row)
-        # Creates a new row for each line of text required
-        for line in range(1, num_lines):
-            wrap_row = {}
-            for field in fields:
-                if line >= len(wraps[field]):
-                    wrap_row[field] = ''
-                else:
-                    wrap_row[field] = wraps[field][line]
-
-            wrap_rows.append(wrap_row)
-
-    try:
-        if border:
-            outfile.write(horizontal_break)
-        if title:
-            outfile.write(title_format.format(title))
-            outfile.write(horizontal_break)
-
-        outfile.write(row_format.format(**titles))
-        outfile.write(horizontal_break)
-        for row in wrap_rows:
-            outfile.write(row_format.format(**row))
-
-        if border:
-            outfile.write(horizontal_break)
-        outfile.write('\n')
-
-    except IOError:
-        # We may get a broken pipe, especially when the output is piped to
-        # something like head. It's ok, just move along.
-        pass
+        return ret

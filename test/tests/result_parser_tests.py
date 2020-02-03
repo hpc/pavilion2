@@ -110,7 +110,7 @@ class ResultParserTests(PavTestCase):
 
         test = self._quick_test(test_cfg, 'result_parser_test')
         test.build()
-        test.run({}, {})
+        test.run()
 
         results = result_parsers.parse_results(
             test=test,
@@ -242,7 +242,7 @@ class ResultParserTests(PavTestCase):
                     {
                         'key': 'test',
                         'regex': '^User:(.*)$',
-                        'expected': ['12-11']
+                        'expected': ['12:11']
                     },
                 ]
             }
@@ -257,7 +257,7 @@ class ResultParserTests(PavTestCase):
                     {
                         'key': 'test',
                         'regex': '^User:(.*)$',
-                        'expected': ['-11--12']
+                        'expected': ['-11:-12']
                     },
                 ]
             }
@@ -272,7 +272,7 @@ class ResultParserTests(PavTestCase):
                     {
                         'key': 'test',
                         'regex': '^User:(.*)$',
-                        'expected': ['11-12-13']
+                        'expected': ['11:12:13']
                     },
                 ]
             }
@@ -287,7 +287,7 @@ class ResultParserTests(PavTestCase):
                     {
                         'key': 'test',
                         'regex': '^User:(.*)$',
-                        'expected': ['11-words']
+                        'expected': ['11:words']
                     },
                 ]
             }
@@ -333,7 +333,7 @@ class ResultParserTests(PavTestCase):
                         'key': 'test',
                         'regex': 'res',
                         'threshold': 'A',
-                        'expected': '10-12',
+                        'expected': '10:12',
                     },
                 ]
             }
@@ -386,7 +386,7 @@ class ResultParserTests(PavTestCase):
                         # Test for expecting a range of negative integers
                         'key': 'key2',
                         'regex': r'^result9=(.*)$',
-                        'expected': ['-13--9'],
+                        'expected': ['-13:-9'],
                         'action': result_parsers.ACTION_TRUE,
                         'match_type': result_parsers.MATCH_ALL,
                     },
@@ -395,7 +395,7 @@ class ResultParserTests(PavTestCase):
                         # is equal to the bottom of the range
                         'key': 'key3',
                         'regex': r'^result12=(.*)$',
-                        'expected': ['9.0-9.9'],
+                        'expected': ['9.0:9.9'],
                         'action': result_parsers.ACTION_TRUE,
                         'match_type': result_parsers.MATCH_ALL,
                     },
@@ -404,7 +404,7 @@ class ResultParserTests(PavTestCase):
                         # span
                         'key': 'key4',
                         'regex': r'^result12=(.*)$',
-                        'expected': ['9.9-9.9'],
+                        'expected': ['9.9:9.9'],
                         'action': result_parsers.ACTION_TRUE,
                         'match_type': result_parsers.MATCH_ALL,
                     },
@@ -413,7 +413,7 @@ class ResultParserTests(PavTestCase):
                         # is equal to the top of the range
                         'key': 'key5',
                         'regex': r'^result12=(.*)$',
-                        'expected': ['9.9-10.0'],
+                        'expected': ['9.9:10.0'],
                         'action': result_parsers.ACTION_TRUE,
                         'match_type': result_parsers.MATCH_ALL,
                     },
@@ -422,7 +422,7 @@ class ResultParserTests(PavTestCase):
                         # positive
                         'key': 'key6',
                         'regex': r'^result12=(.*)$',
-                        'expected': ['-9.9-10.0'],
+                        'expected': ['-9.9:10.0'],
                         'action': result_parsers.ACTION_TRUE,
                         'match_type': result_parsers.MATCH_ALL,
                     },
@@ -430,7 +430,7 @@ class ResultParserTests(PavTestCase):
                         # Test for expecting a range of negative integers
                         'key': 'key7',
                         'regex': r'^result13=(.*)$',
-                        'expected': ['-32--22'],
+                        'expected': ['-32:-22'],
                         'action': result_parsers.ACTION_TRUE,
                         'match_type': result_parsers.MATCH_ALL,
                     },
@@ -439,7 +439,7 @@ class ResultParserTests(PavTestCase):
                         # positive integer
                         'key': 'key8',
                         'regex': r'^result13=(.*)$',
-                        'expected': ['-32.0-22'],
+                        'expected': ['-32.0:22'],
                         'action': result_parsers.ACTION_TRUE,
                         'match_type': result_parsers.MATCH_ALL,
                     },
@@ -448,7 +448,7 @@ class ResultParserTests(PavTestCase):
                         # float to zero
                         'key': 'key9',
                         'regex': r'^result13=(.*)$',
-                        'expected': ['-10000000000.0-0'],
+                        'expected': ['-10000000000.0:0'],
                         'action': result_parsers.ACTION_TRUE,
                         'match_type': result_parsers.MATCH_ALL,
                     },
@@ -465,7 +465,7 @@ class ResultParserTests(PavTestCase):
                         # Test for a list of results in a range of floats
                         'key': 'key11',
                         'regex': r'result5.=([0-9.]*)',
-                        'expected': ['18.0-18.5'],
+                        'expected': ['18.0:18.5'],
                         'action': result_parsers.ACTION_TRUE,
                         'match_type': result_parsers.MATCH_ALL,
                     },
@@ -474,7 +474,43 @@ class ResultParserTests(PavTestCase):
                         # the expected range and the other is not
                         'key': 'key12',
                         'regex': r'^result50=(.*),result51=(.*)$',
-                        'expected': ['18.0-18.2'],
+                        'expected': ['18.0:18.2'],
+                        'action': result_parsers.ACTION_TRUE,
+                        'match_type': result_parsers.MATCH_ALL,
+                    },
+                    {
+                        # Test for a list of results in a one-side bounded
+                        # range of floats
+                        'key': 'key13',
+                        'regex': r'result5.=([0-9.]*)',
+                        'expected': [':18.5'],
+                        'action': result_parsers.ACTION_TRUE,
+                        'match_type': result_parsers.MATCH_ALL,
+                    },
+                    {
+                        # Test for a list of results in a one-side bounded
+                        # range of floats
+                        'key': 'key14',
+                        'regex': r'result5.=([0-9.]*)',
+                        'expected': ['18.0:'],
+                        'action': result_parsers.ACTION_TRUE,
+                        'match_type': result_parsers.MATCH_ALL,
+                    },
+                    {
+                        # Test for a list of results where one value is inside
+                        # the expected range and the other is not
+                        'key': 'key15',
+                        'regex': r'^result50=(.*),result51=(.*)$',
+                        'expected': [':18.2'],
+                        'action': result_parsers.ACTION_TRUE,
+                        'match_type': result_parsers.MATCH_ALL,
+                    },
+                    {
+                        # Test for a list of results where one value is inside
+                        # the expected range and the other is not
+                        'key': 'key16',
+                        'regex': r'^result50=(.*),result51=(.*)$',
+                        'expected': ['18.0:'],
                         'action': result_parsers.ACTION_TRUE,
                         'match_type': result_parsers.MATCH_ALL,
                     },
@@ -490,7 +526,7 @@ class ResultParserTests(PavTestCase):
 
         test = self._quick_test(test_cfg, 'result_parser_test')
         test.build()
-        test.run({}, {})
+        test.run()
 
         results = result_parsers.parse_results(
             test=test,
@@ -633,7 +669,7 @@ class ResultParserTests(PavTestCase):
 
         test = self._quick_test(test_cfg, 'result_parser_test')
         test.build()
-        test.run({}, {})
+        test.run()
 
         results = result_parsers.parse_results(
             test=test,
@@ -703,7 +739,7 @@ class ResultParserTests(PavTestCase):
 
         test = self._quick_test(test_cfg, 'result_parser_test')
         test.build()
-        test.run({}, {})
+        test.run()
 
         results = result_parsers.parse_results(
             test=test,
@@ -739,7 +775,7 @@ class ResultParserTests(PavTestCase):
                 'table': [
                     {
                         'key': 'table1',
-                        'delimiter': '\\|',
+                        'delimiter': r'\\|',
                         'col_num': '3'
                     }
                 ],
@@ -753,8 +789,7 @@ class ResultParserTests(PavTestCase):
         }
 
         test = self._quick_test(table_test1, 'result_parser_test')
-        test.build()
-        test.run({}, {})
+        test.run()
 
         results = result_parsers.parse_results(
             test=test,
@@ -796,7 +831,7 @@ class ResultParserTests(PavTestCase):
 
         test = self._quick_test(table_test2, 'result_parser_test')
         test.build()
-        test.run({}, {})
+        test.run()
 
         results = result_parsers.parse_results(
             test=test,
@@ -845,7 +880,7 @@ class ResultParserTests(PavTestCase):
 
         test = self._quick_test(table_test3, 'result_parser_test')
         test.build()
-        test.run({}, {})
+        test.run()
 
         results = result_parsers.parse_results(
             test=test,

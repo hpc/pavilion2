@@ -2,8 +2,9 @@ from pavilion import config
 from pavilion import plugins
 from pavilion import schedulers
 from pavilion.test_config import variables
-from pavilion.pav_test import PavTest
+from pavilion.test_run import TestRun
 from pavilion.unittest import PavTestCase
+from pavilion.test_config import VariableSetManager
 import re
 
 class RawSchedTests(PavTestCase):
@@ -61,13 +62,13 @@ class RawSchedTests(PavTestCase):
             def _in_alloc(self):
                 return self.in_alloc_var
 
-        test = PavTest(
+        test = TestRun(
             self.pav_cfg,
             {
                 'name': 'sched-vars',
                 'scheduler': 'dummy'
             },
-            {}
+            VariableSetManager(),
         )
 
         dummy_sched = DummySched()
@@ -90,16 +91,16 @@ class RawSchedTests(PavTestCase):
         pav_cfg = self.pav_cfg
         pav_cfg['env_setup'] = ['test1', 'test2', 'test3']
 
-        test = PavTest(
+        test = TestRun(
             self.pav_cfg,
             {
                 'name': 'sched-vars',
                 'scheduler': 'dummy'
             },
-            {}
+            VariableSetManager(),
         )
 
-        dummy_sched = schedulers.get_scheduler_plugin('dummy')
+        dummy_sched = schedulers.get_plugin('dummy')
         path = dummy_sched._create_kickoff_script(pav_cfg, test)
         with path.open() as file:
             lines = file.readlines()

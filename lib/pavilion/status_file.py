@@ -1,23 +1,56 @@
+"""Every test run has a status file that tracks it's progress. It's
+one of the first things created (after the test directory itself) when
+creating a test object.
+
+A test run will transition through several states (all available as part of the
+``status_file.STATES`` object). These, along with a description and timestamp,
+are saved as a 'state' in the status file. Each state is a single line of the
+file with a max size of 4096 bytes to ensure atomic writes.
+
+The state of a test run represents where that run is in its lifecycle. It
+does not represent whether a test passed or failed.
+
+Usage: ::
+
+    status_file = StatusFile('/tmp/mystatus')
+
+    status.set(STATES.RUNNING, "I'm running!")
+
+    state = status.current()
+
+    state.note
+"""
+
 import datetime
 import logging
 import os
-import tzlocal
 
 
 class TestStatusError(RuntimeError):
-    pass
+    """Error raised by any status file related problems."""
 
 
 class TestStatesStruct:
     """A class containing the valid test state constants.
-    Rules:
-      - The value should be an ascii string of the constant name.
-      - The constants have a max length of 15 characters.
-      - The constants are in all caps.
-      - The constants must be a valid python identifier that starts with a
-        letter.
-    """
 
+Rules:
+
+- The value should be an ascii string of the constant name.
+- The constants have a max length of 15 characters.
+- The constants are in all caps.
+- The constants must be a valid python identifier that starts with a letter.
+- Error states should end in '_ERROR'. They should be the result of an OS
+  level problem (like missing directories), or problems with Pavilion itself.
+- Failure states should end in '_FAILED'. They should be the result of trying
+  something, and it just not succeeding.
+
+**Note**: The states are written in the class as ``<state_name> = <help_text>``,
+however, on class init the help text is stored separately, and the state value
+is set to the name of the state itself. So STATES.ENV_FAILED will have a
+value of 'ENV_FAILED' when used.
+
+Known States:
+"""
     # To add a state, simply add a valid class attribute, with the value set
     # to the help/usage for that state. States will end up comparing by key
     # name, as the instance values of these attributes will be changed and
@@ -32,13 +65,13 @@ class TestStatesStruct:
     SCHED_CANCELLED = "The job was cancelled."
     BUILDING = "The test is currently being built."
     BUILD_FAILED = "The build has failed."
+    BUILD_TIMEOUT = "The build has timed out."
     BUILD_ERROR = "An unexpected error occurred while setting up the build."
     BUILD_DONE = "The build step has completed."
     ENV_FAILED = "Unable to load the environment requested by the test."
     PREPPING_RUN = "Performing final (on node) steps before the test run."
     RUNNING = "For when we're currently running the test."
     RUN_TIMEOUT = "The test run went long without any output."
-    RUN_FAILED = "The test run has failed."
     RUN_ERROR = "An unexpected error has occurred when setting up the test run."
     RUN_USER = "Jobs can report extra status using pav set_status and " \
                "this status value."
@@ -88,6 +121,7 @@ class TestStatesStruct:
                               "Help missing for state '{}'".format(state))
 
     def list(self):
+        """List all the known state names."""
         return self._help.keys()
 
 
@@ -96,15 +130,20 @@ STATES = TestStatesStruct()
 
 
 class StatusInfo:
+    """Represents a single status.
+
+:ivar str state: A state string (from STATES).
+:ivar str note: The note for this status update.
+:ivar datetime when: A datetime object representing when this state was saved.
+"""
+
     def __init__(self, state, note, when=None):
 
         self.state = state
         self.note = note
 
         if when is None:
-            self.when = tzlocal.get_localzone().localize(
-                datetime.datetime.now()
-            )
+            self.when = datetime.datetime.now()
         else:
             self.when = when
 
@@ -115,6 +154,10 @@ class StatusInfo:
         return 'StatusInfo({s.when}, {s.state}, {s.note})'.format(s=self)
 
     def as_dict(self):
+        """Convert to a dictionary.
+
+:rtype: dict
+"""
         status_dict = {"state": self.state, "note": self.note,
                        "time": self.when}
 
@@ -123,16 +166,17 @@ class StatusInfo:
 
 class StatusFile:
     """The wraps the status file that is used in each test, and manages the
-    creation, reading, and modification of that file.
-    NOTE: The status file does not perform any locking to ensure that it's
-    created in an atomic manner. It does, however, limit it's writes to
-    appends of a size such that those writes should be atomic.
-    """
+creation, reading, and modification of that file.
+
+**NOTE:** The status file does not perform any locking to ensure that it's
+created in an atomic manner. It does, however, limit it's writes to
+appends of a size such that those writes should be atomic.
+"""
 
     STATES = STATES
 
-    TIME_FORMAT = '%Y-%m-%dT%H:%M:%S.%f%z'
-    TS_LEN = 5 + 3 + 3 + 3 + 3 + 3 + 6 + 14
+    TIME_FORMAT = '%Y-%m-%dT%H:%M:%S.%f'
+    TS_LEN = 5 + 3 + 3 + 3 + 3 + 3 + 6
 
     LOGGER = logging.getLogger('pav.{}'.format(__file__))
 
@@ -143,15 +187,11 @@ class StatusFile:
 
     def __init__(self, path):
         """Create the status file object.
-        :param pathlib.Path path: The path to the status file.
-        """
 
-        if isinstance(path, str):
-            raise ValueError('NOOO')
+:param pathlib.Path path: The path to the status file.
+"""
 
         self.path = path
-
-        self.timezone = tzlocal.get_localzone()
 
         if not self.path.is_file():
             # Make sure we can open the file, and create it if it doesn't exist.
@@ -166,9 +206,10 @@ class StatusFile:
 
     def _parse_status_line(self, line):
         """Parse a line of the status file. This assumes all sorts of things
-        could be wrong with the file format.
-        :rtype: StatusInfo
-        """
+could be wrong with the file format.
+
+:rtype: StatusInfo
+"""
 
         line = line.decode('utf-8')
 
@@ -195,8 +236,9 @@ class StatusFile:
 
     def history(self):
         """Return a list of all statuses recorded.
-        :rtype: list(StatusInfo)
-        """
+
+:rtype: list(StatusInfo)
+"""
         try:
             with self.path.open('rb') as status_file:
                 lines = status_file.readlines()
@@ -206,10 +248,17 @@ class StatusFile:
 
         return [self._parse_status_line(line) for line in lines]
 
+    def has_state(self, state):
+        """Check if the given state is somewhere in the history of this
+        status file."""
+
+        return any([state == h.state for h in self.history()])
+
     def current(self):
         """Return the most recent status object.
-        :rtype: StatusInfo
-        """
+
+:rtype: StatusInfo
+"""
 
         # We read a bit extra to avoid off-by-one errors
         end_read_len = self.LINE_MAX + 16
@@ -234,11 +283,12 @@ class StatusFile:
 
     def set(self, state, note):
         """Set the status.
-        :param state: The current state.
-        :param note: A note about this particular instance of the state.
-        """
 
-        when = self.timezone.localize(datetime.datetime.now())
+:param state: The current state.
+:param note: A note about this particular instance of the state.
+"""
+
+        when = datetime.datetime.now()
         when = when.strftime(self.TIME_FORMAT)
 
         # If we were given an invalid status, make the status invalid but add

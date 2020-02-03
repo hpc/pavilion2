@@ -1,10 +1,9 @@
 import errno
-import sys
 
 from pavilion import commands
-from pavilion import utils
-from pavilion.pav_test import PavTestNotFoundError, PavTestError, PavTest
+from pavilion import output
 from pavilion.status_file import STATES
+from pavilion.test_run import TestRunNotFoundError, TestRunError, TestRun
 
 
 class SetStatusCommand(commands.Command):
@@ -33,7 +32,7 @@ class SetStatusCommand(commands.Command):
                  'used.'
         )
 
-    def run(self, pav_cfg, args, out_file=sys.stdout, err_file=sys.stderr):
+    def run(self, pav_cfg, args):
 
         # Zero is given as the default when running test scripts outside of
         # Pavilion.
@@ -41,11 +40,11 @@ class SetStatusCommand(commands.Command):
             return 0
 
         try:
-            test = PavTest.load(pav_cfg, args.test)
-        except (PavTestError, PavTestNotFoundError) as err:
-            utils.fprint(
+            test = TestRun.load(pav_cfg, args.test)
+        except (TestRunError, TestRunNotFoundError) as err:
+            output.fprint(
                 "Test {} could not be opened.\n{}".format(args.test, err),
-                color=utils.RED,
+                color=output.RED,
                 file=self.errfile,
             )
             return errno.EINVAL

@@ -260,23 +260,26 @@ function module_loaded() {
                      grep ",default" | head -1 | awk -F, '{ print $2 }')
   fi
 
-  echo "module_version ${module_version}"
 
   # Get the version of the module that is currently loaded, if at all.
   local loaded_version=$(module_loaded_version $1)
   if [[ ${loaded_version} == "<none>" ]]; then
+    echo "Error: module ${module_name} was not loaded."
     return 1
   fi
 
-  echo "+${module_version}+ +${loaded_version}+"
   if [[ -z "$module_version" ]]; then
     # No version was specified, and we couldn't find a default to check against.
+    echo "module ${module_name} loaded as expected."
     return 0
   # Check if the loaded version matches what we want.
   elif [[ "${module_version}" == "${loaded_version}" ]]; then
+    echo "module ${module_name}/${module_version} loaded as expected."
     return 0
   else
    # The versions don't match.
+   echo "Error: module ${module_name}/${loaded_version} loaded, but expected"
+   echo "       version ${module_version}"
    return 2
   fi
 }
@@ -313,20 +316,20 @@ function verify_module_loaded() {
         1)
             msg="Module ${module_name}, version ${module_version} was not "
             msg="${msg}loaded. See the test log."
-            ${PAV_PATH} set_status -s ENV_FAILED -n "${msg}" ${test_id}
+            ${PAV_PATH} set_status -s ENV_FAILED -n"${msg}" ${test_id}
             echo "$msg"
             exit 1
             ;;
         2)
             msg="Expected module ${module_name}, ${module_version}, but "
             msg="${msg}${module_version} was loaded instead."
-            ${PAV_PATH} set_status -s ENV_FAILED -n "${msg}" ${test_id}
+            ${PAV_PATH} set_status -s ENV_FAILED -n"${msg}" ${test_id}
             echo "$msg"
             exit 1
             ;;
         3)
             msg="Error checking loaded modules."
-            ${PAV_PATH} set_status -s ENV_FAILED -n "${msg}" ${test_id}
+            ${PAV_PATH} set_status -s ENV_FAILED -n"${msg}" ${test_id}
             echo "$msg"
             exit 1
             ;;
@@ -369,7 +372,7 @@ function verify_module_removed() {
         fi
         msg="Module ${module_name} shouldn't be loaded, but a version "
         msg="${msg}(${loaded_version}) was."
-        ${PAV_PATH} set_status -s ENV_FAILED -n "${msg}" ${test_id}
+        ${PAV_PATH} set_status -s ENV_FAILED -n"${msg}" ${test_id}
         echo "${msg}"
         exit 1
     fi
@@ -380,7 +383,7 @@ function verify_module_removed() {
     fi
 
     msg="Module ${module_name}/${module_version} shouldn't be loaded, but was."
-    pav set_status -s ENV_FAILED -n "${msg}" ${test_id}
+    pav set_status -s ENV_FAILED -n"${msg}" ${test_id}
     echo "${msg}"
     exit 1
 }

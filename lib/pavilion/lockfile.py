@@ -1,3 +1,7 @@
+"""Pavilion uses lock files to handle concurrency across multiple nodes
+and systems. It has to assume the file-system that these are written
+to has atomic, O_EXCL file creation. """
+
 from pathlib import Path
 import grp
 import logging
@@ -15,37 +19,40 @@ NEVER = 10**10
 
 class LockFile:
     """An NFS friendly way to create a lock file. Locks contain information
-    on what host and user created the lock, and have a built in expiration
-    date. To be used in a 'with' context.
-    :cvar DEFAULT_EXPIRE: How long it takes for a lock to expire."""
+on what host and user created the lock, and have a built in expiration
+date. To be used in a 'with' context.
 
-    # Time till file is considered stale, in seconds. (5 minute default)
+:cvar int DEFAULT_EXPIRE: Time till file is considered stale, in seconds. (5
+    minute default)
+:cvar int SLEEP_PERIOD: How long to sleep between lock attempts.
+    This shouldn't be any less than 0.01 or so on a regular filesystem.
+    0.2 is pretty reasonable for an nfs filesystem and sporadically used
+    locks.
+:cvar int LOCK_PERMS: Default lock permissions
+"""
+
     DEFAULT_EXPIRE = 60 * 60 * 5
 
-    # How long to sleep between lock attempts.
-    # This shouldn't be any less than 0.01 or so on a regular filesystem.
-    # 0.2 is pretty reasonable for an nfs filesystem and sporadically used
-    # locks.
     SLEEP_PERIOD = 0.2
 
-    # Default lock permissions
     LOCK_PERMS = 0o774
 
     def __init__(self, lockfile_path, group=None, timeout=None,
                  expires_after=DEFAULT_EXPIRE):
         """Initialize the lock file. The resulting class can be reused
         multiple times.
-        :param Path lockfile_path: The path to the lockfile. Should
-        probably start with a '.', and end with '.lock', but that's up to
-        the user.
-        :param str group: The name of the group to set lockfiles to. If
-        this is given,
-        :param timeout: When to quit trying to acquire the lock in seconds.
-        None (default) denotes non-blocking mode.
-        :param expires_after: When to consider the lock dead,
-        and overwritable (in seconds). The NEVER module variable is
-        provided as easily named long time. (10^10 secs, 317 years)
-        """
+
+:param Path lockfile_path: The path to the lockfile. Should
+    probably start with a '.', and end with '.lock', but that's up to
+    the user.
+:param str group: The name of the group to set lockfiles to. If
+    this is given,
+:param int timeout: When to quit trying to acquire the lock in seconds.
+    None (default) denotes non-blocking mode.
+:param int expires_after: When to consider the lock dead,
+    and overwritable (in seconds). The NEVER module variable is
+    provided as easily named long time. (10^10 secs, 317 years)
+"""
 
         self._lock_path = Path(lockfile_path)
         self._timeout = timeout
@@ -128,9 +135,10 @@ class LockFile:
 
     def unlock(self):
         """Delete the lockfile, thereby releasing the lock.
-        :raises RuntimeError: When we can't delete our own lockfile for some
-            reason.
-        """
+
+:raises RuntimeError: When we can't delete our own lockfile for some
+    reason.
+"""
 
         # There isn't really anything we can do in this case.
         host, user, _, lock_id = self.read_lockfile()
@@ -162,12 +170,14 @@ class LockFile:
     @classmethod
     def _create_lockfile(cls, path, expires, lock_id, group_id=None):
         """Create and fill out a lockfile at the given path.
-        :param Path path: Where the file will be created.
-        :param int expires: How far in the future the lockfile expires.
-        :param str lock_id: The unique identifier for this lockfile.
-        :returns: None
-        :raises IOError: When the file cannot be written too.
-        :raises OSError: When the file cannot be opened or already exists."""
+
+:param Path path: Where the file will be created.
+:param int expires: How far in the future the lockfile expires.
+:param str lock_id: The unique identifier for this lockfile.
+:returns: None
+:raises IOError: When the file cannot be written too.
+:raises OSError: When the file cannot be opened or already exists.
+"""
 
         # DEV NOTE: This logic is separate so that we can create these files
         # outside of the standard mechanisms for testing purposes.
@@ -199,9 +209,10 @@ class LockFile:
 
     def read_lockfile(self):
         """Returns the components of the lockfile content, or None for each of
-        these values if there was an error..
-        :returns: host, user, expiration (as a float), id
-        """
+these values if there was an error..
+
+:returns: host, user, expiration (as a float), id
+"""
 
         try:
             with self._lock_path.open(mode='r') as lock_file:

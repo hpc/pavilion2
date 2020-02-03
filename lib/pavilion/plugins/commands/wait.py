@@ -1,4 +1,3 @@
-import sys
 import time
 
 from pavilion import commands
@@ -17,10 +16,10 @@ class WaitCommand(commands.Command):
                           STATES.SCHED_ERROR,
                           STATES.SCHED_CANCELLED,
                           STATES.BUILD_FAILED,
+                          STATES.BUILD_TIMEOUT,
                           STATES.BUILD_ERROR,
                           STATES.ENV_FAILED,
                           STATES.RUN_TIMEOUT,
-                          STATES.RUN_FAILED,
                           STATES.RUN_ERROR,
                           STATES.RESULTS_ERROR,
                           STATES.COMPLETE]
@@ -42,7 +41,7 @@ class WaitCommand(commands.Command):
                  'recent series submitted by this user is checked.'
         )
 
-    def run(self, pav_cfg, args, out_file=sys.stdout, err_file=sys.stderr):
+    def run(self, pav_cfg, args):
         # Store the initial time for timeout functionality.
         start_time = time.time()
 

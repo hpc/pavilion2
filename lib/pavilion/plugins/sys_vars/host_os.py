@@ -6,7 +6,7 @@ class HostOS(system_plugins.SystemPlugin):
 
     def __init__(self):
         super().__init__(
-            plugin_name='host_os',
+            name='host_os',
             description="The target host's OS info (name, version).",
             priority=self.PRIO_CORE,
             is_deferable=True,

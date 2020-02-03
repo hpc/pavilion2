@@ -1,7 +1,11 @@
+"""This module provides a base set of utilities for creating unittests
+for Pavilion."""
+
 import copy
 import fnmatch
 import inspect
 import os
+import pprint
 import tempfile
 import types
 import unittest
@@ -11,16 +15,35 @@ from pathlib import Path
 from pavilion import arguments
 from pavilion import config
 from pavilion import pav_vars
-from pavilion.pav_test import PavTest
+from pavilion import system_variables
+from pavilion.test_run import TestRun
 from pavilion.test_config.file_format import TestConfigLoader
-from pavilion.utils import dbg_print
+from pavilion.test_config import VariableSetManager
+from pavilion.test_config import resolve_config
+from pavilion.output import dbg_print
 
 
 class PavTestCase(unittest.TestCase):
-    """This is a base class for other test suites."""
+    """A unittest.TestCase with a lot of useful Pavilion features baked in.
+All pavilion unittests (in test/tests) should use this as their
+base class.
 
-    PAV_LIB_DIR = Path(__file__).resolve().parent
-    PAV_ROOT_DIR = PAV_LIB_DIR.parents[1]
+:cvar Path PAV_LIB_DIR: The Path to Pavilion's lib directory (where this
+    module resides).
+:cvar Path PAV_ROOT_DIR: The Path to Pavilion's root directory (the root of the
+    git repo).
+:cvar Path TEST_DATA_ROOT: The unit test data directory.
+:cvar Path PAV_CONFIG_PATH: The path to the configuration used by unit tests.
+:cvar dict QUICK_TEST_BASE_CFG: The base configuration for tests generated
+    by the ``_quick_test()`` and ``_quick_test_cfg()`` methods.
+
+:ivar yaml_config.ConfigDict pav_cfg: A pavilion config setup properly for
+    use by unit tests. Unit tests should **always** use this pav_cfg. If it
+    needs to be modified, copy it using copy.deepcopy.
+"""
+
+    PAV_LIB_DIR = Path(__file__).resolve().parent  # type: Path
+    PAV_ROOT_DIR = PAV_LIB_DIR.parents[1]  # type: Path
     TEST_DATA_ROOT = PAV_ROOT_DIR/'test'/'data'  # type: Path
 
     PAV_CONFIG_PATH = TEST_DATA_ROOT/'pav_config_dir'/'pavilion.yaml'
@@ -33,6 +56,8 @@ class PavTestCase(unittest.TestCase):
     ONLY = []
 
     def __init__(self, *args, **kwargs):
+        """Setup the pav_cfg object, and do other initialization required by
+        pavilion."""
 
         # Open the default pav config file (found in
         # test/data/pav_config_dir/pavilion.yaml), modify it, and then
@@ -43,8 +68,8 @@ class PavTestCase(unittest.TestCase):
         raw_pav_cfg.config_dirs = [self.TEST_DATA_ROOT/'pav_config_dir',
                                    self.PAV_LIB_DIR]
 
-
         raw_pav_cfg.working_dir = self.PAV_ROOT_DIR/'test'/'working_dir'
+        raw_pav_cfg.user_config = False
 
         raw_pav_cfg.result_log = raw_pav_cfg.working_dir/'results.log'
 
@@ -74,7 +99,7 @@ class PavTestCase(unittest.TestCase):
         for path in [
                 self.pav_cfg.working_dir,
                 self.pav_cfg.working_dir/'builds',
-                self.pav_cfg.working_dir/'tests',
+                self.pav_cfg.working_dir/'test_runs',
                 self.pav_cfg.working_dir/'series',
                 self.pav_cfg.working_dir/'users',
                 self.pav_cfg.working_dir/'downloads']:
@@ -90,12 +115,13 @@ class PavTestCase(unittest.TestCase):
 
     def __getattribute__(self, item):
         """When the unittest framework wants a test, check if the test
-        is in the SKIP or ONLY lists, and skip it as appropriate. Only
-        test methods are effected by this.
-        A test is in the SKIP or ONLY list if the filename (minus extension),
-        class name, .
-
-        """
+is in the SKIP or ONLY lists, and skip it as appropriate. Only
+test methods are effected by this.
+A test is in the SKIP or ONLY list if the filename (minus extension),
+class name, or test name (minus the test_ prefix) match one of the
+SKIP or ONLY globs (provided via ``./runtests`` ``-s`` or ``-o``
+options.
+"""
         attr = super().__getattribute__(item)
 
         cls = super().__getattribute__('__class__')
@@ -144,8 +170,8 @@ class PavTestCase(unittest.TestCase):
 
     def _is_softlink_dir(self, path):
         """Verify that a directory contains nothing but softlinks whose files
-        exist. Directories in a softlink dir should be real directories
-        though."""
+exist. Directories in a softlink dir should be real directories
+though."""
 
         for base_dir, cdirs, cfiles in os.walk(str(path)):
             base_dir = Path(base_dir)
@@ -167,7 +193,8 @@ class PavTestCase(unittest.TestCase):
                              .format(target_path, file_path))
 
     def _cmp_files(self, a_path, b_path):
-        """Compare two files.
+        """Compare the contents of two files.
+
         :param Path a_path:
         :param Path b_path:
         """
@@ -225,8 +252,10 @@ class PavTestCase(unittest.TestCase):
     @staticmethod
     def get_hash(filename):
         """ Get a sha1 hash of the file at the given path.
+
         :param Path filename:
-        :return:
+        :return: The sha1 hexdigest of the file contents.
+        :rtype: str
         """
         with filename.open('rb') as file:
             sha = sha1()
@@ -235,24 +264,34 @@ class PavTestCase(unittest.TestCase):
 
     dbg_print = staticmethod(dbg_print)
 
+    QUICK_TEST_BASE_CFG = {
+        'scheduler': 'raw',
+        'suite': 'unittest',
+        'build': {
+            'verbose': 'false',
+            'timeout': '30',
+        },
+        'run': {
+            'cmds': [
+                'echo "Hello World."'
+            ],
+            'verbose': 'false',
+            'timeout': '300',
+        },
+        'slurm': {},
+    }
+
     def _quick_test_cfg(self):
-        """Return the config to use with _quick_test."""
-        cfg = {
-            'scheduler': 'raw',
-            'suite': 'unittest',
-            'build': {
-                'verbose': 'false',
-                'timeout': '30',
-            },
-            'run': {
-                'cmds': [
-                    'echo "Hello World."'
-                ],
-                'verbose': 'false',
-                'timeout': '300',
-            },
-            'slurm': {},
-        }
+        """Return a pre-populated test config to use with
+``self._quick_test``. This can be used as is, or modified for
+desired effect.
+
+The default config is: ::
+
+{}
+"""
+
+        cfg = copy.deepcopy(self.QUICK_TEST_BASE_CFG)
 
         loc_slurm = (self.TEST_DATA_ROOT/'pav_config_dir'/'modes' /
                      'local_slurm.yaml')
@@ -266,11 +305,23 @@ class PavTestCase(unittest.TestCase):
 
         return cfg
 
-    def _quick_test(self, cfg=None, name="quick_test"):
-        """Create a test object to work with.
+    __config_lines = pprint.pformat(QUICK_TEST_BASE_CFG).split('\n')
+    _quick_test_cfg.__doc__ = _quick_test_cfg.__doc__.format(
+        '\n'.join(['    ' + line for line in __config_lines]))
+    del __config_lines
+
+    def _quick_test(self, cfg=None, name="quick_test",
+                    build=True, finalize=True,
+                    sched_vars=None):
+        """Create a test run object to work with.
+        The default is a simple hello world test with the raw scheduler.
+
         :param dict cfg: An optional config dict to create the test from.
         :param str name: The name of the test.
-        The default is a simple hello world test with the raw scheduler.
+        :param bool build: Build this test, while we're at it.
+        :param bool finalize: Finalize this test.
+        :param dict sched_vars: Add these scheduler variables to our var set.
+        :rtype: TestRun
         """
 
         if cfg is None:
@@ -281,14 +332,33 @@ class PavTestCase(unittest.TestCase):
         cfg = TestConfigLoader().validate(cfg)
         cfg['name'] = name
 
-        return PavTest(
+        var_man = VariableSetManager()
+        var_man.add_var_set('var', cfg['variables'])
+        var_man.add_var_set('sys', system_variables.get_vars(defer=True))
+        var_man.add_var_set('pav', self.pav_cfg.pav_vars)
+        if sched_vars is not None:
+            var_man.add_var_set('sched', sched_vars)
+
+        cfg = resolve_config(cfg, var_man, [])
+
+        test = TestRun(
             self.pav_cfg,
             cfg,
-            {}
+            var_man,
         )
+
+        if build:
+            test.build()
+        if finalize:
+            fin_sys = system_variables.SysVarDict(defer=False, unique=True)
+            fin_var_man = VariableSetManager()
+            fin_var_man.add_var_set('sys', fin_sys)
+            test.finalize(fin_var_man)
+        return test
 
 
 class ColorResult(unittest.TextTestResult):
+    """Provides colorized results for the python unittest library."""
 
     COLOR_BASE = '\x1b[{}m'
     COLOR_RESET = '\x1b[0m'

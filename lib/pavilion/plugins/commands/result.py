@@ -1,9 +1,10 @@
+import pprint
 import sys
 
 from pavilion import commands
+from pavilion import output
 from pavilion import series
-from pavilion.pav_test import PavTest, PavTestError, PavTestNotFoundError
-from pavilion import utils
+from pavilion.test_run import TestRun, TestRunError, TestRunNotFoundError
 
 
 class ResultsCommand(commands.Command):
@@ -40,17 +41,17 @@ class ResultsCommand(commands.Command):
             help="The tests to show the results for."
         )
 
-    def run(self, pav_cfg, args, out_file=sys.stdout, err_file=sys.stderr):
+    def run(self, pav_cfg, args):
 
-        test_ids = self._get_tests(pav_cfg, args.tests)
+        test_ids = self._get_tests(pav_cfg, args.tests, args.full)
 
         tests = []
         for id_ in test_ids:
             try:
-                tests.append(PavTest.load(pav_cfg, id_))
-            except PavTestError as err:
+                tests.append(TestRun.load(pav_cfg, id_))
+            except TestRunError as err:
                 self.logger.warning("Could not load test %s - %s", id_, err)
-            except PavTestNotFoundError as err:
+            except TestRunNotFoundError as err:
                 self.logger.warning("Could not find test %s - %s", id_, err)
 
         results = []
@@ -75,15 +76,16 @@ class ResultsCommand(commands.Command):
         all_keys.sort(key=lambda k: max([len(res) for res in results]))
 
         if args.json:
-            utils.json_dump(results, self.outfile)
+            output.json_dump(results, self.outfile)
             return 0
 
         if args.full:
-            fields = ['name', 'id', 'result'] + all_keys
+            pprint.pprint(results) # ext-print: ignore
+            return 0
         else:
             fields = ['name', 'id', 'result'] + sum(args.key, list())
 
-        utils.draw_table(
+        output.draw_table(
             outfile=self.outfile,
             field_info={},
             fields=fields,
@@ -91,12 +93,15 @@ class ResultsCommand(commands.Command):
             title="Test Results"
         )
 
-    def _get_tests(self, pav_cfg, tests_arg):
+    def _get_tests(self, pav_cfg, tests_arg, full_arg):
         if not tests_arg:
             # Get the last series ran by this user.
             series_id = series.TestSeries.load_user_series_id(pav_cfg)
             if series_id is not None:
                 tests_arg.append(series_id)
+
+        if len(tests_arg) > 1 and full_arg:
+            tests_arg = [tests_arg[0]]
 
         test_list = []
         for test_id in tests_arg:
@@ -113,5 +118,15 @@ class ResultsCommand(commands.Command):
                     continue
             else:
                 test_list.append(test_id)
+
+        if full_arg:
+            if len(test_list) > 1:
+                output.fprint(
+                    "Requested full test results but provided multiple tests. "
+                    "Giving results for only the first found.",
+                    color=output.YELLOW,
+                    file=sys.stdout,
+                )
+                test_list = [test_list[0]]
 
         return map(int, test_list)
