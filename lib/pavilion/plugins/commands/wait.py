@@ -31,14 +31,21 @@ class WaitCommand(commands.Command):
             help='Give output as json, rather than as standard human readable.'
         )
         parser.add_argument(
-            '-t', '--timeout', action='store', default='60',
-            help='Maximum time to wait for results in seconds. Default=60.'
-        )
-        parser.add_argument(
             'tests', nargs='*', action='store',
             help='The name(s) of the tests to check.  These may be any mix of '
                  'test IDs and series IDs.  If no value is provided, the most '
                  'recent series submitted by this user is checked.'
+        )
+
+        timeout_group = parser.add_mutually_exclusive_group()
+        timeout_group.add_argument(
+            '-t', '--timeout', action='store', default='60',
+            help='Maximum time to wait for results in seconds. Default=60.'
+        )
+        timeout_group.add_argument(
+            '--no-timeout', action='store_true',
+            help="Will not return nor display status until test/s is/are "
+                 "completed."
         )
 
     def run(self, pav_cfg, args):
@@ -49,8 +56,7 @@ class WaitCommand(commands.Command):
 
         final_statuses = 0
 
-        while (final_statuses < len(tmp_statuses)) and \
-              ((time.time() - start_time) < float(args.timeout)):
+        while final_statuses < len(tmp_statuses):
             # Check which tests have completed or failed and move them to the
             # final list.
             final_statuses = 0
@@ -59,6 +65,10 @@ class WaitCommand(commands.Command):
                     final_statuses += 1
 
             tmp_statuses = status.get_statuses(pav_cfg, args, self.errfile)
+
+            if not args.no_timeout:
+                if (time.time() - start_time) < float(args.timeout):
+                    break
 
         ret_val = status.print_status(tmp_statuses, self.outfile, args.json)
 
