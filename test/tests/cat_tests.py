@@ -37,11 +37,11 @@ source {}
 
 # Perform the sequence of test commands.
 echo "Hello World."
-""".format(some_var, some_var, some_var)
+""".format(test.id, test.TODO, test.TODO)
 
         for arg_set in arg_sets:
             args = arg_parser.parse_args(arg_set)
             cat_cmd.run(self.pav_cfg, args)
             # FIXME: always true
-            if cat_cmd.run != true_out:
+            if cat_cmd.outfile != true_out:
                 return errno.ENOMSG
