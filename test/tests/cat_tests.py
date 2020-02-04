@@ -26,10 +26,21 @@ class StatusTests(PavTestCase):
         cat_cmd.errfile = io.StringIO()
 
         arg_parser = arguments.get_parser()
-        arg_sets = (['cat', str(test.id), 'build.sh'],)
+        arg_sets = (['cat', str(test.id), 'run.tmpl'],)
+        true_out="""
+#!/bin/bash
+
+# The first (and only) argument of the build script is the test id.
+export TEST_ID=${1:-0}
+export PAV_CONFIG_FILE=/users/jogas/git/pavilion2/test/working_dir/pav_cfgs/tmpef48r4m3.yaml
+source /users/jogas/git/pavilion2/bin/pav-lib.bash
+
+# Perform the sequence of test commands.
+echo "Hello World."
+"""
 
         for arg_set in arg_sets:
             args = arg_parser.parse_args(arg_set)
             cat_cmd.run(self.pav_cfg, args)
-            output.fprint(cat_cmd.outfile)
-            output.fprint(cat_cmd.errfile)
+            if cat_cmd.run != true_out:
+                return errno.ENOMSG

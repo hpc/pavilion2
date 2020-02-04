@@ -58,7 +58,7 @@ def print_file(file):
                 block = file.read(4096)
                 if not block:
                     break
-                output.fprint(block, file=sys.stdout)
+                print(block, file=sys.stdout, end='')
 
     except IsADirectoryError:
         output.fprint("{} is a directory.".format(file), sys.stderr,
