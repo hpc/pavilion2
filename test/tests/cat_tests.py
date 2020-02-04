@@ -31,16 +31,17 @@ class StatusTests(PavTestCase):
 #!/bin/bash
 
 # The first (and only) argument of the build script is the test id.
-export TEST_ID=${1:-0}
-export PAV_CONFIG_FILE=/users/jogas/git/pavilion2/test/working_dir/pav_cfgs/tmpef48r4m3.yaml
-source /users/jogas/git/pavilion2/bin/pav-lib.bash
+export TEST_ID={}
+export PAV_CONFIG_FILE={}
+source {}
 
 # Perform the sequence of test commands.
 echo "Hello World."
-"""
+""".format(some_var, some_var, some_var)
 
         for arg_set in arg_sets:
             args = arg_parser.parse_args(arg_set)
             cat_cmd.run(self.pav_cfg, args)
+            # FIXME: always true
             if cat_cmd.run != true_out:
                 return errno.ENOMSG
