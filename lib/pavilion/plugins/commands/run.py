@@ -2,6 +2,7 @@ import codecs
 import errno
 import pathlib
 import time
+import threading
 from collections import defaultdict
 
 from pavilion import commands
@@ -16,6 +17,18 @@ from pavilion.series import TestSeries, test_obj_from_id
 from pavilion.status_file import STATES
 from pavilion.test_config.string_parser import ResolveError
 from pavilion.test_run import TestRun, TestRunError
+
+
+def build_test_thread(test, failed_list, err_out):
+
+    if not test.build():
+        fprint("Error building test: ", file=err_out, color=output.RED)
+        fprint("status {status.state} - {status.note}"
+               .format(status=test.status.current()),
+               file=err_out)
+        fprint("For more information, run 'pav log build {}'"
+               .format(test.id, file=err_out))
+        failed_list.append(test)
 
 
 class RunCommand(commands.Command):
@@ -144,24 +157,24 @@ class RunCommand(commands.Command):
                 fprint(msg, bullet=' - ', file=self.errfile)
             return errno.EINVAL
 
-        failed_build = None
+        failed_builds = []
+        test_threads = []
         # Building any tests that specify that they should be built before
         for test in all_tests:
             if test.config['build']['on_nodes'] not in ['true', 'True']:
-                if not test.build():
-                    fprint("Error building test: ", file=self.errfile,
-                           color=output.RED)
-                    fprint("status {status.state} - {status.note}"
-                           .format(status=test.status.current()),
-                           file=self.errfile)
-                    fprint("For more information, run 'pav log build {}'"
-                           .format(test.id), file=self.errfile)
-                    failed_build = test
-                    break
+                test_thread = threading.Thread(
+                    target=build_test_thread,
+                    args=(test, failed_builds, self.errfile,)
+                )
+                test_threads.append(test_thread)
+                test_thread.start()
 
-        if failed_build is not None:
+        for test in test_threads:
+            test.join()
+
+        if failed_builds:
             for test in all_tests:
-                if test is not failed_build:
+                if test not in failed_builds:
                     test.status.set(
                         STATES.ABORTED,
                         "Canceled due to problems with other tests in run")
