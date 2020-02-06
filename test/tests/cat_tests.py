@@ -19,7 +19,9 @@ class StatusTests(PavTestCase):
 
     def test_cat(self):
         """Checking cat command functionality"""
-        test = self._quick_test()
+        test_cfg = self._quick_test_cfg()
+        test_cfg['run']['cmds'] = ['echo "hello world"'] * 10
+        test = self._quick_test(test_cfg)
 
         cat_cmd = commands.get_command('cat')
         cat_cmd.outfile = io.StringIO()
@@ -27,21 +29,11 @@ class StatusTests(PavTestCase):
 
         arg_parser = arguments.get_parser()
         arg_sets = (['cat', str(test.id), 'run.tmpl'],)
-        true_out="""
-#!/bin/bash
-
-# The first (and only) argument of the build script is the test id.
-export TEST_ID={}
-export PAV_CONFIG_FILE={}
-source {}
-
-# Perform the sequence of test commands.
-echo "Hello World."
-""".format(test.id, test.TODO, test.TODO)
-
         for arg_set in arg_sets:
             args = arg_parser.parse_args(arg_set)
+            sys.stdout = cat_cmd.outfile
             cat_cmd.run(self.pav_cfg, args)
-            # FIXME: always true
-            if cat_cmd.outfile != true_out:
-                return errno.ENOMSG
+            with open(test.path/arg_set[-1], 'r') as out_file:
+                true_out = out_file.read()
+                cat_out = cat_cmd.outfile.getvalue()
+                self.assertEqual(cat_out, true_out)
