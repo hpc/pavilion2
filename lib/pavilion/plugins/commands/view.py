@@ -3,6 +3,7 @@ import pprint
 import sys
 
 from pavilion import commands
+from pavilion import output
 from pavilion import system_variables
 from pavilion.plugins.commands import run
 from pavilion.output import fprint
@@ -79,8 +80,8 @@ class ViewCommand(run.RunCommand):
                 sys_vars=sys_vars,
             )
         except Exception as err:  # pylint: disable=W0703
-            fprint(err, file=self.errfile, color=31)
-            sys.exit(1)
+            fprint(err, file=self.errfile, color=output.RED)
+            return errno.EINVAL
 
         configs = sum(configs.values(), [])
 
