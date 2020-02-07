@@ -1,0 +1,9 @@
+[Core]
+Name = Slurm MPI Scheduler
+Module = slurm_mpi
+
+[Documentation]
+Description = Slurm via mpirun scheduler wrapper.
+Author =
+Version = 1.0
+Website =
