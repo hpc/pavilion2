@@ -7,6 +7,8 @@ from pavilion import output
 from pavilion import system_variables
 from pavilion.plugins.commands import run
 from pavilion.output import fprint
+from pavilion.test_config.file_format import TestConfigError
+from pavilion.test_run import TestRun, TestRunError, TestRunNotFoundError
 
 
 class ViewCommand(run.RunCommand):
@@ -79,7 +81,7 @@ class ViewCommand(run.RunCommand):
                 overrides=overrides,
                 sys_vars=sys_vars,
             )
-        except Exception as err:  # pylint: disable=W0703
+        except (commands.CommandError) as err:
             fprint(err, file=self.errfile, color=output.RED)
             return errno.EINVAL
 
