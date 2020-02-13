@@ -27,9 +27,8 @@ class Filecheck(result_parsers.ResultParser):
         ])
         return config_items
 
-
     def __call__(self, test, file, filename):
         # recursively search folders in path for filename.
-        for file in Path(test.path).rglob(filename):
+        for f in Path(test.path).rglob(filename):
             return True
         return False
