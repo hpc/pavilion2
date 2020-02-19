@@ -553,7 +553,7 @@ def resolve_permutations(raw_test_cfg, pav_vars, sys_vars):
     return test_cfg, var_men
 
 
-def cond_check(raw_test_cfg, pav_vars, sys_vars):
+def fcond_check(raw_test_cfg, pav_vars, sys_vars):
     config = copy.deepcopy(raw_test_cfg)
     base_var_man = variables.VariableSetManager()
     user_vars = config.get('variables', {})
@@ -584,7 +584,7 @@ def cond_check(raw_test_cfg, pav_vars, sys_vars):
     return cond_err_list
 
 
-def get_match_not_if(not_if_dict, variable_base, cond_err_list):
+def dget_match_not_if(not_if_dict, variable_base, cond_err_list):
     # Not_if loops through values and returns a list of matches.
     for key in not_if_dict:
         real_key = variable_base[variable_base.resolve_key(key)]
@@ -600,7 +600,7 @@ def get_match_not_if(not_if_dict, variable_base, cond_err_list):
     return cond_err_list  # Return the list of conditional errors, can be None.
 
 
-def get_match_only_if(only_if_dict, variable_base, cond_err_list):
+def dget_match_only_if(only_if_dict, variable_base, cond_err_list):
     # Only_if looks for a match for all keys to succeed.
     for key in only_if_dict:
         match = False
@@ -685,6 +685,7 @@ def resolve_deferred(config, var_man):
             "variables, but contained these: {}"
             .format(deferred)
         )
+
 
     return resolve_section_vars(config, var_man,
                                 allow_deferred=False,

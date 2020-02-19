@@ -25,8 +25,7 @@ class RunCommand(commands.Command):
 
         super().__init__('run', 'Setup and run a set of tests.',
                          short_help="Setup and run a set of tests.")
-        self.test_list = []
-        self.skipped = False
+
 
     def _setup_arguments(self, parser):
 
@@ -129,16 +128,6 @@ class RunCommand(commands.Command):
         series = TestSeries(pav_cfg, all_tests)
 
         rp_errors = []
-
-        for test in all_tests:
-            cond_list = setup.cond_check(test.config, pav_cfg.pav_vars,
-                                         sys_vars)
-            if len(cond_list) > 0:
-                test.status.set(STATES.SKIPPED, cond_list[0])
-                test.skipped = True
-            else:
-                test.skipped = False
-            self.test_list.append(test)
 
         for test in all_tests:
             try:
