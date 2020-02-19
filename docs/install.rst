@@ -126,22 +126,6 @@ correct sub-directory for each of these. If you would prefer to use the
 system version of a particular dependency, simply delete the
 corresponding softlink in your install.
 
-pytz
-''''
-
-Pytz is special, in that it has to be built. The build process is
-simple, and requires nothing more than make and gcc. While Pavilion
-doesn't actually use the compiled components of pytz, the python
-components are dynamically generated and required.
-
-.. code:: bash
-
-    pushd lib/sub_repos/pytz
-    make build
-
-The softlink in lib already points to the expected location of the built
-pytz.
-
 virtualenv and pip
 ^^^^^^^^^^^^^^^^^^
 
