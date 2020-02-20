@@ -1327,9 +1327,11 @@ directory that doesn't already exist.
             return True
 
     def get_match_not_if(self, match_list):
-        """Get match not-if is the conditional check for not if statements in the
-        yaml config. It checks a variable for a match and will return False if found.
-        :param match_list: A list of conditions from not-if resulting in a SKIP."""
+        """Get match not-if is the conditional check for not if statements
+         in the yaml config. It checks a variable for a match and will
+         return False if found.
+        :param match_list: A list of conditions from not-if resulting
+        in a SKIP."""
 
         variable_base = self.var_man
         not_if_dict = self.config['not_if']
@@ -1348,9 +1350,10 @@ directory that doesn't already exist.
         return match_list  # Return the list of conditional errors, can be None.
 
     def get_match_only_if(self, match_list):
-        """Get match only-if is the conditional check for only if statements in the
-         yaml config. It checks each variable referenced after only_if for a match.
-         Only-if needs at least one match per variable to fully pass and return True.
+        """Get match only-if is the conditional check for only if statements
+         in the yaml config. It checks each variable referenced after
+         only_if for a match. Only-if needs at least one match per variable
+         to fully pass and return True.
          :param match_list: A list of conditions from only-if resulting in a SKIP.
          """
 
