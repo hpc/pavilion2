@@ -32,6 +32,7 @@ from pavilion.output import fprint
 from pavilion.utils import ZipFileFixed as ZipFile
 from pavilion.test_config.file_format import TestConfigError
 
+
 def get_latest_tests(pav_cfg, limit):
     """Returns ID's of latest test given a limit
 
@@ -52,6 +53,7 @@ def get_latest_tests(pav_cfg, limit):
     tests_only = [int(i[1]) for i in last_tests]
 
     return tests_only
+
 
 class TestRunError(RuntimeError):
     """For general test errors. Whatever was being attempted has failed in a
@@ -254,6 +256,10 @@ class TestRun:
                     else:
                         self._run_timeout = test_timeout
 
+        if var_man is not None:
+            self.skipped = self.get_skipped()
+            self.test_list = []
+
     @classmethod
     def load(cls, pav_cfg, test_id):
         """Load an old TestRun object given a test id.
@@ -284,6 +290,8 @@ class TestRun:
 
         self.config = resolve_deferred(self.config, self.var_man)
         self._save_config()
+
+        self.skipped = self.get_skipped()
 
         self._write_script(
             self.run_script_path,
@@ -1306,3 +1314,61 @@ directory that doesn't already exist.
 
     def __repr__(self):
         return "TestRun({s.name}-{s.id})".format(s=self)
+
+    def get_skipped(self):
+        match_list = []
+        match_list = self.get_match_only_if(match_list)
+        match_list = self.get_match_not_if(match_list)
+
+        if len(match_list) is 0:
+            return False
+        else:
+            self.status.set(STATES.SKIPPED, match_list[0])
+            return True
+
+    def get_match_not_if(self, match_list):
+        """Get match not-if is the conditional check for not if statements in the
+        yaml config. It checks a variable for a match and will return False if found.
+        :param match_list: A list of conditions from not-if resulting in a SKIP."""
+
+        variable_base = self.var_man
+        not_if_dict = self.config['not_if']
+
+        for key in not_if_dict:
+            real_key = variable_base[key]
+            for value in not_if_dict[key]:
+                # If a key has a match log it.
+                if real_key == value:
+                    message = ("Not if {0} is {1}. "
+                               "The current {0} is {2}: SKIPPED"
+                               .format(key, value, real_key))
+
+                    match_list.append(message)
+
+        return match_list  # Return the list of conditional errors, can be None.
+
+    def get_match_only_if(self, match_list):
+        """Get match only-if is the conditional check for only if statements in the
+         yaml config. It checks each variable referenced after only_if for a match.
+         Only-if needs at least one match per variable to fully pass and return True.
+         :param match_list: A list of conditions from only-if resulting in a SKIP.
+         """
+
+        variable_base = self.var_man
+        only_if_dict = self.config['only_if']
+
+        for key in only_if_dict:
+            match = False
+            real_key = variable_base[key]
+            for value in only_if_dict[key]:
+                if real_key == value:
+                    match = True  # One match is a success so break.
+                    break
+            if match is False:  # There was no match in value list, log it.
+                message = ("Only if {0} is one of {1}. "
+                           "Current {0} is {2}: SKIPPED"
+                           .format(key, only_if_dict[key], real_key))
+
+                match_list.append(message)
+
+        return match_list  # Return the list of conditional errors, can be None.

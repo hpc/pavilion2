@@ -1,15 +1,17 @@
 import io
 import os
+import pavilion
 
 from pavilion import arguments
 from pavilion import commands
 from pavilion import plugins
 from pavilion.status_file import STATES
 from pavilion.test_config import file_format, setup, variables
-from pavilion.unittest import PavTestCase
+from pavilion.test_run import TestRun, TestRunError
+from pavilion import unittest
 
 
-class conditionalTest(PavTestCase):
+class conditionalTest(unittest.PavTestCase):
 
     def setUp(self):
         plugins.initialize_plugins(self.pav_cfg)
@@ -18,61 +20,147 @@ class conditionalTest(PavTestCase):
         plugins._reset_plugins()
 
     def test_success(self):  # this method runs some conditional successes
+        # using the variables to test logic of not_if and only if
+        test_list = []
+        test_cfg = self._quick_test_cfg()
+        test_cfg['run']['cmds'] = ['echo "Goodbye World"']
 
-        sys_vars = {
-             'sys_name': 'bieber',
-             'sys_os': 'centos',
-             'sys_arch': 'x86_64'}
-        pav_vars = {}
+        test_cfg = {'variables': {'person': ['calvin'],
+                                  'machine': ['bieber']},
+                    'not_if': {'person': ['bleh', 'notcalvin']},
+                    'only_if': {'machine': ['notbieber', 'bieber']},
+                    'scheduler': 'raw',
+                    'suite': 'unittest',
+                    'build': {'verbose': 'false', 'timeout': '30'},
+                    'run': {'cmds': ['echo "Goodbye World"'],
+                            'verbose': 'false', 'timeout': '300'},
+                    'slurm': {}}
 
-        arg_parser = arguments.get_parser()
+        test_list.append(test_cfg)
 
-        args = arg_parser.parse_args([
-            'run',
-            'cond_success.one',
-            'cond_success.two',
-            'cond_success.three',
-            'cond_success.four',
-            'cond_success.five'
-        ])
+        test_cfg = {'variables': {'person': ['calvin']},
+                    'only_if': {'person': ['nivlac', 'calvin']},
+                    'scheduler': 'raw',
+                    'suite': 'unittest',
+                    'build': {'verbose': 'false', 'timeout': '30'},
+                    'run': {'cmds': ['echo "Goodbye World"'],
+                            'verbose': 'false', 'timeout': '300'},
+                    'slurm': {}}
 
-        run_cmd = commands.get_command(args.command_name)
-        run_cmd.outfile = io.StringIO()
-        run_cmd.run(self.pav_cfg, args)
-        tests = run_cmd.test_list
+        test_list.append(test_cfg)
 
-        for i in range(0, len(tests)):
-            cond = setup.cond_check(tests[i].config, pav_vars, sys_vars)
-            self.assertTrue(len(cond) == 0)  # check if any matches occur
+        test_cfg = {'variables': {'person': ['bob'],
+                                  'machine': ['bieber']},
+                    'only_if': {'person': ['meh', 'bob']},
+                    'only_if': {'machine': ['goblin', 'bieber']},
+                    'scheduler': 'raw',
+                    'suite': 'unittest',
+                    'build': {'verbose': 'false', 'timeout': '30'},
+                    'run': {'cmds': ['echo "Goodbye World"'],
+                            'verbose': 'false', 'timeout': '300'},
+                    'slurm': {}}
 
-    def test_failure(self):  # this method runs some conditional failures
+        test_list.append(test_cfg)
 
-        sys_vars = {
-            'sys_name': 'bieber',
-            'sys_host': 'centos',
-            'sys_arch': 'x86_64'}
+        test_cfg = {'variables': {'person': ['calvin']},
+                    'not_if': {'person': ['nivlac', 'notcalvin']},
+                    'scheduler': 'raw',
+                    'suite': 'unittest',
+                    'build': {'verbose': 'false', 'timeout': '30'},
+                    'run': {'cmds': ['echo "Goodbye World"'],
+                            'verbose': 'false', 'timeout': '300'},
+                    'slurm': {}}
 
-        pav_vars = {}
+        test_list.append(test_cfg)
 
-        arg_parser = arguments.get_parser()
+        for test_cfg in test_list:
+            test = self._quick_test(cfg=test_cfg)
+            test.build()
+            test.run()
+            self.assertFalse(test.skipped)
 
-        args = arg_parser.parse_args([
-            'run',
-            'cond_failure.one',
-            'cond_failure.two',
-            'cond_failure.three',
-            'cond_failure.four',
-            'cond_failure.five',
-            'cond_failure.six',
-            'cond_failure.seven',
-            'cond_failure.eight'
-        ])
+    def test_failure(self):  # this method runs skip conditions
+        # using the variables to test logic of not_if and only_if
+        test_list = []
+        test_cfg = self._quick_test_cfg()
+        test_cfg['run']['cmds'] = ['echo "Goodbye World"']
 
-        run_cmd = commands.get_command(args.command_name)
-        run_cmd.outfile = io.StringIO()
-        run_cmd.run(self.pav_cfg, args)
-        tests = run_cmd.test_list
+        test_cfg = {'variables': {'person': ['calvin'],
+                                  'machine': ['bieber']},
+                    'not_if': {'person': ['bleh', 'notcalvin']},
+                    'only_if': {'machine': ['notbieber', 'bleh']},
+                    'scheduler': 'raw',
+                    'suite': 'unittest',
+                    'build': {'verbose': 'false', 'timeout': '30'},
+                    'run': {'cmds': ['echo "Goodbye World"'],
+                            'verbose': 'false', 'timeout': '300'},
+                    'slurm': {}}
 
-        for i in range(0, len(tests)):
-            cond = setup.cond_check(tests[i].config, pav_vars, sys_vars)
-            self.assertTrue(len(cond) > 0)
+        test_list.append(test_cfg)
+
+        test_cfg = {'variables': {'person': ['calvin']},
+                    'only_if': {'person': ['nivlac', 'notcalvin']},
+                    'scheduler': 'raw',
+                    'suite': 'unittest',
+                    'build': {'verbose': 'false', 'timeout': '30'},
+                    'run': {'cmds': ['echo "Goodbye World"'],
+                            'verbose': 'false', 'timeout': '300'},
+                    'slurm': {}}
+
+        test_list.append(test_cfg)
+
+        test_cfg = {'variables': {'person': ['bob'],
+                                  'machine': ['bieber']},
+                    'only_if': {'person': ['meh', 'bob']},
+                    'only_if': {'machine': ['goblin', 'notbieber']},
+                    'scheduler': 'raw',
+                    'suite': 'unittest',
+                    'build': {'verbose': 'false', 'timeout': '30'},
+                    'run': {'cmds': ['echo "Goodbye World"'],
+                            'verbose': 'false', 'timeout': '300'},
+                    'slurm': {}}
+
+        test_list.append(test_cfg)
+
+        test_cfg = {'variables': {'person': ['calvin']},
+                    'not_if': {'person': ['notcalvin', 'calvin']},
+                    'scheduler': 'raw',
+                    'suite': 'unittest',
+                    'build': {'verbose': 'false', 'timeout': '30'},
+                    'run': {'cmds': ['echo "Goodbye World"'],
+                            'verbose': 'false', 'timeout': '300'},
+                    'slurm': {}}
+
+        test_list.append(test_cfg)
+
+        test_cfg = {'variables': {'person': ['calvin'],
+                                  'machine': ['bieber']},
+                    'not_if': {'person': ['notcalvin', 'definitelynotcalvin']},
+                    'not_if': {'machine': ['hello', 'bieber']},
+                    'scheduler': 'raw',
+                    'suite': 'unittest',
+                    'build': {'verbose': 'false', 'timeout': '30'},
+                    'run': {'cmds': ['echo "Goodbye World"'],
+                            'verbose': 'false', 'timeout': '300'},
+                    'slurm': {}}
+
+        test_list.append(test_cfg)
+
+        test_cfg = {'variables': {'person': ['calvin'],
+                                  'machine': ['bieber']},
+                    'only_if': {'person': ['nivlac', 'calvin']},
+                    'not_if': {'machine': ['nivlac', 'bieber']},
+                    'scheduler': 'raw',
+                    'suite': 'unittest',
+                    'build': {'verbose': 'false', 'timeout': '30'},
+                    'run': {'cmds': ['echo "Goodbye World"'],
+                            'verbose': 'false', 'timeout': '300'},
+                    'slurm': {}}
+
+        test_list.append(test_cfg)
+
+        for test_cfg in test_list:
+            test = self._quick_test(cfg=test_cfg)
+            test.build()
+            test.run()
+            self.assertTrue(test.skipped)

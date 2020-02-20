@@ -26,7 +26,6 @@ class RunCommand(commands.Command):
         super().__init__('run', 'Setup and run a set of tests.',
                          short_help="Setup and run a set of tests.")
 
-
     def _setup_arguments(self, parser):
 
         parser.add_argument(
