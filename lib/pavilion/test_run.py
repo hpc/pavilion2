@@ -1333,20 +1333,25 @@ directory that doesn't already exist.
         :param match_list: A list of conditions from not-if resulting
         in a SKIP."""
 
-        variable_base = self.var_man
-        not_if_dict = self.config['not_if']
+        try:
+            variable_base = self.var_man
+            not_if_dict = self.config['not_if']
+        except KeyError as err:
+            self.logger.error("Error reading \'only_if\'", err)
 
-        for key in not_if_dict:
-            real_key = variable_base[key]
-            for value in not_if_dict[key]:
-                # If a key has a match log it.
-                if real_key == value:
-                    message = ("Not if {0} is {1}. "
-                               "The current {0} is {2}: SKIPPED"
-                               .format(key, value, real_key))
+        try:
+            for key in not_if_dict:
+                real_key = variable_base[key]
+                for value in not_if_dict[key]:
+                    # If a key has a match log it.
+                    if real_key == value:
+                        message = ("Not if {0} is {1}. "
+                                   "The current {0} is {2}: SKIPPED"
+                                   .format(key, value, real_key))
 
-                    match_list.append(message)
-
+                        match_list.append(message)
+        except UnboundLocalError as err:
+            self.logger.error("bleh")
         return match_list  # Return the list of conditional errors, can be None.
 
     def get_match_only_if(self, match_list):
@@ -1356,22 +1361,27 @@ directory that doesn't already exist.
          to fully pass and return True.
          :param match_list: A list of conditions from only-if resulting in a SKIP.
          """
+        try:
+            variable_base = self.var_man
+            only_if_dict = self.config['only_if']
+        except KeyError as err:
+            self.logger.error("Error reading \'only_if\'", err)
 
-        variable_base = self.var_man
-        only_if_dict = self.config['only_if']
+        try:
+            for key in only_if_dict:
+                match = False
+                real_key = variable_base[key]
+                for value in only_if_dict[key]:
+                    if real_key == value:
+                        match = True  # One match is a success so break.
+                        break
+                if match is False:  # There was no match in value list, log it.
+                    message = ("Only if {0} is one of {1}. "
+                               "Current {0} is {2}: SKIPPED"
+                               .format(key, only_if_dict[key], real_key))
 
-        for key in only_if_dict:
-            match = False
-            real_key = variable_base[key]
-            for value in only_if_dict[key]:
-                if real_key == value:
-                    match = True  # One match is a success so break.
-                    break
-            if match is False:  # There was no match in value list, log it.
-                message = ("Only if {0} is one of {1}. "
-                           "Current {0} is {2}: SKIPPED"
-                           .format(key, only_if_dict[key], real_key))
-
-                match_list.append(message)
+                    match_list.append(message)
+        except UnboundLocalError as err:
+            self.logger.error("bleh")
 
         return match_list  # Return the list of conditional errors, can be None.

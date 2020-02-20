@@ -52,7 +52,6 @@ class ResultParserError(RuntimeError):
 PASS = 'PASS'
 FAIL = 'FAIL'
 ERROR = 'ERROR'
-SKIPPED = 'SKIPPED'
 
 ACTION_STORE = 'store'
 ACTION_TRUE = 'store_true'
