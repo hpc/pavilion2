@@ -97,25 +97,3 @@ class RunCmdTests(PavTestCase):
         run_cmd.outfile = io.StringIO()
 
         self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
-
-    def test_run_status_json(self):
-        '''Tests run command with status and json flags'''
-
-        arg_parser = arguments.get_parser()
-
-        args = arg_parser.parse_args([
-            'run',
-            '-s', '-j',
-            'hello_world'
-        ])
-
-        run_cmd = commands.get_command(args.command_name)
-        run_cmd.outfile = io.StringIO()
-
-        self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
-
-        status = run_cmd.outfile.getvalue().split('\n')[-1].strip().encode('UTF-8')
-        status = status[4:].decode('UTF-8')
-        status = json.loads(status)
-
-        self.assertNotEqual(len(status), 0)
