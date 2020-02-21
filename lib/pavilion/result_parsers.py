@@ -591,8 +591,8 @@ configured for that test.
                 'result_parser': None,
                 'file': None,
                 'key': 'result',
-                'msg': "A result parser set the 'result' key to {}, but it must"
-                       " be strictly set to True/False (PASS/FAIL)."
+                'msg': "A result parser set the 'result' key to {}, but it "
+                       "must be strictly set to True/False (PASS/FAIL)."
                        .format(results['result'])
             })
 
