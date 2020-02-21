@@ -1336,8 +1336,9 @@ directory that doesn't already exist.
         try:
             variable_base = self.var_man
             not_if_dict = self.config['not_if']
-        except KeyError as err:
-            self.logger.error("Error reading \'only_if\'", err)
+        except KeyError:
+            self.logger.error("Error reading \'only_if\' key in config.")
+            return KeyError
 
         try:
             for key in not_if_dict:
@@ -1350,8 +1351,9 @@ directory that doesn't already exist.
                                    .format(key, value, real_key))
 
                         match_list.append(message)
-        except UnboundLocalError as err:
-            self.logger.error("bleh")
+        except UnboundLocalError:
+            self.logger.error("Not_if_dict not assigned, check not_if key")
+
         return match_list  # Return the list of conditional errors, can be None.
 
     def get_match_only_if(self, match_list):
@@ -1359,13 +1361,15 @@ directory that doesn't already exist.
          in the yaml config. It checks each variable referenced after
          only_if for a match. Only-if needs at least one match per variable
          to fully pass and return True.
-         :param match_list: A list of conditions from only-if resulting in a SKIP.
+         :param match_list: A list of conditions from only-if resulting in
+           a SKIP.
          """
         try:
             variable_base = self.var_man
             only_if_dict = self.config['only_if']
-        except KeyError as err:
-            self.logger.error("Error reading \'only_if\'", err)
+        except KeyError:
+            self.logger.error("Error reading \'only_if\' key in config.")
+            return KeyError
 
         try:
             for key in only_if_dict:
@@ -1381,7 +1385,7 @@ directory that doesn't already exist.
                                .format(key, only_if_dict[key], real_key))
 
                     match_list.append(message)
-        except UnboundLocalError as err:
-            self.logger.error("bleh")
+        except UnboundLocalError:
+            self.logger.error("Only_if_dict not assigned, check only_if key.")
 
         return match_list  # Return the list of conditional errors, can be None.
