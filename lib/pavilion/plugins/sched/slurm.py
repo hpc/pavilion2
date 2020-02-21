@@ -523,10 +523,15 @@ class Slurm(SchedulerPlugin):
                             nodes))
 
         up_states = config['up_states']
+
+        def in_up_states(state):
+            """state in up states"""
+            return state in config['up_states']
+
         # Nodes can be in multiple simultaneous states. Only include nodes
         # for which all of their states are in the 'up_states'.
         nodes = [node for node in nodes if
-                 all(map(lambda state: state in up_states, node['State']))]
+                 all(map(in_up_states, node['State']))]
         if min_nodes > len(nodes):
             raise SchedulerPluginError("Insufficient nodes in up states: {}"
                                        .format(up_states))
@@ -540,14 +545,19 @@ class Slurm(SchedulerPlugin):
                                        '{}.'.format(partition))
 
         if config['immediate'].lower() == 'true':
-            states = config['avail_states']
-            # Check for compute nodes in this partition in the right state.
-            nodes = list(filter(lambda n: n['State'] in states, nodes))
+
+            def in_avail(state):
+                """state in avail_states."""
+                return state in config['avail_states']
+
+            # Check for compute nodes in this partition in the avail states.
+            nodes = [node for node in nodes
+                     if all(map(in_avail, node['State']))]
 
             if min_nodes > len(nodes):
-                raise SchedulerPluginError('Insufficient nodes in partition'
-                                           ' {} and states {}.'
-                                           .format(partition, states))
+                raise SchedulerPluginError(
+                    'Insufficient nodes in partition {} and states {}.'
+                    .format(partition, config['avail_states']))
 
         tasks_per_node = config.get('tasks_per_node')
         # When we want all the CPUs, it doesn't matter how many are on a node.
