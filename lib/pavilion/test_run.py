@@ -1320,11 +1320,16 @@ directory that doesn't already exist.
         match_list = self.get_match_only_if(match_list)
         match_list = self.get_match_not_if(match_list)
 
-        if len(match_list) is 0:
-            return False
-        else:
-            self.status.set(STATES.SKIPPED, match_list[0])
-            return True
+
+        try:
+            if len(match_list) is 0:
+                return False
+            else:
+                self.status.set(STATES.SKIPPED, match_list[0])
+                return True
+
+        except TypeError:
+            self.logger.error("Length of conditional match list not int")
 
     def get_match_not_if(self, match_list):
         """Get match not-if is the conditional check for not if statements
