@@ -1,6 +1,3 @@
-[submodule "lib/dependencies/yaml_config"]
-	path = lib/sub_repos/yaml_config
-	url = https://github.com/lanl-preteam/yaml_config
 [submodule "lib/pavilion/dependencies/sub_repos/yapsy"]
 	path = lib/sub_repos/yapsy
 	url = https://github.com/tibonihoo/yapsy.git
