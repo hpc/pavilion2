@@ -38,20 +38,20 @@ class VariableElem(yc.CategoryElem):
                                            defaults=None,
                                            **kwargs)
 
-    def normalize(self, values):
+    def normalize(self, value):
         """Normalize to either a dict of strings or just a string."""
-        if isinstance(values, str):
-            return values
+        if isinstance(value, str):
+            return value
 
-        return super().normalize(values)
+        return super().normalize(value)
 
-    def validate(self, value_dict, partial=False):
+    def validate(self, value, partial=False):
         """Check for a single item and return it, otherwise return a dict."""
 
-        if isinstance(value_dict, str):
-            return value_dict
+        if isinstance(value, str):
+            return value
 
-        return super().validate(value_dict, partial=partial)
+        return super().validate(value, partial=partial)
 
 
 class VarCatElem(yc.CategoryElem):
