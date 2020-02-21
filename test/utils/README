@@ -1,0 +1,2 @@
+This directory is for various test and check scripts that don't belong in unit tests. This includes
+component profiling and other such scripts.

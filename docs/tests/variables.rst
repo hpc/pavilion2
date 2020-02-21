@@ -383,6 +383,8 @@ insert values, but the basic test doesn't need to.
             options: -a
             mode: complex
 
+Note: Default values cannot contain curly braces: ``{}``.
+
 Permutations
 ------------
 
