@@ -256,9 +256,7 @@ class TestRun:
                     else:
                         self._run_timeout = test_timeout
 
-        if var_man is not None:
-            self.skipped = self.get_skipped()
-            self.test_list = []
+        self.skipped = self.get_skipped()
 
     @classmethod
     def load(cls, pav_cfg, test_id):
@@ -291,12 +289,11 @@ class TestRun:
         self.config = resolve_deferred(self.config, self.var_man)
         self._save_config()
 
-        self.skipped = self.get_skipped()
-
         self._write_script(
             self.run_script_path,
             self.config['run'],
         )
+        self.skipped = self.get_skipped()
 
     def run_cmd(self):
         """Construct a shell command that would cause pavilion to run this
@@ -1319,7 +1316,6 @@ directory that doesn't already exist.
         match_list = []
         match_list = self.get_match_only_if(match_list)
         match_list = self.get_match_not_if(match_list)
-
 
         try:
             if len(match_list) is 0:
