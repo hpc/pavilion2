@@ -9,6 +9,7 @@ from pavilion import plugins
 from pavilion import output
 from pavilion.unittest import PavTestCase
 
+
 class StatusTests(PavTestCase):
 
     def setUp(self):
@@ -31,7 +32,6 @@ class StatusTests(PavTestCase):
         arg_sets = (['cat', str(test.id), 'run.tmpl'],)
         for arg_set in arg_sets:
             args = arg_parser.parse_args(arg_set)
-            sys.stdout = cat_cmd.outfile
             cat_cmd.run(self.pav_cfg, args)
             with open(test.path/arg_set[-1], 'r') as out_file:
                 true_out = out_file.read()

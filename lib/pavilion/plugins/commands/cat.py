@@ -19,7 +19,8 @@ class FileCommand(commands.Command):
             short_help="Print file information of <job id>"
         )
 
-    def _setup_arguments(self, parser):
+    @staticmethod
+    def _setup_arguments(parser):
         parser.add_argument(
             'job_id', type=int,
             help="job id",
@@ -44,28 +45,27 @@ class FileCommand(commands.Command):
                           file=sys.stderr, color=output.RED)
             return errno.EEXIST
 
-        return print_file(job_dir/args.file)
+        return self.print_file(job_dir/args.file)
 
+    def print_file(self, file):
+        """Print the file at the given path.
+        :param path file: The path to the file to print.
+        """
 
-def print_file(file):
-    """Print the file at the given path.
-    :param path file: The path to the file to print.
-    """
+        try:
+            with file.open() as file:
+                while True:
+                    block = file.read(4096)
+                    if not block:
+                        break
+                    output.fprint(block, file=self.outfile, end="")
 
-    try:
-        with file.open() as file:
-            while True:
-                block = file.read(4096)
-                if not block:
-                    break
-                print(block, file=sys.stdout, end="")
+        except IsADirectoryError:
+            output.fprint("{} is a directory.".format(file), sys.stderr,
+                          color=output.RED)
+            return errno.EINVAL
 
-    except IsADirectoryError:
-        output.fprint("{} is a directory.".format(file), sys.stderr,
-                      color=output.RED)
-        return errno.EINVAL
-
-    except FileNotFoundError:
-        output.fprint("file '{}' does not exist.".format(file), sys.stderr,
-                      color=output.RED)
-        return errno.EEXIST
+        except FileNotFoundError:
+            output.fprint("file '{}' does not exist.".format(file), sys.stderr,
+                          color=output.RED)
+            return errno.EEXIST
