@@ -15,7 +15,7 @@ class StatusTests(PavTestCase):
     def setUp(self):
         plugins.initialize_plugins(self.pav_cfg)
 
-    def teatDown(self):
+    def tearDown(self):
         plugins._reset_plugins()
 
     def test_cat(self):
