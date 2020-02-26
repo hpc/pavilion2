@@ -36,7 +36,7 @@ class FileCommand(commands.Command):
     def run(self, pav_cfg, args):
         """Run this command."""
 
-        test_dir = pav_cfg.working_dir/'test_runs'
+        test_dir = pav_cfg.working_dir / 'test_runs'
         job_dir = utils.make_id_path(test_dir, args.job_id)
 
         if os.path.isdir(job_dir.as_posix()) is False:
@@ -45,7 +45,7 @@ class FileCommand(commands.Command):
                           file=sys.stderr, color=output.RED)
             return errno.EEXIST
 
-        return self.print_file(job_dir/args.file)
+        return self.print_file(job_dir / args.file)
 
     def print_file(self, file):
         """Print the file at the given path.
@@ -59,6 +59,10 @@ class FileCommand(commands.Command):
                     if not block:
                         break
                     output.fprint(block, file=self.outfile, end="")
+        except (OSError, IOError, PermissionError) as err:
+            output.fprint("Error opening file '{}': {}".format(file, err),
+                          color=output.RED)
+            return errno.EIO
 
         except IsADirectoryError:
             output.fprint("{} is a directory.".format(file), sys.stderr,
