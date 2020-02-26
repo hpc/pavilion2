@@ -365,16 +365,16 @@ def resolve_inheritance(base_config, suite_cfg, suite_path):
 
             try:
                 suite_tests[test_cfg_name] = TestConfigLoader().normalize(
-                                                                test_cfg)
+                    test_cfg)
             except (TypeError, KeyError, ValueError) as err:
                 raise TestConfigError(
                     "Test {} in suite {} has an error: {}"
                     .format(test_cfg_name, suite_path, err))
     except AttributeError as err:
         raise TestConfigError(
-              "Test Suite {} has objects but isn't a dict. Check syntax "
-              " or prepend '-f' if running a list of tests "
-              .format(suite_path))
+            "Test Suite {} has objects but isn't a dict. Check syntax "
+            " or prepend '-f' if running a list of tests "
+            .format(suite_path))
     # Add this so we can cleanly depend on it.
     suite_tests['__base__'] = base_config
 
