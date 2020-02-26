@@ -59,17 +59,19 @@ class FileCommand(commands.Command):
                     if not block:
                         break
                     output.fprint(block, file=self.outfile, end="")
-        except (OSError, IOError, PermissionError) as err:
-            output.fprint("Error opening file '{}': {}".format(file, err),
+
+        except FileNotFoundError:
+            output.fprint("file '{}' does not exist.".format(file), sys.stderr,
                           color=output.RED)
-            return errno.EIO
+            return errno.EEXIST
 
         except IsADirectoryError:
             output.fprint("{} is a directory.".format(file), sys.stderr,
                           color=output.RED)
             return errno.EINVAL
 
-        except FileNotFoundError:
-            output.fprint("file '{}' does not exist.".format(file), sys.stderr,
+        except (IOError, OSError, PermissionError) as err:
+            output.fprint("Error opening file '{}': {}".format(file, err),
                           color=output.RED)
-            return errno.EEXIST
+            return errno.EIO
+
