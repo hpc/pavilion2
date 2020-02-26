@@ -349,7 +349,7 @@ def resolve_inheritance(base_config, suite_cfg, suite_path):
     # A list of tests whose parent's have had their dependencies
     # resolved.
     ready_to_resolve = list()
-    if suite_cfg is None:
+    if suite_cfg is None: # Catch null test suites.
         raise TestConfigError("Test Suite {} is empty.".format(suite_path))
     try:
         for test_cfg_name, test_cfg in suite_cfg.items():
