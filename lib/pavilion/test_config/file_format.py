@@ -178,15 +178,47 @@ expected to be added to by various plugins.
                       "single or list of strings key/string pairs."),
         yc.RegexElem('scheduler', regex=r'\w+', default="raw",
                      help_text="The scheduler class to use to run this test."),
-        # TODO: implement files
         yc.KeyedElem(
             'build', elements=[
+                yc.ListElem(
+                    'cmds', sub_elem=yc.StrElem(),
+                    help_text='The sequence of commands to run to perform '
+                              'the build.'),
+                EnvCatElem(
+                    'env', sub_elem=yc.StrElem(), key_case=EnvCatElem.KC_MIXED,
+                    help_text="Environment variables to set in the build "
+                              "environment."),
+                yc.ListElem(
+                    'extra_files', sub_elem=yc.StrElem(),
+                    help_text='File(s) to copy into the build environment. '
+                              'Relative paths searched for in ~/.pavilion, '
+                              '$PAV_CONFIG. Absolute paths are ok, '
+                              'but not recommended.'),
+                yc.ListElem(
+                    'file_create', sub_elem=yc.ListElem(sub_elem=yc.StrElem()),
+                    help_text="File(s) to create in relative to the test's"
+                              "test source directory"),
                 yc.StrElem(
                     'on_nodes', default='False',
                     choices=['true', 'false', 'True', 'False'],
                     help_text="Whether to build on or off of the test "
-                              "allocation."
-                ),
+                              "allocation."),
+                yc.ListElem(
+                    'modules', sub_elem=yc.StrElem(),
+                    help_text="Modules to load into the build environment."),
+                yc.ListElem(
+                    'preamble', sub_elem=yc.StrElem(),
+                    help_text="Setup commands for the beginning of the build "
+                              "script. Added to the beginning of the run "
+                              "script.  These are generally expected to "
+                              "be host rather than test specific."),
+                yc.StrElem(
+                    'source_download_name',
+                    help_text='When downloading source, we by default use the '
+                              'last of the url path as the filename, or a hash '
+                              'of the url if is no suitable name. Use this '
+                              'parameter to override behavior with a '
+                              'pre-defined filename.'),
                 yc.StrElem(
                     'source_location',
                     help_text="Path to the test source. It may be a directory, "
@@ -197,26 +229,6 @@ expected to be added to by various plugins.
                               "Downloaded files are placed in a 'downloads' "
                               "under the pavilion working directory. (set in "
                               "pavilion.yaml)"),
-                yc.StrElem(
-                    'source_download_name',
-                    help_text='When downloading source, we by default use the '
-                              'last of the url path as the filename, or a hash '
-                              'of the url if is no suitable name. Use this '
-                              'parameter to override behavior with a '
-                              'pre-defined filename.'),
-                yc.ListElem(
-                    'modules', sub_elem=yc.StrElem(),
-                    help_text="Modules to load into the build environment."),
-                EnvCatElem(
-                    'env', sub_elem=yc.StrElem(), key_case=EnvCatElem.KC_MIXED,
-                    help_text="Environment variables to set in the build "
-                              "environment."),
-                yc.ListElem(
-                    'extra_files', sub_elem=yc.StrElem(),
-                    help_text='Files to copy into the build environment. '
-                              'Relative paths searched for in ~/.pavilion, '
-                              '$PAV_CONFIG. Absolute paths are ok, '
-                              'but not recommended.'),
                 yc.StrElem(
                     'specificity',
                     default='',
@@ -232,16 +244,6 @@ expected to be added to by various plugins.
                     help_text="Time (in seconds) that a build can continue "
                               "without generating new output before it is "
                               "cancelled.  Can be left empty for no timeout."),
-                yc.ListElem(
-                    'cmds', sub_elem=yc.StrElem(),
-                    help_text='The sequence of commands to run to perform '
-                              'the build.'),
-                yc.ListElem(
-                    'preamble', sub_elem=yc.StrElem(),
-                    help_text="Setup commands for the beginning of the build "
-                              "script. Added to the beginning of the run "
-                              "script.  These are generally expected to "
-                              "be host rather than test specific."),
                 yc.StrElem(
                     'verbose', choices=['true', 'True', 'False', 'false'],
                     default='False',
@@ -255,16 +257,20 @@ expected to be added to by various plugins.
 
         yc.KeyedElem(
             'run', elements=[
-                yc.ListElem(
-                    'modules', sub_elem=yc.StrElem(),
-                    help_text="Modules to load into the run environment."),
+                yc.ListElem('cmds', sub_elem=yc.StrElem(),
+                            help_text='The sequence of commands to run to run '
+                                      'the test.'),
                 EnvCatElem(
                     'env', sub_elem=yc.StrElem(), key_case=EnvCatElem.KC_MIXED,
                     help_text="Environment variables to set in the run "
                               "environment."),
-                yc.ListElem('cmds', sub_elem=yc.StrElem(),
-                            help_text='The sequence of commands to run to run '
-                                      'the test.'),
+                yc.ListElem(
+                    'file_create', sub_elem=yc.ListElem(sub_elem=yc.StrElem()),
+                    help_text="File(s) to create in relative to the test's"
+                              "test source directory"),
+                yc.ListElem(
+                    'modules', sub_elem=yc.StrElem(),
+                    help_text="Modules to load into the run environment."),
                 yc.ListElem(
                     'preamble', sub_elem=yc.StrElem(),
                     help_text="Setup commands for the beginning of the build "
@@ -272,16 +278,16 @@ expected to be added to by various plugins.
                               "script. These are generally expected to "
                               "be host rather than test specific."),
                 yc.StrElem(
+                    'timeout', default='300',
+                    help_text="Time that a build can continue without "
+                              "generating new output before it is cancelled. "
+                              "Can be left empty for no timeout."),
+                yc.StrElem(
                     'verbose', choices=['true', 'True', 'False', 'false'],
                     default='False',
                     help_text="Echo commands (including sourced files) in the "
                               "build log, and print the modules loaded and "
                               "environment before the cmds run."),
-                yc.StrElem(
-                    'timeout', default='300',
-                    help_text="Time that a build can continue without "
-                              "generating new output before it is cancelled. "
-                              "Can be left empty for no timeout.")
             ],
             help_text="The test run configuration. This will be used "
                       "to dynamically generate a run script for the "
