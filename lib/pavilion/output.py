@@ -27,7 +27,7 @@ utils.RED
 
 import csv
 import datetime
-import itertools
+import pprint
 import json
 import re
 import shutil
@@ -84,7 +84,8 @@ def get_relative_timestamp(base_dt):
     return base_dt.strftime(str(format_[3]))
 
 
-def dbg_print(*args, color=YELLOW, file=sys.stderr, end="", **kwargs):
+def dbg_print(*args, color=YELLOW, file=sys.stderr, end="",
+              pformat=True, **kwargs):
     """A colored print statement for debug printing. Use when you want to
 print dbg statements and easily excise it later.
 
@@ -92,8 +93,18 @@ print dbg statements and easily excise it later.
 :param end: Default the ending to no newline (we do a pre-newline because
     of how unittest prints stuff.
 :param int color: ANSI color code to print the string under.
+:param bool pformat: Automatically apply pprint.pformat to args that are
+    dicts or lists.
+:param kwargs: Also accepts all ``print()`` kwargs.
 """
     start_escape = '\n\x1b[{}m'.format(color)
+
+    if pformat:
+        args = list(args)
+        for i in range(len(args)):
+            arg = args[i]
+            if isinstance(arg, (dict, list)):
+                args[i] = pprint.pformat(arg)
 
     print(start_escape, end='', file=file)
     print(*args, file=file, end='', **kwargs)

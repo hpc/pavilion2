@@ -16,7 +16,7 @@ class TestConfigError(ValueError):
 TEST_NAME_RE_STR = r'^[a-zA-Z_][a-zA-Z0-9_-]*$'
 TEST_NAME_RE = re.compile(TEST_NAME_RE_STR)
 KEY_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_-]*$')
-VAR_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_-]*[\?\+]?$')
+VAR_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_-]*[?+]?$')
 
 
 class VariableElem(yc.CategoryElem):
@@ -277,7 +277,8 @@ expected to be added to by various plugins.
                               "build log, and print the modules loaded and "
                               "environment before the cmds run."),
                 yc.StrElem(
-                    'timeout', default='300',
+                    'timeout',
+                    default='300',
                     help_text="Time that a build can continue without "
                               "generating new output before it is cancelled. "
                               "Can be left empty for no timeout.")

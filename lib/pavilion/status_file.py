@@ -68,6 +68,8 @@ Known States:
     BUILD_TIMEOUT = "The build has timed out."
     BUILD_ERROR = "An unexpected error occurred while setting up the build."
     BUILD_DONE = "The build step has completed."
+    BUILD_WAIT = "Waiting for the build lock."
+    BUILD_REUSED = "The build was reused from a prior step."
     ENV_FAILED = "Unable to load the environment requested by the test."
     PREPPING_RUN = "Performing final (on node) steps before the test run."
     RUNNING = "For when we're currently running the test."

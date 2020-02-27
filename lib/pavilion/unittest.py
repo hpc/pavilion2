@@ -342,9 +342,9 @@ The default config is: ::
         cfg = resolve_config(cfg, var_man, [])
 
         test = TestRun(
-            self.pav_cfg,
-            cfg,
-            var_man,
+            pav_cfg=self.pav_cfg,
+            config=cfg,
+            var_man=var_man,
         )
 
         if build:
