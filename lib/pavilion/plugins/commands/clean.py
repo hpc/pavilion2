@@ -68,32 +68,35 @@ class CleanCommand(commands.Command):
         output.fprint("Removing Tests...", file=self.outfile,
                       color=output.GREEN)
         for test in os.listdir(tests_dir.as_posix()):
-            test_time = datetime.fromtimestamp(
-                os.path.getmtime((tests_dir / test).as_posix()))
             try:
-                test_obj = TestRun.load(pav_cfg, int(test))
-                status = test_obj.status.current().state
-            except (TestRunError, TestRunNotFoundError):
-                output.fprint("Removing bad test directory {}".format(test),
-                              file=self.outfile)
-                shutil.rmtree(tests_dir.as_posix())
-                continue
+                test_time = datetime.fromtimestamp(
+                    os.path.getmtime((tests_dir / test).as_posix()))
+                try:
+                    test_obj = TestRun.load(pav_cfg, int(test))
+                    status = test_obj.status.current().state
+                except (TestRunError, TestRunNotFoundError):
+                    output.fprint("Removing bad test directory {}"
+                                  .format(test), file=self.outfile)
+                    shutil.rmtree(tests_dir.as_posix())
+                    continue
+                if test_time < cutoff_date and status != STATES.RUNNING \
+                        and status != STATES.SCHEDULED:
+                    shutil.rmtree((tests_dir / test).as_posix())
+                    if args.verbose:
+                        output.fprint("Removed test {}".format(test),
+                                      file=self.outfile)
+                else:
+                    if args.verbose:
+                        output.fprint("Skipped test {}".format(test),
+                                      file=self.outfile)
+                    incomplete_tests.append(test)
+                    dependent_builds.append(test_obj.build_name)
             except PermissionError as err:
                 err = str(err).split("'")
-                output.fprint("Permission Error: {} cannot be removed"
-                              .format(err[1]), file=self.errfile, color=31)
-            if test_time < cutoff_date and status != STATES.RUNNING \
-                    and status != STATES.SCHEDULED:
-                shutil.rmtree((tests_dir / test).as_posix())
-                if args.verbose:
-                    output.fprint("Removed test {}".format(test),
-                                  file=self.outfile)
-            else:
-                if args.verbose:
-                    output.fprint("Skipped test {}".format(test),
-                                  file=self.outfile)
-                incomplete_tests.append(test)
-                dependent_builds.append(test_obj.build_name)
+                output.fprint("Permission denied: {} cannot be removed."
+                              .format(err[1]), file=self.errfile,
+                              color=output.RED)
+                return errno.EACCES
 
         # Clean Series
         completed_series = True
@@ -117,8 +120,10 @@ class CleanCommand(commands.Command):
                                       file=self.outfile)
             except PermissionError as err:
                 err = str(err).split("'")
-                output.fprint("Permission Error: {} cannot be removed"
-                              .format(err[1]), file=self.errfile, color=31)
+                output.fprint("Permission denied: {} cannot be removed"
+                              .format(err[1]), file=self.errfile,
+                              color=output.RED)
+                return errno.EACCES
 
         # Clean Downloads
         output.fprint("Removing Downloads...", file=self.outfile,
@@ -143,8 +148,10 @@ class CleanCommand(commands.Command):
                                       file=self.outfile)
             except PermissionError as err:
                 err = str(err).split("'")
-                output.fprint("Permission Error: {} cannot be removed"
-                              .format(err[1]), file=self.errfile, color=31)
+                output.fprint("Permission denied: {} cannot be removed"
+                              .format(err[1]), file=self.errfile,
+                              color=output.RED)
+                return errno.EACCES
 
         # Clean Builds
         output.fprint("Removing Builds...", file=self.outfile,
@@ -164,8 +171,10 @@ class CleanCommand(commands.Command):
                                       file=self.outfile)
             except PermissionError as err:
                 err = str(err).split("'")
-                output.fprint("Permission Error: {} cannot be removed. "
-                              .format(err[1]), file=self.errfile, color=31)
+                output.fprint("Permission denied: {} cannot be removed. "
+                              .format(err[1]), file=self.errfile,
+                              color=output.RED)
+                return errno.EACCES
 
         return 0
 
