@@ -18,7 +18,9 @@ from pavilion.module_actions import ModuleAction
 class ScriptComposerError(RuntimeError):
     """Class level exception during script composition."""
 
-#TODO: inherit + override
+# TODO: inherit + override
+
+
 class ScriptHeader:
     """Class to serve as a struct for the script header."""
 
@@ -39,7 +41,7 @@ class ScriptHeader:
         """Function to return the value of the internal shell path variable."""
         return self._shell_path
 
-#override
+# override
     @shell_path.setter
     def shell_path(self, value):
         """Function to set the value of the internal shell path variable."""
@@ -61,7 +63,9 @@ class ScriptHeader:
             value = []
 
         self._scheduler_headers = value
-# overide
+
+# override
+
     def get_lines(self):
         """Function to retrieve a list of lines for the script header."""
         if self.shell_path[:2] != '#!':
@@ -82,6 +86,24 @@ class ScriptHeader:
         None.
         """
         self.__init__()
+
+
+# Inherit from ScriptHeader and override methods to enable the creation of
+# non-script files.
+class GenericHeader(ScriptHeader):
+    """Class for file creation.
+    None.
+    """
+    @property
+    def shell_path(self):
+        print("TODO")
+
+    @shell_path.setter
+    def shell_path(self):
+        print("TODO")
+
+    def get_lines(self):
+        print("TODO")
 
 
 class ScriptDetails():
