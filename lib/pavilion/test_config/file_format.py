@@ -178,6 +178,7 @@ expected to be added to by various plugins.
                       "single or list of strings key/string pairs."),
         yc.RegexElem('scheduler', regex=r'\w+', default="raw",
                      help_text="The scheduler class to use to run this test."),
+        # TODO: implement files
         yc.KeyedElem(
             'build', elements=[
                 yc.StrElem(
