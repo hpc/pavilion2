@@ -102,34 +102,40 @@ print dbg statements and easily excise it later.
 
 
 def fprint(*args, color=None, bullet='', width=100,
-           sep=' ', file=sys.stdout):
-    """Print with automatic wrapping, bullets, and other features.
+           sep=' ', file=sys.stdout, end='\n', flush=False):
+    """Print with automatic wrapping, bullets, and other features. Also accepts
+    all print() kwargs.
 
     :param args: Standard print function args
     :param int color: ANSI color code to print with.
-    :param str bullet: Print the first line with this 'bullet' string,
-        and the following lines indented to match..
+    :param str bullet: Print the first line with this 'bullet' string, and the
+        following lines indented to match.
     :param str sep: The standard print sep argument.
     :param file: Stream to print.
     :param int width: Wrap the text to this width.
-    """
+    :param str end: String appended after the last value (default \\n)
+    :param bool flush: Whether to forcibly flush the stream.
+"""
 
     args = [str(a) for a in args]
     if color is not None:
         print('\x1b[{}m'.format(color), end='', file=file)
 
     out_str = sep.join(args)
-    for paragraph in str.splitlines(out_str):
-        lines = textwrap.wrap(paragraph, width=width)
-        lines = '\n'.join(lines)
+    if width is not None:
+        for paragraph in str.splitlines(out_str):
+            lines = textwrap.wrap(paragraph, width=width)
+            lines = '\n'.join(lines)
 
-        if bullet:
-            lines = textwrap.indent(lines, bullet, lines.startswith)
+            if bullet:
+                lines = textwrap.indent(lines, bullet, lines.startswith)
 
-        print(lines, file=file)
+            print(lines, file=file)
+    else:
+        print(out_str, file=file)
 
     if color is not None:
-        print('\x1b[0m', end='', file=file)
+        print('\x1b[0m', end=end, file=file, flush=flush)
 
 
 def json_dumps(obj, skipkeys=False, ensure_ascii=True,
