@@ -31,7 +31,7 @@ class WaitCommand(commands.Command):
             help='Give output as json, rather than as standard human readable.'
         )
         parser.add_argument(
-            '-t', '--timeout', action='store', 
+            '-t', '--timeout', action='store',
             help='Maximum time to wait for results in seconds. Default=60.'
         )
         parser.add_argument(
@@ -42,14 +42,18 @@ class WaitCommand(commands.Command):
         )
 
     def run(self, pav_cfg, args):
-        # Store the initial time for timeout functionality.
-        start_time = time.time()
 
         tmp_statuses = status.get_statuses(pav_cfg, args, self.errfile)
 
         final_statuses = 0
 
-        while final_statuses < len(tmp_statuses):
+        # determine timeout time, if there is one
+        end_time = None
+        if args.timeout is not None:
+            end_time = time.time() + float(args.timeout)
+
+        while (final_statuses < len(tmp_statuses) and
+              (end_time is None or time.time() < end_time)):
             # Check which tests have completed or failed and move them to the
             # final list.
             final_statuses = 0
@@ -58,10 +62,6 @@ class WaitCommand(commands.Command):
                     final_statuses += 1
 
             tmp_statuses = status.get_statuses(pav_cfg, args, self.errfile)
-
-            if not args.no_timeout:
-                if (time.time() - start_time) < float(args.timeout):
-                    break
 
         ret_val = status.print_status(tmp_statuses, self.outfile, args.json)
 
