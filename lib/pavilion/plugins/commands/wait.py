@@ -73,14 +73,12 @@ class WaitCommand(commands.Command):
             # print status every 5 seconds
             if not args.silent:
                 if time.time() > (start_time + 5*periodic_status_count):
-                    from pavilion.output import fprint
                     for test in tmp_statuses:
                        stat = [str(time.ctime(time.time())), ':',
                                str(test['test_id']),
                                test['name'],
                                test['state'],
-                               test['note']
-                               ]
+                               test['note']]
                        fprint(' '.join(stat))
                     periodic_status_count += 1
 
