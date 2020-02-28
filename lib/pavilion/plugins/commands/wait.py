@@ -4,6 +4,7 @@ import sys
 from pavilion import commands
 from pavilion.plugins.commands import status
 from pavilion.status_file import STATES
+from pavilion.output import fprint
 
 
 class WaitCommand(commands.Command):
@@ -80,10 +81,9 @@ class WaitCommand(commands.Command):
                                test['state'],
                                test['note']
                                ]
-                       print(' '.join(stat))
+                       fprint(' '.join(stat))
                     periodic_status_count += 1
 
         ret_val = status.print_status(tmp_statuses, self.outfile, args.json)
-
 
         return ret_val
