@@ -31,7 +31,7 @@ class WaitCommand(commands.Command):
             help='Give output as json, rather than as standard human readable.'
         )
         parser.add_argument(
-            '-t', '--timeout', action='store', default=60,
+            '-t', '--timeout', action='store', 
             help='Maximum time to wait for results in seconds. Default=60.'
         )
         parser.add_argument(
