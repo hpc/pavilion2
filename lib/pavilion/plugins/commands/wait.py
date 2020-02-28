@@ -1,4 +1,5 @@
 import time
+import sys
 
 from pavilion import commands
 from pavilion.plugins.commands import status
@@ -40,6 +41,9 @@ class WaitCommand(commands.Command):
                  'test IDs and series IDs.  If no value is provided, the most '
                  'recent series submitted by this user is checked.'
         )
+        parser.add_argument(
+            '-s', '--silent', action='store_true'
+        )
 
     def run(self, pav_cfg, args):
 
@@ -52,8 +56,8 @@ class WaitCommand(commands.Command):
         if args.timeout is not None:
             end_time = time.time() + float(args.timeout)
 
-        while (final_statuses < len(tmp_statuses) and
-              (end_time is None or time.time() < end_time)):
+        while (final_statuses < len(tmp_statuses) and (end_time is None or
+                                                       time.time() < end_time)):
             # Check which tests have completed or failed and move them to the
             # final list.
             final_statuses = 0
@@ -64,5 +68,6 @@ class WaitCommand(commands.Command):
             tmp_statuses = status.get_statuses(pav_cfg, args, self.errfile)
 
         ret_val = status.print_status(tmp_statuses, self.outfile, args.json)
+
 
         return ret_val

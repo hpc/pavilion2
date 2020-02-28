@@ -26,7 +26,6 @@ class WaitCmdTests(PavTestCase):
         self.assertEqual(args.tests[0], 'test1')
         self.assertEqual(args.tests[1], 'test2')
         self.assertEqual(args.json, False)
-        self.assertEqual(args.timeout, '60')
 
         parser = argparse.ArgumentParser()
         wait_cmd._setup_arguments(parser)
