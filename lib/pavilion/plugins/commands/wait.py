@@ -31,21 +31,14 @@ class WaitCommand(commands.Command):
             help='Give output as json, rather than as standard human readable.'
         )
         parser.add_argument(
+            '-t', '--timeout', action='store', default=60,
+            help='Maximum time to wait for results in seconds. Default=60.'
+        )
+        parser.add_argument(
             'tests', nargs='*', action='store',
             help='The name(s) of the tests to check.  These may be any mix of '
                  'test IDs and series IDs.  If no value is provided, the most '
                  'recent series submitted by this user is checked.'
-        )
-
-        timeout_group = parser.add_mutually_exclusive_group()
-        timeout_group.add_argument(
-            '-t', '--timeout', action='store', default='60',
-            help='Maximum time to wait for results in seconds. Default=60.'
-        )
-        timeout_group.add_argument(
-            '--no-timeout', action='store_true',
-            help="Will not return nor display status until test/s is/are "
-                 "completed."
         )
 
     def run(self, pav_cfg, args):
