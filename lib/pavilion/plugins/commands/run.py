@@ -50,10 +50,6 @@ class RunCommand(commands.Command):
                  'names. Lines that start with a \'#\' are ignored as '
                  'comments.')
         parser.add_argument(
-            '-j', '--json', action='store_true', default=False,
-            help='Give output as json, rather than as standard human readable.'
-        )
-        parser.add_argument(
             '-w', '--wait', action='store', type=int, default=None,
             help='Wait this many seconds to make sure at least one test '
                  'started before returning. If a test hasn\'t started by '
@@ -217,7 +213,11 @@ class RunCommand(commands.Command):
         if args.status:
             tests = list(series.tests.keys())
             tests, _ = test_obj_from_id(pav_cfg, tests)
-            return print_from_test_obj(pav_cfg, tests, self.outfile, args.json)
+            return print_from_test_obj(
+                pav_cfg=pav_cfg,
+                test_obj=tests,
+                outfile=self.outfile,
+                json=False)
 
         return 0
 
