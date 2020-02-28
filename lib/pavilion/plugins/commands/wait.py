@@ -46,6 +46,7 @@ class WaitCommand(commands.Command):
         )
 
     def run(self, pav_cfg, args):
+        start_time = time.time()
 
         tmp_statuses = status.get_statuses(pav_cfg, args, self.errfile)
 
@@ -54,8 +55,9 @@ class WaitCommand(commands.Command):
         # determine timeout time, if there is one
         end_time = None
         if args.timeout is not None:
-            end_time = time.time() + float(args.timeout)
+            end_time = start_time + float(args.timeout)
 
+        periodic_status_count = 0
         while (final_statuses < len(tmp_statuses) and (end_time is None or
                                                        time.time() < end_time)):
             # Check which tests have completed or failed and move them to the
@@ -66,6 +68,20 @@ class WaitCommand(commands.Command):
                     final_statuses += 1
 
             tmp_statuses = status.get_statuses(pav_cfg, args, self.errfile)
+
+            # print status every 5 seconds
+            if not args.silent:
+                if time.time() > (start_time + 5*periodic_status_count):
+                    from pavilion.output import fprint
+                    for test in tmp_statuses:
+                       stat = [str(time.ctime(time.time())), ':',
+                               str(test['test_id']),
+                               test['name'],
+                               test['state'],
+                               test['note']
+                               ]
+                       print(' '.join(stat))
+                    periodic_status_count += 1
 
         ret_val = status.print_status(tmp_statuses, self.outfile, args.json)
 
