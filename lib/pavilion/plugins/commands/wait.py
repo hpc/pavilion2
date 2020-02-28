@@ -75,10 +75,10 @@ class WaitCommand(commands.Command):
                 if time.time() > (start_time + 5*periodic_status_count):
                     for test in tmp_statuses:
                          stat = [str(time.ctime(time.time())), ':',
-                               str(test['test_id']),
-                               test['name'],
-                               test['state'],
-                               test['note']]
+                                 str(test['test_id']),
+                                 test['name'],
+                                 test['state'],
+                                 test['note']]
                          fprint(' '.join(stat))
                     periodic_status_count += 1
 
