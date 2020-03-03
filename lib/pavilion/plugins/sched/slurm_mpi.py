@@ -23,4 +23,3 @@ class SlurmMPI(slurm.Slurm):
             'Schedules tests via Slurm but runs them using mpirun',
             priority=10
         )
-
