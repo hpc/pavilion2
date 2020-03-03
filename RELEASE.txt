@@ -1,8 +1,14 @@
 # This number should track progressive changes in this software, and correspond to git tags
 # denoting releases. It is entirely independent of the the Pavilion's VERSION.
-RELEASE=2.1
+RELEASE=2.1.1
 
 # Release History
+
+## 2.1.1
+ - More bugfixes
+ - Fixed speed of draw_table with new algorithm
+ - Added include/exclude_nodes option to slurm.
+ - Updated the ls and cat commands, merged the tree command into ls.
 
 ## 2.1
  - Quite a few bugfixes.
