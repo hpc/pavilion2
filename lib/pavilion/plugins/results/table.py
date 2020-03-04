@@ -42,7 +42,7 @@ class Table(result_parsers.ResultParser):
                     col_names = []):
 
         if len(col_names) is not 0:
-            if len(col_names) is not int(col_num):
+            if len(col_names) != int(col_num):
                 raise result_parsers.ResultParserError(
                     "Length of `col_names` does not match `col_num`."
                 )
