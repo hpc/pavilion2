@@ -59,7 +59,7 @@ class Table(result_parsers.ResultParser):
                 "Delimiter required."
         )
 
-        if row_top and not has_header:
+        if row_top == 'True' and has_header == 'False':
             raise result_parsers.ResultParserError(
                 "`row_top` can only be True if `has_header` is also True."
             )
