@@ -11,6 +11,8 @@ from pavilion import series
 from pavilion import test_run
 from pavilion.status_file import STATES
 from pavilion.test_run import TestRun, TestRunError, TestRunNotFoundError
+from pavilion.output import dbg_print
+from pavilion.output import dbg_print
 
 
 def get_last_ctime(path):
@@ -132,7 +134,7 @@ def get_tests(pav_cfg, args, errfile):
         # Test
         else:
             test_list.append(test_id)
-
+    
     test_list = list(map(int, test_list))
     return test_list
 
@@ -171,6 +173,66 @@ def get_statuses(pav_cfg, args, errfile):
     return test_statuses
 
 
+def print_summary(statuses, outfile, json=False):
+    total_tests = len(statuses)
+    total_pass = 0
+    total_fail = 0
+    total_skipped = 0
+    state_completed = 0
+    state_running = 0
+    state_error = 0
+    ret_val = 1
+
+    for stat in statuses:
+        if stat['note'] != "Test not found.":
+            ret_val = 0
+
+    for test in statuses: # collect statistical info on job list.
+        # For a summary table we will generalize some output.
+        if 'COMPLETE' in test['state']:
+            state_completed += 1
+            if 'PASS' in test['note']:
+                total_pass += 1
+            elif 'FAIL' in test['note']:
+                total_fail += 1
+            elif 'SKIPPED' in test['note']:
+                total_skipped += 1
+            else:
+                total_fail += 1
+
+        elif 'RUNNING' in test['state']:
+            state_running += 1
+        else:
+            state_error +=1
+
+    dbg_print("PASS: {} ".format(total_pass/total_tests))
+    
+    fields = ['States', 'Amount', 'Percent', 'PASSED', 'FAILED', 'SKIPPED']
+
+    rows = [
+        {'States': 'COMPLETED', 'Amount': state_completed,
+         'Percent': '{0:.0%}'.format(state_completed/total_tests),
+         'PASSED': '{0:.0%}'.format(total_pass/state_completed),
+         'FAILED': '{0:.0%}'.format(total_fail/state_completed, color=output.RED),
+         'SKIPPED': '{0:.0%}'.format(total_skipped/state_completed)},
+
+        {'States': 'RUNNING', 'Amount': state_running,
+         'Percent': '{0:.0%}'.format(state_running/total_tests)},
+
+        {'States': 'RUN_FAILED', 'Amount': state_error,
+         'Percent': '{0:.0%}'.format(state_error/total_tests)}
+    ]
+
+    output.draw_table(outfile=outfile,
+                      field_info={},
+                      fields=fields,
+                      rows=rows,
+                      title='Test Summary'
+                      )
+
+    return ret_val
+
+
 def print_status(statuses, outfile, json=False):
     """Prints the statuses provided in the statuses parameter.
 
@@ -192,6 +254,7 @@ def print_status(statuses, outfile, json=False):
     if json:
         json_data = {'statuses': statuses}
         output.json_dump(json_data, outfile)
+
     else:
         fields = ['test_id', 'name', 'state', 'time', 'note']
         output.draw_table(
@@ -250,6 +313,12 @@ class StatusCommand(commands.Command):
             '-l', '--limit', type=int, default=10,
             help='Max number of tests displayed if --all is used.'
         )
+        parser.add_argument(
+            '-s', '--summary', default=False, action='store_true',
+            help='Summary will display a fantastic table full of bright colors '
+                 'and useful information. '
+        )
+
 
     def run(self, pav_cfg, args):
         """Gathers and prints the statuses from the specified test runs and/or
@@ -262,5 +331,8 @@ class StatusCommand(commands.Command):
         except commands.CommandError as err:
             output.fprint("Status Error:", err, color=output.RED)
             return 1
+        
+        if args.summary:
+            return print_summary(test_statuses, self.outfile, args.json)
 
         return print_status(test_statuses, self.outfile, args.json)
