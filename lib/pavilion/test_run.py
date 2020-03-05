@@ -1325,12 +1325,11 @@ directory that doesn't already exist.
             return True
 
     def _match(self, match_list):
-        """Match graps conditional keys from the config. It checks for matches and
-        depending on the results will skip or continue a test.
+        """Match grabs conditional keys from the config. It checks for
+        matches and depending on the results will skip or continue a test.
         :param match_list: Match list is a list of conditional matches found.
         :return The match list after being populated
         :rtype list(String)"""
-        
         var_man = self.var_man
         only_if = self.config.get('only_if', {})
         not_if = self.config.get('not_if', {})
