@@ -27,7 +27,7 @@ class Table(result_parsers.ResultParser):
                           "if there is such a column."
             ),
             yc.StrElem(
-                'has_header', default='False',
+                'has_header', default='False', choices=['True', 'False'],
                 help_text="Set True if there is a column for row names. Will "
                           "create dictionary of dictionaries."
             ),
@@ -36,36 +36,32 @@ class Table(result_parsers.ResultParser):
                 help_text="Column names if the user knows what they are."
             ),
             yc.StrElem(
-                'row_top', default='False',
-                help_text="set to True if the user wants the row names to be "
-                          "the top level of the dictionary. Default is False."
-                          "Can only be True if has_header is True as well."
+                'by_column', choices=['True', 'False'], default='True',
+                help_text="Set to True if the user wants to organize the "
+                          "nested dictionaries by columns. Default False. "
+                          "Only set if `has_header` is True. "
+                          "Otherwise, Pavilion will ignore."
             )
         ])
 
         return config_items
 
     def _check_args(self, delimiter=None, col_num=None, has_header=None,
-                    col_names=[], row_top=False):
+                    col_names=[], by_column=True):
 
-        if len(col_names) is not 0:
-            if len(col_names) != int(col_num):
-                raise result_parsers.ResultParserError(
-                    "Length of `col_names` does not match `col_num`."
-                )
-        
-        if delimiter == "":
+        try:
+            if len(col_names) is not 0:
+                if len(col_names) != int(col_num):
+                    raise result_parsers.ResultParserError(
+                        "Length of `col_names` does not match `col_num`."
+                    )
+        except ValueError:
             raise result_parsers.ResultParserError(
-                "Delimiter required."
-        )
-
-        if row_top == 'True' and has_header == 'False':
-            raise result_parsers.ResultParserError(
-                "`row_top` can only be True if `has_header` is also True."
+                "`col_names` needs to be an integer."
             )
 
     def __call__(self, test, file, delimiter=None, col_num=None,
-                 has_header='', col_names=[], row_top=False):
+                 has_header='', col_names=[], by_column=True):
 
         match_list = []
 
@@ -105,8 +101,8 @@ class Table(result_parsers.ResultParser):
                     result_dict[col_names[col_idx]][row_names[row_idx]] = \
                         match_list[row_idx][col_idx]
 
-            # "flip" the dictionary if top_row is set to True
-            if row_top == "True":
+            # "flip" the dictionary if by_column is set to False (default)
+            if by_column == "False":
                 tmp_dict = {}
                 for rname in row_names:
                     tmp_dict[rname] = {}
