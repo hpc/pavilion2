@@ -28,18 +28,25 @@ class Table(result_parsers.ResultParser):
             ),
             yc.StrElem(
                 'has_header', default='False',
-                help_text="Set True if there is a column for row names."
+                help_text="Set True if there is a column for row names. Will "
+                          "create dictionary of dictionaries."
             ),
             yc.ListElem(
                 'col_names', required=False, sub_elem=yc.StrElem(),
                 help_text="Column names if the user knows what they are."
+            ),
+            yc.StrElem(
+                'row_top', default=False,
+                help_text="set to True if the user wants the row names to be "
+                          "the top level of the dictionary. Default is False."
+                          "Can only be True if has_header is True as well."
             )
         ])
 
         return config_items
 
     def _check_args(self, delimiter=None, col_num=None, has_header=None,
-                    col_names = []):
+                    col_names=[], row_top=False):
 
         if len(col_names) is not 0:
             if len(col_names) != int(col_num):
@@ -52,8 +59,13 @@ class Table(result_parsers.ResultParser):
                 "Delimiter required."
         )
 
+        if row_top and not has_header:
+            raise result_parsers.ResultParserError(
+                "`row_top` can only be True if `has_header` is also True."
+            )
+
     def __call__(self, test, file, delimiter=None, col_num=None,
-                 has_header='', col_names = []):
+                 has_header='', col_names=[], row_top=False):
 
         match_list = []
 
@@ -92,6 +104,16 @@ class Table(result_parsers.ResultParser):
                 for row_idx in range(len(row_names)):
                     result_dict[col_names[col_idx]][row_names[row_idx]] = \
                         match_list[row_idx][col_idx]
+
+            # "flip" the dictionary if top_row is set to True
+            if row_top == "True":
+                tmp_dict = {}
+                for rname in row_names:
+                    tmp_dict[rname] = {}
+                    for cname in col_names:
+                        tmp_dict[rname][cname] = result_dict[cname][rname]
+                result_dict = tmp_dict
+
         # table does not have rows = dictionary of lists
         else:
             result_dict = {}
