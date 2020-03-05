@@ -256,9 +256,7 @@ class TestRun:
                     else:
                         self._run_timeout = test_timeout
 
-        if var_man is not None:
-            self.skipped = self.get_skipped()
-            self.test_list = []
+        self.skipped = self._get_skipped()
 
     @classmethod
     def load(cls, pav_cfg, test_id):
@@ -291,7 +289,8 @@ class TestRun:
         self.config = resolve_deferred(self.config, self.var_man)
         self._save_config()
 
-        self.skipped = self.get_skipped()
+        if not self.skipped:
+            self.skipped = self._get_skipped()
 
         self._write_script(
             self.run_script_path,
@@ -1315,73 +1314,40 @@ directory that doesn't already exist.
     def __repr__(self):
         return "TestRun({s.name}-{s.id})".format(s=self)
 
-    def get_skipped(self):
+    def _get_skipped(self):
         match_list = []
-        match_list = self.get_match_only_if(match_list)
-        match_list = self.get_match_not_if(match_list)
+        match_list = self._match(match_list)
 
         if len(match_list) is 0:
             return False
         else:
-            self.status.set(STATES.SKIPPED, match_list[0])
+            self.status.set(STATES.COMPLETE, match_list[0])
             return True
 
-    def get_match_not_if(self, match_list):
-        """Get match not-if is the conditional check for not if statements
-         in the yaml config. It checks a variable for a match and will
-         return False if found.
-        :param match_list: A list of conditions from not-if resulting
-        in a SKIP."""
+    def _match(self, match_list):
+        """Match graps conditional keys from the config. It checks for matches and
+        depending on the results will skip or continue a test.
+        :param match_list: Match list is a list of conditional matches found.
+        :return The match list after being populated
+        :rtype list(String)"""
+        
+        var_man = self.var_man
+        only_if = self.config.get('only_if', {})
+        not_if = self.config.get('not_if', {})
 
-        try:
-            variable_base = self.var_man
-            not_if_dict = self.config['not_if']
-        except KeyError as err:
-            self.logger.error("Error reading \'only_if\'", err)
+        for nkey, nvalues in not_if.items():
+            if var_man[nkey] in nvalues:
+                message = ("Not if {0} is {1}. "
+                           "The current {0} is {2}: SKIPPED"
+                           .format(nkey, nvalues, var_man[nkey]))
+                match_list.append(message)
+                return match_list
+        for okey, ovalues in only_if.items():
+            if var_man[okey] not in ovalues:
+                message = ("Only if {0} is one of {1}. "
+                           "Current {0} is {2}: SKIPPED"
+                           .format(okey, ovalues, var_man[okey]))
+                match_list.append(message)
+                return match_list
 
-        try:
-            for key in not_if_dict:
-                real_key = variable_base[key]
-                for value in not_if_dict[key]:
-                    # If a key has a match log it.
-                    if real_key == value:
-                        message = ("Not if {0} is {1}. "
-                                   "The current {0} is {2}: SKIPPED"
-                                   .format(key, value, real_key))
-
-                        match_list.append(message)
-        except UnboundLocalError as err:
-            self.logger.error("bleh")
-        return match_list  # Return the list of conditional errors, can be None.
-
-    def get_match_only_if(self, match_list):
-        """Get match only-if is the conditional check for only if statements
-         in the yaml config. It checks each variable referenced after
-         only_if for a match. Only-if needs at least one match per variable
-         to fully pass and return True.
-         :param match_list: A list of conditions from only-if resulting in a SKIP.
-         """
-        try:
-            variable_base = self.var_man
-            only_if_dict = self.config['only_if']
-        except KeyError as err:
-            self.logger.error("Error reading \'only_if\'", err)
-
-        try:
-            for key in only_if_dict:
-                match = False
-                real_key = variable_base[key]
-                for value in only_if_dict[key]:
-                    if real_key == value:
-                        match = True  # One match is a success so break.
-                        break
-                if match is False:  # There was no match in value list, log it.
-                    message = ("Only if {0} is one of {1}. "
-                               "Current {0} is {2}: SKIPPED"
-                               .format(key, only_if_dict[key], real_key))
-
-                    match_list.append(message)
-        except UnboundLocalError as err:
-            self.logger.error("bleh")
-
-        return match_list  # Return the list of conditional errors, can be None.
+        return match_list  # no skips found if returned here
