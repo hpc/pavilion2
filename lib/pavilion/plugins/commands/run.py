@@ -53,7 +53,7 @@ class RunCommand(commands.Command):
             '-w', '--wait', action='store', type=int, default=None,
             help='Wait this many seconds to make sure at least one test '
                  'started before returning. If a test hasn\'t started by '
-                 'then, cancel all tests and return a failure. Defaults to'
+                 'then, cancel all tests and return a failure. Defaults to '
                  'not checking tests before returning.'
         )
         parser.add_argument(
