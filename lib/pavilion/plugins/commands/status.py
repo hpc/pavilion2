@@ -14,6 +14,8 @@ from pavilion import series
 from pavilion import test_run
 from pavilion.status_file import STATES
 from pavilion.test_run import TestRun, TestRunError, TestRunNotFoundError
+from pavilion.output import dbg_print
+from pavilion.output import dbg_print
 
 
 def get_last_ctime(path):
@@ -135,7 +137,7 @@ def get_tests(pav_cfg, args, errfile):
         # Test
         else:
             test_list.append(test_id)
-
+    
     test_list = list(map(int, test_list))
     return test_list
 
@@ -222,6 +224,103 @@ def display_history(pav_cfg, args, outfile):
     return ret_val
 
 
+def print_summary(statuses, outfile, json=False):
+    """Print_summary takes in a list of test statuses.
+        It summarizes basic state output and displays
+        the data to the user through draw_table.
+        :param statuses: state list of current jobs
+        :param outfile:
+        :rtype: int
+        """
+
+    total_tests = len(statuses)
+    one_success = False
+    total_pass = 0
+    total_fail = 0
+    total_skipped = 0
+    state_completed = 0
+    state_running = 0
+    state_error = 0
+    ret_val = 0
+
+    for test in statuses:  # collect statistical info on job list.
+        # For a summary table we will generalize some output.
+        if 'COMPLETE' in test['state']:
+            one_success = True
+            state_completed += 1
+            if 'PASS' in test['note']:
+                total_pass += 1
+            else:
+                total_fail += 1
+
+        elif 'SKIPPED' in test['state']:
+            total_skipped += 1
+
+        elif 'RUNNING' in test['state'] or \
+                'SCHEDULED' in test['state'] or \
+                'PREPPING_RUN' in test['state']:
+            state_running += 1
+
+        else:
+            # We assume a fail with running/complete/skip not found.
+            # Also tests not found will be logged here.
+            state_error += 1
+
+    if not one_success:  # Catch divide be zero error.
+        total_pass = 0
+        total_fail = 0
+    else:
+        total_pass = total_pass / state_completed
+        total_fail = total_fail / state_completed
+
+    fields = ['State', 'Amount', 'Percent', 'PASSED', 'FAILED']
+    try:
+        rows = [
+            {'State': output.ANSIString('COMPLETED', output.COLORS.get(
+                'GREEN')),
+             'Amount': state_completed,
+             'Percent': '{0:.0%}'.format(state_completed / total_tests),
+             'PASSED': '{0:.0%}'.format(total_pass),
+             'FAILED': '{0:.0%}'.format(total_fail)},
+
+            {'State': output.ANSIString('RUNNING/SCHEDULED', output.COLORS.get(
+                'CYAN')),
+             'Amount': state_running,
+             'Percent': '{0:.0%}'.format(state_running / total_tests)},
+
+            {'State': output.ANSIString('RUN/BUILD_FAILED', output.COLORS.get(
+                'RED')),
+             'Amount': state_error,
+             'Percent': '{0:.0%}'.format(state_error / total_tests)},
+
+            {'State': output.ANSIString('SKIPPED', output.COLORS.get('YELLOW')),
+             'Amount': total_skipped,
+             'Percent': '{0:.0%}'.format(total_skipped / total_tests)}
+        ]
+    except ArithmeticError:
+        output.fprint("No tests found in the working dir.", color=output.RED)
+        return errno.EINVAL
+
+    field_info = {
+        'PASSED': {
+            'transform': lambda t: output.ANSIString(t, output.COLORS.get(
+                'GREEN')),
+        },
+        'FAILED': {
+            'transform': lambda t: output.ANSIString(t, output.COLORS.get(
+                'RED')),
+        }
+    }
+
+    output.draw_table(outfile=outfile,
+                      field_info=field_info,
+                      fields=fields,
+                      rows=rows,
+                      border=True,
+                      title='Test Summary')
+    return ret_val
+
+
 def print_status(statuses, outfile, json=False):
     """Prints the statuses provided in the statuses parameter.
 
@@ -242,6 +341,7 @@ def print_status(statuses, outfile, json=False):
     if json:
         json_data = {'statuses': statuses}
         output.json_dump(json_data, outfile)
+
     else:
         fields = ['test_id', 'name', 'state', 'time', 'note']
         output.draw_table(
@@ -304,6 +404,12 @@ class StatusCommand(commands.Command):
             '--history', type=int,
             help="Shows the full status history of a job."
         )
+        parser.add_argument(
+            '-s', '--summary', default=False, action='store_true',
+            help='Summary will display a fantastic table full of bright colors '
+                 'and useful information. '
+        )
+
 
     def run(self, pav_cfg, args):
         """Gathers and prints the statuses from the specified test runs and/or
@@ -316,8 +422,10 @@ class StatusCommand(commands.Command):
         except commands.CommandError as err:
             output.fprint("Status Error:", err, color=output.RED)
             return 1
-
-        if args.history:
+        
+        if args.summary:
+            return print_summary(test_statuses, self.outfile, args.json)
+        elif args.history:
             return display_history(pav_cfg, args, self.outfile)
         else:
             return print_status(test_statuses, self.outfile, args.json)
