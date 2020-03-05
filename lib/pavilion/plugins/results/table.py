@@ -36,7 +36,7 @@ class Table(result_parsers.ResultParser):
                 help_text="Column names if the user knows what they are."
             ),
             yc.StrElem(
-                'row_top', default=False,
+                'row_top', default='False',
                 help_text="set to True if the user wants the row names to be "
                           "the top level of the dictionary. Default is False."
                           "Can only be True if has_header is True as well."
