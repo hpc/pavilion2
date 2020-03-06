@@ -22,8 +22,7 @@ class StatusTests(PavTestCase):
         test = self._quick_test()
 
         cat_cmd = commands.get_command('cat')
-        cat_cmd.outfile = io.StringIO()
-        cat_cmd.errfile = io.StringIO()
+        cat_cmd.outfile = cat_cmd.errfile = io.StringIO()
 
         arg_parser = arguments.get_parser()
         arg_sets = (['cat', str(test.id), 'build.sh'],)
@@ -31,5 +30,5 @@ class StatusTests(PavTestCase):
         for arg_set in arg_sets:
             args = arg_parser.parse_args(arg_set)
             cat_cmd.run(self.pav_cfg, args)
-            output.fprint(cat_cmd.outfile)
-            output.fprint(cat_cmd.errfile)
+            # output.fprint(cat_cmd.outfile)
+            # output.fprint(cat_cmd.errfile)

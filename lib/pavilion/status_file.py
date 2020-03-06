@@ -8,7 +8,10 @@ are saved as a 'state' in the status file. Each state is a single line of the
 file with a max size of 4096 bytes to ensure atomic writes.
 
 The state of a test run represents where that run is in its lifecycle. It
-does not represent whether a test passed or failed.
+does not represent whether a test passed or failed. States are ephemeral and
+asynchronous, and should generally not be used to decide to do something with a
+test run. (The only exception is the 'SCHEDULED' state, which tells Pavilion
+to ask the scheduler about its current state).
 
 Usage: ::
 
@@ -64,12 +67,16 @@ Known States:
     SCHED_ERROR = "There was a scheduler related error."
     SCHED_CANCELLED = "The job was cancelled."
     BUILDING = "The test is currently being built."
+    BUILD_CREATED = "The builder for this build was created."
+    BUILD_DEFERRED = "The build will occur on nodes."
     BUILD_FAILED = "The build has failed."
     BUILD_TIMEOUT = "The build has timed out."
     BUILD_ERROR = "An unexpected error occurred while setting up the build."
     BUILD_DONE = "The build step has completed."
     BUILD_WAIT = "Waiting for the build lock."
     BUILD_REUSED = "The build was reused from a prior step."
+    INFO = "This is for logging information about a test, and can occur" \
+           "within any state."
     ENV_FAILED = "Unable to load the environment requested by the test."
     PREPPING_RUN = "Performing final (on node) steps before the test run."
     RUNNING = "For when we're currently running the test."

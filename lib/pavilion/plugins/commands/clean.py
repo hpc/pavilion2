@@ -125,7 +125,7 @@ class CleanCommand(commands.Command):
                 output.fprint(
                     "Could not remove test {}: {}"
                     .format(test_path, err),
-                    color=output.YELLOW)
+                    color=output.YELLOW, file=self.errfile)
 
         # Clean Series
         output.fprint("Removing Series...", file=self.outfile,
@@ -146,7 +146,7 @@ class CleanCommand(commands.Command):
                     output.fprint(
                         "Could not remove series {}: {}"
                         .format(series, err),
-                        color=output.YELLOW
+                        color=output.YELLOW, file=self.errfile
                     )
 
         # Clean Downloads
@@ -170,7 +170,7 @@ class CleanCommand(commands.Command):
             except OSError as err:
                 output.fprint("Could not remove download {}: {}"
                               .format(download, err),
-                              color=output.YELLOW)
+                              color=output.YELLOW, file=self.errfile)
 
         # Clean Builds
         output.fprint("Removing Builds...", file=self.outfile,
@@ -182,19 +182,19 @@ class CleanCommand(commands.Command):
             try:
                 shutil.rmtree(build.as_posix())
                 if args.verbose:
-                    output.fprint("Removed build", build)
+                    output.fprint("Removed build", build, file=self.outfile)
             except OSError as err:
                 output.fprint(
                     "Could not remove build {}: {}"
                     .format(build, err),
-                    color=output.YELLOW)
+                    color=output.YELLOW, file=self.errfile)
 
         output.fprint("Removed {tests} tests, {series} series, {builds} "
                       "builds, and {downloads} downloads"
                       .format(tests=removed_tests, series=removed_series,
                               builds=removed_builds,
                               downloads=removed_downloads),
-                      color=output.GREEN)
+                      color=output.GREEN, file=self.outfile)
         return 0
 
 

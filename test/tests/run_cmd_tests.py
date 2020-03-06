@@ -2,8 +2,8 @@ from pavilion import plugins
 from pavilion import commands
 from pavilion.unittest import PavTestCase
 from pavilion import arguments
+from pavilion.plugins.commands.run import RunCommand
 import io
-import json
 
 
 class RunCmdTests(PavTestCase):
@@ -19,9 +19,9 @@ class RunCmdTests(PavTestCase):
             For the most part we're relying on tests of the various components
             of test_config.setup and the test_obj tests."""
 
-        run_cmd = commands.get_command('run')
+        run_cmd = commands.get_command('run')  # type: RunCommand
 
-        tests = run_cmd._get_tests(
+        configs_by_sched = run_cmd._get_test_configs(
             pav_cfg=self.pav_cfg,
             host='this',
             test_files=[],
@@ -32,7 +32,7 @@ class RunCmdTests(PavTestCase):
 
         tests = run_cmd._configs_to_tests(
             pav_cfg=self.pav_cfg,
-            configs_by_sched=tests,
+            configs_by_sched=configs_by_sched,
         )
 
         t1, t2 = tests['raw']
@@ -47,7 +47,7 @@ class RunCmdTests(PavTestCase):
 
         tests_file = self.TEST_DATA_ROOT/'run_test_list'
 
-        tests = run_cmd._get_tests(
+        configs_by_sched = run_cmd._get_test_configs(
             pav_cfg=self.pav_cfg,
             host='this',
             test_files=[tests_file],
@@ -58,7 +58,7 @@ class RunCmdTests(PavTestCase):
 
         tests = run_cmd._configs_to_tests(
             pav_cfg=self.pav_cfg,
-            configs_by_sched=tests,
+            configs_by_sched=configs_by_sched,
         )
 
         self.assertEqual(tests['raw'][0].name, 'hello_world.world')

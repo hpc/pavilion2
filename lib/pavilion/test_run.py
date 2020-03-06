@@ -8,6 +8,7 @@ import json
 import logging
 import os
 import subprocess
+import threading
 import time
 from pathlib import Path
 
@@ -58,6 +59,102 @@ class TestRunNotFoundError(RuntimeError):
 __HASHED_FILES = {}
 
 
+# The options 'struct' for test runs.  This should match the defaults in
+class TestRunOptions:
+    """A 'struct' of options for test runs, to keep minor options fairly
+    well contained."""
+
+    OPTIONS_FN = 'options'
+
+    KNOWN_OPTIONS = [
+        'build_only',
+        'rebuild',
+    ]
+
+    def __init__(self, build_only=False, rebuild=False, **_):
+        """Initialize the options. Taking (and not using) generic
+        kwargs to make it more friendly to test runs across versions.
+
+        :param build_only: Only build, don't run, the test
+        :param rebuild: Deprecate the current build, and build a new one.
+        :param _:
+        """
+        self.build_only = build_only
+        self.rebuild = rebuild
+
+    def as_dict(self):
+        """Returns the options as a dictionary.
+        """
+
+        out_dict = {}
+
+        for opt_name in self.KNOWN_OPTIONS:
+            out_dict[opt_name] = getattr(self, opt_name)
+
+        return out_dict
+
+    def save(self, test):
+        """Create a file that records the options for this test run.
+
+        :param TestRun test: The TestRun to save this under.
+        """
+
+        build_opts_path = test.path/self.OPTIONS_FN
+
+        if not build_opts_path.exists():
+            try:
+                with build_opts_path.open('w') as opts_file:
+                    json.dump(self.as_dict(), opts_file)
+            except ValueError as err:
+                msg = ("Could not record build options for test {} due to a "
+                       "json error: {}"
+                       .format(test.id, err))
+                test.status.set(STATES.INFO, msg)
+                test.logger.warning(msg)
+
+            except OSError as err:
+                msg = ("System error when savingg build options for test {}: {}"
+                       .format(test.id, err))
+                test.status.set(STATES.INFO, msg)
+                test.logger.warning(msg)
+        else:
+            raise RuntimeError("Trying to write options a second time for "
+                               "test {}. This should never happen.")
+
+    @classmethod
+    def load(cls, test):
+        """Load the options from file.
+
+        :rtype: TestRunOptions
+        """
+
+        build_opts_path = test.path / cls.OPTIONS_FN
+        options = {}
+
+        if build_opts_path.exists():
+            try:
+                with build_opts_path.open() as opts_file:
+                    options = json.load(opts_file)
+
+            except ValueError as err:
+                msg = ("Could not load build options for test run {}: {}"
+                       .format(test.id, err))
+                test.status.set(STATES.INFO, msg)
+                test.logger.warning(msg)
+
+        return cls(**options)
+
+    def __eq__(self, other):
+        """Compare this with other TestRunOptions objects. For when we test if
+        test_run loading works as expected."""
+
+        if not isinstance(other, TestRunOptions):
+            raise RuntimeError("Can only compare TestRunOptions to other "
+                               "TestRunOption instances.")
+
+        return self.as_dict() == other.as_dict()
+
+
 class TestRun:
     """The central pavilion test object. Handle saving, monitoring and running
     tests.
@@ -87,12 +184,24 @@ class TestRun:
     :ivar Path build_origin_path: The path to the symlink to the original
         build directory. For bookkeeping.
     :ivar StatusFile status: The status object for this test.
+    :ivar TestRunOptions opt: Test run options defined by OPTIONS_DEFAULTS
+    :cvar OPTIONS_DEFAULTS: A dictionary of defaults for additional options
+        for the test run. Values given to Pavilion are expected to be the
+        same type as the default value.
     """
 
     logger = logging.getLogger('pav.TestRun')
 
+    BUILD_ONLY_FN = 'BUILD_ONLY'
+    JOB_ID_FN = 'job_id'
+
+    OPTIONS_DEFAULTS = {
+        'build_only': False,
+        'rebuild': False,
+    }
+
     def __init__(self, pav_cfg, config,
-                 build_tracker=None, var_man=None, _id=None):
+                 build_tracker=None, var_man=None, _id=None, **options):
         """Create an new TestRun object. If loading an existing test
     instance, use the ``TestRun.from_id()`` method.
 
@@ -102,6 +211,9 @@ class TestRun:
     and managing the status of multiple builds.
 :param variables.VariableSetManager var_man: The variable set manager for this
     test.
+:param bool build_only: Only build this test run, do not run it.
+:param bool rebuild: After determining the build name, deprecate it and select
+    a new, non-deprecated build.
 :param int _id: The test id of an existing test. (You should be using
     TestRun.load).
 """
@@ -127,6 +239,10 @@ class TestRun:
 
         self.id = None  # pylint: disable=invalid-name
 
+        # Mark the run to build locally.
+        self.build_local = not (config.get('build', {})
+                                .get('on_nodes', 'false').lower() == 'true')
+
         # Get an id for the test, if we weren't given one.
         if _id is None:
             self.id, self.path = self.create_id_dir(tests_path)
@@ -136,6 +252,8 @@ class TestRun:
             self.var_man = var_man
             self._variables_path = self.path / 'variables'
             self.var_man.save(self._variables_path)
+            self.opts = TestRunOptions(**options)
+            self.opts.save(self)
         else:
             self.id = _id
             self.path = utils.make_id_path(tests_path, self.id)
@@ -149,6 +267,8 @@ class TestRun:
                 )
             except RuntimeError as err:
                 raise TestRunError(*err.args)
+
+            self.opts = TestRunOptions.load(self)
 
         # Set a logger more specific to this test.
         self.logger = logging.getLogger('pav.TestRun.{}'.format(self.id))
@@ -182,8 +302,7 @@ class TestRun:
         try:
             if build_config['source_download_name'] is not None:
                 if build_config['source_location'] is None:
-                    msg = "Test could not be build. Need 'source_location'."
-                    fprint(msg)
+                    msg = "Test could not be built. Need 'source_location'."
                     self.status.set(STATES.BUILD_ERROR,
                                     "'source_download_name is set without a "
                                     "'source_location'")
@@ -247,6 +366,7 @@ class TestRun:
 
         :param pav_cfg: The pavilion config
         :param int test_id: The test's id number.
+        :rtype: TestRun
         """
 
         path = utils.make_id_path(pav_cfg.working_dir/'test_runs', test_id)
@@ -323,19 +443,30 @@ class TestRun:
             raise TestRunError("Error reading config file '{}': {}"
                                .format(config_path, err))
 
-    def build(self):
+    def build(self, cancel_event=None):
         """Build the test using its builder object and symlink copy it to
         it's final location. The build tracker will have the latest
         information on any encountered errors.
 
+        :param threading.Event cancel_event: Event to tell builds when to die.
+
         :returns: True if build successful
         """
 
-        if self.builder.build():
+        if cancel_event is None:
+            cancel_event = threading.Event()
+
+        if self.opts.rebuild and self.builder.exists():
+            self.builder.deprecate()
+
+            # This is fine even if multiple test runs with identical builds are
+            # rebuilding. They'll all start with the same name, that name will
+            # get deprecated, and only one new build will be created.
+            self.builder.rename_build()
+
+        if self.builder.build(cancel_event=cancel_event):
             # Create the build origin path, to make tracking a test's build
             # a bit easier.
-            if self.build_origin_path.exists():
-                self.build_origin_path.unlink()
             self.build_origin_path.symlink_to(self.builder.path)
 
             return self.builder.copy_build(self.build_path)
@@ -352,6 +483,12 @@ class TestRun:
         :raises TestRunError: We don't actually raise this, but might in the
             future.
         """
+
+        if self.opts.build_only:
+            self.status.set(
+                STATES.RUN_ERROR,
+                "Tried to run a 'build_only' test object.")
+            return False
 
         self.status.set(STATES.PREPPING_RUN,
                         "Converting run template into run script.")
@@ -478,7 +615,7 @@ result
     exit status). Is generally expected to be overridden by other
     result parsers.
 
-:param str run_result: The result of the run.
+:param bool run_result: The result of the run.
 """
 
         if self._finished is None:
@@ -562,11 +699,20 @@ result
             return False
 
     @property
+    def build_only(self):
+        """We note that a run is only meant to perform a build by dropping
+        a 'BUILD_ONLY' file in the test run directory."""
+
+        build_only_path = self.path/self.BUILD_ONLY_FN
+
+        return build_only_path.exists()
+
+    @property
     def job_id(self):
         """The job id of this test (saved to a ``jobid`` file). This should
 be set by the scheduler plugin as soon as it's known."""
 
-        path = self.path/'jobid'
+        path = self.path/self.JOB_ID_FN
 
         if self._job_id is not None:
             return self._job_id
@@ -586,7 +732,7 @@ be set by the scheduler plugin as soon as it's known."""
     @job_id.setter
     def job_id(self, job_id):
 
-        path = self.path/'jobid'
+        path = self.path/self.JOB_ID_FN
 
         try:
             with path.open('w') as job_id_file:

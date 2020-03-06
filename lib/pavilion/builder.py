@@ -2,6 +2,7 @@
 the TestBuilder class itself."""
 
 import bz2
+import datetime
 import gzip
 import hashlib
 import logging
@@ -75,8 +76,10 @@ class MultiBuildTracker:
         if state is not None:
             self.status_files[builder].set(state, note)
 
+        now = datetime.datetime.now()
+
         with self.lock:
-            self.messages[builder].append(note)
+            self.messages[builder].append((now, state, note))
             if state is not None:
                 self.status[builder] = state
 
@@ -163,21 +166,38 @@ class TestBuilder:
             mb_tracker = MultiBuildTracker()
         self.tracker = mb_tracker.register(self, test.status)
 
+        self.tracker.update(state=STATES.BUILD_CREATED,
+                            note="Builder created.")
+
         self._pav_cfg = pav_cfg
         self._config = test.config.get('build', {})
         self._script_path = test.build_script_path
         self._test_id = test.id
         self._timeout = test.build_timeout
 
+        if not test.build_local:
+            self.tracker.update(state=STATES.BUILD_DEFERRED,
+                                note="Build will run on nodes.")
+
         if build_name is None:
-            b_hash = self.create_build_hash()
-            self.name = self.name_build(b_hash)
+            self.name = self.name_build()
         else:
             self.name = build_name
 
-        self.path = pav_cfg.working_dir/'builds'/self.name
+        # TODO: Builds can get renamed, this needs to be fixed.
+        self.path = pav_cfg.working_dir/'builds'/self.name  # type: Path
         fail_name = 'fail.{}.{}'.format(self.name, self._test_id)
         self.fail_path = pav_cfg.working_dir/'builds'/fail_name
+
+    def exists(self):
+        """Return True if the given build exists."""
+        return self.path.exists()
+
+    def deprecate(self):
+        """Deprecate this build, so that it will be rebuilt if any other
+        test run wants to use it."""
+        deprecated_path = self.path/self.DEPRECATED
+        deprecated_path.touch(exist_ok=True)
 
     def create_build_hash(self):
         """Turn the build config, and everything the build needs, into hash.
@@ -236,9 +256,11 @@ class TestBuilder:
 
         return hash_obj.hexdigest()[:self.BUILD_HASH_BYTES * 2]
 
-    def name_build(self, bhash):
+    def name_build(self):
         """Search for the first non-deprecated version of this build (whether
         or not it exists) and name the build for it."""
+
+        bhash = self.create_build_hash()
 
         builds_dir = self._pav_cfg.working_dir/'builds'
         version = 1
@@ -252,6 +274,14 @@ class TestBuilder:
             path = builds_dir/name
 
         return name
+
+    def rename_build(self):
+        """Rechecks deprecation and updates the build name."""
+
+        self.name = self.name_build()
+        self.path = self._pav_cfg.working_dir/'builds'/self.name  # type: Path
+        fail_name = 'fail.{}.{}'.format(self.name, self._test_id)
+        self.fail_path = self._pav_cfg.working_dir/'builds'/fail_name
 
     def _update_src(self):
         """Retrieve and/or check the existence of the files needed for the
@@ -301,10 +331,12 @@ class TestBuilder:
                 "Source location '{}' points to something unusable."
                 .format(src_path))
 
-    def build(self):
+    def build(self, cancel_event=None):
         """Perform the build if needed, do a soft-link copy of the build
         directory into our test directory, and note that we've used the given
         build.
+        :param threading.Event cancel_event: Allows builds to tell each other
+        to die.
         :return: True if these steps completed successfully.
         """
 
@@ -333,7 +365,7 @@ class TestBuilder:
                     # wrong.
                     # This will also set the test status for
                     # non-catastrophic cases.
-                    if not self._build(build_dir):
+                    if not self._build(build_dir, cancel_event):
                         build_dir.rename(self.fail_path)
 
                         # If the build didn't succeed, copy the attempted build
@@ -342,21 +374,20 @@ class TestBuilder:
 
                     # Rename the build to it's final location.
                     build_dir.rename(self.path)
+
+                    # Make a symlink in the build directory that points to
+                    # the original test that built it
+                    try:
+                        dst = self.path / '.built_by'
+                        dst.symlink_to(self.path, True)
+                        dst.resolve()
+                    except OSError:
+                        self.tracker.warn("Could not create symlink to test.")
                 else:
                     self.tracker.update(
-                        state=STATES.BUILD_DONE,
+                        state=STATES.BUILD_REUSED,
                         note="Build {s.name} created while waiting for build "
                              "lock.".format(s=self))
-
-                # Make a symlink in the build directory that points to
-                # the original test that built it
-                try:
-                    dst = self.path/'.built_by'
-                    dst.symlink_to(self.path, True)
-                    dst.resolve()
-                except OSError:
-                    self.tracker.warn("Could not create symlink to test.")
-
         else:
             self.tracker.update(
                 note=("Test {s.name} run {s._test_id} reusing build."
@@ -365,9 +396,11 @@ class TestBuilder:
 
         return True
 
-    def _build(self, build_dir):
+    def _build(self, build_dir, cancel_event):
         """Perform the build. This assumes there actually is a build to perform.
         :param Path build_dir: The directory in which to perform the build.
+        :param threading.Event cancel_event: Event to signal that the build
+        should stop.
         :returns: True or False, depending on whether the build appears to have
             been successful.
         """
@@ -383,8 +416,6 @@ class TestBuilder:
 
         build_log_path = build_dir/self.LOG_NAME
 
-        wait_time = self._timeout
-
         try:
             # Do the build, and wait for it to complete.
             with build_log_path.open('w') as build_log:
@@ -398,31 +429,40 @@ class TestBuilder:
                 result = None
                 while result is None:
                     try:
-                        result = proc.wait(timeout=wait_time)
+                        result = proc.wait(timeout=1)
                     except subprocess.TimeoutExpired:
                         log_stat = build_log_path.stat()
-                        quiet_time = time.time() - log_stat.st_mtime
+                        timeout = log_stat.st_mtime + self._timeout
                         # Has the output file changed recently?
-                        if self._timeout < quiet_time:
+                        if time.time() > timeout:
                             # Give up on the build, and call it a failure.
                             proc.kill()
+                            cancel_event.set()
                             self.tracker.update(
                                 state=STATES.BUILD_TIMEOUT,
                                 note="Build timed out after {} seconds."
                                 .format(self._timeout))
                             return False
-                        else:
-                            # Only wait a max of self._build_timeout next
-                            # 'wait'
-                            wait_time = self._timeout - quiet_time
+
+                        if cancel_event is not None and cancel_event.is_set():
+                            proc.kill()
+                            self.tracker.update(
+                                state=STATES.ABORTED,
+                                note="Build canceled due to other builds "
+                                     "failing.")
+                            return False
 
         except subprocess.CalledProcessError as err:
+            if cancel_event is not None:
+                cancel_event.set()
             self.tracker.update(
                 state=STATES.BUILD_ERROR,
                 note="Error running build process: {}".format(err))
             return False
 
         except (IOError, OSError) as err:
+            if cancel_event is not None:
+                cancel_event.set()
             self.tracker.update(
                 state=STATES.BUILD_ERROR,
                 note="Error that's probably related to writing the "
@@ -435,6 +475,8 @@ class TestBuilder:
             self.tracker.warn("Error fixing build permissions: %s".format(err))
 
         if result != 0:
+            if cancel_event is not None:
+                cancel_event.set()
             self.tracker.update(
                 state=STATES.BUILD_FAILED,
                 note="Build returned a non-zero result.")

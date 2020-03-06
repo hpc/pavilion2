@@ -1,3 +1,6 @@
+"""Given an pre-existing test run, runs the test in the scheduled
+environment."""
+
 import logging
 
 from pavilion import output
@@ -36,22 +39,58 @@ class _RunCommand(commands.Command):
             raise
 
         try:
-            self._run(pav_cfg, test)
+            sched = self._get_sched(test)
+
+            var_man = self._get_var_man(test, sched)
+
+            try:
+                test.finalize(var_man)
+            except Exception:
+                test.status.set(STATES.RUN_ERROR,
+                                "Unknown error finalizing test.")
+                raise
+
+            try:
+                if not test.build_local:
+                    if not test.build():
+                        self.logger.warning(
+                            "Test {t.id} failed to build:"
+                        )
+                    return
+
+            except Exception:
+                test.status.set(
+                    STATES.BUILD_ERROR,
+                    "Unknown build error. Refer to the kickoff log.")
+                raise
+
+            if not test.opts.build_only:
+                self._run(pav_cfg, test, sched)
         finally:
             test.set_run_complete()
 
-    def _run(self, pav_cfg, test):
-        """Run an already prepped test in the current environment.
+    @staticmethod
+    def _get_sched(test):
+        """Get the scheduler for the given test.
+        :param TestRun test: The test.
         """
 
         try:
-            sched = schedulers.get_plugin(test.scheduler)
+            return schedulers.get_plugin(test.scheduler)
         except Exception:
             test.status.set(STATES.BUILD_ERROR,
                             "Unknown error getting the scheduler. Refer to "
                             "the kickoff log.")
             raise
 
+    @staticmethod
+    def _get_var_man(test, sched):
+        """Get the variable manager for the given test.
+
+        :param TestRun test: The test run object
+        :param sched: The scheduler for this test.
+        :rtype VariableSetManager
+        """
         # Re-add var sets that may have had deferred variables.
         try:
             var_man = VariableSetManager()
@@ -64,23 +103,15 @@ class _RunCommand(commands.Command):
                             "run time.")
             raise
 
-        try:
-            test.finalize(var_man)
-        except Exception:
-            test.status.set(STATES.RUN_ERROR,
-                            "Unknown error finalizing test.")
-            raise
+        return var_man
 
-        try:
-            if test.config['build']['on_nodes'] in ['true', 'True']:
-                if not test.build():
-                    self.logger.warning(
-                        "Test {t.id} failed to build:"
-                    )
-        except Exception:
-            test.status.set(STATES.BUILD_ERROR,
-                            "Unknown build error. Refer to the kickoff log.")
-            raise
+    def _run(self, pav_cfg, test, sched):
+        """Run an already prepped test in the current environment.
+        :param pav_cfg: The pavilion configuration object.
+        :param TestRun test: The test to run
+        :param sched: The scheduler we're running under.
+        :return:
+        """
 
         # Optionally wait on other tests running under the same scheduler.
         # This depends on the scheduler and the test configuration.
