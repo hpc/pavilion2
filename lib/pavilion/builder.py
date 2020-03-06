@@ -29,9 +29,10 @@ class TestBuilderError(RuntimeError):
 
 
 class MultiBuildTracker:
-    """
+    """Allows for the central organization of multiple build tracker objects.
+
         :ivar {StatusFile} status_files: The dictionary of status
-        files by build.
+            files by build.
     """
 
     def __init__(self):
@@ -48,11 +49,13 @@ class MultiBuildTracker:
         self.logger = logging.getLogger(__name__)
 
     def register(self, builder, test_status_file):
-        """
-        :param builder:
+        """Register a builder, and get your own build tracker.
+
+        :param TestBuilder builder: The builder object to track.
         :param status_file.StatusFile test_status_file: The status file object
-        for the corresponding test.
+            for the corresponding test.
         :return: A build tracker instance that can be used by builds directly.
+        :rtype: BuildTracker
         """
 
         with self.lock:
@@ -64,13 +67,13 @@ class MultiBuildTracker:
 
     def update(self, builder, note, state=None, log=None):
         """Add a message for the given builder without changes the status.
+
         :param TestBuilder builder: The builder object to set the message.
         :param note: The message to set.
         :param str state: A status_file state to set on this builder's status
             file.
         :param int log: A log level for the python logger. If set, also
             log the message to the Pavilion log.
-        :return:
         """
 
         if state is not None:
@@ -127,15 +130,15 @@ class BuildTracker:
 
 
 class TestBuilder:
-    """
+    """Manages a test build and their organization.
 
-    :cvar int _BLOCK_SIZE: Chunk size when reading and hashing files.
-    :cvar int BUILD_HASH_BYTES: Number of bytes in the build hash (1/2 the
+:cvar int _BLOCK_SIZE: Chunk size when reading and hashing files.
+:cvar int BUILD_HASH_BYTES: Number of bytes in the build hash (1/2 the
     chars)
-    :cvar str DEPRECATED: The name of the build deprecation file.
-    :ivar Path path: The intended location of this build in the build directory.
-    :ivar Path fail_path: Where this build will be placed if it fails.
-    :ivar str name: The name of this build.
+:cvar str DEPRECATED: The name of the build deprecation file.
+:ivar Path ~.path: The intended location of this build in the build directory.
+:ivar Path fail_path: Where this build will be placed if it fails.
+:ivar str name: The name of this build.
 """
 
     _BLOCK_SIZE = 4096*1024

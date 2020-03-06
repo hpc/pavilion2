@@ -4,6 +4,7 @@ API Documentation
 .. toctree::
 
     args_and_config.rst
+    builder.rst
     commands.rst
     misc.rst
     modules.rst
