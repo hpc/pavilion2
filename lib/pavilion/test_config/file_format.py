@@ -19,6 +19,19 @@ KEY_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_-]*$')
 VAR_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_-]*[\?\+]?$')
 
 
+class FlexibleKeyElem(yc.CategoryElem):
+    """This is for category elements that need flexible key regex."""
+
+    _NAME_RE = re.compile(r"^[\w\-. ]+$")
+
+    # TODO: Not sure what to alter here.
+    def __init__(self, name=None, **kwargs):
+        super(FlexibleKeyElem, self).__init__(name=name,
+                                              sub_elem=yc.ListElem(),
+                                              defaults=None,
+                                              **kwargs)
+
+
 class VariableElem(yc.CategoryElem):
     """This is for values in the 'variables' section of a test config.
 
@@ -199,9 +212,9 @@ expected to be added to by various plugins.
                     choices=['true', 'false', 'True', 'False'],
                     help_text="Whether to build on or off of the test "
                               "allocation."),
-                yc.ListElem(
+                FlexibleKeyElem(
                     'make_files',  sub_elem=yc.ListElem(sub_elem=yc.StrElem()),
-                    help_text="File(s) to create in relative to the test's"
+                    help_text="File(s) to create at path relative to the test's"
                               "test source directory"),
                 yc.ListElem(
                     'modules', sub_elem=yc.StrElem(),
@@ -267,7 +280,7 @@ expected to be added to by various plugins.
                 yc.ListElem(
                     'modules', sub_elem=yc.StrElem(),
                     help_text="Modules to load into the run environment."),
-                yc.ListElem(
+                FlexibleKeyElem(
                     'make_files', sub_elem=yc.ListElem(sub_elem=yc.StrElem()),
                     help_text="File(s) to create in relative to the test's"
                               "test source directory"),
