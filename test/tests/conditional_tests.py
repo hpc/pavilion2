@@ -27,8 +27,10 @@ class conditionalTest(unittest.PavTestCase):
 
         test_cfg = {'variables': {'person': ['calvin'],
                                   'machine': ['bieber']},
-                    'not_if': {'person': ['bleh', 'notcalvin']},
-                    'only_if': {'machine': ['notbieber', 'bieber']},
+                    'not_if': {'person': ['bleh', 'notcalvin'],
+                               'machine': ['notbieber', 'foo']},
+                    'only_if': {'machine': ['notbieber', 'bieber'],
+                                'person': ['notcalvin', 'calvin']},
                     'scheduler': 'raw',
                     'suite': 'unittest',
                     'build': {'verbose': 'false', 'timeout': '30'},
@@ -62,8 +64,21 @@ class conditionalTest(unittest.PavTestCase):
 
         test_list.append(test_cfg)
 
-        test_cfg = {'variables': {'person': ['calvin']},
-                    'not_if': {'person': ['nivlac', 'notcalvin']},
+        test_cfg = {'variables': {'person': ['calvin'],
+                                  'machine': ['bieber']},
+                    'not_if': {'person': ['nivlac', 'notcalvin'],
+                               'machine': ['blurg']},
+                    'scheduler': 'raw',
+                    'suite': 'unittest',
+                    'build': {'verbose': 'false', 'timeout': '30'},
+                    'run': {'cmds': ['echo "Goodbye World"'],
+                            'verbose': 'false', 'timeout': '300'},
+                    'slurm': {}}
+
+        test_list.append(test_cfg)
+
+        test_cfg = {'variables': {'person': ['calvin'],
+                                  'machine': ['bieber']},
                     'scheduler': 'raw',
                     'suite': 'unittest',
                     'build': {'verbose': 'false', 'timeout': '30'},
@@ -87,8 +102,10 @@ class conditionalTest(unittest.PavTestCase):
 
         test_cfg = {'variables': {'person': ['calvin'],
                                   'machine': ['bieber']},
-                    'not_if': {'person': ['bleh', 'notcalvin']},
-                    'only_if': {'machine': ['notbieber', 'bleh']},
+                    'not_if': {'person': ['bleh', 'notcalvin'],
+                               'machine': ['notbieb']},
+                    'only_if': {'machine': ['notbieber', 'bleh'],
+                                'person': ['calvin']},
                     'scheduler': 'raw',
                     'suite': 'unittest',
                     'build': {'verbose': 'false', 'timeout': '30'},
@@ -98,7 +115,8 @@ class conditionalTest(unittest.PavTestCase):
 
         test_list.append(test_cfg)
 
-        test_cfg = {'variables': {'person': ['calvin']},
+        test_cfg = {'variables': {'person': ['calvin'],
+                                  'machine': ['bieber']},
                     'only_if': {'person': ['nivlac', 'notcalvin']},
                     'scheduler': 'raw',
                     'suite': 'unittest',
@@ -148,8 +166,10 @@ class conditionalTest(unittest.PavTestCase):
 
         test_cfg = {'variables': {'person': ['calvin'],
                                   'machine': ['bieber']},
-                    'only_if': {'person': ['nivlac', 'calvin']},
-                    'not_if': {'machine': ['nivlac', 'bieber']},
+                    'only_if': {'person': ['nivlac', 'calvin'],
+                                'machine': ['bieber']},
+                    'not_if': {'machine': ['nivlac', 'notbieber'],
+                               'person': ['calvin']},
                     'scheduler': 'raw',
                     'suite': 'unittest',
                     'build': {'verbose': 'false', 'timeout': '30'},

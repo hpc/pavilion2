@@ -1340,13 +1340,11 @@ directory that doesn't already exist.
                            "The current {0} is {2}: SKIPPED"
                            .format(nkey, nvalues, var_man[nkey]))
                 match_list.append(message)
-                return match_list
         for okey, ovalues in only_if.items():
             if var_man[okey] not in ovalues:
                 message = ("Only if {0} is one of {1}. "
                            "Current {0} is {2}: SKIPPED"
                            .format(okey, ovalues, var_man[okey]))
                 match_list.append(message)
-                return match_list
 
-        return match_list  # no skips found if returned here
+        return match_list  # returns list, can be empty.
