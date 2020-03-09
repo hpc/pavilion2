@@ -194,15 +194,15 @@ expected to be added to by various plugins.
                               'Relative paths searched for in ~/.pavilion, '
                               '$PAV_CONFIG. Absolute paths are ok, '
                               'but not recommended.'),
-                yc.ListElem(
-                    'file_create', sub_elem=yc.ListElem(sub_elem=yc.StrElem()),
-                    help_text="File(s) to create in relative to the test's"
-                              "test source directory"),
                 yc.StrElem(
                     'on_nodes', default='False',
                     choices=['true', 'false', 'True', 'False'],
                     help_text="Whether to build on or off of the test "
                               "allocation."),
+                yc.ListElem(
+                    'make_files',  sub_elem=yc.ListElem(sub_elem=yc.StrElem()),
+                    help_text="File(s) to create in relative to the test's"
+                              "test source directory"),
                 yc.ListElem(
                     'modules', sub_elem=yc.StrElem(),
                     help_text="Modules to load into the build environment."),
@@ -265,12 +265,12 @@ expected to be added to by various plugins.
                     help_text="Environment variables to set in the run "
                               "environment."),
                 yc.ListElem(
-                    'file_create', sub_elem=yc.ListElem(sub_elem=yc.StrElem()),
-                    help_text="File(s) to create in relative to the test's"
-                              "test source directory"),
-                yc.ListElem(
                     'modules', sub_elem=yc.StrElem(),
                     help_text="Modules to load into the run environment."),
+                yc.ListElem(
+                    'make_files', sub_elem=yc.ListElem(sub_elem=yc.StrElem()),
+                    help_text="File(s) to create in relative to the test's"
+                              "test source directory"),
                 yc.ListElem(
                     'preamble', sub_elem=yc.StrElem(),
                     help_text="Setup commands for the beginning of the build "

@@ -671,7 +671,6 @@ class TestRun:
         """
 
         build_config = self.config.get('build', {})
-
         src_loc = build_config.get('source_location')
         if src_loc is None:
             src_path = None
@@ -839,6 +838,10 @@ class TestRun:
                         "Could not copy test src '{}' to '{}': {}"
                         .format(src_path, dest, err))
 
+        # Generate file(s) from build_config
+        if build_config.get('make_files'):
+            self._setup_make_file(build_config.get('make_files', []), build_path)
+
         # Now we just need to copy over all of the extra files.
         for extra in build_config.get('extra_files', []):
             extra = Path(extra)
@@ -850,6 +853,13 @@ class TestRun:
                 raise TestRunError(
                     "Could not copy extra file '{}' to dest '{}': {}"
                     .format(path, dest, err))
+
+    def _setup_make_file(self, files, dst):
+        print(type(files))
+        for f in files:
+            for j in f:
+                print(j)
+
 
     def _fix_build_permissions(self):
         """The files in a build directory should never be writable, but
@@ -872,6 +882,7 @@ class TestRun:
                 file_path = path/file
                 file_stat = file_path.stat()
                 file_path.lchmod(file_stat.st_mode & file_mask)
+
 
     def run(self):
         """Run the test.

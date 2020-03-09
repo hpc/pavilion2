@@ -18,20 +18,17 @@ from pavilion.module_actions import ModuleAction
 class ScriptComposerError(RuntimeError):
     """Class level exception during script composition."""
 
-# TODO: inherit + override
-
 
 class ScriptHeader:
     """Class to serve as a struct for the script header."""
 
-    def __init__(self, shebang=None, scheduler_headers=None):
+    def __init__(self, shebang='#!/bin/bash', scheduler_headers=None):
         """The header values for a script.
         :param string shebang: Shell path specification.  Typically
                                   '/bin/bash'.  default = None.
         :param list scheduler_headers: List of lines for scheduler resource
                                        specifications.
         """
-        self._shebang = None
         self._scheduler_headers = None
         self.shebang = shebang
         self.scheduler_headers = scheduler_headers
@@ -44,10 +41,6 @@ class ScriptHeader:
     @shebang.setter
     def shebang(self, value):
         """Function to set the value of the internal shell path variable."""
-        if value is None:
-            # FIXME: default; can be none
-            value = '#!/bin/bash'
-
         self._shebang = value
 
     @property
@@ -85,31 +78,23 @@ class ScriptHeader:
         self.__init__()
 
 
-# Inherit from ScriptHeader and override methods to enable the creation of
-# non-script files.
-class GenericHeader(ScriptHeader):
-    """Class for generic file header.
+class NoHeader(ScriptHeader):
+    """Class for no file header.
     None.
     """
     @property
     def shebang(self):
-        return self._shebang
+        pass
 
     @shebang.setter
     def shebang(self, comment):
-        if comment is not None:
-            text = comment
-        else:
-            text = '# Pavilion test config artifact.'
-        self._shebang = text
+        pass
 
     def get_lines(self):
-        # TODO: Not sure why a header would need multiple lines. Do we need
-        #       multiple lines here?
-        print("TODO")
+        pass
 
 
-class ScriptDetails():
+class ScriptDetails:
     """Class to contain the final details of the script."""
 
     def __init__(self, path=None, group=None, perms=None):
@@ -293,7 +278,7 @@ in one of three formats:
         :param str comment: Text to be put in comment without the leading '# '.
         """
         self._script_lines.append("# {}".format(comment))
-#want
+
     def command(self, command):
         """Add a line unadulterated to the script lines.
 
