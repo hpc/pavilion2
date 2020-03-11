@@ -76,8 +76,18 @@ class CleanCommand(commands.Command):
         # Clean Tests
         output.fprint("Removing Tests...", file=self.outfile,
                       color=output.GREEN)
-        for test in os.listdir(tests_dir.as_posix()):
-            test_path = tests_dir/test
+        for test_path in tests_dir.iterdir():
+            test = test_path.name
+            try:
+                int(test)
+            except ValueError:
+                # Skip files that aren't numeric
+                continue
+
+            # Skip non-directories.
+            if not test_path.is_dir():
+                continue
+
             try:
                 test_time = datetime.fromtimestamp(test_path.lstat().st_mtime)
             except FileNotFoundError:

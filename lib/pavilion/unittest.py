@@ -55,6 +55,15 @@ base class.
     # Only run tests that match these globs.
     ONLY = []
 
+    # Working dirs
+    WORKING_DIRS = [
+        'builds',
+        'test_runs',
+        'series',
+        'users',
+        'downloads'
+        ]
+
     def __init__(self, *args, **kwargs):
         """Setup the pav_cfg object, and do other initialization required by
         pavilion."""
@@ -95,16 +104,12 @@ base class.
 
         self.pav_cfg.pav_vars = pav_vars.PavVars()
 
+        if not self.pav_cfg.working_dir.exists():
+            self.pav_cfg.working_dir.mkdir(exist_ok=True, parents=True)
+
         # Create the basic directories in the working directory
-        for path in [
-                self.pav_cfg.working_dir,
-                self.pav_cfg.working_dir/'builds',
-                self.pav_cfg.working_dir/'test_runs',
-                self.pav_cfg.working_dir/'series',
-                self.pav_cfg.working_dir/'users',
-                self.pav_cfg.working_dir/'downloads']:
-            if not path.exists():
-                os.makedirs(str(path), exist_ok=True)
+        for path in self.WORKING_DIRS:
+            (self.pav_cfg.working_dir/path).mkdir(exist_ok=True, parents=True)
 
         self.tmp_dir = tempfile.TemporaryDirectory()
 

@@ -1,9 +1,13 @@
-from pavilion.unittest import PavTestCase
-from pavilion.test_run import TestRun
-import shutil
 import copy
+import shutil
+import threading
+import time
 import unittest
+
 from pavilion import wget
+from pavilion.status_file import STATES
+from pavilion.test_run import TestRun
+from pavilion.unittest import PavTestCase
 
 
 class BuilderTests(PavTestCase):
@@ -209,3 +213,46 @@ class BuilderTests(PavTestCase):
         current_note = test3.status.current().note
         self.assertTrue(current_note.startswith(
             "Build returned a non-zero result."))
+
+    def test_builder_cancel(self):
+        """Check build canceling through their threading event."""
+
+        cancel_event = threading.Event()
+
+        config = {
+            'name': 'build_test',
+            'scheduler': 'raw',
+            'build': {
+                'timeout': '11',
+                'cmds': ['sleep 5'],
+            },
+        }
+
+        #  Check that building, and then re-using, a build directory works.
+        test = TestRun(self.pav_cfg, config)
+
+        thread = threading.Thread(
+            target=test.build,
+            args=(cancel_event,)
+        )
+        thread.start()
+
+        # Wait for the test to actually start building.
+        timeout = 5 + time.time()
+        states = [stat.state for stat in test.status.history()]
+        while STATES.BUILDING not in states:
+            if time.time() > timeout:
+                self.fail("Test {} did not complete within 5 seconds."
+                          .format(test.id))
+            time.sleep(.5)
+            states = [stat.state for stat in test.status.history()]
+
+        time.sleep(.2)
+        cancel_event.set()
+
+        try:
+            thread.join(timeout=1)
+        except TimeoutError:
+            self.fail("Build did not respond quickly enough to being canceled.")
+
+        self.assertEqual(test.status.current().state, STATES.ABORTED)

@@ -169,9 +169,6 @@ class TestBuilder:
             mb_tracker = MultiBuildTracker()
         self.tracker = mb_tracker.register(self, test.status)
 
-        self.tracker.update(state=STATES.BUILD_CREATED,
-                            note="Builder created.")
-
         self._pav_cfg = pav_cfg
         self._config = test.config.get('build', {})
         self._script_path = test.build_script_path
@@ -184,6 +181,8 @@ class TestBuilder:
 
         if build_name is None:
             self.name = self.name_build()
+            self.tracker.update(state=STATES.BUILD_CREATED,
+                                note="Builder created.")
         else:
             self.name = build_name
 
@@ -195,12 +194,6 @@ class TestBuilder:
     def exists(self):
         """Return True if the given build exists."""
         return self.path.exists()
-
-    def deprecate(self):
-        """Deprecate this build, so that it will be rebuilt if any other
-        test run wants to use it."""
-        deprecated_path = self.path/self.DEPRECATED
-        deprecated_path.touch(exist_ok=True)
 
     def create_build_hash(self):
         """Turn the build config, and everything the build needs, into hash.
@@ -285,6 +278,13 @@ class TestBuilder:
         self.path = self._pav_cfg.working_dir/'builds'/self.name  # type: Path
         fail_name = 'fail.{}.{}'.format(self.name, self._test_id)
         self.fail_path = self._pav_cfg.working_dir/'builds'/fail_name
+
+    def deprecate(self):
+        """Deprecate this build, so that it will be rebuilt if any other
+        test run wants to use it."""
+
+        deprecated_path = self.path/self.DEPRECATED
+        deprecated_path.touch(exist_ok=True)
 
     def _update_src(self):
         """Retrieve and/or check the existence of the files needed for the
@@ -378,14 +378,13 @@ class TestBuilder:
                     # Rename the build to it's final location.
                     build_dir.rename(self.path)
 
-                    # Make a symlink in the build directory that points to
-                    # the original test that built it
+                    # Make a file with the test id of the building test.
                     try:
                         dst = self.path / '.built_by'
-                        dst.symlink_to(self.path, True)
-                        dst.resolve()
+                        with dst.open('w') as built_by:
+                            built_by.write(str(self._test_id))
                     except OSError:
-                        self.tracker.warn("Could not create symlink to test.")
+                        self.tracker.warn("Could not create built_by file.")
                 else:
                     self.tracker.update(
                         state=STATES.BUILD_REUSED,

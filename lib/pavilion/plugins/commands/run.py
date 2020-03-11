@@ -23,7 +23,13 @@ from pavilion.builder import MultiBuildTracker
 
 
 class RunCommand(commands.Command):
-    """Resolve tests by name, build, and run them."""
+    """Resolve tests by name, build, and run them.
+
+    :ivar TestSeries last_series: The suite number of the last suite to run
+        with this command (for unit testing).
+    :ivar [TestRun] last_tests: A list of the last test runs that this command
+        started (also for unit testing).
+    """
 
     BUILD_ONLY = False
 
@@ -31,6 +37,9 @@ class RunCommand(commands.Command):
 
         super().__init__('run', 'Setup and run a set of tests.',
                          short_help="Setup and run a set of tests.")
+
+        self.last_series = None
+        self.last_tests = []
 
     def _setup_arguments(self, parser):
 
@@ -119,18 +128,23 @@ class RunCommand(commands.Command):
 
         mb_tracker = MultiBuildTracker()
 
-        tests_by_sched = self._get_tests(pav_cfg, args, mb_tracker,
-                                         build_only=self.BUILD_ONLY)
+        local_builds_only = getattr(args, 'local_builds_only', False)
+
+        tests_by_sched = self._get_tests(
+            pav_cfg, args, mb_tracker, build_only=self.BUILD_ONLY,
+            local_builds_only=getattr(args, 'local_builds_only', False))
         if tests_by_sched is None:
             return errno.EINVAL
 
         all_tests = sum(tests_by_sched.values(), [])
+        self.last_tests = list(all_tests)
 
         if not all_tests:
             fprint("You must specify at least one test.", file=self.errfile)
             return errno.EINVAL
 
         series = TestSeries(pav_cfg, all_tests)
+        self.last_series = series
 
         res = self.check_result_parsers(all_tests)
         if res != 0:
@@ -171,8 +185,7 @@ class RunCommand(commands.Command):
             report_status=report_status,
         )
 
-    def run_tests(self, pav_cfg, tests_by_sched, series, wait,
-                  report_status, build_only=False):
+    def run_tests(self, pav_cfg, tests_by_sched, series, wait, report_status):
         """
         :param pav_cfg:
         :param dict[str,[TestRun]] tests_by_sched: A dict by scheduler name
@@ -190,13 +203,15 @@ class RunCommand(commands.Command):
         for sched_name, tests in tests_by_sched.items():
             sched = schedulers.get_plugin(sched_name)
 
-            # If we're only building, filter down to just the tests that need
-            # to build on nodes.
-            if build_only:
-                tests = [test for test in tests
-                         if (test.config['build']['on_nodes'].lower() == 'true'
-                             and (test.opts.rebuild or
-                                  not test.builder.exists()))]
+            # Filter out any 'build_only' tests (it should be all or none)
+            # that shouldn't be scheduled.
+            tests = [test for test in tests if
+                     # The non-build only tests
+                     (not test.opts.build_only) or
+                     # The build only tests that are built on nodes
+                     (not test.build_local and
+                      # As long they need to be built.
+                      (test.opts.rebuild or not test.builder.exists()))]
 
             # Skip this scheduler if it doesn't have tests that need to run.
             if not tests:
@@ -415,13 +430,16 @@ class RunCommand(commands.Command):
 
         return tests_by_sched
 
-    def _get_tests(self, pav_cfg, args, mb_tracker, build_only=False):
+    def _get_tests(self, pav_cfg, args, mb_tracker, build_only=False,
+                   local_builds_only=False):
         """Turn the test run arguments into actual TestRun objects.
         :param pav_cfg: The pavilion config object
         :param args: The run command arguments
         :param MultiBuildTracker mb_tracker: The build tracker.
         :param bool build_only: Whether to denote that we're only building
             these tests.
+        :param bool local_builds_only: Only include tests that would be built
+            locally.
         :return:
         :rtype: {}
         """
@@ -441,6 +459,18 @@ class RunCommand(commands.Command):
                 sys_vars=sys_vars,
             )
 
+            # Remove non-local builds when doing only local builds.
+            if build_only and local_builds_only:
+                for sched in configs_by_sched:
+                    sched_cfgs = configs_by_sched[sched]
+                    for i in range(len(sched_cfgs)):
+                        config, _ = sched_cfgs[i]
+                        if config['build']['on_nodes'].lower() == 'true':
+                            sched_cfgs[i] = None
+                    sched_cfgs = [cfg for cfg in sched_cfgs
+                                  if cfg is not None]
+                    configs_by_sched[sched] = sched_cfgs
+
             tests_by_sched = self._configs_to_tests(
                 pav_cfg=pav_cfg,
                 configs_by_sched=configs_by_sched,
@@ -452,7 +482,7 @@ class RunCommand(commands.Command):
         except commands.CommandError as err:
             # Our error messages get escaped to a silly degree
             err = codecs.decode(str(err), 'unicode-escape')
-            fprint(err, file=self.errfile)
+            fprint(err, file=self.errfile, flush=True)
             return None
 
         return tests_by_sched
@@ -539,6 +569,16 @@ class RunCommand(commands.Command):
 
         cancel_event = threading.Event()
 
+        # Generate new build names for each test that is rebuilding.
+        # We do this here, even for non_local tests, because otherwise the
+        # non-local tests can't tell what was built fresh either on a
+        # front-end or by other tests rebuilding on nodes.
+        for test in tests:
+            if test.opts.rebuild and test.builder.exists():
+                test.builder.deprecate()
+                test.builder.rename_build()
+                test.save_build_name()
+
         # We don't want to start threads that are just going to wait on a lock,
         # so we'll rearrange the builds so that the uniq build names go first.
         # We'll use this as a stack, so tests that should build first go at
@@ -548,10 +588,9 @@ class RunCommand(commands.Command):
         seen_build_names = set()
 
         for test in tests:
-            if test.config['build']['on_nodes'].lower() == 'true':
+            if not test.build_local:
                 remote_builds.append(test)
-
-            if test.builder.name not in seen_build_names:
+            elif test.builder.name not in seen_build_names:
                 build_order.append(test)
                 seen_build_names.add(test.builder.name)
             else:
@@ -577,9 +616,9 @@ class RunCommand(commands.Command):
         # to the verbosity level. As threads finish, new ones are started until
         # either all builds complete or a build fails, in which case all tests
         # are aborted.
-        while build_order:
+        while build_order or test_threads:
             # Start a new thread if we haven't hit our limit.
-            if builds_running < max_threads:
+            if build_order and builds_running < max_threads:
                 test = build_order.pop()
 
                 test_thread = threading.Thread(

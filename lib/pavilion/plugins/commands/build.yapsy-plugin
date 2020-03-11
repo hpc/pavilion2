@@ -1,0 +1,9 @@
+[Core]
+Name = Build Command
+Module = build
+
+[Documentation]
+Description = Command to build tests
+Author = Nicholas Sly/Paul Ferrell
+Version = 1.0
+Website =

@@ -18,7 +18,6 @@ from pavilion import lockfile
 from pavilion import result_parsers
 from pavilion import scriptcomposer
 from pavilion import utils
-from pavilion.output import fprint
 from pavilion.status_file import StatusFile, STATES
 from pavilion.test_config import variables, string_parser, resolve_deferred
 from pavilion.test_config.file_format import TestConfigError
@@ -179,6 +178,8 @@ class TestRun:
     :ivar int id: The test id.
     :ivar dict config: The test's configuration.
     :ivar Path test.path: The path to the test's test_run directory.
+    :ivar dict results: The test results. Set None if results haven't been
+        gathered.
     :ivar TestBuilder builder: The test builder object, with information on the
         test's build.
     :ivar Path build_origin_path: The path to the symlink to the original
@@ -192,8 +193,8 @@ class TestRun:
 
     logger = logging.getLogger('pav.TestRun')
 
-    BUILD_ONLY_FN = 'BUILD_ONLY'
     JOB_ID_FN = 'job_id'
+    COMPLETE_FN = 'RUN_COMPLETE'
 
     OPTIONS_DEFAULTS = {
         'build_only': False,
@@ -316,20 +317,14 @@ class TestRun:
         self.build_path = self.path/'build'
         if _id is None:
             self._write_script(
+                'build',
                 path=self.build_script_path,
                 config=build_config)
 
         build_name = None
-        build_name_fn = self.path / 'build_name'
+        self._build_name_fn = self.path / 'build_name'
         if _id is not None:
-            try:
-                with build_name_fn.open() as build_name_file:
-                    build_name = build_name_file.read()
-            except OSError as err:
-                raise TestRunError(
-                    "All existing test runs must have a readable 'build_name' "
-                    "file, but test run {s.id} did not: {err}"
-                    .format(s=self, err=err))
+            build_name = self._load_build_name()
 
         try:
             self.builder = builder.TestBuilder(
@@ -344,9 +339,7 @@ class TestRun:
                 .format(s=self, err=err)
             )
 
-        if not build_name_fn.exists():
-            with build_name_fn.open('w') as build_hash_file:
-                build_hash_file.write(self.builder.name)
+        self.save_build_name()
 
         run_config = self.config.get('run', {})
         self.run_tmpl_path = self.path/'run.tmpl'
@@ -354,11 +347,15 @@ class TestRun:
 
         if _id is None:
             self._write_script(
+                'run',
                 path=self.run_tmpl_path,
                 config=run_config)
 
         if _id is None:
             self.status.set(STATES.CREATED, "Test directory setup complete.")
+
+        self._results = None
+        self._created = None
 
     @classmethod
     def load(cls, pav_cfg, test_id):
@@ -395,6 +392,7 @@ class TestRun:
         self.var_man.save(self._variables_path)
 
         self._write_script(
+            'run',
             self.run_script_path,
             self.config['run'],
         )
@@ -456,14 +454,6 @@ class TestRun:
         if cancel_event is None:
             cancel_event = threading.Event()
 
-        if self.opts.rebuild and self.builder.exists():
-            self.builder.deprecate()
-
-            # This is fine even if multiple test runs with identical builds are
-            # rebuilding. They'll all start with the same name, that name will
-            # get deprecated, and only one new build will be created.
-            self.builder.rename_build()
-
         if self.builder.build(cancel_event=cancel_event):
             # Create the build origin path, to make tracking a test's build
             # a bit easier.
@@ -473,6 +463,30 @@ class TestRun:
         else:
             self.builder.fail_path.rename(self.build_path)
             return False
+
+    def save_build_name(self):
+        """Save the builder's build name to the build name file for the test."""
+
+        try:
+            with self._build_name_fn.open('w') as build_name_file:
+                build_name_file.write(self.builder.name)
+        except OSError as err:
+            raise TestRunError(
+                "Could not save build name to build name file at '{}': {}"
+                .format(self._build_name_fn, err)
+            )
+
+    def _load_build_name(self):
+        """Load the build name from the build name file."""
+
+        try:
+            with self._build_name_fn.open() as build_name_file:
+                return build_name_file.read()
+        except OSError as err:
+            raise TestRunError(
+                "All existing test runs must have a readable 'build_name' "
+                "file, but test run {s.id} did not: {err}"
+                .format(s=self, err=err))
 
     def run(self):
         """Run the test.
@@ -555,10 +569,30 @@ class TestRun:
         # Write the current time to the file. We don't actually use the contents
         # of the file, but it's nice to have another record of when this was
         # run.
-        with (self.path/'RUN_COMPLETE').open('w') as run_complete:
+        with (self.path/self.COMPLETE_FN).open('w') as run_complete:
             json.dump({
-                'ended': datetime.datetime.now().isoformat(),
+                'complete': datetime.datetime.now().isoformat(),
             }, run_complete)
+
+    @property
+    def complete(self):
+        """Return the complete time from the run complete file, or None
+        if the test was never marked as complete."""
+
+        run_complete_path = self.path/self.COMPLETE_FN
+
+        if run_complete_path.exists():
+            try:
+                with run_complete_path.open() as complete_file:
+                    data = json.load(complete_file)
+                    return data.get('complete')
+            except (OSError, ValueError, json.JSONDecodeError) as err:
+                self.logger.warning(
+                    "Failed to read run complete file for at %s: %s",
+                    run_complete_path.as_posix(), err)
+                return None
+        else:
+            return None
 
     WAIT_INTERVAL = 0.5
 
@@ -571,13 +605,11 @@ class TestRun:
         :raises TimeoutError: if the timeout expires.
         """
 
-        run_complete_file = self.path/'RUN_COMPLETE'
-
         if timeout is not None:
             timeout = time.time() + timeout
 
         while 1:
-            if run_complete_file.exists():
+            if self.complete is not None:
                 return
 
             time.sleep(self.WAIT_INTERVAL)
@@ -660,6 +692,8 @@ result
 
         results = result_parsers.parse_results(self, results)
 
+        self._results = results
+
         return results
 
     def save_results(self, results):
@@ -685,6 +719,36 @@ result
             return None
 
     @property
+    def results(self):
+        """The test results. Returns a dictionary of basic information
+        if the test has no results."""
+        if self._results is None and self.results_path.exists():
+            with self.results_path.open() as results_file:
+                self._results = json.load(results_file)
+
+        if self._results is None:
+            return {
+                'name': self.name,
+                'sys_name': self.var_man['sys_name'],
+                'created': self.created,
+                'id': self.id,
+                'result': None,
+            }
+        else:
+            return self._results
+
+    @property
+    def created(self):
+        """When this test run was created (the creation time of the test run
+        directory)."""
+        if self._created is None:
+            timestamp = self.path.stat().st_mtime
+            self._created = datetime.datetime.fromtimestamp(timestamp)\
+                                    .isoformat(" ")
+
+        return self._created
+
+    @property
     def is_built(self):
         """Whether the build for this test exists.
 
@@ -697,15 +761,6 @@ result
             return True
         else:
             return False
-
-    @property
-    def build_only(self):
-        """We note that a run is only meant to perform a build by dropping
-        a 'BUILD_ONLY' file in the test run directory."""
-
-        build_only_path = self.path/self.BUILD_ONLY_FN
-
-        return build_only_path.exists()
 
     @property
     def job_id(self):
@@ -749,9 +804,10 @@ be set by the scheduler plugin as soon as it's known."""
 modified date for the test directory."""
         return self.path.stat().st_mtime
 
-    def _write_script(self, path, config):
+    def _write_script(self, stype, path, config):
         """Write a build or run script or template. The formats for each are
-            identical.
+            mostly identical.
+        :param str stype: The type of script (run or build).
         :param Path path: Path to the template file to write.
         :param dict config: Configuration dictionary for the script file.
         :return:
@@ -786,6 +842,9 @@ modified date for the test directory."""
             script.comment('Preamble commands')
             for cmd in config['preamble']:
                 script.command(cmd)
+
+        if stype == 'build' and not self.build_local:
+            script.comment('To be built in an allocation.')
 
         modules = config.get('modules', [])
         if modules:

@@ -8,7 +8,7 @@ from pavilion.plugins.commands import run as run_plugin
 class BuildCommand(run_plugin.RunCommand):
     """Build tests locally, and kick off any that require building on nodes."""
 
-    BUILD_ONLY = False
+    BUILD_ONLY = True
 
     def __init__(self):
 

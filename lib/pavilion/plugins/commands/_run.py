@@ -56,7 +56,6 @@ class _RunCommand(commands.Command):
                         self.logger.warning(
                             "Test {t.id} failed to build:"
                         )
-                    return
 
             except Exception:
                 test.status.set(

@@ -40,8 +40,8 @@ class VariableElem(yc.CategoryElem):
 
     def normalize(self, value):
         """Normalize to either a dict of strings or just a string."""
-        if isinstance(value, str):
-            return value
+        if not isinstance(value, dict):
+            return yc.StrElem().normalize(value)
 
         return super().normalize(value)
 
