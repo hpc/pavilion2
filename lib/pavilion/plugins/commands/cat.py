@@ -58,7 +58,6 @@ class FileCommand(commands.Command):
                     block = file.read(4096)
                     if not block:
                         break
-
                     output.fprint(block, file=self.outfile, end="")
 
         except FileNotFoundError:

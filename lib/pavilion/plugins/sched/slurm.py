@@ -156,6 +156,11 @@ class SlurmVars(SchedulerVariables):
         return self.sched_data['alloc_summary']['total_cpu']
 
     @dfr_var_method
+    def test_node_list(self):
+        """A list of nodes dedicated to this test run."""
+        return self.alloc_node_list()
+
+    @dfr_var_method
     def test_nodes(self):
         """The number of nodes allocated for this test (may be less than the
         total in this allocation)."""
