@@ -241,8 +241,8 @@ class TestRun:
         self.id = None  # pylint: disable=invalid-name
 
         # Mark the run to build locally.
-        self.build_local = not (config.get('build', {})
-                                .get('on_nodes', 'false').lower() == 'true')
+        self.build_local = config.get('build', {}) \
+                                 .get('on_nodes', 'false').lower() != 'true'
 
         # Get an id for the test, if we weren't given one.
         if _id is None:
