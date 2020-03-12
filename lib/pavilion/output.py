@@ -27,7 +27,7 @@ utils.RED
 
 import csv
 import datetime
-import itertools
+import pprint
 import json
 import re
 import shutil
@@ -35,6 +35,9 @@ import sys
 import textwrap
 from collections import UserString, defaultdict, UserDict
 from pathlib import Path
+
+if sys.version_info.minor > 4:
+    import types
 
 BLACK = 30
 RED = 31
@@ -70,7 +73,8 @@ COLORS = {
 
 def get_relative_timestamp(base_dt):
     """Print formatted time string based on the delta of time objects.
-    :param datetime base_dt: The datetime object to compare and format from.
+    :param datetime.datetime base_dt: The datetime object to compare and format
+    from.
     :returns: A formatted time string.
     :rtype str:
     """
@@ -84,7 +88,8 @@ def get_relative_timestamp(base_dt):
     return base_dt.strftime(str(format_[3]))
 
 
-def dbg_print(*args, color=YELLOW, file=sys.stderr, end="", **kwargs):
+def dbg_print(*args, color=YELLOW, file=sys.stderr, end="",
+              pformat=True, **kwargs):
     """A colored print statement for debug printing. Use when you want to
 print dbg statements and easily excise it later.
 
@@ -92,8 +97,18 @@ print dbg statements and easily excise it later.
 :param end: Default the ending to no newline (we do a pre-newline because
     of how unittest prints stuff.
 :param int color: ANSI color code to print the string under.
+:param bool pformat: Automatically apply pprint.pformat to args that are
+    dicts or lists.
+:param kwargs: Also accepts all ``print()`` kwargs.
 """
     start_escape = '\n\x1b[{}m'.format(color)
+
+    if pformat:
+        args = list(args)
+        for i in range(len(args)):
+            arg = args[i]
+            if isinstance(arg, (dict, list)):
+                args[i] = pprint.pformat(arg)
 
     print(start_escape, end='', file=file)
     print(*args, file=file, end='', **kwargs)
@@ -101,7 +116,7 @@ print dbg statements and easily excise it later.
     sys.stderr.flush()
 
 
-def fprint(*args, color=None, bullet='', width=100,
+def fprint(*args, color=None, bullet='', width=0, wrap_indent=0,
            sep=' ', file=sys.stdout, end='\n', flush=False):
     """Print with automatic wrapping, bullets, and other features. Also accepts
     all print() kwargs.
@@ -112,7 +127,10 @@ def fprint(*args, color=None, bullet='', width=100,
         following lines indented to match.
     :param str sep: The standard print sep argument.
     :param file: Stream to print.
-    :param int width: Wrap the text to this width.
+    :param int wrap_indent: Indent lines (after the first) this number of
+        spaces for each paragraph.
+    :param int width: Wrap the text to this width. If 0, find the terminal's
+        width and wrap to that.
     :param str end: String appended after the last value (default \\n)
     :param bool flush: Whether to forcibly flush the stream.
 """
@@ -121,10 +139,16 @@ def fprint(*args, color=None, bullet='', width=100,
     if color is not None:
         print('\x1b[{}m'.format(color), end='', file=file)
 
-    out_str = sep.join(args)
+    if width == 0:
+        width = shutil.get_terminal_size().columns
+
+    wrap_indent = ' '*wrap_indent
+
     if width is not None:
+        out_str = sep.join(args)
         for paragraph in str.splitlines(out_str):
-            lines = textwrap.wrap(paragraph, width=width)
+            lines = textwrap.wrap(paragraph, width=width,
+                                  subsequent_indent=wrap_indent)
             lines = '\n'.join(lines)
 
             if bullet:
@@ -132,6 +156,7 @@ def fprint(*args, color=None, bullet='', width=100,
 
             print(lines, file=file)
     else:
+        out_str = sep.join(args)
         print(out_str, file=file)
 
     if color is not None:
@@ -218,7 +243,7 @@ used when the string is formatted.
     def __init__(self, data, code=None):
         """Parse the given data string into ANSI code colored blocks, and then
         wrap any components that aren't colored in the given code.
-        :param Union[str,ANSIString] data: The string to color.
+        :param Union[str,ANSIString,None] data: The string to color.
         :param str code: The code to color it with. Should be an ANSI argument
         set; integers separated by semicolons.
         """

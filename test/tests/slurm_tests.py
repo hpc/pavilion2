@@ -193,8 +193,8 @@ class SlurmTests(PavTestCase):
             self.fail("Test never completed. Has state: {}".format(state))
 
     @unittest.skipIf(not has_slurm(), "Only runs on a system with slurm.")
-    def test_schedule_test(self):
-        """Try to schedule a test."""
+    def test_schedule(self):
+        """Try to schedule a test. We don't actually need to get nodes."""
 
         slurm = schedulers.get_plugin('slurm')
         cfg = self._quick_test_cfg()
@@ -226,7 +226,6 @@ class SlurmTests(PavTestCase):
             cfg['slurm']['num_nodes'] = num_nodes
 
             test = self._quick_test(cfg=cfg, name='slurm_test')
-            test.build()
 
             slurm.schedule_test(self.pav_cfg, test)
             timeout = time.time() + self.TEST_TIMEOUT

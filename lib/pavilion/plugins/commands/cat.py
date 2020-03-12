@@ -44,28 +44,27 @@ class FileCommand(commands.Command):
                           file=sys.stderr, color=output.RED)
             return errno.EEXIST
 
-        return print_file(job_dir/args.file)
+        return self.print_file(job_dir/args.file)
 
+    def print_file(self, file):
+        """Print the file at the given path.
+        :param path file: The path to the file to print.
+        """
 
-def print_file(file):
-    """Print the file at the given path.
-    :param path file: The path to the file to print.
-    """
+        try:
+            with file.open() as file:
+                while True:
+                    block = file.read(4096)
+                    if not block:
+                        break
+                    output.fprint(block, file=self.outfile)
 
-    try:
-        with file.open() as file:
-            while True:
-                block = file.read(4096)
-                if not block:
-                    break
-                output.fprint(block, file=sys.stdout)
+        except IsADirectoryError:
+            output.fprint("{} is a directory.".format(file),
+                          file=self.errfile, color=output.RED)
+            return errno.EINVAL
 
-    except IsADirectoryError:
-        output.fprint("{} is a directory.".format(file), sys.stderr,
-                      color=output.RED)
-        return errno.EINVAL
-
-    except FileNotFoundError:
-        output.fprint("file '{}' does not exist.".format(file), sys.stderr,
-                      color=output.RED)
-        return errno.EEXIST
+        except FileNotFoundError:
+            output.fprint("file '{}' does not exist.".format(file),
+                          file=self.errfile, color=output.RED)
+            return errno.EEXIST
