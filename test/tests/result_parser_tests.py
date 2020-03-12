@@ -109,7 +109,6 @@ class ResultParserTests(PavTestCase):
         }
 
         test = self._quick_test(test_cfg, 'result_parser_test')
-        test.build()
         test.run()
 
         results = result_parsers.parse_results(
@@ -525,7 +524,6 @@ class ResultParserTests(PavTestCase):
         }
 
         test = self._quick_test(test_cfg, 'result_parser_test')
-        test.build()
         test.run()
 
         results = result_parsers.parse_results(
@@ -668,7 +666,6 @@ class ResultParserTests(PavTestCase):
         }
 
         test = self._quick_test(test_cfg, 'result_parser_test')
-        test.build()
         test.run()
 
         results = result_parsers.parse_results(
@@ -738,7 +735,6 @@ class ResultParserTests(PavTestCase):
         }
 
         test = self._quick_test(test_cfg, 'result_parser_test')
-        test.build()
         test.run()
 
         results = result_parsers.parse_results(
@@ -830,7 +826,6 @@ class ResultParserTests(PavTestCase):
         }
 
         test = self._quick_test(table_test2, 'result_parser_test')
-        test.build()
         test.run()
 
         results = result_parsers.parse_results(
@@ -879,7 +874,6 @@ class ResultParserTests(PavTestCase):
         }
 
         test = self._quick_test(table_test3, 'result_parser_test')
-        test.build()
         test.run()
 
         results = result_parsers.parse_results(

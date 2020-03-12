@@ -106,10 +106,6 @@ class TestLocking(PavTestCase):
             with lockfile.LockFile(self.lock_path, *args, **kwargs):
                 pass
 
-        # We can't acquire the lock more than once at a time.
-        with lockfile.LockFile(self.lock_path):
-            self.assertRaises(TimeoutError, _acquire_lock)
-
         # The lock should time out properly.
         lockfile.LockFile._create_lockfile(self.lock_path, 100, '1234')
         self.assertRaises(TimeoutError, _acquire_lock, timeout=0.2)

@@ -623,6 +623,13 @@ index, sub_var) tuple.
         else:
             return True
 
+    def __eq__(self, other):
+        if not isinstance(other, VariableSetManager):
+            raise ValueError("Can only compare variable set managers to each "
+                             "other.")
+
+        return self.as_dict() == other.as_dict()
+
 
 class VariableSet:
     """A set of of variables. Essentially a wrapper around a mapping of var

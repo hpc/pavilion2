@@ -58,6 +58,7 @@ class FileCommand(commands.Command):
                     block = file.read(4096)
                     if not block:
                         break
+
                     output.fprint(block, file=self.outfile, end="")
 
         except FileNotFoundError:
@@ -74,4 +75,3 @@ class FileCommand(commands.Command):
             output.fprint("Error opening file '{}': {}".format(file, err),
                           color=output.RED)
             return errno.EIO
-

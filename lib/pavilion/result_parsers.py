@@ -108,7 +108,7 @@ text for that class, along with the help from the config items."""
 
 :param str name: The name of this plugin.
 :param str description: A short description of this result parser.
-:param Union(str, None) open_mode: How to open each file handed to the parser.
+:param Union[str, None] open_mode: How to open each file handed to the parser.
     None denotes that a path rather than a file object is expected.
 :param int priority: The priority of this plugin, compared to plugins
     of the same name. Higher priority plugins will supersede others.
@@ -178,9 +178,10 @@ list of yaml_config.StrElem objects, but any structure is allowed
 as long as the leaf elements are StrElem type.
 
 The config values will be passed as the keyword arguments to the
-result parser when it's run and when it's arguments are checked. Those
-values listed below are handled by the base class, and won't be passed,
-however.
+result parser when it's run and when it's arguments are checked. The base
+implementation provides several arguments that must be present for every result
+parser. See the implementation of this method in result_parser.py for more
+info on those arguments and what they do.
 
 Example: ::
 
@@ -190,6 +191,7 @@ Example: ::
             help="The token to search for in the file."
     )
     return config_items
+
 """
 
         return [

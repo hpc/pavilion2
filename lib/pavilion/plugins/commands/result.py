@@ -54,17 +54,7 @@ class ResultsCommand(commands.Command):
             except TestRunNotFoundError as err:
                 self.logger.warning("Could not find test %s - %s", id_, err)
 
-        results = []
-        for test in tests:
-            res = test.load_results()
-            if res is None:
-                res = {
-                    'name': test.name,
-                    'id': test.id,
-                    'result': ''
-                }
-
-            results.append(res)
+        results = [test.results for test in tests]
 
         all_keys = set()
         for res in results:

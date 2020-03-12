@@ -78,7 +78,7 @@ class WaitCmdTests(PavTestCase):
 
         configs = [config1, config2, config3]
 
-        tests = [TestRun(self.pav_cfg, test, VariableSetManager())
+        tests = [TestRun(self.pav_cfg, test)
                  for test in configs]
 
         for test in tests:
