@@ -226,15 +226,15 @@ def slurm_states(state):
     """Parse a slurm state down to something reasonable."""
     states = state.split('+')
 
-    if states:
-        state = states[0]
-    else:
-        return 'UNKNOWN'
+    if not states:
+        return ['UNKNOWN']
 
-    if state.endswith('$') or state.endswith('*'):
-        state = state[:-1]
+    for i in range(len(states)):
+        state = states[i]
+        if state.endswith('$') or state.endswith('*'):
+            states[i] = state[:-1]
 
-    return state
+    return states
 
 
 class Slurm(SchedulerPlugin):
@@ -538,8 +538,10 @@ class Slurm(SchedulerPlugin):
         nodes = [node for node in nodes if
                  all(map(in_up_states, node['State']))]
         if min_nodes > len(nodes):
-            raise SchedulerPluginError("Insufficient nodes in up states: {}"
-                                       .format(up_states))
+            raise SchedulerPluginError(
+                "Insufficient nodes in up states: {}. Needed {}, found {}."
+                .format(up_states, min_nodes,
+                        [node['NodeName'] for node in nodes]))
 
         # Check for compute nodes that are part of the right partition.
         partition = config['partition']
