@@ -1,7 +1,9 @@
 import time
 import sys
+import copy
 
 from pavilion import commands
+from pavilion.test_run import TestRun
 from pavilion.plugins.commands import status
 from pavilion.status_file import STATES
 from pavilion.output import fprint
@@ -47,11 +49,12 @@ class WaitCommand(commands.Command):
         )
 
     def run(self, pav_cfg, args):
+
+        # get start time
         start_time = time.time()
 
-        tmp_statuses = status.get_statuses(pav_cfg, args, self.errfile)
-
-        final_statuses = 0
+        tests = status.get_tests(pav_cfg, args, self.errfile)
+        tot_tests = len(tests)
 
         # determine timeout time, if there is one
         end_time = None
@@ -59,21 +62,22 @@ class WaitCommand(commands.Command):
             end_time = start_time + float(args.timeout)
 
         periodic_status_count = 0
-        while (final_statuses < len(tmp_statuses) and (end_time is None or
-                                                       time.time() < end_time)):
+        while (len(tests) != 0) and (end_time is None or
+                                     time.time() < end_time):
             # Check which tests have completed or failed and move them to the
             # final list.
-            final_statuses = 0
-            for test in tmp_statuses:
-                if test['state'] in self.comp_list:
-                    final_statuses += 1
-
-            tmp_statuses = status.get_statuses(pav_cfg, args, self.errfile)
+            temp_tests = copy.deepcopy(tests)
+            for test_id in temp_tests:
+                test_obj = TestRun.load(pav_cfg, test_id)
+                run_complete_file = test_obj.path/'RUN_COMPLETE'
+                if run_complete_file.exists():
+                    tests.remove(test_id)
 
             # print status every 5 seconds
             if not args.silent:
                 if time.time() > (start_time + 5*periodic_status_count):
-                    for test in tmp_statuses:
+                    stats = status.get_statuses(pav_cfg, args, self.errfile)
+                    for test in stats:
                         stat = [str(time.ctime(time.time())), ':',
                                 'test #',
                                 str(test['test_id']),
@@ -83,6 +87,5 @@ class WaitCommand(commands.Command):
                         fprint(' '.join(stat))
                     periodic_status_count += 1
 
-        ret_val = status.print_status(tmp_statuses, self.outfile, args.json)
-
-        return ret_val
+        final_stats = status.get_statuses(pav_cfg, args, self.errfile)
+        return status.print_status(final_stats, self.outfile, args.json)
