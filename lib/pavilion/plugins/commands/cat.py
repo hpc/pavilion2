@@ -74,4 +74,3 @@ class FileCommand(commands.Command):
             output.fprint("Error opening file '{}': {}".format(file, err),
                           color=output.RED)
             return errno.EIO
-

@@ -383,6 +383,8 @@ insert values, but the basic test doesn't need to.
             options: -a
             mode: complex
 
+Note: Default values cannot contain curly braces: ``{}``.
+
 Permutations
 ------------
 
@@ -408,7 +410,6 @@ different message.
    - ``echo "hello Nick - 07/14/19"``
    - ``echo "goodbye Paul - 07/14/19"``
    - ``echo "goodbye Nick - 07/14/19"``
-- User comes from the 'pav.user' variable which only has a single value.
 - The tests are scheduled independently when using ``pav run``.
 - They have the same test name (permuted\_test), but different test id's and
   run directories.
