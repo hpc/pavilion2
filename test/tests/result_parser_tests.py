@@ -883,6 +883,7 @@ class ResultParserTests(PavTestCase):
                         'delimiter': ',',
                         'col_num': '8',
                         'has_header': 'True',
+                        'by_column': 'True',
                         'col_names': [' ', 'calc_deposit', 'OMP Barrier',
                                       'Scaled Serial Ref', 'Bestcase OMP',
                                       'Static OMP', 'Dynamic OMP', 'Manual OMP']
