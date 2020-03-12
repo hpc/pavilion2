@@ -32,6 +32,7 @@ class StatusTests(PavTestCase):
         for arg_set in arg_sets:
             args = arg_parser.parse_args(arg_set)
             cat_cmd.run(self.pav_cfg, args)
+
             with open(str(test.path/arg_set[-1]), 'r') as out_file:
                 true_out = out_file.read()
                 cat_out = cat_cmd.outfile.getvalue()
