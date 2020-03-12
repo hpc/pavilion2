@@ -54,7 +54,6 @@ class WaitCommand(commands.Command):
         start_time = time.time()
 
         tests = status.get_tests(pav_cfg, args, self.errfile)
-        tot_tests = len(tests)
 
         # determine timeout time, if there is one
         end_time = None
