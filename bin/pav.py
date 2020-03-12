@@ -145,8 +145,7 @@ def main():
                                              # 20 MB
                                              maxBytes=20 * 1024 ** 2,
                                              backupCount=3)
-        result_handler.setFormatter(logging.Formatter("{asctime} {message}",
-                                                      style='{'))
+        result_handler.setFormatter(logging.Formatter("{message}", style='{'))
         result_logger.setLevel(logging.INFO)
         result_logger.addHandler(result_handler)
 

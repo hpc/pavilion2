@@ -84,6 +84,24 @@ class ResultParserTests(PavTestCase):
                         'per_file': result_parsers.PER_NAME,
                     },
                     {
+                        # Store matches by name stub
+                        # Note there is a name conflict here between other.txt
+                        # and other.log.
+                        'key': 'name_list',
+                        'files': ['*.log'],
+                        'regex': r'World',
+                        'per_file': result_parsers.PER_NAME_LIST,
+                    },
+                    {
+                        # Store matches by name stub
+                        # Note there is a name conflict here between other.txt
+                        # and other.log.
+                        'key': 'fullname_list',
+                        'files': ['*.log'],
+                        'regex': r'World',
+                        'per_file': result_parsers.PER_FULLNAME_LIST,
+                    },
+                    {
                         'key': 'lists',
                         'files': ['other*'],
                         'regex': r'.* World',
@@ -131,13 +149,19 @@ class ResultParserTests(PavTestCase):
             False,
         )
 
-        self.assertEqual(results['fullname']['run.log']['count'], 2)
-        self.assertEqual(results['fullname']['other.log']['count'], 1)
+        self.assertEqual(results['fn']['run.log']['count'], 2)
+        self.assertEqual(results['fn']['other.log']['count'], 1)
 
-        self.assertEqual(results['fullname']['other.log']['fullname'],
+        self.assertEqual(results['fn']['other.log']['fullname'],
                          'In a World')
 
-        self.assertIn(results['name']['other']['name'],
+        self.assertEqual(results['name_list'],
+                         ['other', 'other3'])
+
+        self.assertEqual(results['fullname_list'],
+                         ['other.log', 'other3.log'])
+
+        self.assertIn(results['n']['other']['name'],
                       ['In a World', "I'm here to cause World"])
         self.assertIn("Duplicate file key 'other' matched by name",
                       [e['msg'] for e in results['errors']])
