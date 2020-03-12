@@ -19,7 +19,8 @@ class FileCommand(commands.Command):
             short_help="Print file information of <job id>"
         )
 
-    def _setup_arguments(self, parser):
+    @staticmethod
+    def _setup_arguments(parser):
         parser.add_argument(
             'job_id', type=int,
             help="job id",
@@ -35,7 +36,7 @@ class FileCommand(commands.Command):
     def run(self, pav_cfg, args):
         """Run this command."""
 
-        test_dir = pav_cfg.working_dir/'test_runs'
+        test_dir = pav_cfg.working_dir / 'test_runs'
         job_dir = utils.make_id_path(test_dir, args.job_id)
 
         if os.path.isdir(job_dir.as_posix()) is False:
@@ -44,7 +45,7 @@ class FileCommand(commands.Command):
                           file=sys.stderr, color=output.RED)
             return errno.EEXIST
 
-        return self.print_file(job_dir/args.file)
+        return self.print_file(job_dir / args.file)
 
     def print_file(self, file):
         """Print the file at the given path.
@@ -57,14 +58,19 @@ class FileCommand(commands.Command):
                     block = file.read(4096)
                     if not block:
                         break
-                    output.fprint(block, file=self.outfile)
-
-        except IsADirectoryError:
-            output.fprint("{} is a directory.".format(file),
-                          file=self.errfile, color=output.RED)
-            return errno.EINVAL
+                    output.fprint(block, file=self.outfile, end="")
 
         except FileNotFoundError:
-            output.fprint("file '{}' does not exist.".format(file),
-                          file=self.errfile, color=output.RED)
+            output.fprint("file '{}' does not exist.".format(file), sys.stderr,
+                          color=output.RED)
             return errno.EEXIST
+
+        except IsADirectoryError:
+            output.fprint("{} is a directory.".format(file), sys.stderr,
+                          color=output.RED)
+            return errno.EINVAL
+
+        except (IOError, OSError, PermissionError) as err:
+            output.fprint("Error opening file '{}': {}".format(file, err),
+                          color=output.RED)
+            return errno.EIO
