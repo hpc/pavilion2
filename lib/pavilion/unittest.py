@@ -105,11 +105,13 @@ base class.
         self.pav_cfg.pav_vars = pav_vars.PavVars()
 
         if not self.pav_cfg.working_dir.exists():
-            self.pav_cfg.working_dir.mkdir(exist_ok=True, parents=True)
+            self.pav_cfg.working_dir.mkdir(parents=True)
 
         # Create the basic directories in the working directory
         for path in self.WORKING_DIRS:
-            (self.pav_cfg.working_dir/path).mkdir(exist_ok=True, parents=True)
+            path = self.pav_cfg.working_dir/path
+            if not path.exists():
+                path.mkdir()
 
         self.tmp_dir = tempfile.TemporaryDirectory()
 
