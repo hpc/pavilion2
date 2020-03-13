@@ -70,7 +70,12 @@ class ResultsCommand(commands.Command):
             return 0
 
         if args.full:
-            pprint.pprint(results) # ext-print: ignore
+            try:
+                pprint.pprint(results)  # ext-print: ignore
+            except OSError:
+                # It's ok if this fails. Generally means we're piping to
+                # another command.
+                pass
             return 0
         else:
             fields = ['name', 'id', 'result'] + sum(args.key, list())

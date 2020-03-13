@@ -36,4 +36,6 @@ class StatusTests(PavTestCase):
             with open(str(test.path/arg_set[-1]), 'r') as out_file:
                 true_out = out_file.read()
                 cat_out = cat_cmd.outfile.getvalue()
+                self.dbg_print('cat_out', '"', cat_out, '"', sep='')
+                self.dbg_print('cat_out', '"', true_out, '"', sep='')
                 self.assertEqual(cat_out, true_out)
