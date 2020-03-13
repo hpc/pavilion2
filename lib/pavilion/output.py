@@ -129,8 +129,8 @@ def fprint(*args, color=None, bullet='', width=0, wrap_indent=0,
     :param file: Stream to print.
     :param int wrap_indent: Indent lines (after the first) this number of
         spaces for each paragraph.
-    :param int width: Wrap the text to this width. If 0, find the terminal's
-        width and wrap to that.
+    :param Union[int,None] width: Wrap the text to this width. If 0, find the
+        terminal's width and wrap to that.
     :param str end: String appended after the last value (default \\n)
     :param bool flush: Whether to forcibly flush the stream.
 """
@@ -157,10 +157,12 @@ def fprint(*args, color=None, bullet='', width=0, wrap_indent=0,
             print(lines, file=file)
     else:
         out_str = sep.join(args)
-        print(out_str, file=file)
+        print(out_str, file=file, end='')
 
     if color is not None:
-        print('\x1b[0m', end=end, file=file, flush=flush)
+        print('\x1b[0m', file=file)
+
+    print(end, end='', file=file, flush=True)
 
 
 def json_dumps(obj, skipkeys=False, ensure_ascii=True,
