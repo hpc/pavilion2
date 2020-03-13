@@ -1,8 +1,12 @@
 import time
+import sys
+import copy
 
 from pavilion import commands
+from pavilion.test_run import TestRun
 from pavilion.plugins.commands import status
 from pavilion.status_file import STATES
+from pavilion.output import fprint
 
 
 class WaitCommand(commands.Command):
@@ -31,7 +35,7 @@ class WaitCommand(commands.Command):
             help='Give output as json, rather than as standard human readable.'
         )
         parser.add_argument(
-            '-t', '--timeout', action='store', default='60',
+            '-t', '--timeout', action='store',
             help='Maximum time to wait for results in seconds. Default=60.'
         )
         parser.add_argument(
@@ -40,26 +44,47 @@ class WaitCommand(commands.Command):
                  'test IDs and series IDs.  If no value is provided, the most '
                  'recent series submitted by this user is checked.'
         )
+        parser.add_argument(
+            '-s', '--silent', action='store_true'
+        )
 
     def run(self, pav_cfg, args):
-        # Store the initial time for timeout functionality.
+
+        # get start time
         start_time = time.time()
 
-        tmp_statuses = status.get_statuses(pav_cfg, args, self.errfile)
+        tests = status.get_tests(pav_cfg, args, self.errfile)
 
-        final_statuses = 0
+        # determine timeout time, if there is one
+        end_time = None
+        if args.timeout is not None:
+            end_time = start_time + float(args.timeout)
 
-        while (final_statuses < len(tmp_statuses)) and \
-              ((time.time() - start_time) < float(args.timeout)):
+        periodic_status_count = 0
+        while (len(tests) != 0) and (end_time is None or
+                                     time.time() < end_time):
             # Check which tests have completed or failed and move them to the
             # final list.
-            final_statuses = 0
-            for test in tmp_statuses:
-                if test['state'] in self.comp_list:
-                    final_statuses += 1
+            temp_tests = copy.deepcopy(tests)
+            for test_id in temp_tests:
+                test_obj = TestRun.load(pav_cfg, test_id)
+                run_complete_file = test_obj.path/'RUN_COMPLETE'
+                if run_complete_file.exists():
+                    tests.remove(test_id)
 
-            tmp_statuses = status.get_statuses(pav_cfg, args, self.errfile)
+            # print status every 5 seconds
+            if not args.silent:
+                if time.time() > (start_time + 5*periodic_status_count):
+                    stats = status.get_statuses(pav_cfg, args, self.errfile)
+                    for test in stats:
+                        stat = [str(time.ctime(time.time())), ':',
+                                'test #',
+                                str(test['test_id']),
+                                test['name'],
+                                test['state'],
+                                test['note']]
+                        fprint(' '.join(stat))
+                    periodic_status_count += 1
 
-        ret_val = status.print_status(tmp_statuses, self.outfile, args.json)
-
-        return ret_val
+        final_stats = status.get_statuses(pav_cfg, args, self.errfile)
+        return status.print_status(final_stats, self.outfile, args.json)
