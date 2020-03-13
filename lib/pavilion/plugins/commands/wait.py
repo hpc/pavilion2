@@ -1,12 +1,11 @@
-import time
-import sys
 import copy
+import time
 
 from pavilion import commands
-from pavilion.test_run import TestRun
+from pavilion.output import fprint
 from pavilion.plugins.commands import status
 from pavilion.status_file import STATES
-from pavilion.output import fprint
+from pavilion.test_run import TestRun
 
 
 class WaitCommand(commands.Command):
@@ -83,7 +82,7 @@ class WaitCommand(commands.Command):
                                 test['name'],
                                 test['state'],
                                 test['note']]
-                        fprint(' '.join(stat))
+                        fprint(' '.join(stat), file=self.outfile)
                     periodic_status_count += 1
 
         final_stats = status.get_statuses(pav_cfg, args, self.errfile)

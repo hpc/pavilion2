@@ -36,6 +36,13 @@ class StatusTests(PavTestCase):
             with open(str(test.path/arg_set[-1]), 'r') as out_file:
                 true_out = out_file.read()
                 cat_out = cat_cmd.outfile.getvalue()
-                self.dbg_print('cat_out', '"', cat_out, '"', sep='')
-                self.dbg_print('cat_out', '"', true_out, '"', sep='')
+                self.dbg_print('cat_out\n', '"', cat_out, '"', sep='')
+                self.dbg_print('true_out\n', '"', true_out, '"', sep='')
+                cat_parts = cat_out.split('\n')
+                true_parts = true_out.split('\n')
+                print('sizes', len(cat_out), len(true_out))
+                for i in range(min(len(cat_parts), len(true_parts))):
+                    if cat_parts[i] != true_parts[i]:
+                        output.fprint(cat_parts[i],color=output.YELLOW)
+                        output.fprint(true_parts[i], color=output.RED)
                 self.assertEqual(cat_out, true_out)
