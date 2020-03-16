@@ -17,7 +17,7 @@ from pavilion.lockfile import LockFile
 from pavilion.status_file import STATES, StatusInfo
 from pavilion.test_config import file_format
 from pavilion.test_config.variables import DeferredVariable
-from pavilion.var_dict import VarDict, var_method
+from pavilion.var_dict import VarDict, var_method, normalize_value
 from yapsy import IPlugin
 
 LOGGER = logging.getLogger('pav.{}'.format(__name__))
@@ -61,7 +61,14 @@ def dfr_var_method(*sub_keys):
             if not self.sched.in_alloc:
                 return DeferredVariable()
             else:
-                return str(func(self))
+                value = func(self)
+                norm_val = normalize_value(value)
+                if norm_val is None:
+                    raise ValueError(
+                        "Invalid variable value returned by {}: {}."
+                        .format(func.__name__, value))
+                return norm_val
+
         return defer
 
     if given_func is not None:

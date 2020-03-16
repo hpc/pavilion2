@@ -94,6 +94,71 @@ class SlurmVars(SchedulerVariables):
 
         return self.sched_data['summary']['max_mem']
 
+    @var_method
+    def nodes(self):
+        """Number of nodes on the system."""
+
+        return len(self.sched_data['nodes'])
+
+    @var_method
+    def node_list(self):
+        """List of nodes on the system."""
+
+        return list(self.sched_data['nodes'].keys())
+
+    @var_method
+    def node_up_list(self):
+        """List of nodes who are in an a state that is considered available."""
+
+        up_states = self.sched_config['up_states']
+
+        nodes = []
+        for node, node_info in self.sched_data['nodes'].items():
+            if not 'Partitions' in node_info:
+                # Skip nodes that aren't in any partition.
+                continue
+
+            for state in node_info['State']:
+                if state not in up_states:
+                    break
+            else:
+                nodes.append(node)
+
+        return nodes
+
+    @var_method
+    def nodes_up(self):
+        """Number of nodes in an 'avail' state."""
+
+        return len(self.node_up_list())
+
+    @var_method
+    def node_avail_list(self):
+        """List of nodes who are in an a state that is considered available.
+Warning: Tests that use this will fail to start if no nodes are available."""
+
+        avail_states = self.sched_config['avail_states']
+
+        nodes = []
+        for node, node_info in self.sched_data['nodes'].items():
+            if not 'Partitions' in node_info:
+                # Skip nodes that aren't in any partition.
+                continue
+
+            for state in node_info['State']:
+                if state not in avail_states:
+                    break
+            else:
+                nodes.append(node)
+
+        return nodes
+
+    @var_method
+    def nodes_avail(self):
+        """Number of nodes in an 'avail' state."""
+
+        return len(self.node_avail_list())
+
     @dfr_var_method
     def alloc_nodes(self):
         """The number of nodes in this allocation."""
@@ -365,6 +430,7 @@ class Slurm(SchedulerPlugin):
 
         return data
 
+    # Callback functions to convert various node info fields into native types.
     NODE_FIELD_TYPES = {
         'CPUTot': int,
         'CPUAlloc': int,

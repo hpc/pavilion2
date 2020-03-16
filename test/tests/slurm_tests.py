@@ -246,3 +246,27 @@ class SlurmTests(PavTestCase):
         results = test.load_results()
         self.assertEqual(results['result'], result_parsers.PASS)
 
+    @unittest.skipIf(not has_slurm(), "Only runs on a system with slurm.")
+    def test_include_exclude(self):
+        """Test that we can schedule tests that require or exclude nodes."""
+
+        slurm = schedulers.get_plugin('slurm')
+
+        dummy_test = self._quick_test(build=False, finalize=False)
+        svars = slurm.get_vars(dummy_test.config['slurm'])
+        up_nodes = svars['node_up_list']
+
+        cfg = self._quick_test_cfg()
+        cfg['scheduler'] = 'slurm'
+        cfg['slurm']['num_nodes'] = '2'
+        cfg['slurm']['include_nodes'] = up_nodes[1]
+        cfg['slurm']['exclude_nodes'] = up_nodes[2]
+
+        test = self._quick_test(cfg, finalize=False)
+
+        # We mainly care if this step completes successfully.
+        slurm.schedule_test(self.pav_cfg, test)
+        try:
+            test.wait(timeout=5)
+        except TimeoutError:
+            slurm.cancel_job(test)

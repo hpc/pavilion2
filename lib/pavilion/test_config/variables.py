@@ -776,7 +776,9 @@ end up as a list (of one)."""
             if not isinstance(index, int):
                 raise KeyError("Non-integer index given: '{}'".format(index))
 
-        if not -len(self.data) <= index < len(self.data):
+        if len(self.data) == 0:
+            raise KeyError('Variable is empty.')
+        elif not -len(self.data) <= index < len(self.data):
             raise KeyError(
                 "Index out of range. There are only {} items in this variable."
                 .format(len(self.data)))

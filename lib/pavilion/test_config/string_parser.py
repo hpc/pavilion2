@@ -454,7 +454,11 @@ class VariableToken(Token):
         if iter_index is not None and idx is None:
             idx = iter_index
 
-        return var_man[(var_set, var, idx, subvar)]
+        try:
+            return var_man[(var_set, var, idx, subvar)]
+        except KeyError as err:
+            raise ResolveError("Could not resolve {}: {}"
+                               .format(self.var, err))
 
     def __repr__(self):
         return "{}('{}')".format(self.__class__.__name__, self.var)

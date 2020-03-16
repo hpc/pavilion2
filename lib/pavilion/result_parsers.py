@@ -342,6 +342,7 @@ RESERVED_RESULT_KEYS = [
     'started',
     'finished',
     'duration',
+    'pav_result_errors',
 ]
 
 

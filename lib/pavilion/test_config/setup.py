@@ -637,7 +637,7 @@ def resolve_deferred(config, var_man):
 
 
 def resolve_section_vars(component, var_man, allow_deferred, deferred_only):
-    """Recursively resolve the given config component's  variables, using a
+    """Recursively resolve the given config component's variables, using a
      variable manager.
 
     :param dict component: The config component to resolve.
@@ -698,7 +698,10 @@ def resolve_section_vars(component, var_man, allow_deferred, deferred_only):
                     .format(DEFERRED_PREFIX)
                 )
 
-            resolved = string_parser.parse(component).resolve(var_man)
+            try:
+                resolved = string_parser.parse(component).resolve(var_man)
+            except string_parser.ResolveError as err:
+                raise TestConfigError(err)
 
             if resolved is None:
                 if allow_deferred:
