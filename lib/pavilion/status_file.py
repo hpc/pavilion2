@@ -284,7 +284,7 @@ could be wrong with the file format.
                 lines = status_file.readlines()
                 if lines:
                     # Get the last line.
-                    line = status_file.readlines()[-1]
+                    line = lines[-1]
                 else:
                     return StatusInfo(
                         state=STATES.INVALID,
