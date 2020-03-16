@@ -343,6 +343,9 @@ RESERVED_RESULT_KEYS = [
     'finished',
     'duration',
     'pav_result_errors',
+    'user',
+    'job_id',
+    'sys_name',
 ]
 
 
@@ -627,6 +630,6 @@ configured for that test.
                        .format(results['result'])
             })
 
-    results['errors'] = errors
+    results['pav_result_errors'] = errors
 
     return results
