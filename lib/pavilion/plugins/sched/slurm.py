@@ -63,7 +63,7 @@ slurm kickoff script.
         if self._conf.get('include_nodes') is not None:
             lines.append('#SBATCH -w {s._conf[include_nodes]}'.format(s=self))
         if self._conf.get('exclude_nodes') is not None:
-            lines.append('#SBATCH -w {s._conf[exclude_nodes]}'.format(s=self))
+            lines.append('#SBATCH -x {s._conf[exclude_nodes]}'.format(s=self))
 
         return lines
 

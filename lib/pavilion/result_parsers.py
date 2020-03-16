@@ -181,7 +181,7 @@ list of yaml_config.StrElem objects, but any structure is allowed
 as long as the leaf elements are StrElem type.
 
 The config values will be passed as the keyword arguments to the
-result parser when it's run and when it's arguments are checked. The base
+result parser when it's run and when its arguments are checked. The base
 implementation provides several arguments that must be present for every result
 parser. See the implementation of this method in result_parser.py for more
 info on those arguments and what they do.

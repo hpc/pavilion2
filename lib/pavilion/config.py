@@ -143,8 +143,8 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
         yc.IntRangeElem(
             "build_threads", default=4, vmin=1,
             help_text="Maximum simultaneous builds. Note that each build may "
-                      "itself spawn of threads, so it's probably reasonable "
-                      "to keep this at just a few."),
+                      "itself spawn off threads/processes, so it's probably "
+                      "reasonable to keep this at just a few."),
         yc.StrElem(
             "log_format",
             default="{asctime}, {levelname}, {hostname}, {name}: {message}",

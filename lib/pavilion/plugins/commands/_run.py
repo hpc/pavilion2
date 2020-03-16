@@ -1,4 +1,4 @@
-"""Given an pre-existing test run, runs the test in the scheduled
+"""Given a pre-existing test run, runs the test in the scheduled
 environment."""
 
 import logging

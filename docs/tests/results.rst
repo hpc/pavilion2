@@ -200,7 +200,8 @@ depends on the **per\_file** attribute for the result parser.
 
         results:
           regex:
-            # This will override the test result
+            # The matched values will be stored under the 'huge_size' key,
+but         # but that will vary based on the 'per_file' value.
             key: huge_size
             regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
             # Run the parser against all files that end in .out

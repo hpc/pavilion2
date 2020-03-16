@@ -281,8 +281,15 @@ could be wrong with the file format.
                 else:
                     status_file.seek(-end_read_len, os.SEEK_END)
 
-                # Get the last line.
-                line = status_file.readlines()[-1]
+                lines = status_file.readlines()
+                if lines:
+                    # Get the last line.
+                    line = status_file.readlines()[-1]
+                else:
+                    return StatusInfo(
+                        state=STATES.INVALID,
+                        note="Status file was empty."
+                    )
 
                 return self._parse_status_line(line)
 

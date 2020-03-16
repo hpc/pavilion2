@@ -1,3 +1,6 @@
+"""The Status command, along with useful functions that make it easy for
+other commands to print statuses."""
+
 from pavilion import commands
 from pavilion import output
 from pavilion import schedulers
@@ -12,7 +15,7 @@ def status_from_test_obj(pav_cfg, test_obj):
     expected by the print_status function.
 
 :param dict pav_cfg: Pavilion base configuration.
-:param test_run.TestRun test_obj: Pavilion test object.
+:param Union[TestRun,[TestRun] test_obj: Pavilion test object.
 :return: List of dictionary objects containing the test ID, name,
          statt time of state update, and note associated with that state.
 :rtype: list(dict)
@@ -41,7 +44,7 @@ def status_from_test_obj(pav_cfg, test_obj):
     return test_statuses
 
 
-def get_all_tests(pav_cfg, args, errfile):
+def get_all_tests(pav_cfg, args):
     """Return the statuses for all tests, up to the limit in args.limit."""
 
     latest_tests = test_run.get_latest_tests(pav_cfg, args.limit)
@@ -58,7 +61,7 @@ def get_all_tests(pav_cfg, args, errfile):
                 'name':    "",
                 'state':   STATES.UNKNOWN,
                 'time':    "",
-                'note':    "Test not found."
+                'note':    "Test not found: {}".format(err)
             })
 
     statuses = status_from_test_obj(pav_cfg, test_obj_list)
@@ -100,7 +103,7 @@ def get_tests(pav_cfg, args, errfile):
             except series.TestSeriesError as err:
                 output.fprint(
                     "Suite {} could not be found.\n{}"
-                    .format(test_id, error),
+                    .format(test_id, err),
                     file=errfile,
                     color=output.RED
                 )
@@ -137,7 +140,7 @@ def get_statuses(pav_cfg, args, errfile):
                 'name':    "",
                 'state':   STATES.UNKNOWN,
                 'time':    "",
-                'note':    "Test not found.",
+                'note':    "Error loading test: {}".format(err),
             })
 
     statuses = status_from_test_obj(pav_cfg, test_obj_list)
@@ -228,11 +231,13 @@ class StatusCommand(commands.Command):
         )
 
     def run(self, pav_cfg, args):
+        """Gathers and prints the statuses from the specified test runs and/or
+        series."""
         try:
             if not args.all:
                 test_statuses = get_statuses(pav_cfg, args, self.errfile)
             else:
-                test_statuses = get_all_tests(pav_cfg, args, self.errfile)
+                test_statuses = get_all_tests(pav_cfg, args)
         except commands.CommandError as err:
             output.fprint("Status Error:", err, color=output.RED)
             return 1

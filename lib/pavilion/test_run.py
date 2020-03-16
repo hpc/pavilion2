@@ -74,9 +74,10 @@ class TestRunOptions:
         """Initialize the options. Taking (and not using) generic
         kwargs to make it more friendly to test runs across versions.
 
-        :param build_only: Only build, don't run, the test
+        :param build_only: Only build, don't run, the test.
         :param rebuild: Deprecate the current build, and build a new one.
-        :param _:
+        :param _: We handle generic keyword args to make loading tests of
+            different versions of Pavilion a little more flexible.
         """
         self.build_only = build_only
         self.rebuild = rebuild

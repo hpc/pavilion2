@@ -35,7 +35,8 @@ class WaitCommand(commands.Command):
         )
         parser.add_argument(
             '-t', '--timeout', action='store',
-            help='Maximum time to wait for results in seconds. Default=60.'
+            help='Maximum time to wait for results in seconds. Default is to'
+                 'wait indefinitely.'
         )
         parser.add_argument(
             'tests', nargs='*', action='store',
