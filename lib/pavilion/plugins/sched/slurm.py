@@ -114,7 +114,7 @@ class SlurmVars(SchedulerVariables):
 
         nodes = []
         for node, node_info in self.sched_data['nodes'].items():
-            if not 'Partitions' in node_info:
+            if 'Partitions' not in node_info:
                 # Skip nodes that aren't in any partition.
                 continue
 
@@ -141,7 +141,7 @@ Warning: Tests that use this will fail to start if no nodes are available."""
 
         nodes = []
         for node, node_info in self.sched_data['nodes'].items():
-            if not 'Partitions' in node_info:
+            if 'Partitions' not in node_info:
                 # Skip nodes that aren't in any partition.
                 continue
 
