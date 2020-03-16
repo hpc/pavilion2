@@ -1,5 +1,4 @@
 import logging
-import os
 
 import yaml_config as yc
 from pavilion import arguments
@@ -164,7 +163,7 @@ class ResultParserTests(PavTestCase):
         self.assertIn(results['n']['other']['name'],
                       ['In a World', "I'm here to cause World"])
         self.assertIn("Duplicate file key 'other' matched by name",
-                      [e['msg'] for e in results['errors']])
+                      [e['msg'] for e in results['pav_result_errors']])
 
         self.assertEqual(sorted(results['lists']),
                          sorted(['and someone saves the World',
