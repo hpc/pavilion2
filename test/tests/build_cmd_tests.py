@@ -44,6 +44,11 @@ class BuildCmdTests(PavTestCase):
             for test in build_cmd.last_tests:
                 self.dbg_print('\n', test.id, test.name, test.complete,'\n')
                 self.dbg_print(test.status.history())
+                kickoff_path = test.path/'kickoff.log'
+                if kickoff_path.exists():
+                    self.dbg_print(kickoff_path.open().read(), color=33)
+                else:
+                    self.dbg_print('No kickoff file.', color=33)
 
         # Make sure we actually built separate builds
         builds = [test.builder for test in build_cmd.last_tests]
