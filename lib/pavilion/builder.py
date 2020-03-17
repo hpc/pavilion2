@@ -128,6 +128,10 @@ class BuildTracker:
         """Add a note and error via the logger."""
         self.tracker.update(self.builder, note, log=logging.ERROR, state=state)
 
+    def notes(self):
+        """Return the notes for this tracker."""
+        return self.tracker.get_notes(self.builder)
+
 
 class TestBuilder:
     """Manages a test build and their organization.
@@ -426,7 +430,7 @@ class TestBuilder:
                 proc = subprocess.Popen(cmd,
                                         cwd=build_dir.as_posix(),
                                         stdout=build_log,
-                                        stderr=subprocess.STDOUT)
+                                        stderr=build_log)
 
                 result = None
                 while result is None:
@@ -640,7 +644,7 @@ class TestBuilder:
                         tmpdir.mkdir()
                         tar.extractall(tmpdir.as_posix())
                         opath = tmpdir / top_level[0].name
-                        opath.rename(self.path)
+                        opath.rename(build_dest)
                         tmpdir.rmdir()
                     else:
                         # Otherwise, the build path will contain the

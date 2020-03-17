@@ -43,12 +43,12 @@ class BuilderTests(PavTestCase):
         for archive in archives:
             config = copy.deepcopy(base_config)
             config['build']['source_location'] = archive
+            config['build']['specificity'] = archive
 
             test = TestRun(self.pav_cfg, config)
 
-            if test.builder.path.exists():
-                shutil.rmtree(str(test.builder.path))
-
+            tmp_path = test.builder.path.with_suffix('.test')
+    
             test.builder._setup_build_dir(test.builder.path)
 
             # Make sure the extracted archive is identical to the original

@@ -548,7 +548,7 @@ class RunCommand(commands.Command):
 
         return 0
 
-    BUILD_STATUS_PREAMBLE = '{when:} {test_id:6} {state:{state_len}s}'
+    BUILD_STATUS_PREAMBLE = '{when:20s} {test_id:6} {state:{state_len}s}'
     BUILD_SLEEP_TIME = 0.1
 
     def build_local(self, tests, max_threads, mb_tracker,
@@ -609,7 +609,7 @@ class RunCommand(commands.Command):
             fprint(self.BUILD_STATUS_PREAMBLE
                    .format(when='When', test_id='TestID',
                            state_len=STATES.max_length, state='State'),
-                   'Message', file=self.outfile)
+                   'Message', file=self.outfile, width=None)
 
         builds_running = 0
         # Run and track <max_threads> build threads, giving output according
@@ -640,13 +640,14 @@ class RunCommand(commands.Command):
 
                     # Only output test status after joining a thread.
                     if build_verbosity == 1:
-                        when, state, msg = mb_tracker.get_notes(test.builder)[0]
+                        when, state, msg = mb_tracker.get_notes(test.builder)[-1]
+                        when = output.get_relative_timestamp(when)
                         preamble = (self.BUILD_STATUS_PREAMBLE
                                     .format(when=when, test_id=test.id,
                                             state_len=STATES.max_length,
                                             state=state))
                         fprint(preamble, msg, wrap_indent=len(preamble),
-                               file=self.outfile)
+                               file=self.outfile, width=None)
 
             test_threads = [thr for thr in test_threads if thr is not None]
 
@@ -670,23 +671,29 @@ class RunCommand(commands.Command):
                     parts.append("{}: {}".format(state, state_counts[state]))
                 line = ' | '.join(parts)
                 if last_line_len is not None:
-                    fprint(' '*last_line_len, end='\r', file=self.outfile)
+                    fprint(' '*last_line_len, end='\r', file=self.outfile, 
+                           width=None)
                 last_line_len = len(line)
-                fprint(line, end='\r', file=self.outfile)
-            elif build_verbosity > 2:
+                fprint(line, end='\r', file=self.outfile, width=None)
+            elif build_verbosity > 1:
                 for test in tests:
                     seen = message_counts[test.id]
-                    msgs = mb_tracker.messages(test.builder)[seen:]
+                    msgs = mb_tracker.messages[test.builder][seen:]
                     for when, state, msg in msgs:
+                        when = output.get_relative_timestamp(when)
                         state = '' if state is None else state
                         preamble = self.BUILD_STATUS_PREAMBLE.format(
                             when=when, test_id=test.id,
                             state_len=STATES.max_length, state=state)
 
                         fprint(preamble, msg, wrap_indent=len(preamble),
-                               file=self.outfile)
+                               file=self.outfile, width=None)
                     message_counts[test.id] += len(msgs)
 
             time.sleep(self.BUILD_SLEEP_TIME)
+
+        if build_verbosity == 0:
+            # Print a newline after our last status update.
+            fprint(width=None, file=self.outfile)
 
         return 0
