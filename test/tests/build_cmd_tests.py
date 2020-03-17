@@ -42,7 +42,7 @@ class BuildCmdTests(PavTestCase):
                 test.wait(timeout=20)
         except TimeoutError:
             for test in build_cmd.last_tests:
-                self.dbg_print('\n', test.id, test.complete, '\n')
+                self.dbg_print('\n', test.id, test.name, test.complete,'\n')
                 self.dbg_print(test.status.history())
 
         # Make sure we actually built separate builds
