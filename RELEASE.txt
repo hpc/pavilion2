@@ -10,6 +10,7 @@ RELEASE=2.1.1
  - Fixed issue with pipe exceptions in pav results
  - Fixed issue with slurm scheduler node selection.
  - Fixed clean command exceptions
+ - Updated reserved result parser key list. Renamed 'errors' to 'pav_result_errors'.
  - and many smaller bug fixes.
  - Updated yaml_config version.
  - Updated the ls and cat commands, merged the tree command into ls.
