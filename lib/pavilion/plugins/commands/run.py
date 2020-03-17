@@ -163,7 +163,6 @@ class RunCommand(commands.Command):
         self._complete_tests([test for test in all_tests if
                               test.opts.build_only and test.build_local])
 
-        local_builds_only = getattr(args, 'local_builds_only', False)
         wait = getattr(args, 'wait', None)
         report_status = getattr(args, 'status', False)
 
@@ -549,7 +548,7 @@ class RunCommand(commands.Command):
 
         return 0
 
-    BUILD_STATUS_PREAMBLE = '{} {:6d} {:{}s}'
+    BUILD_STATUS_PREAMBLE = '{when:} {test_id:6} {state:{state_len}s}'
     BUILD_SLEEP_TIME = 0.1
 
     def build_local(self, tests, max_threads, mb_tracker,
@@ -608,7 +607,8 @@ class RunCommand(commands.Command):
 
         if build_verbosity > 0:
             fprint(self.BUILD_STATUS_PREAMBLE
-                   .format('When', 'TestID', STATES.max_length, 'State'),
+                   .format(when='When', test_id='TestID',
+                           state_len=STATES.max_length, state='State'),
                    'Message', file=self.outfile)
 
         builds_running = 0
@@ -642,8 +642,9 @@ class RunCommand(commands.Command):
                     if build_verbosity == 1:
                         when, state, msg = mb_tracker.get_notes(test.builder)[0]
                         preamble = (self.BUILD_STATUS_PREAMBLE
-                                    .format(when, test.id, STATES.max_length,
-                                            state))
+                                    .format(when=when, test_id=test.id,
+                                            state_len=STATES.max_length,
+                                            state=state))
                         fprint(preamble, msg, wrap_indent=len(preamble),
                                file=self.outfile)
 
@@ -678,9 +679,10 @@ class RunCommand(commands.Command):
                     msgs = mb_tracker.messages(test.builder)[seen:]
                     for when, state, msg in msgs:
                         state = '' if state is None else state
-                        preamble = (self.BUILD_STATUS_PREAMBLE
-                                    .format(when, test.id, STATES.max_length,
-                                            state))
+                        preamble = self.BUILD_STATUS_PREAMBLE.format(
+                            when=when, test_id=test.id,
+                            state_len=STATES.max_length, state=state)
+
                         fprint(preamble, msg, wrap_indent=len(preamble),
                                file=self.outfile)
                     message_counts[test.id] += len(msgs)
