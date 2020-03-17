@@ -622,7 +622,7 @@ A more complicated example: ::
             max_widths[field] = max_width
 
         boundaries.append([min_widths[field], max_widths[field] + 1])
-
+    
     # Pre-calculate the total wraps for each field at each possible
     # column width.
     field_wraps_by_width = defaultdict(dict)
@@ -641,29 +641,48 @@ A more complicated example: ::
     final_widths = min_widths.copy()
 
     incr = 1
+    # Consume the additional spaces available by growing the columns according
+    # to which column would benefit the most from the extra space. If there 
+    # is a tie, increase the number of spaces considered. 
     while extra_spaces:
         best_fields = []
         best_diff = 0
-
+        row_count = len(formatted_rows)
+        
+        # Find the 'best_fields' to add 'incr' byte to.
         for fld in range(len(fields)):
             field = fields[fld]
             curr_width = final_widths[field]
 
-            curr_wraps = field_wraps_by_width[fld].get(curr_width, 1)
-            incr_wraps = field_wraps_by_width[fld].get(curr_width + incr, 1)
+            curr_wraps = field_wraps_by_width[fld].get(curr_width, row_count)
+            incr_wraps = field_wraps_by_width[fld]\
+                                           .get(curr_width + incr, row_count)
             diff = (curr_wraps-incr_wraps)
 
+            # If this field beats all previous, make it the best.
             if diff > best_diff:
                 best_diff = diff
                 best_fields = [field]
+            # Don't consider fields whose diff is 0. 
+            elif diff == 0:
+                continue
+            # If we tie, add it to the list of the best.
             elif diff == best_diff:
                 best_fields.append(field)
 
-        if len(best_fields) == 1 or incr == extra_spaces:
+        if len(best_fields) == 1:
+            # Add incr bytes to the winner
             extra_spaces -= incr
             incr = 1
             final_widths[best_fields[0]] += incr
+        elif incr == extra_spaces:
+            # If we've run out of bytes to consider, distribute them evenly
+            # amongst the tied winners.
+            extra_spaces -= incr
+            for fld in best_fields:
+                final_widths[fld] += incr/len(best_fields)
         else:
+            # Otherwise, increase the increment and try again.
             incr += 1
 
     title_length = sum(final_widths.values())
