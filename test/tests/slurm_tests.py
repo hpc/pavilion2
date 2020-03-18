@@ -6,9 +6,8 @@ from pavilion import config
 from pavilion import plugins
 from pavilion import result_parsers
 from pavilion import schedulers
+from pavilion.plugins.sched.slurm import Slurm
 from pavilion.status_file import STATES
-from pavilion.test_config.file_format import TestConfigLoader
-from pavilion.test_run import TestRun
 from pavilion.unittest import PavTestCase
 
 _HAS_SLURM = None
@@ -78,6 +77,45 @@ class SlurmTests(PavTestCase):
                 "Could not find a job matching {} to impersonate."
                 .format(match))
 
+    def test_node_list_parsing(self):
+        """Make sure the node list regex matches what it's supposed to."""
+
+        slurm = schedulers.get_plugin('slurm')  # type: Slurm
+
+        examples = (
+            (None, []),
+            ('', []),
+            ('ab03', ['ab03']),
+            ('ab-bc[3-004]', ['ab-bc3', 'ab-bc4']),
+            ('ab_bc[03-10]',
+             ['ab_bc{:02d}'.format(d) for d in range(3, 11)]),
+            ('n[003-143]', ['n{:03d}'.format(d) for d in range(3, 144)]),
+            # Duplicates are accepted
+            ('nid03,nid[03-04]', ['nid03', 'nid03', 'nid04']),
+            ('nid03,nid[04-06],nid[12-33]',
+             ['nid03', 'nid04', 'nid05', 'nid06'] +
+             ['nid{:02d}'.format(d) for d in range(12, 34)]),
+        )
+
+        for ex, answer in examples:
+            nodes = slurm._parse_node_list(ex)
+            self.assertEqual(nodes, answer)
+
+        bad_examples = (
+            ('n03d',  "Trailing characters"),
+            ('nid03!@#', "Trailing junk (whole string match)."),
+            ('n03.n04', "Not comma separated"),
+            ('n[03', "No closing bracket"),
+            ('n03]', "No open bracket"),
+            ('nid[12-03]', "Out of order range"),
+        )
+
+        for ex, problem in bad_examples:
+            with self.assertRaises(
+                    ValueError,
+                    msg="Did not throw error for {}".format(problem)):
+                slurm._parse_node_list(ex)
+
     @unittest.skipIf(not has_slurm(), "Only runs on a system with slurm.")
     def test_job_status(self):
         """Make sure we can get a slurm job status."""
@@ -86,7 +124,7 @@ class SlurmTests(PavTestCase):
         cfg['scheduler'] = 'slurm'
         test = self._quick_test(cfg, name='slurm_job_status', finalize=False)
 
-        slurm = schedulers.get_scheduler_plugin('slurm')
+        slurm = schedulers.get_plugin('slurm')
 
         # Steal a running job's ID, and then check our status.
         test.status.set(STATES.SCHEDULED, "not really though.")
@@ -155,8 +193,8 @@ class SlurmTests(PavTestCase):
             self.fail("Test never completed. Has state: {}".format(state))
 
     @unittest.skipIf(not has_slurm(), "Only runs on a system with slurm.")
-    def test_schedule_test(self):
-        """Try to schedule a test."""
+    def test_schedule(self):
+        """Try to schedule a test. We don't actually need to get nodes."""
 
         slurm = schedulers.get_plugin('slurm')
         cfg = self._quick_test_cfg()
@@ -188,7 +226,6 @@ class SlurmTests(PavTestCase):
             cfg['slurm']['num_nodes'] = num_nodes
 
             test = self._quick_test(cfg=cfg, name='slurm_test')
-            test.build()
 
             slurm.schedule_test(self.pav_cfg, test)
             timeout = time.time() + self.TEST_TIMEOUT
@@ -209,3 +246,27 @@ class SlurmTests(PavTestCase):
         results = test.load_results()
         self.assertEqual(results['result'], result_parsers.PASS)
 
+    @unittest.skipIf(not has_slurm(), "Only runs on a system with slurm.")
+    def test_include_exclude(self):
+        """Test that we can schedule tests that require or exclude nodes."""
+
+        slurm = schedulers.get_plugin('slurm')
+
+        dummy_test = self._quick_test(build=False, finalize=False)
+        svars = slurm.get_vars(dummy_test.config['slurm'])
+        up_nodes = svars['node_up_list']
+
+        cfg = self._quick_test_cfg()
+        cfg['scheduler'] = 'slurm'
+        cfg['slurm']['num_nodes'] = '2'
+        cfg['slurm']['include_nodes'] = up_nodes[1]
+        cfg['slurm']['exclude_nodes'] = up_nodes[2]
+
+        test = self._quick_test(cfg, finalize=False)
+
+        # We mainly care if this step completes successfully.
+        slurm.schedule_test(self.pav_cfg, test)
+        try:
+            test.wait(timeout=5)
+        except TimeoutError:
+            slurm.cancel_job(test)

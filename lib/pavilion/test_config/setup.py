@@ -269,9 +269,28 @@ def load_test_configs(pav_cfg, host, modes, tests):
                     test_suite_cfg = test_suite_loader.load_raw(
                         test_suite_file)
 
-            except (IOError, OSError) as err:
+            except (IOError, OSError, ) as err:
                 raise TestConfigError("Could not open test suite config {}: {}"
                                       .format(test_suite_path, err))
+            except ValueError as err:
+                raise TestConfigError(
+                    "Test suite '{}' has invalid value. {}"
+                    .format(test_suite_path, err))
+            except KeyError as err:
+                raise TestConfigError(
+                    "Test suite '{}' has an invalid key. {}"
+                    .format(test_suite_path, err))
+            except YAMLError as err:
+                raise TestConfigError(
+                    "Test suite '{}' has a YAML Error: {}"
+                    .format(test_suite_path, err)
+                )
+            except TypeError as err:
+                # All config elements in test configs must be strings, and just
+                # about everything converts cleanly to a string.
+                raise RuntimeError(
+                    "Test suite '{}' raised a type error, but that "
+                    "should never happen. {}".format(test_suite_path, err))
 
             suite_tests = resolve_inheritance(
                 base_config,
@@ -349,21 +368,32 @@ def resolve_inheritance(base_config, suite_cfg, suite_path):
     # A list of tests whose parent's have had their dependencies
     # resolved.
     ready_to_resolve = list()
-    for test_cfg_name, test_cfg in suite_cfg.items():
-        if test_cfg.get('inherits_from') is None:
-            test_cfg['inherits_from'] = '__base__'
-            # Tests that depend on nothing are ready to resolve.
-            ready_to_resolve.append(test_cfg_name)
-        else:
-            depended_on_by[test_cfg['inherits_from']].append(test_cfg_name)
+    if suite_cfg is None: # Catch null test suites.
+        raise TestConfigError("Test Suite {} is empty.".format(suite_path))
+    try:
+        for test_cfg_name, test_cfg in suite_cfg.items():
+            if test_cfg is None:
+                raise TestConfigError("{} in {} is empty. Nothing will execute."
+                                      .format(test_cfg_name, suite_path))
+            if test_cfg.get('inherits_from') is None:
+                test_cfg['inherits_from'] = '__base__'
+                # Tests that depend on nothing are ready to resolve.
+                ready_to_resolve.append(test_cfg_name)
+            else:
+                depended_on_by[test_cfg['inherits_from']].append(test_cfg_name)
 
-        try:
-            suite_tests[test_cfg_name] = TestConfigLoader().normalize(test_cfg)
-        except (TypeError, KeyError, ValueError) as err:
-            raise TestConfigError(
-                "Test {} in suite {} has an error: {}"
-                .format(test_cfg_name, suite_path, err))
-
+            try:
+                suite_tests[test_cfg_name] = TestConfigLoader().normalize(
+                    test_cfg)
+            except (TypeError, KeyError, ValueError) as err:
+                raise TestConfigError(
+                    "Test {} in suite {} has an error: {}"
+                    .format(test_cfg_name, suite_path, err))
+    except AttributeError as err:
+        raise TestConfigError(
+            "Test Suite {} has objects but isn't a dict. Check syntax "
+            " or prepend '-f' if running a list of tests "
+            .format(suite_path))
     # Add this so we can cleanly depend on it.
     suite_tests['__base__'] = base_config
 
@@ -626,7 +656,7 @@ def resolve_deferred(config, var_man):
 
 
 def resolve_section_vars(component, var_man, allow_deferred, deferred_only):
-    """Recursively resolve the given config component's  variables, using a
+    """Recursively resolve the given config component's variables, using a
      variable manager.
 
     :param dict component: The config component to resolve.
@@ -687,7 +717,10 @@ def resolve_section_vars(component, var_man, allow_deferred, deferred_only):
                     .format(DEFERRED_PREFIX)
                 )
 
-            resolved = string_parser.parse(component).resolve(var_man)
+            try:
+                resolved = string_parser.parse(component).resolve(var_man)
+            except string_parser.ResolveError as err:
+                raise TestConfigError(err)
 
             if resolved is None:
                 if allow_deferred:

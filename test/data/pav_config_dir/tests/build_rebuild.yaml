@@ -1,0 +1,36 @@
+local1:
+    variables:
+        build_num: 1
+    build:
+        cmds:
+            - echo "local {{build_num}}"
+            - sleep 1
+    
+    run:
+        cmds:
+            - echo "Running World"
+
+    scheduler: "raw"
+
+local1a:
+    inherits_from: local1
+
+nodes1:
+    inherits_from: local1
+    build:
+        on_nodes: true
+nodes1a:
+    inherits_from: nodes1
+
+local2: 
+    variables:
+        build_num: 2
+    inherits_from: local1 
+
+nodes3:
+    inherits_from: local1
+    variables:
+        build_num: 3
+    build:
+        on_nodes: true
+    
