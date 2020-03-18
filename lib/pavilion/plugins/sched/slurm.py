@@ -1,3 +1,5 @@
+"""The Slurm Scheduler Plugin."""
+
 import os
 import re
 import subprocess
@@ -18,13 +20,13 @@ class SbatchHeader(scriptcomposer.ScriptHeader):
 slurm kickoff script.
 """
 
-    def __init__(self, sched_config, nodes, test_id, vars):
+    def __init__(self, sched_config, nodes, test_id, slurm_vars):
         """Build a header for an sbatch file.
 
         :param dict sched_config: The slurm section of the test config.
-        :param list nodes: The node list
+        :param str nodes: The node list
         :param int test_id: The test's id.
-        :param dict vars: The test variables.
+        :param dict slurm_vars: The test variables.
         """
 
         super().__init__()
@@ -32,7 +34,7 @@ slurm kickoff script.
         self._conf = sched_config
         self._test_id = test_id
         self._nodes = nodes
-        self._vars = vars
+        self._vars = slurm_vars
 
     def get_lines(self):
         """Get the sbatch header lines."""
@@ -58,6 +60,10 @@ slurm kickoff script.
         lines.append('#SBATCH --tasks-per-node={}'.format(tasks))
         if self._conf.get('time_limit') is not None:
             lines.append('#SBATCH -t {s._conf[time_limit]}'.format(s=self))
+        if self._conf.get('include_nodes') is not None:
+            lines.append('#SBATCH -w {s._conf[include_nodes]}'.format(s=self))
+        if self._conf.get('exclude_nodes') is not None:
+            lines.append('#SBATCH -x {s._conf[exclude_nodes]}'.format(s=self))
 
         return lines
 
@@ -87,6 +93,71 @@ class SlurmVars(SchedulerVariables):
         """The maximum memory per node across all nodes (in MiB)."""
 
         return self.sched_data['summary']['max_mem']
+
+    @var_method
+    def nodes(self):
+        """Number of nodes on the system."""
+
+        return len(self.sched_data['nodes'])
+
+    @var_method
+    def node_list(self):
+        """List of nodes on the system."""
+
+        return list(self.sched_data['nodes'].keys())
+
+    @var_method
+    def node_up_list(self):
+        """List of nodes who are in an a state that is considered available."""
+
+        up_states = self.sched_config['up_states']
+
+        nodes = []
+        for node, node_info in self.sched_data['nodes'].items():
+            if 'Partitions' not in node_info:
+                # Skip nodes that aren't in any partition.
+                continue
+
+            for state in node_info['State']:
+                if state not in up_states:
+                    break
+            else:
+                nodes.append(node)
+
+        return nodes
+
+    @var_method
+    def nodes_up(self):
+        """Number of nodes in an 'avail' state."""
+
+        return len(self.node_up_list())
+
+    @var_method
+    def node_avail_list(self):
+        """List of nodes who are in an a state that is considered available.
+Warning: Tests that use this will fail to start if no nodes are available."""
+
+        avail_states = self.sched_config['avail_states']
+
+        nodes = []
+        for node, node_info in self.sched_data['nodes'].items():
+            if 'Partitions' not in node_info:
+                # Skip nodes that aren't in any partition.
+                continue
+
+            for state in node_info['State']:
+                if state not in avail_states:
+                    break
+            else:
+                nodes.append(node)
+
+        return nodes
+
+    @var_method
+    def nodes_avail(self):
+        """Number of nodes in an 'avail' state."""
+
+        return len(self.node_avail_list())
 
     @dfr_var_method
     def alloc_nodes(self):
@@ -148,6 +219,11 @@ class SlurmVars(SchedulerVariables):
     def alloc_cpu_total(self):
         """Total CPUs across all nodes in this allocation."""
         return self.sched_data['alloc_summary']['total_cpu']
+
+    @dfr_var_method
+    def test_node_list(self):
+        """A list of nodes dedicated to this test run."""
+        return self.alloc_node_list()
 
     @dfr_var_method
     def test_nodes(self):
@@ -220,15 +296,15 @@ def slurm_states(state):
     """Parse a slurm state down to something reasonable."""
     states = state.split('+')
 
-    if states:
-        state = states[0]
-    else:
-        return 'UNKNOWN'
+    if not states:
+        return ['UNKNOWN']
 
-    if state.endswith('$') or state.endswith('*'):
-        state = state[:-1]
+    for i in range(len(states)):
+        state = states[i]
+        if state.endswith('$') or state.endswith('*'):
+            states[i] = state[:-1]
 
-    return state
+    return states
 
 
 class Slurm(SchedulerPlugin):
@@ -237,6 +313,17 @@ class Slurm(SchedulerPlugin):
     KICKOFF_SCRIPT_EXT = '.sbatch'
 
     VAR_CLASS = SlurmVars
+
+    NODE_SEQ_REGEX_STR = (
+        # The characters in a valid hostname.
+        r'[a-zA-Z][a-zA-Z_-]*\d*'
+        # A numeric range of nodes in square brackets.
+        r'(?:\[\d+-\d+\])?'
+    )
+    NODE_LIST_RE = re.compile(
+        # Match a comma separated list of these things.
+        r'{0}(?:,{0})*$'.format(NODE_SEQ_REGEX_STR)
+    )
 
     def __init__(self):
         super().__init__(
@@ -253,8 +340,8 @@ class Slurm(SchedulerPlugin):
             self.name,
             help_text="Configuration for the Slurm scheduler.",
             elements=[
-                yc.StrElem(
-                    'num_nodes',
+                yc.RegexElem(
+                    'num_nodes', regex=r'^(\d+|all)(-(\d+|all))?$',
                     default="1",
                     help_text="Number of nodes requested for this test. "
                               "This can be a range (e.g. 12-24)."),
@@ -272,7 +359,8 @@ class Slurm(SchedulerPlugin):
                     'immediate', choices=['true', 'false', 'True', 'False'],
                     default='false',
                     help_text="Only consider nodes not currently running jobs"
-                              "when determining job size"
+                              "when determining job size. Will set the minimum"
+                              "number of nodes "
                 ),
                 yc.StrElem('qos',
                            help_text="The QOS that this test should use."),
@@ -287,6 +375,18 @@ class Slurm(SchedulerPlugin):
                     help_text="The time limit to specify for the slurm job in"
                               "the formats accepted by slurm "
                               "(<hours>:<minutes> is typical)"),
+                yc.RegexElem(
+                    'include_nodes', regex=Slurm.NODE_LIST_RE,
+                    help_text="The nodes to include, in the same format "
+                              "that Slurm expects with the -w or -x option. "
+                              "This will automatically increase num_nodes to "
+                              "at least this node count."
+                ),
+                yc.RegexElem(
+                    'exclude_nodes', regex=Slurm.NODE_LIST_RE,
+                    help_text="A list of nodes to exclude, in the same format "
+                              "that Slurm expects with the -w or -x option."
+                ),
                 yc.ListElem(name='avail_states',
                             sub_elem=yc.StrElem(),
                             defaults=['IDLE', 'MAINT'],
@@ -330,6 +430,7 @@ class Slurm(SchedulerPlugin):
 
         return data
 
+    # Callback functions to convert various node info fields into native types.
     NODE_FIELD_TYPES = {
         'CPUTot': int,
         'CPUAlloc': int,
@@ -343,6 +444,56 @@ class Slurm(SchedulerPlugin):
         'AvailableFeatures': lambda s: s.split(','),
         'ActiveFeatures': lambda s: s.split(','),
     }
+
+    @classmethod
+    def _parse_node_list(cls, node_list):
+        """Convert a slurm format node list into a list of nodes, and throw
+        errors that help the user identify their exact mistake."""
+        if node_list is None or node_list == '':
+            return []
+
+        match = cls.NODE_LIST_RE.match(node_list)
+        if match is None:
+            node_part_re = re.compile(cls.NODE_SEQ_REGEX_STR + r'$')
+            for part in node_list.split(','):
+                if not node_part_re.match(part):
+                    raise ValueError(
+                        "Invalid Node List: '{}'. Syntax error in item '{}'. "
+                        "Node lists components be a hostname or hostname "
+                        "prefix followed by a range of node numbers. "
+                        "Ex: foo003,foo0[10-20],foo[103-104]"
+                        .format(node_list, part)
+                    )
+
+            # If all the parts matched, then it's an overall format issue.
+            raise ValueError("Invalid Node List: '{}' "
+                             "Good Example: foo003,foo0[10-20],"
+                             "foo[103-104]")
+
+        nodes = []
+        for part in node_list.split(','):
+            if '[' in part:
+                base, nrange = part.split('[')
+                # Drop the closing bracket
+                nrange = nrange[:-1]
+                start, end = nrange.split('-')
+                digits = min(len(start), len(end))
+                start = int(start)
+                end = int(end)
+                if end < start:
+                    raise ValueError(
+                        "In node list '{}' part '{}', node range ends before"
+                        "it starts."
+                        .format(node_list, part)
+                    )
+                for i in range(start, end+1):
+                    node = ('{base}{num:0{digits}d}'
+                            .format(base=base, num=i, digits=digits))
+                    nodes.append(node)
+            else:
+                nodes.append(part)
+
+        return nodes
 
     def _collect_node_data(self, nodes=None):
         """Use the `scontrol show node` command to collect data on nodes.
@@ -444,12 +595,24 @@ class Slurm(SchedulerPlugin):
         nodes = list(filter(lambda n: 'Partitions' in n and 'State' in n,
                             nodes))
 
-        # Remove nodes that aren't up.
         up_states = config['up_states']
-        nodes = list(filter(lambda n: n['State'] in up_states, nodes))
+
+        include_nodes = self._parse_node_list(config['include_nodes'])
+        exclude_nodes = self._parse_node_list(config['exclude_nodes'])
+
+        def in_up_states(state):
+            """state in up states"""
+            return state in config['up_states']
+
+        # Nodes can be in multiple simultaneous states. Only include nodes
+        # for which all of their states are in the 'up_states'.
+        nodes = [node for node in nodes if
+                 all(map(in_up_states, node['State']))]
         if min_nodes > len(nodes):
-            raise SchedulerPluginError("Insufficient nodes in up states: {}"
-                                       .format(up_states))
+            raise SchedulerPluginError(
+                "Insufficient nodes in up states: {}. Needed {}, found {}."
+                .format(up_states, min_nodes,
+                        [node['NodeName'] for node in nodes]))
 
         # Check for compute nodes that are part of the right partition.
         partition = config['partition']
@@ -460,24 +623,39 @@ class Slurm(SchedulerPlugin):
                                        '{}.'.format(partition))
 
         if config['immediate'].lower() == 'true':
-            states = config['avail_states']
-            # Check for compute nodes in this partition in the right state.
-            nodes = list(filter(lambda n: n['State'] in states, nodes))
+
+            def in_avail(state):
+                """state in avail_states."""
+                return state in config['avail_states']
+
+            # Check for compute nodes in this partition in the avail states.
+            nodes = [node for node in nodes
+                     if all(map(in_avail, node['State']))]
 
             if min_nodes > len(nodes):
-                raise SchedulerPluginError('Insufficient nodes in partition'
-                                           ' {} and states {}.'
-                                           .format(partition, states))
+                raise SchedulerPluginError(
+                    'Insufficient nodes in partition {} and states {}.'
+                    .format(partition, config['avail_states']))
 
         tasks_per_node = config.get('tasks_per_node')
         # When we want all the CPUs, it doesn't matter how many are on a node.
         tasks_per_node = 0 if tasks_per_node == 'all' else int(tasks_per_node)
         nodes = list(filter(lambda n: tasks_per_node <= n['CPUTot'], nodes))
 
+        # Remove any specifically excluded nodes.
+        nodes = [node for node in nodes
+                 if node['NodeName'] not in exclude_nodes]
+        node_names = [node['NodeName'] for node in nodes]
+        for name in include_nodes:
+            if name not in node_names:
+                raise SchedulerPluginError(
+                    "Specifically requested node '{}', but it was determined "
+                    "to be unavailable.".format(name))
+
         if min_nodes > len(nodes):
-            raise SchedulerPluginError('Insufficient nodes with more than {} '
-                                       'procs per node available.'
-                                       .format(tasks_per_node))
+            raise SchedulerPluginError(
+                'Insufficient nodes with more than {} procs per node available.'
+                .format(tasks_per_node))
 
         return nodes
 
@@ -762,24 +940,18 @@ class Slurm(SchedulerPlugin):
 
         nodes = self._filter_nodes(int(min_nodes), sched_config, nodes)
 
+        include_nodes = self._parse_node_list(sched_config['include_nodes'])
         if min_all:
             min_nodes = len(nodes)
         else:
-            try:
-                min_nodes = int(min_nodes)
-            except ValueError:
-                raise SchedulerPluginError(
-                    "Invalid num_nodes minimum value: {}"
-                    .format(min_nodes))
+            min_nodes = int(min_nodes)
+            if include_nodes:
+                min_nodes = max(len(include_nodes), min_nodes)
 
         if max_nodes == 'all':
             max_nodes = len(nodes)
         else:
-            try:
-                max_nodes = int(max_nodes)
-            except ValueError:
-                raise SchedulerPluginError(
-                    "Invalid num_nodes maximum value: {}".format(max_nodes))
+            max_nodes = int(max_nodes)
 
         return '{}-{}'.format(min_nodes, max_nodes)
 
@@ -790,8 +962,6 @@ class Slurm(SchedulerPlugin):
         :returns: A statusInfo object with the latest scheduler state.
         :rtype: StatusInfo
         """
-
-        # TODO: check this
 
         cmd = ['scancel', test.job_id]
 
@@ -814,6 +984,9 @@ class Slurm(SchedulerPlugin):
                 msg
             )
         else:
+            test.status.set(
+                STATES.SCHED_CANCELLED,
+                "Tried (but failed) to cancel job: {}".format(stderr))
             # Scancel failed, pass the stderr message
             return StatusInfo(
                 STATES.SCHED_ERROR,

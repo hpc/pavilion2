@@ -69,7 +69,7 @@ class ViewCommand(run.RunCommand):
 
         sys_vars = system_variables.get_vars(True)
 
-        configs = self._get_tests(
+        configs = self._get_test_configs(
             pav_cfg=pav_cfg,
             host=args.host,
             test_files=[],

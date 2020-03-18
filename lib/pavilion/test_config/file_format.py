@@ -16,7 +16,7 @@ class TestConfigError(ValueError):
 TEST_NAME_RE_STR = r'^[a-zA-Z_][a-zA-Z0-9_-]*$'
 TEST_NAME_RE = re.compile(TEST_NAME_RE_STR)
 KEY_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_-]*$')
-VAR_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_-]*[\?\+]?$')
+VAR_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_-]*[?+]?$')
 
 
 class VariableElem(yc.CategoryElem):
@@ -38,20 +38,20 @@ class VariableElem(yc.CategoryElem):
                                            defaults=None,
                                            **kwargs)
 
-    def normalize(self, values):
+    def normalize(self, value):
         """Normalize to either a dict of strings or just a string."""
-        if isinstance(values, str):
-            return values
+        if not isinstance(value, dict):
+            return yc.StrElem().normalize(value)
 
-        return super().normalize(values)
+        return super().normalize(value)
 
-    def validate(self, value_dict, partial=False):
+    def validate(self, value, partial=False):
         """Check for a single item and return it, otherwise return a dict."""
 
-        if isinstance(value_dict, str):
-            return value_dict
+        if isinstance(value, str):
+            return value
 
-        return super().validate(value_dict, partial=partial)
+        return super().validate(value, partial=partial)
 
 
 class VarCatElem(yc.CategoryElem):
@@ -277,7 +277,8 @@ expected to be added to by various plugins.
                               "build log, and print the modules loaded and "
                               "environment before the cmds run."),
                 yc.StrElem(
-                    'timeout', default='300',
+                    'timeout',
+                    default='300',
                     help_text="Time that a build can continue without "
                               "generating new output before it is cancelled. "
                               "Can be left empty for no timeout.")

@@ -27,7 +27,7 @@ utils.RED
 
 import csv
 import datetime
-import itertools
+import pprint
 import json
 import re
 import shutil
@@ -35,6 +35,9 @@ import sys
 import textwrap
 from collections import UserString, defaultdict, UserDict
 from pathlib import Path
+
+if sys.version_info.minor > 4:
+    import types
 
 BLACK = 30
 RED = 31
@@ -70,7 +73,8 @@ COLORS = {
 
 def get_relative_timestamp(base_dt):
     """Print formatted time string based on the delta of time objects.
-    :param datetime base_dt: The datetime object to compare and format from.
+    :param datetime.datetime base_dt: The datetime object to compare and format
+    from.
     :returns: A formatted time string.
     :rtype str:
     """
@@ -84,7 +88,8 @@ def get_relative_timestamp(base_dt):
     return base_dt.strftime(str(format_[3]))
 
 
-def dbg_print(*args, color=YELLOW, file=sys.stderr, end="", **kwargs):
+def dbg_print(*args, color=YELLOW, file=sys.stderr, end="",
+              pformat=True, **kwargs):
     """A colored print statement for debug printing. Use when you want to
 print dbg statements and easily excise it later.
 
@@ -92,8 +97,18 @@ print dbg statements and easily excise it later.
 :param end: Default the ending to no newline (we do a pre-newline because
     of how unittest prints stuff.
 :param int color: ANSI color code to print the string under.
+:param bool pformat: Automatically apply pprint.pformat to args that are
+    dicts or lists.
+:param kwargs: Also accepts all ``print()`` kwargs.
 """
     start_escape = '\n\x1b[{}m'.format(color)
+
+    if pformat:
+        args = list(args)
+        for i in range(len(args)):
+            arg = args[i]
+            if isinstance(arg, (dict, list)):
+                args[i] = pprint.pformat(arg)
 
     print(start_escape, end='', file=file)
     print(*args, file=file, end='', **kwargs)
@@ -101,7 +116,7 @@ print dbg statements and easily excise it later.
     sys.stderr.flush()
 
 
-def fprint(*args, color=None, bullet='', width=100,
+def fprint(*args, color=None, bullet='', width=0, wrap_indent=0,
            sep=' ', file=sys.stdout, end='\n', flush=False):
     """Print with automatic wrapping, bullets, and other features. Also accepts
     all print() kwargs.
@@ -112,7 +127,10 @@ def fprint(*args, color=None, bullet='', width=100,
         following lines indented to match.
     :param str sep: The standard print sep argument.
     :param file: Stream to print.
-    :param int width: Wrap the text to this width.
+    :param int wrap_indent: Indent lines (after the first) this number of
+        spaces for each paragraph.
+    :param Union[int,None] width: Wrap the text to this width. If 0, find the
+        terminal's width and wrap to that.
     :param str end: String appended after the last value (default \\n)
     :param bool flush: Whether to forcibly flush the stream.
 """
@@ -121,21 +139,30 @@ def fprint(*args, color=None, bullet='', width=100,
     if color is not None:
         print('\x1b[{}m'.format(color), end='', file=file)
 
-    out_str = sep.join(args)
+    if width == 0:
+        width = shutil.get_terminal_size().columns
+
+    wrap_indent = ' '*wrap_indent
+
     if width is not None:
+        out_str = sep.join(args)
         for paragraph in str.splitlines(out_str):
-            lines = textwrap.wrap(paragraph, width=width)
+            lines = textwrap.wrap(paragraph, width=width,
+                                  subsequent_indent=wrap_indent)
             lines = '\n'.join(lines)
 
             if bullet:
                 lines = textwrap.indent(lines, bullet, lines.startswith)
 
-            print(lines, file=file)
+            print(lines, file=file, end='')
     else:
-        print(out_str, file=file)
+        out_str = sep.join(args)
+        print(out_str, file=file, end='')
 
     if color is not None:
-        print('\x1b[0m', end=end, file=file, flush=flush)
+        print('\x1b[0m', file=file, end='')
+
+    print(end, end='', file=file, flush=True)
 
 
 def json_dumps(obj, skipkeys=False, ensure_ascii=True,
@@ -208,248 +235,29 @@ used when the string is formatted.
 
     hello = ANSIStr("Hello World", utils.RED)
     print(hello)
+
+    :ivar data: The raw string data.
 """
 
-    CODE_RE = re.compile(r'^[0-9;]+$')
-    ANSI_RE = re.compile(r'\x1b\[([0-9;]*)m')
-    ANSI_FMT = '\x1b[{code}m{data}\x1b[0m'
+    ANSI_START = '\x1b[{code}m'
+    ANSI_END = '\x1b[0m'
 
     def __init__(self, data, code=None):
         """Parse the given data string into ANSI code colored blocks, and then
         wrap any components that aren't colored in the given code.
-        :param str data: The string to color.
+        :param Union[str,ANSIString,None] data: The string to color.
         :param str code: The code to color it with. Should be an ANSI argument
         set; integers separated by semicolons.
         """
 
-        if code is not None:
-            code = str(code)
-            if not self.CODE_RE.match(code):
-                raise ValueError("Invalid ANSI code: '{}'".format(code))
-
-        parts = self._parse(data)
-        formatted = []
-        pcode = None
-
-        for part, pcode in parts:
-            if pcode is None:
-                pcode = code
-
-            if pcode is None:
-                formatted.append(part)
-            elif part:
-                formatted.append(self.ANSI_FMT.format(code=pcode, data=part))
-
-        self.data = ''
-
-        super().__init__(''.join([str(s) for s in formatted]))
-        self.carryover_code = pcode
-
-    def _parse(self, data):
-        """Break data into separate ansi coded chunks.
-        :param str data:
-        :returns A list of (str, code) tuples for each part of the string.
-            Uncoded segments will have None as the code.
-        :rtype: list((str,str))
-        """
-
-        data_str = str(data)
-        matches = list(self.ANSI_RE.finditer(data_str))
-
-        start = 0
-        parts = []
-        code = None
-
-        for match in matches:
-            parts.append((data_str[start:match.start()], code))
-
-            start = match.end()
-            code = match.groups()[0]
-            code_parts = code.split(';')
-            # If a code ends in 0 or nothing, that's a reset.
-            if code_parts[-1] in ('0', ''):
-                code = None
-
-        parts.append((data_str[start:], code))
-
-        return parts
-
-    def __len__(self):
-        """Return the length without escapes."""
-        return len(self.clean())
-
-    def clean(self):
-        """Remove all ANSI escapes from the string data."""
-
-        return self.ANSI_RE.sub('', self.data)
-
-    _WHITESPACE = ' \t\n\r\x0b\x0c'
-    WORD_PUNCT = r'[\w!"\'&.,?]'
-    WHITESPACE = r'[%s]' % re.escape(_WHITESPACE)
-    NOWHITESPACE = '[^' + WHITESPACE[1:]
-    WORDSEP_RE = re.compile(r'''
-        ( # any whitespace
-          {ws}+ |
-          -
-        )'''.format(ws=WHITESPACE), re.VERBOSE)
-    del WORD_PUNCT, NOWHITESPACE
-
-    def _chunks(self):
-        """Break the text into chunks. Only non-empty chunks are returned.
-
-        :rtype: list(ANSIString)
-        """
-
-        chunks = []
-        carryover = None
-        for chunk in self.WORDSEP_RE.split(self.data):
-            if not chunk:
-                continue
-
-            if not chunk.strip():
-                chunk = ' '
-            chunk = ANSIString(chunk, code=carryover)
-            carryover = chunk.carryover_code
-            chunks.append(chunk)
-
-        return chunks
-
-    def wrap(self, width):
-        """Wrap this string to the given width, much like the textwrap module
-        does.
-
-- Colorization wraps too.
-- All whitespace is transformed into a single space.
-- Words are broken on single hyphens or whitespace only.
-- Long words are wrapped.
-
-:param int width: The width to wrap to.
-:raises ValueError: For invalid widths.
-:returns: A list of wrapped ANSIStrings
-"""
-
-        if width <= 0:
-            raise ValueError(
-                "Width parameter must be a positive int. Got {}"
-                .format(width))
-
-        chunks = self._chunks()
-        chunks.reverse()
-
-        lines = []
-
-        line = []
-        line_len = 0
-        while chunks:
-            chunk = ANSIString(chunks.pop())
-            clean_chunk = chunk.clean()
-
-            # Skip whitespace that would start a line
-            if clean_chunk == ' ' and line_len == 0:
-                continue
-
-            c_len = len(clean_chunk)
-
-            # If the line is empty, put the next (non-whitespace) thing there.
-            if line_len == 0:
-                line.append(chunk[:width])
-                # Our chunk may exceed the width. Save the rest for next time.
-                remainder = ANSIString(chunk[width:], chunk.carryover_code)
-                if remainder:
-                    chunks.append(remainder)
-                if len(remainder) > 200:
-                    raise Exception
-
-                line_len += len(ANSIString(chunk[:width]))
-
-            # Add the next chunk if it's small enough.
-            elif c_len + line_len <= width:
-                line.append(chunk)
-                line_len += c_len
-
-            # No more space for the next line -- wrap.
-            else:
-                # We'll use this chunk next time.
-                chunks.append(chunk)
-                line = [str(l) for l in line]
-                lines.append(ANSIString(''.join(line)))
-                line = []
-                line_len = 0
-
-        if line:
-            line = [str(l) for l in line]
-            lines.append(''.join(line))
-
-        return lines
-
-    def __getitem__(self, item):
-        parts = self._parse(self.data)
-        parts.reverse()
-        length = len(self)
-
-        if isinstance(item, slice):
-            start = item.start if item.start is not None else 0
-            stop = item.stop if item.stop is not None else length
-            step = item.step if item.step is not None else 1
+        if isinstance(data, ANSIString):
+            data = data.data
+            self.code = code if code is not None else data.code
         else:
-            start = item
-            stop = item + 1
-            step = 1
+            self.code = code
+            self.data = None
 
-        reverse = False
-        if start < 0:
-            start = length + start
-        if stop < 0:
-            stop = length + stop
-        if step < 0:
-            reverse = True
-            start, stop = stop, start
-            step = -step
-
-        pos = 0
-        # Tuples of (str_part, color)
-        bits = []
-        while pos < stop and parts:
-            substr, color = parts.pop()
-            if start > pos + len(substr):
-                continue
-            bits.append((substr[start-pos:stop-pos:step], color))
-            pos += len(substr)
-
-        # Reverse all of our output if our step was negative
-        if reverse:
-            for i in range(len(bits)):
-                substr, bcode = bits[i]
-                bits[i] = ''.join(list(reversed(substr))), bcode
-        else:
-            # We need to bits normally, so don't do it if
-            # things should be backwards.
-            bits.reverse()
-
-        # Combine bits that are the same color.
-        out_str = []
-        last_code = None
-        bit = None
-        bcode = None
-        while bits:
-            bit_parts = []
-            if bit is None:
-                bit, bcode = bits.pop()
-                bit_parts.append(bit)
-                last_code = bcode
-
-            while bits and bcode == last_code:
-                bit_parts.append(bit)
-                bit, bcode = bits.pop()
-            if last_code is not None:
-                out_str.append(self.ANSI_FMT.format(
-                    data=''.join(bit_parts),
-                    code=last_code))
-            else:
-                out_str.append(''.join(bit_parts))
-            last_code = bcode
-
-        return ANSIString(''.join(out_str))
+        super().__init__(data)
 
     FORMAT_RE = re.compile(
         r'''
@@ -465,6 +273,27 @@ used when the string is formatted.
         'min_width': 0,
         'type': 's',
     }
+
+    def wrap(self, width=70):
+        """Wrap the text as with textwrap, but return ANSIString objects
+        with the same ANSI code applied."""
+
+        return [ANSIString(row, code=self.code)
+                for row in textwrap.wrap(self.data, width=width)]
+
+    def colorize(self):
+        """Return the string wrapped in the appropriate ANSI escapes."""
+
+        if self.code is None:
+            return self.data
+
+        data = [
+            self.ANSI_START.format(code=self.code),
+            self.data,
+            self.ANSI_END
+        ]
+
+        return ''.join(data)
 
     def __format__(self, format_spec):
 
@@ -497,7 +326,46 @@ used when the string is formatted.
             padding_left = (diff//2) * fmt['fill']
             padding_right = (diff//2 + diff % 2) * fmt['fill']
 
-        return padding_left + self.data + padding_right
+        parts = []
+
+        parts.extend((padding_left, self.data, padding_right))
+
+        return ''.join(parts)
+
+
+def format_row(row, fields, widths, pad, border):
+    out = []
+    if border:
+        out.append('|')
+    if pad:
+        out.append(' ')
+
+    for field_i in range(len(fields)):
+        field = fields[field_i]
+        if field_i != 0:
+            if pad:
+                out.append(' | ')
+            else:
+                out.append('|')
+        data = row[field]
+        if isinstance(data, ANSIString):
+            color_data = data.colorize()
+            out.append(color_data)
+        else:
+            out.append(data)
+        out.append(' '*(widths[field] - len(data)))
+
+    if pad:
+        out.append(' ')
+    if border:
+        out.append('|')
+    out.append('\n')
+
+    return ''.join(out)
+
+
+# It's ok to wrap words longer than this
+MAX_WORD_LEN = 15
 
 
 def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
@@ -639,7 +507,7 @@ A more complicated example: ::
         field_title = field_info.get(field, {}).get('title', default_title)
         # Gets the length of column title, adds it to the list of column widths
         column_widths[field] = [len(field_title)]
-        titles[field] = field_title
+        titles[field] = ANSIString(field_title)
 
     blank_row = {}
     for field in fields:
@@ -660,17 +528,22 @@ A more complicated example: ::
             # Transform the data, if a transform is given
             data = info.get('transform', lambda a: a)(data)
             # Format the data
+            col_format = info.get('format', '{0}')
             try:
-                data = info.get('format', '{0}').format(data)
+                formatted_data = col_format.format(data)
             except ValueError:
                 print("Bad format for data. Format: {0}, data: {1}"
-                      .format(info.get('format', '{0}'),
-                              repr(data)), file=sys.stderr)
+                      .format(col_format, repr(data)), file=sys.stderr)
                 raise
+
+            if isinstance(data, ANSIString):
+                ansi_code = data.code
+            else:
+                ansi_code = None
 
             # Cast all data as ANSI strings, so we can get accurate lengths
             # and use ANSI friendly text wrapping.
-            data = ANSIString(data)
+            data = ANSIString(formatted_data, code=ansi_code)
 
             # Appends the length of all rows at a given field longer than the
             # title. Effectively forces that the minimum column width be no
@@ -681,13 +554,23 @@ A more complicated example: ::
             formatted_row[field] = data
         formatted_rows.append(formatted_row)
 
+    rows = formatted_rows
+    rows.insert(0, titles)
+
     # Gets dictionary with largest width, and smallest width for each field.
     # Also updates the default column_Widths dictionary to hold the max values
     # for each column.
-    min_widths = {field: min(widths) for field, widths in column_widths.items()}
     max_widths = {field: max(widths) for field, widths in column_widths.items()}
-    column_widths = {field: max(widths) for field, widths in
-                     column_widths.items()}
+    min_widths = {}
+
+    for field in fields:
+        all_words = sum([row[field].split() for row in rows], [])
+        longest_word = ''
+        for word in all_words:
+            if len(word) > len(longest_word):
+                longest_word = word
+
+        min_widths[field] = min(MAX_WORD_LEN, len(longest_word))
 
     for field in field_info:
         # If user specified ignoring wrapping on a given field, it will set the
@@ -740,112 +623,83 @@ A more complicated example: ::
 
         boundaries.append([min_widths[field], max_widths[field] + 1])
 
-    # Pre-calculate the total wraps for each field at each possible
-    # column width.
+    extra_spaces = window_width - sum(min_widths.values())
+    final_widths = min_widths.copy()
+
+    def calc_wraps(fld_, width_):
+        """Calculate the wraps for a given field at the given width across
+        all rows."""
+        return sum([len(row_[fld_].wrap(width=width_))
+                    for row_ in formatted_rows])
+
     field_wraps_by_width = defaultdict(dict)
-    for fld in range(len(fields)):  # pylint: disable=C0200
-        field = fields[fld]
-        for width in range(*boundaries[fld]):
-            wrap_total = 0
+    incr = 1
+    # Consume the additional spaces available by growing the columns according
+    # to which column would benefit the most from the extra space. If there
+    # is a tie, increase the number of spaces considered.
+    while extra_spaces:
+        best_fields = []
+        best_diff = 0
+        row_count = len(formatted_rows)
 
-            for row in formatted_rows:
-                wrap_total += len(row[field].wrap(width=width))
-
-            field_wraps_by_width[fld][width] = wrap_total
-
-    # Calculates the max number of wraps for a given column width
-    # combination.
-    best_combo = None
-    least_wraps = None
-
-    # Checks all possible combinations.
-    for combo in itertools.product(*(range(*bound) for bound in boundaries)):
-        # Only populates list with combinations equal to current window
-        # size if table width was the reason for wrapping
-        if sum(combo) != window_width:
-            continue
-
-        wrap_count = 0
-        for fld in range(len(fields)):  # pylint: disable=C0200
-            wrap_count += field_wraps_by_width[fld][combo[fld]]
-
-        # Updates minimum wraps with the smallest amount of wraps seen
-        # so far.
-        if least_wraps is None or wrap_count <= least_wraps:
-            least_wraps = wrap_count
-            best_combo = combo
-            if wrap_count == 0:
-                break
-
-    # The base width of the table may be less the the terminal width.
-    if best_combo is not None:
+        # Find the 'best_fields' to add 'incr' byte to.
         for fld in range(len(fields)):
-            column_widths[fields[fld]] = best_combo[fld]
+            field = fields[fld]
+            curr_width = final_widths[field]
 
-    title_length = sum(column_widths.values())
+            curr_wraps = field_wraps_by_width[fld].get(
+                curr_width,
+                calc_wraps(field, curr_width))
+            incr_wraps = field_wraps_by_width[fld].get(
+                curr_width + incr,
+                calc_wraps(field, curr_width + incr))
+
+            diff = (curr_wraps-incr_wraps)
+
+            # If this field beats all previous, make it the best.
+            if diff > best_diff:
+                best_diff = diff
+                best_fields = [field]
+            # Don't consider fields whose diff is 0.
+            elif diff == 0:
+                continue
+            # If we tie, add it to the list of the best.
+            elif diff == best_diff:
+                best_fields.append(field)
+
+        if len(best_fields) == 1:
+            # Add incr bytes to the winner
+            extra_spaces -= incr
+            final_widths[best_fields[0]] += incr
+            incr = 1
+        elif incr == extra_spaces:
+            # If we've run out of bytes to consider, distribute them evenly
+            # amongst the tied winners.
+            extra_spaces -= incr
+            for fld in best_fields:
+                field = fields[fld]
+                final_widths[field] += incr/len(best_fields)
+        else:
+            # Otherwise, increase the increment and try again.
+            incr += 1
+
+    title_length = sum(final_widths.values())
 
     if pad:
         title_length = title_length + 2 * len(fields)
 
     title_format = ' {{0:{0}s}} '.format(title_length)
-    # Generate the format string for each row.
-    col_formats = []
-
-    for field in fields:
-        format_str = '{{{field_name}:{width}s}}' \
-            .format(field_name=field, width=column_widths[field])
-        if pad:
-            format_str = ' ' + format_str + ' '
-        col_formats.append(format_str)
-    row_format = '|'.join(col_formats)
 
     # Add 2 dashes to each break line if we're padding the data
     brk_pad_extra = 2 if pad else 0
-    horizontal_break = '+'.join(['-' * (column_widths[field] + brk_pad_extra)
+    horizontal_break = '+'.join(['-' * (final_widths[field] + brk_pad_extra)
                                  for field in fields])
     if border:
-        row_format = '|' + row_format + '|'
         horizontal_break = '+' + horizontal_break + '+'
         title_format = '|' + title_format + '|'
 
-    row_format += '\n'
     horizontal_break += '\n'
     title_format += '\n'
-
-    wrap_rows = []
-    # Reformats all the rows
-    for row in formatted_rows:
-        wraps = {}
-        # Creates wrap list that holds list of strings for the wrapped text
-        for field in fields:
-            wraps[field] = row[field].wrap(width=column_widths[field])
-
-        num_lines = 0
-        # Gets the largest number of lines, so we know how many iterations
-        # to do when printing
-        for field in wraps.keys():
-            number_of_wraps = len(wraps[field])
-            if number_of_wraps > num_lines:
-                num_lines = number_of_wraps
-
-        # Populates current row with the first wrap
-        for field in fields:
-            try:
-                row[field] = wraps[field][0]
-            except IndexError as err:
-                continue
-
-        wrap_rows.append(row)
-        # Creates a new row for each line of text required
-        for line in range(1, num_lines):
-            wrap_row = {}
-            for field in fields:
-                if line >= len(wraps[field]):
-                    wrap_row[field] = ''
-                else:
-                    wrap_row[field] = wraps[field][line]
-
-            wrap_rows.append(wrap_row)
 
     try:
         if border:
@@ -854,14 +708,26 @@ A more complicated example: ::
             outfile.write(title_format.format(title))
             outfile.write(horizontal_break)
 
-        outfile.write(row_format.format(**titles))
-        outfile.write(horizontal_break)
-        for row in wrap_rows:
-            outfile.write(row_format.format(**row))
+        for row_i in range(len(rows)):
+            row = rows[row_i]
 
-        if border:
-            outfile.write(horizontal_break)
-        outfile.write('\n')
+            wrap_rows = defaultdict(lambda: defaultdict(lambda: ''))
+            # Creates wrap list that holds list of strings for the wrapped text
+            for field in fields:
+                wraps = row[field].wrap(width=final_widths[field])
+                for wrap_i in range(len(wraps)):
+                    wrap_row = wrap_rows[wrap_i]
+                    wrap_row[field] = wraps[wrap_i]
+
+            # Turn the wrapped rows into a list sorted by index
+            wrap_rows = [wrap_rows[i] for i in sorted(list(wrap_rows.keys()))]
+
+            for wrap_row in wrap_rows:
+                outfile.write(format_row(wrap_row, fields, final_widths, pad,
+                                         border))
+
+            if row_i == 0:
+                outfile.write(horizontal_break)
 
     except IOError:
         # We may get a broken pipe, especially when the output is piped to
