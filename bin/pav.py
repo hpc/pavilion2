@@ -63,28 +63,22 @@ def main():
             pav_cfg.working_dir/'series',
             pav_cfg.working_dir/'test_runs',
             pav_cfg.working_dir/'users']:
-        if not path.exists():
-            try:
-                path.mkdir()
-            except OSError as err:
-                # Handle potential race conditions with directory creation.
-                if path.exists():
-                    # Something else created the directory
-                    pass
-                else:
-                    output.fprint(
-                        "Could not create base directory '{}': {}"
-                        .format(path, err),
-                        color=output.RED,
-                        file=sys.stderr,
-                    )
-                    sys.exit(1)
+        try:
+            path.mkdir(exist_ok=True)
+        except OSError as err:
+            output.fprint(
+                "Could not create base directory '{}': {}"
+                .format(path, err),
+                color=output.RED,
+                file=sys.stderr,
+            )
+            sys.exit(1)
 
     root_logger = logging.getLogger()
 
     # Set up a directory for tracebacks.
-    tracebacks_dir = Path(os.path.expanduser('~/.pavilion/tracebacks'))
-    os.makedirs(str(tracebacks_dir), exist_ok=True)
+    tracebacks_dir = Path('~/.pavilion/tracebacks').expanduser()
+    tracebacks_dir.mkdir(parents=True, exist_ok=True)
 
     # Setup the logging records to contain host information, just like in
     # the logging module example

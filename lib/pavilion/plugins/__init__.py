@@ -54,10 +54,6 @@ def initialize_plugins(pav_cfg):
     for cfg_dir in pav_cfg.config_dirs:
         plugin_dirs.append(cfg_dir/'plugins')
 
-    # Python 3.4
-    # os.path can't handle Path objects
-    plugin_dirs = [p.as_posix() for p in plugin_dirs]
-
     try:
         pman = PluginManager.PluginManager(directories_list=plugin_dirs,
                                            categories_filter=PLUGIN_CATEGORIES)

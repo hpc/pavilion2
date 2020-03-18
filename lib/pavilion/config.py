@@ -17,8 +17,7 @@ LOGGER = logging.getLogger('pavilion.' + __file__)
 PAV_CONFIG_SEARCH_DIRS = [Path('./').resolve()]
 
 try:
-    # 3.4ism
-    USER_HOME_PAV = Path(os.path.expanduser('~'))/'.pavilion'
+    USER_HOME_PAV = Path('~')/'.pavilion'
 except OSError:
     # I'm not entirely sure this is the right error to catch.
     USER_HOME_PAV = Path('/tmp')/os.getlogin()/'.pavilion'
