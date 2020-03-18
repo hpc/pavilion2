@@ -52,7 +52,7 @@ def initialize_plugins(pav_cfg):
     plugin_dirs = [Path(__file__).parent]
     # And in all the user provided plugin directories.
     for cfg_dir in pav_cfg.config_dirs:
-        plugin_dirs.append(cfg_dir/'plugins')
+        plugin_dirs.append((cfg_dir/'plugins').as_posix())
 
     try:
         pman = PluginManager.PluginManager(directories_list=plugin_dirs,
