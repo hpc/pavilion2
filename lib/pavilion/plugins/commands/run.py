@@ -53,6 +53,12 @@ class RunCommand(commands.Command):
                  'not checking tests before returning.'
         )
         parser.add_argument(
+            '-f', '--file', dest='files', action='append', default=[],
+            help='One or more files to read to get the list of tests to run. '
+                 'These files should contain a newline separated list of test '
+                 'names. Lines that start with a \'#\' are ignored as '
+                 'comments.')
+        parser.add_argument(
             '-s', '--status', action='store_true', default=False,
             help='Display test statuses'
         )
@@ -82,12 +88,6 @@ class RunCommand(commands.Command):
                  'configs are resolved. They should take the form '
                  '\'key=value\', where key is the dot separated key name, '
                  'and value is a json object.')
-        parser.add_argument(
-            '-f', '--file', dest='files', action='append', default=[],
-            help='One or more files to read to get the list of tests to run. '
-                 'These files should contain a newline separated list of test '
-                 'names. Lines that start with a \'#\' are ignored as '
-                 'comments.')
         parser.add_argument(
             '-b', '--build-verbose', dest='build_verbosity', action='count',
             default=0,

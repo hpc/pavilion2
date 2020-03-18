@@ -32,3 +32,9 @@ class BuildCommand(run_plugin.RunCommand):
         parser.add_argument(
             '-l', '--local-builds-only', action='store_true', default=False,
             help="Only build locally, don't kickoff builds on nodes.")
+        parser.add_argument(
+            '-f', '--file', dest='files', action='append', default=[],
+            help='One or more files to read to get the list of tests to build. '
+                 'These files should contain a newline separated list of test '
+                 'names. Lines that start with a \'#\' are ignored as '
+                 'comments.')
