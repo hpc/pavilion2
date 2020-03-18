@@ -26,7 +26,7 @@ class TestRunTests(PavTestCase):
         }
 
         # Making sure this doesn't throw errors from missing params.
-        TestRun(self.pav_cfg, config, VariableSetManager())
+        TestRun(self.pav_cfg, config)
 
 
         config = {
@@ -47,7 +47,7 @@ class TestRunTests(PavTestCase):
         }
 
         # Make sure we can create a test from a fairly populated config.
-        t = TestRun(self.pav_cfg, config, VariableSetManager())
+        t = TestRun(self.pav_cfg, config)
         t.build()
 
         # Make sure we can recreate the object from id.
@@ -60,217 +60,10 @@ class TestRunTests(PavTestCase):
         #  - get_test_path
         #  - write_tmpl
         for key in set(t.__dict__.keys()).union(t2.__dict__.keys()):
-            if key != 'var_man':
-                self.assertEqual(t.__dict__[key], t2.__dict__[key],
-                                 msg="Mismatch for key {}".format(key))
-
-    def test_setup_build_dir(self):
-        """Make sure we can correctly handle all of the various archive
-        formats."""
-
-        base_config = {
-            'name': 'test',
-            'scheduler': 'raw',
-            'build': {
-                'modules': ['gcc'],
-            }
-        }
-
-        # Check that decompression and setup works for all accepted types.
-        archives = [
-            'src.tar.gz',
-            'src.xz',
-            # A bz2 archive
-            'src.extensions_dont_matter',
-            'src.zip',
-            # These archives don't have a containing directory.
-            'no_encaps.tgz',
-            'no_encaps.zip',
-            'softlink.zip',
-        ]
-
-        test_archives = self.TEST_DATA_ROOT/'pav_config_dir'/'test_src'
-        original_tree = test_archives/'src'
-
-        for archive in archives:
-            config = copy.deepcopy(base_config)
-            config['build']['source_location'] = archive
-
-            test = TestRun(self.pav_cfg, config, VariableSetManager())
-
-            if test.build_origin.exists():
-                shutil.rmtree(str(test.build_origin))
-
-            test._setup_build_dir(test.build_origin)
-
-            # Make sure the extracted archive is identical to the original
-            # (Though the containing directory will have a different name)
-            try:
-                self._cmp_tree(test.build_origin, original_tree)
-            except AssertionError as err:
-                raise AssertionError("Error extracting {}".format(archive),
-                                     *err.args)
-
-        # Check directory copying
-        config = copy.deepcopy(base_config)
-        config['build']['source_location'] = 'src'
-        test = TestRun(self.pav_cfg, config, VariableSetManager())
-
-        if test.build_origin.exists():
-            shutil.rmtree(str(test.build_origin))
-
-        test._setup_build_dir(test.build_origin)
-        self._cmp_tree(test.build_origin, original_tree)
-
-        # Test single compressed files.
-        files = [
-            'binfile.gz',
-            'binfile.bz2',
-            'binfile.xz',
-        ]
-
-        for file in files:
-            config = copy.deepcopy(base_config)
-            config['build']['source_location'] = file
-            test = TestRun(self.pav_cfg, config, VariableSetManager())
-
-            if test.build_origin.exists():
-                shutil.rmtree(str(test.build_origin))
-
-            test._setup_build_dir(test.build_origin)
-            self._cmp_files(test.build_origin/'binfile',
-                            original_tree/'binfile')
-
-        # Make sure extra files are getting copied over.
-        config = copy.deepcopy(base_config)
-        config['build']['source_location'] = 'src.tar.gz'
-        config['build']['extra_files'] = [
-            'src.tar.gz',
-            'src.xz',
-        ]
-
-        test = TestRun(self.pav_cfg, config, VariableSetManager())
-
-        if test.build_origin.exists():
-            shutil.rmtree(str(test.build_origin))
-
-        test._setup_build_dir(test.build_origin)
-
-        for file in config['build']['extra_files']:
-            self._cmp_files(test_archives/file,
-                            test.build_origin/file)
-
-    README_HASH = '275fa3c8aeb10d145754388446be1f24bb16fb00'
-
-    @unittest.skipIf(wget.missing_libs(),
-                     "The wget module is missing required libs.")
-    def test_src_urls(self):
-
-        base_config = {
-            'name': 'test',
-            'scheduler': 'raw',
-            'build': {
-                'modules': ['gcc'],
-            }
-        }
-
-        config = copy.deepcopy(base_config)
-        config['build']['source_location'] = self.TEST_URL
-
-        # remove existing downloads, and replace the directory.
-        downloads_path = self.pav_cfg.working_dir/'downloads'
-        shutil.rmtree(str(downloads_path))
-        downloads_path.mkdir()
-
-        test = TestRun(self.pav_cfg, config, VariableSetManager())
-        if test.build_origin.exists():
-            shutil.rmtree(str(test.build_origin))
-
-        test._setup_build_dir(test.build_origin)
-        self.assertEqual(self.README_HASH,
-                         self.get_hash(test.build_origin/'README.md'))
-
-    def test_build(self):
-        """Make sure building works."""
-
-        config1 = {
-            'name': 'build_test',
-            'scheduler': 'raw',
-            'build': {
-                'timeout': '12',
-                'cmds': ['echo "Hello World [\x1esched.num_nodes\x1e]"'],
-                'source_location': 'binfile.gz',
-            },
-        }
-
-        var_man = VariableSetManager()
-
-        test = TestRun(self.pav_cfg, config1, var_man)
-
-        # Test a basic build, with a gzip file and an actual build script.
-        self.assertTrue(test.build(), msg="Build failed")
-
-        # Make sure the build path and build origin contain softlinks to the
-        # same files.
-        self._cmp_tree(test.build_origin, test.build_path)
-        self._is_softlink_dir(test.build_path)
-
-        # We're going to time out this build on purpose, to test the code
-        # that waits for builds to complete.
-        config = {
-            'name': 'build_test',
-            'scheduler': 'raw',
-            'build': {
-                'timeout': '1',
-                'cmds': ['sleep 10'],
-                'source_location': 'binfile.gz',
-            },
-        }
-
-        test = TestRun(self.pav_cfg, config, var_man)
-
-        # This build should fail.
-        self.assertFalse(test.build(),
-                         "Build succeeded when it should have timed out.")
-        current_note = test.status.current().note
-        self.assertTrue(current_note.startswith("Build timed out"))
-
-        # Test general build failure.
-        config = {
-            'name': 'build_test',
-            'scheduler': 'raw',
-            'build': {
-                'timeout': '12',
-                'cmds': ['exit 0'],
-                'source_location': 'binfile.gz',
-            },
-        }
-
-        #  Check that building, and then re-using, a build directory works.
-        test = TestRun(self.pav_cfg, config, var_man)
-
-        # Remove the build tree to ensure we do the build fresh.
-        if test.build_origin.is_dir():
-            shutil.rmtree(str(test.build_origin))
-        self.assertTrue(test.build())
-
-        test2 = TestRun(self.pav_cfg, config, var_man)
-        self.assertTrue(test2.build())
-        self.assertEqual(test.build_origin, test2.build_origin)
-
-        config3 = copy.deepcopy(config)
-        config3['build']['cmds'] = ['exit 1']
-        # This should fail because the build exits non-zero
-        test3 = TestRun(self.pav_cfg, config3, var_man)
-        self.assertFalse(test3.build(),
-                         "Build succeeded when it should have failed.")
-        current_note = test3.status.current().note
-        self.assertTrue(current_note.startswith(
-            "Build returned a non-zero result."))
+            self.assertEqual(t.__dict__[key], t2.__dict__[key],
+                             msg="Mismatch for key {}".format(key))
 
     def test_run(self):
-        var_man = VariableSetManager()
-
         config1 = {
             'name': 'run_test',
             'scheduler': 'raw',
@@ -287,7 +80,7 @@ class TestRunTests(PavTestCase):
             },
         }
 
-        test = TestRun(self.pav_cfg, config1, var_man)
+        test = TestRun(self.pav_cfg, config1)
         self.assert_(test.build())
         test.finalize(VariableSetManager())
 
@@ -296,7 +89,7 @@ class TestRunTests(PavTestCase):
         config2 = config1.copy()
         config2['run']['modules'] = ['asdlfkjae', 'adjwerloijeflkasd']
 
-        test = TestRun(self.pav_cfg, config2, var_man)
+        test = TestRun(self.pav_cfg, config2)
         self.assert_(test.build())
 
         test.finalize(VariableSetManager())
@@ -319,7 +112,7 @@ class TestRunTests(PavTestCase):
             }
         }
 
-        test = TestRun(self.pav_cfg, config3, VariableSetManager())
+        test = TestRun(self.pav_cfg, config3)
         self.assert_(test.build())
         test.finalize(VariableSetManager())
         with self.assertRaises(TimeoutError,
@@ -344,7 +137,7 @@ class TestRunTests(PavTestCase):
 
         tests = []
         for i in range(3):
-            tests.append(TestRun(self.pav_cfg, config1, VariableSetManager()))
+            tests.append(TestRun(self.pav_cfg, config1))
 
         # Make sure this doesn't explode
         suite = TestSeries(self.pav_cfg, tests)
@@ -364,6 +157,6 @@ class TestRunTests(PavTestCase):
                          sorted(suite2.tests.keys()))
         self.assertEqual(sorted([t.id for t in suite.tests.values()]),
                          sorted([t.id for t in suite2.tests.values()]))
-                                                
+
         self.assertEqual(suite.path, suite2.path)
         self.assertEqual(suite.id, suite2.id)

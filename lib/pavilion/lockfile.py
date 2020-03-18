@@ -81,9 +81,13 @@ date. To be used in a 'with' context.
         start = time.time()
         acquired = False
         expires = None
+        first = True
 
-        # Try until we timeout
-        while self._timeout is None or time.time() - self._timeout <= start:
+        # Try until we timeout (at least once).
+        while (self._timeout is None or first or
+               time.time() - self._timeout <= start):
+
+            first = False
             try:
 
                 self._create_lockfile(
@@ -98,7 +102,7 @@ date. To be used in a 'with' context.
 
             except (OSError, IOError):
                 if self._timeout is None:
-                    raise TimeoutError("Could not acquire lock (non-blocking).")
+                    continue
 
                 if expires is None:
                     _, _, expires, _ = self.read_lockfile()

@@ -1,5 +1,4 @@
 import logging
-import os
 
 import yaml_config as yc
 from pavilion import arguments
@@ -84,6 +83,24 @@ class ResultParserTests(PavTestCase):
                         'per_file': result_parsers.PER_NAME,
                     },
                     {
+                        # Store matches by name stub
+                        # Note there is a name conflict here between other.txt
+                        # and other.log.
+                        'key': 'name_list',
+                        'files': ['*.log'],
+                        'regex': r'World',
+                        'per_file': result_parsers.PER_NAME_LIST,
+                    },
+                    {
+                        # Store matches by name stub
+                        # Note there is a name conflict here between other.txt
+                        # and other.log.
+                        'key': 'fullname_list',
+                        'files': ['*.log'],
+                        'regex': r'World',
+                        'per_file': result_parsers.PER_FULLNAME_LIST,
+                    },
+                    {
                         'key': 'lists',
                         'files': ['other*'],
                         'regex': r'.* World',
@@ -109,7 +126,6 @@ class ResultParserTests(PavTestCase):
         }
 
         test = self._quick_test(test_cfg, 'result_parser_test')
-        test.build()
         test.run()
 
         results = result_parsers.parse_results(
@@ -132,16 +148,22 @@ class ResultParserTests(PavTestCase):
             False,
         )
 
-        self.assertEqual(results['fullname']['run.log']['count'], 2)
-        self.assertEqual(results['fullname']['other.log']['count'], 1)
+        self.assertEqual(results['fn']['run.log']['count'], 2)
+        self.assertEqual(results['fn']['other.log']['count'], 1)
 
-        self.assertEqual(results['fullname']['other.log']['fullname'],
+        self.assertEqual(results['fn']['other.log']['fullname'],
                          'In a World')
 
-        self.assertIn(results['name']['other']['name'],
+        self.assertEqual(results['name_list'],
+                         ['other', 'other3'])
+
+        self.assertEqual(results['fullname_list'],
+                         ['other.log', 'other3.log'])
+
+        self.assertIn(results['n']['other']['name'],
                       ['In a World', "I'm here to cause World"])
         self.assertIn("Duplicate file key 'other' matched by name",
-                      [e['msg'] for e in results['errors']])
+                      [e['msg'] for e in results['pav_result_errors']])
 
         self.assertEqual(sorted(results['lists']),
                          sorted(['and someone saves the World',
@@ -525,7 +547,6 @@ class ResultParserTests(PavTestCase):
         }
 
         test = self._quick_test(test_cfg, 'result_parser_test')
-        test.build()
         test.run()
 
         results = result_parsers.parse_results(
@@ -668,7 +689,6 @@ class ResultParserTests(PavTestCase):
         }
 
         test = self._quick_test(test_cfg, 'result_parser_test')
-        test.build()
         test.run()
 
         results = result_parsers.parse_results(
@@ -738,7 +758,6 @@ class ResultParserTests(PavTestCase):
         }
 
         test = self._quick_test(test_cfg, 'result_parser_test')
-        test.build()
         test.run()
 
         results = result_parsers.parse_results(
@@ -830,7 +849,6 @@ class ResultParserTests(PavTestCase):
         }
 
         test = self._quick_test(table_test2, 'result_parser_test')
-        test.build()
         test.run()
 
         results = result_parsers.parse_results(
@@ -864,6 +882,7 @@ class ResultParserTests(PavTestCase):
                         'delimiter': ',',
                         'col_num': '8',
                         'has_header': 'True',
+                        'by_column': 'True',
                         'col_names': [' ', 'calc_deposit', 'OMP Barrier',
                                       'Scaled Serial Ref', 'Bestcase OMP',
                                       'Static OMP', 'Dynamic OMP', 'Manual OMP']
@@ -879,7 +898,6 @@ class ResultParserTests(PavTestCase):
         }
 
         test = self._quick_test(table_test3, 'result_parser_test')
-        test.build()
         test.run()
 
         results = result_parsers.parse_results(

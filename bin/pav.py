@@ -53,13 +53,11 @@ def main():
             color=output.RED)
         sys.exit(-1)
 
-    # Create the user's .pavilion directory and local working_directory.
-    if not config.USER_HOME_PAV.exists():
-        (config.USER_HOME_PAV/'working_dir').mkdir(parents=True)
-
-    # Create the basic directories in the working directory
+    # Create the basic directories in the working directory and the .pavilion
+    # directory.
     for path in [
-            pav_cfg.working_dir,
+            config.USER_HOME_PAV,
+            config.USER_HOME_PAV/'working_dir',
             pav_cfg.working_dir/'builds',
             pav_cfg.working_dir/'downloads',
             pav_cfg.working_dir/'series',
@@ -145,8 +143,7 @@ def main():
                                              # 20 MB
                                              maxBytes=20 * 1024 ** 2,
                                              backupCount=3)
-        result_handler.setFormatter(logging.Formatter("{asctime} {message}",
-                                                      style='{'))
+        result_handler.setFormatter(logging.Formatter("{message}", style='{'))
         result_logger.setLevel(logging.INFO)
         result_logger.addHandler(result_handler)
 

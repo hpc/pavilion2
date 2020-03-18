@@ -1,9 +1,14 @@
-from pavilion import unittest
+from pavilion.unittest import PavTestCase
+import distutils.spawn
 import subprocess
+import unittest
+
+_SPHINX_PATH = distutils.spawn.find_executable('sphinx-build')
 
 
-class DocTests(unittest.PavTestCase):
+class DocTests(PavTestCase):
 
+    @unittest.skipIf(_SPHINX_PATH is None, "Could not find sphinx.")
     def test_doc_build(self):
         """Build the documentation and check for warnings/errors."""
 
