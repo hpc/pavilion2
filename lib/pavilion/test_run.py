@@ -336,7 +336,7 @@ class TestRun:
             )
         except builder.TestBuilderError as err:
             raise TestRunError(
-                "Could not create builder for test run {s.id}: {err}"
+                "Could not create builder for test {s.name} (run {s.id}): {err}"
                 .format(s=self, err=err)
             )
 

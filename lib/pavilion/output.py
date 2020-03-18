@@ -154,13 +154,13 @@ def fprint(*args, color=None, bullet='', width=0, wrap_indent=0,
             if bullet:
                 lines = textwrap.indent(lines, bullet, lines.startswith)
 
-            print(lines, file=file)
+            print(lines, file=file, end='')
     else:
         out_str = sep.join(args)
         print(out_str, file=file, end='')
 
     if color is not None:
-        print('\x1b[0m', file=file)
+        print('\x1b[0m', file=file, end='')
 
     print(end, end='', file=file, flush=True)
 
@@ -622,24 +622,15 @@ A more complicated example: ::
             max_widths[field] = max_width
 
         boundaries.append([min_widths[field], max_widths[field] + 1])
-    
-    # Pre-calculate the total wraps for each field at each possible
-    # column width.
-    field_wraps_by_width = defaultdict(dict)
-    for fld in range(len(fields)):  # pylint: disable=C0200
-        field = fields[fld]
-        for width in range(boundaries[fld][0], boundaries[fld][1] + 1):
-            wrap_total = 0
-
-            for row in formatted_rows:
-
-                wrap_total += len(row[field].wrap(width=width))
-
-            field_wraps_by_width[fld][width] = wrap_total
 
     extra_spaces = window_width - sum(min_widths.values())
     final_widths = min_widths.copy()
 
+    def calc_wraps(fld, width):
+        return sum([ len(row[fld].wrap(width=width))
+                     for row in formatted_rows ])
+
+    field_wraps_by_width = defaultdict(dict)
     incr = 1
     # Consume the additional spaces available by growing the columns according
     # to which column would benefit the most from the extra space. If there 
@@ -654,9 +645,13 @@ A more complicated example: ::
             field = fields[fld]
             curr_width = final_widths[field]
 
-            curr_wraps = field_wraps_by_width[fld].get(curr_width, row_count)
-            incr_wraps = field_wraps_by_width[fld]\
-                                           .get(curr_width + incr, row_count)
+            curr_wraps = field_wraps_by_width[fld].get(
+                curr_width,
+                calc_wraps(field, curr_width)) 
+            incr_wraps = field_wraps_by_width[fld].get(
+                curr_width + incr, 
+                calc_wraps(field, curr_width + incr))
+
             diff = (curr_wraps-incr_wraps)
 
             # If this field beats all previous, make it the best.
@@ -673,14 +668,14 @@ A more complicated example: ::
         if len(best_fields) == 1:
             # Add incr bytes to the winner
             extra_spaces -= incr
-            incr = 1
             final_widths[best_fields[0]] += incr
+            incr = 1
         elif incr == extra_spaces:
             # If we've run out of bytes to consider, distribute them evenly
             # amongst the tied winners.
             extra_spaces -= incr
             for fld in best_fields:
-                final_widths[fld] += incr/len(best_fields)
+                final_widths[field] += incr/len(best_fields)
         else:
             # Otherwise, increase the increment and try again.
             incr += 1

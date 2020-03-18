@@ -269,9 +269,28 @@ def load_test_configs(pav_cfg, host, modes, tests):
                     test_suite_cfg = test_suite_loader.load_raw(
                         test_suite_file)
 
-            except (IOError, OSError) as err:
+            except (IOError, OSError, ) as err:
                 raise TestConfigError("Could not open test suite config {}: {}"
                                       .format(test_suite_path, err))
+            except ValueError as err:
+                raise TestConfigError(
+                    "Test suite '{}' has invalid value. {}"
+                    .format(test_suite_path, err))
+            except KeyError as err:
+                raise TestConfigError(
+                    "Test suite '{}' has an invalid key. {}"
+                    .format(test_suite_path, err))
+            except YAMLError as err:
+                raise TestConfigError(
+                    "Test suite '{}' has a YAML Error: {}"
+                    .format(test_suite_path, err)
+                )
+            except TypeError as err:
+                # All config elements in test configs must be strings, and just
+                # about everything converts cleanly to a string.
+                raise RuntimeError(
+                    "Test suite '{}' raised a type error, but that "
+                    "should never happen. {}".format(test_suite_path, err))
 
             suite_tests = resolve_inheritance(
                 base_config,

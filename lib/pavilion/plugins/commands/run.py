@@ -18,7 +18,7 @@ from pavilion.plugins.commands.status import print_from_test_obj
 from pavilion.series import TestSeries, test_obj_from_id
 from pavilion.status_file import STATES
 from pavilion.test_config.string_parser import ResolveError
-from pavilion.test_run import TestRun, TestRunError
+from pavilion.test_run import TestRun, TestRunError, TestConfigError
 from pavilion.builder import MultiBuildTracker
 
 
@@ -416,16 +416,19 @@ class RunCommand(commands.Command):
 
         for sched_name in configs_by_sched.keys():
             tests_by_sched[sched_name] = []
-            for i in range(len(configs_by_sched[sched_name])):
-                cfg, var_man = configs_by_sched[sched_name][i]
-                tests_by_sched[sched_name].append(TestRun(
-                    pav_cfg=pav_cfg,
-                    config=cfg,
-                    var_man=var_man,
-                    build_tracker=mb_tracker,
-                    build_only=build_only,
-                    rebuild=rebuild,
-                ))
+            try: 
+                for i in range(len(configs_by_sched[sched_name])):
+                    cfg, var_man = configs_by_sched[sched_name][i]
+                    tests_by_sched[sched_name].append(TestRun(
+                        pav_cfg=pav_cfg,
+                        config=cfg,
+                        var_man=var_man,
+                        build_tracker=mb_tracker,
+                        build_only=build_only,
+                        rebuild=rebuild,
+                    ))
+            except (TestRunError, TestConfigError) as err:
+                raise commands.CommandError(err)
 
         return tests_by_sched
 
@@ -659,6 +662,18 @@ class RunCommand(commands.Command):
                     test.status.set(STATES.ABORTED,
                                     "Build aborted due to failures in other "
                                     "builds.")
+
+                fprint("Build error while building tests. Cancelling runs.", 
+                       color=output.RED, file=self.outfile)
+
+                for failed_build in mb_tracker.failures():
+                    fprint(
+                        "Build error for test {f.test.name} (#{f.test.id})."
+                        .format(f=failed_build), file=self.errfile) 
+                    fprint(
+                        "See test status file (pav cat {id} status) and/or "
+                        "the test build log (pav log build {id})"
+                        .format(id=failed_build.test.id), file=self.errfile) 
 
                 return errno.EINVAL
 

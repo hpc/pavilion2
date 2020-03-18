@@ -984,6 +984,9 @@ class Slurm(SchedulerPlugin):
                 msg
             )
         else:
+            test.status.set(
+                STATES.SCHED_CANCELLED,
+                "Tried (but failed) to cancel job: {}".format(stderr))
             # Scancel failed, pass the stderr message
             return StatusInfo(
                 STATES.SCHED_ERROR,

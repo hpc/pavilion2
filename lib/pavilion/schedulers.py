@@ -527,6 +527,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
         job_id = test.job_id
         if job_id is None:
+            test.status.set(STATES.SCHED_CANCELLED, "Job was never started.")
             return StatusInfo(STATES.SCHED_CANCELLED, "Job was never started.")
 
         return self._cancel_job(test)

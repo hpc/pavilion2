@@ -63,7 +63,8 @@ class MultiBuildTracker:
             self.status[builder] = None
             self.messages[builder] = []
 
-        return BuildTracker(builder, self)
+        tracker = BuildTracker(builder, self)
+        return tracker
 
     def update(self, builder, note, state=None, log=None):
         """Add a message for the given builder without changes the status.
@@ -106,6 +107,11 @@ class MultiBuildTracker:
 
         return counts
 
+    def failures(self):
+        """Returns a list of builders that have failed."""
+        return [builder for builder in self.status.keys() 
+                if builder.tracker.failed]
+
 
 class BuildTracker:
     """Tracks the status updates for a single build."""
@@ -113,6 +119,7 @@ class BuildTracker:
     def __init__(self, builder, tracker):
         self.builder = builder
         self.tracker = tracker
+        self.failed = False
 
     def update(self, note, state=None, log=None):
         """Update the tracker for this build with the given note."""
@@ -124,9 +131,15 @@ class BuildTracker:
         self.tracker.update(self.builder, note, log=logging.WARNING,
                             state=state)
 
-    def error(self, note, state=None):
-        """Add a note and error via the logger."""
+    def error(self, note, state=STATES.BUILD_ERROR):
+        """Add a note and error via the logger denote as a failure."""
         self.tracker.update(self.builder, note, log=logging.ERROR, state=state)
+
+        self.failed = True
+
+    def fail(self, note, state=STATES.BUILD_FAILED):
+        """Denote that the test has failed."""
+        self.error(note, state=state)
 
     def notes(self):
         """Return the notes for this tracker."""
@@ -176,7 +189,7 @@ class TestBuilder:
         self._pav_cfg = pav_cfg
         self._config = test.config.get('build', {})
         self._script_path = test.build_script_path
-        self._test_id = test.id
+        self.test = test
         self._timeout = test.build_timeout
 
         if not test.build_local:
@@ -192,7 +205,7 @@ class TestBuilder:
 
         # TODO: Builds can get renamed, this needs to be fixed.
         self.path = pav_cfg.working_dir/'builds'/self.name  # type: Path
-        fail_name = 'fail.{}.{}'.format(self.name, self._test_id)
+        fail_name = 'fail.{}.{}'.format(self.name, self.test.id)
         self.fail_path = pav_cfg.working_dir/'builds'/fail_name
 
     def exists(self):
@@ -280,7 +293,7 @@ class TestBuilder:
 
         self.name = self.name_build()
         self.path = self._pav_cfg.working_dir/'builds'/self.name  # type: Path
-        fail_name = 'fail.{}.{}'.format(self.name, self._test_id)
+        fail_name = 'fail.{}.{}'.format(self.name, self.test.id)
         self.fail_path = self._pav_cfg.working_dir/'builds'/fail_name
 
     def deprecate(self):
@@ -373,7 +386,17 @@ class TestBuilder:
                     # This will also set the test status for
                     # non-catastrophic cases.
                     if not self._build(build_dir, cancel_event):
-                        build_dir.rename(self.fail_path)
+                        try:
+                            build_dir.rename(self.fail_path)
+                        except FileNotFoundError as err:
+                            self.tracker.error(
+                                note="Failed to move build {} from {} to "
+                                     "failure path {}: {}"
+                                     .format(self.name, build_dir, 
+                                             self.fail_path, err))
+                            self.fail_path.mkdir()
+                            if cancel_event is not None:
+                                cancel_event.set()
 
                         # If the build didn't succeed, copy the attempted build
                         # into the test run, and set the run as complete.
@@ -386,7 +409,7 @@ class TestBuilder:
                     try:
                         dst = self.path / '.built_by'
                         with dst.open('w') as built_by:
-                            built_by.write(str(self._test_id))
+                            built_by.write(str(self.test.id))
                     except OSError:
                         self.tracker.warn("Could not create built_by file.")
                 else:
@@ -396,7 +419,7 @@ class TestBuilder:
                              "lock.".format(s=self))
         else:
             self.tracker.update(
-                note=("Test {s.name} run {s._test_id} reusing build."
+                note=("Test {s.name} run {s.test.id} reusing build."
                       .format(s=self)),
                 state=STATES.BUILD_REUSED)
 
@@ -414,8 +437,7 @@ class TestBuilder:
         try:
             self._setup_build_dir(build_dir)
         except TestBuilderError as err:
-            self.tracker.update(
-                state=STATES.BUILD_ERROR,
+            self.tracker.error(
                 note=("Error setting up build directory '{}': {}"
                       .format(build_dir, err)))
             return False
@@ -426,7 +448,7 @@ class TestBuilder:
             # Do the build, and wait for it to complete.
             with build_log_path.open('w') as build_log:
                 # Build scripts take the test id as a first argument.
-                cmd = [self._script_path.as_posix(), str(self._test_id)]
+                cmd = [self._script_path.as_posix(), str(self.test.id)]
                 proc = subprocess.Popen(cmd,
                                         cwd=build_dir.as_posix(),
                                         stdout=build_log,
@@ -444,7 +466,7 @@ class TestBuilder:
                             # Give up on the build, and call it a failure.
                             proc.kill()
                             cancel_event.set()
-                            self.tracker.update(
+                            self.tracker.fail(
                                 state=STATES.BUILD_TIMEOUT,
                                 note="Build timed out after {} seconds."
                                 .format(self._timeout))
@@ -461,16 +483,14 @@ class TestBuilder:
         except subprocess.CalledProcessError as err:
             if cancel_event is not None:
                 cancel_event.set()
-            self.tracker.update(
-                state=STATES.BUILD_ERROR,
+            self.tracker.error(
                 note="Error running build process: {}".format(err))
             return False
 
         except (IOError, OSError) as err:
             if cancel_event is not None:
                 cancel_event.set()
-            self.tracker.update(
-                state=STATES.BUILD_ERROR,
+            self.tracker.error(
                 note="Error that's probably related to writing the "
                      "build output: {}".format(err))
             return False
@@ -483,8 +503,7 @@ class TestBuilder:
         if result != 0:
             if cancel_event is not None:
                 cancel_event.set()
-            self.tracker.update(
-                state=STATES.BUILD_FAILED,
+            self.tracker.fail(
                 note="Build returned a non-zero result.")
             return False
         else:
@@ -568,10 +587,10 @@ class TestBuilder:
                     note="Copying file {} for build {} into the build "
                          "directory.".format(src_path, dest))
 
-                dest = dest / src_path.name
+                copy_dest = dest / src_path.name
                 try:
                     dest.mkdir()
-                    shutil.copy(src_path.as_posix(), dest.as_posix())
+                    shutil.copy(src_path.as_posix(), copy_dest.as_posix())
                 except OSError as err:
                     raise TestBuilderError(
                         "Could not copy test src '{}' to '{}': {}"
@@ -604,11 +623,9 @@ class TestBuilder:
                             symlinks=True,
                             copy_function=utils.symlink_copy)
         except OSError as err:
-            self.tracker.update(
+            self.tracker.error(
                 note=("Could not perform the build directory copy: {}"
-                      .format(err)),
-                state=STATES.BUILD_ERROR,
-                log=logging.ERROR)
+                      .format(err)))
             return False
 
         # Touch the original build directory, so that we know it was used
@@ -896,7 +913,6 @@ class TestBuilder:
 
         compare_keys = [
             'name',
-            '_test_id',
             '_timeout',
             '_script_path',
             'path',
