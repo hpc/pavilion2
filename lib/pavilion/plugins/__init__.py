@@ -49,14 +49,10 @@ def initialize_plugins(pav_cfg):
         return
 
     # Always look here for plugins
-    plugin_dirs = [Path(__file__).parent]
+    plugin_dirs = [Path(__file__).parent.as_posix()]
     # And in all the user provided plugin directories.
     for cfg_dir in pav_cfg.config_dirs:
-        plugin_dirs.append(cfg_dir/'plugins')
-
-    # Python 3.4
-    # os.path can't handle Path objects
-    plugin_dirs = [p.as_posix() for p in plugin_dirs]
+        plugin_dirs.append((cfg_dir/'plugins').as_posix())
 
     try:
         pman = PluginManager.PluginManager(directories_list=plugin_dirs,
