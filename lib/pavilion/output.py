@@ -626,20 +626,22 @@ A more complicated example: ::
     extra_spaces = window_width - sum(min_widths.values())
     final_widths = min_widths.copy()
 
-    def calc_wraps(fld, width):
-        return sum([ len(row[fld].wrap(width=width))
-                     for row in formatted_rows ])
+    def calc_wraps(fld_, width_):
+        """Calculate the wraps for a given field at the given width across
+        all rows."""
+        return sum([len(row_[fld_].wrap(width=width_))
+                    for row_ in formatted_rows])
 
     field_wraps_by_width = defaultdict(dict)
     incr = 1
     # Consume the additional spaces available by growing the columns according
-    # to which column would benefit the most from the extra space. If there 
-    # is a tie, increase the number of spaces considered. 
+    # to which column would benefit the most from the extra space. If there
+    # is a tie, increase the number of spaces considered.
     while extra_spaces:
         best_fields = []
         best_diff = 0
         row_count = len(formatted_rows)
-        
+
         # Find the 'best_fields' to add 'incr' byte to.
         for fld in range(len(fields)):
             field = fields[fld]
@@ -647,9 +649,9 @@ A more complicated example: ::
 
             curr_wraps = field_wraps_by_width[fld].get(
                 curr_width,
-                calc_wraps(field, curr_width)) 
+                calc_wraps(field, curr_width))
             incr_wraps = field_wraps_by_width[fld].get(
-                curr_width + incr, 
+                curr_width + incr,
                 calc_wraps(field, curr_width + incr))
 
             diff = (curr_wraps-incr_wraps)
@@ -658,7 +660,7 @@ A more complicated example: ::
             if diff > best_diff:
                 best_diff = diff
                 best_fields = [field]
-            # Don't consider fields whose diff is 0. 
+            # Don't consider fields whose diff is 0.
             elif diff == 0:
                 continue
             # If we tie, add it to the list of the best.
@@ -675,6 +677,7 @@ A more complicated example: ::
             # amongst the tied winners.
             extra_spaces -= incr
             for fld in best_fields:
+                field = fields[fld]
                 final_widths[field] += incr/len(best_fields)
         else:
             # Otherwise, increase the increment and try again.

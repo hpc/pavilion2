@@ -1,8 +1,11 @@
 # This number should track progressive changes in this software, and correspond to git tags
 # denoting releases. It is entirely independent of the the Pavilion's VERSION.
-RELEASE=2.1.1
+RELEASE=2.1.2
 
 # Release History
+
+## 2.1.2
+ - Fixed some regressions from the 2.1.1 release.
 
 ## 2.1.1
  - Fixed speed of draw_table with new algorithm

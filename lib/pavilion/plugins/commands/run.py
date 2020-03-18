@@ -192,7 +192,6 @@ class RunCommand(commands.Command):
         :param series: The test series.
         :param int wait: Wait this long for a test to start before exiting.
         :param bool report_status: Do a 'pav status' after tests have started.
-        :param bool build_only: Only kickoff those tests that need to be built
             on nodes, and kick them off in build only mode.
         :return:
         """
@@ -416,7 +415,7 @@ class RunCommand(commands.Command):
 
         for sched_name in configs_by_sched.keys():
             tests_by_sched[sched_name] = []
-            try: 
+            try:
                 for i in range(len(configs_by_sched[sched_name])):
                     cfg, var_man = configs_by_sched[sched_name][i]
                     tests_by_sched[sched_name].append(TestRun(
@@ -643,7 +642,8 @@ class RunCommand(commands.Command):
 
                     # Only output test status after joining a thread.
                     if build_verbosity == 1:
-                        when, state, msg = mb_tracker.get_notes(test.builder)[-1]
+                        notes = mb_tracker.get_notes(test.builder)
+                        when, state, msg = notes[-1]
                         when = output.get_relative_timestamp(when)
                         preamble = (self.BUILD_STATUS_PREAMBLE
                                     .format(when=when, test_id=test.id,
@@ -663,17 +663,17 @@ class RunCommand(commands.Command):
                                     "Build aborted due to failures in other "
                                     "builds.")
 
-                fprint("Build error while building tests. Cancelling runs.", 
+                fprint("Build error while building tests. Cancelling runs.",
                        color=output.RED, file=self.outfile)
 
                 for failed_build in mb_tracker.failures():
                     fprint(
                         "Build error for test {f.test.name} (#{f.test.id})."
-                        .format(f=failed_build), file=self.errfile) 
+                        .format(f=failed_build), file=self.errfile)
                     fprint(
                         "See test status file (pav cat {id} status) and/or "
                         "the test build log (pav log build {id})"
-                        .format(id=failed_build.test.id), file=self.errfile) 
+                        .format(id=failed_build.test.id), file=self.errfile)
 
                 return errno.EINVAL
 
@@ -686,7 +686,7 @@ class RunCommand(commands.Command):
                     parts.append("{}: {}".format(state, state_counts[state]))
                 line = ' | '.join(parts)
                 if last_line_len is not None:
-                    fprint(' '*last_line_len, end='\r', file=self.outfile, 
+                    fprint(' '*last_line_len, end='\r', file=self.outfile,
                            width=None)
                 last_line_len = len(line)
                 fprint(line, end='\r', file=self.outfile, width=None)

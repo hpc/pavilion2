@@ -109,7 +109,7 @@ class MultiBuildTracker:
 
     def failures(self):
         """Returns a list of builders that have failed."""
-        return [builder for builder in self.status.keys() 
+        return [builder for builder in self.status.keys()
                 if builder.tracker.failed]
 
 
@@ -390,10 +390,10 @@ class TestBuilder:
                             build_dir.rename(self.fail_path)
                         except FileNotFoundError as err:
                             self.tracker.error(
-                                note="Failed to move build {} from {} to "
-                                     "failure path {}: {}"
-                                     .format(self.name, build_dir, 
-                                             self.fail_path, err))
+                                "Failed to move build {} from {} to "
+                                "failure path {}: {}"
+                                .format(self.name, build_dir,
+                                        self.fail_path, err))
                             self.fail_path.mkdir()
                             if cancel_event is not None:
                                 cancel_event.set()
