@@ -6,12 +6,13 @@ are all handled by functions in this module.
 """
 
 import copy
+import io
 import logging
 import os
 from collections import defaultdict
 
 from yaml_config import RequiredError
-from yc_yaml import YAMLError
+import yc_yaml
 from . import string_parser
 from . import variables
 from .file_format import TestConfigError, TEST_NAME_RE, KEY_NAME_RE
@@ -98,7 +99,7 @@ The returned data structure looks like: ::
                             TypeError,
                             KeyError,
                             ValueError,
-                            YAMLError,
+                            yc_yaml.YAMLError,
                     ) as err:
                         suites[suite_name]['err'] = err
                         continue
@@ -169,7 +170,7 @@ def load_test_configs(pav_cfg, host, modes, tests):
                 raise TestConfigError(
                     "Host config '{}' has an invalid key. {}"
                     .format(host_cfg_path, err))
-            except YAMLError as err:
+            except yc_yaml.YAMLError as err:
                 raise TestConfigError(
                     "Host config '{}' has a YAML Error: {}"
                     .format(host_cfg_path, err)
@@ -205,7 +206,7 @@ def load_test_configs(pav_cfg, host, modes, tests):
             raise TestConfigError(
                 "Mode config '{}' has an invalid key. {}"
                 .format(mode_cfg_path, err))
-        except YAMLError as err:
+        except yc_yaml.YAMLError as err:
             raise TestConfigError(
                 "Mode config '{}' has a YAML Error: {}"
                 .format(mode_cfg_path, err)
@@ -280,7 +281,7 @@ def load_test_configs(pav_cfg, host, modes, tests):
                 raise TestConfigError(
                     "Test suite '{}' has an invalid key. {}"
                     .format(test_suite_path, err))
-            except YAMLError as err:
+            except yc_yaml.YAMLError as err:
                 raise TestConfigError(
                     "Test suite '{}' has a YAML Error: {}"
                     .format(test_suite_path, err)
@@ -442,7 +443,7 @@ def resolve_inheritance(base_config, suite_cfg, suite_path):
             raise TestConfigError(
                 "Test {} in suite {} has an invalid key. {}"
                 .format(test_name, suite_path, err))
-        except YAMLError as err:
+        except yc_yaml.YAMLError as err:
             raise TestConfigError(
                 "Test {} in suite {} has a YAML Error: {}"
                 .format(test_name, suite_path, err)
@@ -456,62 +457,122 @@ def resolve_inheritance(base_config, suite_cfg, suite_path):
     return suite_tests
 
 
-NOT_OVERRIDABLE = ['name', 'suite', 'suite_path']
+NOT_OVERRIDABLE = ['name', 'suite', 'suite_path', 'scheduler']
 
 
 def apply_overrides(test_cfg, overrides):
     """Apply overrides to this test.
 
     :param dict test_cfg: The test configuration.
-    :param dict overrides: A dictionary of values to override in all
-        configs. This occurs at the highest level, after inheritance is
-        resolved.
+    :param list overrides: A list of raw overrides in a.b.c=value form.
+    :raises ValueError, KeyError
     """
 
-    _apply_overrides(test_cfg, overrides, _first_level=True)
+    import pprint
+    print('overrides', overrides)
+    print('original config')
+    pprint.pprint(test_cfg)
+
+    for ovr in overrides:
+        if '=' not in ovr:
+            raise ValueError(
+                "Invalid override value. Must be in the form: "
+                "<key>=<value>. Ex. -c run.modules=['gcc'] ")
+
+        key, value = ovr.split('=', 1)
+        key = key.split('.')
+
+        _apply_override(test_cfg, key, value)
+
+    TestConfigLoader().validate(test_cfg)
+
+    print('overridden config')
+    pprint.pprint(test_cfg)
 
 
-def _apply_overrides(test_cfg, overrides, _first_level=True):
-    """Apply overrides recursively."""
+def _apply_override(test_cfg, key, value):
+    """Set the given key to the given value in test_cfg.
+    :param dict test_cfg: The test configuration.
+    :param [str] key: A
 
-    for key in overrides.keys():
-        if _first_level and key in NOT_OVERRIDABLE:
-            LOGGER.warning("You can't override the '%s' key in a test config.",
-                           key)
-            continue
+    """
 
-        if key not in test_cfg:
-            test_cfg[key] = overrides[key]
-        elif isinstance(test_cfg[key], dict):
-            if isinstance(overrides[key], dict):
-                _apply_overrides(test_cfg[key], overrides[key])
-            else:
-                raise TestConfigError(
-                    "Cannot override a dictionary of values with a "
-                    "non-dictionary. Tried to put {} in key {} valued {}."
-                    .format(overrides[key], key, test_cfg[key]))
-        elif isinstance(test_cfg[key], list):
-            # We always get lists from overrides as our 'array' type.
-            if isinstance(overrides[key], list):
-                test_cfg[key] = overrides[key]
-            # Put single values in a list.
-            elif isinstance(overrides[key], str):
-                test_cfg[key] = [overrides[key]]
-            else:
-                raise TestConfigError(
-                    "Tried to override list key {} with a {} ({})"
-                    .format(key, type(overrides[key]), overrides[key]))
-        elif isinstance(test_cfg[key], str):
-            if isinstance(overrides[key], str):
-                test_cfg[key] = overrides[key]
-            else:
-                raise TestConfigError(
-                    "Tried to override str key {} with a {} ({})"
-                    .format(key, type(overrides[key]), overrides[key]))
+    cfg = test_cfg
+
+    disp_key = '.'.join(key)
+
+    if key[0] in NOT_OVERRIDABLE:
+        raise KeyError("You can't override the '{}' key in a test config")
+
+    key_copy = list(key)
+    last_cfg = None
+    last_key = None
+    # Validate the key.
+    while key_copy:
+        part = key_copy.pop(0)
+
+        if isinstance(cfg, list):
+            try:
+                idx = int(part)
+            except ValueError:
+                raise KeyError("Trying to override list item with a "
+                               "non-integer '{}' in key '{}'."
+                               .format(part, disp_key))
+
+            try:
+                last_cfg = cfg
+                last_key = idx
+                cfg = cfg[idx]
+            except IndexError:
+                raise KeyError("Trying to override index '{}' from key '{}' "
+                               "but the index is out of range."
+                               .format(part, disp_key))
+        elif isinstance(cfg, dict):
+            if part not in cfg:
+                raise KeyError("Trying to override '{}' from key '{}', but "
+                               "there is no such key."
+                               .format(part, disp_key))
+            last_cfg = cfg
+            last_key = part
+            cfg = cfg[part]
         else:
-            raise TestConfigError(
-                "Configuration contains an element of an unrecognized type. "
-                "Key: {}, Type: {}.".format(key, type(test_cfg[key])))
+            raise KeyError("Tried, to override key '{}', but '{}' isn't"
+                           "a dict or list."
+                           .format(disp_key, part))
+
+    print('last_cfg', last_cfg, value)
+
+    if last_cfg is None:
+        # Should never happen.
+        raise RuntimeError("Trying to override an empty key: {}".format(key))
+
+    # We should be at the final place where the value should go.
+    try:
+        dummy_file = io.StringIO(value)
+        value = yc_yaml.safe_load(dummy_file)
+    except (yc_yaml.YAMLError, ValueError, KeyError) as err:
+        raise ValueError("Invalid value ({}) for key '{}' in overrides: {}"
+                         .format(value, disp_key, err))
+
+    last_cfg[last_key] = normalize_override_value(value)
+
+
+def normalize_override_value(value):
+    """Normalize a value to one compatible with Pavilion configs. It can be
+    any structure of dicts and lists, as long as the leaf values are strings.
+    :param value: The value to normalize.
+    """
+    if isinstance(value, str):
+        return value
+    elif isinstance(value, (int, float, bool, bytes)):
+        return str(value)
+    elif isinstance(value, (list, tuple)):
+        return [normalize_override_value(v) for v in value]
+    elif isinstance(value, dict):
+        return {str(k): normalize_override_value(v)
+                for k, v in value.items()}
+    else:
+        raise ValueError("Invalid type in override value: {}".format(value))
 
 
 def resolve_permutations(raw_test_cfg, pav_vars, sys_vars):
