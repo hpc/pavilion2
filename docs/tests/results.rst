@@ -243,8 +243,7 @@ results would contain:
 .. code:: json
 
     {
-      "huge_size": "2M",
-      ...
+      "huge_size": "2M"
     }
 
 In the simple case of only specifying one file, the '**first**' result is the
@@ -270,7 +269,6 @@ result (because it is null) and taking node3's:
 
     {
       "huge_size": "4K",
-      ...
     }
 
 all - True if each file returned a True result
@@ -314,7 +312,6 @@ In our example, the result is ``false`` because some of our files had no matches
 
     {
       "huge_size": false,
-      ...
     }
 
 any - True if any file returned a True result
@@ -337,7 +334,6 @@ set to 'true'
 
     {
       "huge_size": true,
-      ...
     }
 
 list - Merge the file results into a single list
@@ -359,8 +355,7 @@ already, then each of the values in the list is added.
 .. code:: json
 
     {
-      "huge_size": ['2M', '4K'],
-      ...
+      "huge_size": ["2M", "4K"],
     }
 
 fullname - Stores in a filename based dict.
@@ -380,12 +375,14 @@ the file specific dictionaries are stored under the ``fn`` key by filename.
 
 .. code:: json
 
-     "fn": {
+    {
+      "fn": {
         "node1.out": {"huge_size": null},
         "node2.out": {"huge_size": "2M"},
         "node3.out": {"huge_size": "4K"},
         "node4.out": {"huge_size": null}
-     }
+      }
+    }
 
 -  When using the **fullname** *per\_file* setting, the key cannot be
    ``result``.
@@ -411,12 +408,14 @@ removed. These are stored under the ``n`` key in the results.
 
 .. code:: json
 
-     "n": {
+    {
+      "n": {
         "node1": {"huge_size": null},
         "node2": {"huge_size": "2M"},
         "node3": {"huge_size": "4K"},
         "node4": {"huge_size": null}
-     }
+      }
+    }
 
 
 fullname_list - Stores the name of the files that matched.
@@ -436,8 +435,9 @@ aren't saved.
 
 .. code:: json
 
-     "huge_size": ["node2.out", "node3.out"],
-     ...
+    {
+      "huge_size": ["node2.out", "node3.out"],
+    }
 
 name_list - Stores the name of the files that matched.
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -456,8 +456,9 @@ actual matched values aren't saved.
 
 .. code:: json
 
-     "huge_size": ["node2", "node3"],
-     ...
+    {
+      "huge_size": ["node2", "node3"],
+    }
 
 Errors
 ------
@@ -469,7 +470,6 @@ these is a dictionary with some useful values:
 .. code:: yaml
 
     {
-      ...
       "errors": [{
         # The error happened under this parser.
         "result_parser": "regex",
