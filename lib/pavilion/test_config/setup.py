@@ -292,6 +292,7 @@ def load_test_configs(pav_cfg, host, modes, tests):
                     "Test suite '{}' raised a type error, but that "
                     "should never happen. {}".format(test_suite_path, err))
 
+            # Resolve inheritance amongst the tests within a suite file.
             suite_tests = resolve_inheritance(
                 base_config,
                 test_suite_cfg,
