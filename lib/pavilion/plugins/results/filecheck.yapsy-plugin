@@ -1,0 +1,9 @@
+[Core]
+Name = File Check Result Parser
+Module = filecheck
+
+[Documentation]
+Description = Checks the working directory for the given file name
+Author = Calvin Seamons
+Version = 1.0
+Website =
