@@ -369,7 +369,7 @@ def resolve_inheritance(base_config, suite_cfg, suite_path):
     # A list of tests whose parent's have had their dependencies
     # resolved.
     ready_to_resolve = list()
-    if suite_cfg is None: # Catch null test suites.
+    if suite_cfg is None:  # Catch null test suites.
         raise TestConfigError("Test Suite {} is empty.".format(suite_path))
     try:
         for test_cfg_name, test_cfg in suite_cfg.items():
@@ -465,13 +465,8 @@ def apply_overrides(test_cfg, overrides):
 
     :param dict test_cfg: The test configuration.
     :param list overrides: A list of raw overrides in a.b.c=value form.
-    :raises ValueError, KeyError
-    """
-
-    import pprint
-    print('overrides', overrides)
-    print('original config')
-    pprint.pprint(test_cfg)
+    :raises: ValueError, KeyError
+"""
 
     for ovr in overrides:
         if '=' not in ovr:
@@ -485,9 +480,6 @@ def apply_overrides(test_cfg, overrides):
         _apply_override(test_cfg, key, value)
 
     TestConfigLoader().validate(test_cfg)
-
-    print('overridden config')
-    pprint.pprint(test_cfg)
 
 
 def _apply_override(test_cfg, key, value):
@@ -539,8 +531,6 @@ def _apply_override(test_cfg, key, value):
             raise KeyError("Tried, to override key '{}', but '{}' isn't"
                            "a dict or list."
                            .format(disp_key, part))
-
-    print('last_cfg', last_cfg, value)
 
     if last_cfg is None:
         # Should never happen.
