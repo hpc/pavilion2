@@ -63,12 +63,12 @@ class RawSchedTests(PavTestCase):
                 return self.in_alloc_var
 
         test = TestRun(
-            self.pav_cfg,
-            {
+            pav_cfg=self.pav_cfg,
+            config={
                 'name': 'sched-vars',
                 'scheduler': 'dummy'
             },
-            VariableSetManager(),
+            var_man=VariableSetManager(),
         )
 
         dummy_sched = DummySched()
@@ -92,12 +92,12 @@ class RawSchedTests(PavTestCase):
         pav_cfg['env_setup'] = ['test1', 'test2', 'test3']
 
         test = TestRun(
-            self.pav_cfg,
-            {
+            pav_cfg=self.pav_cfg,
+            config={
                 'name': 'sched-vars',
                 'scheduler': 'dummy'
             },
-            VariableSetManager(),
+            var_man=VariableSetManager(),
         )
 
         dummy_sched = schedulers.get_plugin('dummy')

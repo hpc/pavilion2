@@ -117,7 +117,6 @@ class RawSchedTests(PavTestCase):
         cfg['run']['cmds'] = ['sleep 100']
 
         test = self._quick_test(cfg=cfg)
-        test.build()
 
         raw = schedulers.get_plugin('raw')
 

@@ -9,7 +9,7 @@ from pathlib import Path
 
 import yaml_config as yc
 from yapsy import IPlugin
-from .test_config import variables, was_deferred, file_format
+from .test_config import was_deferred, file_format
 
 LOGGER = logging.getLogger(__file__)
 
@@ -45,6 +45,7 @@ def __reset():
 
 
 class ResultParserError(RuntimeError):
+    """Error thrown when the result parser fails."""
     pass
 
 
@@ -62,6 +63,8 @@ PER_FIRST = 'first'
 PER_LAST = 'last'
 PER_FULLNAME = 'fullname'
 PER_NAME = 'name'
+PER_FULLNAME_LIST = 'fullname_list'
+PER_NAME_LIST = 'name_list'
 PER_LIST = 'list'
 PER_ANY = 'any'
 PER_ALL = 'all'
@@ -108,7 +111,7 @@ text for that class, along with the help from the config items."""
 
 :param str name: The name of this plugin.
 :param str description: A short description of this result parser.
-:param Union(str, None) open_mode: How to open each file handed to the parser.
+:param Union[str, None] open_mode: How to open each file handed to the parser.
     None denotes that a path rather than a file object is expected.
 :param int priority: The priority of this plugin, compared to plugins
     of the same name. Higher priority plugins will supersede others.
@@ -178,9 +181,10 @@ list of yaml_config.StrElem objects, but any structure is allowed
 as long as the leaf elements are StrElem type.
 
 The config values will be passed as the keyword arguments to the
-result parser when it's run and when it's arguments are checked. Those
-values listed below are handled by the base class, and won't be passed,
-however.
+result parser when it's run and when its arguments are checked. The base
+implementation provides several arguments that must be present for every result
+parser. See the implementation of this method in result_parser.py for more
+info on those arguments and what they do.
 
 Example: ::
 
@@ -190,6 +194,7 @@ Example: ::
             help="The token to search for in the file."
     )
     return config_items
+
 """
 
         return [
@@ -234,6 +239,8 @@ Example: ::
                     PER_LAST,
                     PER_FULLNAME,
                     PER_NAME,
+                    PER_NAME_LIST,
+                    PER_FULLNAME_LIST,
                     PER_LIST,
                     PER_ANY,
                     PER_ALL,
@@ -244,9 +251,14 @@ Example: ::
                     "non-empty result. (default)\n"
                     "  {LAST} - As '{FIRST}', but last result.\n"
                     "  {FULLNAME} - Store the results on a per file "
-                    "basis under results[<filename>][<key>]\n"
+                    "basis under results['fn'][<filename>][<key>]\n"
                     "  {NAME} - As '{FULLNAME}', except use the "
-                    "filename minux extension (foo.bar.log -> foo.bar)\n"
+                    "filename minus extension (foo.bar.log -> foo.bar), and"
+                    "store under the results['n'][<name>][<key>]\n"
+                    "  {FULLNAME_LIST} - Save the matching file names, rather\n"
+                    "than the parsed values, in a list.\n"
+                    "  {NAME_LIST} - As '{FULLNAME_LIST}' except store the \n"
+                    "filenames minus the extension.\n"
                     "  {LIST} - Merge all each result and result list "
                     "into a single list.\n"
                     "  {ALL} - Use only with the 'store_true' or "
@@ -259,6 +271,8 @@ Example: ::
                         LAST=PER_LAST,
                         FULLNAME=PER_FULLNAME,
                         NAME=PER_NAME,
+                        NAME_LIST=PER_NAME_LIST,
+                        FULLNAME_LIST=PER_FULLNAME_LIST,
                         LIST=PER_LIST,
                         ALL=PER_ALL,
                         ANY=PER_ANY))
@@ -328,6 +342,10 @@ RESERVED_RESULT_KEYS = [
     'started',
     'finished',
     'duration',
+    'pav_result_errors',
+    'user',
+    'job_id',
+    'sys_name',
 ]
 
 
@@ -532,10 +550,12 @@ configured for that test.
                 # Store in results under the 'stem' or 'name' key as a dict
                 # where each name/stem has a dict with this key and the value.
 
-                if per_file not in results:
-                    results[per_file] = dict()
+                per_key = 'n' if per_file == PER_NAME else 'fn'
 
-                per_dict = results[per_file]  # type: dict
+                if per_key not in results:
+                    results[per_key] = dict()
+
+                per_dict = results[per_key]  # type: dict
 
                 for fname, value in presults.items():
                     if per_file == PER_FULLNAME:
@@ -573,6 +593,20 @@ configured for that test.
 
                 results[key] = result_list
 
+            elif per_file == PER_NAME_LIST:
+                # Get the name stems from the files that matched.
+                results[key] = sorted([
+                    fname.stem for fname, value in presults.items()
+                    if value not in EMPTY_VALUES
+                ])
+
+            elif per_file == PER_FULLNAME_LIST:
+                # Get the filenames from the files that matched.
+                results[key] = sorted([
+                    fname.name for fname, value in presults.items()
+                    if value not in EMPTY_VALUES
+                ])
+
             elif per_file == PER_ALL:
                 results[key] = all(presults.values())
             elif per_file == PER_ANY:
@@ -596,6 +630,6 @@ configured for that test.
                        .format(results['result'])
             })
 
-    results['errors'] = errors
+    results['pav_result_errors'] = errors
 
     return results

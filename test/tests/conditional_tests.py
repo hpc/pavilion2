@@ -1,14 +1,16 @@
 import io
 import os
 import pavilion
+import time
 
 from pavilion import arguments
 from pavilion import commands
 from pavilion import plugins
 from pavilion.status_file import STATES
-from pavilion.test_config import file_format, setup, variables
-from pavilion.test_run import TestRun, TestRunError
+#from pavilion.test_config import file_format, variables
+from pavilion.test_run import TestRun, TestRunError, TestConfigError
 from pavilion import unittest
+from pavilion.builder import MultiBuildTracker
 
 
 class conditionalTest(unittest.PavTestCase):
@@ -90,7 +92,6 @@ class conditionalTest(unittest.PavTestCase):
 
         for test_cfg in test_list:
             test = self._quick_test(cfg=test_cfg)
-            test.build()
             test.run()
             self.assertFalse(test.skipped)
 
@@ -98,7 +99,7 @@ class conditionalTest(unittest.PavTestCase):
         # using the variables to test logic of not_if and only_if
         test_list = []
         test_cfg = self._quick_test_cfg()
-        test_cfg['run']['cmds'] = ['echo "Goodbye World"']
+        #test_cfg['run']['cmds'] = ['echo "Goodbye World"']
 
         test_cfg = {'variables': {'person': ['calvin'],
                                   'machine': ['bieber']},
@@ -181,6 +182,5 @@ class conditionalTest(unittest.PavTestCase):
 
         for test_cfg in test_list:
             test = self._quick_test(cfg=test_cfg)
-            test.build()
             test.run()
             self.assertTrue(test.skipped)

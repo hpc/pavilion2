@@ -17,8 +17,7 @@ LOGGER = logging.getLogger('pavilion.' + __file__)
 PAV_CONFIG_SEARCH_DIRS = [Path('./').resolve()]
 
 try:
-    # 3.4ism
-    USER_HOME_PAV = Path(os.path.expanduser('~'))/'.pavilion'
+    USER_HOME_PAV = (Path('~')/'.pavilion').expanduser()
 except OSError:
     # I'm not entirely sure this is the right error to catch.
     USER_HOME_PAV = Path('/tmp')/os.getlogin()/'.pavilion'
@@ -69,7 +68,7 @@ def config_dirs_validator(config, values):
                 file=sys.stderr,
                 color=pavilion.output.YELLOW
             )
-        else:
+        elif path not in config_dirs:
             config_dirs.append(path)
 
     return config_dirs
@@ -136,10 +135,15 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
                       "created files, so that users can share relevant "
                       "results, etc."),
         yc.StrElem(
-            "umask", default="0002",
+            "umask", default="2",
             help_text="The umask to apply to all files created by pavilion. "
                       "This should be in the format needed by the umask shell "
                       "command."),
+        yc.IntRangeElem(
+            "build_threads", default=4, vmin=1,
+            help_text="Maximum simultaneous builds. Note that each build may "
+                      "itself spawn off threads/processes, so it's probably "
+                      "reasonable to keep this at just a few."),
         yc.StrElem(
             "log_format",
             default="{asctime}, {levelname}, {hostname}, {name}: {message}",
@@ -224,7 +228,7 @@ found in these directories the default config search paths:
 """
 
     if PAV_CONFIG_FILE is not None:
-        pav_cfg_file = PosixPath(Path(PAV_CONFIG_FILE))
+        pav_cfg_file = Path(PAV_CONFIG_FILE)
         # pylint has a bug that pops up occasionally with pathlib.
         if pav_cfg_file.is_file():  # pylint: disable=no-member
             try:

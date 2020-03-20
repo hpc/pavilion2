@@ -1,14 +1,28 @@
 # This number should track progressive changes in this software, and correspond to git tags
 # denoting releases. It is entirely independent of the the Pavilion's VERSION.
-RELEASE=2.1.1
+RELEASE=2.1.2
 
 # Release History
 
+## 2.1.2
+ - Fixed some regressions from the 2.1.1 release.
+
 ## 2.1.1
- - More bugfixes
  - Fixed speed of draw_table with new algorithm
- - Added include/exclude_nodes option to slurm.
+ - Fixed some name conflicts with the 'per_fullname' and 'per_name' result parser options.
+ - Fixed issue with pipe exceptions in pav results
+ - Fixed issue with slurm scheduler node selection.
+ - Fixed clean command exceptions
+ - Updated reserved result parser key list. Renamed 'errors' to 'pav_result_errors'.
+ - and many smaller bug fixes.
+ - Updated yaml_config version.
  - Updated the ls and cat commands, merged the tree command into ls.
+ - Moved build code into its own module
+ - Added include/exclude_nodes option to slurm.
+ - Added a 'build' command. Like the 'run' command, but only builds. 
+ - Added '--rebuild' option to both build and run (and the capability to do so)
+ - Added better build tracking output and verbosity under the 'run' command.
+
 
 ## 2.1
  - Quite a few bugfixes.

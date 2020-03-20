@@ -26,7 +26,6 @@ class WaitCmdTests(PavTestCase):
         self.assertEqual(args.tests[0], 'test1')
         self.assertEqual(args.tests[1], 'test2')
         self.assertEqual(args.json, False)
-        self.assertEqual(args.timeout, '60')
 
         parser = argparse.ArgumentParser()
         wait_cmd._setup_arguments(parser)
@@ -78,7 +77,7 @@ class WaitCmdTests(PavTestCase):
 
         configs = [config1, config2, config3]
 
-        tests = [TestRun(self.pav_cfg, test, VariableSetManager())
+        tests = [TestRun(self.pav_cfg, test)
                  for test in configs]
 
         for test in tests:

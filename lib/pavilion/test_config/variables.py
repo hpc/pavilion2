@@ -623,6 +623,13 @@ index, sub_var) tuple.
         else:
             return True
 
+    def __eq__(self, other):
+        if not isinstance(other, VariableSetManager):
+            raise ValueError("Can only compare variable set managers to each "
+                             "other.")
+
+        return self.as_dict() == other.as_dict()
+
 
 class VariableSet:
     """A set of of variables. Essentially a wrapper around a mapping of var
@@ -769,7 +776,9 @@ end up as a list (of one)."""
             if not isinstance(index, int):
                 raise KeyError("Non-integer index given: '{}'".format(index))
 
-        if not -len(self.data) <= index < len(self.data):
+        if len(self.data) == 0:
+            raise KeyError('Variable is empty.')
+        elif not -len(self.data) <= index < len(self.data):
             raise KeyError(
                 "Index out of range. There are only {} items in this variable."
                 .format(len(self.data)))

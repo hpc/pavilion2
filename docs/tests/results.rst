@@ -78,11 +78,11 @@ from the run script and your test.
       run:
         cmds:
           - ping -c 10 google.com
-       
+
       results:
         # The results section is comprised of configs for result parsers,
         # identified by name. In this case, we'll use the 'regex' parser.
-        regex: 
+        regex:
           # Each result parser can have multiple configs.
           - {
             # The value matched will be stored in this key
@@ -92,7 +92,7 @@ from the run script and your test.
             regex: '\d+% packet loss'
           }
           - {
-            # We're storing this value in the result key. If it's found 
+            # We're storing this value in the result key. If it's found
             # (and has a value of 'True', then the test will 'PASS'.
             key: result
             regex: '10 received'
@@ -187,22 +187,23 @@ depends on the **per\_file** attribute for the result parser.
 
 .. code:: yaml
 
-    hugetlb_check: 
+    hugetlb_check:
         scheduler: slurm
-        slurm: 
+        slurm:
           num_nodes: 4
-        
+
         run:
           cmds:
             # Use the srun --output option to specify that results are
             # to be written to separate files.
             - {{sched.test_cmd}} --output="%N.out" env
-        
-        results: 
+
+        results:
           regex:
-            # This will override the test result
-            key: result
-            regex: 'HUGETLB_DEFAULT_PAGE_SIZE=.+'
+            # The matched values will be stored under the 'huge_size' key,
+            # but that will vary based on the 'per_file' value.
+            key: huge_size
+            regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
             # Run the parser against all files that end in .out
             files: '*.out'
             per_file: # We'll demonstrate these settings below
@@ -216,73 +217,136 @@ your results, we'll demonstrate each from the standpoint of the test
 config above.
 
 Let's say the test ran on four nodes (node1, node2, node3, and node4),
-but only node2 and node3 found a match. The results would be: - node1 -
-``<null>`` - node2 - ``HUGETLB_DEFAULT_PAGE_SIZE=2M`` - node3 -
-``HUGETLB_DEFAULT_PAGE_SIZE=4K`` - node4 - ``<null>``
+but only node2 and node3 found a match. The results would be:
+
+- node1 - ``<null>``
+- node2 - ``2M``
+- node3 - ``4K``
+- node4 - ``<null>``
 
 first - Keep the first result (Default)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+.. code:: yaml
+
+    results:
+      regex:
+        key: huge_size
+        regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
+        files: '*.out'
+        per_file: first
+
 Only the result from the first file with a **match** is kept. In this
-case, the value from node1 would be ignored in favor of that of node2:
+case, the value from node1 would be ignored in favor of that of node2. The
+results would contain:
 
 .. code:: json
 
     {
-      "hugetlb": "HUGETLB_DEFAULT_PAGE_SIZE=2M",
-      "result": "PASS",
-      # This would also contain all the default keys, like 'created' and 'id'
-      ... 
+      "huge_size": "2M"
     }
+
+In the simple case of only specifying one file, the '**first**' result is the
+only result. That's why this is the default; the first is all you normally need.
 
 last - Keep the last result
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+.. code:: yaml
+
+    results:
+      regex:
+        key: huge_size
+        regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
+        files: '*.out'
+        per_file: last
+
 Just like '**first**', except we work backwards through the files and
 get the last match value. In this case, that means ignoring node4's
-result and taking node3's:
+result (because it is null) and taking node3's:
 
 .. code:: json
 
     {
-      "hugetlb": "HUGETLB_DEFAULT_PAGE_SIZE=4K",
-      "result": "PASS",
-      ...
+      "huge_size": "4K",
     }
 
 all - True if each file returned a True result
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+.. code:: yaml
+
+    results:
+      regex:
+        key: huge_size
+        regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
+        files: '*.out'
+        per_file: all
+
 By itself, '**all**' sets the key to True if the result values for all
-the files evaluate to True. This means a result of the number 0 or an
-empty string, which may be valid **matches**, will evaluate to
-``false``. If you would like matches to evaluate to ``true`` regardless
-of content, use this with **store\_true** or **store\_false** as the
-action.
+the files evaluate to True. Setting ``action: store_true`` produces more
+predictable results.
+
++---------------------------+-----------+------------+--------------------+
+|                           | value     | t/f value  | action: store_true |
++===========================+===========+============+====================+
+| No result                 | ``<null>``| *false*    | *false*            |
++---------------------------+-----------+------------+--------------------+
+| Non-empty strings         | ``'2M'``  | *true*     | *true*             |
++---------------------------+-----------+------------+--------------------+
+| Empty strings             | ``''``    | *false*    | *true*             |
++---------------------------+-----------+------------+--------------------+
+| Non-zero numbers          | ``5``     | *true*     | *true*             |
++---------------------------+-----------+------------+--------------------+
+| Zero                      | ``0``     | *false*    | *true*             |
++---------------------------+-----------+------------+--------------------+
+| Literal true              | ``true``  | *true*     | *true*             |
++---------------------------+-----------+------------+--------------------+
+| Literal false             | ``false`` | *false*    | *false*            |
++---------------------------+-----------+------------+--------------------+
+
+In our example, the result is ``false`` because some of our files had no matches
+(a ``<null>`` result).
 
 .. code:: json
 
     {
-      "hugetlb": false,
-      "result": "PASS",
-      ...
+      "huge_size": false,
     }
 
 any - True if any file returned a True result
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Like '**all**', but is ``true`` if any of the results evaluates to True.
+.. code:: yaml
+
+    results:
+      regex:
+        key: huge_size
+        regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
+        files: '*.out'
+        per_file: any
+
+Like '**all**', but is ``true`` if any of the results evaluates to True. In
+the case of our example, since at least one file matched, the key will be
+set to 'true'
 
 .. code:: json
 
     {
-      "hugetlb": true,
-     "result": "PASS",
-      ...
+      "huge_size": true,
     }
 
 list - Merge the file results into a single list
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code:: yaml
+
+    results:
+      regex:
+        key: huge_size
+        regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
+        files: '*.out'
+        per_file: list
 
 For each result from each file, add them into a single list. **empty**
 values are not added, but ``false`` is. If the result value is a list
@@ -291,46 +355,110 @@ already, then each of the values in the list is added.
 .. code:: json
 
     {
-      "hugetlb": ["HUGETLB_DEFAULT_PAGE_SIZE=2M", "HUGETLB_DEFAULT_PAGE_SIZE=4K"],
-     "result": "PASS",
-      ...
+      "huge_size": ["2M", "4K"],
     }
 
 fullname - Stores in a filename based dict.
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The result from each file is still stored according to the *key*
-attribute, but in a dictionary by the file's full name instead. This is
-easier shown than explained:
+.. code:: yaml
+
+    results:
+      regex:
+        key: huge_size
+        regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
+        files: '*.out'
+        per_file: fullname
+
+Put the result under the key, but in a dictionary specific to that file. All
+the file specific dictionaries are stored under the ``fn`` key by filename.
 
 .. code:: json
 
-     "node1.out": {"hugetlb": null},
-     "node2.out": {"hugetlb": "HUGETLB_DEFAULT_PAGE_SIZE=2M"},
-     "node3.out": {"hugetlb": "HUGETLB_DEFAULT_PAGE_SIZE=4K"},
-     "node4.out": {"hugetlb": null}
-     "result": "PASS",
+    {
+      "fn": {
+        "node1.out": {"huge_size": null},
+        "node2.out": {"huge_size": "2M"},
+        "node3.out": {"huge_size": "4K"},
+        "node4.out": {"huge_size": null}
+      }
+    }
 
 -  When using the **fullname** *per\_file* setting, the key cannot be
    ``result``.
 -  The rest of the file's path is ignored, so there is potential for
    file name collisions, as the same filename could exist in multiple
-   places.
+   places. Pavilion will report such collisions in the results under the
+   ``error`` key.
 
 name - Stores in a filename (without extension) based dict.
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Just like **fullname**, but instead the file extension is removed from
-filename when determine the key to store under. Only the last extension
-is removed, so ``foo.bar.txt`` becomes ``foo.bar``.
+.. code:: yaml
+
+    results:
+      regex:
+        key: huge_size
+        regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
+        files: '*.out'
+        per_file: fullname
+
+Just like **fullname**, but instead the file name with the file extension
+removed. These are stored under the ``n`` key in the results.
 
 .. code:: json
 
-     "node1": {"hugetlb": null},
-     "node2": {"hugetlb": "HUGETLB_DEFAULT_PAGE_SIZE=2M"},
-     "node3": {"hugetlb": "HUGETLB_DEFAULT_PAGE_SIZE=4K"},
-     "node4": {"hugetlb": null}
-     "result": "PASS",
+    {
+      "n": {
+        "node1": {"huge_size": null},
+        "node2": {"huge_size": "2M"},
+        "node3": {"huge_size": "4K"},
+        "node4": {"huge_size": null}
+      }
+    }
+
+
+fullname_list - Stores the name of the files that matched.
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code:: yaml
+
+    results:
+      regex:
+        key: huge_size
+        regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
+        files: '*.out'
+        per_file: fullname_list
+
+Stores a list of the names of the files that matched. The actual matched values
+aren't saved.
+
+.. code:: json
+
+    {
+      "huge_size": ["node2.out", "node3.out"],
+    }
+
+name_list - Stores the name of the files that matched.
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code:: yaml
+
+    results:
+      regex:
+        key: huge_size
+        regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
+        files: '*.out'
+        per_file: name_list
+
+Stores a list of the names of the files that matched, minus extension. The
+actual matched values aren't saved.
+
+.. code:: json
+
+    {
+      "huge_size": ["node2", "node3"],
+    }
 
 Errors
 ------
@@ -342,7 +470,6 @@ these is a dictionary with some useful values:
 .. code:: yaml
 
     {
-      ...
       "errors": [{
         # The error happened under this parser.
         "result_parser": "regex",
