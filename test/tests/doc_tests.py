@@ -94,7 +94,7 @@ class DocTests(PavTestCase):
                     if len(hrefs) > 1:
                         raise ValueError(
                             "'A' tag with more than one href: {}"
-                                .format(attrs))
+                            .format(attrs))
 
                     href = hrefs[0]
 
@@ -143,6 +143,10 @@ class DocTests(PavTestCase):
                     href = '{}#{}'.format(href, anchor)
 
                 bad_links.append((origin, href))
+
+        # Save our results so we only have to do this once.
+        self.bad_links = bad_links
+        self.external_links = external_links
 
         return bad_links, external_links
 
