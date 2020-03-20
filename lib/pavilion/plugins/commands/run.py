@@ -17,7 +17,6 @@ from pavilion import test_config
 from pavilion.plugins.commands.status import print_from_test_obj
 from pavilion.series import TestSeries, test_obj_from_id
 from pavilion.status_file import STATES
-from pavilion.test_config.string_parser import ResolveError
 from pavilion.test_run import TestRun, TestRunError, TestConfigError
 from pavilion.builder import MultiBuildTracker
 
@@ -294,6 +293,8 @@ class RunCommand(commands.Command):
         if host is None:
             host = sys_vars.get('sys_name')
 
+        resolver = test_config.TestConfigResolver(pav_cfg)
+
         tests = list(tests)
         for file in test_files:
             try:
@@ -307,93 +308,17 @@ class RunCommand(commands.Command):
                 self.logger.error(msg)
                 raise commands.CommandError(msg)
 
-        try:
-            raw_tests = test_config.load_test_configs(pav_cfg, host, modes,
-                                                      tests)
-        except test_config.TestConfigError as err:
-            self.logger.error(str(err))
-            raise commands.CommandError(str(err))
+        resolved_cfgs = resolver.load(
+            tests,
+            host,
+            modes,
+            overrides
+        )
 
-        raw_tests_by_sched = defaultdict(lambda: [])
         tests_by_scheduler = defaultdict(lambda: [])
+        for cfg, var_man in resolved_cfgs:
+            tests_by_scheduler[cfg['scheduler']].append((cfg, var_man))
 
-        # Apply config overrides.
-        for test_cfg in raw_tests:
-            # Apply the overrides to each of the config values.
-            try:
-                test_config.apply_overrides(test_cfg, overrides)
-            except (KeyError, ValueError) as err:
-                msg = 'Error applying overrides to test {} from {}: {}' \
-                    .format(test_cfg['name'], test_cfg['suite_path'], err)
-                self.logger.error(msg)
-                raise commands.CommandError(msg)
-
-            # Resolve all configuration permutations.
-            try:
-                p_cfg, permutes = test_config.resolve_permutations(
-                    test_cfg,
-                    pav_cfg.pav_vars,
-                    sys_vars
-                )
-                for p_var_man in permutes:
-                    # Get the scheduler from the config.
-                    sched = p_cfg['scheduler']
-                    sched = test_config.resolve_section_vars(
-                        component=sched,
-                        var_man=p_var_man,
-                        allow_deferred=False,
-                        deferred_only=False,
-                    )
-                    raw_tests_by_sched[sched].append((p_cfg, p_var_man))
-            except test_config.TestConfigError as err:
-                msg = 'Error resolving permutations for test {} from {}: {}' \
-                    .format(test_cfg['name'], test_cfg['suite_path'], err)
-                self.logger.error(msg)
-                raise commands.CommandError(msg)
-
-        # Get the schedulers for the tests, and the scheduler variables.
-        # The scheduler variables are based on all of the
-        for sched_name in raw_tests_by_sched.keys():
-            try:
-                sched = schedulers.get_plugin(sched_name)
-            except KeyError:
-                msg = "Could not find scheduler '{}'.".format(sched_name)
-                self.logger.error(msg)
-                raise commands.CommandError(msg)
-
-            nondeferred_cfg_sctns = schedulers.list_plugins()
-
-            # Builds must have the values of all their variables now.
-            nondeferred_cfg_sctns.append('build')
-
-            # Set the scheduler variables for each test.
-            for test_cfg, test_var_man in raw_tests_by_sched[sched_name]:
-
-                sched_config = test_config.resolve_section_vars(
-                    component=test_cfg[sched_name],
-                    var_man=test_var_man,
-                    allow_deferred=False,
-                    deferred_only=False,
-                )
-
-                test_var_man.add_var_set('sched', sched.get_vars(sched_config))
-
-                # Resolve all variables for the test (that aren't deferred).
-                try:
-                    resolved_config = test_config.resolve_config(
-                        test_cfg,
-                        test_var_man,
-                        no_deferred_allowed=nondeferred_cfg_sctns)
-
-                except (ResolveError, KeyError) as err:
-                    msg = "Error resolving variables in config at '{}': {}" \
-                        .format(test_cfg['suite_path'].resolve(test_var_man),
-                                err)
-                    self.logger.error(msg)
-                    raise commands.CommandError(msg)
-
-                tests_by_scheduler[sched.name].append(
-                    (resolved_config, test_var_man))
         return tests_by_scheduler
 
     @staticmethod

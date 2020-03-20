@@ -7,7 +7,7 @@ import time
 from pathlib import Path
 
 import yaml_config as yc
-from pavilion.pav_vars import var_method
+from pavilion.pavilion_variables import var_method
 from pavilion.schedulers import SchedulerPlugin
 from pavilion.schedulers import SchedulerVariables
 from pavilion.status_file import STATES, StatusInfo

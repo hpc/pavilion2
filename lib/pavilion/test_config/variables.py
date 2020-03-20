@@ -173,10 +173,7 @@ permutation.
 
         # Create a new var set manager for each permutation.
         for perm in permutations:
-            var_man = VariableSetManager()
-
-            var_man.variable_sets = copy.deepcopy(self.variable_sets)
-            var_man.deferred = self.deferred
+            var_man = copy.deepcopy(self)
 
             for (var_set, var), idx in perm.items():
                 new_list = [self.variable_sets[var_set][var][idx]]
@@ -604,6 +601,16 @@ index, sub_var) tuple.
                     "Reference loop in variable resolution for variables: {}."
                     .format(list(def_parsed.keys()))
                 )
+
+    def __deepcopy__(self):
+        """Deeply copy this variable set manager."""
+
+        var_man = VariableSetManager()
+
+        var_man.variable_sets = copy.deepcopy(self.variable_sets)
+        var_man.deferred = self.deferred
+
+        return var_man
 
     def __contains__(self, item):
 

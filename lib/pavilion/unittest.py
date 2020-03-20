@@ -14,7 +14,7 @@ from pathlib import Path
 
 from pavilion import arguments
 from pavilion import config
-from pavilion import pav_vars
+from pavilion import pavilion_variables
 from pavilion import system_variables
 from pavilion.test_run import TestRun
 from pavilion.test_config.file_format import TestConfigLoader
@@ -102,7 +102,7 @@ base class.
 
         self.pav_cfg.pav_cfg_file = cfg_path
 
-        self.pav_cfg.pav_vars = pav_vars.PavVars()
+        self.pav_cfg.pav_vars = pavilion_variables.PavVars()
 
         if not self.pav_cfg.working_dir.exists():
             self.pav_cfg.working_dir.mkdir(parents=True)
