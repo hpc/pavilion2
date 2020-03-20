@@ -179,8 +179,8 @@ So let's modify the build section of our test config to load those modules.
 Note:
   Module loading works with lmod and environment modules (tmod), and
   assumes the module environment is set up automatically on login. This is
-  covered in more details in the 
-  `install instructions <install.html>`__.
+  covered in more details in the
+  `install instructions <../install.html>`__.
 
 .. code-block:: yaml
 

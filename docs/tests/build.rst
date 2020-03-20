@@ -13,9 +13,9 @@ Build Config Keys
 The documentation for what various keys do is spread throughout this
 document.
 
--  `source\_location <#source_location>`__
--  `source\_download\_name <#source_download_name>`__
--  `extra\_files <#extra_files>`__
+-  `source\_location <#source-location>`__
+-  `source\_download\_name <#source-download-name>`__
+-  `extra\_files <#extra-files>`__
 -  `modules <#modules-list>`__
 -  `env <#env-mapping>`__
 -  `cmds <#cmds-list>`__
@@ -42,7 +42,7 @@ There are two ways to specify source in Pavilion: Through the
     build_example:
         build:
           source_location: my_test_src.gz
-          
+
         extra_files:
           - my_test_patch1.patch
           - my_test_patch2.patch
@@ -56,7 +56,7 @@ source\_location
 
 This attribute provides a build with a base archive, url, directory, or
 file to use as the source. Local files are looked for in all of the
-configuration directories in the `typical order <../config.md>`__, and
+configuration directories in the `typical order <../config.html>`__, and
 the first found is used . How the extracted files are used depends on
 the structure of the extracted files themselves.
 
@@ -94,7 +94,7 @@ for updates, and new versions are downloaded as necessary. Downloaded
 files are then treated as an archive or regular file as above.
 
 File downloads depend on the Python **requests** library
-`dependency <../../INSTALL.md>`__ being installed.
+`dependency <../install.html>`__ being installed.
 
 source\_download\_name
 ^^^^^^^^^^^^^^^^^^^^^^
@@ -122,7 +122,7 @@ The script is composed in the following order: - module manipulation -
 environment changes - commands
 
 **Note that the build config (and thus script) can't contain `Deferred
-Variables <variables.md#deferred-variables>`__.**
+Variables <variables.html#deferred-variables>`__.**
 
 Not only do we need to know the value of everything to make the build
 hash, but the build might not even run in a scheduled environment where
@@ -136,15 +136,15 @@ An example config and build script
     build-example:
         build:
           source_location: my_test.tar.gz
-        
+
           modules: [gcc, openmpi]
-          
-          env: 
+
+          env:
             # Add to the path.
             PATH: "${PATH}:$(which gcc)"
             # unset the USER environment variable.
-            USER: 
-            
+            USER:
+
           cmds:
             - ./configure
             - ./make
@@ -158,7 +158,7 @@ Would result in a script like:
     # This contains utility functions used in Pavilion scripts.
     source /home/bob/pavilion/bin/pav-lib.bash
 
-    # Load the modules, and make sure they're loaded 
+    # Load the modules, and make sure they're loaded
     module load gcc
     check_module_loaded gcc
 
@@ -182,7 +182,7 @@ your cluster's module system.
 For each module listed, a relevant module command will be added to the
 build script.
 
-See `Module Environment <env.md#modules>`__ for more info.
+See `Module Environment <env.html#modules>`__ for more info.
 
 env (mapping)
 ^^^^^^^^^^^^^
@@ -194,7 +194,7 @@ in the build script. Null/empty values given will unset. In either case,
 these are written into the script as bash commands, so values are free
 to refer to other bash variables or contain sub-shell escapes.
 
-See `Env Vars <env.md#environment-variables>`__ for more info.
+See `Env Vars <env.html#environment-variables>`__ for more info.
 
 cmds (list)
 ^^^^^^^^^^^
@@ -281,12 +281,12 @@ becomes the build directory.
 
 .. code:: bash
 
-    # This tar file has a single top-level directory. 
+    # This tar file has a single top-level directory.
     # The 'src' directory will be the build directory.
     tar -tf src.tar.gz
       src/README.txt
       src/mytest.c
-      
+
     ls build_dir
       README
       mytest.c
@@ -303,10 +303,10 @@ In all other cases, the build directory will simply contain the files.
     tar -tf src2.tar.gz
       README.txt
       src/mytest.c
-      
+
     ls build_dir
       README.txt
-      src/mytest.c 
+      src/mytest.c
 
 Perform the Build
 ~~~~~~~~~~~~~~~~~

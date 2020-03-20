@@ -217,9 +217,10 @@ Test Run Objects
 
 It's very likely that your test will require one or more test run objects. Your
 PavTestCase can help with that via the
-`_quick_test() <../unittests.html#pavilion.unittest.PavTestCase._quick_test>`_
+`_quick_test() <../source/unittests.html#pavilion.unittest.PavTestCase._quick_test>`_
+
 and
-`_quick_test_cfg() <../unittests.html#pavilion.unittest.PavTestCase._quick_test>`_
+`_quick_test_cfg() <../source/unittests.html#pavilion.unittest.PavTestCase._quick_test>`_
 methods.
 
 .. code-block:: python

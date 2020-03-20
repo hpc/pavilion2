@@ -9,4 +9,5 @@ Pavilion Plugins
    commands.rst
    module_wrappers.rst
    result_parsers.rst
+   schedulers.rst
    sys_vars.rst

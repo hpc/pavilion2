@@ -4,9 +4,9 @@ Configuring Pavilion
 Pavilion is driven largely by configurations. This documentation page covers
 the ``pavilion.yaml`` file, which sets global pavilion settings.
 
-See `Test Configs <tests/basics.html>`__,
-`Host Configs <tests/basics.html#host-configs>`__,
-`Mode Configs <tests/basics.html#mode-configs>`__, and
+See `Test Configs <tests/format.html>`__,
+`Host Configs <tests/format.html#host-configs>`__,
+`Mode Configs <tests/format.html#mode-configs>`__, and
 `Plugins <plugins/basics.html>`__ for information on the other types of
 pavilion configuration.
 
@@ -55,7 +55,7 @@ While everything has a workable default, you'll probably want to set the
 following.
 
 working_dir
-^^^^^^^^^^^^
+^^^^^^^^^^^
 
 This determines where your test run information is stored. If you don't
 set this, everyone will have a separate history in

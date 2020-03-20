@@ -1,16 +1,38 @@
-from pavilion.unittest import PavTestCase
 import distutils.spawn
 import subprocess
 import unittest
+from collections import defaultdict
+from html.parser import HTMLParser
+
+from pavilion import wget
+from pavilion.unittest import PavTestCase
+from pavilion.utils import flat_walk
 
 _SPHINX_PATH = distutils.spawn.find_executable('sphinx-build')
 
 
 class DocTests(PavTestCase):
 
-    @unittest.skipIf(_SPHINX_PATH is None, "Could not find sphinx.")
-    def test_doc_build(self):
-        """Build the documentation and check for warnings/errors."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.docs_built = False
+        self.docs_build_out = None
+        self.docs_build_ret = None
+
+        self.bad_links = None
+        self.external_links = None
+
+    def setUp(self):
+        """Bujld the docs only once."""
+
+        if not self.docs_built:
+            out, ret = self.build_docs()
+            self.docs_built = True
+            self.docs_build_out = out
+            self.docs_build_ret = ret
+
+    def build_docs(self):
 
         subprocess.call(['make', 'clean'],
                         cwd=(self.PAV_ROOT_DIR/'docs').as_posix(),
@@ -29,14 +51,145 @@ class DocTests(PavTestCase):
         out = out.decode('utf8')
         result = proc.poll()
 
-        self.assertEqual(result, 0,
-                         msg="Error building docs:\n{}".format(out))
+        return out, result
+
+    def check_links(self):
+        """Get the list of bad links, and the list of external links.
+        Each is returned as a list of tuples of (origin_file, link). This
+        assumes the docs have been built.
+
+        returns: bad_links, external_links
+        """
+
+        if self.bad_links is not None:
+            return self.bad_links, self.external_links
+
+        web_root = self.PAV_ROOT_DIR/'docs'/'_build'
+
+        # These will be non-locals in the scope of the html parser.
+        seen_hrefs = set()
+        seen_targets = set()
+        external_links = set()
+
+        class HREFParser(HTMLParser):
+            def __init__(self, root, path):
+                self.root = root
+                self.path = path.relative_to(root)
+                self.dir = path.parent
+
+                seen_targets.add((self.path, ''))
+
+                super().__init__()
+
+            def handle_starttag(self, tag, attrs):
+                """We want to record all the hrefs in the document. We also
+                record every potential internal target."""
+
+                nonlocal seen_hrefs
+                nonlocal seen_targets
+                nonlocal external_links
+
+                if tag == 'a':
+                    hrefs = [value for key, value in attrs if key == 'href']
+                    if len(hrefs) > 1:
+                        raise ValueError(
+                            "'A' tag with more than one href: {}"
+                                .format(attrs))
+
+                    href = hrefs[0]
+
+                    if href.startswith('#'):
+                        anchor = href[1:]
+                        seen_hrefs.add((self.path, (self.path, anchor)))
+                    elif '://' in href:
+                        external_links.add((self.path, href))
+                    elif '#' in href:
+                        file_loc, anchor = href.split('#', 2)
+                        file_loc = (self.dir/file_loc).resolve()
+                        file_loc = file_loc.relative_to(self.root)
+
+                        seen_hrefs.add((self.path, (file_loc, anchor)))
+
+                    else:
+                        file_loc = (self.dir/href).resolve()
+                        file_loc = file_loc.relative_to(self.root)
+                        seen_hrefs.add((self.path, (file_loc, '')))
+
+                id_ = [v for k, v in attrs if k == 'id']
+                if id_:
+                    seen_targets.add((self.path, id_[0]))
+
+        for path in flat_walk(web_root):
+            if path.is_dir():
+                continue
+
+            parser = HREFParser(web_root, path)
+
+            if path.suffix == '.html':
+                with path.open() as file:
+                    parser.feed(file.read())
+
+        bad_links = []
+        for origin, ref in seen_hrefs:
+            href, anchor = ref
+            if ref not in seen_targets:
+                if not (anchor or href.suffix == '.html' or
+                        (web_root / href).exists()):
+                    # Skip links to non-html files that don't have an anchor
+                    # and that exist.
+                    continue
+
+                if anchor:
+                    href = '{}#{}'.format(href, anchor)
+
+                bad_links.append((origin, href))
+
+        return bad_links, external_links
+
+    @unittest.skipIf(_SPHINX_PATH is None, "Could not find Sphinx.")
+    def test_doc_build(self):
+        """Build the documentation and check for warnings/errors."""
+
+        self.assertEqual(self.docs_build_ret, 0,
+                         msg="Error building docs:\n{}"
+                             .format(self.docs_build_out))
 
         warnings = []
-        for line in out.split('\n'):
+        for line in self.docs_build_out.split('\n'):
             if 'WARNING' in line:
                 warnings.append(line)
 
         self.assertTrue(len(warnings) == 0,
                         msg='{} warnings in documentation build:\n{}\n\n{}'
-                            .format(len(warnings), '\n'.join(warnings), out))
+                            .format(len(warnings), '\n'.join(warnings),
+                                    self.docs_build_out))
+
+    @unittest.skipIf(_SPHINX_PATH is None, "Could not find Sphinx")
+    def test_doc_links(self):
+        """Verify the links in all the documentation. This shouldn't run as
+        its own test, but as a subtest of our document making test so we
+        don't have to make the docs twice."""
+
+        bad_links, _ = self.check_links()
+
+        link_desc = '\n'.join(['{} -> {}'.format(orig, href)
+                               for orig, href in bad_links])
+
+        self.assertTrue(bad_links == [],
+                        msg="\nFound the following bad links:\n" + link_desc)
+
+    @unittest.skipIf(_SPHINX_PATH is None or wget.missing_libs(),
+                     "Could not find Sphinx (or maybe wget libs)")
+    def test_doc_ext_links(self):
+        """Check all the external doc links."""
+
+        _, ext_links = self.check_links()
+
+        origins_by_href = defaultdict(lambda: [])
+
+        for origin, href in ext_links:
+            origins_by_href[href].append(origin)
+
+        # Check the external links too.
+        for href in origins_by_href.keys():
+            wget.head(self.pav_cfg, href)
