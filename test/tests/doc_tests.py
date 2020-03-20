@@ -33,6 +33,7 @@ class DocTests(PavTestCase):
             self.docs_build_ret = ret
 
     def build_docs(self):
+        """Perform a clean build of the test documentation."""
 
         subprocess.call(['make', 'clean'],
                         cwd=(self.PAV_ROOT_DIR/'docs').as_posix(),
@@ -72,10 +73,12 @@ class DocTests(PavTestCase):
         external_links = set()
 
         class HREFParser(HTMLParser):
-            def __init__(self, root, path):
+            """Parse the hrefs and anchor targets from a given html file."""
+
+            def __init__(self, root, file_path):
                 self.root = root
-                self.path = path.relative_to(root)
-                self.dir = path.parent
+                self.path = file_path.relative_to(root)
+                self.dir = file_path.parent
 
                 seen_targets.add((self.path, ''))
 
@@ -96,22 +99,22 @@ class DocTests(PavTestCase):
                             "'A' tag with more than one href: {}"
                             .format(attrs))
 
-                    href = hrefs[0]
+                    href_f = hrefs[0]
 
-                    if href.startswith('#'):
-                        anchor = href[1:]
-                        seen_hrefs.add((self.path, (self.path, anchor)))
-                    elif '://' in href:
-                        external_links.add((self.path, href))
-                    elif '#' in href:
-                        file_loc, anchor = href.split('#', 2)
+                    if href_f.startswith('#'):
+                        anchor_f = href_f[1:]
+                        seen_hrefs.add((self.path, (self.path, anchor_f)))
+                    elif '://' in href_f:
+                        external_links.add((self.path, href_f))
+                    elif '#' in href_f:
+                        file_loc, anchor_f = href_f.split('#', 2)
                         file_loc = (self.dir/file_loc).resolve()
                         file_loc = file_loc.relative_to(self.root)
 
-                        seen_hrefs.add((self.path, (file_loc, anchor)))
+                        seen_hrefs.add((self.path, (file_loc, anchor_f)))
 
                     else:
-                        file_loc = (self.dir/href).resolve()
+                        file_loc = (self.dir/href_f).resolve()
                         file_loc = file_loc.relative_to(self.root)
                         seen_hrefs.add((self.path, (file_loc, '')))
 
