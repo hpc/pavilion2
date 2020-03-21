@@ -1,4 +1,5 @@
 import distutils.spawn
+import pathlib
 import subprocess
 import unittest
 from collections import defaultdict
@@ -111,6 +112,8 @@ class DocTests(PavTestCase):
                             file_loc, anchor_f = href_f.split('#', 2)
                         else:
                             file_loc, anchor_f = href_f, ''
+
+                        file_loc = pathlib.Path(file_loc)
 
                         try:
                             file_loc = (self.dir/file_loc).resolve()
