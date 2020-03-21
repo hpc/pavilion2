@@ -61,7 +61,7 @@ class VarDict(UserDict):
 
     Usage:
     To add a variable, create a method and decorate it with
-    either '@var_method' or '@dfr_var_method()'. The method name will be the
+    either ``@var_method`` or ``@dfr_var_method()``. The method name will be the
     variable name, and the method will be called to resolve the variable
     value. Methods that start with '_' are ignored.
     """

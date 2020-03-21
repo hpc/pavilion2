@@ -142,7 +142,7 @@ class DocTests(PavTestCase):
             href, anchor = ref
             if ref not in seen_targets:
                 if not (anchor or href.suffix == '.html' or
-                        (web_root / href).exists()):
+                        not (web_root / href).exists()):
                     # Skip links to non-html files that don't have an anchor
                     # and that exist.
                     continue
@@ -205,3 +205,9 @@ class DocTests(PavTestCase):
         # Check the external links too.
         for href in origins_by_href.keys():
             wget.head(self.pav_cfg, href)
+
+if __name__ == '__main__':
+    d = DocTests()
+    #d.setUp()
+    d.check_links()
+
