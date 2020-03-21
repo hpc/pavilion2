@@ -106,8 +106,12 @@ class DocTests(PavTestCase):
                         seen_hrefs.add((self.path, (self.path, anchor_f)))
                     elif '://' in href_f:
                         external_links.add((self.path, href_f))
-                    elif '#' in href_f:
-                        file_loc, anchor_f = href_f.split('#', 2)
+                    else:
+                        if '#' in href_f:
+                            file_loc, anchor_f = href_f.split('#', 2)
+                        else:
+                            file_loc, anchor_f = href_f, ''
+
                         try:
                             file_loc = (self.dir/file_loc).resolve()
                             file_loc = file_loc.relative_to(self.root)
@@ -115,11 +119,6 @@ class DocTests(PavTestCase):
                             pass
 
                         seen_hrefs.add((self.path, (file_loc, anchor_f)))
-
-                    else:
-                        file_loc = (self.dir/href_f).resolve()
-                        file_loc = file_loc.relative_to(self.root)
-                        seen_hrefs.add((self.path, (file_loc, '')))
 
                 id_ = [v for k, v in attrs if k == 'id']
                 if id_:
