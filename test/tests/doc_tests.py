@@ -205,9 +205,3 @@ class DocTests(PavTestCase):
         # Check the external links too.
         for href in origins_by_href.keys():
             wget.head(self.pav_cfg, href)
-
-if __name__ == '__main__':
-    d = DocTests()
-    #d.setUp()
-    d.check_links()
-
