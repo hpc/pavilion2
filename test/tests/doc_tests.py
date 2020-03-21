@@ -108,8 +108,11 @@ class DocTests(PavTestCase):
                         external_links.add((self.path, href_f))
                     elif '#' in href_f:
                         file_loc, anchor_f = href_f.split('#', 2)
-                        file_loc = (self.dir/file_loc).resolve()
-                        file_loc = file_loc.relative_to(self.root)
+                        try:
+                            file_loc = (self.dir/file_loc).resolve()
+                            file_loc = file_loc.relative_to(self.root)
+                        except FileNotFoundError:
+                            pass
 
                         seen_hrefs.add((self.path, (file_loc, anchor_f)))
 
