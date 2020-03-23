@@ -48,7 +48,7 @@ def normalize_value(value, level=0):
     elif isinstance(value, (int, float, bool, bytes)):
         return str(value)
     elif isinstance(value, (list, tuple)) and level == 0:
-        return [normalize_value(v, level=11) for v in value]
+        return [normalize_value(v, level=1) for v in value]
     elif isinstance(value, dict) and level < 2:
         return {str(k): normalize_value(v, level=2)
                 for k, v in value.items()}
