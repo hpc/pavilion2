@@ -1,7 +1,7 @@
-Pavilion Advanced Usage
+git Pavilion Advanced Usage
 =======================
 
-This page an overview of some of the advanced features of Pavilion, to
+This page is an overview of some of the advanced features of Pavilion, to
 give you a better idea of what it's capable of.
 
 .. contents::
@@ -18,7 +18,7 @@ set of slurm vars:
 
 .. code:: yaml
 
-    slurm: 
+    slurm:
         account: tester
         partition: post-dst
 
@@ -54,7 +54,7 @@ contain numbers, dashes and underscores.
 
     mytest:
       scheduler: slurm
-      
+
       variables:
         sleep_time: 24
 
@@ -89,16 +89,16 @@ from various sources.
 
     pav show sys_vars
 
-     Available System Variables                                                                    
+     Available System Variables
     -----------+-------------------------------------+---------------------------------------------
-     Name      | Value                               | Description                                 
+     Name      | Value                               | Description
     -----------+-------------------------------------+---------------------------------------------
-     host_arch | <deferred>                          | The current host's architecture.            
-     host_name | <deferred>                          | The target host's hostname.                 
-     host_os   | <deferred>                          | The target host's OS info (name, version).  
-     sys_arch  | x86_64                              | The system architecture.                    
-     sys_host  | myhost                              | The system (kickoff) hostname.              
-     sys_name  | myhost                              | The system name (not necessarily hostname). 
+     host_arch | <deferred>                          | The current host's architecture.
+     host_name | <deferred>                          | The target host's hostname.
+     host_os   | <deferred>                          | The target host's OS info (name, version).
+     sys_arch  | x86_64                              | The system architecture.
+     sys_host  | myhost                              | The system (kickoff) hostname.
+     sys_name  | myhost                              | The system name (not necessarily hostname).
      sys_os    | {'name': 'sles', 'version': '12.3'} | The system os info (name, version).
 
 Deferred Variables
@@ -138,18 +138,18 @@ Tests within a single test suite file can inherit from each other.
             - openmpi
           cmds:
             - mpicc -o super_magic super_magic.c
-          
+
         run:
-          modules: 
+          modules:
             - gcc
             - openmpi
           cmds:
             - echo "Running supermagic"
-            - srun ./supermagic -a 
-        
+            - srun ./supermagic -a
+
         results:
           ... # Various result parser configurations.
-        
+
     # This gets all the attributes of supermagic, but overwrites the summary
     # and the test commands.
     super_magic-fs:
@@ -209,6 +209,60 @@ You also can permute over multiple variables at once, producing a test run for
 each possible permutation of values. See
 `Test Permutations <tests/variables.html#permutations>`__
 for more info.
+
+Conditionals
+~~~~~~~~~~~~
+
+If you want to be able to specify when a test should or should not run, you can
+do so by using conditional statements. By using the keywords ```only_if``` or
+```not_if``` or a conjunction of the two, users can setup a series of conditional
+statements such that their tests only run under specific circumstance.
+
+Let's say we only want to run a test on machine named "roadrunner".
+
+.. code:: yaml
+    test1:
+        only_if:
+            sys_name: ['roadrunner']
+        run:
+            cmds:
+                - 'echo "Helloworld"'
+
+Now let's say we want to run on all possible machines except "roadrunner".
+
+.. code:: yaml
+    test2:
+        not_if:
+            sys_name: ['roadrunner']
+        run:
+            cmds:
+                - 'echo "Helloworld"'
+
+Conditional statements can also take a list of possible options. The example
+below is a bit more advanced and does the follow: run this test only if the
+users is either paul or francine, and the system architecture is either
+x86_64 or aarch64. Also, do not run this test if the machine name is either
+"roadrunner" or "summit" or if the user is calvin.
+
+.. code:: yaml
+    test3:
+        only_if:
+            user: ['paul', 'francine']
+            sys_arch: ['x86_64', 'aarch64']
+        not_if:
+            sys_name: ['roadrunner', 'summit']
+             user: ['calvin']
+        run:
+            cmds:
+                - 'echo "How Cool."'
+
+The keywords ```only_if``` and ```not_if```` can also accept variables
+the user has defined in their yaml test file. For a list of other variables
+to use in your conditional statements see:
+`Test Permutations <tests/variables.html>`__ .
+
+
+
 
 Environment
 -----------
