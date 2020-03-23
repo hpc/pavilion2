@@ -259,8 +259,9 @@ x86_64 or aarch64. Also, do not run this test if the machine name is either
 
 The keywords ```only_if``` and ```not_if```` can also accept variables
 the user has defined in their yaml test file. For a list of other variables
-to use in your conditional statements see:
-`Test Permutations <tests/variables.html>`__ .
+to use in your conditional statements see
+ `Test Variables <tests/variables.html>`__
+for additional information.
 
 Environment
 -----------
