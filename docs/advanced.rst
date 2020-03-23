@@ -213,10 +213,11 @@ for more info.
 Conditionals
 ~~~~~~~~~~~~
 
-If you want to be able to specify when a test should or should not run, you can
-do so by using conditional statements. By using the keywords ```only_if``` or
-```not_if``` or a conjunction of the two, users can setup a series of conditional
-statements such that their tests only run under specific circumstance.
+If you want to be able to specify when a test should or should not run,
+you can do so by using conditional statements. By using the keywords
+``only_if``` or ```not_if``` or a conjunction of the two, users can
+setup a series of conditional statements such that their tests only
+run under specific circumstance.
 
 Let's say we only want to run a test on machine named "roadrunner".
 
@@ -251,7 +252,7 @@ x86_64 or aarch64. Also, do not run this test if the machine name is either
             sys_arch: ['x86_64', 'aarch64']
         not_if:
             sys_name: ['roadrunner', 'summit']
-             user: ['calvin']
+            user: ['calvin']
         run:
             cmds:
                 - 'echo "How Cool."'
@@ -260,9 +261,6 @@ The keywords ```only_if``` and ```not_if```` can also accept variables
 the user has defined in their yaml test file. For a list of other variables
 to use in your conditional statements see:
 `Test Permutations <tests/variables.html>`__ .
-
-
-
 
 Environment
 -----------
