@@ -458,6 +458,12 @@ class TestRun:
         :returns: True if build successful
         """
 
+        if self.build_origin_path.exists():
+            raise RuntimeError(
+                "Whatever called build() is calling it for a second time."
+                "This should never happen for a given test run ({s.id})."
+                .format(s=self))
+
         if cancel_event is None:
             cancel_event = threading.Event()
 
