@@ -214,14 +214,15 @@ Conditionals
 ~~~~~~~~~~~~
 
 If you want to be able to specify when a test should or should not run,
-you can do so by using conditional statements. By using the keywords
-``only_if``` or ```not_if``` or a conjunction of the two, users can
-setup a series of conditional statements such that their tests only
-run under specific circumstance.
+ you can do so by using conditional statements. By using the keywords
+ ``only_if``` or ```not_if``` or a conjunction of the two, users can
+ setup a series of conditional statements such that their tests only
+ run under specific circumstance.
 
 Let's say we only want to run a test on machine named "roadrunner".
 
 .. code:: yaml
+
     test1:
         only_if:
             sys_name: ['roadrunner']
@@ -232,6 +233,7 @@ Let's say we only want to run a test on machine named "roadrunner".
 Now let's say we want to run on all possible machines except "roadrunner".
 
 .. code:: yaml
+
     test2:
         not_if:
             sys_name: ['roadrunner']
@@ -240,12 +242,13 @@ Now let's say we want to run on all possible machines except "roadrunner".
                 - 'echo "Helloworld"'
 
 Conditional statements can also take a list of possible options. The example
-below is a bit more advanced and does the follow: run this test only if the
-users is either paul or francine, and the system architecture is either
-x86_64 or aarch64. Also, do not run this test if the machine name is either
-"roadrunner" or "summit" or if the user is calvin.
+ below is a bit more advanced and does the follow: run this test only if the
+ users is either paul or francine, and the system architecture is either
+ x86_64 or aarch64. Also, do not run this test if the machine name is either
+ "roadrunner" or "summit" or if the user is calvin.
 
 .. code:: yaml
+
     test3:
         only_if:
             user: ['paul', 'francine']
@@ -258,10 +261,10 @@ x86_64 or aarch64. Also, do not run this test if the machine name is either
                 - 'echo "How Cool."'
 
 The keywords ```only_if``` and ```not_if```` can also accept variables
-the user has defined in their yaml test file. For a list of other variables
-to use in your conditional statements see
+ the user has defined in their yaml test file. For a list of other variables
+ to use in your conditional statements see
  `Test Variables <tests/variables.html>`__
-for additional information.
+ for additional information.
 
 Environment
 -----------
