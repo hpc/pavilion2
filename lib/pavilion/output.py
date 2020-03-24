@@ -369,7 +369,7 @@ MAX_WORD_LEN = 15
 
 
 def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
-               title=None):
+               title=None, table_width=None):
     """Prints a table from the given data, dynamically setting
 the column width.
 
@@ -398,6 +398,8 @@ the column width.
 :param bool pad: Put a space on either side of each header and row entry.
     Default True.
 :param str title: Add the given title above the table. Default None
+:param int table_width: By default size table to the terminal width. If set
+    size the table to this width instead.
 :return: None
 
 **Examples**
@@ -572,18 +574,18 @@ A more complicated example: ::
 
         min_widths[field] = min(MAX_WORD_LEN, len(longest_word))
 
-    for field in field_info:
+    for field in fields:
         # If user specified ignoring wrapping on a given field, it will set the
         # minimum width equal to the largest entry in that field.
-        if 'no_wrap' in field_info[field].keys():
+        if 'no_wrap' in field_info.get(field, {}).keys():
             min_widths[field] = max_widths[field]
         # If user defined a max width for a given field it overrides the
         # maximum width here.
-        if 'max_width' in field_info[field].keys():
+        if 'max_width' in field_info.get(field, {}).keys():
             max_widths[field] = field_info[field]['max_width']
         # If user defined a min width for a given field it overrides the
         # minimum width here.
-        if 'min_width' in field_info[field].keys():
+        if 'min_width' in field_info.get(field, {}).keys():
             min_widths[field] = field_info[field]['min_width']
         # Ensures that the max width for a given field is always larger or
         # at least equal to the minimum field width.
@@ -601,29 +603,17 @@ A more complicated example: ::
         deco_size += border_size * 2
 
     # Gets the effective window width.
-    window_width = shutil.get_terminal_size().columns
-    window_width -= deco_size
+    if table_width is None:
+        table_width = shutil.get_terminal_size().columns
+    table_width -= deco_size
 
     # Makes sure window is at least large enough to display are smallest
     # possible table
     total_min = sum(min_widths.values())
-    if total_min > window_width:
-        window_width = total_min
+    if total_min > table_width:
+        table_width = total_min
 
-    boundaries = []
-    for field in fields:
-
-        # Get updated max width for a column provided every other column is
-        # at its minimum width.
-        max_width = window_width - sum(min_widths.values()) + min_widths[field]
-
-        # Only updated if the max_Width is less than current max value.
-        if max_width < max_widths[field]:
-            max_widths[field] = max_width
-
-        boundaries.append([min_widths[field], max_widths[field] + 1])
-
-    extra_spaces = window_width - sum(min_widths.values())
+    extra_spaces = table_width - sum(min_widths.values())
     final_widths = min_widths.copy()
 
     def calc_wraps(fld_, width_):
@@ -637,24 +627,42 @@ A more complicated example: ::
     # Consume the additional spaces available by growing the columns according
     # to which column would benefit the most from the extra space. If there
     # is a tie, increase the number of spaces considered.
-    while extra_spaces:
+    growable_fields = fields.copy()
+    while extra_spaces and growable_fields:
         best_fields = []
         best_diff = 0
-        row_count = len(formatted_rows)
 
         # Find the 'best_fields' to add 'incr' byte to.
-        for fld in range(len(fields)):
-            field = fields[fld]
+        for field in growable_fields.copy():
             curr_width = final_widths[field]
+            incr_width = curr_width + incr
 
-            curr_wraps = field_wraps_by_width[fld].get(
+            max_width = max_widths[field]
+
+            if curr_width == max_width:
+                growable_fields.remove(field)
+                continue
+
+            curr_wraps = field_wraps_by_width[field].get(
                 curr_width,
                 calc_wraps(field, curr_width))
-            incr_wraps = field_wraps_by_width[fld].get(
-                curr_width + incr,
+
+            # Make sure we don't exceed the max width for the column.
+            incr_wraps = field_wraps_by_width[field].get(
+                incr_width,
                 calc_wraps(field, curr_width + incr))
 
             diff = (curr_wraps-incr_wraps)
+
+            if incr_width > max_width:
+                # Don't consider this column for an increase if the increase
+                # exceeds the max width for the column.
+                continue
+            elif incr_width == max_width and diff == 0:
+                # Increasing the width of this column won't help. Skip it from
+                # now on.
+                growable_fields.remove(field)
+                continue
 
             # If this field beats all previous, make it the best.
             if diff > best_diff:
@@ -676,8 +684,8 @@ A more complicated example: ::
             # If we've run out of bytes to consider, distribute them evenly
             # amongst the tied winners.
             extra_spaces -= incr
-            for fld in best_fields:
-                final_widths[field] += incr/len(best_fields)
+            for field in best_fields:
+                final_widths[field] += incr//len(best_fields)
         else:
             # Otherwise, increase the increment and try again.
             incr += 1
