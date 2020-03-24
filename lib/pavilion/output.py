@@ -677,7 +677,6 @@ A more complicated example: ::
             # amongst the tied winners.
             extra_spaces -= incr
             for fld in best_fields:
-                field = fields[fld]
                 final_widths[field] += incr/len(best_fields)
         else:
             # Otherwise, increase the increment and try again.
