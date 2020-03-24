@@ -29,10 +29,16 @@ class CleanCommand(commands.Command):
             '-v', '--verbose', action='store_true', default=False,
             help='Verbose output.'
         )
-        parser.add_argument(
+
+        group = parser.add_mutually_exclusive_group()
+        group.add_argument(
             '--older-than', nargs='+', action='store',
             help='Set the max age of files to be removed. Can be a date ex:'
                  '"Jan 1 2019" or , or a number of days/weeks ex:"32 weeks"'
+        )
+        group.add_argument(
+            '--all', '-a', action='store_true',
+            help='Attemps to delete as many directories as possible.'
         )
 
     def run(self, pav_cfg, args):
@@ -56,10 +62,10 @@ class CleanCommand(commands.Command):
                                   .format(args.older_than),
                                   file=self.errfile, color=output.RED)
                     return errno.EINVAL
-
-                    # No cutoff specified, removes everything.
+        elif args.all:
+            cutoff_date = datetime.today()
         else:
-            cutoff_date = datetime.today() + timedelta(days=30)
+            cutoff_date = datetime.today() - timedelta(days=30)
 
         tests_dir = pav_cfg.working_dir / 'test_runs'     # type: Path
         series_dir = pav_cfg.working_dir / 'series'       # type: Path
@@ -102,7 +108,7 @@ class CleanCommand(commands.Command):
                     build_origin_symlink.resolve().exists()):
                 build_origin = build_origin_symlink.resolve()
 
-            if test_time < cutoff_date:
+            if test_time > cutoff_date:
                 used_builds.add(build_origin)
                 continue
 
