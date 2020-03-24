@@ -1,4 +1,4 @@
-git Pavilion Advanced Usage
+Pavilion Advanced Usage
 =======================
 
 This page is an overview of some of the advanced features of Pavilion, to
@@ -260,7 +260,7 @@ x86_64 or aarch64. Also, do not run this test if the machine name is either
             cmds:
                 - 'echo "How Cool."'
 
-The keywords ```only_if``` and ```not_if```` can also accept variables
+The keywords ```only_if````` and ```not_if``` can also accept variables
 the user has defined in their yaml test file. For a list of other variables
 to use in your conditional statements see
 `Test Variables <tests/variables.html>`__
