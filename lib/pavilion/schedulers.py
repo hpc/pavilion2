@@ -82,7 +82,7 @@ class SchedulerVariables(VarDict):
 class of this that contains all the variable functions it provides.
 
 To add a scheduler variable, create a method and decorate it with
-either '@sched_var' or '@dfr_sched_var()'. The method name will be the
+either ``@sched_var`` or ``@dfr_sched_var()``. The method name will be the
 variable name, and the method will be called to resolve the variable
 value. Methods that start with '_' are ignored.
 
