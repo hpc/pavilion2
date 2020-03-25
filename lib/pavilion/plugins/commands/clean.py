@@ -221,10 +221,12 @@ def get_month_delta(months):
     cur_year = today.year
     cur_day = today.day
     cur_month = today.month
-    cur_time = today.time
+    cur_time = today.time().hour
 
     if cur_month - months <= 0:
         cut_month = (cur_month - months) % 12
+        if cut_month == 0:
+            cut_month = 12
         diff_years = (cur_month - months) // 12
         cut_year = cur_year + diff_years
     else:
