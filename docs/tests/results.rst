@@ -10,7 +10,7 @@ beginning. `Result Parsers <#using-result-parsers>`__ are little parsing
 scripts that can be configured to parse data from your test's output files.
 They're designed to be simple enough to pull out small bits of data, but
 can be combined to extract a complex set of results from each test run.
-Each result parser is also a `plugin <../plugins/result_parsers.md>`__,
+Each result parser is also a `plugin <../plugins/result_parsers.html>`__,
 so you can easily add custom parsers for tests with particularly complex
 results.
 
@@ -59,7 +59,7 @@ When using the result key, 'store\_true' and 'store\_false'
 `actions <#actions>`__ are the only valid choices. Any other action will
 be changed to 'store\_true', and the change will be noted in the result
 errors. Similarly,
-`per\_file <#per_file-manipulating-multiple-file-results>`__ can only
+`per\_file <#per-file-manipulating-multiple-file-results>`__ can only
 have a setting that produces a single result ('store\_first' is forced
 by default).
 
@@ -485,5 +485,5 @@ Included result parsers
 -----------------------
 
 Currently, Pavilion comes with 3 result parsers. \*
-`constant <results/const.md>`__ \* `command <results/cmd.md>`__ \*
-`regex <results/regex.md>`__
+`constant <results/const.html>`__ \* `command <results/cmd.html>`__ \*
+`regex <results/regex.html>`__

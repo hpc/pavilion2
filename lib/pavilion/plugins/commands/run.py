@@ -322,7 +322,7 @@ class RunCommand(commands.Command):
             # Apply the overrides to each of the config values.
             try:
                 test_config.apply_overrides(test_cfg, overrides)
-            except test_config.TestConfigError as err:
+            except (KeyError, ValueError) as err:
                 msg = 'Error applying overrides to test {} from {}: {}' \
                     .format(test_cfg['name'], test_cfg['suite_path'], err)
                 self.logger.error(msg)
@@ -445,8 +445,6 @@ class RunCommand(commands.Command):
         :rtype: {}
         """
 
-        overrides = self._parse_overrides(args.overrides)
-
         sys_vars = system_variables.get_vars(True)
 
         try:
@@ -456,7 +454,7 @@ class RunCommand(commands.Command):
                 test_files=args.files,
                 tests=args.tests,
                 modes=args.modes,
-                overrides=overrides,
+                overrides=args.overrides,
                 sys_vars=sys_vars,
             )
 
@@ -507,27 +505,6 @@ class RunCommand(commands.Command):
 
         for test in tests:
             test.set_run_complete()
-
-    def _parse_overrides(self, raw_overrides):
-        """Parse the given override arguments into a dictionary of
-        config_key:config_value.
-
-        :param [str] raw_overrides:
-        :rtype: dict[str]
-        """
-
-        overrides = {}
-        for ovr in raw_overrides:
-            if '=' not in ovr:
-                fprint("Invalid override value. Must be in the form: "
-                       "<key>=<value>. Ex. -c run.modules=['gcc'] ",
-                       file=self.errfile)
-                return errno.EINVAL
-
-            key, value = ovr.split('=', 1)
-            overrides[key] = value
-
-        return overrides
 
     def check_result_parsers(self, tests):
         """Make sure the result parsers for each test are ok."""

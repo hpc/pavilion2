@@ -1,6 +1,9 @@
 """The Status command, along with useful functions that make it easy for
 other commands to print statuses."""
 
+import os
+import time
+
 from pavilion import commands
 from pavilion import output
 from pavilion import schedulers
@@ -8,6 +11,14 @@ from pavilion import series
 from pavilion import test_run
 from pavilion.status_file import STATES
 from pavilion.test_run import TestRun, TestRunError, TestRunNotFoundError
+
+
+def get_last_ctime(path):
+    """Gets the time path was modified."""
+    mtime = os.path.getmtime(path)
+    ctime = str(time.ctime(mtime))
+    ctime = ctime[11:19]
+    return ctime
 
 
 def status_from_test_obj(pav_cfg, test_obj):
@@ -31,6 +42,16 @@ def status_from_test_obj(pav_cfg, test_obj):
         if status_f.state == STATES.SCHEDULED:
             sched = schedulers.get_plugin(test.scheduler)
             status_f = sched.job_status(pav_cfg, test)
+        elif status_f.state == STATES.BUILDING:
+            last_update = get_last_ctime(test.path/'build.log')
+            status_f.note = ' '.join([status_f.note,
+                                      'Last updated: ',
+                                      last_update])
+        elif status_f.state == STATES.RUNNING:
+            last_update = get_last_ctime(test.path/'run.log')
+            status_f.note = ' '.join([status_f.note,
+                                      'Last updated:',
+                                      last_update])
 
         test_statuses.append({
             'test_id': test.id,

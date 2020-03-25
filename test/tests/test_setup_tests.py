@@ -1,5 +1,7 @@
 
-from pavilion.unittest import PavTestCase
+import copy
+
+from pavilion import plugins
 from pavilion import system_variables
 from pavilion.test_config import (load_test_configs,
                                   TestConfigError,
@@ -7,7 +9,7 @@ from pavilion.test_config import (load_test_configs,
                                   resolve_permutations,
                                   resolve_config)
 from pavilion.test_config import variables, string_parser
-from pavilion import plugins
+from pavilion.unittest import PavTestCase
 
 
 class TestSetupTests(PavTestCase):
@@ -145,27 +147,45 @@ class TestSetupTests(PavTestCase):
 
         plugins.initialize_plugins(self.pav_cfg)
 
-        tests = load_test_configs(self.pav_cfg, 'this', [], ['hello_world'])
+        cfgs = load_test_configs(self.pav_cfg, 'this', [], ['hello_world'])
 
-        overrides = {
-            'run': {
-                'env': {
-                    'foo': 'bar'
-                }
-            },
-            'scheduler': 'fuzzy'
-        }
+        overrides = [
+            'slurm.num_nodes=3',
+            'run.cmds.0="echo nope"',
+        ]
 
-        for test in tests:
-            otest = test.copy()
-            apply_overrides(test, overrides)
+        bad_key_overrides = [
+            'florp.blorp=3',
+            'scheduler="raw"',
+            'run.cmds.eeeh="hello"',
+            'run.cmds.10000="ok"',
+            'summary.nope=blarg',
+            '""="empty"'
+        ]
+
+        for cfg in cfgs:
+            alt_cfg = copy.deepcopy(cfg)
+            apply_overrides(alt_cfg, overrides)
 
             # Make sure the overrides were applied
-            self.assertEqual(test['scheduler'], 'fuzzy')
-            self.assertEqual(test['run']['env']['foo'], 'bar')
+            self.assertEqual(alt_cfg['slurm']['num_nodes'], "3")
+            self.assertEqual(alt_cfg['run']['cmds'], ['echo nope'])
             # Make sure other stuff wasn't changed.
-            self.assertEqual(test['build'], otest['build'])
-            self.assertEqual(test['run']['cmds'], otest['run']['cmds'])
+            self.assertEqual(cfg['build'], alt_cfg['build'])
+            self.assertEqual(cfg['run']['env'], alt_cfg['run']['env'])
+
+        # Make sure we get appropriate errors in several bad key cases.
+        for bad_key_over in bad_key_overrides:
+            for cfg in cfgs:
+                alt_cfg = copy.deepcopy(cfg)
+                with self.assertRaises(KeyError):
+                    apply_overrides(alt_cfg, [bad_key_over])
+
+        # Check for appropriate value errors too.
+        for cfg in cfgs:
+            alt_cfg = copy.deepcopy(cfg)
+            with self.assertRaises(ValueError):
+                apply_overrides(alt_cfg, ["summary={asdf"])
 
         plugins._reset_plugins()
 

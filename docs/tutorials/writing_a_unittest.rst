@@ -51,7 +51,8 @@ Using the PavTestCase class
 ---------------------------
 
 Each Pavilion Unit Test Suite is a class that must inherit from
-`PavTestCase <_unittests>`_. This provides a variety of useful helper
+`PavTestCase <../source/unittests.html#pavilion.unittest.PavTestCase>`_. This
+provides a variety of useful helper
 methods and data, enables selective test skipping, and consistently sets
 up Pavilion correctly for unittests. It inherits from the base
 `unittest.TestCase <https://docs.python.org/3.7/library/unittest.html#unittest.TestCase>`_
@@ -121,7 +122,8 @@ needs).
 Pavilion Config
 ^^^^^^^^^^^^^^^
 
-The `PavTestCase <_unittests>`_ object provides a pavilion config object
+The `PavTestCase <../source/unittests.html#pavilion.unittest.PavTestCase>`_
+object provides a pavilion config object
 as a instance variable. This has been specially configured for unit tests.
 
 - Sets *working_dir* to ``test/working_dir``
@@ -217,9 +219,10 @@ Test Run Objects
 
 It's very likely that your test will require one or more test run objects. Your
 PavTestCase can help with that via the
-`_quick_test() <../unittests.html#pavilion.unittest.PavTestCase._quick_test>`_
+`_quick_test() <../source/unittests.html#pavilion.unittest.PavTestCase._quick_test>`_
+
 and
-`_quick_test_cfg() <../unittests.html#pavilion.unittest.PavTestCase._quick_test>`_
+`_quick_test_cfg() <../source/unittests.html#pavilion.unittest.PavTestCase._quick_test>`_
 methods.
 
 .. code-block:: python
