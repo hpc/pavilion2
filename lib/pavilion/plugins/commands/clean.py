@@ -45,8 +45,6 @@ class CleanCommand(commands.Command):
     def run(self, pav_cfg, args):
         """Run this command."""
 
-        from pavilion.output import dbg_print
-
         if args.older_than:
             args.older_than = args.older_than.split()
 
@@ -89,8 +87,6 @@ class CleanCommand(commands.Command):
             cutoff_date = datetime.today()
         else:
             cutoff_date = datetime.today() - timedelta(days=30)
-
-        dbg_print(cutoff_date, '\n')
 
         tests_dir = pav_cfg.working_dir / 'test_runs'     # type: Path
         series_dir = pav_cfg.working_dir / 'series'       # type: Path
