@@ -38,7 +38,8 @@ class CleanCommand(commands.Command):
         )
         group.add_argument(
             '--all', '-a', action='store_true',
-            help='Attemps to delete as many directories as possible.'
+            help='Attemps to remove everything in the working directory, '
+                 'regardless of age.'
         )
 
     def run(self, pav_cfg, args):
@@ -52,7 +53,8 @@ class CleanCommand(commands.Command):
                 cutoff_date = datetime.today() - timedelta(
                     weeks=int(args.older_than[0]))
             elif 'month' in args.older_than or 'months' in args.older_than:
-                cutoff_date = get_month_delta(int(args.older_than[0]))
+                cutoff_date = datetime.today() - timedelta(
+                    days=30*int(args.older_than[0]))
             else:
                 date = ' '.join(args.older_than)
                 try:
@@ -66,6 +68,9 @@ class CleanCommand(commands.Command):
             cutoff_date = datetime.today()
         else:
             cutoff_date = datetime.today() - timedelta(days=30)
+
+        from pavilion.output import dbg_print
+        dbg_print(cutoff_date, '\n')
 
         tests_dir = pav_cfg.working_dir / 'test_runs'     # type: Path
         series_dir = pav_cfg.working_dir / 'series'       # type: Path
@@ -213,30 +218,3 @@ class CleanCommand(commands.Command):
                       color=output.GREEN, file=self.outfile)
         return 0
 
-
-def get_month_delta(months):
-    """Turn a number of months in the future into a concrete date."""
-
-    today = datetime.today()
-    cur_year = today.year
-    cur_day = today.day
-    cur_month = today.month
-    cur_time = today.time().hour
-
-    if cur_month - months <= 0:
-        cut_month = (cur_month - months) % 12
-        if cut_month == 0:
-            cut_month = 12
-        diff_years = (cur_month - months) // 12
-        cut_year = cur_year + diff_years
-    else:
-        cut_month = cur_month - months
-        cut_year = cur_year
-
-    try:
-        cutoff_date = datetime(cut_year, cut_month, cur_day, cur_time)
-    except ValueError:
-        last_day = monthrange(cut_year, cut_month)[1]
-        cutoff_date = datetime(cut_year, cut_month, last_day, cur_time)
-
-    return cutoff_date
