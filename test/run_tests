@@ -80,5 +80,21 @@ def main():
     return len(result.errors) + len(result.failures)
 
 
+PROFILE = False
+
+
 if __name__ == '__main__':
-    sys.exit(main())
+
+    if not PROFILE:
+        sys.exit(main())
+    else:
+        import cProfile
+        import pstats
+        stats_file = '/tmp/pav_unittest_stats'
+        cProfile.run('sys.exit(main())', stats_file)
+        stats = pstats.Stats(stats_file)
+        print('cumulative')
+        stats.sort_stats('cumulative').print_stats(20)
+        print('time')
+        stats.sort_stats('time').print_stats(20)
+

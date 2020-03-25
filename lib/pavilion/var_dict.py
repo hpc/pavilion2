@@ -48,7 +48,7 @@ def normalize_value(value, level=0):
     elif isinstance(value, (int, float, bool, bytes)):
         return str(value)
     elif isinstance(value, (list, tuple)) and level == 0:
-        return [normalize_value(v, level=11) for v in value]
+        return [normalize_value(v, level=1) for v in value]
     elif isinstance(value, dict) and level < 2:
         return {str(k): normalize_value(v, level=2)
                 for k, v in value.items()}
@@ -61,7 +61,7 @@ class VarDict(UserDict):
 
     Usage:
     To add a variable, create a method and decorate it with
-    either '@var_method' or '@dfr_var_method()'. The method name will be the
+    either ``@var_method`` or ``@dfr_var_method()``. The method name will be the
     variable name, and the method will be called to resolve the variable
     value. Methods that start with '_' are ignored.
     """

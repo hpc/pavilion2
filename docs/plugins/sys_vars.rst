@@ -16,7 +16,7 @@ Files
 
 System Variable plugins, like all other Pavilion plugins, require a
 python module and a yapsy-plugin file. See the `plugin
-basics <basics.md>`__ for more info on these files and where they should
+basics <basics.html>`__ for more info on these files and where they should
 go.
 
 System Variable Module
@@ -33,22 +33,22 @@ from the system variable base class.
         """This is a fairly useless variable, but is a good enough example."""
 
         def __init__(self):
-            
+
             super().__init__(
                 # The name of the plugin.
                 plugin_name="uptime",
                 # The description will be listed when using 'pav show sys_vars'
                 description="How long the (kickoff) host has been up in seconds.",
             )
-        
+
         # This is the method you override to provide the variables value.
-        # The base .get() method handles all the deferred variable logic, so 
+        # The base .get() method handles all the deferred variable logic, so
         # you don't have to.
         def _get(self):
-        
+
             with open('/proc/uptime') as uptime:
                 data = uptime.read()
-                
+
             return data.split()[0]
 
 With this plugin in the system, we can refer to it in test configs:
@@ -76,7 +76,7 @@ Additionally, dicts returned must always have the same keys, regardless
 of system or other considerations.
 
 Additional restrictions apply to `deferred
-variables <#the-is_deferrable-argument>`__.
+variables <#the-is-deferrable-argument>`__.
 
 The ``__init__()`` Method
 ~~~~~~~~~~~~~~~~~~~~~~~~~
