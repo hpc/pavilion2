@@ -69,9 +69,6 @@ class CleanCommand(commands.Command):
         else:
             cutoff_date = datetime.today() - timedelta(days=30)
 
-        from pavilion.output import dbg_print
-        dbg_print(cutoff_date, '\n')
-
         tests_dir = pav_cfg.working_dir / 'test_runs'     # type: Path
         series_dir = pav_cfg.working_dir / 'series'       # type: Path
         download_dir = pav_cfg.working_dir / 'downloads'  # type: Path
