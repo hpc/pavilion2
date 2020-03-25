@@ -45,35 +45,34 @@ class CleanCommand(commands.Command):
     def run(self, pav_cfg, args):
         """Run this command."""
 
+        from pavilion.output import dbg_print
+
         if args.older_than:
             args.older_than = args.older_than.split()
 
-            if len(args.older_than) != 2:
-                raise commands.CommandError(
-                    "Invalid `--older-than` value."
-                )
+            if len(args.older_than) == 2:
 
-            if not args.older_than[0].isdigit():
-                raise commands.CommandError(
-                    "Invalid `--older-than` value."
-                )
+                if not args.older_than[0].isdigit():
+                    raise commands.CommandError(
+                        "Invalid `--older-than` value."
+                    )
 
-            if args.older_than[1] in ['minute', 'minutes']:
-                cutoff_date = datetime.today() - timedelta(
-                    minutes=int(args.older_than[0]))
-            elif args.older_than[1] in ['hour', 'hours']:
-                cutoff_date = datetime.today() - timedelta(
-                    hours=int(args.older_than[0]))
-            elif args.older_than[1] in ['day', 'days']:
-                cutoff_date = datetime.today() - timedelta(
-                    days=int(args.older_than[0]))
-            elif args.older_than[1] in ['week', 'weeks']:
-                cutoff_date = datetime.today() - timedelta(
-                    weeks=int(args.older_than[0]))
-            elif args.older_than[1] in ['month', 'months']:
-                cutoff_date = datetime.today() - timedelta(
-                    days=30*int(args.older_than[0]))
-            else:
+                if args.older_than[1] in ['minute', 'minutes']:
+                    cutoff_date = datetime.today() - timedelta(
+                        minutes=int(args.older_than[0]))
+                elif args.older_than[1] in ['hour', 'hours']:
+                    cutoff_date = datetime.today() - timedelta(
+                        hours=int(args.older_than[0]))
+                elif args.older_than[1] in ['day', 'days']:
+                    cutoff_date = datetime.today() - timedelta(
+                        days=int(args.older_than[0]))
+                elif args.older_than[1] in ['week', 'weeks']:
+                    cutoff_date = datetime.today() - timedelta(
+                        weeks=int(args.older_than[0]))
+                elif args.older_than[1] in ['month', 'months']:
+                    cutoff_date = datetime.today() - timedelta(
+                        days=30*int(args.older_than[0]))
+            elif len(args.older_than) == 3:
                 date = ' '.join(args.older_than)
                 try:
                     cutoff_date = datetime.strptime(date, '%b %d %Y')
@@ -82,10 +81,16 @@ class CleanCommand(commands.Command):
                                   .format(args.older_than),
                                   file=self.errfile, color=output.RED)
                     return errno.EINVAL
+            else:
+                raise commands.CommandError(
+                    "Invalid `--older-than` value."
+                )
         elif args.all:
             cutoff_date = datetime.today()
         else:
             cutoff_date = datetime.today() - timedelta(days=30)
+
+        dbg_print(cutoff_date, '\n')
 
         tests_dir = pav_cfg.working_dir / 'test_runs'     # type: Path
         series_dir = pav_cfg.working_dir / 'series'       # type: Path
