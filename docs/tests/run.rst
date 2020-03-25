@@ -15,7 +15,7 @@ script, which runs the actual test. It's fairly simple, as most of the
 work involved in getting ready to run the test is configured separately.
 
 How these are used to compose a `run script is covered
-below <#running-runsh>`__.
+below <#create-the-run-script>`__.
 
 There are only three attributes:
 
@@ -32,7 +32,7 @@ your cluster's module system.
 For each module listed, a relevant module command will be added to the
 build script.
 
-See `Module Environment <env.md#modules>`__ for more info.
+See `Module Environment <env.html#modules>`__ for more info.
 
 env (mapping)
 ^^^^^^^^^^^^^
@@ -44,7 +44,7 @@ in the build script. Null/empty values given will unset. In either case,
 these are written into the script as bash commands, so values are free
 to refer to other bash variables or contain sub-shell escapes.
 
-See `Env Vars <env.md#environment-variables>`__ for more info.
+See `Env Vars <env.html#environment-variables>`__ for more info.
 
 cmds (list)
 ^^^^^^^^^^^
@@ -70,10 +70,10 @@ Test Run LifeCycle
 Every test run in Pavilion undergoes the same basic steps.
 
 1. `Create a Test Instance <#creating-the-test-run>`__
-2. `Create the Run Script Template <#create-the-run-script-template>`__
+2. `Create the Run Script <#create-the-run-script>`__
 3. `Schedule the Test <#scheduling-a-test>`__
-4. `Build the Test Source <build.md>`__
-5. `Run the Test Script <#running-runsh>`__
+4. `Build the Test Source <build.html>`__
+5. `Run the Test Script <#running-run-sh>`__
 6. `Process Test Results <#gathering-results>`__
 7. `Set the Test as complete <#set-the-test-run-as-complete>`__
 
@@ -128,9 +128,13 @@ everything there is to know about a test.
 <run_id>/**build.sh**
   The `build script <build.html#create-a-build-script>`__.
 <run_id>/**run.tmpl**
-  The `run script template <#create-the-run-script-template>`__.
+  A dummy run script Pavilion creates to make sure your test run config makes
+  sense. It may have deferred variables inserted with a placeholder.
 <run_id>/**run.sh**
   The final run script.
+<run_id>/**variables**
+  All of the variables your test had access to when it was created. This is
+  updated with deferred variable values when your test runs on an allocation.
 <run_id>/**(kickoff/build/run).log**
   The stdout and stderr of each of the above scripts when they were run.
 <run_id>/**build**
@@ -143,31 +147,31 @@ everything there is to know about a test.
 <run_id>/**result.json**
   The json of the test results.
 
-Create the Run Script Template
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Create the Run Script
+~~~~~~~~~~~~~~~~~~~~~
 
-Because the run config can contain `Deferred
-Variables <variables.md#deferred-variables>`__, we'll need to replace
-those variable values with their actual values once the run is in an
-allocation. As a result, we first generate a run script template using
-the run config.
+Pavilion will create a dummy runs script as ``run.tmpl`` soon as the test run
+object is created. If your run config contained deferred variables, this will
+be filled in with a placeholder.
+
+The real ``run.sh`` script is only generated right before your test is created.
 
 .. code:: yaml
 
     run_example:
-        build: 
+        build:
           source_location: run_example
 
         run:
           modules: [python]
-          env: 
+          env:
             PYTHONPATH: ./libs
-          
+
           cmds:
             # Host CPU's is a deferred variable.
             - python run_example.py {{sys.host_cpus}}
 
-would result in a run script template that looks like:
+would result in a run script that looks like:
 
 .. code:: bash
 
@@ -176,7 +180,7 @@ would result in a run script template that looks like:
     # This contains utility functions used in Pavilion scripts.
     source /home/bob/pavilion/bin/pav-lib.bash
 
-    # Load the modules, and make sure they're loaded 
+    # Load the modules, and make sure they're loaded
     module load python
     check_module_loaded python
 
@@ -184,10 +188,7 @@ would result in a run script template that looks like:
     export PYTHONPATH=./lib
 
     # Run the test cmds
-    python run_example.py [\x1bsys.host_cpus\x1b]
-
-Once in an allocation, pavilion will replace the escaped sys.host\_cpus
-reference with the actual value.
+    python run_example.py 12
 
 Scheduling a Test
 ~~~~~~~~~~~~~~~~~
@@ -239,7 +240,7 @@ Running run.sh
 ~~~~~~~~~~~~~~
 
 Within the ``pav _run`` command, after we've `built the test
-src <build.md>`__ and resolved ``run.tmpl`` into the final ``run.sh``
+src <build.html>`__ and resolved ``run.tmpl`` into the final ``run.sh``
 script, we simply have to run it.
 
 -  The script is run in the default login environment of the user.
@@ -256,7 +257,7 @@ error during the run.
 
 The results, both those gathered by default and through result parsers,
 are compiled into a single JSON object and written to ``results.txt``,
-and logged to the `result log <../config.md#result_log>`__.
+and logged to the `result log <../config.html#result-log>`__.
 
 Set the Test Run as Complete
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -43,12 +43,12 @@ optional.
     # Tests are in a strictly defined YAML format.
 
     # This defines a test, and names it.
-    mytest: 
+    mytest:
 
       # The scheduler to use to schedule the test on a cluster.
       # In this case, we'll use the raw (local system) scheduler
       scheduler: raw
-      run: 
+      run:
         cmds: 'test -d /var/log/messages'
 
 The above test checks to see if the ``/var/log/messages`` directory
@@ -103,7 +103,7 @@ pavilion config directory.
 
 .. code:: yaml
 
-    slurm: 
+    slurm:
         account: tester
         partition: post-dst
 
@@ -122,9 +122,9 @@ Did you forget what you named them? That ok! Just ask Pavilion.
 
     $ pav show tests
     -----------------------+----------------------------------------------------
-     Name                  | Summary                                            
+     Name                  | Summary
     -----------------------+----------------------------------------------------
-     hello_mpi.hello_mpi   | Builds and runs an MPI-based Hello, World program. 
+     hello_mpi.hello_mpi   | Builds and runs an MPI-based Hello, World program.
      hello_mpi.hello_worse | Builds and runs MPI-based Hello, World, but badly.
      supermagic.supermagic | Run all supermagic tests.
 
@@ -159,7 +159,7 @@ If you want to know what's going on with your tests, just use the
     ------+------------+----------+------------------+------------------------------
      Test | Name       | State    | Time             | Note
     ------+------------+----------+------------------+------------------------------
-     41   | supermagic | COMPLETE | 16 May 2019 10:38| Test completed successfully. 
+     41   | supermagic | COMPLETE | 16 May 2019 10:38| Test completed successfully.
 
 It will display the status of all the tests in the last test series you
 ran.
@@ -171,7 +171,7 @@ From the above, you may have noticed that each test gets a series id
 like ``s24`` and a test id like ``41``. You can use these id's to
 reference tests or suites of tests to get their status, results, and
 logs through the pavilion interface. The ID's are unique for a given
-Pavilion `working\_directory <config.html#working_dir>`__, but they will
+Pavilion `working\_directory <config.html#working-dir>`__, but they will
 get reused as old tests are cleaned up.
 
 Test Results

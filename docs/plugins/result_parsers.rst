@@ -9,9 +9,9 @@ collect data.
 Writing Result Parser Plugins
 -----------------------------
 
-Like all `Pavilion plugins <basics.md>`__, a result parser in Pavilion
+Like all `Pavilion plugins <basics.html>`__, a result parser in Pavilion
 is made up of the `source code <#writing-the-source>`__ and the
-`yapsy-plugin <basics.md#plugin_nameyapsy-plugin>`__.
+`.yapsy-plugin file <basics.html#yapsy-plugin>`__.
 
 Writing the Source
 ^^^^^^^^^^^^^^^^^^
@@ -42,7 +42,7 @@ following arguments:
 -  ``description``: a short description of what the result parser does
    (required)
 -  ``priority``: priorities are explained
-   `here <basics.md#plugin-priorities>`__ (optional) (default:
+   `here <basics.html#plugin-priority>`__ (optional) (default:
    ``PRIO_COMMON``)
 -  ``open_mode``: how to open each file handed to paresr (optional)
    (deault: ``'r'``)
@@ -77,7 +77,7 @@ Below the constant result parser's ``get_config_items`` method:
                 help_text="Constant that will be placed in result"
             )
         ])
-        
+
         return config_items
 
 Writing ``_check_args()``:
@@ -85,7 +85,7 @@ Writing ``_check_args()``:
 
 The ``_check_args`` is an optional method takes in ``self`` as an
 argument as well as every config key (see
-`get\_config\_items <#get_config_items>`__). The values of each config
+`get\_config\_items <#writing-get-config-items>`__). The values of each config
 key is passed as a keyword argument. Here is an example of a
 ``_check_args`` method that checks the list ``row_names`` from a config
 is at least the expected size:
