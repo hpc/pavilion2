@@ -38,7 +38,7 @@ class CleanCommand(commands.Command):
         )
         group.add_argument(
             '--all', '-a', action='store_true',
-            help='Attemps to remove everything in the working directory, '
+            help='Attempts to remove everything in the working directory, '
                  'regardless of age.'
         )
 
