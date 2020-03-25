@@ -32,7 +32,7 @@ class CleanCommand(commands.Command):
 
         group = parser.add_mutually_exclusive_group()
         group.add_argument(
-            '--older-than', nargs='+', action='store',
+            '--older-than', action='store',
             help='Set the max age of files to be removed. Can be a date ex:'
                  '"Jan 1 2019" or , or a number of days/weeks ex:"32 weeks"'
         )
@@ -46,13 +46,31 @@ class CleanCommand(commands.Command):
         """Run this command."""
 
         if args.older_than:
-            if 'day' in args.older_than or 'days' in args.older_than:
+            args.older_than = args.older_than.split()
+
+            if len(args.older_than) != 2:
+                raise commands.CommandError(
+                    "Invalid `--older-than` value."
+                )
+
+            if not args.older_than[0].isdigit():
+                raise commands.CommandError(
+                    "Invalid `--older-than` value."
+                )
+
+            if args.older_than[1] in ['minute', 'minutes']:
+                cutoff_date = datetime.today() - timedelta(
+                    minutes=int(args.older_than[0]))
+            elif args.older_than[1] in ['hour', 'hours']:
+                cutoff_date = datetime.today() - timedelta(
+                    hours=int(args.older_than[0]))
+            elif args.older_than[1] in ['day', 'days']:
                 cutoff_date = datetime.today() - timedelta(
                     days=int(args.older_than[0]))
-            elif 'week' in args.older_than or 'weeks' in args.older_than:
+            elif args.older_than[1] in ['week', 'weeks']:
                 cutoff_date = datetime.today() - timedelta(
                     weeks=int(args.older_than[0]))
-            elif 'month' in args.older_than or 'months' in args.older_than:
+            elif args.older_than[1] in ['month', 'months']:
                 cutoff_date = datetime.today() - timedelta(
                     days=30*int(args.older_than[0]))
             else:
