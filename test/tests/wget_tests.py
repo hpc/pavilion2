@@ -1,4 +1,3 @@
-from hashlib import sha1
 from pathlib import Path
 import json
 import logging

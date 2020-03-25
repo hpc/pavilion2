@@ -148,11 +148,11 @@ It comes with a couple of caveats:
 
     pushd /your/pavilion/install
     VENV_PATH=/your/virtualenv/path
-    # Setup a virtual environment 
+    # Setup a virtual environment
     virtualenv -p /usr/lib/python3 ${VENV_PATH}
     # Update pip, because older versions sometimes have issues.
     ${VENV_PATH}/bin/pip install --update pip
-    # Install all the pavilion requirements. 
+    # Install all the pavilion requirements.
     ${VENV_PATH}/bin/pip install -f requirements.txt
     # This has to be run before pav will work.
     ${VENV_PATH}/bin/activate
@@ -168,7 +168,7 @@ that supports multiple compilers and conflicting builds of libraries.
 It is assumed that the module environment is set up before you run Pavilion. If
 you need to set up this environment separately on allocations, use the
 'env_setup' option in the
-`general Pavilion configuration <config.rst>`__ to add the commands
+`general Pavilion configuration <config.html>`__ to add the commands
 to do so.
 
 
