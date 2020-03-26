@@ -213,53 +213,28 @@ for more info.
 Conditionals
 ~~~~~~~~~~~~
 
-If you want to be able to specify when a test should or should not run
-you can do so by using conditional statements. By using the keywords
-``only_if`` or ``not_if`` or a conjunction of the two, users can
-setup a series of conditional statements such that their tests only
-run under specific circumstances.
-
-Let's say we only want to run a test on a machine named "roadrunner".
+The ``only_if`` and ``not_if`` sections of the test config allow users
+to specify when a test should or should not run. The users would have one
+or both of the directives ``only_if`` and ``not_if`` followed by a dictionary.
+The dictionary key(s) would consist of variables that Pavilion could resolve
+and compare against the values following the key. An example could look like:
 
 .. code:: yaml
 
-    test1:
+    test:
         only_if:
-            sys_name: ['roadrunner']
-        run:
-            cmds:
-                - 'echo "Helloworld"'
-
-Now let's say we want to run on all possible machines except "roadrunner".
-
-.. code:: yaml
-
-    test_two:
+            user: ['calvin', 'paul', 'nick', 'francine']
         not_if:
-            sys_name: ['roadrunner']
+            sys_arch: ['x86_64']
         run:
             cmds:
                 - 'echo "Helloworld"'
 
-Conditional statements can also take a list of possible options as seen below.
-In this case we only run the test on a set of machines, and skip the test on
-a set of users.
-
-.. code:: yaml
-
-    test_three:
-        only_if:
-            sys_name: ['roadrunner', 'summit', 'wopr', 'HAL-9000']
-        not_if:
-            user: ['calvin', 'francine', 'paul']
-        run:
-            cmds:
-                - 'echo "Helloworld"'
-
-The keywords ``only_if`` and ``not_if`` can also accept variables defined by
-the user in the yaml test file. For a list of other variables to use in
-your conditional statements see `test variables <tests/variables.html>`__
-for additional information.
+In this example the users calls ``only_if``. The dictionary following has
+the key ``user`` which pavilion can resolves. It then would check to see who
+the actual ``user`` is and compare it against ['calvin', [...]]. The same
+process is applied to ``not_if`. To see a more detailed breakdown of
+conditionals see `Conditional Statements <tests/conditionals.html>`__.
 
 Environment
 -----------

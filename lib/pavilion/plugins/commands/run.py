@@ -198,11 +198,7 @@ class RunCommand(commands.Command):
         all_tests = sum(tests_by_sched.values(), [])
 
         for sched_name, tests in tests_by_sched.items():
-            valid_tests = []
-            for i in range(0, len(tests)):
-                if not tests[i].skipped:
-                    valid_tests.append(tests[i])
-            tests = valid_tests
+            tests = [test for test in tests if not test.skipped]
             sched = schedulers.get_plugin(sched_name)
 
             # Filter out any 'build_only' tests (it should be all or none)

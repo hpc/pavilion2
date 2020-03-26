@@ -944,18 +944,30 @@ directory that doesn't already exist.
         :param match_list: Match list is a list of conditional matches found.
         :return The match list after being populated
         :rtype list(String)"""
+
         var_man = self.var_man
         only_if = self.config.get('only_if', {})
         not_if = self.config.get('not_if', {})
 
         for nkey, nvalues in not_if.items():
-            if var_man[nkey] in nvalues:
+            var_set, var, idx, sub_var = var_man.resolve_key(var_name_str)
+            if var_man.is_deferred(var_set, var, idx=idx, sub_var=sub_var):
+                from pavilion.output import dbg_print
+                dbg_print('end my suffering')
+                continue
+            elif var_man[nkey] in nvalues:
                 message = ("Not if {0} is {1}. "
                            "The current {0} is {2}: SKIPPED"
                            .format(nkey, nvalues, var_man[nkey]))
                 match_list.append(message)
+
+
+
+
         for okey, ovalues in only_if.items():
-            if var_man[okey] not in ovalues:
+            if var_man[okey] == '<deferred>':
+                continue
+            elif var_man[okey] not in ovalues:
                 message = ("Only if {0} is one of {1}. "
                            "Current {0} is {2}: SKIPPED"
                            .format(okey, ovalues, var_man[okey]))
