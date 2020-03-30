@@ -467,7 +467,7 @@ class RunCommand(commands.Command):
         :param MultiBuildTracker mb_tracker: The tracker for all builds.
         """
 
-        test_threads = []   # type: [threading.Thread]
+        test_threads = []   # type: [(threading.Thread, None)]
         remote_builds = []
 
         cancel_event = threading.Event()

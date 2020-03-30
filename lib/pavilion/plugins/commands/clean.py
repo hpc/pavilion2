@@ -29,25 +29,48 @@ class CleanCommand(commands.Command):
             '-v', '--verbose', action='store_true', default=False,
             help='Verbose output.'
         )
-        parser.add_argument(
-            '--older-than', nargs='+', action='store',
+
+        group = parser.add_mutually_exclusive_group()
+        group.add_argument(
+            '--older-than', action='store',
             help='Set the max age of files to be removed. Can be a date ex:'
                  '"Jan 1 2019" or , or a number of days/weeks ex:"32 weeks"'
+        )
+        group.add_argument(
+            '--all', '-a', action='store_true',
+            help='Attempts to remove everything in the working directory, '
+                 'regardless of age.'
         )
 
     def run(self, pav_cfg, args):
         """Run this command."""
 
         if args.older_than:
-            if 'day' in args.older_than or 'days' in args.older_than:
-                cutoff_date = datetime.today() - timedelta(
-                    days=int(args.older_than[0]))
-            elif 'week' in args.older_than or 'weeks' in args.older_than:
-                cutoff_date = datetime.today() - timedelta(
-                    weeks=int(args.older_than[0]))
-            elif 'month' in args.older_than or 'months' in args.older_than:
-                cutoff_date = get_month_delta(int(args.older_than[0]))
-            else:
+            args.older_than = args.older_than.split()
+
+            if len(args.older_than) == 2:
+
+                if not args.older_than[0].isdigit():
+                    raise commands.CommandError(
+                        "Invalid `--older-than` value."
+                    )
+
+                if args.older_than[1] in ['minute', 'minutes']:
+                    cutoff_date = datetime.today() - timedelta(
+                        minutes=int(args.older_than[0]))
+                elif args.older_than[1] in ['hour', 'hours']:
+                    cutoff_date = datetime.today() - timedelta(
+                        hours=int(args.older_than[0]))
+                elif args.older_than[1] in ['day', 'days']:
+                    cutoff_date = datetime.today() - timedelta(
+                        days=int(args.older_than[0]))
+                elif args.older_than[1] in ['week', 'weeks']:
+                    cutoff_date = datetime.today() - timedelta(
+                        weeks=int(args.older_than[0]))
+                elif args.older_than[1] in ['month', 'months']:
+                    cutoff_date = datetime.today() - timedelta(
+                        days=30*int(args.older_than[0]))
+            elif len(args.older_than) == 3:
                 date = ' '.join(args.older_than)
                 try:
                     cutoff_date = datetime.strptime(date, '%b %d %Y')
@@ -56,10 +79,14 @@ class CleanCommand(commands.Command):
                                   .format(args.older_than),
                                   file=self.errfile, color=output.RED)
                     return errno.EINVAL
-
-                    # No cutoff specified, removes everything.
+            else:
+                raise commands.CommandError(
+                    "Invalid `--older-than` value."
+                )
+        elif args.all:
+            cutoff_date = datetime.today()
         else:
-            cutoff_date = datetime.today() + timedelta(days=30)
+            cutoff_date = datetime.today() - timedelta(days=30)
 
         tests_dir = pav_cfg.working_dir / 'test_runs'     # type: Path
         series_dir = pav_cfg.working_dir / 'series'       # type: Path
@@ -102,7 +129,7 @@ class CleanCommand(commands.Command):
                     build_origin_symlink.resolve().exists()):
                 build_origin = build_origin_symlink.resolve()
 
-            if test_time < cutoff_date:
+            if test_time > cutoff_date:
                 used_builds.add(build_origin)
                 continue
 
@@ -207,28 +234,3 @@ class CleanCommand(commands.Command):
                       color=output.GREEN, file=self.outfile)
         return 0
 
-
-def get_month_delta(months):
-    """Turn a number of months in the future into a concrete date."""
-
-    today = datetime.today()
-    cur_year = today.year
-    cur_day = today.day
-    cur_month = today.month
-    cur_time = today.time
-
-    if cur_month - months <= 0:
-        cut_month = (cur_month - months) % 12
-        diff_years = (cur_month - months) // 12
-        cut_year = cur_year + diff_years
-    else:
-        cut_month = cur_month - months
-        cut_year = cur_year
-
-    try:
-        cutoff_date = datetime(cut_year, cut_month, cur_day, cur_time)
-    except ValueError:
-        last_day = monthrange(cut_year, cut_month)[1]
-        cutoff_date = datetime(cut_year, cut_month, last_day, cur_time)
-
-    return cutoff_date
