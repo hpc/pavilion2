@@ -248,7 +248,7 @@ class TestBuilder:
                     "Invalid src location {}."
                     .format(src_path))
 
-        # hash extra files
+        # Hash extra files.
         for extra_file in self._config.get('extra_files', []):
             extra_file = Path(extra_file)
             full_path = self._find_file(extra_file, Path('test_src'))
@@ -267,18 +267,19 @@ class TestBuilder:
                     "Extra file '{}' must be a regular file or directory."
                     .format(extra_file))
 
-        # hash created build files
+        # Hash created build files. These files are generated at build time in
+        # the test's build directory but we need the contents of the files
+        # hashed before build time. Thus, we include a hash of each file (path)
+        # and it's contents via IOString object.
         files_to_make = self._config.get('make_files')
         if files_to_make:
-            for file, contents in files_to_make:
-                name = io.StringIO()
-                body = io.StraingIO()
-                name.write(file)
+            for file, contents in files_to_make.items():
+                io_contents = io.StringIO()
+                io_contents.write("{}\n".format(file))
                 for line in contents:
-                    body.write("{}\n".format(line))
-                hash_obj.update(self._hash_io(name, body))
-                name.close()
-                body.close()
+                    io_contents.write("{}\n".format(line))
+                hash_obj.update(self._hash_io(io_contents))
+                io_contents.close()
 
         hash_obj.update(self._config.get('specificity', '').encode('utf-8'))
 
@@ -841,6 +842,20 @@ class TestBuilder:
             while chunk:
                 hash_obj.update(chunk)
                 chunk = file.read(cls._BLOCK_SIZE)
+
+        return hash_obj.digest()
+
+    @classmethod
+    def _hash_io(cls, contents):
+        """Hash the given file IO.
+        :param IOString file: filename to hash.
+        :param IOString contents: body of the file to hash."""
+
+        hash_obj = hashlib.sha256()
+        chunk = contents.read(cls._BLOCK_SIZE)
+        while chunk:
+            hash_obj.update(chunk)
+            chunk = contents.read(cls._BLOCK_SIZE)
 
         return hash_obj.digest()
 
