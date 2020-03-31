@@ -5,6 +5,7 @@ import bz2
 import datetime
 import gzip
 import hashlib
+import io
 import logging
 import lzma
 import os
@@ -247,6 +248,7 @@ class TestBuilder:
                     "Invalid src location {}."
                     .format(src_path))
 
+        # hash extra files
         for extra_file in self._config.get('extra_files', []):
             extra_file = Path(extra_file)
             full_path = self._find_file(extra_file, Path('test_src'))
@@ -265,23 +267,22 @@ class TestBuilder:
                     "Extra file '{}' must be a regular file or directory."
                     .format(extra_file))
 
-        files_to_hash = self._config.get('make_files')
-        if files_to_hash:
-            self.create_build_files(src_path)
+        # hash created build files
+        files_to_make = self._config.get('make_files')
+        if files_to_make:
+            for file, contents in files_to_make:
+                name = io.StringIO()
+                body = io.StraingIO()
+                name.write(file)
+                for line in contents:
+                    body.write("{}\n".format(line))
+                hash_obj.update(self._hash_io(name, body))
+                name.close()
+                body.close()
 
         hash_obj.update(self._config.get('specificity', '').encode('utf-8'))
 
         return hash_obj.hexdigest()[:self.BUILD_HASH_BYTES * 2]
-
-    def create_build_files(self, dest):
-        files_to_make = self._config.get('make_files')
-        for file, contents in files_to_make.items():
-            dirname = os.path.dirname(file)
-            Path(dest / dirname).mkdir(parents=True, exist_ok=True)
-            file_path = Path(file)
-            with open(dest / file_path, 'w') as f:
-                for line in contents:
-                    f.write("{}\n".format(line))
 
     def name_build(self):
         """Search for the first non-deprecated version of this build (whether
@@ -611,8 +612,15 @@ class TestBuilder:
                         .format(src_path, dest, err))
 
         # Generate file(s) from build_config
-        if self._config.get('make_files'):
-            self.create_build_files(dest)
+        files_to_make = self._config.get('make_files')
+        if files_to_make:
+            for file, contents in files_to_make.items():
+                dirname = os.path.dirname(file)
+                Path(dest / dirname).mkdir(parents=True, exist_ok=True)
+                file_path = Path(file)
+                with open(dest / file_path, 'w') as f:
+                    for line in contents:
+                        f.write("{}\n".format(line))
 
         # Now we just need to copy over all of the extra files.
         for extra in self._config.get('extra_files', []):
