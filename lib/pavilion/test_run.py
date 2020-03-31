@@ -490,12 +490,10 @@ class TestRun:
             with self._build_name_fn.open() as build_name_file:
                 return build_name_file.read()
         except OSError as err:
-
             raise TestRunError(
                 "All existing test runs must have a readable 'build_name' "
                 "file, but test run {s.id} did not: {err}"
                 .format(s=self, err=err))
-
 
     def run(self):
         """Run the test.
