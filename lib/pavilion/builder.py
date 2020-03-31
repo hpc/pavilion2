@@ -225,6 +225,7 @@ class TestBuilder:
         #    - For directories, the mtime (updated to the time of the most
         #      recently updated file) is hashed instead.
         #  - All of the build's 'extra_files'
+        #  - All files needed to be created at build time 'make_files'
 
         hash_obj = hashlib.sha256()
 
@@ -258,16 +259,29 @@ class TestBuilder:
                 hash_obj.update(self._hash_file(full_path))
             elif full_path.is_dir():
                 self._date_dir(full_path)
-
                 hash_obj.update(self._hash_dir(full_path))
             else:
                 raise TestBuilderError(
                     "Extra file '{}' must be a regular file or directory."
                     .format(extra_file))
 
+        if self._config.get('make_files'):
+            self.create_build_files(src_path)
+            hash_obj.update(self._hash_dir(src_path))
+
         hash_obj.update(self._config.get('specificity', '').encode('utf-8'))
 
         return hash_obj.hexdigest()[:self.BUILD_HASH_BYTES * 2]
+
+    def create_build_files(self, dest):
+        files_to_make = self._config.get('make_files')
+        for file, contents in files_to_make.items():
+            dirname = os.path.dirname(file)
+            Path(dest / dirname).mkdir(parents=True, exist_ok=True)
+            file_path = Path(file)
+            with open(dest / file_path, 'w') as f:
+                for line in contents:
+                    f.write("{}\n".format(line))
 
     def name_build(self):
         """Search for the first non-deprecated version of this build (whether
@@ -598,7 +612,7 @@ class TestBuilder:
 
         # Generate file(s) from build_config
         if self._config.get('make_files'):
-            self.make_files(self._config.get('make_files', []), dest)
+            self.create_build_files(dest)
 
         # Now we just need to copy over all of the extra files.
         for extra in self._config.get('extra_files', []):
@@ -611,16 +625,6 @@ class TestBuilder:
                 raise TestBuilderError(
                     "Could not copy extra file '{}' to dest '{}': {}"
                     .format(path, dest, err))
-
-    def make_files(self, files, dst):
-        for file in files:
-            # Assumes that each file is a path, e.g., 'somedir/file', or './file'
-            dirname = os.path.dirname(file)
-            Path(dst / dirname).mkdir(parents=True, exist_ok=True)
-            path = Path(file)
-            with open(dst / path, 'w') as f:
-                for line in file:
-                    f.write(line)
 
     def copy_build(self, dest):
         """Copy the build (using 'symlink' copying to the destination.
