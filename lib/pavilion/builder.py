@@ -619,9 +619,9 @@ class TestBuilder:
                 dirname = os.path.dirname(file)
                 Path(dest / dirname).mkdir(parents=True, exist_ok=True)
                 file_path = Path(file)
-                with open(dest / file_path, 'w') as f:
+                with open(dest / file_path, 'w') as file_:
                     for line in contents:
-                        f.write("{}\n".format(line))
+                        file_.write("{}\n".format(line))
 
         # Now we just need to copy over all of the extra files.
         for extra in self._config.get('extra_files', []):

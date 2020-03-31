@@ -233,4 +233,3 @@ class CleanCommand(commands.Command):
                               downloads=removed_downloads),
                       color=output.GREEN, file=self.outfile)
         return 0
-
