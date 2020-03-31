@@ -33,7 +33,7 @@ def get_latest_tests(pav_cfg, limit):
 """
 
     test_dir_list = []
-    top_dir = pav_cfg.working_dir / 'test_runs'
+    top_dir = pav_cfg.working_dir/'test_runs'
     for child in top_dir.iterdir():
         mtime = child.stat().st_mtime
         test_dir_list.append((mtime, child.name))
@@ -99,7 +99,7 @@ class TestRunOptions:
         :param TestRun test: The TestRun to save this under.
         """
 
-        build_opts_path = test.path / self.OPTIONS_FN
+        build_opts_path = test.path/self.OPTIONS_FN
 
         if not build_opts_path.exists():
             try:
@@ -235,7 +235,7 @@ class TestRun:
         self.scheduler = config['scheduler']
 
         # Create the tests directory if it doesn't already exist.
-        tests_path = pav_cfg.working_dir / 'test_runs'
+        tests_path = pav_cfg.working_dir/'test_runs'
 
         self.config = config
 
@@ -243,7 +243,7 @@ class TestRun:
 
         # Mark the run to build locally.
         self.build_local = config.get('build', {}) \
-                               .get('on_nodes', 'false').lower() != 'true'
+                                 .get('on_nodes', 'false').lower() != 'true'
 
         # Get an id for the test, if we weren't given one.
         if _id is None:
@@ -279,7 +279,7 @@ class TestRun:
         self._job_id = None
 
         # Setup the initial status file.
-        self.status = StatusFile(self.path / 'status')
+        self.status = StatusFile(self.path/'status')
         if _id is None:
             self.status.set(STATES.CREATED,
                             "Test directory and status file created.")
@@ -293,9 +293,9 @@ class TestRun:
         self._finished = None
 
         self.build_name = None
-        self.run_log = self.path / 'run.log'
-        self.results_path = self.path / 'results.json'
-        self.build_origin_path = self.path / 'build_origin'
+        self.run_log = self.path/'run.log'
+        self.results_path = self.path/'results.json'
+        self.build_origin_path = self.path/'build_origin'
 
         build_config = self.config.get('build', {})
 
@@ -314,8 +314,8 @@ class TestRun:
             # build section at all
             pass
 
-        self.build_script_path = self.path / 'build.sh'  # type: Path
-        self.build_path = self.path / 'build'
+        self.build_script_path = self.path/'build.sh'  # type: Path
+        self.build_path = self.path/'build'
         if _id is None:
             self._write_script(
                 'build',
@@ -337,14 +337,14 @@ class TestRun:
         except builder.TestBuilderError as err:
             raise TestRunError(
                 "Could not create builder for test {s.name} (run {s.id}): {err}"
-                    .format(s=self, err=err)
+                .format(s=self, err=err)
             )
 
         self.save_build_name()
 
         run_config = self.config.get('run', {})
-        self.run_tmpl_path = self.path / 'run.tmpl'
-        self.run_script_path = self.path / 'run.sh'
+        self.run_tmpl_path = self.path/'run.tmpl'
+        self.run_script_path = self.path/'run.sh'
 
         if _id is None:
             self._write_script(
@@ -367,7 +367,7 @@ class TestRun:
         :rtype: TestRun
         """
 
-        path = utils.make_id_path(pav_cfg.working_dir / 'test_runs', test_id)
+        path = utils.make_id_path(pav_cfg.working_dir/'test_runs', test_id)
 
         if not path.is_dir():
             raise TestRunError("Test directory for test id {} does not exist "
@@ -402,14 +402,14 @@ class TestRun:
         """Construct a shell command that would cause pavilion to run this
         test."""
 
-        pav_path = self._pav_cfg.pav_root / 'bin' / 'pav'
+        pav_path = self._pav_cfg.pav_root/'bin'/'pav'
 
         return '{} run {}'.format(pav_path, self.id)
 
     def _save_config(self):
         """Save the configuration for this test to the test config file."""
 
-        config_path = self.path / 'config'
+        config_path = self.path/'config'
 
         try:
             with config_path.open('w') as json_file:
@@ -424,7 +424,7 @@ class TestRun:
     @classmethod
     def _load_config(cls, test_path):
         """Load a saved test configuration."""
-        config_path = test_path / 'config'
+        config_path = test_path/'config'
 
         if not config_path.is_file():
             raise TestRunError("Could not find config file for test at {}."
@@ -456,7 +456,7 @@ class TestRun:
             raise RuntimeError(
                 "Whatever called build() is calling it for a second time."
                 "This should never happen for a given test run ({s.id})."
-                    .format(s=self))
+                .format(s=self))
 
         if cancel_event is None:
             cancel_event = threading.Event()
@@ -480,7 +480,7 @@ class TestRun:
         except OSError as err:
             raise TestRunError(
                 "Could not save build name to build name file at '{}': {}"
-                    .format(self._build_name_fn, err)
+                .format(self._build_name_fn, err)
             )
 
     def _load_build_name(self):
@@ -494,7 +494,8 @@ class TestRun:
             raise TestRunError(
                 "All existing test runs must have a readable 'build_name' "
                 "file, but test run {s.id} did not: {err}"
-                    .format(s=self, err=err))
+                .format(s=self, err=err))
+
 
     def run(self):
         """Run the test.
@@ -577,7 +578,7 @@ class TestRun:
         # Write the current time to the file. We don't actually use the contents
         # of the file, but it's nice to have another record of when this was
         # run.
-        with (self.path / self.COMPLETE_FN).open('w') as run_complete:
+        with (self.path/self.COMPLETE_FN).open('w') as run_complete:
             json.dump({
                 'complete': datetime.datetime.now().isoformat(),
             }, run_complete)
@@ -587,7 +588,7 @@ class TestRun:
         """Return the complete time from the run complete file, or None
         if the test was never marked as complete."""
 
-        run_complete_path = self.path / self.COMPLETE_FN
+        run_complete_path = self.path/self.COMPLETE_FN
 
         if run_complete_path.exists():
             try:
@@ -663,7 +664,7 @@ result
                 "test.gather_results can't be run unless the test was run"
                 "(or an attempt was made to run it. "
                 "This occurred for test {s.name}, #{s.id}"
-                    .format(s=self)
+                .format(s=self)
             )
 
         parser_configs = self.config['results']
@@ -751,8 +752,8 @@ result
         directory)."""
         if self._created is None:
             timestamp = self.path.stat().st_mtime
-            self._created = datetime.datetime.fromtimestamp(timestamp) \
-                .isoformat(" ")
+            self._created = datetime.datetime.fromtimestamp(timestamp)\
+                                    .isoformat(" ")
 
         return self._created
 
@@ -775,7 +776,7 @@ result
         """The job id of this test (saved to a ``jobid`` file). This should
 be set by the scheduler plugin as soon as it's known."""
 
-        path = self.path / self.JOB_ID_FN
+        path = self.path/self.JOB_ID_FN
 
         if self._job_id is not None:
             return self._job_id
@@ -795,7 +796,7 @@ be set by the scheduler plugin as soon as it's known."""
     @job_id.setter
     def job_id(self, job_id):
 
-        path = self.path / self.JOB_ID_FN
+        path = self.path/self.JOB_ID_FN
 
         try:
             with path.open('w') as job_id_file:
@@ -834,13 +835,13 @@ modified date for the test directory."""
             script.command('set -v')
             script.newline()
 
-        pav_lib_bash = self._pav_cfg.pav_root / 'bin' / 'pav-lib.bash'
+        pav_lib_bash = self._pav_cfg.pav_root/'bin'/'pav-lib.bash'
 
         # If we include this directly, it breaks build hashing.
         script.comment('The first (and only) argument of the build script is '
                        'the test id.')
         script.env_change({
-            'TEST_ID': '${1:-0}',  # Default to test id 0 if one isn't given.
+            'TEST_ID': '${1:-0}',   # Default to test id 0 if one isn't given.
             'PAV_CONFIG_FILE': self._pav_cfg['pav_cfg_file']
         })
         script.command('source {}'.format(pav_lib_bash))
@@ -901,12 +902,12 @@ directory that doesn't already exist.
 :raises TimeoutError: If we couldn't get the lock in time.
 """
 
-        lockfile_path = id_dir / '.lockfile'
+        lockfile_path = id_dir/'.lockfile'
         with lockfile.LockFile(lockfile_path, timeout=1):
             ids = list(os.listdir(str(id_dir)))
             # Only return the test directories that could be integers.
             ids = [id_ for id_ in ids if id_.isdigit()]
-            ids = [id_ for id_ in ids if (id_dir / id_).is_dir()]
+            ids = [id_ for id_ in ids if (id_dir/id_).is_dir()]
             ids = [int(id_) for id_ in ids]
             ids.sort()
 
@@ -937,5 +938,5 @@ directory that doesn't already exist.
 
         raise TestRunError(
             "Invalid value for {} timeout. Must be a positive int."
-                .format(section)
+            .format(section)
         )
