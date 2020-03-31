@@ -1,3 +1,6 @@
+"""Set the status for a test run. Typically used by pavilion when a test run
+errors inside its run script."""
+
 import errno
 
 from pavilion import commands
@@ -7,8 +10,10 @@ from pavilion.test_run import TestRunNotFoundError, TestRunError, TestRun
 
 
 class SetStatusCommand(commands.Command):
+    """Plugin for setting the status of a test."""
 
     def __init__(self):
+
         super().__init__(
             'set_status',
             'Set the status of a test, list of tests, or test suite.',
@@ -33,6 +38,7 @@ class SetStatusCommand(commands.Command):
         )
 
     def run(self, pav_cfg, args):
+        """Set the status of the given test."""
 
         # Zero is given as the default when running test scripts outside of
         # Pavilion.

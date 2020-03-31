@@ -289,10 +289,6 @@ class RunCommand(commands.Command):
         """
         self.logger.debug("Finding Configs")
 
-        # Use the sys_host if a host isn't specified.
-        if host is None:
-            host = sys_vars.get('sys_name')
-
         resolver = test_config.TestConfigResolver(pav_cfg)
 
         tests = list(tests)

@@ -19,8 +19,7 @@ class FileCommand(commands.Command):
             short_help="Print file information of <job id>"
         )
 
-    @staticmethod
-    def _setup_arguments(parser):
+    def _setup_arguments(self, parser):
         parser.add_argument(
             'job_id', type=int,
             help="job id",

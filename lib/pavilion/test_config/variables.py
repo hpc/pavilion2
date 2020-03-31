@@ -602,7 +602,7 @@ index, sub_var) tuple.
                     .format(list(def_parsed.keys()))
                 )
 
-    def __deepcopy__(self):
+    def __deepcopy__(self, memodict=None):
         """Deeply copy this variable set manager."""
 
         var_man = VariableSetManager()

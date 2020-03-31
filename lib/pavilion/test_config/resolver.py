@@ -33,14 +33,14 @@ class TestConfigResolver:
     """Converts raw test configurations into their final, fully resolved
     form."""
 
-    def __init__(self, pav_cfg, defer=True):
+    def __init__(self, pav_cfg):
         self.pav_cfg = pav_cfg
 
         self.base_var_man = variables.VariableSetManager()
 
         try:
             self.base_var_man.add_var_set(
-                'sys', system_variables.get_vars(defer=defer)
+                'sys', system_variables.get_vars(defer=True)
             )
         except system_variables.SystemPluginError as err:
             raise TestConfigError(
@@ -54,21 +54,17 @@ class TestConfigResolver:
 
         self.logger = logging.getLogger(__file__)
 
-    def build_variable_manager(self, raw_test_cfg, defer=True):
+    def build_variable_manager(self, raw_test_cfg):
         """Get all of the different kinds of Pavilion variables into a single
         variable set manager for this test.
 
         :param raw_test_cfg: A raw test configuration. It should be from before
             any variables are resolved.
-        :param bool defer: Whether to defer variables.
         :rtype: variables.VariableSetManager
         """
 
         user_vars = raw_test_cfg.get('variables', {})
         var_man = copy.deepcopy(self.base_var_man)
-
-        sys_vars = system_variables.get_vars(defer=defer)
-        pav_vars = pavilion_variables.PavVars()
 
         # Since per vars are the highest in resolution order, we can make things
         # a bit faster by adding these after we find the used per vars.
@@ -76,16 +72,6 @@ class TestConfigResolver:
             var_man.add_var_set('var', user_vars)
         except variables.VariableError as err:
             raise TestConfigError("Error in variables section: {}".format(err))
-
-        try:
-            var_man.add_var_set('sys', sys_vars)
-        except variables.VariableError as err:
-            raise TestConfigError("Error in sys variables: {}".format(err))
-
-        try:
-            var_man.add_var_set('pav', pav_vars)
-        except variables.VariableError as err:
-            raise TestConfigError("Error in pav variables: {}".format(err))
 
         scheduler = raw_test_cfg.get('scheduler', '<undefined>')
         try:
@@ -205,16 +191,28 @@ class TestConfigResolver:
 
         return suites
 
-    def load(self, tests, host, modes, overrides):
+    def load(self, tests, host=None, modes=None, overrides=None):
         """Load the given tests, updated with their host and mode files.
-        :param tests:
-        :param host:
-        :param modes:
-        :param overrides:
-        :return:
+        :param [str] tests: A list of test names to load.
+        :param str host: The host to load tests for. Defaults to the value
+            of the 'sys_name' variable.
+        :param [str] modes: A list of modes to load.
+        :param {str,str} overrides: A dict of key:value pairs to apply as
+            overrides.
+        :returns: A list test_config dict and var_man tuples
+        :rtype: [(dict,VariableSetManager)]
         """
 
-        raw_tests = self.load_raw_configs(host, modes, tests)
+        if modes is None:
+            modes = []
+
+        if overrides is None:
+            overrides = {}
+
+        if host is None:
+            host = self.base_var_man['sys.sys_name']
+
+        raw_tests = self.load_raw_configs(tests, host, modes)
 
         raw_tests_by_sched = defaultdict(lambda: [])
 
@@ -229,7 +227,7 @@ class TestConfigResolver:
                 self.logger.error(msg)
                 raise TestConfigError(msg)
 
-            base_var_man = self.build_variable_manager(test_cfg, defer=True)
+            base_var_man = self.build_variable_manager(test_cfg)
 
             # Resolve all configuration permutations.
             try:
@@ -258,24 +256,8 @@ class TestConfigResolver:
         # Get the schedulers for the tests, and the scheduler variables.
         # The scheduler variables are based on all of the
         for sched_name in raw_tests_by_sched.keys():
-            try:
-                sched = schedulers.get_plugin(sched_name)
-            except KeyError:
-                msg = "Could not find scheduler '{}'.".format(sched_name)
-                self.logger.error(msg)
-                raise TestConfigError(msg)
-
             # Set the scheduler variables for each test.
             for test_cfg, test_var_man in raw_tests_by_sched[sched_name]:
-                sched_config = self.resolve_section_vars(
-                    component=test_cfg[sched_name],
-                    var_man=test_var_man,
-                    allow_deferred=False,
-                    deferred_only=False,
-                )
-
-                test_var_man.add_var_set('sched', sched.get_vars(sched_config))
-
                 # Resolve all variables for the test (that aren't deferred).
                 try:
                     resolved_config = self.resolve_config(
@@ -317,7 +299,6 @@ class TestConfigResolver:
             host_cfg_path = self._find_config(CONF_HOST, host)
 
             if host_cfg_path is not None:
-
                 try:
                     with host_cfg_path.open() as host_cfg_file:
                         # Load and validate the host test config defaults.
@@ -786,7 +767,8 @@ class TestConfigResolver:
 
     DEFERRED_PREFIX = '!deferred!'
 
-    def was_deferred(self, val):
+    @classmethod
+    def was_deferred(cls, val):
         """Return true if config item val was deferred when we tried to resolve
         the config.
 
@@ -794,9 +776,10 @@ class TestConfigResolver:
         :rtype: bool
         """
 
-        return val.startswith(self.DEFERRED_PREFIX)
+        return val.startswith(cls.DEFERRED_PREFIX)
 
-    def resolve_config(self, config, var_man):
+    @classmethod
+    def resolve_config(cls, config, var_man):
         """Recursively resolve the variables in the value strings in the given
         configuration.
 
@@ -820,7 +803,7 @@ class TestConfigResolver:
         for key in config:
             allow_deferred = False if key in no_deferred_allowed else True
 
-            resolved_dict[key] = self.resolve_section_vars(
+            resolved_dict[key] = cls.resolve_section_vars(
                 component=config[key],
                 var_man=var_man,
                 allow_deferred=allow_deferred,
@@ -829,7 +812,8 @@ class TestConfigResolver:
 
         return resolved_dict
 
-    def resolve_deferred(self, config, var_man):
+    @classmethod
+    def resolve_deferred(cls, config, var_man):
         """Resolve only those values prepended with the DEFERRED_PREFIX. All
         other values are presumed to be resolved already.
 
@@ -850,11 +834,12 @@ class TestConfigResolver:
                 .format(deferred)
             )
 
-        return self.resolve_section_vars(config, var_man,
-                                         allow_deferred=False,
-                                         deferred_only=True)
+        return cls.resolve_section_vars(config, var_man,
+                                        allow_deferred=False,
+                                        deferred_only=True)
 
-    def resolve_section_vars(self, component, var_man, allow_deferred,
+    @classmethod
+    def resolve_section_vars(cls, component, var_man, allow_deferred,
                              deferred_only):
         """Recursively resolve the given config component's variables, using a
          variable manager.
@@ -873,7 +858,7 @@ class TestConfigResolver:
         if isinstance(component, dict):
             resolved_dict = type(component)()
             for key in component.keys():
-                resolved_dict[key] = self.resolve_section_vars(
+                resolved_dict[key] = cls.resolve_section_vars(
                     component[key],
                     var_man,
                     allow_deferred,
@@ -885,7 +870,7 @@ class TestConfigResolver:
             resolved_list = type(component)()
             for i in range(len(component)):
                 resolved_list.append(
-                    self.resolve_section_vars(
+                    cls.resolve_section_vars(
                         component[i], var_man,
                         allow_deferred,
                         deferred_only))
@@ -896,8 +881,8 @@ class TestConfigResolver:
             if deferred_only:
                 # We're only resolving deferred value strings.
 
-                if component.startswith(self.DEFERRED_PREFIX):
-                    component = component[len(self.DEFERRED_PREFIX):]
+                if component.startswith(cls.DEFERRED_PREFIX):
+                    component = component[len(cls.DEFERRED_PREFIX):]
 
                     resolved = string_parser.parse(component).resolve(var_man)
                     if resolved is None:
@@ -913,14 +898,14 @@ class TestConfigResolver:
                     return component
 
             else:
-                if component.startswith(self.DEFERRED_PREFIX):
+                if component.startswith(cls.DEFERRED_PREFIX):
                     # This should never happen
                     raise RuntimeError(
                         "Tried to resolve a pavilion config string, but it was "
                         "started with the deferred prefix '{}'. This probably "
                         "happened because Pavilion called setup.resolve_config "
                         "when it should have called resolve_deferred."
-                        .format(self.DEFERRED_PREFIX)
+                        .format(cls.DEFERRED_PREFIX)
                     )
 
                 try:
@@ -930,7 +915,7 @@ class TestConfigResolver:
 
                 if resolved is None:
                     if allow_deferred:
-                        return self.DEFERRED_PREFIX + component
+                        return cls.DEFERRED_PREFIX + component
                     else:
                         raise string_parser.ResolveError(
                             "Deferred variable in section where it isn't "
