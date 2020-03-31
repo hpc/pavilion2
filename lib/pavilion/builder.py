@@ -265,9 +265,9 @@ class TestBuilder:
                     "Extra file '{}' must be a regular file or directory."
                     .format(extra_file))
 
-        if self._config.get('make_files'):
+        files_to_hash = self._config.get('make_files')
+        if files_to_hash:
             self.create_build_files(src_path)
-            hash_obj.update(self._hash_dir(src_path))
 
         hash_obj.update(self._config.get('specificity', '').encode('utf-8'))
 
