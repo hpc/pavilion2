@@ -13,6 +13,10 @@ class SlurmMPIVars(slurm.SlurmVars):
         return self.sched_config.get('tasks_per_node')
 
     @dfr_var_method
+    def mca_translation(self):
+        return ['--mca ' + kv_pair for kv_pair in self.sched_config.get('mca')]
+
+    @dfr_var_method
     def test_cmd(self):
         """Overrides test_cmd in SlurmVars to use mpirun instead of srun."""
         cmd = ['mpirun', '--map-by ppr:{}:node'.format(self.procs_per_node())]
@@ -21,6 +25,8 @@ class SlurmMPIVars(slurm.SlurmVars):
             cmd.extend(['--rank-by', self.sched_config.get('rank_by')])
         if self.sched_config.get('bind_to'):
             cmd.extend(['--bind-to', self.sched_config.get('bind_to')])
+        if self.sched_config.get('mca'):
+            cmd.extend(self.mca_translation())
 
         return ' '.join(cmd)
 
@@ -48,6 +54,14 @@ class SlurmMPI(slurm.Slurm):
             yc.StrElem(
                 'bind_to',
                 help_text="Value for `--bind-to`. Default is core."
+            ),
+            yc.ListElem(
+                'mca',
+                help_text="Key-Value for pair(s) for --mca.",
+                sub_elem=yc.RegexElem(
+                    'kv_pair',
+                    regex=r'^[a-z1-9]+\s[a-z1-9,]+$'
+                )
             )
         ])
 
