@@ -6,10 +6,16 @@ import pavilion.plugins.sched.slurm as slurm
 
 
 class SlurmMPIVars(slurm.SlurmVars):
+
+    @dfr_var_method
+    def procs_per_node(self):
+        return self.sched_config.get('tasks_per_node')
+
     @dfr_var_method
     def test_cmd(self):
         """Overrides test_cmd in SlurmVars to use mpirun instead of srun"""
-        return ['mpirun', '-N', self.test_procs()]
+        cmd = ['mpirun', '-N', self.procs_per_node()]
+        return ' '.join(cmd)
 
 
 class SlurmMPI(slurm.Slurm):
