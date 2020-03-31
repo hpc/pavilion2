@@ -950,10 +950,8 @@ directory that doesn't already exist.
         not_if = self.config.get('not_if', {})
 
         for nkey, nvalues in not_if.items():
-            var_set, var, idx, sub_var = var_man.resolve_key(var_name_str)
-            if var_man.is_deferred(var_set, var, idx=idx, sub_var=sub_var):
-                from pavilion.output import dbg_print
-                dbg_print('end my suffering')
+            var_set, var, idx, sub_var = var_man.resolve_key(nkey)
+            if var_man.is_deferred(var_set, var, idx=idx, sub_var=sub_var) is True:
                 continue
             elif var_man[nkey] in nvalues:
                 message = ("Not if {0} is {1}. "
@@ -961,18 +959,15 @@ directory that doesn't already exist.
                            .format(nkey, nvalues, var_man[nkey]))
                 match_list.append(message)
 
-
-
-
         for okey, ovalues in only_if.items():
-            if var_man[okey] == '<deferred>':
+            var_set, var, idx, sub_var = var_man.resolve_key(okey)
+            if var_man.is_deferred(var_set, var, idx=idx, sub_var=sub_var) is True:
                 continue
             elif var_man[okey] not in ovalues:
                 message = ("Only if {0} is one of {1}. "
-                           "Current {0} is {2}: SKIPPED"
+                           "Current  {0} is {2}: SKIPPED"
                            .format(okey, ovalues, var_man[okey]))
                 match_list.append(message)
-
         return match_list  # returns list, can be empty.
 
     @staticmethod
