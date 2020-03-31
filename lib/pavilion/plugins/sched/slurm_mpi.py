@@ -39,7 +39,7 @@ class SlurmMPI(slurm.Slurm):
 
     def get_conf(self):
         """Add necessary MPI attributes to those of Slurm."""
-        elems = slurm.Slurm.get_slurm_elems(self)
+        elems = slurm.get_slurm_elems()
         elems.extend([
             yc.StrElem(
                 'rank_by',
