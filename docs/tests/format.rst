@@ -12,7 +12,7 @@ Tests and Suites
 Each Suite is a yaml file (with a ``.yaml`` extension) which can contain
 multiple tests. Suite files must reside in ``<config_dir>/tests/``,
 where ``<config_dir>`` is one of your
-`configuration directories <../conf.html>`__. Tests
+`configuration directories <../config.html>`__. Tests
 in a suite can be run as a group or independently, and can even inherit
 from one another.
 
@@ -32,16 +32,16 @@ from one another.
           # These commands are written into a build script.
           cmds:
             - mpicc -o super_magic super_magic.c
-        
-        # Configure how to run the test. 
-        run: 
+
+        # Configure how to run the test.
+        run:
           # Like with building, these are to generate a script to run the test.
           # By default, the return result of the last command determines whether
           # the test result is PASS or FAIL.
           cmds:
             - "srun ./super_magic"
-     
-    # We can have more than one test config per suite file. 
+
+    # We can have more than one test config per suite file.
     supermagic2:
         ...
 
@@ -59,28 +59,28 @@ All config keys in pavilion are **lowercase**, including test names.
 .. code:: yaml
 
     # Suite files are a YAML mapping at the top level. The key is the test
-    # base name, and the value is a strictly defined mapping of the test attributes 
+    # base name, and the value is a strictly defined mapping of the test attributes
     # and sections.
-    formatting: 
+    formatting:
         # This (short) description appears when listing tests.
-        summary: This example explains pavilion/YAML test formatting. 
-        
+        summary: This example explains pavilion/YAML test formatting.
+
         # The documentation string is for longer test documentation.
-        doc: Note that YAML strings only have to be quoted if they contain 
+        doc: Note that YAML strings only have to be quoted if they contain
              special characters. They can wrap lines with or without quotes.
              The extra tabbing and newlines are automatically removed.
-             
+
              A double newline will force a newline, however.
-             
+
              You can also double quote strings (which allows for escapes),
              single quote strings (which interprets them completely literally),
              or use either of the YAML block string styles.
-        
-        # This adds to the test name. It's particularly useful for 
+
+        # This adds to the test name. It's particularly useful for
         # permuted tests, as it lets put a generated component in the test name.
         # {{compiler}} is a pavilion variable reference. We'll cover that later.
         subtitle: "{{compiler}}"
-        
+
         # In this build section, we use YAML 'block' style everywhere.
         # You could also use 'flow' style
         build:
@@ -91,14 +91,14 @@ All config keys in pavilion are **lowercase**, including test names.
             MPICC: mpicc
           cmds:
             - "$MPICC -o formatting formatting.c"
-            
-        # In this run section, we use YAML 'flow' formatting everywhere. 
+
+        # In this run section, we use YAML 'flow' formatting everywhere.
         # You could also use 'block' style
         run:
-          modules: ['gcc', 'openmpi']     
+          modules: ['gcc', 'openmpi']
           env: {MPICC: mpicc}
-            
-          # Anything that accepts a list of values will also accept a single value. 
+
+          # Anything that accepts a list of values will also accept a single value.
           # Pavilion will quietly make it a single item list.
           cmds: "./formatting"
 
@@ -136,7 +136,7 @@ automatically interprets that as a list of that single value.
         build:
           # The cmds attribute of both 'build' and 'run' accepts a list of command
           # strings.
-          cmds: 
+          cmds:
             - echo "cmd 1"
             - echo "cmd 2"
 
@@ -147,8 +147,8 @@ automatically interprets that as a list of that single value.
         variables:
           # Keys in the variables and permutations sections always take a list,
           # but that list can have mappings as keys. Whether one value or multiple
-          # values is given, Pavilion always sees it as a list. 
-          foo: 
+          # values is given, Pavilion always sees it as a list.
+          foo:
             - {bar: 1}
             - {bar: 2}
           baz: {buz: "hello"}
@@ -188,7 +188,7 @@ Host Configs
 Host configs allow you to have per-host settings. These are layered on
 top of the general defaults for every test run on a particular host.
 They are ``<name>.yaml`` files that go in the ``<config_dir>/hosts/``
-directory, in any of your `config directories <../config.md>`__.
+directory, in any of your `config directories <../config.html>`__.
 
 Pavilion determines your current host through the ``sys_name`` system
 variable. The default plugin simply uses the short hostname, but it's
@@ -223,7 +223,7 @@ Mode configs are exactly like host configs, except you can have more
 than one of them. They're meant for applying extra defaults to tests
 that are situational. They are ``<name>.yaml`` files that go in the
 ``<config_dir>/modes/`` directory, in any of your `config
-directories <../config.md>`__.
+directories <../config.html>`__.
 
 For instance, if you regularly run on the ``dev`` partition, you might
 have a ``<config_dir>/modes/dev.yaml`` file to set that up for you.
@@ -270,10 +270,10 @@ Top Level Test Config Keys
 inherits\_from
 ~~~~~~~~~~~~~~
 
-Sets the test (by test base name) that this test inherits from *which must be *
+Sets the test (by test base name) that this test inherits from *which must be*
 *a test from this file*. The resulting test will be composed of all
 keys in the test it inherits from, plus any specified in this test
-config. See `Inheritance <../advanced.md#inheritance>`__ in the advanced
+config. See `Inheritance <../advanced.html#inheritance>`__ in the advanced
 pavilion overview.
 
 subtitle
@@ -303,7 +303,7 @@ variables
 A mapping of variables that are specific to this test. Each variable
 value can be a string, a list of strings, a mapping of strings, or a
 list of mappings (with the same keys) of strings. See the
-`variables <variables.md>`__ documentation for more info.
+`variables <variables.html>`__ documentation for more info.
 
 scheduler
 ~~~~~~~~~
@@ -316,21 +316,21 @@ build
 
 This sub-section defines how the test source is built.
 
-See `Builds <build.md>`__ for the sub-section keys and usage.
+See `Builds <build.html>`__ for the sub-section keys and usage.
 
 run
 ~~~
 
 This sub-section defines how the test source is run.
 
-See `Run <run.md>`__ for the sub-section keys and usage.
+See `Run <run.html>`__ for the sub-section keys and usage.
 
 results
 ~~~~~~~
 
 This sub-section defines how test results are parsed.
 
-See `Results <results.md>`__ for the sub-section keys and usage.
+See `Results <results.html>`__ for the sub-section keys and usage.
 
 <schedulers>
 ~~~~~~~~~~~~

@@ -82,7 +82,7 @@ class CancelCmdTests(PavTestCase):
 
         args = arg_parser.parse_args([
             'clean',
-            '--older-than', '5', 'weeks'
+            '--older-than', '5 weeks'
         ])
 
         clean_cmd = commands.get_command(args.command_name)
@@ -102,7 +102,7 @@ class CancelCmdTests(PavTestCase):
 
         args = arg_parser.parse_args([
             'clean',
-            '--older-than', 'Jul', '3', '2019'
+            '--older-than', 'Jul 3 2019'
         ])
 
         clean_cmd = commands.get_command(args.command_name)
@@ -127,7 +127,7 @@ class CancelCmdTests(PavTestCase):
 
         args = arg_parser.parse_args([
             'clean',
-            '--older-than', '5', 'foo'
+            '--older-than', '5 foo invalid'
         ])
 
         clean_cmd = commands.get_command(args.command_name)

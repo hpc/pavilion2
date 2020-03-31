@@ -27,33 +27,41 @@ class Table(result_parsers.ResultParser):
                           "if there is such a column."
             ),
             yc.StrElem(
-                'has_header', default='False',
-                help_text="Set True if there is a column for row names."
+                'has_header', default='False', choices=['True', 'False'],
+                help_text="Set True if there is a column for row names. Will "
+                          "create dictionary of dictionaries."
             ),
             yc.ListElem(
                 'col_names', required=False, sub_elem=yc.StrElem(),
                 help_text="Column names if the user knows what they are."
+            ),
+            yc.StrElem(
+                'by_column', choices=['True', 'False'], default='True',
+                help_text="Set to True if the user wants to organize the "
+                          "nested dictionaries by columns. Default False. "
+                          "Only set if `has_header` is True. "
+                          "Otherwise, Pavilion will ignore."
             )
         ])
 
         return config_items
 
     def _check_args(self, delimiter=None, col_num=None, has_header=None,
-                    col_names = []):
+                    col_names=[], by_column=True):
 
-        if len(col_names) is not 0:
-            if len(col_names) is not col_num:
-                raise result_parsers.ResultParserError(
-                    "Length of `col_names` does not match `col_num`."
-                )
-        
-        if delimiter == "":
+        try:
+            if len(col_names) is not 0:
+                if len(col_names) != int(col_num):
+                    raise result_parsers.ResultParserError(
+                        "Length of `col_names` does not match `col_num`."
+                    )
+        except ValueError:
             raise result_parsers.ResultParserError(
-                "Delimiter required."
-        )
+                "`col_names` needs to be an integer."
+            )
 
     def __call__(self, test, file, delimiter=None, col_num=None,
-                 has_header='', col_names = []):
+                 has_header='', col_names=[], by_column=True):
 
         match_list = []
 
@@ -92,6 +100,16 @@ class Table(result_parsers.ResultParser):
                 for row_idx in range(len(row_names)):
                     result_dict[col_names[col_idx]][row_names[row_idx]] = \
                         match_list[row_idx][col_idx]
+
+            # "flip" the dictionary if by_column is set to False (default)
+            if by_column == "False":
+                tmp_dict = {}
+                for rname in row_names:
+                    tmp_dict[rname] = {}
+                    for cname in col_names:
+                        tmp_dict[rname][cname] = result_dict[cname][rname]
+                result_dict = tmp_dict
+
         # table does not have rows = dictionary of lists
         else:
             result_dict = {}
