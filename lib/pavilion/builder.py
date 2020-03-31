@@ -847,9 +847,9 @@ class TestBuilder:
 
     @classmethod
     def _hash_io(cls, contents):
-        """Hash the given file IO.
-        :param IOString file: filename to hash.
-        :param IOString contents: body of the file to hash."""
+        """Hash the given file in IOString format.
+        :param IOString contents: file name (as relative path to build
+                                  directory) and file contents to hash."""
 
         hash_obj = hashlib.sha256()
         chunk = contents.read(cls._BLOCK_SIZE)
