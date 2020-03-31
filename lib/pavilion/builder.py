@@ -596,6 +596,10 @@ class TestBuilder:
                         "Could not copy test src '{}' to '{}': {}"
                         .format(src_path, dest, err))
 
+        # Generate file(s) from build_config
+        if self._config.get('make_files'):
+            self.make_files(self._config.get('make_files', []), dest)
+
         # Now we just need to copy over all of the extra files.
         for extra in self._config.get('extra_files', []):
             extra = Path(extra)
@@ -607,6 +611,16 @@ class TestBuilder:
                 raise TestBuilderError(
                     "Could not copy extra file '{}' to dest '{}': {}"
                     .format(path, dest, err))
+
+    def make_files(self, files, dst):
+        for file in files:
+            # Assumes that each file is a path, e.g., 'somedir/file', or './file'
+            dirname = os.path.dirname(file)
+            Path(dst / dirname).mkdir(parents=True, exist_ok=True)
+            path = Path(file)
+            with open(dst / path, 'w') as f:
+                for line in file:
+                    f.write(line)
 
     def copy_build(self, dest):
         """Copy the build (using 'symlink' copying to the destination.
