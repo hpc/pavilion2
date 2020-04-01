@@ -1,12 +1,12 @@
-import errno
-import os
-import shutil
-from pathlib import Path
-from calendar import monthrange
-from datetime import datetime, timedelta
+"""Clean old tests/builds/etc from the working directory."""
 
-from pavilion import output
+import errno
+import shutil
+from datetime import datetime, timedelta
+from pathlib import Path
+
 from pavilion import commands
+from pavilion import output
 from pavilion.status_file import STATES
 from pavilion.test_run import TestRun, TestRunError, TestRunNotFoundError
 
@@ -45,6 +45,8 @@ class CleanCommand(commands.Command):
     def run(self, pav_cfg, args):
         """Run this command."""
 
+        cutoff_date = datetime.today() - timedelta(days=30)
+
         if args.older_than:
             args.older_than = args.older_than.split()
 
@@ -80,13 +82,13 @@ class CleanCommand(commands.Command):
                                   file=self.errfile, color=output.RED)
                     return errno.EINVAL
             else:
-                raise commands.CommandError(
-                    "Invalid `--older-than` value."
+                output.fprint(
+                    "Invalid `--older-than` value.", file=self.errfile,
+                    color=output.RED
                 )
+                return errno.EINVAL
         elif args.all:
             cutoff_date = datetime.today()
-        else:
-            cutoff_date = datetime.today() - timedelta(days=30)
 
         tests_dir = pav_cfg.working_dir / 'test_runs'     # type: Path
         series_dir = pav_cfg.working_dir / 'series'       # type: Path
@@ -233,4 +235,3 @@ class CleanCommand(commands.Command):
                               downloads=removed_downloads),
                       color=output.GREEN, file=self.outfile)
         return 0
-

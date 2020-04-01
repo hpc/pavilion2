@@ -1,2 +1,1 @@
-slurm:
-  partition: host
+summary: host

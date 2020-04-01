@@ -213,10 +213,9 @@ class TestBuilder:
         return self.path.exists()
 
     def create_build_hash(self):
-        """Turn the build config, and everything the build needs, into hash.
+        """Turn the build config, and everything the build needs, into a hash.
         This includes the build config itself, the source tarball, and all
-        extra files. Additionally, system variables may be included in the
-        hash if specified via the pavilion config."""
+        extra files."""
 
         # The hash order is:
         #  - The build script

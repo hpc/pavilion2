@@ -1,7 +1,4 @@
-layer_test:
-  scheduler: slurm
+layer_test: {}
 
 layer_test_part:
-  scheduler: slurm
-  slurm:
-    partition: test
+  summary: test
