@@ -70,14 +70,6 @@ class BuilderTests(PavTestCase):
         test.builder._setup_build_dir(test.builder.path)
         self._cmp_tree(test.builder.path, original_tree)
 
-        # Test build time file creation
-        config = copy.deepcopy(base_config)
-        config['build']['make_files']['./file1'] = ['line1', 'line2', 'line3']
-        test = TestRun(self.pav_cfg, config)
-
-        test.builder_setup_build_dir(test.builder.path)
-        self._cmp_tree(test.builder.path, original_tree)
-
         # Test single compressed files.
         files = [
             'binfile.gz',
@@ -115,6 +107,18 @@ class BuilderTests(PavTestCase):
         for file in config['build']['extra_files']:
             self._cmp_files(test_archives/file,
                             test.builder.path/file)
+
+        config = copy.deepcopy(base_config)
+        config['build']['make_files'] = [
+            {'./file1' : ['line1', 'line2'] },
+            {'./dir/file2' : ['line1', 'line2']},
+            {'./dir/nested/file3' : ['line1', 'line2']}
+        ]
+        test = TestRun(self.pav_cfg, config)
+        if test.builder.path.exists():
+            shutil.rmtree(str(test.builder.path))
+
+        test.builder._setup_build_dir(test.builder.path)
 
     README_HASH = '275fa3c8aeb10d145754388446be1f24bb16fb00'
 
