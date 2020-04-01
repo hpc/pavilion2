@@ -19,7 +19,7 @@ from pavilion import result_parsers
 from pavilion import scriptcomposer
 from pavilion import utils
 from pavilion.status_file import StatusFile, STATES
-from pavilion.test_config import variables, string_parser, resolve_deferred
+from pavilion.test_config import variables, string_parser, resolver
 from pavilion.test_config.file_format import TestConfigError
 
 
@@ -387,7 +387,8 @@ class TestRun:
             parser=string_parser.parse
         )
 
-        self.config = resolve_deferred(self.config, self.var_man)
+        self.config = resolver.TestConfigResolver.resolve_deferred(
+            self.config, self.var_man)
         self._save_config()
         # Save our newly updated variables.
         self.var_man.save(self._variables_path)
