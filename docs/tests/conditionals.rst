@@ -199,4 +199,4 @@ as desired.
 
 Keep in mind by introducing regex users can make mistakes that cause
 tests to skip or run when shouldn't. Make sure you have a good handle on regex
-before using advanced patterns in your test config. 
+before using advanced patterns in your test config.
