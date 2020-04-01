@@ -7,11 +7,14 @@ import pavilion.plugins.sched.slurm as slurm
 
 
 class SlurmMPIVars(slurm.SlurmVars):
+    """Variables for SlurmMPI scheduler."""
 
     def procs_per_node(self):
+        """Returns tasks per node"""
         return self.sched_config.get('tasks_per_node')
 
     def mca_translation(self):
+        """Formats --mca argument(s)."""
         return ['--mca ' + kv_pair for kv_pair in self.sched_config.get('mca')]
 
     @dfr_var_method
@@ -37,6 +40,7 @@ class SlurmMPIVars(slurm.SlurmVars):
 
 
 class SlurmMPI(slurm.Slurm):
+    """Schedules tests using Slurm, but uses mpirun instead of srun."""
 
     VAR_CLASS = SlurmMPIVars
 
