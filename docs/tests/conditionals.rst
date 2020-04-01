@@ -29,6 +29,7 @@ should consist of a variable(s) that pavilion can resolve. Below is
 a basic example.
 
 .. code:: yaml
+
     basic_test:
         only_if:
             user: ['calvin']
@@ -46,6 +47,7 @@ Conditional statements can also parse dictionaries with multiple keys
 and values, let's look at a more complicated test.
 
 .. code:: yaml
+
     advanced_test:
         only_if:
             user: ['calvin', 'paul']
@@ -77,6 +79,7 @@ should consist of a variable(s) that pavilion can resolve. Below
 is a basic example.
 
 .. code:: yaml
+
     basic_test:
         not_if:
             sys_os: ['windows']
@@ -94,6 +97,7 @@ Conditional statements can also parse dictionaries with multiple keys
 and values, let's look at a more complicated test.
 
 .. code:: yaml
+
     advanced_test:
         not_if:
             user: ['calvin', 'nick']
@@ -119,6 +123,7 @@ conditions to run tests. The easiest way to see it is to look at an
 example.
 
 .. code:: yaml
+
     mixed_use_test:
         only_if:
             user: ['francine', 'paul']
@@ -166,6 +171,7 @@ values following the keys in the dictionaries are all interpreted as regex
 patterns. Let's look at the following example.
 
 .. code:: yaml
+
     basic_regex_test:
         only_if:
             user: ['^[a-z]+$']
@@ -184,6 +190,7 @@ Just because you can use advanced regex patterns doesnt mean you have to. Let's
 see how pavilion handles the following example.
 
 .. code:: yaml
+
     basic_regex_test:
         only_if:
             user: ['calvin']
