@@ -939,8 +939,7 @@ directory that doesn't already exist.
             self.status.set(STATES.COMPLETE, match_list[0])
             return True
 
-    @classmethod
-    def _make_regex(self, dict):
+    def _make_regex(self, diction):
         """_make_regex takes a dictionary and checks each value
         under all keys and appends/prepends [^$] to make sure all
         values are compatible with the regex match for conditional
@@ -948,7 +947,7 @@ directory that doesn't already exist.
         It explicitly defines the given value and only matches to it.
         :param dict: Dictionary containing conditional statements
         :return dict: Dictionary with updated values."""
-
+        dict = diction
         for key in dict:
             list = []
             for value in dict[key]:
