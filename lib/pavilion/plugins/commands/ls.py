@@ -1,3 +1,5 @@
+"""List the directory of the specified run."""
+
 import errno
 import os
 import sys
@@ -8,6 +10,7 @@ from pavilion import utils
 
 
 class FileCommand(commands.Command):
+    """List the directory (and maybe subdirs of the given run)."""
 
     def __init__(self):
         super().__init__(
@@ -42,6 +45,7 @@ class FileCommand(commands.Command):
         )
 
     def run(self, pav_cfg, args):
+        """List the run directory for the given run."""
 
         test_dir = pav_cfg.working_dir / 'test_runs'
         job_dir = utils.make_id_path(test_dir, args.job_id)
@@ -59,47 +63,54 @@ class FileCommand(commands.Command):
 
         if args.tree is True:
             level = 0
-            tree_(level, job_dir)
+            self.tree_(level, job_dir)
             return 0
 
         if args.subdir:
-            return ls_(job_dir / args.subdir[0])
+            return self.ls_(job_dir / args.subdir[0])
         else:
-            return ls_(job_dir)
+            return self.ls_(job_dir)
 
-def ls_(dir_):
-    if not dir_.is_dir():
-        output.fprint("directory '{}' does not exist.".format(dir_),
-                      file=sys.stderr, color=output.RED)
-        return errno.EEXIST
+    @staticmethod
+    def ls_(dir_):
+        """Print a directory listing for the given run directory."""
 
-    for filename in dir_.iterdir():
-        if filename.is_dir():
-            output.fprint(filename.name, file=sys.stdout, color=output.BLUE)
-        elif filename.is_symlink():
-            output.fprint("{} -> {}".format(filename.name,
-                                            filename.resolve()),
-                          file=sys.stdout,
-                          color=output.CYAN)
-        else:
-            output.fprint(filename.name, file=sys.stdout)
+        if not dir_.is_dir():
+            output.fprint("directory '{}' does not exist.".format(dir_),
+                          file=sys.stderr, color=output.RED)
+            return errno.EEXIST
 
-    return 0
+        for filename in dir_.iterdir():
+            if filename.is_dir():
+                output.fprint(filename.name, file=sys.stdout, color=output.BLUE)
+            elif filename.is_symlink():
+                output.fprint("{} -> {}".format(filename.name,
+                                                filename.resolve()),
+                              file=sys.stdout,
+                              color=output.CYAN)
+            else:
+                output.fprint(filename.name, file=sys.stdout)
 
-def tree_(level, path):
-    for filename in path.iterdir():
-        if filename.is_symlink():
-            output.fprint("{}{} -> {}".format('    '*level,
-                                              filename.name,
-                                              filename.resolve()),
-                          file=sys.stdout,
-                          color=output.CYAN)
-        elif filename.is_dir():
-            output.fprint("{}{}/".format('    '*level,
-                                         filename.name),
-                          file=sys.stdout,
-                          color=output.BLUE)
-            tree_(level + 1, filename)
-        else:
-            output.fprint("{}{}".format('    '*level, filename.name),
-                          file=sys.stdout)
+        return 0
+
+    def tree_(self, level, path):
+        """Print a full tree for the given path.
+        :param int level: Indentation level.
+        :param pathlib.Path path: Path to print the tree for.
+        """
+        for filename in path.iterdir():
+            if filename.is_symlink():
+                output.fprint("{}{} -> {}".format('    '*level,
+                                                  filename.name,
+                                                  filename.resolve()),
+                              file=sys.stdout,
+                              color=output.CYAN)
+            elif filename.is_dir():
+                output.fprint("{}{}/".format('    '*level,
+                                             filename.name),
+                              file=sys.stdout,
+                              color=output.BLUE)
+                self.tree_(level + 1, filename)
+            else:
+                output.fprint("{}{}".format('    '*level, filename.name),
+                              file=sys.stdout)
