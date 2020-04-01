@@ -234,7 +234,8 @@ In this example the users calls ``only_if``. The dictionary following has
 the key ``user`` which pavilion can resolves. It then would check to see who
 the actual ``user`` is and compare it against ['calvin', [...]]. The same
 process is applied to ``not_if`. To see a more detailed breakdown of
-conditionals see `Conditional Statements <tests/conditionals.html>`__.
+conditionals see `Conditional Statements <tests/conditionals.html>`__
+ .
 
 Environment
 -----------

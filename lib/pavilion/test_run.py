@@ -7,6 +7,7 @@ import datetime
 import json
 import logging
 import os
+import re
 import subprocess
 import threading
 import time
@@ -240,7 +241,6 @@ class TestRun:
         self.config = config
 
         self.id = None  # pylint: disable=invalid-name
-
 
         # Mark the run to build locally.
         self.build_local = config.get('build', {}) \
@@ -938,35 +938,67 @@ directory that doesn't already exist.
             self.status.set(STATES.COMPLETE, match_list[0])
             return True
 
+    def _make_regex(self, dict):
+        """_make_regex takes a dictionary and checks each value
+        under all keys and appends/prepends [^$] to make sure all
+        values are compatible with the regex match for conditional
+        statements. This is needed if the user is not using regex.
+        It explicitly defines the given value and only matches to it.
+        :param dict: Dictionary containing conditional statements
+        :return dict: Dictionary with updated values."""
+
+        for key in dict:
+            list = []
+            for value in dict[key]:
+                if len(value) is 0:
+                    value = '^$'
+                if value[0] is '^':
+                    pass
+                else:
+                    value = ''.join(['^', value])
+                if value[len(value)-1] is '$':
+                    pass
+                else:
+                    value = ''.join([value, '$'])
+                list.append(value)
+            dict.update({key: list})
+        return dict
+
     def _match(self, match_list):
+
         """Match grabs conditional keys from the config. It checks for
         matches and depending on the results will skip or continue a test.
         :param match_list: Match list is a list of conditional matches found.
         :return The match list after being populated
         :rtype list(String)"""
-
+        from pavilion.output import dbg_print
         var_man = self.var_man
-        only_if = self.config.get('only_if', {})
-        not_if = self.config.get('not_if', {})
+        only_if = self._make_regex(self.config.get('only_if', {}))
+        not_if = self._make_regex(self.config.get('not_if', {}))
 
-        for nkey, nvalues in not_if.items():
+        for nkey in not_if:
             var_set, var, idx, sub_var = var_man.resolve_key(nkey)
-            if var_man.is_deferred(var_set, var, idx=idx, sub_var=sub_var) is True:
+            if var_man.is_deferred(var_set, var, idx=idx, sub_var=sub_var):
                 continue
-            elif var_man[nkey] in nvalues:
-                message = ("Not if {0} is {1}. "
-                           "The current {0} is {2}: SKIPPED"
-                           .format(nkey, nvalues, var_man[nkey]))
-                match_list.append(message)
+            for vals in not_if[nkey]:
+                if bool(re.search(vals, var_man[nkey])):
+                    message = ("Not if {0} is {1}. "
+                               "The current {0} is {2}: SKIPPED"
+                               .format(nkey, vals, var_man[nkey]))
+                    match_list.append(message)
 
-        for okey, ovalues in only_if.items():
+        for okey in only_if:
+            match = False
             var_set, var, idx, sub_var = var_man.resolve_key(okey)
-            if var_man.is_deferred(var_set, var, idx=idx, sub_var=sub_var) is True:
+            if var_man.is_deferred(var_set, var, idx=idx, sub_var=sub_var):
                 continue
-            elif var_man[okey] not in ovalues:
+            for vals in only_if[okey]:
+                if bool(re.search(vals, var_man[okey])):
+                    match = True
+            if match is False:
                 message = ("Only if {0} is one of {1}. "
                            "Current  {0} is {2}: SKIPPED"
-                           .format(okey, ovalues, var_man[okey]))
+                           .format(okey, only_if[okey], var_man[okey]))
                 match_list.append(message)
         return match_list  # returns list, can be empty.
 
@@ -986,4 +1018,3 @@ directory that doesn't already exist.
             "Invalid value for {} timeout. Must be a positive int."
             .format(section)
         )
-

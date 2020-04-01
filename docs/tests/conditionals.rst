@@ -66,8 +66,9 @@ not_if
 ~~~~~~
 
 The ``not_if`` section of the pavilion test config allow users to
-specify when a test should be skipped. As name suggests, a test will
-be skipped if anything matching the ``not_if`` conditional is found.
+specify when a test should be skipped. As the name suggests, a test
+will be skipped if anything matching the ``not_if`` conditional
+is found.
 
 The syntax for a ``not_if`` conditional statement is straightforward.
 A user will specify the directive ``not_if`` followed by a dictionary
@@ -84,7 +85,7 @@ is a basic example.
                 ...
 
 In this example the ``not_if`` directive is followed by a dictionary
-with the key 'sys_os' and the value of `windows`. Pavilion will resolve
+with the key 'sys_os' and the value of 'windows'. Pavilion will resolve
 the key and check what the operating system on the machine is. If
 sys_os resolves to 'windows' then the ``not_if`` conditions has a match
 and the test will be skipped.
@@ -105,9 +106,9 @@ and values, let's look at a more complicated test.
 In this example Pavilion will need to resolve three 3 keys, user,
 weekday, and sys_os. When the keys are resolved they will be compared
 to the dictionary values supplied to them. It is important to note
-for ``not_if``, it only takes 1 match to cancel the test. In this case
+for ``not_if``, it only takes 1 match to skip the test. In this case
 if the user is either 'calvin' or 'nick', or it's the weekend, or the
-operating system is 'linux'.
+operating system is 'linux' the test will be skip..
 
 Mixed Use
 ~~~~~~~~~
@@ -144,6 +145,58 @@ you own variables see `Variables <variables.html>`__.
 
 Tips & Tricks
 ~~~~~~~~~~~~~
+Below contains useful bits of information that can help users customize
+their conditional statements.
 
-TODO: regex documentation,
-deferred variable example,
+Deferred Variables
+^^^^^^^^^^^^^^^^^^
+Deferred Variables in Pavilion are variables the cannot be resolved until
+the test is on an allocation. This could be anything from the host
+architecture to the number of nodes allocated. Conditional statements can
+handle the use of deferred variables. It works by checking if a variable is
+deferred and assumes the test is okay to run. This results in test being
+progressing until the deferred variable is finalized. It will then check
+once more and skip or run accordingly.
+
+Regex
+^^^^^
+
+All conditional statement directives have dictionaries that follow them. The
+values following the keys in the dictionaries are all interpreted as regex
+patterns. Let's look at the following example.
+
+.. code:: yaml
+    basic_regex_test:
+        only_if:
+            user: ['^[a-z]+$']
+        run:
+            cmds:
+                ...
+
+In this example the value following the key 'calvin' is a regex pattern
+matching a lowercase string containing 1 or more letters a through z.
+Obviously in this case any user with capital letters, numbers, or special
+characters would not be able to run the test. This is a very powerful features
+as rather than listing every single user who should run a test, if you match them
+all under a single regex pattern you can greatly simplify your test config.
+
+Just because you can use advanced regex patterns doesnt mean you have to. Let's
+see how pavilion handles the following example.
+
+.. code:: yaml
+    basic_regex_test:
+        only_if:
+            user: ['calvin']
+        run:
+            cmds:
+                ...
+
+The pattern 'calvin' is valid regex but can match to multiple values such as
+ 'calvin' or 'calvinsmith'. Pavilion handles this by taking every value and
+making it an explicit regex pattern by adding the regex directives `^` and `$`.
+Now `calvin` is interpreted as '^calvin$` and the only_if condition will run
+as desired.
+
+Keep in mind by introducing regex users can make mistakes that cause
+tests to skip or run when shouldn't. Make sure you have a good handle on regex
+before using advanced patterns in your test config. 
