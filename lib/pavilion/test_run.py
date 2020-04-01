@@ -939,7 +939,7 @@ directory that doesn't already exist.
             self.status.set(STATES.COMPLETE, match_list[0])
             return True
 
-    def _make_regex(self, diction):
+    def _make_regex(self, cond_dict):
         """_make_regex takes a dictionary and checks each value
         under all keys and appends/prepends [^$] to make sure all
         values are compatible with the regex match for conditional
@@ -947,10 +947,9 @@ directory that doesn't already exist.
         It explicitly defines the given value and only matches to it.
         :param dict: Dictionary containing conditional statements
         :return dict: Dictionary with updated values."""
-        dict = diction
-        for key in dict:
+        for key in cond_dict:
             list = []
-            for value in dict[key]:
+            for value in cond_dict[key]:
                 if len(value) is 0:
                     value = '^$'
                 if value[0] is '^':
@@ -962,8 +961,8 @@ directory that doesn't already exist.
                 else:
                     value = ''.join([value, '$'])
                 list.append(value)
-            dict.update({key: list})
-        return dict
+            cond_dict.update({key: list})
+        return cond_dict
 
     def _match(self, match_list):
 
@@ -974,8 +973,10 @@ directory that doesn't already exist.
         :rtype list(String)"""
         from pavilion.output import dbg_print
         var_man = self.var_man
-        only_if = self._make_regex(self.config.get('only_if', {}))
-        not_if = self._make_regex(self.config.get('not_if', {}))
+        only_if = self.config.get('only_if', {})
+        not_if = self.config.get('not_if', {})
+        only_if = self._make_regex(only_if)
+        not_if = self._make_regex(not_if)
 
         for nkey in not_if:
             var_set, var, idx, sub_var = var_man.resolve_key(nkey)

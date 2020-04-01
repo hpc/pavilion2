@@ -207,7 +207,7 @@ This will create six test configurations (and thus six test runs), one for each
 
 You also can permute over multiple variables at once, producing a test run for
 each possible permutation of values. See
-`Test Permutations <tests/variables.html#permutations>`__
+`Test Permutations <tests/variables.html>`__
 for more info.
 
 Conditionals
