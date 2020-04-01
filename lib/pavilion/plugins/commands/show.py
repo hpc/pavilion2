@@ -578,7 +578,7 @@ class ShowCommand(commands.Command):
         )
 
     def _suites_cmd(self, pav_cfg, args):
-        suites = resolver.TestConfigResolver.find_all_tests(pav_cfg)
+        suites = resolver.TestConfigResolver(pav_cfg).find_all_tests()
 
         rows = []
         for suite_name in sorted(list(suites.keys())):
@@ -629,7 +629,8 @@ class ShowCommand(commands.Command):
 
     def _tests_cmd(self, pav_cfg, args):
 
-        suites = resolver.TestConfigResolver.find_all_tests(pav_cfg)
+        resolv = resolver.TestConfigResolver(pav_cfg)
+        suites = resolv.find_all_tests()
         rows = []
 
         for suite_name in sorted(list(suites.keys())):

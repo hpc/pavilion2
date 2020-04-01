@@ -193,6 +193,7 @@ class TestConfigResolver:
 
     def load(self, tests, host=None, modes=None, overrides=None):
         """Load the given tests, updated with their host and mode files.
+
         :param [str] tests: A list of test names to load.
         :param str host: The host to load tests for. Defaults to the value
             of the 'sys_name' variable.

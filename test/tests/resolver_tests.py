@@ -29,7 +29,7 @@ class ResolverTests(PavTestCase):
 
         tests = self.resolver.load(['hello_world'], host='this')
         self.assertEqual(sorted(['narf', 'hello', 'world']),
-                         sorted([test['name'] for test in tests]))
+                         sorted([test['name'] for test, _ in tests]))
 
         tests = self.resolver.load(['hello_world.hello'], host='this')
         hello, _ = tests.pop()
@@ -43,7 +43,7 @@ class ResolverTests(PavTestCase):
         self.assertIn('hosty', hello['variables'])
 
         tests = self.resolver.load(['hello_world.narf'], host='this')
-        narf = tests.pop()
+        narf, _ = tests.pop()
         # Make sure this got overridden from 'world'
         self.assertEqual(narf['scheduler'], 'dummy')
         # Make sure this didn't get lost.
@@ -53,11 +53,11 @@ class ResolverTests(PavTestCase):
         """Make sure we only get hidden tests when specifically requested."""
 
         tests = self.resolver.load(['hidden'], 'this', [], {})
-        names = sorted([t['name'] for t in tests])
+        names = sorted([t['name'] for t, _ in tests])
         self.assertEqual(names, ['hello', 'narf'])
 
         tests = self.resolver.load(['hidden._hidden'], 'this', [], {})
-        names = sorted([t['name'] for t in tests])
+        names = sorted([t['name'] for t, _ in tests])
         self.assertEqual(names, ['_hidden'])
 
     def test_layering(self):
@@ -67,7 +67,7 @@ class ResolverTests(PavTestCase):
             for modes in ([], ['layer_mode']):
                 for test in ('layer_tests.layer_test',
                              'layer_tests.layer_test_part'):
-                    answer = 'standard'
+                    answer = ''
                     if host == 'layer_host':
                         answer = 'host'
                     if modes:
@@ -79,7 +79,8 @@ class ResolverTests(PavTestCase):
                         [test],
                         host=host,
                         modes=modes)
-                    self.assertEqual(tests[0]['slurm']['partition'], answer)
+                    test, _ = tests[0]
+                    self.assertEqual(test['summary'], answer)
 
     def test_defaulted_variables(self):
         """Make sure default variables work as expected."""
@@ -195,9 +196,11 @@ class ResolverTests(PavTestCase):
         }
 
         orig_permutations = raw_test['variables']
+        var_man = copy.deepcopy(self.resolver.base_var_man)
+        var_man.add_var_set('var', raw_test['variables'])
 
         test, permuted = self.resolver.resolve_permutations(
-            raw_test, self.resolver.base_var_man,
+            raw_test, var_man
         )
 
         # Foo should triple the permutations, bar should double them -> 6
@@ -267,10 +270,11 @@ class ResolverTests(PavTestCase):
             }
         }
 
-        var_man2 = variables.VariableSetManager()
-        var_man2.add_var_set('var', {'soda': 'pepsi'})
+        var_man = variables.VariableSetManager()
+        var_man.add_var_set('sys', {'soda': 'pepsi'})
+        var_man.add_var_set('var', test['variables'])
 
-        test, permuted = self.resolver.resolve_permutations(test, var_man2)
+        test, permuted = self.resolver.resolve_permutations(test, var_man)
 
         possible_stuff = ['yapple-apple-x',
                           'yapple-pepsi',
@@ -336,9 +340,9 @@ class ResolverTests(PavTestCase):
         test.save_results(results)
 
     def test_resolve_all_vars(self):
+        """Most of the variable resolution stuff is tested elsewhere,
+        but it's good to have it all put together in one final test."""
 
-        # Most of the variable resolution stuff is tested elsewhere,
-        # but it's good to have it all put together in one final test.
         test = {
             'build': {
                 'cmds':
@@ -383,6 +387,8 @@ class ResolverTests(PavTestCase):
         var_man = variables.VariableSetManager()
         var_man.add_var_set('pav', {'nope': '9'})
         var_man.add_var_set('sys', {'nope': '10'})
+        var_man.add_var_set('var', test['variables'])
+        del test['variables']
 
         test, permuted = self.resolver.resolve_permutations(test, var_man)
 
@@ -404,7 +410,8 @@ class ResolverTests(PavTestCase):
         }
 
         var_man = variables.VariableSetManager()
-        var_man.add_var_set('sys', {'foo': variables.DeferredVariable})
+        var_man.add_var_set('sys', {'foo': variables.DeferredVariable()})
+        var_man.add_var_set('var', {})
 
         test, permuted = self.resolver.resolve_permutations(test, var_man)
 

@@ -813,8 +813,8 @@ dict with a single None: value pair."""
         for key, value in value_pairs.items():
             if not isinstance(value, str):
                 raise VariableError(
-                    "Variable values must be unicode strings, got '{}'"
-                    .format(type(value)), sub_var=key)
+                    "Variable values must be unicode strings, got '{}' as '{}'"
+                    .format(value, type(value)), sub_var=key)
 
             self.data[key] = value
 
