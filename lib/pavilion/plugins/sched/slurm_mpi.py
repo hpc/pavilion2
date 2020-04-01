@@ -8,11 +8,9 @@ import pavilion.plugins.sched.slurm as slurm
 
 class SlurmMPIVars(slurm.SlurmVars):
 
-    @dfr_var_method
     def procs_per_node(self):
         return self.sched_config.get('tasks_per_node')
 
-    @dfr_var_method
     def mca_translation(self):
         return ['--mca ' + kv_pair for kv_pair in self.sched_config.get('mca')]
 
@@ -27,6 +25,13 @@ class SlurmMPIVars(slurm.SlurmVars):
             cmd.extend(['--bind-to', self.sched_config.get('bind_to')])
         if self.sched_config.get('mca'):
             cmd.extend(self.mca_translation())
+
+        # create list of hosts if need be
+        if int(self.sched_config.get('num_nodes')) < int(self.alloc_nodes()):
+            hostlist = self.alloc_node_list().split()
+            hostlist = hostlist[:int(self.sched_config.get('num_nodes'))]
+            hostlist = ','.join(hostlist)
+            cmd.extend(['--host', hostlist])
 
         return ' '.join(cmd)
 
