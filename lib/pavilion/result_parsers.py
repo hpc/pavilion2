@@ -9,7 +9,7 @@ from pathlib import Path
 
 import yaml_config as yc
 from yapsy import IPlugin
-from .test_config import was_deferred, file_format
+from .test_config import file_format, resolver
 
 LOGGER = logging.getLogger(__file__)
 
@@ -166,7 +166,7 @@ deferred args. On error, should raise a ResultParserError.
 
         # Don't check args if they have deferred values.
         for arg in kwargs:
-            if was_deferred(arg):
+            if resolver.TestConfigResolver.was_deferred(arg):
                 return
 
         self._check_args(**kwargs)

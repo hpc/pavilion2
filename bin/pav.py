@@ -14,7 +14,7 @@ from pavilion import arguments
 from pavilion import commands
 from pavilion import config
 from pavilion import output
-from pavilion import pav_vars
+from pavilion import pavilion_variables
 from pavilion import plugins
 
 try:
@@ -193,7 +193,7 @@ def main():
             file=sys.stderr)
         sys.exit(-1)
 
-    pav_cfg.pav_vars = pav_vars.PavVars()
+    pav_cfg.pav_vars = pavilion_variables.PavVars()
 
     # Parse the arguments
     try:
