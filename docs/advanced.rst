@@ -207,7 +207,7 @@ This will create six test configurations (and thus six test runs), one for each
 
 You also can permute over multiple variables at once, producing a test run for
 each possible permutation of values. See
-`Test Permutations <tests/variables.html>`__
+`Test Permutations <tests/variables.html#permutations>`__
 for more info.
 
 Conditionals
@@ -233,7 +233,7 @@ and compare against the values following the key. An example could look like:
 In this example the users calls ``only_if``. The dictionary following has
 the key ``user`` which pavilion can resolves. It then would check to see who
 the actual ``user`` is and compare it against ['calvin', [...]]. The same
-process is applied to ``not_if`. See
+process is applied to ``not_if``. See
 `Conditional Statements <tests/conditionals.html>`__
  for additional information.
 
