@@ -235,7 +235,7 @@ the key ``user`` which pavilion can resolves. It then would check to see who
 the actual ``user`` is and compare it against ['calvin', [...]]. The same
 process is applied to ``not_if``. See
 `Conditional Statements <tests/conditionals.html>`__
- for additional information.
+for additional information.
 
 Environment
 -----------

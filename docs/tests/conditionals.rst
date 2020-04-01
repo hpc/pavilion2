@@ -199,7 +199,7 @@ see how pavilion handles the following example.
                 ...
 
 The pattern 'calvin' is valid regex but can match to multiple values such as
- 'calvin' or 'calvinsmith'. Pavilion handles this by taking every value and
+'calvin' or 'calvinsmith'. Pavilion handles this by taking every value and
 making it an explicit regex pattern by adding the regex directives `^` and `$`.
 Now `calvin` is interpreted as '^calvin$` and the only_if condition will run
 as desired.
