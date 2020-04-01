@@ -939,6 +939,7 @@ directory that doesn't already exist.
             self.status.set(STATES.COMPLETE, match_list[0])
             return True
 
+    @classmethod
     def _make_regex(self, dict):
         """_make_regex takes a dictionary and checks each value
         under all keys and appends/prepends [^$] to make sure all

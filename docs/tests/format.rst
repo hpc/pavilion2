@@ -347,7 +347,7 @@ not_if
 This sub-section defines how tests can be skipped if certain
 conditions are met.
 
-See `Conditional Statements <conditions.html>`__ for the sub-section
+See `Conditional Statements <conditionals.html>`__ for the sub-section
 keys and usage.
 
 <schedulers>
