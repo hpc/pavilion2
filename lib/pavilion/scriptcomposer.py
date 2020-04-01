@@ -30,8 +30,11 @@ class ScriptHeader:
                                        specifications.
         """
         self._scheduler_headers = None
-        self.shebang = shebang
         self.scheduler_headers = scheduler_headers
+
+        # Set _shebang so that style_check doesn't complain at the setter block.
+        self._shebang = None
+        self.shebang = shebang
 
     @property
     def shebang(self):

@@ -70,6 +70,14 @@ class BuilderTests(PavTestCase):
         test.builder._setup_build_dir(test.builder.path)
         self._cmp_tree(test.builder.path, original_tree)
 
+        # Test build time file creation
+        config = copy.deepcopy(base_config)
+        config['build']['make_files']['./file1'] = ['line1', 'line2', 'line3']
+        test = TestRun(self.pav_cfg, config)
+
+        test.builder_setup_build_dir(test.builder.path)
+        self._cmp_tree(test.builder.path, original_tree)
+
         # Test single compressed files.
         files = [
             'binfile.gz',
