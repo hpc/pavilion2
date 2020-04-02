@@ -214,10 +214,11 @@ Conditionals
 ~~~~~~~~~~~~
 
 The ``only_if`` and ``not_if`` sections of the test config allow users
-to specify when a test should or should not run. The users would have one
-or both of the directives ``only_if`` and ``not_if`` followed by a dictionary.
-The dictionary key(s) would consist of variables that Pavilion could resolve
-and compare against the values following the key. An example could look like:
+to specify the conditions under which a test should run. Tests are 'SKIPPED'
+unless each of their ``only_if`` conditions (and nine if their ``not_if``
+conditions) match. The conditions are ``key:value/s`` pairs; the key is a
+Pavilion variable, and the value/s are one or more items that the 'resolved'
+value of the Pavilion variable might match to.
 
 .. code:: yaml
 
@@ -229,11 +230,12 @@ and compare against the values following the key. An example could look like:
         run:
             cmds:
                 - 'echo "Helloworld"'
-
 In this example the users calls ``only_if``. The dictionary following has
 the key ``user`` which pavilion can resolves. It then would check to see who
 the actual ``user`` is and compare it against ['calvin', [...]]. The same
-process is applied to ``not_if``. See
+process is applied to ``not_if``.
+
+See
 `Conditional Statements <tests/conditionals.html>`__
 for additional information.
 
