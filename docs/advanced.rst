@@ -230,6 +230,7 @@ value of the Pavilion variable might match to.
         run:
             cmds:
                 - 'echo "Helloworld"'
+
 In this example the users calls ``only_if``. The dictionary following has
 the key ``user`` which pavilion can resolves. It then would check to see who
 the actual ``user`` is and compare it against ['calvin', [...]]. The same
