@@ -16,10 +16,10 @@ from pavilion import pavilion_variables
 from pavilion import schedulers
 from pavilion import system_variables
 from pavilion.test_config import variables
+from yaml_config import RequiredError
 from . import string_parser
 from .file_format import TestConfigError, TEST_NAME_RE, KEY_NAME_RE
 from .file_format import TestConfigLoader, TestSuiteLoader
-from yaml_config import RequiredError
 
 # Config file types
 CONF_HOST = 'hosts'
