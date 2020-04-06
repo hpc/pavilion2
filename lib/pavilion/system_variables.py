@@ -140,8 +140,7 @@ class SystemPlugin(IPlugin.IPlugin):
                  name,
                  description,
                  priority=PRIO_COMMON,
-                 is_deferable=False,
-                 sub_keys=None):
+                 is_deferable=False):
         """Initialize the system plugin instance.  This should be overridden in
         each final plugin.
 
@@ -151,8 +150,6 @@ class SystemPlugin(IPlugin.IPlugin):
             the same name.
         :param bool is_deferable: Whether the plugin is able to be deferred.
             Note that deferable variables can't return a list.
-        :param Union(str,dict) sub_keys: Key or list of keys used with this
-        plugin.
         """
         super().__init__()
 
@@ -167,9 +164,6 @@ class SystemPlugin(IPlugin.IPlugin):
         self.name = name
         self.priority = priority
         self.path = inspect.getfile(self.__class__)
-        if sub_keys is None:
-            sub_keys = []
-        self.sub_keys = sub_keys
 
     def _get(self):
         """This should be overridden to implement gathering of data for the
