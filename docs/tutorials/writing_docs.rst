@@ -46,8 +46,8 @@ follow along. It might include things like links to
  - *(optional)* You may want to include optional requirements that will
    make life easier for the reader.
 
-This generally isn't necessary for _usage_ documentation, however. You can
-assume by that point the user has the system set up.
+For non-tutorial documentation, you can assume by that point the user has the
+system set up.
 
 .. _Sphinxified ReST documentation:  http://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html
 
@@ -62,6 +62,9 @@ additional pointers:
 
 - The purpose of every sentence in documentation should be to convey relevant
   information.
+  - No fluff.
+  - No sales pitches.
+  - Save the jokes for code comments.
 - Use links to tie in additional concepts, rather than re-explaining.
 - If two concepts differ only slightly, fully document one. For the second,
   refer to the first and note the differences.
