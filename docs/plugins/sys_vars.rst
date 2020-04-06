@@ -11,6 +11,8 @@ environment. Tests can then use that information to tailor themselves
 to a particular system or deal with other complexities that are unique
 to your OS or software deployments.
 
+.. contents::
+
 Files
 -----
 
@@ -20,7 +22,7 @@ basics <basics.html>`__ for more info on these files and where they should
 go.
 
 System Variable Module
-----------------------
+^^^^^^^^^^^^^^^^^^^^^^
 
 A sys_var module should contain a class definition that inherits
 from the system variable base class.
@@ -85,19 +87,10 @@ The basics of the ``__init__()`` method and it's generic arguments are
 `covered elsewhere <basics.html>`__.
 
 The 'is\_deferrable' argument
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+'''''''''''''''''''''''''''''
 
 If this is set to ``True``, then the variable value lookup will be
 deferred until right before the test is run within an allocation. This
-allows you to gather information on a node rather than the kickoff host.
-
-Deferred variable values are more restricted. They can be one of: - A
-string - A dict with string keys and string values
-
-The ``sub_keys`` argument
-^^^^^^^^^^^^^^^^^^^^^^^^^
-
-If a variable is ``deferred`` and is expected to return a dict, you must
-provide a list of the sub-keys that the return dictionary will contain.
-This is so Pavilion can validate any sub-key references made in configs
-at test kickoff time.
+allows you to gather information on a node rather than the kickoff host. Note
+that any such information gathered will be on the root node of the allocation,
+not every individual node.
