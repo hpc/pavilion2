@@ -44,8 +44,13 @@ class WaitCommand(commands.Command):
                  'test IDs and series IDs.  If no value is provided, the most '
                  'recent series submitted by this user is checked.'
         )
-        parser.add_argument(
+
+        group = parser.add_mutually_exclusive_group()
+        group.add_argument(
             '-s', '--silent', action='store_true'
+        )
+        group.add_argument(
+            '--oneline', action='store_true'
         )
 
     def run(self, pav_cfg, args):
@@ -83,7 +88,11 @@ class WaitCommand(commands.Command):
                                 test['name'],
                                 test['state'],
                                 test['note']]
-                        fprint(' '.join(stat), file=self.outfile)
+                        if args.oneline:
+                            fprint(' '.join(stat), end='\r', file=self.outfile,
+                                   width=None)
+                        else:
+                            fprint(' '.join(stat), file=self.outfile)
                     periodic_status_count += 1
 
         final_stats = status.get_statuses(pav_cfg, args, self.errfile)
