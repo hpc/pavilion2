@@ -52,7 +52,7 @@ class WaitCommand(commands.Command):
         )
         group.add_argument(
             '--oneline', action='store_true',
-            help="Period status update overrides previous update."
+            help="Prints entire status on one line."
         )
 
     def run(self, pav_cfg, args):
@@ -83,19 +83,36 @@ class WaitCommand(commands.Command):
             if not args.silent:
                 if time.time() > (start_time + 5*periodic_status_count):
                     stats = status.get_statuses(pav_cfg, args, self.errfile)
-                    for test in stats:
-                        stat = [str(time.ctime(time.time())), ':',
-                                'test #',
-                                str(test['test_id']),
-                                test['name'],
-                                test['state'],
-                                test['note']]
-                        if args.oneline:
-                            fprint(' '.join(stat), end='\r', file=self.outfile,
-                                   width=None)
-                        else:
-                            fprint(' '.join(stat), file=self.outfile)
+                    stats_out = []
+
+                    if not args.oneline:
+                        for test in stats:
+                            stat = [str(time.ctime(time.time())), ':',
+                                    'test #',
+                                    str(test['test_id']),
+                                    test['name'],
+                                    test['state'],
+                                    test['note'],
+                                    "\n"]
+                            stats_out.append(' '.join(stat))
+                        fprint(''.join(map(str, stats_out)),
+                               file=self.outfile, width=None)
+                    else:
+                        stats_out.extend([
+                            str(time.ctime(time.time())), ': '
+                        ])
+                        for test in stats:
+                            stat = [str(test['test_id']),
+                                    '(', test['name'], ') ',
+                                    test['state'], ' | ']
+                            stats_out.append(''.join(stat))
+                        fprint(''.join(map(str, stats_out)), end='\r',
+                               file=self.outfile, width=None)
+
                     periodic_status_count += 1
 
         final_stats = status.get_statuses(pav_cfg, args, self.errfile)
+        fprint('\n', file=self.outfile)
         return status.print_status(final_stats, self.outfile, args.json)
+
+
