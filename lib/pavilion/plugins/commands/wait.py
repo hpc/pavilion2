@@ -47,10 +47,12 @@ class WaitCommand(commands.Command):
 
         group = parser.add_mutually_exclusive_group()
         group.add_argument(
-            '-s', '--silent', action='store_true'
+            '-s', '--silent', action='store_true',
+            help="No periodic status output."
         )
         group.add_argument(
-            '--oneline', action='store_true'
+            '--oneline', action='store_true',
+            help="Period status update overrides previous update."
         )
 
     def run(self, pav_cfg, args):
