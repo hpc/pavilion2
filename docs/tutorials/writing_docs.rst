@@ -1,8 +1,8 @@
 Writing software documentation
 ==============================
 
-This page is meant to serve both as a tutorial for writing documentation and
-as example of what that documentation should look like. For example, each
+This page is meant to serve as both a tutorial for writing documentation and
+an example of what that documentation should look like. For example, each
 page should start with a top-level header, an introductory paragraph or two, and
 a table of contents.
 
@@ -14,16 +14,16 @@ Overview
 The overview should tell the reader how all the pieces fit together.
 In this case our goal is to give the user documentation that is
 **consistent**, **concise**, and **demonstrative**. This is a good place for
-diagrams to demonstrate how this part relates to the rest of the system, or
-how the parts of this document relate to one-another.
+one or more diagrams to demonstrate how this part relates to the rest of the
+system, or how the parts of this document relate to one another.
 
 .. figure:: ../imgs/stupid_diagram.png
    :scale: 100%
    :alt: This diagram is a silly example.
 
-   This diagram's purpose is to demonstrate the use of diagrams, and to show
-   that captions should be used to explain each diagram's purpose. This was
-   generated using the 'Drawing' app in Google Docs.
+   The purpose of this diagram is to demonstrate the use of diagrams, and
+   to show that captions should be used to explain each diagram's purpose.
+   This was generated using the 'Drawing' app in Google Docs.
 
 Requirements
 ------------
@@ -32,7 +32,7 @@ Requirements
 For tutorials like this one, you generally want to start with a list of
 requirements so that the reader can get together everything they need to
 follow along. It might include things like links to
-:ref:`installing-pavilion`, and a bulleted list of requirements:
+:ref:`installing-pavilion` and a bulleted list of requirements:
 
  - Basic familiarity with Restructured Text and Sphinx
 
@@ -62,10 +62,11 @@ additional pointers:
 
 - The purpose of every sentence in documentation should be to convey relevant
   information.
+
   - No fluff.
   - No sales pitches.
   - Save the jokes for code comments.
-- Use links to tie in additional concepts, rather than re-explaining.
+- Use links to tie-in additional concepts rather than re-explaining.
 - If two concepts differ only slightly, fully document one. For the second,
   refer to the first and note the differences.
 
@@ -77,11 +78,10 @@ Consistent
 All of the documentation should be written in the same basic voice. This
 includes using a consistent tone, tense, style, and word choices.
 `Google's developer documentation style guide <https://developers.google.com/style/tone>`_ thoroughly covers this
-subject, and should be considered the the style guide for Pavilion
+subject, and should be considered the style guide for Pavilion
 documentation as well.
 
-The downside of it being thorough is that it is large. Here are some parts
-that are particularly important:
+Here are some sections that are particularly important:
 
 - `Style and Tone <https://developers.google.com/style/tone>`_
 - `Present Tense <https://developers.google.com/style/tense>`_
@@ -115,7 +115,7 @@ Headings
 ````````
 Headings should tell the user precisely what the section is about, given
 the context of the heading structure. You'll have a table of contents
-to reinforce this hierarchy.
+to reinforce this hierarchy. Headings should be in 'sentence case'.
 
 - Bad example: "Writing the source". What source?
 - Better example: "Writing a result parser module". That module.
@@ -148,9 +148,9 @@ API
   API documentation is primarily written as part of the code. It is organized
   by hand in documents under ``docs/source``, but the content is generated
   from doc-strings using Sphinx's autodoc feature. Every source file,
-  class, method and function should be documented here. Function/methods
-  should have their arguments, return values, and exceptions raised documented.
-  Public globals, class and instance variables should also be documented.
+  class, method, and function should be documented here. Function/methods
+  should have their arguments, return values, and raised exceptions documented.
+  Public globals, class, and instance variables should also be documented.
 
 Audience
 ````````
@@ -166,8 +166,8 @@ generally assume the your audience understands at least the following:
 
 .. _demonstrative:
 
-Being Demonstrative
--------------------
+Demonstrative
+-------------
 
 It is often much faster to show than to tell, and readers will frequently
 read nothing but your example code and infer the rest. Such code should be
@@ -179,12 +179,14 @@ comprehensive examples.
   - Sphinx requires that such code be a valid snippet for that language.
 - You don't need to introduce examples. Simply end the last sentence of the
   preceding paragraph with a colon ``":"``.
-- Most lines should have a explanatory comment.
+- Most lines should have an explanatory comment.
 - Where ellipsis would be used to denote that the example is an excerpt,
   a comment should state that instead.
-- Identifiers in the example should be named in self-documenting manner.
+- Identifiers in the example should be named in a self-documenting manner.
 - Examples should show both how to use a feature, and document or show
   (with additional code) the expected result.
+- Formats that don't allow comments, like JSON, will require outside
+  explanation.
 
 The simple example
 ------------------
