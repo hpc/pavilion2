@@ -412,15 +412,26 @@ class TestRun:
 
         config_path = self.path/'config'
 
+        # make lock
+        lock_path = self.path/'config.lockfile'
+        config_lock = lockfile.LockFile(
+            lock_path,
+            group=self._pav_cfg.shared_group
+        )
+
         try:
+            config_lock.lock()
             with config_path.open('w') as json_file:
                 pavilion.output.json_dump(self.config, json_file)
+            config_lock.unlock()
         except (OSError, IOError) as err:
-            raise TestRunError("Could not save TestRun ({}) config at {}: {}"
-                               .format(self.name, self.path, err))
+            raise TestRunError(
+                "Could not save TestRun ({}) config at {}: {}"
+                .format(self.name, self.path, err))
         except TypeError as err:
-            raise TestRunError("Invalid type in config for ({}): {}"
-                               .format(self.name, err))
+            raise TestRunError(
+                "Invalid type in config for ({}): {}"
+                .format(self.name, err))
 
     @classmethod
     def _load_config(cls, test_path):
