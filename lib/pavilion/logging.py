@@ -27,8 +27,13 @@ class LockFileRotatingFileHandler(logging.Handler):
         """Initialize the Locking File Handler. This will attempt to open
         the file and use the lockfile, just to check permissions.
 
-        :param lock_timeout: How long to wait before giving up and writing
-        anyway.
+        :param Union(str,Path) file_name: The path to the log file.
+        :param int max_bytes: The limit of how much data can go in a single
+            log file before rolling over. Zero denotes no limit.
+        :param int backup_count: How many backups (logfile.1, etc) to keep.
+        :param int lock_timeout: Wait this long before declaring a lock
+            deadlock, and giving up.
+        :param str encoding: The file encoding to use for the log file.
         """
 
         self.file_name = Path(file_name)
@@ -50,7 +55,8 @@ class LockFileRotatingFileHandler(logging.Handler):
 
     # We don't need threading based locks.
     def _do_nothing(self):
-        """Don't do anything."""
+        """createLock, acquire, release, flush, and close do nothing in
+        this handler implementation."""
         pass
 
     # We don't need thread based locking.
@@ -62,9 +68,8 @@ class LockFileRotatingFileHandler(logging.Handler):
     close = _do_nothing
 
     def emit(self, record):
-        """Emit the given record.
-        We must first acquire a lock on the given file before we can attempt
-        any actions on the file itself."""
+        """Emit the given record, but only after acquiring a lock on the
+        log's lockfile."""
 
         try:
             msg = self.format(record)
