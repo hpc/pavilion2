@@ -1,21 +1,17 @@
-# This is the core pavilion script.
-# It shouldn't be run directly; use bin/pav instead.
+"""This is the core pavilion script.
+It shouldn't be run directly; use bin/pav instead."""
 
 import logging
-import socket
 import sys
 import traceback
-from logging import StreamHandler
-from logging.handlers import RotatingFileHandler
-from pathlib import Path
 
 from pavilion import arguments
 from pavilion import commands
 from pavilion import config
+from pavilion import logging
 from pavilion import output
 from pavilion import pavilion_variables
 from pavilion import plugins
-from pavilion import logging
 
 try:
     import yc_yaml
@@ -35,6 +31,8 @@ except ImportError:
 
 
 def main():
+    """Setup Pavilion and run a command."""
+
     # Pavilion is compatible with python >= 3.4
     if sys.version_info[0] != 3 or sys.version_info[1] < 4:
         output.fprint("Pavilion requires python 3.4 or higher.",
@@ -76,7 +74,8 @@ def main():
             sys.exit(1)
 
     # Setup all the loggers for Pavilion
-    logging.setup_loggers(pav_cfg)
+    if not logging.setup_loggers(pav_cfg):
+        sys.exit(1)
 
     # This has to be done before we initialize plugins
     parser = arguments.get_parser()

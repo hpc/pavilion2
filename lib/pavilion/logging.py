@@ -16,7 +16,11 @@ class LockFileRotatingFileHandler(logging.Handler):
     RotatingFileHandler.
     """
 
+    # What to use to separate logfile lines.
     TERMINATOR = '\n'
+
+    # For printing errors/exceptions.
+    ERR_OUT = sys.stderr
 
     def __init__(self, file_name, max_bytes=0, backup_count=0,
                  lock_timeout=10, encoding=None):
@@ -27,52 +31,35 @@ class LockFileRotatingFileHandler(logging.Handler):
         anyway.
         """
 
-        super().__init__()
-
         self.file_name = Path(file_name)
         self.max_bytes = max_bytes
         self.backup_count = backup_count
         self.mode = 'a'
         self.encoding = encoding
         self.lock_timeout = lock_timeout
-        self.lock_file = LockFile(Path(self.file_name.name + '.lock'),
+        lockfile_path = self.file_name.parent/(self.file_name.name + '.lock')
+        self.lock_file = LockFile(lockfile_path,
                                   timeout=self.lock_timeout)
 
+        super().__init__()
+
         # Test acquire the lock file and test open the file.
-        try:
-            self.acquire()
+        with self.lock_file:
             with self.file_name.open(self.mode, encoding=self.encoding):
                 pass
-        finally:
-            self.release()
 
-    def createLock(self):
-        """Create the lock file. In this case we always have a lock."""
-        # We're not going to be using the standard locks.
-
-        raise NotImplementedError("We do this in the __init__.")
-
-    def acquire(self):
-        """Acquire the lock. Unlike with the base class, this is not
-        idempotent, so we need to be careful."""
-
-        self.lock_file.lock()
-
-    def release(self):
-        """Release the lock."""
-
-        self.lock_file.unlock()
-
-    def flush(self):
-        """The stream is always flushed after every write, so do nothing."""
-
+    # We don't need threading based locks.
+    def _do_nothing(self):
+        """Don't do anything."""
         pass
 
-    def close(self):
-        """Our close method does nothing, as we open and close the file each
-        time we need to write."""
-
-        pass
+    # We don't need thread based locking.
+    createLock = _do_nothing
+    acquire = _do_nothing
+    release = _do_nothing
+    # The log file is opened, flushed and closed for each write.
+    flush = _do_nothing
+    close = _do_nothing
 
     def emit(self, record):
         """Emit the given record.
@@ -97,8 +84,10 @@ class LockFileRotatingFileHandler(logging.Handler):
         """Print any logging errors to stderr. We want to know about them."""
 
         try:
-            sys.stderr.write('--- Logging error ---')
-            traceback.print_exc(file=sys.stderr)
+            self.ERR_OUT.write('--- Logging error ---\n')
+            self.ERR_OUT.write('While trying to log: {}\n'.format(record.msg))
+            self.ERR_OUT.write('to file: {}\n'.format(self.file_name))
+            traceback.print_exc(file=self.ERR_OUT)
         except (OSError, IOError):
             pass
 
@@ -115,35 +104,38 @@ class LockFileRotatingFileHandler(logging.Handler):
         this."""
 
         if self.backup_count > 0:
+            parent = self.file_name.parent
+
             # Move each previously rolled over log to the next higher number.
             for i in range(self.backup_count - 1, 0, -1):
-                src_fn = Path('{}.{}'.format(self.file_name.name, i))
-                dest_fn = Path('{}.{}'.format(self.file_name.name, i + 1))
-
+                # Doing an ext
+                src_fn = parent/'{}.{}'.format(self.file_name.name, i)
+                dest_fn = parent/'{}.{}'.format(self.file_name.name, i + 1)
                 if dest_fn.exists():
                     dest_fn.unlink()
-                src_fn.rename(dest_fn)
+                if src_fn.exists():
+                    src_fn.rename(dest_fn)
 
             # Roll over the base log.
-            dest_fn = Path('{}.{}'.format(self.file_name.name, 1))
+            dest_fn = parent/'{}.{}'.format(self.file_name.name, 1)
             if dest_fn.exists():
                 dest_fn.unlink()
             self.file_name.rename(dest_fn)
 
 
 # We don't want to have to look this up every time we log.
-_old_factory = logging.getLogRecordFactory()
-_hostname = socket.gethostname()
+_OLD_FACTORY = logging.getLogRecordFactory()
+_HOSTNAME = socket.gethostname()
 
 
 def record_factory(*fargs, **kwargs):
     """Add the hostname to all logged records."""
-    record = _old_factory(*fargs, **kwargs)
-    record.hostname = _hostname
+    record = _OLD_FACTORY(*fargs, **kwargs)
+    record.hostname = _HOSTNAME
     return record
 
 
-def setup_loggers(pav_cfg, verbose):
+def setup_loggers(pav_cfg, verbose=False, err_out=sys.stderr):
     """Setup the loggers for the Pavilion command. This will include:
 
     - The general log file (as a multi-process/host safe rotating logger).
@@ -153,6 +145,8 @@ def setup_loggers(pav_cfg, verbose):
     :param pav_cfg: The Pavilion configuration.
     :param bool verbose: When verbose, setup the root logger to print to stderr
         as well.
+    :param IO[str] err_out: Where to log errors meant for the terminal. This
+        exists primarily for testing.
     """
 
     root_logger = logging.getLogger()
@@ -171,8 +165,7 @@ def setup_loggers(pav_cfg, verbose):
         output.fprint("Could not write to pavilion log at '{}': {}"
                       .format(log_fn, err),
                       color=output.YELLOW,
-                      file=sys.stderr,
-                      )
+                      file=err_out)
     else:
         file_handler = LockFileRotatingFileHandler(
             file_name=log_fn,
@@ -197,9 +190,9 @@ def setup_loggers(pav_cfg, verbose):
             "Could not write to result log at '{}': {}"
             .format(pav_cfg.result_log, err),
             color=output.YELLOW,
-            file=sys.stderr
+            file=err_out
         )
-        sys.exit(1)
+        return False
 
     result_logger = logging.getLogger('results')
     result_handler = LockFileRotatingFileHandler(
@@ -221,7 +214,7 @@ def setup_loggers(pav_cfg, verbose):
             "Could not write to exception log at '{}': {}"
             .format(pav_cfg.exception_log, err),
             color=output.YELLOW,
-            file=sys.stderr
+            file=err_out
         )
     else:
         exc_handler = LockFileRotatingFileHandler(
@@ -238,7 +231,7 @@ def setup_loggers(pav_cfg, verbose):
     # Setup the yapsy logger to log to terminal. We need to know immediatly
     # when yapsy encounters errors.
     yapsy_logger = logging.getLogger('yapsy')
-    yapsy_handler = logging.StreamHandler(stream=sys.stderr)
+    yapsy_handler = logging.StreamHandler(stream=err_out)
     # Color all these error messages red.
     yapsy_handler.setFormatter(
         logging.Formatter("\x1b[31m{asctime} {message}\x1b[0m",
@@ -249,8 +242,10 @@ def setup_loggers(pav_cfg, verbose):
     # Add a stream to stderr if we're in verbose mode, or if no other handler
     # is defined.
     if verbose or not root_logger.handlers:
-        verbose_handler = logging.StreamHandler(sys.stderr)
+        verbose_handler = logging.StreamHandler(err_out)
         verbose_handler.setLevel(logging.DEBUG)
         verbose_handler.setFormatter(logging.Formatter(pav_cfg.log_format,
                                                        style='{'))
         root_logger.addHandler(result_handler)
+
+    return True
