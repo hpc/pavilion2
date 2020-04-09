@@ -225,13 +225,6 @@ class TestRun:
 
         self.load_ok = True
 
-        # Compute the actual name of test, using the subtitle config parameter.
-        self.name = '.'.join([
-            config.get('suite', '<unknown>'),
-            config.get('name', '<unnamed>')])
-        if 'subtitle' in config and config['subtitle']:
-            self.name = self.name + '.' + config['subtitle']
-
         self.scheduler = config['scheduler']
 
         # Create the tests directory if it doesn't already exist.
@@ -271,6 +264,8 @@ class TestRun:
                 raise TestRunError(*err.args)
 
             self.opts = TestRunOptions.load(self)
+
+        self.name = self._make_name()
 
         # Set a logger more specific to this test.
         self.logger = logging.getLogger('pav.TestRun.{}'.format(self.id))
@@ -406,6 +401,39 @@ class TestRun:
         pav_path = self._pav_cfg.pav_root/'bin'/'pav'
 
         return '{} run {}'.format(pav_path, self.id)
+
+    def _make_name(self):
+        """Generate the name for this test from the config. This
+        will create a subtitle automatically for permuted tests."""
+
+        parts = [
+            self.config.get('suite', '<unknown>'),
+            self.config.get('name', '<unnamed>'),
+        ]
+
+        subtitle = self.config.get('subtitle')
+        permute_on = self.config.get('permute_on', [])
+        if subtitle is None and permute_on:
+            sub_parts = []
+            var_dict = self.var_man.as_dict()
+            for var in permute_on:
+                if var in var_dict:
+                    val = var_dict[var]
+                    # This can only be a dict or a str.
+                    if isinstance(val, dict):
+                        shortest = ''
+                        for subval in val.values():
+                            if not shortest or len(subval) < len(shortest):
+                                shortest = subval
+                        sub_parts.append(shortest)
+                    else:
+                        sub_parts.append(val)
+            subtitle = '-'.join(sub_parts)
+
+        if subtitle is not None:
+            parts.append(subtitle)
+
+        return '.'.join(parts)
 
     def _save_config(self):
         """Save the configuration for this test to the test config file."""

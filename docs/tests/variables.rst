@@ -27,10 +27,10 @@ the set isn't specified.
     foo:
         variables:
           host_name: foo
-          
+
         run:
           # This would echo 'foo' regardless of the fact that the system variables
-          # also provides a 'host_name' variable, as the test variables (var) set 
+          # also provides a 'host_name' variable, as the test variables (var) set
           # takes precedence.
           cmds: "echo {{host_name}}"
 
@@ -103,8 +103,8 @@ are simply replaced with the variable's value.
     foo:
       variables:
         bar: "baz"
-        
-      run: 
+
+      run:
         cmds: "echo {{bar}}"
 
 Multiple Values
@@ -118,7 +118,7 @@ Variables may have multiple values, and referenced with an index
     multi_vars:
         variables:
             msg: ['hello', 'you', 'handsome', 'devil']
-        
+
         run:
           # Would print 'hello you devil'
           cmds: "echo {{msg.0}} {{msg.1}} {{msg.3}}"
@@ -133,7 +133,7 @@ variables can be referenced by the 0th index.
         variables:
           paths: ['/usr', '/home', '/root']
           list_cmd: 'ls'
-          
+
         run:
             # This would result in the command: 'ls /usr'
             cmds: '{{list_cmd.0}} {{paths}}'
@@ -152,11 +152,11 @@ sub-keys without specifying a sub-key.
 
     subkeyed_vars:
         variables:
-          compiler: 
-            name: 'gcc' 
+          compiler:
+            name: 'gcc'
             cmd: 'mpicc'
             openmp: '-fopenmp'
-        
+
         build:
           # Will result in 'mpicc -fopenmp mysrc.c'
           cmds: '{{compiler.cmd}} {{compiler.openmp}} mysrc.c'
@@ -167,10 +167,10 @@ But wait, there's more. Complex variables may also have multiple values.
 
     subkeyed_vars:
         variables:
-          compiler: 
+          compiler:
             - {name: 'gcc',   mpi: 'openmpi',   cmd: 'mpicc',  openmp: '-fopenmp'}
             - {name: 'intel', mpi: 'intel-mpi', cmd: 'mpiicc', openmp: '-qopenmp'}
-        
+
         build:
           # Will result in `mpiicc -qopenmp mysrc.c`
           cmds: '{{compiler.1.cmd}} {{compiler.1.openmp}} mysrc.c'
@@ -221,13 +221,13 @@ value is provided by an underlying host/mode config files.
 
     expected_test:
       variables:
-        # Pavilion will only use this value if the host or mode configs 
+        # Pavilion will only use this value if the host or mode configs
         # don't define it.
         intensity?: 1
-        
+
         # Pavilion expects the hosts or modes to provide this value.
         power?:
-        
+
         run:
           cmds:
             - "./run_test -i {{intensity}} -p {{power}}"
@@ -284,8 +284,8 @@ value of a contained variable. They're bracketed by ``[~`` and ``~]``.
     substr_test:
         variables:
           dirs: ['/usr', '/root', '/opt']
-          
-        run: 
+
+        run:
           cmds: 'ls [~{{dirs}} ~]'
 
 This would result in a command of ``ls /usr /root /opt``. The space in
@@ -297,7 +297,7 @@ included.
     super_magic_fs:
         variables:
           projects: [origami, fusion]
-        
+
         run:
           cmds: 'srun ./super_magic [~-w /opt/proj/{{projects}} ~] -a'
 
@@ -321,7 +321,7 @@ can't contain a closing square bracket.
     substr_test2:
         variables:
           groups: [testers, supertesters]
-        
+
         run:
           cmds: 'grep --quiet "[~{{groups}}~|]" /etc/group'
 
@@ -338,7 +338,7 @@ variables can have more multiple values (or no values).
     super_magic_fs:
         variables:
           projects: [origami, fusion]
-        
+
         run:
           cmds: 'srun ./super_magic [-w /opt/proj/{{projects}}/{{pav.user}} ] -a'
 
@@ -394,6 +394,7 @@ the values of one or more variables.
 .. code:: yaml
 
     permuted_test:
+        subtitle: '{{msg}}-{{person}}-{{date}}'
         permute_on: msg, person, date
         variables:
           msg: ['hello', 'goodbye']
@@ -411,8 +412,8 @@ different message.
    - ``echo "goodbye Paul - 07/14/19"``
    - ``echo "goodbye Nick - 07/14/19"``
 - The tests are scheduled independently when using ``pav run``.
-- They have the same test name (permuted\_test), but different test id's and
-  run directories.
+- The subtitle will be added to the test name give each run a unique name.
+  - If you permute and don't give a subtitle one will be generated for you.
 
 Limitations
 ^^^^^^^^^^^
@@ -436,12 +437,12 @@ permutation.
     mytest:
         permute_on: compiler
         variables:
-          compiler: 
+          compiler:
             - {name: 'gcc',   mpi: 'openmpi',   cmd: 'mpicc',  openmp: '-fopenmp'}
             - {name: 'intel', mpi: 'intel-mpi', cmd: 'mpiicc', openmp: '-qopenmp'}
 
         subtitle: '{{compiler.name}}'
-        
+
         build:
           # Will result in `mpiicc -qopenmp mysrc.c`
           cmds: '{{compiler.cmd}} {{compiler.openmp}} mysrc.c'

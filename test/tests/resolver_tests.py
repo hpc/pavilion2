@@ -367,7 +367,8 @@ class ResolverTests(PavTestCase):
         }
 
         answer1 = {
-                   'build': {
+                'permute_on': ['foo', 'bar'],
+                'build': {
                        'cmds':
                            ["echo 1 4", "echo 1", "echo 4a"],
                        'env': [

@@ -633,7 +633,6 @@ class TestConfigResolver:
         """
 
         permute_on = test_cfg['permute_on']
-        del test_cfg['permute_on']
 
         used_per_vars = set()
         for per_var in permute_on:

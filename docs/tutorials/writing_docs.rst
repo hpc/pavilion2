@@ -227,7 +227,7 @@ Advanced examples
 Examples should build on each other, and the should assume knowledge of
 prior examples.
 
-.. code-block::
+.. code-block:: yaml
 
       # These are directly written into a bash script, so any bash
       # code is fine (be carefully about escapes).
