@@ -8,12 +8,10 @@ Schedulers
 Scheduler Module
 ----------------
 
-.. automodule:: pavilion.schedulers
-
 Scheduler Plugin Class
 ~~~~~~~~~~~~~~~~~~~~~~
 
-.. autoclass:: pavilion.schedulers.SchedulerVariables
+.. autoclass:: pavilion.schedulers.SchedulerPlugin
     :members:
     :show-inheritance:
     :undoc-members:
