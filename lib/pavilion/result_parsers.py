@@ -345,6 +345,7 @@ RESERVED_RESULT_KEYS = [
     'pav_result_errors',
     'user',
     'job_id',
+    'sched',
     'sys_name',
 ]
 

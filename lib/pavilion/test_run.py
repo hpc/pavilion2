@@ -673,6 +673,8 @@ result
     Defaults to PASS if the test completed (with a zero
     exit status). Is generally expected to be overridden by other
     result parsers.
+sched
+    All of the scheduler variable values.
 
 :param bool run_result: The result of the run.
 """
@@ -708,6 +710,7 @@ result
             'duration': str(self._finished - self._started),
             'user': self.var_man['pav.user'],
             'job_id': self.job_id,
+            'sched': self.var_man.as_dict().get('sched', {}),
             'sys_name': self.var_man['sys.sys_name'],
             # This may be overridden by result parsers.
             'result': default_result
