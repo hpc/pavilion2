@@ -236,9 +236,6 @@ def list_plugins():
 class SchedulerPlugin(IPlugin.IPlugin):
     """The base scheduler plugin class. Scheduler plugins should inherit from
     this.
-
-    :cvar KICKOFF_SCRIPT_EXT: The extension for the kickoff script.
-    :cvar SchedulerVariables VAR_CLASS: The scheduler's variable class.
     """
 
     PRIO_CORE = 0
@@ -246,8 +243,10 @@ class SchedulerPlugin(IPlugin.IPlugin):
     PRIO_USER = 20
 
     KICKOFF_SCRIPT_EXT = '.sh'
+    """The extension for the kickoff script."""
 
     VAR_CLASS = SchedulerVariables
+    """The scheduler's variable class."""
 
     def __init__(self, name, description, priority=PRIO_CORE):
         """Scheduler plugin that is expected to be overriden by subclasses.
@@ -330,7 +329,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
         separate allocation (if applicable) for each.
 
         :param pav_cfg: The pavilion config
-        :param list[pavilion.test_run.TestRun] tests: A list of pavilion tests
+        :param [pavilion.test_run.TestRun] tests: A list of pavilion tests
             to schedule.
         """
 
@@ -425,7 +424,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
         :param pav_cfg: The pavilion cfg.
         :param pavilion.test_run.TestRun test_obj: The pavilion test to
-        start.
+            start.
         """
 
         kick_off_path = self._create_kickoff_script(pav_cfg, test_obj)
@@ -445,8 +444,8 @@ class SchedulerPlugin(IPlugin.IPlugin):
         """Run the kickoff script at script path with this scheduler.
 
         :param pavilion.test_config.TestRun test_obj: The test to schedule.
-        :param Path kickoff_path: - Path to the submission script.
-        :return str - Job ID number.
+        :param Path kickoff_path: Path to the submission script.
+        :return str: Job ID number.
         """
 
         raise NotImplementedError

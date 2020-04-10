@@ -412,26 +412,43 @@ class TestRun:
 
         config_path = self.path/'config'
 
+        # make lock
+        lock_path = self.path/'config.lockfile'
+        config_lock = lockfile.LockFile(
+            lock_path,
+            group=self._pav_cfg.shared_group
+        )
+
         try:
+            config_lock.lock()
             with config_path.open('w') as json_file:
                 pavilion.output.json_dump(self.config, json_file)
         except (OSError, IOError) as err:
-            raise TestRunError("Could not save TestRun ({}) config at {}: {}"
-                               .format(self.name, self.path, err))
+            raise TestRunError(
+                "Could not save TestRun ({}) config at {}: {}"
+                .format(self.name, self.path, err))
         except TypeError as err:
-            raise TestRunError("Invalid type in config for ({}): {}"
-                               .format(self.name, err))
+            raise TestRunError(
+                "Invalid type in config for ({}): {}"
+                .format(self.name, err))
+        finally:
+            config_lock.unlock()
 
     @classmethod
     def _load_config(cls, test_path):
         """Load a saved test configuration."""
         config_path = test_path/'config'
 
+        # make lock
+        lock_path = test_path/'config.lockfile'
+        config_lock = lockfile.LockFile(lock_path)
+
         if not config_path.is_file():
             raise TestRunError("Could not find config file for test at {}."
                                .format(test_path))
 
         try:
+            config_lock.lock()
             with config_path.open('r') as config_file:
                 # Because only string keys are allowed in test configs,
                 # this is a reasonable way to load them.
@@ -442,6 +459,8 @@ class TestRun:
         except (IOError, OSError) as err:
             raise TestRunError("Error reading config file '{}': {}"
                                .format(config_path, err))
+        finally:
+            config_lock.unlock()
 
     def build(self, cancel_event=None):
         """Build the test using its builder object and symlink copy it to

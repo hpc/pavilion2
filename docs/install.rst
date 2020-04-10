@@ -1,3 +1,6 @@
+
+.. _installing-pavilion:
+
 Installing Pavilion
 ===================
 
