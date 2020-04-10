@@ -114,5 +114,3 @@ class WaitCommand(commands.Command):
         final_stats = status.get_statuses(pav_cfg, args, self.errfile)
         fprint('\n', file=self.outfile)
         return status.print_status(final_stats, self.outfile, args.json)
-
-
