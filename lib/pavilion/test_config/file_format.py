@@ -146,29 +146,12 @@ class SeriesConfigLoader(yc.YamlConfigLoader):
             'on_complete', sub_elem=yc.StrElem()
         ),
     ]
-
-    """ELEMENTS: describes elements in Series Config Loader."""
+    """Describes elements in Series Config Loader."""
 
 
 class TestConfigLoader(yc.YamlConfigLoader):
     """This class describes a test section in a Pavilion config file. It is
 expected to be added to by various plugins.
-
-:cvar list(yc.YamlConfig) ELEMENTS: Each YamlConfig instance in this
-    list defines a key for the test config.
-
-- Each element must result in a string (which is why you see a lot of StrElem
-  below), or a structure that contains only strings at the lowest layer.
-
-  - So lists of dicts of strings are fine, etc.
-  - yc.RegexElem also produces a string.
-- Everything should have a sensible default.
-
-  - An empty config should be a valid test.
-- For bool values, accept ['true', 'false', 'True', 'False'].
-
-  - They should be checked with val.lower() == 'true', etc.
-- Every element must have a useful 'help_text'.
 """
 
     ELEMENTS = [
@@ -316,6 +299,21 @@ expected to be added to by various plugins.
                       "to dynamically generate a run script for the "
                       "test."),
     ]
+    """Each YamlConfig instance in this list defines a key for the test config.
+
+        - Each element must result in a string (which is why you see a lot of StrElem
+          below), or a structure that contains only strings at the lowest layer.
+
+          - So lists of dicts of strings are fine, etc.
+          - yc.RegexElem also produces a string.
+        - Everything should have a sensible default.
+
+          - An empty config should be a valid test.
+        - For bool values, accept ['true', 'false', 'True', 'False'].
+
+          - They should be checked with val.lower() == 'true', etc.
+        - Every element must have a useful 'help_text'.
+    """
 
     # We'll append the result parsers separately, to have an easy way to
     # access it.
