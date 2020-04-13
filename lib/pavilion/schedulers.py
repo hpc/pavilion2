@@ -405,6 +405,14 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
         return datetime.datetime.now()
 
+    def available(self):
+        """Returns true if this scheduler is available on this host.
+
+        :rtype: bool
+        """
+
+        raise NotImplementedError
+
     def job_status(self, pav_cfg, test):
         """Get the job state from the scheduler, and map it to one of the
         on of the following states: SCHEDULED, SCHED_ERROR, SCHED_CANCELLED.

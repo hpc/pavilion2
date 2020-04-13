@@ -1,6 +1,6 @@
 test:
   variables:
-    long_base+: ['to', 'punk?']
+    long_base+: ['you', 'up', 'to']
     single_base+: 'test'
     no_base+: 'test'
     null_base+: 'test'

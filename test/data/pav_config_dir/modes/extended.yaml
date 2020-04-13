@@ -1,5 +1,5 @@
 variables:
-  long_base+: ['you', 'up', 'up']
+  long_base+: ['to', 'to', 'punk?']
   single_base+: 'mode'
   no_base_mode+: 'mode'
   null_base_mode+: 'mode'
