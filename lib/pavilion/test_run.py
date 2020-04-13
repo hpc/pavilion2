@@ -413,21 +413,22 @@ class TestRun:
 
         subtitle = self.config.get('subtitle')
         permute_on = self.config.get('permute_on', [])
+
+        # Auto generate a subtitle only if one isn't already defined
+        # and if we have permutations.
         if subtitle is None and permute_on:
             sub_parts = []
             var_dict = self.var_man.as_dict()
             for var in permute_on:
+                # Compose the subtitle from 5 chars of each permuted variable.
                 if var in var_dict:
                     val = var_dict[var]
                     # This can only be a dict or a str.
                     if isinstance(val, dict):
-                        shortest = ''
-                        for subval in val.values():
-                            if not shortest or len(subval) < len(shortest):
-                                shortest = subval
-                        sub_parts.append(shortest)
-                    else:
-                        sub_parts.append(val)
+                        # For dicts, use the first key's value.
+                        val = val[list(val.keys())[0]]
+
+                    sub_parts.append(val[:5])
             subtitle = '-'.join(sub_parts)
 
         if subtitle is not None:
