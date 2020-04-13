@@ -1,7 +1,7 @@
 from pavilion import commands
 from pavilion import arguments
 from pavilion import series
-from pavilion.test_config.setup import _find_config
+from pavilion.test_config.resolver import _find_config
 from pavilion.test_config.file_format import SeriesConfigLoader
 
 
@@ -55,7 +55,6 @@ class RunSeries(commands.Command):
                 for mode in all_modes:
                     args_list.append('-m{}'.format(mode))
                 args_list.extend(set_info['test_names'])
-                dbg_print(args_list)
                 args = arg_parser.parse_args(args_list)
 
                 # call run command to run tests
