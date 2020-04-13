@@ -301,8 +301,8 @@ expected to be added to by various plugins.
     ]
     """Each YamlConfig instance in this list defines a key for the test config.
 
-        - Each element must result in a string (which is why you see a lot of 
-        StrElem below), or a structure that contains only strings at the 
+        - Each element must result in a string (which is why you see a lot of
+        StrElem below), or a structure that contains only strings at the
         lowest layer.
 
           - So lists of dicts of strings are fine, etc.
