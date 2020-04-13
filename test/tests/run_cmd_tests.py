@@ -182,3 +182,14 @@ class RunCmdTests(PavTestCase):
         run_cmd = commands.get_command(args.command_name)
         self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
 
+    def test_no_sched(self):
+        """Check that we get a reasonable error for a non-available
+        scheduler."""
+
+        arg_parser = arguments.get_parser()
+        args = arg_parser.parse_args([
+            'run', 'not_available'
+        ])
+
+        run_cmd = commands.get_command(args.command_name)
+        self.assertNotEqual(run_cmd.run(self.pav_cfg, args), 0)

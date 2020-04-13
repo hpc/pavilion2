@@ -185,6 +185,11 @@ class Raw(SchedulerPlugin):
                 state=STATES.SCHED_ERROR,
                 note=msg)
 
+    def available(self):
+        """The raw scheduler is always available."""
+
+        return True
+
     def _schedule(self, test_obj, kickoff_path):
         """Run the kickoff script in a separate process. The job id a
         combination of the hostname and pid.
