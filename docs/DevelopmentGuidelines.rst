@@ -18,7 +18,7 @@ Publishing
 ----------
 
 1. **Do NOT increment the version number.** You may want to look at
-   `ARBITRARY\_NUMBER.txt <../RELEASE.txt>`__ though.
+   `RELEASE.txt <_static/RELEASE.txt>`__ though.
 
 Site Specific Code
 ------------------

@@ -1,3 +1,5 @@
+"""Print the test results for the given test/suite."""
+
 import pprint
 import sys
 
@@ -8,6 +10,7 @@ from pavilion.test_run import TestRun, TestRunError, TestRunNotFoundError
 
 
 class ResultsCommand(commands.Command):
+    """Plugin for result printing."""
 
     def __init__(self):
 
@@ -42,6 +45,7 @@ class ResultsCommand(commands.Command):
         )
 
     def run(self, pav_cfg, args):
+        """Print the test results in a variety of formats."""
 
         test_ids = self._get_tests(pav_cfg, args.tests, args.full)
 
@@ -54,17 +58,7 @@ class ResultsCommand(commands.Command):
             except TestRunNotFoundError as err:
                 self.logger.warning("Could not find test %s - %s", id_, err)
 
-        results = []
-        for test in tests:
-            res = test.load_results()
-            if res is None:
-                res = {
-                    'name': test.name,
-                    'id': test.id,
-                    'result': ''
-                }
-
-            results.append(res)
+        results = [test.results for test in tests]
 
         all_keys = set()
         for res in results:
@@ -73,14 +67,19 @@ class ResultsCommand(commands.Command):
         all_keys = list(all_keys.difference(['result', 'name', 'id']))
         # Sort the keys by the size of the data
         # all_keys.sort(key=lambda k: max([len(res[k]) for res in results]))
-        all_keys.sort(key=lambda k: max([len(res) for res in results]))
+        all_keys.sort(key=lambda k: max([len(r) for r in results]))
 
         if args.json:
             output.json_dump(results, self.outfile)
             return 0
 
         if args.full:
-            pprint.pprint(results) # ext-print: ignore
+            try:
+                pprint.pprint(results)  # ext-print: ignore
+            except OSError:
+                # It's ok if this fails. Generally means we're piping to
+                # another command.
+                pass
             return 0
         else:
             fields = ['name', 'id', 'result'] + sum(args.key, list())

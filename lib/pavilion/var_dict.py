@@ -22,9 +22,38 @@ def var_method(func):
     @wraps(func)
     def _func(self):
         # This is primarily to enforce the fact that these can't take arguments
-        return str(func(self))
+
+        value = func(self)
+        norm_value = normalize_value(value)
+        if norm_value is None:
+            raise ValueError(
+                "Invalid variable value returned by {}: {}."
+                .format(func.__name__, value))
+
+        return norm_value
 
     return _func
+
+
+def normalize_value(value, level=0):
+    """Normalize a value to one compatible with Pavilion variables. This
+    means it must be a dict of strings, a list of strings, a list of dicts of
+    strings, or just a string. Returns None on failure.
+    :param value: The value to normalize.
+    :param level: Controls what structures are allowed as this is called
+    recursively.
+    """
+    if isinstance(value, str):
+        return value
+    elif isinstance(value, (int, float, bool, bytes)):
+        return str(value)
+    elif isinstance(value, (list, tuple)) and level == 0:
+        return [normalize_value(v, level=1) for v in value]
+    elif isinstance(value, dict) and level < 2:
+        return {str(k): normalize_value(v, level=2)
+                for k, v in value.items()}
+    else:
+        return None
 
 
 class VarDict(UserDict):
@@ -32,7 +61,7 @@ class VarDict(UserDict):
 
     Usage:
     To add a variable, create a method and decorate it with
-    either '@var_method' or '@dfr_var_method()'. The method name will be the
+    either ``@var_method`` or ``@dfr_var_method()``. The method name will be the
     variable name, and the method will be called to resolve the variable
     value. Methods that start with '_' are ignored.
     """

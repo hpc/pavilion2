@@ -77,16 +77,13 @@ class CancelCommand(commands.Command):
                     output.fprint(
                         "Series {} could not be found.\n{}".format(test_id,
                                                                    err),
-                        file=self.errfile,
-                        color=output.RED
-                    )
+                        file=self.errfile, color=output.RED)
                     return errno.EINVAL
                 except ValueError as err:
                     output.fprint(
                         "Series {} is not a valid series.\n{}"
-                        .format(test_id, err), file=self.errfile,
-                        color=output.RED
-                    )
+                        .format(test_id, err),
+                        color=output.RED, file=self.errfile)
                     return errno.EINVAL
             else:
                 try:

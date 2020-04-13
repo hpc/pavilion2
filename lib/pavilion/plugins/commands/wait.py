@@ -1,8 +1,11 @@
+import copy
 import time
 
 from pavilion import commands
+from pavilion.output import fprint
 from pavilion.plugins.commands import status
 from pavilion.status_file import STATES
+from pavilion.test_run import TestRun
 
 
 class WaitCommand(commands.Command):
@@ -31,8 +34,9 @@ class WaitCommand(commands.Command):
             help='Give output as json, rather than as standard human readable.'
         )
         parser.add_argument(
-            '-t', '--timeout', action='store', default='60',
-            help='Maximum time to wait for results in seconds. Default=60.'
+            '-t', '--timeout', action='store',
+            help='Maximum time to wait for results in seconds. Default is to'
+                 'wait indefinitely.'
         )
         parser.add_argument(
             'tests', nargs='*', action='store',
@@ -41,25 +45,72 @@ class WaitCommand(commands.Command):
                  'recent series submitted by this user is checked.'
         )
 
+        group = parser.add_mutually_exclusive_group()
+        group.add_argument(
+            '-s', '--silent', action='store_true',
+            help="No periodic status output."
+        )
+        group.add_argument(
+            '--oneline', action='store_true',
+            help="Prints entire status on one line."
+        )
+
     def run(self, pav_cfg, args):
-        # Store the initial time for timeout functionality.
+
+        # get start time
         start_time = time.time()
 
-        tmp_statuses = status.get_statuses(pav_cfg, args, self.errfile)
+        tests = status.get_tests(pav_cfg, args, self.errfile)
 
-        final_statuses = 0
+        # determine timeout time, if there is one
+        end_time = None
+        if args.timeout is not None:
+            end_time = start_time + float(args.timeout)
 
-        while (final_statuses < len(tmp_statuses)) and \
-              ((time.time() - start_time) < float(args.timeout)):
+        periodic_status_count = 0
+        while (len(tests) != 0) and (end_time is None or
+                                     time.time() < end_time):
             # Check which tests have completed or failed and move them to the
             # final list.
-            final_statuses = 0
-            for test in tmp_statuses:
-                if test['state'] in self.comp_list:
-                    final_statuses += 1
+            temp_tests = copy.deepcopy(tests)
+            for test_id in temp_tests:
+                test_obj = TestRun.load(pav_cfg, test_id)
+                run_complete_file = test_obj.path/'RUN_COMPLETE'
+                if run_complete_file.exists():
+                    tests.remove(test_id)
 
-            tmp_statuses = status.get_statuses(pav_cfg, args, self.errfile)
+            # print status every 5 seconds
+            if not args.silent:
+                if time.time() > (start_time + 5*periodic_status_count):
+                    stats = status.get_statuses(pav_cfg, args, self.errfile)
+                    stats_out = []
 
-        ret_val = status.print_status(tmp_statuses, self.outfile, args.json)
+                    if not args.oneline:
+                        for test in stats:
+                            stat = [str(time.ctime(time.time())), ':',
+                                    'test #',
+                                    str(test['test_id']),
+                                    test['name'],
+                                    test['state'],
+                                    test['note'],
+                                    "\n"]
+                            stats_out.append(' '.join(stat))
+                        fprint(''.join(map(str, stats_out)),
+                               file=self.outfile, width=None)
+                    else:
+                        stats_out.extend([
+                            str(time.ctime(time.time())), ': '
+                        ])
+                        for test in stats:
+                            stat = [str(test['test_id']),
+                                    '(', test['name'], ') ',
+                                    test['state'], ' | ']
+                            stats_out.append(''.join(stat))
+                        fprint(''.join(map(str, stats_out)), end='\r',
+                               file=self.outfile, width=None)
 
-        return ret_val
+                    periodic_status_count += 1
+
+        final_stats = status.get_statuses(pav_cfg, args, self.errfile)
+        fprint('\n', file=self.outfile)
+        return status.print_status(final_stats, self.outfile, args.json)

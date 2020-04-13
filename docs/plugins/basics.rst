@@ -8,7 +8,7 @@ general.
 Plugin Files
 ------------
 
-As mentioned in the general `config <../config.md>`__ documentation,
+As mentioned in the general `config <../config.html>`__ documentation,
 Pavilion can have several configuration directories. Within each of
 these there can be a ``plugins/`` directory. While Pavilion organizes
 plugins in sub-directories by type (``/schedulers``,
@@ -42,7 +42,7 @@ added comments.
     Author = Nicholas Sly/Paul Ferrell
     Version = 1.0
     # We leave this blank, since it's part of the base pavilion code.
-    Website = 
+    Website =
 
 The most important thing here is the ``Module`` option, which tells the
 plugin manager *which* python module to load to find the plugin. It's ok
@@ -59,33 +59,33 @@ with extra notes:
 
 .. code:: python
 
-    # Always import the containing module for the plugin base class,and reference 
-    # the plugin via that. 
+    # Always import the containing module for the plugin base class,and reference
+    # the plugin via that.
     import pavilion.system_variables as system_plugins
 
     import subprocess
 
     # You can call your plugin whatever you like, as long as it inherits
-    # from the base plugin class. The type/category of plugin is determined by 
+    # from the base plugin class. The type/category of plugin is determined by
     # the what it inherits from.
     class SystemName( system_plugins.SystemPlugin ):
 
         # Every plugin's init takes self and nothing else.
         # No arguments (other than self) will be passed.
         def __init__(self):
-        
+
             # You MUST call the super classes __init__.
             super().__init__(
                 # Every plugin has some sort of name attribute. Regardless of
                 # everything else, this defines the name of the plugin.
-                plugin_name='sys_name', 
+                plugin_name='sys_name',
                 # This is displayed when listing plugins of this type.
                 help_text='The system name (not necessarily hostname).',
                 # Plugins with the same name will override others with lower
                 # priorities (PRIO_CORE is the lowest)
                 priority=self.PRIO_CORE,
                 # These define the properties for this plugin type.
-                is_deferable=False, 
+                is_deferable=False,
                 sub_keys=None )
 
         # Most plugins require that you override only a single method.
@@ -278,11 +278,11 @@ When debugging plugins, it's often useful to run them by themselves:
 
 .. code:: bash
 
-    $ export PYTHONPATH=<Pavilion's lib directory>
-    $ cd <your plugin dir>
-    $ python3
-    >>> import myplugin
-    >>> myplugin.MyPluginClass()
+    export PYTHONPATH=#<Pavilion's lib directory>
+    cd #<your plugin dir>
+    python3
+    # >>> import myplugin
+    # >>> myplugin.MyPluginClass()
 
 The plugin module should be able to run and you should be able to create
 an instance without throwing an error.

@@ -11,16 +11,18 @@ environment. Tests can then use that information to tailor themselves
 to a particular system or deal with other complexities that are unique
 to your OS or software deployments.
 
+.. contents::
+
 Files
 -----
 
 System Variable plugins, like all other Pavilion plugins, require a
 python module and a yapsy-plugin file. See the `plugin
-basics <basics.md>`__ for more info on these files and where they should
+basics <basics.html>`__ for more info on these files and where they should
 go.
 
 System Variable Module
-----------------------
+^^^^^^^^^^^^^^^^^^^^^^
 
 A sys_var module should contain a class definition that inherits
 from the system variable base class.
@@ -33,22 +35,22 @@ from the system variable base class.
         """This is a fairly useless variable, but is a good enough example."""
 
         def __init__(self):
-            
+
             super().__init__(
                 # The name of the plugin.
                 plugin_name="uptime",
                 # The description will be listed when using 'pav show sys_vars'
                 description="How long the (kickoff) host has been up in seconds.",
             )
-        
+
         # This is the method you override to provide the variables value.
-        # The base .get() method handles all the deferred variable logic, so 
+        # The base .get() method handles all the deferred variable logic, so
         # you don't have to.
         def _get(self):
-        
+
             with open('/proc/uptime') as uptime:
                 data = uptime.read()
-                
+
             return data.split()[0]
 
 With this plugin in the system, we can refer to it in test configs:
@@ -76,7 +78,7 @@ Additionally, dicts returned must always have the same keys, regardless
 of system or other considerations.
 
 Additional restrictions apply to `deferred
-variables <#the-is_deferrable-argument>`__.
+variables <#the-is-deferrable-argument>`__.
 
 The ``__init__()`` Method
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -85,19 +87,10 @@ The basics of the ``__init__()`` method and it's generic arguments are
 `covered elsewhere <basics.html>`__.
 
 The 'is\_deferrable' argument
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+'''''''''''''''''''''''''''''
 
 If this is set to ``True``, then the variable value lookup will be
 deferred until right before the test is run within an allocation. This
-allows you to gather information on a node rather than the kickoff host.
-
-Deferred variable values are more restricted. They can be one of: - A
-string - A dict with string keys and string values
-
-The ``sub_keys`` argument
-^^^^^^^^^^^^^^^^^^^^^^^^^
-
-If a variable is ``deferred`` and is expected to return a dict, you must
-provide a list of the sub-keys that the return dictionary will contain.
-This is so Pavilion can validate any sub-key references made in configs
-at test kickoff time.
+allows you to gather information on a node rather than the kickoff host. Note
+that any such information gathered will be on the root node of the allocation,
+not every individual node.

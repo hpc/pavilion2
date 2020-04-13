@@ -51,7 +51,7 @@ class RunSeries(commands.Command):
 
                 # create arguments
                 # pylint: disable=W0212
-                args_list = ['run', '-r {}'.format(series_obj._id)]
+                args_list = ['run', '--series-id {}'.format(series_obj._id)]
                 for mode in all_modes:
                     args_list.append('-m{}'.format(mode))
                 args_list.extend(set_info['test_names'])

@@ -1,3 +1,6 @@
+
+.. _installing-pavilion:
+
 Installing Pavilion
 ===================
 
@@ -126,22 +129,6 @@ correct sub-directory for each of these. If you would prefer to use the
 system version of a particular dependency, simply delete the
 corresponding softlink in your install.
 
-pytz
-''''
-
-Pytz is special, in that it has to be built. The build process is
-simple, and requires nothing more than make and gcc. While Pavilion
-doesn't actually use the compiled components of pytz, the python
-components are dynamically generated and required.
-
-.. code:: bash
-
-    pushd lib/sub_repos/pytz
-    make build
-
-The softlink in lib already points to the expected location of the built
-pytz.
-
 virtualenv and pip
 ^^^^^^^^^^^^^^^^^^
 
@@ -164,11 +151,11 @@ It comes with a couple of caveats:
 
     pushd /your/pavilion/install
     VENV_PATH=/your/virtualenv/path
-    # Setup a virtual environment 
+    # Setup a virtual environment
     virtualenv -p /usr/lib/python3 ${VENV_PATH}
     # Update pip, because older versions sometimes have issues.
     ${VENV_PATH}/bin/pip install --update pip
-    # Install all the pavilion requirements. 
+    # Install all the pavilion requirements.
     ${VENV_PATH}/bin/pip install -f requirements.txt
     # This has to be run before pav will work.
     ${VENV_PATH}/bin/activate
@@ -184,7 +171,7 @@ that supports multiple compilers and conflicting builds of libraries.
 It is assumed that the module environment is set up before you run Pavilion. If
 you need to set up this environment separately on allocations, use the
 'env_setup' option in the
-`general Pavilion configuration <config.rst>`__ to add the commands
+`general Pavilion configuration <config.html>`__ to add the commands
 to do so.
 
 

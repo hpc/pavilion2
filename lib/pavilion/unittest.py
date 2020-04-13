@@ -14,12 +14,12 @@ from pathlib import Path
 
 from pavilion import arguments
 from pavilion import config
-from pavilion import pav_vars
+from pavilion import pavilion_variables
 from pavilion import system_variables
 from pavilion.test_run import TestRun
 from pavilion.test_config.file_format import TestConfigLoader
 from pavilion.test_config import VariableSetManager
-from pavilion.test_config import resolve_config
+from pavilion.test_config import resolver
 from pavilion.output import dbg_print
 
 
@@ -54,6 +54,15 @@ base class.
     SKIP = []
     # Only run tests that match these globs.
     ONLY = []
+
+    # Working dirs
+    WORKING_DIRS = [
+        'builds',
+        'test_runs',
+        'series',
+        'users',
+        'downloads'
+        ]
 
     def __init__(self, *args, **kwargs):
         """Setup the pav_cfg object, and do other initialization required by
@@ -93,18 +102,16 @@ base class.
 
         self.pav_cfg.pav_cfg_file = cfg_path
 
-        self.pav_cfg.pav_vars = pav_vars.PavVars()
+        self.pav_cfg.pav_vars = pavilion_variables.PavVars()
+
+        if not self.pav_cfg.working_dir.exists():
+            self.pav_cfg.working_dir.mkdir(parents=True)
 
         # Create the basic directories in the working directory
-        for path in [
-                self.pav_cfg.working_dir,
-                self.pav_cfg.working_dir/'builds',
-                self.pav_cfg.working_dir/'test_runs',
-                self.pav_cfg.working_dir/'series',
-                self.pav_cfg.working_dir/'users',
-                self.pav_cfg.working_dir/'downloads']:
+        for path in self.WORKING_DIRS:
+            path = self.pav_cfg.working_dir/path
             if not path.exists():
-                os.makedirs(str(path), exist_ok=True)
+                path.mkdir()
 
         self.tmp_dir = tempfile.TemporaryDirectory()
 
@@ -306,6 +313,7 @@ The default config is: ::
         return cfg
 
     __config_lines = pprint.pformat(QUICK_TEST_BASE_CFG).split('\n')
+    # Code analysis indicating format isn't found for 'bytes' is a Pycharm bug.
     _quick_test_cfg.__doc__ = _quick_test_cfg.__doc__.format(
         '\n'.join(['    ' + line for line in __config_lines]))
     del __config_lines
@@ -339,12 +347,12 @@ The default config is: ::
         if sched_vars is not None:
             var_man.add_var_set('sched', sched_vars)
 
-        cfg = resolve_config(cfg, var_man, [])
+        cfg = resolver.TestConfigResolver.resolve_config(cfg, var_man)
 
         test = TestRun(
-            self.pav_cfg,
-            cfg,
-            var_man,
+            pav_cfg=self.pav_cfg,
+            config=cfg,
+            var_man=var_man,
         )
 
         if build:
@@ -374,9 +382,11 @@ class ColorResult(unittest.TextTestResult):
 
     def __init__(self, *args, **kwargs):
         self.stream = None
+        self.showAll = None
         super().__init__(*args, **kwargs)
 
     def startTest(self, test):
+        """Write out the test description (with shading)."""
         super().startTest(test)
         if self.showAll:
             self.stream.write(self.GREY)
@@ -386,21 +396,25 @@ class ColorResult(unittest.TextTestResult):
             self.stream.flush()
 
     def addSuccess(self, test):
+        """Write the success text in green."""
         self.stream.write(self.GREEN)
         super().addSuccess(test)
         self.stream.write(self.COLOR_RESET)
 
     def addFailure(self, test, err):
+        """Write the Failures in magenta."""
         self.stream.write(self.MAGENTA)
         super().addFailure(test, err)
         self.stream.write(self.COLOR_RESET)
 
     def addError(self, test, err):
+        """Write errors in red."""
         self.stream.write(self.RED)
         super().addError(test, err)
         self.stream.write(self.COLOR_RESET)
 
     def addSkip(self, test, reason):
+        """Note skips in cyan."""
         self.stream.write(self.CYAN)
         super().addSkip(test, reason)
         self.stream.write(self.COLOR_RESET)

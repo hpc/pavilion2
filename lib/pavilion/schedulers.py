@@ -17,7 +17,7 @@ from pavilion.lockfile import LockFile
 from pavilion.status_file import STATES, StatusInfo
 from pavilion.test_config import file_format
 from pavilion.test_config.variables import DeferredVariable
-from pavilion.var_dict import VarDict, var_method
+from pavilion.var_dict import VarDict, var_method, normalize_value
 from yapsy import IPlugin
 
 LOGGER = logging.getLogger('pav.{}'.format(__name__))
@@ -61,7 +61,14 @@ def dfr_var_method(*sub_keys):
             if not self.sched.in_alloc:
                 return DeferredVariable()
             else:
-                return str(func(self))
+                value = func(self)
+                norm_val = normalize_value(value)
+                if norm_val is None:
+                    raise ValueError(
+                        "Invalid variable value returned by {}: {}."
+                        .format(func.__name__, value))
+                return norm_val
+
         return defer
 
     if given_func is not None:
@@ -75,7 +82,7 @@ class SchedulerVariables(VarDict):
 class of this that contains all the variable functions it provides.
 
 To add a scheduler variable, create a method and decorate it with
-either '@sched_var' or '@dfr_sched_var()'. The method name will be the
+either ``@sched_var`` or ``@dfr_sched_var()``. The method name will be the
 variable name, and the method will be called to resolve the variable
 value. Methods that start with '_' are ignored.
 
@@ -229,9 +236,6 @@ def list_plugins():
 class SchedulerPlugin(IPlugin.IPlugin):
     """The base scheduler plugin class. Scheduler plugins should inherit from
     this.
-
-    :cvar KICKOFF_SCRIPT_EXT: The extension for the kickoff script.
-    :cvar SchedulerVariables VAR_CLASS: The scheduler's variable class.
     """
 
     PRIO_CORE = 0
@@ -239,8 +243,10 @@ class SchedulerPlugin(IPlugin.IPlugin):
     PRIO_USER = 20
 
     KICKOFF_SCRIPT_EXT = '.sh'
+    """The extension for the kickoff script."""
 
     VAR_CLASS = SchedulerVariables
+    """The scheduler's variable class."""
 
     def __init__(self, name, description, priority=PRIO_CORE):
         """Scheduler plugin that is expected to be overriden by subclasses.
@@ -323,7 +329,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
         separate allocation (if applicable) for each.
 
         :param pav_cfg: The pavilion config
-        :param list[pavilion.test_run.TestRun] tests: A list of pavilion tests
+        :param [pavilion.test_run.TestRun] tests: A list of pavilion tests
             to schedule.
         """
 
@@ -418,7 +424,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
         :param pav_cfg: The pavilion cfg.
         :param pavilion.test_run.TestRun test_obj: The pavilion test to
-        start.
+            start.
         """
 
         kick_off_path = self._create_kickoff_script(pav_cfg, test_obj)
@@ -438,8 +444,8 @@ class SchedulerPlugin(IPlugin.IPlugin):
         """Run the kickoff script at script path with this scheduler.
 
         :param pavilion.test_config.TestRun test_obj: The test to schedule.
-        :param Path kickoff_path: - Path to the submission script.
-        :return str - Job ID number.
+        :param Path kickoff_path: Path to the submission script.
+        :return str: Job ID number.
         """
 
         raise NotImplementedError
@@ -520,6 +526,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
         job_id = test.job_id
         if job_id is None:
+            test.status.set(STATES.SCHED_CANCELLED, "Job was never started.")
             return StatusInfo(STATES.SCHED_CANCELLED, "Job was never started.")
 
         return self._cancel_job(test)

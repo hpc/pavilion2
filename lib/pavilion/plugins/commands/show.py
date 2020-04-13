@@ -1,3 +1,5 @@
+"""Show a variety of different internal information for Pavilion."""
+
 import errno
 import os
 
@@ -12,10 +14,11 @@ from pavilion import status_file
 from pavilion import system_variables
 from pavilion.test_config import DeferredVariable
 from pavilion.test_config import file_format
-from pavilion.test_config import find_all_tests
+from pavilion.test_config import resolver
 
 
 class ShowCommand(commands.Command):
+    """Plugin to show Pavilion internal info."""
 
     def __init__(self):
         super().__init__(
@@ -382,6 +385,7 @@ class ShowCommand(commands.Command):
             sched_config = sched.get_conf()
 
             class Loader(yaml_config.YamlConfigLoader):
+                """Loader for just a scheduler's config."""
                 ELEMENTS = [sched_config]
 
             defaults = Loader().load_empty()
@@ -415,6 +419,7 @@ class ShowCommand(commands.Command):
             )
 
     def _result_parsers_cmd(self, _, args):
+        """Show all the result parsers."""
 
         if args.config:
             try:
@@ -429,6 +434,7 @@ class ShowCommand(commands.Command):
             config_items = res_plugin.get_config_items()
 
             class Loader(yaml_config.YamlConfigLoader):
+                """Loader for just a result parser's config."""
                 ELEMENTS = config_items
 
             Loader().dump(self.outfile)
@@ -438,7 +444,7 @@ class ShowCommand(commands.Command):
             rps = []
             for rp_name in result_parsers.list_plugins():
                 res_plugin = result_parsers.get_plugin(rp_name)
-                desc = " ".join(res_plugin.__doc__.split())
+                desc = " ".join(str(res_plugin.__doc__).split())
                 rps.append({
                     'name':        rp_name,
                     'description': desc,
@@ -458,9 +464,8 @@ class ShowCommand(commands.Command):
                 title="Available Result Parsers"
             )
 
-    def _states_cmd(self, pav_cfg, args):
-
-        del pav_cfg, args
+    def _states_cmd(self, *_):
+        """Show all of the states that a test can be in."""
 
         states = []
         for state in sorted(status_file.STATES.list()):
@@ -478,6 +483,7 @@ class ShowCommand(commands.Command):
         )
 
     def _config_cmd(self, pav_cfg, args):
+        """Show the whole pavilion config or a config template."""
 
         if args.template:
             config.PavilionConfigLoader().dump(self.outfile)
@@ -486,9 +492,11 @@ class ShowCommand(commands.Command):
                                                values=pav_cfg)
 
     def _test_config_cmd(self, *_):
+        """Show the basic test config format."""
         file_format.TestConfigLoader().dump(self.outfile)
 
     def _config_dirs(self, pav_cfg, _):
+        """List the configuration directories."""
 
         rows = [{'path': path} for path in pav_cfg.config_dirs]
 
@@ -501,6 +509,7 @@ class ShowCommand(commands.Command):
         )
 
     def _module_cmd(self, _, args):
+        """List the various module wrapper plugins."""
 
         modules = []
         for mod_name in sorted(module_wrapper.list_module_wrappers()):
@@ -525,9 +534,7 @@ class ShowCommand(commands.Command):
             title="Available Module Wrapper Plugins"
         )
 
-    def _sys_var_cmd(self, pav_cfg, args):
-
-        del pav_cfg
+    def _sys_var_cmd(self, _, args):
 
         rows = []
 
@@ -584,7 +591,7 @@ class ShowCommand(commands.Command):
         )
 
     def _suites_cmd(self, pav_cfg, args):
-        suites = find_all_tests(pav_cfg)
+        suites = resolver.TestConfigResolver(pav_cfg).find_all_tests()
 
         rows = []
         for suite_name in sorted(list(suites.keys())):
@@ -635,7 +642,8 @@ class ShowCommand(commands.Command):
 
     def _tests_cmd(self, pav_cfg, args):
 
-        suites = find_all_tests(pav_cfg)
+        resolv = resolver.TestConfigResolver(pav_cfg)
+        suites = resolv.find_all_tests()
         rows = []
 
         for suite_name in sorted(list(suites.keys())):
@@ -685,6 +693,7 @@ class ShowCommand(commands.Command):
         )
 
     def _hosts_cmd(self, pav_cfg, args):
+        """List all known host files."""
 
         hosts = []
         col_names = ['Name']
@@ -715,6 +724,7 @@ class ShowCommand(commands.Command):
         )
 
     def _modes_cmd(self, pav_cfg, args):
+        """List all known mode files."""
 
         modes = []
         col_names = ['Name']

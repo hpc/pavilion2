@@ -45,7 +45,7 @@ Variable Dict Class (var_dict)
 Pavilion Defined Variables (pav_vars)
 -------------------------------------
 
-.. automodule:: pavilion.pav_vars
+.. automodule:: pavilion.pavilion_variables
     :members:
     :undoc-members:
     :show-inheritance:

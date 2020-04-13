@@ -1,9 +1,0 @@
-[Core]
-Name = Tree Command
-Module = tree
-
-[Documentation]
-Description = Command that displays the file tree of a pavilion job.
-Author = Jordan A. Ogas
-Version = 1.0
-Website =

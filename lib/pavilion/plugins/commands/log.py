@@ -1,3 +1,5 @@
+"""Print out the contents of the various log files for a given test run.
+"""
 import errno
 
 from pavilion import commands
@@ -6,11 +8,12 @@ from pavilion import test_run
 
 
 class LogCommand(commands.Command):
+    """Print the contents of log files for test runs."""
 
     def __init__(self):
         super().__init__(
             'log',
-            'Diplays log.',
+            'Displays log.',
             short_help="Displays log for the given test id."
         )
 
@@ -50,6 +53,7 @@ class LogCommand(commands.Command):
                             help="Test number argument.")
 
     def run(self, pav_cfg, args):
+        """Figure out what log the user wants, and print it."""
 
         if args.log_cmd is None:
             self._parser.print_help(self.outfile)
@@ -83,7 +87,8 @@ class LogCommand(commands.Command):
 
         try:
             with file_name.open() as file:
-                output.fprint(file.read(), file=self.outfile)
+                output.fprint(file.read(), file=self.outfile, width=None,
+                              end="")
         except (IOError, OSError) as err:
             output.fprint("Could not read log file '{}': {}"
                           .format(file_name, err),
