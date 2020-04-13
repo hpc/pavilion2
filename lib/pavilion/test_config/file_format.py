@@ -124,7 +124,7 @@ class EnvCatElem(yc.CategoryElem):
 class SeriesConfigLoader(yc.YamlConfigLoader):
     """This class describes a series file.
 
-:py:attr:`file_format.TetsConfigLoader.ELEMENTS`
+:py:attr:`file_format.TestConfigLoader.ELEMENTS`
 """
 
     ELEMENTS = [
