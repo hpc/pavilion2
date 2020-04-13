@@ -2,10 +2,7 @@ import yaml_config as yc
 
 
 class SeriesConfigLoader(yc.YamlConfigLoader):
-    """This class describes a series file.
-
-:ref:`ELEMENTS`
-"""
+    """This class describes a series file."""
 
     ELEMENTS = [
         yc.CategoryElem(
