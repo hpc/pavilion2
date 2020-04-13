@@ -122,9 +122,11 @@ class EnvCatElem(yc.CategoryElem):
 
 
 class SeriesConfigLoader(yc.YamlConfigLoader):
-    """
-    Loads Test Series Files.
-    """
+    """This class describes a series file.
+
+:cvar list(yc.YamlConfig) ELEMENTS: Each YamlConfig instance in this
+    list defines a key for the test config.
+"""
 
     ELEMENTS = [
         yc.CategoryElem(
