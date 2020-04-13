@@ -2,7 +2,7 @@ from pavilion import commands
 from pavilion import arguments
 from pavilion import series
 from pavilion.test_config.resolver import TestConfigResolver
-from pavilion.test_config.series_config import SeriesConfigLoader
+from pavilion.test_config.file_format import SeriesConfigLoader
 
 
 class RunSeries(commands.Command):

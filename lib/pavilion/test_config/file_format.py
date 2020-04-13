@@ -147,7 +147,7 @@ class SeriesConfigLoader(yc.YamlConfigLoader):
         ),
     ]
 
-    """:cvar ELEMENTS describes elements in Series Config Loader."""
+    """ELEMENTS describes elements in Series Config Loader."""
 
 
 class TestConfigLoader(yc.YamlConfigLoader):
