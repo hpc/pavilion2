@@ -206,6 +206,16 @@ class RunCommand(commands.Command):
 
         all_tests = sum(tests_by_sched.values(), [])
 
+        for sched_name in tests_by_sched.keys():
+            sched = schedulers.get_plugin(sched_name)
+
+            if not sched.available():
+                fprint("{} tests started with the {} scheduler, but "
+                       "that scheduler isn't available on this system."
+                       .format(len(tests_by_sched[sched_name]), sched_name),
+                       file=self.errfile, color=output.RED)
+                return errno.EINVAL
+
         for sched_name, tests in tests_by_sched.items():
             sched = schedulers.get_plugin(sched_name)
 
