@@ -28,6 +28,7 @@ class RunSeries(commands.Command):
 
         series_config_loader = SeriesConfigLoader()
 
+        # pylint: disable=W0212
         series_path = TestConfigResolver._find_config(pav_cfg, 'series',
                                                       series_name)
 
