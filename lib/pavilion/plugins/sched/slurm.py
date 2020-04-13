@@ -1,9 +1,11 @@
+# pylint: disable=too-many-lines
 """The Slurm Scheduler Plugin."""
 
 import os
 import re
 import subprocess
 from pathlib import Path
+import distutils.spawn
 
 import yaml_config as yc
 from pavilion import scriptcomposer
@@ -668,6 +670,27 @@ class Slurm(SchedulerPlugin):
         """Check if we're in an allocation."""
 
         return 'SLURM_JOBID' in os.environ
+
+    def available(self):
+        """Looks for several slurm commands, and tests slurm can talk to the
+        slurm db."""
+
+        for command in 'scontrol', 'sbatch', 'sinfo':
+            if distutils.spawn.find_executable(command) is None:
+                return False
+
+        # Try to get basic system info from sinfo. Should return not-zero
+        # on failure.
+        ret = subprocess.call(
+            ['sinfo'],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+        if ret != 0:
+            return False
+
+        return True
 
     def _schedule(self, test, kickoff_path):
         """Submit the kick off script using sbatch.
