@@ -124,7 +124,7 @@ class EnvCatElem(yc.CategoryElem):
 class SeriesConfigLoader(yc.YamlConfigLoader):
     """This class describes a series file.
 
-:any:
+:attr:`pavilion.test_config.file_format.TestConfigLoader.ELEMENTS`
 """
 
     ELEMENTS = [
