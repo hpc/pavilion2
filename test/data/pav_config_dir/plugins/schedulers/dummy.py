@@ -1,8 +1,6 @@
+import yaml_config as yc
 from pavilion import schedulers
 from pavilion.status_file import STATES
-from pavilion.test_config import VariableSetManager
-from pavilion.system_variables import SysVarDict
-import yaml_config as yc
 
 
 class DummyVars(schedulers.SchedulerVariables):
@@ -26,6 +24,9 @@ class Dummy(schedulers.SchedulerPlugin):
         """The dummy scheduler does nothing, because it's dumb."""
 
         return ""
+
+    def available(self):
+        return True
 
     def job_status(self, pav_cfg, test):
         """Dummy jobs are always ok, because they're dumb."""
