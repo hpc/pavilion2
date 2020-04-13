@@ -23,13 +23,12 @@ class RunSeries(commands.Command):
         )
 
     def run(self, pav_cfg, args):
-        pass
 
         series_name = args.series
 
         series_config_loader = SeriesConfigLoader()
 
-        pylint: disable=W0212
+        # pylint: disable=W0212
         series_path = TestConfigResolver._find_config(pav_cfg, 'series',
                                                       series_name)
 
