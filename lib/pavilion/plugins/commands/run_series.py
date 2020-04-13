@@ -1,7 +1,7 @@
 from pavilion import commands
 from pavilion import arguments
 from pavilion import series
-from pavilion.test_config.resolver import _find_config
+from pavilion.test_config.resolver import TestConfigResolver
 from pavilion.test_config.file_format import SeriesConfigLoader
 
 
@@ -28,7 +28,8 @@ class RunSeries(commands.Command):
 
         series_config_loader = SeriesConfigLoader()
 
-        series_path = _find_config(pav_cfg, 'series', series_name)
+        series_path = TestConfigResolver._find_config(pav_cfg, 'series',
+                                                      series_name)
 
         with series_path.open() as series_file:
             series_cfg = series_config_loader.load(series_file)
