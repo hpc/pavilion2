@@ -4,6 +4,8 @@ from pavilion import series
 from pavilion.test_config.resolver import TestConfigResolver
 from pavilion.test_config.file_format import SeriesConfigLoader
 
+from pavilion.output import dbg_print
+
 
 class RunSeries(commands.Command):
     """Command to kickoff series."""
@@ -29,8 +31,8 @@ class RunSeries(commands.Command):
         series_config_loader = SeriesConfigLoader()
 
         # pylint: disable=W0212
-        series_path = TestConfigResolver._find_config(pav_cfg, 'series',
-                                                      series_name)
+        tsr = TestConfigResolver(pav_cfg)
+        series_path = tsr._find_config('series', series_name)
 
         with series_path.open() as series_file:
             series_cfg = series_config_loader.load(series_file)
@@ -53,7 +55,7 @@ class RunSeries(commands.Command):
 
                 # create arguments
                 # pylint: disable=W0212
-                args_list = ['run', '--series-id {}'.format(series_obj._id)]
+                args_list = ['run', '--series-id=s{}'.format(series_obj._id)]
                 for mode in all_modes:
                     args_list.append('-m{}'.format(mode))
                 args_list.extend(set_info['test_names'])
