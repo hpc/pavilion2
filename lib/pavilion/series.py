@@ -4,7 +4,11 @@ import logging
 import os
 
 from pavilion import utils
+from pavilion import commands
+from pavilion import arguments
 from pavilion.test_run import TestRun, TestRunError, TestRunNotFoundError
+
+from pavilion.output import dbg_print  # TODO: delete this
 
 
 class TestSeriesError(RuntimeError):
@@ -39,10 +43,36 @@ def test_obj_from_id(pav_cfg, test_ids):
 class SeriesManager:
     """Series Manger"""
 
-    def __init__(self, series_obj, series_config):
+    def __init__(self, _pav_cfg, _series_obj, _series_cfg):
         # TODO: init needs to make graph of dependencies
+        self.pav_cfg = _pav_cfg
+        self.series_obj = _series_obj
+        self.series_cfg = _series_cfg
+
         self.dep_graph = None
-        self.universal_modes = series_config['modes']
+        self.universal_modes = self.series_cfg['modes']
+
+        self.sets = self.series_cfg['series']
+        self.sets_args = {}
+        # set up sets_args dict
+        for set_name, set_info in self.sets.items():
+            arg_parser = arguments.get_parser()
+
+            run_cmd = commands.get_command('run')
+
+            set_modes = set_info['modes']
+            all_modes = self.universal_modes + set_modes
+
+            args_list = ['run', '--series-id={}'.format(self.series_obj.id)]
+            for mode in all_modes:
+                args_list.append('-m{}'.format(mode))
+            args_list.extend(set_info['test_names'])
+            args = arg_parser.parse_args(args_list)
+
+            run_cmd.run(self.pav_cfg, args)
+
+    def run_set(self, args):
+        run_cmd = commands.get_command('run')
 
 
 class TestSeries:

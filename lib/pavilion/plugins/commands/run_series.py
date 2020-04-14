@@ -4,7 +4,7 @@ from pavilion import series
 from pavilion.test_config.resolver import TestConfigResolver
 from pavilion.test_config.file_format import SeriesConfigLoader
 
-from pavilion.output import dbg_print
+from pavilion.output import dbg_print  # delete this
 
 
 class RunSeries(commands.Command):
@@ -38,32 +38,6 @@ class RunSeries(commands.Command):
             series_obj = series.TestSeries(pav_cfg)
             series_cfg = series_config_loader.load(series_file)
 
-            series_man = series.SeriesManager(series_obj, series_cfg)
-
-            run_cmd = commands.get_command('run')
-            arg_parser = arguments.get_parser()
-
-            # get universal modes
-            universal_modes = series_cfg['modes']
-
-            # set up series
-            sets = series_cfg['series']
-
-            for set_name, set_info in sets.items():
-
-                # get all appropriate modes
-                set_modes = set_info['modes']
-                all_modes = universal_modes + set_modes
-
-                # create arguments
-                # pylint: disable=W0212
-                args_list = ['run', '--series-id={}'.format(series_obj.id)]
-                for mode in all_modes:
-                    args_list.append('-m{}'.format(mode))
-                args_list.extend(set_info['test_names'])
-                args = arg_parser.parse_args(args_list)
-
-                # call run command to run tests
-                run_cmd.run(pav_cfg, args)
+            series_man = series.SeriesManager(pav_cfg, series_obj, series_cfg)
 
         return 0
