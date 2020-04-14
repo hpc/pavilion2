@@ -351,6 +351,30 @@ symlinks to each of the regular files in the build, a **symlink** copy.
 
 Multiple tests can thus use the same build files, delete build files,
 and write new files to the build directory without concern for other
-tests. **Tests cannot append or alter the build files.** If a test needs
-to alter a file, the symlink should be deleted and replaced with a copy
-of the real file as part of the test run commands.
+tests. **Tests cannot append to or alter the build files.** However, it
+can freely replace them.
+
+copy\_files
+^^^^^^^^^^^
+
+When *copying* files to from the build to the test run's build directory,
+actually **copy** these files instead of creating a symlink. Copying large
+and/or large quantities of build files will significantly increase Pavilion's
+filesystem usage.
+
+.. code-block:: yaml
+
+    mytest:
+      build:
+        source_location: mytest.zip
+        cmds: 'make'
+        copy_files:
+          # The config.txt file will be an actual file, not a symlink.
+          # The test run can alter it as needed.
+          - config.txt
+          # Filesystem globs are allowed, including "*", "?", and ranges.
+          - data/*.dat
+          - data/data_?.txt
+          - data/data[0-9].json
+          # To copy whole directories, use recursive matching "**".
+          - libs/**
