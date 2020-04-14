@@ -138,8 +138,10 @@ class BuilderTests(PavTestCase):
         for real in real_files:
             real = test.path/'build'/real
 
-            self.assertTrue(real.exists())
-            self.assertTrue(real.is_file())
+            self.assertTrue(real.exists(),
+                            msg="Missing {}".format(real))
+            self.assertTrue(real.is_file(),
+                            msg="{} is not a regular file.".format(real))
 
         # Make sure the following exist, but are symlinks.
         sym_files = [
@@ -153,8 +155,10 @@ class BuilderTests(PavTestCase):
 
         for sym in sym_files:
             sym = test.path/'build'/sym
-            self.assertTrue(sym.exists())
-            self.assertTrue(sym.is_symlink())
+            self.assertTrue(sym.exists(),
+                            msg="Missing {}".format(sym))
+            self.assertTrue(sym.is_symlink(),
+                            msg="{} is not a symlink".format(sym))
 
         plugins._reset_plugins()
 

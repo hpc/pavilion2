@@ -629,8 +629,8 @@ class TestBuilder:
         do_copy = set()
         copy_globs = self._config.get('copy_files', [])
         for copy_glob in copy_globs:
-            do_copy.add(glob.glob(self.path.as_posix() + '/' + copy_glob,
-                                  recursive=True))
+            do_copy.update(glob.glob(self.path.as_posix() + '/' + copy_glob,
+                                     recursive=True))
 
         def maybe_symlink_copy(src, dst):
             """Makes a symlink from src to dst, unless the file is in
@@ -653,8 +653,8 @@ class TestBuilder:
                             copy_function=maybe_symlink_copy)
         except OSError as err:
             self.tracker.error(
-                note="Could not perform the build directory copy: {}"
-                     .format(err))
+                note=("Could not perform the build directory copy: {}"
+                      .format(err)))
             return False
 
         # Touch the original build directory, so that we know it was used
