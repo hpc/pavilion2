@@ -3,6 +3,7 @@ the TestBuilder class itself."""
 
 import bz2
 import datetime
+import glob
 import gzip
 import hashlib
 import logging
@@ -441,7 +442,9 @@ class TestBuilder:
                       .format(build_dir, err)))
             return False
 
-        build_log_path = build_dir/self.LOG_NAME
+        # Create the build log outside the build directory, to avoid issues
+        # with the build process deleting the file.
+        build_log_path = build_dir.with_suffix('.log')
 
         try:
             # Do the build, and wait for it to complete.
@@ -489,10 +492,19 @@ class TestBuilder:
         except (IOError, OSError) as err:
             if cancel_event is not None:
                 cancel_event.set()
+
             self.tracker.error(
                 note="Error that's probably related to writing the "
                      "build output: {}".format(err))
             return False
+        finally:
+            try:
+                build_log_path.rename(build_dir/self.LOG_NAME)
+            except OSError as err:
+                self.tracker.warn(
+                    "Could not move build log from '{}' to final location "
+                    "'{}': {}"
+                    .format(build_log_path, build_dir, err))
 
         try:
             self._fix_build_permissions()
@@ -614,13 +626,31 @@ class TestBuilder:
         :returns: True on success, False on failure
         """
 
+        do_copy = set()
+        copy_globs = self._config.get('copy_files', [])
+        for copy_glob in copy_globs:
+            do_copy.update(glob.glob(self.path.as_posix() + '/' + copy_glob,
+                                     recursive=True))
+
+        def maybe_symlink_copy(src, dst):
+            """Makes a symlink from src to dst, unless the file is in
+            the list of files to do a regular copy on.
+            """
+
+            if src in do_copy:
+                # Actually copy files that were explicitly asked for.
+                return shutil.copy2(src, dst, follow_symlinks=True)
+            else:
+                src = os.path.realpath(src)
+                return os.symlink(src, dst)
+
         # Perform a symlink copy of the original build directory into our test
         # directory.
         try:
             shutil.copytree(self.path.as_posix(),
                             dest.as_posix(),
                             symlinks=True,
-                            copy_function=utils.symlink_copy)
+                            copy_function=maybe_symlink_copy)
         except OSError as err:
             self.tracker.error(
                 note=("Could not perform the build directory copy: {}"
