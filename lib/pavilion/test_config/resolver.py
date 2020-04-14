@@ -297,75 +297,7 @@ class TestConfigResolver:
 
         base_config = test_config_loader.load_empty()
 
-        if host is not None:
-            host_cfg_path = self._find_config(CONF_HOST, host)
-
-            if host_cfg_path is not None:
-                try:
-                    with host_cfg_path.open() as host_cfg_file:
-                        # Load and validate the host test config defaults.
-                        base_config = test_config_loader.load_merge(
-                            base_config,
-                            host_cfg_file,
-                            partial=True)
-                except (IOError, OSError) as err:
-                    raise TestConfigError("Could not open host config '{}': {}"
-                                          .format(host_cfg_path, err))
-                except ValueError as err:
-                    raise TestConfigError(
-                        "Host config '{}' has invalid value. {}"
-                        .format(host_cfg_path, err))
-                except KeyError as err:
-                    raise TestConfigError(
-                        "Host config '{}' has an invalid key. {}"
-                        .format(host_cfg_path, err))
-                except yc_yaml.YAMLError as err:
-                    raise TestConfigError(
-                        "Host config '{}' has a YAML Error: {}"
-                        .format(host_cfg_path, err)
-                    )
-                except TypeError as err:
-                    # All config elements in test configs must be strings,
-                    # and just about everything converts cleanly to a string.
-                    raise RuntimeError(
-                        "Host config '{}' raised a type error, but that "
-                        "should never happen. {}".format(host_cfg_path, err))
-
-        for mode in modes:
-            mode_cfg_path = self._find_config(CONF_MODE, mode)
-
-            if mode_cfg_path is None:
-                raise TestConfigError("Could not find {} config file for {}."
-                                      .format(CONF_MODE, mode))
-
-            try:
-                with mode_cfg_path.open() as mode_cfg_file:
-                    # Load this mode_config and merge it into the base_config.
-                    base_config = test_config_loader.load_merge(base_config,
-                                                                mode_cfg_file,
-                                                                partial=True)
-            except (IOError, OSError) as err:
-                raise TestConfigError("Could not open mode config '{}': {}"
-                                      .format(mode_cfg_path, err))
-            except ValueError as err:
-                raise TestConfigError(
-                    "Mode config '{}' has invalid value. {}"
-                    .format(mode_cfg_path, err))
-            except KeyError as err:
-                raise TestConfigError(
-                    "Mode config '{}' has an invalid key. {}"
-                    .format(mode_cfg_path, err))
-            except yc_yaml.YAMLError as err:
-                raise TestConfigError(
-                    "Mode config '{}' has a YAML Error: {}"
-                    .format(mode_cfg_path, err)
-                )
-            except TypeError as err:
-                # All config elements in test configs must be strings, and just
-                # about everything converts cleanly to a string.
-                raise RuntimeError(
-                    "Mode config '{}' raised a type error, but that "
-                    "should never happen. {}".format(mode_cfg_path, err))
+        base_config = self.apply_host(base_config, host)
 
         # A dictionary of test suites to a list of subtests to run in that
         # suite.
@@ -476,11 +408,16 @@ class TestConfigResolver:
 
                 picked_tests.append(all_tests[test_suite][requested_test])
 
+        picked_tests = [
+            self.apply_modes(test_cfg, modes)
+            for test_cfg in picked_tests]
+
         # Get the default configuration for a const result parser.
         const_elem = TestConfigLoader().find('results.constant.*')
 
         # Add the pav_cfg default_result configuration items to each test.
         for test_cfg in picked_tests:
+
             if 'constant' not in test_cfg['results']:
                 test_cfg['results']['constant'] = []
 
@@ -500,6 +437,94 @@ class TestConfigResolver:
                 test_cfg['results']['constant'].append(new_const)
 
         return picked_tests
+
+    def apply_host(self, test_cfg, host):
+        """Apply the host configuration to the given config."""
+
+        test_config_loader = TestConfigLoader()
+
+        if host is not None:
+            host_cfg_path = self._find_config(CONF_HOST, host)
+
+            if host_cfg_path is not None:
+                try:
+                    with host_cfg_path.open() as host_cfg_file:
+                        # Load the host test config defaults.
+                        test_cfg = test_config_loader.load_merge(
+                            test_cfg,
+                            host_cfg_file,
+                            partial=True)
+                except (IOError, OSError) as err:
+                    raise TestConfigError("Could not open host config '{}': {}"
+                                          .format(host_cfg_path, err))
+                except ValueError as err:
+                    raise TestConfigError(
+                        "Host config '{}' has invalid value. {}"
+                        .format(host_cfg_path, err))
+                except KeyError as err:
+                    raise TestConfigError(
+                        "Host config '{}' has an invalid key. {}"
+                        .format(host_cfg_path, err))
+                except yc_yaml.YAMLError as err:
+                    raise TestConfigError(
+                        "Host config '{}' has a YAML Error: {}"
+                        .format(host_cfg_path, err)
+                    )
+                except TypeError as err:
+                    # All config elements in test configs must be strings,
+                    # and just about everything converts cleanly to a string.
+                    raise RuntimeError(
+                        "Host config '{}' raised a type error, but that "
+                        "should never happen. {}".format(host_cfg_path, err))
+
+        return test_cfg
+
+    def apply_modes(self, test_cfg, modes):
+        """Apply each of the mode files to the given test config.
+        :param dict test_cfg: A raw test configuration.
+        :param list modes: A list of mode names.
+        """
+
+        test_config_loader = TestConfigLoader()
+
+        for mode in modes:
+            mode_cfg_path = self._find_config(CONF_MODE, mode)
+
+            if mode_cfg_path is None:
+                raise TestConfigError(
+                    "Could not find {} config file for {}."
+                    .format(CONF_MODE, mode))
+
+            try:
+                with mode_cfg_path.open() as mode_cfg_file:
+                    # Load this mode_config and merge it into the base_config.
+                    test_cfg = test_config_loader.load_merge(test_cfg,
+                                                             mode_cfg_file,
+                                                             partial=True)
+            except (IOError, OSError) as err:
+                raise TestConfigError("Could not open mode config '{}': {}"
+                                      .format(mode_cfg_path, err))
+            except ValueError as err:
+                raise TestConfigError(
+                    "Mode config '{}' has invalid value. {}"
+                    .format(mode_cfg_path, err))
+            except KeyError as err:
+                raise TestConfigError(
+                    "Mode config '{}' has an invalid key. {}"
+                    .format(mode_cfg_path, err))
+            except yc_yaml.YAMLError as err:
+                raise TestConfigError(
+                    "Mode config '{}' has a YAML Error: {}"
+                    .format(mode_cfg_path, err)
+                )
+            except TypeError as err:
+                # All config elements in test configs must be strings, and just
+                # about everything converts cleanly to a string.
+                raise RuntimeError(
+                    "Mode config '{}' raised a type error, but that "
+                    "should never happen. {}".format(mode_cfg_path, err))
+
+        return test_cfg
 
     @staticmethod
     def resolve_inheritance(base_config, suite_cfg, suite_path):
@@ -541,8 +566,8 @@ class TestConfigResolver:
                         .append(test_cfg_name)
 
                 try:
-                    suite_tests[test_cfg_name] = TestConfigLoader().normalize(
-                        test_cfg)
+                    suite_tests[test_cfg_name] = TestConfigLoader()\
+                        .normalize(test_cfg)
                 except (TypeError, KeyError, ValueError) as err:
                     raise TestConfigError(
                         "Test {} in suite {} has an error: {}"
@@ -668,6 +693,8 @@ class TestConfigResolver:
         :raises: ValueError, KeyError
     """
 
+        config_loader = TestConfigLoader()
+
         for ovr in overrides:
             if '=' not in ovr:
                 raise ValueError(
@@ -679,7 +706,12 @@ class TestConfigResolver:
 
             self._apply_override(test_cfg, key, value)
 
-        TestConfigLoader().validate(test_cfg)
+        try:
+            test_cfg = config_loader.normalize(test_cfg)
+        except TypeError as err:
+            raise TestConfigError("Invalid override: {}"
+                                  .format(err))
+        config_loader.validate(test_cfg)
 
     def _apply_override(self, test_cfg, key, value):
         """Set the given key to the given value in test_cfg.
@@ -698,7 +730,8 @@ class TestConfigResolver:
         key_copy = list(key)
         last_cfg = None
         last_key = None
-        # Validate the key.
+
+        # Validate the key by walking the config according to the key
         while key_copy:
             part = key_copy.pop(0)
 
@@ -720,13 +753,17 @@ class TestConfigResolver:
                         "but the index is out of range."
                         .format(part, disp_key))
             elif isinstance(cfg, dict):
-                if part not in cfg:
-                    raise KeyError("Trying to override '{}' from key '{}', but "
-                                   "there is no such key."
+
+                if part not in cfg and key_copy:
+                    raise KeyError("Trying to override '{}' from key '{}', "
+                                   "but there is no such key."
                                    .format(part, disp_key))
+
+                # It's ok to override a key that doesn't exist if it's the
+                # last key component. We'll validate everything anyway.
                 last_cfg = cfg
                 last_key = part
-                cfg = cfg[part]
+                cfg = cfg.get(part, None)
             else:
                 raise KeyError("Tried, to override key '{}', but '{}' isn't"
                                "a dict or list."

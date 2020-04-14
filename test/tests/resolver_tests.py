@@ -70,17 +70,20 @@ class ResolverTests(PavTestCase):
                     answer = ''
                     if host == 'layer_host':
                         answer = 'host'
-                    if modes:
-                        answer = 'mode'
                     if test.endswith('part'):
                         answer = 'test'
+                    if modes:
+                        answer = 'mode'
 
                     tests = self.resolver.load(
                         [test],
                         host=host,
                         modes=modes)
-                    test, _ = tests[0]
-                    self.assertEqual(test['summary'], answer)
+                    test_cfg, _ = tests[0]
+                    self.assertEqual(
+                        test_cfg['summary'], answer,
+                        msg="host: {}, test: {}, modes: {}"
+                            .format(host, test, modes))
 
     def test_defaulted_variables(self):
         """Make sure default variables work as expected."""
@@ -117,7 +120,7 @@ class ResolverTests(PavTestCase):
         self.assertEqual(test['variables']['long_base'],
                          ['what', 'are', 'you', 'up', 'to', 'punk?'])
         self.assertEqual(test['variables']['single_base'],
-                         ['host', 'mode', 'test'])
+                         ['host', 'test', 'mode'])
         self.assertEqual(test['variables']['no_base_mode'],
                          ['mode'])
         self.assertEqual(test['variables']['no_base'],
@@ -131,8 +134,12 @@ class ResolverTests(PavTestCase):
         """Make sure overrides get applied to test configs correctly."""
 
         overrides = [
+            # A basic value.
             'slurm.num_nodes=3',
+            # A specific list item.
             'run.cmds.0="echo nope"',
+            # An item that doesn't exist (and must be normalized by yaml_config)
+            'variables.foo="hello"',
         ]
 
         bad_overrides = [
