@@ -15,7 +15,7 @@ Add the PAV bin directory to your Path.
 
     PATH=<PVINSTALL_PATH>/bin:${PATH}
 
-Pavilion figures out paths to everything else on it's own.
+Pavilion figures out paths to everything else on its own.
 
 Then simply run pavilion:
 
