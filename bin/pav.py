@@ -8,7 +8,7 @@ import traceback
 from pavilion import arguments
 from pavilion import commands
 from pavilion import config
-from pavilion import logging
+from pavilion import log_setup
 from pavilion import output
 from pavilion import pavilion_variables
 from pavilion import plugins
@@ -74,7 +74,7 @@ def main():
             sys.exit(1)
 
     # Setup all the loggers for Pavilion
-    if not logging.setup_loggers(pav_cfg):
+    if not log_setup.setup_loggers(pav_cfg):
         sys.exit(1)
 
     # This has to be done before we initialize plugins
