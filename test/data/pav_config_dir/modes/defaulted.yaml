@@ -1,5 +1,5 @@
 variables:
   mode_def: mode
   host_def?: mode
-  test_def: mode
+  test_def?: mode
   no_def: mode

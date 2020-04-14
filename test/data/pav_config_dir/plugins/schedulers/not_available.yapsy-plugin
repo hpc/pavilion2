@@ -1,0 +1,9 @@
+[Core]
+Name = NotAvailable
+Module = not_available
+
+[Documentation]
+Description = A Dummy scheduler that isn't available
+Author = Some Author
+Version = 1.0
+Website =

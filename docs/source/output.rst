@@ -23,5 +23,3 @@ allows you to colorize the output.
 JSON Output
 ~~~~~~~~~~~
 .. autofunction:: pavilion.output.json_dump
-.. autofunction:: pavilion.output.json_dump
-
