@@ -351,8 +351,8 @@ symlinks to each of the regular files in the build, a **symlink** copy.
 
 Multiple tests can thus use the same build files, delete build files,
 and write new files to the build directory without concern for other
-tests. **Tests cannot append to or alter the build files.** However, it
-can freely replace them.
+tests. **Tests cannot append to or alter the build files.** They can,
+however, freely replace them.
 
 copy\_files
 ^^^^^^^^^^^
