@@ -128,6 +128,7 @@ class SeriesConfigLoader(yc.YamlConfigLoader):
         yc.CategoryElem(
             'series', sub_elem=yc.KeyedElem(
                 elements=[
+                    yc.ListElem('depends_on', sub_elem=yc.StrElem()),
                     yc.ListElem('test_names', sub_elem=yc.StrElem()),
                     yc.ListElem('modes', sub_elem=yc.StrElem()),
                     yc.CategoryElem(
