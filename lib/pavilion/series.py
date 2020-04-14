@@ -36,6 +36,15 @@ def test_obj_from_id(pav_cfg, test_ids):
     return test_obj_list, test_failed_list
 
 
+class SeriesManager:
+    """Series Manger"""
+
+    def __init__(self, series_obj, series_config):
+        # TODO: init needs to make graph of dependencies
+        self.dep_graph = None
+        self.universal_modes = series_cfg['modes']
+
+
 class TestSeries:
     """Series are a collection of tests. Every time """
 

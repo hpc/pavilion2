@@ -47,6 +47,7 @@ class RunSeries(commands.Command):
 
             # set up series
             sets = series_cfg['series']
+
             for set_name, set_info in sets.items():
 
                 # get all appropriate modes
