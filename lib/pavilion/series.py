@@ -53,12 +53,10 @@ class SeriesManager:
         self.universal_modes = self.series_cfg['modes']
 
         self.sets = self.series_cfg['series']
+
         self.sets_args = {}
         # set up sets_args dict
         for set_name, set_info in self.sets.items():
-            arg_parser = arguments.get_parser()
-
-            run_cmd = commands.get_command('run')
 
             set_modes = set_info['modes']
             all_modes = self.universal_modes + set_modes
@@ -67,12 +65,20 @@ class SeriesManager:
             for mode in all_modes:
                 args_list.append('-m{}'.format(mode))
             args_list.extend(set_info['test_names'])
-            args = arg_parser.parse_args(args_list)
 
-            run_cmd.run(self.pav_cfg, args)
+            self.sets_args[set_name] = args_list
 
-    def run_set(self, args):
+        dbg_print(self.sets_args, '\n')
+
+        # actually run sets, this will be edited later
+        for set_name in self.sets_args:
+            self.run_set(self.sets_args[set_name])
+
+    def run_set(self, args_list):
         run_cmd = commands.get_command('run')
+        arg_parser = arguments.get_parser()
+        args = arg_parser.parse_args(args_list)
+        run_cmd.run(self.pav_cfg, args)
 
 
 class TestSeries:
