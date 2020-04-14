@@ -26,7 +26,7 @@ Then simply run pavilion:
 Configure Tests
 ~~~~~~~~~~~~~~~
 
-Pavilion doesn't come with any tests itself, it's just a system for
+Pavilion doesn't come with any tests itself; it's just a system for
 running them on HPC clusters. Each test needs a configuration script,
 and most will need some source files. Both of these will live in one of
 your `config directories <config.html#config-directories>`__ under the
