@@ -156,6 +156,16 @@ expected to be added to by various plugins.
 """
 
     ELEMENTS = [
+        yc.StrElem(
+            'name', hidden=True, default='<unnamed>',
+            help_text="The name of the test. Will be auto-generated from the "
+                      "suite name, test section name, and subtitle."),
+        yc.StrElem(
+            'suite', hidden=True, default='<no_suite>',
+            help_text="The name of the suite. Value added automatically."),
+        yc.StrElem(
+            'suite_path', hidden=True, default='<no_suite>',
+            help_text="Path to the suite file. Value added automatically."),
         yc.RegexElem(
             'inherits_from', regex=TEST_NAME_RE_STR,
             help_text="Inherit from the given test section, and override "
