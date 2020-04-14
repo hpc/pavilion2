@@ -35,12 +35,13 @@ class RunSeries(commands.Command):
         series_path = tsr._find_config('series', series_name)
 
         with series_path.open() as series_file:
+            series_obj = series.TestSeries(pav_cfg)
             series_cfg = series_config_loader.load(series_file)
+
+            series_man = series.SeriesManager(series_obj, series_cfg)
 
             run_cmd = commands.get_command('run')
             arg_parser = arguments.get_parser()
-
-            series_obj = series.TestSeries(pav_cfg)
 
             # get universal modes
             universal_modes = series_cfg['modes']

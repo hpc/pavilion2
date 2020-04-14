@@ -42,7 +42,7 @@ class SeriesManager:
     def __init__(self, series_obj, series_config):
         # TODO: init needs to make graph of dependencies
         self.dep_graph = None
-        self.universal_modes = series_cfg['modes']
+        self.universal_modes = series_config['modes']
 
 
 class TestSeries:
