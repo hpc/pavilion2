@@ -143,7 +143,6 @@ class RunCommand(commands.Command):
 
         all_tests = sum(tests_by_sched.values(), [])
         self.last_tests = list(all_tests)
-        dbg_print('\nall_tests', self.last_tests, '\n')
 
         if not all_tests:
             fprint("You must specify at least one test.", file=self.errfile)

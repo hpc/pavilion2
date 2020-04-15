@@ -134,6 +134,7 @@ class TestSet:
         arg_parser = arguments.get_parser()
         args = arg_parser.parse_args(self.args_list)
         run_cmd.run(self.pav_cfg, args)
+        dbg_print(run_cmd.last_tests)
 
         # change statuses
         self.change_stat('RUNNING')
