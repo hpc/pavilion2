@@ -68,21 +68,71 @@ class SeriesManager:
 
             self.sets_args[set_name] = args_list
 
-        # actually run sets, this will be edited later
+        # create TestSet obj for each set
+        # and run
         for set_name in self.sets_args:
-            self.run_set(self.sets_args[set_name])
+            # find set(s) that depend on set_name
+            next_sets = []
+            for s_n in self.dep_graph:
+                if set_name in self.dep_graph[s_n]:
+                    next_sets.append(s_n)
 
-    def run_set(self, args_list):
-        run_cmd = commands.get_command('run')
-        arg_parser = arguments.get_parser()
-        args = arg_parser.parse_args(args_list)
-        run_cmd.run(self.pav_cfg, args)
+            test_set = TestSet(
+                self.pav_cfg,
+                set_name,
+                self.sets_args[set_name],
+                # self.dep_graph[set_name],
+                # next_sets
+            )
+
+            test_set.run_set()
 
     def make_dep_graph(self):
+        # has to be a graph of test sets
         for set_name in self.sets:
             self.dep_graph[set_name] = self.sets[set_name]['depends_on']
 
         dbg_print(self.dep_graph, '\n')
+
+
+class TestSet:
+
+    # statuses:
+    # NO_STAT, NEXT, DID_NOT_RUN, RUNNING, PASS, FAIL
+
+    def __init__(self, _pav_cfg, _name, _args_list,
+                 _prev_set=None, _next_set=None):
+
+        self.name = _name
+        self.pav_cfg = _pav_cfg
+        self.args_list = _args_list
+        self.prev_set = _prev_set  # has to be a list of TestSet objects
+        self.next_set = _next_set  # has to be a list of TestSet objects
+        self.status = 'NO_STAT'
+
+        dbg_print(self.name, self.args_list, self.prev_set,
+                  self.next_set, self.status, '\n')
+
+    def run_set(self):
+        run_cmd = commands.get_command('run')
+        arg_parser = arguments.get_parser()
+        args = arg_parser.parse_args(self.args_list)
+        run_cmd.run(self.pav_cfg, args)
+        self.status = 'RUNNING'
+        dbg_print(self.name, self.args_list, self.prev_set,
+                  self.next_set, self.status, '\n')
+
+    def change_stat(self, new_stat):
+        self.status = new_stat
+
+    def set_prev(self, prev_list):
+        self.prev_set = prev_list
+
+    def set_next(self, next_list):
+        self.next_set = next_list
+
+    def __repr__(self):
+        return self.name
 
 
 class TestSeries:
