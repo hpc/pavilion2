@@ -99,13 +99,6 @@ class SeriesManager:
 
         self.print_stats()
 
-        # for set_name in self.test_sets:
-        #     dbg_print('\n', self.test_sets[set_name].name)
-        #     for prev in self.test_sets[set_name].get_prev():
-        #         dbg_print('prev ', prev)
-        #     for next in self.test_sets[set_name].get_next():
-        #         dbg_print('next ', next)
-
     def make_dep_graph(self):
         # has to be a graph of test sets
         for set_name in self.sets:
@@ -134,6 +127,7 @@ class TestSet:
         self.prev_set = _prev_set  # has to be a list of TestSet objects
         self.next_set = _next_set  # has to be a list of TestSet objects
         self.status = 'NO_STAT'
+        self.test_runs = list()
 
     def run_set(self):
         run_cmd = commands.get_command('run')

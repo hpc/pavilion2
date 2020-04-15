@@ -20,6 +20,8 @@ from pavilion.status_file import STATES
 from pavilion.test_run import TestRun, TestRunError, TestConfigError
 from pavilion.builder import MultiBuildTracker
 
+from pavilion.output import dbg_print
+
 
 class RunCommand(commands.Command):
     """Resolve tests by name, build, and run them.
@@ -141,6 +143,7 @@ class RunCommand(commands.Command):
 
         all_tests = sum(tests_by_sched.values(), [])
         self.last_tests = list(all_tests)
+        dbg_print('\nall_tests', self.last_tests, '\n')
 
         if not all_tests:
             fprint("You must specify at least one test.", file=self.errfile)
