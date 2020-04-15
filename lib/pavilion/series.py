@@ -44,17 +44,17 @@ class SeriesManager:
     """Series Manger"""
 
     def __init__(self, _pav_cfg, _series_obj, _series_cfg):
-        # TODO: init needs to make graph of dependencies
         self.pav_cfg = _pav_cfg
         self.series_obj = _series_obj
         self.series_cfg = _series_cfg
 
-        self.dep_graph = None
-        self.universal_modes = self.series_cfg['modes']
-
         self.sets = self.series_cfg['series']
 
+        self.dep_graph = {}
+        self.make_dep_graph()
+
         self.sets_args = {}
+        self.universal_modes = self.series_cfg['modes']
         # set up sets_args dict
         for set_name, set_info in self.sets.items():
 
@@ -68,8 +68,6 @@ class SeriesManager:
 
             self.sets_args[set_name] = args_list
 
-        dbg_print(self.sets_args, '\n')
-
         # actually run sets, this will be edited later
         for set_name in self.sets_args:
             self.run_set(self.sets_args[set_name])
@@ -79,6 +77,12 @@ class SeriesManager:
         arg_parser = arguments.get_parser()
         args = arg_parser.parse_args(args_list)
         run_cmd.run(self.pav_cfg, args)
+
+    def make_dep_graph(self):
+        for set_name in self.sets:
+            self.dep_graph[set_name] = self.sets[set_name]['depends_on']
+
+        dbg_print(self.dep_graph, '\n')
 
 
 class TestSeries:
