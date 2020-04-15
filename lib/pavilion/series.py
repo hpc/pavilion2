@@ -110,7 +110,7 @@ class SeriesManager:
         # dbg_print stats of sets
         for set_name in self.test_sets:
             ts = self.test_sets[set_name]
-            dbg_print(ts, ': ', ts.get_stat())
+            dbg_print(ts, ': ', ts.get_stat(), ts.test_runs)
 
 
 class TestSet:
@@ -134,7 +134,7 @@ class TestSet:
         arg_parser = arguments.get_parser()
         args = arg_parser.parse_args(self.args_list)
         run_cmd.run(self.pav_cfg, args)
-        dbg_print(run_cmd.last_tests)
+        self.test_runs.extend(run_cmd.last_tests)
 
         # change statuses
         self.change_stat('RUNNING')

@@ -20,8 +20,6 @@ from pavilion.status_file import STATES
 from pavilion.test_run import TestRun, TestRunError, TestConfigError
 from pavilion.builder import MultiBuildTracker
 
-from pavilion.output import dbg_print
-
 
 class RunCommand(commands.Command):
     """Resolve tests by name, build, and run them.
