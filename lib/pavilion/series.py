@@ -50,42 +50,61 @@ class SeriesManager:
 
         self.sets = self.series_cfg['series']
 
-        self.dep_graph = {}
+        self.dep_graph = {}  # { set_name: [set_names it depends on] }
         self.make_dep_graph()
 
-        self.sets_args = {}
-        self.universal_modes = self.series_cfg['modes']
+        sets_args = {}
+        universal_modes = self.series_cfg['modes']
         # set up sets_args dict
         for set_name, set_info in self.sets.items():
 
             set_modes = set_info['modes']
-            all_modes = self.universal_modes + set_modes
+            all_modes = universal_modes + set_modes
 
             args_list = ['run', '--series-id={}'.format(self.series_obj.id)]
             for mode in all_modes:
                 args_list.append('-m{}'.format(mode))
             args_list.extend(set_info['test_names'])
 
-            self.sets_args[set_name] = args_list
+            sets_args[set_name] = args_list
 
         # create TestSet obj for each set
-        # and run
-        for set_name in self.sets_args:
-            # find set(s) that depend on set_name
-            next_sets = []
-            for s_n in self.dep_graph:
-                if set_name in self.dep_graph[s_n]:
-                    next_sets.append(s_n)
-
-            test_set = TestSet(
-                self.pav_cfg,
-                set_name,
-                self.sets_args[set_name],
-                # self.dep_graph[set_name],
-                # next_sets
+        self.test_sets = {}
+        for set_name in sets_args:
+            self.test_sets[set_name] = TestSet(
+                self.pav_cfg, set_name, sets_args[set_name],
+                [], []
             )
 
-            test_set.run_set()
+        # create doubly linked graph
+        for set_name in self.dep_graph:
+            prev_str_list = self.dep_graph[set_name]
+            for prev in prev_str_list:
+                self.test_sets[set_name].add_prev(self.test_sets[prev])
+
+            next_str_list = []
+            for s_n in self.dep_graph:
+                if set_name in self.dep_graph[s_n]:
+                    next_str_list.append(s_n)
+
+            for next in next_str_list:
+                self.test_sets[set_name].add_next(self.test_sets[next])
+
+        self.print_stats()
+
+        # kick off tests that aren't waiting on anyone
+        for set_name in self.test_sets:
+            if not self.test_sets[set_name].get_prev():
+                self.test_sets[set_name].run_set()
+
+        self.print_stats()
+
+        # for set_name in self.test_sets:
+        #     dbg_print('\n', self.test_sets[set_name].name)
+        #     for prev in self.test_sets[set_name].get_prev():
+        #         dbg_print('prev ', prev)
+        #     for next in self.test_sets[set_name].get_next():
+        #         dbg_print('next ', next)
 
     def make_dep_graph(self):
         # has to be a graph of test sets
@@ -94,6 +113,12 @@ class SeriesManager:
 
         dbg_print(self.dep_graph, '\n')
 
+    def print_stats(self):
+        # dbg_print stats of sets
+        for set_name in self.test_sets:
+            ts = self.test_sets[set_name]
+            dbg_print(ts, ': ', ts.get_stat())
+
 
 class TestSet:
 
@@ -101,7 +126,7 @@ class TestSet:
     # NO_STAT, NEXT, DID_NOT_RUN, RUNNING, PASS, FAIL
 
     def __init__(self, _pav_cfg, _name, _args_list,
-                 _prev_set=None, _next_set=None):
+                 _prev_set, _next_set):
 
         self.name = _name
         self.pav_cfg = _pav_cfg
@@ -110,28 +135,40 @@ class TestSet:
         self.next_set = _next_set  # has to be a list of TestSet objects
         self.status = 'NO_STAT'
 
-        dbg_print(self.name, self.args_list, self.prev_set,
-                  self.next_set, self.status, '\n')
-
     def run_set(self):
         run_cmd = commands.get_command('run')
         arg_parser = arguments.get_parser()
         args = arg_parser.parse_args(self.args_list)
         run_cmd.run(self.pav_cfg, args)
-        self.status = 'RUNNING'
-        dbg_print(self.name, self.args_list, self.prev_set,
-                  self.next_set, self.status, '\n')
+
+        # change statuses
+        self.change_stat('RUNNING')
+        for n_set in self.next_set:
+            if n_set.get_stat() == 'NO_STAT':
+                n_set.change_stat('NEXT')
 
     def change_stat(self, new_stat):
         self.status = new_stat
 
-    def set_prev(self, prev_list):
-        self.prev_set = prev_list
+    def get_stat(self):
+        return self.status
 
-    def set_next(self, next_list):
-        self.next_set = next_list
+    def add_prev(self, prev):
+        self.prev_set.append(prev)
+
+    def add_next(self, next):
+        self.next_set.append(next)
+
+    def get_prev(self):
+        return self.prev_set
+
+    def get_next(self):
+        return self.next_set
 
     def __repr__(self):
+        return self.name
+
+    def __str__(self):
         return self.name
 
 
