@@ -6,7 +6,7 @@ Logging
 Cross-Process Logging
 ---------------------
 
-.. autoclass:: pavilion.logging.LockFileRotatingFileHandler
+.. autoclass:: pavilion.log_setup.LockFileRotatingFileHandler
     :members: __init__, emit, handleError, _should_rollover, _do_rollover
     :undoc-members:
     :show-inheritance:
@@ -14,6 +14,6 @@ Cross-Process Logging
 Logger Setup
 ------------
 
-.. autofunction:: pavilion.logging.record_factory
+.. autofunction:: pavilion.log_setup.record_factory
 
-.. autofunction:: pavilion.logging.setup_loggers
+.. autofunction:: pavilion.log_setup.setup_loggers
