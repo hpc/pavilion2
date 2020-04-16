@@ -38,6 +38,14 @@ from . import variables
 from .variables import VariableSetManager as VarSetMan
 from . import file_format
 
+ref_grammer = '''
+
+start: var_key | 
+
+var_key: (var_set.)?var_name(.idx)?(.sub_var)?
+
+'''
+
 
 class ScanError(ValueError):
     """Error scanning and tokenizing a Pav string."""
