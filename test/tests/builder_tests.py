@@ -136,7 +136,7 @@ class BuilderTests(PavTestCase):
             created_file = open(file_path, 'r', encoding='utf-8')
 
             # Compare contents.
-            self.assertTrue(original.getvalue() == created_file.read())
+            self.assertEquals(original.read(), created_file.read())
             original.close()
             created_file.close()
 
