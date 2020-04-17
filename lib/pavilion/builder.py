@@ -12,6 +12,7 @@ import lzma
 import os
 import shutil
 import subprocess
+import sys
 import tarfile
 import threading
 import time
@@ -21,6 +22,7 @@ from pathlib import Path
 from zipfile import ZipFile, BadZipFile
 
 from pavilion import lockfile
+from pavilion import output
 from pavilion import utils
 from pavilion import wget
 from pavilion.status_file import STATES
@@ -628,6 +630,13 @@ class TestBuilder:
         files_to_create = self._config.get('create_files')
         if files_to_create:
             for file, contents in files_to_create.items():
+                # FIXME: We don't want to allow users to create files outside of
+                # the build directory. The build should fail here, not skip.
+                if '../' in file:
+                    output.fprint("BUILD WARNING: invalid path syntax; "
+                                  + "skipping 'create_file: {}'".format(str(file)),
+                                  sys.stderr, color=output.YELLOW)
+                    continue
                 dirname = os.path.dirname(file)
                 Path(dest / dirname).mkdir(parents=True, exist_ok=True)
                 file_path = Path(file)
