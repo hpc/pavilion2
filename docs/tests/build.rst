@@ -13,12 +13,14 @@ Build Config Keys
 The documentation for what various keys do is spread throughout this
 document.
 
+-  `copy\_files <#copy-files>`__
+-  `cmds <#cmds-list>`__
+-  `env <#env-mapping>`__
+-  `extra\_files <#extra-files>`__
+-  `make\_files <#make-files>`__
+-  `modules <#modules-list>`__
 -  `source\_location <#source-location>`__
 -  `source\_download\_name <#source-download-name>`__
--  `extra\_files <#extra-files>`__
--  `modules <#modules-list>`__
--  `env <#env-mapping>`__
--  `cmds <#cmds-list>`__
 -  `specificity <#specificity>`__
 
 Building
@@ -109,6 +111,29 @@ extra\_files
 This build attribute lets you copy additional files into the build
 directory. This typically includes patches, external build/run scripts,
 or archives that shouldn't be extracted.
+
+make\_files
+^^^^^^^^^^^
+
+This build attribute lets you create files relative to the build directory
+at build time.
+
+.. code-block:: yaml
+
+    mytest:
+      build:
+        source_location: mytest.zip
+        cmds: 'make'
+        make_files:
+          # Files created this way will be actual files, not symlinks.
+          './config.txt'
+            - 'line 1'
+            - 'line 2'
+            - 'line 3'
+          # Subdirectories can be created.
+          './data/file.txt'
+            - 'line 1'
+            - 'line 2'
 
 Create a Build Script
 ---------------------
