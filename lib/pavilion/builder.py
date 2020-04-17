@@ -630,7 +630,7 @@ class TestBuilder:
                 dirname = os.path.dirname(file)
                 Path(dest / dirname).mkdir(parents=True, exist_ok=True)
                 file_path = Path(file)
-                with open(dest / file_path, 'w') as file_:
+                with open(str(dest / file_path), 'w') as file_:
                     for line in contents:
                         file_.write("{}\n".format(line))
 
