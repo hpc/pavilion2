@@ -116,11 +116,12 @@ class BuilderTests(PavTestCase):
         plugins.initialize_plugins(self.pav_cfg)
         files_to_make = {
             'file1': ['line_0', 'line_1'],
-            'dir1/file2': ['line_0', 'line_1'],  # dir1 exists
-            'dir1/dir2/file3': ['line_0', 'line_1']  # dir2 does not exist
+            'wild/file2': ['line_0', 'line_1'],  # wild dir exists
+            'wild/dir2/file3': ['line_0', 'line_1']  # dir2 does not exist
+            'sym.txt':['line1', 'line4'] # file exists
         }
         config = self._quick_test_cfg()
-        config['build']['source_location'] = 'make_files.tgz'
+        config['build']['source_location'] = 'file_tests.tgz'
         config['build']['make_files'] = files_to_make
         test = self._quick_test(config)
 
@@ -132,7 +133,7 @@ class BuilderTests(PavTestCase):
             original = io.StringIO()
             for line in lines:
                 original.write("{}\n".format(line))
-            created_file = open(file_path, 'r', encoding='utf-8')
+            created_file = open(str(file_path), 'r', encoding='utf-8')
 
             # Compare contents.
             self.assertEquals(original.getvalue(), created_file.read())
@@ -147,7 +148,7 @@ class BuilderTests(PavTestCase):
         config = self._quick_test_cfg()
         # The copy_test source file contains several files to copy
         # for real and several to symlink.
-        config['build']['source_location'] = 'copy_test.tgz'
+        config['build']['source_location'] = 'file_tests.tgz'
         config['build']['copy_files'] = [
             'real.*',
             'wild/real_?i*[0-9].dat',
