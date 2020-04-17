@@ -2,6 +2,9 @@
 
 import logging
 import os
+import pathlib
+import time
+import copy
 
 from pavilion import utils
 from pavilion import commands
@@ -90,14 +93,46 @@ class SeriesManager:
             for next in next_str_list:
                 self.test_sets[set_name].add_next(self.test_sets[next])
 
+        # CLEAN UP ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
         self.print_stats()
 
         # kick off tests that aren't waiting on anyone
+        self.currently_running = []
         for set_name in self.test_sets:
             if not self.test_sets[set_name].get_prev():
                 self.test_sets[set_name].run_set()
+                self.currently_running.append(self.test_sets[set_name])
 
         self.print_stats()
+
+        # keep checking on statuses of currently running sets
+        for set_obj in self.currently_running:
+            time.sleep(5)
+            if self.is_set_done(set_obj):
+                set_obj.change_stat('DONE')
+                for waiting in set_obj.get_next():
+                    run_this = True
+                    for prev in waiting.get_prev():
+                        if prev.get_stat() != 'DONE':
+                            run_this = False
+                    if run_this:
+                        waiting.run_set()
+                        self.currently_running.append(waiting)
+
+            self.print_stats()
+
+
+        # END CLEAN UP
+
+
+
+    def is_set_done(self, set_obj):
+        for test in set_obj.test_runs:
+            if not pathlib.Path(test.path/'RUN_COMPLETE').exists():
+                return False
+        return True
+
 
     def make_dep_graph(self):
         # has to be a graph of test sets
@@ -111,6 +146,8 @@ class SeriesManager:
         for set_name in self.test_sets:
             ts = self.test_sets[set_name]
             dbg_print(ts, ': ', ts.get_stat(), ts.test_runs)
+
+        dbg_print()
 
 
 class TestSet:
