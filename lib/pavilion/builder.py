@@ -625,7 +625,7 @@ class TestBuilder:
                         .format(src_path, dest, err))
 
         # Generate file(s) from build_config
-        files_to_create = self._config.get('make_files')
+        files_to_create = self._config.get('create_files')
         if files_to_create:
             for file, contents in files_to_create.items():
                 dirname = os.path.dirname(file)
