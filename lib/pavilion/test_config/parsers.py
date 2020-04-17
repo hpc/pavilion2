@@ -328,6 +328,8 @@ class ExprTransformer(lark.Transformer):
         :param list[Token] items: Will only be a single item.
         """
 
+        # Parenthetical expressions are handled implicitly, since
+        # the parenthesis aren't captured as tokens.
         return items[0]
 
     def negative(self, items) -> lark.Token:
@@ -342,15 +344,13 @@ class ExprTransformer(lark.Transformer):
 
         return self._merge_tokens(items, -items[1].value)
 
-    def literal(self, items):
-        """
-
-        :param items:
-        :return:
+    def literal(self, items) -> lark.Token:
+        """Just pass up the literal value.
+        :param list[lark.Token] items: A single token.
         """
         return items[0]
 
-    def var_ref(self, items):
+    def var_ref(self, items) -> lark.Token:
         """
         :param items:
         :return:
@@ -359,6 +359,18 @@ class ExprTransformer(lark.Transformer):
         var.value = ord(var.value)
 
         return var
+
+    def func_call(self, items) -> lark.Token:
+        """Look up the function call, and call it with the given argument
+        values.
+
+        :param list[lark.Token] items: A function name token and zero or more
+            argument tokens.
+        """
+
+        func_name = items[0].value
+        args = [tok.value for tok in items[1:]]
+
 
     def INTEGER(self, tok) -> lark.Token:
         """Convert to an int.
