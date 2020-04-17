@@ -130,7 +130,6 @@ class BuilderTests(PavTestCase):
 
             # Stage file contents for comparison.
             original = io.StringIO()
-            original.write("{}\n".format(files_to_make[file]))
             for line in lines:
                 original.write("{}\n".format(line))
             created_file = open(file_path, 'r', encoding='utf-8')
