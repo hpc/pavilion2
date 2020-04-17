@@ -113,7 +113,7 @@ class BuilderTests(PavTestCase):
     def test_make_file_build(self):
         """Check that build time file creation is working correctly."""
 
-        plugins.initialize_plugins(pav.pav_cfg)
+        plugins.initialize_plugins(self.pav_cfg)
         files_to_make = {
             'file1': ['line_0', 'line_1'],
             'dir1/file2': ['line_0', 'line_1'],  # dir1 exists
