@@ -110,9 +110,9 @@ class BuilderTests(PavTestCase):
 
         config = copy.deepcopy(base_config)
         config['build']['make_files'] = [
-            {'./file1' : ['line1', 'line2'] },
-            {'./dir/file2' : ['line1', 'line2']},
-            {'./dir/nested/file3' : ['line1', 'line2']}
+            ['./file1', 'line1', 'line2'],
+            ['./dir/file2', 'line1', 'line2'],
+            ['./dir/nested/file3', 'line1', 'line2'],
         ]
         test = TestRun(self.pav_cfg, config)
         if test.builder.path.exists():
