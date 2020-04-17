@@ -205,6 +205,12 @@ expected to be added to by various plugins.
                               "these files instead of creating a symlink."
                               "They may include path glob wildcards, "
                               "including the recursive '**'."),
+                PathElem(
+                    'create_files',
+                    key_case=PathElem.KC_MIXED,
+                    sub_elem=yc.ListElem(sub_elem=yc.StrElem()),
+                    help_text="File(s) to create at path relative to the test's"
+                              "test source directory"),
                 EnvCatElem(
                     'env', sub_elem=yc.StrElem(), key_case=EnvCatElem.KC_MIXED,
                     help_text="Environment variables to set in the build "
@@ -215,12 +221,6 @@ expected to be added to by various plugins.
                               'Relative paths searched for in ~/.pavilion, '
                               '$PAV_CONFIG. Absolute paths are ok, '
                               'but not recommended.'),
-                PathElem(
-                    'make_files',
-                    key_case=PathElem.KC_MIXED,
-                    sub_elem=yc.ListElem(sub_elem=yc.StrElem()),
-                    help_text="File(s) to create at path relative to the test's"
-                              "test source directory"),
                 yc.ListElem(
                     'modules', sub_elem=yc.StrElem(),
                     help_text="Modules to load into the build environment."),
@@ -283,6 +283,12 @@ expected to be added to by various plugins.
                 yc.ListElem('cmds', sub_elem=yc.StrElem(),
                             help_text='The sequence of commands to run to run '
                                       'the test.'),
+                PathElem(
+                    'create_files',
+                    key_case=PathElem.KC_MIXED,
+                    sub_elem=yc.ListElem(sub_elem=yc.StrElem()),
+                    help_text="File(s) to create at path relative to the test's"
+                              "test source directory"),
                 EnvCatElem(
                     'env', sub_elem=yc.StrElem(), key_case=EnvCatElem.KC_MIXED,
                     help_text="Environment variables to set in the run "
@@ -290,12 +296,6 @@ expected to be added to by various plugins.
                 yc.ListElem(
                     'modules', sub_elem=yc.StrElem(),
                     help_text="Modules to load into the run environment."),
-                PathElem(
-                    'make_files',
-                    key_case=PathElem.KC_MIXED,
-                    sub_elem=yc.ListElem(sub_elem=yc.StrElem()),
-                    help_text="File(s) to create at path relative to the test's"
-                              "test source directory"),
                 yc.ListElem(
                     'preamble', sub_elem=yc.StrElem(),
                     help_text="Setup commands for the beginning of the build "

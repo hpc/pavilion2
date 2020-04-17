@@ -114,7 +114,7 @@ class BuilderTests(PavTestCase):
         """Check that build time file creation is working correctly."""
 
         plugins.initialize_plugins(self.pav_cfg)
-        files_to_make = {
+        files_to_create = {
             'file1': ['line_0', 'line_1'],
             'wild/file2': ['line_0', 'line_1'],  # wild dir exists
             'wild/dir2/file3': ['line_0', 'line_1'], # dir2 does not exist
@@ -122,10 +122,10 @@ class BuilderTests(PavTestCase):
         }
         config = self._quick_test_cfg()
         config['build']['source_location'] = 'file_tests.tgz'
-        config['build']['make_files'] = files_to_make
+        config['build']['create_files'] = files_to_create
         test = self._quick_test(config)
 
-        for file, lines in files_to_make.items():
+        for file, lines in files_to_create.items():
             file_path = test.path/'build'/file
             self.assertTrue(file_path.exists())
 

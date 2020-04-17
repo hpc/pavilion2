@@ -226,7 +226,7 @@ class TestBuilder:
         #    - For directories, the mtime (updated to the time of the most
         #      recently updated file) is hashed instead.
         #  - All of the build's 'extra_files'
-        #  - All files needed to be created at build time 'make_files'
+        #  - All files needed to be created at build time 'create_files'
 
         hash_obj = hashlib.sha256()
 
@@ -268,12 +268,13 @@ class TestBuilder:
                     .format(extra_file))
 
         # Hash created build files. These files are generated at build time in
-        # the test's build directory but we need the contents of the files
-        # hashed before build time. Thus, we include a hash of each file (path)
-        # and it's contents via IOString object.
-        files_to_make = self._config.get('make_files')
-        if files_to_make:
-            for file, contents in files_to_make.items():
+        # the test's build directory but we need the contents of these files
+        # hashed before build time. Thus, we include a hash of each file
+        # consisting of the filename (including path) and it's contents via
+        # IOString object.
+        files_to_create = self._config.get('create_files')
+        if files_to_create:
+            for file, contents in files_to_create.items():
                 io_contents = io.StringIO()
                 io_contents.write("{}\n".format(file))
                 for line in contents:
@@ -624,9 +625,9 @@ class TestBuilder:
                         .format(src_path, dest, err))
 
         # Generate file(s) from build_config
-        files_to_make = self._config.get('make_files')
-        if files_to_make:
-            for file, contents in files_to_make.items():
+        files_to_create = self._config.get('make_files')
+        if files_to_create:
+            for file, contents in files_to_create.items():
                 dirname = os.path.dirname(file)
                 Path(dest / dirname).mkdir(parents=True, exist_ok=True)
                 file_path = Path(file)
