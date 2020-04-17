@@ -117,7 +117,7 @@ class BuilderTests(PavTestCase):
         files_to_make = {
             'file1': ['line_0', 'line_1'],
             'wild/file2': ['line_0', 'line_1'],  # wild dir exists
-            'wild/dir2/file3': ['line_0', 'line_1']  # dir2 does not exist
+            'wild/dir2/file3': ['line_0', 'line_1'], # dir2 does not exist
             'sym.txt':['line1', 'line4'] # file exists
         }
         config = self._quick_test_cfg()
