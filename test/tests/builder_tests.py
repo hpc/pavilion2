@@ -1,4 +1,5 @@
 import copy
+import io
 import shutil
 import threading
 import time
@@ -108,6 +109,36 @@ class BuilderTests(PavTestCase):
         for file in config['build']['extra_files']:
             self._cmp_files(test_archives/file,
                             test.builder.path/file)
+
+    def test_make_file_build(self):
+        """Check that build time file creation is working correctly."""
+
+        plugins.initialize_plugins(pav.pav_cfg)
+        files_to_make = {
+            'file1': ['line_0', 'line_1'],
+            'dir1/file2': ['line_0', 'line_1'],  # dir1 exists
+            'dir1/dir2/file3': ['line_0', 'line_1']  # dir2 does not exist
+        }
+        config = self._quick_test_cfg()
+        config['build']['source_location'] = 'make_files.tgz'
+        config['build']['make_files'] = files_to_make
+        test = self._quick_test(config)
+
+        for file, lines in files_to_make.items():
+            file_path = test.path/'build'/file
+            self.assertTrue(file_path.exists())
+
+            # Stage file contents for comparison.
+            original = io.StringIO()
+            original.write("{}\n".format(file_to_make[file]))
+            for line in lines:
+                original.write("{}\n".format(line))
+            created_file = open(file_path, 'r', encoding='utf-8')
+
+            # Compare contents.
+            self.assertTrue(original.getvalue() == created_file.read())
+            original.close()
+            created_file.close()
 
     def test_copy_build(self):
         """Check that builds are copied correctly."""
