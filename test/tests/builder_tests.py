@@ -110,7 +110,7 @@ class BuilderTests(PavTestCase):
             self._cmp_files(test_archives/file,
                             test.builder.path/file)
 
-    def test_make_file_build(self):
+    def test_create_file(self):
         """Check that build time file creation is working correctly."""
 
         plugins.initialize_plugins(self.pav_cfg)

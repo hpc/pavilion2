@@ -212,6 +212,14 @@ class TestBuilder:
         fail_name = 'fail.{}.{}'.format(self.name, self.test.id)
         self.fail_path = pav_cfg.working_dir/'builds'/fail_name
 
+        # Don't allow syntax that may cause a file to be written outside of the
+        # build context directory.
+        files_to_create = self._config.get('create_files')
+        for file, contents in files_to_create.items():
+            if '../' in str(file):
+                raise TestBuilderError("'create_file: {}': dangerous syntax '..'"
+                                       .format(file))
+
     def exists(self):
         """Return True if the given build exists."""
         return self.path.exists()
@@ -414,8 +422,8 @@ class TestBuilder:
                                 .format(self.name, build_dir,
                                         self.fail_path, err))
                             self.fail_path.mkdir()
-                            if cancel_event is not None:
-                                cancel_event.set()
+                        if cancel_event is not None:
+                            cancel_event.set()
 
                         # If the build didn't succeed, copy the attempted build
                         # into the test run, and set the run as complete.
@@ -630,13 +638,6 @@ class TestBuilder:
         files_to_create = self._config.get('create_files')
         if files_to_create:
             for file, contents in files_to_create.items():
-                # FIXME: We don't want to allow users to create files outside of
-                # the build directory. The build should fail here, not skip.
-                if '../' in file:
-                    output.fprint("BUILD WARNING: invalid path syntax; "
-                                  + "skipping 'create_file: {}'".format(str(file)),
-                                  sys.stderr, color=output.YELLOW)
-                    continue
                 dirname = os.path.dirname(file)
                 Path(dest / dirname).mkdir(parents=True, exist_ok=True)
                 file_path = Path(file)
