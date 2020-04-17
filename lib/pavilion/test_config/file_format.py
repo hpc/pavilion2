@@ -148,6 +148,16 @@ expected to be added to by various plugins.
 """
 
     ELEMENTS = [
+        yc.StrElem(
+            'name', hidden=True, default='<unnamed>',
+            help_text="The name of the test. Will be auto-generated from the "
+                      "suite name, test section name, and subtitle."),
+        yc.StrElem(
+            'suite', hidden=True, default='<no_suite>',
+            help_text="The name of the suite. Value added automatically."),
+        yc.StrElem(
+            'suite_path', hidden=True, default='<no_suite>',
+            help_text="Path to the suite file. Value added automatically."),
         yc.RegexElem(
             'inherits_from', regex=TEST_NAME_RE_STR,
             help_text="Inherit from the given test section, and override "
@@ -189,6 +199,12 @@ expected to be added to by various plugins.
                     'cmds', sub_elem=yc.StrElem(),
                     help_text='The sequence of commands to run to perform '
                               'the build.'),
+                yc.ListElem(
+                    'copy_files', sub_elem=yc.StrElem(),
+                    help_text="When attaching the build to a test run, copy "
+                              "these files instead of creating a symlink."
+                              "They may include path glob wildcards, "
+                              "including the recursive '**'."),
                 EnvCatElem(
                     'env', sub_elem=yc.StrElem(), key_case=EnvCatElem.KC_MIXED,
                     help_text="Environment variables to set in the build "
@@ -199,11 +215,6 @@ expected to be added to by various plugins.
                               'Relative paths searched for in ~/.pavilion, '
                               '$PAV_CONFIG. Absolute paths are ok, '
                               'but not recommended.'),
-                yc.StrElem(
-                    'on_nodes', default='False',
-                    choices=['true', 'false', 'True', 'False'],
-                    help_text="Whether to build on or off of the test "
-                              "allocation."),
                 PathElem(
                     'make_files',
                     key_case=PathElem.KC_MIXED,
@@ -213,6 +224,11 @@ expected to be added to by various plugins.
                 yc.ListElem(
                     'modules', sub_elem=yc.StrElem(),
                     help_text="Modules to load into the build environment."),
+                yc.StrElem(
+                    'on_nodes', default='False',
+                    choices=['true', 'false', 'True', 'False'],
+                    help_text="Whether to build on or off of the test "
+                              "allocation."),
                 yc.ListElem(
                     'preamble', sub_elem=yc.StrElem(),
                     help_text="Setup commands for the beginning of the build "

@@ -8,6 +8,7 @@ from pavilion import wget
 from pavilion.status_file import STATES
 from pavilion.test_run import TestRun
 from pavilion.unittest import PavTestCase
+from pavilion import plugins
 
 
 class BuilderTests(PavTestCase):
@@ -48,7 +49,7 @@ class BuilderTests(PavTestCase):
             test = TestRun(self.pav_cfg, config)
 
             tmp_path = test.builder.path.with_suffix('.test')
-    
+
             test.builder._setup_build_dir(test.builder.path)
 
             # Make sure the extracted archive is identical to the original
@@ -108,17 +109,58 @@ class BuilderTests(PavTestCase):
             self._cmp_files(test_archives/file,
                             test.builder.path/file)
 
-        config = copy.deepcopy(base_config)
-        config['build']['make_files'] = [
-            ['./file1', 'line1', 'line2'],
-            ['./dir/file2', 'line1', 'line2'],
-            ['./dir/nested/file3', 'line1', 'line2'],
-        ]
-        test = TestRun(self.pav_cfg, config)
-        if test.builder.path.exists():
-            shutil.rmtree(str(test.builder.path))
+    def test_copy_build(self):
+        """Check that builds are copied correctly."""
 
-        test.builder._setup_build_dir(test.builder.path)
+        plugins.initialize_plugins(self.pav_cfg)
+
+        config = self._quick_test_cfg()
+        # The copy_test source file contains several files to copy
+        # for real and several to symlink.
+        config['build']['source_location'] = 'copy_test.tgz'
+        config['build']['copy_files'] = [
+            'real.*',
+            'wild/real_?i*[0-9].dat',
+            'rec/**/real*',
+        ]
+
+        test = self._quick_test(config)
+
+        # Make sure the following exist and are regular files.
+        real_files = [
+            'real.txt',
+            'wild/real_wild1.dat',
+            'wild/real_wild2.dat',
+            'rec/real_r1.txt',
+            'rec/rec2/real_r2.txt'
+        ]
+
+        for real in real_files:
+            real = test.path/'build'/real
+
+            self.assertTrue(real.exists(),
+                            msg="Missing {}".format(real))
+            self.assertTrue(real.is_file(),
+                            msg="{} is not a regular file.".format(real))
+
+        # Make sure the following exist, but are symlinks.
+        sym_files = [
+            'pav_build_log',
+            '.built_by',
+            'sym.txt',
+            'wild/sym.dat',
+            'rec/sym_r1.txt',
+            'rec/rec2/sym_r2.txt',
+        ]
+
+        for sym in sym_files:
+            sym = test.path/'build'/sym
+            self.assertTrue(sym.exists(),
+                            msg="Missing {}".format(sym))
+            self.assertTrue(sym.is_symlink(),
+                            msg="{} is not a symlink".format(sym))
+
+        plugins._reset_plugins()
 
     README_HASH = '275fa3c8aeb10d145754388446be1f24bb16fb00'
 
