@@ -1,16 +1,13 @@
-from pavilion import plugins
-from pavilion import commands
-from pavilion import schedulers
-from pavilion.unittest import PavTestCase
-from pavilion import arguments
-from pavilion import series
-from pavilion.status_file import STATES
-from pavilion.plugins.commands.status import get_statuses
-from io import StringIO
-import sys
 import errno
-import time
-import json
+import sys
+from io import StringIO
+
+from pavilion import arguments
+from pavilion import commands
+from pavilion import plugins
+from pavilion import series
+from pavilion.plugins.commands.status import get_statuses
+from pavilion.unittest import PavTestCase
 
 
 class CancelCmdTests(PavTestCase):

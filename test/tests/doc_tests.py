@@ -25,7 +25,7 @@ class DocTests(PavTestCase):
         self.external_links = None
 
     def setUp(self):
-        """Bujld the docs only once."""
+        """Build the docs only once."""
 
         if not self.docs_built:
             out, ret = self.build_docs()

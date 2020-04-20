@@ -63,17 +63,6 @@ def get_mime_type(path):
     return category, subtype
 
 
-def symlink_copy(src, dst):
-    """Makes an absolute symlink from src to dst.
-    :param str src: The file to which the symlink will point.
-    :param str dst: The symlink file to create.
-    """
-
-    src = os.path.realpath(src)
-
-    return os.symlink(src, dst)
-
-
 ID_DIGITS = 7
 ID_FMT = '{id:0{digits}d}'
 

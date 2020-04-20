@@ -1,9 +1,11 @@
+# pylint: disable=too-many-lines
 """The Slurm Scheduler Plugin."""
 
 import os
 import re
 import subprocess
 from pathlib import Path
+import distutils.spawn
 
 import yaml_config as yc
 from pavilion import scriptcomposer
@@ -333,76 +335,81 @@ class Slurm(SchedulerPlugin):
 
         self.node_data = None
 
+    @staticmethod
+    def _get_config_elems():
+        return [
+            yc.RegexElem(
+                'num_nodes', regex=r'^(\d+|all)(-(\d+|all))?$',
+                default="1",
+                help_text="Number of nodes requested for this test. "
+                          "This can be a range (e.g. 12-24)."),
+            yc.StrElem('tasks_per_node', default="1",
+                       help_text="Number of tasks to run per node."),
+            yc.StrElem(
+                'mem_per_node',
+                help_text="The minimum amount of memory required in GB. "
+                          "This can be a range (e.g. 64-128)."),
+            yc.StrElem(
+                'partition', default="standard",
+                help_text="The partition that the test should be run "
+                          "on."),
+            yc.StrElem(
+                'immediate', choices=['true', 'false', 'True', 'False'],
+                default='false',
+                help_text="Only consider nodes not currently running jobs"
+                          "when determining job size. Will set the minimum"
+                          "number of nodes "
+            ),
+            yc.StrElem('qos',
+                       help_text="The QOS that this test should use."),
+            yc.StrElem('account',
+                       help_text="The account that this test should run "
+                                 "under."),
+            yc.StrElem('reservation',
+                       help_text="The reservation that this test should "
+                                 "run under."),
+            yc.RegexElem(
+                'time_limit', regex=r'^(\d+-)?(\d+:)?\d+(:\d+)?$',
+                help_text="The time limit to specify for the slurm job in"
+                          "the formats accepted by slurm "
+                          "(<hours>:<minutes> is typical)"),
+            yc.RegexElem(
+                'include_nodes', regex=Slurm.NODE_LIST_RE,
+                help_text="The nodes to include, in the same format "
+                          "that Slurm expects with the -w or -x option. "
+                          "This will automatically increase num_nodes to "
+                          "at least this node count."
+            ),
+            yc.RegexElem(
+                'exclude_nodes', regex=Slurm.NODE_LIST_RE,
+                help_text="A list of nodes to exclude, in the same format "
+                          "that Slurm expects with the -w or -x option."
+            ),
+            yc.ListElem(name='avail_states',
+                        sub_elem=yc.StrElem(),
+                        defaults=['IDLE', 'MAINT'],
+                        help_text="When looking for immediately available "
+                                  "nodes, they must be in one of these "
+                                  "states."),
+            yc.ListElem(name='up_states',
+                        sub_elem=yc.StrElem(),
+                        defaults=['ALLOCATED',
+                                  'COMPLETING',
+                                  'IDLE',
+                                  'MAINT'],
+                        help_text="When looking for nodes that could be  "
+                                  "allocated, they must be in one of these "
+                                  "states."),
+        ]
+
     def get_conf(self):
         """Set up the Slurm configuration attributes."""
 
         return yc.KeyedElem(
             self.name,
             help_text="Configuration for the Slurm scheduler.",
-            elements=[
-                yc.RegexElem(
-                    'num_nodes', regex=r'^(\d+|all)(-(\d+|all))?$',
-                    default="1",
-                    help_text="Number of nodes requested for this test. "
-                              "This can be a range (e.g. 12-24)."),
-                yc.StrElem('tasks_per_node', default="1",
-                           help_text="Number of tasks to run per node."),
-                yc.StrElem(
-                    'mem_per_node',
-                    help_text="The minimum amount of memory required in GB. "
-                              "This can be a range (e.g. 64-128)."),
-                yc.StrElem(
-                    'partition', default="standard",
-                    help_text="The partition that the test should be run "
-                              "on."),
-                yc.StrElem(
-                    'immediate', choices=['true', 'false', 'True', 'False'],
-                    default='false',
-                    help_text="Only consider nodes not currently running jobs"
-                              "when determining job size. Will set the minimum"
-                              "number of nodes "
-                ),
-                yc.StrElem('qos',
-                           help_text="The QOS that this test should use."),
-                yc.StrElem('account',
-                           help_text="The account that this test should run "
-                                     "under."),
-                yc.StrElem('reservation',
-                           help_text="The reservation that this test should "
-                                     "run under."),
-                yc.RegexElem(
-                    'time_limit', regex=r'^(\d+-)?(\d+:)?\d+(:\d+)?$',
-                    help_text="The time limit to specify for the slurm job in"
-                              "the formats accepted by slurm "
-                              "(<hours>:<minutes> is typical)"),
-                yc.RegexElem(
-                    'include_nodes', regex=Slurm.NODE_LIST_RE,
-                    help_text="The nodes to include, in the same format "
-                              "that Slurm expects with the -w or -x option. "
-                              "This will automatically increase num_nodes to "
-                              "at least this node count."
-                ),
-                yc.RegexElem(
-                    'exclude_nodes', regex=Slurm.NODE_LIST_RE,
-                    help_text="A list of nodes to exclude, in the same format "
-                              "that Slurm expects with the -w or -x option."
-                ),
-                yc.ListElem(name='avail_states',
-                            sub_elem=yc.StrElem(),
-                            defaults=['IDLE', 'MAINT'],
-                            help_text="When looking for immediately available "
-                                      "nodes, they must be in one of these "
-                                      "states."),
-                yc.ListElem(name='up_states',
-                            sub_elem=yc.StrElem(),
-                            defaults=['ALLOCATED',
-                                      'COMPLETING',
-                                      'IDLE',
-                                      'MAINT'],
-                            help_text="When looking for nodes that could be  "
-                                      "allocated, they must be in one of these "
-                                      "states."),
-                ])
+            elements=self._get_config_elems()
+        )
 
     def _get_data(self):
         """Get the slurm node state information.
@@ -663,6 +670,27 @@ class Slurm(SchedulerPlugin):
         """Check if we're in an allocation."""
 
         return 'SLURM_JOBID' in os.environ
+
+    def available(self):
+        """Looks for several slurm commands, and tests slurm can talk to the
+        slurm db."""
+
+        for command in 'scontrol', 'sbatch', 'sinfo':
+            if distutils.spawn.find_executable(command) is None:
+                return False
+
+        # Try to get basic system info from sinfo. Should return not-zero
+        # on failure.
+        ret = subprocess.call(
+            ['sinfo'],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+        if ret != 0:
+            return False
+
+        return True
 
     def _schedule(self, test, kickoff_path):
         """Submit the kick off script using sbatch.
