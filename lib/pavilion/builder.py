@@ -12,7 +12,6 @@ import lzma
 import os
 import shutil
 import subprocess
-import sys
 import tarfile
 import threading
 import time
@@ -22,7 +21,6 @@ from pathlib import Path
 from zipfile import ZipFile, BadZipFile
 
 from pavilion import lockfile
-from pavilion import output
 from pavilion import utils
 from pavilion import wget
 from pavilion.status_file import STATES
@@ -215,10 +213,11 @@ class TestBuilder:
         # Don't allow syntax that may cause a file to be written outside of the
         # build context directory.
         files_to_create = self._config.get('create_files')
-        for file, contents in files_to_create.items():
-            if '../' in str(file):
-                raise TestBuilderError("'create_file: {}': dangerous syntax '..'"
-                                       .format(file))
+        if files_to_create:
+            for file, contents in files_to_create.items():
+                if '../' in str(file):
+                    raise TestBuilderError("'create_file: {}': dangerous syntax"
+                                           "'..'".format(file))
 
     def exists(self):
         """Return True if the given build exists."""
