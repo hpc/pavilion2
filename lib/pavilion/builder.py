@@ -1,6 +1,8 @@
 """Contains the object for tracking multi-threaded builds, along with
 the TestBuilder class itself."""
 
+# pylint: disable=too-many-lines
+
 import bz2
 import datetime
 import glob
