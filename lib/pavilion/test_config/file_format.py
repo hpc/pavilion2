@@ -283,12 +283,6 @@ expected to be added to by various plugins.
                 yc.ListElem('cmds', sub_elem=yc.StrElem(),
                             help_text='The sequence of commands to run to run '
                                       'the test.'),
-                PathElem(
-                    'create_files',
-                    key_case=PathElem.KC_MIXED,
-                    sub_elem=yc.ListElem(sub_elem=yc.StrElem()),
-                    help_text="File(s) to create at path relative to the test's"
-                              "test source directory"),
                 EnvCatElem(
                     'env', sub_elem=yc.StrElem(), key_case=EnvCatElem.KC_MIXED,
                     help_text="Environment variables to set in the run "
