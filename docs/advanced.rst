@@ -210,12 +210,12 @@ each possible permutation of values. See
 `Test Permutations <tests/variables.html#permutations>`__
 for more info.
 
-Conditionals
-~~~~~~~~~~~~
+Skip Conditions
+~~~~~~~~~~~~~~~
 
 The ``only_if`` and ``not_if`` sections of the test config allow users
 to specify the conditions under which a test should run. Tests are 'SKIPPED'
-unless each of their ``only_if`` conditions (and nine if their ``not_if``
+unless each of their ``only_if`` conditions (and none if their ``not_if``
 conditions) match. The conditions are ``key:value/s`` pairs; the key is a
 Pavilion variable, and the value/s are one or more items that the 'resolved'
 value of the Pavilion variable might match to.
@@ -231,13 +231,13 @@ value of the Pavilion variable might match to.
             cmds:
                 - 'echo "Helloworld"'
 
-In this example the users calls ``only_if``. The dictionary following has
-the key ``user`` which pavilion can resolves. It then would check to see who
-the actual ``user`` is and compare it against ['calvin', [...]]. The same
-process is applied to ``not_if``.
+    In this example the users calls ``only_if``. The dictionary following has
+    the key ``user`` which pavilion can resolves. It then would check to see who
+    the actual ``user`` is and compare it against ['calvin', [...]]. The same
+    process is applied to ``not_if``.
 
 See
-`Conditional Statements <tests/conditionals.html>`__
+`Skip Conditions <tests/conditionals.html>`__
 for additional information.
 
 Environment

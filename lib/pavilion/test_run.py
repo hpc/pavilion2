@@ -930,10 +930,9 @@ directory that doesn't already exist.
         return "TestRun({s.name}-{s.id})".format(s=self)
 
     def _get_skipped(self):
-        match_list = []
-        match_list = self._match(match_list)
 
-        if len(match_list) is 0:
+        match_list = self._evaluate_skip_conditions()
+        if len(match_list) == 0:
             return False
         else:
             self.status.set(STATES.COMPLETE, match_list[0])
@@ -965,13 +964,14 @@ directory that doesn't already exist.
             cond_dict.update({key: list})
         return cond_dict
 
-    def _match(self, match_list):
+    def _evaluate_skip_conditions(self):
 
         """Match grabs conditional keys from the config. It checks for
         matches and depending on the results will skip or continue a test.
         :param match_list: Match list is a list of conditional matches found.
         :return The match list after being populated
-        :rtype list(String)"""
+        :rtype list[str]"""
+        match_list = []
         from pavilion.output import dbg_print
         var_man = self.var_man
         only_if = self._make_regex('only_if')
@@ -981,11 +981,11 @@ directory that doesn't already exist.
             var_set, var, idx, sub_var = var_man.resolve_key(nkey)
             if var_man.is_deferred(var_set, var, idx=idx, sub_var=sub_var):
                 continue
-            for vals in not_if[nkey]:
-                if bool(re.search(vals, var_man[nkey])):
+            for val in not_if[nkey]:
+                if bool(re.search(val, var_man[nkey])):
                     message = ("Not if {0} is {1}. "
                                "The current {0} is {2}: SKIPPED"
-                               .format(nkey, vals, var_man[nkey]))
+                               .format(nkey, val, var_man[nkey]))
                     match_list.append(message)
 
         for okey in only_if:
@@ -993,8 +993,8 @@ directory that doesn't already exist.
             var_set, var, idx, sub_var = var_man.resolve_key(okey)
             if var_man.is_deferred(var_set, var, idx=idx, sub_var=sub_var):
                 continue
-            for vals in only_if[okey]:
-                if bool(re.search(vals, var_man[okey])):
+            for val in only_if[okey]:
+                if bool(re.search(val, var_man[okey])):
                     match = True
             if match is False:
                 message = ("Only if {0} is one of {1}. "

@@ -54,6 +54,10 @@ class VariableElem(yc.CategoryElem):
         return super().validate(value, partial=partial)
 
 
+class RegexDict(yc.CategoryElem):
+    _NAME_RE = re.compile('^[a-zA-Z0-9_]*{{[a-zA-Z0-9._]}}+[a-zA-Z0-9_]*$')
+
+
 class VarCatElem(yc.CategoryElem):
     """For describing how the variables section itself works.
 
@@ -178,21 +182,25 @@ expected to be added to by various plugins.
                       "single or list of strings key/string pairs."),
         yc.RegexElem('scheduler', regex=r'\w+', default="raw",
                      help_text="The scheduler class to use to run this test."),
-        yc.CategoryElem(
+        RegexDict(
             'only_if', sub_elem=yc.ListElem(sub_elem=yc.StrElem()),
-            help_text="Only_if for this test section. These are strings at "
-                      "the top of the config that contain dictionaries. The "
-                      "key consists of variables from VAR_SETS such as: 'var', "
-                      "'per', 'pav', 'sys' and 'sched'. The values are a single"
-                      " or list of strings."
+            help_text="Only run this test if each of the clauses in this "
+                      "section evaluate to true. Each clause consists of "
+                      "a mapping key (a Pavilion variable, like 'user' "
+                      "or 'sys.sys_arch') and one or more values "
+                      "(which are...) . A clause is true if the value of "
+                      "the Pavilion variable matches one or more of the "
+                      "values."
         ),
-        yc.CategoryElem(
+        RegexDict(
             'not_if', sub_elem=yc.ListElem(sub_elem=yc.StrElem()),
-            help_text="Not_if for this test section. These are strings at the "
-                      "top of the config that contain dictionaries. The key "
-                      "consists of variables from VAR_SETS such as: 'var', "
-                      "'per', 'pav', 'sys' and 'sched'. The values are a"
-                      " single or list of strings."
+            help_text="Will NOT run this test if at least one of the "
+                      "clauses evaluates to true. Each clause consists of "
+                      "a mapping key (a Pavilion variable, like 'user' "
+                      "or 'sys.sys_arch') and one or more values "
+                      "(which are...) . A clause is true if the value of "
+                      "the Pavilion variable matches one or more of the "
+                      " values."
         ),
         yc.KeyedElem(
             'build', elements=[
