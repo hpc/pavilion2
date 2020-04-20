@@ -6,7 +6,6 @@ import math
 import logging
 import re
 
-from pavilion.plugins import PluginError
 from yapsy import IPlugin
 
 LOGGER = logging.getLogger(__file__)
@@ -15,8 +14,14 @@ LOGGER = logging.getLogger(__file__)
 _FUNCTIONS = {}  # type: {str,FunctionPlugin}
 
 
-class FunctionPluginError(PluginError):
-    """Error raised by function plugins."""
+class FunctionPluginError(RuntimeError):
+    """Error raised when there's a problem with a function plugin
+    itself."""
+
+
+class FunctionArgError(ValueError):
+    """Error raised when a function plugin has a problem with the
+    function arguments."""
 
 
 def num(val):
@@ -51,7 +56,6 @@ class FunctionPlugin(IPlugin.IPlugin):
         str,
         bool,
         num,
-        None,
     )
 
     NAME_RE = re.compile(r'[a-zA-Z][a-zA-Z0-9_]*$')
@@ -71,7 +75,9 @@ class FunctionPlugin(IPlugin.IPlugin):
             argument defines the argument structure and type. See
             the validate_arg_spec docstring for more. While this
             is a dictionary, **order matters**, and corresponds to
-            the function argument order.
+            the function argument order. ``None`` denotes that arg_specs
+            won't be used or validated, and requires that ``_validate_arg`` be
+            overridden.
         """
 
         if not self.NAME_RE.match(name):
@@ -82,8 +88,16 @@ class FunctionPlugin(IPlugin.IPlugin):
         self.description = description
         self.priority = priority
 
-        for arg_spec in arg_specs.values():
-            self.validate_arg_spec(arg_spec)
+        if arg_specs is None:
+            if self._validate_arg is FunctionPlugin._validate_arg:
+                raise RuntimeError(
+                    "Function plugin {} at {} was given an arg_spec of "
+                    "'None', but did not override '_validate_arg'."
+                    .format(self.name, self.path)
+                )
+        else:
+            for arg_spec in arg_specs.values():
+                self.validate_arg_spec(arg_spec)
 
         self.arg_specs = arg_specs
 
@@ -152,7 +166,13 @@ class FunctionPlugin(IPlugin.IPlugin):
         for arg, spec in zip(args, self.arg_specs):
             val_args.append(self._validate_arg(arg, spec))
 
-        return self.func(*val_args)
+        try:
+            return self.func(*val_args)
+        except Exception as err:
+            raise FunctionPluginError(
+                "Error in function plugin {}: {}"
+                .format(self.name, err)
+            )
 
     @property
     def signature(self, newlines=False):
@@ -285,7 +305,7 @@ def get_plugin(name: str) -> FunctionPlugin:
     """Get the function plugin called 'name'."""
 
     if name not in _FUNCTIONS:
-        raise PluginError("No such function '{}'".format(name))
+        raise FunctionPluginError("No such function '{}'".format(name))
     else:
         return _FUNCTIONS[name]
 
@@ -297,7 +317,27 @@ def __reset():
         plugin.deactivate()
 
 
-class IntPlugin(FunctionPlugin):
+def register_core_plugins():
+    """Find all the core function plugins and activate them."""
+
+    for cls in CoreFunctionPlugin.__subclasses__():
+        obj = cls()
+        obj.activate()
+
+
+class CoreFunctionPlugin(FunctionPlugin):
+    """For simpler initialization and location of core function plugins."""
+
+    def __init__(self, name, description, arg_specs):
+        super().__init__(name, description, arg_specs,
+                         priority=self.PRIO_CORE)
+
+    def func(self, *args):
+        """This still must be created by child classes."""
+        raise NotImplementedError
+
+
+class IntPlugin(CoreFunctionPlugin):
     """Convert integer strings to ints of arbitrary bases."""
 
     def __init__(self):
@@ -306,7 +346,6 @@ class IntPlugin(FunctionPlugin):
         super().__init__(
             name="int",
             description="Convert an integer to .",
-            priority=self.PRIO_CORE,
             arg_specs={
                 'value': num,
                 'base': num
@@ -320,7 +359,7 @@ class IntPlugin(FunctionPlugin):
         return int(value, base)
 
 
-class RoundPlugin(FunctionPlugin):
+class RoundPlugin(CoreFunctionPlugin):
     """Round the given number to the nearest integer."""
 
     def __init__(self):
@@ -329,7 +368,6 @@ class RoundPlugin(FunctionPlugin):
         super().__init__(
             name="round",
             description="Round the given number to the nearest integer.",
-            priority=self.PRIO_CORE,
             arg_specs={'value': float})
 
     def func(self, val):
@@ -338,7 +376,7 @@ class RoundPlugin(FunctionPlugin):
         return round(val)
 
 
-class FloorPlugin(FunctionPlugin):
+class FloorPlugin(CoreFunctionPlugin):
     """Get the floor of the given number."""
 
     def __init__(self):
@@ -347,7 +385,6 @@ class FloorPlugin(FunctionPlugin):
         super().__init__(
             name="floor",
             description="Return the integer floor.",
-            priority=self.PRIO_CORE,
             arg_specs={'value': float})
 
     def func(self, val):
@@ -356,7 +393,7 @@ class FloorPlugin(FunctionPlugin):
         return math.floor(val)
 
 
-class CeilPlugin(FunctionPlugin):
+class CeilPlugin(CoreFunctionPlugin):
     """Get the ceiling of the given number."""
 
     def __init__(self):
@@ -365,7 +402,6 @@ class CeilPlugin(FunctionPlugin):
         super().__init__(
             name="ceil",
             description="Return the integer ceiling.",
-            priority=self.PRIO_CORE,
             arg_specs={'value': float})
 
     def func(self, val):
@@ -374,7 +410,7 @@ class CeilPlugin(FunctionPlugin):
         return math.ceil(val)
 
 
-class SumPlugin(FunctionPlugin):
+class SumPlugin(CoreFunctionPlugin):
     """Get the floating point sum of the given numbers."""
 
     def __init__(self):
@@ -382,8 +418,7 @@ class SumPlugin(FunctionPlugin):
 
         super().__init__(
             name="ceil",
-            description="Return the integer ceiling.",
-            priority=self.PRIO_CORE,
+            description="Return the sum of the given numbers.",
             arg_specs={'values': [num]})
 
     def func(self, vals):
@@ -392,5 +427,47 @@ class SumPlugin(FunctionPlugin):
 
         return sum(vals)
 
-class LenPlugin(FunctionPlugin):
-    """Return the length of the given list or """
+
+class AvgPlugin(CoreFunctionPlugin):
+    """Get the average of the given numbers."""
+
+    def __init__(self):
+        """Setup plugin."""
+
+        super().__init__(
+            name="avg",
+            description="Returns the average of the given numbers.",
+            arg_specs={'values': [num]},
+        )
+
+    def func(self, vals):
+        """Get the average of vals. Will always return a float."""
+
+        return sum(vals)/len(vals)
+
+
+class ListLenPlugin(CoreFunctionPlugin):
+    """Return the length of the given list. Unlike python's len, this only
+    applies to lists."""
+
+    def __init__(self):
+        """Setup plugin"""
+
+        super().__init__(
+            name='list_len',
+            description='Return the integer length of the given list.',
+            arg_specs=None,
+        )
+
+    def _validate_arg(self, arg, spec):
+        if not isinstance(arg, list):
+            raise FunctionPluginError(
+                "The list_len function only accepts lists. Got {}"
+                .format(arg)
+            )
+        return arg
+
+    def func(self, list_arg):
+        """Just return the length of the list."""
+
+        return len(list_arg)

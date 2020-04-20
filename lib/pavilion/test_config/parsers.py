@@ -1,6 +1,7 @@
 import lark
 import pprint
 from typing import Union
+from pavilion import functions
 
 STRING_GRAMMAR = r'''
 
@@ -51,17 +52,25 @@ pow_expr: primary ("^" primary)?
 primary: literal 
        | var_ref 
        | negative
-       | func_call
        | "(" expr ")"
+       | function_call
+//       | list_
+//       | ESCAPED_STRING
 
-func_call: NAME "(" (expr ("," expr)*)? ")"
+function_call: NAME "(" (expr ("," expr)*)? ")"
 
 negative: MINUS primary
 
 literal: INTEGER
        | FLOAT
-       | BOOL
+//       | BOOL
        
+list_: "[" expr ("," expr)* "," "]"
+
+_STRING_INNER: /.*?/
+_STRING_ESC_INNER: _STRING_INNER /(?<!\\)(\\\\)*?/
+ESCAPED_STRING : "\"" _STRING_ESC_INNER "\""
+
 PLUS: "+"
 MINUS: "-"
 TIMES: "*"
@@ -348,7 +357,16 @@ class ExprTransformer(lark.Transformer):
         """Just pass up the literal value.
         :param list[lark.Token] items: A single token.
         """
+
         return items[0]
+
+    def list_(self, items) -> lark.Token:
+        """Handle explicit lists.
+
+        :param list[lark.Token] items: The list item tokens.
+        """
+
+        return self._merge_tokens(items, [item.value for item in items])
 
     def var_ref(self, items) -> lark.Token:
         """
@@ -356,11 +374,11 @@ class ExprTransformer(lark.Transformer):
         :return:
         """
         var = items[0]
-        var.value = ord(var.value)
+        var.value = ord(var.value[0])
 
         return var
 
-    def func_call(self, items) -> lark.Token:
+    def function_call(self, items) -> lark.Token:
         """Look up the function call, and call it with the given argument
         values.
 
@@ -371,6 +389,24 @@ class ExprTransformer(lark.Transformer):
         func_name = items[0].value
         args = [tok.value for tok in items[1:]]
 
+        try:
+            func = functions.get_plugin(func_name)
+        except functions.FunctionPluginError:
+            raise ParseError(
+                token=items[0],
+                message="No such function '{}'".format(func_name))
+
+        try:
+            result = func(*args)
+        except functions.FunctionArgError as err:
+            raise ParseError(
+                self._merge_tokens(items, None),
+                "Invalid arguments: {}".format(err))
+        except functions.FunctionPluginError as err:
+            # The function plugins give a reasonable message.
+            raise ParseError(self._merge_tokens(items, None), err)
+
+        return result
 
     def INTEGER(self, tok) -> lark.Token:
         """Convert to an int.
