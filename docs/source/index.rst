@@ -6,6 +6,7 @@ API Documentation
     args_and_config.rst
     builder.rst
     commands.rst
+    log_setup.rst
     misc.rst
     modules.rst
     output.rst

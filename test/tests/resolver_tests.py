@@ -134,8 +134,12 @@ class ResolverTests(PavTestCase):
         """Make sure overrides get applied to test configs correctly."""
 
         overrides = [
+            # A basic value.
             'slurm.num_nodes=3',
+            # A specific list item.
             'run.cmds.0="echo nope"',
+            # An item that doesn't exist (and must be normalized by yaml_config)
+            'variables.foo="hello"',
         ]
 
         bad_overrides = [
