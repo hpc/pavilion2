@@ -54,7 +54,7 @@ primary: literal
        | negative
        | "(" expr ")"
        | function_call
-//       | list_
+       | list_
 //       | ESCAPED_STRING
 
 function_call: NAME "(" (expr ("," expr)*)? ")"
@@ -65,7 +65,7 @@ literal: INTEGER
        | FLOAT
 //       | BOOL
        
-list_: "[" expr ("," expr)* "," "]"
+list_: "[" expr ("," expr)* ","? "]"
 
 _STRING_INNER: /.*?/
 _STRING_ESC_INNER: _STRING_INNER /(?<!\\)(\\\\)*?/
