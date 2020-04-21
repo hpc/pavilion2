@@ -663,7 +663,8 @@ class TestConfigResolver:
         used_per_vars = set()
         for per_var in permute_on:
             try:
-                var_set, var, index, subvar = base_var_man.resolve_key(per_var)
+                var_set, var, index, subvar = var_key = \
+                    base_var_man.resolve_key(per_var)
             except KeyError:
                 raise TestConfigError(
                     "Permutation variable '{}' is not defined."
@@ -672,7 +673,7 @@ class TestConfigResolver:
                 raise TestConfigError(
                     "Permutation variable '{}' contains index or subvar."
                     .format(per_var))
-            elif base_var_man.is_deferred(var_set, var):
+            elif base_var_man.is_deferred(var_key):
                 raise TestConfigError(
                     "Permutation variable '{}' references a deferred variable."
                     .format(per_var))

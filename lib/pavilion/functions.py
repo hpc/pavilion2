@@ -5,6 +5,7 @@ import inspect
 import math
 import logging
 import re
+import random
 
 from yapsy import IPlugin
 
@@ -41,7 +42,7 @@ def num(val):
         try:
             return float(val)
         except ValueError:
-            raise ValueError("Could not convert '{}' to either"
+            raise ValueError("Could not convert '{}' to either "
                              "int or float.")
 
     raise RuntimeError("Invalid value '{}' given to num.".format(val))
@@ -156,15 +157,19 @@ class FunctionPlugin(IPlugin.IPlugin):
     def __call__(self, *args):
         """Validate/convert the arguments and call the function."""
 
-        if len(args) != len(self.arg_specs):
-            raise FunctionPluginError(
-                "Invalid number of arguments. Got {}, but expected {}"
-                .format(len(args), len(self.arg_specs)))
+        if self.arg_specs is not None:
+            if len(args) != len(self.arg_specs):
+                raise FunctionPluginError(
+                    "Invalid number of arguments. Got {}, but expected {}"
+                    .format(len(args), len(self.arg_specs)))
 
-        # Create the full list of validated arguments.
-        val_args = []
-        for arg, spec in zip(args, self.arg_specs):
-            val_args.append(self._validate_arg(arg, spec))
+            # Create the full list of validated arguments.
+            val_args = []
+            for arg, spec in zip(args, self.arg_specs.values()):
+                print('arg/spec', arg, spec)
+                val_args.append(self._validate_arg(arg, spec))
+        else:
+            val_args = args
 
         try:
             return self.func(*val_args)
@@ -195,7 +200,7 @@ class FunctionPlugin(IPlugin.IPlugin):
         if isinstance(spec, list):
             return [self.spec_to_desc(spec[0])]
         elif isinstance(spec, dict):
-            return {k: self.spec_to_desc(v) for k,v in spec.items()}
+            return {k: self.spec_to_desc(v) for k, v in spec.items()}
         else:
             return spec.__name__
 
@@ -256,6 +261,7 @@ class FunctionPlugin(IPlugin.IPlugin):
             if spec in (int, float) and arg in ('True', 'False'):
                 arg = bool(arg)
 
+            print('spec', spec)
             return spec(arg)
         except ValueError:
             raise FunctionPluginError(
@@ -272,6 +278,8 @@ class FunctionPlugin(IPlugin.IPlugin):
     def activate(self):
         """Yapsy runs this when adding the plugin. Add our plugin
         to the registry of function plugins."""
+
+        print('activating', self.name, self.name in _FUNCTIONS)
 
         if self.name in _FUNCTIONS:
             other = _FUNCTIONS[self.name]
@@ -313,6 +321,8 @@ def get_plugin(name: str) -> FunctionPlugin:
 def __reset():
     """Reset all function plugins. For testing only."""
 
+    print("Resetting functions")
+
     for plugin in list(_FUNCTIONS.values()):
         plugin.deactivate()
 
@@ -347,7 +357,7 @@ class IntPlugin(CoreFunctionPlugin):
             name="int",
             description="Convert an integer to .",
             arg_specs={
-                'value': num,
+                'value': str,
                 'base': num
             },
         )
@@ -417,7 +427,7 @@ class SumPlugin(CoreFunctionPlugin):
         """Setup plugin."""
 
         super().__init__(
-            name="ceil",
+            name="sum",
             description="Return the sum of the given numbers.",
             arg_specs={'values': [num]})
 
@@ -471,3 +481,20 @@ class ListLenPlugin(CoreFunctionPlugin):
         """Just return the length of the list."""
 
         return len(list_arg)
+
+
+class RandomPlugin(CoreFunctionPlugin):
+    """Return a random number in [0,1)."""
+
+    def __init__(self):
+        """Setup Plugin"""
+
+        super().__init__(
+            name="random",
+            description="Return a random float in [0,1).",
+            arg_specs={})
+
+    def func(self):
+        """Return a random float in [0,1)."""
+
+        return random.random()

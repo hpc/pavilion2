@@ -1,3 +1,4 @@
+
 """This module contains functions and classes for building variable sets for
 string insertion.
 
@@ -55,6 +56,11 @@ and something goes wrong."""
             .format(key, self.base_message)
 
 
+class DeferredError(VariableError):
+    """Raised when we encounter a deferred variable we can't resolve."""
+    pass
+
+
 class DeferredVariable:
     """The value for some variables may not be available until a test is
 actually running. Deferred variables act as a placeholder in such
@@ -67,14 +73,16 @@ circumstances, and output an escape sequence when converted to a str.
     def get(self, index, sub_var):      # pylint: disable=no-self-use
         """Deferred variables should never have their value retrieved."""
 
-        raise KeyError(
+        # This should always be caught before this point.
+        raise RuntimeError(
             "Attempted to get the value of a deferred variable."
         )
 
     def __len__(self):
         """Deferred variables always have a single value."""
 
-        raise VariableError(
+        # This should always be caught before this point.
+        raise RuntimeError(
             "Attempted to get the length of a deferred variable."
         )
 
@@ -237,7 +245,10 @@ index, sub_var) tuple.
                 raise KeyError("Invalid, empty index in key: '{}'".format(key))
             else:
                 try:
-                    index = int(parts[0])
+                    if parts[0] == '*':
+                        index = '*'
+                    else:
+                        index = int(parts[0])
                 except ValueError:
                     # If it's not an integer, assume it's a sub_key.
                     pass
@@ -387,7 +398,11 @@ index, sub_var) tuple.
         :raises KeyError: If the key value can't be found.
         """
 
-        var_set, var, index, sub_var = self.resolve_key(key)
+        var_set, var, index, sub_var = key_parts = self.resolve_key(key)
+
+        if self.is_deferred(key_parts):
+            raise DeferredError("Trying to get the value of a deferred "
+                                "variable.")
 
         # If anything else goes wrong, this will throw a KeyError
         try:
@@ -406,13 +421,15 @@ index, sub_var) tuple.
 
         self.variable_sets[var_set].set_value(var, index, sub_var, value)
 
-    def is_deferred(self, var_set, var, idx=None, sub_var=None):
+    def is_deferred(self, key):
         """Return whether the given variable is deferred. Fully specified
         variables (with idx and sub_var set) may be deferred specifically
         or in general at various levels.
 
         :rtype: bool
         """
+
+        var_set, var, idx, sub_var = self.resolve_key(key)
 
         return ((var_set, var, None, None) in self.deferred or
                 (var_set, var, idx, None) in self.deferred or
@@ -443,6 +460,11 @@ index, sub_var) tuple.
         :return: The number of items in the found 'var_set.var'.
         :raises KeyError: When the key has problems, or can't be found.
         """
+
+        if self.is_deferred((var_set, var, None, None)):
+            raise DeferredError(
+                "Trying to get the length of deferred variable '{}'"
+                .format('.'.join([var_set, var])))
 
         if var_set not in self.variable_sets:
             raise KeyError("Unknown variable set '{}'".format(var_set))
@@ -586,8 +608,7 @@ index, sub_var) tuple.
             resolved_any = False
             for key, p_val in def_parsed.items():
                 for var in p_val.variables:
-                    var_key = self.resolve_key(var)
-                    if self.is_deferred(*var_key):
+                    if self.is_deferred(var):
                         break
                 else:
                     # This variable can be resolved.
@@ -757,7 +778,10 @@ end up as a list (of one)."""
     def get(self, index, sub_var):
         """Return the variable value at the given index and sub_var."""
 
-        return self[index].get(sub_var)
+        if index == '*':
+            return [data.get(sub_var) for data in self.data]
+        else:
+            return self[index].get(sub_var)
 
     def set_value(self, index, sub_var, value):
         """Set the value at the given location to value."""

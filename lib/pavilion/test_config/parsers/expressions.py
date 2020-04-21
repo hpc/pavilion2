@@ -1,37 +1,10 @@
+"""Grammar and transformer for Pavilion expression syntax."""
+
 import lark
-import pprint
-from typing import Union
+import ast
 from pavilion import functions
+from .exceptions import ParseError
 
-STRING_GRAMMAR = r'''
-
-start: string
-
-// It's important that each of these start with a terminal, rather than 
-// a reference back to the 'string' rule. A 'STRING' terminal (or nothing) 
-// is definite, but a 'string' would be non-deterministic.
-string: STRING?
-      | STRING? escape string
-      | STRING? sub_string string
-      | STRING? expr string
-
-sub_string: SUB_STRING_START string "~" separator "]"
-SUB_STRING_START: "[~"
-escape: ESCAPE
-
-expr: EXPR_START STRING? EXPR_END
-EXPR_START: "{{"
-EXPR_END: "}}"
-
-separator: STRING? (escape STRING)*
-
-// A string can be empty
-// This will match any characters that aren't a '{' '[' or '\\', or
-// a '{' as long as it isn't followed by another '{', or
-// a '[' as long as it isn't followed by a '~'. 
-STRING: /([^{[\\~}]|{(?=[^{])|}(?=[^}])|\[(?=[^~]))+/
-ESCAPE: /\\./
-'''
 
 EXPR_GRAMMAR = r'''
 
@@ -45,7 +18,7 @@ expr: or_expr
 or_expr: and_expr ( "or" and_expr )?          
 and_expr: not_expr ( "and" not_expr )?
 not_expr: NOT? compare_expr
-compare_expr: add_expr ((EQ | NOT_EQ | "<" | ">" | LT_EQ | GT_EQ ) add_expr)*
+compare_expr: add_expr ((EQ | NOT_EQ | LT | GT | LT_EQ | GT_EQ ) add_expr)*
 add_expr: mult_expr ((PLUS | MINUS) mult_expr)*
 mult_expr: pow_expr ((TIMES | DIVIDE | INT_DIV | MODULUS) pow_expr)*
 pow_expr: primary ("^" primary)?
@@ -55,7 +28,7 @@ primary: literal
        | "(" expr ")"
        | function_call
        | list_
-//       | ESCAPED_STRING
+       | ESCAPED_STRING
 
 function_call: NAME "(" (expr ("," expr)*)? ")"
 
@@ -63,14 +36,23 @@ negative: MINUS primary
 
 literal: INTEGER
        | FLOAT
-//       | BOOL
+       | BOOL
        
-list_: "[" expr ("," expr)* ","? "]"
+list_: L_BRACKET (expr ("," expr)* ","?)? R_BRACKET
+
+// Variable references are kept generic. We'll use this both
+// for Pavilion string variables and result calculation variables.
+var_ref: NAME ("." var_key)*
+var_key: NAME
+        | INTEGER
+        | TIMES
 
 _STRING_INNER: /.*?/
 _STRING_ESC_INNER: _STRING_INNER /(?<!\\)(\\\\)*?/
 ESCAPED_STRING : "\"" _STRING_ESC_INNER "\""
 
+L_BRACKET: "["
+R_BRACKET: "]"
 PLUS: "+"
 MINUS: "-"
 TIMES: "*"
@@ -80,20 +62,16 @@ MODULUS: "%"
 NOT: "not"
 EQ: "=="
 NOT_EQ: "!="
+LT: "<"
+GT: ">"
 LT_EQ: "<="
 GT_EQ: ">="
 INTEGER: /\d+/
 FLOAT: /\d+\.\d+/
-BOOL: "True" | "False"
+// This will be prioritized over 'NAME' matches
+BOOL.2: "True" | "False"
 
-// Variable references are kept generic. We'll use this both
-// for Pavilion string variables and result calculation variables.
-var_ref: NAME ("." var_key)*
-var_key: NAME
-        | INTEGER
-        | "*"
-
-NAME: /[a-zA-Z][a-zA-Z0-9_]*/
+NAME.1: /[a-zA-Z][a-zA-Z0-9_]*/
 
 %ignore  / +(?=[^.(])/
 '''
@@ -101,52 +79,9 @@ NAME: /[a-zA-Z][a-zA-Z0-9_]*/
 _EXPR_PARSER = None
 _STRING_PARSER = None
 
-def get_expr_parser(debug=False):
-    global _EXPR_PARSER
-
-    if debug or _EXPR_PARSER is None:
-        parser = lark.Lark(
-            grammar=EXPR_GRAMMAR,
-            start='expr',
-            transformer=ExprTransformer(),
-            parser='lalr',
-            debug=debug
-        )
-    else:
-        parser = _EXPR_PARSER
-
-    if not debug and _EXPR_PARSER is None:
-        _EXPR_PARSER = parser
-
-    return parser
-
-def get_string_parser(debug=False):
-    global _STRING_PARSER
-
-    if debug or _STRING_PARSER is None:
-        parser = lark.Lark(
-            grammar=STRING_GRAMMAR,
-            parser='lalr',
-            debug=debug
-        )
-    else:
-        parser = _STRING_PARSER
-
-    if not debug and _STRING_PARSER is None:
-        _STRING_PARSER = parser
-
-    return parser
-
-
-class ParseError(ValueError):
-    def __init__(self, token, message):
-        super().__init__(message)
-
-        self.token = token
-
 
 class ExprTransformer(lark.Transformer):
-    """Transformer for expressions."""
+    """Transforms the expression parse tree into an actual value."""
 
     # pylint: disable=
 
@@ -155,6 +90,25 @@ class ExprTransformer(lark.Transformer):
         float,
         bool
     )
+
+    def __init__(self, var_man):
+        """Initialize the transformer.
+
+        :param pavilion.test_config.variables.VariableSetManager var_man:
+            The variable manager to use to resolve references.
+        """
+
+        self.var_man = var_man
+
+        super().__init__()
+
+    def start(self, items):
+        """Returns the final value of the expression."""
+
+        if not items:
+            return ''
+
+        return items[0].value
 
     def expr(self, items):
         """Simply pass up the expression result."""
@@ -173,7 +127,7 @@ class ExprTransformer(lark.Transformer):
         acc = or_items.pop().value
 
         while or_items:
-            acc = acc or or_items.pop().value
+            acc = or_items.pop().value or acc
 
         return self._merge_tokens(items, acc)
 
@@ -189,7 +143,7 @@ class ExprTransformer(lark.Transformer):
         acc = and_items.pop().value
 
         while and_items:
-            acc = acc and and_items.pop().value
+            acc = and_items.pop().value and acc
 
         return self._merge_tokens(items, acc)
 
@@ -212,17 +166,18 @@ class ExprTransformer(lark.Transformer):
             ``'>'``, ``'<='``, ``'>='``).
         """
 
+        if len(items) == 1:
+            return items[0]
+
         comp_items = items.copy()
         comp_items.reverse()
-        left = comp_items.pop()
-        if not comp_items:
-            return left
+        left = comp_items.pop().value
 
         acc = True
 
         while comp_items and acc:
             comparator = comp_items.pop()
-            right = comp_items.pop()
+            right = comp_items.pop().value
 
             if comparator == '==':
                 acc = acc and (left == right)
@@ -236,6 +191,10 @@ class ExprTransformer(lark.Transformer):
                 acc = acc and (left <= right)
             elif comparator == '>=':
                 acc = acc and (left >= right)
+            else:
+                raise RuntimeError("Invalid comparator '{}'".format(comparator))
+
+            left = right
 
         return self._merge_tokens(items, acc)
 
@@ -260,6 +219,7 @@ class ExprTransformer(lark.Transformer):
             raise RuntimeError("Add_expr expects at least one token.")
 
         add_items = items.copy()
+        add_items.reverse()
         accum = add_items.pop().value
         while add_items:
             op = add_items.pop()
@@ -366,17 +326,43 @@ class ExprTransformer(lark.Transformer):
         :param list[lark.Token] items: The list item tokens.
         """
 
-        return self._merge_tokens(items, [item.value for item in items])
+        return self._merge_tokens(items, [item.value for item in items[1:-1]])
 
     def var_ref(self, items) -> lark.Token:
         """
         :param items:
         :return:
         """
-        var = items[0]
-        var.value = ord(var.value[0])
 
-        return var
+        var_key_parts = [str(item.value) for item in items]
+        var_key = '.'.join(var_key_parts)
+        if len(var_key_parts) > 4:
+            raise ParseError(
+                self._merge_tokens(items, var_key),
+                "Invalid variable '{}': too many name parts."
+                .format(var_key))
+
+        try:
+            # This may also raise a DeferredError, but we don't want to
+            # catch those.
+            val = self.var_man[var_key]
+        except KeyError as err:
+            raise ParseError(
+                self._merge_tokens(items, var_key),
+                "Unknown variable '{}': {}"
+                .format(var_key, err)
+            )
+
+        # Convert val into the type it looks most like.
+        if isinstance(val, str):
+            val = self._conv(val)
+
+        return self._merge_tokens(items, val)
+
+    def var_key(self, items) -> lark.Token:
+        """Just return the key component."""
+
+        return items[0]
 
     def function_call(self, items) -> lark.Token:
         """Look up the function call, and call it with the given argument
@@ -406,7 +392,7 @@ class ExprTransformer(lark.Transformer):
             # The function plugins give a reasonable message.
             raise ParseError(self._merge_tokens(items, None), err)
 
-        return result
+        return self._merge_tokens(items, result)
 
     def INTEGER(self, tok) -> lark.Token:
         """Convert to an int.
@@ -414,10 +400,8 @@ class ExprTransformer(lark.Transformer):
         :param lark.Token tok:
         """
 
-        try:
-            tok.value = int(tok.value)
-        except ValueError:
-            raise ParseError(tok, "Invalid integer '{}'".format(tok.value))
+        # Ints are a series of digits, so this can't fail
+        tok.value = int(tok.value)
         return tok
 
     def FLOAT(self, tok: lark.Token) -> lark.Token:
@@ -425,24 +409,45 @@ class ExprTransformer(lark.Transformer):
 
         :param lark.Token tok:
         """
-        try:
-            tok.value = float(tok.value)
-        except ValueError:
-            raise RuntimeError("Invalid integer '{}'".format(tok.value))
+
+        # Similar to ints, this can't fail either.
+        tok.value = float(tok.value)
         return tok
 
     def BOOL(self, tok: lark.Token) -> lark.Token:
-        """Convert to a boolean.
-        """
+        """Convert to a boolean."""
 
-        if tok.value == 'True':
-            tok.value = True
-        elif tok.value == 'False':
-            tok.value = False
-        else:
-            raise RuntimeError("Invalid boolean value.")
+        # Assumes BOOL only matches 'True' or 'False'
+        tok.value = tok.value == 'True'
 
         return tok
+
+    def ESCAPED_STRING(self, tok: lark.Token) -> lark.Token:
+        """Remove quotes and escapes from the given string."""
+
+        # I cannot think of a string that will make this fail that will
+        # also be matched as a token...
+        tok.value = ast.literal_eval(tok.value)
+        return tok
+
+    def _conv(self, value):
+        """Try to convert 'value' to a number or bool. Otherwise leave
+        as a string."""
+
+        try:
+            return int(value)
+        except ValueError:
+            pass
+
+        try:
+            return float(value)
+        except ValueError:
+            pass
+
+        if value in ('True', 'False'):
+            return bool(value)
+
+        return value
 
     def _merge_tokens(self, tokens, value):
         """asdfasdf
