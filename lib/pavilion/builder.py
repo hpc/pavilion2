@@ -212,15 +212,6 @@ class TestBuilder:
         fail_name = 'fail.{}.{}'.format(self.name, self.test.id)
         self.fail_path = pav_cfg.working_dir/'builds'/fail_name
 
-        # Don't allow syntax that may cause a file to be written outside of the
-        # build context directory.
-        files_to_create = self._config.get('create_files')
-        if files_to_create:
-            for file, contents in files_to_create.items():
-                if '../' in str(file):
-                    raise TestBuilderError("'create_file: {}': dangerous syntax"
-                                           "'..'".format(file))
-
     def exists(self):
         """Return True if the given build exists."""
         return self.path.exists()
@@ -635,14 +626,26 @@ class TestBuilder:
                         "Could not copy test src '{}' to '{}': {}"
                         .format(src_path, dest, err))
 
-        # Generate file(s) from build_config
+        # Create build time file(s).
         files_to_create = self._config.get('create_files')
         if files_to_create:
             for file, contents in files_to_create.items():
-                dirname = os.path.dirname(file)
+                # Guard against improper file creation at build time: 1) don't
+                # allow a file to be written outside of the build context
+                # directory; and 2) do not let the file argument clash with an
+                # existing directory.
+                file_path = Path(dest / file).resolve()
+                if not utils.dir_contains(file_path, dest):
+                    raise TestBuilderError("'create_file: {}': file path"
+                                           " outside build context."
+                                           .format(file_path))
+                if os.path.isdir(file_path):
+                    raise TestBuilderError("'create_file: {}' file name clashes"
+                                           " with existing directory."
+                                           .format(file_path))
+                dirname = os.path.dirname(file_path)
                 Path(dest / dirname).mkdir(parents=True, exist_ok=True)
-                file_path = Path(file)
-                with open(str(dest / file_path), 'w') as file_:
+                with open(str(file_path), 'w') as file_:
                     for line in contents:
                         file_.write("{}\n".format(line))
 

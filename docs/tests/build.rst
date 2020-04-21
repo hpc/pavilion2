@@ -119,7 +119,6 @@ overwritten.
         source_location: mytest.zip
         cmds: 'make'
         make_files:
-          # Files created this way will be actual files, not symlinks.
           './config.txt'
             - 'line 1'
             - 'line 2'

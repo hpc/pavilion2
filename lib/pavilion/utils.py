@@ -6,6 +6,7 @@ plugins.
 
 # This file contains assorted utility functions.
 
+import pathlib
 import os
 import subprocess
 import zipfile
@@ -13,6 +14,17 @@ import zipfile
 from pathlib import Path
 
 # Setup colors as part of the fprint function itself.
+
+
+def dir_contains(file, directory):
+    """Check if 'file' is or is contained by 'directory'."""
+    file = pathlib.Path(file).resolve()
+    directory = pathlib.Path(directory).resolve()
+    while file.parent != file:
+        if file == directory:
+            return True
+        file = file.parent
+    return False
 
 
 def flat_walk(path, *args, **kwargs):

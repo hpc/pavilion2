@@ -140,6 +140,28 @@ class BuilderTests(PavTestCase):
             original.close()
             created_file.close()
 
+        # Ensure a file can't be written outside the build context.
+        files_to_fail = ['../file', '../../file', 'wild/../../file']
+        for file in files_to_fail:
+            file_arg = {file: []}
+            config = self._quick_test_cfg()
+            config['build']['source_location'] = 'file_tests.tgz'
+            config['build']['create_files'] = file_arg
+            with self.assertRaises(Exception) as context:
+                self._quick_test(config)
+            self.assertTrue('outside build context' in str(context.exception))
+
+        # Ensure a file can't overwrite existing directories.
+        files_to_fail = ['wild', 'rec']
+        for file in files_to_fail:
+            file_arg = {file: []}
+            config = self._quick_test_cfg()
+            config['build']['source_location'] = 'file_tests.tgz'
+            config['build']['create_files'] = files_to_fail[file]
+            with self.assertRaises(Exception) as context:
+                self._quick_test(config)
+            self.assertTrue('existing directory' in str(context.exception))
+
     def test_copy_build(self):
         """Check that builds are copied correctly."""
 
