@@ -68,11 +68,14 @@ Variables
 
 Throughout this documentation variables are synonymous with keys. Keys
 being the literal dictionary key supplied after calling ``not_if`` or
-``only_if``. It is important to note that the reference of variables
-is consistent throughout the yaml test config. Its denoted as "{{var}}"
-There are multiple types of
-variables supported in Pavilion and for detailed documentation on what
-variables to use, and how to create you own variables see
+``only_if``. It is important to note that the reference of these
+variables is consistent throughout the yaml test config. It's denoted
+by containing the variable withing quotes and four curly brackets:
+ `"{{var_name}}"`. The key can also contain multiple variables along
+with static character such as: `"Lunix-{{sys_os}} {{user}}"`.
+There are multiple types of variables supported in Pavilion and for
+detailed documentation on what variables to use, and how to create
+you own variables see
 `Variables <variables.html>`__.
 
 Regex in Conditional Skips
