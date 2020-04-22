@@ -147,6 +147,16 @@ expected to be added to by various plugins.
 """
 
     ELEMENTS = [
+        yc.StrElem(
+            'name', hidden=True, default='<unnamed>',
+            help_text="The name of the test. Will be auto-generated from the "
+                      "suite name, test section name, and subtitle."),
+        yc.StrElem(
+            'suite', hidden=True, default='<no_suite>',
+            help_text="The name of the suite. Value added automatically."),
+        yc.StrElem(
+            'suite_path', hidden=True, default='<no_suite>',
+            help_text="Path to the suite file. Value added automatically."),
         yc.RegexElem(
             'inherits_from', regex=TEST_NAME_RE_STR,
             help_text="Inherit from the given test section, and override "
@@ -184,6 +194,7 @@ expected to be added to by various plugins.
                      help_text="The scheduler class to use to run this test."),
         RegexDict(
             'only_if', sub_elem=yc.ListElem(sub_elem=yc.StrElem()),
+            key_case=EnvCatElem.KC_MIXED,
             help_text="Only run this test if each of the clauses in this "
                       "section evaluate to true. Each clause consists of "
                       "a mapping key (a Pavilion variable, like 'user' "
@@ -194,6 +205,7 @@ expected to be added to by various plugins.
         ),
         RegexDict(
             'not_if', sub_elem=yc.ListElem(sub_elem=yc.StrElem()),
+            key_case=EnvCatElem.KC_MIXED,
             help_text="Will NOT run this test if at least one of the "
                       "clauses evaluates to true. Each clause consists of "
                       "a mapping key (a Pavilion variable, like 'user' "

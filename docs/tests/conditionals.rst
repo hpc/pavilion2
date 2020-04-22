@@ -6,7 +6,7 @@ that target specific architectures, machines, or Pavilion variables.
 By using conditional statements users can have one large test
 suite that can run across all systems. If a user has a test
 that is specific to a unique architecture, say ``aarm64``,
-they can simply add ``only_if: {sys_arch: 'aarm64'}``. The
+they can simply add ``only_if: {"{{sys_arch}}": 'aarm64'}``. The
 test will only run when that condition is met.
 
 
@@ -21,8 +21,8 @@ of ``SKIPPED``:
 
     basic_test:
         only_if:
-            user: ['calvin']
-            weekday: ['Monday', 'Wednesday', 'Friday']
+            "{{user}}": ['calvin']
+            "{{weekday}}": ['Monday', 'Wednesday', 'Friday']
         run:
             cmds:
                 ...
@@ -52,8 +52,8 @@ the status of ``SKIPPED``:
 
     basic_test:
         not_if:
-            sys_os: ['windows']
-            user: ['calvin', 'nick']
+            "{{sys_os}}": ['windows']
+            "{{user}}": ['calvin', 'nick']
         run:
             cmds:
                 ...
@@ -69,9 +69,8 @@ Variables
 Throughout this documentation variables are synonymous with keys. Keys
 being the literal dictionary key supplied after calling ``not_if`` or
 ``only_if``. It is important to note that the reference of variables
-as keys is unique to conditional skips syntactically. Elsewhere in test
-configs variables would be referenced as ``{{var}}``, as oppose to just
-``not_if: var: [...]`` in conditional skips. There are multiple types of
+is consistent throughout the yaml test config. Its denoted as "{{var}}"
+There are multiple types of
 variables supported in Pavilion and for detailed documentation on what
 variables to use, and how to create you own variables see
 `Variables <variables.html>`__.
@@ -86,8 +85,8 @@ patterns. The regex value must FULLY match the key associated with it:
 
     basic_regex_test:
         only_if:
-            user: ['^[a-z]+$']
-            sys_os: ['linux']
+            "{{user}}": ['^[a-z]+$']
+            "{{sys_os}}": ['linux']
         run:
             cmds:
                 ...

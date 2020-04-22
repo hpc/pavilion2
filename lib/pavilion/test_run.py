@@ -20,6 +20,7 @@ from pavilion import result_parsers
 from pavilion import scriptcomposer
 from pavilion import utils
 from pavilion.status_file import StatusFile, STATES
+from pavilion import test_config
 from pavilion.test_config import variables, string_parser, resolver
 from pavilion.test_config.file_format import TestConfigError
 
@@ -930,77 +931,62 @@ directory that doesn't already exist.
         return "TestRun({s.name}-{s.id})".format(s=self)
 
     def _get_skipped(self):
-
         match_list = self._evaluate_skip_conditions()
+        matches = " ".join(match_list)
+        
         if len(match_list) == 0:
             return False
         else:
-            self.status.set(STATES.COMPLETE, match_list[0])
+            self.status.set(STATES.COMPLETE, matches)
             return True
 
-    def _make_regex(self, cond):
-        """_make_regex takes a dictionary and checks each value
-        under all keys and appends/prepends [^$] to make sure all
-        values are compatible with the regex match for conditional
-        statements. This is needed if the user is not using regex.
-        It explicitly defines the given value and only matches to it.
-        :param dict: Dictionary containing conditional statements
-        :return dict: Dictionary with updated values."""
-        cond_dict = self.config.get(cond, {})
-        for key in cond_dict:
-            list = []
-            for value in cond_dict[key]:
-                if len(value) is 0:
-                    value = '^$'
-                if value[0] is '^':
-                    pass
-                else:
-                    value = ''.join(['^', value])
-                if value[len(value)-1] is '$':
-                    pass
-                else:
-                    value = ''.join([value, '$'])
-                list.append(value)
-            cond_dict.update({key: list})
-        return cond_dict
-
     def _evaluate_skip_conditions(self):
-
         """Match grabs conditional keys from the config. It checks for
         matches and depending on the results will skip or continue a test.
         :param match_list: Match list is a list of conditional matches found.
         :return The match list after being populated
         :rtype list[str]"""
+
         match_list = []
         from pavilion.output import dbg_print
+
         var_man = self.var_man
-        only_if = self._make_regex('only_if')
-        not_if = self._make_regex('not_if')
+        only_if = self.config.get('only_if', {})
+        not_if = self.config.get('not_if', {})
 
         for nkey in not_if:
-            var_set, var, idx, sub_var = var_man.resolve_key(nkey)
-            if var_man.is_deferred(var_set, var, idx=idx, sub_var=sub_var):
-                continue
-            for val in not_if[nkey]:
-                if bool(re.search(val, var_man[nkey])):
-                    message = ("Not if {0} is {1}. "
-                               "The current {0} is {2}: SKIPPED"
-                               .format(nkey, val, var_man[nkey]))
-                    match_list.append(message)
+            key = test_config.string_parser.parse(nkey)
+
+            if key.resolve(var_man) is None:
+                continue  # The variable is deferred.
+            else:
+                for val in not_if[nkey]:
+                    if not val.endswith('$') or val[len(val)-2] != '\\':
+                        val = val + '$'
+                    if bool(re.match(val, key.resolve(var_man))):
+                        message = ("Not if {0} is {1}. "
+                                   "The current {0} is {2}: SKIPPED"
+                                   .format(nkey, val, key.resolve(var_man)))
+                        match_list.append(message)
 
         for okey in only_if:
             match = False
-            var_set, var, idx, sub_var = var_man.resolve_key(okey)
-            if var_man.is_deferred(var_set, var, idx=idx, sub_var=sub_var):
-                continue
-            for val in only_if[okey]:
-                if bool(re.search(val, var_man[okey])):
-                    match = True
-            if match is False:
-                message = ("Only if {0} is one of {1}. "
-                           "Current  {0} is {2}: SKIPPED"
-                           .format(okey, only_if[okey], var_man[okey]))
-                match_list.append(message)
+            key = test_config.string_parser.parse(okey)
+
+            if key.resolve(var_man) is None:
+                continue  # The variable is deferred.
+            else:
+                for val in only_if[okey]:
+                    if not val.endswith('$') or val[len(val)-2] != '\\':
+                        val = val + '$'
+                    if bool(re.match(val, key.resolve(var_man))):
+                        match = True
+                if match is False:
+                    message = ("Only if {0} is one of {1}. "
+                               "Current {0} is {2}: SKIPPED"
+                               .format(okey, only_if[okey], key.resolve(var_man)))
+                    match_list.append(message)
+
         return match_list  # returns list, can be empty.
 
     @staticmethod

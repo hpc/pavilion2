@@ -224,9 +224,9 @@ value of the Pavilion variable might match to.
 
     test:
         only_if:
-            user: ['calvin', 'paul', 'nick', 'francine']
+            "{{user}}": ['calvin', 'paul', 'nick', 'francine']
         not_if:
-            sys_arch: ['x86_64']
+            "{{sys_arch}}": ['x86_64']
         run:
             cmds:
                 - 'echo "Helloworld"'
