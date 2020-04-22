@@ -648,8 +648,8 @@ class TestBuilder:
                 # Do not allow file to clash with existing directory.
                 if os.path.isdir(str(file_path)):
                     raise TestBuilderError("'create_file: {}' clashes with"
-                                          " existing directory in test source."
-                                          .format(str(file_path)))
+                                           " existing directory in test source."
+                                           .format(str(file_path)))
                 dirname = os.path.dirname(file_path)
                 Path(dest / dirname).mkdir(parents=True, exist_ok=True)
                 with open(str(file_path), 'w') as file_:
