@@ -947,8 +947,6 @@ directory that doesn't already exist.
         :rtype list[str]"""
 
         match_list = []
-        from pavilion.output import dbg_print
-
         var_man = self.var_man
         only_if = self.config.get('only_if', {})
         not_if = self.config.get('not_if', {})
