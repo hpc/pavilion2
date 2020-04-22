@@ -1,7 +1,8 @@
 """Grammar and transformation for Pavilion string syntax."""
 
 import lark
-from .exceptions import ParseError
+from .common import ParseError, PavTransformer
+from .expressions import VarRefVisitor
 
 STRING_GRAMMAR = r'''
 
@@ -11,20 +12,27 @@ start: string
 // a reference back to the 'string' rule. A 'STRING' terminal (or nothing) 
 // is definite, but a 'string' would be non-deterministic.
 string: STRING?
-      | STRING? escape string
-      | STRING? sub_string string
+      | STRING? ESCAPE string
+      | STRING? iter string
       | STRING? expr string
 
-sub_string: SUB_STRING_START string "~" separator "]"
-SUB_STRING_START: "[~"
-escape: ESCAPE
+iter: _ITER_STRING_START iter_inner "~" separator "]"
+_ITER_STRING_START: "[~"
 
-expr: "{{" /.*?/ _FORMAT? "}}"
+iter_inner: STRING?
+          | STRING? ESCAPE iter_inner
+          | STRING? expr iter_inner
 
-separator: STRING? (escape STRING)*
+expr: "{{" EXPR? (ESCAPED_STRING EXPR?)* FORMAT? "}}"
+EXPR: /[^}":]+/
+_STRING_INNER: /.*?/
+_STRING_ESC_INNER: _STRING_INNER /(?<!\\)(\\\\)*?/
+ESCAPED_STRING : "\"" _STRING_ESC_INNER "\""
+
+separator: STRING? (ESCAPE STRING)*
 
 // This regex matches the whole format spec for python.
-_FORMAT: /:(.?[<>=^])?[+ -]?#?0?\d*[_,]?(.\d+)?[bcdeEfFgGnosxX%]?/
+FORMAT: /:(.?[<>=^])?[+ -]?#?0?\d*[_,]?(.\d+)?[bcdeEfFgGnosxX%]?/
 
 // A string can be empty
 // This will match any characters that aren't a '{' '[' or '\\', or
@@ -35,21 +43,92 @@ ESCAPE: /\\./
 '''
 
 
-class StringTransformer(lark.Transformer):
-    """Dynamically transform parsed strings into their final value."""
+class ExprToken(lark.Token):
+    """Denotes a special token that represents an expression."""
 
-    def __init__(self, var_man):
-        """Initialize the transformer.
 
-        :param pavilion.test_config.variables.VariableSetManager var_man:
-            The variable set manager to use to resolve expression variables.
+class StringTransformer(PavTransformer):
+    """Dynamically transform parsed strings into their final value.
+
+    - string productions always return a list of tokens.
+    - ExprTokens are generated for expressions.
+    - These lists are collapsed by both 'start' and 'sub_string' productions.
+
+      - The collapsed result is a single token.
+      - The collapse process resolves all ExprTokens.
+    - All other productions collapse their components immediately.
+    """
+
+    EXPRESSION = '<expression>'
+
+    def start(self, items):
+        return items[0].value
+
+    def string(self, items):
+        print('string', items)
+
+        return self._merge_tokens(items, items)
+
+    def expr(self, items):
         """
 
-        self.var_man = var_man
+        :param list[lark.Token] items:
+        :return:
+        """
 
-        super().__init__()
+        if not items:
+            return lark.Token(
+                type_='<empty>',
+                value='',
+            )
 
-    def _blerg(self, items):
+        if items[-1].type == 'FORMAT':
+            expr_format = items.pop()
+        else:
+            expr_format = None
+
+        value = {
+            'expr': ''.join([item.value for item in items]),
+            'format': expr_format,
+        }
+
+        return self._merge_tokens(items, value, type_=self.EXPRESSION)
+
+    def escape(self, items):
+        print('escape', items)
+
+        token = items[0]
+        token.value = token.value[1]
+
+        return token
+
+    def iter(self, items: [lark.Token]) -> lark.Token:
+        """
+        :param items:
+        :return:
+        """
+
+        # The original tokens will be set as the inner value.
+        inner_items = items.pop(0).value
+        if items:
+            separator = items.pop().value
+        else:
+
+
+    def separator(self, items):
+
+        return self._merge_tokens()
+
+
+
+
+    def iter_inner(self, items):
+        """Works just like a string production, but repeaters aren't
+        allowed."""
+
+        return self._merge_tokens(items, items)
+
+    def blerg(self, items):
 
         value = items[0].value
         if len(items) == 2:
@@ -80,4 +159,5 @@ class StringTransformer(lark.Transformer):
                         .format(format_spec, err))
         else:
             value = str(value)
+
 

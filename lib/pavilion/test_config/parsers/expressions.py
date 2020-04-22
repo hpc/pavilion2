@@ -3,7 +3,7 @@
 import lark
 import ast
 from pavilion import functions
-from .exceptions import ParseError
+from .common import PavTransformer, ParseError
 
 
 EXPR_GRAMMAR = r'''
@@ -80,7 +80,7 @@ _EXPR_PARSER = None
 _STRING_PARSER = None
 
 
-class ExprTransformer(lark.Transformer):
+class ExprTransformer(PavTransformer):
     """Transforms the expression parse tree into an actual value."""
 
     # pylint: disable=
@@ -90,17 +90,6 @@ class ExprTransformer(lark.Transformer):
         float,
         bool
     )
-
-    def __init__(self, var_man):
-        """Initialize the transformer.
-
-        :param pavilion.test_config.variables.VariableSetManager var_man:
-            The variable manager to use to resolve references.
-        """
-
-        self.var_man = var_man
-
-        super().__init__()
 
     def start(self, items):
         """Returns the final value of the expression."""
@@ -449,47 +438,38 @@ class ExprTransformer(lark.Transformer):
 
         return value
 
-    def _merge_tokens(self, tokens, value):
-        """asdfasdf
 
-        :param list[lark.Token] tokens:
-        :return:
-        """
-        tokens = tokens.copy()
-        tokens.reverse()
+class VarRefVisitor(lark.Visitor):
+    """Finds all of the variable references in the tree."""
 
-        tok = tokens.pop()
-        pos_in_stream = tok.pos_in_stream
-        line = tok.line
-        column = tok.column
-        end_line = tok.end_line
-        end_column = tok.end_column
-        end_pos = tok.end_pos
+    def __default__(self, tree):
+        """By default, return an empty list for each subtree, as
+        most trees will have no variable references."""
 
-        while tokens:
-            tok = tokens.pop()
-            pos_in_stream = min(pos_in_stream, tok.pos_in_stream)
-            end_pos = max(end_pos, tok.end_pos)
+        return None
 
-            if tok.line < line:
-                line = tok.line
-                column = tok.column
-            elif tok.line == line:
-                column = tok.column
+    def visit(self, tree):
+        """Visit the tree bottom up and return all the variable references
+        found."""
 
-            if tok.end_line > end_line:
-                end_line = tok.end_line
-                column = tok.column
-            elif tok.end_line == end_line:
-                column = tok.column
+        var_refs = set()
 
-        return lark.Token(
-            type_='<merged>',
-            value=value,
-            line=line,
-            column=column,
-            end_line=end_line,
-            end_column=end_column,
-            pos_in_stream=pos_in_stream,
-            end_pos=end_pos
-        )
+        for subtree in tree.iter_subtrees():
+            var_ref = self._call_userfunc(subtree)
+            if var_ref is not None:
+                var_refs.add(var_ref)
+
+        return var_refs
+
+    # We're not supporting this method (always just use .visit())
+    visit_topdown = None
+
+    def var_ref(self, tree: lark.Tree) -> [str]:
+
+        var_parts = []
+        for val in tree.scan_values(lambda c: True):
+            var_parts.append(val)
+
+        var_name = '.'.join(var_parts)
+
+        return var_name

@@ -36,6 +36,17 @@ class ParserTests(unittest.PavTestCase):
     def tearDown(self) -> None:
         plugins._reset_plugins()
 
+    def test_visit_expression(self):
+
+        expr_parser = parsers.get_expr_parser()
+
+        expr = 'int1 + var.int2 * 11 * - sum([int1, int2])'
+
+        tree = expr_parser.parse(expr)
+
+        visitor = parsers.expressions.VarRefVisitor()
+        print(visitor.visit(tree))
+
     def test_good_expressions(self):
         """Make sure good expressions work as expected."""
 
@@ -199,12 +210,13 @@ class ParserTests(unittest.PavTestCase):
             'hello world',
             'hello\nworld',
             'hello \\{ world',
-            'hello {{this is an expr 1234.3}} world',
+            'hello {{this is "ok:}"an expr 1234.3"}:":3d}} world',
+            '{{this is "ok:}"an expr 1234.3"}:":3d}} world',
         ]
 
         string_parser = parsers.get_string_parser(self.var_man)
         for string in strings:
-            print(string_parser.parse(string).pretty())
+            print(string_parser.parse(string))
 
         # It's also important to come up with strings that should fail.
         # Strings that should fail.
