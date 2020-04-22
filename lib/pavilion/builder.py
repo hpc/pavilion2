@@ -32,6 +32,10 @@ class TestBuilderError(RuntimeError):
     """Exception raised when builds encounter an error."""
 
 
+class TestBuilderIOError(RuntimeError):
+    """Exception raised when file IO fails."""
+
+
 class MultiBuildTracker:
     """Allows for the central organization of multiple build tracker objects.
 
@@ -211,6 +215,16 @@ class TestBuilder:
         self.path = pav_cfg.working_dir/'builds'/self.name  # type: Path
         fail_name = 'fail.{}.{}'.format(self.name, self.test.id)
         self.fail_path = pav_cfg.working_dir/'builds'/fail_name
+
+        # Don't allow a file to be written outside of the build context dir.
+        files_to_create = self._config.get('create_files')
+        if files_to_create:
+            for file, contents in files_to_create.items():
+                file_path = Path(self.path / file).resolve()
+                if not utils.dir_contains(file_path, self.path):
+                    raise TestBuilderError("'create_file: {}': file path"
+                                           " outside build context."
+                                           .format(file_path))
 
     def exists(self):
         """Return True if the given build exists."""
@@ -630,19 +644,12 @@ class TestBuilder:
         files_to_create = self._config.get('create_files')
         if files_to_create:
             for file, contents in files_to_create.items():
-                # Guard against improper file creation at build time: 1) don't
-                # allow a file to be written outside of the build context
-                # directory; and 2) do not let the file argument clash with an
-                # existing directory.
                 file_path = Path(dest / file).resolve()
-                if not utils.dir_contains(file_path, dest):
-                    raise TestBuilderError("'create_file: {}': file path"
-                                           " outside build context."
-                                           .format(file_path))
-                if os.path.isdir(file_path):
-                    raise TestBuilderError("'create_file: {}' file name clashes"
-                                           " with existing directory."
-                                           .format(file_path))
+                # Do not allow file to clash with existing directory.
+                if os.path.isdir(str(file_path)):
+                    raise TestBuilderError("'create_file: {}' clashes with"
+                                          " existing directory in test source."
+                                          .format(str(file_path)))
                 dirname = os.path.dirname(file_path)
                 Path(dest / dirname).mkdir(parents=True, exist_ok=True)
                 with open(str(file_path), 'w') as file_:
