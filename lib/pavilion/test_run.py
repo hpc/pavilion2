@@ -933,7 +933,6 @@ directory that doesn't already exist.
     def _get_skipped(self):
         match_list = self._evaluate_skip_conditions()
         matches = " ".join(match_list)
-        
         if len(match_list) == 0:
             return False
         else:
@@ -984,7 +983,8 @@ directory that doesn't already exist.
                 if match is False:
                     message = ("Only if {0} is one of {1}. "
                                "Current {0} is {2}: SKIPPED"
-                               .format(okey, only_if[okey], key.resolve(var_man)))
+                               .format(okey, only_if[okey],
+                                       key.resolve(var_man)))
                     match_list.append(message)
 
         return match_list  # returns list, can be empty.
