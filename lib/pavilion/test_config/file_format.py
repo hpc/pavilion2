@@ -59,6 +59,10 @@ class VariableElem(yc.CategoryElem):
         return super().validate(value, partial=partial)
 
 
+class RegexDict(yc.CategoryElem):
+    _NAME_RE = re.compile(r'^.*$')
+
+
 class VarCatElem(yc.CategoryElem):
     """For describing how the variables section itself works.
 
@@ -193,6 +197,31 @@ expected to be added to by various plugins.
                       "single or list of strings key/string pairs."),
         yc.RegexElem('scheduler', regex=r'\w+', default="raw",
                      help_text="The scheduler class to use to run this test."),
+        RegexDict(
+            'only_if', sub_elem=yc.ListElem(sub_elem=yc.StrElem()),
+            key_case=EnvCatElem.KC_MIXED,
+            help_text="Only run this test if each of the clauses in this "
+                      "section evaluate to true. Each clause consists of "
+                      "a mapping key (that can contain Pavilion variable "
+                      "references, like '{{pav.user}}' or '{{sys.sys_arch}}'"
+                      ") and one or more regex values"
+                      "(that much match the whole key). A clause is true "
+                      "if the value of the Pavilion variable matches one or"
+                      " more of the values. "
+        ),
+        RegexDict(
+            'not_if', sub_elem=yc.ListElem(sub_elem=yc.StrElem()),
+            key_case=EnvCatElem.KC_MIXED,
+            help_text="Will NOT run this test if at least one of the "
+                      "clauses evaluates to true. Each clause consists of "
+                      "a mapping key (that can contain Pavilion variable "
+                      "references, like '{{pav.user}}' or "
+                      "'{{sys.sys_arch}}') and one or more "
+                      "regex values (that much match the whole key)."
+                      "A clause is true if the value of "
+                      "the Pavilion variable matches one or more of the "
+                      " values."
+        ),
         yc.KeyedElem(
             'build', elements=[
                 yc.ListElem(
@@ -273,7 +302,7 @@ expected to be added to by various plugins.
                     help_text="Echo commands (including sourced files) in the"
                               " build log, and print the modules loaded and "
                               "environment before the cmds run."),
-                ],
+            ],
             help_text="The test build configuration. This will be "
                       "used to dynamically generate a build script for "
                       "building the test."),
