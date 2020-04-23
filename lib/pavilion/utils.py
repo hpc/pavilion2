@@ -15,6 +15,7 @@ from pathlib import Path
 
 
 # Python 3.5 issue. Python 3.6 Path.resolve() handles this correctly.
+# pylint: disable=protected-access
 def resolve_path(path, strict=False):
     """Stolen straight from python3.6 pathlib."""
 
@@ -46,8 +47,8 @@ def resolve_path(path, strict=False):
             # Resolve the symbolic link
             try:
                 target = accessor.readlink(newpath)
-            except OSError as e:
-                if e.errno != errno.EINVAL and strict:
+            except OSError as err:
+                if err.errno != errno.EINVAL and strict:
                     raise
                 # Not a symlink, or non-strict mode. We just leave the path
                 # untouched.

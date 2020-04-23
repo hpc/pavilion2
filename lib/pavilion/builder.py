@@ -650,7 +650,7 @@ class TestBuilder:
                     raise TestBuilderError("'create_file: {}' clashes with"
                                            " existing directory in test source."
                                            .format(str(file_path)))
-                dirname = os.path.dirname(file_path)
+                dirname = file_path.parent
                 Path(dest / dirname).mkdir(parents=True, exist_ok=True)
                 with open(str(file_path), 'w') as file_:
                     for line in contents:
