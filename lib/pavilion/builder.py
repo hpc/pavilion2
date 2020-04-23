@@ -650,7 +650,7 @@ class TestBuilder:
                                            " existing directory in test source."
                                            .format(str(file_path)))
                 dirname = file_path.parent
-                Path(dest / dirname).mkdir(parents=True, exist_ok=True)
+                (dest / dirname).mkdir(parents=True, exist_ok=True)
                 with file_path.open('w') as file_:
                     for line in contents:
                         file_.write("{}\n".format(line))
