@@ -1,4 +1,5 @@
 import copy
+import io
 import shutil
 import threading
 import time
@@ -109,6 +110,62 @@ class BuilderTests(PavTestCase):
             self._cmp_files(test_archives/file,
                             test.builder.path/file)
 
+    def test_create_file(self):
+        """Check that build time file creation is working correctly."""
+
+        plugins.initialize_plugins(self.pav_cfg)
+        files_to_create = {
+            'file1': ['line_0', 'line_1'],
+            'wild/file2': ['line_0', 'line_1'],  # wild dir exists
+            'wild/dir2/file3': ['line_0', 'line_1'], # dir2 does not exist
+            'real.txt':['line1', 'line4'] # file exists
+        }
+        config = self._quick_test_cfg()
+        config['build']['source_location'] = 'file_tests.tgz'
+        config['build']['create_files'] = files_to_create
+        test = self._quick_test(config)
+
+        for file, lines in files_to_create.items():
+            file_path = test.path/'build'/file
+            self.assertTrue(file_path.exists())
+
+            # Stage file contents for comparison.
+            original = io.StringIO()
+            for line in lines:
+                original.write("{}\n".format(line))
+            created_file = open(str(file_path), 'r', encoding='utf-8')
+
+            # Compare contents.
+            self.assertEquals(original.getvalue(), created_file.read())
+            original.close()
+            created_file.close()
+
+    def test_create_file_errors(self):
+        """Check build time file creation expected errors."""
+
+        plugins.initialize_plugins(self.pav_cfg)
+
+        # Ensure a file can't be written outside the build context.
+        files_to_fail = ['../file', '../../file', 'wild/../../file']
+        for file in files_to_fail:
+            file_arg = {file: []}
+            config = self._quick_test_cfg()
+            config['build']['source_location'] = 'file_tests.tgz'
+            config['build']['create_files'] = file_arg
+            with self.assertRaises(RuntimeError) as context:
+                self._quick_test(config)
+            self.assertTrue('outside build context' in str(context.exception))
+
+        # Ensure a file can't overwrite existing directories.
+        files_to_fail = ['wild', 'rec']
+        for file in files_to_fail:
+            file_arg = {file: []}
+            config = self._quick_test_cfg()
+            config['build']['source_location'] = 'file_tests.tgz'
+            config['build']['create_files'] = file_arg
+            test = TestRun(self.pav_cfg, config)
+            self.assertFalse(test.build())
+
     def test_copy_build(self):
         """Check that builds are copied correctly."""
 
@@ -117,7 +174,7 @@ class BuilderTests(PavTestCase):
         config = self._quick_test_cfg()
         # The copy_test source file contains several files to copy
         # for real and several to symlink.
-        config['build']['source_location'] = 'copy_test.tgz'
+        config['build']['source_location'] = 'file_tests.tgz'
         config['build']['copy_files'] = [
             'real.*',
             'wild/real_?i*[0-9].dat',
