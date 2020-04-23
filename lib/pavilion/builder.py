@@ -43,9 +43,10 @@ class MultiBuildTracker:
             files by build.
     """
 
-    def __init__(self):
-        """
+    def __init__(self, log=True):
+        """Setup the build tracker.
 
+        :param bool log: Whether to also log messages in some instances.
         """
 
         # A map of build tokens to build names
@@ -54,7 +55,9 @@ class MultiBuildTracker:
         self.status_files = {}
         self.lock = threading.Lock()
 
-        self.logger = logging.getLogger(__name__)
+        self.logger = None
+        if log:
+            self.logger = logging.getLogger(__name__)
 
     def register(self, builder, test_status_file):
         """Register a builder, and get your own build tracker.
@@ -95,7 +98,7 @@ class MultiBuildTracker:
             if state is not None:
                 self.status[builder] = state
 
-        if log is not None:
+        if log is not None and self.logger:
             self.logger.log(level=log, msg=note)
 
     def get_notes(self, builder):
