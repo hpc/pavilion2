@@ -194,7 +194,7 @@ class TestBuilder:
         """
 
         if mb_tracker is None:
-            mb_tracker = MultiBuildTracker()
+            mb_tracker = MultiBuildTracker(log=False)
         self.tracker = mb_tracker.register(self, test.status)
 
         self._pav_cfg = pav_cfg
