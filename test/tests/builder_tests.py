@@ -140,6 +140,11 @@ class BuilderTests(PavTestCase):
             original.close()
             created_file.close()
 
+    def test_create_file_errors(self):
+        """Check build time file creation expected errors."""
+
+        plugins.initialize_plugins(self.pav_cfg)
+
         # Ensure a file can't be written outside the build context.
         files_to_fail = ['../file', '../../file', 'wild/../../file']
         for file in files_to_fail:

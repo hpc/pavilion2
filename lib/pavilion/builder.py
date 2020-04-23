@@ -32,10 +32,6 @@ class TestBuilderError(RuntimeError):
     """Exception raised when builds encounter an error."""
 
 
-class TestBuilderIOError(RuntimeError):
-    """Exception raised when file IO fails."""
-
-
 class MultiBuildTracker:
     """Allows for the central organization of multiple build tracker objects.
 
@@ -649,13 +645,13 @@ class TestBuilder:
             for file, contents in files_to_create.items():
                 file_path = Path(utils.resolve_path(dest / file))
                 # Do not allow file to clash with existing directory.
-                if os.path.isdir(str(file_path)):
+                if file_path.is_dir():
                     raise TestBuilderError("'create_file: {}' clashes with"
                                            " existing directory in test source."
                                            .format(str(file_path)))
                 dirname = file_path.parent
                 Path(dest / dirname).mkdir(parents=True, exist_ok=True)
-                with open(str(file_path), 'w') as file_:
+                with file_path.open('w') as file_:
                     for line in contents:
                         file_.write("{}\n".format(line))
 
