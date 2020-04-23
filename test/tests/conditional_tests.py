@@ -54,7 +54,7 @@ class conditionalTest(unittest.PavTestCase):
         # Test 4:
         # No only_if, not_if exists with no match.
         test_cfg = base_cfg.copy()
-        test_cfg['not_if'] = {'{{dumb_user}}': ['nivlac', 'notcalvin'],
+        test_cfg['not_if'] = {'{{dumb_user}}': ['^[0-9]{6}$', 'notcalvin'],
                               '{{dumb_os}}': ['blurg']}
         test_cfg['only_if'] = {}
         test_list.append(test_cfg)
@@ -93,7 +93,7 @@ class conditionalTest(unittest.PavTestCase):
         # Test 3:
         # No only_if, not_if has a match.
         test_cfg = base_cfg.copy()
-        test_cfg['not_if'] = {'{{dumb_user}}': ['notcalvin', 'calvin']}
+        test_cfg['not_if'] = {'{{dumb_user}}': ['notcalvin', '^[a-z]+$']}
         test_list.append(test_cfg)
 
         # Test 4:
@@ -208,80 +208,3 @@ class conditionalTest(unittest.PavTestCase):
             fin_var_man.add_var_set('sys', fin_sys)
             test.finalize(fin_var_man)
             self.assertFalse(test.skipped, msg="Test Should NOT skip.")
-
-    def test_regex(self):
-        # The following tests test basic regex functionality of the
-        # conditional tests. It checks to make sure various sequences
-        # of regex or resolved correctly through only_if and not_if.
-
-        test_list = []
-        base_cfg = self._quick_test_cfg()
-
-        # Test 1:
-        # Not_if with regex key that results in no skips
-        test_cfg = base_cfg.copy()
-        test_cfg['not_if'] = {'{{dumb_user}}': ['[0-9]']}
-        test_list.append(test_cfg)
-
-        # Test 2:
-        # Only_if with regex that results in no skip.
-        test_cfg = base_cfg.copy()
-        test_cfg['only_if'] = {'{{dumb_user}}': ['^[a-z]{6}']}
-        test_list.append(test_cfg)
-
-        # Test 3:
-        # Not_if fails to match with regex only_if matches.
-        test_cfg = base_cfg.copy()
-        test_cfg['not_if'] = {'{{dumb_user}}': ['nivlac', ''],
-                              '{{dumb_os}}': ['blurg']}
-        test_cfg['only_if'] = {'{{dumb_sys_var}}': ['[a-z]+$']}
-        test_list.append(test_cfg)
-
-        # Test 4:
-        # Only_if that fails to skip with deferred not_if that skips.
-        test_cfg = base_cfg.copy()
-        test_cfg['only_if'] = {'{{dumb_user}}': ['nivlac', 'calvin'],
-                               '{{dumb_os}}': ['bieber']}
-        test_cfg['not_if'] = {'{{dumb_sys_var}}': ['stupid']}
-        test_list.append(test_cfg)
-
-        for test_cfg in test_list:
-            test = self._quick_test(cfg=test_cfg, finalize=False)
-            self.assertFalse(test.skipped, msg="These tests should "
-                                               "be skipped.")
-
-        test_list = []  # reset list for skip tests.
-
-        # Test 5:
-        # Not_if the skips on any lowercase username.
-        test_cfg = base_cfg.copy()
-        test_cfg['not_if'] = {'{{dumb_user}}': ['^[a-z]+$']}
-        test_list.append(test_cfg)
-
-        # Test 6:
-        # Only_if that finds no match on 6 digit number.
-        test_cfg = base_cfg.copy()
-        test_cfg['only_if'] = {'{{dumb_user}}': ['^[0-9]{6}$']}
-        test_list.append(test_cfg)
-
-        # Test 7:
-        # Not_if fails to match with regex only_if not matching.
-        test_cfg = base_cfg.copy()
-        test_cfg['not_if'] = {'{{dumb_user}}': ['nivlac', ''],
-                              '{{dumb_os}}': ['blurg']}
-        test_cfg['only_if'] = {'{{dumb_sys_var}}': ['^[0-9]bleh$']}
-        test_list.append(test_cfg)
-
-        # Test 8:
-        # Only_if that fails to skip with deferred not_if
-        # regex that matches and appends ^ and $.
-        test_cfg = base_cfg.copy()
-        test_cfg['only_if'] = {'{{dumb_user}}': ['nivlac', 'calvin'],
-                               '{{dumb_os}}': ['bieber']}
-        test_cfg['not_if'] = {'{{dumb_sys_var}}': ['[a-z]+']}
-        test_list.append(test_cfg)
-
-        for test_cfg in test_list:
-            test = self._quick_test(cfg=test_cfg)
-            self.assertTrue(test.skipped, msg="These tests should "
-                                              "be skipped.")

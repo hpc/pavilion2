@@ -197,20 +197,23 @@ expected to be added to by various plugins.
             key_case=EnvCatElem.KC_MIXED,
             help_text="Only run this test if each of the clauses in this "
                       "section evaluate to true. Each clause consists of "
-                      "a mapping key (a Pavilion variable, like 'user' "
-                      "or 'sys.sys_arch') and one or more values "
-                      "(which are...) . A clause is true if the value of "
-                      "the Pavilion variable matches one or more of the "
-                      "values."
+                      "a mapping key (that can contain Pavilion variable "
+                      "references, like '{{pav.user}}' or '{{sys.sys_arch}}'"
+                      ") and one or more regex values"
+                      "(that much match the whole key). A clause is true "
+                      "if the value of the Pavilion variable matches one or"
+                      " more of the values. "
         ),
         RegexDict(
             'not_if', sub_elem=yc.ListElem(sub_elem=yc.StrElem()),
             key_case=EnvCatElem.KC_MIXED,
             help_text="Will NOT run this test if at least one of the "
                       "clauses evaluates to true. Each clause consists of "
-                      "a mapping key (a Pavilion variable, like 'user' "
-                      "or 'sys.sys_arch') and one or more values "
-                      "(which are...) . A clause is true if the value of "
+                      "a mapping key (that can contain Pavilion variable "
+                      "references, like '{{pav.user}}' or "
+                      "'{{sys.sys_arch}}') and one or more "
+                      "regex values (that much match the whole key)."
+                      "A clause is true if the value of "
                       "the Pavilion variable matches one or more of the "
                       " values."
         ),

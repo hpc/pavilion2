@@ -419,26 +419,43 @@ class TestRun:
 
         config_path = self.path/'config'
 
+        # make lock
+        lock_path = self.path/'config.lockfile'
+        config_lock = lockfile.LockFile(
+            lock_path,
+            group=self._pav_cfg.shared_group
+        )
+
         try:
+            config_lock.lock()
             with config_path.open('w') as json_file:
                 pavilion.output.json_dump(self.config, json_file)
         except (OSError, IOError) as err:
-            raise TestRunError("Could not save TestRun ({}) config at {}: {}"
-                               .format(self.name, self.path, err))
+            raise TestRunError(
+                "Could not save TestRun ({}) config at {}: {}"
+                .format(self.name, self.path, err))
         except TypeError as err:
-            raise TestRunError("Invalid type in config for ({}): {}"
-                               .format(self.name, err))
+            raise TestRunError(
+                "Invalid type in config for ({}): {}"
+                .format(self.name, err))
+        finally:
+            config_lock.unlock()
 
     @classmethod
     def _load_config(cls, test_path):
         """Load a saved test configuration."""
         config_path = test_path/'config'
 
+        # make lock
+        lock_path = test_path/'config.lockfile'
+        config_lock = lockfile.LockFile(lock_path)
+
         if not config_path.is_file():
             raise TestRunError("Could not find config file for test at {}."
                                .format(test_path))
 
         try:
+            config_lock.lock()
             with config_path.open('r') as config_file:
                 # Because only string keys are allowed in test configs,
                 # this is a reasonable way to load them.
@@ -449,6 +466,8 @@ class TestRun:
         except (IOError, OSError) as err:
             raise TestRunError("Error reading config file '{}': {}"
                                .format(config_path, err))
+        finally:
+            config_lock.unlock()
 
     def build(self, cancel_event=None):
         """Build the test using its builder object and symlink copy it to
@@ -931,9 +950,10 @@ directory that doesn't already exist.
         return "TestRun({s.name}-{s.id})".format(s=self)
 
     def _get_skipped(self):
-        match_list = self._evaluate_skip_conditions()
-        matches = " ".join(match_list)
-        if len(match_list) == 0:
+        skip_reason_list = self._evaluate_skip_conditions()
+        matches = " ".join(skip_reason_list)
+
+        if len(skip_reason_list) == 0:
             return False
         else:
             self.status.set(STATES.COMPLETE, matches)
@@ -953,36 +973,37 @@ directory that doesn't already exist.
 
         for nkey in not_if:
             key = test_config.string_parser.parse(nkey)
+            key = key.resolve(var_man)
 
-            if key.resolve(var_man) is None:
+            if key is None:
                 continue  # The variable is deferred.
             else:
                 for val in not_if[nkey]:
-                    if not val.endswith('$') or val[len(val)-2] != '\\':
+                    if not val.endswith('$'):
                         val = val + '$'
-                    if bool(re.match(val, key.resolve(var_man))):
+                    if bool(re.match(val, key)):
                         message = ("Not if {0} is {1}. "
                                    "The current {0} is {2}: SKIPPED"
-                                   .format(nkey, val, key.resolve(var_man)))
+                                   .format(nkey, val, key))
                         match_list.append(message)
 
         for okey in only_if:
             match = False
             key = test_config.string_parser.parse(okey)
+            key = key.resolve(var_man)
 
-            if key.resolve(var_man) is None:
+            if key is None:
                 continue  # The variable is deferred.
             else:
                 for val in only_if[okey]:
-                    if not val.endswith('$') or val[len(val)-2] != '\\':
+                    if not val.endswith('$'):
                         val = val + '$'
-                    if bool(re.match(val, key.resolve(var_man))):
+                    if bool(re.match(val, key)):
                         match = True
                 if match is False:
                     message = ("Only if {0} is one of {1}. "
                                "Current {0} is {2}: SKIPPED"
-                               .format(okey, only_if[okey],
-                                       key.resolve(var_man)))
+                               .format(okey, only_if[okey], key))
                     match_list.append(message)
 
         return match_list  # returns list, can be empty.

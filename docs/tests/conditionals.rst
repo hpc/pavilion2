@@ -20,16 +20,15 @@ of ``SKIPPED``:
 .. code:: yaml
 
     basic_test:
+        # This basic test has two keys to resolve under only_if.
         only_if:
+            # This test will run if the user is calvin
             "{{user}}": ['calvin']
+            # This test also needs the weekday to be MWF to run.
             "{{weekday}}": ['Monday', 'Wednesday', 'Friday']
         run:
             cmds:
                 ...
-
-    In this example the 'only_if' directive has two keys to resolve, 'user'
-    and 'weekday'. The test will run if user == calvin AND weekday ==
-    Monday, Wednesday, or Friday.
 
 Deferred Variables
 ^^^^^^^^^^^^^^^^^^
@@ -51,32 +50,25 @@ the status of ``SKIPPED``:
 .. code:: yaml
 
     basic_test:
+        # This basic test resolves two keys under not_if.
         not_if:
+            # This test will be skipped if 'sys_os' is windows.
             "{{sys_os}}": ['windows']
+            # This test will be skipped if 'user' is calvin or nick.
             "{{user}}": ['calvin', 'nick']
         run:
             cmds:
                 ...
 
-    In this example the 'not_if` directive has two keys to resolve, 'sys_os'
-    and 'user'. Only one match is needed so the test will be
-    assigned the status of 'SKIPPED' if the sys_os == 'windows' OR if
-    user == 'calvin' OR user == 'nick'.
-
 Variables
 ~~~~~~~~~
 
-Throughout this documentation variables are synonymous with keys. Keys
-being the literal dictionary key supplied after calling ``not_if`` or
-``only_if``. It is important to note that the reference of these
-variables is consistent throughout the yaml test config. It's denoted
-by containing the variable withing quotes and four curly brackets:
-``"{{var_name}}"``. The key can also contain multiple variables along
-with static character such as: ``"Lunix-{{sys_os}} {{user}}"``.
-There are multiple types of variables supported in Pavilion and for
-detailed documentation on what variables to use, and how to create
-you own variables see
-`Variables <variables.html>`__.
+The keys in the only_if and not_if sections can contain Pavilion
+variable references (unlike keys in the rest of Pavilion test
+configs). You can even have keys that reference multiple
+variables and static characters such as: "Lunix-{{sys_os}} {{user}}".
+More on
+`Pavilion Test Variables <variables.html>`__.
 
 Regex in Conditional Skips
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -87,16 +79,13 @@ patterns. The regex value must FULLY match the key associated with it:
 .. code:: yaml
 
     basic_regex_test:
+        # In this example we see keys accepting regex patterns.
         only_if:
+            # This test will run if the user is a lowercase [a-z] word.
             "{{user}}": ['^[a-z]+$']
+            # This test will only run if the 'sys_os' is linux.
+            # Pavilion anchors the values so linux will only match linux.
             "{{sys_os}}": ['linux']
         run:
             cmds:
                 ...
-
-    In this example the value following the key 'user' is a regex pattern
-    matching a lowercase string containing 1 or more letters a through z.
-    The 'linux' value is also valid regex, however pavilion resolves this
-    regex patter to '^linux$` so that the value must fully match it's given
-    key. This means 'linux' will only match to 'linux' and not have partial
-    matches to something like; 'rhelinux'

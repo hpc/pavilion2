@@ -222,19 +222,16 @@ value of the Pavilion variable might match to.
 
 .. code:: yaml
 
-    test:
+    test: # This test uses the directives only_if and not_if.
         only_if:
+            # For this test to run, 'user' must be one of the values below.
             "{{user}}": ['calvin', 'paul', 'nick', 'francine']
         not_if:
-            "{{sys_arch}}": ['x86_64']
+            # For this test to run 'sys_arch' must not be x86_64
+            "{{sys_arch}}": 'x86_64'
         run:
             cmds:
                 - 'echo "Helloworld"'
-
-    In this example the users calls ``only_if``. The dictionary following has
-    the key ``user`` which pavilion can resolves. It then would check to see who
-    the actual ``user`` is and compare it against ['calvin', [...]]. The same
-    process is applied to ``not_if``.
 
 See
 `Skip Conditions <tests/conditionals.html>`__
