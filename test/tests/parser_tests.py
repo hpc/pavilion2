@@ -63,11 +63,11 @@ class ParserTests(unittest.PavTestCase):
             'True': True,
             'False': False,
             # list formation.
-            'list_len([int1, 1, "hello",])': 3,
-            'list_len([])': 0,
+            'len([int1, 1, "hello",])': 3,
+            'len([])': 0,
             'sum([1,2,3,4000])': 4006,
             'int1 + var.int2 * 11 * - sum([int1, int2])': -65,
-            'int1 + var.float1 * -2 * -list_len(ints.*)': 14.200000000000001,
+            'int1 + var.float1 * -2 * -len(ints.*)': 14.200000000000001,
             'str1': 'hello',
             'ints.3': 3,
             'ints': 0,
@@ -209,9 +209,10 @@ class ParserTests(unittest.PavTestCase):
             '',
             'hello world',
             'hello\nworld',
-            'hello \\{ world',
-            'hello {{this is "ok:}"an expr 1234.3"}:":3d}} world',
-            '{{this is "ok:}"an expr 1234.3"}:":3d}} world',
+
+            r'hello \{ world \{ twerps',
+            'hello {{len("ok:}") +  int1 + 1234.3 + len("}:"):3f}} world',
+            '{{len("ok:}") + 1234.3 + len("}:"):3f}} world',
         ]
 
         string_parser = parsers.get_string_parser(self.var_man)
@@ -223,6 +224,6 @@ class ParserTests(unittest.PavTestCase):
         bad_strings = [
             'hello {{ foo',    # hanging expression
             'hello [~ foo',    # hanging sub-string
-            '{{ expr {{ nope }} }}', # Expressions can't contain expressions.
+            '{{ expr {{ nope }} }}',  # Expressions can't contain expressions.
         ]
 

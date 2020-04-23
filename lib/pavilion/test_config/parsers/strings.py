@@ -89,8 +89,10 @@ class StringTransformer(PavTransformer):
         :param list[lark.Token] items: A single token of string components.
         """
 
+        print('start_items', items)
         parts = []
-        for item in items:
+        for item in items[0].value:
+            print('start', item)
             if item.type == self.EXPRESSION:
                 parts.append(self._resolve_expr(item, self.var_man))
             else:
@@ -105,7 +107,15 @@ class StringTransformer(PavTransformer):
         :param list[lark.Token] items: The component tokens of the string.
         """
 
-        return self._merge_tokens(items, items)
+        print('string', items)
+        token_list = []
+        for item in items:
+            if isinstance(item.value, list):
+                token_list.extend(item.value)
+            else:
+                token_list.append(item)
+
+        return self._merge_tokens(items, token_list)
 
     def expr(self, items) -> lark.Token:
         """Grab the expression and format spec and combine them into a single
@@ -248,7 +258,7 @@ class StringTransformer(PavTransformer):
         if format_spec is not None:
             try:
                 value = '{value:{format_spec}}'.format(
-                    format_spec=format_spec,
+                    format_spec=format_spec[1:],
                     value=value)
             except ValueError as err:
                 raise ParseError(

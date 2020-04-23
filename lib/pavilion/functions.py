@@ -456,31 +456,32 @@ class AvgPlugin(CoreFunctionPlugin):
         return sum(vals)/len(vals)
 
 
-class ListLenPlugin(CoreFunctionPlugin):
-    """Return the length of the given list. Unlike python's len, this only
-    applies to lists."""
+class LenPlugin(CoreFunctionPlugin):
+    """Return the length of the given item, where item can be a string,
+    list, or dict."""
 
     def __init__(self):
         """Setup plugin"""
 
         super().__init__(
-            name='list_len',
-            description='Return the integer length of the given list.',
+            name='len',
+            description='Return the integer length of the given str, int or '
+                        'mapping/dict.',
             arg_specs=None,
         )
 
     def _validate_arg(self, arg, spec):
-        if not isinstance(arg, list):
+        if not isinstance(arg, (list, str, dict)):
             raise FunctionPluginError(
-                "The list_len function only accepts lists. Got {}"
-                .format(arg)
+                "The list_len function only accepts lists, dicts, and "
+                "strings. Got {} of type {}.".format(arg, type(arg).__name__)
             )
         return arg
 
-    def func(self, list_arg):
-        """Just return the length of the list."""
+    def func(self, arg):
+        """Just return the length of the argument."""
 
-        return len(list_arg)
+        return len(arg)
 
 
 class RandomPlugin(CoreFunctionPlugin):
