@@ -68,8 +68,8 @@ def resolve_path(path, strict=False):
 def dir_contains(file, directory):
     """Check if 'file' is or is contained by 'directory'."""
 
-    file = resolve_path(Path(file))
-    directory = resolve_path(Path(directory))
+    file = Path(resolve_path(Path(file)))
+    directory = Path(resolve_path(Path(directory)))
     while file.parent != file:
         if file == directory:
             return True

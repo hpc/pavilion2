@@ -220,7 +220,7 @@ class TestBuilder:
         files_to_create = self._config.get('create_files')
         if files_to_create:
             for file, contents in files_to_create.items():
-                file_path = Path(self.path / file).resolve(strict=false)
+                file_path = Path(utils.resolve_path(self.path / file))
                 if not utils.dir_contains(file_path, self.path):
                     raise TestBuilderError("'create_file: {}': file path"
                                            " outside build context."
@@ -644,7 +644,7 @@ class TestBuilder:
         files_to_create = self._config.get('create_files')
         if files_to_create:
             for file, contents in files_to_create.items():
-                file_path = Path(dest / file).resolve(strict=false)
+                file_path = Path(utils.resolve_path(dest / file))
                 # Do not allow file to clash with existing directory.
                 if os.path.isdir(str(file_path)):
                     raise TestBuilderError("'create_file: {}' clashes with"
