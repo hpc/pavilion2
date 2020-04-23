@@ -13,12 +13,14 @@ Build Config Keys
 The documentation for what various keys do is spread throughout this
 document.
 
--  `source\_location <#source-location>`__
--  `source\_download\_name <#source-download-name>`__
+-  `copy\_files <#copy-files>`__
+-  `cmds <#cmds-list>`__
+-  `create\_files <#create-files>`__
+-  `env <#env-mapping>`__
 -  `extra\_files <#extra-files>`__
 -  `modules <#modules-list>`__
--  `env <#env-mapping>`__
--  `cmds <#cmds-list>`__
+-  `source\_location <#source-location>`__
+-  `source\_download\_name <#source-download-name>`__
 -  `specificity <#specificity>`__
 
 Building
@@ -103,12 +105,36 @@ When downloading source, we by default use the last of the url path as
 the filename, or a hash of the url if is no suitable name. This
 parameter to overrides the default behavior with a pre-defined filename.
 
+create\_files
+^^^^^^^^^^^^^
+
+This build attribute lets you create files relative to the build directory
+at build time. Note that any existing files with conflicting names will be
+overwritten.
+
+.. code-block:: yaml
+
+    mytest:
+      build:
+        source_location: mytest.zip
+        cmds: 'make'
+        make_files:
+          './config.txt'
+            - 'line 1'
+            - 'line 2'
+            - 'line 3'
+          # Subdirectories can be created.
+          './data/file.txt'
+            - 'line 1'
+            - 'line 2'
+
 extra\_files
 ^^^^^^^^^^^^
 
 This build attribute lets you copy additional files into the build
 directory. This typically includes patches, external build/run scripts,
 or archives that shouldn't be extracted.
+
 
 Create a Build Script
 ---------------------

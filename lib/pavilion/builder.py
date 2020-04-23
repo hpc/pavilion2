@@ -1,11 +1,14 @@
 """Contains the object for tracking multi-threaded builds, along with
 the TestBuilder class itself."""
 
+# pylint: disable=too-many-lines
+
 import bz2
 import datetime
 import glob
 import gzip
 import hashlib
+import io
 import logging
 import lzma
 import os
@@ -36,9 +39,10 @@ class MultiBuildTracker:
             files by build.
     """
 
-    def __init__(self):
-        """
+    def __init__(self, log=True):
+        """Setup the build tracker.
 
+        :param bool log: Whether to also log messages in some instances.
         """
 
         # A map of build tokens to build names
@@ -47,7 +51,9 @@ class MultiBuildTracker:
         self.status_files = {}
         self.lock = threading.Lock()
 
-        self.logger = logging.getLogger(__name__)
+        self.logger = None
+        if log:
+            self.logger = logging.getLogger(__name__)
 
     def register(self, builder, test_status_file):
         """Register a builder, and get your own build tracker.
@@ -88,7 +94,7 @@ class MultiBuildTracker:
             if state is not None:
                 self.status[builder] = state
 
-        if log is not None:
+        if log is not None and self.logger:
             self.logger.log(level=log, msg=note)
 
     def get_notes(self, builder):
@@ -184,7 +190,7 @@ class TestBuilder:
         """
 
         if mb_tracker is None:
-            mb_tracker = MultiBuildTracker()
+            mb_tracker = MultiBuildTracker(log=False)
         self.tracker = mb_tracker.register(self, test.status)
 
         self._pav_cfg = pav_cfg
@@ -209,6 +215,16 @@ class TestBuilder:
         fail_name = 'fail.{}.{}'.format(self.name, self.test.id)
         self.fail_path = pav_cfg.working_dir/'builds'/fail_name
 
+        # Don't allow a file to be written outside of the build context dir.
+        files_to_create = self._config.get('create_files')
+        if files_to_create:
+            for file, contents in files_to_create.items():
+                file_path = Path(utils.resolve_path(self.path / file))
+                if not utils.dir_contains(file_path, self.path):
+                    raise TestBuilderError("'create_file: {}': file path"
+                                           " outside build context."
+                                           .format(file_path))
+
     def exists(self):
         """Return True if the given build exists."""
         return self.path.exists()
@@ -225,6 +241,7 @@ class TestBuilder:
         #    - For directories, the mtime (updated to the time of the most
         #      recently updated file) is hashed instead.
         #  - All of the build's 'extra_files'
+        #  - All files needed to be created at build time 'create_files'
 
         hash_obj = hashlib.sha256()
 
@@ -246,6 +263,7 @@ class TestBuilder:
                     "Invalid src location {}."
                     .format(src_path))
 
+        # Hash extra files.
         for extra_file in self._config.get('extra_files', []):
             extra_file = Path(extra_file)
             full_path = self._find_file(extra_file, Path('test_src'))
@@ -258,12 +276,26 @@ class TestBuilder:
                 hash_obj.update(self._hash_file(full_path))
             elif full_path.is_dir():
                 self._date_dir(full_path)
-
                 hash_obj.update(self._hash_dir(full_path))
             else:
                 raise TestBuilderError(
                     "Extra file '{}' must be a regular file or directory."
                     .format(extra_file))
+
+        # Hash created build files. These files are generated at build time in
+        # the test's build directory but we need the contents of these files
+        # hashed before build time. Thus, we include a hash of each file
+        # consisting of the filename (including path) and it's contents via
+        # IOString object.
+        files_to_create = self._config.get('create_files')
+        if files_to_create:
+            for file, contents in files_to_create.items():
+                io_contents = io.StringIO()
+                io_contents.write("{}\n".format(file))
+                for line in contents:
+                    io_contents.write("{}\n".format(line))
+                hash_obj.update(self._hash_io(io_contents))
+                io_contents.close()
 
         hash_obj.update(self._config.get('specificity', '').encode('utf-8'))
 
@@ -395,8 +427,8 @@ class TestBuilder:
                                 .format(self.name, build_dir,
                                         self.fail_path, err))
                             self.fail_path.mkdir()
-                            if cancel_event is not None:
-                                cancel_event.set()
+                        if cancel_event is not None:
+                            cancel_event.set()
 
                         # If the build didn't succeed, copy the attempted build
                         # into the test run, and set the run as complete.
@@ -606,6 +638,22 @@ class TestBuilder:
                     raise TestBuilderError(
                         "Could not copy test src '{}' to '{}': {}"
                         .format(src_path, dest, err))
+
+        # Create build time file(s).
+        files_to_create = self._config.get('create_files')
+        if files_to_create:
+            for file, contents in files_to_create.items():
+                file_path = Path(utils.resolve_path(dest / file))
+                # Do not allow file to clash with existing directory.
+                if file_path.is_dir():
+                    raise TestBuilderError("'create_file: {}' clashes with"
+                                           " existing directory in test source."
+                                           .format(str(file_path)))
+                dirname = file_path.parent
+                (dest / dirname).mkdir(parents=True, exist_ok=True)
+                with file_path.open('w') as file_:
+                    for line in contents:
+                        file_.write("{}\n".format(line))
 
         # Now we just need to copy over all of the extra files.
         for extra in self._config.get('extra_files', []):
@@ -844,6 +892,20 @@ class TestBuilder:
             while chunk:
                 hash_obj.update(chunk)
                 chunk = file.read(cls._BLOCK_SIZE)
+
+        return hash_obj.digest()
+
+    @classmethod
+    def _hash_io(cls, contents):
+        """Hash the given file in IOString format.
+        :param IOString contents: file name (as relative path to build
+                                  directory) and file contents to hash."""
+
+        hash_obj = hashlib.sha256()
+        chunk = contents.read(cls._BLOCK_SIZE)
+        while chunk:
+            hash_obj.update(chunk)
+            chunk = contents.read(cls._BLOCK_SIZE)
 
         return hash_obj.digest()
 
