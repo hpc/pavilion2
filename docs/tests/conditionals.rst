@@ -21,6 +21,7 @@ of ``SKIPPED``:
 
     basic_test:
         # This basic test has two keys to resolve under only_if.
+        # Both 'user' and 'weekday' need to match in order to run the test.
         only_if:
             # This test will run if the user is calvin
             "{{user}}": ['calvin']
@@ -84,7 +85,7 @@ patterns. The regex value must FULLY match the key associated with it:
             # This test will run if the user is a lowercase [a-z] word.
             "{{user}}": ['^[a-z]+$']
             # This test will only run if the 'sys_os' is linux.
-            # Pavilion anchors the values so linux will only match linux.
+            # Pavilion keys must be fully matched by the regex.
             "{{sys_os}}": ['linux']
         run:
             cmds:
