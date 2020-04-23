@@ -2,7 +2,7 @@
 
 import lark
 from .common import ParseError, PavTransformer
-from .expressions import VarRefVisitor
+from .expressions import VarRefVisitor, get_expr_parser, ExprTransformer
 
 STRING_GRAMMAR = r'''
 
@@ -42,6 +42,28 @@ STRING: /([^{[\\~}]|{(?=[^{])|}(?=[^}])|\[(?=[^~]))+/
 ESCAPE: /\\./
 '''
 
+_STRING_PARSER = None
+
+
+def get_string_parser(var_man, debug=False):
+    """Return a string parser, from cache if possible."""
+    global _STRING_PARSER
+
+    if debug or _STRING_PARSER is None:
+        parser = lark.Lark(
+            grammar=STRING_GRAMMAR,
+            transformer=StringTransformer(var_man),
+            parser='lalr',
+            debug=debug
+        )
+    else:
+        parser = _STRING_PARSER
+
+    if not debug and _STRING_PARSER is None:
+        _STRING_PARSER = parser
+
+    return parser
+
 
 class ExprToken(lark.Token):
     """Denotes a special token that represents an expression."""
@@ -61,21 +83,42 @@ class StringTransformer(PavTransformer):
 
     EXPRESSION = '<expression>'
 
-    def start(self, items):
-        return items[0].value
+    def start(self, items) -> str:
+        """Resolve the final string components, and return just a string.
 
-    def string(self, items):
-        print('string', items)
+        :param list[lark.Token] items: A single token of string components.
+        """
+
+        parts = []
+        for item in items:
+            if item.type == self.EXPRESSION:
+                parts.append(self._resolve_expr(item, self.var_man))
+            else:
+                parts.append(item.value)
+
+        return ''.join(parts)
+
+    def string(self, items) -> lark.Token:
+        """Strings are merged into a single token whose value is all
+        substrings. We're essentially just preserving the tree.
+
+        :param list[lark.Token] items: The component tokens of the string.
+        """
 
         return self._merge_tokens(items, items)
 
-    def expr(self, items):
+    def expr(self, items) -> lark.Token:
+        """Grab the expression and format spec and combine them into a single
+        token. We can't resolve them until we get to an iteration or the
+        start. The merged expression tokens are set to the
+        ``self.EXPRESSION`` type later identification, and have a dict
+        of {'format_spec': <spec>, 'expr': <expression_string>} for a value.
+
+        :param list[lark.Token] items: The expr components and possibly a
+            format_spec.
         """
 
-        :param list[lark.Token] items:
-        :return:
-        """
-
+        # Return an empty, regular token
         if not items:
             return lark.Token(
                 type_='<empty>',
@@ -89,13 +132,13 @@ class StringTransformer(PavTransformer):
 
         value = {
             'expr': ''.join([item.value for item in items]),
-            'format': expr_format,
+            'format_spec': expr_format,
         }
 
         return self._merge_tokens(items, value, type_=self.EXPRESSION)
 
     def escape(self, items):
-        print('escape', items)
+        """Remove the backslash from the escaped character."""
 
         token = items[0]
         token.value = token.value[1]
@@ -103,49 +146,104 @@ class StringTransformer(PavTransformer):
         return token
 
     def iter(self, items: [lark.Token]) -> lark.Token:
-        """
-        :param items:
-        :return:
+        """Handle an iteration section. These can contain anything except
+        nested iteration sections. This part of the string will be repeated for
+        every combination of used multi-valued variables (that don't specify
+        an index). The returned result is a single token that is fully
+        resolved and combined into a single string.
+
+        :param items: The 'iter_inner' token and a separator token. The value
+            of 'iter_inner' will be a list of Tokens including strings,
+            escapes, and expressions.
         """
 
         # The original tokens will be set as the inner value.
-        inner_items = items.pop(0).value
-        if items:
-            separator = items.pop().value
-        else:
+        inner_items = items[0].value
+        separator = items[1].value
 
+        expressions = [item for item in inner_items
+                       if item.type == self.EXPRESSION]
 
-    def separator(self, items):
+        visitor = VarRefVisitor()
+        used_vars = set()
 
-        return self._merge_tokens()
+        expr_trees = {}
 
+        for expr in expressions:
+            expr_tree = self._parse_expr(expr)
+            expr_trees[expr] = expr_tree
 
+            # Get the used variables from the expression.
+            used_vars.update(visitor.visit(expr_tree))
 
+        # Get a set of the (var_set, var) tuples used in expressions that
+        # aren't specifically indexed.
+        filtered_vars = set()
+        for var_name in used_vars:
+            var_set, var, idx, _ = self.var_man.resolve_key(var_name)
+            if idx is None:
+                filtered_vars.add((var_set, var))
 
-    def iter_inner(self, items):
-        """Works just like a string production, but repeaters aren't
-        allowed."""
+        # Get a variable manager for each permutation.
+        var_men = self.var_man.get_permutations(filtered_vars)
 
-        return self._merge_tokens(items, items)
+        # Resolve iteration string and expression for each permutation.
+        iterations = []
+        for var_man in var_men:
+            parts = []
+            for item in inner_items:
+                if item.type == self.EXPRESSION:
+                    tree = expr_trees[item]
+                    parts.append(self._resolve_expr(item, var_man, tree=tree))
+                else:
+                    parts.append(item.value)
 
-    def blerg(self, items):
+            ''.join(parts)
 
-        value = items[0].value
-        if len(items) == 2:
-            # Chop of the starting ':'
-            format_spec = items[1][1:]
-        else:
-            format_spec = None
+        return self._merge_tokens(items, separator.join(iterations))
+
+    def _parse_expr(self, expr: lark.Token) -> lark.Tree:
+        """Parse the given expression token and return the tree."""
+
+        try:
+            return get_expr_parser().parse(expr.value['expr'])
+        except ParseError as err:
+            self._displace_token(expr, err.token)
+            # Re-raise the corrected error
+            raise
+
+    def _resolve_expr(self,
+                      expr: lark.Token, var_man,
+                      tree: lark.Tree = None) -> str:
+        """Resolve the value of the
+        :param expr: An expression token. The value will be a dict
+            of the expr string and the formatter.
+        :param pavilion.test_config.variables.VariableSetManager var_man:
+            The variable set manager to use to resolve this expression.
+        :param tree: The already parsed syntax tree for expr (will parse
+            for you if not given).
+        :return:
+        """
+
+        if tree is None:
+            tree = self._parse_expr(expr)
+
+        transformer = ExprTransformer(var_man)
+        try:
+            value = transformer.transform(tree)
+        except ParseError as err:
+            self._displace_token(expr, err.token)
+            raise
 
         if not isinstance(value, (int, float, bool, str)):
             type_name = type(value).__name__
             raise ParseError(
-                items[0],
+                expr,
                 "Pavilion expressions must resolve to a string, int, float, "
                 "or boolean. Instead, we got {} '{}'"
-                    .format('an' if type_name[0] in 'aeiou' else 'a',
-                            type_name)
-            )
+                .format('an' if type_name[0] in 'aeiou' else 'a', type_name))
+
+        format_spec = expr.value['format_spec']
 
         if format_spec is not None:
             try:
@@ -154,10 +252,33 @@ class StringTransformer(PavTransformer):
                     value=value)
             except ValueError as err:
                 raise ParseError(
-                    items[1],
+                    expr,
                     "Invalid format_spec '{}': {}"
-                        .format(format_spec, err))
+                    .format(format_spec, err))
         else:
             value = str(value)
 
+        return value
 
+    def _displace_token(self, base: lark.Token,
+                        inner: lark.Token):
+        """Inner is assumed to be a token from within the 'base' string.
+        Displace the position information in 'inner' so that the positions
+        point to the same location in base."""
+
+        inner.line = base.line + inner.line
+        inner.column = base.column + inner.column
+        inner.end_line = base.line + inner.end_line
+        inner.end_column = base.end_column + inner.end_column
+
+    def separator(self, items):
+        """Join the separator string parts."""
+
+        return self._merge_tokens(items,
+                                  ''.join([item.value for item in items]))
+
+    def iter_inner(self, items):
+        """Works just like a string production, but repeaters aren't
+        allowed."""
+
+        return self._merge_tokens(items, items)

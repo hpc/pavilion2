@@ -5,7 +5,8 @@ import lark
 
 class ParseError(ValueError):
     """A value error that contains the problematic token."""
-    def __init__(self, token, message):
+
+    def __init__(self, token: lark.Token, message: str):
         super().__init__(message)
 
         self.token = token

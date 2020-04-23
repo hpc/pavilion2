@@ -154,8 +154,8 @@ return a new var_set manager that contains only a single value
 (possibly a complex one) for each permutation var, in every possible
 permutation.
 
-:param set used_per_vars: A list of permutation variable names that
-    were used.
+:param set[(str, str)] used_per_vars: A set of permutation variable names that
+    were used, as a tuple of (var_set, var_name).
 :return: A list of permuted variable managers.
 :rtype: VariableSetManager
 """
@@ -221,9 +221,7 @@ index, sub_var) tuple.
 
         var_set = None
         if parts[0] in cls.VAR_SETS:
-            var_set = parts[0]
-
-            parts = parts[1:]
+            var_set = parts.pop(0)
 
         if parts:
             var = parts.pop(0)
@@ -245,6 +243,7 @@ index, sub_var) tuple.
                 raise KeyError("Invalid, empty index in key: '{}'".format(key))
             else:
                 try:
+                    # This denotes that all values should be returned.
                     if parts[0] == '*':
                         index = '*'
                     else:

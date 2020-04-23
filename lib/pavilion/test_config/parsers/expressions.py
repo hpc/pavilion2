@@ -77,7 +77,26 @@ NAME.1: /[a-zA-Z][a-zA-Z0-9_]*/
 '''
 
 _EXPR_PARSER = None
-_STRING_PARSER = None
+
+
+def get_expr_parser(debug=False):
+    """Return an expression parser (cached if possible)."""
+
+    global _EXPR_PARSER
+
+    if debug or _EXPR_PARSER is None:
+        parser = lark.Lark(
+            grammar=EXPR_GRAMMAR,
+            parser='lalr',
+            debug=debug
+        )
+    else:
+        parser = _EXPR_PARSER
+
+    if not debug and _EXPR_PARSER is None:
+        _EXPR_PARSER = parser
+
+    return parser
 
 
 class ExprTransformer(PavTransformer):
