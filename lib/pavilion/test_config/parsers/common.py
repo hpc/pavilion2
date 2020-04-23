@@ -26,6 +26,28 @@ class PavTransformer(lark.Transformer):
         self.var_man = var_man
         super().__init__()
 
+    def _call_userfunc_token(self, token):
+        try:
+            f = getattr(self, token.type)
+        except AttributeError:
+            return self.__default_token__(token)
+        else:
+            return f(token)
+
+    def _call_userfunc(self, tree, new_children=None):
+        # Assumes tree is already transformed
+        children = new_children if new_children is not None else tree.children
+        try:
+            f = getattr(self, tree.data)
+        except AttributeError:
+            return self.__default__(tree.data, children, tree.meta)
+        else:
+            wrapper = getattr(f, 'visit_wrapper', None)
+            if wrapper is not None:
+                return f.visit_wrapper(f, tree.data, children, tree.meta)
+            else:
+                return f(children)
+
     def _merge_tokens(self, tokens, value, type_='<merged>'):
         """asdfasdf
 
@@ -52,20 +74,38 @@ class PavTransformer(lark.Transformer):
 
         while tokens:
             tok = tokens.pop()
-            pos_in_stream = min(pos_in_stream, tok.pos_in_stream)
-            end_pos = max(end_pos, tok.end_pos)
 
-            if tok.line < line:
+            if (pos_in_stream is None or
+                    tok.pos_in_stream is not None and
+                    pos_in_stream > tok.pos_in_stream):
+                pos_in_stream = tok.pos_in_stream
+
+            if (end_pos is None or
+                    tok.end_pos is not None and
+                    end_pos > tok.pos_in_stream):
+                end_pos = tok.pos_in_stream
+
+            if line is None:
+                line = tok.line
+                column = tok.column
+            elif tok.line is None:
+                pass
+            elif tok.line < line:
                 line = tok.line
                 column = tok.column
             elif tok.line == line:
                 column = tok.column
 
-            if tok.end_line > end_line:
+            if end_line is None:
                 end_line = tok.end_line
-                column = tok.column
+                end_column = tok.end_column
+            elif tok.end_line is None:
+                pass
+            elif tok.end_line > end_line:
+                end_line = tok.end_line
+                end_column = tok.end_column
             elif tok.end_line == end_line:
-                column = tok.column
+                end_column = tok.end_column
 
         return lark.Token(
             type_=type_,

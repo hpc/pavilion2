@@ -166,7 +166,6 @@ class FunctionPlugin(IPlugin.IPlugin):
             # Create the full list of validated arguments.
             val_args = []
             for arg, spec in zip(args, self.arg_specs.values()):
-                print('arg/spec', arg, spec)
                 val_args.append(self._validate_arg(arg, spec))
         else:
             val_args = args
@@ -261,7 +260,6 @@ class FunctionPlugin(IPlugin.IPlugin):
             if spec in (int, float) and arg in ('True', 'False'):
                 arg = bool(arg)
 
-            print('spec', spec)
             return spec(arg)
         except ValueError:
             raise FunctionPluginError(
@@ -278,8 +276,6 @@ class FunctionPlugin(IPlugin.IPlugin):
     def activate(self):
         """Yapsy runs this when adding the plugin. Add our plugin
         to the registry of function plugins."""
-
-        print('activating', self.name, self.name in _FUNCTIONS)
 
         if self.name in _FUNCTIONS:
             other = _FUNCTIONS[self.name]
@@ -320,8 +316,6 @@ def get_plugin(name: str) -> FunctionPlugin:
 
 def __reset():
     """Reset all function plugins. For testing only."""
-
-    print("Resetting functions")
 
     for plugin in list(_FUNCTIONS.values()):
         plugin.deactivate()

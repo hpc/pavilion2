@@ -154,7 +154,7 @@ return a new var_set manager that contains only a single value
 (possibly a complex one) for each permutation var, in every possible
 permutation.
 
-:param set[(str, str)] used_per_vars: A set of permutation variable names that
+:param list[(str, str)] used_per_vars: A set of permutation variable names that
     were used, as a tuple of (var_set, var_name).
 :return: A list of permuted variable managers.
 :rtype: VariableSetManager

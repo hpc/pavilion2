@@ -29,7 +29,8 @@ _STRING_INNER: /.*?/
 _STRING_ESC_INNER: _STRING_INNER /(?<!\\)(\\\\)*?/
 ESCAPED_STRING : "\"" _STRING_ESC_INNER "\""
 
-separator: STRING? (ESCAPE STRING)*
+separator: SEP_STRING? (ESCAPE SEP_STRING?)*
+SEP_STRING: /[^\]\\]+/
 
 // This regex matches the whole format spec for python.
 FORMAT: /:(.?[<>=^])?[+ -]?#?0?\d*[_,]?(.\d+)?[bcdeEfFgGnosxX%]?/
@@ -38,7 +39,7 @@ FORMAT: /:(.?[<>=^])?[+ -]?#?0?\d*[_,]?(.\d+)?[bcdeEfFgGnosxX%]?/
 // This will match any characters that aren't a '{' '[' or '\\', or
 // a '{' as long as it isn't followed by another '{', or
 // a '[' as long as it isn't followed by a '~'. 
-STRING: /([^{[\\~}]|{(?=[^{])|}(?=[^}])|\[(?=[^~]))+/
+STRING: /([^{[\\~}]|{(?=[^{]|$)|}(?=[^}]|$)|\[(?=[^~]|$))+/
 ESCAPE: /\\./
 '''
 
@@ -89,10 +90,8 @@ class StringTransformer(PavTransformer):
         :param list[lark.Token] items: A single token of string components.
         """
 
-        print('start_items', items)
         parts = []
         for item in items[0].value:
-            print('start', item)
             if item.type == self.EXPRESSION:
                 parts.append(self._resolve_expr(item, self.var_man))
             else:
@@ -107,7 +106,6 @@ class StringTransformer(PavTransformer):
         :param list[lark.Token] items: The component tokens of the string.
         """
 
-        print('string', items)
         token_list = []
         for item in items:
             if isinstance(item.value, list):
@@ -147,10 +145,13 @@ class StringTransformer(PavTransformer):
 
         return self._merge_tokens(items, value, type_=self.EXPRESSION)
 
-    def escape(self, items):
-        """Remove the backslash from the escaped character."""
+    def ESCAPE(self, token) -> lark.Token:
+        """Remove the backslash from the escaped character.
 
-        token = items[0]
+        :param lark.Token token: A single token of a backslash followed
+        by any character.
+        """
+
         token.value = token.value[1]
 
         return token
@@ -175,7 +176,7 @@ class StringTransformer(PavTransformer):
                        if item.type == self.EXPRESSION]
 
         visitor = VarRefVisitor()
-        used_vars = set()
+        used_vars = []
 
         expr_trees = {}
 
@@ -184,15 +185,31 @@ class StringTransformer(PavTransformer):
             expr_trees[expr] = expr_tree
 
             # Get the used variables from the expression.
-            used_vars.update(visitor.visit(expr_tree))
+            used_vars.extend(visitor.visit(expr_tree))
 
         # Get a set of the (var_set, var) tuples used in expressions that
         # aren't specifically indexed.
-        filtered_vars = set()
+        filtered_vars = []
+        direct_refs = set()
         for var_name in used_vars:
-            var_set, var, idx, _ = self.var_man.resolve_key(var_name)
+            var_set, var, idx, sub_var = self.var_man.resolve_key(var_name)
             if idx is None:
-                filtered_vars.add((var_set, var))
+                if (var_set, var) not in filtered_vars:
+                    filtered_vars.append((var_set, var))
+            else:
+                direct_refs.add((var_set, var, idx, sub_var))
+
+        # Make sure no direct references were used to variables we'll be
+        # iterating over.
+        for direct_ref in direct_refs:
+            var_set, var, idx, sub_var = direct_ref
+            if (var_set, var) in filtered_vars:
+                key = self.var_man.key_as_dotted(direct_ref)
+                raise ParseError(
+                    token=self._merge_tokens(items, None),
+                    message="Variable {} was referenced, but is also being "
+                    "iterated over. You can't do both.".format(key)
+                )
 
         # Get a variable manager for each permutation.
         var_men = self.var_man.get_permutations(filtered_vars)
@@ -208,7 +225,7 @@ class StringTransformer(PavTransformer):
                 else:
                     parts.append(item.value)
 
-            ''.join(parts)
+            iterations.append(''.join(parts))
 
         return self._merge_tokens(items, separator.join(iterations))
 
@@ -291,4 +308,11 @@ class StringTransformer(PavTransformer):
         """Works just like a string production, but repeaters aren't
         allowed."""
 
-        return self._merge_tokens(items, items)
+        flat_items = []
+        for item in items:
+            if isinstance(item.value, list):
+                flat_items.extend(item.value)
+            else:
+                flat_items.append(item)
+
+        return self._merge_tokens(items, flat_items)

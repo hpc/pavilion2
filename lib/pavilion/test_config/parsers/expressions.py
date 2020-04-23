@@ -8,8 +8,9 @@ from .common import PavTransformer, ParseError
 
 EXPR_GRAMMAR = r'''
 
-start: expr
+start: expr _WS?
      |          // An empty string is valid 
+_WS: /\s+/
 
 expr: or_expr
 
@@ -116,6 +117,7 @@ class ExprTransformer(PavTransformer):
         if not items:
             return ''
 
+        print(items)
         return items[0].value
 
     def expr(self, items):
@@ -471,12 +473,13 @@ class VarRefVisitor(lark.Visitor):
         """Visit the tree bottom up and return all the variable references
         found."""
 
-        var_refs = set()
+        var_refs = []
 
         for subtree in tree.iter_subtrees():
             var_ref = self._call_userfunc(subtree)
             if var_ref is not None:
-                var_refs.add(var_ref)
+                if var_ref not in var_refs:
+                    var_refs.append(var_ref)
 
         return var_refs
 
