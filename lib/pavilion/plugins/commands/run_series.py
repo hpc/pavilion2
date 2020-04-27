@@ -31,17 +31,4 @@ class RunSeries(commands.Command):
         temp_args = ['pav', '_auto_series', args.series]
         subprocess.Popen(temp_args, stdout=subprocess.DEVNULL)
 
-        # series_name = args.series
-        #
-        # series_config_loader = SeriesConfigLoader()
-        #
-        # tsr = TestConfigResolver(pav_cfg)
-        # series_path = tsr._find_config('series', series_name)
-
-        # with series_path.open() as series_file:
-        #     series_obj = series.TestSeries(pav_cfg)
-        #     series_cfg = series_config_loader.load(series_file)
-        #
-        #     series_man = series.SeriesManager(pav_cfg, series_obj, series_cfg)
-
         return 0

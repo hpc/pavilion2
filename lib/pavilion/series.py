@@ -98,7 +98,7 @@ class SeriesManager:
 
         # CLEAN UP ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        self.print_status()
+        # self.print_status()
 
         # kick off tests that aren't waiting on anyone
         self.currently_running = []
@@ -121,7 +121,7 @@ class SeriesManager:
                 self.test_sets[set_name].run_set()
                 self.currently_running.append(self.test_sets[set_name])
 
-        self.print_status()
+        # self.print_status()
         for set_obj in self.currently_running:
             time.sleep(5)
             if self.is_set_done(set_obj):
@@ -135,7 +135,7 @@ class SeriesManager:
                         waiting.run_set()
                         self.currently_running.append(waiting)
 
-            self.print_status()
+            # self.print_status()
 
 
 
@@ -152,7 +152,7 @@ class SeriesManager:
         for set_name in self.sets:
             self.dep_graph[set_name] = self.sets[set_name]['depends_on']
 
-        dbg_print(self.dep_graph, '\n')
+        # dbg_print(self.dep_graph, '\n')
 
     def print_status(self):
         # dbg_print status of sets
@@ -160,7 +160,7 @@ class SeriesManager:
             ts = self.test_sets[set_name]
             dbg_print(ts, ': ', ts.get_status(), ts.test_runs)
 
-        dbg_print()
+        # dbg_print()
 
 
 class TestSet:
