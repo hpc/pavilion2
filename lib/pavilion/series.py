@@ -7,7 +7,6 @@ import time
 import copy
 from multiprocessing import Process
 import threading
-import time
 
 from pavilion import utils
 from pavilion import commands
@@ -140,7 +139,7 @@ class SeriesManager:
 
 
 
-    def is_set_done(self, set_obj):
+    def is_set_done(self, set_obj): # pylint: disable=R0201
         for test in set_obj.test_runs:
             if not (test.path/'RUN_COMPLETE').exists():
                 return False
@@ -157,8 +156,8 @@ class SeriesManager:
     def print_status(self):
         # dbg_print status of sets
         for set_name in self.test_sets:
-            ts = self.test_sets[set_name]
-            dbg_print(ts, ': ', ts.get_status(), ts.test_runs)
+            temp_ts = self.test_sets[set_name]
+            # dbg_print(ts, ': ', temp_ts.get_status(), ts.test_runs)
 
         # dbg_print()
 
