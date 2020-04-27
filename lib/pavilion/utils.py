@@ -9,10 +9,73 @@ plugins.
 import os
 import subprocess
 import zipfile
+import errno
 
 from pathlib import Path
 
-# Setup colors as part of the fprint function itself.
+
+# Python 3.5 issue. Python 3.6 Path.resolve() handles this correctly.
+# pylint: disable=protected-access
+def resolve_path(path, strict=False):
+    """Stolen straight from python3.6 pathlib."""
+
+    sep = '/'
+    accessor = path._accessor
+    seen = {}
+
+    def _resolve(path_, rest):
+        if rest.startswith(sep):
+            path_ = ''
+
+        for name in rest.split(sep):
+            if not name or name == '.':
+                # current dir
+                continue
+            if name == '..':
+                # parent dir
+                path_, _, _ = path_.rpartition(sep)
+                continue
+            newpath = path_ + sep + name
+            if newpath in seen:
+                # Already seen this path
+                path_ = seen[newpath]
+                if path_ is not None:
+                    # use cached value
+                    continue
+                # The symlink is not resolved, so we must have a symlink loop.
+                raise RuntimeError("Symlink loop from %r" % newpath)
+            # Resolve the symbolic link
+            try:
+                target = accessor.readlink(newpath)
+            except OSError as err:
+                if err.errno != errno.EINVAL and strict:
+                    raise
+                # Not a symlink, or non-strict mode. We just leave the path
+                # untouched.
+                path_ = newpath
+            else:
+                seen[newpath] = None  # not resolved symlink
+                path_ = _resolve(path_, target)
+                seen[newpath] = path_  # resolved symlink
+
+        return path_
+
+    # NOTE: according to POSIX, getcwd() cannot contain path components
+    # which are symlinks.
+    base = '' if path.is_absolute() else os.getcwd()
+    return _resolve(base, str(path)) or sep
+
+
+def dir_contains(file, directory):
+    """Check if 'file' is or is contained by 'directory'."""
+
+    file = Path(resolve_path(Path(file)))
+    directory = Path(resolve_path(Path(directory)))
+    while file.parent != file:
+        if file == directory:
+            return True
+        file = file.parent
+    return False
 
 
 def flat_walk(path, *args, **kwargs):

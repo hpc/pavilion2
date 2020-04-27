@@ -8,3 +8,4 @@
    build.rst
    env.rst
    results.rst
+   conditionals.rst
