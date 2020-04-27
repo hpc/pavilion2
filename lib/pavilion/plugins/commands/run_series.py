@@ -1,3 +1,5 @@
+import subprocess
+
 from pavilion import commands
 from pavilion import arguments
 from pavilion import series
@@ -26,18 +28,20 @@ class RunSeries(commands.Command):
 
     def run(self, pav_cfg, args):
 
-        series_name = args.series
+        temp_args = ['pav', '_auto_series', args.series]
+        subprocess.Popen(temp_args, stdout=subprocess.DEVNULL)
 
-        series_config_loader = SeriesConfigLoader()
+        # series_name = args.series
+        #
+        # series_config_loader = SeriesConfigLoader()
+        #
+        # tsr = TestConfigResolver(pav_cfg)
+        # series_path = tsr._find_config('series', series_name)
 
-        # pylint: disable=W0212
-        tsr = TestConfigResolver(pav_cfg)
-        series_path = tsr._find_config('series', series_name)
-
-        with series_path.open() as series_file:
-            series_obj = series.TestSeries(pav_cfg)
-            series_cfg = series_config_loader.load(series_file)
-
-            series_man = series.SeriesManager(pav_cfg, series_obj, series_cfg)
+        # with series_path.open() as series_file:
+        #     series_obj = series.TestSeries(pav_cfg)
+        #     series_cfg = series_config_loader.load(series_file)
+        #
+        #     series_man = series.SeriesManager(pav_cfg, series_obj, series_cfg)
 
         return 0

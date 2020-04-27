@@ -5,6 +5,9 @@ import os
 import pathlib
 import time
 import copy
+from multiprocessing import Process
+import threading
+import time
 
 from pavilion import utils
 from pavilion import commands
@@ -95,41 +98,51 @@ class SeriesManager:
 
         # CLEAN UP ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        self.print_stats()
+        self.print_status()
 
         # kick off tests that aren't waiting on anyone
         self.currently_running = []
+
+        # keep checking on statuses of currently running sets
+        # p = Process(target=self.keep_checking_tests, daemon=True)
+        # p.start()
+        self.keep_checking_tests()
+        # t = threading.Thread(target=self.keep_checking_tests)
+        # t.setDaemon(True)
+        # t.start()
+
+
+        # END CLEAN UP
+
+    def keep_checking_tests(self):
+
         for set_name in self.test_sets:
             if not self.test_sets[set_name].get_prev():
                 self.test_sets[set_name].run_set()
                 self.currently_running.append(self.test_sets[set_name])
 
-        self.print_stats()
-
-        # keep checking on statuses of currently running sets
+        self.print_status()
         for set_obj in self.currently_running:
             time.sleep(5)
             if self.is_set_done(set_obj):
-                set_obj.change_stat('DONE')
+                set_obj.change_status('DONE')
                 for waiting in set_obj.get_next():
                     run_this = True
                     for prev in waiting.get_prev():
-                        if prev.get_stat() != 'DONE':
+                        if prev.get_status() != 'DONE':
                             run_this = False
                     if run_this:
                         waiting.run_set()
                         self.currently_running.append(waiting)
 
-            self.print_stats()
+            self.print_status()
 
-
-        # END CLEAN UP
 
 
 
     def is_set_done(self, set_obj):
         for test in set_obj.test_runs:
-            if not pathlib.Path(test.path/'RUN_COMPLETE').exists():
+            if not (test.path/'RUN_COMPLETE').exists():
                 return False
         return True
 
@@ -141,11 +154,11 @@ class SeriesManager:
 
         dbg_print(self.dep_graph, '\n')
 
-    def print_stats(self):
-        # dbg_print stats of sets
+    def print_status(self):
+        # dbg_print status of sets
         for set_name in self.test_sets:
             ts = self.test_sets[set_name]
-            dbg_print(ts, ': ', ts.get_stat(), ts.test_runs)
+            dbg_print(ts, ': ', ts.get_status(), ts.test_runs)
 
         dbg_print()
 
@@ -174,15 +187,15 @@ class TestSet:
         self.test_runs.extend(run_cmd.last_tests)
 
         # change statuses
-        self.change_stat('RUNNING')
+        self.change_status('RUNNING')
         for n_set in self.next_set:
-            if n_set.get_stat() == 'NO_STAT':
-                n_set.change_stat('NEXT')
+            if n_set.get_status() == 'NO_STAT':
+                n_set.change_status('NEXT')
 
-    def change_stat(self, new_stat):
-        self.status = new_stat
+    def change_status(self, new_status):
+        self.status = new_status
 
-    def get_stat(self):
+    def get_status(self):
         return self.status
 
     def add_prev(self, prev):
