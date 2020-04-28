@@ -410,7 +410,7 @@ index, sub_var) tuple.
             # Make sure our error message gives the full key.
             raise KeyError(
                 "Could not resolve reference '{}': {}"
-                .format(self.key_as_dotted(key), msg))
+                .format(self.key_as_dotted(key), msg.args[0]))
 
     def _set_value(self, key, value):
         """Set the value at 'key' to the new value. A value must already
@@ -523,7 +523,7 @@ index, sub_var) tuple.
         except (OSError, IOError, FileNotFoundError) as err:
             raise VariableError(
                 "Could not write variable file at '{}': {}"
-                .format(path, err)
+                .format(path, err.args[0])
             )
 
     @classmethod
@@ -542,7 +542,7 @@ index, sub_var) tuple.
             raise \
                 RuntimeError(
                     "Could not load variable file '{}': {}"
-                    .format(path, err))
+                    .format(path, err.args[0]))
 
         var_man = cls()
 

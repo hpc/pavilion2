@@ -3,13 +3,17 @@
 import lark
 
 
-class ParseError(ValueError):
+class ParserValueError(lark.LarkError):
     """A value error that contains the problematic token."""
 
     def __init__(self, token: lark.Token, message: str):
         super().__init__(message)
 
         self.token = token
+        self.pos_in_stream = token.pos_in_stream
+
+    # Steal the get_context method
+    get_context = lark.UnexpectedInput.get_context
 
 
 class PavTransformer(lark.Transformer):
@@ -27,6 +31,11 @@ class PavTransformer(lark.Transformer):
         super().__init__()
 
     def _call_userfunc_token(self, token):
+        """Call the user defined function for handling the given token.
+
+        Replaces the original, which re-throws VisitorErrors on most
+        exceptions. We'd rather catch and handle those ourselves."""
+
         try:
             f = getattr(self, token.type)
         except AttributeError:
@@ -35,6 +44,11 @@ class PavTransformer(lark.Transformer):
             return f(token)
 
     def _call_userfunc(self, tree, new_children=None):
+        """Call the user defined function for handling the given tree.
+
+        Replaces the original, which re-throws VisitorErrors on most
+        exceptions. We'd rather catch and handle those ourselves."""
+
         # Assumes tree is already transformed
         children = new_children if new_children is not None else tree.children
         try:

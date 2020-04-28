@@ -44,11 +44,8 @@ class ParserTests(unittest.PavTestCase):
         expr_parser = parsers.get_expr_parser()
 
         expr = 'int1.3.foo + var.int2.*.bleh * 11 * - sum([int1, int1])'
-
         tree = expr_parser.parse(expr)
-
         visitor = parsers.expressions.VarRefVisitor()
-
         used_vars = visitor.visit(tree)
 
         self.assertEqual(used_vars,
@@ -133,83 +130,70 @@ class ParserTests(unittest.PavTestCase):
                              msg="Expr: '{}' should be '{}', got '{}'\n{}"
                                  .format(expr, expected_result, result, tree))
 
+    BAD_EXPRESSIONS = {
+        # Doubled operations. This should error before
+        # the fact that 'a' and 'b' are undefined is resolved.
+        # Note that 'a +- b' is valid
+        'a */ b': 'Invalid Syntax',
+        'a /// b': 'Invalid Syntax',
+        'a ==> c': 'Invalid Syntax',
+        'a or or b': 'Invalid Syntax',
+        'a and or b': 'Invalid Syntax',
+        'a + * b': 'Invalid Syntax',
+        'f ==': 'Invalid Syntax',
+        # Missing trailing operand
+        'a +': 'Hanging Operation',
+        'b *': 'Hanging Operation',
+        'c ^': 'Hanging Operation',
+        'd or': 'Hanging Operation',
+        'e and': 'Hanging Operation',
+        # Unmatched
+        '(g': 'Unmatched "("',
+        'func_(': 'Unmatched "("',
+        '"hello': 'Unclosed String',
+        '["goodbye",': 'Unclosed List',
+        # Bad lists
+        '[,foo,]': 'Misplaced Comma',
+        '[foo,,]': 'Unclosed List',
+        # Consecutive operands
+        '1 2': 'Invalid Syntax',
+        'a b': 'Invalid Syntax',
+        'True False': 'Invalid Syntax',
+        '"hello" + 1': 'Non-numeric value in math operation',
+        '"hello" * 1': 'Non-numeric value in math operation',
+        '"hello" ^ 1': 'Non-numeric value in math operation',
+        '-"hello"': 'Non-numeric value in math operation',
+        'var.1.2.3.4.5': "Invalid variable 'var.1.2.3.4.5': too many name "
+                         "parts.",
+        'var.structs.0.*': "Could not resolve reference 'var.structs.0.*': "
+                           "Unknown sub_var: '*'",
+        'funky_town()': "No such function 'funky_town'",
+        'sum(3)': "Invalid argument '3'. Expected a list.",
+        'floor(3.2, 5)': 'Invalid number of arguments. Got 2, but expected 1',
+    }
+
     def test_bad_expressions(self):
-        """Check all failure conditions."""
+        """Check all failure conditions. We validate messages in
+        test_bad_strings."""
 
-        unexpected_input = [
-            # Bad format specs
-            '1:abcd',
-            # You can't format nothing.
-            ':3s',
-            # Doubled operations. This should error before
-            # the fact that 'a' and 'b' are undefined is resolved.
-            'a ++ b',
-            # Note that 'a +- b' is valid
-            'a -+ b',
-            'a ** b',
-            'a */ b',
-            'a /// b',
-            'a ==> c',
-            'a or or b',
-            'a and or b',
-            'a + * b',
-            # Missing trailing operand
-            'a +',
-            'b *',
-            'c ^',
-            'd or',
-            'e and',
-            'f ==',
-            # Unmatched
-            '(g',
-            'func_(',
-            '"hello',
-            '["goodbye",',
-            # Bad lists
-            '[,foo,]',
-            '[foo,,]',
-            # Consecutive operands
-            '1 2',
-            'a b',
-            'True False',
-        ]
+        expr_parser = lark.Lark(
+            parsers.expressions.EXPR_GRAMMAR,
+            parser='lalr',
+        )
+        trans = parsers.expressions.ExprTransformer(self.var_man)
 
-        expr_parser = parsers.get_expr_parser(self.var_man)
-        err_parser = parsers.get_expr_parser(self.var_man)
-
-        for expr in unexpected_input:
-            with self.assertRaises(lark.exceptions.UnexpectedInput):
-                try:
-                    expr_parser.parse(expr)
-                except parsers.ParseError:
-                    # Just in case it doesn't fail, we catch and pass
-                    pass
-                self.fail("Failed to fail on {}:\n{}"
-                          .format(expr, err_parser.parse(expr).pretty()))
-
-        bad_expressions = [
-            '"hello" + 1',      # All arguments must be numbers
-            '"hello" * 1',      # All arguments must be numbers
-            '"hello" ^ 1',      # All arguments must be numbers
-            '-"hello"',         # You can't negate a string.
-            'var.1.2.3.4.5',    # To many var name parts (max 4)
-            'nope.var',         # No such variable.
-            'var.structs.0.*',  # '*' can't be used on struct values (yet)
-            'funky_town()',     # No such function (but there should be)
-            'sum(3)',           # Bad argument
-            'floor(3.2, 5)',    # Wrong number of arguments
-        ]
-
-        for expr in bad_expressions:
-            with self.assertRaises(parsers.ParseError):
-                result = expr_parser.parse(expr)
+        for expr in self.BAD_EXPRESSIONS:
+            with self.assertRaises((parsers.ParserValueError,
+                                    lark.UnexpectedInput)):
+                tree = expr_parser.parse(expr)
+                result = trans.transform(tree)
 
                 self.fail("Failed to fail on {} (got {}):\n{}"
-                          .format(expr, result,
-                                  err_parser.parse(expr).pretty()))
+                          .format(expr, result, tree.pretty()))
 
         with self.assertRaises(variables.DeferredError):
-            expr_parser.parse("sys.host_name")
+            tree = expr_parser.parse("sys.host_name")
+            result = trans.transform(tree)
 
     def test_good_strings(self):
 
@@ -220,14 +204,14 @@ class ParserTests(unittest.PavTestCase):
             # The string parser should be able to handle any combination
             # of A and B, where A is a basic string and B is an escape,
             # expression, or iteration.
-            r'hello \{': 'hello {',                     # AB
-            r'hello \{ world': 'hello { world',         # ABA
-            r'hello \{ world \{': 'hello { world {',    # ABAB
-            r'hello \{\] world': 'hello {] world',      # ABBA
-            r'\{': '{',                                 # B
-            r'\{hello': '{hello',                       # BA
-            r'\{\[hello': '{[hello',                    # BBA
-            r'\{hello\{': '{hello{',                    # BAB
+            r'a[~b~]': 'ab',
+            r'a[~b~]a': 'aba',
+            r'a[~b~]a[~b~]': 'abab',
+            r'a[~b~][~b~]a': 'abba',
+            r'[~b~]': 'b',
+            r'[~b~]a': 'ba',
+            r'[~b~][~b~]a': 'bba',
+            r'[~b~]a[~b~]': 'bab',
             # Making sure we can deal with reserved characters and intermixed
             # strings in expressions.
             'hello {{len("ok:}") +  int1 + 1234.3 + len("}:"):3.2f}} world':
@@ -237,7 +221,7 @@ class ParserTests(unittest.PavTestCase):
             # Check iterations.
             '[~{{more_ints}}-{{floats}}~_]': '0-0.1_0-2.3_1-0.1_1-2.3',
             '[~{{more_ints}}~alonger sep]': '0alonger sep1',
-            r'[~{{more_ints}}~ \h\i\] ]': '0 hi] 1',
+            r'[~{{more_ints}}~ \]hi\] ]': '0 ]hi] 1',
             '[~no iteration {{ints.0}}~bleh]': 'no iteration 0',
             # Use of parts of special sequences, including at the end of
             # a string.
@@ -254,9 +238,10 @@ class ParserTests(unittest.PavTestCase):
         string_parser = parsers.get_string_parser(self.var_man)
         for string, expected in strings.items():
             try:
+                print('string', string)
                 result = string_parser.parse(string)
             except Exception as err:
-                self.fail('{}\n{}'.format(err, string))
+                self.fail('Good str: "{}"\n{}'.format(string, err))
             self.assertEqual(result, expected,
                              msg="For string {}, expected '{}' but got '{}'"
                                  .format(string, expected, result))
@@ -264,39 +249,46 @@ class ParserTests(unittest.PavTestCase):
     def test_bad_strings(self):
         """Make sure we get errors for the things we expect."""
 
-        # It's also important to come up with strings that should fail.
-        # Strings that should fail.
-        bad_syntax = [
-            'hello {{ foo',    # hanging expression
-            'hello [~ foo',    # hanging iteration
-            '{{ expr {{ nope }} }}',  # Expressions can't contain expressions.
-            'foo}}',            # Unopened expression
-            'foo\\',           # Escape missing escapee
-            '~foo'              # Tilde's have to be escaped.
-            '[~ foo [~bar~]~]'  # You can't nest iterations.
-        ]
-
-        string_parser = parsers.get_string_parser(self.var_man)
-
-        for string in bad_syntax:
-            with self.assertRaises(lark.exceptions.UnexpectedInput,
-                                   msg="No error for: {}".format(string)):
-                string_parser.parse(string)
-
-        bad_strings = [
+        # Matching the exact failure strings is fragile, and that's intentional.
+        # The whole syntax is incredibly fragile, the tiniest change can have
+        # unforeseen consequences, and this is one of the best places to
+        # look for those.
+        bad_syntax = {
+            'hello {{ foo bar baz what 9 + 3': 'Unmatched "{{"',
+            '{{': 'Unmatched "{{"',
+            'hello [~ foo': 'Unmatched "[~"',
+            '[~': 'Unmatched "[~"',
+            '{{ expr {{ nope }} }}': 'Nested Expression',
+            'foo}}': 'Unmatched "}}"',
+            '}}': 'Unmatched "}}"',
+            '[~ }} ~]': 'Unmatched "}}"',
+            'foo\\': 'Trailing Backslash',
+            '~foo': 'Unescaped tilde',
+            '[~ foo [~bar~]~]': 'Nested Iteration',
+            '~_]': 'Unmatched "~<sep>]"',
+            '[~foo ~] ~]': 'Unmatched "~<sep>]"',
             # You can't both iterate over a variable and use an a specific
             # part of it.
-            '[~ {{ints.1}} {{ints}} ~]',
+            '[~ {{ints.1}} {{ints}} ~]': "Variable var.ints.1 was referenced, "
+                                         "but is also being iterated over. You "
+                                         "can't do both.",
             # Bad expression
-            '{{ nope }}',
-        ]
+            '{{ nope }}': "Could not find a variable named 'nope' in any "
+                          "variable set.",
+        }
 
-        for string in bad_strings:
-            with self.assertRaises(parsers.ParseError,
-                                   msg="No error for: {}".format(string)):
-                string_parser.parse(string)
+        for expr, expected in self.BAD_EXPRESSIONS.items():
+            bad_syntax['p{{{{{}}}}}t'.format(expr)] = expected
 
-
-
-
-
+        for string, exp_error in bad_syntax.items():
+            try:
+                result = parsers.parse_text(string, self.var_man)
+            except parsers.StringParserError as err:
+                self.assertEqual(err.message, exp_error,
+                                 msg="Bad example '{}' produced an error '{}' "
+                                     "that did not match expected error '{}'"
+                                     .format(string, err.message, exp_error))
+            else:
+                self.fail(
+                    "Failed to fail on '{}', parsed to: '{}'"
+                    .format(string, result))

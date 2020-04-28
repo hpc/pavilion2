@@ -3,7 +3,7 @@
 import lark
 import ast
 from pavilion import functions
-from .common import PavTransformer, ParseError
+from .common import PavTransformer, ParserValueError
 
 
 EXPR_GRAMMAR = r'''
@@ -33,7 +33,7 @@ primary: literal
 
 function_call: NAME "(" (expr ("," expr)*)? ")"
 
-negative: MINUS primary
+negative: (MINUS|PLUS) primary
 
 literal: INTEGER
        | FLOAT
@@ -220,9 +220,9 @@ class ExprTransformer(PavTransformer):
         if len(items) > 1:
             for tok in items[0::2]:
                 if not isinstance(tok.value, self.NUM_TYPES):
-                    raise ParseError(
+                    raise ParserValueError(
                         tok,
-                        "Non-numeric value used in add/sub operation.")
+                        "Non-numeric value in math operation")
         elif len(items) == 1:
             return items[0]
         else:
@@ -255,9 +255,9 @@ class ExprTransformer(PavTransformer):
         if len(items) > 1:
             for tok in items[0::2]:
                 if not isinstance(tok.value, self.NUM_TYPES):
-                    raise ParseError(
+                    raise ParserValueError(
                         tok,
-                        "Non-numeric value used in math operation.")
+                        "Non-numeric value in math operation")
         elif len(items) == 1:
             return items[0]
         else:
@@ -293,9 +293,9 @@ class ExprTransformer(PavTransformer):
         if len(items) == 2:
             for tok in items:
                 if not isinstance(tok.value, self.NUM_TYPES):
-                    raise ParseError(
+                    raise ParserValueError(
                         tok,
-                        "You may only used in power ")
+                        "Non-numeric value in math operation")
 
         if len(items) == 2:
             return self._merge_tokens(items, items[0].value ** items[1].value)
@@ -318,10 +318,15 @@ class ExprTransformer(PavTransformer):
         """
         val = items[1].value
         if not isinstance(val, self.NUM_TYPES):
-            raise ParseError(items[1], "Only numeric values may be made "
-                                       "negative.")
+            raise ParserValueError(
+                items[1],
+                "Non-numeric value in math operation")
 
-        return self._merge_tokens(items, -items[1].value)
+        value = items[1].value
+        if items[0].value == '-':
+            value = -value
+
+        return self._merge_tokens(items, value)
 
     def literal(self, items) -> lark.Token:
         """Just pass up the literal value.
@@ -347,7 +352,7 @@ class ExprTransformer(PavTransformer):
         var_key_parts = [str(item.value) for item in items]
         var_key = '.'.join(var_key_parts)
         if len(var_key_parts) > 4:
-            raise ParseError(
+            raise ParserValueError(
                 self._merge_tokens(items, var_key),
                 "Invalid variable '{}': too many name parts."
                 .format(var_key))
@@ -357,11 +362,9 @@ class ExprTransformer(PavTransformer):
             # catch those.
             val = self.var_man[var_key]
         except KeyError as err:
-            raise ParseError(
+            raise ParserValueError(
                 self._merge_tokens(items, var_key),
-                "Unknown variable '{}': {}"
-                .format(var_key, err)
-            )
+                err.args[0])
 
         # Convert val into the type it looks most like.
         if isinstance(val, str):
@@ -388,19 +391,19 @@ class ExprTransformer(PavTransformer):
         try:
             func = functions.get_plugin(func_name)
         except functions.FunctionPluginError:
-            raise ParseError(
+            raise ParserValueError(
                 token=items[0],
                 message="No such function '{}'".format(func_name))
 
         try:
             result = func(*args)
         except functions.FunctionArgError as err:
-            raise ParseError(
+            raise ParserValueError(
                 self._merge_tokens(items, None),
                 "Invalid arguments: {}".format(err))
         except functions.FunctionPluginError as err:
             # The function plugins give a reasonable message.
-            raise ParseError(self._merge_tokens(items, None), err)
+            raise ParserValueError(self._merge_tokens(items, None), err.args[0])
 
         return self._merge_tokens(items, result)
 

@@ -1,7 +1,8 @@
 """Grammar and transformation for Pavilion string syntax."""
 
 import lark
-from .common import ParseError, PavTransformer
+import ast
+from .common import ParserValueError, PavTransformer
 from .expressions import VarRefVisitor, get_expr_parser, ExprTransformer
 
 STRING_GRAMMAR = r'''
@@ -12,35 +13,52 @@ start: string
 // a reference back to the 'string' rule. A 'STRING' terminal (or nothing) 
 // is definite, but a 'string' would be non-deterministic.
 string: STRING?
-      | STRING? ESCAPE string
       | STRING? iter string
       | STRING? expr string
 
-iter: _ITER_STRING_START iter_inner "~" separator "]"
+iter: _ITER_STRING_START iter_inner SEPARATOR
 _ITER_STRING_START: "[~"
+SEPARATOR.2: _TILDE _STRING_ESC _CLOSE_BRACKET
+_TILDE: "~"
+_CLOSE_BRACKET: "]"
 
 iter_inner: STRING?
-          | STRING? ESCAPE iter_inner
           | STRING? expr iter_inner
+    
 
-expr: "{{" EXPR? (ESCAPED_STRING EXPR?)* FORMAT? "}}"
-EXPR: /[^}":]+/
-_STRING_INNER: /.*?/
-_STRING_ESC_INNER: _STRING_INNER /(?<!\\)(\\\\)*?/
-ESCAPED_STRING : "\"" _STRING_ESC_INNER "\""
-
-separator: SEP_STRING? (ESCAPE SEP_STRING?)*
-SEP_STRING: /[^\]\\]+/
+expr: _START_EXPR EXPR? (ESCAPED_STRING EXPR?)* FORMAT? _END_EXPR
+_START_EXPR: "{{"
+_END_EXPR: "}}"
+EXPR: /[^}~{":]+/
+// Match anything enclosed in quotes as long as the last 
+// escape doesn't escape the close quote.
+// A minimal match, but the required close quote will force this to 
+// consume most of the string.
+_STRING_ESC_INNER: /.*?/
+// If the string ends in a backslash, it must end with an even number
+// of them.
+_STRING_ESC: _STRING_ESC_INNER /(?<!\\)(\\\\)*?/
+ESCAPED_STRING : "\"" _STRING_ESC "\""
 
 // This regex matches the whole format spec for python.
 FORMAT: /:(.?[<>=^])?[+ -]?#?0?\d*[_,]?(.\d+)?[bcdeEfFgGnosxX%]?/
 
-// A string can be empty
-// This will match any characters that aren't a '{' '[' or '\\', or
-// a '{' as long as it isn't followed by another '{', or
-// a '[' as long as it isn't followed by a '~'. 
-STRING: /([^{[\\~}]|{(?=[^{]|$)|}(?=[^}]|$)|\[(?=[^~]|$))+/
-ESCAPE: /\\./
+// Strings must start with:
+//  - A closing expression '}}', a closing iteration '.]', an opening
+//    iteration '[~', or the start of input.
+//    - Look-behind assertions must be equal length static expressions,
+//      which is why we have to math '.]' instead of just ']', and why
+//      we can't match the start of the string in the look-behind.
+//  - Strings can contain anything, but they can't start with an open
+//    expression '{{' or open iteration '[~'.
+//  - Strings cannot end in an odd number of backslashes (that would 
+//    escape the closing characters).
+//  - Strings must end with the end of string, an open expression '{{',
+//    an open iteration '[~', or a tilde.
+//  - If this is confusing, look at ESCAPED_STRING above. It's the uses the
+//    same basic structure, 
+STRING: /((?<=}}|.\]|\[~)|^)/ _STRING_INNER /(?=$|}}|{{|\[~|~)/
+_STRING_INNER: /(?!{{|\[~|~|}})(.|\s)+?(?<!\\)(\\\\)*/
 '''
 
 _STRING_PARSER = None
@@ -110,7 +128,12 @@ class StringTransformer(PavTransformer):
         for item in items:
             if isinstance(item.value, list):
                 token_list.extend(item.value)
+            elif isinstance(item.value, dict):
+                token_list.append(item)
             else:
+                item.value = self._unescape(
+                    item.value, {'{': '{', '[': '[', '~': '~'})
+
                 token_list.append(item)
 
         return self._merge_tokens(items, token_list)
@@ -170,7 +193,7 @@ class StringTransformer(PavTransformer):
 
         # The original tokens will be set as the inner value.
         inner_items = items[0].value
-        separator = items[1].value
+        separator = self._unescape(items[1].value[1:-1], {']': ']'})
 
         expressions = [item for item in inner_items
                        if item.type == self.EXPRESSION]
@@ -205,7 +228,7 @@ class StringTransformer(PavTransformer):
             var_set, var, idx, sub_var = direct_ref
             if (var_set, var) in filtered_vars:
                 key = self.var_man.key_as_dotted(direct_ref)
-                raise ParseError(
+                raise ParserValueError(
                     token=self._merge_tokens(items, None),
                     message="Variable {} was referenced, but is also being "
                     "iterated over. You can't do both.".format(key)
@@ -229,20 +252,45 @@ class StringTransformer(PavTransformer):
 
         return self._merge_tokens(items, separator.join(iterations))
 
+    def _unescape(self, text, escapes) -> str:
+        """Pavilion mostly relies yaml to handle un-escaping strings. There,
+        are, however, a few contexts where additional escapes are necessary.
+
+        :param str text: The text to escape.
+        :param dict escapes: A dictionary of extra escapes to apply.
+            Backslashes are always escapable.
+
+        :return:
+        """
+
+        escapes = escapes.copy()
+        escapes['\\'] = '\\'
+
+        for res, repl in escapes.items():
+            text = text.replace('\\' + res, repl)
+
+        return text
+
     def _parse_expr(self, expr: lark.Token) -> lark.Tree:
         """Parse the given expression token and return the tree."""
 
         try:
             return get_expr_parser().parse(expr.value['expr'])
-        except ParseError as err:
-            self._displace_token(expr, err.token)
+        except ParserValueError as err:
+            err.pos_in_stream += expr.pos_in_stream
             # Re-raise the corrected error
+            raise
+        except lark.UnexpectedInput as err:
+            err.pos_in_stream += expr.pos_in_stream
+            # Alter the error state to make sure it can be differentiated
+            # from string_parser states.
+            err.state = 'expr-{}'.format(err.state)
             raise
 
     def _resolve_expr(self,
                       expr: lark.Token, var_man,
                       tree: lark.Tree = None) -> str:
-        """Resolve the value of the
+        """Resolve the value of the the given expression token.
         :param expr: An expression token. The value will be a dict
             of the expr string and the formatter.
         :param pavilion.test_config.variables.VariableSetManager var_man:
@@ -258,13 +306,13 @@ class StringTransformer(PavTransformer):
         transformer = ExprTransformer(var_man)
         try:
             value = transformer.transform(tree)
-        except ParseError as err:
-            self._displace_token(expr, err.token)
+        except ParserValueError as err:
+            err.pos_in_stream += expr.pos_in_stream
             raise
 
         if not isinstance(value, (int, float, bool, str)):
             type_name = type(value).__name__
-            raise ParseError(
+            raise ParserValueError(
                 expr,
                 "Pavilion expressions must resolve to a string, int, float, "
                 "or boolean. Instead, we got {} '{}'"
@@ -278,10 +326,10 @@ class StringTransformer(PavTransformer):
                     format_spec=format_spec[1:],
                     value=value)
             except ValueError as err:
-                raise ParseError(
+                raise ParserValueError(
                     expr,
                     "Invalid format_spec '{}': {}"
-                    .format(format_spec, err))
+                    .format(format_spec, err.args[0]))
         else:
             value = str(value)
 
@@ -293,16 +341,12 @@ class StringTransformer(PavTransformer):
         Displace the position information in 'inner' so that the positions
         point to the same location in base."""
 
+        inner.pos_in_stream = base.pos_in_stream + inner.pos_in_stream
+        inner.end_pos = base.pos_in_stream + inner.end_pos
         inner.line = base.line + inner.line
         inner.column = base.column + inner.column
         inner.end_line = base.line + inner.end_line
         inner.end_column = base.end_column + inner.end_column
-
-    def separator(self, items):
-        """Join the separator string parts."""
-
-        return self._merge_tokens(items,
-                                  ''.join([item.value for item in items]))
 
     def iter_inner(self, items):
         """Works just like a string production, but repeaters aren't
