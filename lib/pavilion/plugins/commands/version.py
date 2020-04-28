@@ -31,8 +31,10 @@ class VersionCommand(commands.Command):
                         version_found = True
                         fprint('Pavilion ' + line.split('=')[1])
             if not version_found:
-                fprint('Pavilion version not found in RELEASE.txt', color=output.RED)
+                fprint('Pavilion version not found in RELEASE.txt',
+                       color=output.RED)
 
         except FileNotFoundError:
-            fprint(version_path + " not found.", file=self.errfile, color=output.RED)
+            fprint(version_path + " not found.", file=self.errfile,
+                   color=output.RED)
             return errno.ENOENT
