@@ -4,9 +4,6 @@ import logging
 import os
 import pathlib
 import time
-import copy
-from multiprocessing import Process
-import threading
 
 from pavilion import utils
 from pavilion import commands
@@ -48,10 +45,12 @@ def test_obj_from_id(pav_cfg, test_ids):
 class SeriesManager:
     """Series Manger"""
 
-    def __init__(self, _pav_cfg, _series_obj, _series_cfg):
-        self.pav_cfg = _pav_cfg
-        self.series_obj = _series_obj
-        self.series_cfg = _series_cfg
+    def __init__(self, pav_cfg, series_obj, series_cfg):
+        # set everything up
+
+        self.pav_cfg = pav_cfg
+        self.series_obj = series_obj
+        self.series_cfg = series_cfg
 
         self.sets = self.series_cfg['series']
 
@@ -95,23 +94,11 @@ class SeriesManager:
             for next in next_str_list:
                 self.test_sets[set_name].add_next(self.test_sets[next])
 
-        # CLEAN UP ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-        # self.print_status()
-
         # kick off tests that aren't waiting on anyone
         self.currently_running = []
 
         # keep checking on statuses of currently running sets
-        # p = Process(target=self.keep_checking_tests, daemon=True)
-        # p.start()
         self.keep_checking_tests()
-        # t = threading.Thread(target=self.keep_checking_tests)
-        # t.setDaemon(True)
-        # t.start()
-
-
-        # END CLEAN UP
 
     def keep_checking_tests(self):
 
@@ -136,15 +123,11 @@ class SeriesManager:
 
             # self.print_status()
 
-
-
-
     def is_set_done(self, set_obj): # pylint: disable=R0201
         for test in set_obj.test_runs:
             if not (test.path/'RUN_COMPLETE').exists():
                 return False
         return True
-
 
     def make_dep_graph(self):
         # has to be a graph of test sets
@@ -167,14 +150,14 @@ class TestSet:
     # statuses:
     # NO_STAT, NEXT, DID_NOT_RUN, RUNNING, PASS, FAIL
 
-    def __init__(self, _pav_cfg, _name, _args_list,
-                 _prev_set, _next_set):
+    def __init__(self, pav_cfg, name, args_list,
+                 prev_set, next_set):
 
-        self.name = _name
-        self.pav_cfg = _pav_cfg
-        self.args_list = _args_list
-        self.prev_set = _prev_set  # has to be a list of TestSet objects
-        self.next_set = _next_set  # has to be a list of TestSet objects
+        self.name = name
+        self.pav_cfg = pav_cfg
+        self.args_list = args_list
+        self.prev_set = prev_set  # has to be a list of TestSet objects
+        self.next_set = next_set  # has to be a list of TestSet objects
         self.status = 'NO_STAT'
         self.test_runs = list()
 
