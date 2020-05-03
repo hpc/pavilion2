@@ -38,18 +38,25 @@ class ParserTests(unittest.PavTestCase):
     def tearDown(self) -> None:
         plugins._reset_plugins()
 
-    def test_visit_expression(self):
-        """Test the visitor used to collect all of the used variables."""
+    def test_visitors(self):
+        """Test the visitors used to collect all of the used variables."""
 
         expr_parser = parsers.get_expr_parser()
 
         expr = 'int1.3.foo + var.int2.*.bleh * 11 * - sum([int1, int1])'
         tree = expr_parser.parse(expr)
-        visitor = parsers.expressions.VarRefVisitor()
+        visitor = parsers.common.VarRefVisitor()
         used_vars = visitor.visit(tree)
 
         self.assertEqual(used_vars,
-                         {'int1.3.foo', 'var.int2.*.bleh', 'int1'})
+                         ['int1.3.foo', 'var.int2.*.bleh', 'int1'])
+
+        string_parser = parsers.get_string_parser()
+        tree = string_parser.parse("hello {{var.foo.1.baz:1s}} world "
+                                   "{{sys.bar}}")
+        visitor = parsers.strings.StringVarRefVisitor()
+        var_list = visitor.visit(tree)
+        self.assertEqual(['var.foo.1.baz', 'sys.bar'], var_list)
 
     GOOD_EXPRESSIONS = {
         '': '',
@@ -183,17 +190,18 @@ class ParserTests(unittest.PavTestCase):
         trans = parsers.expressions.ExprTransformer(self.var_man)
 
         for expr in self.BAD_EXPRESSIONS:
-            with self.assertRaises((parsers.ParserValueError,
-                                    lark.UnexpectedInput)):
+            try:
                 tree = expr_parser.parse(expr)
                 result = trans.transform(tree)
-
+            except (parsers.ParserValueError, lark.UnexpectedInput):
+                pass
+            else:
                 self.fail("Failed to fail on {} (got {}):\n{}"
                           .format(expr, result, tree.pretty()))
 
         with self.assertRaises(variables.DeferredError):
             tree = expr_parser.parse("sys.host_name")
-            result = trans.transform(tree)
+            trans.transform(tree)
 
     def test_good_strings(self):
 
@@ -235,11 +243,13 @@ class ParserTests(unittest.PavTestCase):
                 result = str(result)
                 strings['({{' + expr + '}})'] = '(' + result + ')'
 
-        string_parser = parsers.get_string_parser(self.var_man)
+        string_parser = parsers.get_string_parser()
+        transformer = parsers.StringTransformer(self.var_man)
         for string, expected in strings.items():
             try:
-                print('string', string)
-                result = string_parser.parse(string)
+                tree = string_parser.parse(string)
+                result = transformer.transform(tree)
+
             except Exception as err:
                 self.fail('Good str: "{}"\n{}'.format(string, err))
             self.assertEqual(result, expected,

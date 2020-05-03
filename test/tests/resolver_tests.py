@@ -5,7 +5,7 @@ import copy
 from pavilion import plugins
 from pavilion import system_variables
 from pavilion.test_config import TestConfigError, resolver
-from pavilion.test_config import variables, string_parser
+from pavilion.test_config import variables
 from pavilion.unittest import PavTestCase
 
 
@@ -334,7 +334,6 @@ class ResolverTests(PavTestCase):
         test.build()
 
         undefered_sys_vars = system_variables.SysVarDict(
-            defer=False,
             unique=True,
         )
 
@@ -422,7 +421,7 @@ class ResolverTests(PavTestCase):
 
         test, permuted = self.resolver.resolve_permutations(test, var_man)
 
-        with self.assertRaises(string_parser.ResolveError):
+        with self.assertRaises(resolver.TestConfigError):
             # No deferred variables in the build section.
             self.resolver.resolve_config(test, permuted[0])
 

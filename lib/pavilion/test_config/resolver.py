@@ -15,7 +15,7 @@ import yc_yaml
 from pavilion import pavilion_variables
 from pavilion import schedulers
 from pavilion import system_variables
-from pavilion.test_config import string_parser
+from pavilion.test_config import parsers
 from pavilion.test_config import variables
 from pavilion.test_config.file_format import (TestConfigError, TEST_NAME_RE,
                                               KEY_NAME_RE)
@@ -240,11 +240,9 @@ class TestConfigResolver:
                 for p_var_man in permutes:
                     # Get the scheduler from the config.
                     sched = p_cfg['scheduler']
-                    sched = self.resolve_section_vars(
+                    sched = self.resolve_section_values(
                         component=sched,
                         var_man=p_var_man,
-                        allow_deferred=False,
-                        deferred_only=False,
                     )
                     raw_tests_by_sched[sched].append((p_cfg, p_var_man))
             except TestConfigError as err:
@@ -265,10 +263,10 @@ class TestConfigResolver:
                     resolved_config = self.resolve_config(
                         test_cfg,
                         test_var_man)
-
-                except (KeyError, string_parser.ResolveError) as err:
-                    msg = "Error resolving variables in config at '{}': {}" \
-                        .format(test_cfg['suite_path'], err)
+                except parsers.StringParserError as err:
+                    msg = "Error resolving test {} in suite {}:\n{}\n{}"\
+                          .format(test_cfg['name'], test_cfg['suite_path'],
+                                  err.message, err.context)
                     self.logger.error(msg)
                     raise TestConfigError(msg)
 
@@ -680,9 +678,9 @@ class TestConfigResolver:
             used_per_vars.add((var_set, var))
 
         # var_men is a list of variable managers, one for each permutation
-        var_men = base_var_man.get_permutations(used_per_vars)
+        var_men = base_var_man.get_permutations(list(used_per_vars))
         for var_man in var_men:
-            var_man.resolve_references(string_parser.parse)
+            var_man.resolve_references()
         return test_cfg, var_men
 
     NOT_OVERRIDABLE = ['name', 'suite', 'suite_path', 'scheduler']
@@ -835,19 +833,21 @@ class TestConfigResolver:
         """
 
         no_deferred_allowed = schedulers.list_plugins()
+        # This can eventually be allowed if the build is non-local.
         no_deferred_allowed.append('build')
         no_deferred_allowed.append('scheduler')
+        # This can be allowed, eventually.
+        no_deferred_allowed.append('only_if')
+        no_deferred_allowed.append('not_if')
 
         resolved_dict = {}
 
         for key in config:
-            allow_deferred = False if key in no_deferred_allowed else True
-
-            resolved_dict[key] = cls.resolve_section_vars(
+            resolved_dict[key] = cls.resolve_section_values(
                 component=config[key],
                 var_man=var_man,
-                allow_deferred=allow_deferred,
-                deferred_only=False,
+                allow_deferred=key not in no_deferred_allowed,
+                key_parts=(key,),
             )
 
         return resolved_dict
@@ -874,35 +874,38 @@ class TestConfigResolver:
                 .format(deferred)
             )
 
-        return cls.resolve_section_vars(config, var_man,
-                                        allow_deferred=False,
-                                        deferred_only=True)
+        return cls.resolve_section_values(config, var_man, deferred_only=True)
 
     @classmethod
-    def resolve_section_vars(cls, component, var_man, allow_deferred,
-                             deferred_only):
-        """Recursively resolve the given config component's variables, using a
-         variable manager.
+    def resolve_section_values(cls, component, var_man, allow_deferred=False,
+                               deferred_only=False, key_parts=None):
+        """Recursively resolve the given config component's value strings
+        using a variable manager.
 
         :param dict component: The config component to resolve.
         :param var_man: A variable manager. (Presumably a permutation of the
             base var_man)
-        :param bool allow_deferred: Do not allow deferred variables in this
-            section.
+        :param bool allow_deferred: Allow deferred variables in this section.
         :param bool deferred_only: Only resolve values prepended with
             the DEFERRED_PREFIX, and throw an error if such values can't be
-            resolved.
+            resolved. If this is True deferred values aren't allowed anywhere.
+        :param Union[tuple[str],None] key_parts: A list of the parts of the
+            config key traversed to get to this point.
         :return: The component, resolved.
         """
+
+        if key_parts is None:
+            key_parts = tuple()
 
         if isinstance(component, dict):
             resolved_dict = type(component)()
             for key in component.keys():
-                resolved_dict[key] = cls.resolve_section_vars(
+                resolved_dict[key] = cls.resolve_section_values(
                     component[key],
                     var_man,
-                    allow_deferred,
-                    deferred_only)
+                    allow_deferred=allow_deferred,
+                    deferred_only=deferred_only,
+                    key_parts=key_parts + (key,))
 
             return resolved_dict
 
@@ -910,10 +913,12 @@ class TestConfigResolver:
             resolved_list = type(component)()
             for i in range(len(component)):
                 resolved_list.append(
-                    cls.resolve_section_vars(
+                    cls.resolve_section_values(
                         component[i], var_man,
-                        allow_deferred,
-                        deferred_only))
+                        allow_deferred=allow_deferred,
+                        deferred_only=deferred_only,
+                        key_parts=key_parts + (i,)
+                    ))
             return resolved_list
 
         elif isinstance(component, str):
@@ -924,8 +929,9 @@ class TestConfigResolver:
                 if component.startswith(cls.DEFERRED_PREFIX):
                     component = component[len(cls.DEFERRED_PREFIX):]
 
-                    resolved = string_parser.parse(component).resolve(var_man)
-                    if resolved is None:
+                    try:
+                        resolved = parsers.parse_text(component, var_man)
+                    except variables.DeferredError:
                         raise RuntimeError(
                             "Tried to resolve a deferred config component, "
                             "but it was still deferred: {}"
@@ -949,18 +955,15 @@ class TestConfigResolver:
                     )
 
                 try:
-                    resolved = string_parser.parse(component).resolve(var_man)
-                except string_parser.ResolveError as err:
-                    raise TestConfigError(err)
-
-                if resolved is None:
+                    resolved = parsers.parse_text(component, var_man)
+                except variables.DeferredError:
                     if allow_deferred:
                         return cls.DEFERRED_PREFIX + component
                     else:
-                        raise string_parser.ResolveError(
-                            "Deferred variable in section where it isn't "
-                            "allowed. '{}'".format(component)
-                        )
+                        raise TestConfigError(
+                            "Deferred variable in value '{}' under key "
+                            "'{}' where it isn't allowed"
+                            .format(component, '.'.join(map(str, key_parts))))
 
                 else:
                     return resolved

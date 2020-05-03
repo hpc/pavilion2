@@ -1,10 +1,10 @@
 """Grammar and transformer for Pavilion expression syntax."""
 
-import lark
 import ast
+
+import lark
 from pavilion import functions
 from .common import PavTransformer, ParserValueError
-
 
 EXPR_GRAMMAR = r'''
 
@@ -103,7 +103,7 @@ def get_expr_parser(debug=False):
 class ExprTransformer(PavTransformer):
     """Transforms the expression parse tree into an actual value."""
 
-    # pylint: disable=
+    # pylint: disable=no-self-use,invalid-name
 
     NUM_TYPES = (
         int,
@@ -117,7 +117,6 @@ class ExprTransformer(PavTransformer):
         if not items:
             return ''
 
-        print(items)
         return items[0].value
 
     def expr(self, items):
@@ -232,15 +231,15 @@ class ExprTransformer(PavTransformer):
         add_items.reverse()
         accum = add_items.pop().value
         while add_items:
-            op = add_items.pop()
+            operator = add_items.pop()
             val = add_items.pop().value
-            if op == '+':
+            if operator == '+':
                 accum += val
-            elif op == '-':
+            elif operator == '-':
                 accum -= val
             else:
                 raise RuntimeError("Invalid operation '{}' in expression."
-                                   .format(op))
+                                   .format(operator))
 
         return self._merge_tokens(items, accum)
 
@@ -368,7 +367,7 @@ class ExprTransformer(PavTransformer):
 
         # Convert val into the type it looks most like.
         if isinstance(val, str):
-            val = self._conv(val)
+            val = self._convert(val)
 
         return self._merge_tokens(items, val)
 
@@ -443,7 +442,7 @@ class ExprTransformer(PavTransformer):
         tok.value = ast.literal_eval(tok.value)
         return tok
 
-    def _conv(self, value):
+    def _convert(self, value):
         """Try to convert 'value' to a number or bool. Otherwise leave
         as a string."""
 
@@ -461,40 +460,3 @@ class ExprTransformer(PavTransformer):
             return bool(value)
 
         return value
-
-
-class VarRefVisitor(lark.Visitor):
-    """Finds all of the variable references in the tree."""
-
-    def __default__(self, tree):
-        """By default, return an empty list for each subtree, as
-        most trees will have no variable references."""
-
-        return None
-
-    def visit(self, tree):
-        """Visit the tree bottom up and return all the variable references
-        found."""
-
-        var_refs = []
-
-        for subtree in tree.iter_subtrees():
-            var_ref = self._call_userfunc(subtree)
-            if var_ref is not None:
-                if var_ref not in var_refs:
-                    var_refs.append(var_ref)
-
-        return var_refs
-
-    # We're not supporting this method (always just use .visit())
-    visit_topdown = None
-
-    def var_ref(self, tree: lark.Tree) -> [str]:
-
-        var_parts = []
-        for val in tree.scan_values(lambda c: True):
-            var_parts.append(val)
-
-        var_name = '.'.join(var_parts)
-
-        return var_name

@@ -1,9 +1,8 @@
 """Grammar and transformation for Pavilion string syntax."""
 
 import lark
-import ast
-from .common import ParserValueError, PavTransformer
-from .expressions import VarRefVisitor, get_expr_parser, ExprTransformer
+from .common import ParserValueError, PavTransformer, VarRefVisitor
+from .expressions import get_expr_parser, ExprTransformer
 
 STRING_GRAMMAR = r'''
 
@@ -64,14 +63,13 @@ _STRING_INNER: /(?!{{|\[~|~|}})(.|\s)+?(?<!\\)(\\\\)*/
 _STRING_PARSER = None
 
 
-def get_string_parser(var_man, debug=False):
+def get_string_parser(debug=False):
     """Return a string parser, from cache if possible."""
     global _STRING_PARSER
 
     if debug or _STRING_PARSER is None:
         parser = lark.Lark(
             grammar=STRING_GRAMMAR,
-            transformer=StringTransformer(var_man),
             parser='lalr',
             debug=debug
         )
@@ -138,7 +136,8 @@ class StringTransformer(PavTransformer):
 
         return self._merge_tokens(items, token_list)
 
-    def expr(self, items) -> lark.Token:
+    @classmethod
+    def expr(cls, items) -> lark.Token:
         """Grab the expression and format spec and combine them into a single
         token. We can't resolve them until we get to an iteration or the
         start. The merged expression tokens are set to the
@@ -166,18 +165,7 @@ class StringTransformer(PavTransformer):
             'format_spec': expr_format,
         }
 
-        return self._merge_tokens(items, value, type_=self.EXPRESSION)
-
-    def ESCAPE(self, token) -> lark.Token:
-        """Remove the backslash from the escaped character.
-
-        :param lark.Token token: A single token of a backslash followed
-        by any character.
-        """
-
-        token.value = token.value[1]
-
-        return token
+        return cls._merge_tokens(items, value, type_=cls.EXPRESSION)
 
     def iter(self, items: [lark.Token]) -> lark.Token:
         """Handle an iteration section. These can contain anything except
@@ -204,7 +192,7 @@ class StringTransformer(PavTransformer):
         expr_trees = {}
 
         for expr in expressions:
-            expr_tree = self._parse_expr(expr)
+            expr_tree = self.parse_expr(expr)
             expr_trees[expr] = expr_tree
 
             # Get the used variables from the expression.
@@ -252,7 +240,8 @@ class StringTransformer(PavTransformer):
 
         return self._merge_tokens(items, separator.join(iterations))
 
-    def _unescape(self, text, escapes) -> str:
+    @staticmethod
+    def _unescape(text, escapes) -> str:
         """Pavilion mostly relies yaml to handle un-escaping strings. There,
         are, however, a few contexts where additional escapes are necessary.
 
@@ -271,7 +260,8 @@ class StringTransformer(PavTransformer):
 
         return text
 
-    def _parse_expr(self, expr: lark.Token) -> lark.Tree:
+    @staticmethod
+    def parse_expr(expr: lark.Token) -> lark.Tree:
         """Parse the given expression token and return the tree."""
 
         try:
@@ -301,7 +291,7 @@ class StringTransformer(PavTransformer):
         """
 
         if tree is None:
-            tree = self._parse_expr(expr)
+            tree = self.parse_expr(expr)
 
         transformer = ExprTransformer(var_man)
         try:
@@ -335,8 +325,8 @@ class StringTransformer(PavTransformer):
 
         return value
 
-    def _displace_token(self, base: lark.Token,
-                        inner: lark.Token):
+    @staticmethod
+    def _displace_token(base: lark.Token, inner: lark.Token):
         """Inner is assumed to be a token from within the 'base' string.
         Displace the position information in 'inner' so that the positions
         point to the same location in base."""
@@ -360,3 +350,18 @@ class StringTransformer(PavTransformer):
                 flat_items.append(item)
 
         return self._merge_tokens(items, flat_items)
+
+
+class StringVarRefVisitor(VarRefVisitor):
+    """Parse expressions and get all used variables. """
+
+    @staticmethod
+    def expr(tree: lark.Tree) -> [str]:
+        """Parse the expression, and return any used variables."""
+
+        expr = StringTransformer.expr(tree.children)
+        expr_tree = StringTransformer.parse_expr(expr)
+        visitor = VarRefVisitor()
+
+        var_list = visitor.visit(expr_tree)
+        return var_list

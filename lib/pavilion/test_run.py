@@ -19,7 +19,7 @@ from pavilion import result_parsers
 from pavilion import scriptcomposer
 from pavilion import utils
 from pavilion.status_file import StatusFile, STATES
-from pavilion.test_config import variables, string_parser, resolver
+from pavilion.test_config import variables, resolver
 from pavilion.test_config.file_format import TestConfigError
 
 
@@ -382,10 +382,7 @@ class TestRun:
         """Resolve any remaining deferred variables, and generate the final
         run script."""
 
-        self.var_man.undefer(
-            new_vars=var_man,
-            parser=string_parser.parse
-        )
+        self.var_man.undefer(new_vars=var_man)
 
         self.config = resolver.TestConfigResolver.resolve_deferred(
             self.config, self.var_man)
@@ -800,7 +797,7 @@ be set by the scheduler plugin as soon as it's known."""
             return self._job_id
 
         try:
-            with path.open('r') as job_id_file:
+            with path.open() as job_id_file:
                 self._job_id = job_id_file.read()
         except FileNotFoundError:
             return None

@@ -23,6 +23,8 @@ provided (sched).
 import copy
 import json
 
+from . import parsers
+
 
 class VariableError(ValueError):
     """This error should be thrown when processing variable data,
@@ -312,12 +314,10 @@ index, sub_var) tuple.
         else:
             return '.'.join([str(k) for k in key if k is not None])
 
-    def resolve_references(self, parser):
+    def resolve_references(self):
         """Resolve all variable references that are within variable values
         defined in the 'variables' section of the test config.
 
-        :param function parser: The Parser function from string_parser. This
-            must be passed to avoid import loops.
         :raises TestConfigError: When reference loops are found.
         :raises KeyError: When an unknown variable is referenced.
         """
@@ -325,6 +325,9 @@ index, sub_var) tuple.
         # We only want to resolve variable references in the variable section
         var_vars = self.variable_sets['var']
         unresolved_vars = {}
+        parser = parsers.strings.get_string_parser()
+        var_visitor = parsers.strings.StringVarRefVisitor()
+        transformer = parsers.StringTransformer(self)
 
         # Find all the variable value strings that reference variables
         for var, var_list in var_vars.data.items():
@@ -333,42 +336,43 @@ index, sub_var) tuple.
             for idx in range(len(var_list.data)):
                 sub_var = var_list.data[idx]
                 for key, val in sub_var.data.items():
-                    pav_str = parser(val)
+                    tree = parser.parse(val)
+                    variables = var_visitor.visit(tree)
 
-                    if pav_str.variables:
+                    if variables:
                         # Unresolved variable reference that will be resolved
                         # below.
-                        unresolved_vars[('var', var, idx, key)] = pav_str
-                    else:
-                        # This one is ready to resolve now. While it might not
-                        # contain variables, it may contain other escapes and
-                        # Pavilion specific syntax.
-                        val = pav_str.resolve(self)
-                        if val is None:
-                            # This variable references a deferred variable, and
-                            # is thus deferred itself.
-                            sub_var.data[key] = pav_str.resolve(self)
+                        unresolved_vars[('var', var, idx, key)] = (tree,
+                                                                   variables)
 
         # unresolved variables form a tree where the leaves should all be
         # resolved variables. This iteratively finds unresolved variables whose
         # references are resolved and resolves them. This should collapse the
         # tree until there are no unresolved variables left.
         while unresolved_vars:
-
             did_resolve = False
-            for uvar, pav_str in unresolved_vars.copy().items():
-                for var_str in pav_str.variables:
+            for uvar, (tree, variables) in unresolved_vars.copy().items():
+                for var_str in variables:
                     var_key = self.resolve_key(var_str)
                     # Set the index 0 if it is None
-                    if var_key[2] is None:
-                        var_key = (var_key[0], var_key[1], 0, var_key[2])
+                    if var_key[2] == '*':
+                        # If the var references a whole list of items,
+                        # make sure all are resolved.
+                        list_matches = [key for key in unresolved_vars
+                                        if (key[:2], key[3]) ==
+                                        (var_key[:2], var_key[3])]
+                        if list_matches:
+                            continue
+                    else:
+                        if var_key[2] is None:
+                            var_key = (var_key[0], var_key[1], 0, var_key[2])
 
-                    if var_key in unresolved_vars:
-                        break
+                        if var_key in unresolved_vars:
+                            break
                 else:
                     # All variables referenced in uvar are resolvable
                     var_set, var_name, index, sub_var = uvar
-                    res_val = pav_str.resolve(self)
+                    res_val = transformer.transform(tree)
                     if res_val is None:
                         # One or more of the variables is deferred, so we can't
                         # resolve this now. Mark it as deferred.
@@ -568,13 +572,12 @@ index, sub_var) tuple.
 
         return var_man
 
-    def undefer(self, new_vars, parser):
+    def undefer(self, new_vars):
         """Get non-deferred values for all the deferred values in
         this variable set, leaving the non-deferred values intact.
 
         :param VariableSetManager new_vars: A completely non-deferred
             variable set manager.
-        :param function parser: The parse function from string_parser.
         """
 
         # There are a lot of assumptions in here about what variables exist
@@ -601,7 +604,8 @@ index, sub_var) tuple.
         # Now we have to go through the very specifically deferred variables
         # (an artifact of when we resolved variable value references)
         # and resolve them. This will look a lot like resolve_references
-        def_parsed = {key: parser(self[key]) for key in self.deferred}
+        def_parsed = {key: parsers.parse_text(self[key], self) for key in
+                      self.deferred}
 
         while def_parsed:
             resolved_any = False

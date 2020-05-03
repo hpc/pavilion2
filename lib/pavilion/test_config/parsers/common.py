@@ -37,11 +37,11 @@ class PavTransformer(lark.Transformer):
         exceptions. We'd rather catch and handle those ourselves."""
 
         try:
-            f = getattr(self, token.type)
+            func = getattr(self, token.type)
         except AttributeError:
             return self.__default_token__(token)
         else:
-            return f(token)
+            return func(token)
 
     def _call_userfunc(self, tree, new_children=None):
         """Call the user defined function for handling the given tree.
@@ -52,17 +52,18 @@ class PavTransformer(lark.Transformer):
         # Assumes tree is already transformed
         children = new_children if new_children is not None else tree.children
         try:
-            f = getattr(self, tree.data)
+            func = getattr(self, tree.data)
         except AttributeError:
             return self.__default__(tree.data, children, tree.meta)
         else:
-            wrapper = getattr(f, 'visit_wrapper', None)
+            wrapper = getattr(func, 'visit_wrapper', None)
             if wrapper is not None:
-                return f.visit_wrapper(f, tree.data, children, tree.meta)
+                return func.visit_wrapper(func, tree.data, children, tree.meta)
             else:
-                return f(children)
+                return func(children)
 
-    def _merge_tokens(self, tokens, value, type_='<merged>'):
+    @staticmethod
+    def _merge_tokens(tokens, value, type_='<merged>'):
         """asdfasdf
 
         :param list[lark.Token] tokens:
@@ -131,3 +132,45 @@ class PavTransformer(lark.Transformer):
             pos_in_stream=pos_in_stream,
             end_pos=end_pos
         )
+
+
+class VarRefVisitor(lark.Visitor):
+    """Finds all of the variable references in a parse tree."""
+
+    def __default__(self, tree):
+        """By default, return an empty list for each subtree, as
+        most trees will have no variable references."""
+
+        return None
+
+    def visit(self, tree):
+        """Visit the tree bottom up and return all the variable references
+        found."""
+
+        var_refs = []
+
+        for subtree in tree.iter_subtrees():
+            refs = self._call_userfunc(subtree)
+            if refs is None:
+                continue
+
+            for ref in refs:
+                if ref not in var_refs:
+                    var_refs.append(ref)
+
+        return var_refs
+
+    # We're not supporting this method (always just use .visit())
+    visit_topdown = None
+
+    @staticmethod
+    def var_ref(tree: lark.Tree) -> [str]:
+        """Assemble and return the given variable reference."""
+
+        var_parts = []
+        for val in tree.scan_values(lambda c: True):
+            var_parts.append(val)
+
+        var_name = '.'.join(var_parts)
+
+        return [var_name]

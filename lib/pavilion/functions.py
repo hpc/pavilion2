@@ -98,13 +98,13 @@ class FunctionPlugin(IPlugin.IPlugin):
                 )
         else:
             for arg_spec in arg_specs.values():
-                self.validate_arg_spec(arg_spec)
+                self._validate_arg_spec(arg_spec)
 
         self.arg_specs = arg_specs
 
         super().__init__()
 
-    def validate_arg_spec(self, arg):
+    def _validate_arg_spec(self, arg):
         """Recursively validate the argument spec, to make sure plugin
         creators are using this right.
         :param arg: A valid arg spec is a structure of lists and
@@ -130,7 +130,7 @@ class FunctionPlugin(IPlugin.IPlugin):
                     "a single subtype. This had '{}'."
                     .format(arg)
                 )
-            self.validate_arg_spec(arg[0])
+            self._validate_arg_spec(arg[0])
 
         elif isinstance(arg, dict):
             if len(arg) == 0:
@@ -140,9 +140,9 @@ class FunctionPlugin(IPlugin.IPlugin):
                     .format(arg)
                 )
             for key, sub_arg in arg.items():
-                self.validate_arg_spec(sub_arg)
+                self._validate_arg_spec(sub_arg)
 
-        elif not arg in self.VALID_SPEC_TYPES:
+        elif arg not in self.VALID_SPEC_TYPES:
             raise FunctionPluginError(
                 "Invalid spec type '{}'. Must be one of '{}'"
                 .format(arg, self.VALID_SPEC_TYPES)
@@ -171,7 +171,8 @@ class FunctionPlugin(IPlugin.IPlugin):
             val_args = args
 
         try:
-            return self.func(*val_args)
+            func = getattr(self, self.name)
+            return func(*val_args)
         except Exception as err:
             raise FunctionPluginError(
                 "Error in function plugin {}: {}"
@@ -188,18 +189,18 @@ class FunctionPlugin(IPlugin.IPlugin):
 
         parts = [self.name + '(']
         for key, spec in self.arg_specs.items():
-            parts.append('{}: {}'.format(key, self.spec_to_desc(spec)))
+            parts.append('{}: {}'.format(key, self._spec_to_desc(spec)))
 
         return sep.join(parts) + ')'
 
-    def spec_to_desc(self, spec):
+    def _spec_to_desc(self, spec):
         """Convert an argument spec into a descriptive structure that
         can be reasonably printed."""
 
         if isinstance(spec, list):
-            return [self.spec_to_desc(spec[0])]
+            return [self._spec_to_desc(spec[0])]
         elif isinstance(spec, dict):
-            return {k: self.spec_to_desc(v) for k, v in spec.items()}
+            return {k: self._spec_to_desc(v) for k, v in spec.items()}
         else:
             return spec.__name__
 
@@ -266,13 +267,6 @@ class FunctionPlugin(IPlugin.IPlugin):
                 "Invalid {} ({})"
                 .format(spec.__name__, arg))
 
-    def func(self, *args):
-        """The function code. Must be overridden by the plugin. The docstring
-        for this function will be used as the main, verbose documentation for
-        the plugin."""
-
-        raise NotImplementedError
-
     def activate(self):
         """Yapsy runs this when adding the plugin. Add our plugin
         to the registry of function plugins."""
@@ -336,10 +330,6 @@ class CoreFunctionPlugin(FunctionPlugin):
         super().__init__(name, description, arg_specs,
                          priority=self.PRIO_CORE)
 
-    def func(self, *args):
-        """This still must be created by child classes."""
-        raise NotImplementedError
-
 
 class IntPlugin(CoreFunctionPlugin):
     """Convert integer strings to ints of arbitrary bases."""
@@ -356,7 +346,8 @@ class IntPlugin(CoreFunctionPlugin):
             },
         )
 
-    def func(self, value, base):
+    @staticmethod
+    def int(value, base):
         """Convert the given string 'value' as an integer of
          the given base. Bases from 2-32 area allowed."""
 
@@ -374,7 +365,8 @@ class RoundPlugin(CoreFunctionPlugin):
             description="Round the given number to the nearest integer.",
             arg_specs={'value': float})
 
-    def func(self, val):
+    @staticmethod
+    def round(val):
         """Round the given number to the nearest int."""
 
         return round(val)
@@ -391,7 +383,8 @@ class FloorPlugin(CoreFunctionPlugin):
             description="Return the integer floor.",
             arg_specs={'value': float})
 
-    def func(self, val):
+    @staticmethod
+    def floor(val):
         """Round the given number to the nearest int."""
 
         return math.floor(val)
@@ -408,7 +401,8 @@ class CeilPlugin(CoreFunctionPlugin):
             description="Return the integer ceiling.",
             arg_specs={'value': float})
 
-    def func(self, val):
+    @staticmethod
+    def ceil(val):
         """Round the given number to the nearest int."""
 
         return math.ceil(val)
@@ -425,7 +419,8 @@ class SumPlugin(CoreFunctionPlugin):
             description="Return the sum of the given numbers.",
             arg_specs={'values': [num]})
 
-    def func(self, vals):
+    @staticmethod
+    def sum(vals):
         """Get the sum of the given numbers. Will return an int if
         all arguments are ints, otherwise returns a float."""
 
@@ -444,7 +439,8 @@ class AvgPlugin(CoreFunctionPlugin):
             arg_specs={'values': [num]},
         )
 
-    def func(self, vals):
+    @staticmethod
+    def avg(vals):
         """Get the average of vals. Will always return a float."""
 
         return sum(vals)/len(vals)
@@ -472,7 +468,8 @@ class LenPlugin(CoreFunctionPlugin):
             )
         return arg
 
-    def func(self, arg):
+    @staticmethod
+    def len(arg):
         """Just return the length of the argument."""
 
         return len(arg)
@@ -489,7 +486,8 @@ class RandomPlugin(CoreFunctionPlugin):
             description="Return a random float in [0,1).",
             arg_specs={})
 
-    def func(self):
+    @staticmethod
+    def random():
         """Return a random float in [0,1)."""
 
         return random.random()

@@ -1,18 +1,22 @@
+"""Pavilion parsers"""
+
 import re
 
 import lark as _lark
-from pavilion import output as _output
 from .common import ParserValueError
 from .expressions import get_expr_parser
-from .strings import get_string_parser
+from .strings import get_string_parser, StringTransformer
 
 
 class ErrorCat:
+    """Instances of this class are used to categorize syntax errors."""
     def __init__(self, message, examples, disambiguator=None):
         """
-        :param message:
-        :param examples:
-        :param disambiguator:
+        :param message: The message to give the user about the error.
+        :param examples: Examples to parse match against a given error.
+        :param disambiguator: If a match isn't exact (the state matches,
+            but not the token), check the string against this regex to
+            verify the match.
         """
 
         self.message = message
@@ -44,10 +48,7 @@ BAD_EXAMPLES = [
     ErrorCat('Unclosed List', ['{{a + [1, 2}}', '{{a + [1,}}']),
     ErrorCat('Misplaced Comma', ['{{a + [,1,2,]}}',
                                  '{{a + [1,2,,]}}']),
-    #ErrorCat('')
 ]
-
-a = 1 + + 2
 
 
 class StringParserError(ValueError):
@@ -57,21 +58,33 @@ class StringParserError(ValueError):
         self.message = message
         self.context = context
 
+        super().__init__()
+
+    def __str__(self):
+        return "\n".join([self.message, self.context])
+
 
 def parse_text(text, var_man) -> str:
-    """
-    :param str string:
+    """Parse the given text and return the parsed result.
+
+    :param str text: The text to parse.
     :param pavilion.test_config.variables.VariableSetManager var_man:
-    :return:
+    :raises variables.DeferredError: When a deferred variable is used.
+    :raises StringParserError: For syntax and other errors.
     """
 
-    parser = get_string_parser(var_man)
+    parser = get_string_parser()
+    transformer = StringTransformer(var_man)
+
+    def parse_fn(txt):
+        """Shorthand for parsing text."""
+        return transformer.transform(parser.parse(txt))
 
     try:
-        value = parser.parse(text)
+        value = parse_fn(text)
     except (_lark.UnexpectedCharacters, _lark.UnexpectedToken) as err:
         # Try to figure out why the error happened based on examples.
-        err_type = match_examples(err, parser.parse, BAD_EXAMPLES, text)
+        err_type = match_examples(err, parse_fn, BAD_EXAMPLES, text)
         raise StringParserError(err_type, err.get_context(text))
     except ParserValueError as err:
         # These errors are already really specific. We don't have to
@@ -85,7 +98,7 @@ def match_examples(exc, parse_fn, examples, text):
     """ Given a parser instance and a dictionary mapping some label with
         some malformed syntax examples, it'll return the label for the
         example that bests matches the current error.
-    :param exc:
+    :param Union[_lark.UnexpectedCharacters,_lark.UnexpectedToken] exc:
     :param parse_fn:
     :param list[ErrorCat] examples:
     :param text:
@@ -101,7 +114,7 @@ def match_examples(exc, parse_fn, examples, text):
     while err_pos <= len(text):
         try:
             parse_fn(text[:err_pos])
-        except Exception as err:
+        except (_lark.UnexpectedCharacters, _lark.UnexpectedToken) as err:
             if err.state == exc.state:
                 err_string = text[exc.pos_in_stream:err_pos]
                 break
@@ -113,20 +126,20 @@ def match_examples(exc, parse_fn, examples, text):
         for ex_text in example.examples:
             try:
                 parse_fn(ex_text)
-            except _lark.UnexpectedCharacters as ut:
+            except _lark.UnexpectedCharacters as err:
                 if not isinstance(exc, _lark.UnexpectedCharacters):
                     continue
 
-                if ex_text[ut.pos_in_stream] == text[exc.pos_in_stream]:
+                if ex_text[err.pos_in_stream] == text[exc.pos_in_stream]:
                     return example.message
 
-            except _lark.UnexpectedToken as ut:
+            except _lark.UnexpectedToken as err:
                 if not isinstance(exc, _lark.UnexpectedToken):
                     continue
 
-                if ut.state == exc.state:
+                if err.state == exc.state:
                     partial_match = True
-                    if ut.token == exc.token:
+                    if err.token == exc.token:
                         # Try exact match first
                         return example.message
             except ParserValueError:
