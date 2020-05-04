@@ -176,7 +176,8 @@ class ParserTests(unittest.PavTestCase):
                            "Unknown sub_var: '*'",
         'funky_town()': "No such function 'funky_town'",
         'sum(3)': "Invalid argument '3'. Expected a list.",
-        'floor(3.2, 5)': 'Invalid number of arguments. Got 2, but expected 1',
+        'floor(3.2, 5)': 'Invalid number of arguments defined for function '
+                         'floor. Got 2, but expected 1',
     }
 
     def test_bad_expressions(self):

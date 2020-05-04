@@ -1,4 +1,20 @@
-"""Pavilion parsers"""
+"""Pavilion uses several LALR parsers to interpret the value strings in test
+configs.
+
+For most of these values the Pavilion StringParser is applied.
+
+1. Pavilion unique escapes are handled (like ``\\{``).
+2. Expressions (text in ``{{<expr>}}`` blocks) are pulled out and parsed
+   and resolved by the Expression Parser.
+3. Iterations are applied (text in ``[~ {{repeat}} ~]``). The contents of
+   these are repeated for all permutations of the contained variables.
+
+If you need to parse an individual Pavilion value string, use the parse_text()
+function defined in this module.
+
+The exception to this is result analysis strings, which are interpreted
+directly as a ResultExpression.
+"""
 
 import re
 
@@ -65,7 +81,9 @@ class StringParserError(ValueError):
 
 
 def parse_text(text, var_man) -> str:
-    """Parse the given text and return the parsed result.
+    """Parse the given text and return the parsed result. Will try to figure
+    out, to the best of its ability, exactly what caused any errors and report
+    that as part of the StringParser error.
 
     :param str text: The text to parse.
     :param pavilion.test_config.variables.VariableSetManager var_man:
@@ -95,9 +113,10 @@ def parse_text(text, var_man) -> str:
 
 
 def match_examples(exc, parse_fn, examples, text):
-    """ Given a parser instance and a dictionary mapping some label with
+    """Given a parser instance and a dictionary mapping some label with
         some malformed syntax examples, it'll return the label for the
         example that bests matches the current error.
+
     :param Union[_lark.UnexpectedCharacters,_lark.UnexpectedToken] exc:
     :param parse_fn:
     :param list[ErrorCat] examples:

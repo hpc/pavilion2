@@ -1,11 +1,8 @@
-"""Plugins for performing operations on both pavilion variable values
-and result values."""
+"""Contains the base Expression Function plugin class."""
 
-import inspect
-import math
 import logging
 import re
-import random
+import inspect
 
 from yapsy import IPlugin
 
@@ -49,7 +46,13 @@ def num(val):
 
 
 class FunctionPlugin(IPlugin.IPlugin):
-    """Plugin base class for math functions."""
+    """Plugin base class for math functions.
+
+    Child classes must override ``__init__`` (as is typical for Pavilion
+    plugin), and must also provide a method to act as the function itself.
+    This method must have the same name as the plugin (ie. The 'max' plugin
+    must have a 'max' method), and take the arguments the function expects.
+    """
 
     VALID_SPEC_TYPES = (
         int,
@@ -71,12 +74,10 @@ class FunctionPlugin(IPlugin.IPlugin):
         :param str name: The name of this function.
         :param str description: A short description of this function.
         :param int priority: The plugin priority.
-        :param {str,type} arg_specs: A dictionary of arg name to
-            type spec for each function argument. The spec for each
-            argument defines the argument structure and type. See
-            the validate_arg_spec docstring for more. While this
-            is a dictionary, **order matters**, and corresponds to
-            the function argument order. ``None`` denotes that arg_specs
+        :param [type] arg_specs: A list of type specsfor each function
+            argument. The spec for each argument defines what structure
+            and types the value will have, and the auto-conversions that
+            will happen if possible. ``None`` denotes that arg_specs
             won't be used or validated, and requires that ``_validate_arg`` be
             overridden.
         """
@@ -89,6 +90,8 @@ class FunctionPlugin(IPlugin.IPlugin):
         self.description = description
         self.priority = priority
 
+        sig = inspect.signature(getattr(self, self.name))
+
         if arg_specs is None:
             if self._validate_arg is FunctionPlugin._validate_arg:
                 raise RuntimeError(
@@ -96,8 +99,20 @@ class FunctionPlugin(IPlugin.IPlugin):
                     "'None', but did not override '_validate_arg'."
                     .format(self.name, self.path)
                 )
+            if self.__class__.signature is FunctionPlugin.signature:
+                raise RuntimeError(
+                    "Function plugin {} at {} was given an arg_spec of "
+                    "'None', but did not override 'signature'."
+                    .format(self.name, self.path)
+                )
         else:
-            for arg_spec in arg_specs.values():
+            if len(sig.parameters) != len(arg_specs):
+                raise FunctionPluginError(
+                    "Invalid arg specs. The function takes {} arguments, but"
+                    "an arg_spec of length {} was provided."
+                    .format(len(sig.parameters), len(arg_specs)))
+
+            for arg_spec in arg_specs:
                 self._validate_arg_spec(arg_spec)
 
         self.arg_specs = arg_specs
@@ -160,12 +175,13 @@ class FunctionPlugin(IPlugin.IPlugin):
         if self.arg_specs is not None:
             if len(args) != len(self.arg_specs):
                 raise FunctionPluginError(
-                    "Invalid number of arguments. Got {}, but expected {}"
-                    .format(len(args), len(self.arg_specs)))
+                    "Invalid number of arguments defined for function {}. Got "
+                    "{}, but expected {}"
+                    .format(self.name, len(args), len(self.arg_specs)))
 
             # Create the full list of validated arguments.
             val_args = []
-            for arg, spec in zip(args, self.arg_specs.values()):
+            for arg, spec in zip(args, self.arg_specs):
                 val_args.append(self._validate_arg(arg, spec))
         else:
             val_args = args
@@ -180,18 +196,35 @@ class FunctionPlugin(IPlugin.IPlugin):
             )
 
     @property
-    def signature(self, newlines=False):
+    def signature(self):
         """Generate a function signature for this function.
         :newlines: Put each argument on a separate line.
         """
 
-        sep = ',\n' + ' '*(len(self.name) + 1) if newlines else ', '
+        sig = inspect.signature(getattr(self, self.name))
+        arg_names = list(sig.parameters.keys())
 
         parts = [self.name + '(']
-        for key, spec in self.arg_specs.items():
-            parts.append('{}: {}'.format(key, self._spec_to_desc(spec)))
+        arg_parts = []
+        for i in range(len(arg_names)):
+            arg_name = arg_names[i]
+            spec = self.arg_specs[i]
+            arg_parts.append(
+                '{}: {}'.format(arg_name, self._spec_to_desc(spec)))
 
-        return sep.join(parts) + ')'
+        parts.append(', '.join(arg_parts))
+        parts.append(')')
+
+        return ''.join(parts)
+
+    @property
+    def long_description(self):
+        """Return the docstring for the function."""
+
+        func = getattr(self, self.name)
+        desc = func.__doc__
+
+        return ' '.join(desc.split())
 
     def _spec_to_desc(self, spec):
         """Convert an argument spec into a descriptive structure that
@@ -299,13 +332,25 @@ class FunctionPlugin(IPlugin.IPlugin):
         del _FUNCTIONS[self.name]
 
 
-def get_plugin(name: str) -> FunctionPlugin:
-    """Get the function plugin called 'name'."""
+class CoreFunctionPlugin(FunctionPlugin):
+    """A function plugin that sets defaults for core plugins. Use when adding
+    additional function plugins to the core_functions module."""
 
-    if name not in _FUNCTIONS:
-        raise FunctionPluginError("No such function '{}'".format(name))
-    else:
-        return _FUNCTIONS[name]
+    def __init__(self, name, description, arg_specs):
+        super().__init__(name, description, arg_specs,
+                         priority=self.PRIO_CORE)
+
+
+def register_core_plugins():
+    """Find all the core function plugins and activate them."""
+
+    # We need to load this module just to define all the included classes.
+    from pavilion.expression_functions import core
+    _ = core
+
+    for cls in CoreFunctionPlugin.__subclasses__():
+        obj = cls()
+        obj.activate()
 
 
 def __reset():
@@ -313,181 +358,3 @@ def __reset():
 
     for plugin in list(_FUNCTIONS.values()):
         plugin.deactivate()
-
-
-def register_core_plugins():
-    """Find all the core function plugins and activate them."""
-
-    for cls in CoreFunctionPlugin.__subclasses__():
-        obj = cls()
-        obj.activate()
-
-
-class CoreFunctionPlugin(FunctionPlugin):
-    """For simpler initialization and location of core function plugins."""
-
-    def __init__(self, name, description, arg_specs):
-        super().__init__(name, description, arg_specs,
-                         priority=self.PRIO_CORE)
-
-
-class IntPlugin(CoreFunctionPlugin):
-    """Convert integer strings to ints of arbitrary bases."""
-
-    def __init__(self):
-        """Setup plugin."""
-
-        super().__init__(
-            name="int",
-            description="Convert an integer to .",
-            arg_specs={
-                'value': str,
-                'base': num
-            },
-        )
-
-    @staticmethod
-    def int(value, base):
-        """Convert the given string 'value' as an integer of
-         the given base. Bases from 2-32 area allowed."""
-
-        return int(value, base)
-
-
-class RoundPlugin(CoreFunctionPlugin):
-    """Round the given number to the nearest integer."""
-
-    def __init__(self):
-        """Setup plugin."""
-
-        super().__init__(
-            name="round",
-            description="Round the given number to the nearest integer.",
-            arg_specs={'value': float})
-
-    @staticmethod
-    def round(val):
-        """Round the given number to the nearest int."""
-
-        return round(val)
-
-
-class FloorPlugin(CoreFunctionPlugin):
-    """Get the floor of the given number."""
-
-    def __init__(self):
-        """Setup plugin."""
-
-        super().__init__(
-            name="floor",
-            description="Return the integer floor.",
-            arg_specs={'value': float})
-
-    @staticmethod
-    def floor(val):
-        """Round the given number to the nearest int."""
-
-        return math.floor(val)
-
-
-class CeilPlugin(CoreFunctionPlugin):
-    """Get the ceiling of the given number."""
-
-    def __init__(self):
-        """Setup plugin."""
-
-        super().__init__(
-            name="ceil",
-            description="Return the integer ceiling.",
-            arg_specs={'value': float})
-
-    @staticmethod
-    def ceil(val):
-        """Round the given number to the nearest int."""
-
-        return math.ceil(val)
-
-
-class SumPlugin(CoreFunctionPlugin):
-    """Get the floating point sum of the given numbers."""
-
-    def __init__(self):
-        """Setup plugin."""
-
-        super().__init__(
-            name="sum",
-            description="Return the sum of the given numbers.",
-            arg_specs={'values': [num]})
-
-    @staticmethod
-    def sum(vals):
-        """Get the sum of the given numbers. Will return an int if
-        all arguments are ints, otherwise returns a float."""
-
-        return sum(vals)
-
-
-class AvgPlugin(CoreFunctionPlugin):
-    """Get the average of the given numbers."""
-
-    def __init__(self):
-        """Setup plugin."""
-
-        super().__init__(
-            name="avg",
-            description="Returns the average of the given numbers.",
-            arg_specs={'values': [num]},
-        )
-
-    @staticmethod
-    def avg(vals):
-        """Get the average of vals. Will always return a float."""
-
-        return sum(vals)/len(vals)
-
-
-class LenPlugin(CoreFunctionPlugin):
-    """Return the length of the given item, where item can be a string,
-    list, or dict."""
-
-    def __init__(self):
-        """Setup plugin"""
-
-        super().__init__(
-            name='len',
-            description='Return the integer length of the given str, int or '
-                        'mapping/dict.',
-            arg_specs=None,
-        )
-
-    def _validate_arg(self, arg, spec):
-        if not isinstance(arg, (list, str, dict)):
-            raise FunctionPluginError(
-                "The list_len function only accepts lists, dicts, and "
-                "strings. Got {} of type {}.".format(arg, type(arg).__name__)
-            )
-        return arg
-
-    @staticmethod
-    def len(arg):
-        """Just return the length of the argument."""
-
-        return len(arg)
-
-
-class RandomPlugin(CoreFunctionPlugin):
-    """Return a random number in [0,1)."""
-
-    def __init__(self):
-        """Setup Plugin"""
-
-        super().__init__(
-            name="random",
-            description="Return a random float in [0,1).",
-            arg_specs={})
-
-    @staticmethod
-    def random():
-        """Return a random float in [0,1)."""
-
-        return random.random()

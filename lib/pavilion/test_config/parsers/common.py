@@ -1,10 +1,11 @@
-"""Exceptions raised through parsing."""
+"""This module contains base classes and exceptions shared by the various
+Pavilion parsers."""
 
 import lark
 
 
 class ParserValueError(lark.LarkError):
-    """A value error that contains the problematic token."""
+    """A value error that contains the problematic token and its position."""
 
     def __init__(self, token: lark.Token, message: str):
         super().__init__(message)
@@ -17,8 +18,10 @@ class ParserValueError(lark.LarkError):
 
 
 class PavTransformer(lark.Transformer):
-    """In pavilion the transformer always passes up tokens to better track
-    where in the syntax things went wrong."""
+    """Transformers walk the parse tree and modify it. In our case, we'll
+    be resolving it into a final value. Our transformer always passes up
+    tokens to better track where in the syntax things went wrong,
+    and more carefully handles exceptions."""
 
     def __init__(self, var_man):
         """Initialize the transformer.
@@ -64,7 +67,15 @@ class PavTransformer(lark.Transformer):
 
     @staticmethod
     def _merge_tokens(tokens, value, type_='<merged>'):
-        """asdfasdf
+        """As tokens are resolved, we pass up a single, merged token
+        that retains awareness of all the text that contributed to its value.
+        This is generally necessary because of type errors, as we don't
+        immediately know when a type is inappropriate. Consider::
+        {{ 1 + reverse("hello") }}
+
+        The ``reverse()`` function may accept a string, but we can't add
+        1 to the returned (string) result. The whole of the function call
+        is thus erroneous, rather than any single component of it.
 
         :param list[lark.Token] tokens:
         :return:

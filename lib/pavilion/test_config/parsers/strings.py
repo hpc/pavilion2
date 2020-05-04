@@ -1,11 +1,19 @@
-"""Grammar and transformation for Pavilion string syntax."""
+"""Grammar and transformation for Pavilion string syntax.
+
+String LALR Grammar
+~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: none
+
+    {}
+"""
 
 import lark
 from .common import ParserValueError, PavTransformer, VarRefVisitor
 from .expressions import get_expr_parser, ExprTransformer
 
 STRING_GRAMMAR = r'''
-
+// All strings resolve to this token. 
 start: string
 
 // It's important that each of these start with a terminal, rather than 
@@ -59,6 +67,8 @@ FORMAT: /:(.?[<>=^])?[+ -]?#?0?\d*[_,]?(.\d+)?[bcdeEfFgGnosxX%]?/
 STRING: /((?<=}}|.\]|\[~)|^)/ _STRING_INNER /(?=$|}}|{{|\[~|~)/
 _STRING_INNER: /(?!{{|\[~|~|}})(.|\s)+?(?<!\\)(\\\\)*/
 '''
+
+__doc__ = __doc__.format('\n    '.join(STRING_GRAMMAR.split('\n')))
 
 _STRING_PARSER = None
 

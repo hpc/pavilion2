@@ -1,15 +1,24 @@
-"""Grammar and transformer for Pavilion expression syntax."""
+"""Grammar and transformer for Pavilion expression syntax.
+
+.. code-block:: none
+
+    {}
+"""
 
 import ast
 
 import lark
-from pavilion import functions
+from pavilion import expression_functions as functions
 from .common import PavTransformer, ParserValueError
 
 EXPR_GRAMMAR = r'''
 
+// All expressions will resolve to the start expression.
 start: expr _WS?
      |          // An empty string is valid 
+     
+// Trailing whitespace is ignored. Whitespace between tokens is
+// ignored below.
 _WS: /\s+/
 
 expr: or_expr
@@ -29,16 +38,19 @@ primary: literal
        | "(" expr ")"
        | function_call
        | list_
-       | ESCAPED_STRING
 
+// A function call can contain zero or more arguments. 
 function_call: NAME "(" (expr ("," expr)*)? ")"
 
 negative: (MINUS|PLUS) primary
 
+// A literal value is just what it appears to be.
 literal: INTEGER
        | FLOAT
        | BOOL
+       | ESCAPED_STRING
        
+// Allows for trailing commas
 list_: L_BRACKET (expr ("," expr)* ","?)? R_BRACKET
 
 // Variable references are kept generic. We'll use this both
@@ -48,6 +60,8 @@ var_key: NAME
         | INTEGER
         | TIMES
 
+// Strings can contain anything as long as they don't end in an odd
+// number of backslashes, as that would escape the closing quote.
 _STRING_INNER: /.*?/
 _STRING_ESC_INNER: _STRING_INNER /(?<!\\)(\\\\)*?/
 ESCAPED_STRING : "\"" _STRING_ESC_INNER "\""
@@ -72,12 +86,16 @@ FLOAT: /\d+\.\d+/
 // This will be prioritized over 'NAME' matches
 BOOL.2: "True" | "False"
 
+// Names can be lower-case or capitalized, but must start with a letter.
 NAME.1: /[a-zA-Z][a-zA-Z0-9_]*/
 
+// Ignore all whitespace between tokens. 
 %ignore  / +(?=[^.(])/
 '''
 
 _EXPR_PARSER = None
+
+__doc__ = __doc__.format('\n    '.join(EXPR_GRAMMAR.split('\n')))
 
 
 def get_expr_parser(debug=False):
@@ -101,7 +119,8 @@ def get_expr_parser(debug=False):
 
 
 class ExprTransformer(PavTransformer):
-    """Transforms the expression parse tree into an actual value."""
+    """Transforms the expression parse tree into an actual value.  The
+    resolved value will be one of the literal types."""
 
     # pylint: disable=no-self-use,invalid-name
 
@@ -170,6 +189,7 @@ class ExprTransformer(PavTransformer):
         """Pass a single item up. Otherwise, perform the chain of comparisons.
         Chained comparisons ``'3 < 7 < 10'`` will be evaluated as
         ``'3 < 7 and 7 < 10'``, just like in Python.
+
         :param list[lark.Token] items: An odd number of tokens. Every second
             token is an comparison operator (``'=='``, ``'!='``, ``'<'``,
             ``'>'``, ``'<='``, ``'>='``).
@@ -247,6 +267,7 @@ class ExprTransformer(PavTransformer):
         """Pass single items up, otherwise, perform the chain of
         multiplication and division operations. These are valid for numeric
         values only.
+
         :param list[lark.Token] items: An odd number of tokens. Every second
             token is an operator (``'*'``, ``'/'``, ``'//'``, ``'%'``).
         """
@@ -443,7 +464,7 @@ class ExprTransformer(PavTransformer):
         return tok
 
     def _convert(self, value):
-        """Try to convert 'value' to a number or bool. Otherwise leave
+        """Try to convert 'value' to a int, float, or bool. Otherwise leave
         as a string."""
 
         try:

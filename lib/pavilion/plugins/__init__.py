@@ -17,7 +17,7 @@ import logging
 from pathlib import Path
 
 from pavilion.commands import Command
-from pavilion.functions import FunctionPlugin
+from pavilion.expression_functions import FunctionPlugin
 from pavilion.module_wrapper import ModuleWrapper
 from pavilion.result_parsers import ResultParser
 from pavilion.schedulers import SchedulerPlugin
