@@ -32,7 +32,7 @@ class TestScriptWriter(PavTestCase):
         """Test for the ScriptHeader class."""
 
         header = scriptcomposer.ScriptHeader(
-            shell_path="#!/bin/sh",
+            shebang="#!/bin/sh",
             scheduler_headers=[
                 '# FOO',
                 '# BAR',
@@ -113,7 +113,7 @@ class TestScriptWriter(PavTestCase):
         self.assertIsInstance(composer.details,
                               scriptcomposer.ScriptDetails)
 
-        self.assertEqual(composer.header.shell_path, '#!/bin/bash')
+        self.assertEqual(composer.header.shebang, '#!/bin/bash')
         self.assertEqual(composer.header.scheduler_headers, [])
 
         self.assertEqual(composer.details.group, utils.get_login())
@@ -133,14 +133,14 @@ class TestScriptWriter(PavTestCase):
         test_details_group = 'groupies'
         test_details_perms = 0o543
 
-        composer.header.shell_path = test_header_shell
+        composer.header.shebang = test_header_shell
         composer.header.scheduler_headers = test_header_scheduler
 
         composer.details.path = test_details_path
         composer.details.group = test_details_group
         composer.details.perms = test_details_perms
 
-        self.assertEqual(composer.header.shell_path, test_header_shell)
+        self.assertEqual(composer.header.shebang, test_header_shell)
         self.assertEqual(composer.header.scheduler_headers,
                                                           test_header_scheduler)
 
@@ -150,7 +150,7 @@ class TestScriptWriter(PavTestCase):
 
         composer = scriptcomposer.ScriptComposer()
 
-        self.assertEqual(composer.header.shell_path, '#!/bin/bash')
+        self.assertEqual(composer.header.shebang, '#!/bin/bash')
         self.assertEqual(composer.header.scheduler_headers, [])
 
         self.assertEqual(composer.details.group, utils.get_login())
@@ -158,7 +158,7 @@ class TestScriptWriter(PavTestCase):
 
         # Testing object assignment.
         header = scriptcomposer.ScriptHeader(
-            shell_path=test_header_shell,
+            shebang=test_header_shell,
             scheduler_headers=test_header_scheduler)
 
         testDetailsObj = scriptcomposer.ScriptDetails(
@@ -169,7 +169,7 @@ class TestScriptWriter(PavTestCase):
         composer.header = header
         composer.details = testDetailsObj
 
-        self.assertEqual(composer.header.shell_path, test_header_shell)
+        self.assertEqual(composer.header.shebang, test_header_shell)
         self.assertEqual(composer.header.scheduler_headers,
                                                           test_header_scheduler)
 
@@ -189,7 +189,7 @@ class TestScriptWriter(PavTestCase):
 
         testComposer = scriptcomposer.ScriptComposer()
 
-        testComposer.header.shell_path = testHeaderShell
+        testComposer.header.shebang = testHeaderShell
         testComposer.header.scheduler_headers = testHeaderScheduler
 
         testComposer.details.path = testDetailsPath

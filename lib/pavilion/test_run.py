@@ -7,6 +7,7 @@ import datetime
 import json
 import logging
 import os
+import re
 import subprocess
 import threading
 import time
@@ -358,6 +359,8 @@ class TestRun:
         self._results = None
         self._created = None
 
+        self.skipped = self._get_skipped()
+
     @classmethod
     def load(cls, pav_cfg, test_id):
         """Load an old TestRun object given a test id.
@@ -389,6 +392,9 @@ class TestRun:
         self._save_config()
         # Save our newly updated variables.
         self.var_man.save(self._variables_path)
+
+        if not self.skipped:
+            self.skipped = self._get_skipped()
 
         self._write_script(
             'run',
@@ -938,6 +944,65 @@ directory that doesn't already exist.
 
     def __repr__(self):
         return "TestRun({s.name}-{s.id})".format(s=self)
+
+    def _get_skipped(self):
+        skip_reason_list = self._evaluate_skip_conditions()
+        matches = " ".join(skip_reason_list)
+
+        if len(skip_reason_list) == 0:
+            return False
+        else:
+            self.status.set(STATES.COMPLETE, matches)
+            return True
+
+    def _evaluate_skip_conditions(self):
+        """Match grabs conditional keys from the config. It checks for
+        matches and depending on the results will skip or continue a test.
+        :param match_list: Match list is a list of conditional matches found.
+        :return The match list after being populated
+        :rtype list[str]"""
+
+        match_list = []
+        var_man = self.var_man
+        only_if = self.config.get('only_if', {})
+        not_if = self.config.get('not_if', {})
+
+        for nkey in not_if:
+            key = test_config.string_parser.parse(nkey)
+            key = key.resolve(var_man)
+
+            if key is None:
+                continue  # The variable is deferred.
+            else:
+                for val in not_if[nkey]:
+                    if not val.endswith('$'):
+                        val = val + '$'
+                    if bool(re.match(val, key)):
+                        message = ("Not if {0} is {1}. "
+                                   "The current {0} is {2}: SKIPPED"
+                                   .format(nkey, val, key))
+                        match_list.append(message)
+
+        for okey in only_if:
+            match = False
+            key = test_config.string_parser.parse(okey)
+            key = key.resolve(var_man)
+
+            if key is None:
+                continue  # The variable is deferred.
+            else:
+                for val in only_if[okey]:
+                    if not val.endswith('$'):
+                        val = val + '$'
+                    if bool(re.match(val, key)):
+                        match = True
+                if match is False:
+                    message = ("Only if {0} is one of {1}. "
+                               "Current {0} is {2}: SKIPPED"
+                               .format(okey, only_if[okey], key))
+                    match_list.append(message)
+
+        return match_list  # returns list, can be empty.
 
     @staticmethod
     def parse_timeout(section, value):

@@ -19,6 +19,11 @@ KEY_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_-]*$')
 VAR_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_-]*[?+]?$')
 
 
+class PathElem(yc.CategoryElem):
+    """This is for category elements that need a valid unix path regex."""
+    _NAME_RE = re.compile(r".+$")
+
+
 class VariableElem(yc.CategoryElem):
     """This is for values in the 'variables' section of a test config.
 
@@ -52,6 +57,10 @@ class VariableElem(yc.CategoryElem):
             return value
 
         return super().validate(value, partial=partial)
+
+
+class RegexDict(yc.CategoryElem):
+    _NAME_RE = re.compile(r'^.*$')
 
 
 class VarCatElem(yc.CategoryElem):
@@ -188,6 +197,31 @@ expected to be added to by various plugins.
                       "single or list of strings key/string pairs."),
         yc.RegexElem('scheduler', regex=r'\w+', default="raw",
                      help_text="The scheduler class to use to run this test."),
+        RegexDict(
+            'only_if', sub_elem=yc.ListElem(sub_elem=yc.StrElem()),
+            key_case=EnvCatElem.KC_MIXED,
+            help_text="Only run this test if each of the clauses in this "
+                      "section evaluate to true. Each clause consists of "
+                      "a mapping key (that can contain Pavilion variable "
+                      "references, like '{{pav.user}}' or '{{sys.sys_arch}}'"
+                      ") and one or more regex values"
+                      "(that much match the whole key). A clause is true "
+                      "if the value of the Pavilion variable matches one or"
+                      " more of the values. "
+        ),
+        RegexDict(
+            'not_if', sub_elem=yc.ListElem(sub_elem=yc.StrElem()),
+            key_case=EnvCatElem.KC_MIXED,
+            help_text="Will NOT run this test if at least one of the "
+                      "clauses evaluates to true. Each clause consists of "
+                      "a mapping key (that can contain Pavilion variable "
+                      "references, like '{{pav.user}}' or "
+                      "'{{sys.sys_arch}}') and one or more "
+                      "regex values (that much match the whole key)."
+                      "A clause is true if the value of "
+                      "the Pavilion variable matches one or more of the "
+                      " values."
+        ),
         yc.KeyedElem(
             'build', elements=[
                 yc.ListElem(
@@ -200,13 +234,19 @@ expected to be added to by various plugins.
                               "these files instead of creating a symlink."
                               "They may include path glob wildcards, "
                               "including the recursive '**'."),
+                PathElem(
+                    'create_files',
+                    key_case=PathElem.KC_MIXED,
+                    sub_elem=yc.ListElem(sub_elem=yc.StrElem()),
+                    help_text="File(s) to create at path relative to the test's"
+                              "test source directory"),
                 EnvCatElem(
                     'env', sub_elem=yc.StrElem(), key_case=EnvCatElem.KC_MIXED,
                     help_text="Environment variables to set in the build "
                               "environment."),
                 yc.ListElem(
                     'extra_files', sub_elem=yc.StrElem(),
-                    help_text='Files to copy into the build environment. '
+                    help_text='File(s) to copy into the build environment. '
                               'Relative paths searched for in ~/.pavilion, '
                               '$PAV_CONFIG. Absolute paths are ok, '
                               'but not recommended.'),
@@ -217,8 +257,7 @@ expected to be added to by various plugins.
                     'on_nodes', default='False',
                     choices=['true', 'false', 'True', 'False'],
                     help_text="Whether to build on or off of the test "
-                              "allocation."
-                ),
+                              "allocation."),
                 yc.ListElem(
                     'preamble', sub_elem=yc.StrElem(),
                     help_text="Setup commands for the beginning of the build "
@@ -263,23 +302,23 @@ expected to be added to by various plugins.
                     help_text="Echo commands (including sourced files) in the"
                               " build log, and print the modules loaded and "
                               "environment before the cmds run."),
-                ],
+            ],
             help_text="The test build configuration. This will be "
                       "used to dynamically generate a build script for "
                       "building the test."),
 
         yc.KeyedElem(
             'run', elements=[
-                yc.ListElem(
-                    'modules', sub_elem=yc.StrElem(),
-                    help_text="Modules to load into the run environment."),
+                yc.ListElem('cmds', sub_elem=yc.StrElem(),
+                            help_text='The sequence of commands to run to run '
+                                      'the test.'),
                 EnvCatElem(
                     'env', sub_elem=yc.StrElem(), key_case=EnvCatElem.KC_MIXED,
                     help_text="Environment variables to set in the run "
                               "environment."),
-                yc.ListElem('cmds', sub_elem=yc.StrElem(),
-                            help_text='The sequence of commands to run to run '
-                                      'the test.'),
+                yc.ListElem(
+                    'modules', sub_elem=yc.StrElem(),
+                    help_text="Modules to load into the run environment."),
                 yc.ListElem(
                     'preamble', sub_elem=yc.StrElem(),
                     help_text="Setup commands for the beginning of the build "
@@ -287,17 +326,16 @@ expected to be added to by various plugins.
                               "script. These are generally expected to "
                               "be host rather than test specific."),
                 yc.StrElem(
+                    'timeout', default='300',
+                    help_text="Time that a build can continue without "
+                              "generating new output before it is cancelled. "
+                              "Can be left empty for no timeout."),
+                yc.StrElem(
                     'verbose', choices=['true', 'True', 'False', 'false'],
                     default='False',
                     help_text="Echo commands (including sourced files) in the "
                               "build log, and print the modules loaded and "
                               "environment before the cmds run."),
-                yc.StrElem(
-                    'timeout',
-                    default='300',
-                    help_text="Time that a build can continue without "
-                              "generating new output before it is cancelled. "
-                              "Can be left empty for no timeout.")
             ],
             help_text="The test run configuration. This will be used "
                       "to dynamically generate a run script for the "

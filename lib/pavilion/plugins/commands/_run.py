@@ -12,7 +12,6 @@ from pavilion.test_config import VariableSetManager
 from pavilion.test_run import TestRun, TestRunError
 from pavilion.status_file import STATES
 
-
 class _RunCommand(commands.Command):
 
     def __init__(self):

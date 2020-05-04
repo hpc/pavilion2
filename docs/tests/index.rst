@@ -10,3 +10,4 @@
    permutations.rst
    values.rst
    results.rst
+   conditionals.rst

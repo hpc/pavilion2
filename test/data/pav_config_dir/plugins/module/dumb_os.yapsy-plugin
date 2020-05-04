@@ -1,0 +1,9 @@
+[Core]
+Name = Dumb OS Variable
+Module = dumb_os
+
+[Documentation]
+Description = A dumb system variable to mimic a os variable for unit tests.
+Author = Calvin
+Version = 1.0
+Website =

@@ -1,7 +1,7 @@
 Pavilion Advanced Usage
 =======================
 
-This page an overview of some of the advanced features of Pavilion, to
+This page is an overview of some of the advanced features of Pavilion, to
 give you a better idea of what it's capable of.
 
 .. contents::
@@ -228,6 +228,33 @@ This will create six test configurations (and thus six test runs), one for each
 You also can permute over multiple variables at once, producing a test run for
 each possible permutation of values. See :ref:`tests.permutations`
 for more info.
+
+Skip Conditions
+~~~~~~~~~~~~~~~
+
+The ``only_if`` and ``not_if`` sections of the test config allow users
+to specify the conditions under which a test should run. Tests are 'SKIPPED'
+unless each of their ``only_if`` conditions (and none if their ``not_if``
+conditions) match. The conditions are ``key:value/s`` pairs; the key is a
+Pavilion variable, and the value/s are one or more items that the 'resolved'
+value of the Pavilion variable might match to.
+
+.. code:: yaml
+
+    test: # This test uses the directives only_if and not_if.
+        only_if:
+            # For this test to run, 'user' must be one of the values below.
+            "{{user}}": ['calvin', 'paul', 'nick', 'francine']
+        not_if:
+            # For this test to run 'sys_arch' must not be x86_64
+            "{{sys_arch}}": 'x86_64'
+        run:
+            cmds:
+                - 'echo "Helloworld"'
+
+See
+`Skip Conditions <tests/conditionals.html>`__
+for additional information.
 
 Environment
 -----------
