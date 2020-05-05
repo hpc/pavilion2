@@ -28,7 +28,6 @@ class TestRunTests(PavTestCase):
         # Making sure this doesn't throw errors from missing params.
         TestRun(self.pav_cfg, config)
 
-
         config = {
             'subtest': 'st',
             'name': 'test',

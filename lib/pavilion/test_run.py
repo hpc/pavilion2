@@ -290,8 +290,8 @@ class TestRun:
         self.build_timeout = self.parse_timeout(
             'build', config.get('build', {}).get('timeout'))
 
-        self._started = None
-        self._finished = None
+        self.started = None
+        self.finished = None
 
         self.build_name = None
         self.run_log = self.path/'run.log'
@@ -541,7 +541,7 @@ class TestRun:
             self.status.set(STATES.RUNNING,
                             "Starting the run script.")
 
-            self._started = datetime.datetime.now()
+            self.started = datetime.datetime.now()
 
             # Set the working directory to the build path, if there is one.
             run_wd = None
@@ -575,13 +575,13 @@ class TestRun:
                         msg = ("Run timed out after {} seconds"
                                .format(self.run_timeout))
                         self.status.set(STATES.RUN_TIMEOUT, msg)
-                        self._finished = datetime.datetime.now()
+                        self.finished = datetime.datetime.now()
                         raise TimeoutError(msg)
                     else:
                         # Only wait a max of run_silent_timeout next 'wait'
                         timeout = timeout - quiet_time
 
-        self._finished = datetime.datetime.now()
+        self.finished = datetime.datetime.now()
 
         self.status.set(STATES.RUN_DONE,
                         "Test run has completed.")
@@ -676,11 +676,13 @@ result
     Defaults to PASS if the test completed (with a zero
     exit status). Is generally expected to be overridden by other
     result parsers.
+sched
+    All of the scheduler variable values.
 
 :param bool run_result: The result of the run.
 """
 
-        if self._finished is None:
+        if self.finished is None:
             raise RuntimeError(
                 "test.gather_results can't be run unless the test was run"
                 "(or an attempt was made to run it. "
@@ -690,31 +692,15 @@ result
 
         parser_configs = self.config['results']
 
-        # Create a human readable timestamp from the test directories
-        # modified (should be creation) timestamp.
-        created = datetime.datetime.fromtimestamp(
-            self.path.stat().st_mtime
-        ).isoformat(" ")
-
         if run_result:
             default_result = result_parsers.PASS
         else:
             default_result = result_parsers.FAIL
 
-        results = {
-            # These can't be overridden
-            'name': self.name,
-            'id': self.id,
-            'created': created,
-            'started': self._started.isoformat(" "),
-            'finished': self._finished.isoformat(" "),
-            'duration': str(self._finished - self._started),
-            'user': self.var_man['pav.user'],
-            'job_id': self.job_id,
-            'sys_name': self.var_man['sys.sys_name'],
-            # This may be overridden by result parsers.
-            'result': default_result
-        }
+        results = result_parsers.base_results(self)
+
+        # This may be overridden by result parsers.
+        results['result'] = default_result
 
         self.status.set(STATES.RESULTS,
                         "Parsing {} result types."
