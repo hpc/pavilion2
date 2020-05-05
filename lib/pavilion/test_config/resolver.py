@@ -5,6 +5,8 @@ and finally produce a bunch of TestRun objects. These steps, and more,
 are all handled by the TestConfigResolver
 """
 
+# pylint: disable=too-many-lines
+
 import copy
 import io
 import logging
@@ -259,16 +261,9 @@ class TestConfigResolver:
             # Set the scheduler variables for each test.
             for test_cfg, test_var_man in raw_tests_by_sched[sched_name]:
                 # Resolve all variables for the test (that aren't deferred).
-                try:
-                    resolved_config = self.resolve_config(
-                        test_cfg,
-                        test_var_man)
-                except parsers.StringParserError as err:
-                    msg = "Error resolving test {} in suite {}:\n{}\n{}"\
-                          .format(test_cfg['name'], test_cfg['suite_path'],
-                                  err.message, err.context)
-                    self.logger.error(msg)
-                    raise TestConfigError(msg)
+                resolved_config = self.resolve_config(
+                    test_cfg,
+                    test_var_man)
 
                 resolved_tests.append((resolved_config, test_var_man))
 
@@ -842,13 +837,20 @@ class TestConfigResolver:
 
         resolved_dict = {}
 
-        for key in config:
-            resolved_dict[key] = cls.resolve_section_values(
-                component=config[key],
+        for section in config:
+            resolved_dict[section] = cls.resolve_section_values(
+                component=config[section],
                 var_man=var_man,
-                allow_deferred=key not in no_deferred_allowed,
-                key_parts=(key,),
+                allow_deferred=section not in no_deferred_allowed,
+                key_parts=(section,),
             )
+
+        for section in ('only_if', 'not_if'):
+            if section in config:
+                resolved_dict[section] = cls.resolve_keys(
+                    base_dict=resolved_dict.get(section, {}),
+                    var_man=var_man,
+                    section_name=section)
 
         return resolved_dict
 
@@ -874,7 +876,47 @@ class TestConfigResolver:
                 .format(deferred)
             )
 
-        return cls.resolve_section_values(config, var_man, deferred_only=True)
+        config = cls.resolve_section_values(config, var_man,
+                                            deferred_only=True)
+        for section in ('only_if', 'not_if'):
+            if section in config:
+                config[section] = cls.resolve_keys(
+                    base_dict=config.get(section, {}),
+                    var_man=var_man,
+                    section_name=section,
+                    deferred_only=True)
+
+        return config
+
+    @classmethod
+    def resolve_keys(cls, base_dict, var_man,
+                     section_name, deferred_only=False) -> dict:
+        """Some sections of the test config can have Pavilion Strings for
+        keys. Resolve the keys of the given dict.
+
+        :param dict[str,str] base_dict: The dict whose keys need to be resolved.
+        :param variables.VariableSetManager var_man: The variable manager to
+            use to resolve the keys.
+        :param str section_name: The name of this config section, for error
+            reporting.
+        :param bool deferred_only: Resolve only deferred keys, otherwise
+            mark deferred keys as deferred.
+        :returns: A new dictionary with the updated keys.
+        """
+
+        new_dict = type(base_dict)()
+        for key, value in base_dict.items():
+            new_key = cls.resolve_section_values(
+                component=key,
+                var_man=var_man,
+                allow_deferred=True,
+                deferred_only=deferred_only,
+                key_parts=[section_name + '[{}]'.format(key)])
+
+            # The value will have already been resolved.
+            new_dict[new_key] = value
+
+        return new_dict
 
     @classmethod
     def resolve_section_values(cls, component, var_man, allow_deferred=False,
@@ -882,7 +924,7 @@ class TestConfigResolver:
         """Recursively resolve the given config component's value strings
         using a variable manager.
 
-        :param dict component: The config component to resolve.
+        :param Union[dict,list,str] component: The config component to resolve.
         :param var_man: A variable manager. (Presumably a permutation of the
             base var_man)
         :param bool allow_deferred: Allow deferred variables in this section.
@@ -937,6 +979,12 @@ class TestConfigResolver:
                             "but it was still deferred: {}"
                             .format(component)
                         )
+                    except parsers.StringParserError as err:
+                        raise TestConfigError(
+                            "Error resolving value '{}' for key '{}':\n"
+                            "{}\n{}"
+                            .format(component, '.'.join(key_parts),
+                                    err.message, err.context))
                     return resolved
 
                 else:
@@ -964,7 +1012,12 @@ class TestConfigResolver:
                             "Deferred variable in value '{}' under key "
                             "'{}' where it isn't allowed"
                             .format(component, '.'.join(map(str, key_parts))))
-
+                except parsers.StringParserError as err:
+                    raise TestConfigError(
+                        "Error resolving value '{}' for key '{}':\n"
+                        "{}\n{}"
+                        .format(component, '.'.join(key_parts),
+                                err.message, err.context))
                 else:
                     return resolved
         elif component is None:
