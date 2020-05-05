@@ -87,6 +87,7 @@ Known States:
     RUN_DONE = "For when the run step is complete."
     RESULTS = "For when we're getting the results."
     RESULTS_ERROR = "A result parser raised an error."
+    SKIPPED = "The test has been skipped due to an invalid condition."
     COMPLETE = "For when the test is completely complete."
 
     max_length = 15
