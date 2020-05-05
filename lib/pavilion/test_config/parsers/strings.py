@@ -289,14 +289,14 @@ class StringTransformer(PavTransformer):
 
     def _resolve_expr(self,
                       expr: lark.Token, var_man,
-                      tree: lark.Tree = None) -> str:
+                      tree=None) -> str:
         """Resolve the value of the the given expression token.
         :param expr: An expression token. The value will be a dict
             of the expr string and the formatter.
         :param pavilion.test_config.variables.VariableSetManager var_man:
             The variable set manager to use to resolve this expression.
-        :param tree: The already parsed syntax tree for expr (will parse
-            for you if not given).
+        :param lark.Tree tree: The already parsed syntax tree for expr (will
+            parse for you if not given).
         :return:
         """
 
