@@ -265,7 +265,15 @@ class TestRun:
 
             self.opts = TestRunOptions.load(self)
 
-        self.name = self._make_name()
+        name_parts = [
+            self.config.get('suite', '<unknown>'),
+            self.config.get('name', '<unnamed>'),
+        ]
+        subtitle = self.config.get('subtitle')
+        if subtitle is not None:
+            name_parts.append(subtitle)
+
+        self.name = '.'.join(name_parts)
 
         # Set a logger more specific to this test.
         self.logger = logging.getLogger('pav.TestRun.{}'.format(self.id))
@@ -829,7 +837,7 @@ be set by the scheduler plugin as soon as it's known."""
             return self._job_id
 
         try:
-            with path.open('r') as job_id_file:
+            with path.open() as job_id_file:
                 self._job_id = job_id_file.read()
         except FileNotFoundError:
             return None

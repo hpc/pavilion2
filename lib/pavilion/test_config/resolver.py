@@ -671,11 +671,34 @@ class TestConfigResolver:
                 raise TestConfigError(
                     "Permutation variable '{}' contains index or subvar."
                     .format(per_var))
-            elif base_var_man.is_deferred(var_set, var):
+            elif base_var_man.any_deferred(per_var):
                 raise TestConfigError(
-                    "Permutation variable '{}' references a deferred variable."
+                    "Permutation variable '{}' references a deferred variable "
+                    "or one with deferred components."
                     .format(per_var))
             used_per_vars.add((var_set, var))
+
+        if test_cfg.get('subtitle', None) is None:
+            subtitle = []
+            valid_subtitle = True
+            var_dict = base_var_man.as_dict()
+            for per_var in permute_on:
+                var_set, var, index, subvar = base_var_man.resolve_key(per_var)
+                if isinstance(var_dict[var_set][var][0], dict):
+                    sub_key = list(var_dict[var_set][var][0].keys())[0]
+                    subtitle.append('.'.join(['{{', per_var, '.', sub_key,
+                                              '}}']))
+                    valid_subtitle = False
+                else:
+                    subtitle.append('{{' + per_var + '}}')
+
+            if valid_subtitle:
+                test_cfg['subtitle'] = '-'.join(subtitle)
+            else:
+                raise TestConfigError(
+                    "Permuted test did not specify a subtitle, and one "
+                    "could not be generated automatically. Example:\n"
+                    "subtitle: '{}'".format(subtitle))
 
         # var_men is a list of variable managers, one for each permutation
         var_men = base_var_man.get_permutations(used_per_vars)

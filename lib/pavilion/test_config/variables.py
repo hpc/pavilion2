@@ -21,6 +21,7 @@ provided (sched).
 
 import copy
 import json
+from typing import Union
 
 
 class VariableError(ValueError):
@@ -417,6 +418,15 @@ index, sub_var) tuple.
         return ((var_set, var, None, None) in self.deferred or
                 (var_set, var, idx, None) in self.deferred or
                 (var_set, var, idx, sub_var) in self.deferred)
+
+    def any_deferred(self, key: Union[str,tuple]) -> bool:
+        """Return whether any members of the given variable are deferred."""
+
+        var_set, var, _, _ = self.resolve_key(key)
+
+        all_def_vars = [dkey[:2] for dkey in self.deferred]
+
+        return (var_set, var) in all_def_vars
 
     def set_deferred(self, var_set, var, idx=None, sub_var=None):
         """Set the given variable as deferred. Variables may be deferred
