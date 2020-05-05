@@ -36,13 +36,14 @@ def add_command(command):
 
     global _COMMANDS
 
-    if command.name not in _COMMANDS:
-        _COMMANDS[command.name] = command
-    else:
-        raise RuntimeError(
-            "Multiple commands of the same name are not allowed to exist. "
-            "command.{c1.name} found at both {c1.path} and {c2.path}."
-            .format(c1=_COMMANDS[command.name], c2=command))
+    for name in command.aliases:
+        if name not in _COMMANDS:
+            _COMMANDS[name] = command
+        else:
+            raise RuntimeError(
+                "Multiple commands of the same name are not allowed to exist. "
+                "command.{c1.name} found at both {c1.path} and {c2.path}."
+                .format(c1=_COMMANDS[name], c2=command))
 
 
 def get_command(command_name):
@@ -75,12 +76,17 @@ class Command(IPlugin.IPlugin):
         """
         super().__init__()
 
+        if aliases is None:
+            aliases = []
+
+        aliases = [name] + aliases.copy()
+
         self.logger = logging.getLogger('command.' + name)
         self.name = name
         self.file = inspect.getfile(self.__class__)
         self.description = description
         self.short_help = short_help
-        self._aliases = aliases if aliases is not None else []
+        self.aliases = aliases
 
         # These are to allow tests to redirect output as needed.
         self.outfile = sys.stdout
@@ -120,11 +126,11 @@ case that includes:
         # help is None. If we don't want that, we have to init without 'help'.
         if self.short_help is None:
             parser = sub_parser.add_parser(self.name,
-                                           aliases=self._aliases,
+                                           aliases=self.aliases,
                                            description=self.description)
         else:
             parser = sub_parser.add_parser(self.name,
-                                           aliases=self._aliases,
+                                           aliases=self.aliases,
                                            description=self.description,
                                            help=self.short_help)
 
