@@ -1,3 +1,4 @@
+import datetime
 import logging
 
 import yaml_config as yc
@@ -14,11 +15,13 @@ class ResultParserTests(PavTestCase):
     def setUp(self):
         # This has to run before any command plugins are loaded.
         arguments.get_parser()
+        plugins.initialize_plugins(self.pav_cfg)
+
+    def tearDown(self):
+        plugins._reset_plugins()
 
     def test_parse_results(self):
         """Check all the different ways in which we handle parsed results."""
-
-        plugins.initialize_plugins(self.pav_cfg)
 
         test_cfg = {
             'scheduler': 'raw',
@@ -173,10 +176,7 @@ class ResultParserTests(PavTestCase):
         self.assertEqual(results['all'], False)
         self.assertEqual(results['result'], result_parsers.PASS)
 
-        plugins._reset_plugins()
-
     def test_check_args(self):
-        plugins.initialize_plugins(self.pav_cfg)
 
         # Make sure we can check arguments.
         test_cfg = {
@@ -364,12 +364,36 @@ class ResultParserTests(PavTestCase):
         with self.assertRaises(result_parsers.ResultParserError):
             result_parsers.check_args(test.config['results'])
 
-        plugins._reset_plugins()
+    def test_base_results(self):
+        """Make all base result functions work."""
+
+        test = self._quick_test(
+            cfg={
+                # The only required param.
+                'name': 'blank_test',
+                'scheduler': 'raw',
+            })
+
+        now = datetime.datetime.now()
+
+        # Any test that tries to run will have these, and only tests that
+        # try to run get results.
+        test.started = now
+        test.finished = now + datetime.timedelta(seconds=3)
+        test.job_id = 'test'
+
+        base_results = result_parsers.base_results(test)
+
+        for key in result_parsers.BASE_RESULTS.keys():
+            self.assertIn(key, base_results)
+            # Base result keys should have a non-None value, even from an
+            # empty config file.
+            self.assertIsNotNone(
+                base_results[key],
+                msg="Base result key '{}' was None.".format(key))
 
     def test_regex_expected(self):
         """Ensure the regex-value parser works appropriately."""
-
-        plugins.initialize_plugins(self.pav_cfg)
 
         test_cfg = {
             'scheduler': 'raw',
@@ -583,8 +607,6 @@ class ResultParserTests(PavTestCase):
     def test_regex_threshold(self):
         """Ensure the match_count parser works appropriately."""
 
-        plugins.initialize_plugins(self.pav_cfg)
-
         test_cfg = {
             'scheduler': 'raw',
             'run': {
@@ -719,8 +741,6 @@ class ResultParserTests(PavTestCase):
     def test_regex_expected_sanity(self):
         """Sanity check for the expected parser."""
 
-        plugins.initialize_plugins(self.pav_cfg)
-
         test_cfg = {
             'scheduler': 'raw',
             'run': {
@@ -774,7 +794,6 @@ class ResultParserTests(PavTestCase):
         Makes sure Table Result Parser Works
         :return:
         """
-        plugins.initialize_plugins(self.pav_cfg)
 
         # line+space delimiter
         table_test1 = {
