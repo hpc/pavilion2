@@ -200,7 +200,7 @@ def match_examples(exc, parse_fn, examples, text):
     return candidate
 
 
-def re_compare(str1: str, str2: str, regex: re.Pattern) -> bool:
+def re_compare(str1: str, str2: str, regex) -> bool:
     """Return True if both strings match the given regex."""
 
     return regex.match(str1) is not None and regex.match(str2) is not None
