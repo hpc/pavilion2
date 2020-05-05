@@ -3,6 +3,7 @@ import subprocess
 from pavilion import commands
 from pavilion import arguments
 from pavilion import series
+from pavilion.output import fprint
 from pavilion.test_config.resolver import TestConfigResolver
 from pavilion.test_config.file_format import SeriesConfigLoader
 
@@ -28,7 +29,15 @@ class RunSeries(commands.Command):
 
     def run(self, pav_cfg, args):
 
-        temp_args = ['pav', '_auto_series', args.series]
+        # make series object
+        series_obj = series.TestSeries(pav_cfg)
+
+        temp_args = ['pav', '_auto_series', args.series,
+                     '--series-id={}'.format(series_obj.id)]
         subprocess.Popen(temp_args, stdout=subprocess.DEVNULL)
+
+        fprint("Started series {}. "
+               "Run `watch pav status` to watch progress."
+               .format(series_obj.id))
 
         return 0

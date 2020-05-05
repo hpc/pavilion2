@@ -10,8 +10,6 @@ from pavilion import commands
 from pavilion import arguments
 from pavilion.test_run import TestRun, TestRunError, TestRunNotFoundError
 
-from pavilion.output import dbg_print  # TODO: delete this
-
 
 class TestSeriesError(RuntimeError):
     """An error in managing a series of tests."""
@@ -123,7 +121,8 @@ class SeriesManager:
 
             # self.print_status()
 
-    def is_set_done(self, set_obj): # pylint: disable=R0201
+    # pylint: disable=R0201
+    def is_set_done(self, set_obj):
         for test in set_obj.test_runs:
             if not (test.path/'RUN_COMPLETE').exists():
                 return False
@@ -134,15 +133,13 @@ class SeriesManager:
         for set_name in self.sets:
             self.dep_graph[set_name] = self.sets[set_name]['depends_on']
 
-        # dbg_print(self.dep_graph, '\n')
+        # optional: display self.dep_graph?
 
     def print_status(self):
-        # dbg_print status of sets
+        #  mostly for debugging purposes
         for set_name in self.test_sets:
             temp_ts = self.test_sets[set_name]
-            # dbg_print(ts, ': ', temp_ts.get_status(), ts.test_runs)
-
-        # dbg_print()
+            # display temp_ts
 
 
 class TestSet:

@@ -23,6 +23,10 @@ class AutoSeries(commands.Command):
             'series', action='store',
             help="Suite name."
         )
+        parser.add_argument(
+            '--series-id',
+            help='Provide series ID if test is already part of a series.'
+        )
 
     def run(self, pav_cfg, args):
 
@@ -35,7 +39,11 @@ class AutoSeries(commands.Command):
         series_path = tsr._find_config('series', series_name)
 
         with series_path.open() as series_file:
-            series_obj = series.TestSeries(pav_cfg)
+            if not args.series_id:
+                series_obj = series.TestSeries(pav_cfg)
+            else:
+                series_obj = series.TestSeries.from_id(pav_cfg, args.series_id)
+
             series_cfg = series_config_loader.load(series_file)
 
             series_man = series.SeriesManager(pav_cfg, series_obj, series_cfg)
