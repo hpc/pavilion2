@@ -686,14 +686,16 @@ class TestConfigResolver:
                 var_set, var, index, subvar = base_var_man.resolve_key(per_var)
                 if isinstance(var_dict[var_set][var][0], dict):
                     sub_key = list(var_dict[var_set][var][0].keys())[0]
-                    subtitle.append('.'.join(['{{', per_var, '.', sub_key,
-                                              '}}']))
+                    subtitle.append(''.join(['{{', per_var, '.', sub_key,
+                                             '}}']))
                     valid_subtitle = False
                 else:
                     subtitle.append('{{' + per_var + '}}')
 
+            subtitle = '-'.join(subtitle)
+
             if valid_subtitle:
-                test_cfg['subtitle'] = '-'.join(subtitle)
+                test_cfg['subtitle'] = subtitle
             else:
                 raise TestConfigError(
                     "Permuted test did not specify a subtitle, and one "

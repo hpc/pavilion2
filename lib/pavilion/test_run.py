@@ -270,7 +270,8 @@ class TestRun:
             self.config.get('name', '<unnamed>'),
         ]
         subtitle = self.config.get('subtitle')
-        if subtitle is not None:
+        # Don't add undefined or empty subtitles.
+        if subtitle:
             name_parts.append(subtitle)
 
         self.name = '.'.join(name_parts)

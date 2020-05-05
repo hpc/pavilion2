@@ -419,7 +419,7 @@ index, sub_var) tuple.
                 (var_set, var, idx, None) in self.deferred or
                 (var_set, var, idx, sub_var) in self.deferred)
 
-    def any_deferred(self, key: Union[str,tuple]) -> bool:
+    def any_deferred(self, key: Union[str, tuple]) -> bool:
         """Return whether any members of the given variable are deferred."""
 
         var_set, var, _, _ = self.resolve_key(key)
