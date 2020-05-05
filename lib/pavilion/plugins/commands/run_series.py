@@ -37,7 +37,7 @@ class RunSeries(commands.Command):
         subprocess.Popen(temp_args, stdout=subprocess.DEVNULL)
 
         fprint("Started series {}. "
-               "Run `watch pav status` to watch progress."
-               .format(series_obj.id))
+               "Run `watch pav status {}` to watch progress."
+               .format(series_obj.id, series_obj.id))
 
         return 0
