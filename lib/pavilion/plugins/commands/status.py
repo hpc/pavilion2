@@ -225,6 +225,7 @@ def display_history(pav_cfg, args, outfile):
 
 
 def print_summary(statuses, outfile, json=False):
+
     """Print_summary takes in a list of test statuses.
         It summarizes basic state output and displays
         the data to the user through draw_table.
@@ -257,8 +258,8 @@ def print_summary(statuses, outfile, json=False):
             total_skipped += 1
 
         elif 'RUNNING' in test['state'] or \
-                'SCHEDULED' in test['state'] or \
-                'PREPPING_RUN' in test['state']:
+             'SCHEDULED' in test['state'] or \
+             'PREPPING_RUN' in test['state']:
             state_running += 1
 
         else:
