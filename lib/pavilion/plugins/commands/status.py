@@ -174,6 +174,7 @@ def get_statuses(pav_cfg, args, errfile):
 
 
 def print_summary(statuses, outfile, json=False):
+    from pavilion.output import dbg_print
     total_tests = len(statuses)
     total_pass = 0
     total_fail = 0
