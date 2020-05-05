@@ -6,7 +6,7 @@ import uuid
 from pathlib import Path
 import threading
 
-from pavilion.logging import LockFileRotatingFileHandler, setup_loggers
+from pavilion.log_setup import LockFileRotatingFileHandler, setup_loggers
 from pavilion.unittest import PavTestCase
 
 

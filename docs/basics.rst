@@ -15,7 +15,7 @@ Add the PAV bin directory to your Path.
 
     PATH=<PVINSTALL_PATH>/bin:${PATH}
 
-Pavilion figures out paths to everything else on it's own.
+Pavilion figures out paths to everything else on its own.
 
 Then simply run pavilion:
 
@@ -26,7 +26,7 @@ Then simply run pavilion:
 Configure Tests
 ~~~~~~~~~~~~~~~
 
-Pavilion doesn't come with any tests itself, it's just a system for
+Pavilion doesn't come with any tests itself; it's just a system for
 running them on HPC clusters. Each test needs a configuration script,
 and most will need some source files. Both of these will live in one of
 your `config directories <config.html#config-directories>`__ under the

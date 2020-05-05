@@ -13,12 +13,14 @@ Build Config Keys
 The documentation for what various keys do is spread throughout this
 document.
 
--  `source\_location <#source-location>`__
--  `source\_download\_name <#source-download-name>`__
+-  `copy\_files <#copy-files>`__
+-  `cmds <#cmds-list>`__
+-  `create\_files <#create-files>`__
+-  `env <#env-mapping>`__
 -  `extra\_files <#extra-files>`__
 -  `modules <#modules-list>`__
--  `env <#env-mapping>`__
--  `cmds <#cmds-list>`__
+-  `source\_location <#source-location>`__
+-  `source\_download\_name <#source-download-name>`__
 -  `specificity <#specificity>`__
 
 Building
@@ -103,12 +105,36 @@ When downloading source, we by default use the last of the url path as
 the filename, or a hash of the url if is no suitable name. This
 parameter to overrides the default behavior with a pre-defined filename.
 
+create\_files
+^^^^^^^^^^^^^
+
+This build attribute lets you create files relative to the build directory
+at build time. Note that any existing files with conflicting names will be
+overwritten.
+
+.. code-block:: yaml
+
+    mytest:
+      build:
+        source_location: mytest.zip
+        cmds: 'make'
+        make_files:
+          './config.txt'
+            - 'line 1'
+            - 'line 2'
+            - 'line 3'
+          # Subdirectories can be created.
+          './data/file.txt'
+            - 'line 1'
+            - 'line 2'
+
 extra\_files
 ^^^^^^^^^^^^
 
 This build attribute lets you copy additional files into the build
 directory. This typically includes patches, external build/run scripts,
 or archives that shouldn't be extracted.
+
 
 Create a Build Script
 ---------------------
@@ -351,6 +377,30 @@ symlinks to each of the regular files in the build, a **symlink** copy.
 
 Multiple tests can thus use the same build files, delete build files,
 and write new files to the build directory without concern for other
-tests. **Tests cannot append or alter the build files.** If a test needs
-to alter a file, the symlink should be deleted and replaced with a copy
-of the real file as part of the test run commands.
+tests. **Tests cannot append to or alter the build files.** They can,
+however, freely replace them.
+
+copy\_files
+^^^^^^^^^^^
+
+When *copying* files to from the build to the test run's build directory,
+actually **copy** these files instead of creating a symlink. Copying large
+and/or large quantities of build files will significantly increase Pavilion's
+filesystem usage.
+
+.. code-block:: yaml
+
+    mytest:
+      build:
+        source_location: mytest.zip
+        cmds: 'make'
+        copy_files:
+          # The config.txt file will be an actual file, not a symlink.
+          # The test run can alter it as needed.
+          - config.txt
+          # Filesystem globs are allowed, including "*", "?", and ranges.
+          - data/*.dat
+          - data/data_?.txt
+          - data/data[0-9].json
+          # To copy whole directories, use recursive matching "**".
+          - libs/**

@@ -1,4 +1,5 @@
 import copy
+import io
 import shutil
 import threading
 import time
@@ -8,6 +9,7 @@ from pavilion import wget
 from pavilion.status_file import STATES
 from pavilion.test_run import TestRun
 from pavilion.unittest import PavTestCase
+from pavilion import plugins
 
 
 class BuilderTests(PavTestCase):
@@ -48,7 +50,7 @@ class BuilderTests(PavTestCase):
             test = TestRun(self.pav_cfg, config)
 
             tmp_path = test.builder.path.with_suffix('.test')
-    
+
             test.builder._setup_build_dir(test.builder.path)
 
             # Make sure the extracted archive is identical to the original
@@ -107,6 +109,115 @@ class BuilderTests(PavTestCase):
         for file in config['build']['extra_files']:
             self._cmp_files(test_archives/file,
                             test.builder.path/file)
+
+    def test_create_file(self):
+        """Check that build time file creation is working correctly."""
+
+        plugins.initialize_plugins(self.pav_cfg)
+        files_to_create = {
+            'file1': ['line_0', 'line_1'],
+            'wild/file2': ['line_0', 'line_1'],  # wild dir exists
+            'wild/dir2/file3': ['line_0', 'line_1'], # dir2 does not exist
+            'real.txt':['line1', 'line4'] # file exists
+        }
+        config = self._quick_test_cfg()
+        config['build']['source_location'] = 'file_tests.tgz'
+        config['build']['create_files'] = files_to_create
+        test = self._quick_test(config)
+
+        for file, lines in files_to_create.items():
+            file_path = test.path/'build'/file
+            self.assertTrue(file_path.exists())
+
+            # Stage file contents for comparison.
+            original = io.StringIO()
+            for line in lines:
+                original.write("{}\n".format(line))
+            created_file = open(str(file_path), 'r', encoding='utf-8')
+
+            # Compare contents.
+            self.assertEquals(original.getvalue(), created_file.read())
+            original.close()
+            created_file.close()
+
+    def test_create_file_errors(self):
+        """Check build time file creation expected errors."""
+
+        plugins.initialize_plugins(self.pav_cfg)
+
+        # Ensure a file can't be written outside the build context.
+        files_to_fail = ['../file', '../../file', 'wild/../../file']
+        for file in files_to_fail:
+            file_arg = {file: []}
+            config = self._quick_test_cfg()
+            config['build']['source_location'] = 'file_tests.tgz'
+            config['build']['create_files'] = file_arg
+            with self.assertRaises(RuntimeError) as context:
+                self._quick_test(config)
+            self.assertTrue('outside build context' in str(context.exception))
+
+        # Ensure a file can't overwrite existing directories.
+        files_to_fail = ['wild', 'rec']
+        for file in files_to_fail:
+            file_arg = {file: []}
+            config = self._quick_test_cfg()
+            config['build']['source_location'] = 'file_tests.tgz'
+            config['build']['create_files'] = file_arg
+            test = TestRun(self.pav_cfg, config)
+            self.assertFalse(test.build())
+
+    def test_copy_build(self):
+        """Check that builds are copied correctly."""
+
+        plugins.initialize_plugins(self.pav_cfg)
+
+        config = self._quick_test_cfg()
+        # The copy_test source file contains several files to copy
+        # for real and several to symlink.
+        config['build']['source_location'] = 'file_tests.tgz'
+        config['build']['copy_files'] = [
+            'real.*',
+            'wild/real_?i*[0-9].dat',
+            'rec/**/real*',
+        ]
+
+        test = self._quick_test(config)
+
+        # Make sure the following exist and are regular files.
+        real_files = [
+            'real.txt',
+            'wild/real_wild1.dat',
+            'wild/real_wild2.dat',
+            'rec/real_r1.txt',
+            'rec/rec2/real_r2.txt'
+        ]
+
+        for real in real_files:
+            real = test.path/'build'/real
+
+            self.assertTrue(real.exists(),
+                            msg="Missing {}".format(real))
+            self.assertTrue(real.is_file(),
+                            msg="{} is not a regular file.".format(real))
+
+        # Make sure the following exist, but are symlinks.
+        sym_files = [
+            'pav_build_log',
+            '.built_by',
+            'sym.txt',
+            'wild/sym.dat',
+            'rec/sym_r1.txt',
+            'rec/rec2/sym_r2.txt',
+        ]
+
+        for sym in sym_files:
+            sym = test.path/'build'/sym
+            self.assertTrue(sym.exists(),
+                            msg="Missing {}".format(sym))
+            self.assertTrue(sym.is_symlink(),
+                            msg="{} is not a symlink".format(sym))
+
+        plugins._reset_plugins()
 
     README_HASH = '275fa3c8aeb10d145754388446be1f24bb16fb00'
 

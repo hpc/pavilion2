@@ -22,30 +22,29 @@ class ScriptComposerError(RuntimeError):
 class ScriptHeader:
     """Class to serve as a struct for the script header."""
 
-    def __init__(self, shell_path=None, scheduler_headers=None):
+    def __init__(self, shebang='#!/bin/bash', scheduler_headers=None):
         """The header values for a script.
-        :param string shell_path: Shell path specification.  Typically
+        :param string shebang: Shell path specification.  Typically
                                   '/bin/bash'.  default = None.
         :param list scheduler_headers: List of lines for scheduler resource
                                        specifications.
         """
-        self._shell_path = None
         self._scheduler_headers = None
-        self.shell_path = shell_path
         self.scheduler_headers = scheduler_headers
 
+        # Set _shebang so that style_check doesn't complain at the setter block.
+        self._shebang = None
+        self.shebang = shebang
+
     @property
-    def shell_path(self):
+    def shebang(self):
         """Function to return the value of the internal shell path variable."""
-        return self._shell_path
+        return self._shebang
 
-    @shell_path.setter
-    def shell_path(self, value):
+    @shebang.setter
+    def shebang(self, value):
         """Function to set the value of the internal shell path variable."""
-        if value is None:
-            value = '#!/bin/bash'
-
-        self._shell_path = value
+        self._shebang = value
 
     @property
     def scheduler_headers(self):
@@ -62,10 +61,10 @@ class ScriptHeader:
 
     def get_lines(self):
         """Function to retrieve a list of lines for the script header."""
-        if self.shell_path[:2] != '#!':
-            ret_list = ['#!{}'.format(self.shell_path)]
+        if self.shebang[:2] != '#!':
+            ret_list = ['#!{}'.format(self.shebang)]
         else:
-            ret_list = [self.shell_path]
+            ret_list = [self.shebang]
 
         for i in range(0, len(self.scheduler_headers)):
             if self.scheduler_headers[i][0] != '#':
@@ -82,7 +81,23 @@ class ScriptHeader:
         self.__init__()
 
 
-class ScriptDetails():
+class NoHeader(ScriptHeader):
+    """Class for no file header.
+    None.
+    """
+    @property
+    def shebang(self):
+        pass
+
+    @shebang.setter
+    def shebang(self, comment):
+        pass
+
+    def get_lines(self):
+        pass
+
+
+class ScriptDetails:
     """Class to contain the final details of the script."""
 
     def __init__(self, path=None, group=None, perms=None):

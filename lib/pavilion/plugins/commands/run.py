@@ -119,7 +119,6 @@ class RunCommand(commands.Command):
         :param pav_cfg: The pavilion configuration.
         :param args: The parsed command line argument object.
         """
-
         # 1. Resolve the test configs
         #   - Get sched vars from scheduler.
         #   - Compile variables.
@@ -208,6 +207,7 @@ class RunCommand(commands.Command):
                 return errno.EINVAL
 
         for sched_name, tests in tests_by_sched.items():
+            tests = [test for test in tests if not test.skipped]
             sched = schedulers.get_plugin(sched_name)
 
             # Filter out any 'build_only' tests (it should be all or none)
