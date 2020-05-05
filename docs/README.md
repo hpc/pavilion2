@@ -35,4 +35,4 @@ Travis CI essentially follows the same steps to get Sphinx, though the Sphinx ve
 vary with the Python version. 
 
 Since the unit test for doc building simply builds the documentation and greps for errors and
-warningsr. If you can run the build without issues, the unit test should succeed too.
+warnings. If you can run the build without issues, the unit test should succeed too.
