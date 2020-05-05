@@ -573,8 +573,8 @@ class TestConfigResolver:
                         .append(test_cfg_name)
 
                 try:
-                    suite_tests[test_cfg_name] = TestConfigLoader().normalize(
-                        test_cfg)
+                    suite_tests[test_cfg_name] = TestConfigLoader()\
+                        .normalize(test_cfg)
                 except (TypeError, KeyError, ValueError) as err:
                     raise TestConfigError(
                         "Test {} in suite {} has an error: {}"
@@ -701,6 +701,8 @@ class TestConfigResolver:
         :raises: (ValueError,KeyError)
     """
 
+        config_loader = TestConfigLoader()
+
         for ovr in overrides:
             if '=' not in ovr:
                 raise ValueError(
@@ -712,7 +714,12 @@ class TestConfigResolver:
 
             self._apply_override(test_cfg, key, value)
 
-        TestConfigLoader().validate(test_cfg)
+        try:
+            test_cfg = config_loader.normalize(test_cfg)
+        except TypeError as err:
+            raise TestConfigError("Invalid override: {}"
+                                  .format(err))
+        config_loader.validate(test_cfg)
 
     def _apply_override(self, test_cfg, key, value):
         """Set the given key to the given value in test_cfg.
@@ -734,7 +741,8 @@ class TestConfigResolver:
         key_copy = list(key)
         last_cfg = None
         last_key = None
-        # Validate the key.
+
+        # Validate the key by walking the config according to the key
         while key_copy:
             part = key_copy.pop(0)
 
@@ -756,13 +764,17 @@ class TestConfigResolver:
                         "but the index is out of range."
                         .format(part, disp_key))
             elif isinstance(cfg, dict):
-                if part not in cfg:
-                    raise KeyError("Trying to override '{}' from key '{}', but "
-                                   "there is no such key."
+
+                if part not in cfg and key_copy:
+                    raise KeyError("Trying to override '{}' from key '{}', "
+                                   "but there is no such key."
                                    .format(part, disp_key))
+
+                # It's ok to override a key that doesn't exist if it's the
+                # last key component. We'll validate everything anyway.
                 last_cfg = cfg
                 last_key = part
-                cfg = cfg[part]
+                cfg = cfg.get(part, None)
             else:
                 raise KeyError("Tried, to override key '{}', but '{}' isn't"
                                "a dict or list."

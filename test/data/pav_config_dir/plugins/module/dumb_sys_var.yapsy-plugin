@@ -1,0 +1,9 @@
+[Core]
+Name = Dumb System Variable
+Module = dumb_sys_var
+
+[Documentation]
+Description = A dumb system variable to mimic a deferred variable for unit tests.
+Author = Calvin
+Version = 1.0
+Website =

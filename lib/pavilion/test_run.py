@@ -7,6 +7,7 @@ import datetime
 import json
 import logging
 import os
+import re
 import subprocess
 import threading
 import time
@@ -19,6 +20,7 @@ from pavilion import result_parsers
 from pavilion import scriptcomposer
 from pavilion import utils
 from pavilion.status_file import StatusFile, STATES
+from pavilion import test_config
 from pavilion.test_config import variables, string_parser, resolver
 from pavilion.test_config.file_format import TestConfigError
 
@@ -289,8 +291,8 @@ class TestRun:
         self.build_timeout = self.parse_timeout(
             'build', config.get('build', {}).get('timeout'))
 
-        self._started = None
-        self._finished = None
+        self.started = None
+        self.finished = None
 
         self.build_name = None
         self.run_log = self.path/'run.log'
@@ -358,6 +360,8 @@ class TestRun:
         self._results = None
         self._created = None
 
+        self.skipped = self._get_skipped()
+
     @classmethod
     def load(cls, pav_cfg, test_id):
         """Load an old TestRun object given a test id.
@@ -392,6 +396,9 @@ class TestRun:
         self._save_config()
         # Save our newly updated variables.
         self.var_man.save(self._variables_path)
+
+        if not self.skipped:
+            self.skipped = self._get_skipped()
 
         self._write_script(
             'run',
@@ -538,7 +545,7 @@ class TestRun:
             self.status.set(STATES.RUNNING,
                             "Starting the run script.")
 
-            self._started = datetime.datetime.now()
+            self.started = datetime.datetime.now()
 
             # Set the working directory to the build path, if there is one.
             run_wd = None
@@ -572,13 +579,13 @@ class TestRun:
                         msg = ("Run timed out after {} seconds"
                                .format(self.run_timeout))
                         self.status.set(STATES.RUN_TIMEOUT, msg)
-                        self._finished = datetime.datetime.now()
+                        self.finished = datetime.datetime.now()
                         raise TimeoutError(msg)
                     else:
                         # Only wait a max of run_silent_timeout next 'wait'
                         timeout = timeout - quiet_time
 
-        self._finished = datetime.datetime.now()
+        self.finished = datetime.datetime.now()
 
         self.status.set(STATES.RUN_DONE,
                         "Test run has completed.")
@@ -673,11 +680,13 @@ result
     Defaults to PASS if the test completed (with a zero
     exit status). Is generally expected to be overridden by other
     result parsers.
+sched
+    All of the scheduler variable values.
 
 :param bool run_result: The result of the run.
 """
 
-        if self._finished is None:
+        if self.finished is None:
             raise RuntimeError(
                 "test.gather_results can't be run unless the test was run"
                 "(or an attempt was made to run it. "
@@ -687,31 +696,15 @@ result
 
         parser_configs = self.config['results']
 
-        # Create a human readable timestamp from the test directories
-        # modified (should be creation) timestamp.
-        created = datetime.datetime.fromtimestamp(
-            self.path.stat().st_mtime
-        ).isoformat(" ")
-
         if run_result:
             default_result = result_parsers.PASS
         else:
             default_result = result_parsers.FAIL
 
-        results = {
-            # These can't be overridden
-            'name': self.name,
-            'id': self.id,
-            'created': created,
-            'started': self._started.isoformat(" "),
-            'finished': self._finished.isoformat(" "),
-            'duration': str(self._finished - self._started),
-            'user': self.var_man['pav.user'],
-            'job_id': self.job_id,
-            'sys_name': self.var_man['sys.sys_name'],
-            # This may be overridden by result parsers.
-            'result': default_result
-        }
+        results = result_parsers.base_results(self)
+
+        # This may be overridden by result parsers.
+        results['result'] = default_result
 
         self.status.set(STATES.RESULTS,
                         "Parsing {} result types."
@@ -941,6 +934,65 @@ directory that doesn't already exist.
 
     def __repr__(self):
         return "TestRun({s.name}-{s.id})".format(s=self)
+
+    def _get_skipped(self):
+        skip_reason_list = self._evaluate_skip_conditions()
+        matches = " ".join(skip_reason_list)
+
+        if len(skip_reason_list) == 0:
+            return False
+        else:
+            self.status.set(STATES.COMPLETE, matches)
+            return True
+
+    def _evaluate_skip_conditions(self):
+        """Match grabs conditional keys from the config. It checks for
+        matches and depending on the results will skip or continue a test.
+        :param match_list: Match list is a list of conditional matches found.
+        :return The match list after being populated
+        :rtype list[str]"""
+
+        match_list = []
+        var_man = self.var_man
+        only_if = self.config.get('only_if', {})
+        not_if = self.config.get('not_if', {})
+
+        for nkey in not_if:
+            key = test_config.string_parser.parse(nkey)
+            key = key.resolve(var_man)
+
+            if key is None:
+                continue  # The variable is deferred.
+            else:
+                for val in not_if[nkey]:
+                    if not val.endswith('$'):
+                        val = val + '$'
+                    if bool(re.match(val, key)):
+                        message = ("Not if {0} is {1}. "
+                                   "The current {0} is {2}: SKIPPED"
+                                   .format(nkey, val, key))
+                        match_list.append(message)
+
+        for okey in only_if:
+            match = False
+            key = test_config.string_parser.parse(okey)
+            key = key.resolve(var_man)
+
+            if key is None:
+                continue  # The variable is deferred.
+            else:
+                for val in only_if[okey]:
+                    if not val.endswith('$'):
+                        val = val + '$'
+                    if bool(re.match(val, key)):
+                        match = True
+                if match is False:
+                    message = ("Only if {0} is one of {1}. "
+                               "Current {0} is {2}: SKIPPED"
+                               .format(okey, only_if[okey], key))
+                    match_list.append(message)
+
+        return match_list  # returns list, can be empty.
 
     @staticmethod
     def parse_timeout(section, value):
