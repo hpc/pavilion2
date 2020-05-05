@@ -1,5 +1,6 @@
 """This module contains the base Result Parser plugin class."""
 
+import datetime
 import glob
 import inspect
 import logging
@@ -335,18 +336,34 @@ do this in unittests.
         del _RESULT_PARSERS[self.name]
 
 
-RESERVED_RESULT_KEYS = [
-    'name',
-    'id',
-    'created',
-    'started',
-    'finished',
-    'duration',
-    'pav_result_errors',
-    'user',
-    'job_id',
-    'sys_name',
-]
+BASE_RESULTS = {
+    'name': lambda test: test.name,
+    'id': lambda test: test.id,
+    'created': lambda test: datetime.datetime.fromtimestamp(
+        test.path.stat().st_mtime).isoformat(" "),
+    'started': lambda test: test.started.isoformat(" "),
+    'finished': lambda test: test.finished.isoformat(" "),
+    'duration': lambda test: str(test.finished - test.started),
+    'user': lambda test: test.var_man['pav.user'],
+    'job_id': lambda test: test.job_id,
+    'sched': lambda test: test.var_man.as_dict().get('sched', {}),
+    'sys_name': lambda test: test.var_man['sys.sys_name'],
+}
+
+
+def base_results(test):
+    """Get all of the auto-filled result values for a test.
+    :param pavilion.test_run.PavTestRun test: A pavilion test object.
+    :return: A dictionary of result values.
+    :rtype: dict[str,str]
+    """
+
+    results = {}
+
+    for key, func in BASE_RESULTS.items():
+        results[key] = func(test)
+
+    return results
 
 
 def check_args(parser_configs):
@@ -388,7 +405,7 @@ def check_args(parser_configs):
                     .format(key, rtype)
                 )
 
-            if key in RESERVED_RESULT_KEYS:
+            if key in BASE_RESULTS.keys():
                 raise ResultParserError(
                     "Result parser key '{}' under parser '{}' is reserved."
                     .format(key, rtype)

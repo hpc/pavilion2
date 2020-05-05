@@ -332,6 +332,24 @@ This sub-section defines how test results are parsed.
 
 See `Results <results.html>`__ for the sub-section keys and usage.
 
+only_if
+~~~~~~~
+
+This sub-section defines how tests can be run only if certain
+conditions are met.
+
+See `Conditional Statements <conditionals.html>`__ for the
+sub-section keys and usage.
+
+not_if
+~~~~~~
+
+This sub-section defines how tests can be skipped if certain
+conditions are met.
+
+See `Conditional Statements <conditionals.html>`__ for the sub-section
+keys and usage.
+
 <schedulers>
 ~~~~~~~~~~~~
 
@@ -341,4 +359,3 @@ scheduler, such as ``slurm`` and ``raw``.
 To see documentation on these, use
 ``pav show sched --config <scheduler>`` to get the config documentation
 for that scheduler.
-
