@@ -124,11 +124,15 @@ def match_examples(exc, parse_fn, examples, text):
     :return:
     """
 
+    word_re = re.compile(r'\w+')
+    ws_re = re.compile(r'\s+')
+
     if not hasattr(exc, 'state'):
         return None
 
     err_pos = exc.pos_in_stream + 1
 
+    # Try to find the smallest subset of text that produces the error.
     err_string = text
     while err_pos <= len(text):
         try:
@@ -139,6 +143,7 @@ def match_examples(exc, parse_fn, examples, text):
                 break
         err_pos += 1
 
+    # Find an example error that fails at the same parser state.
     candidate = None
     for example in examples:
         partial_match = False
@@ -149,19 +154,33 @@ def match_examples(exc, parse_fn, examples, text):
                 if not isinstance(exc, _lark.UnexpectedCharacters):
                     continue
 
-                if ex_text[err.pos_in_stream] == text[exc.pos_in_stream]:
+                # Both the example and the original error got unexpected
+                # characters in the stream. If the unexpected characters
+                # are roughly the same, call it an exact match.
+                if (ex_text[err.pos_in_stream] == text[exc.pos_in_stream] or
+                        # Call it exact if they're both alpha-numeric
+                        re_compare(ex_text[err.pos_in_stream:],
+                                   text[exc.pos_in_stream], word_re) or
+                        # Or both whitespace
+                        re_compare(ex_text[err.pos_in_stream:],
+                                   text[exc.pos_in_stream], ws_re)):
                     return example.message
 
             except _lark.UnexpectedToken as err:
                 if not isinstance(exc, _lark.UnexpectedToken):
                     continue
 
+                # For token errors, check that the state and next token match
+                # If just the state matches, we'll call it a partial match
+                # and look for something better.
                 if err.state == exc.state:
                     partial_match = True
                     if err.token == exc.token:
                         # Try exact match first
                         return example.message
             except ParserValueError:
+                # Examples should only raise Token or UnexpectedChar errors.
+                # ParserValue errors already come with a useful message.
                 raise RuntimeError(
                     "Invalid failure example in string_parsers: '{}'"
                     .format(ex_text))
@@ -175,4 +194,13 @@ def match_examples(exc, parse_fn, examples, text):
                     example.disambiguator.search(err_string)):
                 return example.message
 
+    if candidate is None:
+        candidate = 'Unknown syntax error.'
+
     return candidate
+
+
+def re_compare(str1: str, str2: str, regex: re.Pattern) -> bool:
+    """Return True if both strings match the given regex."""
+
+    return regex.match(str1) is not None and regex.match(str2) is not None
