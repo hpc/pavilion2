@@ -51,7 +51,7 @@ class Table(result_parsers.ResultParser):
                 help_text="Number of row numbers, including column names."
             ),
             yc.StrElem(
-                'num_skip', 
+                'start_skip',
                 help_text="Number of lines between `start_re` and actual table. "
                           "Only set if `start_re` is also set."
             )
@@ -61,7 +61,7 @@ class Table(result_parsers.ResultParser):
 
     def _check_args(self, delimiter=None, col_num=None, has_header=None,
                     col_names=[], by_column=True, start_re=None,
-                    row_num=None, num_skip=None):
+                    row_num=None, start_skip=None):
 
         try:
             if len(col_names) is not 0:
@@ -74,16 +74,16 @@ class Table(result_parsers.ResultParser):
                 "`col_num` needs to be an integer."
             )
         try:
-            int(num_skip)
+            int(start_skip)
             int(row_num)
         except ValueError:
             raise result_parsers.ResultParserError(
-                "num_skip, col_num, and row_num need to be integers."
+                "start_skip, col_num, and row_num need to be integers."
             )
 
     def __call__(self, test, file, delimiter=None, col_num=None,
                  has_header='', col_names=[], by_column=True, 
-                 start_re=None, row_num=None, num_skip=None):
+                 start_re=None, row_num=None, start_skip=None):
 
         match_list = []
         lines = file.readlines()
@@ -97,8 +97,8 @@ class Table(result_parsers.ResultParser):
                 "`start_re` not found in file."
             )
 
-        if num_skip:
-            del new_lines[1:1+int(num_skip)]
+        if start_skip:
+            del new_lines[1:1+int(start_skip)]
 
         if row_num:
             new_lines = new_lines[1:int(row_num)+1]
