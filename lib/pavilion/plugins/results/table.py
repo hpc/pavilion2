@@ -43,8 +43,8 @@ class Table(result_parsers.ResultParser):
                           "Otherwise, Pavilion will ignore."
             ),
             yc.StrElem(
-                'title', 
-                help_text="Partial or full title of table."
+                'start_re',
+                help_text="Partial regex of the start of the table. "
             ),
             yc.StrElem(
                 'row_num',
@@ -52,15 +52,15 @@ class Table(result_parsers.ResultParser):
             ),
             yc.StrElem(
                 'num_skip', 
-                help_text="Number of lines between title and actual table. "
-                          "Only set if title is also set."
+                help_text="Number of lines between `start_re` and actual table. "
+                          "Only set if `start_re` is also set."
             )
         ])
 
         return config_items
 
     def _check_args(self, delimiter=None, col_num=None, has_header=None,
-                    col_names=[], by_column=True, title=None,
+                    col_names=[], by_column=True, start_re=None,
                     row_num=None, num_skip=None):
 
         try:
@@ -83,18 +83,18 @@ class Table(result_parsers.ResultParser):
 
     def __call__(self, test, file, delimiter=None, col_num=None,
                  has_header='', col_names=[], by_column=True, 
-                 title=None, row_num=None, num_skip=None):
+                 start_re=None, row_num=None, num_skip=None):
 
         match_list = []
         lines = file.readlines()
         new_lines = []
         for line_index in range(len(lines)):
-            if title in lines[line_index]:
+            if start_re in lines[line_index]:
                 new_lines = lines[line_index:]
 
         if not new_lines:
             raise result_parsers.ResultParserError(
-                "title not found in file."
+                "`start_re` not found in file."
             )
 
         if num_skip:
