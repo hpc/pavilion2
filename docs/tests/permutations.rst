@@ -26,7 +26,7 @@ These can come from any variable set, but they cannot be deferred variables.
         run:
           cmds: 'echo "{{msg}} {{person}} - {{date}}"'
 
-The above would result in nine virtual tests, each one echoing a
+The above would result in four virtual tests, each one echoing a
 different message.
 
 - That's 2 *users* \* 2 *people* \* 1 *date*

@@ -17,7 +17,7 @@ The ``max()`` function takes a list of numbers, and returns the largest. That
 value will be assigned to the ``TASKS`` environment variable.
 
 In this tutorial, we'll show you how to add a new function to Pavilion for
-use in your tests' expressions
+use in your tests' expressions.
 
 .. contents::
 
@@ -53,6 +53,7 @@ plugin.
 
                 # The arg_specs define how to auto-convert arguments to the
                 # appropriate types. More on that below.
+                # Note: (foo,) is a single item tuple containing foo.
                 arg_specs=([num],)
             )
 

@@ -58,7 +58,7 @@ class FloorPlugin(CoreFunctionPlugin):
 
     @staticmethod
     def floor(val):
-        """Round the given number to the nearest int."""
+        """Round the given number down to the nearest int."""
 
         return math.floor(val)
 
@@ -76,7 +76,7 @@ class CeilPlugin(CoreFunctionPlugin):
 
     @staticmethod
     def ceil(val):
-        """Round the given number to the nearest int."""
+        """Round the given number up to the nearest int."""
 
         return math.ceil(val)
 

@@ -289,18 +289,25 @@ class ExprTransformer(PavTransformer):
         accum = mult_items.pop().value
         while mult_items:
             op = mult_items.pop()
-            val = mult_items.pop().value
-            if op.value == '*':
-                accum *= val
-            elif op.value == '/':
-                accum /= val
-            elif op.value == '//':
-                accum //= val
-            elif op.value == '%':
-                accum %= val
-            else:
-                raise RuntimeError("Invalid operation '{}' in expression."
-                                   .format(op))
+            val_token = mult_items.pop()
+            val = val_token.value
+            try:
+                if op.value == '*':
+                    accum *= val
+                elif op.value == '/':
+                    accum /= val
+                elif op.value == '//':
+                    accum //= val
+                elif op.value == '%':
+                    accum %= val
+                else:
+                    raise RuntimeError("Invalid operation '{}' in expression."
+                                       .format(op))
+            except ZeroDivisionError:
+                raise ParserValueError(
+                    self._merge_tokens([op, val_token], None),
+                    "Division by zero"
+                )
 
         return self._merge_tokens(items, accum)
 
@@ -318,7 +325,14 @@ class ExprTransformer(PavTransformer):
                         "Non-numeric value in math operation")
 
         if len(items) == 2:
-            return self._merge_tokens(items, items[0].value ** items[1].value)
+            result = items[0].value ** items[1].value
+            if isinstance(result, complex):
+                raise ParserValueError(
+                    self._merge_tokens(items, None),
+                    "Power expression has complex result"
+                )
+
+            return self._merge_tokens(items, result)
         else:
             return items[0]
 

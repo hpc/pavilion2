@@ -127,8 +127,8 @@ Expressions
 
 The double curly brace sections that can contain variables are really fully
 capable *expressions*, and can contain math operations and function calls. The
-syntax is Python-like and all the normally operations work in the same way,
-but is not actually Python. Functions are provided via plugins.
+syntax is Python-like and most operations work identically.
+Functions are provided via plugins.
 
 .. code-block:: yaml
 

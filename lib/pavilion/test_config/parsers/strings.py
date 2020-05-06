@@ -54,7 +54,7 @@ FORMAT: /:(.?[<>=^])?[+ -]?#?0?\d*[_,]?(.\d+)?[bcdeEfFgGnosxX%]?/
 //  - A closing expression '}}', a closing iteration '.]', an opening
 //    iteration '[~', or the start of input.
 //    - Look-behind assertions must be equal length static expressions,
-//      which is why we have to math '.]' instead of just ']', and why
+//      which is why we have to match '.]' instead of just ']', and why
 //      we can't match the start of the string in the look-behind.
 //  - Strings can contain anything, but they can't start with an open
 //    expression '{{' or open iteration '[~'.

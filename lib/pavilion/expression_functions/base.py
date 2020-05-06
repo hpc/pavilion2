@@ -23,7 +23,7 @@ class FunctionArgError(ValueError):
 
 
 def num(val):
-    """Return val as an int or float, depending on what it most
+    """Return val as an int, float, or bool, depending on what it most
     closely resembles."""
 
     if isinstance(val, (float, int)):
@@ -74,7 +74,7 @@ class FunctionPlugin(IPlugin.IPlugin):
         :param str name: The name of this function.
         :param str description: A short description of this function.
         :param int priority: The plugin priority.
-        :param [type] arg_specs: A list of type specsfor each function
+        :param [type] arg_specs: A list of type specs for each function
             argument. The spec for each argument defines what structure
             and types the value will have, and the auto-conversions that
             will happen if possible. ``None`` denotes that arg_specs
@@ -127,7 +127,6 @@ class FunctionPlugin(IPlugin.IPlugin):
 
             - Lists should contain one representative containing type.
             - Dicts should have at least one key-value pair (with string keys).
-            - Dicts and lists can also be empty. Such specs denote that
             - Dict specs don't have to contain every key the dict might have,
               just those that will be used.
             - Specs may be any structure of these types, as long
@@ -151,7 +150,7 @@ class FunctionPlugin(IPlugin.IPlugin):
             if len(arg) == 0:
                 raise FunctionPluginError(
                     "Invalid dict spec argument. Dict arguments must contain "
-                    "at least one key-value pair. This had '{}'"
+                    "at least one key-value pair. This had '{}'."
                     .format(arg)
                 )
             for key, sub_arg in arg.items():

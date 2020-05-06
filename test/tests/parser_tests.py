@@ -43,6 +43,8 @@ class ParserTests(unittest.PavTestCase):
 
         expr_parser = parsers.get_expr_parser()
 
+        # These visitors walk the parse tree and return the used
+        # variables as a list (with unique items).
         expr = 'int1.3.foo + var.int2.*.bleh * 11 * - sum([int1, int1])'
         tree = expr_parser.parse(expr)
         visitor = parsers.common.VarRefVisitor()
@@ -51,6 +53,8 @@ class ParserTests(unittest.PavTestCase):
         self.assertEqual(used_vars,
                          ['int1.3.foo', 'var.int2.*.bleh', 'int1'])
 
+        # Pretty much the same as above, but for a whole string an not just
+        # an expression (it uses the above visitor for the expressions).
         string_parser = parsers.get_string_parser()
         tree = string_parser.parse("hello {{var.foo.1.baz:1s}} world "
                                    "{{sys.bar}}")
@@ -75,7 +79,9 @@ class ParserTests(unittest.PavTestCase):
         'str1': 'hello',
         'ints.3': 3,
         'ints': 0,
+        'struct.cpus * 0': 0,
         'struct.cpus // 7': 28,
+        'struct.cpus / 7': 28.571428571428573,
         'structs.1.type': 'dog',
         'sum(structs.*.bites)': 4,
         'avg(structs.*.evil_rating)': 5.033333333333333,
@@ -148,6 +154,8 @@ class ParserTests(unittest.PavTestCase):
         'a and or b': 'Invalid Syntax',
         'a + * b': 'Invalid Syntax',
         'f ==': 'Invalid Syntax',
+        '1 / 0': 'Division by zero',
+        '-5 ^ 0.5': 'Power expression has complex result',
         # Missing trailing operand
         'a +': 'Hanging Operation',
         'b *': 'Hanging Operation',
