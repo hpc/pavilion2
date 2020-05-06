@@ -9,8 +9,7 @@ class SystemHost(system_plugins.SystemPlugin):
             name='sys_host',
             description="The system (kickoff) hostname.",
             priority=self.PRIO_CORE,
-            is_deferable=False, 
-            sub_keys=None)
+            is_deferable=False)
 
     def _get( self):
         """Base method for determining the system name."""
