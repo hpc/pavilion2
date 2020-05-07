@@ -204,4 +204,8 @@ class DocTests(PavTestCase):
 
         # Check the external links too.
         for href in origins_by_href.keys():
-            wget.head(self.pav_cfg, href)
+            try:
+                wget.head(self.pav_cfg, href)
+            except wget.WGetError:
+                self.fail("Could not fetch HEAD for doc external href '{}'"
+                          .format(href))

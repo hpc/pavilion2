@@ -1,3 +1,6 @@
+
+.. _plugin_basics:
+
 Plugin Basics
 =============
 
