@@ -12,9 +12,8 @@ import subprocess
 import zipfile
 import errno
 
-from pavilion import config
 from pathlib import Path
-
+from pavilion import config
 
 # Python 3.5 issue. Python 3.6 Path.resolve() handles this correctly.
 # pylint: disable=protected-access
