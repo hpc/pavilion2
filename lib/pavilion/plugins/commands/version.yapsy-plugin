@@ -1,9 +1,0 @@
-[Core]
-Name = Version Command
-Module = version
-
-[Documentation]
-Description = Command to display current version of pavilion.
-Author = Calvin Seamons
-Version = 1.0
-Website =
