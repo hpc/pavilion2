@@ -20,8 +20,7 @@ from pavilion import result_parsers
 from pavilion import scriptcomposer
 from pavilion import utils
 from pavilion.status_file import StatusFile, STATES
-from pavilion import test_config
-from pavilion.test_config import variables, string_parser, resolver
+from pavilion.test_config import variables, resolver, parsers
 from pavilion.test_config.file_format import TestConfigError
 
 
@@ -386,10 +385,7 @@ class TestRun:
         """Resolve any remaining deferred variables, and generate the final
         run script."""
 
-        self.var_man.undefer(
-            new_vars=var_man,
-            parser=string_parser.parse
-        )
+        self.var_man.undefer(new_vars=var_man)
 
         self.config = resolver.TestConfigResolver.resolve_deferred(
             self.config, self.var_man)
@@ -793,7 +789,7 @@ be set by the scheduler plugin as soon as it's known."""
             return self._job_id
 
         try:
-            with path.open('r') as job_id_file:
+            with path.open() as job_id_file:
                 self._job_id = job_id_file.read()
         except FileNotFoundError:
             return None
@@ -948,49 +944,54 @@ directory that doesn't already exist.
     def _evaluate_skip_conditions(self):
         """Match grabs conditional keys from the config. It checks for
         matches and depending on the results will skip or continue a test.
-        :param match_list: Match list is a list of conditional matches found.
         :return The match list after being populated
         :rtype list[str]"""
 
         match_list = []
-        var_man = self.var_man
         only_if = self.config.get('only_if', {})
         not_if = self.config.get('not_if', {})
 
-        for nkey in not_if:
-            key = test_config.string_parser.parse(nkey)
-            key = key.resolve(var_man)
+        for key in not_if:
+            # Skip any keys that were deferred.
+            if resolver.TestConfigResolver.was_deferred(key):
+                continue
 
-            if key is None:
-                continue  # The variable is deferred.
-            else:
-                for val in not_if[nkey]:
-                    if not val.endswith('$'):
-                        val = val + '$'
-                    if bool(re.match(val, key)):
-                        message = ("Not if {0} is {1}. "
-                                   "The current {0} is {2}: SKIPPED"
-                                   .format(nkey, val, key))
-                        match_list.append(message)
+            for val in not_if[key]:
+                # Also skip deferred values.
+                if resolver.TestConfigResolver.was_deferred(val):
+                    continue
 
-        for okey in only_if:
-            match = False
-            key = test_config.string_parser.parse(okey)
-            key = key.resolve(var_man)
-
-            if key is None:
-                continue  # The variable is deferred.
-            else:
-                for val in only_if[okey]:
-                    if not val.endswith('$'):
-                        val = val + '$'
-                    if bool(re.match(val, key)):
-                        match = True
-                if match is False:
-                    message = ("Only if {0} is one of {1}. "
-                               "Current {0} is {2}: SKIPPED"
-                               .format(okey, only_if[okey], key))
+                if not val.endswith('$'):
+                    val = val + '$'
+                if bool(re.match(val, key)):
+                    message = ("Skipping due to not_if match for key '{}' "
+                               "with '{}'"
+                               .format(key, val))
                     match_list.append(message)
+
+        for key in only_if:
+            match = False
+
+            if resolver.TestConfigResolver.was_deferred(key):
+                continue
+
+            for val in only_if[key]:
+
+                # We have to assume a match if one of the values is deferred.
+                if resolver.TestConfigResolver.was_deferred(val):
+                    match = True
+                    break
+
+                if not val.endswith('$'):
+                    val = val + '$'
+                if bool(re.match(val, key)):
+                    match = True
+
+            if match is False:
+                message = ("Skipping because only_if key '{}' failed to match"
+                           "any of '{}'"
+                           .format(key, only_if[key]))
+                match_list.append(message)
 
         return match_list  # returns list, can be empty.
 

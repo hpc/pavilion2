@@ -145,6 +145,7 @@ def fprint(*args, color=None, bullet='', width=0, wrap_indent=0,
     wrap_indent = ' '*wrap_indent
 
     if width is not None:
+        paragraphs = []
         out_str = sep.join(args)
         for paragraph in str.splitlines(out_str):
             lines = textwrap.wrap(paragraph, width=width,
@@ -154,7 +155,8 @@ def fprint(*args, color=None, bullet='', width=0, wrap_indent=0,
             if bullet:
                 lines = textwrap.indent(lines, bullet, lines.startswith)
 
-            print(lines, file=file, end='')
+            paragraphs.append(lines)
+        print('\n'.join(paragraphs), file=file, end='')
     else:
         out_str = sep.join(args)
         print(out_str, file=file, end='')

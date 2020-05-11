@@ -7,5 +7,7 @@
    run.rst
    build.rst
    env.rst
+   permutations.rst
+   values.rst
    results.rst
    conditionals.rst

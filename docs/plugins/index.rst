@@ -7,6 +7,7 @@ Pavilion Plugins
 
    basics.rst
    commands.rst
+   expression_functions.rst
    module_wrappers.rst
    result_parsers.rst
    schedulers.rst
