@@ -8,6 +8,7 @@ import time
 from pavilion import utils
 from pavilion import commands
 from pavilion import arguments
+from pavilion import test_config
 from pavilion.test_run import TestRun, TestRunError, TestRunNotFoundError
 
 
@@ -57,6 +58,17 @@ class SeriesManager:
 
         sets_args = {}
         universal_modes = self.series_cfg['modes']
+
+        # create raw configs for each test in each set
+        # self.test_sets = { set_name : [ raw test_cfg dictionaries ] }
+        self.test_sets = {}
+        for set_name, set_info in self.sets.items():
+            test_config_resolver = test_config.TestConfigResolver(self.pav_cfg)
+            all_modes = universal_modes + set_info['modes']
+            self.test_sets[set_name] = test_config_resolver.load_raw_configs(
+                set_info['test_names'], None, all_modes
+            )
+
         # set up sets_args dict
         for set_name, set_info in self.sets.items():
 
@@ -92,6 +104,9 @@ class SeriesManager:
             for next in next_str_list:
                 self.test_sets[set_name].add_next(self.test_sets[next])
 
+        from pavilion.output import dbg_print
+        dbg_print(self.test_sets)
+
         # kick off tests that aren't waiting on anyone
         self.currently_running = []
 
@@ -107,7 +122,10 @@ class SeriesManager:
 
         # self.print_status()
         for set_obj in self.currently_running:
-            time.sleep(5)
+
+            # give test time to run before checking and updating
+            time.sleep(1)
+
             if self.is_set_done(set_obj):
                 set_obj.change_status('DONE')
                 for waiting in set_obj.get_next():
@@ -136,7 +154,7 @@ class SeriesManager:
         # optional: display self.dep_graph?
 
     def print_status(self):
-        #  mostly for debugging purposes
+        #  for debugging purposes
         for set_name in self.test_sets:
             temp_ts = self.test_sets[set_name]
             # display temp_ts
@@ -146,6 +164,7 @@ class TestSet:
 
     # statuses:
     # NO_STAT, NEXT, DID_NOT_RUN, RUNNING, PASS, FAIL
+    # NO_STAT, NEXT, DID_NOT_RUN, RUNNING, DONE
 
     def __init__(self, pav_cfg, name, args_list,
                  prev_set, next_set):

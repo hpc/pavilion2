@@ -34,10 +34,12 @@ class RunSeries(commands.Command):
 
         temp_args = ['pav', '_auto_series', args.series,
                      '--series-id={}'.format(series_obj.id)]
-        subprocess.Popen(temp_args, stdout=subprocess.DEVNULL)
+        subprocess.Popen(temp_args,
+                         stdout=subprocess.DEVNULL,
+                         stderr=subprocess.DEVNULL)
 
         fprint("Started series {}. "
-               "Run `watch pav status {}` to watch progress."
+               "Run `pav status {}` to view status."
                .format(series_obj.id, series_obj.id))
 
         return 0
