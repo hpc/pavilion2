@@ -321,7 +321,8 @@ class ResolverTests(PavTestCase):
             'echo "{{sys.host_name}}"'
         ]
 
-        cfg['results'] = {
+        cfg['result'] = {}
+        cfg['result']['parsers'] = {
             'regex': [{
                 'key': 'foo',
                 'regex': '{{sys.host_name}}',
