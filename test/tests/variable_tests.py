@@ -180,5 +180,9 @@ class TestVariables(PavTestCase):
                 'sys.var1.3',
                 'sys.var1.1.subvar1',
                 'sys.var1.noexist'):
-            with self.assertRaises(KeyError):
+            try:
                 _ = var_man[key]
+            except (KeyError, variables.DeferredError):
+                pass
+            else:
+                self.fail("Did not raise the appropriate error.")
