@@ -20,17 +20,7 @@ Variable Inner Workings (test_config.variables)
         :undoc-members:
 
 
-.. _test_config.string_parser:
-
-Variable String Parsing (test_config.string_parser)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. automodule:: pavilion.test_config.string_parser
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-.. _var_dict:
+.. _pav_vars_dict:
 
 Variable Dict Class (var_dict)
 ------------------------------

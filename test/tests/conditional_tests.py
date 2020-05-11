@@ -1,17 +1,7 @@
-import io
-import os
-import pavilion
-import time
-
-from pavilion import arguments
-from pavilion import commands
 from pavilion import plugins
-from pavilion.status_file import STATES
 from pavilion import system_variables
-from pavilion.test_config import variables, VariableSetManager
-from pavilion.test_run import TestRun, TestRunError, TestConfigError
 from pavilion import unittest
-from pavilion.builder import MultiBuildTracker
+from pavilion.test_config import VariableSetManager
 
 
 class conditionalTest(unittest.PavTestCase):
