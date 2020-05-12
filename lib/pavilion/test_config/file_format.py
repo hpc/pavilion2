@@ -134,11 +134,10 @@ class SeriesConfigLoader(yc.YamlConfigLoader):
     """This class describes a series file."""
 
     ELEMENTS = [
-        yc.CategoryElem(
+        RegexDict(
             'series', sub_elem=yc.KeyedElem(
                 elements=[
                     yc.ListElem('depends_on', sub_elem=yc.StrElem()),
-                    yc.ListElem('test_names', sub_elem=yc.StrElem()),
                     yc.ListElem('modes', sub_elem=yc.StrElem()),
                     yc.CategoryElem(
                         'only_if', sub_elem=yc.ListElem(sub_elem=yc.StrElem())

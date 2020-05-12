@@ -4,12 +4,15 @@ import logging
 import os
 import pathlib
 import time
+import copy
 
 from pavilion import utils
 from pavilion import commands
 from pavilion import arguments
 from pavilion import test_config
 from pavilion.test_run import TestRun, TestRunError, TestRunNotFoundError
+
+from pavilion.output import dbg_print # delete this later
 
 
 class TestSeriesError(RuntimeError):
@@ -51,168 +54,93 @@ class SeriesManager:
         self.series_obj = series_obj
         self.series_cfg = series_cfg
 
-        self.sets = self.series_cfg['series']
+        self.series_section = self.series_cfg['series']
 
-        self.dep_graph = {}  # { set_name: [set_names it depends on] }
+        self.dep_graph = {}  # { test_name: [tests it depends on] }
         self.make_dep_graph()
 
-        sets_args = {}
         universal_modes = self.series_cfg['modes']
 
-        # create raw configs for each test in each set
-        # self.test_sets = { set_name : [ raw test_cfg dictionaries ] }
-        self.test_sets = {}
-        for set_name, set_info in self.sets.items():
-            test_config_resolver = test_config.TestConfigResolver(self.pav_cfg)
-            all_modes = universal_modes + set_info['modes']
-            self.test_sets[set_name] = test_config_resolver.load_raw_configs(
-                set_info['test_names'], None, all_modes
-            )
-
-        # set up sets_args dict
-        for set_name, set_info in self.sets.items():
-
-            set_modes = set_info['modes']
-            all_modes = universal_modes + set_modes
+        # set up args for tests
+        self.test_info = {} # { test_name: { 'args': args } }
+        for test_name, test_config in self.series_section.items():
+            self.test_info[test_name] = {}
+            test_modes = test_config['modes']
+            all_modes = universal_modes + test_modes
 
             args_list = ['run', '--series-id={}'.format(self.series_obj.id)]
             for mode in all_modes:
                 args_list.append('-m{}'.format(mode))
-            args_list.extend(set_info['test_names'])
+            args_list.append(test_name)
 
-            sets_args[set_name] = args_list
-
-        # create TestSet obj for each set
-        self.test_sets = {}
-        for set_name in sets_args:
-            self.test_sets[set_name] = TestSet(
-                self.pav_cfg, set_name, sets_args[set_name],
-                [], []
-            )
+            self.test_info[test_name]['args'] = args_list
 
         # create doubly linked graph
-        for set_name in self.dep_graph:
-            prev_str_list = self.dep_graph[set_name]
-            for prev in prev_str_list:
-                self.test_sets[set_name].add_prev(self.test_sets[prev])
+        for test_name in self.dep_graph:
+            prev_list = self.dep_graph[test_name]
+            self.test_info[test_name]['prev'] = prev_list
 
-            next_str_list = []
-            for s_n in self.dep_graph:
-                if set_name in self.dep_graph[s_n]:
-                    next_str_list.append(s_n)
+            next_list = []
+            for t_n in self.dep_graph:
+                if test_name in self.dep_graph[t_n]:
+                    next_list.append(t_n)
+            self.test_info[test_name]['next'] = next_list
 
-            for next in next_str_list:
-                self.test_sets[set_name].add_next(self.test_sets[next])
+        # run tests in order
+        self.all_tests = list(self.test_info.keys())
+        self.started = []
+        self.finished = []
+        self.not_started = []
+        # kick off tests that aren't waiting on any tests to complete
+        for test_name in self.test_info:
+            if not self.test_info[test_name]['prev']:
+                self.run_test(test_name)
+                self.not_started = list(set(self.all_tests) - set(self.started))
 
-        from pavilion.output import dbg_print
-        dbg_print(self.test_sets)
+        while len(self.not_started) != 0:
 
-        # kick off tests that aren't waiting on anyone
-        self.currently_running = []
+            self.check_and_update()
+            temp_waiting = copy.deepcopy(self.not_started)
+            for test_name in temp_waiting:
+                ready = all(wait in self.finished for wait in self.test_info[
+                    test_name]['prev'])
+                if ready:
+                    self.run_test(test_name)
+                    self.not_started.remove(test_name)
 
-        # keep checking on statuses of currently running sets
-        self.keep_checking_tests()
+            time.sleep(3)
 
-    def keep_checking_tests(self):
+    def run_test(self, test_name):
+        run_cmd = commands.get_command('run')
+        arg_parser = arguments.get_parser()
+        args = arg_parser.parse_args(self.test_info[test_name]['args'])
+        run_cmd.run(self.pav_cfg, args)
+        self.test_info[test_name]['obj'] = run_cmd.last_tests
+        self.started.append(test_name)
 
-        for set_name in self.test_sets:
-            if not self.test_sets[set_name].get_prev():
-                self.test_sets[set_name].run_set()
-                self.currently_running.append(self.test_sets[set_name])
+    # determines if test/s is/are done running
+    def is_done(self, test_name):
+        if 'obj' not in self.test_info[test_name].keys():
+            return False
 
-        # self.print_status()
-        for set_obj in self.currently_running:
-
-            # give test time to run before checking and updating
-            time.sleep(1)
-
-            if self.is_set_done(set_obj):
-                set_obj.change_status('DONE')
-                for waiting in set_obj.get_next():
-                    run_this = True
-                    for prev in waiting.get_prev():
-                        if prev.get_status() != 'DONE':
-                            run_this = False
-                    if run_this:
-                        waiting.run_set()
-                        self.currently_running.append(waiting)
-
-            # self.print_status()
-
-    # pylint: disable=R0201
-    def is_set_done(self, set_obj):
-        for test in set_obj.test_runs:
-            if not (test.path/'RUN_COMPLETE').exists():
+        test_obj_list = self.test_info[test_name]['obj']
+        for test_obj in test_obj_list:
+            if not (test_obj.path / 'RUN_COMPLETE').exists():
                 return False
         return True
 
+    def check_and_update(self):
+
+        temp_started = copy.deepcopy(self.started)
+        for test_name in temp_started:
+            if self.is_done(test_name):
+                self.started.remove(test_name)
+                self.finished.append(test_name)
+
     def make_dep_graph(self):
         # has to be a graph of test sets
-        for set_name in self.sets:
-            self.dep_graph[set_name] = self.sets[set_name]['depends_on']
-
-        # optional: display self.dep_graph?
-
-    def print_status(self):
-        #  for debugging purposes
-        for set_name in self.test_sets:
-            temp_ts = self.test_sets[set_name]
-            # display temp_ts
-
-
-class TestSet:
-
-    # statuses:
-    # NO_STAT, NEXT, DID_NOT_RUN, RUNNING, PASS, FAIL
-    # NO_STAT, NEXT, DID_NOT_RUN, RUNNING, DONE
-
-    def __init__(self, pav_cfg, name, args_list,
-                 prev_set, next_set):
-
-        self.name = name
-        self.pav_cfg = pav_cfg
-        self.args_list = args_list
-        self.prev_set = prev_set  # has to be a list of TestSet objects
-        self.next_set = next_set  # has to be a list of TestSet objects
-        self.status = 'NO_STAT'
-        self.test_runs = list()
-
-    def run_set(self):
-        run_cmd = commands.get_command('run')
-        arg_parser = arguments.get_parser()
-        args = arg_parser.parse_args(self.args_list)
-        run_cmd.run(self.pav_cfg, args)
-        self.test_runs.extend(run_cmd.last_tests)
-
-        # change statuses
-        self.change_status('RUNNING')
-        for n_set in self.next_set:
-            if n_set.get_status() == 'NO_STAT':
-                n_set.change_status('NEXT')
-
-    def change_status(self, new_status):
-        self.status = new_status
-
-    def get_status(self):
-        return self.status
-
-    def add_prev(self, prev):
-        self.prev_set.append(prev)
-
-    def add_next(self, next):
-        self.next_set.append(next)
-
-    def get_prev(self):
-        return self.prev_set
-
-    def get_next(self):
-        return self.next_set
-
-    def __repr__(self):
-        return self.name
-
-    def __str__(self):
-        return self.name
+        for test_name, test_config in self.series_section.items():
+            self.dep_graph[test_name] = test_config['depends_on']
 
 
 class TestSeries:
