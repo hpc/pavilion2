@@ -10,9 +10,9 @@ from pavilion import utils
 from pavilion import commands
 from pavilion import arguments
 from pavilion import test_config
+from pavilion.test_config import resolver
+from pavilion.status_file import STATES
 from pavilion.test_run import TestRun, TestRunError, TestRunNotFoundError
-
-from pavilion.output import dbg_print # delete this later
 
 
 class TestSeriesError(RuntimeError):
@@ -105,10 +105,32 @@ class SeriesManager:
                 ready = all(wait in self.finished for wait in self.test_info[
                     test_name]['prev'])
                 if ready:
-                    self.run_test(test_name)
-                    self.not_started.remove(test_name)
+                    if self.series_section[test_name]['depends_pass'] == 'True':
+                        if self.all_tests_passed(
+                                self.test_info[test_name]['prev']):
+                            self.run_test(test_name)
+                            self.not_started.remove(test_name)
+                        else:
+                            # make test object but set its status as SKIPPED
+                            rslvr = resolver.TestConfigResolver(self.pav_cfg)
+                            raw_configs = rslvr.load_raw_configs(
+                                    [test_name], [], []
+                                )
+                            for config in raw_configs:
+                                skipped_test = TestRun(
+                                    self.pav_cfg, config)
+                                skipped_test.status.set(
+                                    STATES.SKIPPED,
+                                    "Previous test did not PASS.")
+                                skipped_test.set_run_complete()
+                                self.series_obj.add_tests([skipped_test])
+                            self.not_started.remove(test_name)
+                            self.finished.append(test_name)
+                    else:
+                        self.run_test(test_name)
+                        self.not_started.remove(test_name)
 
-            time.sleep(3)
+            time.sleep(1)
 
     def run_test(self, test_name):
         run_cmd = commands.get_command('run')
@@ -127,6 +149,19 @@ class SeriesManager:
         for test_obj in test_obj_list:
             if not (test_obj.path / 'RUN_COMPLETE').exists():
                 return False
+        return True
+
+    def all_tests_passed(self, test_names):
+
+        for test_name in test_names:
+            if 'obj' not in self.test_info[test_name].keys():
+                return False
+
+            test_obj_list = self.test_info[test_name]['obj']
+            for test_obj in test_obj_list:
+                if test_obj.results['result'] != 'PASS':
+                    return False
+
         return True
 
     def check_and_update(self):

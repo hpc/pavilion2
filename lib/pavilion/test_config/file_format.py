@@ -137,6 +137,9 @@ class SeriesConfigLoader(yc.YamlConfigLoader):
         RegexDict(
             'series', sub_elem=yc.KeyedElem(
                 elements=[
+                    yc.StrElem('depends_pass',
+                               choices=['True', 'true', 'False', 'false'],
+                               default='False'),
                     yc.ListElem('depends_on', sub_elem=yc.StrElem()),
                     yc.ListElem('modes', sub_elem=yc.StrElem()),
                     yc.CategoryElem(
