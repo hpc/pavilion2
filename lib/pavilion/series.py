@@ -113,9 +113,8 @@ class SeriesManager:
                         else:
                             # make test object but set its status as SKIPPED
                             rslvr = resolver.TestConfigResolver(self.pav_cfg)
-                            raw_configs = rslvr.load_raw_configs(
-                                    [test_name], [], []
-                                )
+                            raw_configs = rslvr.load_raw_configs([test_name],
+                                                                 [], [])
                             for config in raw_configs:
                                 skipped_test = TestRun(
                                     self.pav_cfg, config)
