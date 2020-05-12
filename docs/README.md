@@ -17,7 +17,7 @@ make clean
 make html
 ```
 
-This requires sphinx be installed on your system. 
+This requires Sphinx be installed on your system. 
 
 You may find that your local build may have errors that Travis CI doesn't, or vice-versa. To fix
 this:
@@ -31,8 +31,8 @@ make clean
 make html
 ```
 
-Travis CI essentially follows the same steps to get sphinx, though the Sphinx version it gets may
+Travis CI essentially follows the same steps to get Sphinx, though the Sphinx version it gets may
 vary with the Python version. 
 
 Since the unit test for doc building simply builds the documentation and greps for errors and
-warnings, if you can run the build without issues the unit test should succeed too.
+warnings. If you can run the build without issues, the unit test should succeed too.
