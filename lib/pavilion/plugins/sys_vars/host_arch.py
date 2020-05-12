@@ -8,8 +8,7 @@ class HostArch(system_plugins.SystemPlugin):
             name='host_arch',
             description="The current host's architecture.",
             priority=self.PRIO_CORE,
-            is_deferable=True,
-            sub_keys=None)
+            is_deferable=True)
 
     def _get(self):
         """Base method for determining the host architecture."""

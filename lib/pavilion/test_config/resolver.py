@@ -523,7 +523,14 @@ class TestConfigResolver:
     def resolve_inheritance(base_config, suite_cfg, suite_path):
         """Resolve inheritance between tests in a test suite. There's potential
         for loops in the inheritance hierarchy, so we have to be careful of
-        that."""
+        that.
+
+        :param base_config: Forms the 'defaults' for each test.
+        :param suite_cfg: The suite configuration, loaded from a suite file.
+        :param suite_path: The path to the suite file.
+        :return: A dictionary of test configs.
+        :rtype: dict(str,dict)
+        """
 
         test_config_loader = TestConfigLoader()
 
@@ -685,7 +692,7 @@ class TestConfigResolver:
 
         :param dict test_cfg: The test configuration.
         :param list overrides: A list of raw overrides in a.b.c=value form.
-        :raises: ValueError, KeyError
+        :raises: (ValueError,KeyError)
     """
 
         config_loader = TestConfigLoader()
@@ -710,9 +717,12 @@ class TestConfigResolver:
 
     def _apply_override(self, test_cfg, key, value):
         """Set the given key to the given value in test_cfg.
-        :param dict test_cfg: The test configuration.
-        :param [str] key: A
 
+        :param dict test_cfg: The test configuration.
+        :param [str] key: A list of key components, like
+            ``[`slurm', 'num_nodes']``
+        :param str value: The value to assign. If this looks like a json
+            structure, it will be decoded and treated as one.
         """
 
         cfg = test_cfg
@@ -785,6 +795,8 @@ class TestConfigResolver:
         strings.
 
         :param value: The value to normalize.
+        :returns: A string or a structure of dicts/lists whose leaves are
+            strings.
         """
         if isinstance(value, str):
             return value
@@ -934,6 +946,7 @@ class TestConfigResolver:
         :param Union[tuple[str],None] key_parts: A list of the parts of the
             config key traversed to get to this point.
         :return: The component, resolved.
+        :raises: RuntimeError, TestConfigError
         """
 
         if key_parts is None:
