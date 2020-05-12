@@ -55,3 +55,8 @@ class PavVars(VarDict):
         """The current user's login name."""
 
         return utils.get_login()
+
+    @var_method
+    def version(self):
+        """The current version of Pavilion."""
+        return utils.get_version()
