@@ -2,6 +2,7 @@
 other commands to print statuses."""
 
 import os
+import re
 import time
 
 from pavilion import commands
@@ -171,6 +172,52 @@ def get_statuses(pav_cfg, args, errfile):
     return test_statuses
 
 
+def display_history(pav_cfg, args, outfile):
+    from pavilion.output import dbg_print
+    import json
+    status_path = pav_cfg.working_dir / 'test_runs' / \
+                  args.history.zfill(7) / 'status'
+
+    ret_val = 0
+    time_list = []
+    state_list = []
+    note_list = []
+
+    with status_path.open() as file:
+        for line in file:
+            val = line.split(' ', 2)
+            time_list.append(val[0])
+            state_list.append(val[1])
+            note_list.append(val[2])
+
+    data = {}
+    data['time'] = time_list
+    data['state'] = state_list
+    data['note'] = note_list
+
+    data = output.json_dumps(data)
+    dbg_print(data)
+    #with outfile.open() as file:
+    #    for line in file:
+    #        dbg_print(line)
+
+
+    #bleh = json.load(json_data)
+    #json_data = [{'state': 'completed',
+    #              'time': '500',
+    #              'note': 'json stuuupid'}]
+
+    fields = ['state', 'time', 'note']
+    #dbg_print(json_data)
+    output.draw_table(
+        outfile=outfile,
+        field_info={},
+        fields=fields,
+        rows=data,
+        title='Test statuses')
+
+    return ret_val
+
 def print_status(statuses, outfile, json=False):
     """Prints the statuses provided in the statuses parameter.
 
@@ -250,6 +297,10 @@ class StatusCommand(commands.Command):
             '-l', '--limit', type=int, default=10,
             help='Max number of tests displayed if --all is used.'
         )
+        parser.add_argument(
+            '--history', type=str,
+            help="Shows the full status history of a job."
+        )
 
     def run(self, pav_cfg, args):
         """Gathers and prints the statuses from the specified test runs and/or
@@ -263,4 +314,7 @@ class StatusCommand(commands.Command):
             output.fprint("Status Error:", err, color=output.RED)
             return 1
 
-        return print_status(test_statuses, self.outfile, args.json)
+        if args.history:
+            display_history(pav_cfg, args, self.outfile)
+        else:
+            return print_status(test_statuses, self.outfile, args.json)
