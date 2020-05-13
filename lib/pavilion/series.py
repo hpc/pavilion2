@@ -87,7 +87,6 @@ class SeriesManager:
         # { test_name : { 'config': <loaded config> }
         temp_resolver = resolver.TestConfigResolver(self.pav_cfg)
         for test_name, test_config in self.series_section.items():
-            dbg_print(test_config, color=34)
             self.test_info[test_name] = {}
             test_modes = test_config['modes']
             all_modes = universal_modes + test_modes
@@ -155,13 +154,10 @@ class SeriesManager:
                             self.run_test(test_name)
                             self.not_started.remove(test_name)
                         else:
-                            # make test object but set its status as SKIPPED
-                            rslvr = resolver.TestConfigResolver(self.pav_cfg)
-                            raw_configs = rslvr.load_raw_configs([test_name],
-                                                                 [], [])
-                            for config in raw_configs:
-                                skipped_test = TestRun(
-                                    self.pav_cfg, config)
+                            for config in self.test_info[test_name]['configs']:
+                                del config['only_if']
+                                del config['not_if']
+                                skipped_test = TestRun(self.pav_cfg, config)
                                 skipped_test.status.set(
                                     STATES.COMPLETE,
                                     "Skipping. Previous test did not PASS.")
