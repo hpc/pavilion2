@@ -939,6 +939,7 @@ directory that doesn't already exist.
             return False
         else:
             self.status.set(STATES.COMPLETE, matches)
+            self.set_run_complete()
             return True
 
     def _evaluate_skip_conditions(self):
