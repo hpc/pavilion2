@@ -137,7 +137,7 @@ class _RunCommand(commands.Command):
             # the args are valid form _check_args, but those might not be
             # checkable before kickoff due to deferred variables.
             try:
-                result_parsers.check_args(test.config['results'])
+                result_parsers.check_args(test.config['result']['parsers'])
             except TestRunError as err:
                 rp_errors.append(str(err))
 

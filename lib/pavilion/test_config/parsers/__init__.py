@@ -20,7 +20,7 @@ import re
 
 import lark as _lark
 from .common import ParserValueError
-from .expressions import get_expr_parser
+from .expressions import get_expr_parser, AnalysisExprTransformer
 from .strings import get_string_parser, StringTransformer
 
 

@@ -690,7 +690,7 @@ sched
                 .format(s=self)
             )
 
-        parser_configs = self.config['results']
+        parser_configs = self.config['result']['parsers']
 
         if run_result:
             default_result = result_parsers.PASS
@@ -708,7 +708,21 @@ sched
 
         results = result_parsers.parse_results(self, results)
 
+        analysis = self.config['result']['analysis']
+
+        expr_parser = parsers.get_expr_parser()
+        analysis_trans = parsers.AnalysisExprTransformer(results)
+
+        for key, expr in analysis:
+            tree = expr_parser.parse(expr)
+            value = analysis_trans.transform(tree)
+            results[key] = value
+
+
         self._results = results
+
+
+
 
         return results
 

@@ -345,13 +345,27 @@ expected to be added to by various plugins.
     # We'll append the result parsers separately, to have an easy way to
     # access it.
     _RESULT_PARSERS = yc.KeyedElem(
-        'results', elements=[],
+        'parsers', elements=[],
         help_text="Result parser configurations go here. Each parser config "
                   "can occur by itself or as a list of configs, in which "
                   "case the parser will run once for each config given. The "
-                  "output of these parsers will be combined into the final "
+                  "output of these parsers will be added to the final "
                   "result json data.")
-    ELEMENTS.append(_RESULT_PARSERS)
+    ELEMENTS.append(yc.KeyedElem(
+        'result', elements=[
+            _RESULT_PARSERS,
+            yc.CategoryElem(
+                'analysis', sub_elem=yc.StrElem(),
+                help_text="The keys and values in this section will also "
+                          "be added to the result json. The values are "
+                          "expressions (like in {{<expr>}} in normal Pavilion "
+                          "strings), but the result json itself is the "
+                          "only variable available. The expression results are "
+                          "stored directly without conversion into strings,"
+                          "and in the order given.")
+        ],
+        help_text="Parse and analyze test run results."
+    ))
 
     @classmethod
     def add_subsection(cls, subsection):

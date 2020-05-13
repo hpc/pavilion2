@@ -136,7 +136,7 @@ class LenPlugin(CoreFunctionPlugin):
     def _validate_arg(self, arg, spec):
         if not isinstance(arg, (list, str, dict)):
             raise FunctionPluginError(
-                "The list_len function only accepts lists, dicts, and "
+                "The len function only accepts lists, dicts, and "
                 "strings. Got {} of type {}.".format(arg, type(arg).__name__)
             )
         return arg
@@ -166,3 +166,32 @@ class RandomPlugin(CoreFunctionPlugin):
         """Return a random float in [0,1)."""
 
         return random.random()
+
+
+class KeysPlugin(CoreFunctionPlugin):
+    """Return the keys of a given dict."""
+
+    def __init__(self):
+        """Setup."""
+
+        super().__init__(
+            name='keys',
+            description="Return the keys of the given dict.",
+            arg_specs=None,
+        )
+
+    signature = "keys(dict)"
+
+    def _validate_arg(self, arg, spec):
+        if not isinstance(arg, dict):
+            raise FunctionPluginError(
+                "The dicts function only accepts dicts. Got {} of type {}."
+                .format(arg, type(arg).__name__))
+        return arg
+
+    @staticmethod
+    def keys(arg):
+        """Return a list of keys for the given dictionary. Order is
+        preserved."""
+
+        return list(arg.keys())

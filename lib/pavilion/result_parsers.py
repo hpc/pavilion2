@@ -442,7 +442,7 @@ configured for that test.
 :return: The final results dictionary.
 """
 
-    parser_configs = test.config['results']
+    parser_configs = test.config['result']['parsers']
 
     # A list of keys with duplicates already reported on, so we don't
     # report such errors multiple times.
