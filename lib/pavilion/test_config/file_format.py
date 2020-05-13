@@ -142,12 +142,14 @@ class SeriesConfigLoader(yc.YamlConfigLoader):
                                default='False'),
                     yc.ListElem('depends_on', sub_elem=yc.StrElem()),
                     yc.ListElem('modes', sub_elem=yc.StrElem()),
-                    yc.CategoryElem(
-                        'only_if', sub_elem=yc.ListElem(sub_elem=yc.StrElem())
+                    RegexDict(
+                        'only_if', sub_elem=yc.ListElem(sub_elem=yc.StrElem()),
+                        key_case=EnvCatElem.KC_MIXED
                     ),
-                    yc.CategoryElem(
-                        'not_if', sub_elem=yc.ListElem(sub_elem=yc.StrElem())
-                    )
+                    RegexDict(
+                        'not_if', sub_elem=yc.ListElem(sub_elem=yc.StrElem()),
+                        key_case=EnvCatElem.KC_MIXED
+                    ),
                 ]
             ),
         ),

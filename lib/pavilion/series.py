@@ -14,9 +14,30 @@ from pavilion.test_config import resolver
 from pavilion.status_file import STATES
 from pavilion.test_run import TestRun, TestRunError, TestRunNotFoundError
 
+from pavilion.output import dbg_print # delete this later
+
 
 class TestSeriesError(RuntimeError):
     """An error in managing a series of tests."""
+
+
+def union_dictionary(dict1, dict2):
+    """Combines two dictionaries with nested lists."""
+
+    new_dict = {}
+    dict2_keys = list(dict2.keys())
+
+    for key, list_value in dict1.items():
+        new_dict[key] = list_value
+        if key in dict2.keys():
+            new_dict[key].extend(dict2[key])
+            dict2_keys.remove(key)
+            new_dict[key] = list(set(new_dict[key]))
+
+    for key in dict2_keys:
+        new_dict[key] = dict2[key]
+
+    return new_dict
 
 
 def test_obj_from_id(pav_cfg, test_ids):
@@ -61,10 +82,31 @@ class SeriesManager:
 
         universal_modes = self.series_cfg['modes']
 
-        # set up args for tests
-        self.test_info = {} # { test_name: { 'args': args } }
+        self.test_info = {}
+        # set up configs for tests
+        # { test_name : { 'config': <loaded config> }
+        temp_resolver = resolver.TestConfigResolver(self.pav_cfg)
         for test_name, test_config in self.series_section.items():
+            dbg_print(test_config, color=34)
             self.test_info[test_name] = {}
+            test_modes = test_config['modes']
+            all_modes = universal_modes + test_modes
+            raw_configs = temp_resolver.load_raw_configs([test_name],
+                                                         [],
+                                                         all_modes)
+            for raw_config in raw_configs:
+                raw_config['only_if'] = union_dictionary(
+                    raw_config['only_if'], test_config['only_if']
+                )
+                raw_config['not_if'] = union_dictionary(
+                    raw_config['not_if'], test_config['not_if']
+                )
+            self.test_info[test_name]['configs'] = raw_configs
+
+        # set up args for tests
+        # { test_name: { 'args': args } }
+        for test_name, test_config in self.series_section.items():
+            # self.test_info[test_name] = {}
             test_modes = test_config['modes']
             all_modes = universal_modes + test_modes
 
@@ -85,6 +127,8 @@ class SeriesManager:
                 if test_name in self.dep_graph[t_n]:
                     next_list.append(t_n)
             self.test_info[test_name]['next'] = next_list
+
+        dbg_print(self.test_info, '\n')
 
         # run tests in order
         self.all_tests = list(self.test_info.keys())
@@ -119,8 +163,8 @@ class SeriesManager:
                                 skipped_test = TestRun(
                                     self.pav_cfg, config)
                                 skipped_test.status.set(
-                                    STATES.SKIPPED,
-                                    "Previous test did not PASS.")
+                                    STATES.COMPLETE,
+                                    "Skipping. Previous test did not PASS.")
                                 skipped_test.set_run_complete()
                                 self.series_obj.add_tests([skipped_test])
                             self.not_started.remove(test_name)
@@ -132,6 +176,8 @@ class SeriesManager:
             time.sleep(1)
 
     def run_test(self, test_name):
+        # basically copy what the run command is doing here
+
         run_cmd = commands.get_command('run')
         arg_parser = arguments.get_parser()
         args = arg_parser.parse_args(self.test_info[test_name]['args'])
