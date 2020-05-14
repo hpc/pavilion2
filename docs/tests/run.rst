@@ -17,10 +17,11 @@ work involved in getting ready to run the test is configured separately.
 How these are used to compose a `run script is covered
 below <#create-the-run-script>`__.
 
-There are only three attributes:
+There are four attributes:
 
 -  `modules <#modules-list>`__ - Add/remove/swap modules.
 -  `env <#env-mapping>`__ - Alter environment variables
+-  `create_files <#create_files>`__ - Create files at run time.
 -  `cmds <#cmds-list>`__ - Run these commands.
 
 modules (list)
@@ -45,6 +46,52 @@ these are written into the script as bash commands, so values are free
 to refer to other bash variables or contain sub-shell escapes.
 
 See `Env Vars <env.html#environment-variables>`__ for more info.
+
+create_files (list)
+^^^^^^^^^^^^^^^^^^^
+
+File(s) to be created at runtime.
+
+- Each string is a file to be generated and populated with a list of strings
+  as file contents at runtime.
+- The file string must be a path contained within the test's build directory;
+  paths that would otherwise result in writing outside this directory will
+  result in an exception at test finalize time.
+- variables and deferred variables are allowed.
+
+.. code:: yaml
+
+    run_example:
+        build:
+            variables:
+                page:
+                    - {module: 'craype-hugepages2M', bytes: '2097152'}
+        run:
+            create_files:
+                # Basic example. Create a file, "data.in" in the build directory
+                # at runtime.
+                - data.in
+                    - 'line 1'
+                    - 'line 2'
+                    - 'line 3'
+
+                # Create file, "data.in", inside subdirectory "subdir". Note if
+                # the subdirectory(ies) do not exist they will be created.
+                - ./subdir/data.in
+                    - 'line 1'
+                    - 'line 2'
+                    - 'line 3'
+
+                # Create file, "var.in", with 'page' variable data inside nested
+                # subdirectory "subdir/another_subdir"
+                - ./subdir/another_subdir/var.in
+                    - 'module = {{page.module}}'
+                    - 'size = {{page.bytes}}'
+
+                # Create file, "defer.in", with deferred variables data.
+                - defer.in
+                    - system_name = {{sys.name}}
+                    - system_os = {{sys.os}}
 
 cmds (list)
 ^^^^^^^^^^^
