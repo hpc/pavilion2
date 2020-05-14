@@ -215,7 +215,7 @@ def display_history(pav_cfg, args, outfile):
         field_info={},
         fields=fields,
         rows=states,
-        title='Test statuses')
+        title='Test state history')
 
     return ret_val
 
