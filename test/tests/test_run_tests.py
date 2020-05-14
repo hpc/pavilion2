@@ -130,9 +130,24 @@ class TestRunTests(PavTestCase):
             'wild/runtime_1': ['line_0', 'line_1'],  # dir exists
             'wild/dir2/runtime_2': ['line_0', 'line_1'], # dir2 does not exist
             'real.txt': ['line_0', 'line_1'], # file exists; overwrite
-            'runtime_4': [] # deferred variable example
+            'runtime_variable': ['{{var1}}',
+                                 '{{var2.0}}', '{{var2.1}}', '{{var2.2}}',
+                                 '{{var3.subvar1}}', '{{var3.subvar2}}',
+                                 '{{var4.0.subvar1}}', '{{var4.0.subvar2}}',
+                                 '{{var4.1.subvar1}}', '{{var4.1.subvar2}}']
+        }
+        variables = {
+            'var1': 'val1',
+            'var2': ['0', '1', '2'],
+            'var3': {'subvar1': 'subval1',
+                     'subvar2': 'subval2'},
+            'var4': [{'subvar1': 'subval0_1',
+                      'subvar2': 'subval0_2'},
+                     {'subvar1': 'subval1_1',
+                      'subvar2': 'subval1_2'}]
         }
         config = self._quick_test_cfg()
+        config['variables'] = variables
         config['build']['source_location'] = 'file_tests.tgz'
         config['run']['create_files'] = files_to_create
         test = self._quick_test(config)
@@ -143,12 +158,17 @@ class TestRunTests(PavTestCase):
 
             # Stage file contents for comparison.
             original = io.StringIO()
+            created_file = open(str(file_path), 'r', encoding='utf-8')
             for line in lines:
                 original.write("{}\n".format(line))
-            created_file = open(str(file_path), 'r', encoding='utf-8')
-
-            # Compare contents.
-            self.assertEquals(original.getvalue(), created_file.read())
+                if file == 'runtime_variable':
+                    # FIXME: actually implement
+                    correct_out = io.StringIO
+                    correct_out.write("1\n2\n")
+                    self.assertEquals(correct_out.read(), created_file.read())
+                    correct_out.close()
+                else:
+                    self.assertEquals(original.getvalue(), created_file.read())
             original.close()
             created_file.close()
 
