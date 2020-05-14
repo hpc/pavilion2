@@ -5,6 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from pavilion import plugins
 from pavilion import wget
 from pavilion.test_run import TestRunError, TestRun
 from pavilion.series import TestSeries
@@ -118,6 +119,36 @@ class TestRunTests(PavTestCase):
                                msg="Test should have failed due "
                                    "to timeout. {}"):
             test.run()
+
+    def test_create_file(self):
+        """Ensure runtime file creation is working correctly."""
+
+        plugins.initialize_plugins(self.pav_cfg)
+        files_to_create = {
+            'runtime_file0': ['line_0', 'line_1'],
+            'wild/runtime_file1': ['line_0', 'line_1'],  # dir exists
+            'wild/dir2/runtime_file2': ['line_0', 'line_1'], # dir2 does not exist
+            'real.txt':['line_0', 'line_1'] # file exists
+        }
+        config = self._quick_test_cfg()
+        config['build']['source_location'] = 'file_tests.tgz'
+        config['run']['create_files'] = files_to_create
+        test = self._quick_test(config)
+
+        for file, lines in files_to_create.items():
+            file_path = test.path / 'build' / file
+            self.assertTrue(file_path.exists())
+
+            # Stage file contents for comparison.
+            original = io.StringIO()
+            for line in lines:
+                original.write("{}\n".format(line))
+            created_file = open(str(file_path), 'r', encoding='utf-8')
+
+            # Compare contents.
+            self.assertEquals(original.getvalue(), created_file.read())
+            original.close()
+            created_file.close()
 
     def test_suites(self):
         """Test suite creation and regeneration."""

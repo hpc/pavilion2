@@ -397,9 +397,9 @@ class TestRun:
         files_to_create = self.config['run']['create_files']
         if files_to_create:
             for file, contents in files_to_create.items():
-                file_path = Path(utils.resolve_path(self.build_path / file))
+                file_path = Path(utils.resolve_path(self.build_path / 'build' / file))
                 # Prevent files from being written outside build directory.
-                if not utils.dir_contains(file_path, self.build_path):
+                if not utils.dir_contains(file_path, self.build_path / 'build'):
                     raise TestRunError("'create_file: {}': file path"
                                        " outside build context."
                                        .format(file_path))
