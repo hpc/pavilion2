@@ -32,6 +32,25 @@ CONF_TEST = 'tests'
 LOGGER = logging.getLogger('pav.' + __name__)
 
 
+def union_dictionary(dict1, dict2):
+    """Combines two dictionaries with nested lists."""
+
+    new_dict = {}
+    dict2_keys = list(dict2.keys())
+
+    for key, list_value in dict1.items():
+        new_dict[key] = list_value
+        if key in dict2.keys():
+            new_dict[key].extend(dict2[key])
+            dict2_keys.remove(key)
+            new_dict[key] = list(set(new_dict[key]))
+
+    for key in dict2_keys:
+        new_dict[key] = dict2[key]
+
+    return new_dict
+
+
 class TestConfigResolver:
     """Converts raw test configurations into their final, fully resolved
     form."""
@@ -194,7 +213,8 @@ class TestConfigResolver:
 
         return suites
 
-    def load(self, tests, host=None, modes=None, overrides=None):
+    def load(self, tests, host=None, modes=None, overrides=None,
+             conditions=None):
         """Load the given tests, updated with their host and mode files.
 
         :param [str] tests: A list of test names to load.
@@ -217,6 +237,16 @@ class TestConfigResolver:
             host = self.base_var_man['sys.sys_name']
 
         raw_tests = self.load_raw_configs(tests, host, modes)
+
+        # apply series-defined conditions
+        if conditions:
+            for raw_test in raw_tests:
+                raw_test['only_if'] = union_dictionary(
+                    raw_test['only_if'], conditions['only_if']
+                )
+                raw_test['not_if'] = union_dictionary(
+                    raw_test['not_if'], conditions['not_if']
+                )
 
         raw_tests_by_sched = defaultdict(lambda: [])
 

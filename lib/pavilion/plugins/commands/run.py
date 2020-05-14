@@ -135,6 +135,7 @@ class RunCommand(commands.Command):
         tests_by_sched = self._get_tests(
             pav_cfg, args, mb_tracker, build_only=self.BUILD_ONLY,
             local_builds_only=getattr(args, 'local_builds_only', False))
+
         if tests_by_sched is None:
             return errno.EINVAL
 
@@ -289,7 +290,7 @@ class RunCommand(commands.Command):
         return 0
 
     def _get_test_configs(self, pav_cfg, host, test_files, tests, modes,
-                          overrides, sys_vars):
+                          overrides, sys_vars, conditions=None):
         """Translate a general set of pavilion test configs into the final,
         resolved configurations. These objects will be organized in a
         dictionary by scheduler, and have a scheduler object instantiated and
@@ -327,7 +328,8 @@ class RunCommand(commands.Command):
             tests,
             host,
             modes,
-            overrides
+            overrides,
+            conditions=conditions
         )
 
         tests_by_scheduler = defaultdict(lambda: [])

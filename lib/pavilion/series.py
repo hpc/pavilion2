@@ -5,16 +5,19 @@ import os
 import pathlib
 import time
 import copy
+import codecs
+import sys
+import errno
 
 from pavilion import utils
 from pavilion import commands
 from pavilion import arguments
 from pavilion import test_config
+from pavilion import system_variables
 from pavilion.test_config import resolver
 from pavilion.status_file import STATES
+from pavilion.builder import MultiBuildTracker
 from pavilion.test_run import TestRun, TestRunError, TestRunNotFoundError
-
-from pavilion.output import dbg_print # delete this later
 
 
 class TestSeriesError(RuntimeError):
@@ -93,6 +96,8 @@ class SeriesManager:
             raw_configs = temp_resolver.load_raw_configs([test_name],
                                                          [],
                                                          all_modes)
+            self.test_info[test_name]['only_if'] = test_config['only_if']
+            self.test_info[test_name]['not_if'] = test_config['not_if']
             for raw_config in raw_configs:
                 raw_config['only_if'] = union_dictionary(
                     raw_config['only_if'], test_config['only_if']
@@ -115,6 +120,7 @@ class SeriesManager:
             args_list.append(test_name)
 
             self.test_info[test_name]['args'] = args_list
+            self.test_info[test_name]['modes'] = all_modes
 
         # create doubly linked graph
         for test_name in self.dep_graph:
@@ -126,8 +132,6 @@ class SeriesManager:
                 if test_name in self.dep_graph[t_n]:
                     next_list.append(t_n)
             self.test_info[test_name]['next'] = next_list
-
-        dbg_print(self.test_info, '\n')
 
         # run tests in order
         self.all_tests = list(self.test_info.keys())
@@ -155,6 +159,8 @@ class SeriesManager:
                             self.not_started.remove(test_name)
                         else:
                             for config in self.test_info[test_name]['configs']:
+                                # need to delete these so they won't get
+                                # evaluated
                                 del config['only_if']
                                 del config['not_if']
                                 skipped_test = TestRun(self.pav_cfg, config)
@@ -173,11 +179,85 @@ class SeriesManager:
 
     def run_test(self, test_name):
         # basically copy what the run command is doing here
+        mb_tracker = MultiBuildTracker()
+
+        sys_vars = system_variables.get_vars(True)
 
         run_cmd = commands.get_command('run')
-        arg_parser = arguments.get_parser()
-        args = arg_parser.parse_args(self.test_info[test_name]['args'])
-        run_cmd.run(self.pav_cfg, args)
+
+        # run.RunCommand._get_tests function
+        try:
+            new_conditions = {
+                'only_if': self.test_info[test_name]['only_if'],
+                'not_if': self.test_info[test_name]['not_if']
+            }
+
+            # resolve configs
+            configs_by_sched = run_cmd._get_test_configs(
+                pav_cfg=self.pav_cfg,
+                host=None,
+                test_files=[],
+                tests=[test_name],
+                modes=self.test_info[test_name]['modes'],
+                overrides=None,
+                sys_vars=sys_vars,
+                conditions=new_conditions
+            )
+
+            # configs -> test
+            tests_by_sched = run_cmd._configs_to_tests(
+                pav_cfg=self.pav_cfg,
+                configs_by_sched=configs_by_sched,
+                mb_tracker=mb_tracker,
+                build_only=False,
+                rebuild=False
+            )
+
+        except commands.CommandError as err:
+            err = codecs.decode(str(err), 'unicode-escape')
+            fprint(err, file=sys.stderr, flush=True)
+            return None
+
+        if tests_by_sched is None:
+            return errno.EINVAL
+
+        all_tests = sum(tests_by_sched.values(), [])
+        run_cmd.last_tests = list(all_tests)
+
+        if not all_tests:
+            fprint("You must specify at least one test.", file=sys.stderr)
+            return errno.EINVAL
+
+        self.series_obj.add_tests(all_tests)
+        run_cmd.last_series = self.series_obj
+
+        res = run_cmd.check_result_parsers(all_tests)
+        if res != 0:
+            run_cmd._complete_tests(all_tests)
+            return res
+
+        res = run_cmd.build_local(
+            tests=all_tests,
+            max_threads=self.pav_cfg.build_threads,
+            mb_tracker=mb_tracker,
+            build_verbosity=0
+        )
+        if res != 0:
+            run_cmd._complete_tests(all_tests)
+            return res
+
+        run_cmd.run_tests(
+            pav_cfg=self.pav_cfg,
+            tests_by_sched=tests_by_sched,
+            series=self.series_obj,
+            wait=None,
+            report_status=False
+        )
+
+        # run_cmd = commands.get_command('run')
+        # arg_parser = arguments.get_parser()
+        # args = arg_parser.parse_args(self.test_info[test_name]['args'])
+        # run_cmd.run(self.pav_cfg, args)
         self.test_info[test_name]['obj'] = run_cmd.last_tests
         self.started.append(test_name)
 
