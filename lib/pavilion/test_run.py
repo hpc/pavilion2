@@ -6,7 +6,6 @@ the list of all known test runs."""
 import datetime
 import json
 import logging
-import io
 import os
 import re
 import subprocess
