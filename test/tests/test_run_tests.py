@@ -126,10 +126,11 @@ class TestRunTests(PavTestCase):
 
         plugins.initialize_plugins(self.pav_cfg)
         files_to_create = {
-            'runtime_file0': ['line_0', 'line_1'],
-            'wild/runtime_file1': ['line_0', 'line_1'],  # dir exists
-            'wild/dir2/runtime_file2': ['line_0', 'line_1'], # dir2 does not exist
-            'real.txt':['line_0', 'line_1'] # file exists
+            'runtime_0': ['line_0', 'line_1'],
+            'wild/runtime_1': ['line_0', 'line_1'],  # dir exists
+            'wild/dir2/runtime_2': ['line_0', 'line_1'], # dir2 does not exist
+            'real.txt': ['line_0', 'line_1'], # file exists; overwrite
+            'runtime_4': [] # deferred variable example
         }
         config = self._quick_test_cfg()
         config['build']['source_location'] = 'file_tests.tgz'
@@ -150,6 +151,32 @@ class TestRunTests(PavTestCase):
             self.assertEquals(original.getvalue(), created_file.read())
             original.close()
             created_file.close()
+
+    def test_files_create_errors(self):
+        """Ensure runtime file creation expected errors occur."""
+
+        plugins.initialize_plugins(self.pav_cfg)
+
+        # Ensure a file can't be written outside the build context.
+        files_to_fail = ['../file', '../../file', 'wild/../../file']
+        for file in files_to_fail:
+            file_arg = {file: []}
+            config = self._quick_test_cfg()
+            config['build']['source_location'] = 'file_tests.tgz'
+            config['build']['create_files'] = file_arg
+            with self.assertRaises(RuntimeError) as context:
+                self._quick_test(config)
+            self.assertTrue('outside build context' in str(context.exception))
+
+        # Ensure a file can't overwrite existing directories.
+        files_to_fail = ['wild', 'rec']
+        for file in files_to_fail:
+            file_arg = {file: []}
+            config = self._quick_test_cfg()
+            config['build']['source_location'] = 'file_tests.tgz'
+            config['build']['create_files'] = file_arg
+            test = TestRun(self.pav_cfg, config)
+            self.assertFalse(test.build())
 
     def test_suites(self):
         """Test suite creation and regeneration."""
