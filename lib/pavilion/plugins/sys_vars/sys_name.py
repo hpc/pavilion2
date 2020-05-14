@@ -9,8 +9,7 @@ class SystemName( system_plugins.SystemPlugin ):
             name='sys_name',
             description='The system name (not necessarily hostname).',
             priority=self.PRIO_CORE,
-            is_deferable=False, 
-            sub_keys=None )
+            is_deferable=False)
 
     def _get( self ):
         """Base method for determining the system name."""

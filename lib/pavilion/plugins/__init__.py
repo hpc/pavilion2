@@ -1,7 +1,23 @@
+"""This library manages the initialization of all the different Pavilion
+plugin types. It also contains most of the included plugins themselves.
+
+Plugin categories need to be registered in the 'PLUGIN_CATEGORIES' dictionary
+for Pavilion to recognize them.
+
+- Plugin base classes must all inherit from yapsy's IPlugin.IPlugin class
+- Plugin base *modules* must contain a ``__reset()`` method that
+  effectively ``deactivates()`` all plugins of that type.
+- Plugin base *modules* **may** also contain a ``register_core_plugins()``
+  to find, initialize, and ``activate()`` all plugins of that type
+  that aren't included as separate yapsy plugin modules.
+"""
+
+import inspect
 import logging
 from pathlib import Path
 
 from pavilion.commands import Command
+from pavilion.expression_functions import FunctionPlugin
 from pavilion.module_wrapper import ModuleWrapper
 from pavilion.result_parsers import ResultParser
 from pavilion.schedulers import SchedulerPlugin
@@ -13,11 +29,12 @@ LOGGER = logging.getLogger('plugins')
 _PLUGIN_MANAGER = None
 
 PLUGIN_CATEGORIES = {
-    'module': ModuleWrapper,
     'command': Command,
-    'sys': System,
-    'sched': SchedulerPlugin,
+    'function': FunctionPlugin,
+    'module': ModuleWrapper,
     'result': ResultParser,
+    'sched': SchedulerPlugin,
+    'sys': System,
 }
 
 __all__ = [
@@ -76,6 +93,12 @@ def initialize_plugins(pav_cfg):
             raise PluginError("Error activating plugin {name}: {err}"
                               .format(name=plugin.name, err=err))
 
+    # Some plugin types have core plugins that are built-in.
+    for _, cat_obj in PLUGIN_CATEGORIES.items():
+        module = inspect.getmodule(cat_obj)
+        if hasattr(module, 'register_core_plugins'):
+            module.register_core_plugins()
+
     _PLUGIN_MANAGER = pman
 
 
@@ -100,8 +123,6 @@ def list_plugins():
 def _reset_plugins():
     """Reset the plugin system. This functionality is for unittests,
     and should never be used in Pavilion proper."""
-
-    import inspect
 
     global _PLUGIN_MANAGER  # pylint: disable=W0603
 

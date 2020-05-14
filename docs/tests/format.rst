@@ -108,6 +108,15 @@ Pavilionisms
 While YAML is the base configuration language, Pavilion interprets the
 values given in some non-standard ways.
 
+Escapes
+^^^^^^^
+
+The YAML library used by Pavilion has been modified to handle escapes more
+like Python. This makes it easier for Pavilion to separately handle escapes
+that are unique to it (like ``\\{``). Yaml would normally throw an error
+on such escapes when using double quoted strings, but now it simply leaves them
+as is.
+
 Strings Only
 ^^^^^^^^^^^^
 
