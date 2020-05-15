@@ -68,8 +68,7 @@ File(s) to be created at runtime.
                     - {module: 'craype-hugepages2M', bytes: '2097152'}
         run:
             create_files:
-                # Basic example. Create a file, "data.in" in the build directory
-                # at runtime.
+                # Create file, "data.in", in the build directory at runtime.
                 - data.in
                     - 'line 1'
                     - 'line 2'
@@ -83,12 +82,12 @@ File(s) to be created at runtime.
                     - 'line 3'
 
                 # Create file, "var.in", with 'page' variable data inside nested
-                # subdirectory "subdir/another_subdir"
+                # subdirectory "subdir/another_subdir".
                 - ./subdir/another_subdir/var.in
                     - 'module = {{page.module}}'
                     - 'size = {{page.bytes}}'
 
-                # Create file, "defer.in", with deferred variables data.
+                # Create file, "defer.in", with deferred variables.
                 - defer.in
                     - system_name = {{sys.name}}
                     - system_os = {{sys.os}}
