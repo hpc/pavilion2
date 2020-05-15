@@ -105,10 +105,6 @@ class RunCommand(commands.Command):
                  "under which Pavilion runs has changed."
         )
         parser.add_argument(
-            '--series-id',
-            help='Provide series ID if test is already part of a series.'
-        )
-        parser.add_argument(
             'tests', nargs='*', action='store',
             help='The name of the tests to run. These may be suite names (in '
                  'which case every test in the suite is run), or a '
@@ -131,7 +127,6 @@ class RunCommand(commands.Command):
         mb_tracker = MultiBuildTracker()
 
         local_builds_only = getattr(args, 'local_builds_only', False)
-
         tests_by_sched = self._get_tests(
             pav_cfg, args, mb_tracker, build_only=self.BUILD_ONLY,
             local_builds_only=getattr(args, 'local_builds_only', False))
@@ -146,11 +141,7 @@ class RunCommand(commands.Command):
             fprint("You must specify at least one test.", file=self.errfile)
             return errno.EINVAL
 
-        if args.series_id is None:
-            series = TestSeries(pav_cfg, all_tests)
-        else:
-            series = TestSeries.from_id(pav_cfg, args.series_id)
-            series.add_tests(all_tests)
+        series = TestSeries(pav_cfg, all_tests)
 
         self.last_series = series
 

@@ -19,28 +19,11 @@ from pavilion.status_file import STATES
 from pavilion.builder import MultiBuildTracker
 from pavilion.test_run import TestRun, TestRunError, TestRunNotFoundError
 
+from pavilion.output import dbg_print
+
 
 class TestSeriesError(RuntimeError):
     """An error in managing a series of tests."""
-
-
-def union_dictionary(dict1, dict2):
-    """Combines two dictionaries with nested lists."""
-
-    new_dict = {}
-    dict2_keys = list(dict2.keys())
-
-    for key, list_value in dict1.items():
-        new_dict[key] = list_value
-        if key in dict2.keys():
-            new_dict[key].extend(dict2[key])
-            dict2_keys.remove(key)
-            new_dict[key] = list(set(new_dict[key]))
-
-    for key in dict2_keys:
-        new_dict[key] = dict2[key]
-
-    return new_dict
 
 
 def test_obj_from_id(pav_cfg, test_ids):
@@ -86,41 +69,14 @@ class SeriesManager:
         universal_modes = self.series_cfg['modes']
 
         self.test_info = {}
-        # set up configs for tests
-        # { test_name : { 'config': <loaded config> }
-        temp_resolver = resolver.TestConfigResolver(self.pav_cfg)
+
         for test_name, test_config in self.series_section.items():
             self.test_info[test_name] = {}
             test_modes = test_config['modes']
             all_modes = universal_modes + test_modes
-            raw_configs = temp_resolver.load_raw_configs([test_name],
-                                                         [],
-                                                         all_modes)
+            self.test_info[test_name]['modes'] = all_modes
             self.test_info[test_name]['only_if'] = test_config['only_if']
             self.test_info[test_name]['not_if'] = test_config['not_if']
-            for raw_config in raw_configs:
-                raw_config['only_if'] = union_dictionary(
-                    raw_config['only_if'], test_config['only_if']
-                )
-                raw_config['not_if'] = union_dictionary(
-                    raw_config['not_if'], test_config['not_if']
-                )
-            self.test_info[test_name]['configs'] = raw_configs
-
-        # set up args for tests
-        # { test_name: { 'args': args } }
-        for test_name, test_config in self.series_section.items():
-            # self.test_info[test_name] = {}
-            test_modes = test_config['modes']
-            all_modes = universal_modes + test_modes
-
-            args_list = ['run', '--series-id={}'.format(self.series_obj.id)]
-            for mode in all_modes:
-                args_list.append('-m{}'.format(mode))
-            args_list.append(test_name)
-
-            self.test_info[test_name]['args'] = args_list
-            self.test_info[test_name]['modes'] = all_modes
 
         # create doubly linked graph
         for test_name in self.dep_graph:
@@ -145,6 +101,9 @@ class SeriesManager:
                 self.not_started = list(set(self.all_tests) - set(self.started))
 
         while len(self.not_started) != 0:
+            dbg_print('\nwaiting ', self.not_started, color=33)
+            dbg_print('\nstarted ', self.started, color=35)
+            dbg_print('\nfinished ', self.finished, '\n', color=32)
 
             self.check_and_update()
             temp_waiting = copy.deepcopy(self.not_started)
@@ -158,9 +117,17 @@ class SeriesManager:
                             self.run_test(test_name)
                             self.not_started.remove(test_name)
                         else:
-                            for config in self.test_info[test_name]['configs']:
+                            temp_resolver = resolver.TestConfigResolver(
+                                self.pav_cfg)
+                            raw_configs = temp_resolver.load_raw_configs(
+                                [test_name], [],
+                                self.test_info[test_name]['modes']
+                            )
+                            for config in raw_configs:
                                 # need to delete these so they won't get
                                 # evaluated
+                                dbg_print('\nskipping', test_name, '\n',
+                                          color=31)
                                 del config['only_if']
                                 del config['not_if']
                                 skipped_test = TestRun(self.pav_cfg, config)
@@ -178,6 +145,7 @@ class SeriesManager:
             time.sleep(1)
 
     def run_test(self, test_name):
+        dbg_print('\nattempting to run', test_name, '\n', color=34)
         # basically copy what the run command is doing here
         mb_tracker = MultiBuildTracker()
 
@@ -214,28 +182,40 @@ class SeriesManager:
             )
 
         except commands.CommandError as err:
+            # probably won't happen
             err = codecs.decode(str(err), 'unicode-escape')
             fprint(err, file=sys.stderr, flush=True)
+            self.finished.append(test_name)
             return None
 
         if tests_by_sched is None:
+            # probably won't happen but just in case
+            self.finished.append(test_name)
             return errno.EINVAL
 
         all_tests = sum(tests_by_sched.values(), [])
         run_cmd.last_tests = list(all_tests)
 
         if not all_tests:
+            # probably won't happen but just in case
             fprint("You must specify at least one test.", file=sys.stderr)
+            self.test_info[test_name]['obj'] = run_cmd.last_tests
+            self.started.append(test_name)
             return errno.EINVAL
 
+        # assign test to series and vice versa
         self.series_obj.add_tests(all_tests)
         run_cmd.last_series = self.series_obj
 
+        # make sure result parsers are ok
         res = run_cmd.check_result_parsers(all_tests)
         if res != 0:
             run_cmd._complete_tests(all_tests)
-            return res
+            self.test_info[test_name]['obj'] = run_cmd.last_tests
+            self.started.append(test_name)
+            return
 
+        # attempt to build
         res = run_cmd.build_local(
             tests=all_tests,
             max_threads=self.pav_cfg.build_threads,
@@ -244,7 +224,9 @@ class SeriesManager:
         )
         if res != 0:
             run_cmd._complete_tests(all_tests)
-            return res
+            self.test_info[test_name]['obj'] = run_cmd.last_tests
+            self.started.append(test_name)
+            return
 
         run_cmd.run_tests(
             pav_cfg=self.pav_cfg,
@@ -254,10 +236,6 @@ class SeriesManager:
             report_status=False
         )
 
-        # run_cmd = commands.get_command('run')
-        # arg_parser = arguments.get_parser()
-        # args = arg_parser.parse_args(self.test_info[test_name]['args'])
-        # run_cmd.run(self.pav_cfg, args)
         self.test_info[test_name]['obj'] = run_cmd.last_tests
         self.started.append(test_name)
 
