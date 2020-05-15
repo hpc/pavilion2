@@ -137,14 +137,14 @@ class TestRunTests(PavTestCase):
                                  '{{var4.1.subvar1}}', '{{var4.1.subvar2}}']
         }
         variables = {
-            'var1': 'val1',
-            'var2': ['0', '1', '2'],
-            'var3': {'subvar1': 'subval1',
-                     'subvar2': 'subval2'},
-            'var4': [{'subvar1': 'subval0_1',
-                      'subvar2': 'subval0_2'},
-                     {'subvar1': 'subval1_1',
-                      'subvar2': 'subval1_2'}]
+            'var1': 'val_1',
+            'var2': ['val_2', 'val_3', 'val_4'],
+            'var3': {'subvar_1': 'val_5',
+                     'subvar_2': 'val_6'},
+            'var4': [{'subvar_3': 'val_7',
+                      'subvar_4': 'val_8'},
+                     {'subvar_5': 'val_9',
+                      'subvar_6': 'val_10'}]
         }
         config = self._quick_test_cfg()
         config['variables'] = variables
@@ -159,16 +159,14 @@ class TestRunTests(PavTestCase):
             # Stage file contents for comparison.
             original = io.StringIO()
             created_file = open(str(file_path), 'r', encoding='utf-8')
-            for line in lines:
-                original.write("{}\n".format(line))
-                if file == 'runtime_variable':
-                    # FIXME: actually implement
-                    correct_out = io.StringIO
-                    correct_out.write("1\n2\n")
-                    self.assertEquals(correct_out.read(), created_file.read())
-                    correct_out.close()
-                else:
-                    self.assertEquals(original.getvalue(), created_file.read())
+            if file == 'runtime_variable':
+                original.write('val_1\nval_2\nval_3\nval_4\nval_5\nval_6'
+                               'val_7\nval_8\nval_9\nval_10')
+            else:
+                for line in lines:
+                    original.write("{}\n".format(line))
+
+            self.assertEquals(original.getvalue(), created_file.read())
             original.close()
             created_file.close()
 
