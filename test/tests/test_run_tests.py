@@ -161,7 +161,7 @@ class TestRunTests(PavTestCase):
             created_file = open(str(file_path), 'r', encoding='utf-8')
             if file == 'runtime_variable':
                 original.write('val_1\nval_2\nval_3\nval_4\nval_5\nval_6'
-                               'val_7\nval_8\nval_9\nval_10')
+                               'val_7\nval_8\nval_9\nval_10\n')
             else:
                 for line in lines:
                     original.write("{}\n".format(line))
