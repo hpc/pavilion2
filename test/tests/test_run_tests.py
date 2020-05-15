@@ -132,9 +132,9 @@ class TestRunTests(PavTestCase):
             'real.txt': ['line_0', 'line_1'], # file exists; overwrite
             'runtime_variable': ['{{var1}}',
                                  '{{var2.0}}', '{{var2.1}}', '{{var2.2}}',
-                                 '{{var3.subvar1}}', '{{var3.subvar2}}',
-                                 '{{var4.0.subvar1}}', '{{var4.0.subvar2}}',
-                                 '{{var4.1.subvar1}}', '{{var4.1.subvar2}}']
+                                 '{{var3.subvar_1}}', '{{var3.subvar_2}}',
+                                 '{{var4.0.subvar_3}}', '{{var4.0.subvar_4}}',
+                                 '{{var4.1.subvar_5}}', '{{var4.1.subvar_6}}']
         }
         variables = {
             'var1': 'val_1',
