@@ -21,7 +21,7 @@ There are four attributes:
 
 -  `modules <#modules-list>`__ - Add/remove/swap modules.
 -  `env <#env-mapping>`__ - Alter environment variables
--  `create_files <#create_files>`__ - Create files at run time.
+-  `create_files <#create_files-list>`__ - Create files at run time.
 -  `cmds <#cmds-list>`__ - Run these commands.
 
 modules (list)
