@@ -142,7 +142,6 @@ class RunCommand(commands.Command):
             return errno.EINVAL
 
         series = TestSeries(pav_cfg, all_tests)
-
         self.last_series = series
 
         res = self.check_result_parsers(all_tests)

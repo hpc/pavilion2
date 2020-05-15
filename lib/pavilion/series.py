@@ -19,8 +19,6 @@ from pavilion.status_file import STATES
 from pavilion.builder import MultiBuildTracker
 from pavilion.test_run import TestRun, TestRunError, TestRunNotFoundError
 
-from pavilion.output import dbg_print
-
 
 class TestSeriesError(RuntimeError):
     """An error in managing a series of tests."""
@@ -101,9 +99,6 @@ class SeriesManager:
                 self.not_started = list(set(self.all_tests) - set(self.started))
 
         while len(self.not_started) != 0:
-            dbg_print('\nwaiting ', self.not_started, color=33)
-            dbg_print('\nstarted ', self.started, color=35)
-            dbg_print('\nfinished ', self.finished, '\n', color=32)
 
             self.check_and_update()
             temp_waiting = copy.deepcopy(self.not_started)
@@ -126,8 +121,6 @@ class SeriesManager:
                             for config in raw_configs:
                                 # need to delete these so they won't get
                                 # evaluated
-                                dbg_print('\nskipping', test_name, '\n',
-                                          color=31)
                                 del config['only_if']
                                 del config['not_if']
                                 skipped_test = TestRun(self.pav_cfg, config)
@@ -145,7 +138,6 @@ class SeriesManager:
             time.sleep(1)
 
     def run_test(self, test_name):
-        dbg_print('\nattempting to run', test_name, '\n', color=34)
         # basically copy what the run command is doing here
         mb_tracker = MultiBuildTracker()
 
@@ -161,6 +153,7 @@ class SeriesManager:
             }
 
             # resolve configs
+            # pylint: disable=W0212
             configs_by_sched = run_cmd._get_test_configs(
                 pav_cfg=self.pav_cfg,
                 host=None,
@@ -173,6 +166,7 @@ class SeriesManager:
             )
 
             # configs -> test
+            # pylint: disable=W0212
             tests_by_sched = run_cmd._configs_to_tests(
                 pav_cfg=self.pav_cfg,
                 configs_by_sched=configs_by_sched,
@@ -210,6 +204,7 @@ class SeriesManager:
         # make sure result parsers are ok
         res = run_cmd.check_result_parsers(all_tests)
         if res != 0:
+            # pylint: disable=W0212
             run_cmd._complete_tests(all_tests)
             self.test_info[test_name]['obj'] = run_cmd.last_tests
             self.started.append(test_name)
@@ -223,6 +218,7 @@ class SeriesManager:
             build_verbosity=0
         )
         if res != 0:
+            # pylint: disable=W0212
             run_cmd._complete_tests(all_tests)
             self.test_info[test_name]['obj'] = run_cmd.last_tests
             self.started.append(test_name)
