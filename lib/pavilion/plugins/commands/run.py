@@ -127,10 +127,10 @@ class RunCommand(commands.Command):
         mb_tracker = MultiBuildTracker()
 
         local_builds_only = getattr(args, 'local_builds_only', False)
+
         tests_by_sched = self._get_tests(
             pav_cfg, args, mb_tracker, build_only=self.BUILD_ONLY,
             local_builds_only=getattr(args, 'local_builds_only', False))
-
         if tests_by_sched is None:
             return errno.EINVAL
 
