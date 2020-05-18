@@ -21,7 +21,7 @@ There are four attributes:
 
 -  `modules <#modules-list>`__ - Add/remove/swap modules.
 -  `env <#env-mapping>`__ - Alter environment variables
--  `create_files <#create\_files-list>`__ - Create files at run time.
+-  ref:`createfile` - Create files at run time.
 -  `cmds <#cmds-list>`__ - Run these commands.
 
 modules (list)
@@ -47,8 +47,9 @@ to refer to other bash variables or contain sub-shell escapes.
 
 See `Env Vars <env.html#environment-variables>`__ for more info.
 
-create\_files (list)
-^^^^^^^^^^^^^^^^^^^^
+.. _createfile:
+create_files (list)
+^^^^^^^^^^^^^^^^^^^
 
 File(s) to be created at runtime.
 
