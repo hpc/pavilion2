@@ -63,7 +63,7 @@ class RunCommand(commands.Command):
             help='Display test statuses'
         )
         parser.add_argument(
-            '--series',
+            '--series', default=None,
             help="Series name. Will ignore other sub-command options. "
         )
 
@@ -129,7 +129,8 @@ class RunCommand(commands.Command):
         #   - Compile variables.
         #
 
-        if args.series:
+        series_arg = getattr(args, 'series', None)
+        if series_arg:
             # make series object
             series_obj = TestSeries(pav_cfg)
 
