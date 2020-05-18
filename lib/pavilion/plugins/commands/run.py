@@ -5,6 +5,7 @@ import errno
 import pathlib
 import time
 import threading
+import subprocess
 from collections import defaultdict
 
 from pavilion import commands
@@ -60,6 +61,10 @@ class RunCommand(commands.Command):
         parser.add_argument(
             '-s', '--status', action='store_true', default=False,
             help='Display test statuses'
+        )
+        parser.add_argument(
+            '--series',
+            help="Series name. Will ignore other sub-command options. "
         )
 
     @staticmethod
@@ -123,6 +128,23 @@ class RunCommand(commands.Command):
         #   - Get sched vars from scheduler.
         #   - Compile variables.
         #
+
+        if args.series:
+            # make series object
+            series_obj = TestSeries(pav_cfg)
+
+            # call _auto_series
+            temp_args = ['pav', '_auto_series', args.series,
+                         '--series-id={}'.format(series_obj.id)]
+            subprocess.Popen(temp_args,
+                             stdout=subprocess.DEVNULL,
+                             stderr=subprocess.DEVNULL)
+
+            fprint("Started series {}. "
+                   "Run `pav status {}` to view status."
+                   .format(series_obj.id, series_obj.id))
+
+            return 0
 
         mb_tracker = MultiBuildTracker()
 
