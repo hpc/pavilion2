@@ -4,8 +4,6 @@ from pavilion import series
 from pavilion.test_config.resolver import TestConfigResolver
 from pavilion.test_config.file_format import SeriesConfigLoader
 
-from pavilion.output import dbg_print  # delete this
-
 
 class AutoSeries(commands.Command):
     """Command to kickoff series."""
@@ -45,6 +43,13 @@ class AutoSeries(commands.Command):
                 series_obj = series.TestSeries.from_id(pav_cfg, args.series_id)
 
             series_cfg = series_config_loader.load(series_file)
+            if series_cfg['ordered'] in ['True', 'true']:
+                ser_keys = list(series_cfg['series'].keys())
+                for ser_idx in range(len(ser_keys)-1):
+                    temp_depends_on = series_cfg['series'][ser_keys[
+                        ser_idx+1]]['depends_on']
+                    if ser_keys[ser_idx] not in temp_depends_on:
+                        temp_depends_on.append(ser_keys[ser_idx])
 
             series_man = series.SeriesManager(pav_cfg, series_obj, series_cfg)
 

@@ -159,6 +159,10 @@ class SeriesConfigLoader(yc.YamlConfigLoader):
         yc.ListElem(
             'on_complete', sub_elem=yc.StrElem()
         ),
+        yc.StrElem(
+            'ordered', choices=['True', 'true', 'False', 'false'],
+            default='False'
+        )
     ]
     """Describes elements in Series Config Loader."""
 
