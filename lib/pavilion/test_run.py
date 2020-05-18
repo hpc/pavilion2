@@ -16,7 +16,7 @@ from pathlib import Path
 import pavilion.output
 from pavilion import builder
 from pavilion import lockfile
-from pavilion.results import parsers
+from pavilion import result
 from pavilion import scriptcomposer
 from pavilion import utils
 from pavilion.status_file import StatusFile, STATES
@@ -522,7 +522,7 @@ class TestRun:
         """Run the test.
 
         :rtype: bool
-        :returns: True if the test completed and returned zero, false otherwise.
+        :returns: The return code of the test command.
         :raises TimeoutError: When the run times out.
         :raises TestRunError: We don't actually raise this, but might in the
             future.
@@ -585,11 +585,8 @@ class TestRun:
 
         self.status.set(STATES.RUN_DONE,
                         "Test run has completed.")
-        if result == 0:
-            return True
 
-        # Return False in all other circumstances.
-        return False
+        return result
 
     def set_run_complete(self):
         """Write a file in the test directory that indicates that the test
@@ -679,7 +676,7 @@ result
 sched
     All of the scheduler variable values.
 
-:param bool run_result: The result of the run.
+:param int run_result: The return code of the test run.
 """
 
         if self.finished is None:
@@ -692,15 +689,9 @@ sched
 
         parser_configs = self.config['result']['parsers']
 
-        if run_result:
-            default_result = parsers.PASS
-        else:
-            default_result = parsers.FAIL
+        results = result.base_results(self)
 
-        results = parsers.base_results(self)
-
-        # This may be overridden by result parsers.
-        results['result'] = default_result
+        results['return_value'] = run_result
 
         self.status.set(STATES.RESULTS,
                         "Parsing {} result types."
@@ -720,9 +711,6 @@ sched
 
 
         self._results = results
-
-
-
 
         return results
 
