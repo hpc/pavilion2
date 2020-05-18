@@ -4,8 +4,8 @@ import logging
 import yaml_config as yc
 from pavilion import arguments
 from pavilion import plugins
-from pavilion import result_parsers
-from pavilion.result_parsers import ResultParserError
+from pavilion.results import parsers
+from pavilion.results.parsers import ResultParserError
 from pavilion.unittest import PavTestCase
 
 LOGGER = logging.getLogger(__name__)
@@ -51,7 +51,7 @@ class ResultParserTests(PavTestCase):
                             'key': 'true',
                             'files': ['../run.log'],
                             'regex': r'.* World',
-                            'action': result_parsers.ACTION_TRUE,
+                            'action': parsers.ACTION_TRUE,
                         },
                         {
                             # As before, but false. Also, with lists of data.
@@ -59,24 +59,24 @@ class ResultParserTests(PavTestCase):
                             # By multiple globs.
                             'files': ['../run.log', 'other.*'],
                             'regex': r'.* World',
-                            'match_type': result_parsers.MATCH_ALL,
-                            'action': result_parsers.ACTION_FALSE,
+                            'match_type': parsers.MATCH_ALL,
+                            'action': parsers.ACTION_FALSE,
                         },
                         {
                             # As before, but keep match counts.
                             'key': 'count',
                             'files': ['../run.log', '*.log'],
                             'regex': r'.* World',
-                            'match_type': result_parsers.MATCH_ALL,
-                            'action': result_parsers.ACTION_COUNT,
-                            'per_file': result_parsers.PER_FULLNAME,
+                            'match_type': parsers.MATCH_ALL,
+                            'action': parsers.ACTION_COUNT,
+                            'per_file': parsers.PER_FULLNAME,
                         },
                         {
                             # Store matches by fullname
                             'key': 'fullname',
                             'files': ['../run.log', '*.log'],
                             'regex': r'.* World',
-                            'per_file': result_parsers.PER_FULLNAME,
+                            'per_file': parsers.PER_FULLNAME,
                         },
                         {
                             # Store matches by name stub
@@ -85,7 +85,7 @@ class ResultParserTests(PavTestCase):
                             'key': 'name',
                             'files': ['other.*'],
                             'regex': r'.* World',
-                            'per_file': result_parsers.PER_NAME,
+                            'per_file': parsers.PER_NAME,
                         },
                         {
                             # Store matches by name stub
@@ -94,7 +94,7 @@ class ResultParserTests(PavTestCase):
                             'key': 'name_list',
                             'files': ['*.log'],
                             'regex': r'World',
-                            'per_file': result_parsers.PER_NAME_LIST,
+                            'per_file': parsers.PER_NAME_LIST,
                         },
                         {
                             # Store matches by name stub
@@ -103,28 +103,28 @@ class ResultParserTests(PavTestCase):
                             'key': 'fullname_list',
                             'files': ['*.log'],
                             'regex': r'World',
-                            'per_file': result_parsers.PER_FULLNAME_LIST,
+                            'per_file': parsers.PER_FULLNAME_LIST,
                         },
                         {
                             'key': 'lists',
                             'files': ['other*'],
                             'regex': r'.* World',
-                            'match_type': result_parsers.MATCH_ALL,
-                            'per_file': result_parsers.PER_LIST,
+                            'match_type': parsers.MATCH_ALL,
+                            'per_file': parsers.PER_LIST,
                         },
                         {
                             'key': 'all',
                             'files': ['other*'],
                             'regex': r'.* World',
-                            'action': result_parsers.ACTION_TRUE,
-                            'per_file': result_parsers.PER_ALL
+                            'action': parsers.ACTION_TRUE,
+                            'per_file': parsers.PER_ALL
                         },
                         {
                             'key': 'result',
                             'files': ['other*'],
                             'regex': r'.* World',
-                            'action': result_parsers.ACTION_TRUE,
-                            'per_file': result_parsers.PER_ANY
+                            'action': parsers.ACTION_TRUE,
+                            'per_file': parsers.PER_ANY
                         },
                     ]
                 }
@@ -134,7 +134,7 @@ class ResultParserTests(PavTestCase):
         test = self._quick_test(test_cfg, 'result_parser_test')
         test.run()
 
-        results = result_parsers.parse_results(
+        results = parsers.parse_results(
             test=test,
             results={}
         )
@@ -177,7 +177,7 @@ class ResultParserTests(PavTestCase):
                                  "I'm here to cause World"]))
 
         self.assertEqual(results['all'], False)
-        self.assertEqual(results['result'], result_parsers.PASS)
+        self.assertEqual(results['result'], parsers.PASS)
 
     def test_check_args(self):
 
@@ -222,10 +222,10 @@ class ResultParserTests(PavTestCase):
                                        msg="Error '{}' not raised for '{}'"
                                            .format(err_type, parsers)):
                     test = self._quick_test(test_cfg, 'check_args_test')
-                    result_parsers.check_args(test.config['result']['parsers'])
+                    parsers.check_args(test.config['result']['parsers'])
             else:
                 test = self._quick_test(test_cfg, 'check_args_test')
-                result_parsers.check_args(test.config['result']['parsers'])
+                parsers.check_args(test.config['result']['parsers'])
 
     def test_base_results(self):
         """Make all base result functions work."""
@@ -245,9 +245,9 @@ class ResultParserTests(PavTestCase):
         test.finished = now + datetime.timedelta(seconds=3)
         test.job_id = 'test'
 
-        base_results = result_parsers.base_results(test)
+        base_results = parsers.base_results(test)
 
-        for key in result_parsers.BASE_RESULTS.keys():
+        for key in parsers.BASE_RESULTS.keys():
             self.assertIn(key, base_results)
             # Base result keys should have a non-None value, even from an
             # empty config file.
@@ -284,21 +284,21 @@ class ResultParserTests(PavTestCase):
                             # Test for storing the whole line
                             'key': 'key0',
                             'regex': r'^User:.*$',
-                            'match_type': result_parsers.MATCH_ALL,
+                            'match_type': parsers.MATCH_ALL,
                         },
                         {
                             # Test for storing a single value
                             'key': 'key1',
                             'regex': r'^result1=(.*)$',
-                            'match_type': result_parsers.MATCH_ALL,
+                            'match_type': parsers.MATCH_ALL,
                         },
                         {
                             # Test for expecting a range of negative integers
                             'key': 'key2',
                             'regex': r'^result9=(.*)$',
                             'expected': ['-13:-9'],
-                            'action': result_parsers.ACTION_TRUE,
-                            'match_type': result_parsers.MATCH_ALL,
+                            'action': parsers.ACTION_TRUE,
+                            'match_type': parsers.MATCH_ALL,
                         },
                         {
                             # Test for expecting a range of floats where the value
@@ -306,8 +306,8 @@ class ResultParserTests(PavTestCase):
                             'key': 'key3',
                             'regex': r'^result12=(.*)$',
                             'expected': ['9.0:9.9'],
-                            'action': result_parsers.ACTION_TRUE,
-                            'match_type': result_parsers.MATCH_ALL,
+                            'action': parsers.ACTION_TRUE,
+                            'match_type': parsers.MATCH_ALL,
                         },
                         {
                             # Test for expecting a range of floats that has zero
@@ -315,8 +315,8 @@ class ResultParserTests(PavTestCase):
                             'key': 'key4',
                             'regex': r'^result12=(.*)$',
                             'expected': ['9.9:9.9'],
-                            'action': result_parsers.ACTION_TRUE,
-                            'match_type': result_parsers.MATCH_ALL,
+                            'action': parsers.ACTION_TRUE,
+                            'match_type': parsers.MATCH_ALL,
                         },
                         {
                             # Test for expecting a range of floats where the value
@@ -324,8 +324,8 @@ class ResultParserTests(PavTestCase):
                             'key': 'key5',
                             'regex': r'^result12=(.*)$',
                             'expected': ['9.9:10.0'],
-                            'action': result_parsers.ACTION_TRUE,
-                            'match_type': result_parsers.MATCH_ALL,
+                            'action': parsers.ACTION_TRUE,
+                            'match_type': parsers.MATCH_ALL,
                         },
                         {
                             # Test for expecting a range of floats from negative to
@@ -333,16 +333,16 @@ class ResultParserTests(PavTestCase):
                             'key': 'key6',
                             'regex': r'^result12=(.*)$',
                             'expected': ['-9.9:10.0'],
-                            'action': result_parsers.ACTION_TRUE,
-                            'match_type': result_parsers.MATCH_ALL,
+                            'action': parsers.ACTION_TRUE,
+                            'match_type': parsers.MATCH_ALL,
                         },
                         {
                             # Test for expecting a range of negative integers
                             'key': 'key7',
                             'regex': r'^result13=(.*)$',
                             'expected': ['-32:-22'],
-                            'action': result_parsers.ACTION_TRUE,
-                            'match_type': result_parsers.MATCH_ALL,
+                            'action': parsers.ACTION_TRUE,
+                            'match_type': parsers.MATCH_ALL,
                         },
                         {
                             # Test for expecting a range from a negative float to a
@@ -350,8 +350,8 @@ class ResultParserTests(PavTestCase):
                             'key': 'key8',
                             'regex': r'^result13=(.*)$',
                             'expected': ['-32.0:22'],
-                            'action': result_parsers.ACTION_TRUE,
-                            'match_type': result_parsers.MATCH_ALL,
+                            'action': parsers.ACTION_TRUE,
+                            'match_type': parsers.MATCH_ALL,
                         },
                         {
                             # Test for expecting a range from a very large negative
@@ -359,8 +359,8 @@ class ResultParserTests(PavTestCase):
                             'key': 'key9',
                             'regex': r'^result13=(.*)$',
                             'expected': ['-10000000000.0:0'],
-                            'action': result_parsers.ACTION_TRUE,
-                            'match_type': result_parsers.MATCH_ALL,
+                            'action': parsers.ACTION_TRUE,
+                            'match_type': parsers.MATCH_ALL,
                         },
                         {
                             # Test for checking a set of results that are NOT in a
@@ -368,16 +368,16 @@ class ResultParserTests(PavTestCase):
                             'key': 'key10',
                             'regex': r'^result.*=(.*)$',
                             'expected': ['100', '101'],
-                            'action': result_parsers.ACTION_TRUE,
-                            'match_type': result_parsers.MATCH_ALL,
+                            'action': parsers.ACTION_TRUE,
+                            'match_type': parsers.MATCH_ALL,
                         },
                         {
                             # Test for a list of results in a range of floats
                             'key': 'key11',
                             'regex': r'result5.=([0-9.]*)',
                             'expected': ['18.0:18.5'],
-                            'action': result_parsers.ACTION_TRUE,
-                            'match_type': result_parsers.MATCH_ALL,
+                            'action': parsers.ACTION_TRUE,
+                            'match_type': parsers.MATCH_ALL,
                         },
                         {
                             # Test for a list of results where one value is inside
@@ -385,8 +385,8 @@ class ResultParserTests(PavTestCase):
                             'key': 'key12',
                             'regex': r'^result50=(.*),result51=(.*)$',
                             'expected': ['18.0:18.2'],
-                            'action': result_parsers.ACTION_TRUE,
-                            'match_type': result_parsers.MATCH_ALL,
+                            'action': parsers.ACTION_TRUE,
+                            'match_type': parsers.MATCH_ALL,
                         },
                         {
                             # Test for a list of results in a one-side bounded
@@ -394,8 +394,8 @@ class ResultParserTests(PavTestCase):
                             'key': 'key13',
                             'regex': r'result5.=([0-9.]*)',
                             'expected': [':18.5'],
-                            'action': result_parsers.ACTION_TRUE,
-                            'match_type': result_parsers.MATCH_ALL,
+                            'action': parsers.ACTION_TRUE,
+                            'match_type': parsers.MATCH_ALL,
                         },
                         {
                             # Test for a list of results in a one-side bounded
@@ -403,8 +403,8 @@ class ResultParserTests(PavTestCase):
                             'key': 'key14',
                             'regex': r'result5.=([0-9.]*)',
                             'expected': ['18.0:'],
-                            'action': result_parsers.ACTION_TRUE,
-                            'match_type': result_parsers.MATCH_ALL,
+                            'action': parsers.ACTION_TRUE,
+                            'match_type': parsers.MATCH_ALL,
                         },
                         {
                             # Test for a list of results where one value is inside
@@ -412,8 +412,8 @@ class ResultParserTests(PavTestCase):
                             'key': 'key15',
                             'regex': r'^result50=(.*),result51=(.*)$',
                             'expected': [':18.2'],
-                            'action': result_parsers.ACTION_TRUE,
-                            'match_type': result_parsers.MATCH_ALL,
+                            'action': parsers.ACTION_TRUE,
+                            'match_type': parsers.MATCH_ALL,
                         },
                         {
                             # Test for a list of results where one value is inside
@@ -421,14 +421,14 @@ class ResultParserTests(PavTestCase):
                             'key': 'key16',
                             'regex': r'^result50=(.*),result51=(.*)$',
                             'expected': ['18.0:'],
-                            'action': result_parsers.ACTION_TRUE,
-                            'match_type': result_parsers.MATCH_ALL,
+                            'action': parsers.ACTION_TRUE,
+                            'match_type': parsers.MATCH_ALL,
                         },
                         {
                             # A test using the 'result' key is required.
                             'key': 'result',
                             'regex': r'^overall=(.*)$',
-                            'action': result_parsers.ACTION_TRUE,
+                            'action': parsers.ACTION_TRUE,
                         }
                     ]
                 }
@@ -438,7 +438,7 @@ class ResultParserTests(PavTestCase):
         test = self._quick_test(test_cfg, 'result_parser_test')
         test.run()
 
-        results = result_parsers.parse_results(
+        results = parsers.parse_results(
             test=test,
             results={}
         )
@@ -498,79 +498,79 @@ class ResultParserTests(PavTestCase):
                             # Test for finding greater than the threshold present
                             'key': 'key0',
                             'regex': r'result',
-                            'action': result_parsers.ACTION_TRUE,
-                            'match_type': result_parsers.MATCH_ALL,
+                            'action': parsers.ACTION_TRUE,
+                            'match_type': parsers.MATCH_ALL,
                             'threshold': '7',
                         },
                         {
                             # Test for finding equal to the threshold present
                             'key': 'key1',
                             'regex': r'result',
-                            'action': result_parsers.ACTION_TRUE,
-                            'match_type': result_parsers.MATCH_ALL,
+                            'action': parsers.ACTION_TRUE,
+                            'match_type': parsers.MATCH_ALL,
                             'threshold': '8',
                         },
                         {
                             # Test for finding fewer than the threshold present
                             'key': 'key2',
                             'regex': r'result',
-                            'action': result_parsers.ACTION_TRUE,
-                            'match_type': result_parsers.MATCH_ALL,
+                            'action': parsers.ACTION_TRUE,
+                            'match_type': parsers.MATCH_ALL,
                             'threshold': '9',
                         },
                         {
                             # Test for finding equal to of a more specific search
                             'key': 'key3',
                             'regex': r'result1',
-                            'action': result_parsers.ACTION_TRUE,
-                            'match_type': result_parsers.MATCH_ALL,
+                            'action': parsers.ACTION_TRUE,
+                            'match_type': parsers.MATCH_ALL,
                             'threshold': '3',
                         },
                         {
                             # Test for finding fewer than of a more specific search
                             'key': 'key4',
                             'regex': r'result1',
-                            'action': result_parsers.ACTION_TRUE,
-                            'match_type': result_parsers.MATCH_ALL,
+                            'action': parsers.ACTION_TRUE,
+                            'match_type': parsers.MATCH_ALL,
                             'threshold': '4',
                         },
                         {
                             # Test for a threshold of zero
                             'key': 'key5',
                             'regex': r'overall=whatevs',
-                            'action': result_parsers.ACTION_TRUE,
-                            'match_type': result_parsers.MATCH_ALL,
+                            'action': parsers.ACTION_TRUE,
+                            'match_type': parsers.MATCH_ALL,
                             'threshold': '0',
                         },
                         {
                             # Test for a more complex search
                             'key': 'key6',
                             'regex': r'overall=whatevs',
-                            'action': result_parsers.ACTION_TRUE,
-                            'match_type': result_parsers.MATCH_ALL,
+                            'action': parsers.ACTION_TRUE,
+                            'match_type': parsers.MATCH_ALL,
                             'threshold': '1',
                         },
                         {
                             # Test for a more complex search that fails
                             'key': 'key7',
                             'regex': r'overall=whatevs',
-                            'action': result_parsers.ACTION_TRUE,
-                            'match_type': result_parsers.MATCH_ALL,
+                            'action': parsers.ACTION_TRUE,
+                            'match_type': parsers.MATCH_ALL,
                             'threshold': '2',
                         },
                         {
                             # Test for a more complex search that fails
                             'key': 'key8',
                             'regex': r'totallynotthere',
-                            'action': result_parsers.ACTION_TRUE,
-                            'match_type': result_parsers.MATCH_ALL,
+                            'action': parsers.ACTION_TRUE,
+                            'match_type': parsers.MATCH_ALL,
                             'threshold': '0',
                         },
                         {
                             # A test using the 'result' key is required.
                             'key': 'result',
                             'regex': r'^overall=(.*)$',
-                            'action': result_parsers.ACTION_TRUE,
+                            'action': parsers.ACTION_TRUE,
                         }
                     ]
                 }
@@ -580,7 +580,7 @@ class ResultParserTests(PavTestCase):
         test = self._quick_test(test_cfg, 'result_parser_test')
         test.run()
 
-        results = result_parsers.parse_results(
+        results = parsers.parse_results(
             test=test,
             results={}
         )
@@ -640,7 +640,7 @@ class ResultParserTests(PavTestCase):
                             'key': 'key1',
                             'regex': r'max is (.*)$',
                             'expected': ['900-1000'],
-                            'action': result_parsers.ACTION_TRUE,
+                            'action': parsers.ACTION_TRUE,
                         },
                     ]
                 }
@@ -650,7 +650,7 @@ class ResultParserTests(PavTestCase):
         test = self._quick_test(test_cfg, 'result_parser_test')
         test.run()
 
-        results = result_parsers.parse_results(
+        results = parsers.parse_results(
             test=test,
             results={}
         )
@@ -701,7 +701,7 @@ class ResultParserTests(PavTestCase):
         test = self._quick_test(table_test1, 'result_parser_test')
         test.run()
 
-        results = result_parsers.parse_results(
+        results = parsers.parse_results(
             test=test,
             results={}
         )
@@ -744,7 +744,7 @@ class ResultParserTests(PavTestCase):
         test = self._quick_test(table_test2, 'result_parser_test')
         test.run()
 
-        results = result_parsers.parse_results(
+        results = parsers.parse_results(
             test=test,
             results={}
         )
@@ -796,7 +796,7 @@ class ResultParserTests(PavTestCase):
         test = self._quick_test(table_test3, 'result_parser_test')
         test.run()
 
-        results = result_parsers.parse_results(
+        results = parsers.parse_results(
             test=test,
             results={}
         )

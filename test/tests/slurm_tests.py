@@ -4,7 +4,7 @@ import unittest
 
 from pavilion import config
 from pavilion import plugins
-from pavilion import result_parsers
+from pavilion.results import parsers
 from pavilion import schedulers
 from pavilion.plugins.sched.slurm import Slurm
 from pavilion.status_file import STATES
@@ -244,7 +244,7 @@ class SlurmTests(PavTestCase):
                     .format(test.id, test.path, self.TEST_TIMEOUT, num_nodes))
 
         results = test.load_results()
-        self.assertEqual(results['result'], result_parsers.PASS)
+        self.assertEqual(results['result'], parsers.PASS)
 
     @unittest.skipIf(not has_slurm(), "Only runs on a system with slurm.")
     def test_include_exclude(self):

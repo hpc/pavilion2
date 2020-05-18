@@ -10,7 +10,7 @@ from collections import defaultdict
 from pavilion import commands
 from pavilion import output
 from pavilion.output import fprint
-from pavilion import result_parsers
+from pavilion.results import parsers
 from pavilion import schedulers
 from pavilion import system_variables
 from pavilion import test_config
@@ -445,7 +445,7 @@ class RunCommand(commands.Command):
 
             # Make sure the result parsers have reasonable arguments.
             try:
-                result_parsers.check_args(test.config['result']['parsers'])
+                parsers.check_args(test.config['result']['parsers'])
             except TestRunError as err:
                 rp_errors.append(str(err))
 

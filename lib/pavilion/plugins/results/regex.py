@@ -1,10 +1,10 @@
-from pavilion import result_parsers
+from pavilion.results import parsers
 import yaml_config as yc
 import re
 import sre_constants
 
 
-class Regex(result_parsers.ResultParser):
+class Regex(parsers.ResultParser):
     """Find matches to the given regex in the given file. The matched string
     or strings are returned as the result."""
 
@@ -27,7 +27,7 @@ class Regex(result_parsers.ResultParser):
                           "and an 'n'."
             ),
             # Use the built-in matches element.
-            result_parsers.MATCHES_ELEM,
+            parsers.MATCHES_ELEM,
             yc.StrElem(
                 'threshold', default="",
                 help_text="If a threshold is defined, 'True' will be returned "
@@ -55,26 +55,26 @@ class Regex(result_parsers.ResultParser):
         try:
             re.compile(regex)
         except (ValueError, sre_constants.error) as err:
-            raise result_parsers.ResultParserError(
+            raise parsers.ResultParserError(
                 "Invalid regular expression: {}".format(err))
 
         if not isinstance(expected, list):
-            raise result_parsers.ResultParserError(
+            raise parsers.ResultParserError(
                 "Expected should be a list.")
 
         if threshold:
             try:
                 int(threshold)
             except ValueError as err:
-                raise result_parsers.ResultParserError(
+                raise parsers.ResultParserError(
                     "Non-integer value provided for 'threshold'.")
 
             if int(threshold) < 0:
-                raise result_parsers.ResultParserError(
+                raise parsers.ResultParserError(
                     "'threshold' must be a non-negative integer.")
 
             if expected:
-                raise result_parsers.ResultParserError(
+                raise parsers.ResultParserError(
                     "'threshold' and 'expected' cannot be used at the same "
                     "time.")
 
@@ -92,7 +92,7 @@ class Regex(result_parsers.ResultParser):
                     if not none_used:
                         none_used = True
                     else:
-                        raise result_parsers.ResultParserError(
+                        raise parsers.ResultParserError(
                                 "No values provided in range: {}"
                                 .format(test_list))
                 else:
@@ -101,7 +101,7 @@ class Regex(result_parsers.ResultParser):
                         # cast it as a float first, just in case it is a float.
                         float(test_item)
                     except ValueError as err:
-                        raise result_parsers.ResultParserError(
+                        raise parsers.ResultParserError(
                             "Invalid value: {}".format(test_item)
                         )
 
@@ -119,7 +119,7 @@ class Regex(result_parsers.ResultParser):
                 # Check for range specification as
                 # (<lesser value>:<greater value>)
                 if '' not in test_list and high < low:
-                    raise result_parsers.ResultParserError(
+                    raise parsers.ResultParserError(
                         "Invalid range: {}".format(item))
 
     def __call__(self, test, file, regex=None, match_type=None, threshold=None,
@@ -138,14 +138,14 @@ class Regex(result_parsers.ResultParser):
         # Test if the number of matches meets the specified threshold
         if threshold and int(threshold) > 0:
             return len(matches) >= int(threshold)
-        elif match_type == result_parsers.MATCH_FIRST:
+        elif match_type == parsers.MATCH_FIRST:
             matches = None if not matches else matches[0]
-        elif match_type == result_parsers.MATCH_LAST:
+        elif match_type == parsers.MATCH_LAST:
             matches = None if not matches else matches[-1]
-        elif match_type == result_parsers.MATCH_ALL:
+        elif match_type == parsers.MATCH_ALL:
             pass
         else:
-            raise result_parsers.ResultParserError(
+            raise parsers.ResultParserError(
                 "Invalid 'matches' value '{}'".format('matches')
             )
 

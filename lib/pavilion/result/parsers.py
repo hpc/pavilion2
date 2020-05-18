@@ -10,7 +10,7 @@ from pathlib import Path
 
 import yaml_config as yc
 from yapsy import IPlugin
-from .test_config import file_format, resolver
+from pavilion.test_config import file_format, resolver
 
 LOGGER = logging.getLogger(__file__)
 

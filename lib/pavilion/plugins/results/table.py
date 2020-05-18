@@ -1,9 +1,9 @@
-from pavilion import result_parsers
+from pavilion.results import parsers
 import yaml_config as yc
 import re
 
 
-class Table(result_parsers.ResultParser):
+class Table(parsers.ResultParser):
 
     """Parses tables."""
 
@@ -52,11 +52,11 @@ class Table(result_parsers.ResultParser):
         try:
             if len(col_names) is not 0:
                 if len(col_names) != int(col_num):
-                    raise result_parsers.ResultParserError(
+                    raise parsers.ResultParserError(
                         "Length of `col_names` does not match `col_num`."
                     )
         except ValueError:
-            raise result_parsers.ResultParserError(
+            raise parsers.ResultParserError(
                 "`col_names` needs to be an integer."
             )
 

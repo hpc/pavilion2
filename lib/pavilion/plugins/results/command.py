@@ -1,9 +1,9 @@
-from pavilion import result_parsers
+from pavilion.results import parsers
 import yaml_config as yc
 import subprocess
 
 
-class Command(result_parsers.ResultParser):
+class Command(parsers.ResultParser):
     """Runs a given command."""
 
     def __init__(self):
@@ -40,7 +40,7 @@ class Command(result_parsers.ResultParser):
     def _check_args(self, command=None, success=None, stderr_out=None):
 
         if not command:
-            raise result_parsers.ResultParserError(
+            raise parsers.ResultParserError(
                 "Command required."
             )
 
@@ -61,7 +61,7 @@ class Command(result_parsers.ResultParser):
                 cmd_result = str(cmd_result)
                 return cmd_result
             except:
-                raise result_parsers.ResultParserError(
+                raise parsers.ResultParserError(
                     "Command cannot be executed.")
         # get return value
         else:
@@ -69,6 +69,6 @@ class Command(result_parsers.ResultParser):
                 cmd_result = str(subprocess.call(command, stderr=err, shell=True))
                 return cmd_result
             except:
-                raise result_parsers.ResultParserError(
+                raise parsers.ResultParserError(
                     "Command cannot be executed."
                 )

@@ -16,7 +16,7 @@ from pathlib import Path
 import pavilion.output
 from pavilion import builder
 from pavilion import lockfile
-from pavilion import result_parsers
+from pavilion.results import parsers
 from pavilion import scriptcomposer
 from pavilion import utils
 from pavilion.status_file import StatusFile, STATES
@@ -693,11 +693,11 @@ sched
         parser_configs = self.config['result']['parsers']
 
         if run_result:
-            default_result = result_parsers.PASS
+            default_result = parsers.PASS
         else:
-            default_result = result_parsers.FAIL
+            default_result = parsers.FAIL
 
-        results = result_parsers.base_results(self)
+        results = parsers.base_results(self)
 
         # This may be overridden by result parsers.
         results['result'] = default_result
@@ -706,7 +706,7 @@ sched
                         "Parsing {} result types."
                         .format(len(parser_configs)))
 
-        results = result_parsers.parse_results(self, results)
+        results = parsers.parse_results(self, results)
 
         analysis = self.config['result']['analysis']
 
