@@ -134,7 +134,7 @@ class TestRunTests(PavTestCase):
                                  '{{var2.0}}', '{{var2.1}}', '{{var2.2}}',
                                  '{{var3.subvar_1}}', '{{var3.subvar_2}}',
                                  '{{var4.0.subvar_3}}', '{{var4.0.subvar_4}}',
-                                 '{{var4.1.subvar_5}}', '{{var4.1.subvar_6}}']
+                                 '{{var4.1.subvar_3}}', '{{var4.1.subvar_4}}']
         }
         variables = {
             'var1': 'val_1',
@@ -143,8 +143,8 @@ class TestRunTests(PavTestCase):
                      'subvar_2': 'val_6'},
             'var4': [{'subvar_3': 'val_7',
                       'subvar_4': 'val_8'},
-                     {'subvar_5': 'val_9',
-                      'subvar_6': 'val_10'}]
+                     {'subvar_3': 'val_9',
+                      'subvar_4': 'val_10'}]
         }
         config = self._quick_test_cfg()
         config['variables'] = variables
@@ -161,7 +161,7 @@ class TestRunTests(PavTestCase):
             created_file = open(str(file_path), 'r', encoding='utf-8')
             if file == 'runtime_variable':
                 original.write('val_1\nval_2\nval_3\nval_4\nval_5\nval_6'
-                               'val_7\nval_8\nval_9\nval_10\n')
+                               '\nval_7\nval_8\nval_9\nval_10\n')
             else:
                 for line in lines:
                     original.write("{}\n".format(line))
