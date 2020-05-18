@@ -125,7 +125,7 @@ class SeriesManager:
                                 del config['not_if']
                                 skipped_test = TestRun(self.pav_cfg, config)
                                 skipped_test.status.set(
-                                    STATES.COMPLETE,
+                                    STATES.SKIPPED,
                                     "Skipping. Previous test did not PASS.")
                                 skipped_test.set_run_complete()
                                 self.series_obj.add_tests([skipped_test])
