@@ -371,12 +371,12 @@ class ResolverTests(PavTestCase):
                 ],
             },
             'permute_on': ['foo', 'bar'],
-            'subtitle': '{{foo}}-{{bar.p}}',
+            'subtitle': None,
         }
 
         answer1 = {
                 'permute_on': ['foo', 'bar'],
-                'subtitle': '1-4',
+                'subtitle': '1-bar?',
                 'build': {
                        'cmds':
                            ["echo 1 4", "echo 1", "echo 4a"],
@@ -391,7 +391,7 @@ class ResolverTests(PavTestCase):
         # This is all that changes between the two.
         answer2 = copy.deepcopy(answer1)
         answer2['build']['cmds'] = ["echo 2 4", "echo 2", "echo 4a"]
-        answer2['subtitle'] = '2-4'
+        answer2['subtitle'] = '2-bar?'
 
         answers = [answer1, answer2]
 

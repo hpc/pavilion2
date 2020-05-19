@@ -414,40 +414,6 @@ class TestRun:
 
         return '{} run {}'.format(pav_path, self.id)
 
-    def _make_name(self):
-        """Generate the name for this test from the config. This
-        will create a subtitle automatically for permuted tests."""
-
-        parts = [
-            self.config.get('suite', '<unknown>'),
-            self.config.get('name', '<unnamed>'),
-        ]
-
-        subtitle = self.config.get('subtitle')
-        permute_on = self.config.get('permute_on', [])
-
-        # Auto generate a subtitle only if one isn't already defined
-        # and if we have permutations.
-        if subtitle is None and permute_on:
-            sub_parts = []
-            var_dict = self.var_man.as_dict()
-            for var in permute_on:
-                # Compose the subtitle from 5 chars of each permuted variable.
-                if var in var_dict:
-                    val = var_dict[var]
-                    # This can only be a dict or a str.
-                    if isinstance(val, dict):
-                        # For dicts, use the first key's value.
-                        val = val[list(val.keys())[0]]
-
-                    sub_parts.append(val[:5])
-            subtitle = '-'.join(sub_parts)
-
-        if subtitle is not None:
-            parts.append(subtitle)
-
-        return '.'.join(parts)
-
     def _save_config(self):
         """Save the configuration for this test to the test config file."""
 

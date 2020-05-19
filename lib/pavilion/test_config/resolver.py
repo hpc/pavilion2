@@ -680,7 +680,7 @@ class TestConfigResolver:
                     .format(per_var))
             used_per_vars.add((var_set, var))
 
-        if test_cfg.get('subtitle', None) is None:
+        if permute_on and test_cfg.get('subtitle', None) is None:
             subtitle = []
             var_dict = base_var_man.as_dict()
             for per_var in permute_on:
@@ -688,7 +688,7 @@ class TestConfigResolver:
                 if isinstance(var_dict[var_set][var][0], dict):
                     subtitle.append(var + '?')
                 else:
-                    subtitle.append('{{per_var}}')
+                    subtitle.append('{{' + per_var + '}}')
 
             subtitle = '-'.join(subtitle)
 

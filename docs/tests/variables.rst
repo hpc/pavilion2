@@ -264,4 +264,5 @@ when a test runs on its allocation.
       deferred variables.
 
   - The scheduler section.
+
     - Everything needs to be known here **before** a test is kicked off.
