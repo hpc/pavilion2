@@ -71,26 +71,26 @@ File(s) to be created at runtime.
         run:
             create_files:
                 # Create file, "data.in", in the build directory at runtime.
-                data.in
+                data.in:
                     - 'line 1'
                     - 'line 2'
                     - 'line 3'
 
                 # Create file, "data.in", inside subdirectory "subdir". Note if
                 # the subdirectory(ies) do not exist they will be created.
-                ./subdir/data.in
+                ./subdir/data.in:
                     - 'line 1'
                     - 'line 2'
                     - 'line 3'
 
                 # Create file, "var.in", with 'page' variable data inside nested
                 # subdirectory "subdir/another_subdir".
-                ./subdir/another_subdir/var.in
+                ./subdir/another_subdir/var.in:
                     - 'module = {{page.module}}'
                     - 'size = {{page.bytes}}'
 
                 # Create file, "defer.in", with deferred variables.
-                defer.in
+                defer.in:
                     - system_name = {{sys.name}}
                     - system_os = {{sys.os}}
 
