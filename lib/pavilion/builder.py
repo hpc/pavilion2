@@ -220,7 +220,8 @@ class TestBuilder:
         if files_to_create:
             for file, contents in files_to_create.items():
                 file_path = Path(utils.resolve_path(self.path / file))
-                if not utils.dir_contains(file_path, self.path):
+                if not utils.dir_contains(file_path,
+                                          utils.resolve_path(self.path)):
                     raise TestBuilderError("'create_file: {}': file path"
                                            " outside build context."
                                            .format(file_path))
@@ -418,6 +419,7 @@ class TestBuilder:
                     # This will also set the test status for
                     # non-catastrophic cases.
                     if not self._build(build_dir, cancel_event):
+
                         try:
                             build_dir.rename(self.fail_path)
                         except FileNotFoundError as err:
@@ -433,6 +435,10 @@ class TestBuilder:
                         # If the build didn't succeed, copy the attempted build
                         # into the test run, and set the run as complete.
                         return False
+
+                    # Make all symlinks relative so they can be moved
+                    # cleanly.
+                    utils.repair_symlinks(build_dir)
 
                     # Rename the build to it's final location.
                     build_dir.rename(self.path)
@@ -984,8 +990,7 @@ class TestBuilder:
         src_stat = base_path.stat()
         latest = src_stat.st_mtime
 
-        paths = utils.flat_walk(base_path)
-        for path in paths:
+        for path in utils.flat_walk(base_path):
             dir_stat = path.stat()
             if dir_stat.st_mtime > latest:
                 latest = dir_stat.st_mtime

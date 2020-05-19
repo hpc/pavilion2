@@ -5,7 +5,7 @@ import logging
 import os
 import socket
 import sys
-from pathlib import Path, PosixPath
+from pathlib import Path
 
 import pavilion.output
 import yaml_config as yc
@@ -257,3 +257,21 @@ found in these directories the default config search paths:
         LOGGER.warning("Could not find a pavilion config file. Using an "
                        "empty/default config.")
     return PavilionConfigLoader().load_empty()
+
+
+def get_version():
+    """Returns the current version of Pavilion."""
+    pav_cfg = find()
+    version_path = pav_cfg.pav_root / 'RELEASE.txt'
+
+    try:
+        with version_path.open() as file:
+            lines = file.readlines()
+            for line in lines:
+                if line.startswith('RELEASE='):
+                    return line.split('=')[1]
+
+            return '<unknown>'
+
+    except FileNotFoundError:
+        return '<unknown>'

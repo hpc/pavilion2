@@ -4,16 +4,13 @@ generally be used to help make Pavilion consistent across its code and
 plugins.
 """
 
-# This file contains assorted utility functions.
-
+import errno
 import os
-import re
 import subprocess
 import zipfile
-import errno
-
 from pathlib import Path
-from pavilion import config
+from typing import Iterator
+
 
 # Python 3.5 issue. Python 3.6 Path.resolve() handles this correctly.
 # pylint: disable=protected-access
@@ -70,8 +67,8 @@ def resolve_path(path, strict=False):
 def dir_contains(file, directory):
     """Check if 'file' is or is contained by 'directory'."""
 
-    file = Path(resolve_path(Path(file)))
-    directory = Path(resolve_path(Path(directory)))
+    file = Path(file)
+    directory = Path(directory)
     while file.parent != file:
         if file == directory:
             return True
@@ -79,28 +76,21 @@ def dir_contains(file, directory):
     return False
 
 
-def flat_walk(path, *args, **kwargs):
-    """Perform an os.walk on path, but return a flattened list of every file
-    and directory found.
+def flat_walk(path, *args, **kwargs) -> Iterator[Path]:
+    """Perform an os.walk on path, but simply generate each item walked over.
 
 :param Path path: The path to walk with os.walk.
 :param args: Any additional positional args for os.walk.
 :param kwargs: Any additional kwargs for os.walk.
-:returns: A list of all directories and files in or under the given path.
-:rtype list[Path]:
-    """
-
-    paths = []
+"""
 
     for directory, dirnames, filenames in os.walk(str(path), *args, **kwargs):
         directory = Path(directory)
         for dirname in dirnames:
-            paths.append(directory / dirname)
+            yield directory / dirname
 
         for filename in filenames:
-            paths.append(directory / filename)
-
-    return paths
+            yield directory / filename
 
 
 def get_mime_type(path):
@@ -164,28 +154,6 @@ def get_login():
             "Could not get the name of the current user.")
 
 
-def get_version():
-    """Returns the current version of Pavilion."""
-    pav_cfg = config.find()
-    version_path = pav_cfg.pav_root / 'RELEASE.txt'
-
-    try:
-        with version_path.open() as file:
-            lines = file.readlines()
-            version_found = False
-            for line in lines:
-                if re.search(r'RELEASE=', line):
-                    version_found = True
-                    return line.split('=')[1]
-        if not version_found:
-            return 'Pavilion version not found in RELEASE.txt'
-
-    except FileNotFoundError:
-        fprint(version_path + " not found.", file=self.errfile,
-               color=output.RED)
-        return errno.ENOENT
-
-
 class ZipFileFixed(zipfile.ZipFile):
     """Overrides the default behavior in ZipFile to preserve execute
     permissions."""
@@ -206,3 +174,19 @@ class ZipFileFixed(zipfile.ZipFile):
                 pass
 
         return ret
+
+
+def repair_symlinks(base: Path) -> None:
+    """Makes all symlinks under the path 'base' relative."""
+
+    for file in flat_walk(base):
+
+        if file.is_symlink():
+            # Found a second thing that pathlib doesn't do (though a requst
+            # for Path.readlink has already been merged in the Python develop
+            # branch)
+            target = Path(os.readlink(file.as_posix()))
+            if target.is_absolute():
+                rel_target = target.relative_to(base)
+                file.unlink()
+                file.symlink_to(rel_target)
