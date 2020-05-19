@@ -53,7 +53,7 @@ class LogCommand(commands.Command):
                             help="Test number argument.")
 
     def run(self, pav_cfg, args):
-        """Figure out what log the user wants, and print it."""
+        """Figure out which log the user wants and print it."""
 
         if args.log_cmd is None:
             self._parser.print_help(self.outfile)

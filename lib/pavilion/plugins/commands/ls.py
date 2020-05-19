@@ -10,7 +10,7 @@ from pavilion import utils
 
 
 class FileCommand(commands.Command):
-    """List the directory (and maybe subdirs of the given run)."""
+    """List the directory (and maybe subdirs) of the given run."""
 
     def __init__(self):
         super().__init__(

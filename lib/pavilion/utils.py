@@ -7,12 +7,13 @@ plugins.
 # This file contains assorted utility functions.
 
 import os
+import re
 import subprocess
 import zipfile
 import errno
 
 from pathlib import Path
-
+from pavilion import config
 
 # Python 3.5 issue. Python 3.6 Path.resolve() handles this correctly.
 # pylint: disable=protected-access
@@ -161,6 +162,28 @@ def get_login():
     except Exception:
         raise RuntimeError(
             "Could not get the name of the current user.")
+
+
+def get_version():
+    """Returns the current version of Pavilion."""
+    pav_cfg = config.find()
+    version_path = pav_cfg.pav_root / 'RELEASE.txt'
+
+    try:
+        with version_path.open() as file:
+            lines = file.readlines()
+            version_found = False
+            for line in lines:
+                if re.search(r'RELEASE=', line):
+                    version_found = True
+                    return line.split('=')[1]
+        if not version_found:
+            return 'Pavilion version not found in RELEASE.txt'
+
+    except FileNotFoundError:
+        fprint(version_path + " not found.", file=self.errfile,
+               color=output.RED)
+        return errno.ENOENT
 
 
 class ZipFileFixed(zipfile.ZipFile):

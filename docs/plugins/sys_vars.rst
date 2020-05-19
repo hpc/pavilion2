@@ -27,7 +27,7 @@ System Variable Module
 A sys_var module should contain a class definition that inherits
 from the system variable base class.
 
-.. code:: python
+.. code-block:: python
 
     from pavilion import system_variables
 
@@ -55,7 +55,7 @@ from the system variable base class.
 
 With this plugin in the system, we can refer to it in test configs:
 
-.. code:: yaml
+.. code-block:: yaml
 
     uptime_test:
       run:
@@ -77,14 +77,13 @@ them. It can't return dicts sometimes and strings other times.
 Additionally, dicts returned must always have the same keys, regardless
 of system or other considerations.
 
-Additional restrictions apply to `deferred
-variables <#the-is-deferrable-argument>`__.
-
 The ``__init__()`` Method
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The basics of the ``__init__()`` method and it's generic arguments are
-`covered elsewhere <basics.html>`__.
+`covered elsewhere <basics.html>`__. This plugin type, like most others,
+can also accept a ``priority`` argument that can allow it to override other
+system variable plugins with the same name.
 
 The 'is\_deferrable' argument
 '''''''''''''''''''''''''''''
