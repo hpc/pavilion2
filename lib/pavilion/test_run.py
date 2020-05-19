@@ -406,8 +406,8 @@ class TestRun:
                 # Prevent files from overwriting existing directories.
                 if file_path.is_dir():
                     raise TestRunError("'create_file: {}' clashes with"
-                                           " existing directory in build dir."
-                                           .format(file_path))
+                                       " existing directory in build dir."
+                                       .format(file_path))
                 # Create file parent directory(ies).
                 dirname = file_path.parent
                 (self.build_path / dirname).mkdir(parents=True, exist_ok=True)
