@@ -961,7 +961,8 @@ directory that doesn't already exist.
         if len(skip_reason_list) == 0:
             return False
         else:
-            self.status.set(STATES.COMPLETE, matches)
+            self.status.set(STATES.SKIPPED, matches)
+            self.set_run_complete()
             return True
 
     def _evaluate_skip_conditions(self):
