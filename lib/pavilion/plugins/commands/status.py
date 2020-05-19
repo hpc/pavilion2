@@ -264,6 +264,3 @@ class StatusCommand(commands.Command):
             return 1
 
         return print_status(test_statuses, self.outfile, args.json)
-
-    def __repr__(self):
-        return str(self)

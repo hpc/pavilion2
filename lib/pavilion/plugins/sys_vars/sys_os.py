@@ -9,8 +9,7 @@ class SystemOS(system_plugins.SystemPlugin):
             name='sys_os',
             description="The system os info (name, version).",
             priority=self.PRIO_CORE,
-            is_deferable=False, 
-            sub_keys=['name', 'version'])
+            is_deferable=False)
 
     def _get(self):
         """Base method for determining the operating system and version."""

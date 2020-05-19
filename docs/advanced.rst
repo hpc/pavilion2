@@ -16,7 +16,7 @@ the host configs, but multiple can be provided per test.
 For example, the following mode file could be used to set a particular
 set of slurm vars:
 
-.. code:: yaml
+.. code-block:: yaml
 
     slurm:
         account: tester
@@ -36,8 +36,8 @@ variables.
 Variables
 ~~~~~~~~~
 
-Test configs can contain variable references within their config values
-(all of which are read as strings by Pavilion).
+Test configs can contain *expressions* within their config values that
+reference and manipulate variables.
 
 These variables come from a variety of sources (this is also the
 resolution order):
@@ -50,7 +50,7 @@ resolution order):
 Variable names must be in lowercase and start with a letter, but may
 contain numbers, dashes and underscores.
 
-.. code:: yaml
+.. code-block:: yaml
 
     mytest:
       scheduler: slurm
@@ -61,7 +61,7 @@ contain numbers, dashes and underscores.
       run:
         cmds:
           - "sleep {{var.sleep_time}}"
-          - 'echo "Slept {{sleep_time}} seconds on node ${sched.node_num}."'
+          - 'echo "Slept {{sleep_time}} seconds on node {{sched.node_num}}."'
 
 Variable References
 ^^^^^^^^^^^^^^^^^^^
@@ -122,12 +122,32 @@ Variables are a powerful feature of pavilion, and the above just
 scratches the surface. See the `variables <tests/variables.html>`__
 section of the docs for detailed information.
 
+Expressions
+~~~~~~~~~~~
+
+The double curly brace sections that can contain variables are really fully
+capable *expressions*, and can contain math operations and function calls. The
+syntax is Python-like and most operations work identically.
+Functions are provided via plugins.
+
+.. code-block:: yaml
+
+    mytest:
+      variables:
+        sleep_time: 24
+
+      run:
+        cmds:
+          - "sleep {{ max([var.sleep_time/4, 1, sleep_time + 1]) }}"
+
+See
+
 Inheritance
 ~~~~~~~~~~~
 
 Tests within a single test suite file can inherit from each other.
 
-.. code:: yaml
+.. code-block:: yaml
 
     super_magic:
         summary: Run all standard super_magic tests.
@@ -182,7 +202,7 @@ values to a variable, and then create test 'permutations' over those values.
 Each permutation of a test is an instance of that test where that variable takes
 on just one of the values from your variable.
 
-.. code:: yaml
+.. code-block:: yaml
 
     nbodies:
 
@@ -206,8 +226,7 @@ This will create six test configurations (and thus six test runs), one for each
  - etc.
 
 You also can permute over multiple variables at once, producing a test run for
-each possible permutation of values. See
-`Test Permutations <tests/variables.html#permutations>`__
+each possible permutation of values. See :ref:`tests.permutations`
 for more info.
 
 Skip Conditions
@@ -249,7 +268,7 @@ Environment Variables
 You can set/unset environment variables in your test configs, and use
 them in your scripts.
 
-.. code:: yaml
+.. code-block:: yaml
 
     python_test:
         run:
@@ -269,18 +288,18 @@ build. This assumes the modules (and module build combinations) are
 available on your system. If the test can't load a module, the test will
 report a ENV\_FAILED status and fail.
 
-.. code:: yaml
+.. code-block:: yaml
 
-    super_magic: 
+    super_magic:
         scheduler: slurm
         build:
-          modules: 
+          modules:
             - gcc/7.4.0
             - openmpi
           cmds:
             - mpicc -o super_magic super_magic.c
         run:
-          # This runs as a separate script from the build, so you 
+          # This runs as a separate script from the build, so you
           # have to specify modules for both the build and run.
           modules:
             - gcc/7.4.0
@@ -294,11 +313,11 @@ default when logging in. That state may include modules that you don't
 want loaded, so Pavilion provides a means for removing and swapping
 modules as well.
 
-.. code:: yaml
+.. code-block:: yaml
 
-    super_magic: 
+    super_magic:
         build:
-          modules: 
+          modules:
             # Swap the gcc module for the intel module.
             - 'gcc -> intel/18.0.3'
             # Remove the python module
@@ -319,13 +338,13 @@ that replace this default behaviour for particular modules or module versions.
 You could, for instance, wrap all your compiler modules to set a consistent
 compiler wrapper environment variable.
 
-.. code:: yaml
+.. code-block:: yaml
 
     openmp_test:
         build:
           modules:
             # Normally intel-mpi would require that we use mpiicc to build.
-            # In our case though, we use module_wrappers (not shown) to set the 
+            # In our case though, we use module_wrappers (not shown) to set the
             # $MPICC env variable consistently across different MPI modules.
             # We also set $OPENMP_FLAG to value, as it varies across compilers.
             - intel
@@ -333,7 +352,7 @@ compiler wrapper environment variable.
           cmds:
             - '$MPICC $OPENMP_FLAG -o openmp_test openmp_test.c
 
-    # This test will use the same command, but it will work thanks to our 
+    # This test will use the same command, but it will work thanks to our
     # module wrapper plugins.
     openmp_test2:
         inherits_from: openmp_test
@@ -355,7 +374,7 @@ An HPC testing framework wouldn't be complete without allowing you to
 schedule your tests. Most of the above example tests reference a
 scheduler, but don't configure one. It's time to rectify that.
 
-.. code:: yaml
+.. code-block:: yaml
 
     super_magic:
         scheduler: slurm
@@ -366,13 +385,13 @@ scheduler, but don't configure one. It's time to rectify that.
           tasks_per_node: 3
           partition: test_partition
           reservation: testing
-          qos: test 
-        
+          qos: test
+
         build:
           modules: [gcc, openmpi]
           cmds:
             - mpicc -o super_magic super_magic.c
-          
+
         run:
           modules: [gcc, openmpi]
           cmds:
@@ -380,9 +399,9 @@ scheduler, but don't configure one. It's time to rectify that.
             # category. This var generates an srun command based on the slurm args
             # given above. Assuming we got 10 nodes, it will look like:
             # srun -N 10 -n 30 ./supermagic -a
-            # Note that this would run in an sbatch script within an allocation 
+            # Note that this would run in an sbatch script within an allocation
             # that conforms to the rest of the slurm settings.
-            - {sched.test_cmd} ./supermagic -a 
+            - {sched.test_cmd} ./supermagic -a
 
 `Schedulers are plugins <plugins/schedulers.html>`__ in Pavilion, and are
 fairly loosely defined. They must at least do the following:

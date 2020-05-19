@@ -5,6 +5,7 @@ from pavilion import module_wrapper
 from pavilion import plugins
 from pavilion import result_parsers
 from pavilion import system_variables
+from pavilion import expression_functions
 from pavilion.test_config import variables
 from pavilion.unittest import PavTestCase
 import io
@@ -73,6 +74,34 @@ class PluginTests(PavTestCase):
                           lambda: plugins.initialize_plugins(pav_cfg))
 
         # Clean up our plugin initializations.
+        plugins._reset_plugins()
+
+    def test_function_plugins(self):
+        """Make sure each of the core function plugins work."""
+
+        plugins.initialize_plugins(self.pav_cfg)
+
+        tests = {
+            'int': ('0x123', 16),
+            'floor': (1.2,),
+            'ceil': (1.3,),
+            'round': (1.4,),
+            'sum': ([1, 2, 3, 2.4],),
+            'avg': ([1, 2, 3, 2.4],),
+            'len': ([1, 2, 3, 2.4],),
+            'random': tuple(),
+        }
+
+        for func_name, args in tests.items():
+            func = expression_functions.get_plugin(func_name)
+            # Make sure this doesn't throw errors
+            func(*args)
+
+        # Make sure we have a test for all core plugins.
+        for plugin in plugins.list_plugins()['function']:
+            if plugin.priority == expression_functions.FunctionPlugin.PRIO_CORE:
+                self.assertIn(plugin.name, tests)
+
         plugins._reset_plugins()
 
     def test_module_wrappers(self):
