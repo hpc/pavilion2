@@ -4,6 +4,12 @@ RELEASE=2.1.2
 
 # Release History
 
+## 2.2 Pre-release notes
+ - Backwards compatibility breaks
+   - A 'subtitle' is now required for all permuted tests.
+   - All duplicate keys in configs are now detected and cause errors.
+   - Default values may no longer be specified using '{{foo?}}'
+
 ## 2.1.2
  - Fixed some regressions from the 2.1.1 release.
 
@@ -19,7 +25,7 @@ RELEASE=2.1.2
  - Updated the ls and cat commands, merged the tree command into ls.
  - Moved build code into its own module
  - Added include/exclude_nodes option to slurm.
- - Added a 'build' command. Like the 'run' command, but only builds. 
+ - Added a 'build' command. Like the 'run' command, but only builds.
  - Added '--rebuild' option to both build and run (and the capability to do so)
  - Added better build tracking output and verbosity under the 'run' command.
 

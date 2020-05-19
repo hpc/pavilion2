@@ -169,11 +169,8 @@ expected to be added to by various plugins.
                       "overridden entirely"),
         yc.StrElem(
             'subtitle',
-            help_text="An extended title for this test. This is useful for "
-                      "assigning unique name to virtual tests through "
-                      "variable insertion. example, if a test has a single "
-                      "permutation variable 'subtest', then '{subtest}' "
-                      "would give a useful descriptor."),
+            help_text="An extended title for this test. Required for "
+                      "permuted tests."),
         yc.StrElem(
             'summary', default='',
             help_text="Summary of the purpose of this test."

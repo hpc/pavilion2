@@ -226,13 +226,6 @@ class TestRun:
 
         self.load_ok = True
 
-        # Compute the actual name of test, using the subtitle config parameter.
-        self.name = '.'.join([
-            config.get('suite', '<unknown>'),
-            config.get('name', '<unnamed>')])
-        if 'subtitle' in config and config['subtitle']:
-            self.name = self.name + '.' + config['subtitle']
-
         self.scheduler = config['scheduler']
 
         # Create the tests directory if it doesn't already exist.
@@ -272,6 +265,17 @@ class TestRun:
                 raise TestRunError(*err.args)
 
             self.opts = TestRunOptions.load(self)
+
+        name_parts = [
+            self.config.get('suite', '<unknown>'),
+            self.config.get('name', '<unnamed>'),
+        ]
+        subtitle = self.config.get('subtitle')
+        # Don't add undefined or empty subtitles.
+        if subtitle:
+            name_parts.append(subtitle)
+
+        self.name = '.'.join(name_parts)
 
         # Set a logger more specific to this test.
         self.logger = logging.getLogger('pav.TestRun.{}'.format(self.id))
