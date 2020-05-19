@@ -680,27 +680,17 @@ class TestConfigResolver:
 
         if test_cfg.get('subtitle', None) is None:
             subtitle = []
-            valid_subtitle = True
             var_dict = base_var_man.as_dict()
             for per_var in permute_on:
                 var_set, var, index, subvar = base_var_man.resolve_key(per_var)
                 if isinstance(var_dict[var_set][var][0], dict):
-                    sub_key = list(var_dict[var_set][var][0].keys())[0]
-                    subtitle.append(''.join(['{{', per_var, '.', sub_key,
-                                             '}}']))
-                    valid_subtitle = False
+                    subtitle.append(var + '?')
                 else:
-                    subtitle.append('{{' + per_var + '}}')
+                    subtitle.append('{{per_var}}')
 
             subtitle = '-'.join(subtitle)
 
-            if valid_subtitle:
-                test_cfg['subtitle'] = subtitle
-            else:
-                raise TestConfigError(
-                    "Permuted test did not specify a subtitle, and one "
-                    "could not be generated automatically. Example:\n"
-                    "subtitle: '{}'".format(subtitle))
+            test_cfg['subtitle'] = subtitle
 
         # var_men is a list of variable managers, one for each permutation
         var_men = base_var_man.get_permutations(used_per_vars)

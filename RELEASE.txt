@@ -7,7 +7,7 @@ RELEASE=2.1.2
 ## 2.2 Pre-release notes
  - Backwards compatibility breaks
    - A 'subtitle' is now required for all permuted tests.
-   - A duplicate keys in configs are now detected and cause errors.
+   - All duplicate keys in configs are now detected and cause errors.
    - Default values may no longer be specified using '{{foo?}}'
 
 ## 2.1.2
