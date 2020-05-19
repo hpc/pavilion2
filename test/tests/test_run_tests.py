@@ -182,7 +182,7 @@ class TestRunTests(PavTestCase):
             config = self._quick_test_cfg()
             config['build']['source_location'] = 'file_tests.tgz'
             config['build']['create_files'] = file_arg
-            with self.assertRaises(RuntimeError) as context:
+            with self.assertRaises(TestRunError) as context:
                 self._quick_test(config)
             self.assertTrue('outside build context' in str(context.exception))
 

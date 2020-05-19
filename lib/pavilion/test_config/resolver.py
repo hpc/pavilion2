@@ -1029,7 +1029,7 @@ class TestConfigResolver:
                     raise TestConfigError(
                         "Error resolving value '{}' for key '{}':\n"
                         "{}\n{}"
-                        .format(component, '.'.join(map(str, key_parts)),
+                        .format(component, [str(part) for part in key_parts],
                                 err.message, err.context))
                 else:
                     return resolved
