@@ -179,6 +179,8 @@ class ZipFileFixed(zipfile.ZipFile):
 def repair_symlinks(base: Path) -> None:
     """Makes all symlinks under the path 'base' relative."""
 
+    base = base.resolve()
+
     for file in flat_walk(base):
 
         if file.is_symlink():
@@ -186,7 +188,8 @@ def repair_symlinks(base: Path) -> None:
             # for Path.readlink has already been merged in the Python develop
             # branch)
             target = Path(os.readlink(file.as_posix()))
-            if target.is_absolute():
+            target = Path(resolve_path(target))
+            if target.is_absolute() and dir_contains(target, base):
                 rel_target = target.relative_to(base)
                 file.unlink()
                 file.symlink_to(rel_target)
