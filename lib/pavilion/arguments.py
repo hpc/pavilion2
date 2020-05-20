@@ -5,6 +5,7 @@ components to add sub-commands.
 
 import argparse
 
+import pavilion.config
 from pavilion import utils
 
 _PAV_PARSER = None
@@ -29,7 +30,7 @@ def get_parser():
                         default=False,
                         help='Log all levels of messages to stderr.')
     parser.add_argument('--version', action='version',
-                        version='Pavilion ' + utils.get_version(),
+                        version='Pavilion ' + pavilion.config.get_version(),
                         default=False,
                         help='Displays the current version of Pavilion.')
 

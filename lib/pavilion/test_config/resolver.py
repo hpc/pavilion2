@@ -688,7 +688,6 @@ class TestConfigResolver:
         """
 
         permute_on = test_cfg['permute_on']
-        del test_cfg['permute_on']
 
         used_per_vars = set()
         for per_var in permute_on:
@@ -703,11 +702,27 @@ class TestConfigResolver:
                 raise TestConfigError(
                     "Permutation variable '{}' contains index or subvar."
                     .format(per_var))
-            elif base_var_man.is_deferred(var_key):
+            elif base_var_man.any_deferred(per_var):
+
                 raise TestConfigError(
-                    "Permutation variable '{}' references a deferred variable."
+                    "Permutation variable '{}' references a deferred variable "
+                    "or one with deferred components."
                     .format(per_var))
             used_per_vars.add((var_set, var))
+
+        if permute_on and test_cfg.get('subtitle', None) is None:
+            subtitle = []
+            var_dict = base_var_man.as_dict()
+            for per_var in permute_on:
+                var_set, var, index, subvar = base_var_man.resolve_key(per_var)
+                if isinstance(var_dict[var_set][var][0], dict):
+                    subtitle.append(var + '?')
+                else:
+                    subtitle.append('{{' + per_var + '}}')
+
+            subtitle = '-'.join(subtitle)
+
+            test_cfg['subtitle'] = subtitle
 
         # var_men is a list of variable managers, one for each permutation
         var_men = base_var_man.get_permutations(list(used_per_vars))
@@ -1059,7 +1074,7 @@ class TestConfigResolver:
                     raise TestConfigError(
                         "Error resolving value '{}' for key '{}':\n"
                         "{}\n{}"
-                        .format(component, '.'.join(key_parts),
+                        .format(component, [str(part) for part in key_parts],
                                 err.message, err.context))
                 else:
                     return resolved
