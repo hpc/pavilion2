@@ -1,4 +1,6 @@
-from pavilion.results import parsers
+from pavilion.result import parsers
+
+import pavilion.result.base
 import yaml_config as yc
 import re
 import sre_constants
@@ -55,26 +57,26 @@ class Regex(parsers.ResultParser):
         try:
             re.compile(regex)
         except (ValueError, sre_constants.error) as err:
-            raise parsers.ResultParserError(
+            raise pavilion.result.base.ResultError(
                 "Invalid regular expression: {}".format(err))
 
         if not isinstance(expected, list):
-            raise parsers.ResultParserError(
+            raise pavilion.result.base.ResultError(
                 "Expected should be a list.")
 
         if threshold:
             try:
                 int(threshold)
             except ValueError as err:
-                raise parsers.ResultParserError(
+                raise pavilion.result.base.ResultError(
                     "Non-integer value provided for 'threshold'.")
 
             if int(threshold) < 0:
-                raise parsers.ResultParserError(
+                raise pavilion.result.base.ResultError(
                     "'threshold' must be a non-negative integer.")
 
             if expected:
-                raise parsers.ResultParserError(
+                raise pavilion.result.base.ResultError(
                     "'threshold' and 'expected' cannot be used at the same "
                     "time.")
 
@@ -92,7 +94,7 @@ class Regex(parsers.ResultParser):
                     if not none_used:
                         none_used = True
                     else:
-                        raise parsers.ResultParserError(
+                        raise pavilion.result.base.ResultError(
                                 "No values provided in range: {}"
                                 .format(test_list))
                 else:
@@ -101,7 +103,7 @@ class Regex(parsers.ResultParser):
                         # cast it as a float first, just in case it is a float.
                         float(test_item)
                     except ValueError as err:
-                        raise parsers.ResultParserError(
+                        raise pavilion.result.base.ResultError(
                             "Invalid value: {}".format(test_item)
                         )
 
@@ -119,7 +121,7 @@ class Regex(parsers.ResultParser):
                 # Check for range specification as
                 # (<lesser value>:<greater value>)
                 if '' not in test_list and high < low:
-                    raise parsers.ResultParserError(
+                    raise pavilion.result.base.ResultError(
                         "Invalid range: {}".format(item))
 
     def __call__(self, test, file, regex=None, match_type=None, threshold=None,
@@ -145,7 +147,7 @@ class Regex(parsers.ResultParser):
         elif match_type == parsers.MATCH_ALL:
             pass
         else:
-            raise parsers.ResultParserError(
+            raise pavilion.result.base.ResultError(
                 "Invalid 'matches' value '{}'".format('matches')
             )
 

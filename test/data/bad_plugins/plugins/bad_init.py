@@ -1,4 +1,6 @@
-from pavilion.results import parsers
+from pavilion.result import parsers
+
+import pavilion.result.base
 import yaml_config as yc
 
 
@@ -27,7 +29,7 @@ class BadInit(parsers.ResultParser):
     def _check_args(self, const=None):
 
         if const == "":
-            raise parsers.ResultParserError(
+            raise pavilion.result.base.ResultError(
                 "Constant required."
         )
 

@@ -1,16 +1,16 @@
 """This module contains the base Result Parser plugin class."""
 
-import datetime
 import glob
 import inspect
 import logging
-import re
 from collections import OrderedDict
 from pathlib import Path
 
+from .base import ResultError
+
 import yaml_config as yc
-from yapsy import IPlugin
 from pavilion.test_config import file_format, resolver
+from yapsy import IPlugin
 
 LOGGER = logging.getLogger(__file__)
 
@@ -44,16 +44,6 @@ def __reset():
     for parser in list(_RESULT_PARSERS.values()):
         parser.deactivate()
 
-
-class ResultParserError(RuntimeError):
-    """Error thrown when the result parser fails."""
-    pass
-
-
-# These are the base result constants
-PASS = 'PASS'
-FAIL = 'FAIL'
-ERROR = 'ERROR'
 
 ACTION_STORE = 'store'
 ACTION_TRUE = 'store_true'
@@ -165,10 +155,19 @@ deferred args. On error, should raise a ResultParserError.
         # The presence or absence of needed args should be enforced by
         # setting 'required' in the yaml_config config items.
 
-        # Don't check args if they have deferred values.
-        for arg in kwargs:
-            if resolver.TestConfigResolver.was_deferred(arg):
-                return
+        kwargs = kwargs.copy()
+        for key in ('key', 'action', 'per_file', 'files'):
+            if key not in kwargs:
+                raise RuntimeError(
+                    "Result parser '{}' missing required attribute '{}'. These "
+                    "are validated at the config level, so something is "
+                    "probably wrong with plugin."
+                    .format(self.name, key)
+                )
+
+            # The parser plugins don't know about these keys, as they're
+            # handled at a higher level.
+            del kwargs[key]
 
         self._check_args(**kwargs)
 
@@ -227,6 +226,7 @@ Example: ::
             # The default for the file is handled by the test object.
             yc.ListElem(
                 "files",
+                required=True,
                 sub_elem=yc.StrElem(),
                 defaults=['../run.log'],
                 help_text="Path to the file/s that this result parser "
@@ -235,6 +235,7 @@ Example: ::
             yc.StrElem(
                 "per_file",
                 default=PER_FIRST,
+                required=True,
                 choices=[
                     PER_FIRST,
                     PER_LAST,
@@ -336,64 +337,6 @@ do this in unittests.
         del _RESULT_PARSERS[self.name]
 
 
-
-
-def check_args(parser_configs):
-    """Make sure the result parsers are sensible.
-
-- No duplicated key names.
-- Sensible keynames: ``/[a-z0-9_-]+/``
-- No reserved key names.
-
-:raises TestRunError: When a config breaks the rules.
-"""
-
-    key_names = []
-
-    for rtype in parser_configs:
-        for rconf in parser_configs[rtype]:
-            key = rconf.get('key')
-
-            if key is None:
-                raise RuntimeError(
-                    "ResultParser config for parser '{}' missing key. "
-                    "This is an error with the result parser itself,"
-                    "probably.".format(rtype)
-                )
-
-            regex = re.compile(ResultParser.KEY_REGEX_STR)
-
-            if regex.match(key) is None:
-                raise RuntimeError(
-                    "ResultParser config for parser '{}' has invalid key."
-                    "Key does not match the required format. "
-                    "This is an error with the result parser itself, "
-                    "probably.".format(rtype)
-                )
-
-            if key in key_names:
-                raise ResultParserError(
-                    "Duplicate result parser key name '{}' under parser '{}'"
-                    .format(key, rtype)
-                )
-
-            if key in BASE_RESULTS.keys():
-                raise ResultParserError(
-                    "Result parser key '{}' under parser '{}' is reserved."
-                    .format(key, rtype)
-                )
-
-            key_names.append(key)
-
-            parser = get_plugin(rtype)
-            # The parser's don't know about the 'key' config item.
-            args = rconf.copy()
-            for key in ('key', 'action', 'per_file', 'files'):
-                del args[key]
-
-            parser.check_args(**args)
-
-
 NON_MATCH_VALUES = (None, [], False)
 EMPTY_VALUES = (None, [])
 
@@ -443,7 +386,7 @@ configured for that test.
                 for k in 'key', 'files', 'action', 'per_file':
                     del args[k]
             except KeyError as err:
-                raise ResultParserError(
+                raise ResultError(
                     "Invalid config for result parser '{}': {}"
                     .format(parser_name, err))
 
@@ -507,7 +450,7 @@ configured for that test.
                     else:
                         presults[path] = 0
                 else:
-                    raise ResultParserError(
+                    raise ResultError(
                         "Invalid action for result parser '{}': {}"
                         .format(parser_name, action))
 
@@ -601,24 +544,10 @@ configured for that test.
             elif per_file == PER_ANY:
                 results[key] = any(presults.values())
             else:
-                raise ResultParserError("Invalid per_file value: {}"
-                                        .format(per_file))
+                raise ResultError("Invalid per_file value for result parser "
+                                  "'{}' - {}"
+                                  .format(parser_name, per_file))
 
-    if results['result'] not in (PASS, FAIL):
-        if results['result'] is True:
-            results['result'] = PASS
-        elif results['result'] is False:
-            results['result'] = FAIL
-        else:
-            errors.append({
-                'result_parser': None,
-                'file': None,
-                'key': 'result',
-                'msg': "A result parser set the 'result' key to {}, but it "
-                       "must be strictly set to True/False (PASS/FAIL)."
-                       .format(results['result'])
-            })
-
-    results['pav_result_errors'] = errors
+        results['pav_result_errors'] = errors
 
     return results

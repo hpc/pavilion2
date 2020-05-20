@@ -1,5 +1,5 @@
 from pathlib import Path
-from pavilion.results import parsers
+from pavilion.result import parsers
 import yaml_config as yc
 
 

@@ -4,7 +4,7 @@ import unittest
 
 from pavilion import config
 from pavilion import plugins
-from pavilion.results import parsers
+from pavilion.result import parsers
 from pavilion import schedulers
 from pavilion.plugins.sched.slurm import Slurm
 from pavilion.status_file import STATES

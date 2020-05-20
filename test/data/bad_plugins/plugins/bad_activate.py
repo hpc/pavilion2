@@ -1,4 +1,4 @@
-from pavilion.results import parsers
+from pavilion.result import parsers
 
 
 class BadActivate(parsers.ResultParser):

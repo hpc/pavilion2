@@ -7,10 +7,11 @@ import time
 import threading
 from collections import defaultdict
 
+import pavilion.result
 from pavilion import commands
 from pavilion import output
 from pavilion.output import fprint
-from pavilion.results import parsers
+from pavilion.result import parsers
 from pavilion import schedulers
 from pavilion import system_variables
 from pavilion import test_config
@@ -437,7 +438,7 @@ class RunCommand(commands.Command):
         for test in tests:
             test.set_run_complete()
 
-    def check_result_parsers(self, tests):
+    def check_result_format(self, tests):
         """Make sure the result parsers for each test are ok."""
 
         rp_errors = []
@@ -445,7 +446,7 @@ class RunCommand(commands.Command):
 
             # Make sure the result parsers have reasonable arguments.
             try:
-                parsers.check_args(test.config['result']['parsers'])
+                pavilion.result.check_config(test.config['result'])
             except TestRunError as err:
                 rp_errors.append(str(err))
 

@@ -17,6 +17,7 @@ directly as a ResultExpression.
 """
 
 import re
+from typing import Union
 
 import lark as _lark
 from .common import ParserValueError
@@ -99,6 +100,9 @@ def parse_text(text, var_man) -> str:
         return transformer.transform(parser.parse(txt))
 
     try:
+        # On the surface it may seem that parsing and transforming should be
+        # separate steps with their own errors, but expressions are parsed
+        # as part of the transformation and may raise their own parse errors.
         value = parse_fn(text)
     except (_lark.UnexpectedCharacters, _lark.UnexpectedToken) as err:
         # Try to figure out why the error happened based on examples.
@@ -110,6 +114,46 @@ def parse_text(text, var_man) -> str:
         raise StringParserError(err.args[0], err.get_context(text))
 
     return value
+
+
+def check_expression(expr: str) -> Union[None, str]:
+    """Check that expr is valid, returning the error if one occurred."""
+
+    parser = get_expr_parser()
+
+    try:
+        parser.parse(expr)
+    except (_lark.UnexpectedCharacters, _lark.UnexpectedToken) as err:
+        # Try to figure out why the error happened based on examples.
+        err_type = match_examples(err, parser.parse, BAD_EXAMPLES, expr)
+        return "{}:\n{}".format(err_type, err.get_context(expr))
+
+    return None
+
+
+def parse_analysis_expression(expr: str, results: dict):
+    """Parse the given analysis expression using the data in the results
+    dict.
+
+    :returns: An int, float, bool, str or a structure of lists dicts containing
+        only those types.
+    """
+
+    parser = get_expr_parser()
+    transformer = AnalysisExprTransformer(results)
+
+    try:
+        tree = parser.parse(expr)
+    except (_lark.UnexpectedCharacters, _lark.UnexpectedToken) as err:
+        # Try to figure out why the error happened based on examples.
+        err_type = match_examples(err, parser.parse, BAD_EXAMPLES, expr)
+        raise StringParserError(err_type, err.get_context(expr))
+
+    try:
+        return transformer.transform(tree)
+    except ParserValueError as err:
+        # Any value errors should be converted to this error type.
+        raise StringParserError(err.args[0], err.get_context(expr))
 
 
 def match_examples(exc, parse_fn, examples, text):

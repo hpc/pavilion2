@@ -3,9 +3,11 @@ environment."""
 
 import logging
 
+import pavilion.result
+import pavilion.result.base
 from pavilion import output
 from pavilion import commands
-from pavilion.results import parsers
+from pavilion.result import parsers
 from pavilion import schedulers
 from pavilion import system_variables
 from pavilion.test_config import VariableSetManager
@@ -137,7 +139,7 @@ class _RunCommand(commands.Command):
             # the args are valid form _check_args, but those might not be
             # checkable before kickoff due to deferred variables.
             try:
-                parsers.check_args(test.config['result']['parsers'])
+                pavilion.result.check_config(test.config['result']['parsers'])
             except TestRunError as err:
                 rp_errors.append(str(err))
 
@@ -148,7 +150,7 @@ class _RunCommand(commands.Command):
                 return 1
 
             results = test.gather_results(run_result)
-        except parsers.ResultParserError as err:
+        except pavilion.result.base.ResultError as err:
             self.logger.error("Unexpected error gathering results: %s", err)
             test.status.set(STATES.RESULTS_ERROR,
                             "Error parsing results: {}".format(err))

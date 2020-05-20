@@ -649,33 +649,6 @@ class TestRun:
         """Process and log the results of the test, including the default set
 of result keys.
 
-Default Result Keys:
-
-name
-    The name of the test
-id
-    The test id
-created
-    When the test was created.
-started
-    When the test was started.
-finished
-    When the test finished running (or failed).
-duration
-    Length of the test run.
-user
-    The user who ran the test.
-sys_name
-    The system (cluster) on which the test ran.
-job_id
-    The job id set by the scheduler.
-result
-    Defaults to PASS if the test completed (with a zero
-    exit status). Is generally expected to be overridden by other
-    result parsers.
-sched
-    All of the scheduler variable values.
-
 :param int run_result: The return code of the test run.
 """
 
@@ -697,18 +670,28 @@ sched
                         "Parsing {} result types."
                         .format(len(parser_configs)))
 
-        results = parsers.parse_results(self, results)
+        try:
+            results = result.parse_results(self, results)
+        except result.ResultError as err:
+            raise TestRunError("Error parsing results:{}".format(err.args[
+                                                                        0]))
+            pass
 
-        analysis = self.config['result']['analysis']
+        try:
+            result.analyze_results(results,
+                                   self.config['result']['analysis'])
+        except result.ResultError as err:
+            pass
 
-        expr_parser = parsers.get_expr_parser()
-        analysis_trans = parsers.AnalysisExprTransformer(results)
-
-        for key, expr in analysis:
-            tree = expr_parser.parse(expr)
-            value = analysis_trans.transform(tree)
-            results[key] = value
-
+        if results['result'] is True:
+            results['result'] = self.PASS
+        elif results['result'] is False:
+            results['result'] = self.FAIL
+        else:
+            raise TestRunError(
+                "The value for the 'result' key in the results must be a "
+                "boolean. Got '{}' instead".format(results['result'])
+            )
 
         self._results = results
 
@@ -735,6 +718,9 @@ sched
                 return json.load(results_file)
         else:
             return None
+
+    PASS = 'PASS'
+    FAIL = 'FAIL'
 
     @property
     def results(self):

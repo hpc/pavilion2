@@ -19,7 +19,7 @@ from pathlib import Path
 from pavilion.commands import Command
 from pavilion.expression_functions import FunctionPlugin
 from pavilion.module_wrapper import ModuleWrapper
-from pavilion.results.parsers import ResultParser
+from pavilion.result.parsers import ResultParser
 from pavilion.schedulers import SchedulerPlugin
 from pavilion.system_variables import SystemPlugin as System
 from yapsy import PluginManager

@@ -1,11 +1,11 @@
 import datetime
 import logging
 
+import pavilion.result
 import yaml_config as yc
 from pavilion import arguments
 from pavilion import plugins
-from pavilion.results import parsers
-from pavilion.results.parsers import ResultParserError
+from pavilion.result import parsers, ResultError
 from pavilion.unittest import PavTestCase
 
 LOGGER = logging.getLogger(__name__)
@@ -179,53 +179,75 @@ class ResultParserTests(PavTestCase):
         self.assertEqual(results['all'], False)
         self.assertEqual(results['result'], parsers.PASS)
 
-    def test_check_args(self):
+    def test_check_config(self):
 
         # A list of regex
-        tests = [
+        parser_tests = [
             # Should work fine.
             ([{'key': 'ok', 'regex': r'foo'}], None),
+            # Repeated key
             ([{'key': 'repeated', 'regex': r'foo'},
-             {'key': 'repeated', 'regex': r'foo'}], ResultParserError),
-            ([{'key': '#!@123948aa', 'regex': r'foo'}], ValueError),
-            ([{'regex': r'foo'}], ValueError),
-            ([{'key': 'started', 'regex': r'foo'}], ResultParserError),
+             {'key': 'repeated', 'regex': r'foo'}], ResultError),
+            # Reserved key
+            ([{'key': 'created', 'regex': r'foo'}], ResultError),
+            # Missing key
+            ([{'regex': r'foo'}], yc.RequiredError),
+            ([{'key': 'started', 'regex': r'foo'}], ResultError),
+            # Missing regex
             ([{'key': 'nope'}], yc.RequiredError),
-            ([{'key': 'test', 'regex': '[[['}], ResultParserError),
+            ([{'key': 'test', 'regex': '[[['}], ResultError),
             ([{'key': 'test', 'regex': '^User:(.*)$', 'expected': ['12:11']}],
-                ResultParserError),
+             ResultError),
             ([{'key': 'test', 'regex': '^User:(.*)$', 'expected': ['-11:-12']}],
-                ResultParserError),
+             ResultError),
             ([{'key': 'test', 'regex': '^User:(.*)$',
-               'expected': ['11:12:13']}], ResultParserError),
+               'expected': ['11:12:13']}], ResultError),
             ([{'key':      'test', 'regex': '^User:(.*)$',
-               'expected': ['11:words']}], ResultParserError),
+               'expected': ['11:words']}], ResultError),
             ([{'key':      'test', 'regex': '^User:(.*)$',
-               'threshold': '-5'}], ResultParserError),
+               'threshold': '-5'}], ResultError),
             ([{'key':       'test', 'regex': '^User:(.*)$',
-               'threshold': 'A'}], ResultParserError),
+               'threshold': 'A'}], ResultError),
             ([{'key':       'test', 'regex': '^User:(.*)$',
-               'threshold': 'A', 'expected': '10:12'}], ResultParserError),
+               'threshold': 'A', 'expected': '10:12'}], ResultError),
         ]
 
-        for parsers, err_type in tests:
-            test_cfg = {
-                'result': {
+        for parsers_conf, err_type in parser_tests:
+
+            test_cfg = self._quick_test_cfg()
+            test_cfg['result'] = {
                     'parsers': {
-                        'regex': parsers
-                    }
+                        'regex': parsers_conf,
+                    },
+                    'analysis': {},
                 }
-            }
 
             if err_type is not None:
                 with self.assertRaises(err_type,
                                        msg="Error '{}' not raised for '{}'"
-                                           .format(err_type, parsers)):
-                    test = self._quick_test(test_cfg, 'check_args_test')
-                    parsers.check_args(test.config['result']['parsers'])
+                                           .format(err_type, parsers_conf)):
+
+                    # We want a finalized, validated config. This may raise
+                    # errors too.
+                    test = self._quick_test(test_cfg)
+
+                    pavilion.result.check_config(test.config['result'])
             else:
-                test = self._quick_test(test_cfg, 'check_args_test')
-                parsers.check_args(test.config['result']['parsers'])
+                test = self._quick_test(test_cfg)
+                pavilion.result.check_config(test.config['result'])
+
+        analysis_confs = [
+            # Reserved key
+            {'started': 'bar'},
+            {'foo': 'bar.3 +'}
+        ]
+
+        for analysis_conf in analysis_confs:
+            result_cfg = {
+                'analysis': analysis_conf,
+                'parsers': {},
+            }
+            pavilion.result.check_config(result_cfg)
 
     def test_base_results(self):
         """Make all base result functions work."""
@@ -809,3 +831,25 @@ class ResultParserTests(PavTestCase):
         self.assertEqual('18.72', results['table3']['Static OMP']['Overhead'])
         self.assertEqual('16.392', results['table3']['Dynamic OMP']['Runtime'])
         self.assertEqual('23.79', results['table3']['Manual OMP']['us/Loop'])
+
+
+    def test_analysis(self):
+
+        # (anaysis_conf, expected values)
+        analysis_tests = [
+            ({'result': 'True'}, {'result': 'PASS'}),
+            ({'result': 'not return_value'}, {'result': 'FAIL'}),
+            ({'sum': 'sum([1,2,3])'}, {'sum': 6}),
+        ]
+
+        for analysis_conf, result in analysis_tests:
+
+            cfg = self._quick_test_cfg()
+            cfg['result'] = {}
+            cfg['result']['analysis'] = analysis_conf
+
+            test = self._quick_test(cfg)
+            results = test.gather_results(0)
+
+
+

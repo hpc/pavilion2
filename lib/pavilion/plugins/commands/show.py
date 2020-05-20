@@ -5,13 +5,14 @@ import os
 import argparse
 from typing import Union
 
+import pavilion.result.base
 import yaml_config
 from pavilion import commands
 from pavilion import config
 from pavilion import expression_functions
 from pavilion import module_wrapper
 from pavilion import output
-from pavilion.results import parsers
+from pavilion.result import parsers
 from pavilion import schedulers
 from pavilion import status_file
 from pavilion import system_variables
@@ -498,7 +499,7 @@ class ShowCommand(commands.Command):
         if args.config:
             try:
                 res_plugin = parsers.get_plugin(args.config)
-            except parsers.ResultParserError:
+            except pavilion.result.base.ResultError:
                 output.fprint(
                     "Invalid result parser '{}'.".format(args.config),
                     color=output.RED

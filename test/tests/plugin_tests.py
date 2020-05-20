@@ -3,7 +3,7 @@ from pavilion import commands
 from pavilion import config
 from pavilion import module_wrapper
 from pavilion import plugins
-from pavilion.results import parsers
+from pavilion.result import parsers
 from pavilion import system_variables
 from pavilion import expression_functions
 from pavilion.test_config import variables
