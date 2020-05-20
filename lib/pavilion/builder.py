@@ -436,12 +436,18 @@ class TestBuilder:
                         # into the test run, and set the run as complete.
                         return False
 
-                    # Make all symlinks relative so they can be moved
-                    # cleanly.
-                    utils.repair_symlinks(build_dir)
+                    try:
+                        # Make all symlinks relative if they're internal
+                        utils.repair_symlinks(build_dir)
 
-                    # Rename the build to it's final location.
-                    build_dir.rename(self.path)
+                        # Rename the build to it's final location.
+                        build_dir.rename(self.path)
+                    except (OSError, ValueError) as err:
+                        self.tracker.error(
+                            "Unexpected error: {}".format(err.args[0])
+                        )
+                        cancel_event.set()
+                        return False
 
                     # Make a file with the test id of the building test.
                     try:
