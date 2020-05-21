@@ -224,8 +224,7 @@ def display_history(pav_cfg, args, outfile):
     return ret_val
 
 
-def print_summary(statuses, outfile, json=False):
-
+def print_summary(statuses, outfile):
     """Print_summary takes in a list of test statuses.
         It summarizes basic state output and displays
         the data to the user through draw_table.
@@ -233,7 +232,6 @@ def print_summary(statuses, outfile, json=False):
         :param outfile:
         :rtype: int
         """
-
     total_tests = len(statuses)
     one_success = False
     total_pass = 0
@@ -425,7 +423,7 @@ class StatusCommand(commands.Command):
             return 1
         
         if args.summary:
-            return print_summary(test_statuses, self.outfile, args.json)
+            return print_summary(test_statuses, self.outfile)
         elif args.history:
             return display_history(pav_cfg, args, self.outfile)
         else:

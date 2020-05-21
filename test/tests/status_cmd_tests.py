@@ -122,6 +122,13 @@ class StatusCmdTests(PavTestCase):
         args = parser.parse_args(arg_list)
         self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
 
+        parser = argparse.ArgumentParser()
+        status_cmd._setup_arguments(parser)
+        arg_list = ['-s'] + test_str.split()
+        args = parser.parse_args(arg_list)
+        self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
+
+
     def test_set_status_command(self):
         """Test set status command by generating a suite of tests."""
 
@@ -226,6 +233,7 @@ class StatusCmdTests(PavTestCase):
 
         # TODO: Test that the above have actually been set.
 
+<<<<<<< HEAD
     def test_history_status(self):
         """Checks pav status --history $id command when
         passed a valid and invalid test id.
@@ -240,6 +248,49 @@ class StatusCmdTests(PavTestCase):
         test_cfg3['name'] = 'test3'
 
         configs = [test_cfg1, test_cfg2, test_cfg3]
+=======
+    def goober_test_status_summary(self):
+        # Testing that status works with summary flag
+        config1 = file_format.TestConfigLoader().validate({
+            'scheduler': 'raw',
+            'run': {
+                'env': {
+                    'foo': 'bar',
+                },
+                'cmds': ['echo "I $foo, punks"'],
+            },
+        })
+
+        config1['name'] = 'run_test0'
+
+        config2 = file_format.TestConfigLoader().validate({
+            'scheduler': 'raw',
+            'run': {
+                'env': {
+                    'too': 'tar',
+                },
+                'cmds': ['echo "I $too, punks"'],
+            },
+        })
+
+        config2['name'] = 'run_test1'
+
+        config3 = file_format.TestConfigLoader().validate({
+            'scheduler': 'raw',
+            'run': {
+                'env': {
+                    'too': 'tar',
+                },
+                'cmds': ['sleep 10'],
+            },
+        })
+
+        config3['name'] = 'run_test2'
+
+        configs = [config1, config2, config3]
+
+        var_man = VariableSetManager()
+>>>>>>> work on unit tests
 
         tests = [TestRun(self.pav_cfg, test)
                  for test in configs]
@@ -247,6 +298,7 @@ class StatusCmdTests(PavTestCase):
         for test in tests:
             test.RUN_SILENT_TIMEOUT = 1
 
+<<<<<<< HEAD
         suite = TestSeries(self.pav_cfg, tests)
         test_str = " ".join([str(test) for test in suite.tests])
         status_cmd = commands.get_command('status')
@@ -267,3 +319,22 @@ class StatusCmdTests(PavTestCase):
         # None int arguments "pav status --history lolol" throw
         # error in unit-test but are caught cleanly in pav usage
         # check.
+=======
+        # Make sure this doesn't explode
+        suite = TestSeries(self.pav_cfg, tests)
+        test_str = " ".join([str(test) for test in suite.tests])
+
+        status_cmd = commands.get_command('status')
+        status_cmd.outfile = io.StringIO()
+
+
+
+        #for test in suite.tests:
+        print()
+        parser = argparse.ArgumentParser()
+        status_cmd._setup_arguments(parser)
+        arg_list = ['-s']
+        args = parser.parse_args(arg_list)
+        print(status_cmd.run(self.pav_cfg, args))
+        self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
+>>>>>>> work on unit tests
