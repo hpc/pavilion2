@@ -199,7 +199,8 @@ class ResolverTests(PavTestCase):
                 'baz': ['6'],
                 'blarg': ['7', '8']
             },
-            'permute_on': ['foo', 'bar', 'baz']
+            'permute_on': ['foo', 'bar', 'baz'],
+            'subtitle': '{{foo}}-{{bar.p}}-{{baz}}',
         }
 
         orig_permutations = raw_test['variables']
@@ -369,11 +370,14 @@ class ResolverTests(PavTestCase):
                     {'p': '4', 'q': '4a'},
                 ],
             },
-            'permute_on': ['foo', 'bar']
+            'permute_on': ['foo', 'bar'],
+            'subtitle': None,
         }
 
         answer1 = {
-                   'build': {
+                'permute_on': ['foo', 'bar'],
+                'subtitle': '1-bar?',
+                'build': {
                        'cmds':
                            ["echo 1 4", "echo 1", "echo 4a"],
                        'env': [
@@ -387,6 +391,7 @@ class ResolverTests(PavTestCase):
         # This is all that changes between the two.
         answer2 = copy.deepcopy(answer1)
         answer2['build']['cmds'] = ["echo 2 4", "echo 2", "echo 4a"]
+        answer2['subtitle'] = '2-bar?'
 
         answers = [answer1, answer2]
 
