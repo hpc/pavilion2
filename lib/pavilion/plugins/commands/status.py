@@ -1,6 +1,7 @@
 """The Status command, along with useful functions that make it easy for
 other commands to print statuses."""
 
+import errno
 import os
 import time
 
@@ -173,8 +174,15 @@ def get_statuses(pav_cfg, args, errfile):
     return test_statuses
 
 
-def print_summary(statuses, outfile, json=False):
-    from pavilion.output import dbg_print
+def print_summary(statuses, outfile):
+    """Print_summary takes in a list of test statuses.
+    It summarizes basic state output and displays
+    the data to the user through draw_table.
+    :param statuses: state list of current jobs
+    :param outfile:
+    :return:
+    """
+
     total_tests = len(statuses)
     total_pass = 0
     total_fail = 0
@@ -182,56 +190,78 @@ def print_summary(statuses, outfile, json=False):
     state_completed = 0
     state_running = 0
     state_error = 0
-    ret_val = 1
+    ret_val = 0
 
-    for stat in statuses:
-        if stat['note'] != "Test not found.":
-            ret_val = 0
-
-    for test in statuses: # collect statistical info on job list.
+    for test in statuses:  # collect statistical info on job list.
         # For a summary table we will generalize some output.
         if 'COMPLETE' in test['state']:
             state_completed += 1
             if 'PASS' in test['note']:
                 total_pass += 1
-            elif 'FAIL' in test['note']:
-                total_fail += 1
-            elif 'SKIPPED' in test['note']:
-                total_skipped += 1
             else:
                 total_fail += 1
 
-        elif 'RUNNING' in test['state']:
+        elif 'SKIPPED' in test['state']:
+            total_skipped += 1
+
+        elif 'RUNNING' in test['state'] or \
+             'SCHEDULED' in test['state'] or \
+             'PREPPING_RUN' in test['state']:
             state_running += 1
+
         else:
-            state_error +=1
-
-    dbg_print("PASS: {} ".format(total_pass/total_tests))
+            # We assume a fail is running/complete/skip not found.
+            # Also tests not found will be logged here.
+            state_error += 1
     
-    fields = ['States', 'Amount', 'Percent', 'PASSED', 'FAILED', 'SKIPPED']
+    fields = ['State', 'Amount', 'Percent', 'PASSED', 'FAILED']
+    try:
+        rows = [
+            {'State': output.ANSIString('COMPLETED', output.COLORS.get('GREEN')),
+             'Amount': state_completed,
+             'Percent': '{0:.0%}'.format(state_completed/total_tests),
+             'PASSED': '{0:.0%}'.format(total_pass/state_completed),
+             'FAILED': '{0:.0%}'.format(total_fail/state_completed)},
 
-    rows = [
-        {'States': 'COMPLETED', 'Amount': state_completed,
-         'Percent': '{0:.0%}'.format(state_completed/total_tests),
-         'PASSED': '{0:.0%}'.format(total_pass/state_completed),
-         'FAILED': '{0:.0%}'.format(total_fail/state_completed, color=output.RED),
-         'SKIPPED': '{0:.0%}'.format(total_skipped/state_completed)},
+            {'State': output.ANSIString('RUNNING', output.COLORS.get('CYAN')),
+             'Amount': state_running,
+             'Percent': '{0:.0%}'.format(state_running/total_tests)},
 
-        {'States': 'RUNNING', 'Amount': state_running,
-         'Percent': '{0:.0%}'.format(state_running/total_tests)},
+            {'State': output.ANSIString('RUN/BUILD_FAILED', output.COLORS.get(
+                'RED')),
+             'Amount': state_error,
+             'Percent': '{0:.0%}'.format(state_error/total_tests)},
 
-        {'States': 'RUN_FAILED', 'Amount': state_error,
-         'Percent': '{0:.0%}'.format(state_error/total_tests)}
-    ]
+            {'State': output.ANSIString('SKIPPED', output.COLORS.get('YELLOW')),
+             'Amount': total_skipped,
+             'Percent': '{0:.0%}'.format(total_skipped/total_tests)
+             }
+        ]
+    except ArithmeticError:
+        output.fprint("There are currently no tests in the "
+                      "working directory", color=output.RED)
+        #return errno.EINVAL
+        return 0
+
+    field_info = {
+        'PASSED': {
+            'transform': lambda t: output.ANSIString(t, output.COLORS.get(
+                'GREEN')),
+            },
+        'FAILED': {
+            'transform': lambda t: output.ANSIString(t, output.COLORS.get(
+                'RED')),
+            }
+    }
 
     output.draw_table(outfile=outfile,
-                      field_info={},
+                      field_info=field_info,
                       fields=fields,
                       rows=rows,
+                      border=True,
                       title='Test Summary'
                       )
-
-    return ret_val
+    return 0
 
 
 def print_status(statuses, outfile, json=False):
@@ -320,7 +350,6 @@ class StatusCommand(commands.Command):
                  'and useful information. '
         )
 
-
     def run(self, pav_cfg, args):
         """Gathers and prints the statuses from the specified test runs and/or
         series."""
@@ -334,6 +363,5 @@ class StatusCommand(commands.Command):
             return 1
         
         if args.summary:
-            return print_summary(test_statuses, self.outfile, args.json)
-
+            return print_summary(test_statuses, self.outfile)
         return print_status(test_statuses, self.outfile, args.json)
