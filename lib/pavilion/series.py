@@ -109,9 +109,13 @@ class SeriesManager:
                     if self.series_section[test_name]['depends_pass'] == 'True':
                         if self.all_tests_passed(
                                 self.test_info[test_name]['prev']):
+                            # We care that all the tests this test depended
+                            # on passed, and they did, so run this test.
                             self.run_test(test_name)
                             self.not_started.remove(test_name)
                         else:
+                            # The dependent tests did not pass, and we care.
+                            # Skip this test.
                             temp_resolver = resolver.TestConfigResolver(
                                 self.pav_cfg)
                             raw_configs = temp_resolver.load_raw_configs(
@@ -119,8 +123,8 @@ class SeriesManager:
                                 self.test_info[test_name]['modes']
                             )
                             for config in raw_configs:
-                                # need to delete these so they won't get
-                                # evaluated
+                                # Delete the conditionals - we're already
+                                # skipping this test but for different reasons.
                                 del config['only_if']
                                 del config['not_if']
                                 skipped_test = TestRun(self.pav_cfg, config)
@@ -132,6 +136,7 @@ class SeriesManager:
                             self.not_started.remove(test_name)
                             self.finished.append(test_name)
                     else:
+                        # All tests completed, and we don't care if they passed.
                         self.run_test(test_name)
                         self.not_started.remove(test_name)
 
@@ -153,7 +158,7 @@ class SeriesManager:
             }
 
             # resolve configs
-            # pylint: disable=W0212
+            # pylint: disable=protected-access
             configs_by_sched = run_cmd._get_test_configs(
                 pav_cfg=self.pav_cfg,
                 host=None,
@@ -166,7 +171,7 @@ class SeriesManager:
             )
 
             # configs -> test
-            # pylint: disable=W0212
+            # pylint: disable=protected-access
             tests_by_sched = run_cmd._configs_to_tests(
                 pav_cfg=self.pav_cfg,
                 configs_by_sched=configs_by_sched,
@@ -204,7 +209,7 @@ class SeriesManager:
         # make sure result parsers are ok
         res = run_cmd.check_result_parsers(all_tests)
         if res != 0:
-            # pylint: disable=W0212
+            # pylint: disable=protected-access
             run_cmd._complete_tests(all_tests)
             self.test_info[test_name]['obj'] = run_cmd.last_tests
             self.started.append(test_name)
@@ -218,7 +223,7 @@ class SeriesManager:
             build_verbosity=0
         )
         if res != 0:
-            # pylint: disable=W0212
+            # pylint: disable=protected-access
             run_cmd._complete_tests(all_tests)
             self.test_info[test_name]['obj'] = run_cmd.last_tests
             self.started.append(test_name)
