@@ -32,7 +32,7 @@ class AutoSeries(commands.Command):
 
         series_config_loader = SeriesConfigLoader()
 
-        # pylint: disable=W0212
+        # pylint: disable=protected-access
         tsr = TestConfigResolver(pav_cfg)
         series_path = tsr._find_config('series', series_name)
 

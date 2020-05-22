@@ -11,6 +11,7 @@ import errno
 
 from pavilion import utils
 from pavilion import commands
+from pavilion import schedulers
 from pavilion import arguments
 from pavilion import test_config
 from pavilion import system_variables
@@ -246,7 +247,16 @@ class SeriesManager:
             return False
 
         test_obj_list = self.test_info[test_name]['obj']
+        # test is considered "finished" if:
+        # test has 'RUN_COMPLETE' file in test_run dir
         for test_obj in test_obj_list:
+
+            # if scheduler is known, check status and update
+            # pylint: disable=protected-access
+            if test_obj._job_id:
+                test_sched = schedulers.get_plugin(test_obj.scheduler)
+                test_sched.job_status(self.pav_cfg, test_obj)
+
             if not (test_obj.path / 'RUN_COMPLETE').exists():
                 return False
         return True
