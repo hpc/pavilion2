@@ -183,7 +183,7 @@ class RunCommand(commands.Command):
             return res
 
         self.complete_tests([test for test in all_tests if
-                              test.opts.build_only and test.build_local])
+                             test.opts.build_only and test.build_local])
 
         wait = getattr(args, 'wait', None)
         report_status = getattr(args, 'status', False)
@@ -304,7 +304,7 @@ class RunCommand(commands.Command):
         return 0
 
     def get_test_configs(self, pav_cfg, host, test_files, tests, modes,
-                          overrides, sys_vars, conditions=None):
+                         overrides, sys_vars, conditions=None):
         """Translate a general set of pavilion test configs into the final,
         resolved configurations. These objects will be organized in a
         dictionary by scheduler, and have a scheduler object instantiated and
@@ -354,7 +354,7 @@ class RunCommand(commands.Command):
 
     @staticmethod
     def configs_to_tests(pav_cfg, configs_by_sched, mb_tracker=None,
-                          build_only=False, rebuild=False):
+                         build_only=False, rebuild=False):
         """Convert the dictionary of test configs by scheduler into actual
         tests.
 
