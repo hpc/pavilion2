@@ -170,7 +170,7 @@ class SeriesManager:
                 conditions=new_conditions
             )
 
-            # configs -> test
+            # configs -> tests
             tests_by_sched = run_cmd.configs_to_tests(
                 pav_cfg=self.pav_cfg,
                 configs_by_sched=configs_by_sched,
@@ -182,24 +182,26 @@ class SeriesManager:
         except commands.CommandError as err:
             # probably won't happen
             err = codecs.decode(str(err), 'unicode-escape')
-            fprint(err, file=sys.stderr, flush=True)
+            self.finished.append(test_name)
+            return None
+
+        except test_config.file_format.TestConfigError as err:
             self.finished.append(test_name)
             return None
 
         if tests_by_sched is None:
             # probably won't happen but just in case
             self.finished.append(test_name)
-            return errno.EINVAL
+            return None
 
         all_tests = sum(tests_by_sched.values(), [])
         run_cmd.last_tests = list(all_tests)
 
         if not all_tests:
             # probably won't happen but just in case
-            fprint("You must specify at least one test.", file=sys.stderr)
             self.test_info[test_name]['obj'] = run_cmd.last_tests
-            self.started.append(test_name)
-            return errno.EINVAL
+            self.finished.append(test_name)
+            return None
 
         # assign test to series and vice versa
         self.series_obj.add_tests(all_tests)
@@ -210,8 +212,8 @@ class SeriesManager:
         if res != 0:
             run_cmd.complete_tests(all_tests)
             self.test_info[test_name]['obj'] = run_cmd.last_tests
-            self.started.append(test_name)
-            return
+            self.finished.append(test_name)
+            return None
 
         # attempt to build
         res = run_cmd.build_local(
@@ -223,8 +225,8 @@ class SeriesManager:
         if res != 0:
             run_cmd.complete_tests(all_tests)
             self.test_info[test_name]['obj'] = run_cmd.last_tests
-            self.started.append(test_name)
-            return
+            self.finished.append(test_name)
+            return None
 
         run_cmd.run_tests(
             pav_cfg=self.pav_cfg,
