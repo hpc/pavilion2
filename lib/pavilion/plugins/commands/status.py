@@ -226,12 +226,13 @@ def display_history(pav_cfg, args, outfile):
 
 def print_summary(statuses, outfile):
     """Print_summary takes in a list of test statuses.
-        It summarizes basic state output and displays
-        the data to the user through draw_table.
-        :param statuses: state list of current jobs
-        :param outfile:
-        :rtype: int
-        """
+    It summarizes basic state output and displays
+    the data to the user through draw_table.
+    :param statuses: state list of current jobs
+    :param outfile:
+    :rtype: int
+    """
+
     total_tests = len(statuses)
     one_success = False
     total_pass = 0
@@ -269,8 +270,8 @@ def print_summary(statuses, outfile):
         total_pass = 0
         total_fail = 0
     else:
-        total_pass = total_pass / state_completed
-        total_fail = total_fail / state_completed
+        total_pass = total_pass/state_completed
+        total_fail = total_fail/state_completed
 
     fields = ['State', 'Amount', 'Percent', 'PASSED', 'FAILED']
     try:
@@ -278,7 +279,8 @@ def print_summary(statuses, outfile):
             {'State': output.ANSIString('COMPLETED', output.COLORS.get(
                 'GREEN')),
              'Amount': state_completed,
-             'Percent': '{0:.0%}'.format(state_completed / total_tests),
+             'Percent': '{0:.0%}'.format(state_completed/total_tests),
+
              'PASSED': '{0:.0%}'.format(total_pass),
              'FAILED': '{0:.0%}'.format(total_fail)},
 
@@ -294,8 +296,8 @@ def print_summary(statuses, outfile):
 
             {'State': output.ANSIString('SKIPPED', output.COLORS.get('YELLOW')),
              'Amount': total_skipped,
-             'Percent': '{0:.0%}'.format(total_skipped / total_tests)}
-        ]
+             'Percent': '{0:.0%}'.format(total_skipped/total_tests)}]
+
     except ArithmeticError:
         output.fprint("No tests found in the working dir.", color=output.RED)
         return errno.EINVAL
@@ -316,7 +318,9 @@ def print_summary(statuses, outfile):
                       fields=fields,
                       rows=rows,
                       border=True,
-                      title='Test Summary')
+                      title='Test Summary'
+                      )
+
     return ret_val
 
 
