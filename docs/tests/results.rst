@@ -9,7 +9,7 @@ saved with the test, but are also logged to a central ``results.log``
 file that is formatted in a Splunk compatible manner.
 
 These results contain several useful values, but that's just the
-beginning. `Result Parsers <#using-result-parsers>`__ are little parsing
+beginning. Result *parsers* are little parsing
 scripts that can be configured to parse data from your test's output files.
 They're designed to be simple enough to pull out small bits of data, but
 can be combined to extract a complex set of results from each test run.
@@ -26,10 +26,11 @@ results.
     results/const.rst
     results/table.rst
 
-Similarly, result analyzers are mathematical expressions that can operate on
+Similarly, result *evaluators* are mathematical expressions that can operate on
 the other result values themselves. These can also include arbitrary
 :ref:`tests.values.functions` defined via :ref:`plugins.expression_functions`.
 
+.. contents::
 
 Basic Result Keys
 -----------------
@@ -81,26 +82,25 @@ from the run script and your test.
           - ping -c 10 google.com
 
       results:
-        # The results section is comprised of configs for result parsers,
-        # identified by name. In this case, we'll use the 'regex' parser.
-        regex:
-          # Each result parser can have multiple configs.
-          - {
-            # The value matched will be stored in this key
-            key: loss
-            # This tells the regex parser what regular expression to use.
-            # Single quotes are recommended, as they are literal in yaml.
-            regex: '\d+% packet loss'
-          }
-          - {
-            # We're storing this value in the result key. If it's found
-            # (and has a value of 'True', then the test will 'PASS'.
-            key: result
-            regex: '10 received'
-            # The action denotes how to handle the parser's data. In this case
-            # a successful match will give a 'True' value.
-            action: store_true
-          }
+        # The results.parse section is comprised of configs for result parsers,
+        # identified by name. Each parser can have a list of one or more
+        # configs, each of which will parse a different result value from
+        # the test output.
+        parse:
+          regex:
+            # Each result parser can have multiple configs.
+            - # The value matched will be stored in this key
+              key: loss
+              # This tells the regex parser what regular expression to use.
+              # Single quotes are recommended, as they are literal in yaml.
+              regex: '\d+% packet loss'
+            - # We're storing this value in the result key. If it's found
+              # (and has a value of 'True', then the test will 'PASS'.
+              key: result
+              regex: '10 received'
+              # The action denotes how to handle the parser's data. In this case
+              # a successful match will give a 'True' value.
+              action: store_true
 
 The results for this test run might look like:
 
@@ -200,14 +200,15 @@ depends on the **per\_file** attribute for the result parser.
             - {{sched.test_cmd}} --output="%N.out" env
 
         results:
-          regex:
-            # The matched values will be stored under the 'huge_size' key,
-            # but that will vary based on the 'per_file' value.
-            key: huge_size
-            regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
-            # Run the parser against all files that end in .out
-            files: '*.out'
-            per_file: # We'll demonstrate these settings below
+          parse:
+            regex:
+              # The matched values will be stored under the 'huge_size' key,
+              # but that will vary based on the 'per_file' value.
+              key: huge_size
+              regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
+              # Run the parser against all files that end in .out
+              files: '*.out'
+              per_file: # We'll demonstrate these settings below
 
 per\_file: Manipulating Multiple File Results
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -231,11 +232,12 @@ first - Keep the first result (Default)
 .. code:: yaml
 
     results:
-      regex:
-        key: huge_size
-        regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
-        files: '*.out'
-        per_file: first
+      parse:
+        regex:
+          key: huge_size
+          regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
+          files: '*.out'
+          per_file: first
 
 Only the result from the first file with a **match** is kept. In this
 case, the value from node1 would be ignored in favor of that of node2. The
@@ -256,11 +258,12 @@ last - Keep the last result
 .. code:: yaml
 
     results:
-      regex:
-        key: huge_size
-        regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
-        files: '*.out'
-        per_file: last
+      parse:
+        regex:
+          key: huge_size
+          regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
+          files: '*.out'
+          per_file: last
 
 Just like '**first**', except we work backwards through the files and
 get the last match value. In this case, that means ignoring node4's
@@ -278,11 +281,12 @@ all - True if each file returned a True result
 .. code:: yaml
 
     results:
-      regex:
-        key: huge_size
-        regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
-        files: '*.out'
-        per_file: all
+      parse:
+        regex:
+          key: huge_size
+          regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
+          files: '*.out'
+          per_file: all
 
 By itself, '**all**' sets the key to True if the result values for all
 the files evaluate to True. Setting ``action: store_true`` produces more
@@ -321,11 +325,12 @@ any - True if any file returned a True result
 .. code:: yaml
 
     results:
-      regex:
-        key: huge_size
-        regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
-        files: '*.out'
-        per_file: any
+      parse:
+        regex:
+          key: huge_size
+          regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
+          files: '*.out'
+          per_file: any
 
 Like '**all**', but is ``true`` if any of the results evaluates to True. In
 the case of our example, since at least one file matched, the key will be
@@ -343,11 +348,12 @@ list - Merge the file results into a single list
 .. code:: yaml
 
     results:
-      regex:
-        key: huge_size
-        regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
-        files: '*.out'
-        per_file: list
+      parse:
+        regex:
+          key: huge_size
+          regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
+          files: '*.out'
+          per_file: list
 
 For each result from each file, add them into a single list. **empty**
 values are not added, but ``false`` is. If the result value is a list
@@ -365,11 +371,12 @@ fullname - Stores in a filename based dict.
 .. code:: yaml
 
     results:
-      regex:
-        key: huge_size
-        regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
-        files: '*.out'
-        per_file: fullname
+      parse:
+        regex:
+          key: huge_size
+          regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
+          files: '*.out'
+          per_file: fullname
 
 Put the result under the key, but in a dictionary specific to that file. All
 the file specific dictionaries are stored under the ``fn`` key by filename.
@@ -398,11 +405,12 @@ name - Stores in a filename (without extension) based dict.
 .. code:: yaml
 
     results:
-      regex:
-        key: huge_size
-        regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
-        files: '*.out'
-        per_file: fullname
+      parse:
+        regex:
+          key: huge_size
+          regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
+          files: '*.out'
+          per_file: fullname
 
 Just like **fullname**, but instead the file name with the file extension
 removed. These are stored under the ``n`` key in the results.
@@ -425,11 +433,12 @@ fullname_list - Stores the name of the files that matched.
 .. code:: yaml
 
     results:
-      regex:
-        key: huge_size
-        regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
-        files: '*.out'
-        per_file: fullname_list
+      parse:
+        regex:
+          key: huge_size
+          regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
+          files: '*.out'
+          per_file: fullname_list
 
 Stores a list of the names of the files that matched. The actual matched values
 aren't saved.
@@ -446,11 +455,12 @@ name_list - Stores the name of the files that matched.
 .. code:: yaml
 
     results:
-      regex:
-        key: huge_size
-        regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
-        files: '*.out'
-        per_file: name_list
+      parse:
+        regex:
+          key: huge_size
+          regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
+          files: '*.out'
+          per_file: name_list
 
 Stores a list of the names of the files that matched, minus extension. The
 actual matched values aren't saved.
@@ -593,7 +603,7 @@ Using the same result JSON as above:
 .. code-block:: yaml
 
     mytest:
-        result:
+        results:
             evaluate:
                 # Get a list of every the proc counts from each node.
                 procs: "n.*.procs"
@@ -601,7 +611,7 @@ Using the same result JSON as above:
                 # Get an average of the speeds across all nodes
                 avg_speed: "avg(n.*.speeds)"
 
-                # Find outliers that are more 3.0 standard deviations from
+                # Find, outliers that are more 3.0 standard deviations from
                 # the mean of the speeds. See the function documentation
                 # for more info.
                 speed_outliers: "outliers(n.*.speeds, keys(n), 3.0)"
@@ -622,8 +632,8 @@ A Combined Example
         # the contents of that system's /proc/meminfo file.
         cmds: '{{sched.test_cmd}} -o "%N.out" cat /proc/meminfo'
 
-        result:
-            parsers:
+        results:
+            parse:
                 regex:
                     # These will look over each of the out files, pull out
                     # the regex value, and store in a per_file dictionary.

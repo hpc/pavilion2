@@ -303,5 +303,3 @@ Link References
 - External links should use the basic restructured text format.
 
   - ```sphinx-inline`_`` -> `sphinx-inline`_
-  - ```With different link text <sphinx-inline>`_`` ->
-    `With different link text <sphinx-inline>`_
