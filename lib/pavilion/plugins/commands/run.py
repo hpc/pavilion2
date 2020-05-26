@@ -309,6 +309,7 @@ class RunCommand(commands.Command):
             resolved configurations. These objects will be organized in a
             dictionary by scheduler, and have a scheduler object instantiated
             and attached.
+
         :param pav_cfg: The pavilion config.
         :param str host: The host config to target these tests with
         :param list(str) modes: The mode configs to use.
