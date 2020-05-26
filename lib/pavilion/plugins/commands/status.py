@@ -135,7 +135,6 @@ def get_tests(pav_cfg, args, errfile):
         # Test
         else:
             test_list.append(test_id)
-    
     test_list = list(map(int, test_list))
     return test_list
 
@@ -318,7 +317,6 @@ def print_summary(statuses, outfile):
                       border=True,
                       title='Test Summary'
                       )
-
     return ret_val
 
 
@@ -342,7 +340,6 @@ def print_status(statuses, outfile, json=False):
     if json:
         json_data = {'statuses': statuses}
         output.json_dump(json_data, outfile)
-
     else:
         fields = ['test_id', 'name', 'state', 'time', 'note']
         output.draw_table(
