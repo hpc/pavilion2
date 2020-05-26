@@ -12,6 +12,8 @@ from pavilion import series
 from pavilion import test_run
 from pavilion.status_file import STATES
 from pavilion.test_run import TestRun, TestRunError, TestRunNotFoundError
+from pavilion.output import dbg_print
+from pavilion.output import dbg_print
 
 
 def get_last_ctime(path):
@@ -367,7 +369,7 @@ class StatusCommand(commands.Command):
         except commands.CommandError as err:
             output.fprint("Status Error:", err, color=output.RED)
             return 1
-        
+
         if args.summary:
             return print_summary(test_statuses, self.outfile)
         return print_status(test_statuses, self.outfile, args.json)
