@@ -170,7 +170,7 @@ class RunCommand(commands.Command):
 
         res = self.check_result_parsers(all_tests)
         if res != 0:
-            self._complete_tests(all_tests)
+            self.complete_tests(all_tests)
             return res
 
         res = self.build_local(
@@ -179,10 +179,10 @@ class RunCommand(commands.Command):
             mb_tracker=mb_tracker,
             build_verbosity=args.build_verbosity)
         if res != 0:
-            self._complete_tests(all_tests)
+            self.complete_tests(all_tests)
             return res
 
-        self._complete_tests([test for test in all_tests if
+        self.complete_tests([test for test in all_tests if
                               test.opts.build_only and test.build_local])
 
         wait = getattr(args, 'wait', None)
@@ -303,7 +303,7 @@ class RunCommand(commands.Command):
 
         return 0
 
-    def _get_test_configs(self, pav_cfg, host, test_files, tests, modes,
+    def get_test_configs(self, pav_cfg, host, test_files, tests, modes,
                           overrides, sys_vars, conditions=None):
         """Translate a general set of pavilion test configs into the final,
         resolved configurations. These objects will be organized in a
@@ -353,7 +353,7 @@ class RunCommand(commands.Command):
         return tests_by_scheduler
 
     @staticmethod
-    def _configs_to_tests(pav_cfg, configs_by_sched, mb_tracker=None,
+    def configs_to_tests(pav_cfg, configs_by_sched, mb_tracker=None,
                           build_only=False, rebuild=False):
         """Convert the dictionary of test configs by scheduler into actual
         tests.
@@ -404,7 +404,7 @@ class RunCommand(commands.Command):
         sys_vars = system_variables.get_vars(True)
 
         try:
-            configs_by_sched = self._get_test_configs(
+            configs_by_sched = self.get_test_configs(
                 pav_cfg=pav_cfg,
                 host=args.host,
                 test_files=args.files,
@@ -426,7 +426,7 @@ class RunCommand(commands.Command):
                                   if cfg is not None]
                     configs_by_sched[sched] = sched_cfgs
 
-            tests_by_sched = self._configs_to_tests(
+            tests_by_sched = self.configs_to_tests(
                 pav_cfg=pav_cfg,
                 configs_by_sched=configs_by_sched,
                 mb_tracker=mb_tracker,
@@ -453,7 +453,7 @@ class RunCommand(commands.Command):
                 sched.cancel_job(test)
 
     @staticmethod
-    def _complete_tests(tests):
+    def complete_tests(tests):
         """Mark all of the given tests as complete. We generally do this after
         an error has been encountered, or if it was only built.
         :param [TestRun] tests: The tests to mark complete.

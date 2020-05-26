@@ -159,8 +159,7 @@ class SeriesManager:
             }
 
             # resolve configs
-            # pylint: disable=protected-access
-            configs_by_sched = run_cmd._get_test_configs(
+            configs_by_sched = run_cmd.get_test_configs(
                 pav_cfg=self.pav_cfg,
                 host=None,
                 test_files=[],
@@ -172,8 +171,7 @@ class SeriesManager:
             )
 
             # configs -> test
-            # pylint: disable=protected-access
-            tests_by_sched = run_cmd._configs_to_tests(
+            tests_by_sched = run_cmd.configs_to_tests(
                 pav_cfg=self.pav_cfg,
                 configs_by_sched=configs_by_sched,
                 mb_tracker=mb_tracker,
@@ -210,8 +208,7 @@ class SeriesManager:
         # make sure result parsers are ok
         res = run_cmd.check_result_parsers(all_tests)
         if res != 0:
-            # pylint: disable=protected-access
-            run_cmd._complete_tests(all_tests)
+            run_cmd.complete_tests(all_tests)
             self.test_info[test_name]['obj'] = run_cmd.last_tests
             self.started.append(test_name)
             return
@@ -224,8 +221,7 @@ class SeriesManager:
             build_verbosity=0
         )
         if res != 0:
-            # pylint: disable=protected-access
-            run_cmd._complete_tests(all_tests)
+            run_cmd.complete_tests(all_tests)
             self.test_info[test_name]['obj'] = run_cmd.last_tests
             self.started.append(test_name)
             return

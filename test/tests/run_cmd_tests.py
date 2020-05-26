@@ -25,7 +25,7 @@ class RunCmdTests(PavTestCase):
 
         run_cmd = commands.get_command('run')  # type: RunCommand
 
-        configs_by_sched = run_cmd._get_test_configs(
+        configs_by_sched = run_cmd.get_test_configs(
             pav_cfg=self.pav_cfg,
             host='this',
             test_files=[],
@@ -34,7 +34,7 @@ class RunCmdTests(PavTestCase):
             overrides={},
             sys_vars={})
 
-        tests = run_cmd._configs_to_tests(
+        tests = run_cmd.configs_to_tests(
             pav_cfg=self.pav_cfg,
             configs_by_sched=configs_by_sched,
         )
@@ -51,7 +51,7 @@ class RunCmdTests(PavTestCase):
 
         tests_file = self.TEST_DATA_ROOT/'run_test_list'
 
-        configs_by_sched = run_cmd._get_test_configs(
+        configs_by_sched = run_cmd.get_test_configs(
             pav_cfg=self.pav_cfg,
             host='this',
             test_files=[tests_file],
@@ -60,7 +60,7 @@ class RunCmdTests(PavTestCase):
             overrides={},
             sys_vars={})
 
-        tests = run_cmd._configs_to_tests(
+        tests = run_cmd.configs_to_tests(
             pav_cfg=self.pav_cfg,
             configs_by_sched=configs_by_sched,
         )
