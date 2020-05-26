@@ -306,9 +306,9 @@ class RunCommand(commands.Command):
     def get_test_configs(self, pav_cfg, host, test_files, tests, modes,
                          overrides, sys_vars, conditions=None):
         """Translate a general set of pavilion test configs into the final,
-        resolved configurations. These objects will be organized in a
-        dictionary by scheduler, and have a scheduler object instantiated and
-        attached.
+            resolved configurations. These objects will be organized in a
+            dictionary by scheduler, and have a scheduler object instantiated and
+            attached.
         :param pav_cfg: The pavilion config
         :param str host: The host config to target these tests with
         :param list(str) modes: The mode configs to use.
@@ -356,11 +356,11 @@ class RunCommand(commands.Command):
     def configs_to_tests(pav_cfg, configs_by_sched, mb_tracker=None,
                          build_only=False, rebuild=False):
         """Convert the dictionary of test configs by scheduler into actual
-        tests.
+            tests.
 
         :param pav_cfg: The Pavilion config
         :param dict[str,list] configs_by_sched: A dictionary of lists of test
-        configs.
+            configs.
         :param Union[MultiBuildTracker,None] mb_tracker: The build tracker.
         :param bool build_only: Whether to only build these tests.
         :param bool rebuild: After figuring out what build to use, rebuild it.
