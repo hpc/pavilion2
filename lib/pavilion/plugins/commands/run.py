@@ -145,7 +145,7 @@ class RunCommand(commands.Command):
         series = TestSeries(pav_cfg, all_tests)
         self.last_series = series
 
-        res = self.check_result_parsers(all_tests)
+        res = self.check_result_format(all_tests)
         if res != 0:
             self._complete_tests(all_tests)
             return res
@@ -281,7 +281,7 @@ class RunCommand(commands.Command):
         return 0
 
     def _get_test_configs(self, pav_cfg, host, test_files, tests, modes,
-                          overrides, sys_vars):
+                          overrides):
         """Translate a general set of pavilion test configs into the final,
         resolved configurations. These objects will be organized in a
         dictionary by scheduler, and have a scheduler object instantiated and
@@ -293,9 +293,7 @@ class RunCommand(commands.Command):
             list of tests.
         :param list(str) tests: The tests to run.
         :param list(str) overrides: Overrides to apply to the configurations.
-        :param Union[system_variables.SysVarDict,{}] sys_vars: The system
-        variables dict.
-        :returns: A dictionary (by scheduler type name) of lists of tuples
+name) of lists of tuples
             test configs and their variable managers.
         """
         self.logger.debug("Finding Configs")
@@ -380,15 +378,12 @@ class RunCommand(commands.Command):
         sys_vars = system_variables.get_vars(True)
 
         try:
-            configs_by_sched = self._get_test_configs(
-                pav_cfg=pav_cfg,
-                host=args.host,
-                test_files=args.files,
-                tests=args.tests,
-                modes=args.modes,
-                overrides=args.overrides,
-                sys_vars=sys_vars,
-            )
+            configs_by_sched = self._get_test_configs(pav_cfg=pav_cfg,
+                                                      host=args.host,
+                                                      test_files=args.files,
+                                                      tests=args.tests,
+                                                      modes=args.modes,
+                                                      overrides=args.overrides)
 
             # Remove non-local builds when doing only local builds.
             if build_only and local_builds_only:
@@ -446,7 +441,7 @@ class RunCommand(commands.Command):
 
             # Make sure the result parsers have reasonable arguments.
             try:
-                pavilion.result.check_config(test.config['result'])
+                pavilion.result.check_config(test.config['results'])
             except TestRunError as err:
                 rp_errors.append(str(err))
 

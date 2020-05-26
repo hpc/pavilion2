@@ -6,9 +6,9 @@
 """
 
 import ast
+from typing import Dict
 
 import lark
-from typing import Dict
 from pavilion import expression_functions as functions
 from .common import PavTransformer, ParserValueError
 
@@ -491,7 +491,7 @@ class ExprTransformer(BaseExprTransformer):
             raise ParserValueError(
                 self._merge_tokens(items, var_key),
                 "Invalid variable '{}': too many name parts."
-                    .format(var_key))
+                .format(var_key))
 
         try:
             # This may also raise a DeferredError, but we don't want to
@@ -508,14 +508,15 @@ class ExprTransformer(BaseExprTransformer):
 
         return self._merge_tokens(items, val)
 
-    def var_key(self, items) -> lark.Token:
+    @staticmethod
+    def var_key(items) -> lark.Token:
         """Just return the key component."""
 
         return items[0]
 
 
-class AnalysisExprTransformer(BaseExprTransformer):
-    """Transform result analysis expressions into their final value.
+class EvaluationExprTransformer(BaseExprTransformer):
+    """Transform result evaluation expressions into their final value.
     The result dictionary referenced for values will be updated in place,
     so subsequent uses of this will have the cumulative results.
     """
@@ -611,7 +612,8 @@ class AnalysisExprTransformer(BaseExprTransformer):
                          "is not a dict or list."
                          .format(key_part, base, '.'.join(seen_parts)))
 
-    def var_key(self, items) -> lark.Token:
+    @staticmethod
+    def var_key(items) -> lark.Token:
         """Just return the key component."""
 
         return items[0]

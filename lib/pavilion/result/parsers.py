@@ -6,11 +6,10 @@ import logging
 from collections import OrderedDict
 from pathlib import Path
 
-from .base import ResultError
-
 import yaml_config as yc
-from pavilion.test_config import file_format, resolver
+from pavilion.test_config import file_format
 from yapsy import IPlugin
+from .base import ResultError
 
 LOGGER = logging.getLogger(__file__)
 
@@ -357,7 +356,7 @@ configured for that test.
 :return: The final results dictionary.
 """
 
-    parser_configs = test.config['result']['parsers']
+    parser_configs = test.config['results']['parse']
 
     # A list of keys with duplicates already reported on, so we don't
     # report such errors multiple times.

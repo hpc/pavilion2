@@ -1,6 +1,6 @@
 """Expression Functions are plugins that define the functions that can be
 used in Pavilion expressions, both within normal Pavilion strings and
-in result analysis strings.
+in result evaluations.
 """
 
 from .base import (FunctionPlugin, FunctionPluginError, FunctionArgError,

@@ -60,6 +60,7 @@ class FunctionPlugin(IPlugin.IPlugin):
         str,
         bool,
         num,
+        None
     )
 
     NAME_RE = re.compile(r'[a-zA-Z][a-zA-Z0-9_]*$')
@@ -134,6 +135,8 @@ class FunctionPlugin(IPlugin.IPlugin):
             - The 'num' spec type will accept strings, floats, ints,
               or bool. ints and floats are left alone, bools become
               ints, and strings become an int or a float if they can.
+            - 'None' may be given as the type of contained items for lists
+              or dicts, denoting that contained time doesn't matter.
         :raises FunctionPluginError: On a bad arg spec.
         """
 
@@ -155,6 +158,10 @@ class FunctionPlugin(IPlugin.IPlugin):
                 )
             for key, sub_arg in arg.items():
                 self._validate_arg_spec(sub_arg)
+
+        elif arg is None:
+            # We don't care what the argument type is
+            pass
 
         elif arg not in self.VALID_SPEC_TYPES:
             raise FunctionPluginError(
@@ -285,6 +292,10 @@ class FunctionPlugin(IPlugin.IPlugin):
                         .format(arg[key], key, err))
 
             return val_args
+
+        if spec is None:
+            # None denotes to leave the argument alone.
+            return arg
 
         try:
             # Boolean strings need a little conversion help when

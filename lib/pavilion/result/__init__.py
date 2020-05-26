@@ -1,12 +1,12 @@
 from pavilion.test_config import resolver
-from .analysis import check_expression, analyze_results
+from .evaluations import check_expression, evaluate_results
 from .base import base_results, ResultError, BASE_RESULTS
 from .parsers import parse_results, ResultParser, get_plugin
 
 
 def check_config(result_configs):
     """Make sure the result config is sensible, both for result parsers and
-    analysis bits.
+    evaluation bits.
 
 For result parsers we check for:
 
@@ -14,15 +14,15 @@ For result parsers we check for:
 - Reserved key names.
 - Bad parser plugin arguments.
 
-For analysis we check for:
+For evaluations we check for:
 - Reserved key names.
 - Invalid expression syntax.
 
 :raises TestRunError: When a config breaks the rules.
 """
 
-    parser_conf = result_configs['parsers']
-    analysis_conf = result_configs['analysis']
+    parser_conf = result_configs['parse']
+    evaluate_conf = result_configs['evaluate']
 
     key_names = []
 
@@ -68,10 +68,10 @@ For analysis we check for:
 
         errors = []
 
-        for key, expr in analysis_conf.items():
+        for key, expr in evaluate_conf.items():
             if key in BASE_RESULTS:
                 raise ResultError(
-                    "Key '{}' in the result analysis section is reserved."
+                    "Key '{}' in the result evaluate section is reserved."
                     .format(key)
                 )
 
@@ -82,7 +82,7 @@ For analysis we check for:
             error = check_expression(expr)
             if error is not None:
                 raise ResultError(
-                    "The result analysis expression for key '{}' has a syntax "
+                    "The result evaluate expression for key '{}' has a syntax "
                     "error:\n{}"
                     .format(key, error))
 

@@ -83,7 +83,7 @@ class TestRunTests(PavTestCase):
         self.assert_(test.build())
         test.finalize(VariableSetManager())
 
-        self.assertTrue(test.run(), msg="Test failed to run.")
+        self.assertEqual(test.run(), 0, msg="Test failed to run.")
 
         config2 = config1.copy()
         config2['run']['modules'] = ['asdlfkjae', 'adjwerloijeflkasd']
@@ -94,8 +94,7 @@ class TestRunTests(PavTestCase):
         test.finalize(VariableSetManager())
 
         self.assertEqual(
-            test.run(),
-            False,
+            test.run(), 1,
             msg="Test should have failed because a module couldn't be "
                 "loaded. {}".format(test.path))
         # TODO: Make sure this is the exact reason for the failure
@@ -112,7 +111,7 @@ class TestRunTests(PavTestCase):
         }
 
         test = TestRun(self.pav_cfg, config3)
-        self.assert_(test.build())
+        self.assertTrue(test.build())
         test.finalize(VariableSetManager())
         with self.assertRaises(TimeoutError,
                                msg="Test should have failed due "

@@ -19,9 +19,9 @@ BASE_RESULTS = {
     'return_value': None,
 }
 '''A dictionary of result key names and a function to acquire the value.
-The function should take a test_run object as it's only argument. If the 
-function is None, that denotes that this key is reserved, but filled in 
-elsewhere. 
+The function should take a test_run object as it's only argument. If the
+function is None, that denotes that this key is reserved, but filled in
+elsewhere.
 '''
 
 
@@ -34,7 +34,8 @@ def base_results(test) -> dict:
     results = {}
 
     for key, func in BASE_RESULTS.items():
-        results[key] = func(test)
+        if func is not None:
+            results[key] = func(test)
 
     return results
 

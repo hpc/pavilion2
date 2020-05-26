@@ -12,7 +12,7 @@ For most of these values the Pavilion StringParser is applied.
 If you need to parse an individual Pavilion value string, use the parse_text()
 function defined in this module.
 
-The exception to this is result analysis strings, which are interpreted
+The exception to this is result evaluation strings, which are interpreted
 directly as a ResultExpression.
 """
 
@@ -21,7 +21,7 @@ from typing import Union
 
 import lark as _lark
 from .common import ParserValueError
-from .expressions import get_expr_parser, AnalysisExprTransformer
+from .expressions import get_expr_parser, EvaluationExprTransformer
 from .strings import get_string_parser, StringTransformer
 
 
@@ -131,8 +131,8 @@ def check_expression(expr: str) -> Union[None, str]:
     return None
 
 
-def parse_analysis_expression(expr: str, results: dict):
-    """Parse the given analysis expression using the data in the results
+def parse_evaluation_expression(expr: str, results: dict):
+    """Parse the given evaluate expression using the data in the results
     dict.
 
     :returns: An int, float, bool, str or a structure of lists dicts containing
@@ -140,7 +140,7 @@ def parse_analysis_expression(expr: str, results: dict):
     """
 
     parser = get_expr_parser()
-    transformer = AnalysisExprTransformer(results)
+    transformer = EvaluationExprTransformer(results)
 
     try:
         tree = parser.parse(expr)

@@ -660,7 +660,7 @@ of result keys.
                 .format(s=self)
             )
 
-        parser_configs = self.config['result']['parsers']
+        parser_configs = self.config['results']['parse']
 
         results = result.base_results(self)
 
@@ -673,15 +673,20 @@ of result keys.
         try:
             results = result.parse_results(self, results)
         except result.ResultError as err:
-            raise TestRunError("Error parsing results:{}".format(err.args[
-                                                                        0]))
-            pass
+            raise TestRunError(
+                "Error parsing results:{}"
+                .format(err.args[0]))
 
+        self.status.set(STATES.RESULTS,
+                        "Performing {} result evaluations."
+                        .format(self.config['results']['evaluate']))
         try:
-            result.analyze_results(results,
-                                   self.config['result']['analysis'])
+            result.evaluate_results(
+                results,
+                self.config['results']['evaluate'])
         except result.ResultError as err:
-            pass
+            raise TestRunError("Error performing result evaluations: "
+                               .format(err.args[0]))
 
         if results['result'] is True:
             results['result'] = self.PASS

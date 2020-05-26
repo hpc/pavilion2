@@ -138,8 +138,8 @@ variables can be referenced by the 0th index.
             # This would result in the command: 'ls /usr'
             cmds: '{{list_cmd.0}} {{paths}}'
 
-This can be used with repeated :ref:`tests.iterations` to produce
-dynamic test arguments, among other things.
+This can be used with repeated :ref:`tests.values.iterations`
+to produce dynamic test arguments, among other things.
 
 Complex Variables
 ^^^^^^^^^^^^^^^^^
@@ -175,7 +175,8 @@ But wait, there's more. Complex variables may also have multiple values.
           # Will result in `mpiicc -qopenmp mysrc.c`
           cmds: '{{compiler.1.cmd}} {{compiler.1.openmp}} mysrc.c'
 
-This is especially useful when combined with :ref:`tests.iterations` and
+This is especially useful when combined with
+:ref:`tests.values.iterations` and
 :ref:`tests.permutations`.
 
 .. _tests.variables.detail:

@@ -286,9 +286,9 @@ though."""
             'timeout': '300',
         },
         'slurm': {},
-        'result': {
-            'parsers': {},
-            'analysis': {},
+        'results': {
+            'parse': {},
+            'evaluate': {},
         }
     }
 

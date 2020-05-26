@@ -345,17 +345,17 @@ expected to be added to by various plugins.
     # We'll append the result parsers separately, to have an easy way to
     # access it.
     _RESULT_PARSERS = yc.KeyedElem(
-        'parsers', elements=[],
+        'parse', elements=[],
         help_text="Result parser configurations go here. Each parser config "
                   "can occur by itself or as a list of configs, in which "
                   "case the parser will run once for each config given. The "
                   "output of these parsers will be added to the final "
                   "result json data.")
     ELEMENTS.append(yc.KeyedElem(
-        'result', elements=[
+        'results', elements=[
             _RESULT_PARSERS,
             yc.CategoryElem(
-                'analysis', sub_elem=yc.StrElem(),
+                'evaluate', sub_elem=yc.StrElem(),
                 help_text="The keys and values in this section will also "
                           "be added to the result json. The values are "
                           "expressions (like in {{<expr>}} in normal Pavilion "

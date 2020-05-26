@@ -406,17 +406,17 @@ class TestConfigResolver:
             for test_cfg in picked_tests]
 
         # Get the default configuration for a const result parser.
-        const_elem = TestConfigLoader().find('result.parsers.constant.*')
+        const_elem = TestConfigLoader().find('results.parse.constant.*')
 
         # Add the pav_cfg default_result configuration items to each test.
         for test_cfg in picked_tests:
 
-            if 'constant' not in test_cfg['result']['parsers']:
-                test_cfg['result']['parsers']['constant'] = []
+            if 'constant' not in test_cfg['results']['parse']:
+                test_cfg['results']['parse']['constant'] = []
 
             const_keys = [
                 const['key'] for const in
-                test_cfg['result']['parsers']['constant']]
+                test_cfg['results']['parse']['constant']]
 
             for key, const in self.pav_cfg.default_results.items():
 
@@ -428,7 +428,7 @@ class TestConfigResolver:
                     'key': key,
                     'const': const,
                 })
-                test_cfg['result']['parsers']['constant'].append(new_const)
+                test_cfg['results']['parse']['constant'].append(new_const)
 
         return picked_tests
 

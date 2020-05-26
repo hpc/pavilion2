@@ -5,7 +5,7 @@ import pavilion.result
 import yaml_config as yc
 from pavilion import arguments
 from pavilion import plugins
-from pavilion.result import parsers, ResultError
+from pavilion.result import parsers, ResultError, base
 from pavilion.unittest import PavTestCase
 
 LOGGER = logging.getLogger(__name__)
@@ -38,8 +38,8 @@ class ResultParserTests(PavTestCase):
                     'echo "I\'m here to cause Worldwide issues." >> other.txt'
                 ]
             },
-            'result': {
-                'parsers': {
+            'results': {
+                'parse': {
                     'regex': [
                         {
                             # Look at the default output file. (run.log)
@@ -59,7 +59,6 @@ class ResultParserTests(PavTestCase):
                             # By multiple globs.
                             'files': ['../run.log', 'other.*'],
                             'regex': r'.* World',
-                            'match_type': parsers.MATCH_ALL,
                             'action': parsers.ACTION_FALSE,
                         },
                         {
@@ -177,7 +176,7 @@ class ResultParserTests(PavTestCase):
                                  "I'm here to cause World"]))
 
         self.assertEqual(results['all'], False)
-        self.assertEqual(results['result'], parsers.PASS)
+        self.assertEqual(results['result'], True)
 
     def test_check_config(self):
 
@@ -196,30 +195,16 @@ class ResultParserTests(PavTestCase):
             # Missing regex
             ([{'key': 'nope'}], yc.RequiredError),
             ([{'key': 'test', 'regex': '[[['}], ResultError),
-            ([{'key': 'test', 'regex': '^User:(.*)$', 'expected': ['12:11']}],
-             ResultError),
-            ([{'key': 'test', 'regex': '^User:(.*)$', 'expected': ['-11:-12']}],
-             ResultError),
-            ([{'key': 'test', 'regex': '^User:(.*)$',
-               'expected': ['11:12:13']}], ResultError),
-            ([{'key':      'test', 'regex': '^User:(.*)$',
-               'expected': ['11:words']}], ResultError),
-            ([{'key':      'test', 'regex': '^User:(.*)$',
-               'threshold': '-5'}], ResultError),
-            ([{'key':       'test', 'regex': '^User:(.*)$',
-               'threshold': 'A'}], ResultError),
-            ([{'key':       'test', 'regex': '^User:(.*)$',
-               'threshold': 'A', 'expected': '10:12'}], ResultError),
         ]
 
         for parsers_conf, err_type in parser_tests:
 
             test_cfg = self._quick_test_cfg()
-            test_cfg['result'] = {
-                    'parsers': {
+            test_cfg['results'] = {
+                    'parse': {
                         'regex': parsers_conf,
                     },
-                    'analysis': {},
+                    'evaluate': {},
                 }
 
             if err_type is not None:
@@ -231,10 +216,10 @@ class ResultParserTests(PavTestCase):
                     # errors too.
                     test = self._quick_test(test_cfg)
 
-                    pavilion.result.check_config(test.config['result'])
+                    pavilion.result.check_config(test.config['results'])
             else:
                 test = self._quick_test(test_cfg)
-                pavilion.result.check_config(test.config['result'])
+                pavilion.result.check_config(test.config['results'])
 
         analysis_confs = [
             # Reserved key
@@ -244,8 +229,8 @@ class ResultParserTests(PavTestCase):
 
         for analysis_conf in analysis_confs:
             result_cfg = {
-                'analysis': analysis_conf,
-                'parsers': {},
+                'evaluate': analysis_conf,
+                'parse': {},
             }
             pavilion.result.check_config(result_cfg)
 
@@ -267,419 +252,17 @@ class ResultParserTests(PavTestCase):
         test.finished = now + datetime.timedelta(seconds=3)
         test.job_id = 'test'
 
-        base_results = parsers.base_results(test)
+        base_results = base.base_results(test)
+        # This one has to be set manually.
+        base_results['return_value'] = 0
 
-        for key in parsers.BASE_RESULTS.keys():
+        for key in base.BASE_RESULTS.keys():
             self.assertIn(key, base_results)
             # Base result keys should have a non-None value, even from an
             # empty config file.
             self.assertIsNotNone(
                 base_results[key],
                 msg="Base result key '{}' was None.".format(key))
-
-    def test_regex_expected(self):
-        """Ensure the regex-value parser works appropriately."""
-
-        test_cfg = {
-            'scheduler': 'raw',
-            'run': {
-                # This will result in 4 output files.
-                # run.log, other.log, other2.log, other3.log
-                'cmds': [
-                    'echo "Test Name: FakeTest\n"',
-                    'echo "User: Some-gal-or-guy\n"',
-                    'echo "result1=19\n"',
-                    'echo "result3=test\n"',
-                    'echo "result9=-12\n"',
-                    'echo "result12=9.9\n"',
-                    'echo "result13=-22.2\n"',
-                    'echo "result98=\n"',
-                    'echo "result50=18.2,result51=18.3\n"',
-                    'echo "overall=whatevs"'
-                ]
-            },
-            'result': {
-                'parsers': {
-                    'regex': [
-                        {
-                            # Look at the default output file. (run.log)
-                            # Test for storing the whole line
-                            'key': 'key0',
-                            'regex': r'^User:.*$',
-                            'match_type': parsers.MATCH_ALL,
-                        },
-                        {
-                            # Test for storing a single value
-                            'key': 'key1',
-                            'regex': r'^result1=(.*)$',
-                            'match_type': parsers.MATCH_ALL,
-                        },
-                        {
-                            # Test for expecting a range of negative integers
-                            'key': 'key2',
-                            'regex': r'^result9=(.*)$',
-                            'expected': ['-13:-9'],
-                            'action': parsers.ACTION_TRUE,
-                            'match_type': parsers.MATCH_ALL,
-                        },
-                        {
-                            # Test for expecting a range of floats where the value
-                            # is equal to the bottom of the range
-                            'key': 'key3',
-                            'regex': r'^result12=(.*)$',
-                            'expected': ['9.0:9.9'],
-                            'action': parsers.ACTION_TRUE,
-                            'match_type': parsers.MATCH_ALL,
-                        },
-                        {
-                            # Test for expecting a range of floats that has zero
-                            # span
-                            'key': 'key4',
-                            'regex': r'^result12=(.*)$',
-                            'expected': ['9.9:9.9'],
-                            'action': parsers.ACTION_TRUE,
-                            'match_type': parsers.MATCH_ALL,
-                        },
-                        {
-                            # Test for expecting a range of floats where the value
-                            # is equal to the top of the range
-                            'key': 'key5',
-                            'regex': r'^result12=(.*)$',
-                            'expected': ['9.9:10.0'],
-                            'action': parsers.ACTION_TRUE,
-                            'match_type': parsers.MATCH_ALL,
-                        },
-                        {
-                            # Test for expecting a range of floats from negative to
-                            # positive
-                            'key': 'key6',
-                            'regex': r'^result12=(.*)$',
-                            'expected': ['-9.9:10.0'],
-                            'action': parsers.ACTION_TRUE,
-                            'match_type': parsers.MATCH_ALL,
-                        },
-                        {
-                            # Test for expecting a range of negative integers
-                            'key': 'key7',
-                            'regex': r'^result13=(.*)$',
-                            'expected': ['-32:-22'],
-                            'action': parsers.ACTION_TRUE,
-                            'match_type': parsers.MATCH_ALL,
-                        },
-                        {
-                            # Test for expecting a range from a negative float to a
-                            # positive integer
-                            'key': 'key8',
-                            'regex': r'^result13=(.*)$',
-                            'expected': ['-32.0:22'],
-                            'action': parsers.ACTION_TRUE,
-                            'match_type': parsers.MATCH_ALL,
-                        },
-                        {
-                            # Test for expecting a range from a very large negative
-                            # float to zero
-                            'key': 'key9',
-                            'regex': r'^result13=(.*)$',
-                            'expected': ['-10000000000.0:0'],
-                            'action': parsers.ACTION_TRUE,
-                            'match_type': parsers.MATCH_ALL,
-                        },
-                        {
-                            # Test for checking a set of results that are NOT in a
-                            # list of integer values
-                            'key': 'key10',
-                            'regex': r'^result.*=(.*)$',
-                            'expected': ['100', '101'],
-                            'action': parsers.ACTION_TRUE,
-                            'match_type': parsers.MATCH_ALL,
-                        },
-                        {
-                            # Test for a list of results in a range of floats
-                            'key': 'key11',
-                            'regex': r'result5.=([0-9.]*)',
-                            'expected': ['18.0:18.5'],
-                            'action': parsers.ACTION_TRUE,
-                            'match_type': parsers.MATCH_ALL,
-                        },
-                        {
-                            # Test for a list of results where one value is inside
-                            # the expected range and the other is not
-                            'key': 'key12',
-                            'regex': r'^result50=(.*),result51=(.*)$',
-                            'expected': ['18.0:18.2'],
-                            'action': parsers.ACTION_TRUE,
-                            'match_type': parsers.MATCH_ALL,
-                        },
-                        {
-                            # Test for a list of results in a one-side bounded
-                            # range of floats
-                            'key': 'key13',
-                            'regex': r'result5.=([0-9.]*)',
-                            'expected': [':18.5'],
-                            'action': parsers.ACTION_TRUE,
-                            'match_type': parsers.MATCH_ALL,
-                        },
-                        {
-                            # Test for a list of results in a one-side bounded
-                            # range of floats
-                            'key': 'key14',
-                            'regex': r'result5.=([0-9.]*)',
-                            'expected': ['18.0:'],
-                            'action': parsers.ACTION_TRUE,
-                            'match_type': parsers.MATCH_ALL,
-                        },
-                        {
-                            # Test for a list of results where one value is inside
-                            # the expected range and the other is not
-                            'key': 'key15',
-                            'regex': r'^result50=(.*),result51=(.*)$',
-                            'expected': [':18.2'],
-                            'action': parsers.ACTION_TRUE,
-                            'match_type': parsers.MATCH_ALL,
-                        },
-                        {
-                            # Test for a list of results where one value is inside
-                            # the expected range and the other is not
-                            'key': 'key16',
-                            'regex': r'^result50=(.*),result51=(.*)$',
-                            'expected': ['18.0:'],
-                            'action': parsers.ACTION_TRUE,
-                            'match_type': parsers.MATCH_ALL,
-                        },
-                        {
-                            # A test using the 'result' key is required.
-                            'key': 'result',
-                            'regex': r'^overall=(.*)$',
-                            'action': parsers.ACTION_TRUE,
-                        }
-                    ]
-                }
-            }
-        }
-
-        test = self._quick_test(test_cfg, 'result_parser_test')
-        test.run()
-
-        results = parsers.parse_results(
-            test=test,
-            results={}
-        )
-
-        self.assertEqual(results['key0'], ['User: Some-gal-or-guy'])
-
-        self.assertEqual(results['key1'], ['19'])
-
-        self.assertTrue(results['key2'])
-
-        self.assertTrue(results['key3'])
-
-        self.assertTrue(results['key4'])
-
-        self.assertTrue(results['key5'])
-
-        self.assertTrue(results['key6'])
-
-        self.assertTrue(results['key7'])
-
-        self.assertTrue(results['key8'])
-
-        self.assertTrue(results['key9'])
-
-        self.assertFalse(results['key10'])
-
-        self.assertTrue(results['key11'])
-
-        self.assertFalse(results['key12'])
-
-    def test_regex_threshold(self):
-        """Ensure the match_count parser works appropriately."""
-
-        test_cfg = {
-            'scheduler': 'raw',
-            'run': {
-                # This will result in 4 output files.
-                # run.log, other.log, other2.log, other3.log
-                'cmds': [
-                    'echo "Test Name: FakeTest\n"',
-                    'echo "User: Some-gal-or-guy\n"',
-                    'echo "result1=19\n"',
-                    'echo "result3=test\n"',
-                    'echo "result9=-12\n"',
-                    'echo "result12=9.9\n"',
-                    'echo "result13=-22.2\n"',
-                    'echo "result98=\n"',
-                    'echo "result50=18.2,result51=18.3\n"',
-                    'echo "overall=whatevs"'
-                ]
-            },
-            'result': {
-                'parsers': {
-                    'regex': [
-                        {
-                            # Look at the default output file. (run.log)
-                            # Test for finding greater than the threshold present
-                            'key': 'key0',
-                            'regex': r'result',
-                            'action': parsers.ACTION_TRUE,
-                            'match_type': parsers.MATCH_ALL,
-                            'threshold': '7',
-                        },
-                        {
-                            # Test for finding equal to the threshold present
-                            'key': 'key1',
-                            'regex': r'result',
-                            'action': parsers.ACTION_TRUE,
-                            'match_type': parsers.MATCH_ALL,
-                            'threshold': '8',
-                        },
-                        {
-                            # Test for finding fewer than the threshold present
-                            'key': 'key2',
-                            'regex': r'result',
-                            'action': parsers.ACTION_TRUE,
-                            'match_type': parsers.MATCH_ALL,
-                            'threshold': '9',
-                        },
-                        {
-                            # Test for finding equal to of a more specific search
-                            'key': 'key3',
-                            'regex': r'result1',
-                            'action': parsers.ACTION_TRUE,
-                            'match_type': parsers.MATCH_ALL,
-                            'threshold': '3',
-                        },
-                        {
-                            # Test for finding fewer than of a more specific search
-                            'key': 'key4',
-                            'regex': r'result1',
-                            'action': parsers.ACTION_TRUE,
-                            'match_type': parsers.MATCH_ALL,
-                            'threshold': '4',
-                        },
-                        {
-                            # Test for a threshold of zero
-                            'key': 'key5',
-                            'regex': r'overall=whatevs',
-                            'action': parsers.ACTION_TRUE,
-                            'match_type': parsers.MATCH_ALL,
-                            'threshold': '0',
-                        },
-                        {
-                            # Test for a more complex search
-                            'key': 'key6',
-                            'regex': r'overall=whatevs',
-                            'action': parsers.ACTION_TRUE,
-                            'match_type': parsers.MATCH_ALL,
-                            'threshold': '1',
-                        },
-                        {
-                            # Test for a more complex search that fails
-                            'key': 'key7',
-                            'regex': r'overall=whatevs',
-                            'action': parsers.ACTION_TRUE,
-                            'match_type': parsers.MATCH_ALL,
-                            'threshold': '2',
-                        },
-                        {
-                            # Test for a more complex search that fails
-                            'key': 'key8',
-                            'regex': r'totallynotthere',
-                            'action': parsers.ACTION_TRUE,
-                            'match_type': parsers.MATCH_ALL,
-                            'threshold': '0',
-                        },
-                        {
-                            # A test using the 'result' key is required.
-                            'key': 'result',
-                            'regex': r'^overall=(.*)$',
-                            'action': parsers.ACTION_TRUE,
-                        }
-                    ]
-                }
-            }
-        }
-
-        test = self._quick_test(test_cfg, 'result_parser_test')
-        test.run()
-
-        results = parsers.parse_results(
-            test=test,
-            results={}
-        )
-
-        self.assertTrue(results['key0'])
-
-        self.assertTrue(results['key1'])
-
-        self.assertFalse(results['key2'])
-
-        self.assertTrue(results['key3'])
-
-        self.assertFalse(results['key4'])
-
-        self.assertTrue(results['key5'])
-
-        self.assertTrue(results['key6'])
-
-        self.assertFalse(results['key7'])
-
-        self.assertFalse(results['key8'])
-
-        self.assertTrue(results['result'])
-
-    def test_regex_expected_sanity(self):
-        """Sanity check for the expected parser."""
-
-        test_cfg = {
-            'scheduler': 'raw',
-            'run': {
-                # This will result in 4 output files.
-                # run.log, other.log, other2.log, other3.log
-                'cmds': [
-                    "echo I am a test's output.",
-                    "echo Short and stout.",
-                    "echo My min speed is 438.5",
-                    "echo and my max is 968.3",
-                    "echo What do you think of that, punk?",
-                    "echo Also, here's another number to confuse you. 3.7. "
-                    "Take that."
-                ]
-            },
-            'result': {
-                'parsers': {
-                    'regex': [
-                        {
-                            # A test using the 'result' key is required.
-                            'key': 'result',
-                            'regex': r'max is',
-                        },
-                        {
-                            'key': 'key',
-                            'regex': r'max is (.*)$'
-                        },
-                        {
-                            # A test using the 'result' key is required.
-                            'key': 'key1',
-                            'regex': r'max is (.*)$',
-                            'expected': ['900-1000'],
-                            'action': parsers.ACTION_TRUE,
-                        },
-                    ]
-                }
-            }
-        }
-
-        test = self._quick_test(test_cfg, 'result_parser_test')
-        test.run()
-
-        results = parsers.parse_results(
-            test=test,
-            results={}
-        )
-
-        self.assertEqual(results['key'], '968.3')
-
-        self.assertTrue(results['result'])
 
     def test_table_result_parser(self):
         """
@@ -701,8 +284,8 @@ class ResultParserTests(PavTestCase):
                     'echo "some other text that doesnt matter"'
                 ]
             },
-            'result': {
-                'parsers': {
+            'results': {
+                'parse': {
                     'table': [
                         {
                             'key': 'table1',
@@ -744,8 +327,8 @@ class ResultParserTests(PavTestCase):
                     'echo "some other text that doesnt matter"'
                 ]
             },
-            'result': {
-                'parsers': {
+            'results': {
+                'parse': {
                     'table': [
                         {
                             'key': 'table2',
@@ -790,8 +373,8 @@ class ResultParserTests(PavTestCase):
                     'echo "CORAL2 RFP, 4 -1 256 10 32 1 100, 1.00, 27.04, 27.04, 9.41, 5.1, 18.72, 1.1, 162.56, 0.2, 18.50, 1.1"'
                 ]
             },
-            'result': {
-                'parsers': {
+            'results': {
+                'parse': {
                     'table': [
                         {
                             'key': 'table3',
@@ -832,24 +415,33 @@ class ResultParserTests(PavTestCase):
         self.assertEqual('16.392', results['table3']['Dynamic OMP']['Runtime'])
         self.assertEqual('23.79', results['table3']['Manual OMP']['us/Loop'])
 
-
     def test_analysis(self):
 
         # (anaysis_conf, expected values)
         analysis_tests = [
             ({'result': 'True'}, {'result': 'PASS'}),
-            ({'result': 'not return_value'}, {'result': 'FAIL'}),
+            ({'result': 'return_value != 0'}, {'result': 'FAIL'}),
             ({'sum': 'sum([1,2,3])'}, {'sum': 6}),
         ]
 
-        for analysis_conf, result in analysis_tests:
+        for analysis_conf, exp_results in analysis_tests:
 
             cfg = self._quick_test_cfg()
-            cfg['result'] = {}
-            cfg['result']['analysis'] = analysis_conf
+            cfg['results'] = {}
+            cfg['results']['evaluate'] = analysis_conf
 
             test = self._quick_test(cfg)
+            test.run()
+
             results = test.gather_results(0)
+
+            for rkey, rval  in exp_results.items():
+                self.assertEqual(
+                    results[rkey],
+                    exp_results[rkey],
+                    msg="Result mismatch for {}.".format(analysis_conf))
+
+
 
 
 

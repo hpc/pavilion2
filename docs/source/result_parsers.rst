@@ -8,7 +8,7 @@ Result Parsers
 Result Parsers
 --------------
 
-.. automodule:: pavilion.result_parsers
+.. automodule:: pavilion.result
     :members:
     :undoc-members:
     :show-inheritance:
