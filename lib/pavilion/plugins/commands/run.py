@@ -307,9 +307,9 @@ class RunCommand(commands.Command):
                          overrides, sys_vars, conditions=None):
         """Translate a general set of pavilion test configs into the final,
             resolved configurations. These objects will be organized in a
-            dictionary by scheduler, and have a scheduler object instantiated and
-            attached.
-        :param pav_cfg: The pavilion config
+            dictionary by scheduler, and have a scheduler object instantiated
+            and attached.
+        :param pav_cfg: The pavilion config.
         :param str host: The host config to target these tests with
         :param list(str) modes: The mode configs to use.
         :param list(Path) test_files: Files containing a newline separated
@@ -317,7 +317,7 @@ class RunCommand(commands.Command):
         :param list(str) tests: The tests to run.
         :param list(str) overrides: Overrides to apply to the configurations.
         :param Union[system_variables.SysVarDict,{}] sys_vars: The system
-        variables dict.
+            variables dict.
         :returns: A dictionary (by scheduler type name) of lists of tuples
             test configs and their variable managers.
         """
