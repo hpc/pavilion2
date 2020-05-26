@@ -180,10 +180,11 @@ def print_summary(statuses, outfile):
     the data to the user through draw_table.
     :param statuses: state list of current jobs
     :param outfile:
-    :return:
+    :rtype: int
     """
 
     total_tests = len(statuses)
+    one_success = False
     total_pass = 0
     total_fail = 0
     total_skipped = 0
@@ -195,6 +196,7 @@ def print_summary(statuses, outfile):
     for test in statuses:  # collect statistical info on job list.
         # For a summary table we will generalize some output.
         if 'COMPLETE' in test['state']:
+            one_success = True
             state_completed += 1
             if 'PASS' in test['note']:
                 total_pass += 1
@@ -210,20 +212,29 @@ def print_summary(statuses, outfile):
             state_running += 1
 
         else:
-            # We assume a fail is running/complete/skip not found.
+            # We assume a fail with running/complete/skip not found.
             # Also tests not found will be logged here.
             state_error += 1
-    
+
+    if not one_success:  # Catch divide be zero error.
+        total_pass = 0
+        total_fail = 0
+    else:
+        total_pass = total_pass/state_completed
+        total_fail = total_fail/state_completed
+
     fields = ['State', 'Amount', 'Percent', 'PASSED', 'FAILED']
     try:
         rows = [
-            {'State': output.ANSIString('COMPLETED', output.COLORS.get('GREEN')),
+            {'State': output.ANSIString('COMPLETED', output.COLORS.get(
+                'GREEN')),
              'Amount': state_completed,
              'Percent': '{0:.0%}'.format(state_completed/total_tests),
-             'PASSED': '{0:.0%}'.format(total_pass/state_completed),
-             'FAILED': '{0:.0%}'.format(total_fail/state_completed)},
+             'PASSED': '{0:.0%}'.format(total_pass),
+             'FAILED': '{0:.0%}'.format(total_fail)},
 
-            {'State': output.ANSIString('RUNNING', output.COLORS.get('CYAN')),
+            {'State': output.ANSIString('RUNNING/SCHEDULED', output.COLORS.get(
+                'CYAN')),
              'Amount': state_running,
              'Percent': '{0:.0%}'.format(state_running/total_tests)},
 
@@ -234,14 +245,11 @@ def print_summary(statuses, outfile):
 
             {'State': output.ANSIString('SKIPPED', output.COLORS.get('YELLOW')),
              'Amount': total_skipped,
-             'Percent': '{0:.0%}'.format(total_skipped/total_tests)
-             }
-        ]
+             'Percent': '{0:.0%}'.format(total_skipped/total_tests)}
+            ]
     except ArithmeticError:
-        output.fprint("There are currently no tests in the "
-                      "working directory", color=output.RED)
-        #return errno.EINVAL
-        return 0
+        output.fprint("No tests found in the working dir.", color=output.RED)
+        return errno.EINVAL
 
     field_info = {
         'PASSED': {
@@ -261,7 +269,7 @@ def print_summary(statuses, outfile):
                       border=True,
                       title='Test Summary'
                       )
-    return 0
+    return ret_val
 
 
 def print_status(statuses, outfile, json=False):

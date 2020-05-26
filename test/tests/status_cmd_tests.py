@@ -122,12 +122,6 @@ class StatusCmdTests(PavTestCase):
         args = parser.parse_args(arg_list)
         self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
 
-        parser = argparse.ArgumentParser()
-        status_cmd._setup_arguments(parser)
-        arg_list = ['-s'] + test_str.split()
-        args = parser.parse_args(arg_list)
-        self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
-
 
     def test_set_status_command(self):
         """Test set status command by generating a suite of tests."""
@@ -233,68 +227,31 @@ class StatusCmdTests(PavTestCase):
 
         # TODO: Test that the above have actually been set.
 
-    def goober_test_status_summary(self):
+    def test_status_summary(self):
         # Testing that status works with summary flag
-        config1 = file_format.TestConfigLoader().validate({
-            'scheduler': 'raw',
-            'run': {
-                'env': {
-                    'foo': 'bar',
-                },
-                'cmds': ['echo "I $foo, punks"'],
-            },
-        })
+        status_cmd = commands.get_command('status')
+        status_cmd.outfile = io.StringIO()
+        parser = argparse.ArgumentParser()
+        status_cmd._setup_arguments(parser)
+        arg_list = ['-s', '-a']
+        args = parser.parse_args(arg_list)
 
-        config1['name'] = 'run_test0'
+        # Test that an empty working_dir fails correctly
+        self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
 
-        config2 = file_format.TestConfigLoader().validate({
-            'scheduler': 'raw',
-            'run': {
-                'env': {
-                    'too': 'tar',
-                },
-                'cmds': ['echo "I $too, punks"'],
-            },
-        })
+        base_cfg = self._quick_test_cfg()
+        test_cfg1 = base_cfg.copy()
+        test_cfg1['name'] = 'test1'
+        test_cfg2 = base_cfg.copy()
+        test_cfg2['name'] = 'test2'
+        test_cfg3 = base_cfg.copy()
+        test_cfg3['name'] = 'test3'
 
-        config2['name'] = 'run_test1'
-
-        config3 = file_format.TestConfigLoader().validate({
-            'scheduler': 'raw',
-            'run': {
-                'env': {
-                    'too': 'tar',
-                },
-                'cmds': ['sleep 10'],
-            },
-        })
-
-        config3['name'] = 'run_test2'
-
-        configs = [config1, config2, config3]
-
-        var_man = VariableSetManager()
-
+        configs = [test_cfg1, test_cfg2, test_cfg3]
         tests = [TestRun(self.pav_cfg, test)
                  for test in configs]
-
         for test in tests:
             test.RUN_SILENT_TIMEOUT = 1
 
-        # Make sure this doesn't explode
-        suite = TestSeries(self.pav_cfg, tests)
-        test_str = " ".join([str(test) for test in suite.tests])
-
-        status_cmd = commands.get_command('status')
-        status_cmd.outfile = io.StringIO()
-
-
-
-        #for test in suite.tests:
-        print()
-        parser = argparse.ArgumentParser()
-        status_cmd._setup_arguments(parser)
-        arg_list = ['-s']
-        args = parser.parse_args(arg_list)
-        print(status_cmd.run(self.pav_cfg, args))
+        # Testing that summary flags return correctly
         self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
