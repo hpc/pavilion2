@@ -12,8 +12,6 @@ from pavilion import series
 from pavilion import test_run
 from pavilion.status_file import STATES
 from pavilion.test_run import TestRun, TestRunError, TestRunNotFoundError
-from pavilion.output import dbg_print
-from pavilion.output import dbg_print
 
 
 def get_last_ctime(path):
