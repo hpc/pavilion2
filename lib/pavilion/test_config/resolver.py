@@ -21,7 +21,8 @@ from pavilion.test_config import parsers
 from pavilion.test_config import variables
 from pavilion.test_config.file_format import (TestConfigError, TEST_NAME_RE,
                                               KEY_NAME_RE)
-from pavilion.test_config.file_format import TestConfigLoader, TestSuiteLoader
+from pavilion.test_config.file_format import TestConfigLoader, \
+    TestSuiteLoader, SeriesConfigLoader
 from yaml_config import RequiredError
 
 # Config file types
@@ -212,6 +213,63 @@ class TestConfigResolver:
                         }
 
         return suites
+
+    def find_all_series(self):
+        """Find all the series within known config directories.
+
+    :return: Returns a dictionary of series names to an info dict.
+    :rtype: dict(dict)
+
+    The returned data structure looks like: ::
+
+        series_name -> {
+            'path': Path to the series file.
+            'supersedes': [superseded_suite_files],
+            'err': errors
+            'tests': [test_names]
+            }
+    """
+
+        series = {}
+
+        for conf_dir in self.pav_cfg.config_dirs:
+            path = conf_dir/'series'
+
+            if not (path.exists() and path.is_dir()):
+                continue
+
+            for file in os.listdir(path.as_posix()):
+
+                file = path/file
+                if file.suffix == '.yaml' and file.is_file():
+                    series_name = file.stem
+
+                    if series_name not in series:
+                        series[series_name] = {
+                            'path': file,
+                            'err': '',
+                            'tests': [],
+                            'supersedes': [],
+                        }
+                    else:
+                        suites[suite_name]['supersedes'].append(file)
+
+                    with file.open('r') as series_file:
+                        try:
+                            series_cfg = SeriesConfigLoader().load(
+                                series_file, partial=True)
+                            series[series_name]['tests'] = list(series_cfg[
+                                'series'].keys())
+                        except (
+                                TypeError,
+                                KeyError,
+                                ValueError,
+                                yc_yaml.YAMLError,
+                        ) as err:
+                            series[series_name]['err'] = err
+                            continue
+
+        return series
 
     def load(self, tests, host=None, modes=None, overrides=None,
              conditions=None):

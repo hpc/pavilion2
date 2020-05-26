@@ -319,9 +319,14 @@ class ShowCommand(commands.Command):
             description="Pavilion series."
         )
         series.add_argument(
-            '--tests', '-t',
+            '--verbose', '-v',
             action='store_true', default=False,
-            help="Display tests involved in series."
+            help="Display tests involved in series and paths of series."
+        )
+        series.add_argument(
+            '--err',
+            action='store_true', default=False,
+            help='Display any errors encountered.'
         )
 
 
@@ -787,34 +792,46 @@ class ShowCommand(commands.Command):
     @show_cmd('series')
     def _series_cmd(self, pav_cfg, args):
 
-        series = []
-        col_names = ['Name']
+        resolv = resolver.TestConfigResolver(pav_cfg)
+        series_dict = resolv.find_all_series()
 
-        if args.tests:
-            col_names.append('Tests')
+        rows = []
 
-        for conf_dir in pav_cfg.config_dirs:
-            path = conf_dir/'series'
+        for series_name in sorted(list(series_dict.keys())):
+            series = series_dict[series_name]
 
-            if not (path.exists() and path.is_dir()):
+            if series['err']:
+                series = output.ANSIString(series_name, output.RED)
+
+                rows.append({
+                    'name':    '{}.*'.format(series_name),
+                    'summary': 'Loading the series failed.  '
+                               'For more info, run `pav show series --err`.',
+                    'path':    series['path'],
+                    'err':     series['err']
+                })
+            elif args.err:
                 continue
 
-            for file in os.listdir(path.as_posix()):
+            rows.append({
+                'name':    '{}'.format(series_name),
+                'path':    series['path'],
+                'tests':   series['tests'],
+                'err':     'None'
+            })
 
-                file = path/file
-                if file.suffix == '.yaml' and file.is_file():
-                    series_id = file.stem
-                    series_path = file
-                    series.append({
-                        'Name': series_id,
-                        'Tests': ''
-                    })
+        fields = ['name']
+        if args.verbose or args.err:
+            fields.extend(['tests', 'path'])
+
+            if args.err:
+                fields.append('err')
 
         output.draw_table(
             self.outfile,
             field_info={},
-            fields=col_names,
-            rows=series
+            fields=fields,
+            rows=rows
         )
 
     @show_cmd()
