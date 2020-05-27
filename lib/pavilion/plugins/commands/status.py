@@ -1,10 +1,12 @@
 """The Status command, along with useful functions that make it easy for
 other commands to print statuses."""
 
+import errno
 import os
 import re
 import time
 
+from datetime import datetime
 from pavilion import commands
 from pavilion import output
 from pavilion import schedulers
@@ -111,7 +113,7 @@ def get_tests(pav_cfg, args, errfile):
             args.tests.append(series_id)
         else:
             raise commands.CommandError(
-                "No tests specified and no last sries was found."
+                "No tests specified and no last series was found."
             )
 
     test_list = []
@@ -181,7 +183,7 @@ def display_history(pav_cfg, args, outfile):
     :param stream outfile: Stream to which states are printed
     :rtype int"""
 
-    ret_val = 1
+    ret_val = 0
     # status_path locates the status file per test_run id.
     status_path = (pav_cfg.working_dir / 'test_runs' /
                    str(args.history).zfill(7) / 'status')
@@ -196,26 +198,26 @@ def display_history(pav_cfg, args, outfile):
             for line in file:
                 val = line.split(' ', 2)
                 states.append({
-                    'test_id': id_final,
-                    'name': name_final,
                     'state': val[1],
-                    'time': val[0],
+                    'time': datetime.strptime(val[0], '%Y-%m-%dT%H:%M:%S.%f'),
                     'note': val[2]
                 })
     except (TestRunError, TestRunNotFoundError) as err:
         output.fprint("The test_id {} does not exist in your "
                       "working directory.".format(args.history),
                       color=output.RED)
-        ret_val = 0
-        return ret_val
+        return errno.EINVAL
 
-    fields = ['test_id', 'name', 'state', 'time', 'note']
+    fields = ['state', 'time', 'note']
     output.draw_table(
         outfile=outfile,
-        field_info={},
+        field_info={
+            'time': {'transform': output.get_relative_timestamp}
+        },
         fields=fields,
         rows=states,
-        title='Test state history')
+        title='State History on {} test_id: {}'.format(name_final,
+                                                       id_final))
 
     return ret_val
 
@@ -237,7 +239,7 @@ def print_status(statuses, outfile, json=False):
     for stat in statuses:
         if stat['note'] != "Test not found.":
             ret_val = 0
-
+    
     if json:
         json_data = {'statuses': statuses}
         output.json_dump(json_data, outfile)
