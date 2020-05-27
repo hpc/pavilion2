@@ -4,14 +4,12 @@ generally be used to help make Pavilion consistent across its code and
 plugins.
 """
 
-# This file contains assorted utility functions.
-
+import errno
 import os
 import subprocess
 import zipfile
-import errno
-
 from pathlib import Path
+from typing import Iterator
 
 
 # Python 3.5 issue. Python 3.6 Path.resolve() handles this correctly.
@@ -69,8 +67,8 @@ def resolve_path(path, strict=False):
 def dir_contains(file, directory):
     """Check if 'file' is or is contained by 'directory'."""
 
-    file = Path(resolve_path(Path(file)))
-    directory = Path(resolve_path(Path(directory)))
+    file = Path(file)
+    directory = Path(directory)
     while file.parent != file:
         if file == directory:
             return True
@@ -78,28 +76,21 @@ def dir_contains(file, directory):
     return False
 
 
-def flat_walk(path, *args, **kwargs):
-    """Perform an os.walk on path, but return a flattened list of every file
-    and directory found.
+def flat_walk(path, *args, **kwargs) -> Iterator[Path]:
+    """Perform an os.walk on path, but simply generate each item walked over.
 
 :param Path path: The path to walk with os.walk.
 :param args: Any additional positional args for os.walk.
 :param kwargs: Any additional kwargs for os.walk.
-:returns: A list of all directories and files in or under the given path.
-:rtype list[Path]:
-    """
-
-    paths = []
+"""
 
     for directory, dirnames, filenames in os.walk(str(path), *args, **kwargs):
         directory = Path(directory)
         for dirname in dirnames:
-            paths.append(directory / dirname)
+            yield directory / dirname
 
         for filename in filenames:
-            paths.append(directory / filename)
-
-    return paths
+            yield directory / filename
 
 
 def get_mime_type(path):
@@ -183,3 +174,56 @@ class ZipFileFixed(zipfile.ZipFile):
                 pass
 
         return ret
+
+
+def relative_to(other: Path, base: Path) -> Path:
+    """Get a relative path from base to other, even if other isn't contained
+    in base."""
+
+    if not base.is_dir():
+        raise ValueError(
+            "The base '{}' must be a directory."
+            .format(base))
+
+    base = Path(resolve_path(base))
+    other = Path(resolve_path(other))
+
+    bparts = base.parts
+    oparts = other.parts
+
+    i = 0
+    for i in range(min([len(bparts), len(oparts)])):
+        if bparts[i] != oparts[i]:
+            if i <= 1:
+                # The paths have nothing in common, just return the other path.
+                return other
+            else:
+                o_steps = i
+                up_dirs = len(bparts) - i
+                break
+    else:
+        o_steps = i + 1
+        up_dirs = 0
+
+    ref = ('..',) * up_dirs + oparts[o_steps:]
+    return Path(*ref)
+
+
+def repair_symlinks(base: Path) -> None:
+    """Makes all symlinks under the path 'base' relative."""
+
+    base = base.resolve()
+
+    for file in flat_walk(base):
+
+        if file.is_symlink():
+            # Found a second thing that pathlib doesn't do (though a requst
+            # for Path.readlink has already been merged in the Python develop
+            # branch)
+            target = Path(os.readlink(file.as_posix()))
+            target = Path(resolve_path(target))
+            sym_dir = file.parent
+            if target.is_absolute() and dir_contains(target, base):
+                rel_target = relative_to(target, sym_dir)
+                file.unlink()
+                file.symlink_to(rel_target)

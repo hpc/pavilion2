@@ -19,7 +19,7 @@ KEY_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_-]*$')
 VAR_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_-]*[?+]?$')
 
 
-class PathElem(yc.CategoryElem):
+class PathCategoryElem(yc.CategoryElem):
     """This is for category elements that need a valid unix path regex."""
     _NAME_RE = re.compile(r".+$")
 
@@ -184,11 +184,8 @@ expected to be added to by various plugins.
                       "overridden entirely"),
         yc.StrElem(
             'subtitle',
-            help_text="An extended title for this test. This is useful for "
-                      "assigning unique name to virtual tests through "
-                      "variable insertion. example, if a test has a single "
-                      "permutation variable 'subtest', then '{subtest}' "
-                      "would give a useful descriptor."),
+            help_text="An extended title for this test. Required for "
+                      "permuted tests."),
         yc.StrElem(
             'summary', default='',
             help_text="Summary of the purpose of this test."
@@ -249,9 +246,9 @@ expected to be added to by various plugins.
                               "these files instead of creating a symlink."
                               "They may include path glob wildcards, "
                               "including the recursive '**'."),
-                PathElem(
+                PathCategoryElem(
                     'create_files',
-                    key_case=PathElem.KC_MIXED,
+                    key_case=PathCategoryElem.KC_MIXED,
                     sub_elem=yc.ListElem(sub_elem=yc.StrElem()),
                     help_text="File(s) to create at path relative to the test's"
                               "test source directory"),
@@ -327,6 +324,12 @@ expected to be added to by various plugins.
                 yc.ListElem('cmds', sub_elem=yc.StrElem(),
                             help_text='The sequence of commands to run to run '
                                       'the test.'),
+                PathCategoryElem(
+                    'create_files',
+                    key_case=PathCategoryElem.KC_MIXED,
+                    sub_elem=yc.ListElem(sub_elem=yc.StrElem()),
+                    help_text="File(s) to create at path relative to the test's"
+                              "test source directory"),
                 EnvCatElem(
                     'env', sub_elem=yc.StrElem(), key_case=EnvCatElem.KC_MIXED,
                     help_text="Environment variables to set in the run "

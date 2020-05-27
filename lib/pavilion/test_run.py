@@ -226,13 +226,6 @@ class TestRun:
 
         self.load_ok = True
 
-        # Compute the actual name of test, using the subtitle config parameter.
-        self.name = '.'.join([
-            config.get('suite', '<unknown>'),
-            config.get('name', '<unnamed>')])
-        if 'subtitle' in config and config['subtitle']:
-            self.name = self.name + '.' + config['subtitle']
-
         self.scheduler = config['scheduler']
 
         # Create the tests directory if it doesn't already exist.
@@ -272,6 +265,17 @@ class TestRun:
                 raise TestRunError(*err.args)
 
             self.opts = TestRunOptions.load(self)
+
+        name_parts = [
+            self.config.get('suite', '<unknown>'),
+            self.config.get('name', '<unnamed>'),
+        ]
+        subtitle = self.config.get('subtitle')
+        # Don't add undefined or empty subtitles.
+        if subtitle:
+            name_parts.append(subtitle)
+
+        self.name = '.'.join(name_parts)
 
         # Set a logger more specific to this test.
         self.logger = logging.getLogger('pav.TestRun.{}'.format(self.id))
@@ -392,6 +396,29 @@ class TestRun:
         self._save_config()
         # Save our newly updated variables.
         self.var_man.save(self._variables_path)
+
+        # Create files specified via run config key.
+        files_to_create = self.config['run'].get('create_files', [])
+        if files_to_create:
+            for file, contents in files_to_create.items():
+                file_path = Path(self.build_path / file)
+                # Prevent files from being written outside build directory.
+                if not utils.dir_contains(file_path, self.build_path):
+                    raise TestRunError("'create_file: {}': file path"
+                                       " outside build context."
+                                       .format(file_path))
+                # Prevent files from overwriting existing directories.
+                if file_path.is_dir():
+                    raise TestRunError("'create_file: {}' clashes with"
+                                       " existing directory in build dir."
+                                       .format(file_path))
+                # Create file parent directory(ies).
+                dirname = file_path.parent
+                (self.build_path / dirname).mkdir(parents=True, exist_ok=True)
+                # Write file.
+                with file_path.open('w') as file_:
+                    for line in contents:
+                        file_.write("{}\n".format(line))
 
         if not self.skipped:
             self.skipped = self._get_skipped()
@@ -931,7 +958,8 @@ directory that doesn't already exist.
         if len(skip_reason_list) == 0:
             return False
         else:
-            self.status.set(STATES.COMPLETE, matches)
+            self.status.set(STATES.SKIPPED, matches)
+            self.set_run_complete()
             return True
 
     def _evaluate_skip_conditions(self):

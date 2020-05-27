@@ -341,7 +341,9 @@ The default config is: ::
 
         cfg = copy.deepcopy(cfg)
 
-        cfg = TestConfigLoader().validate(cfg)
+        loader = TestConfigLoader()
+        cfg = loader.validate(loader.normalize(cfg))
+
         cfg['name'] = name
 
         var_man = VariableSetManager()
