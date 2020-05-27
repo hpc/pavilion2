@@ -176,6 +176,39 @@ class ZipFileFixed(zipfile.ZipFile):
         return ret
 
 
+def relative_to(other: Path, base: Path) -> Path:
+    """Get a relative path from base to other, even if other isn't contained
+    in base."""
+
+    if not base.is_dir():
+        raise ValueError(
+            "The base '{}' must be a directory."
+            .format(base))
+
+    base = Path(resolve_path(base))
+    other = Path(resolve_path(other))
+
+    bparts = base.parts
+    oparts = other.parts
+
+    i = 0
+    for i in range(min([len(bparts), len(oparts)])):
+        if bparts[i] != oparts[i]:
+            if i <= 1:
+                # The paths have nothing in common, just return the other path.
+                return other
+            else:
+                o_steps = i
+                up_dirs = len(bparts) - i
+                break
+    else:
+        o_steps = i + 1
+        up_dirs = 0
+
+    ref = ('..',) * up_dirs + oparts[o_steps:]
+    return Path(*ref)
+
+
 def repair_symlinks(base: Path) -> None:
     """Makes all symlinks under the path 'base' relative."""
 
@@ -189,7 +222,8 @@ def repair_symlinks(base: Path) -> None:
             # branch)
             target = Path(os.readlink(file.as_posix()))
             target = Path(resolve_path(target))
+            sym_dir = file.parent
             if target.is_absolute() and dir_contains(target, base):
-                rel_target = target.relative_to(base)
+                rel_target = relative_to(target, sym_dir)
                 file.unlink()
                 file.symlink_to(rel_target)
