@@ -1,6 +1,4 @@
-"""Handles getting the default, base results.
-
-"""
+"""Handles getting the default, base results."""
 
 import datetime
 
@@ -42,5 +40,5 @@ def base_results(test) -> dict:
 
 
 class ResultError(RuntimeError):
-    """Error thrown when the result parser fails."""
+    """Error thrown when a failure occurs with any sort of result processing."""
     pass

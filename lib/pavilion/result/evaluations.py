@@ -1,3 +1,5 @@
+"""Handles performing evaluations on results."""
+
 from typing import Dict, List
 
 from pavilion.test_config.parsers import (check_expression, StringParserError,
@@ -24,9 +26,11 @@ def check_evaluations(evaluations: Dict[str, str]) -> List[str]:
 
 
 def evaluate_results(results: dict, evaluations: Dict[str, str]):
-    """Perform result evaluations according to
-    :param results:
-    :param evaluations:
+    """Perform result evaluations using an expression parser. The variables
+    in such expressions are pulled from the results data structure, and the
+    results are stored there too.
+    :param results: The result dict. Will be modified in place.
+    :param evaluations: A dictionary of evals to perform.
     :return:
     """
 
@@ -41,6 +45,3 @@ def evaluate_results(results: dict, evaluations: Dict[str, str]):
                 "Error evaluating expression '{}' for key '{}': {}"
                 .format(expr, key, err.args[0])
             )
-
-
-

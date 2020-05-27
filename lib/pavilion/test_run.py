@@ -651,10 +651,6 @@ class TestRun:
         """Set the given run attribute by writing it to the attributes JSON
         file."""
 
-        from pavilion import output
-
-        output.dbg_print("Setting", attr, value)
-
         if self._attributes.get(attr) == value:
             return
 

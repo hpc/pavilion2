@@ -1,4 +1,5 @@
-"""This module contains the base Result Parser plugin class."""
+"""This module contains the ResultParser plugin class, as well functions
+to process result parser configurations defined by a test run."""
 
 import glob
 import inspect
@@ -63,8 +64,6 @@ MATCH_FIRST = 'first'
 MATCH_LAST = 'last'
 MATCH_ALL = 'all'
 
-# This is to use in any result parser plugin that can match multiple items.
-# It's provided here for consistency between plugins.
 MATCHES_ELEM = yc.StrElem(
     "match_type",
     default=MATCH_FIRST,
@@ -83,6 +82,8 @@ MATCHES_ELEM = yc.StrElem(
             ALL=MATCH_ALL,
         ))
 )
+"""This is to use in any result parser plugin that can match multiple items.
+It's provided here for consistency between plugins."""
 
 
 class ResultParser(IPlugin.IPlugin):

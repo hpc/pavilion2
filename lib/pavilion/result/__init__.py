@@ -1,3 +1,9 @@
+"""This module contains everything involved in parsing and evaluating the
+results of test runs. This includes the base for the 'result parser' plugins
+themselves, as well as functions for performing this parsing. Additionally,
+it contains the functions used to get the base result values, as well as
+resolving result evaluations."""
+
 from pavilion.test_config import resolver
 from .evaluations import check_expression, evaluate_results
 from .base import base_results, ResultError, BASE_RESULTS
@@ -6,7 +12,7 @@ from .parsers import parse_results, ResultParser, get_plugin
 
 def check_config(result_configs):
     """Make sure the result config is sensible, both for result parsers and
-    evaluation bits.
+evaluations.
 
 For result parsers we check for:
 

@@ -12,7 +12,7 @@ API Documentation
     modules.rst
     output.rst
     parsers.rst
-    result_parsers.rst
+    results.rst
     schedulers.rst
     series.rst
     status_file.rst
