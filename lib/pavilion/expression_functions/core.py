@@ -205,11 +205,3 @@ class KeysPlugin(CoreFunctionPlugin):
         preserved."""
 
         return list(arg.keys())
-
-
-def register_core_plugins():
-    """Find all the core function plugins and activate them."""
-
-    for cls in CoreFunctionPlugin.__subclasses__():
-        obj = cls()
-        obj.activate()

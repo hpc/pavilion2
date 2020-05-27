@@ -5,7 +5,7 @@ in result evaluations.
 
 from .base import (FunctionPlugin, _FUNCTIONS, num, __reset)
 from .common import FunctionPluginError, FunctionArgError
-from .core import register_core_plugins, CoreFunctionPlugin
+from .core import CoreFunctionPlugin
 
 
 def get_plugin(name: str) -> FunctionPlugin:
@@ -15,3 +15,14 @@ def get_plugin(name: str) -> FunctionPlugin:
         raise FunctionPluginError("No such function '{}'".format(name))
     else:
         return _FUNCTIONS[name]
+
+
+def register_core_plugins():
+    """Find all the core function plugins and activate them."""
+
+    for cls in CoreFunctionPlugin.__subclasses__():
+        obj = cls()
+        obj.activate()
+
+
+FunctionPlugin.register_core = register_core_plugins

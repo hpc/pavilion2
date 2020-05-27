@@ -3,10 +3,9 @@ other commands to print statuses."""
 
 import errno
 import os
-import re
 import time
-
 from datetime import datetime
+
 from pavilion import commands
 from pavilion import output
 from pavilion import schedulers
@@ -174,54 +173,6 @@ def get_statuses(pav_cfg, args, errfile):
     return test_statuses
 
 
-def display_history(pav_cfg, args, outfile):
-    """Display_history takes a test_id from the command
-    line arguments and formats the status file from the id
-    and displays it for the user through draw tables.
-    :param pav_cfg: The pavilion config.
-    :param argparse namespace args: The test via command line
-    :param stream outfile: Stream to which states are printed
-    :rtype int"""
-
-    ret_val = 0
-    # status_path locates the status file per test_run id.
-    status_path = (pav_cfg.working_dir / 'test_runs' /
-                   str(args.history).zfill(7) / 'status')
-
-    try:
-        test = TestRun.load(pav_cfg, args.history)
-        name_final = test.name
-        id_final = test.id
-        states = []  # dictionary list for table output
-
-        with status_path.open() as file:
-            for line in file:
-                val = line.split(' ', 2)
-                states.append({
-                    'state': val[1],
-                    'time': datetime.strptime(val[0], '%Y-%m-%dT%H:%M:%S.%f'),
-                    'note': val[2]
-                })
-    except (TestRunError, TestRunNotFoundError) as err:
-        output.fprint("The test_id {} does not exist in your "
-                      "working directory.".format(args.history),
-                      color=output.RED)
-        return errno.EINVAL
-
-    fields = ['state', 'time', 'note']
-    output.draw_table(
-        outfile=outfile,
-        field_info={
-            'time': {'transform': output.get_relative_timestamp}
-        },
-        fields=fields,
-        rows=states,
-        title='Status history for test {} (id: {})'.format(name_final,
-                                                           id_final))
-
-    return ret_val
-
-
 def print_status(statuses, outfile, json=False):
     """Prints the statuses provided in the statuses parameter.
 
@@ -314,10 +265,58 @@ class StatusCommand(commands.Command):
             else:
                 test_statuses = get_all_tests(pav_cfg, args)
         except commands.CommandError as err:
-            output.fprint("Status Error:", err, color=output.RED)
+            output.fprint("Status Error:", err, color=output.RED,
+                          file=self.errfile)
             return 1
 
         if args.history:
-            return display_history(pav_cfg, args, self.outfile)
+            return self.display_history(pav_cfg, args)
         else:
             return print_status(test_statuses, self.outfile, args.json)
+
+    def display_history(self, pav_cfg, args):
+        """Display_history takes a test_id from the command
+        line arguments and formats the status file from the id
+        and displays it for the user through draw tables.
+        :param pav_cfg: The pavilion config.
+        :param argparse namespace args: The test via command line
+        :rtype int"""
+
+        ret_val = 0
+        # status_path locates the status file per test_run id.
+        status_path = (pav_cfg.working_dir / 'test_runs' /
+                       str(args.history).zfill(7) / 'status')
+
+        try:
+            test = TestRun.load(pav_cfg, args.history)
+            name_final = test.name
+            id_final = test.id
+            states = []  # dictionary list for table output
+
+            with status_path.open() as file:
+                for line in file:
+                    val = line.split(' ', 2)
+                    states.append({
+                        'state': val[1],
+                        'time': datetime.strptime(val[0], '%Y-%m-%dT%H:%M:%S.%f'),
+                        'note': val[2]
+                    })
+        except (TestRunError, TestRunNotFoundError) as err:
+            output.fprint("The test_id {} does not exist in your "
+                          "working directory.".format(args.history),
+                          file=self.errfile,
+                          color=output.RED)
+            return errno.EINVAL
+
+        fields = ['state', 'time', 'note']
+        output.draw_table(
+            outfile=self.outfile,
+            field_info={
+                'time': {'transform': output.get_relative_timestamp}
+            },
+            fields=fields,
+            rows=states,
+            title='Status history for test {} (id: {})'.format(name_final,
+                                                               id_final))
+
+        return ret_val

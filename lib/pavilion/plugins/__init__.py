@@ -95,9 +95,8 @@ def initialize_plugins(pav_cfg):
 
     # Some plugin types have core plugins that are built-in.
     for _, cat_obj in PLUGIN_CATEGORIES.items():
-        module = inspect.getmodule(cat_obj)
-        if hasattr(module, 'register_core_plugins'):
-            module.register_core_plugins()
+        if hasattr(cat_obj, 'register_core'):
+            cat_obj.register_core()
 
     _PLUGIN_MANAGER = pman
 

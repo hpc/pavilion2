@@ -32,6 +32,8 @@ For evaluations we check for:
 
     key_names = []
 
+    print('parser conf', parser_conf)
+
     for rtype in parser_conf:
         for rconf in parser_conf[rtype]:
             key = rconf.get('key')
