@@ -8,9 +8,9 @@ from collections import OrderedDict
 from pathlib import Path
 
 import yaml_config as yc
+from pavilion.result.base import ResultError
 from pavilion.test_config import file_format
 from yapsy import IPlugin
-from .base import ResultError
 
 LOGGER = logging.getLogger(__file__)
 

@@ -548,7 +548,7 @@ class EvaluationExprTransformer(BaseExprTransformer):
 
         return self._merge_tokens(items, value)
 
-    def _resolve_ref(self, base, key_parts: list, seen_parts: tuple = tuple(),
+    def _resolve_ref(self, base, key_parts: list, seen_parts: tuple=tuple(),
                      allow_listing: bool = True):
         """Recursively resolve a variable reference by navigating dicts and
             lists using the key parts until we reach the final value. If a
