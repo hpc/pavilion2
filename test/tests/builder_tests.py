@@ -1,18 +1,26 @@
 import copy
 import io
+import os
+import pathlib
 import shutil
 import threading
 import time
 import unittest
 
+from pavilion import plugins
 from pavilion import wget
 from pavilion.status_file import STATES
 from pavilion.test_run import TestRun
 from pavilion.unittest import PavTestCase
-from pavilion import plugins
 
 
 class BuilderTests(PavTestCase):
+
+    def setUp(self) -> None:
+        plugins.initialize_plugins(self.pav_cfg)
+
+    def tearDown(self) -> None:
+        plugins._reset_plugins()
 
     def test_setup_build_dir(self):
         """Make sure we can correctly handle all of the various archive
@@ -113,12 +121,11 @@ class BuilderTests(PavTestCase):
     def test_create_file(self):
         """Check that build time file creation is working correctly."""
 
-        plugins.initialize_plugins(self.pav_cfg)
         files_to_create = {
             'file1': ['line_0', 'line_1'],
             'wild/file2': ['line_0', 'line_1'],  # wild dir exists
             'wild/dir2/file3': ['line_0', 'line_1'], # dir2 does not exist
-            'real.txt':['line1', 'line4'] # file exists
+            'real.txt': ['line1', 'line4'] # file exists
         }
         config = self._quick_test_cfg()
         config['build']['source_location'] = 'file_tests.tgz'
@@ -143,8 +150,6 @@ class BuilderTests(PavTestCase):
     def test_create_file_errors(self):
         """Check build time file creation expected errors."""
 
-        plugins.initialize_plugins(self.pav_cfg)
-
         # Ensure a file can't be written outside the build context.
         files_to_fail = ['../file', '../../file', 'wild/../../file']
         for file in files_to_fail:
@@ -168,8 +173,6 @@ class BuilderTests(PavTestCase):
 
     def test_copy_build(self):
         """Check that builds are copied correctly."""
-
-        plugins.initialize_plugins(self.pav_cfg)
 
         config = self._quick_test_cfg()
         # The copy_test source file contains several files to copy
@@ -216,8 +219,6 @@ class BuilderTests(PavTestCase):
                             msg="Missing {}".format(sym))
             self.assertTrue(sym.is_symlink(),
                             msg="{} is not a symlink".format(sym))
-
-        plugins._reset_plugins()
 
     README_HASH = '275fa3c8aeb10d145754388446be1f24bb16fb00'
 
@@ -367,3 +368,15 @@ class BuilderTests(PavTestCase):
             self.fail("Build did not respond quickly enough to being canceled.")
 
         self.assertEqual(test.status.current().state, STATES.ABORTED)
+
+    def test_abs_symlinks(self):
+
+        config = self._quick_test_cfg()
+        config['build']['cmds'] = ['ln -s $(pwd)/bar foo']
+
+        test = self._quick_test(cfg=config)
+
+        path = test.builder.path/'foo'
+        target = pathlib.Path(os.readlink(path.as_posix()))
+
+        self.assertFalse(target.is_absolute())
