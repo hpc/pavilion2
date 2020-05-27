@@ -277,19 +277,18 @@ def print_summary(statuses, outfile):
                 'GREEN')),
              'Amount': state_completed,
              'Percent': '{0:.0%}'.format(state_completed/total_tests),
-
              'PASSED': '{0:.0%}'.format(total_pass),
              'FAILED': '{0:.0%}'.format(total_fail)},
 
             {'State': output.ANSIString('RUNNING/SCHEDULED', output.COLORS.get(
                 'CYAN')),
              'Amount': state_running,
-             'Percent': '{0:.0%}'.format(state_running / total_tests)},
+             'Percent': '{0:.0%}'.format(state_running/total_tests)},
 
             {'State': output.ANSIString('RUN/BUILD_FAILED', output.COLORS.get(
                 'RED')),
              'Amount': state_error,
-             'Percent': '{0:.0%}'.format(state_error / total_tests)},
+             'Percent': '{0:.0%}'.format(state_error/total_tests)},
 
             {'State': output.ANSIString('SKIPPED', output.COLORS.get('YELLOW')),
              'Amount': total_skipped,
@@ -307,16 +306,15 @@ def print_summary(statuses, outfile):
         'FAILED': {
             'transform': lambda t: output.ANSIString(t, output.COLORS.get(
                 'RED')),
-        }
-    }
+        }}
 
     output.draw_table(outfile=outfile,
                       field_info=field_info,
                       fields=fields,
                       rows=rows,
                       border=True,
-                      title='Test Summary'
-                      )
+                      title='Test Summary')
+
     return ret_val
 
 
@@ -420,7 +418,7 @@ class StatusCommand(commands.Command):
         except commands.CommandError as err:
             output.fprint("Status Error:", err, color=output.RED)
             return 1
-        
+
         if args.summary:
             return print_summary(test_statuses, self.outfile)
         elif args.history:

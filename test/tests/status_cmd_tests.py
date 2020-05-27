@@ -227,8 +227,38 @@ class StatusCmdTests(PavTestCase):
 
         # TODO: Test that the above have actually been set.
 
-<<<<<<< HEAD
-<<<<<<< HEAD
+    def test_status_summary(self):
+        # Testing that status works with summary flag
+        status_cmd = commands.get_command('status')
+        status_cmd.outfile = io.StringIO()
+        parser = argparse.ArgumentParser()
+        status_cmd._setup_arguments(parser)
+        arg_list = ['-s', '-a']
+        args = parser.parse_args(arg_list)
+
+        # Test that an empty working_dir fails correctly
+        self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
+
+
+
+        base_cfg = self._quick_test_cfg()
+        test_cfg1 = base_cfg.copy()
+        test_cfg1['name'] = 'test1'
+        test_cfg2 = base_cfg.copy()
+        test_cfg2['name'] = 'test2'
+        test_cfg3 = base_cfg.copy()
+        test_cfg3['name'] = 'test3'
+
+        configs = [test_cfg1, test_cfg2, test_cfg3]
+        tests = [TestRun(self.pav_cfg, test)
+        for test in configs]
+        for test in tests:
+            test.RUN_SILENT_TIMEOUT = 1
+
+        # Testing that summary flags return correctly
+        self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
+
+
     def test_history_status(self):
         """Checks pav status --history $id command when
         passed a valid and invalid test id.
@@ -243,43 +273,12 @@ class StatusCmdTests(PavTestCase):
         test_cfg3['name'] = 'test3'
 
         configs = [test_cfg1, test_cfg2, test_cfg3]
-=======
-    def goober_test_status_summary(self):
-=======
-    def test_status_summary(self):
->>>>>>> add summary flag for status output
-        # Testing that status works with summary flag
-        status_cmd = commands.get_command('status')
-        status_cmd.outfile = io.StringIO()
-        parser = argparse.ArgumentParser()
-        status_cmd._setup_arguments(parser)
-        arg_list = ['-s', '-a']
-        args = parser.parse_args(arg_list)
-
-        # Test that an empty working_dir fails correctly
-        self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
-
-<<<<<<< HEAD
-        var_man = VariableSetManager()
->>>>>>> work on unit tests
-=======
-        base_cfg = self._quick_test_cfg()
-        test_cfg1 = base_cfg.copy()
-        test_cfg1['name'] = 'test1'
-        test_cfg2 = base_cfg.copy()
-        test_cfg2['name'] = 'test2'
-        test_cfg3 = base_cfg.copy()
-        test_cfg3['name'] = 'test3'
->>>>>>> add summary flag for status output
-
-        configs = [test_cfg1, test_cfg2, test_cfg3]
         tests = [TestRun(self.pav_cfg, test)
-                 for test in configs]
+        for test in configs]
+
         for test in tests:
             test.RUN_SILENT_TIMEOUT = 1
 
-<<<<<<< HEAD
-<<<<<<< HEAD
         suite = TestSeries(self.pav_cfg, tests)
         test_str = " ".join([str(test) for test in suite.tests])
         status_cmd = commands.get_command('status')
@@ -300,26 +299,3 @@ class StatusCmdTests(PavTestCase):
         # None int arguments "pav status --history lolol" throw
         # error in unit-test but are caught cleanly in pav usage
         # check.
-=======
-        # Make sure this doesn't explode
-        suite = TestSeries(self.pav_cfg, tests)
-        test_str = " ".join([str(test) for test in suite.tests])
-
-        status_cmd = commands.get_command('status')
-        status_cmd.outfile = io.StringIO()
-
-
-
-        #for test in suite.tests:
-        print()
-        parser = argparse.ArgumentParser()
-        status_cmd._setup_arguments(parser)
-        arg_list = ['-s']
-        args = parser.parse_args(arg_list)
-        print(status_cmd.run(self.pav_cfg, args))
-        self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
->>>>>>> work on unit tests
-=======
-        # Testing that summary flags return correctly
-        self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
->>>>>>> add summary flag for status output
