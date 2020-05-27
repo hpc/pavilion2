@@ -154,19 +154,13 @@ expected to be added to by various plugins.
     ELEMENTS = [
         yc.StrElem(
             'name', hidden=True, default='<unnamed>',
-            help_text="The name of the test. Will be auto-generated from the "
-                      "suite name, test section name, and subtitle."),
+            help_text="The base name of the test. Value added automatically."),
         yc.StrElem(
             'suite', hidden=True, default='<no_suite>',
             help_text="The name of the suite. Value added automatically."),
         yc.StrElem(
             'suite_path', hidden=True, default='<no_suite>',
             help_text="Path to the suite file. Value added automatically."),
-        yc.StrElem(
-            'base_name', hidden=True, default='<unknown>',
-            help_text="The base, unmodified name of the test. Value added "
-                      "automatically."
-        ),
         yc.StrElem(
             'host', hidden=True, default='<unknown>',
             help_text="Host (typically sys.sys_name) for which this test was "

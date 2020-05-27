@@ -4,6 +4,7 @@ for Pavilion."""
 import copy
 import fnmatch
 import inspect
+import io
 import os
 import pprint
 import tempfile
@@ -13,14 +14,15 @@ from hashlib import sha1
 from pathlib import Path
 
 from pavilion import arguments
+from pavilion import commands
 from pavilion import config
 from pavilion import pavilion_variables
 from pavilion import system_variables
-from pavilion.test_run import TestRun
-from pavilion.test_config.file_format import TestConfigLoader
+from pavilion.output import dbg_print
 from pavilion.test_config import VariableSetManager
 from pavilion.test_config import resolver
-from pavilion.output import dbg_print
+from pavilion.test_config.file_format import TestConfigLoader
+from pavilion.test_run import TestRun
 
 
 class PavTestCase(unittest.TestCase):
@@ -255,6 +257,37 @@ though."""
         self.assert_(not a_walk and not b_walk,
                      "Left over directory contents in a or b: {}, {}"
                      .format(a_walk, b_walk))
+
+    @staticmethod
+    def silence_cmd(cmd: commands.Command) -> (io.StringIO, io.StringIO):
+        """Redirect the the output and error output for the given command to
+        io.StringIO objects, and return them.
+
+        :param cmd: The command to silence.
+
+        """
+        out = io.StringIO()
+        err = io.StringIO()
+
+        cmd.outfile = out
+        cmd.errfile = err
+
+        return out, err
+
+    @staticmethod
+    def clear_cmd(cmd: commands.Command) -> None:
+        """Clear all data from the output and err output of the given
+        command. This assumes the command was already silenced using
+        silence_cmd"""
+
+        if not isinstance(cmd.outfile, io.StringIO):
+            raise RuntimeError("You must silence commands before you "
+                               "can clear their output.")
+
+        cmd.outfile.seek(0)
+        cmd.outfile.truncate(0)
+        cmd.outfile.seek(0)
+        cmd.errfile.truncate(0)
 
     @staticmethod
     def get_hash(filename):

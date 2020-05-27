@@ -148,10 +148,6 @@ class _RunCommand(commands.Command):
                 return 1
 
             results = test.gather_results(run_result)
-        except ResultError as err:
-            test.status.set(STATES.RESULTS_ERROR,
-                            "Error parsing results: {}".format(err))
-            return 1
         except Exception as err:
             self.logger.error("Unexpected error gathering results: %s", err)
             test.status.set(STATES.RESULTS_ERROR,

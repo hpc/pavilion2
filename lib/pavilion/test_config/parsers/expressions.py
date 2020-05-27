@@ -543,6 +543,9 @@ class EvaluationExprTransformer(BaseExprTransformer):
                 token=self._merge_tokens(items, None),
                 message=err.args[0])
 
+        if isinstance(value, str):
+            value = self._convert(value)
+
         return self._merge_tokens(items, value)
 
     def _resolve_ref(self, base, key_parts: list, seen_parts: tuple = tuple(),

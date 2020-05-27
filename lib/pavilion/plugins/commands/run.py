@@ -27,8 +27,8 @@ class RunCommand(commands.Command):
 
     :ivar TestSeries last_series: The suite number of the last suite to run
         with this command (for unit testing).
-    :ivar [TestRun] last_tests: A list of the last test runs that this command
-        started (also for unit testing).
+    :ivar List[TestRun] last_tests: A list of the last test runs that this
+        command started (also for unit testing).
     """
 
     BUILD_ONLY = False
@@ -39,7 +39,7 @@ class RunCommand(commands.Command):
                          short_help="Setup and run a set of tests.")
 
         self.last_series = None
-        self.last_tests = []
+        self.last_tests = []  # type: List[TestRun]
 
     def _setup_arguments(self, parser):
 
@@ -313,12 +313,15 @@ name) of lists of tuples
                 self.logger.error(msg)
                 raise commands.CommandError(msg)
 
-        resolved_cfgs = resolver.load(
-            tests,
-            host,
-            modes,
-            overrides
-        )
+        try:
+            resolved_cfgs = resolver.load(
+                tests,
+                host,
+                modes,
+                overrides
+            )
+        except TestConfigError as err:
+            raise commands.CommandError(err.args[0])
 
         tests_by_scheduler = defaultdict(lambda: [])
         for cfg, var_man in resolved_cfgs:

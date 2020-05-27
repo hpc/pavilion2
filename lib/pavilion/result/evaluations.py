@@ -3,7 +3,7 @@ from typing import Dict, List
 from pavilion.test_config.parsers import (check_expression, StringParserError,
                                           parse_evaluation_expression)
 
-from .base import BASE_RESULTS
+from .base import BASE_RESULTS, ResultError
 
 
 def check_evaluations(evaluations: Dict[str, str]) -> List[str]:
@@ -34,8 +34,13 @@ def evaluate_results(results: dict, evaluations: Dict[str, str]):
         evaluations['result'] = 'return_value == 0'
 
     for key, expr in evaluations.items():
-
         try:
             results[key] = parse_evaluation_expression(expr, results)
-        except StringParserError as err:
-            pass
+        except (StringParserError, TypeError, ValueError) as err:
+            raise ResultError(
+                "Error evaluating expression '{}' for key '{}': {}"
+                .format(expr, key, err.args[0])
+            )
+
+
+

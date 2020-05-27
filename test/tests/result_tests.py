@@ -1,12 +1,17 @@
 import datetime
 import logging
+import json
+from pathlib import Path
 
 import pavilion.result
 import yaml_config as yc
+from pavilion.test_run import TestRun
 from pavilion import arguments
+from pavilion import commands
 from pavilion import plugins
 from pavilion.result import parsers, ResultError, base
 from pavilion.unittest import PavTestCase
+from pavilion.plugins.commands import run
 
 LOGGER = logging.getLogger(__name__)
 
@@ -133,10 +138,8 @@ class ResultParserTests(PavTestCase):
         test = self._quick_test(test_cfg, 'result_parser_test')
         test.run()
 
-        results = parsers.parse_results(
-            test=test,
-            results={}
-        )
+        results = {'pav_result_errors': []}
+        parsers.parse_results(test, results)
 
         # Check all the different results to make sure they're what we expect.
         self.assertEqual(
@@ -306,10 +309,8 @@ class ResultParserTests(PavTestCase):
         test = self._quick_test(table_test1, 'result_parser_test')
         test.run()
 
-        results = parsers.parse_results(
-            test=test,
-            results={}
-        )
+        results = {'pav_result_errors': []}
+        parsers.parse_results(test, results)
 
         self.assertEqual(['data1', 'data3', 'data5'], results['table1']['Col1'])
         self.assertEqual(['3', '8', ' '], results['table1']['Col2'])
@@ -349,10 +350,8 @@ class ResultParserTests(PavTestCase):
         test = self._quick_test(table_test2, 'result_parser_test')
         test.run()
 
-        results = parsers.parse_results(
-            test=test,
-            results={}
-        )
+        results = {'pav_result_errors': []}
+        parsers.parse_results(test, results)
 
         self.assertEqual(['d4', 'd7'], results['table2']['d1'])
         self.assertEqual(['d5', ' '], results['table2']['d2'])
@@ -401,10 +400,8 @@ class ResultParserTests(PavTestCase):
         test = self._quick_test(table_test3, 'result_parser_test')
         test.run()
 
-        results = parsers.parse_results(
-            test=test,
-            results={}
-        )
+        results = {'pav_result_errors': []}
+        parsers.parse_results(test, results)
 
         self.assertEqual('0.000', results['table3']['calc_deposit']['Runtime'])
         self.assertEqual('9.41', results['table3']['OMP Barrier']['us/Loop'])
@@ -441,7 +438,64 @@ class ResultParserTests(PavTestCase):
                     exp_results[rkey],
                     msg="Result mismatch for {}.".format(analysis_conf))
 
+    def test_result_cmd(self):
+        """Make sure the result command works as expected, including the
+        re-run option."""
 
+        result_cmd = commands.get_command('result')
+        self.silence_cmd(result_cmd)
+        run_cmd = commands.get_command('run')  # type: run.RunCommand
+        self.silence_cmd(run_cmd)
+
+        rerun_cfg = self.pav_cfg.copy()
+        rerun_cfg['config_dirs'] = [
+            self.PAV_LIB_DIR,
+            self.PAV_ROOT_DIR/'test/data/configs-rerun',
+        ]
+
+        arg_parser = arguments.get_parser()
+        run_args = arg_parser.parse_args(['run', 'result_tests.*'])
+        run_cmd.run(self.pav_cfg, run_args)
+
+        for test in run_cmd.last_tests:
+            test.wait(3)
+
+        res_args = arg_parser.parse_args(
+            ('result', '--full') + tuple(str(t.id) for t in run_cmd.last_tests))
+        result_cmd.run(self.pav_cfg, res_args)
+
+        res_args = arg_parser.parse_args(
+            ('result',) + tuple(str(t.id) for t in run_cmd.last_tests))
+        result_cmd.run(self.pav_cfg, res_args)
+
+        for test in run_cmd.last_tests:
+            # Each of these tests should have a 'FAIL' as the result.
+            self.assertEqual(test.results['result'], TestRun.FAIL)
+
+        # Make sure we can re-run results, even with permutations.
+        # Check that the changed results are what we expected.
+        self.clear_cmd(result_cmd)
+        res_args = arg_parser.parse_args(
+            ('result', '--re-run', '--json') +
+            tuple(str(t.id) for t in run_cmd.last_tests))
+        result_cmd.run(rerun_cfg, res_args)
+
+        data = result_cmd.outfile.getvalue()
+        results = json.loads(data)
+
+        basic = results['result_tests.basic']
+        per1 = results['result_tests.per.1']
+        per2 = results['result_tests.per.2']
+
+        self.assertEqual(basic['result'], TestRun.PASS)
+        self.assertEqual(per1['result'], TestRun.FAIL)
+        self.assertEqual(per2['result'], TestRun.PASS)
+
+        # Make sure we didn't save any of the changes.
+        orig_test = run_cmd.last_tests[0]
+        reloaded_test = TestRun.load(self.pav_cfg, orig_test.id)
+        self.assertEqual(reloaded_test.results, orig_test.results)
+        self.assertEqual(reloaded_test.config, orig_test.config)
 
 
 

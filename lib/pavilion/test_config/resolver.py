@@ -333,10 +333,11 @@ class TestConfigResolver:
                 test_suite_path = self._find_config(CONF_TEST, test_suite)
 
                 if test_suite_path is None:
+                    cdirs = [str(cdir) for cdir in self.pav_cfg.config_dirs]
                     raise TestConfigError(
                         "Could not find test suite {}. Looked in these "
                         "locations: {}"
-                        .format(test_suite, self.pav_cfg.config_dirs))
+                        .format(test_suite, cdirs))
 
                 try:
                     with test_suite_path.open() as test_suite_file:
@@ -378,7 +379,7 @@ class TestConfigResolver:
 
                 # Add some basic information to each test config.
                 for test_cfg_name, test_cfg in suite_tests.items():
-                    test_cfg['base_name'] = test_cfg_name
+                    test_cfg['name'] = test_cfg_name
                     test_cfg['suite'] = test_suite
                     test_cfg['suite_path'] = str(test_suite_path)
                     test_cfg['host'] = host
@@ -665,8 +666,7 @@ class TestConfigResolver:
         used_per_vars = set()
         for per_var in permute_on:
             try:
-                var_set, var, index, subvar = var_key = \
-                    base_var_man.resolve_key(per_var)
+                var_set, var, index, subvar = base_var_man.resolve_key(per_var)
             except KeyError:
                 raise TestConfigError(
                     "Permutation variable '{}' is not defined."

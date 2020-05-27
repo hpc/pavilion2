@@ -16,6 +16,7 @@ BASE_RESULTS = {
     'job_id': lambda test: test.job_id,
     'sched': lambda test: test.var_man.as_dict().get('sched', {}),
     'sys_name': lambda test: test.var_man['sys.sys_name'],
+    'pav_result_errors': lambda test: [],
     'return_value': None,
 }
 '''A dictionary of result key names and a function to acquire the value.

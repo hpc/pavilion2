@@ -340,7 +340,7 @@ NON_MATCH_VALUES = (None, [], False)
 EMPTY_VALUES = (None, [])
 
 
-def parse_results(test, results):
+def parse_results(test, results) -> None:
     """Parse the results of the given test using all the result parsers
 configured for that test.
 
@@ -353,7 +353,6 @@ configured for that test.
 :param pavilion.test_run.TestRun test: The pavilion test run to gather
     results for.
 :param dict results: The dictionary of default result values.
-:return: The final results dictionary.
 """
 
     parser_configs = test.config['results']['parse']
@@ -547,6 +546,4 @@ configured for that test.
                                   "'{}' - {}"
                                   .format(parser_name, per_file))
 
-        results['pav_result_errors'] = errors
-
-    return results
+        results['pav_result_errors'].extend(errors)
