@@ -4,7 +4,17 @@ loading."""
 import math
 import random
 
-from . import CoreFunctionPlugin, num, FunctionPluginError
+from .base import FunctionPlugin, num
+from .common import FunctionPluginError
+
+
+class CoreFunctionPlugin(FunctionPlugin):
+    """A function plugin that sets defaults for core plugins. Use when adding
+    additional function plugins to the core_functions module."""
+
+    def __init__(self, name, description, arg_specs):
+        super().__init__(name, description, arg_specs,
+                         priority=self.PRIO_CORE)
 
 
 class IntPlugin(CoreFunctionPlugin):
@@ -195,3 +205,11 @@ class KeysPlugin(CoreFunctionPlugin):
         preserved."""
 
         return list(arg.keys())
+
+
+def register_core_plugins():
+    """Find all the core function plugins and activate them."""
+
+    for cls in CoreFunctionPlugin.__subclasses__():
+        obj = cls()
+        obj.activate()

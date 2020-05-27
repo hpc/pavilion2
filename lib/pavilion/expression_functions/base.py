@@ -1,25 +1,16 @@
 """Contains the base Expression Function plugin class."""
 
+import inspect
 import logging
 import re
-import inspect
 
 from yapsy import IPlugin
+from .common import FunctionPluginError
 
 LOGGER = logging.getLogger(__file__)
 
 # The dictionary of available function plugins.
 _FUNCTIONS = {}  # type: {str,FunctionPlugin}
-
-
-class FunctionPluginError(RuntimeError):
-    """Error raised when there's a problem with a function plugin
-    itself."""
-
-
-class FunctionArgError(ValueError):
-    """Error raised when a function plugin has a problem with the
-    function arguments."""
 
 
 def num(val):
@@ -340,27 +331,6 @@ class FunctionPlugin(IPlugin.IPlugin):
         only be removed by unit tests."""
 
         del _FUNCTIONS[self.name]
-
-
-class CoreFunctionPlugin(FunctionPlugin):
-    """A function plugin that sets defaults for core plugins. Use when adding
-    additional function plugins to the core_functions module."""
-
-    def __init__(self, name, description, arg_specs):
-        super().__init__(name, description, arg_specs,
-                         priority=self.PRIO_CORE)
-
-
-def register_core_plugins():
-    """Find all the core function plugins and activate them."""
-
-    # We need to load this module just to define all the included classes.
-    from pavilion.expression_functions import core
-    _ = core
-
-    for cls in CoreFunctionPlugin.__subclasses__():
-        obj = cls()
-        obj.activate()
 
 
 def __reset():

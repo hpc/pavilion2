@@ -9,6 +9,7 @@ import ast
 from typing import Dict
 
 import lark
+import pavilion.expression_functions.common
 from pavilion import expression_functions as functions
 from .common import PavTransformer, ParserValueError
 
@@ -391,18 +392,18 @@ class BaseExprTransformer(PavTransformer):
 
         try:
             func = functions.get_plugin(func_name)
-        except functions.FunctionPluginError:
+        except pavilion.expression_functions.common.FunctionPluginError:
             raise ParserValueError(
                 token=items[0],
                 message="No such function '{}'".format(func_name))
 
         try:
             result = func(*args)
-        except functions.FunctionArgError as err:
+        except pavilion.expression_functions.common.FunctionArgError as err:
             raise ParserValueError(
                 self._merge_tokens(items, None),
                 "Invalid arguments: {}".format(err))
-        except functions.FunctionPluginError as err:
+        except pavilion.expression_functions.common.FunctionPluginError as err:
             # The function plugins give a reasonable message.
             raise ParserValueError(self._merge_tokens(items, None), err.args[0])
 
@@ -548,7 +549,7 @@ class EvaluationExprTransformer(BaseExprTransformer):
 
         return self._merge_tokens(items, value)
 
-    def _resolve_ref(self, base, key_parts: list, seen_parts: tuple=tuple(),
+    def _resolve_ref(self, base, key_parts: list, seen_parts: tuple = tuple(),
                      allow_listing: bool = True):
         """Recursively resolve a variable reference by navigating dicts and
             lists using the key parts until we reach the final value. If a

@@ -1,3 +1,4 @@
+import inspect
 import logging
 import re
 
@@ -9,7 +10,6 @@ LOGGER = logging.getLogger('pav.{}'.format(__name__))
 
 class ModuleWrapperError(RuntimeError):
     """Raised when any module wrapping related errors occur."""
-    pass
 
 
 _WRAPPED_MODULES = {}
@@ -159,8 +159,6 @@ used to figure out what version to load.
     @property
     def path(self):
         """The location of this module wrapper plugin."""
-
-        import inspect
 
         return inspect.getfile(self.__class__)
 

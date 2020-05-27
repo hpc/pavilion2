@@ -55,6 +55,8 @@ For evaluations we check for:
                     .format(rtype)
                 )
 
+            print(key, key in key_names, key_names)
+
             if key in key_names:
                 raise ResultError(
                     "Duplicate result parser key name '{}' under parser '{}'"

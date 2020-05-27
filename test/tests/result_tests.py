@@ -189,7 +189,7 @@ class ResultParserTests(PavTestCase):
             ([{'key': 'ok', 'regex': r'foo'}], None),
             # Repeated key
             ([{'key': 'repeated', 'regex': r'foo'},
-             {'key': 'repeated', 'regex': r'foo'}], ResultError),
+              {'key': 'repeated', 'regex': r'foo'}], ResultError),
             # Reserved key
             ([{'key': 'created', 'regex': r'foo'}], ResultError),
             # Missing key

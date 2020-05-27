@@ -3,9 +3,9 @@ used in Pavilion expressions, both within normal Pavilion strings and
 in result evaluations.
 """
 
-from .base import (FunctionPlugin, FunctionPluginError, FunctionArgError,
-                   CoreFunctionPlugin, _FUNCTIONS, num, __reset,
-                   register_core_plugins)
+from .base import (FunctionPlugin, _FUNCTIONS, num, __reset)
+from .common import FunctionPluginError, FunctionArgError
+from .core import register_core_plugins, CoreFunctionPlugin
 
 
 def get_plugin(name: str) -> FunctionPlugin:

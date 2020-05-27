@@ -41,4 +41,3 @@ def base_results(test) -> dict:
 
 class ResultError(RuntimeError):
     """Error thrown when a failure occurs with any sort of result processing."""
-    pass
