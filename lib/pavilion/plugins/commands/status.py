@@ -176,8 +176,8 @@ def get_statuses(pav_cfg, args, errfile):
 
 def display_history(pav_cfg, args, outfile):
     """Display_history takes a test_id from the command
-    line arg and formats the states the id has been
-    in and displays it for the user.
+    line arguments and formats the status file from the id
+    and displays it for the user through draw tables.
     :param pav_cfg: The pavilion config.
     :param argparse namespace args: The test via command line
     :param stream outfile: Stream to which states are printed
