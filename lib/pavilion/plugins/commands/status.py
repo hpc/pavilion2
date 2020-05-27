@@ -239,7 +239,6 @@ def print_status(statuses, outfile, json=False):
     for stat in statuses:
         if stat['note'] != "Test not found.":
             ret_val = 0
-    
     if json:
         json_data = {'statuses': statuses}
         output.json_dump(json_data, outfile)
