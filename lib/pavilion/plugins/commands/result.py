@@ -1,12 +1,13 @@
 """Print the test results for the given test/suite."""
 
 import pprint
-import sys
+from typing import List
 
 from pavilion import commands
 from pavilion import output
 from pavilion import series
 from pavilion.test_run import TestRun, TestRunError, TestRunNotFoundError
+from pavilion.test_config import resolver
 
 
 class ResultsCommand(commands.Command):
@@ -39,6 +40,15 @@ class ResultsCommand(commands.Command):
             help="Show all result keys."
         )
         parser.add_argument(
+            '-r', '--re-run', dest="re_run",
+            action='store_true', default=False,
+            help="Re-run the results based on the latest version of the test"
+                 "configs, though only changes to the 'result' section are "
+                 "applied. This will not alter anything in the test's run "
+                 "directory; the new results will be displayed but not "
+                 "otherwise saved or logged."
+        )
+        parser.add_argument(
             "tests",
             nargs="*",
             help="The tests to show the results for."
@@ -57,6 +67,9 @@ class ResultsCommand(commands.Command):
                 self.logger.warning("Could not load test %s - %s", id_, err)
             except TestRunNotFoundError as err:
                 self.logger.warning("Could not find test %s - %s", id_, err)
+
+        if args.re_run:
+            self._update_results(tests)
 
         results = [test.results for test in tests]
 
@@ -124,8 +137,20 @@ class ResultsCommand(commands.Command):
                     "Requested full test results but provided multiple tests. "
                     "Giving results for only the first found.",
                     color=output.YELLOW,
-                    file=sys.stdout,
+                    file=self.errfile,
                 )
                 test_list = [test_list[0]]
 
         return map(int, test_list)
+
+    def update_results(self, pav_cfg: dict, tests: List[TestRun]):
+        """Update each of the given tests with the result section from the
+        current version of their configs. Then rerun result processing and
+        update the results in the test object (but change nothing on disk)."""
+
+        reslvr = resolver.TestConfigResolver(pav_cfg)
+
+        for test in tests:
+            reslvr.load_raw_configs()
+
+

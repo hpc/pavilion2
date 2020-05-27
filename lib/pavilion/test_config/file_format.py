@@ -162,6 +162,21 @@ expected to be added to by various plugins.
         yc.StrElem(
             'suite_path', hidden=True, default='<no_suite>',
             help_text="Path to the suite file. Value added automatically."),
+        yc.StrElem(
+            'base_name', hidden=True, default='<unknown>',
+            help_text="The base, unmodified name of the test. Value added "
+                      "automatically."
+        ),
+        yc.StrElem(
+            'host', hidden=True, default='<unknown>',
+            help_text="Host (typically sys.sys_name) for which this test was "
+                      "created. Value added automatically."
+        ),
+        yc.ListElem(
+            'modes', hidden=True, sub_elem=yc.StrElem(),
+            help_text="Modes used in the creation of this test. Value is added "
+                      "automatically."
+        ),
         yc.RegexElem(
             'inherits_from', regex=TEST_NAME_RE_STR,
             help_text="Inherit from the given test section, and override "

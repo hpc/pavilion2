@@ -378,9 +378,11 @@ class TestConfigResolver:
 
                 # Add some basic information to each test config.
                 for test_cfg_name, test_cfg in suite_tests.items():
-                    test_cfg['name'] = test_cfg_name
+                    test_cfg['base_name'] = test_cfg_name
                     test_cfg['suite'] = test_suite
                     test_cfg['suite_path'] = str(test_suite_path)
+                    test_cfg['host'] = host
+                    test_cfg['modes'] = modes
 
                 all_tests[test_suite] = suite_tests
 
@@ -679,7 +681,8 @@ class TestConfigResolver:
             var_man.resolve_references()
         return test_cfg, var_men
 
-    NOT_OVERRIDABLE = ['name', 'suite', 'suite_path', 'scheduler']
+    NOT_OVERRIDABLE = ['name', 'suite', 'suite_path', 'scheduler',
+                       'base_name', 'host', 'modes']
 
     def apply_overrides(self, test_cfg, overrides):
         """Apply overrides to this test.
