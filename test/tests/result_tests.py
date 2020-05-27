@@ -224,15 +224,15 @@ class ResultParserTests(PavTestCase):
                 test = self._quick_test(test_cfg)
                 pavilion.result.check_config(test.config['results'])
 
-        analysis_confs = [
+        evaluate_confs = [
             # Reserved key
             {'started': 'bar'},
             {'foo': 'bar.3 +'}
         ]
 
-        for analysis_conf in analysis_confs:
+        for eval_conf in evaluate_confs:
             result_cfg = {
-                'evaluate': analysis_conf,
+                'evaluate': eval_conf,
                 'parse': {},
             }
             pavilion.result.check_config(result_cfg)
@@ -412,20 +412,23 @@ class ResultParserTests(PavTestCase):
         self.assertEqual('16.392', results['table3']['Dynamic OMP']['Runtime'])
         self.assertEqual('23.79', results['table3']['Manual OMP']['us/Loop'])
 
-    def test_analysis(self):
+    def test_evaluate(self):
 
-        # (anaysis_conf, expected values)
-        analysis_tests = [
+        # (evaluate_conf, expected values)
+        evaluate_tests = [
             ({'result': 'True'}, {'result': 'PASS'}),
             ({'result': 'return_value != 0'}, {'result': 'FAIL'}),
+            # Make sure functions work.
             ({'sum': 'sum([1,2,3])'}, {'sum': 6}),
+            # Evaluations can depend on each other.
+            ({'val_a': '3', 'val_b': 'val_a + 1'}, {'val_a': 3, 'val_b': 4})
         ]
 
-        for analysis_conf, exp_results in analysis_tests:
+        for evaluate_conf, exp_results in evaluate_tests:
 
             cfg = self._quick_test_cfg()
             cfg['results'] = {}
-            cfg['results']['evaluate'] = analysis_conf
+            cfg['results']['evaluate'] = evaluate_conf
 
             test = self._quick_test(cfg)
             test.run()
@@ -436,7 +439,7 @@ class ResultParserTests(PavTestCase):
                 self.assertEqual(
                     results[rkey],
                     exp_results[rkey],
-                    msg="Result mismatch for {}.".format(analysis_conf))
+                    msg="Result mismatch for {}.".format(evaluate_conf))
 
     def test_result_cmd(self):
         """Make sure the result command works as expected, including the
