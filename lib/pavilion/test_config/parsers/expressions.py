@@ -605,13 +605,10 @@ class EvaluationExprTransformer(BaseExprTransformer):
 
         elif isinstance(base, dict):
             if key_part not in base:
-                if len(seen_parts) == 1:
-                    seen = '<root>'
-                else:
-                    seen = '.'.join(seen_parts[:-1])
                 raise ValueError(
-                    "Key component '{}' is not in the dict at '{}'"
-                    .format(key_part, seen))
+                    "Results dict does not have the key '{}'."
+                    .format('.'.join([str(part) for part in seen_parts]))
+                )
 
             return self._resolve_ref(base[key_part], key_parts, seen_parts,
                                      allow_listing)

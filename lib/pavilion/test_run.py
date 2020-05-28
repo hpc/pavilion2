@@ -778,9 +778,7 @@ of result keys.
                 self.config['results']['evaluate'])
         except result.ResultError as err:
             results['result'] = self.ERROR
-            results['pav_result_errors'].append(
-                "Error performing result evaluations: {}".format(err.args[0])
-            )
+            results['pav_result_errors'].append(err.args[0])
             results['result'] = self.ERROR
             if not regather:
                 self.status.set(STATES.RESULTS_ERROR,

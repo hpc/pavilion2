@@ -40,7 +40,12 @@ def evaluate_results(results: dict, evaluations: Dict[str, str]):
     for key, expr in evaluations.items():
         try:
             results[key] = parse_evaluation_expression(expr, results)
-        except (StringParserError, TypeError, ValueError) as err:
+        except StringParserError as err:
+            raise ResultError(
+                "Error evaluating expression '{}' for key '{}':\n{}\n{}"
+                .format(expr, key, err.message, err.context)
+            )
+        except (TypeError, ValueError) as err:
             raise ResultError(
                 "Error evaluating expression '{}' for key '{}': {}"
                 .format(expr, key, err.args[0])

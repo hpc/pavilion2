@@ -104,7 +104,12 @@ class ResultsCommand(commands.Command):
 
         def fix_timestamp(ts_str: str) -> str:
             """Read the timestamp text and get a minimized, formatted value."""
-            when = datetime.datetime.strptime(ts_str, '%Y-%m-%d %H:%M:%S.%f')
+            try:
+                when = datetime.datetime.strptime(ts_str,
+                                                  '%Y-%m-%d %H:%M:%S.%f')
+            except ValueError:
+                return ''
+
             return output.get_relative_timestamp(when)
 
         output.draw_table(

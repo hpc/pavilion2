@@ -2,12 +2,11 @@
 environment."""
 
 import logging
+import traceback
 
-import pavilion.result
-import pavilion.result.base
+from pavilion import result
 from pavilion import output
 from pavilion import commands
-from pavilion.result import ResultError
 from pavilion import schedulers
 from pavilion import system_variables
 from pavilion.test_config import VariableSetManager
@@ -66,7 +65,7 @@ class _RunCommand(commands.Command):
                 raise
 
             if not test.opts.build_only:
-                self._run(pav_cfg, test, sched)
+                return self._run(pav_cfg, test, sched)
         finally:
             test.set_run_complete()
 
@@ -139,7 +138,7 @@ class _RunCommand(commands.Command):
             # the args are valid form _check_args, but those might not be
             # check-able before kickoff due to deferred variables.
             try:
-                pavilion.result.check_config(test.config['results'])
+                result.check_config(test.config['results'])
             except TestRunError as err:
                 test.status.set(
                     STATES.RESULTS_ERROR,
@@ -148,8 +147,11 @@ class _RunCommand(commands.Command):
                 return 1
 
             results = test.gather_results(run_result)
+            if results['result'] == test.ERROR:
+                return 1
         except Exception as err:
-            self.logger.error("Unexpected error gathering results: %s", err)
+            self.logger.error("Unexpected error gathering results: \n%s",
+                              traceback.format_exc())
             test.status.set(STATES.RESULTS_ERROR,
                             "Unexpected error parsing results: {}. (This is a "
                             "bug, you should report it.)"

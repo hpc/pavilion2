@@ -1,0 +1,15 @@
+2020-05-28T13:20:07.803694 CREATED Created status file.
+2020-05-28T13:20:07.803759 CREATED Test directory and status file created.
+2020-05-28T13:20:07.805069 BUILD_CREATED Builder created.
+2020-05-28T13:20:07.805268 CREATED Test directory setup complete.
+2020-05-28T13:20:08.011896 BUILD_WAIT Waiting on lock for build 6fe2ad9068eb23ef.
+2020-05-28T13:20:08.012198 BUILDING Starting build 6fe2ad9068eb23ef.
+2020-05-28T13:20:08.016793 BUILDING Extracting zip file /home/pflarr/repos/pavilion/test/data/configs-permissions/test_src/src.zip for build /home/pflarr/repos/pavilion/test/data/working_dir-permissions/builds/6fe2ad9068eb23ef.tmp as the build directory.
+2020-05-28T13:20:08.034661 BUILD_DONE Build completed successfully.
+2020-05-28T13:20:08.217455 SCHEDULED Test raw has job ID durkula_9784.
+2020-05-28T13:20:08.688408 PREPPING_RUN Converting run template into run script.
+2020-05-28T13:20:08.688497 RUNNING Starting the run script.
+2020-05-28T13:20:08.689874 RUNNING Currently running.
+2020-05-28T13:20:08.721569 RUN_DONE Test run has completed.
+2020-05-28T13:20:08.722039 RESULTS Parsing 5 result types.
+2020-05-28T13:20:08.723024 COMPLETE The test completed with result: PASS
