@@ -225,3 +225,45 @@ class StatusCmdTests(PavTestCase):
         self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
 
         # TODO: Test that the above have actually been set.
+
+    def test_history_status(self):
+        """Checks pav status --history $id command when
+        passed a valid and invalid test id.
+        """
+
+        base_cfg = self._quick_test_cfg()
+        test_cfg1 = base_cfg.copy()
+        test_cfg1['name'] = 'test1'
+        test_cfg2 = base_cfg.copy()
+        test_cfg2['name'] = 'test2'
+        test_cfg3 = base_cfg.copy()
+        test_cfg3['name'] = 'test3'
+
+        configs = [test_cfg1, test_cfg2, test_cfg3]
+
+        tests = [TestRun(self.pav_cfg, test)
+                 for test in configs]
+
+        for test in tests:
+            test.RUN_SILENT_TIMEOUT = 1
+
+        suite = TestSeries(self.pav_cfg, tests)
+        test_str = " ".join([str(test) for test in suite.tests])
+        status_cmd = commands.get_command('status')
+        status_cmd.outfile = io.StringIO()
+        parser = argparse.ArgumentParser()
+        status_cmd._setup_arguments(parser)
+
+        arg_list = ['--history', '2'] + test_str.split()
+        args = parser.parse_args(arg_list)
+        # Check status summary finds and displays correctly
+        self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
+
+        arg_list = ['--history', '-11'] + test_str.split()
+        args = parser.parse_args(arg_list)
+        # Check status errors correctly on invalid test id
+        self.assertEqual(status_cmd.run(self.pav_cfg, args), 22)
+
+        # None int arguments "pav status --history lolol" throw
+        # error in unit-test but are caught cleanly in pav usage
+        # check.
