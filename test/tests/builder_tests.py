@@ -129,8 +129,8 @@ class BuilderTests(PavTestCase):
         files_to_create = {
             'file1': ['line_0', 'line_1'],
             'wild/file2': ['line_0', 'line_1'],  # wild dir exists
-            'wild/dir2/file3': ['line_0', 'line_1'], # dir2 does not exist
-            'real.txt': ['line1', 'line4'] # file exists
+            'wild/dir2/file3': ['line_0', 'line_1'],  # dir2 does not exist
+            'real.txt': ['line1', 'line4']  # file exists
         }
         config = self._quick_test_cfg()
         config['build']['source_location'] = 'file_tests.tgz'
