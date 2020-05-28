@@ -1,7 +1,7 @@
 import datetime
 import logging
 import json
-from pathlib import Path
+from collections import OrderedDict
 
 import pavilion.result
 import yaml_config as yc
@@ -415,14 +415,19 @@ class ResultParserTests(PavTestCase):
 
     def test_evaluate(self):
 
+        ordered = OrderedDict()
+        ordered['val_a'] = '3'
+        ordered['val_b'] = 'val_a + 1'
+
         # (evaluate_conf, expected values)
         evaluate_tests = [
             ({'result': 'True'}, {'result': 'PASS'}),
             ({'result': 'return_value != 0'}, {'result': 'FAIL'}),
             # Make sure functions work.
             ({'sum': 'sum([1,2,3])'}, {'sum': 6}),
-            # Evaluations can depend on each other.
-            ({'val_a': '3', 'val_b': 'val_a + 1'}, {'val_a': 3, 'val_b': 4})
+            # Evaluations can depend on each other. Test configs are
+            # implicitly ordered, but we have to do it manually here.
+            (ordered, {'val_a': 3, 'val_b': 4})
         ]
 
         for evaluate_conf, exp_results in evaluate_tests:
