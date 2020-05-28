@@ -19,6 +19,27 @@ The following config fields should be filled:
   - no\_proxy - You should give your internal dns roots (myorg.org) so that pavilion will know
                 when not to use the proxy.
 
+### Python Environment
+It is recommended that you run your tests under a virtual env to keep up-to-date on the
+latest versions of sphinx and pylint. Travis CI tests will run against the latest version
+too, and this will make debugging a lot easier.
+
+```bash
+
+# You should create the virtual env outside of the pavilion source.
+python3 -m venv <path to your venv>
+source <path to your venv>/bin/activate
+pip install --upgrade pip
+pip install pylint sphinx
+
+```
+
+Then just activate your virtual environment before running tests.
+
+ - You may want to write a script for the activation.
+ - It should probably also automatically update pylint and sphinx.
+   - `pip install --upgrade pylint sphinx`
+
 ### Slurm Config
 If you need any special configuration for slurm, put in in a mode file in 
 `data/pav_config_dir/modes/local_slurm.yaml`. The `_quick_test_cfg()` method 
