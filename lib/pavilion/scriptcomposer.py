@@ -97,64 +97,10 @@ class NoHeader(ScriptHeader):
         pass
 
 
-class ScriptDetails:
-    """Class to contain the final details of the script."""
-
-    def __init__(self, path=None, group=None, perms=None):
-        """Function to set the final details of the script.
-
-        :param Union(str,Path) path: The path to the script file. default =
-            'pav_(date)_(time)'
-        :param string group: Name of group to set as owner of the file.
-                             default = user default group
-        :param int perms: Value for permission on the file (see
-                          `man chmod`).  default = 0o770
-        """
-        self._path = None
-        self._group = None
-        self._perms = None
-        self.path = path
-        self.group = group
-        self.perms = perms
-
-    @property
-    def path(self):
-        return self._path
-
-    @path.setter
-    def path(self, value):
-        if value is None:
-            value = "_".join(datetime.datetime.now().__str__().split())
-
-        self._path = Path(value)
-
-    @property
-    def group(self):
-        return self._group
-
-    @group.setter
-    def group(self, value):
-        if value is None:
-            value = utils.get_login()
-
-        self._group = str(value)
-
-    @property
-    def perms(self):
-        return self._perms
-
-    @perms.setter
-    def perms(self, value):
-        if value is None:
-            value = 0o770
-
-        self._perms = oct(value)
-
-
 class ScriptComposer:
     """Manages the building of bash scripts for Pavilion."""
 
-    def __init__(self, header=None, details=None):
+    def __init__(self, header=None):
         """Function to initialize the class and the default values for all of
         the variables.
 
@@ -167,10 +113,6 @@ class ScriptComposer:
             header = ScriptHeader()
 
         self.header = header
-
-        if details is None:
-            details = ScriptDetails()
-        self.details = details
 
         self._script_lines = []
 
@@ -293,29 +235,20 @@ in one of three formats:
         elif isinstance(command, str):
             self._script_lines.append(command)
 
-    def write(self):
+    def write(self, path: Path):
         """Function to write the script out to file.
 
         :return bool result: Returns either True for successfully writing the
                              file or False otherwise.
         """
 
-        with self.details.path.open('w') as script_file:
+        with path.open('w') as script_file:
             script_file.write('\n'.join(self.header.get_lines()))
             script_file.write('\n\n')
 
             script_file.write('\n'.join(self._script_lines))
             script_file.write('\n')
 
-        os.chmod(str(self.details.path), int(self.details.perms, 8))
-
-        try:
-            grp_st = grp.getgrnam(self.details.group)
-        except KeyError:
-            error = ("Group {} not found on this machine."
-                     .format(self.details.group))
-            raise ScriptComposerError(error)
-
-        gid = grp_st.gr_gid
-
-        os.chown(str(self.details.path), os.getuid(), gid)
+        # Make the file executable.
+        from pavilion.output import dbg_print
+        path.chmod(path.stat().st_mode | 0o110)

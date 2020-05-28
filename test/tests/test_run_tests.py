@@ -129,7 +129,7 @@ class TestRunTests(PavTestCase):
             'runtime_0': ['line_0', 'line_1'],
             'wild/runtime_1': ['line_0', 'line_1'],  # dir exists
             'wild/dir2/runtime_2': ['line_0', 'line_1'], # dir2 does not exist
-            'real.txt': ['line_0', 'line_1'], # file exists; overwrite
+            'real.txt': ['line_0', 'line_1'],  # file exists; overwrite
             'runtime_variable': ['{{var1}}',
                                  '{{var2.0}}', '{{var2.1}}', '{{var2.2}}',
                                  '{{var3.subvar_1}}', '{{var3.subvar_2}}',

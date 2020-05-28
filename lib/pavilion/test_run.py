@@ -20,7 +20,7 @@ from pavilion import result_parsers
 from pavilion import scriptcomposer
 from pavilion import utils
 from pavilion.status_file import StatusFile, STATES
-from pavilion.test_config import variables, resolver, parsers
+from pavilion.test_config import variables, resolver
 from pavilion.test_config.file_format import TestConfigError
 
 
@@ -415,6 +415,11 @@ class TestRun:
                 # Create file parent directory(ies).
                 dirname = file_path.parent
                 (self.build_path / dirname).mkdir(parents=True, exist_ok=True)
+
+                # Don't try to overwrite a symlink without removing it first.
+                if file_path.is_symlink():
+                    file_path.unlink()
+
                 # Write file.
                 with file_path.open('w') as file_:
                     for line in contents:
@@ -856,11 +861,7 @@ modified date for the test directory."""
         :return:
         """
 
-        script = scriptcomposer.ScriptComposer(
-            details=scriptcomposer.ScriptDetails(
-                path=path,
-                group=self._pav_cfg.shared_group,
-            ))
+        script = scriptcomposer.ScriptComposer()
 
         verbose = config.get('verbose', 'false').lower() == 'true'
 
@@ -921,7 +922,7 @@ modified date for the test directory."""
         else:
             script.comment('No commands given for this script.')
 
-        script.write()
+        script.write(path)
 
     @staticmethod
     def create_id_dir(id_dir):

@@ -480,6 +480,9 @@ class TestBuilder:
 
         try:
             self._setup_build_dir(build_dir)
+
+            umask = os.umask(0)
+            os.umask(umask)
         except TestBuilderError as err:
             self.tracker.error(
                 note=("Error setting up build directory '{}': {}"
@@ -551,7 +554,7 @@ class TestBuilder:
                     .format(build_log_path, build_dir, err))
 
         try:
-            self._fix_build_permissions()
+            self._fix_build_permissions(build_dir)
         except OSError as err:
             self.tracker.warn("Error fixing build permissions: %s".format(err))
 
@@ -844,7 +847,7 @@ class TestBuilder:
             if tmpdir.exists():
                 shutil.rmtree(tmpdir.as_posix())
 
-    def _fix_build_permissions(self):
+    def _fix_build_permissions(self, root_path):
         """The files in a build directory should never be writable, but
             directories should be. Users are thus allowed to delete build
             directories and their files, but never modify them. Additions,
@@ -855,16 +858,24 @@ class TestBuilder:
 
         # We rely on the umask to handle most restrictions.
         # This just masks out the write bits.
-        file_mask = 0o777555
+        umask = int(self._pav_cfg['umask'])
+        file_mask = 0o222 | umask
+
+        root_path.chmod(root_path.stat().st_mode & ~umask)
+        root_path.group()
 
         # We shouldn't have to do anything to directories, they should have
         # the correct permissions already.
-        for path, _, files in os.walk(self.path.as_posix()):
+        for path, dirs, files in os.walk(root_path.as_posix()):
             path = Path(path)
+            for directory in dirs:
+                dir_path = path/directory
+                dir_path.chmod(dir_path.stat().st_mode & ~umask)
+
             for file in files:
                 file_path = path/file
                 file_stat = file_path.stat()
-                file_path.lchmod(file_stat.st_mode & file_mask)
+                file_path.chmod(file_stat.st_mode & ~file_mask)
 
     @classmethod
     def _hash_dict(cls, mapping):
