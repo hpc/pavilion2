@@ -298,7 +298,8 @@ class StatusCommand(commands.Command):
                     val = line.split(' ', 2)
                     states.append({
                         'state': val[1],
-                        'time': datetime.strptime(val[0], '%Y-%m-%dT%H:%M:%S.%f'),
+                        'time': datetime.strptime(val[0],
+                                                  '%Y-%m-%dT%H:%M:%S.%f'),
                         'note': val[2]
                     })
         except (TestRunError, TestRunNotFoundError) as err:
