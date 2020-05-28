@@ -259,37 +259,6 @@ though."""
                      .format(a_walk, b_walk))
 
     @staticmethod
-    def silence_cmd(cmd: commands.Command) -> (io.StringIO, io.StringIO):
-        """Redirect the the output and error output for the given command to
-        io.StringIO objects, and return them.
-
-        :param cmd: The command to silence.
-
-        """
-        out = io.StringIO()
-        err = io.StringIO()
-
-        cmd.outfile = out
-        cmd.errfile = err
-
-        return out, err
-
-    @staticmethod
-    def clear_cmd(cmd: commands.Command) -> None:
-        """Clear all data from the output and err output of the given
-        command. This assumes the command was already silenced using
-        silence_cmd"""
-
-        if not isinstance(cmd.outfile, io.StringIO):
-            raise RuntimeError("You must silence commands before you "
-                               "can clear their output.")
-
-        cmd.outfile.seek(0)
-        cmd.outfile.truncate(0)
-        cmd.outfile.seek(0)
-        cmd.errfile.truncate(0)
-
-    @staticmethod
     def get_hash(filename):
         """ Get a sha1 hash of the file at the given path.
 

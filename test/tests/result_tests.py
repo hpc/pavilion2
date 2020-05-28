@@ -446,9 +446,9 @@ class ResultParserTests(PavTestCase):
         re-run option."""
 
         result_cmd = commands.get_command('result')
-        self.silence_cmd(result_cmd)
+        result_cmd.silence()
         run_cmd = commands.get_command('run')  # type: run.RunCommand
-        self.silence_cmd(run_cmd)
+        run_cmd.silence()
 
         rerun_cfg = self.pav_cfg.copy()
         rerun_cfg['config_dirs'] = [
@@ -477,7 +477,7 @@ class ResultParserTests(PavTestCase):
 
         # Make sure we can re-run results, even with permutations.
         # Check that the changed results are what we expected.
-        self.clear_cmd(result_cmd)
+        result_cmd.clear_output()
         res_args = arg_parser.parse_args(
             ('result', '--re-run', '--json') +
             tuple(str(t.id) for t in run_cmd.last_tests))

@@ -250,7 +250,7 @@ class StatusCmdTests(PavTestCase):
         suite = TestSeries(self.pav_cfg, tests)
         test_str = " ".join([str(test) for test in suite.tests])
         status_cmd = commands.get_command('status')
-        status_cmd.outfile = io.StringIO()
+        status_cmd.silence()
         parser = argparse.ArgumentParser()
         status_cmd._setup_arguments(parser)
 

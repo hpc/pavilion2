@@ -35,8 +35,11 @@ For evaluations we check for:
     print('parser conf', parser_conf)
 
     for rtype in parser_conf:
+        print('rtype', rtype)
         for rconf in parser_conf[rtype]:
             key = rconf.get('key')
+
+            print(key, key in key_names, key_names)
 
             # Don't check args if they have deferred values.
             for values in rconf.values():
@@ -56,8 +59,6 @@ For evaluations we check for:
                     "but could be broken by a bad plugin."
                     .format(rtype)
                 )
-
-            print(key, key in key_names, key_names)
 
             if key in key_names:
                 raise ResultError(
