@@ -31,15 +31,11 @@ For evaluations we check for:
     evaluate_conf = result_configs['evaluate']
 
     key_names = []
-
-    print('parser conf', parser_conf)
+    errors = []
 
     for rtype in parser_conf:
-        print('rtype', rtype)
         for rconf in parser_conf[rtype]:
             key = rconf.get('key')
-
-            print(key, key in key_names, key_names)
 
             # Don't check args if they have deferred values.
             for values in rconf.values():
@@ -77,8 +73,6 @@ For evaluations we check for:
             parser = get_plugin(rtype)
             parser.check_args(**rconf)
 
-        errors = []
-
         for key, expr in evaluate_conf.items():
             if key in BASE_RESULTS:
                 raise ResultError(
@@ -97,4 +91,4 @@ For evaluations we check for:
                     "error:\n{}"
                     .format(key, error))
 
-        return errors
+    return errors

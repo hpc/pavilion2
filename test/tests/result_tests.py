@@ -198,6 +198,7 @@ class ResultParserTests(PavTestCase):
             # Missing regex
             ([{'key': 'nope'}], yc.RequiredError),
             ([{'key': 'test', 'regex': '[[['}], ResultError),
+            ([{'key': 'result', 'regex': 'foo'}], ResultError),
         ]
 
         for parsers_conf, err_type in parser_tests:
