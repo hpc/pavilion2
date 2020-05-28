@@ -66,7 +66,7 @@ For evaluations we check for:
                     .format(key, rtype)
                 )
 
-            if key in BASE_RESULTS.keys():
+            if key in BASE_RESULTS.keys() or key == 'result':
                 raise ResultError(
                     "Result parser key '{}' under parser '{}' is reserved."
                     .format(key, rtype)
