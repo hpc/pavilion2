@@ -9,6 +9,25 @@ import pavilion.plugins.sched.slurm as slurm
 class SlurmMPIVars(slurm.SlurmVars):
     """Variables for SlurmMPI scheduler."""
 
+    EXAMPLE = {
+        "alloc_cpu_total": "36",
+        "alloc_max_mem": "128842",
+        "alloc_min_ppn": "36",
+        "alloc_node_list": ["node004", "node005"],
+        "max_mem": "128842",
+        "max_ppn": "36",
+        "mca_translation": "--mca mpi_show_handle_leaks 1",
+        "min_mem": "128842",
+        "min_ppn": "36",
+        "node_list": ["node001", "node002", "node003", "node004", "node005"],
+        "nodes": "371",
+        "nodes_up": "350",
+        "procs_per_node": "2",
+        "test_cmd": "mpirun --map-by ppr:2:node --rank-by slot --bind_to core",
+        "test_node_list": ["node004", "node005"],
+        "test_nodes": "1",
+    }
+
     def procs_per_node(self):
         """Returns tasks per node"""
         return self.sched_config.get('tasks_per_node')

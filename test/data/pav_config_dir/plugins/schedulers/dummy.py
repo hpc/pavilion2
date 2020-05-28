@@ -5,6 +5,10 @@ from pavilion.status_file import STATES
 
 class DummyVars(schedulers.SchedulerVariables):
 
+    EXAMPLE = {
+        'am_i_dumb': True
+    }
+
     @schedulers.var_method
     def am_i_dumb(self):
         return True

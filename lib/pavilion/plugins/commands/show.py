@@ -539,7 +539,7 @@ class ShowCommand(commands.Command):
             )
 
     @show_cmd("sched", "scheduler")
-    def _scheduler_cmd(self, _, args):
+    def _scheduler_cmd(self, pav_cfg, args):
         """
         :param argparse.Namespace args:
         """
@@ -567,7 +567,7 @@ class ShowCommand(commands.Command):
             output.draw_table(
                 self.outfile,
                 field_info={},
-                fields=['name', 'deferred', 'help'],
+                fields=['name', 'deferred', 'example', 'help'],
                 rows=sched_vars,
                 title="Variables for the {} scheduler plugin.".format(args.vars)
             )

@@ -16,6 +16,13 @@ from pavilion.status_file import STATES, StatusInfo
 class RawVars(SchedulerVariables):
     """Variables for running tests locally on a system."""
 
+    EXAMPLE = {
+        "avail_mem": "54171",
+        "cpus": "8",
+        "free_mem": "49365",
+        "total_mem": "62522",
+    }
+
     @var_method
     def cpus(self):
         """Total CPUs (includes hyperthreading cpus)."""

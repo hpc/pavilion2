@@ -1,27 +1,11 @@
-import os
-import socket
-import subprocess
-import time
-from pathlib import Path
-
+from pavilion import config
 from pavilion import plugins
 from pavilion import schedulers
-from pavilion.status_file import STATES
-from pavilion.unittest import PavTestCase
 from pavilion.test_config import variables
-
-_HAS_SLURM = None
-
-
-def has_slurm():
-    global _HAS_SLURM
-    if _HAS_SLURM is None:
-        try:
-            _HAS_SLURM = subprocess.call(['sinfo', '--version']) == 0
-        except (FileNotFoundError, subprocess.CalledProcessError):
-            _HAS_SLURM = False
-
-    return _HAS_SLURM
+from pavilion.test_run import TestRun
+from pavilion.unittest import PavTestCase
+from pavilion.test_config import VariableSetManager
+import re
 
 
 class RawSchedTests(PavTestCase):
@@ -39,98 +23,88 @@ class RawSchedTests(PavTestCase):
         plugins._reset_plugins()
 
     def test_sched_vars(self):
-        """Make sure all the slurm scheduler variable methods work when
-        not on a node."""
+        """Make sure the scheduler variable class works as expected."""
 
-        raw = schedulers.get_plugin('raw')
+        class TestVars(schedulers.SchedulerVariables):
 
-        svars = raw.get_vars(self._quick_test())
+            @schedulers.var_method
+            def hello(self):
+                return 'hello'
 
-        for key, value in svars.items():
-            self.assertNotEqual(int(value), 0)
+            @schedulers.var_method
+            def foo(self):
+                return self.sched_data['foo']
 
-    def test_schedule_test(self):
-        """Make sure the scheduler can run a test."""
+            @schedulers.dfr_var_method()
+            def bar(self):
+                return 'bar'
 
-        raw = schedulers.get_plugin('raw')
+            def not_a_key(self):
+                pass
 
-        test = self._quick_test(build=False, finalize=False)
+        class DummySched(schedulers.SchedulerPlugin):
+            VAR_CLASS = TestVars
 
-        self.assertTrue(test.build(), msg=test)
+            def __init__(self):
+                super().__init__('dummy', 'more dumb')
 
-        raw.schedule_tests(self.pav_cfg, [test])
+                self.in_alloc_var = False
 
-        try:
-            test.wait(2)
-        except Exception:
-            self.fail()
+            def _get_data(self):
+                return {
+                    'foo': 'baz'
+                }
 
-        self.assertEqual(test.status.current().state, STATES.COMPLETE)
+            def _in_alloc(self):
+                return self.in_alloc_var
 
-    def test_check_job(self):
-        """Make sure we can get the test's scheduler status."""
+        test = TestRun(
+            pav_cfg=self.pav_cfg,
+            config={
+                'name': 'sched-vars',
+                'scheduler': 'dummy'
+            },
+            var_man=VariableSetManager(),
+        )
 
-        cfg = self._quick_test_cfg()
-        cfg['run']['cmds'] = ['sleep 2']
-        test = self._quick_test(cfg=cfg)
+        dummy_sched = DummySched()
 
-        test.status.set('SCHEDULED', 'but not really')
+        svars = dummy_sched.get_vars(test)
 
-        with Path('/proc/sys/kernel/pid_max').open() as pid_max_file:
-            max_pid = int(pid_max_file.read())
+        # There should only be three keys.
+        self.assertEqual(len(list(svars.keys())), 3)
+        self.assertEqual(svars['hello'], 'hello')
+        self.assertEqual(svars['foo'], 'baz')
+        # Make sure we get a deferred variable when outside of an allocation
+        self.assert_(isinstance(svars['bar'], variables.DeferredVariable))
+        # And the real thing inside
+        dummy_sched.in_alloc_var = True
+        del svars['bar']
+        self.assertEqual(svars['bar'], 'bar')
 
-        hostname = socket.gethostname()
+    def test_kickoff_env(self):
 
-        raw = schedulers.get_plugin('raw')
+        pav_cfg = self.pav_cfg
+        pav_cfg['env_setup'] = ['test1', 'test2', 'test3']
 
-        # Make a test from another host.
-        test.job_id = 'garbledhostnameasldfkjasd_{}'.format(os.getpid())
-        status = raw.job_status(self.pav_cfg, test)
-        self.assertEqual(status.state, STATES.SCHEDULED)
+        test = TestRun(
+            pav_cfg=self.pav_cfg,
+            config={
+                'name': 'sched-vars',
+                'scheduler': 'dummy'
+            },
+            var_man=VariableSetManager(),
+        )
 
-        # Make a test with a non-existent pid.
-        test.job_id = '{}_{}'.format(hostname, max_pid + 1)
-        status = raw.job_status(self.pav_cfg, test)
-        self.assertEqual(status.state, STATES.SCHED_ERROR)
+        dummy_sched = schedulers.get_plugin('dummy')
+        path = dummy_sched._create_kickoff_script(pav_cfg, test)
+        with path.open() as file:
+            lines = file.readlines()
+        for i in range(0,len(lines)):
+            lines[i] = lines[i].strip()
+        testlist = pav_cfg['env_setup']
+        self.assertTrue(set(testlist).issubset(lines))
+        self.assertTrue(re.match(r'pav _run.*', lines[-1]))
 
-        # Check the 'race condition' case of check_job
-        test.status.set(STATES.COMPLETE, 'not really this either.')
-        status = raw.job_status(self.pav_cfg, test)
-        self.assertEqual(status.state, STATES.COMPLETE)
-        test.status.set(STATES.SCHEDULED, "reseting.")
 
-        # Make a test with a re-used pid.
-        test.job_id = '{}_{}'.format(hostname, os.getpid())
-        status = raw.job_status(self.pav_cfg, test)
-        self.assertEqual(status.state, STATES.SCHED_ERROR)
 
-        raw.schedule_test(self.pav_cfg, test)
-        status = raw.job_status(self.pav_cfg, test)
-        self.assertEqual(status.state, STATES.SCHEDULED)
-
-    def test_cancel_job(self):
-        """Create a series of tests and kill them under different
-        circumstances."""
-
-        # This test will just sleep for a bit.
-        cfg = self._quick_test_cfg()
-        cfg['run']['cmds'] = ['sleep 100']
-
-        test = self._quick_test(cfg=cfg)
-
-        raw = schedulers.get_plugin('raw')
-
-        raw.schedule_test(self.pav_cfg, test)
-
-        timeout = time.time() + 1
-        while (raw.job_status(self.pav_cfg, test).state == STATES.SCHEDULED
-                and time.time() < timeout):
-            time.sleep(.1)
-
-        # The test should be running
-        self.assertEqual(test.status.current().state,
-                         STATES.RUNNING)
-
-        _, pid = test.job_id.split('_')
-
-        self.assertEqual(raw.cancel_job(test).state, STATES.SCHED_CANCELLED)

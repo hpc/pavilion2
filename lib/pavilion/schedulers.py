@@ -5,7 +5,9 @@ mechanisms to Pavilion.
 # pylint: disable=no-self-use
 
 import datetime
+import hashlib
 import inspect
+import json
 import logging
 import os
 import subprocess
@@ -94,8 +96,16 @@ Naming Conventions:
 'test_*'
   Variable names prefixed with test denote that the variable
   is specific to a test. These also tend to be deferred.
-
 """
+
+    EXAMPLE = {
+        'min_cpus': "3",
+        'min_mem': "123412",
+    }
+    """Each scheduler variable class should provide an example set of
+    values for itself to display when using 'pav show' to list the variables.
+    These are easily obtained by running a test under the scheduler, and
+    then harvesting the results of the test run."""
 
     def __init__(self, scheduler, sched_config):
         """Initialize the scheduler var dictionary.
@@ -114,6 +124,14 @@ Naming Conventions:
         self._keys = self._find_vars()
 
         self.logger = logging.getLogger('{}_vars'.format(scheduler))
+
+    def info(self, key):
+        """Get the info dict for the given key, and add the example to it."""
+
+        info = super().info(key)
+        info['example'] = self.EXAMPLE[key]
+
+        return info
 
     @property
     def sched_data(self):
