@@ -174,6 +174,95 @@ def get_statuses(pav_cfg, args, errfile):
     return test_statuses
 
 
+def print_summary(statuses, outfile, errfile):
+    from pavilion.output import dbg_print
+    """Print_summary takes in a list of test statuses.
+    It summarizes basic state output and displays
+    the data to the user through draw_table.
+    :param statuses: state list of current jobs
+    :param outfile:
+    :rtype: int
+    """
+    # Populating table dynamically requires dict
+
+    summary_dict = {}
+    passes = 0
+    ret_val = 0
+    # Shrink statues dict to singular keys with total
+    # amount of key as the value
+    for test in statuses:
+        if test['state'] not in summary_dict.keys():
+            summary_dict[test['state']] = 1
+        else:
+            summary_dict[test['state']] += 1
+
+        # Gathers info on passed tests from completed tests.
+        if 'COMPLETE' in test['state'] and 'PASS' in test['note']:
+            passes += 1
+
+    total_tests = len(statuses)
+    fails = summary_dict['COMPLETE'] - passes
+    rows = []
+    fields = ['State', 'Amount', 'Percent']
+    for key, value in summary_dict.items():
+        #  Build the rows for drawtables.
+
+        #  Determine Color.
+        if key in {'ERROR', 'FAILED', 'TIMEOUT'}:
+            color = 'RED'
+        elif key in 'COMPLETE':
+            fields = ['State', 'Amount', 'Percent', 'PASSED', 'FAILED']
+            color = 'GREEN'
+        elif key in 'SKIPPED':
+            color = 'YELLOW'
+        elif key in {'RUNNING', 'SCHEDULED', 'PREPPING_RUN'}:
+            color = 'CYAN'
+        else:
+            color = 'WHITE'  # Unknown state.
+
+        # Populating rows...
+        if key in 'COMPLETE':  # only time we need to populate pass/fail
+            rows.append(
+                {'State': output.ANSIString(key, output.COLORS.get(color)),
+                 'Amount': value,
+                 'Percent': '{0:.0%}'.format(value/total_tests),
+                 'PASSED': '{0:.0%}'.format(passes/value) + ' ({}/{})'.format(passes, value),
+                 'FAILED': '{0:.0%}'.format(fails/value) + ' ({}/{})'
+                     .format(fails, value)}
+            )
+        else:
+            rows.append(
+                {'State': output.ANSIString(key, output.COLORS.get(color)),
+                 'Amount': value,
+                 'Percent': '{0:.0%}'.format(value / total_tests)}
+            )
+    try:
+        dbg_print("")
+
+    except ArithmeticError:
+        output.fprint("No tests found in the working dir.", color=output.RED)
+        return errno.EINVAL
+
+    field_info = {
+        'PASSED': {
+            'transform': lambda t: output.ANSIString(t, output.COLORS.get(
+                'GREEN')),
+        },
+        'FAILED': {
+            'transform': lambda t: output.ANSIString(t, output.COLORS.get(
+                'RED')),
+        }}
+
+    output.draw_table(outfile=outfile,
+                      field_info=field_info,
+                      fields=fields,
+                      rows=rows,
+                      border=True,
+                      title='Test Summary')
+
+    return ret_val
+
+
 def display_history(pav_cfg, args, outfile):
     """Display_history takes a test_id from the command
     line arguments and formats the status file from the id
@@ -304,6 +393,11 @@ class StatusCommand(commands.Command):
             '--history', type=int,
             help="Shows the full status history of a job."
         )
+        parser.add_argument(
+            '-s', '--summary', default=False, action='store_true',
+            help='Summary will display a fantastic table full of bright colors '
+                 'and useful information. '
+        )
 
     def run(self, pav_cfg, args):
         """Gathers and prints the statuses from the specified test runs and/or
@@ -319,5 +413,7 @@ class StatusCommand(commands.Command):
 
         if args.history:
             return display_history(pav_cfg, args, self.outfile)
+        elif args.summary:
+            return print_summary(test_statuses, self.outfile, self.errfile)
         else:
             return print_status(test_statuses, self.outfile, args.json)

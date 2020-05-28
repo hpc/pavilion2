@@ -267,3 +267,32 @@ class StatusCmdTests(PavTestCase):
         # None int arguments "pav status --history lolol" throw
         # error in unit-test but are caught cleanly in pav usage
         # check.
+
+    def test_status_summary(self):
+        # Testing that status works with summary flag
+        status_cmd = commands.get_command('status')
+        status_cmd.outfile = io.StringIO()
+        parser = argparse.ArgumentParser()
+        status_cmd._setup_arguments(parser)
+        arg_list = ['-s', '-a']
+        args = parser.parse_args(arg_list)
+
+        # Test that an empty working_dir fails correctly
+        self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
+
+        base_cfg = self._quick_test_cfg()
+        test_cfg1 = base_cfg.copy()
+        test_cfg1['name'] = 'test1'
+        test_cfg2 = base_cfg.copy()
+        test_cfg2['name'] = 'test2'
+        test_cfg3 = base_cfg.copy()
+        test_cfg3['name'] = 'test3'
+
+        configs = [test_cfg1, test_cfg2, test_cfg3]
+        tests = [TestRun(self.pav_cfg, test)
+                 for test in configs]
+        for test in tests:
+            test.RUN_SILENT_TIMEOUT = 1
+
+        # Testing that summary flags return correctly
+        self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
