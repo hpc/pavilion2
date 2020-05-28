@@ -45,6 +45,8 @@ class BuilderTests(PavTestCase):
             'no_encaps.tgz',
             'no_encaps.zip',
             'softlink.zip',
+            'foo/bar/deep.zip',
+            '../outside.zip',
         ]
 
         test_archives = self.TEST_DATA_ROOT/'pav_config_dir'/'test_src'
@@ -105,6 +107,8 @@ class BuilderTests(PavTestCase):
         config['build']['extra_files'] = [
             'src.tar.gz',
             'src.xz',
+            '../outside.zip',
+            'foo/bar/deep.zip',
         ]
 
         test = TestRun(self.pav_cfg, config)
@@ -115,8 +119,9 @@ class BuilderTests(PavTestCase):
         test.builder._setup_build_dir(test.builder.path)
 
         for file in config['build']['extra_files']:
+            file = pathlib.Path(file)
             self._cmp_files(test_archives/file,
-                            test.builder.path/file)
+                            test.builder.path/file.name)
 
     def test_create_file(self):
         """Check that build time file creation is working correctly."""
