@@ -314,12 +314,15 @@ class RunCommand(commands.Command):
                 self.logger.error(msg)
                 raise commands.CommandError(msg)
 
-        resolved_cfgs = resolver.load(
-            tests,
-            host,
-            modes,
-            overrides
-        )
+        try:
+            resolved_cfgs = resolver.load(
+                tests,
+                host,
+                modes,
+                overrides
+            )
+        except TestConfigError as err:
+            raise commands.CommandError(err.args[0])
 
         tests_by_scheduler = defaultdict(lambda: [])
         for cfg, var_man in resolved_cfgs:
@@ -410,8 +413,6 @@ class RunCommand(commands.Command):
             )
 
         except commands.CommandError as err:
-            # Our error messages get escaped to a silly degree
-            err = codecs.decode(str(err), 'unicode-escape')
             fprint(err, file=self.errfile, flush=True)
             return None
 

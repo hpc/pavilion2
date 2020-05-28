@@ -261,9 +261,16 @@ class TestConfigResolver:
             # Set the scheduler variables for each test.
             for test_cfg, test_var_man in raw_tests_by_sched[sched_name]:
                 # Resolve all variables for the test (that aren't deferred).
-                resolved_config = self.resolve_config(
-                    test_cfg,
-                    test_var_man)
+                try:
+                    resolved_config = self.resolve_config(
+                        test_cfg,
+                        test_var_man)
+                except TestConfigError as err:
+                    msg = ('In test {} from {}:\n{}'
+                           .format(test_cfg['name'], test_cfg['suite_path'],
+                                   err.args[0]))
+                    self.logger.error(msg)
+                    raise TestConfigError(msg)
 
                 resolved_tests.append((resolved_config, test_var_man))
 
