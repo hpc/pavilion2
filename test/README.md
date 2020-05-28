@@ -25,13 +25,11 @@ latest versions of sphinx and pylint. Travis CI tests will run against the lates
 too, and this will make debugging a lot easier.
 
 ```bash
-
 # You should create the virtual env outside of the pavilion source.
 python3 -m venv <path to your venv>
 source <path to your venv>/bin/activate
 pip install --upgrade pip
 pip install pylint sphinx
-
 ```
 
 Then just activate your virtual environment before running tests.
@@ -128,4 +126,5 @@ class PluginTests(unittest.PavTestCase):
  - `self._cmp_files()` does a full content file comparison.
  - `self._cmp_tree()` compares a whole directory structure.
  - `self.dbg_print()` should be used whenever you want to have the test print
-  something for debugging purposes. It's just 
+  something for debugging purposes. It will get picked up by the extraneous
+  print statement checker, and also print in an easy to identify color.
