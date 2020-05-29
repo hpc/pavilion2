@@ -110,6 +110,16 @@ class StringTransformer(PavTransformer):
 
     EXPRESSION = '<expression>'
 
+    def __init__(self, var_man):
+        """Initialize the transformer.
+
+        :param pavilion.test_config.variables.VariableSetManager var_man:
+            The variable manager to use to resolve references.
+        """
+
+        self.var_man = var_man
+        super().__init__()
+
     def start(self, items) -> str:
         """Resolve the final string components, and return just a string.
 

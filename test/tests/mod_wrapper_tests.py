@@ -123,7 +123,7 @@ class ModWrapperTests(PavTestCase):
         test = self._quick_test(test_cfg)
         run_result = test.run()
 
-        self.assertEqual(run_result, True)
+        self.assertEqual(run_result, 0)
 
     @unittest.skipIf(not has_module_cmd() and find_module_init() is None,
                      "Could not find a module system.")
@@ -165,7 +165,7 @@ class ModWrapperTests(PavTestCase):
         test = self._quick_test(test_cfg)
         run_result = test.run()
 
-        self.assertEqual(run_result, True)
+        self.assertEqual(run_result, 0)
 
     @unittest.skipIf(not has_module_cmd() and find_module_init() is None,
                      "Could not find a module system.")
@@ -201,7 +201,7 @@ class ModWrapperTests(PavTestCase):
         test = self._quick_test(test_cfg)
         run_result = test.run()
 
-        self.assertEqual(run_result, True)
+        self.assertEqual(run_result, 0)
 
     @unittest.skipIf(not has_module_cmd() and find_module_init() is None,
                      "Could not find a module system.")

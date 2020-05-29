@@ -261,8 +261,7 @@ found in these directories the default config search paths:
 
 def get_version():
     """Returns the current version of Pavilion."""
-    pav_cfg = find()
-    version_path = pav_cfg.pav_root / 'RELEASE.txt'
+    version_path = PAV_ROOT / 'RELEASE.txt'
 
     try:
         with version_path.open() as file:

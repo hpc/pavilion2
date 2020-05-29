@@ -150,7 +150,7 @@ class StatusInfo:
     def __init__(self, state, note, when=None):
 
         self.state = state
-        self.note = note
+        self.note = note.replace('\\n', '\n')
 
         if when is None:
             self.when = datetime.datetime.now()
@@ -224,23 +224,26 @@ could be wrong with the file format.
         line = line.decode('utf-8')
 
         parts = line.split(" ", 2)
-
-        status = StatusInfo('', '', )
+        state = ''
+        note = ''
+        when = None
 
         if parts:
             try:
-                status.when = datetime.datetime.strptime(parts.pop(0),
-                                                         self.TIME_FORMAT)
+                when = datetime.datetime.strptime(parts.pop(0),
+                                                  self.TIME_FORMAT)
             except ValueError as err:
                 self.LOGGER.warning(
                     "Bad date in log line '%s' in file '%s': %s",
                     line, self.path, err)
 
         if parts:
-            status.state = parts.pop(0)
+            state = parts.pop(0)
 
         if parts:
-            status.note = parts.pop(0).strip()
+            note = parts.pop(0).strip()
+
+        status = StatusInfo(state, note, when=when)
 
         return status
 
@@ -313,6 +316,8 @@ could be wrong with the file format.
         if not STATES.validate(state):
             note = '({}) {}'.format(state, note)
             state = STATES.INVALID
+
+        note = note.replace('\n', '\\n')
 
         # Truncate the note such that, even when encoded in utf-8, it is
         # shorter than NOTE_MAX
