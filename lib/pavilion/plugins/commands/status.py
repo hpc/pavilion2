@@ -329,7 +329,7 @@ class StatusCommand(commands.Command):
 
         return ret_val
 
-      
+
     def print_summary(self, statuses, outfile):
         """Print_summary takes in a list of test statuses.
         It summarizes basic state output and displays
