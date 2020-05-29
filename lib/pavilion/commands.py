@@ -4,6 +4,7 @@
 
 import argparse
 import inspect
+import io
 import logging
 import sys
 
@@ -161,3 +162,20 @@ case that includes:
             self.file,
             self.name
         )
+
+    def silence(self):
+        """Convert the command to use string IO for its output and error
+        output."""
+        self.outfile = io.StringIO()
+        self.errfile = io.StringIO()
+
+    def clear_output(self):
+        """Reset the output io buffers for this command."""
+
+        if not isinstance(self.outfile, io.StringIO):
+            raise RuntimeError("Only silenced commands can be cleared.")
+
+        self.outfile.seek(0)
+        self.outfile.truncate(0)
+        self.errfile.seek(0)
+        self.errfile.truncate(0)

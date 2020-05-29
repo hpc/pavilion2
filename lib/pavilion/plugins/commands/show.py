@@ -1,21 +1,22 @@
 """Show a variety of different internal information for Pavilion."""
 
+import argparse
 import errno
 import os
-import argparse
 from typing import Union
 
 import yaml_config
+import pavilion.result.base
 from pavilion import commands
 from pavilion import config
 from pavilion import expression_functions
 from pavilion import module_wrapper
 from pavilion import output
-from pavilion import result_parsers
 from pavilion import schedulers
 from pavilion import status_file
 from pavilion import system_variables
 from pavilion.plugins import list_plugins
+from pavilion.result import parsers
 from pavilion.test_config import DeferredVariable
 from pavilion.test_config import file_format
 from pavilion.test_config import resolver
@@ -64,7 +65,7 @@ class ShowCommand(commands.Command):
                 for alias in func.aliases:
                     self.cmds[alias] = func
 
-        self._parser = None   # type: Union[argparse.ArgumentParser,None]
+        self._parser = None  # type: Union[argparse.ArgumentParser,None]
 
     def _setup_arguments(self, parser):
 
@@ -362,13 +363,13 @@ class ShowCommand(commands.Command):
             func = expression_functions.get_plugin(args.detail)
 
             output.fprint(func.signature, color=output.CYAN, file=self.outfile)
-            output.fprint('-'*len(func.signature), file=self.outfile)
+            output.fprint('-' * len(func.signature), file=self.outfile)
             output.fprint(func.long_description, file=self.outfile)
 
         else:
             rows = [
-                {'name': func.name,
-                 'signature': func.signature,
+                {'name':        func.name,
+                 'signature':   func.signature,
                  'description': func.description}
                 for func in list_plugins()['function']
             ]
@@ -497,8 +498,8 @@ class ShowCommand(commands.Command):
 
         if args.config:
             try:
-                res_plugin = result_parsers.get_plugin(args.config)
-            except result_parsers.ResultParserError:
+                res_plugin = parsers.get_plugin(args.config)
+            except pavilion.result.base.ResultError:
                 output.fprint(
                     "Invalid result parser '{}'.".format(args.config),
                     color=output.RED
@@ -516,8 +517,8 @@ class ShowCommand(commands.Command):
         else:
 
             rps = []
-            for rp_name in result_parsers.list_plugins():
-                res_plugin = result_parsers.get_plugin(rp_name)
+            for rp_name in parsers.list_plugins():
+                res_plugin = parsers.get_plugin(rp_name)
                 desc = " ".join(str(res_plugin.__doc__).split())
                 rps.append({
                     'name':        rp_name,

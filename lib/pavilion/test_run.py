@@ -16,11 +16,11 @@ from pathlib import Path
 import pavilion.output
 from pavilion import builder
 from pavilion import lockfile
-from pavilion import result_parsers
+from pavilion import result
 from pavilion import scriptcomposer
 from pavilion import utils
 from pavilion.status_file import StatusFile, STATES
-from pavilion.test_config import variables, resolver, parsers
+from pavilion.test_config import variables, resolver
 from pavilion.test_config.file_format import TestConfigError
 
 
@@ -294,8 +294,7 @@ class TestRun:
         self.build_timeout = self.parse_timeout(
             'build', config.get('build', {}).get('timeout'))
 
-        self.started = None
-        self.finished = None
+        self._attributes = {}
 
         self.build_name = None
         self.run_log = self.path/'run.log'
@@ -549,7 +548,7 @@ class TestRun:
         """Run the test.
 
         :rtype: bool
-        :returns: True if the test completed and returned zero, false otherwise.
+        :returns: The return code of the test command.
         :raises TimeoutError: When the run times out.
         :raises TestRunError: We don't actually raise this, but might in the
             future.
@@ -588,10 +587,10 @@ class TestRun:
             # Run the test, but timeout if it doesn't produce any output every
             # self._run_timeout seconds
             timeout = self.run_timeout
-            result = None
-            while result is None:
+            ret = None
+            while ret is None:
                 try:
-                    result = proc.wait(timeout=timeout)
+                    ret = proc.wait(timeout=timeout)
                 except subprocess.TimeoutExpired:
                     out_stat = self.run_log.stat()
                     quiet_time = time.time() - out_stat.st_mtime
@@ -612,11 +611,8 @@ class TestRun:
 
         self.status.set(STATES.RUN_DONE,
                         "Test run has completed.")
-        if result == 0:
-            return True
 
-        # Return False in all other circumstances.
-        return False
+        return ret
 
     def set_run_complete(self):
         """Write a file in the test directory that indicates that the test
@@ -651,6 +647,63 @@ class TestRun:
         else:
             return None
 
+    def _set_run_attr(self, attr, value):
+        """Set the given run attribute by writing it to the attributes JSON
+        file."""
+
+        if self._attributes.get(attr) == value:
+            return
+
+        attr_path = self.path/'attributes'
+        if attr_path.exists():
+            with attr_path.open() as attr_file:
+                data = json.load(attr_file)
+        else:
+            data = {}
+
+        data[attr] = value
+
+        with attr_path.open('w') as attr_file:
+            json.dump(data, attr_file)
+
+    def _get_run_attr(self, attr):
+        """Load the given attribute from the attributes JSON file."""
+
+        attr_path = self.path/'attributes'
+        if attr_path.exists():
+            with attr_path.open('r') as attr_file:
+                data = json.load(attr_file)
+        else:
+            data = {}
+
+        return data.get(attr)
+
+    @property
+    def finished(self):
+        """The end time for this test run."""
+        value = self._get_run_attr('finished')
+        if value is not None:
+            value = datetime.datetime.strptime(value, "%Y-%m-%d %H:%M:%S.%f")
+        return value
+
+    @finished.setter
+    def finished(self, value: datetime.datetime):
+        value = value.isoformat(" ")
+        self._set_run_attr('finished', value)
+
+    @property
+    def started(self):
+        """The start time for this test run."""
+        value = self._get_run_attr('started')
+        if value is not None:
+            value = datetime.datetime.strptime(value, "%Y-%m-%d %H:%M:%S.%f")
+        return value
+
+    @started.setter
+    def started(self, value):
+        value = value.isoformat(" ")
+        self._set_run_attr('started', value)
+
     WAIT_INTERVAL = 0.5
 
     def wait(self, timeout=None):
@@ -675,38 +728,13 @@ class TestRun:
                 raise TimeoutError("Timed out waiting for test '{}' to "
                                    "complete".format(self.id))
 
-    def gather_results(self, run_result):
+    def gather_results(self, run_result, regather=False):
         """Process and log the results of the test, including the default set
 of result keys.
 
-Default Result Keys:
-
-name
-    The name of the test
-id
-    The test id
-created
-    When the test was created.
-started
-    When the test was started.
-finished
-    When the test finished running (or failed).
-duration
-    Length of the test run.
-user
-    The user who ran the test.
-sys_name
-    The system (cluster) on which the test ran.
-job_id
-    The job id set by the scheduler.
-result
-    Defaults to PASS if the test completed (with a zero
-    exit status). Is generally expected to be overridden by other
-    result parsers.
-sched
-    All of the scheduler variable values.
-
-:param bool run_result: The result of the run.
+:param int run_result: The return code of the test run.
+:param bool regather: Gather results without performing any changes to the
+    test itself.
 """
 
         if self.finished is None:
@@ -717,23 +745,56 @@ sched
                 .format(s=self)
             )
 
-        parser_configs = self.config['results']
+        parser_configs = self.config['results']['parse']
 
-        if run_result:
-            default_result = result_parsers.PASS
+        results = result.base_results(self)
+
+        results['return_value'] = run_result
+
+        if not regather:
+            self.status.set(STATES.RESULTS,
+                            "Parsing {} result types."
+                            .format(len(parser_configs)))
+
+        try:
+            result.parse_results(self, results)
+        except result.ResultError as err:
+            results['result'] = self.ERROR
+            results['pav_result_errors'].append(
+                "Error parsing results: {}".format(err.args[0]))
+            if not regather:
+                self.status.set(STATES.RESULTS_ERROR,
+                                results['pav_result_errors'][-1])
+
+            return results
+
+        if not regather:
+            self.status.set(STATES.RESULTS,
+                            "Performing {} result evaluations."
+                            .format(self.config['results']['evaluate']))
+        try:
+            result.evaluate_results(
+                results,
+                self.config['results']['evaluate'])
+        except result.ResultError as err:
+            results['result'] = self.ERROR
+            results['pav_result_errors'].append(err.args[0])
+            results['result'] = self.ERROR
+            if not regather:
+                self.status.set(STATES.RESULTS_ERROR,
+                                results['pav_result_errors'][-1])
+            return results
+
+        if results['result'] is True:
+            results['result'] = self.PASS
+        elif results['result'] is False:
+            results['result'] = self.FAIL
         else:
-            default_result = result_parsers.FAIL
-
-        results = result_parsers.base_results(self)
-
-        # This may be overridden by result parsers.
-        results['result'] = default_result
-
-        self.status.set(STATES.RESULTS,
-                        "Parsing {} result types."
-                        .format(len(parser_configs)))
-
-        results = result_parsers.parse_results(self, results)
+            results['result'] = self.ERROR
+            results['pav_result_errors'].append(
+                "The value for the 'result' key in the results must be a "
+                "boolean. Got '{}' instead".format(results['result']))
+            return results
 
         self._results = results
 
@@ -760,6 +821,10 @@ sched
                 return json.load(results_file)
         else:
             return None
+
+    PASS = 'PASS'
+    FAIL = 'FAIL'
+    ERROR = 'ERROR'
 
     @property
     def results(self):

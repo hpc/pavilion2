@@ -3,7 +3,7 @@ from pavilion import commands
 from pavilion import config
 from pavilion import module_wrapper
 from pavilion import plugins
-from pavilion import result_parsers
+from pavilion.result import parsers
 from pavilion import system_variables
 from pavilion import expression_functions
 from pavilion.test_config import variables
@@ -217,7 +217,7 @@ class PluginTests(PavTestCase):
 
         plugins.initialize_plugins(self.pav_cfg)
 
-        regex = result_parsers.get_plugin('regex')
+        regex = parsers.get_plugin('regex')
 
         plugins._reset_plugins()
 
