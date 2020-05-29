@@ -3,14 +3,14 @@ import unittest
 import subprocess
 import distutils.spawn
 
-_PYLINT3_PATH = distutils.spawn.find_executable('pylint3')
-if _PYLINT3_PATH is None:
-    _PYLINT3_PATH = distutils.spawn.find_executable('pylint')
+_PYLINT_PATH = distutils.spawn.find_executable('pylint')
+if _PYLINT_PATH is None:
+    _PYLINT_PATH = distutils.spawn.find_executable('pylint3')
 
 
 class StyleTests(PavTestCase):
 
-    @unittest.skipIf(not _PYLINT3_PATH, "pylint3 not found.")
+    @unittest.skipIf(not _PYLINT_PATH, "pylint3 not found.")
     def test_style(self):
 
         enabled = [
@@ -29,7 +29,7 @@ class StyleTests(PavTestCase):
         ]
 
         cmd = [
-            _PYLINT3_PATH,
+            _PYLINT_PATH,
             '--disable=all',
             '--enable={}'.format(','.join(enabled)),
             '--disable={}'.format(','.join(disabled)),

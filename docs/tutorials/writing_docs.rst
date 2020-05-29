@@ -244,3 +244,62 @@ This would produce a run script that contains:
 
   export wget_exe="$(which_wget)"
   export WGET_CMD="${wget_exe} -f -q"
+
+Technical Problems
+------------------
+
+This section covers technical issues that need to be solved in restructured
+text in a common way.
+
+.. _tutorials.writing_docs.links:
+
+Links
+^^^^^
+
+.. _sphinx-inline: https://www.sphinx-doc.org/en/1.7/markup/inline.html
+
+There are multiple, inconsistent ways create links in restructured text.
+Pavilion docs should use `labels` to define both internal and external
+resources, and `sphinx-inline`_ to reference them.
+This :ref:`tutorials.writing_docs.links` section, by way of demonstration, shows
+how to best create links in Pavilion docs. The source of this
+:ref:`tutorials.writing_docs.links` section is provided in a code block below.
+
+Link Targets
+````````````
+
+Link targets appear as: ``.. _<target_name>: [target_url]``
+
+.. _tutorials.writing_docs.link_target_rules:
+
+- Targets must start on a new line.
+- The target name can contain spaces, and is case sensitive.
+
+  - By default the target name is the text that will appear as the link text.
+  - Targets that appear before a section header will have the header name as
+    the link text instead.
+- Target names must be unique across all of the documentation.
+- The target URL is optional, the colon is always required.
+
+  - Without a target URL, the link acts as an anchor that you can reference
+    else where in the docs.
+  - These anchors should contain the dot-separated path to the file in the
+    name, to ensure uniqueness. IE: ``.. tests.env.my_ref_name:``
+
+Link References
+```````````````
+
+.. _tutorials.writing_docs.ref_examples:
+
+- The ``:ref:`` tag tells sphinx to handle internal references which allows for
+  accessing labels across documents. Use it for both internal and external
+  links. In this case, the section name is the link text.
+
+  - ``:ref:`test.results``` -> :ref:`tests.results`
+- Refs to non-section labels must include the link text.
+
+  - ``:ref:`ref examples <tutorials.writing_docs.ref_examples>```
+    :ref:`ref examples <tutorials.writing_docs.ref_examples>`
+- External links should use the basic restructured text format.
+
+  - ```sphinx-inline`_`` -> `sphinx-inline`_

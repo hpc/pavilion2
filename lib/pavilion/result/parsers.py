@@ -1,16 +1,16 @@
-"""This module contains the base Result Parser plugin class."""
+"""This module contains the ResultParser plugin class, as well functions
+to process result parser configurations defined by a test run."""
 
-import datetime
 import glob
 import inspect
 import logging
-import re
 from collections import OrderedDict
 from pathlib import Path
 
 import yaml_config as yc
+from pavilion.result.base import ResultError
+from pavilion.test_config import file_format
 from yapsy import IPlugin
-from .test_config import file_format, resolver
 
 LOGGER = logging.getLogger(__file__)
 
@@ -45,16 +45,6 @@ def __reset():
         parser.deactivate()
 
 
-class ResultParserError(RuntimeError):
-    """Error thrown when the result parser fails."""
-    pass
-
-
-# These are the base result constants
-PASS = 'PASS'
-FAIL = 'FAIL'
-ERROR = 'ERROR'
-
 ACTION_STORE = 'store'
 ACTION_TRUE = 'store_true'
 ACTION_FALSE = 'store_false'
@@ -74,8 +64,6 @@ MATCH_FIRST = 'first'
 MATCH_LAST = 'last'
 MATCH_ALL = 'all'
 
-# This is to use in any result parser plugin that can match multiple items.
-# It's provided here for consistency between plugins.
 MATCHES_ELEM = yc.StrElem(
     "match_type",
     default=MATCH_FIRST,
@@ -94,6 +82,8 @@ MATCHES_ELEM = yc.StrElem(
             ALL=MATCH_ALL,
         ))
 )
+"""This is to use in any result parser plugin that can match multiple items.
+It's provided here for consistency between plugins."""
 
 
 class ResultParser(IPlugin.IPlugin):
@@ -165,10 +155,19 @@ deferred args. On error, should raise a ResultParserError.
         # The presence or absence of needed args should be enforced by
         # setting 'required' in the yaml_config config items.
 
-        # Don't check args if they have deferred values.
-        for arg in kwargs:
-            if resolver.TestConfigResolver.was_deferred(arg):
-                return
+        kwargs = kwargs.copy()
+        for key in ('key', 'action', 'per_file', 'files'):
+            if key not in kwargs:
+                raise RuntimeError(
+                    "Result parser '{}' missing required attribute '{}'. These "
+                    "are validated at the config level, so something is "
+                    "probably wrong with plugin."
+                    .format(self.name, key)
+                )
+
+            # The parser plugins don't know about these keys, as they're
+            # handled at a higher level.
+            del kwargs[key]
 
         self._check_args(**kwargs)
 
@@ -227,6 +226,7 @@ Example: ::
             # The default for the file is handled by the test object.
             yc.ListElem(
                 "files",
+                required=True,
                 sub_elem=yc.StrElem(),
                 defaults=['../run.log'],
                 help_text="Path to the file/s that this result parser "
@@ -235,6 +235,7 @@ Example: ::
             yc.StrElem(
                 "per_file",
                 default=PER_FIRST,
+                required=True,
                 choices=[
                     PER_FIRST,
                     PER_LAST,
@@ -336,97 +337,11 @@ do this in unittests.
         del _RESULT_PARSERS[self.name]
 
 
-BASE_RESULTS = {
-    'name': lambda test: test.name,
-    'id': lambda test: test.id,
-    'created': lambda test: datetime.datetime.fromtimestamp(
-        test.path.stat().st_mtime).isoformat(" "),
-    'started': lambda test: test.started.isoformat(" "),
-    'finished': lambda test: test.finished.isoformat(" "),
-    'duration': lambda test: str(test.finished - test.started),
-    'user': lambda test: test.var_man['pav.user'],
-    'job_id': lambda test: test.job_id,
-    'sched': lambda test: test.var_man.as_dict().get('sched', {}),
-    'sys_name': lambda test: test.var_man['sys.sys_name'],
-}
-
-
-def base_results(test):
-    """Get all of the auto-filled result values for a test.
-    :param pavilion.test_run.PavTestRun test: A pavilion test object.
-    :return: A dictionary of result values.
-    :rtype: dict[str,str]
-    """
-
-    results = {}
-
-    for key, func in BASE_RESULTS.items():
-        results[key] = func(test)
-
-    return results
-
-
-def check_args(parser_configs):
-    """Make sure the result parsers are sensible.
-
-- No duplicated key names.
-- Sensible keynames: ``/[a-z0-9_-]+/``
-- No reserved key names.
-
-:raises TestRunError: When a config breaks the rules.
-"""
-
-    key_names = []
-
-    for rtype in parser_configs:
-        for rconf in parser_configs[rtype]:
-            key = rconf.get('key')
-
-            if key is None:
-                raise RuntimeError(
-                    "ResultParser config for parser '{}' missing key. "
-                    "This is an error with the result parser itself,"
-                    "probably.".format(rtype)
-                )
-
-            regex = re.compile(ResultParser.KEY_REGEX_STR)
-
-            if regex.match(key) is None:
-                raise RuntimeError(
-                    "ResultParser config for parser '{}' has invalid key."
-                    "Key does not match the required format. "
-                    "This is an error with the result parser itself, "
-                    "probably.".format(rtype)
-                )
-
-            if key in key_names:
-                raise ResultParserError(
-                    "Duplicate result parser key name '{}' under parser '{}'"
-                    .format(key, rtype)
-                )
-
-            if key in BASE_RESULTS.keys():
-                raise ResultParserError(
-                    "Result parser key '{}' under parser '{}' is reserved."
-                    .format(key, rtype)
-                )
-
-            key_names.append(key)
-
-            parser = get_plugin(rtype)
-            # The parser's don't know about the 'key' config item.
-            args = rconf.copy()
-            for key in ('key', 'action', 'per_file', 'files'):
-                del args[key]
-
-            parser.check_args(**args)
-
-
 NON_MATCH_VALUES = (None, [], False)
 EMPTY_VALUES = (None, [])
 
 
-def parse_results(test, results):
+def parse_results(test, results) -> None:
     """Parse the results of the given test using all the result parsers
 configured for that test.
 
@@ -439,10 +354,9 @@ configured for that test.
 :param pavilion.test_run.TestRun test: The pavilion test run to gather
     results for.
 :param dict results: The dictionary of default result values.
-:return: The final results dictionary.
 """
 
-    parser_configs = test.config['results']
+    parser_configs = test.config['results']['parse']
 
     # A list of keys with duplicates already reported on, so we don't
     # report such errors multiple times.
@@ -471,7 +385,7 @@ configured for that test.
                 for k in 'key', 'files', 'action', 'per_file':
                     del args[k]
             except KeyError as err:
-                raise ResultParserError(
+                raise ResultError(
                     "Invalid config for result parser '{}': {}"
                     .format(parser_name, err))
 
@@ -535,7 +449,7 @@ configured for that test.
                     else:
                         presults[path] = 0
                 else:
-                    raise ResultParserError(
+                    raise ResultError(
                         "Invalid action for result parser '{}': {}"
                         .format(parser_name, action))
 
@@ -629,24 +543,8 @@ configured for that test.
             elif per_file == PER_ANY:
                 results[key] = any(presults.values())
             else:
-                raise ResultParserError("Invalid per_file value: {}"
-                                        .format(per_file))
+                raise ResultError("Invalid per_file value for result parser "
+                                  "'{}' - {}"
+                                  .format(parser_name, per_file))
 
-    if results['result'] not in (PASS, FAIL):
-        if results['result'] is True:
-            results['result'] = PASS
-        elif results['result'] is False:
-            results['result'] = FAIL
-        else:
-            errors.append({
-                'result_parser': None,
-                'file': None,
-                'key': 'result',
-                'msg': "A result parser set the 'result' key to {}, but it "
-                       "must be strictly set to True/False (PASS/FAIL)."
-                       .format(results['result'])
-            })
-
-    results['pav_result_errors'] = errors
-
-    return results
+        results['pav_result_errors'].extend(errors)
