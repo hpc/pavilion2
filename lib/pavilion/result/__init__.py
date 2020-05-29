@@ -71,8 +71,8 @@ For evaluations we check for:
                     .format(key, rtype)
                 )
 
-            if (key == 'result' 
-                    and action not in (parsers.ACTION_TRUE, 
+            if (key == 'result'
+                    and action not in (parsers.ACTION_TRUE,
                                        parsers.ACTION_FALSE)
                     and per_file not in (parsers.PER_FIRST, parsers.PER_LAST,
                                          parsers.PER_ANY, parsers.PER_ALL)):
@@ -86,10 +86,9 @@ For evaluations we check for:
             parser = get_plugin(rtype)
             try:
                 parser.check_args(**rconf)
-            except ResultError as err: 
+            except ResultError as err:
                 raise ResultError(
                     "Key '{}': {}".format(key, err.args[0]))
-
 
         for key, expr in evaluate_conf.items():
             if key in BASE_RESULTS:
