@@ -25,14 +25,10 @@ class RunCmdTests(PavTestCase):
 
         run_cmd = commands.get_command('run')  # type: RunCommand
 
-        configs_by_sched = run_cmd._get_test_configs(
-            pav_cfg=self.pav_cfg,
-            host='this',
-            test_files=[],
-            tests=['hello_world'],
-            modes=[],
-            overrides={},
-            sys_vars={})
+        configs_by_sched = run_cmd._get_test_configs(pav_cfg=self.pav_cfg,
+                                                     host='this', test_files=[],
+                                                     tests=['hello_world'],
+                                                     modes=[], overrides={})
 
         tests = run_cmd._configs_to_tests(
             pav_cfg=self.pav_cfg,
@@ -51,14 +47,11 @@ class RunCmdTests(PavTestCase):
 
         tests_file = self.TEST_DATA_ROOT/'run_test_list'
 
-        configs_by_sched = run_cmd._get_test_configs(
-            pav_cfg=self.pav_cfg,
-            host='this',
-            test_files=[tests_file],
-            tests=[],
-            modes=[],
-            overrides={},
-            sys_vars={})
+        configs_by_sched = run_cmd._get_test_configs(pav_cfg=self.pav_cfg,
+                                                     host='this',
+                                                     test_files=[tests_file],
+                                                     tests=[], modes=[],
+                                                     overrides={})
 
         tests = run_cmd._configs_to_tests(
             pav_cfg=self.pav_cfg,
@@ -140,7 +133,7 @@ class RunCmdTests(PavTestCase):
         self.assertTrue(all([test.complete for test in run_cmd.last_tests]))
 
     def test_build_parallel_lots(self):
-        """Make building works beyond the parallel building limit."""
+        """Make sure building works beyond the parallel building limit."""
 
         arg_parser = arguments.get_parser()
         args = arg_parser.parse_args([

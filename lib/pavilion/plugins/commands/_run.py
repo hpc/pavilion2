@@ -2,15 +2,17 @@
 environment."""
 
 import logging
+import traceback
 
+from pavilion import result
 from pavilion import output
 from pavilion import commands
-from pavilion import result_parsers
 from pavilion import schedulers
 from pavilion import system_variables
 from pavilion.test_config import VariableSetManager
 from pavilion.test_run import TestRun, TestRunError
 from pavilion.status_file import STATES
+
 
 class _RunCommand(commands.Command):
 
@@ -63,7 +65,7 @@ class _RunCommand(commands.Command):
                 raise
 
             if not test.opts.build_only:
-                self._run(pav_cfg, test, sched)
+                return self._run(pav_cfg, test, sched)
         finally:
             test.set_run_complete()
 
@@ -131,28 +133,30 @@ class _RunCommand(commands.Command):
             sched.unlock_concurrency(lock)
 
         try:
-            rp_errors = []
             # Make sure the result parsers have reasonable arguments.
             # We check here because the parser code itself will likely assume
             # the args are valid form _check_args, but those might not be
-            # checkable before kickoff due to deferred variables.
+            # check-able before kickoff due to deferred variables.
             try:
-                result_parsers.check_args(test.config['results'])
+                result.check_config(test.config['results'])
             except TestRunError as err:
-                rp_errors.append(str(err))
-
-            if rp_errors:
-                for msg in rp_errors:
-                    test.status.set(STATES.RESULTS_ERROR, msg)
-                test.set_run_complete()
+                test.status.set(
+                    STATES.RESULTS_ERROR,
+                    "Error checking result parser configs: {}"
+                    .format(err.args[0]))
                 return 1
 
             results = test.gather_results(run_result)
-        except result_parsers.ResultParserError as err:
-            self.logger.error("Unexpected error gathering results: %s", err)
+            if results['result'] == test.ERROR:
+                return 1
+        except Exception as err:
+            self.logger.error("Unexpected error gathering results: \n%s",
+                              traceback.format_exc())
             test.status.set(STATES.RESULTS_ERROR,
-                            "Error parsing results: {}".format(err))
-            return 1
+                            "Unexpected error parsing results: {}. (This is a "
+                            "bug, you should report it.)"
+                            .format(err))
+            raise
 
         try:
             test.save_results(results)

@@ -1,13 +1,9 @@
 from pathlib import Path
-from pavilion import config
-from pavilion import result_parsers
-from pavilion import utils
-import errno
-import glob
+from pavilion.result import parsers
 import yaml_config as yc
 
 
-class Filecheck(result_parsers.ResultParser):
+class Filecheck(parsers.ResultParser):
     """Checks the working directory for a given file.
     The parser will tell the user if the filename exists or not. """
 

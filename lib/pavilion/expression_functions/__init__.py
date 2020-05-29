@@ -1,11 +1,11 @@
 """Expression Functions are plugins that define the functions that can be
 used in Pavilion expressions, both within normal Pavilion strings and
-in result analysis strings.
+in result evaluations.
 """
 
-from .base import (FunctionPlugin, FunctionPluginError, FunctionArgError,
-                   CoreFunctionPlugin, _FUNCTIONS, num, __reset,
-                   register_core_plugins)
+from .base import (FunctionPlugin, _FUNCTIONS, num, __reset)
+from .common import FunctionPluginError, FunctionArgError
+from .core import CoreFunctionPlugin
 
 
 def get_plugin(name: str) -> FunctionPlugin:
@@ -15,3 +15,14 @@ def get_plugin(name: str) -> FunctionPlugin:
         raise FunctionPluginError("No such function '{}'".format(name))
     else:
         return _FUNCTIONS[name]
+
+
+def register_core_plugins():
+    """Find all the core function plugins and activate them."""
+
+    for cls in CoreFunctionPlugin.__subclasses__():
+        obj = cls()
+        obj.activate()
+
+
+FunctionPlugin.register_core = register_core_plugins

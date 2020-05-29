@@ -1,8 +1,5 @@
-from pavilion import result_parsers
-import yaml_config as yc
-
 # This syntax error is intentional
-if 
+if
 
 class BadModule(result_parsers.ResultParser):
     """Set a constant as result."""

@@ -1,4 +1,4 @@
-.. _expression_function_plugins:
+.. _plugins.expression_functions:
 
 Expression Function Plugins
 ===========================

@@ -1,8 +1,7 @@
-from pavilion import result_parsers
-import yaml_config as yc
+from pavilion.result import parsers
 
 
-class BadActivate(result_parsers.ResultParser):
+class BadActivate(parsers.ResultParser):
 
     def __init__(self):
         super().__init__(

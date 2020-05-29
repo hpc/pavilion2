@@ -1,0 +1,3 @@
+This directory is for the 'pav result --re-run' tests. These tests need alternate versions of
+various configs to reload. Normally, a user would be live-editing the test configs, but the easiest
+way to simulate that is to simply point at a different test directory.
