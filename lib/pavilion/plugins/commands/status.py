@@ -175,7 +175,6 @@ def get_statuses(pav_cfg, args, errfile):
 
 
 def print_summary(statuses, outfile, errfile):
-    from pavilion.output import dbg_print
     """Print_summary takes in a list of test statuses.
     It summarizes basic state output and displays
     the data to the user through draw_table.
@@ -188,6 +187,11 @@ def print_summary(statuses, outfile, errfile):
     summary_dict = {}
     passes = 0
     ret_val = 0
+    total_tests = len(statuses)
+    rows = []
+    fields = ['State', 'Amount', 'Percent']
+    fails = 0
+
     # Shrink statues dict to singular keys with total
     # amount of key as the value
     for test in statuses:
@@ -200,10 +204,10 @@ def print_summary(statuses, outfile, errfile):
         if 'COMPLETE' in test['state'] and 'PASS' in test['note']:
             passes += 1
 
-    total_tests = len(statuses)
-    fails = summary_dict['COMPLETE'] - passes
-    rows = []
-    fields = ['State', 'Amount', 'Percent']
+    if 'COMPLETE' in summary_dict.keys():
+        fails = summary_dict['COMPLETE'] - passes
+        fields = ['State', 'Amount', 'Percent', 'PASSED', 'FAILED']
+
     for key, value in summary_dict.items():
         #  Build the rows for drawtables.
 
@@ -211,7 +215,6 @@ def print_summary(statuses, outfile, errfile):
         if key in {'ERROR', 'FAILED', 'TIMEOUT'}:
             color = 'RED'
         elif key in 'COMPLETE':
-            fields = ['State', 'Amount', 'Percent', 'PASSED', 'FAILED']
             color = 'GREEN'
         elif key in 'SKIPPED':
             color = 'YELLOW'
@@ -226,9 +229,10 @@ def print_summary(statuses, outfile, errfile):
                 {'State': output.ANSIString(key, output.COLORS.get(color)),
                  'Amount': value,
                  'Percent': '{0:.0%}'.format(value/total_tests),
-                 'PASSED': '{0:.0%}'.format(passes/value) + ' ({}/{})'.format(passes, value),
-                 'FAILED': '{0:.0%}'.format(fails/value) + ' ({}/{})'
-                     .format(fails, value)}
+                 'PASSED': '{0:.0%}'.format(passes/value)
+                           + ',({}/{})'.format(passes, value),
+                 'FAILED': '{0:.0%}'.format(fails/value)
+                           + ',({}/{})'.format(fails, value)}
             )
         else:
             rows.append(
@@ -236,12 +240,6 @@ def print_summary(statuses, outfile, errfile):
                  'Amount': value,
                  'Percent': '{0:.0%}'.format(value / total_tests)}
             )
-    try:
-        dbg_print("")
-
-    except ArithmeticError:
-        output.fprint("No tests found in the working dir.", color=output.RED)
-        return errno.EINVAL
 
     field_info = {
         'PASSED': {
@@ -395,8 +393,8 @@ class StatusCommand(commands.Command):
         )
         parser.add_argument(
             '-s', '--summary', default=False, action='store_true',
-            help='Summary will display a fantastic table full of bright colors '
-                 'and useful information. '
+            help='Summary will display a summed version of what'
+                 'state were observed in pav status. '
         )
 
     def run(self, pav_cfg, args):
