@@ -328,7 +328,7 @@ class StatusCommand(commands.Command):
                                                                id_final))
 
         return ret_val
-      
+
       
     def print_summary(self, statuses, outfile):
         """Print_summary takes in a list of test statuses.
@@ -407,7 +407,7 @@ class StatusCommand(commands.Command):
                     'RED')),
             }}
 
-        output.draw_table(outfile=outfile,
+        output.draw_table(outfile=self.outfile,
                           field_info=field_info,
                           fields=fields,
                           rows=rows,
