@@ -275,9 +275,9 @@ class StatusCommand(commands.Command):
             return 1
 
         if args.history:
-            return self.display_history(pav_cfg, args, self.outfile)
+            return self.display_history(pav_cfg, args)
         elif args.summary:
-            return self.print_summary(test_statuses, self.outfile)
+            return self.print_summary(test_statuses)
         else:
             return print_status(test_statuses, self.outfile, args.json)
 
@@ -330,7 +330,7 @@ class StatusCommand(commands.Command):
         return ret_val
 
 
-    def print_summary(self, statuses, outfile):
+    def print_summary(self, statuses):
         """Print_summary takes in a list of test statuses.
         It summarizes basic state output and displays
         the data to the user through draw_table.
