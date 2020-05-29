@@ -409,8 +409,6 @@ name) of lists of tuples
             )
 
         except commands.CommandError as err:
-            # Our error messages get escaped to a silly degree
-            err = codecs.decode(str(err), 'unicode-escape')
             fprint(err, file=self.errfile, flush=True)
             return None
 
