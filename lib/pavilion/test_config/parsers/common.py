@@ -23,16 +23,6 @@ class PavTransformer(lark.Transformer):
     tokens to better track where in the syntax things went wrong,
     and more carefully handles exceptions."""
 
-    def __init__(self, var_man):
-        """Initialize the transformer.
-
-        :param pavilion.test_config.variables.VariableSetManager var_man:
-            The variable manager to use to resolve references.
-        """
-
-        self.var_man = var_man
-        super().__init__()
-
     def _call_userfunc_token(self, token):
         """Call the user defined function for handling the given token.
 

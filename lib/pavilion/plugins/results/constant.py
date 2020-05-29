@@ -1,8 +1,10 @@
-from pavilion import result_parsers
+from pavilion.result import parsers
+
+import pavilion.result.base
 import yaml_config as yc
 
 
-class Constant(result_parsers.ResultParser):
+class Constant(parsers.ResultParser):
     """Set a constant as result."""
 
     def __init__(self):
@@ -24,9 +26,9 @@ class Constant(result_parsers.ResultParser):
         return config_items
 
     def _check_args(self, const=None):
-        
+
         if const == "":
-            raise result_parsers.ResultParserError(
+            raise pavilion.result.base.ResultError(
                 "Constant required."
         )
 

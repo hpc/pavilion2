@@ -1,4 +1,4 @@
-.. _tests.config_values:
+.. _tests.values.config_values:
 
 Config Values
 =============
@@ -9,7 +9,7 @@ alter the each test configuration.
 
 .. contents::
 
-.. _tests.expressions:
+.. _tests.values.expressions:
 
 Expressions
 -----------
@@ -83,16 +83,18 @@ what they are.
 
 .. _Python format specs: https://docs.python.org/3.4/library/string.html#formatspec
 
+.. _tests.values.functions:
+
 Functions
 ^^^^^^^^^
 
 Functions can be used within expressions as well.
 
-- Functions are all :ref:`expression_function_plugins`.
+- Functions are all :ref:`plugins.expression_functions`.
 - Available functions can be listed with ``pav show functions``.
 - Functions auto-convert argument types as appropriate.
 
-.. _tests.iterations:
+.. _tests.values.iterations:
 
 Iterations
 ----------

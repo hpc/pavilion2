@@ -19,7 +19,7 @@ from pathlib import Path
 from pavilion.commands import Command
 from pavilion.expression_functions import FunctionPlugin
 from pavilion.module_wrapper import ModuleWrapper
-from pavilion.result_parsers import ResultParser
+from pavilion.result.parsers import ResultParser
 from pavilion.schedulers import SchedulerPlugin
 from pavilion.system_variables import SystemPlugin as System
 from yapsy import PluginManager
@@ -95,9 +95,8 @@ def initialize_plugins(pav_cfg):
 
     # Some plugin types have core plugins that are built-in.
     for _, cat_obj in PLUGIN_CATEGORIES.items():
-        module = inspect.getmodule(cat_obj)
-        if hasattr(module, 'register_core_plugins'):
-            module.register_core_plugins()
+        if hasattr(cat_obj, 'register_core'):
+            cat_obj.register_core()
 
     _PLUGIN_MANAGER = pman
 

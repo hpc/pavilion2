@@ -6,8 +6,10 @@
 """
 
 import ast
+from typing import Dict
 
 import lark
+import pavilion.expression_functions.common
 from pavilion import expression_functions as functions
 from .common import PavTransformer, ParserValueError
 
@@ -118,7 +120,7 @@ def get_expr_parser(debug=False):
     return parser
 
 
-class ExprTransformer(PavTransformer):
+class BaseExprTransformer(PavTransformer):
     """Transforms the expression parse tree into an actual value.  The
     resolved value will be one of the literal types."""
 
@@ -377,40 +379,6 @@ class ExprTransformer(PavTransformer):
 
         return self._merge_tokens(items, [item.value for item in items[1:-1]])
 
-    def var_ref(self, items) -> lark.Token:
-        """
-        :param items:
-        :return:
-        """
-
-        var_key_parts = [str(item.value) for item in items]
-        var_key = '.'.join(var_key_parts)
-        if len(var_key_parts) > 4:
-            raise ParserValueError(
-                self._merge_tokens(items, var_key),
-                "Invalid variable '{}': too many name parts."
-                .format(var_key))
-
-        try:
-            # This may also raise a DeferredError, but we don't want to
-            # catch those.
-            val = self.var_man[var_key]
-        except KeyError as err:
-            raise ParserValueError(
-                self._merge_tokens(items, var_key),
-                err.args[0])
-
-        # Convert val into the type it looks most like.
-        if isinstance(val, str):
-            val = self._convert(val)
-
-        return self._merge_tokens(items, val)
-
-    def var_key(self, items) -> lark.Token:
-        """Just return the key component."""
-
-        return items[0]
-
     def function_call(self, items) -> lark.Token:
         """Look up the function call, and call it with the given argument
         values.
@@ -424,18 +392,18 @@ class ExprTransformer(PavTransformer):
 
         try:
             func = functions.get_plugin(func_name)
-        except functions.FunctionPluginError:
+        except pavilion.expression_functions.common.FunctionPluginError:
             raise ParserValueError(
                 token=items[0],
                 message="No such function '{}'".format(func_name))
 
         try:
             result = func(*args)
-        except functions.FunctionArgError as err:
+        except pavilion.expression_functions.common.FunctionArgError as err:
             raise ParserValueError(
                 self._merge_tokens(items, None),
                 "Invalid arguments: {}".format(err))
-        except functions.FunctionPluginError as err:
+        except pavilion.expression_functions.common.FunctionPluginError as err:
             # The function plugins give a reasonable message.
             raise ParserValueError(self._merge_tokens(items, None), err.args[0])
 
@@ -495,3 +463,162 @@ class ExprTransformer(PavTransformer):
             return bool(value)
 
         return value
+
+
+class ExprTransformer(BaseExprTransformer):
+    """Convert Pavilion string expressions into their final values given
+    a variable manager."""
+
+    def __init__(self, var_man):
+        """Initialize the transformer.
+
+        :param pavilion.test_config.variables.VariableSetManager var_man:
+            The variable manager to use to resolve references.
+        """
+
+        self.var_man = var_man
+        super().__init__()
+
+    def var_ref(self, items) -> lark.Token:
+        """Resolve a Pavilion variable reference.
+
+        :param items:
+        :return:
+        """
+
+        var_key_parts = [str(item.value) for item in items]
+        var_key = '.'.join(var_key_parts)
+        if len(var_key_parts) > 4:
+            raise ParserValueError(
+                self._merge_tokens(items, var_key),
+                "Invalid variable '{}': too many name parts."
+                .format(var_key))
+
+        try:
+            # This may also raise a DeferredError, but we don't want to
+            # catch those.
+            val = self.var_man[var_key]
+        except KeyError as err:
+            raise ParserValueError(
+                self._merge_tokens(items, var_key),
+                err.args[0])
+
+        # Convert val into the type it looks most like.
+        if isinstance(val, str):
+            val = self._convert(val)
+
+        return self._merge_tokens(items, val)
+
+    @staticmethod
+    def var_key(items) -> lark.Token:
+        """Just return the key component."""
+
+        return items[0]
+
+
+class EvaluationExprTransformer(BaseExprTransformer):
+    """Transform result evaluation expressions into their final value.
+    The result dictionary referenced for values will be updated in place,
+    so subsequent uses of this will have the cumulative results.
+    """
+
+    def __init__(self, results: Dict):
+        super().__init__()
+        self.results = results
+
+    def var_ref(self, items) -> lark.Token:
+        """Iteratively traverse the results structure to find a value
+        given a key. A '*' in the key will return a list of all values
+        located by the remaining key. ('foo.*.bar' will return a list
+        of all 'bar' elements under the 'foo' key.).
+
+        :param items:
+        :return:
+        """
+
+        key_parts = [item.value for item in items]
+        try:
+            value = self._resolve_ref(self.results, key_parts)
+        except ValueError as err:
+            raise ParserValueError(
+                token=self._merge_tokens(items, None),
+                message=err.args[0])
+
+        if isinstance(value, str):
+            value = self._convert(value)
+
+        return self._merge_tokens(items, value)
+
+    def _resolve_ref(self, base, key_parts: list, seen_parts: tuple = tuple(),
+                     allow_listing: bool = True):
+        """Recursively resolve a variable reference by navigating dicts and
+            lists using the key parts until we reach the final value. If a
+            '*' is given, a list of the value found from looking up the
+            remainder of the key are returned. For example, for a dict
+            of lists of dicts, we might have a key 'a.*.b', which would return
+            the value of the 'b' key for each item in the list at 'a'.
+        :param base: The next item to apply a key lookup too.
+        :param key_parts: The remaining parts of the key.
+        :param seen_parts: The parts of the key we've seen so far.
+        :param allow_listing: Allow '*' in the key_parts. This is turned off
+            once we've seen one.
+        :return:
+        """
+
+        if not key_parts:
+            return base
+
+        key_part = key_parts.pop(0)
+        seen_parts = seen_parts + (key_part,)
+
+        if key_part == '*':
+            if not allow_listing:
+                raise ValueError(
+                    "References can only contain a single '*'.")
+
+            if not isinstance(base, (list, dict)):
+                raise ValueError(
+                    "Used a '*' in a variable name, but the "
+                    "component at that point '{}' isn't a list or dict."
+                    .format('.'.join(seen_parts)))
+
+            return [self._resolve_ref(sub_base, key_parts, seen_parts, False)
+                    for sub_base in base]
+
+        elif isinstance(base, list):
+            try:
+                idx = int(key_part)
+            except ValueError:
+                raise ValueError(
+                    "Invalid key component '{}'. The results structure at "
+                    "'{}' is a list (so that component must be an integer)."
+                    .format(key_part, '.'.join(seen_parts)))
+
+            if idx >= len(base):
+                raise ValueError(
+                    "Key component '{}' is out of range for the list"
+                    "at '{}'.".format(idx, '.'.join(seen_parts))
+                )
+
+            return self._resolve_ref(base[idx], key_parts, seen_parts,
+                                     allow_listing)
+
+        elif isinstance(base, dict):
+            if key_part not in base:
+                raise ValueError(
+                    "Results dict does not have the key '{}'."
+                    .format('.'.join([str(part) for part in seen_parts]))
+                )
+
+            return self._resolve_ref(base[key_part], key_parts, seen_parts,
+                                     allow_listing)
+
+        raise ValueError("Key component '{}' given, but value '{}' at '{}'"
+                         "is not a dict or list."
+                         .format(key_part, base, '.'.join(seen_parts)))
+
+    @staticmethod
+    def var_key(items) -> lark.Token:
+        """Just return the key component."""
+
+        return items[0]
