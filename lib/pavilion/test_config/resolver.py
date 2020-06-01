@@ -349,9 +349,16 @@ class TestConfigResolver:
             # Set the scheduler variables for each test.
             for test_cfg, test_var_man in raw_tests_by_sched[sched_name]:
                 # Resolve all variables for the test (that aren't deferred).
-                resolved_config = self.resolve_config(
-                    test_cfg,
-                    test_var_man)
+                try:
+                    resolved_config = self.resolve_config(
+                        test_cfg,
+                        test_var_man)
+                except TestConfigError as err:
+                    msg = ('In test {} from {}:\n{}'
+                           .format(test_cfg['name'], test_cfg['suite_path'],
+                                   err.args[0]))
+                    self.logger.error(msg)
+                    raise TestConfigError(msg)
 
                 resolved_tests.append((resolved_config, test_var_man))
 
@@ -421,10 +428,11 @@ class TestConfigResolver:
                 test_suite_path = self._find_config(CONF_TEST, test_suite)
 
                 if test_suite_path is None:
+                    cdirs = [str(cdir) for cdir in self.pav_cfg.config_dirs]
                     raise TestConfigError(
                         "Could not find test suite {}. Looked in these "
                         "locations: {}"
-                        .format(test_suite, self.pav_cfg.config_dirs))
+                        .format(test_suite, cdirs))
 
                 try:
                     with test_suite_path.open() as test_suite_file:
@@ -469,6 +477,8 @@ class TestConfigResolver:
                     test_cfg['name'] = test_cfg_name
                     test_cfg['suite'] = test_suite
                     test_cfg['suite_path'] = str(test_suite_path)
+                    test_cfg['host'] = host
+                    test_cfg['modes'] = modes
 
                 all_tests[test_suite] = suite_tests
 
@@ -494,16 +504,17 @@ class TestConfigResolver:
             for test_cfg in picked_tests]
 
         # Get the default configuration for a const result parser.
-        const_elem = TestConfigLoader().find('results.constant.*')
+        const_elem = TestConfigLoader().find('results.parse.constant.*')
 
         # Add the pav_cfg default_result configuration items to each test.
         for test_cfg in picked_tests:
 
-            if 'constant' not in test_cfg['results']:
-                test_cfg['results']['constant'] = []
+            if 'constant' not in test_cfg['results']['parse']:
+                test_cfg['results']['parse']['constant'] = []
 
-            const_keys = [const['key']
-                          for const in test_cfg['results']['constant']]
+            const_keys = [
+                const['key'] for const in
+                test_cfg['results']['parse']['constant']]
 
             for key, const in self.pav_cfg.default_results.items():
 
@@ -515,7 +526,7 @@ class TestConfigResolver:
                     'key': key,
                     'const': const,
                 })
-                test_cfg['results']['constant'].append(new_const)
+                test_cfg['results']['parse']['constant'].append(new_const)
 
         return picked_tests
 
@@ -750,8 +761,7 @@ class TestConfigResolver:
         used_per_vars = set()
         for per_var in permute_on:
             try:
-                var_set, var, index, subvar = var_key = \
-                    base_var_man.resolve_key(per_var)
+                var_set, var, index, subvar = base_var_man.resolve_key(per_var)
             except KeyError:
                 raise TestConfigError(
                     "Permutation variable '{}' is not defined."
@@ -788,7 +798,8 @@ class TestConfigResolver:
             var_man.resolve_references()
         return test_cfg, var_men
 
-    NOT_OVERRIDABLE = ['name', 'suite', 'suite_path', 'scheduler']
+    NOT_OVERRIDABLE = ['name', 'suite', 'suite_path', 'scheduler',
+                       'base_name', 'host', 'modes']
 
     def apply_overrides(self, test_cfg, overrides):
         """Apply overrides to this test.

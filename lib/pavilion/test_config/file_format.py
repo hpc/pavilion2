@@ -175,14 +175,23 @@ expected to be added to by various plugins.
     ELEMENTS = [
         yc.StrElem(
             'name', hidden=True, default='<unnamed>',
-            help_text="The name of the test. Will be auto-generated from the "
-                      "suite name, test section name, and subtitle."),
+            help_text="The base name of the test. Value added automatically."),
         yc.StrElem(
             'suite', hidden=True, default='<no_suite>',
             help_text="The name of the suite. Value added automatically."),
         yc.StrElem(
             'suite_path', hidden=True, default='<no_suite>',
             help_text="Path to the suite file. Value added automatically."),
+        yc.StrElem(
+            'host', hidden=True, default='<unknown>',
+            help_text="Host (typically sys.sys_name) for which this test was "
+                      "created. Value added automatically."
+        ),
+        yc.ListElem(
+            'modes', hidden=True, sub_elem=yc.StrElem(),
+            help_text="Modes used in the creation of this test. Value is added "
+                      "automatically."
+        ),
         yc.RegexElem(
             'inherits_from', regex=TEST_NAME_RE_STR,
             help_text="Inherit from the given test section, and override "
@@ -385,13 +394,27 @@ expected to be added to by various plugins.
     # We'll append the result parsers separately, to have an easy way to
     # access it.
     _RESULT_PARSERS = yc.KeyedElem(
-        'results', elements=[],
+        'parse', elements=[],
         help_text="Result parser configurations go here. Each parser config "
                   "can occur by itself or as a list of configs, in which "
                   "case the parser will run once for each config given. The "
-                  "output of these parsers will be combined into the final "
+                  "output of these parsers will be added to the final "
                   "result json data.")
-    ELEMENTS.append(_RESULT_PARSERS)
+    ELEMENTS.append(yc.KeyedElem(
+        'results', elements=[
+            _RESULT_PARSERS,
+            yc.CategoryElem(
+                'evaluate', sub_elem=yc.StrElem(),
+                help_text="The keys and values in this section will also "
+                          "be added to the result json. The values are "
+                          "expressions (like in {{<expr>}} in normal Pavilion "
+                          "strings), but the result json itself is the "
+                          "only variable available. The expression results are "
+                          "stored directly without conversion into strings,"
+                          "and in the order given.")
+        ],
+        help_text="Parse and analyze test run results."
+    ))
 
     @classmethod
     def add_subsection(cls, subsection):

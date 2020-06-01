@@ -8,10 +8,11 @@ import threading
 import subprocess
 from collections import defaultdict
 
+import pavilion.result
 from pavilion import commands
 from pavilion import output
 from pavilion.output import fprint
-from pavilion import result_parsers
+from pavilion.result import parsers
 from pavilion import schedulers
 from pavilion import system_variables
 from pavilion import test_config
@@ -27,8 +28,8 @@ class RunCommand(commands.Command):
 
     :ivar TestSeries last_series: The suite number of the last suite to run
         with this command (for unit testing).
-    :ivar [TestRun] last_tests: A list of the last test runs that this command
-        started (also for unit testing).
+    :ivar List[TestRun] last_tests: A list of the last test runs that this
+        command started (also for unit testing).
     """
 
     BUILD_ONLY = False
@@ -39,7 +40,7 @@ class RunCommand(commands.Command):
                          short_help="Setup and run a set of tests.")
 
         self.last_series = None
-        self.last_tests = []
+        self.last_tests = []  # type: List[TestRun]
 
     def _setup_arguments(self, parser):
 
@@ -168,7 +169,7 @@ class RunCommand(commands.Command):
         series = TestSeries(pav_cfg, all_tests)
         self.last_series = series
 
-        res = self.check_result_parsers(all_tests)
+        res = self.check_result_format(all_tests)
         if res != 0:
             self.complete_tests(all_tests)
             return res
@@ -304,7 +305,7 @@ class RunCommand(commands.Command):
         return 0
 
     def get_test_configs(self, pav_cfg, host, test_files, tests, modes,
-                         overrides, sys_vars, conditions=None):
+                         overrides, conditions=None):
         """Translate a general set of pavilion test configs into the final,
             resolved configurations. These objects will be organized in a
             dictionary by scheduler, and have a scheduler object instantiated
@@ -339,13 +340,16 @@ class RunCommand(commands.Command):
                 self.logger.error(msg)
                 raise commands.CommandError(msg)
 
-        resolved_cfgs = resolver.load(
-            tests,
-            host,
-            modes,
-            overrides,
-            conditions=conditions
-        )
+        try:
+            resolved_cfgs = resolver.load(
+                tests,
+                host,
+                modes,
+                overrides,
+                conditions=conditions
+            )
+        except TestConfigError as err:
+            raise commands.CommandError(err.args[0])
 
         tests_by_scheduler = defaultdict(lambda: [])
         for cfg, var_man in resolved_cfgs:
@@ -405,15 +409,12 @@ class RunCommand(commands.Command):
         sys_vars = system_variables.get_vars(True)
 
         try:
-            configs_by_sched = self.get_test_configs(
-                pav_cfg=pav_cfg,
-                host=args.host,
-                test_files=args.files,
-                tests=args.tests,
-                modes=args.modes,
-                overrides=args.overrides,
-                sys_vars=sys_vars,
-            )
+            configs_by_sched = self.get_test_configs(pav_cfg=pav_cfg,
+                                                      host=args.host,
+                                                      test_files=args.files,
+                                                      tests=args.tests,
+                                                      modes=args.modes,
+                                                      overrides=args.overrides)
 
             # Remove non-local builds when doing only local builds.
             if build_only and local_builds_only:
@@ -436,8 +437,6 @@ class RunCommand(commands.Command):
             )
 
         except commands.CommandError as err:
-            # Our error messages get escaped to a silly degree
-            err = codecs.decode(str(err), 'unicode-escape')
             fprint(err, file=self.errfile, flush=True)
             return None
 
@@ -463,7 +462,7 @@ class RunCommand(commands.Command):
         for test in tests:
             test.set_run_complete()
 
-    def check_result_parsers(self, tests):
+    def check_result_format(self, tests):
         """Make sure the result parsers for each test are ok."""
 
         rp_errors = []
@@ -471,7 +470,7 @@ class RunCommand(commands.Command):
 
             # Make sure the result parsers have reasonable arguments.
             try:
-                result_parsers.check_args(test.config['results'])
+                pavilion.result.check_config(test.config['results'])
             except TestRunError as err:
                 rp_errors.append(str(err))
 

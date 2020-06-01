@@ -57,7 +57,6 @@ class LockFileRotatingFileHandler(logging.Handler):
     def _do_nothing(self):
         """createLock, acquire, release, flush, and close do nothing in
         this handler implementation."""
-        pass
 
     # We don't need thread based locking.
     createLock = _do_nothing

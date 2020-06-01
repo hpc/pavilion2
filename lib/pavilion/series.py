@@ -166,7 +166,6 @@ class SeriesManager:
                 tests=[test_name],
                 modes=self.test_info[test_name]['modes'],
                 overrides=None,
-                sys_vars=sys_vars,
                 conditions=new_conditions
             )
 
@@ -208,7 +207,7 @@ class SeriesManager:
         run_cmd.last_series = self.series_obj
 
         # make sure result parsers are ok
-        res = run_cmd.check_result_parsers(all_tests)
+        res = run_cmd.check_result_format(all_tests)
         if res != 0:
             run_cmd.complete_tests(all_tests)
             self.test_info[test_name]['obj'] = run_cmd.last_tests

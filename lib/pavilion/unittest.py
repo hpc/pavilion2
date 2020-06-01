@@ -4,6 +4,7 @@ for Pavilion."""
 import copy
 import fnmatch
 import inspect
+import io
 import os
 import pprint
 import tempfile
@@ -13,14 +14,15 @@ from hashlib import sha1
 from pathlib import Path
 
 from pavilion import arguments
+from pavilion import commands
 from pavilion import config
 from pavilion import pavilion_variables
 from pavilion import system_variables
-from pavilion.test_run import TestRun
-from pavilion.test_config.file_format import TestConfigLoader
+from pavilion.output import dbg_print
 from pavilion.test_config import VariableSetManager
 from pavilion.test_config import resolver
-from pavilion.output import dbg_print
+from pavilion.test_config.file_format import TestConfigLoader
+from pavilion.test_run import TestRun
 
 
 class PavTestCase(unittest.TestCase):
@@ -286,6 +288,10 @@ though."""
             'timeout': '300',
         },
         'slurm': {},
+        'results': {
+            'parse': {},
+            'evaluate': {},
+        }
     }
 
     def _quick_test_cfg(self):

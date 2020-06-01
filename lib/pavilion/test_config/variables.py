@@ -61,7 +61,6 @@ and something goes wrong."""
 
 class DeferredError(VariableError):
     """Raised when we encounter a deferred variable we can't resolve."""
-    pass
 
 
 class DeferredVariable:
