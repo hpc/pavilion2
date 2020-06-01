@@ -411,7 +411,10 @@ class TestBuilder:
                     self.tracker.update(
                         state=STATES.BUILDING,
                         note="Starting build {}.".format(self.name))
-                    build_dir = self.path.with_suffix('.tmp')
+                    if not self._config.get('in_place'):
+                        build_dir = self.path.with_suffix('.tmp')
+                    else:
+                        build_dir = self.path
 
                     # Attempt to perform the actual build, this shouldn't
                     # raise an exception unless something goes terribly
@@ -441,7 +444,8 @@ class TestBuilder:
                         utils.repair_symlinks(build_dir)
 
                         # Rename the build to it's final location.
-                        build_dir.rename(self.path)
+                        if not self._config.get('in_place'):
+                            build_dir.rename(self.path)
                     except (OSError, ValueError) as err:
                         self.tracker.error(
                             "Unexpected error: {}".format(err.args[0])

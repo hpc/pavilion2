@@ -326,6 +326,23 @@ class BuilderTests(PavTestCase):
         self.assertTrue(current_note.startswith(
             "Build returned a non-zero result."))
 
+    def test_in_place_build(self):
+        """Check if the in_place functionality works."""
+
+        config = {
+            'name': 'build_test',
+            'scheduler': 'raw',
+            'build': {
+                'cmds': ['sleep 10'],
+                'in_place': 'true',
+            },
+        }
+
+        #  Check that building, and then re-using, a build directory works.
+        test = TestRun(self.pav_cfg, config)
+
+        self.assertFalse(self.tmp_path.exists())
+
     def test_builder_cancel(self):
         """Check build canceling through their threading event."""
 

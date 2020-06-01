@@ -256,6 +256,11 @@ expected to be added to by various plugins.
                               'Relative paths searched for in ~/.pavilion, '
                               '$PAV_CONFIG. Absolute paths are ok, '
                               'but not recommended.'),
+                yc.StrElem(
+                    'in_place', default='False',
+                    choices=['true', 'false', 'True', 'False'],
+                    help_text="Whether to build in the final location or "
+                              "in a temporary directory and then moved."),
                 yc.ListElem(
                     'modules', sub_elem=yc.StrElem(),
                     help_text="Modules to load into the build environment."),
