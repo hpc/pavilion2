@@ -410,11 +410,11 @@ class RunCommand(commands.Command):
 
         try:
             configs_by_sched = self.get_test_configs(pav_cfg=pav_cfg,
-                                                      host=args.host,
-                                                      test_files=args.files,
-                                                      tests=args.tests,
-                                                      modes=args.modes,
-                                                      overrides=args.overrides)
+                                                     host=args.host,
+                                                     test_files=args.files,
+                                                     tests=args.tests,
+                                                     modes=args.modes,
+                                                     overrides=args.overrides)
 
             # Remove non-local builds when doing only local builds.
             if build_only and local_builds_only:

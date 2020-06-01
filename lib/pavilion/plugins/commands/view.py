@@ -72,9 +72,9 @@ class ViewCommand(run.RunCommand):
 
         try:
             configs = self.get_test_configs(pav_cfg=pav_cfg, host=args.host,
-                                             test_files=[], tests=tests,
-                                             modes=args.modes,
-                                             overrides=overrides)
+                                            test_files=[], tests=tests,
+                                            modes=args.modes,
+                                            overrides=overrides)
         except commands.CommandError as err:
             fprint(err, file=self.errfile, color=output.RED)
             return errno.EINVAL
