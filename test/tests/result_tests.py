@@ -441,7 +441,7 @@ class ResultParserTests(PavTestCase):
 
             results = test.gather_results(0)
 
-            for rkey, rval  in exp_results.items():
+            for rkey, rval in exp_results.items():
                 self.assertEqual(
                     results[rkey],
                     exp_results[rkey],
