@@ -147,8 +147,6 @@ class SeriesManager:
         # basically copy what the run command is doing here
         mb_tracker = MultiBuildTracker()
 
-        sys_vars = system_variables.get_vars(True)
-
         run_cmd = commands.get_command('run')
 
         # run.RunCommand._get_tests function

@@ -36,20 +36,10 @@ LOGGER = logging.getLogger('pav.' + __name__)
 def union_dictionary(dict1, dict2):
     """Combines two dictionaries with nested lists."""
 
-    new_dict = {}
-    dict2_keys = list(dict2.keys())
+    for key in dict2.keys():
+        dict1[key] = dict1.get(key, []) + dict1[key]
 
-    for key, list_value in dict1.items():
-        new_dict[key] = list_value
-        if key in dict2.keys():
-            new_dict[key].extend(dict2[key])
-            dict2_keys.remove(key)
-            new_dict[key] = list(set(new_dict[key]))
-
-    for key in dict2_keys:
-        new_dict[key] = dict2[key]
-
-    return new_dict
+    return dict1
 
 
 class TestConfigResolver:

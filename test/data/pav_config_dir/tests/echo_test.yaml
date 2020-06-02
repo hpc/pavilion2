@@ -21,8 +21,9 @@ a:
 
 b:
     inherits_from: a
+    permute_on: ['num']
     variables:
-        num: 20
+        num: [20, 11, 9]
 
 c:
     inherits_from: a
