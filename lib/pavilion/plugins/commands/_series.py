@@ -10,7 +10,7 @@ class AutoSeries(commands.Command):
 
     def __init__(self):
         super().__init__(
-            name='_auto_series',
+            name='_series',
             description='Run Series, but make this hidden.',
             short_help='Run complicated series, but make this hidden.',
         )
@@ -28,6 +28,11 @@ class AutoSeries(commands.Command):
 
     def run(self, pav_cfg, args):
 
+        self.make_series_man(pav_cfg, args)
+
+        return 0
+
+    def make_series_man(self, pav_cfg, args):
         series_name = args.series
 
         series_config_loader = SeriesConfigLoader()
@@ -53,4 +58,4 @@ class AutoSeries(commands.Command):
 
             series_man = series.SeriesManager(pav_cfg, series_obj, series_cfg)
 
-        return 0
+        return series_man

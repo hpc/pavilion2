@@ -1,6 +1,6 @@
 [Core]
-Name = Auto Run Command
-Module = _auto_series
+Name = Hidden Series Command
+Module = _series
 
 [Documentation]
 Description =

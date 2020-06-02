@@ -1,0 +1,13 @@
+series:
+
+    "echo_test.a":
+        modes: ['smode1']
+
+    "echo_test.b":
+
+    # echo_test will be skipped
+    "echo_test.c":
+        only_if:
+          "{{another_num}}": 100
+
+modes: ['smode2']

@@ -1,0 +1,30 @@
+a:
+    run:
+        cmds:
+            - "echo pass"
+    variables:
+        num: 12
+
+    results:
+        parse:
+            constant:
+                - key: number
+                  const: '{{num}}'
+                - key: other_num
+                  const: '{{another_num}}'
+            regex:
+                key: fake_result
+                regex: "pass"
+        evaluate:
+            asdf: 'number - 10'
+            result: 'asdf < 3'
+
+b:
+    inherits_from: a
+    variables:
+        num: 20
+
+c:
+    inherits_from: a
+    only_if:
+        "{{num1}}": 11

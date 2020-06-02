@@ -136,7 +136,7 @@ class RunCommand(commands.Command):
             series_obj = TestSeries(pav_cfg)
 
             # call _auto_series
-            temp_args = ['pav', '_auto_series', args.series,
+            temp_args = ['pav', '_series', args.series,
                          '--series-id={}'.format(series_obj.id)]
             # this process will outlive the parent, and that's what we want
             subprocess.Popen(temp_args,
