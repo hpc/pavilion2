@@ -32,7 +32,7 @@ class AutoSeries(commands.Command):
 
         return 0
 
-    # py-lint: disable=no-self-use
+    # pylint: disable=no-self-use
     def make_series_man(self, pav_cfg, args):
         series_name = args.series
 
