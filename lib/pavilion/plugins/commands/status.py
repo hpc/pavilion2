@@ -373,12 +373,13 @@ class StatusCommand(commands.Command):
                 color = output.GREEN
             elif key == 'SKIPPED':
                 color = output.YELLOW
-            elif key == 'RUNNING' or key == 'SCHEDULED' or key == 'PREPPING_RUN' \
+            elif key == 'RUNNING' or key == 'SCHEDULED' \
+                    or key == 'PREPPING_RUN' \
                     or key == 'BUILDING' or key == 'BUILD_DONE' \
                     or key == 'BUILD_REUSED':
                 color = output.CYAN
             else:
-                color = output.WHITE  # State does not occur often enough to warrant color.
+                color = output.WHITE  # Not enough to warrant color.
 
             # Populating rows...
             if key == 'COMPLETE':  # only time we need to populate pass/fail
