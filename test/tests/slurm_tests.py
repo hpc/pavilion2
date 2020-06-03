@@ -166,7 +166,7 @@ class SlurmTests(PavTestCase):
         var_list = list()
         for k, v in slurm.get_vars(sched_conf).items():
             # Make sure everything has a value of some sort.
-            self.assertNotIn(v, ['None', ''])
+            self.assertNotIn(v, ['None', '', []])
             var_list.append(k)
 
         # Now check all the vars for real, when a test is running.
@@ -244,7 +244,7 @@ class SlurmTests(PavTestCase):
                     .format(test.id, test.path, self.TEST_TIMEOUT, num_nodes))
 
         results = test.load_results()
-        self.assertEqual(results['result'], parsers.PASS)
+        self.assertEqual(results['result'], test.PASS)
 
     @unittest.skipIf(not has_slurm(), "Only runs on a system with slurm.")
     def test_include_exclude(self):

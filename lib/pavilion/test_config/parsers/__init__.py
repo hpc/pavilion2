@@ -17,11 +17,12 @@ directly as a ResultExpression.
 """
 
 import re
-from typing import Union
+from typing import Union, Dict
 
 import lark as _lark
 from .common import ParserValueError
-from .expressions import get_expr_parser, EvaluationExprTransformer
+from .expressions import (get_expr_parser, EvaluationExprTransformer,
+                          VarRefVisitor)
 from .strings import get_string_parser, StringTransformer
 
 
@@ -131,29 +132,59 @@ def check_expression(expr: str) -> Union[None, str]:
     return None
 
 
-def parse_evaluation_expression(expr: str, results: dict):
-    """Parse the given evaluate expression using the data in the results
-    dict.
+def parse_evaluation_dict(eval_dict: Dict[str, str], results: dict) -> None:
+    """Parse the dictionary of evaluation expressions, given that some of them
+    may contain references to each other. Each evaluated value will be stored
+    under its corresponding key in the results dict.
 
-    :returns: An int, float, bool, str or a structure of lists dicts containing
-        only those types.
+    :raises StringParserError: When there's an error parsing or resolving
+        one of the expressions. The error will already contain key information.
+    :raises ValueError: When there's a reference loop.
     """
 
     parser = get_expr_parser()
     transformer = EvaluationExprTransformer(results)
+    var_ref_visitor = VarRefVisitor()
 
-    try:
-        tree = parser.parse(expr)
-    except (_lark.UnexpectedCharacters, _lark.UnexpectedToken) as err:
-        # Try to figure out why the error happened based on examples.
-        err_type = match_examples(err, parser.parse, BAD_EXAMPLES, expr)
-        raise StringParserError(err_type, err.get_context(expr))
+    unresolved = {}
 
-    try:
-        return transformer.transform(tree)
-    except ParserValueError as err:
-        # Any value errors should be converted to this error type.
-        raise StringParserError(err.args[0], err.get_context(expr))
+    for key, expr in eval_dict.items():
+        try:
+            tree = parser.parse(expr)
+        except (_lark.UnexpectedCharacters, _lark.UnexpectedToken) as err:
+            # Try to figure out why the error happened based on examples.
+            err_type = match_examples(err, parser.parse, BAD_EXAMPLES, expr)
+            raise StringParserError(
+                "Error evaluating expression '{}' for key '{}':\n{}"
+                .format(expr, key, err_type), err.get_context(expr))
+
+        var_refs = var_ref_visitor.visit(tree)
+
+        unresolved[key] = (tree, var_refs, expr)
+
+    while unresolved:
+        resolved = []
+        for key, (tree, var_refs, expr) in unresolved.items():
+            for var in var_refs:
+                if var in unresolved:
+                    break
+            else:
+                try:
+                    results[key] = transformer.transform(tree)
+                except ParserValueError as err:
+                    # Any value errors should be converted to this error type.
+                    raise StringParserError(err.args[0], err.get_context(expr))
+                resolved.append(key)
+
+        if not resolved:
+            # Pass up the unresolved
+            raise ValueError("Reference loops found amongst evaluation keys "
+                             "{}.".format(tuple(unresolved.keys())))
+
+        for key in resolved:
+            del unresolved[key]
+
+    return
 
 
 def match_examples(exc, parse_fn, examples, text):
