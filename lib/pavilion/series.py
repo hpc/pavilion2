@@ -20,6 +20,7 @@ from pavilion.status_file import STATES
 from pavilion.builder import MultiBuildTracker
 from pavilion.test_run import TestRun, TestRunError, TestRunNotFoundError
 
+from pavilion import output
 
 class TestSeriesError(RuntimeError):
     """An error in managing a series of tests."""
@@ -144,6 +145,9 @@ class SeriesManager:
             time.sleep(1)
 
     def run_test(self, test_name):
+
+        output.dbg_print(self.started, '\n', color=output.CYAN)
+
         # basically copy what the run command is doing here
         mb_tracker = MultiBuildTracker()
 
@@ -225,16 +229,61 @@ class SeriesManager:
             self.finished.append(test_name)
             return None
 
-        run_cmd.run_tests(
-            pav_cfg=self.pav_cfg,
-            tests_by_sched=tests_by_sched,
-            series=self.series_obj,
-            wait=None,
-            report_status=False
-        )
+        if self.series_cfg['simultaneous'] is None:
+            output.dbg_print('no simultaneous')
+            run_cmd.run_tests(
+                pav_cfg=self.pav_cfg,
+                tests_by_sched=tests_by_sched,
+                series=self.series_obj,
+                wait=None,
+                report_status=False
+            )
+        else:
+            simult = int(self.series_cfg['simultaneous'])
+
+            # [ { sched: test_obj}, { sched: test_obj }, etc. ]
+            list_of_tests_by_sched = []
+            for sched, test_objs in tests_by_sched.items():
+                for test_obj in test_objs:
+                    list_of_tests_by_sched.append({sched: [test_obj]})
+
+            output.dbg_print(tests_by_sched, '\n', color=output.WHITE)
+            output.dbg_print(list_of_tests_by_sched, '\n',
+                             color=output.MAGENTA)
+
+            for test in list_of_tests_by_sched:
+                self.test_lock(simult)
+                run_cmd.run_tests(
+                    pav_cfg=self.pav_cfg,
+                    tests_by_sched=test,
+                    series=self.series_obj,
+                    wait=None,
+                    report_status=False
+                )
 
         self.test_info[test_name]['obj'] = run_cmd.last_tests
         self.started.append(test_name)
+
+    def test_lock(self, simul):
+
+        while len(self.get_currently_running()) >= simul:
+            time.sleep(5)
+
+        return
+
+    # checks for currently running tests
+    def get_currently_running(self):
+        cur_run = []
+        output.dbg_print('started list: ', self.started, '\n',
+                      color=output.MAGENTA)
+        for test_name in self.started:
+            for test_obj in self.test_info[test_name]['obj']:
+                temp_state = test_obj.status.current().state
+                output.dbg_print(test_obj, temp_state, '\n', color=output.GRAY)
+                if temp_state in ['SCHEDULED', 'RUNNING']:
+                    cur_run.append(test_obj)
+        output.dbg_print('cur run: ', cur_run, '\n')
+        return cur_run
 
     # determines if test/s is/are done running
     def is_done(self, test_name):

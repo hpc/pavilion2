@@ -30,3 +30,9 @@ c:
     inherits_from: a
     only_if:
         "{{num1}}": 11
+
+d:
+    inherits_from: a
+    scheduler: slurm
+    slurm:
+        num_nodes: 1

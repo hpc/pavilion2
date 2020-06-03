@@ -8,5 +8,7 @@ series:
     # echo_test will be skipped
     "echo_test.c":
 
+    "echo_test.d":
+
 modes: ['smode2']
 simultaneous: 2
