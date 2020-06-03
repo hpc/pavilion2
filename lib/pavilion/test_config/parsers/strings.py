@@ -9,8 +9,8 @@ String LALR Grammar
 """
 
 import lark
-from .common import ParserValueError, PavTransformer, VarRefVisitor
-from .expressions import get_expr_parser, ExprTransformer
+from .common import ParserValueError, PavTransformer
+from .expressions import get_expr_parser, ExprTransformer, VarRefVisitor
 
 STRING_GRAMMAR = r'''
 // All strings resolve to this token. 

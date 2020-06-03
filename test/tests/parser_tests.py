@@ -1,6 +1,7 @@
 """Tests for the various Pavilion parsers."""
 
 import lark
+import pavilion.test_config.parsers.expressions
 from pavilion import plugins
 from pavilion import unittest
 from pavilion.test_config import parsers
@@ -47,7 +48,7 @@ class ParserTests(unittest.PavTestCase):
         # variables as a list (with unique items).
         expr = 'int1.3.foo + var.int2.*.bleh * 11 * - sum([int1, int1])'
         tree = expr_parser.parse(expr)
-        visitor = parsers.common.VarRefVisitor()
+        visitor = pavilion.test_config.parsers.expressions.VarRefVisitor()
         used_vars = visitor.visit(tree)
 
         self.assertEqual(used_vars,

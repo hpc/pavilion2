@@ -638,3 +638,45 @@ class EvaluationExprTransformer(BaseExprTransformer):
         """Just return the key component."""
 
         return items[0]
+
+
+class VarRefVisitor(lark.Visitor):
+    """Finds all of the variable references in an expression parse tree."""
+
+    def __default__(self, tree):
+        """By default, return an empty list for each subtree, as
+        most trees will have no variable references."""
+
+        return None
+
+    def visit(self, tree):
+        """Visit the tree bottom up and return all the variable references
+        found."""
+
+        var_refs = []
+
+        for subtree in tree.iter_subtrees():
+            refs = self._call_userfunc(subtree)
+            if refs is None:
+                continue
+
+            for ref in refs:
+                if ref not in var_refs:
+                    var_refs.append(ref)
+
+        return var_refs
+
+    # We're not supporting this method (always just use .visit())
+    visit_topdown = None
+
+    @staticmethod
+    def var_ref(tree: lark.Tree) -> [str]:
+        """Assemble and return the given variable reference."""
+
+        var_parts = []
+        for val in tree.scan_values(lambda c: True):
+            var_parts.append(val)
+
+        var_name = '.'.join(var_parts)
+
+        return [var_name]
