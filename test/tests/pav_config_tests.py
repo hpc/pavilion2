@@ -1,6 +1,9 @@
-from pavilion.unittest import PavTestCase
-from pavilion import config
 import io
+import os
+from pathlib import Path
+
+from pavilion import config
+from pavilion.unittest import PavTestCase
 
 
 class PavConfigTests(PavTestCase):
@@ -32,3 +35,15 @@ class PavConfigTests(PavTestCase):
         new_cfg = loader.load(file)
 
         self.assertEqual(pav_cfg, new_cfg)
+
+    def test_ex_path_elem(self):
+        """Make sure the ex_path_elem works as expected."""
+
+        elem = config.ExPathElem("test")
+
+        self.assertIsNone(elem.validate(None))
+        self.assertEqual(elem.validate("/tmp/$USER/blarg"),
+                         Path('/tmp', os.environ['USER'], 'blarg'))
+        self.assertEqual(elem.validate("/tmp/${NO_SUCH_VAR}/ok"),
+                         Path("/tmp/${NO_SUCH_VAR}/ok"))
+
