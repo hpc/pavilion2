@@ -46,4 +46,3 @@ class PavConfigTests(PavTestCase):
                          Path('/tmp', os.environ['USER'], 'blarg'))
         self.assertEqual(elem.validate("/tmp/${NO_SUCH_VAR}/ok"),
                          Path("/tmp/${NO_SUCH_VAR}/ok"))
-
