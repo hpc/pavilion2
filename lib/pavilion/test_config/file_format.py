@@ -156,8 +156,8 @@ class SeriesConfigLoader(yc.YamlConfigLoader):
         yc.ListElem(
             'modes', sub_elem=yc.StrElem()
         ),
-        yc.ListElem(
-            'on_complete', sub_elem=yc.StrElem()
+        yc.IntElem(
+            'simultaneous'
         ),
         yc.StrElem(
             'ordered', choices=['True', 'true', 'False', 'false'],
