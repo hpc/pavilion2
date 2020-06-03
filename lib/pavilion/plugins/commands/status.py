@@ -329,13 +329,11 @@ class StatusCommand(commands.Command):
 
         return ret_val
 
-
     def print_summary(self, statuses):
         """Print_summary takes in a list of test statuses.
         It summarizes basic state output and displays
         the data to the user through draw_table.
         :param statuses: state list of current jobs
-        :param outfile:
         :rtype: int
         """
         # Populating table dynamically requires dict
@@ -368,21 +366,24 @@ class StatusCommand(commands.Command):
             #  Build the rows for drawtables.
 
             #  Determine Color.
-            if key in {'ERROR', 'FAILED', 'TIMEOUT'}:
-                color = 'RED'
-            elif key in 'COMPLETE':
-                color = 'GREEN'
-            elif key in 'SKIPPED':
-                color = 'YELLOW'
-            elif key in {'RUNNING', 'SCHEDULED', 'PREPPING_RUN'}:
-                color = 'CYAN'
+            if key.endswith('ERROR') or key.endswith('TIMEOUT') or \
+               key.endswith('FAILED') or key == 'ABORTED' or key == 'INVALID':
+                color = output.RED
+            elif key == 'COMPLETE':
+                color = output.GREEN
+            elif key == 'SKIPPED':
+                color = output.YELLOW
+            elif key == 'RUNNING' or key == 'SCHEDULED' or key == 'PREPPING_RUN' \
+                    or key == 'BUILDING' or key == 'BUILD_DONE' \
+                    or key == 'BUILD_REUSED':
+                color = output.CYAN
             else:
-                color = 'WHITE'  # Unknown state.
+                color = output.WHITE  # State does not occur often enough to warrant color.
 
             # Populating rows...
-            if key in 'COMPLETE':  # only time we need to populate pass/fail
+            if key == 'COMPLETE':  # only time we need to populate pass/fail
                 rows.append(
-                    {'State': output.ANSIString(key, output.COLORS.get(color)),
+                    {'State': output.ANSIString(key, color),
                      'Amount': value,
                      'Percent': '{0:.0%}'.format(value / total_tests),
                      'PASSED': '{0:.0%}'.format(passes / value)
@@ -392,19 +393,17 @@ class StatusCommand(commands.Command):
                 )
             else:
                 rows.append(
-                    {'State': output.ANSIString(key, output.COLORS.get(color)),
+                    {'State': output.ANSIString(key, color),
                      'Amount': value,
                      'Percent': '{0:.0%}'.format(value / total_tests)}
                 )
 
         field_info = {
             'PASSED': {
-                'transform': lambda t: output.ANSIString(t, output.COLORS.get(
-                    'GREEN')),
+                'transform': lambda t: output.ANSIString(t, output.GREEN)
             },
             'FAILED': {
-                'transform': lambda t: output.ANSIString(t, output.COLORS.get(
-                    'RED')),
+                'transform': lambda t: output.ANSIString(t, output.RED),
             }}
 
         output.draw_table(outfile=self.outfile,
