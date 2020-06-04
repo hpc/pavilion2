@@ -11,4 +11,4 @@ series:
     "echo_test.d":
 
 modes: ['smode2']
-simultaneous: 2
+simultaneous: 10

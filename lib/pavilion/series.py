@@ -20,8 +20,6 @@ from pavilion.status_file import STATES
 from pavilion.builder import MultiBuildTracker
 from pavilion.test_run import TestRun, TestRunError, TestRunNotFoundError
 
-from pavilion import output
-
 
 class TestSeriesError(RuntimeError):
     """An error in managing a series of tests."""
@@ -249,10 +247,7 @@ class SeriesManager:
 
             self.started.append(test_name)
             self.test_info[test_name]['obj'] = []
-            output.dbg_print('list of tests ', list_of_tests_by_sched)
             for test in list_of_tests_by_sched:
-                output.dbg_print('list ', list(test.values())[0],
-                                 color=output.WHITE)
                 self.test_wait(simult)
                 run_cmd.run_tests(
                     pav_cfg=self.pav_cfg,
@@ -261,38 +256,23 @@ class SeriesManager:
                     wait=None,
                     report_status=False
                 )
-                output.dbg_print(self.test_info[test_name]['obj'], '\n',
-                                 color=output.MAGENTA)
                 self.test_info[test_name]['obj'].extend(list(test.values())[0])
 
     def test_wait(self, simul):
 
-        waiting_on = self.get_currently_running()
-        output.dbg_print('waiting on ', waiting_on)
-
-        temp_size = len(waiting_on)
-        while temp_size >= simul:
-            output.dbg_print(temp_size, '>=', simul, color=output.CYAN)
-            output.dbg_print("  sleep yay", '\n', color=output.CYAN)
+        while len(self.get_currently_running()) >= simul:
             time.sleep(5)
-            waiting_on = self.get_currently_running()
-            output.dbg_print('waiting on ', waiting_on)
-            temp_size = len(waiting_on)
 
         return
 
     # checks for currently running tests
     def get_currently_running(self):
-        output.dbg_print("MADE IT HERE\n")
         cur_run = []
         for test_name in self.started:
-            output.dbg_print(self.test_info[test_name]['obj'])
             for test_obj in self.test_info[test_name]['obj']:
                 temp_state = test_obj.status.current().state
-                output.dbg_print(test_obj, temp_state, '\n', color=output.GRAY)
                 if temp_state in ['SCHEDULED', 'RUNNING']:
                     cur_run.append(test_obj)
-        output.dbg_print('cur run: ', cur_run, '\n')
         return cur_run
 
     # determines if test/s is/are done running
