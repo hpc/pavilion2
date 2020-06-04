@@ -12,6 +12,7 @@ from pavilion import plugins
 from pavilion.result import parsers, ResultError, base
 from pavilion.unittest import PavTestCase
 from pavilion.plugins.commands import run
+from pavilion import result
 
 LOGGER = logging.getLogger(__name__)
 
@@ -425,15 +426,17 @@ class ResultParserTests(PavTestCase):
             ({'result': 'return_value != 0'}, {'result': 'FAIL'}),
             # Make sure functions work.
             ({'sum': 'sum([1,2,3])'}, {'sum': 6}),
-            # Evaluations can depend on each other. Test configs are
-            # implicitly ordered, but we have to do it manually here.
-            (ordered, {'val_a': 3, 'val_b': 4})
+            #
+
+            ({'val_a': '3',
+              'val_b': 'val_a + val_c',
+              'val_c': 'val_a*2'},
+             {'val_a': 3, 'val_b': 9, 'val_c': 6})
         ]
 
         for evaluate_conf, exp_results in evaluate_tests:
 
             cfg = self._quick_test_cfg()
-            cfg['results'] = {}
             cfg['results']['evaluate'] = evaluate_conf
 
             test = self._quick_test(cfg)
@@ -446,6 +449,25 @@ class ResultParserTests(PavTestCase):
                     results[rkey],
                     exp_results[rkey],
                     msg="Result mismatch for {}.".format(evaluate_conf))
+
+    def test_evaluate_errors(self):
+        error_confs = (
+            {'val_a': 'undefined_a'},  # No such variable
+            {'val_b': 'parse_error ++'},  # Parse error
+            {'val_c': '"hello" + 3'},  # Value Error
+            {'val_d': 'val_e + 3', 'val_e': 'val_d + 1'},  # Reference loop.
+            {'val_f': 'really.complicated.*.variable.error'}
+        )
+
+        for error_conf in error_confs:
+            cfg = self._quick_test_cfg()
+            cfg['results']['evaluate'] = error_conf
+
+            test = self._quick_test(cfg)
+            test.run()
+
+            with self.assertRaises(result.ResultError):
+                result.evaluate_results({}, error_conf)
 
     def test_result_cmd(self):
         """Make sure the result command works as expected, including the
