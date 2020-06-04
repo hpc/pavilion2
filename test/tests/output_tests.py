@@ -18,7 +18,7 @@ class OutputTests(PavTestCase):
         dev_null = open('/dev/null', 'w')
 
         words = [word.strip() for word in
-                 open('/usr/share/dict/words').readlines()]
+                 (self.TEST_DATA_ROOT/'words').open().readlines()]
 
         # Choose random column header names
         columns = [random.choice(words) for i in range(20)]

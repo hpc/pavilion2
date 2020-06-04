@@ -69,11 +69,11 @@ def config_dirs_validator(config, values):
 
     config_dirs = []
 
-    if config['user_config'] and USER_HOME_PAV:
-        config_dirs.append(USER_HOME_PAV)
+    if config['user_config'] and USER_HOME_PAV and USER_HOME_PAV.exists():
+        config_dirs.append(USER_HOME_PAV.resolve())
 
     if PAV_CONFIG_DIR is not None and PAV_CONFIG_DIR.exists():
-        config_dirs.append(PAV_CONFIG_DIR)
+        config_dirs.append(PAV_CONFIG_DIR.resolve())
 
     for value in values:
         path = Path(value)
@@ -85,6 +85,7 @@ def config_dirs_validator(config, values):
                 color=pavilion.output.YELLOW
             )
         elif path not in config_dirs:
+            path = path.resolve()
             config_dirs.append(path)
 
     return config_dirs
