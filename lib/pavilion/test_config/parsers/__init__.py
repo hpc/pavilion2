@@ -131,6 +131,24 @@ def check_expression(expr: str) -> Union[None, str]:
 
     return None
 
+class EvalKey:
+
+    def __init__(self, key):
+        self.key = key.split('.')
+
+    def conflicts(self, item: 'EvalKey') -> bool:
+        """Check for key conflicts"""
+
+        if len(self.key) != len(item.key):
+            return False
+
+        # Make sure all the parts of the key match or are wild.
+        for i in range(len(self.key)):
+            if (self.key[i] != item.key[i]
+                    and '*' not in (self.key[i], item.key[i])):
+                return False
+
+        return True
 
 def parse_evaluation_dict(eval_dict: Dict[str, str], results: dict) -> None:
     """Parse the dictionary of evaluation expressions, given that some of them
@@ -149,6 +167,8 @@ def parse_evaluation_dict(eval_dict: Dict[str, str], results: dict) -> None:
     unresolved = {}
 
     for key, expr in eval_dict.items():
+        key_parts = key.split('.')
+
         try:
             tree = parser.parse(expr)
         except (_lark.UnexpectedCharacters, _lark.UnexpectedToken) as err:

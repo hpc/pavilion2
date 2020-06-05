@@ -16,11 +16,17 @@ def check_evaluations(evaluations: Dict[str, str]) -> List[str]:
 
     for key, expr in evaluations.items():
         if key in BASE_RESULTS:
-            errors.append("Key '{}' in result.evaluate section is reserved.")
+            errors.append("Key '{}' in result.evaluate section is reserved."
+                          .format(key))
 
         error = check_expression(expr)
         if error is not None:
             errors.append(error)
+
+        key_parts = key.split('.')
+        if key_parts.count('*') > 1:
+            errors.append("Key '{}' in result.evaluate can only contain one "
+                          "'*'".format(key))
 
     return errors
 

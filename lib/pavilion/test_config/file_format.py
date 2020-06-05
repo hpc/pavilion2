@@ -59,8 +59,18 @@ class VariableElem(yc.CategoryElem):
         return super().validate(value, partial=partial)
 
 
-class RegexDict(yc.CategoryElem):
+class CondCategoryElem(yc.CategoryElem):
+    """Allow any key. They'll be validated later."""
     _NAME_RE = re.compile(r'^.*$')
+
+
+class VarKeyCategoryElem(yc.CategoryElem):
+    """Allow Pavilion variable name like keys."""
+
+    # Allow names that have multiple, dot separated components, potentially
+    # including a '*'.
+    _NAME_RE = re.compile(r'^(?:[a-zA-Z][a-zA-Z0-9_-]*)'
+                          r'(?:\.|[a-zA-Z][a-zA-Z0-9_-]*)*')
 
 
 class VarCatElem(yc.CategoryElem):
@@ -203,7 +213,7 @@ expected to be added to by various plugins.
                       "single or list of strings key/string pairs."),
         yc.RegexElem('scheduler', regex=r'\w+', default="raw",
                      help_text="The scheduler class to use to run this test."),
-        RegexDict(
+        CondCategoryElem(
             'only_if', sub_elem=yc.ListElem(sub_elem=yc.StrElem()),
             key_case=EnvCatElem.KC_MIXED,
             help_text="Only run this test if each of the clauses in this "
@@ -215,7 +225,7 @@ expected to be added to by various plugins.
                       "if the value of the Pavilion variable matches one or"
                       " more of the values. "
         ),
-        RegexDict(
+        CondCategoryElem(
             'not_if', sub_elem=yc.ListElem(sub_elem=yc.StrElem()),
             key_case=EnvCatElem.KC_MIXED,
             help_text="Will NOT run this test if at least one of the "
@@ -366,7 +376,7 @@ expected to be added to by various plugins.
     ELEMENTS.append(yc.KeyedElem(
         'results', elements=[
             _RESULT_PARSERS,
-            yc.CategoryElem(
+            VarKeyCategoryElem(
                 'evaluate', sub_elem=yc.StrElem(),
                 help_text="The keys and values in this section will also "
                           "be added to the result json. The values are "
@@ -374,7 +384,9 @@ expected to be added to by various plugins.
                           "strings), but the result json itself is the "
                           "only variable available. The expression results are "
                           "stored directly without conversion into strings,"
-                          "and in the order given.")
+                          "and in the order given. Keys can contain a "
+                          "wildcard, in which case results across the"
+                          "matched")
         ],
         help_text="Parse and analyze test run results."
     ))
