@@ -250,5 +250,4 @@ in one of three formats:
             script_file.write('\n')
 
         # Make the file executable.
-        from pavilion.output import dbg_print
         path.chmod(path.stat().st_mode | 0o110)

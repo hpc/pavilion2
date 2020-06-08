@@ -43,13 +43,13 @@ class GeneralTests(PavTestCase):
         self.working_dir = self.TEST_DATA_ROOT/'working_dir-permissions'
 
         if self.working_dir.exists():
-            shutil.rmtree(self.working_dir)
+            shutil.rmtree(self.working_dir.as_posix())
 
         self.working_dir.mkdir()
 
         raw_cfg['shared_group'] = self.alt_group.gr_name
         raw_cfg['umask'] = self.umask
-        raw_cfg['working_dir'] = self.working_dir
+        raw_cfg['working_dir'] = self.working_dir.as_posix()
 
         self.config_dir = self.TEST_DATA_ROOT/'configs-permissions'
         with (self.config_dir/'pavilion.yaml').open('w') as pav_cfg_file:
