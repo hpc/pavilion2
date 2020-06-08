@@ -47,6 +47,22 @@ PAV_ROOT = Path(__file__).resolve().parents[2]
 PAV_CONFIG_FILE = os.environ.get('PAV_CONFIG_FILE', None)
 
 
+class ExPathElem(yc.PathElem):
+    """Expand environment variables in the path."""
+
+    def validate(self, value, partial=False):
+        """Expand environment variables in the path."""
+
+        path = super().validate(value, partial=partial)
+
+        if path is None:
+            return None
+        elif isinstance(path, str):
+            path = Path(path)
+
+        return Path(os.path.expandvars(path.as_posix()))
+
+
 def config_dirs_validator(config, values):
     """Get all of the configurations directories and convert them
     into path objects."""
@@ -108,7 +124,7 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
     ELEMENTS = [
         yc.ListElem(
             "config_dirs",
-            sub_elem=yc.PathElem(),
+            sub_elem=ExPathElem(),
             post_validator=config_dirs_validator,
             help_text="Additional Paths to search for Pavilion config files. "
                       "Pavilion configs (other than this core config) are "
@@ -122,7 +138,7 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
                       "directory at ~/.pavilion to the config_dirs. Configs "
                       "in this directory always take precedence."
         ),
-        yc.PathElem(
+        ExPathElem(
             'working_dir', default=USER_HOME_PAV/'working_dir', required=True,
             help_text="Where pavilion puts it's run files, downloads, etc."),
         yc.ListElem(
@@ -157,7 +173,7 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
             choices=['debug', 'info', 'warning', 'error', 'critical'],
             help_text="The minimum log level for messages sent to the pavilion "
                       "logfile."),
-        yc.PathElem(
+        ExPathElem(
             "result_log",
             # Derive the default from the working directory, if a value isn't
             # given.
@@ -166,7 +182,7 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
             help_text="Results are put in both the general log and a specific "
                       "results log. This defaults to 'results.log' in the "
                       "working directory."),
-        yc.PathElem(
+        ExPathElem(
             'exception_log',
             # Derive the default from the working directory, if a value isn't
             # given.
@@ -205,11 +221,11 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
         # convenient way to pass around core pavilion components or data.
         # They are not intended to be set by the user, and will generally be
         # overwritten without even checking for user provided values.
-        yc.PathElem(
+        ExPathElem(
             'pav_cfg_file', hidden=True,
             help_text="The location of the loaded pav config file."
         ),
-        yc.PathElem(
+        ExPathElem(
             'pav_root', default=PAV_ROOT, hidden=True,
             help_text="The root directory of the pavilion install. This "
                       "shouldn't be set by the user."),
