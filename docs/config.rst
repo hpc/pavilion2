@@ -12,6 +12,8 @@ pavilion configuration.
 
 .. contents::
 
+.. _config.config_dirs:
+
 Config Directories
 ------------------
 
@@ -22,6 +24,10 @@ uses the first one it finds.
 -  The user's home directory
 -  The directory given via the ``PAV_CONFIG_DIR`` environment variable.
 -  The Pavilion lib directory **(don't put configs here)**
+-  Additional config directories (the ``config_dirs`` option.
+
+   - These are only used when searching for test, host, and mode configs,
+     as well as plugins.
 
 Each config directory can (optionally) have any of the sub-directories
 shown here.
@@ -47,6 +53,7 @@ Pavilion can print template files, with documentation, for all of it's
 config files. In this case, use the command ``pav show config --template``.
 Since this file is self documenting, refer to it for more information about
 each of the configuration settings.
+
 
 Setting You Should Set
 ~~~~~~~~~~~~~~~~~~~~~~

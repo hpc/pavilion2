@@ -1,3 +1,5 @@
+.. _tests.build:
+
 Building Tests
 ==============
 

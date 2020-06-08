@@ -10,4 +10,4 @@
    permutations.rst
    values.rst
    results.rst
-   conditionals.rst
+   skip_conditions.rst

@@ -1,3 +1,5 @@
+.. _tests.run
+
 Running Tests
 =============
 

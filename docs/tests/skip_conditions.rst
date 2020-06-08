@@ -1,3 +1,5 @@
+.. _tests.skip_conditions:
+
 Skip Conditions
 ===============
 

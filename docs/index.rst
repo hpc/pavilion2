@@ -30,6 +30,7 @@ Project goals:
    install.rst
    advanced.rst
    config.rst
+   test_run_lifecycle.rst
    tests/index.rst
    plugins/index.rst
 

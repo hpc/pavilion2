@@ -218,12 +218,67 @@ Host configs are a test config, and accept every option that a test
 config does. The test attributes are all at the top level; there're no
 test names here.
 
-.. code:: yaml
+.. code-block:: yaml
 
     scheduler: slurm
     slurm:
         partition: user
         qos: user
+
+.. _tests.format.inheritance:
+
+Inheritance
+-----------
+
+Tests within a single test suite file can inherit from each other.
+
+.. code-block:: yaml
+
+    super_magic:
+        summary: Run all standard super_magic tests.
+        scheduler: slurm
+        build:
+          modules:
+            - gcc
+            - openmpi
+          cmds:
+            - mpicc -o super_magic super_magic.c
+
+        run:
+          modules:
+            - gcc
+            - openmpi
+          cmds:
+            - echo "Running supermagic"
+            - srun ./supermagic -a
+
+        results:
+          ... # Various result parser configurations.
+
+    # This gets all the attributes of supermagic, but overwrites the summary
+    # and the test commands.
+    super_magic-fs:
+        summary: Run all standard super_magic tests, and the write test too.
+        inherits_from: super_magic
+        run:
+          cmds:
+            - srun ./supermagic -a -w /mnt/projects/myproject/
+
+Rules of Inheritance
+~~~~~~~~~~~~~~~~~~~~
+
+1. Every field in a test config can be inherited (except for
+   inherits\_from).
+2. A field that takes a list (modules, cmds, etc.) are always completely
+   overwritten by a new list. (In the above example, the single command
+   in the fs test command list overwrites the entire original command
+   list.)
+3. A test can inherit from a test, which inherits from a test, and so
+   on.
+4. Inheritance is resolved before permutations or any variables
+   substitutions.
+
+.. _tests.format.mode:
 
 Mode Configs
 ------------
@@ -237,7 +292,7 @@ directories <../config.html>`__.
 For instance, if you regularly run on the ``dev`` partition, you might
 have a ``<config_dir>/modes/dev.yaml`` file to set that up for you.
 
-.. code:: yaml
+.. code-block:: yaml
 
     slurm:
         partition: dev
@@ -245,9 +300,11 @@ have a ``<config_dir>/modes/dev.yaml`` file to set that up for you.
 
 You could then add the mode when starting tests with the ``-m`` option:
 
-::
+.. code-block:: bash
 
-    pav run -m dev my_tests
+    $ pav run -m dev my_tests
+
+.. _tests.format.resolution_order:
 
 Order of Resolution
 -------------------
@@ -258,20 +315,24 @@ order.
 1. Each test is loaded and different configs are overlaid as follows;
    later items take precedence in conflicts.
 
-   2. The general defaults.
-   3. The host config.
-   4. Any mode configs in the order specified.
-   5. The actual test config.
+   1. The general defaults.
+   2. The host config.
+   3. The actual test config.
+   4. Inheritance is resolved.
+   5. Any mode configs in the order specified.
 
-2. Inheritance is resolved.
-3. Tests are filtered down to only those requested.
-4. Command line overrides ('-c') are applied.
-5. Permutations are resolved.
-6. Variables in the chosen scheduler config section are resolved. (You
+2. Tests are filtered down to only those requested.
+3. Command line overrides ('-c') are applied.
+4. Permutations are resolved.
+5. Variables in the chosen scheduler config section are resolved. (You
    should't have ``sched`` variables in these sections.)
-7. Variables are resolved throughout the rest of the config.
+6. Variables are resolved throughout the rest of the config.
 
-This results in the final test config.
+This results in the semi-final test config - deferred variables can't be
+resolved until we're on the allocation. Once there, we'll finish resolving
+those, and resolve any parts of the config that used them. Parts of the config
+that are required before kicking off the test (like the build and scheduler
+sections), can't use deferred variables.
 
 Top Level Test Config Keys
 --------------------------
@@ -282,8 +343,7 @@ inherits\_from
 Sets the test (by test base name) that this test inherits from *which must be*
 *a test from this file*. The resulting test will be composed of all
 keys in the test it inherits from, plus any specified in this test
-config. See `Inheritance <../advanced.html#inheritance>`__ in the advanced
-pavilion overview.
+config. See :ref:`tests.format.inheritance`.
 
 subtitle
 ~~~~~~~~
