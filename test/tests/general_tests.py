@@ -84,14 +84,15 @@ class GeneralTests(PavTestCase):
             'perm.dir',
         ]
 
-        cmd = [self.PAV_ROOT_DIR/'bin'/'pav', 'run'] + tests
+        cmd = [(self.PAV_ROOT_DIR/'bin'/'pav').as_posix(), 'run'] + tests
 
         self.check_runs(cmd)
 
     def test_build_fail_permissions(self):
         """Make sure failed builds have good permissions too."""
 
-        cmd = [self.PAV_ROOT_DIR / 'bin' / 'pav', 'run', 'perm.build_fail']
+        cmd = [(self.PAV_ROOT_DIR /'bin'/'pav').as_posix(),
+               'run', 'perm.build_fail']
 
         self.check_runs(cmd)
 
