@@ -21,7 +21,7 @@ class GeneralTests(PavTestCase):
 
         # Find a group that isn't the user's default group (or sudo), and
         # use that as our default group.
-        login = os.getlogin()
+        login = utils.get_login()
         def_gid = os.getgid()
         candidates = [group for group in grp.getgrall() if
                       (login in group.gr_mem

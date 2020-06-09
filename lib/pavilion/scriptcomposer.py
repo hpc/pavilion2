@@ -4,14 +4,9 @@ prescribed environ in a programmatic way.
 It also handles translating our module specifications into
 specific actions to add to the script."""
 
-import collections
-import datetime
-import grp
-import os
 from pathlib import Path
 
 from pavilion import module_wrapper
-from pavilion import utils
 from pavilion.module_actions import ModuleAction
 
 
