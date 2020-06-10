@@ -61,24 +61,9 @@ class AutoSeries(commands.Command):
                     if ser_keys[ser_idx] not in temp_depends_on:
                         temp_depends_on.append(ser_keys[ser_idx])
 
-        if series_cfg['restart'] in ['True', 'true']:
 
-            def sigterm_handler(*args):
-                for test_id, test_obj in series_obj.tests.items():
-                    test_obj.status.set(STATES.COMPLETE,
-                                        "Competed by SIGTERM.")
-                    test_obj.set_run_complete()
-                sys.exit()
-
-            signal.signal(signal.SIGTERM, sigterm_handler)
-
-            while True:
-                series_man = series.SeriesManager(pav_cfg,
-                                                  series_obj,
-                                                  series_cfg)
-
-        else:
             series_man = series.SeriesManager(pav_cfg,
                                               series_obj,
                                               series_cfg)
             return series_man
+

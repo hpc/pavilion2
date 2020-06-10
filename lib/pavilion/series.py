@@ -8,6 +8,7 @@ import copy
 import codecs
 import sys
 import errno
+import signal
 
 from pavilion import utils
 from pavilion import commands
@@ -88,73 +89,101 @@ class SeriesManager:
                     next_list.append(t_n)
             self.test_info[test_name]['next'] = next_list
 
+        # handles SIGTERM (15) signal
+        def sigterm_handler(*args):
+
+            for test_name in (self.all_tests not in self.finished):
+                for test_obj in self.test_info[test_name]['obj']:
+                    test_obj.status.set(STATES.COMPLETE,
+                                        "Killed by SIGTERM.")
+                    test_obj.set_run_complete()
+
+            sys.exit()
+
+        signal.signal(signal.SIGTERM, sigterm_handler)
+
         # run tests in order
-        self.all_tests = list(self.test_info.keys())
-        self.started = []
-        self.finished = []
-        self.not_started = []
-        # kick off tests that aren't waiting on any tests to complete
-        for test_name in self.test_info:
-            if not self.test_info[test_name]['prev']:
-                self.run_test(test_name)
-                self.not_started = list(set(self.all_tests) - set(self.started))
+        while True:
+            self.all_tests = list(self.test_info.keys())
+            self.started = []
+            self.finished = []
+            self.not_started = []
 
-        while len(self.not_started) != 0:
-
-            self.check_and_update()
-            temp_waiting = copy.deepcopy(self.not_started)
-            for test_name in temp_waiting:
-                ready = all(wait in self.finished for wait in self.test_info[
-                    test_name]['prev'])
-                if ready:
-                    if self.series_section[test_name]['depends_pass'] \
-                            in ['True', 'true']:
-                        if self.all_tests_passed(
-                                self.test_info[test_name]['prev']):
-                            # We care that all the tests this test depended
-                            # on passed, and they did, so run this test.
-                            self.run_test(test_name)
-                            self.not_started.remove(test_name)
-                        else:
-                            # The dependent tests did not pass, and we care.
-                            # Skip this test.
-                            temp_resolver = resolver.TestConfigResolver(
-                                self.pav_cfg)
-                            raw_configs = temp_resolver.load_raw_configs(
-                                [test_name], [],
-                                self.test_info[test_name]['modes']
-                            )
-                            for config in raw_configs:
-                                # Delete the conditionals - we're already
-                                # skipping this test but for different reasons.
-                                del config['only_if']
-                                del config['not_if']
-                                skipped_test = TestRun(self.pav_cfg, config)
-                                skipped_test.status.set(
-                                    STATES.SKIPPED,
-                                    "Skipping. Previous test did not PASS.")
-                                skipped_test.set_run_complete()
-                                self.series_obj.add_tests([skipped_test])
-                            self.not_started.remove(test_name)
-                            self.finished.append(test_name)
-                    else:
-                        # All tests completed, and we don't care if they passed.
-                        self.run_test(test_name)
-                        self.not_started.remove(test_name)
-
-            time.sleep(1)
-
-        # wait for all tests to be finished to return
-        done = False
-        while not done:
-            done = True
+            # empty all 'obj' values
             for test_name in self.test_info:
-                if not self.is_done(test_name):
-                    done = False
-                    break
-            time.sleep(1)
+                self.test_info[test_name]['obj'] = []
+
+            # kick off tests that aren't waiting on any tests to complete
+            for test_name in self.test_info:
+                if not self.test_info[test_name]['prev']:
+                    self.run_test(test_name)
+                    self.not_started = \
+                        list(set(self.all_tests) - set(self.started))
+
+            while len(self.not_started) != 0:
+                self.series_tests_handler()
+                time.sleep(1)
+
+            # wait for all tests to be finished to return
+            done = False
+            while not done:
+                done = True
+                for test_name in self.test_info:
+                    if not self.is_done(test_name):
+                        done = False
+                        break
+                time.sleep(1)
+
+            if self.series_cfg['restart'] not in ['True', 'true']:
+                break
 
         return
+
+    def series_tests_handler(self):
+
+        # update lists
+        self.check_and_update()
+
+        # logic on what needs to be done based on new information
+        temp_waiting = copy.deepcopy(self.not_started)
+        for test_name in temp_waiting:
+            ready = all(wait in self.finished for wait in self.test_info[
+                test_name]['prev'])
+            if ready:
+                if self.series_section[test_name]['depends_pass'] \
+                        in ['True', 'true']:
+                    if self.all_tests_passed(
+                            self.test_info[test_name]['prev']):
+                        # We care that all the tests this test depended
+                        # on passed, and they did, so run this test.
+                        self.run_test(test_name)
+                        self.not_started.remove(test_name)
+                    else:
+                        # The dependent tests did not pass, and we care.
+                        # Skip this test.
+                        temp_resolver = resolver.TestConfigResolver(
+                            self.pav_cfg)
+                        raw_configs = temp_resolver.load_raw_configs(
+                            [test_name], [],
+                            self.test_info[test_name]['modes']
+                        )
+                        for config in raw_configs:
+                            # Delete the conditionals - we're already
+                            # skipping this test but for different reasons.
+                            del config['only_if']
+                            del config['not_if']
+                            skipped_test = TestRun(self.pav_cfg, config)
+                            skipped_test.status.set(
+                                STATES.SKIPPED,
+                                "Skipping. Previous test did not PASS.")
+                            skipped_test.set_run_complete()
+                            self.series_obj.add_tests([skipped_test])
+                        self.not_started.remove(test_name)
+                        self.finished.append(test_name)
+                else:
+                    # All tests completed, and we don't care if they passed.
+                    self.run_test(test_name)
+                    self.not_started.remove(test_name)
 
     def run_test(self, test_name):
 
