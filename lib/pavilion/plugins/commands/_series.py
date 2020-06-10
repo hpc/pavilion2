@@ -65,4 +65,3 @@ class AutoSeries(commands.Command):
                                               series_obj,
                                               series_cfg)
             return series_man
-
