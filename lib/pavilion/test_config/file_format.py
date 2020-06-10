@@ -16,7 +16,8 @@ class TestConfigError(ValueError):
 TEST_NAME_RE_STR = r'^[a-zA-Z_][a-zA-Z0-9_-]*$'
 TEST_NAME_RE = re.compile(TEST_NAME_RE_STR)
 KEY_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_-]*$')
-VAR_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_-]*[?+]?$')
+VAR_KEY_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_]*$')
+VAR_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_]*[?+]?$')
 
 
 class PathCategoryElem(yc.CategoryElem):
@@ -33,7 +34,7 @@ class VariableElem(yc.CategoryElem):
     normalization of these values.
     """
 
-    _NAME_RE = KEY_NAME_RE
+    _NAME_RE = VAR_KEY_NAME_RE
 
     def __init__(self, name=None, **kwargs):
         """Just like a CategoryElem, but the sub_elem must be a StrElem
