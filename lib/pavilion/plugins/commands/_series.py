@@ -61,7 +61,6 @@ class AutoSeries(commands.Command):
                     if ser_keys[ser_idx] not in temp_depends_on:
                         temp_depends_on.append(ser_keys[ser_idx])
 
-
             series_man = series.SeriesManager(pav_cfg,
                                               series_obj,
                                               series_cfg)
