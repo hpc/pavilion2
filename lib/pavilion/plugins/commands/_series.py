@@ -3,6 +3,7 @@ import sys
 from pavilion import commands
 from pavilion import arguments
 from pavilion import series
+from pavilion.status_file import STATES
 from pavilion.test_config.resolver import TestConfigResolver
 from pavilion.test_config.file_format import SeriesConfigLoader
 
@@ -16,8 +17,6 @@ class AutoSeries(commands.Command):
             description='Run Series, but make this hidden.',
             short_help='Run complicated series, but make this hidden.',
         )
-
-        self.series_man = None
 
     def _setup_arguments(self, parser):
 
@@ -65,23 +64,21 @@ class AutoSeries(commands.Command):
         if series_cfg['restart'] in ['True', 'true']:
 
             def sigterm_handler(*args):
-                from pavilion import output
-                output.dbg_print('MADE IT TO THE SIG HANDLER')
-                output.dbg_print(series_obj.tests)
                 for test_id, test_obj in series_obj.tests.items():
-                    output.dbg_print('killing: ', test_id)
+                    test_obj.status.set(STATES.COMPLETE,
+                                        "Competed by SIGTERM.")
                     test_obj.set_run_complete()
                 sys.exit()
 
             signal.signal(signal.SIGTERM, sigterm_handler)
 
             while True:
-                self.series_man = series.SeriesManager(pav_cfg,
-                                                       series_obj,
-                                                       series_cfg)
+                series_man = series.SeriesManager(pav_cfg,
+                                                  series_obj,
+                                                  series_cfg)
 
         else:
-            self.series_man = series.SeriesManager(pav_cfg,
-                                                   series_obj,
-                                                   series_cfg)
-            return self.series_man
+            series_man = series.SeriesManager(pav_cfg,
+                                              series_obj,
+                                              series_cfg)
+            return series_man
