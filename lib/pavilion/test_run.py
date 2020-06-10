@@ -771,7 +771,7 @@ of result keys.
         if not regather:
             self.status.set(STATES.RESULTS,
                             "Performing {} result evaluations."
-                            .format(self.config['results']['evaluate']))
+                            .format(len(self.config['results']['evaluate'])))
         try:
             result.evaluate_results(
                 results,
