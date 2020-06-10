@@ -6,6 +6,7 @@ import os
 from typing import Union
 
 import yaml_config
+import yc_yaml
 import pavilion.result.base
 from pavilion import commands
 from pavilion import config
@@ -122,6 +123,19 @@ class ShowCommand(commands.Command):
             description="Pavilion can support different default configs "
                         "depending on the host."
         )
+
+        hosts.add_argument(
+            '--cfg',
+            action='store_true', default=False,
+            help="Show full host config."
+        )
+
+        hosts.add_argument(
+            '--vars',
+            action='store_true', default=False,
+            help="Show defined variables in host config."
+        )
+
         hosts_group = hosts.add_mutually_exclusive_group()
         hosts_group.add_argument(
             '--verbose', '-v',
@@ -132,10 +146,23 @@ class ShowCommand(commands.Command):
         modes = subparsers.add_parser(
             'modes',
             aliases=['mode'],
-            help="Show available hosts and their information.",
+            help="Show available modes and their information.",
             description="Pavilion can support different default configs "
                         "depending on the mode that is specified."
         )
+
+        modes.add_argument(
+            '--cfg',
+            action='store_true',
+            help="Show full mode config."
+        )
+
+        modes.add_argument(
+            '--vars',
+            action='store_true',
+            help="Show defined variables in mode config."
+        )
+
         modes_group = modes.add_mutually_exclusive_group()
         modes_group.add_argument(
             '--verbose', '-v',
@@ -389,6 +416,10 @@ class ShowCommand(commands.Command):
         col_names = ['Name']
         if args.verbose:
             col_names.append('Path')
+        if args.cfg:
+            col_names.append('Full Config')
+        if args.vars:
+            col_names.append('Variables')
         for conf_dir in pav_cfg.config_dirs:
             path = conf_dir / 'hosts'
 
@@ -401,9 +432,19 @@ class ShowCommand(commands.Command):
                 if file.suffix == '.yaml' and file.is_file():
                     host_id = file.stem
                     host_path = file
+                    config_file = open(file)
+                    config_data = yc_yaml.load(config_file)
+                    try:
+                        host_vars = list(config_data['variables'].keys())
+                    except KeyError:
+                        host_vars = []
+                    config_file.close()
+
                     hosts.append({
                         'Name': host_id,
-                        'Path': host_path
+                        'Path': host_path,
+                        'Full Config': config_data,
+                        'Variables': host_vars
                     })
 
         output.draw_table(
@@ -421,6 +462,10 @@ class ShowCommand(commands.Command):
         col_names = ['Name']
         if args.verbose:
             col_names.append('Path')
+        if args.cfg:
+            col_names.append('Full Config')
+        if args.vars:
+            col_names.append('Variables')
         for conf_dir in pav_cfg.config_dirs:
             path = conf_dir / 'modes'
 
@@ -433,9 +478,19 @@ class ShowCommand(commands.Command):
                 if file.suffix == '.yaml' and file.is_file():
                     mode_id = file.stem
                     mode_path = file
+                    config_file = open(file)
+                    config_data = yc_yaml.load(config_file)
+                    try:
+                        mode_vars = list(config_data['variables'].keys())
+                    except KeyError:
+                        mode_vars = []
+                    config_file.close()
+
                     modes.append({
                         'Name': mode_id,
-                        'Path': mode_path
+                        'Path': mode_path,
+                        'Full Config': config_data,
+                        'Variables': mode_vars
                     })
 
         output.draw_table(
