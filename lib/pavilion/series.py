@@ -92,7 +92,7 @@ class SeriesManager:
         # handles SIGTERM (15) signal
         def sigterm_handler(*args):
 
-            for test_name in (self.all_tests not in self.finished):
+            for test_name in self.started:
                 for test_obj in self.test_info[test_name]['obj']:
                     test_obj.status.set(STATES.COMPLETE,
                                         "Killed by SIGTERM.")
@@ -108,10 +108,6 @@ class SeriesManager:
             self.started = []
             self.finished = []
             self.not_started = []
-
-            # empty all 'obj' values
-            for test_name in self.test_info:
-                self.test_info[test_name]['obj'] = []
 
             # kick off tests that aren't waiting on any tests to complete
             for test_name in self.test_info:
@@ -134,6 +130,7 @@ class SeriesManager:
                         break
                 time.sleep(1)
 
+            # if restart isn't necessary, break out of loop
             if self.series_cfg['restart'] not in ['True', 'true']:
                 break
 
@@ -246,12 +243,12 @@ class SeriesManager:
         # assign test to series and vice versa
         self.series_obj.add_tests(all_tests)
         run_cmd.last_series = self.series_obj
+        self.test_info[test_name]['obj'] = run_cmd.last_tests
 
         # make sure result parsers are ok
         res = run_cmd.check_result_format(all_tests)
         if res != 0:
             run_cmd.complete_tests(all_tests)
-            self.test_info[test_name]['obj'] = run_cmd.last_tests
             self.finished.append(test_name)
             return None
 
@@ -264,7 +261,6 @@ class SeriesManager:
         )
         if res != 0:
             run_cmd.complete_tests(all_tests)
-            self.test_info[test_name]['obj'] = run_cmd.last_tests
             self.finished.append(test_name)
             return None
 
@@ -276,7 +272,6 @@ class SeriesManager:
                 wait=None,
                 report_status=False
             )
-            self.test_info[test_name]['obj'] = run_cmd.last_tests
             self.started.append(test_name)
         else:
             simult = int(self.series_cfg['simultaneous'])
@@ -288,7 +283,6 @@ class SeriesManager:
                     list_of_tests_by_sched.append({sched: [test_obj]})
 
             self.started.append(test_name)
-            self.test_info[test_name]['obj'] = []
             for test in list_of_tests_by_sched:
                 self.test_wait(simult)
                 run_cmd.run_tests(
@@ -298,7 +292,6 @@ class SeriesManager:
                     wait=None,
                     report_status=False
                 )
-                self.test_info[test_name]['obj'].extend(list(test.values())[0])
 
     def test_wait(self, simul):
 

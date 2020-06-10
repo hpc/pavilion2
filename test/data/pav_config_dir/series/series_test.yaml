@@ -13,5 +13,5 @@ series:
     "echo_test.wrong_year":
 
 modes: ['smode2']
-simultaneous: 2
-restart: True
+#simultaneous: 2
+#restart: True

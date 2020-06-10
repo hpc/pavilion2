@@ -146,11 +146,11 @@ class RunCommand(commands.Command):
 
             fprint("Started series {}. "
                    "Run `pav status {}` to view status. "
-                   "The process id is {}. PGID is {}. "
-                   "Use 'kill -15 -$PGID' to kill."
+                   "PGID is {}. "
+                   "(Use 'kill -15 -{}' to kill.)"
                    .format(series_obj.id,
                            series_obj.id,
-                           series_proc.pid,
+                           os.getpgid(series_proc.pid),
                            os.getpgid(series_proc.pid)))
 
             return 0
