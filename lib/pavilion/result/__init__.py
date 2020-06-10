@@ -8,6 +8,7 @@ from pavilion.test_config import resolver
 from .evaluations import check_expression, evaluate_results
 from .base import base_results, ResultError, BASE_RESULTS
 from .parsers import parse_results, ResultParser, get_plugin
+from . import parsers
 
 
 def check_config(result_configs):
@@ -36,6 +37,8 @@ For evaluations we check for:
     for rtype in parser_conf:
         for rconf in parser_conf[rtype]:
             key = rconf.get('key')
+            action = rconf.get('action')
+            per_file = rconf.get('per_file')
 
             # Don't check args if they have deferred values.
             for values in rconf.values():
@@ -62,16 +65,30 @@ For evaluations we check for:
                     .format(key, rtype)
                 )
 
-            if key in BASE_RESULTS.keys() or key == 'result':
+            if key in BASE_RESULTS.keys():
                 raise ResultError(
                     "Result parser key '{}' under parser '{}' is reserved."
                     .format(key, rtype)
                 )
 
+            if (key == 'result'
+                    and action not in (parsers.ACTION_TRUE,
+                                       parsers.ACTION_FALSE)
+                    and per_file not in (parsers.PER_FIRST, parsers.PER_LAST,
+                                         parsers.PER_ANY, parsers.PER_ALL)):
+                raise ResultError(
+                    "Result parser has key 'result', but must store a "
+                    "boolean. Use action 'first' or 'last', along with a "
+                    "per_file setting of 'first', 'last', 'any', or 'all'")
+
             key_names.append(key)
 
             parser = get_plugin(rtype)
-            parser.check_args(**rconf)
+            try:
+                parser.check_args(**rconf)
+            except ResultError as err:
+                raise ResultError(
+                    "Key '{}': {}".format(key, err.args[0]))
 
         for key, expr in evaluate_conf.items():
             if key in BASE_RESULTS:
