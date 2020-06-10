@@ -120,19 +120,19 @@ class SeriesManager:
                 self.series_tests_handler()
                 time.sleep(1)
 
-            # wait for all tests to be finished to return
-            done = False
-            while not done:
-                done = True
-                for test_name in self.test_info:
-                    if not self.is_done(test_name):
-                        done = False
-                        break
-                time.sleep(1)
-
             # if restart isn't necessary, break out of loop
             if self.series_cfg['restart'] not in ['True', 'true']:
                 break
+            else:
+                # wait for all tests to be finished to continue
+                done = False
+                while not done:
+                    done = True
+                    for test_name in self.test_info:
+                        if not self.is_done(test_name):
+                            done = False
+                            break
+                    time.sleep(1)
 
         return
 
