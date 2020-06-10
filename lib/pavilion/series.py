@@ -107,7 +107,8 @@ class SeriesManager:
                 ready = all(wait in self.finished for wait in self.test_info[
                     test_name]['prev'])
                 if ready:
-                    if self.series_section[test_name]['depends_pass'] == 'True':
+                    if self.series_section[test_name]['depends_pass'] \
+                            in ['True', 'true']:
                         if self.all_tests_passed(
                                 self.test_info[test_name]['prev']):
                             # We care that all the tests this test depended
@@ -142,6 +143,18 @@ class SeriesManager:
                         self.not_started.remove(test_name)
 
             time.sleep(1)
+
+        # wait for all tests to be finished to return
+        done = False
+        while not done:
+            done = True
+            for test_name in self.test_info:
+                if not self.is_done(test_name):
+                    done = False
+                    break
+            time.sleep(1)
+
+        return
 
     def run_test(self, test_name):
 

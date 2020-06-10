@@ -8,7 +8,10 @@ series:
     # echo_test will be skipped
     "echo_test.c":
 
-    "echo_test.d":
+#    "echo_test.d":
+
+    "echo_test.wrong_year":
 
 modes: ['smode2']
-#simultaneous: 2
+simultaneous: 3
+restart: True

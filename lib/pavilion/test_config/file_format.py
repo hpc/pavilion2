@@ -157,10 +157,14 @@ class SeriesConfigLoader(yc.YamlConfigLoader):
             'modes', sub_elem=yc.StrElem()
         ),
         yc.IntElem(
-            'simultaneous'
+            'simultaneous',
         ),
         yc.StrElem(
             'ordered', choices=['True', 'true', 'False', 'false'],
+            default='False'
+        ),
+        yc.StrElem(
+            'restart', choices=['True', 'true', 'False', 'false'],
             default='False'
         )
     ]

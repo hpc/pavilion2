@@ -1,3 +1,5 @@
+import signal
+import sys
 from pavilion import commands
 from pavilion import arguments
 from pavilion import series
@@ -14,6 +16,8 @@ class AutoSeries(commands.Command):
             description='Run Series, but make this hidden.',
             short_help='Run complicated series, but make this hidden.',
         )
+
+        self.series_man = None
 
     def _setup_arguments(self, parser):
 
@@ -34,6 +38,7 @@ class AutoSeries(commands.Command):
 
     # pylint: disable=no-self-use
     def make_series_man(self, pav_cfg, args):
+
         series_name = args.series
 
         series_config_loader = SeriesConfigLoader()
@@ -57,6 +62,26 @@ class AutoSeries(commands.Command):
                     if ser_keys[ser_idx] not in temp_depends_on:
                         temp_depends_on.append(ser_keys[ser_idx])
 
-            series_man = series.SeriesManager(pav_cfg, series_obj, series_cfg)
+        if series_cfg['restart'] in ['True', 'true']:
 
-        return series_man
+            def sigterm_handler(*args):
+                from pavilion import output
+                output.dbg_print('MADE IT TO THE SIG HANDLER')
+                output.dbg_print(series_obj.tests)
+                for test_id, test_obj in series_obj.tests.items():
+                    output.dbg_print('killing: ', test_id)
+                    test_obj.set_run_complete()
+                sys.exit()
+
+            signal.signal(signal.SIGTERM, sigterm_handler)
+
+            while True:
+                self.series_man = series.SeriesManager(pav_cfg,
+                                                       series_obj,
+                                                       series_cfg)
+
+        else:
+            self.series_man = series.SeriesManager(pav_cfg,
+                                                   series_obj,
+                                                   series_cfg)
+            return self.series_man

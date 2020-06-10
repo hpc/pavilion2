@@ -6,6 +6,7 @@ import pathlib
 import time
 import threading
 import subprocess
+import os
 from collections import defaultdict
 
 import pavilion.result
@@ -65,7 +66,7 @@ class RunCommand(commands.Command):
         )
         parser.add_argument(
             '--series', default=None,
-            help="Series name. Will ignore other sub-command options. "
+            help="Series name. Will ignore other sub-command options."
         )
 
     @staticmethod
@@ -139,13 +140,18 @@ class RunCommand(commands.Command):
             temp_args = ['pav', '_series', args.series,
                          '--series-id={}'.format(series_obj.id)]
             # this process will outlive the parent, and that's what we want
-            subprocess.Popen(temp_args,
-                             stdout=subprocess.DEVNULL,
-                             stderr=subprocess.DEVNULL)
+            series_proc = subprocess.Popen(temp_args,
+                                           stdout=subprocess.DEVNULL,
+                                           stderr=subprocess.DEVNULL)
 
             fprint("Started series {}. "
-                   "Run `pav status {}` to view status."
-                   .format(series_obj.id, series_obj.id))
+                   "Run `pav status {}` to view status. "
+                   "The process id is {}. PGID is {}. "
+                   "Use 'kill -15 -$PGID' to kill."
+                   .format(series_obj.id,
+                           series_obj.id,
+                           series_proc.pid,
+                           os.getpgid(series_proc.pid)))
 
             return 0
 
