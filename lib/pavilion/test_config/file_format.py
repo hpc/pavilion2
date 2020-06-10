@@ -188,6 +188,10 @@ expected to be added to by various plugins.
             'doc', default='',
             help_text="Detailed documentation string for this test."
         ),
+        yc.StrElem(
+            'test_version', default='',
+            help_text="Documented test version."
+        ),
         yc.ListElem(
             'permute_on', sub_elem=yc.StrElem(),
             help_text="List of permuted variables. For every permutation of "
@@ -352,6 +356,7 @@ expected to be added to by various plugins.
             help_text="The test run configuration. This will be used "
                       "to dynamically generate a run script for the "
                       "test."),
+
     ]
 
     # We'll append the result parsers separately, to have an easy way to
