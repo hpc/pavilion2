@@ -436,7 +436,7 @@ class ShowCommand(commands.Command):
                     config_data = yc_yaml.load(config_file)
                     try:
                         host_vars = list(config_data['variables'].keys())
-                    except KeyError:
+                    except (KeyError, TypeError) as err:
                         host_vars = []
                     config_file.close()
 
@@ -482,7 +482,7 @@ class ShowCommand(commands.Command):
                     config_data = yc_yaml.load(config_file)
                     try:
                         mode_vars = list(config_data['variables'].keys())
-                    except KeyError:
+                    except (KeyError, TypeError) as err:
                         mode_vars = []
                     config_file.close()
 
