@@ -189,7 +189,7 @@ expected to be added to by various plugins.
             help_text="Detailed documentation string for this test."
         ),
         yc.StrElem(
-            'test_version', default='',
+            'test_version', default='1.0',
             help_text="Documented test version."
         ),
         yc.ListElem(
