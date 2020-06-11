@@ -1,17 +1,12 @@
-import copy
+import io
 import io
 import os
-import shutil
-import tempfile
-import unittest
 from pathlib import Path
 
 from pavilion import plugins
-from pavilion import wget
-from pavilion.test_run import TestRunError, TestRun
 from pavilion.series import TestSeries
-from pavilion.status_file import STATES
-from pavilion.test_config import variables, VariableSetManager
+from pavilion.test_config import VariableSetManager
+from pavilion.test_run import TestRunError, TestRun
 from pavilion.unittest import PavTestCase
 
 
@@ -24,6 +19,7 @@ class TestRunTests(PavTestCase):
         config = {
             # The only required param.
             'name': 'blank_test',
+
             'scheduler': 'raw',
         }
 

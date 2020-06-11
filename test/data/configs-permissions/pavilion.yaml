@@ -1,7 +1,6 @@
 default_results: {def_results_test: '{{pav.user}}'}
 no_proxy: [lanl.gov]
-proxies: {ftp: 'http://proxyout.lanl.gov:8080', http: 'http://proxyout.lanl.gov:8080',
-  https: 'http://proxyout.lanl.gov:8080'}
+proxies: null
 shared_group: adm
 umask: 7
 user_config: false

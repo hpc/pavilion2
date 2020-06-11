@@ -1,16 +1,11 @@
 """Contains the object for tracking multi-threaded builds, along with
 the TestBuilder class itself."""
 
-# pylint: disable=too-many-lines
-
-import bz2
 import datetime
 import glob
-import gzip
 import hashlib
 import io
 import logging
-import lzma
 import os
 import shutil
 import subprocess
@@ -20,8 +15,9 @@ import time
 import urllib.parse
 from collections import defaultdict
 from pathlib import Path
-from zipfile import ZipFile, BadZipFile
 
+from pavilion import extract
+from pavilion.permissions import PermissionsManager
 from pavilion import lockfile
 from pavilion import utils
 from pavilion import wget
@@ -195,6 +191,8 @@ class TestBuilder:
 
         self._pav_cfg = pav_cfg
         self._config = test.config.get('build', {})
+        self._group = test.group
+        self._umask = test.umask
         self._script_path = test.build_script_path
         self.test = test
         self._timeout = test.build_timeout
@@ -238,6 +236,7 @@ class TestBuilder:
         # The hash order is:
         #  - The build script
         #  - The build specificity
+        #  - The build group and umask
         #  - The src archive.
         #    - For directories, the mtime (updated to the time of the most
         #      recently updated file) is hashed instead.
@@ -248,6 +247,10 @@ class TestBuilder:
 
         # Update the hash with the contents of the build script.
         hash_obj.update(self._hash_file(self._script_path))
+        group = bytes(self._group) if self._group is not None else b'<def>'
+        hash_obj.update(group)
+        umask = bytes(oct(self._umask)) if self._umask is not None else b'<def>'
+        hash_obj.update(umask)
 
         specificity = self._config.get('specificity', '')
         hash_obj.update(specificity.encode('utf8'))
@@ -298,7 +301,7 @@ class TestBuilder:
                 hash_obj.update(self._hash_io(io_contents))
                 io_contents.close()
 
-        hash_obj.update(self._config.get('specificity', '').encode('utf-8'))
+        hash_obj.update(self._config.get('specificity', '').encode())
 
         return hash_obj.hexdigest()[:self.BUILD_HASH_BYTES * 2]
 
@@ -334,7 +337,7 @@ class TestBuilder:
         test run wants to use it."""
 
         deprecated_path = self.path/self.DEPRECATED
-        deprecated_path.touch(exist_ok=True)
+        deprecated_path.touch()
 
     def _update_src(self):
         """Retrieve and/or check the existence of the files needed for the
@@ -418,23 +421,23 @@ class TestBuilder:
                     # wrong.
                     # This will also set the test status for
                     # non-catastrophic cases.
-                    if not self._build(build_dir, cancel_event):
+                    with PermissionsManager(build_dir, self._group,
+                                            self._umask):
+                        if not self._build(build_dir, cancel_event):
 
-                        try:
-                            build_dir.rename(self.fail_path)
-                        except FileNotFoundError as err:
-                            self.tracker.error(
-                                "Failed to move build {} from {} to "
-                                "failure path {}: {}"
-                                .format(self.name, build_dir,
-                                        self.fail_path, err))
-                            self.fail_path.mkdir()
-                        if cancel_event is not None:
-                            cancel_event.set()
+                            try:
+                                build_dir.rename(self.fail_path)
+                            except FileNotFoundError as err:
+                                self.tracker.error(
+                                    "Failed to move build {} from {} to "
+                                    "failure path {}: {}"
+                                    .format(self.name, build_dir,
+                                            self.fail_path, err))
+                                self.fail_path.mkdir()
+                            if cancel_event is not None:
+                                cancel_event.set()
 
-                        # If the build didn't succeed, copy the attempted build
-                        # into the test run, and set the run as complete.
-                        return False
+                            return False
 
                     try:
                         # Make all symlinks relative if they're internal
@@ -450,12 +453,13 @@ class TestBuilder:
                         return False
 
                     # Make a file with the test id of the building test.
-                    try:
-                        dst = self.path / '.built_by'
-                        with dst.open('w') as built_by:
-                            built_by.write(str(self.test.id))
-                    except OSError:
-                        self.tracker.warn("Could not create built_by file.")
+                    dst = self.path / '.built_by'
+                    with PermissionsManager(dst, self._group, self._umask):
+                        try:
+                            with dst.open('w') as built_by:
+                                built_by.write(str(self.test.id))
+                        except OSError:
+                            self.tracker.warn("Could not create built_by file.")
                 else:
                     self.tracker.update(
                         state=STATES.BUILD_REUSED,
@@ -480,9 +484,6 @@ class TestBuilder:
 
         try:
             self._setup_build_dir(build_dir)
-
-            umask = os.umask(0)
-            os.umask(umask)
         except TestBuilderError as err:
             self.tracker.error(
                 note=("Error setting up build directory '{}': {}"
@@ -630,12 +631,25 @@ class TestBuilder:
             if category == 'application' and subtype in self.TAR_SUBTYPES:
 
                 if tarfile.is_tarfile(src_path.as_posix()):
-                    self._extract_tarball(src_path, dest)
+                    self.tracker.update(
+                        state=STATES.BUILDING,
+                        note=("Extracting tarfile {} for build {}"
+                              .format(src_path, dest)))
+                    extract.extract_tarball(src_path, dest)
                 else:
-                    self._decompress_file(src_path, dest, subtype)
+                    self.tracker.update(
+                        state=STATES.BUILDING,
+                        note=(
+                            "Extracting {} file {} for build {} into the "
+                            "build directory."
+                            .format(subtype, src_path, dest)))
+                    extract.decompress_file(src_path, dest, subtype)
             elif category == 'application' and subtype == 'zip':
-
-                self._unzip_file(src_path, dest)
+                self.tracker.update(
+                    state=STATES.BUILDING,
+                    note=("Extracting zip file {} for build {}."
+                          .format(src_path, dest)))
+                extract.unzip_file(src_path, dest)
 
             else:
                 # Finally, simply copy any other types of files into the build
@@ -732,121 +746,6 @@ class TestBuilder:
 
         return True
 
-    def _extract_tarball(self, src_path, build_dest):
-
-        if tarfile.is_tarfile(src_path.as_posix()):
-            try:
-                with tarfile.open(src_path.as_posix(), 'r') as tar:
-                    # Filter out all but the top level items.
-                    top_level = [m for m in tar.members
-                                 if '/' not in m.name]
-                    # If the file contains only a single directory,
-                    # make that directory the build directory. This
-                    # should be the default in most cases.
-                    if len(top_level) == 1 and top_level[0].isdir():
-                        self.tracker.update(
-                            state=STATES.BUILDING,
-                            note=("Extracting tarfile {} for build {} "
-                                  "as the build directory."
-                                  .format(src_path, build_dest)))
-                        tmpdir = self.path.with_suffix('.extracted')
-                        tmpdir.mkdir()
-                        tar.extractall(tmpdir.as_posix())
-                        opath = tmpdir / top_level[0].name
-                        opath.rename(build_dest)
-                        tmpdir.rmdir()
-                    else:
-                        # Otherwise, the build path will contain the
-                        # extracted contents of the archive.
-                        self.tracker.update(
-                            state=STATES.BUILDING,
-                            note=("Extracting tarfile {} for build {} into the "
-                                  "build directory."
-                                  .format(src_path, build_dest)))
-                        build_dest.mkdir()
-                        tar.extractall(build_dest.as_posix())
-            except (OSError, IOError,
-                    tarfile.CompressionError, tarfile.TarError) as err:
-                raise TestBuilderError(
-                    "Could not extract tarfile '{}' into '{}': {}"
-                    .format(src_path, build_dest, err))
-
-    def _decompress_file(self, src_path, build_dest, subtype):
-
-        # If it's a compressed file but isn't a tar, extract the
-        # file into the build directory.
-        # All the python compression libraries have the same basic
-        # interface, so we can just dynamically switch between
-        # modules.
-        if subtype in ('gzip', 'x-gzip'):
-            comp_lib = gzip
-        elif subtype == 'x-bzip2':
-            comp_lib = bz2
-        elif subtype in ('x-xz', 'x-lzma'):
-            comp_lib = lzma
-        elif subtype == 'x-tar':
-            raise TestBuilderError(
-                "Test src file '{}' is a bad tar file."
-                .format(src_path))
-        else:
-            raise RuntimeError("Unhandled compression type. '{}'"
-                               .format(subtype))
-
-        self.tracker.update(
-            state=STATES.BUILDING,
-            note=("Extracting {} file {} for build {} into the build directory."
-                  .format(subtype, src_path, build_dest)))
-        decomp_fn = src_path.with_suffix('').name
-        decomp_fn = build_dest / decomp_fn
-        build_dest.mkdir()
-
-        try:
-            with comp_lib.open(src_path.as_posix()) as infile, \
-                    decomp_fn.open('wb') as outfile:
-                shutil.copyfileobj(infile, outfile)
-        except (OSError, IOError, lzma.LZMAError) as err:
-            raise TestBuilderError(
-                "Error decompressing compressed file "
-                "'{}' into '{}': {}"
-                .format(src_path, decomp_fn, err))
-
-    def _unzip_file(self, src_path, build_dest):
-        tmpdir = build_dest.with_suffix('.unzipped')
-        try:
-            # Extract the zipfile, under the same conditions as
-            # above with tarfiles.
-            with ZipFile(src_path.as_posix()) as zipped:
-
-                tmpdir.mkdir()
-                zipped.extractall(tmpdir.as_posix())
-
-                files = os.listdir(tmpdir.as_posix())
-                if len(files) == 1 and (tmpdir / files[0]).is_dir():
-                    self.tracker.update(
-                        state=STATES.BUILDING,
-                        note=("Extracting zip file {} for build {} as the "
-                              "build directory."
-                              .format(src_path, build_dest)))
-                    # Make the zip's root directory the build dir.
-                    (tmpdir / files[0]).rename(build_dest)
-                    tmpdir.rmdir()
-                else:
-                    self.tracker.update(
-                        state=STATES.BUILDING,
-                        note=("Extracting zip file {} for build {} into the "
-                              "build directory."
-                              .format(src_path, build_dest)))
-                    # The overall contents of the zip are the build dir.
-                    tmpdir.rename(build_dest)
-
-        except (OSError, IOError, BadZipFile) as err:
-            raise TestBuilderError(
-                "Could not extract zipfile '{}' into destination "
-                "'{}': {}".format(src_path, build_dest, err))
-        finally:
-            if tmpdir.exists():
-                shutil.rmtree(tmpdir.as_posix())
-
     def _fix_build_permissions(self, root_path):
         """The files in a build directory should never be writable, but
             directories should be. Users are thus allowed to delete build
@@ -888,15 +787,15 @@ class TestBuilder:
         hash_obj = hashlib.sha256()
 
         for key in sorted(mapping.keys()):
-            hash_obj.update(str(key).encode('utf-8'))
+            hash_obj.update(str(key).encode())
 
             val = mapping[key]
 
             if isinstance(val, str):
-                hash_obj.update(val.encode('utf-8'))
+                hash_obj.update(val.encode())
             elif isinstance(val, list):
                 for item in val:
-                    hash_obj.update(item.encode('utf-8'))
+                    hash_obj.update(item.encode())
             elif isinstance(val, dict):
                 hash_obj.update(cls._hash_dict(val))
 
@@ -942,7 +841,7 @@ class TestBuilder:
         """
 
         dir_stat = path.stat()
-        return '{} {:0.5f}'.format(path, dir_stat.st_mtime).encode('utf-8')
+        return '{} {:0.5f}'.format(path, dir_stat.st_mtime).encode()
 
     @staticmethod
     def _isurl(url):
