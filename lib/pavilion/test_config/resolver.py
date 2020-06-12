@@ -67,9 +67,8 @@ class TestConfigResolver:
         """
 
         user_vars = raw_test_cfg.get('variables', {})
-        var_man = copy.deepcopy(self.base_var_man)
-
         version_info = raw_test_cfg.get('version', {})
+        var_man = copy.deepcopy(self.base_var_man)
 
         var_man.add_var_set('vers', version_info)
 

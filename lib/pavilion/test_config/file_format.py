@@ -234,7 +234,7 @@ expected to be added to by various plugins.
                     'test_version', default='1.0',
                     help_text="Documented test version."),
                 yc.StrElem(
-                    'min_pav',
+                    'min_pav_version', default='',
                     help_text="Minimum pavilion version to run test, should "
                               "be a range.  "),
             ],
