@@ -5,7 +5,7 @@ import datetime
 BASE_RESULTS = {
     'name': lambda test: test.name,
     'id': lambda test: test.id,
-    'pav_version': lambda test: test.var_man['pav.version'],
+    'pav_version': lambda test: test.var_man['pav.version'].strip(),
     'created': lambda test: datetime.datetime.fromtimestamp(
         test.path.stat().st_mtime).isoformat(" "),
     'started': lambda test: test.started.isoformat(" "),
