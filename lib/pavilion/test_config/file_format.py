@@ -188,10 +188,6 @@ expected to be added to by various plugins.
             'doc', default='',
             help_text="Detailed documentation string for this test."
         ),
-        yc.StrElem(
-            'test_version', default='1.0',
-            help_text="Documented test version."
-        ),
         yc.ListElem(
             'permute_on', sub_elem=yc.StrElem(),
             help_text="List of permuted variables. For every permutation of "
@@ -231,6 +227,20 @@ expected to be added to by various plugins.
                       "A clause is true if the value of "
                       "the Pavilion variable matches one or more of the "
                       " values."
+        ),
+        yc.KeyedElem(
+            'version', elements=[
+                yc.StrElem(
+                    'test_version', default='1.0',
+                    help_text="Documented test version."),
+                yc.StrElem(
+                    'min_pav',
+                    help_text="Minimum pavilion version to run test, should "
+                              "be a range.  "),
+            ],
+            help_text="Subsection in test configs to document compatible "
+                      "pavilion version as well as document current test "
+                      "version. "
         ),
         yc.KeyedElem(
             'build', elements=[

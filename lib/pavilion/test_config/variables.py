@@ -106,7 +106,7 @@ Usage: ::
 """
 
     # The variable sets, in order of resolution.
-    VAR_SETS = ('var', 'sys', 'pav', 'sched')
+    VAR_SETS = ('var', 'sys', 'pav', 'sched', 'vers')
 
     def __init__(self):
         """Initialize the var set manager."""
