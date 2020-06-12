@@ -186,3 +186,17 @@ class RunCmdTests(PavTestCase):
 
         run_cmd = commands.get_command(args.command_name)
         self.assertNotEqual(run_cmd.run(self.pav_cfg, args), 0)
+
+    def test_incompatible(self):
+        """Check that a test that has a min pav version that is
+        incompatibile with the current pavilion version is not
+        built or run."""
+
+        arg_parser = arguments.get_parser()
+
+        args = arg_parser.parse_args([
+            'run', 'version'
+        ])
+
+        run_cmd = commands.get_command(args.command_name)
+        self.assertNotEqual(run_cmd.run(self.pav_cfg, args), 0)

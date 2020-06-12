@@ -1,0 +1,24 @@
+Test:
+    summary: compatible min pav version
+    run:
+        cmd:
+            - 'sleep 5'
+    version:
+        min_pav_version: 2.1.0-2.1.2
+
+Test2:
+    summary: incompatible min pav version
+    run:
+        cmd:
+            - 'sleep 2'
+    version:
+        min_pav_version: 1.2.1-1.3.4
+
+Test3:
+    summary: invalid version config
+    run:
+        cmd:
+            - 'sleep 1'
+    version:
+        min_pav_version: 12.131.313.23
+
