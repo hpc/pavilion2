@@ -145,6 +145,11 @@ class RunCommand(commands.Command):
         series = TestSeries(pav_cfg, all_tests)
         self.last_series = series
 
+        res = self.check_version_compatibility(all_tests)
+        if res !=0:
+            self._complete_tests(all_tests)
+            return res
+
         res = self.check_result_format(all_tests)
         if res != 0:
             self._complete_tests(all_tests)
@@ -451,6 +456,37 @@ name) of lists of tuples
                    file=self.errfile, color=output.RED)
             for msg in rp_errors:
                 fprint(msg, bullet=' - ', file=self.errfile)
+            return errno.EINVAL
+
+        return 0
+
+    def check_version_compatibility(self, tests):
+        """Make sure test are compatible with current pavilion version."""
+
+        compatible_errors = []
+        for test in tests:
+
+            valid_version_range = test.var_man['vers.min_pav_version']
+            if not valid_version_range:
+                continue
+            pav_version= test.var_man['pav.version']
+            try:
+                lowest, highest = valid_version_range.split("-")
+            except ValueError as err:
+                compatible_errors.append(str(err))
+
+            if not lowest <= pav_version <= highest:
+                err = str(test.name + " is not compatible with pavilion "
+                          + pav_version)
+                compatible_errors.append(err)
+                err = str("Compatible versions " + valid_version_range)
+                compatible_errors.append(err)
+
+        if compatible_errors:
+            fprint("Test Compatibility issues have occured.",
+                   file=self.errfile, color=output.RED)
+            for msg in compatible_errors:
+                fprint(msg, bullet=" - ", file=self.errfile)
             return errno.EINVAL
 
         return 0
