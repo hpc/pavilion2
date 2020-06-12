@@ -2,9 +2,10 @@
 other commands to print statuses."""
 
 import errno
+import json
 import os
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from pavilion import commands
 from pavilion import output
@@ -139,6 +140,65 @@ def get_tests(pav_cfg, args, errfile):
     return test_list
 
 
+def status_via_time(pav_cfg, args, errfile):
+    """Status via time grabs tests based on the given time argument
+    It will check tests datetime objects and returns all tests up to
+    a certain time.
+    :param: pav_cfg: The pavilion config.
+    :param: args: Tests via command line arguments
+    :param errfile: Stream to output errors as needed
+    :returns: List of dictionary objects"""
+    from pavilion.output import dbg_print
+    # Converting time arguments into valid datetime object.
+    time_amount = int(args.time[0])
+    time_unit = args.time[1]
+
+    # Convert time into hours
+    # You lose some accuracy if you do like, `-t 15 years`, but
+    # I hope nobody will have a 15 year old pav directory.
+    if time_unit == 'second' or time_unit == 'seconds':
+        time_amount = time_amount/3600
+    elif time_unit == 'minute' or time_unit == 'minutes':
+        time_amount = time_amount/60
+    elif time_unit == 'hour' or time_unit == 'hours':
+        time_amount = time_amount * 1
+    elif time_unit == 'day' or time_unit == 'days':
+        time_amount = time_amount * 24
+    elif time_unit == 'week' or time_unit == 'weeks':
+        time_amount = time_amount * 168
+    elif time_unit == 'month' or time_unit == 'months':
+        time_amount = time_amount * 720
+    elif time_unit == 'year' or time_unit == 'years':
+        time_amount = time_amount * 8760
+    else:
+        output.fprint("Invalid time unit", color=output.RED)
+
+    search_date = datetime.today() - timedelta(hours=time_amount)
+
+    test_list = test_run.get_latest_tests(pav_cfg, 9999999)
+    test_statuses = []
+    test_obj_list = []
+    for test_id in test_list:
+        try:
+            test = TestRun.load(pav_cfg, test_id)
+            if test.status.current().when > search_date:
+                test_obj_list.append(test)
+        except (TestRunError, TestRunNotFoundError) as err:
+            test_statuses.append({
+                'test_id': test_id,
+                'name':    "",
+                'state':   STATES.UNKNOWN,
+                'time':    "",
+                'note':    "Error loading test: {}".format(err),
+            })
+    statuses = status_from_test_obj(pav_cfg, test_obj_list)
+
+    if statuses is not None:
+        test_statuses = test_statuses + statuses
+
+    return test_statuses
+
+
 def get_statuses(pav_cfg, args, errfile):
     """Get the statuses of the listed tests or series.
 
@@ -256,16 +316,26 @@ class StatusCommand(commands.Command):
             help="Shows the full status history of a job."
         )
         parser.add_argument(
+            '--series', type=str, default=False, nargs=2,
+            help='Displays test series based on user specifications.'
+        )
+        parser.add_argument(
             '-s', '--summary', default=False, action='store_true',
             help='Summary will display a summed version of what'
                  'state were observed in pav status. '
+        )
+        parser.add_argument(
+            '-t', '--time', type=str, default=False, nargs=2,
+            help='Retrieves tests up to the given date or time.'
         )
 
     def run(self, pav_cfg, args):
         """Gathers and prints the statuses from the specified test runs and/or
         series."""
         try:
-            if not args.all:
+            if args.time:
+                test_statuses = status_via_time(pav_cfg, args, self.errfile)
+            elif not args.all:
                 test_statuses = get_statuses(pav_cfg, args, self.errfile)
             else:
                 test_statuses = get_all_tests(pav_cfg, args)
@@ -278,8 +348,62 @@ class StatusCommand(commands.Command):
             return self.display_history(pav_cfg, args)
         elif args.summary:
             return self.print_summary(test_statuses)
+        elif args.series:
+            return self.display_series(pav_cfg, args, test_statuses)
         else:
             return print_status(test_statuses, self.outfile, args.json)
+
+    def display_series(self, pav_cfg, args, test_statuses):
+        """display_series takes in two arguments from the command
+        line. A key and value pair. It then scans the working directory
+        test_runs for a match in either, variables, options, or config.
+        It appends the entries into a list to be passed to draw_tables.
+        This command takes in pav_cfg along with args.
+        :param pav_cfg The Pavilion Config.
+        :param args Command line arguments
+        :param test_statuses Pavilion Test Statuses
+        :rtype int"""
+
+        from pavilion.output import dbg_print
+        search_key = args.series[0]
+        search_value = args.series[1]
+        ret_val = 0
+
+        fields = ['Test_Name', 'Test_ID', 'User', 'System']
+        rows = []
+        for test in test_statuses:
+            path = (pav_cfg.working_dir / 'test_runs' /
+                    str(test['test_id']).zfill(7) /
+                    'variables')
+
+            var_dict = json.load(open(path))
+
+            if search_key == 'user':
+                value = var_dict['pav'][search_key]
+            elif search_key == 'sys_name':
+                value = var_dict['sys'][search_key]
+            else:
+                output.fprint("Only 'user' and 'sys_name' are supported"
+                              " at this time for searchable series.",
+                              color=output.RED)
+                return errno.EINVAL
+
+            if value[0] == search_value:
+                rows.append({
+                    'Test_Name': test['name'],
+                    'Test_ID': test['test_id'],
+                    'User': var_dict['pav']['user'][0],
+                    'System': var_dict['sys']['sys_name'][0]
+                })
+
+        output.draw_table(
+            outfile=self.outfile,
+            field_info={},
+            fields=fields,
+            rows=rows,
+            title='Series Data')
+
+        return ret_val
 
     def display_history(self, pav_cfg, args):
         """Display_history takes a test_id from the command
