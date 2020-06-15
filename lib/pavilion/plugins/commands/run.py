@@ -465,21 +465,25 @@ name) of lists of tuples
 
         compatible_errors = []
         for test in tests:
-
-            valid_version_range = test.var_man['vers.min_pav_version']
-            if not valid_version_range:
+            # Assumes the test is compatible with any version if
+            # nothing was provided in the test config
+            if not test.min_pav_version:
                 continue
-            pav_version= test.var_man['pav.version']
+            pav_version= test.var_man['pav.version'].strip()
             try:
-                lowest, highest = valid_version_range.split("-")
+                lowest, highest = test.min_pav_version.split("-")
             except ValueError as err:
                 compatible_errors.append(str(err))
 
-            if not lowest <= pav_version <= highest:
+            lowest = lowest.split(".")
+            highest = highest.split(".")
+            pav_version = pav_version.split(".")
+
+            if not (lowest <= pav_version <= highest):
                 err = str(test.name + " is not compatible with pavilion "
-                          + pav_version)
+                          + ".".join(pav_version))
                 compatible_errors.append(err)
-                err = str("Compatible versions " + valid_version_range)
+                err = str("Compatible versions " + test.min_pav_version)
                 compatible_errors.append(err)
 
         if compatible_errors:
