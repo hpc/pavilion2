@@ -17,7 +17,7 @@ TEST_NAME_RE_STR = r'^[a-zA-Z_][a-zA-Z0-9_-]*$'
 TEST_NAME_RE = re.compile(TEST_NAME_RE_STR)
 KEY_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_-]*$')
 VAR_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_-]*[?+]?$')
-
+VERS_RANGE_RE = re.compile(r"\d+\.\d+\.\d+-\d+\.\d+\.\d+")
 
 class PathCategoryElem(yc.CategoryElem):
     """This is for category elements that need a valid unix path regex."""
@@ -233,8 +233,8 @@ expected to be added to by various plugins.
                 yc.StrElem(
                     'test_version', default='1.0',
                     help_text="Documented test version."),
-                yc.StrElem(
-                    'min_pav_version', default='',
+                yc.RegexElem(
+                    'min_pav_version', regex=VERS_RANGE_RE,
                     help_text="Minimum pavilion version to run test, should "
                               "be a range.  "),
             ],
