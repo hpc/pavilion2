@@ -6,6 +6,11 @@ python:
 
 before_install:
     - sudo apt-get install -y environment-modules tcl python3-sphinx
+    # Some tests require that the test running user belong to multiple groups.
+    - groupadd group_foo
+    - groupadd group_bar
+    - user_mode -a -G group_foo $USER
+    - user_mode -a -G group_bar $USER
 
 install:
     - pip install -r requirements.txt sphinx pylint
