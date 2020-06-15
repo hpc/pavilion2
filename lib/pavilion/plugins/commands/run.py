@@ -476,8 +476,11 @@ name) of lists of tuples
                 compatible_errors.append(str(err))
 
             lowest = lowest.split(".")
+            lowest = [int(i) for i in lowest]
             highest = highest.split(".")
+            highest = [int(i) for i in highest]
             pav_version = pav_version.split(".")
+            pav_version = [int(i) for i in pav_version]
 
             if not (lowest <= pav_version <= highest):
                 err = str(test.name + " is not compatible with pavilion "
