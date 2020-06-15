@@ -641,7 +641,7 @@ index, sub_var) tuple.
         var_man = VariableSetManager()
 
         var_man.variable_sets = copy.deepcopy(self.variable_sets)
-        var_man.deferred = self.deferred
+        var_man.deferred = copy.deepcopy(self.deferred)
 
         return var_man
 
