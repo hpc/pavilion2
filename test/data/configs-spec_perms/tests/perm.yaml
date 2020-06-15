@@ -1,0 +1,9 @@
+base:
+  build:
+    cmds: [echo "foo" > foo, cp foo bar]
+    extra_files: src.zip
+    source_location: src.zip
+  run:
+    cmds: [echo "run_foo" > run_foo, cp run_foo run_bar]
+spec_perms1: {group: adm, inherits_from: base, umask: '022'}
+spec_perms2: {group: cdrom, inherits_from: base, umask: '002'}
