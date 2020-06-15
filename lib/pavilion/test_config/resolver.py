@@ -67,10 +67,7 @@ class TestConfigResolver:
         """
 
         user_vars = raw_test_cfg.get('variables', {})
-        version_info = raw_test_cfg.get('version', {})
         var_man = copy.deepcopy(self.base_var_man)
-
-        var_man.add_var_set('vers', version_info)
 
         # Since per vars are the highest in resolution order, we can make things
         # a bit faster by adding these after we find the used per vars.

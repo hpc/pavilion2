@@ -235,6 +235,11 @@ class TestRun:
 
         self.id = None  # pylint: disable=invalid-name
 
+        # Get the test version information
+        version_info = config.get('version', {})
+        self.test_version = version_info['test_version']
+        self.min_pav_version = version_info['min_pav_version']
+
         # Mark the run to build locally.
         self.build_local = config.get('build', {}) \
                                  .get('on_nodes', 'false').lower() != 'true'
