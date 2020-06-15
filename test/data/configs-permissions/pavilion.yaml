@@ -4,4 +4,4 @@ proxies: null
 shared_group: adm
 umask: 7
 user_config: false
-working_dir: /home/pflarr/repos/pavilion/test/data/working_dir-permissions
+working_dir: /home/pflarr/repos/pavilion/test/working_dir/wd_perms

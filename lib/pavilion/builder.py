@@ -247,9 +247,10 @@ class TestBuilder:
 
         # Update the hash with the contents of the build script.
         hash_obj.update(self._hash_file(self._script_path))
-        group = bytes(self._group) if self._group is not None else b'<def>'
+        group = self._group.encode() if self._group is not None else b'<def>'
         hash_obj.update(group)
-        umask = bytes(oct(self._umask)) if self._umask is not None else b'<def>'
+        umask = oct(self._umask).encode() if self._umask is not None \
+            else b'<def>'
         hash_obj.update(umask)
 
         specificity = self._config.get('specificity', '')

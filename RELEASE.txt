@@ -5,10 +5,36 @@ RELEASE=2.1.2
 # Release History
 
 ## 2.2 Pre-release notes
+ - All new test config parser.
+ - Variable references are now 'expressions'.
+   - In addition to variables, they can contain math and functions.
+     - `'hello {{world * 2}}'`
+     - Assuming 'world' has a value of 5, would be: 'hello 10'
+ - Iterations (formerly sub-strings) can now contain more than one variable.
+   This results in all combinations of the variables being used.
+   - `'Greetings: [~hello {{name}}{{num}}~,]'`
+   - With `name: ['bob', 'janet']` and `num: [1,2]` would result in:
+   - 'Greetings: hello bob1, hello bob2, hello janet1, hello janet2'
  - Backwards compatibility breaks
-   - A 'subtitle' is now required for all permuted tests.
    - All duplicate keys in configs are now detected and cause errors.
    - Default values may no longer be specified using '{{foo?}}'
+   - Dashes are no longer allowed in Pavilion variable names.
+   - You can no longer have nested 'sub-strings' (now called iterations).
+   - Not everything can be escaped in Pavilion strings anymore. This is now
+     limited to all normal python escapes
+     (https://docs.python.org/2.0/ref/strings.html),
+     plus '[', '{', and '~'.
+   - The results section is now 'results.parse'
+
+   ```yaml
+   mytest:
+     results:
+       parse:
+         regex:
+            - key: stuff
+              regex: 'stuff (\d+)'
+   ```
+
 
 ## 2.1.2
  - Fixed some regressions from the 2.1.1 release.

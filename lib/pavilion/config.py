@@ -235,27 +235,29 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
     ]
 
 
-def find(warn=True):
+def find(target=None, warn=True):
     """Search for a pavilion.yaml configuration file. Use the one pointed
 to by the PAV_CONFIG_FILE environment variable. Otherwise, use the first
 found in these directories the default config search paths:
 
+- The given 'target' file (used only for testing).
 - The ~/.pavilion directory
 - The Pavilion source directory (don't put your config here).
 """
 
-    if PAV_CONFIG_FILE is not None:
-        pav_cfg_file = Path(PAV_CONFIG_FILE)
-        # pylint has a bug that pops up occasionally with pathlib.
-        if pav_cfg_file.is_file():  # pylint: disable=no-member
-            try:
-                cfg = PavilionConfigLoader().load(
-                    pav_cfg_file.open())  # pylint: disable=no-member
-                cfg.pav_cfg_file = pav_cfg_file
-                return cfg
-            except Exception as err:
-                raise RuntimeError("Error in Pavilion config at {}: {}"
-                                   .format(pav_cfg_file, err))
+    for path in target, PAV_CONFIG_FILE:
+        if path is not None:
+            pav_cfg_file = Path(path)
+            # pylint has a bug that pops up occasionally with pathlib.
+            if pav_cfg_file.is_file():  # pylint: disable=no-member
+                try:
+                    cfg = PavilionConfigLoader().load(
+                        pav_cfg_file.open())  # pylint: disable=no-member
+                    cfg.pav_cfg_file = pav_cfg_file
+                    return cfg
+                except Exception as err:
+                    raise RuntimeError("Error in Pavilion config at {}: {}"
+                                       .format(pav_cfg_file, err))
 
     for config_dir in PAV_CONFIG_SEARCH_DIRS:
         path = config_dir/'pavilion.yaml'

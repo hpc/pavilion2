@@ -1,7 +1,11 @@
 import grp
+import copy
 import os
 import shutil
 import subprocess as sp
+from pavilion.plugins.commands import run
+from pavilion import commands
+import io
 import time
 from pathlib import Path
 
@@ -25,14 +29,15 @@ class GeneralTests(PavTestCase):
         def_gid = os.getgid()
         candidates = [group for group in grp.getgrall() if
                       (login in group.gr_mem
-                       and def_gid != group.gr_gid
-                       and group.gr_name != 'sudo')]
+                       and def_gid != group.gr_gid)]
 
         if not candidates:
             self.fail("Your user must be in at least two groups (other than "
-                      "sudo) to run this test.")
+                      "the user's group) to run this test.")
 
+        self.orig_group = grp.getgrgid(def_gid).gr_name
         self.alt_group = candidates[0]  # type: grp.struct_group
+        self.alt_group2 = candidates[1]  # type: grp.struct_group
         self.umask = 0o007
 
     def setUp(self) -> None:
@@ -40,7 +45,7 @@ class GeneralTests(PavTestCase):
         with self.PAV_CONFIG_PATH.open() as pav_cfg_file:
             raw_cfg = yaml.load(pav_cfg_file)
 
-        self.working_dir = self.TEST_DATA_ROOT/'working_dir-permissions'
+        self.working_dir = self.PAV_ROOT_DIR/'test'/'working_dir'/'wd_perms'
 
         if self.working_dir.exists():
             shutil.rmtree(self.working_dir.as_posix())
@@ -54,25 +59,6 @@ class GeneralTests(PavTestCase):
         self.config_dir = self.TEST_DATA_ROOT/'configs-permissions'
         with (self.config_dir/'pavilion.yaml').open('w') as pav_cfg_file:
             yaml.dump(raw_cfg, stream=pav_cfg_file)
-
-    def wait_tests(self, path: Path, timeout=5):
-        """Wait on all the tests under the given path to complete."""
-
-        end_time = time.time() + timeout
-        while time.time() < end_time:
-            runs_dir = self.working_dir/'test_runs'
-
-            completion_files = [path/TestRun.COMPLETE_FN
-                                for path in runs_dir.iterdir()]
-
-            if not completion_files:
-                time.sleep(0.1)
-                continue
-
-            if all([cfile.exists() for cfile in completion_files]):
-                break
-        else:
-            raise TimeoutError
 
     def test_permissions(self):
         """Make sure all files written by Pavilion have the correct
@@ -91,20 +77,23 @@ class GeneralTests(PavTestCase):
     def test_build_fail_permissions(self):
         """Make sure failed builds have good permissions too."""
 
-        cmd = [(self.PAV_ROOT_DIR /'bin'/'pav').as_posix(),
+        cmd = [(self.PAV_ROOT_DIR /'bin/pav').as_posix(),
                'run', 'perm.build_fail']
 
-        self.check_runs(cmd)
+        self.check_runs(cmd, run_succeeds=False)
 
-    def check_runs(self, cmd):
+    def check_runs(self, cmd, run_succeeds=True):
         """Perform a run and make sure they have correct permissions."""
 
         env = os.environ.copy()
         env['PAV_CONFIG_DIR'] = self.config_dir.as_posix()
 
-        proc = sp.Popen(cmd, env=env, stdout=sp.DEVNULL, stderr=sp.DEVNULL)
-        proc.wait(3)
-        self.wait_tests(self.working_dir/'test_runs')
+        proc = sp.Popen(cmd, env=env, stdout=sp.PIPE, stderr=sp.STDOUT)
+        if (proc.wait(3) != 0) == run_succeeds:
+            out = proc.stdout.read()
+            out = out.decode()
+            self.fail("Error running command.\n{}".format(out))
+        self.wait_tests(self.working_dir)
 
         for file in utils.flat_walk(self.working_dir):
             stat = file.stat()

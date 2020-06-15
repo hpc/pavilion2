@@ -14,22 +14,10 @@ base:
             - 'echo "run_foo" > run_foo'
             - 'cp run_foo run_bar'
 
-
-tar:
-    inherits_from: base
-    build:
-        source_location: src.tar.gz
-
-dir:
-    inherits_from: base
-    build:
-        source_location: src
-
-build_fail:
-    inherits_from: base
-    build:
-        cmds: 'exit 1'
-
-spec_perms:
+spec_perms1:
     inherits_from: base
     umask: '022'
+
+spec_perms2:
+    inherits_from: base
+    umask: '002'

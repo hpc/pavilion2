@@ -145,16 +145,16 @@ class TestRun:
             try:
                 group_data = grp.getgrnam(self.group)
                 user = utils.get_login()
-                if self.group != user or user not in group_data.gr_mem:
+                if self.group != user and user not in group_data.gr_mem:
                     raise TestConfigError(
                         "Test specified group '{}', but the current user '{}' "
                         "is not a member of that group."
                         .format(self.group, user))
-            except KeyError:
+            except KeyError as err:
                 raise TestConfigError(
                     "Test specified group '{}', but that group does not "
-                    "exist on this system."
-                    .format(self.group))
+                    "exist on this system. {}"
+                    .format(self.group, err))
 
         self.umask = config.get('umask')
         if self.umask is not None:
@@ -381,8 +381,7 @@ class TestRun:
         lock_path = self.path/'config.lockfile'
         config_lock = lockfile.LockFile(
             lock_path,
-            group=self._pav_cfg.shared_group
-        )
+            group=self._pav_cfg.shared_group)
 
         try:
             config_lock.lock()
@@ -449,7 +448,9 @@ class TestRun:
         if self.builder.build(cancel_event=cancel_event):
             # Create the build origin path, to make tracking a test's build
             # a bit easier.
-            self.build_origin_path.symlink_to(self.builder.path)
+            with PermissionsManager(self.build_origin_path, self.group,
+                                    self.umask):
+                self.build_origin_path.symlink_to(self.builder.path)
 
             return self.builder.copy_build(self.build_path)
         else:
@@ -563,7 +564,9 @@ class TestRun:
         # Write the current time to the file. We don't actually use the contents
         # of the file, but it's nice to have another record of when this was
         # run.
-        with (self.path/self.COMPLETE_FN).open('w') as run_complete:
+        with (self.path/self.COMPLETE_FN).open('w') as run_complete, \
+                PermissionsManager(self.path/self.COMPLETE_FN,
+                                   self.group, self.umask):
             json.dump({
                 'complete': datetime.datetime.now().isoformat(),
             }, run_complete)
@@ -766,7 +769,8 @@ of result keys.
 :param dict results: The results dictionary.
 """
 
-        with self.results_path.open('w') as results_file:
+        with self.results_path.open('w') as results_file, \
+                PermissionsManager(self.results_path, self.group, self.umask):
             json.dump(results, results_file)
 
     def load_results(self):

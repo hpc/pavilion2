@@ -28,7 +28,7 @@ class PermissionsManager:
         """
 
         if group is not None:
-            self.gid = grp.getgrnam(group)
+            self.gid = grp.getgrnam(group).gr_gid
         else:
             self.gid = None
         self.umask = umask
