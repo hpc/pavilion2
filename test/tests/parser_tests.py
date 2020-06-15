@@ -51,8 +51,8 @@ class ParserTests(unittest.PavTestCase):
         visitor = pavilion.test_config.parsers.expressions.VarRefVisitor()
         used_vars = visitor.visit(tree)
 
-        self.assertEqual(used_vars,
-                         ['int1.3.foo', 'var.int2.*.bleh', 'int1'])
+        self.assertEqual(sorted(used_vars),
+                         sorted(['int1.3.foo', 'var.int2.*.bleh', 'int1']))
 
         # Pretty much the same as above, but for a whole string an not just
         # an expression (it uses the above visitor for the expressions).
@@ -61,7 +61,8 @@ class ParserTests(unittest.PavTestCase):
                                    "{{sys.bar}}")
         visitor = parsers.strings.StringVarRefVisitor()
         var_list = visitor.visit(tree)
-        self.assertEqual(['var.foo.1.baz', 'sys.bar'], var_list)
+        self.assertEqual(sorted(['var.foo.1.baz', 'sys.bar']),
+                         sorted(var_list))
 
     GOOD_EXPRESSIONS = {
         '': '',
