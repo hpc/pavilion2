@@ -371,15 +371,3 @@ class BuilderTests(PavTestCase):
             self.fail("Build did not respond quickly enough to being canceled.")
 
         self.assertEqual(test.status.current().state, STATES.ABORTED)
-
-    def test_abs_symlinks(self):
-
-        config = self._quick_test_cfg()
-        config['build']['cmds'] = ['ln -s $(pwd)/bar foo']
-
-        test = self._quick_test(cfg=config)
-
-        path = test.builder.path/'foo'
-        target = pathlib.Path(os.readlink(path.as_posix()))
-
-        self.assertFalse(target.is_absolute())

@@ -208,10 +208,10 @@ class TestBuilder:
         else:
             self.name = build_name
 
-        # TODO: Builds can get renamed, this needs to be fixed.
         self.path = pav_cfg.working_dir/'builds'/self.name  # type: Path
         fail_name = 'fail.{}.{}'.format(self.name, self.test.id)
         self.fail_path = pav_cfg.working_dir/'builds'/fail_name
+        self.finished_path = self.path.with_suffix('.finished')
 
         # Don't allow a file to be written outside of the build context dir.
         files_to_create = self._config.get('create_files')
@@ -397,8 +397,8 @@ class TestBuilder:
         :return: True if these steps completed successfully.
         """
 
-        # Only try to do the build if it doesn't already exist.
-        if not self.path.exists():
+        # Only try to do the build if it doesn't already exist and is finished.
+        if not self.finished_path.exists():
             # Make sure another test doesn't try to do the build at
             # the same time.
             # Note cleanup of failed builds HAS to occur under this lock to
@@ -411,28 +411,41 @@ class TestBuilder:
             with lockfile.LockFile(lock_path, group=self._pav_cfg.shared_group):
                 # Make sure the build wasn't created while we waited for
                 # the lock.
-                if not self.path.exists():
+                if not self.finished_path.exists():
                     self.tracker.update(
                         state=STATES.BUILDING,
                         note="Starting build {}.".format(self.name))
-                    build_dir = self.path.with_suffix('.tmp')
+
+                    # If the build directory exists, we're assuming there was
+                    # an incomplete build at this point.
+                    if self.path.exists():
+                        self.tracker.warn(
+                            "Build lock acquired, but build exists that was "
+                            "not marked as finished. Deleting...")
+                        try:
+                            shutil.rmtree(self.path)
+                        except OSError as err:
+                            self.tracker.error(
+                                "Could not remove unfinished build.\n{}"
+                                .format(err.args[0]))
+                            return False
 
                     # Attempt to perform the actual build, this shouldn't
                     # raise an exception unless something goes terribly
                     # wrong.
                     # This will also set the test status for
                     # non-catastrophic cases.
-                    with PermissionsManager(build_dir, self._group,
+                    with PermissionsManager(self.path, self._group,
                                             self._umask):
-                        if not self._build(build_dir, cancel_event):
+                        if not self._build(self.path, cancel_event):
 
                             try:
-                                build_dir.rename(self.fail_path)
+                                self.path.rename(self.fail_path)
                             except FileNotFoundError as err:
                                 self.tracker.error(
                                     "Failed to move build {} from {} to "
                                     "failure path {}: {}"
-                                    .format(self.name, build_dir,
+                                    .format(self.name, self.path,
                                             self.fail_path, err))
                                 self.fail_path.mkdir()
                             if cancel_event is not None:
@@ -440,27 +453,22 @@ class TestBuilder:
 
                             return False
 
-                    try:
-                        # Make all symlinks relative if they're internal
-                        utils.repair_symlinks(build_dir)
-
-                        # Rename the build to it's final location.
-                        build_dir.rename(self.path)
-                    except (OSError, ValueError) as err:
-                        self.tracker.error(
-                            "Unexpected error: {}".format(err.args[0])
-                        )
-                        cancel_event.set()
-                        return False
-
                     # Make a file with the test id of the building test.
-                    dst = self.path / '.built_by'
-                    with PermissionsManager(dst, self._group, self._umask):
-                        try:
-                            with dst.open('w') as built_by:
-                                built_by.write(str(self.test.id))
-                        except OSError:
-                            self.tracker.warn("Could not create built_by file.")
+                    built_by_path = self.path / '.built_by'
+                    try:
+                        with PermissionsManager(
+                                built_by_path, self._group, self._umask), \
+                             built_by_path.open('w') as built_by:
+                            built_by.write(str(self.test.id))
+                    except OSError:
+                        self.tracker.warn("Could not create built_by file.")
+
+                    try:
+                        self.finished_path.touch()
+                    except OSError:
+                        self.tracker.warn("Could not touch '<build>.finished' "
+                                          "file.")
+
                 else:
                     self.tracker.update(
                         state=STATES.BUILD_REUSED,
