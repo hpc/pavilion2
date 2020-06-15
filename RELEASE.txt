@@ -34,6 +34,10 @@ RELEASE=2.1.2
             - key: stuff
               regex: 'stuff (\d+)'
    ```
+ - Build are now built in their final location, rather than in a tmp 
+   location. This fixes the issues with symlinks (as they no longer 
+   move, so they can be absolute), and issues with non-relocatable 
+   builds.
 
 
 ## 2.1.2
