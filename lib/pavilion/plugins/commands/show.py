@@ -432,13 +432,12 @@ class ShowCommand(commands.Command):
                 if file.suffix == '.yaml' and file.is_file():
                     host_id = file.stem
                     host_path = file
-                    config_file = open(file)
-                    config_data = yc_yaml.load(config_file)
+                    with file.open() as config_file:
+                        config_data = yc_yaml.load(config_file)
                     try:
                         host_vars = list(config_data['variables'].keys())
                     except (KeyError, TypeError) as err:
                         host_vars = []
-                    config_file.close()
 
                     hosts.append({
                         'Name': host_id,
@@ -478,13 +477,12 @@ class ShowCommand(commands.Command):
                 if file.suffix == '.yaml' and file.is_file():
                     mode_id = file.stem
                     mode_path = file
-                    config_file = open(file)
-                    config_data = yc_yaml.load(config_file)
+                    with file.open() as config_file:
+                        config_data = yc_yaml.load(config_file)
                     try:
                         mode_vars = list(config_data['variables'].keys())
                     except (KeyError, TypeError) as err:
                         mode_vars = []
-                    config_file.close()
 
                     modes.append({
                         'Name': mode_id,
