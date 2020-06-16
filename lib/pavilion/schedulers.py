@@ -471,7 +471,6 @@ class SchedulerPlugin(IPlugin.IPlugin):
         header = self._get_kickoff_script_header(test_obj)
 
         script = scriptcomposer.ScriptComposer(header=header)
-
         script.comment("Redirect all output to kickoff.log")
         script.command("exec >{} 2>&1"
                        .format(test_obj.path/'kickoff.log'))
