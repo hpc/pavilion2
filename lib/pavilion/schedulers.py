@@ -473,7 +473,8 @@ class SchedulerPlugin(IPlugin.IPlugin):
         script = scriptcomposer.ScriptComposer(
             header=header,
             details=scriptcomposer.ScriptDetails(
-                path=self._kickoff_script_path(test_obj)
+                path=self._kickoff_script_path(test_obj),
+                group=pav_cfg.shared_group
             ),
         )
 
@@ -534,6 +535,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
         job_id = test.job_id
         if job_id is None:
             test.status.set(STATES.SCHED_CANCELLED, "Job was never started.")
+            test.set_run_complete()
             return StatusInfo(STATES.SCHED_CANCELLED, "Job was never started.")
 
         return self._cancel_job(test)
