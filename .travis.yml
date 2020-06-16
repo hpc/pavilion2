@@ -10,8 +10,7 @@ before_install:
     # Some tests require that the test running user belong to multiple groups.
     - sudo groupadd group_foo
     - sudo groupadd group_bar
-    - sudo usermod -a -G group_foo $USER
-    - sudo usermod -a -G group_bar $USER
+    - sudo usermod -a -G group_foo,group_bar travis
 
 install:
     - pip install -r requirements.txt sphinx pylint
