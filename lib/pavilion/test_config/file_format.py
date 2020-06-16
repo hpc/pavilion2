@@ -192,6 +192,17 @@ expected to be added to by various plugins.
             help_text="An extended title for this test. Required for "
                       "permuted tests."),
         yc.StrElem(
+            'group', default=None,
+            help_text="The group under which to build and run tests. "
+                      "Defaults to the group specified in pavilion.yaml."
+        ),
+        yc.RegexElem(
+            'umask', regex=r'[0-7]{3}', default=None,
+            help_text="The octal umask to apply to files created during the "
+                      "build and run processes. Defaults to the umask in "
+                      "pavilion.yaml."
+        ),
+        yc.StrElem(
             'summary', default='',
             help_text="Summary of the purpose of this test."
         ),

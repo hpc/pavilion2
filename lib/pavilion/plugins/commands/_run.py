@@ -64,7 +64,7 @@ class _RunCommand(commands.Command):
                     "Unknown build error. Refer to the kickoff log.")
                 raise
 
-            if not test.opts.build_only:
+            if not test.build_only:
                 return self._run(pav_cfg, test, sched)
         finally:
             test.set_run_complete()

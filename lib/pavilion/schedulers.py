@@ -89,7 +89,7 @@ value. Methods that start with '_' are ignored.
 Naming Conventions:
 
 'alloc_*'
-  Variable names should be prefixed with 'alloc\_' if they are deferred.
+  Variable names should be prefixed with 'alloc\\_' if they are deferred.
 
 'test_*'
   Variable names prefixed with test denote that the variable
@@ -347,7 +347,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
         """
 
         # For syntax highlighting. These vars may be used when overridden.
-        del pav_cfg, test, self
+        _ = pav_cfg, test, self
 
         return None
 
@@ -470,14 +470,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
         header = self._get_kickoff_script_header(test_obj)
 
-        script = scriptcomposer.ScriptComposer(
-            header=header,
-            details=scriptcomposer.ScriptDetails(
-                path=self._kickoff_script_path(test_obj),
-                group=pav_cfg.shared_group
-            ),
-        )
-
+        script = scriptcomposer.ScriptComposer(header=header)
         script.comment("Redirect all output to kickoff.log")
         script.command("exec >{} 2>&1"
                        .format(test_obj.path/'kickoff.log'))
@@ -499,9 +492,10 @@ class SchedulerPlugin(IPlugin.IPlugin):
         # Run the test via pavilion
         script.command('pav _run {t.id}'.format(t=test_obj))
 
-        script.write()
+        path = self._kickoff_script_path(test_obj)
+        script.write(path)
 
-        return script.details.path
+        return path
 
     def _get_kickoff_script_header(self, test):
         # Unused in the base class
@@ -513,8 +507,6 @@ class SchedulerPlugin(IPlugin.IPlugin):
     def _add_schedule_script_body(script, test):
         """Add the script body to the given script object. This default
         simply adds a comment and the test run command."""
-
-        del test
 
         script.comment("Within the allocation, run the command.")
         script.command(test.run_cmd())
