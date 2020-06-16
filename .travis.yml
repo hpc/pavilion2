@@ -19,6 +19,6 @@ install:
 script: 
     - groups
     - touch foo
-    - chgrp group_foo foo 
+    - bash -c "groups; chgrp group_foo foo"
     - ls -l
     - bash -c "./test/run_tests -o spec_perms"
