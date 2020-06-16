@@ -85,7 +85,7 @@ class SpecificPermsTests(PavTestCase):
 
         env['PAV_CONFIG_DIR'] = self.config_dir.as_posix()
 
-        cmd = [self.PAV_ROOT_DIR/'bin/pav', 'run', 'perm.*']
+        cmd = [(self.PAV_ROOT_DIR/'bin/pav').as_posix(), 'run', 'perm.*']
 
         proc = sp.Popen(cmd, env=env, stdout=sp.PIPE, stderr=sp.STDOUT)
         if proc.wait(5) != 0:
