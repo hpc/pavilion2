@@ -221,7 +221,6 @@ def get_plugin(name):
     return _SCHEDULER_PLUGINS[name]
 
 
-
 def list_plugins():
     """Return a list of all available scheduler plugin names.
 
