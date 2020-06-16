@@ -79,7 +79,7 @@ class SpecificPermsTests(PavTestCase):
         plugins._reset_plugins()
 
     def test_spec_perms(self):
-        """"""
+        """Check that test specific permissions work."""
 
         env = os.environ.copy()
 
@@ -88,7 +88,7 @@ class SpecificPermsTests(PavTestCase):
         cmd = [self.PAV_ROOT_DIR/'bin/pav', 'run', 'perm.*']
 
         proc = sp.Popen(cmd, env=env, stdout=sp.PIPE, stderr=sp.STDOUT)
-        if proc.wait(3) != 0:
+        if proc.wait(5) != 0:
             out = proc.stdout.read()
             out = out.decode()
             self.fail("Error running command.\n{}".format(out))
