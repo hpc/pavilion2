@@ -18,4 +18,4 @@ install:
     - ln -s pavilion.yaml.travis-ci test/data/pav_config_dir/pavilion.yaml
 
 script: 
-    - ./test/run_tests
+    - ./test/run_tests -o spec_perms
