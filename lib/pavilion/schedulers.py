@@ -473,7 +473,8 @@ class SchedulerPlugin(IPlugin.IPlugin):
         script = scriptcomposer.ScriptComposer(
             header=header,
             details=scriptcomposer.ScriptDetails(
-                path=self._kickoff_script_path(test_obj)
+                path=self._kickoff_script_path(test_obj),
+                group=pav_cfg.shared_group
             ),
         )
 
