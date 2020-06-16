@@ -119,6 +119,10 @@ class SpecificPermsTests(PavTestCase):
 
         for file in utils.flat_walk(path):
             stat = file.stat()
+            self.dbg_print(file, stat.st_gid, stat.st_mode)
+
+        for file in utils.flat_walk(path):
+            stat = file.stat()
             # Make sure all files have the right group.
             grp_name = group.gr_name
             assigned_group = grp.getgrgid(stat.st_gid).gr_name
