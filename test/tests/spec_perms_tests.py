@@ -88,10 +88,14 @@ class SpecificPermsTests(PavTestCase):
         cmd = [(self.PAV_ROOT_DIR/'bin/pav').as_posix(), 'run', 'perm.*']
 
         proc = sp.Popen(cmd, env=env, stdout=sp.PIPE, stderr=sp.STDOUT)
-        if proc.wait(5) != 0:
-            out = proc.stdout.read()
-            out = out.decode()
-            self.fail("Error running command.\n{}".format(out))
+        try:
+            if proc.wait(5) != 0:
+                out = proc.stdout.read()
+                out = out.decode()
+                self.fail("Error running command.\n{}".format(out))
+        except TimeoutError:
+            self.dbg_print(proc.stdout.read())
+            self.fail()
         self.wait_tests(self.working_dir)
 
         perms = {

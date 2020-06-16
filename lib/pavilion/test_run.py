@@ -452,7 +452,9 @@ class TestRun:
                                     self.umask):
                 self.build_origin_path.symlink_to(self.builder.path)
 
-            return self.builder.copy_build(self.build_path)
+            with PermissionsManager(self.build_path, self.group, self.umask):
+                if not self.builder.copy_build(self.build_path):
+                    cancel_event.set()
         else:
             self.builder.fail_path.rename(self.build_path)
             return False

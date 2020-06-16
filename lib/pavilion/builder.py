@@ -170,6 +170,7 @@ class TestBuilder:
     BUILD_HASH_BYTES = 8
 
     DEPRECATED = ".pav_deprecated_build"
+    FINISHED_SUFFIX = '.finished'
 
     LOG_NAME = "pav_build_log"
 
@@ -211,7 +212,7 @@ class TestBuilder:
         self.path = pav_cfg.working_dir/'builds'/self.name  # type: Path
         fail_name = 'fail.{}.{}'.format(self.name, self.test.id)
         self.fail_path = pav_cfg.working_dir/'builds'/fail_name
-        self.finished_path = self.path.with_suffix('.finished')
+        self.finished_path = self.path.with_suffix(self.FINISHED_SUFFIX)
 
         # Don't allow a file to be written outside of the build context dir.
         files_to_create = self._config.get('create_files')
@@ -332,6 +333,7 @@ class TestBuilder:
         self.path = self._pav_cfg.working_dir/'builds'/self.name  # type: Path
         fail_name = 'fail.{}.{}'.format(self.name, self.test.id)
         self.fail_path = self._pav_cfg.working_dir/'builds'/fail_name
+        self.finished_path = self.path.with_suffix(self.FINISHED_SUFFIX)
 
     def deprecate(self):
         """Deprecate this build, so that it will be rebuilt if any other
@@ -739,6 +741,7 @@ class TestBuilder:
                             copy_function=maybe_symlink_copy)
         except OSError as err:
             self.tracker.error(
+                state=STATES.BUILD_ERROR,
                 note=("Could not perform the build directory copy: {}"
                       .format(err)))
             return False
