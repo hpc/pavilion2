@@ -1,0 +1,18 @@
+one:
+    version:
+        test_version: 1.2.3
+    run:
+        cmds:
+            - 'sleep 1'
+two:
+    version:
+        test_version: beta
+        min_pav_version: 1.2.3-5.4.9
+    run:
+        cmds:
+            - 'sleep 1'
+
+three:
+    run:
+        cmds:
+            - 'sleep 1'
