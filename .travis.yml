@@ -21,4 +21,4 @@ script:
     - touch foo
     - chgrp group_foo foo 
     - ls -l
-    - ./test/run_tests -o spec_perms
+    - bash -c "./test/run_tests -o spec_perms"
