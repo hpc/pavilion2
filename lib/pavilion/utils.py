@@ -76,6 +76,15 @@ def dir_contains(file, directory):
     return False
 
 
+def path_is_external(path: Path):
+    """Returns True if a path contains enough back 'up-references' to escape
+    the base directory."""
+
+    up_refs = path.parts.count('..')
+    not_up_refs = len([part for part in path.parts if part != '..'])
+    return not_up_refs - up_refs <= 0
+
+
 def flat_walk(path, *args, **kwargs) -> Iterator[Path]:
     """Perform an os.walk on path, but simply generate each item walked over.
 
