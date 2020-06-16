@@ -9,8 +9,6 @@ from pavilion import commands
 from pavilion import plugins
 from pavilion import system_variables
 from pavilion.pavilion_variables import PavVars
-from pavilion.plugins.commands.run import RunCommand
-from pavilion.result import parsers
 from pavilion.test_config import TestConfigError, resolver
 from pavilion.test_config import variables
 from pavilion.unittest import PavTestCase
