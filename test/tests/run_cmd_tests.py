@@ -186,4 +186,3 @@ class RunCmdTests(PavTestCase):
 
         run_cmd = commands.get_command(args.command_name)
         self.assertNotEqual(run_cmd.run(self.pav_cfg, args), 0)
-

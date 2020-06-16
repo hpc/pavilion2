@@ -366,7 +366,6 @@ expected to be added to by various plugins.
             help_text="The test run configuration. This will be used "
                       "to dynamically generate a run script for the "
                       "test."),
-
     ]
 
     # We'll append the result parsers separately, to have an easy way to
