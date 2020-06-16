@@ -1,14 +1,12 @@
 import grp
 import os
 import shutil
-
 import subprocess as sp
+
 import yc_yaml as yaml
-import json
 from pavilion import config
 from pavilion import plugins
 from pavilion import utils
-from pavilion.plugins.commands import run
 from pavilion.unittest import PavTestCase
 
 
@@ -118,12 +116,8 @@ class SpecificPermsTests(PavTestCase):
     def check_perms(self, path, group, umask):
         """Perform a run and make sure they have correct permissions."""
 
-        if (path/'config').exists():
-            self.dbg_print(json.load((path/'config').open()), color=34)
-
         for file in utils.flat_walk(path):
             stat = file.stat()
-            self.dbg_print(file, stat.st_gid, stat.st_mode)
 
         for file in utils.flat_walk(path):
             stat = file.stat()
