@@ -285,7 +285,7 @@ def get_version():
             lines = file.readlines()
             for line in lines:
                 if line.startswith('RELEASE='):
-                    return line.split('=')[1]
+                    return line.split('=')[1].strip()
 
             return '<unknown>'
 

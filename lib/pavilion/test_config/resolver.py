@@ -468,7 +468,7 @@ class TestConfigResolver:
             except KeyError:
                 continue
 
-            pav_version = PavVars.version(self).strip()
+            pav_version = PavVars.version(self)
             lowest, highest = compatible_versions.split("-")
 
             lowest = [int(i) for i in lowest.split(".")]
@@ -478,7 +478,7 @@ class TestConfigResolver:
             if not (lowest <= pav_version <= highest):
                 err = ("'{}.{}' is not compatible with pavilion version '{}'."
                       .format(test_suite, test_cfg,
-                              PavVars.version(self).strip()))
+                              PavVars.version(self)))
                 compatible_errors = compatible_errors + "\n" + err
 
         if compatible_errors:
