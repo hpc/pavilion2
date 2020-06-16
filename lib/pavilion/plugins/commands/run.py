@@ -539,7 +539,6 @@ name) of lists of tuples
 
             # Check if all our threads are alive, and join those that aren't.
             for i in range(len(test_threads)):
-                print('\n', test_threads, build_order)
                 thread = test_threads[i]
                 if not thread.is_alive():
                     thread.join()

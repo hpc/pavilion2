@@ -89,7 +89,7 @@ class SpecificPermsTests(PavTestCase):
 
         proc = sp.Popen(cmd, env=env, stdout=sp.PIPE, stderr=sp.STDOUT)
         try:
-            if proc.wait(5) != 0:
+            if proc.wait(10) != 0:
                 out = proc.stdout.read()
                 out = out.decode()
                 self.fail("Error running command.\n{}".format(out))
