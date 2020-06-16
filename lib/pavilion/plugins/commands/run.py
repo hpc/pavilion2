@@ -233,6 +233,8 @@ class RunCommand(commands.Command):
                 fprint('Cancelling already kicked off tests.',
                        file=self.errfile)
                 self._cancel_all(tests_by_sched)
+                # return so the rest of the tests don't actually run
+                return errno.EINVAL
 
         # Tests should all be scheduled now, and have the SCHEDULED state
         # (at some point, at least). Wait until something isn't scheduled

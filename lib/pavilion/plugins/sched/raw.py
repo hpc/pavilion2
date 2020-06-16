@@ -287,6 +287,7 @@ class Raw(SchedulerPlugin):
         if not self._verify_pid(pid, test.id):
             test.status.set(STATES.SCHED_CANCELLED,
                             "Canceled via pavilion.")
+            test.set_run_complete()
             return StatusInfo(
                 STATES.SCHED_CANCELLED,
                 "PID {} was terminated.".format(pid)
