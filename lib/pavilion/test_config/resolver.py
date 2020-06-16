@@ -17,6 +17,7 @@ import yc_yaml
 from pavilion import pavilion_variables
 from pavilion import schedulers
 from pavilion import system_variables
+from pavilion.pavilion_variables import PavVars
 from pavilion.test_config import parsers
 from pavilion.test_config import variables
 from pavilion.test_config.file_format import (TestConfigError, TEST_NAME_RE,
@@ -378,6 +379,13 @@ class TestConfigResolver:
                         "Test suite '{}' raised a type error, but that "
                         "should never happen. {}".format(test_suite_path, err))
 
+                with test_suite_path.open() as test_suite_file:
+                    detailed_error = self.check_version_compatibility(test_suite, test_suite_file)
+                    if detailed_error:
+                        raise TestConfigError(
+                            "Test suite '{}' has incompatibility issuses: {}"
+                            .format(test_suite, detailed_error))
+
                 suite_tests = self.resolve_inheritance(
                     base_config,
                     test_suite_cfg,
@@ -441,6 +449,42 @@ class TestConfigResolver:
                 test_cfg['results']['parse']['constant'].append(new_const)
 
         return picked_tests
+
+    def check_version_compatibility(self, test_suite, test_suite_cfg):
+        """Make sure test suites are compatible with current pavilion
+        version."""
+
+        compatible_errors = ""
+        test_suite_cfg = yc_yaml.load(test_suite_cfg)
+        for test_cfg in test_suite_cfg:
+            try:
+                version_info = test_suite_cfg[test_cfg]['version']
+            except KeyError:
+                continue
+
+            try:
+                compatible_versions = version_info['min_pav_version']
+            # Assumes compatibility if not explicilty given in config
+            except KeyError:
+                continue
+
+            pav_version = PavVars.version(self).strip()
+            lowest, highest = compatible_versions.split("-")
+
+            lowest = [int(i) for i in lowest.split(".")]
+            highest = [int(i) for i in highest.split(".")]
+            pav_version = [int(i) for i in pav_version.split(".")]
+
+            if not (lowest <= pav_version <= highest):
+                err = ("'{}.{}' is not compatible with pavilion version '{}'."
+                      .format(test_suite, test_cfg,
+                              PavVars.version(self).strip()))
+                compatible_errors = compatible_errors + "\n" + err
+
+        if compatible_errors:
+            return compatible_errors
+
+        return 0
 
     def apply_host(self, test_cfg, host):
         """Apply the host configuration to the given config."""
