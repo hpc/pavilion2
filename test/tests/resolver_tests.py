@@ -322,12 +322,10 @@ class ResolverTests(PavTestCase):
             'echo "{{sys.host_name}}"'
         ]
 
-        cfg['results'] = {}
-        cfg['results']['parse'] = {
-            'regex': [{
-                'key': 'foo',
-                'regex': '{{sys.host_name}}',
-            }]
+        cfg['result_parse'] = {
+            'regex': {
+                'foo': {'regex': '{{sys.host_name}}'}
+            }
         }
 
         test = self._quick_test(cfg, 'finalize_test',

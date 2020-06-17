@@ -374,34 +374,28 @@ expected to be added to by various plugins.
             help_text="The test run configuration. This will be used "
                       "to dynamically generate a run script for the "
                       "test."),
+        yc.CategoryElem(
+            'result_evaluate',
+            sub_elem=yc.StrElem(),
+            help_text="The keys and values in this section will also "
+                      "be added to the result json. The values are "
+                      "expressions (like in {{<expr>}} in normal Pavilion "
+                      "strings), but the result json itself is the "
+                      "only variable available. The expression results are "
+                      "stored directly without conversion into strings,"
+                      "and in the order given."),
     ]
 
     # We'll append the result parsers separately, to have an easy way to
     # access it.
     _RESULT_PARSERS = yc.KeyedElem(
-        'parse', elements=[],
+        'result_parse', elements=[],
         help_text="Result parser configurations go here. Each parser config "
                   "can occur by itself or as a list of configs, in which "
                   "case the parser will run once for each config given. The "
                   "output of these parsers will be added to the final "
                   "result json data.")
-    ELEMENTS.append(yc.KeyedElem(
-        'results', elements=[
-            _RESULT_PARSERS,
-            VarKeyCategoryElem(
-                'evaluate', sub_elem=yc.StrElem(),
-                help_text="The keys and values in this section will also "
-                          "be added to the result json. The values are "
-                          "expressions (like in {{<expr>}} in normal Pavilion "
-                          "strings), but the result json itself is the "
-                          "only variable available. The expression results are "
-                          "stored directly without conversion into strings,"
-                          "and in the order given. Keys can contain a "
-                          "wildcard, in which case results across the"
-                          "matched")
-        ],
-        help_text="Parse and analyze test run results."
-    ))
+    ELEMENTS.append(_RESULT_PARSERS)
 
     @classmethod
     def add_subsection(cls, subsection):
@@ -453,7 +447,6 @@ expected to be added to by various plugins.
 
         # Validate the config.
         required_keys = {
-            'key': False,
             'files': False,
             'action': False,
             'per_file': False,
@@ -474,7 +467,7 @@ expected to be added to by various plugins.
             elements=config_items
         )
 
-        list_elem = yc.ListElem(name, sub_elem=config)
+        list_elem = yc.CategoryElem(name, sub_elem=config)
 
         if name in [e.name for e in cls._RESULT_PARSERS.config_elems.values()]:
             raise ValueError("Tried to add result parser with name '{}'"
