@@ -7,11 +7,10 @@ import time
 import threading
 from collections import defaultdict
 
-import pavilion.result
 from pavilion import commands
 from pavilion import output
 from pavilion.output import fprint
-from pavilion.result import parsers
+from pavilion import result
 from pavilion import schedulers
 from pavilion import system_variables
 from pavilion import test_config
@@ -234,6 +233,8 @@ class RunCommand(commands.Command):
                 fprint('Cancelling already kicked off tests.',
                        file=self.errfile)
                 self._cancel_all(tests_by_sched)
+                # return so the rest of the tests don't actually run
+                return errno.EINVAL
 
         # Tests should all be scheduled now, and have the SCHEDULED state
         # (at some point, at least). Wait until something isn't scheduled
@@ -442,15 +443,15 @@ name) of lists of tuples
 
             # Make sure the result parsers have reasonable arguments.
             try:
-                pavilion.result.check_config(test.config['results'])
-            except TestRunError as err:
-                rp_errors.append(str(err))
+                result.check_config(test.config['results'])
+            except result.ResultError as err:
+                rp_errors.append((test, str(err)))
 
         if rp_errors:
             fprint("Result Parser configurations had errors:",
                    file=self.errfile, color=output.RED)
-            for msg in rp_errors:
-                fprint(msg, bullet=' - ', file=self.errfile)
+            for test, msg in rp_errors:
+                fprint(test.name, '-', msg, file=self.errfile)
             return errno.EINVAL
 
         return 0

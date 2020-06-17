@@ -85,7 +85,13 @@ class ResultsCommand(commands.Command):
                 return errno.EINVAL
 
         if args.json or args.full:
-            results = {test.name: test.results for test in tests}
+            if len(tests) > 1:
+                results = {test.name: test.results for test in tests}
+            else:
+                # There should always be at least one test
+                results = tests[0].results
+
+
             try:
                 if args.json:
                     output.json_dump(results, self.outfile)
