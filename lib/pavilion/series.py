@@ -3,9 +3,11 @@
 import logging
 import json
 import os
+from pathlib import Path
 
 from pavilion import system_variables
 from pavilion import utils
+from pavilion.lockfile import LockFile
 from pavilion.test_run import TestRun, TestRunError, TestRunNotFoundError
 
 
@@ -168,17 +170,23 @@ associated tests."""
         json_file = self.pav_cfg.working_dir/'users'
         json_file /= '{}.json'.format(utils.get_login())
 
+        lockfile_path = json_file.parent/(json_file.name + '.lock')
+        lockfile = LockFile(lockfile_path)
+
         update_data = {
             sys_name : self.id
         }
 
-        with json_file.open('w+') as json_series_file:
-            try:
-                data = json.load(json_series_file)
-                data[sys_name] = self.id
-                json_series_file.write(json.dumps(data))
-            except json.decoder.JSONDecodeError as err:
-                json_series_file.write(json.dumps(update_data))
+        with lockfile:
+            with json_file.open('w+') as json_series_file:
+                try:
+                    data = json.load(json_series_file)
+                    data[sys_name] = self.id
+                    json_series_file.write(json.dumps(data))
+                # File was likely just created and empty, therefore json couldn't
+                # be loaded.
+                except json.decoder.JSONDecodeError as err:
+                    json_series_file.write(json.dumps(update_data))
 
     @classmethod
     def load_user_series_id(cls, pav_cfg):
