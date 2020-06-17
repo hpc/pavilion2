@@ -239,6 +239,7 @@ class TestRun:
         version_info = config.get('version', {})
         self.test_version = version_info['test_version']
         self.min_pav_version = version_info['min_pav_version']
+        # Removes null value and replaces with a string for result purposes
         if not self.min_pav_version:
             self.min_pav_version = "None"
 
