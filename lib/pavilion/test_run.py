@@ -24,7 +24,7 @@ from pavilion.test_config import variables, resolver
 from pavilion.test_config.file_format import TestConfigError
 
 
-def get_latest_tests(pav_cfg, limit):
+def get_latest_tests(pav_cfg, limit=None):
     """Returns ID's of latest test given a limit
 
 :param pav_cfg: Pavilion config file
@@ -40,7 +40,10 @@ def get_latest_tests(pav_cfg, limit):
         test_dir_list.append((mtime, child.name))
 
     test_dir_list.sort()
-    last_tests = test_dir_list[-limit:]
+    if limit is not None:
+        last_tests = test_dir_list[-limit:]
+    else:
+        last_tests = test_dir_list
     tests_only = [int(i[1]) for i in last_tests]
 
     return tests_only

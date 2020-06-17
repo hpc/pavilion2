@@ -71,7 +71,7 @@ def status_from_test_obj(pav_cfg, test_obj):
 def get_all_tests(pav_cfg, args):
     """Return the statuses for all tests, up to the limit in args.limit."""
 
-    latest_tests = test_run.get_latest_tests(pav_cfg, args.limit)
+    latest_tests = test_run.get_latest_tests(pav_cfg, limit=args.limit)
 
     test_obj_list = []
     test_statuses = []
@@ -143,15 +143,20 @@ def get_tests(pav_cfg, args, errfile):
 def status_via_time(pav_cfg, args, errfile):
     """Status via time grabs tests based on the given time argument
     It will check tests datetime objects and returns all tests up to
-    a certain time.
-    :param: pav_cfg: The pavilion config.
-    :param: args: Tests via command line arguments
+    a certain time. Example. 'pav status --time 5 hours' will display
+    all test run up to 5 hours ago.
+    :param pav_cfg: The pavilion config.
+    :param args: Tests via command line arguments
     :param errfile: Stream to output errors as needed
     :returns: List of dictionary objects"""
-    from pavilion.output import dbg_print
     # Converting time arguments into valid datetime object.
-    time_amount = int(args.time[0])
-    time_unit = args.time[1]
+    try:
+        time_amount = int(args.time[0])
+        time_unit = args.time[1]
+    except ValueError:
+        output.fprint("Invalid Format. Use the from: $AMOUNT $UNIT e.g."
+                      " '5 hours'", file=errfile, color=output.RED)
+        return []  # No tests to return.
 
     # Convert time into hours
     # You lose some accuracy if you do like, `-t 15 years`, but
@@ -171,11 +176,24 @@ def status_via_time(pav_cfg, args, errfile):
     elif time_unit == 'year' or time_unit == 'years':
         time_amount = time_amount * 8760
     else:
-        output.fprint("Invalid time unit", color=output.RED)
+        output.fprint("Invalid time unit, --time only accepts "
+                      "second(s), minute(s), hour(s), day(s), "
+                      "week(s), month(s), and year(s).",
+                      file=errfile, color=output.RED)
+        return []  # No tests to return.
 
-    search_date = datetime.today() - timedelta(hours=time_amount)
+    try:
+        search_date = datetime.today() - timedelta(hours=time_amount)
+    except OverflowError:
+        output.fprint("DateTime can only go back (+/-) the "
+                      "current year. We both know you dont "
+                      "have a {} year old Pavilion Directory."
+                      " Returning all tests."
+                      .format(int(time_amount/8760)),
+                      file=errfile, color=output.YELLOW)
+        search_date = datetime(1, 1, 1)
 
-    test_list = test_run.get_latest_tests(pav_cfg, 9999999)
+    test_list = test_run.get_latest_tests(pav_cfg)
     test_statuses = []
     test_obj_list = []
     for test_id in test_list:
@@ -339,6 +357,7 @@ class StatusCommand(commands.Command):
                 test_statuses = get_statuses(pav_cfg, args, self.errfile)
             else:
                 test_statuses = get_all_tests(pav_cfg, args)
+
         except commands.CommandError as err:
             output.fprint("Status Error:", err, color=output.RED,
                           file=self.errfile)
@@ -364,7 +383,6 @@ class StatusCommand(commands.Command):
         :param test_statuses Pavilion Test Statuses
         :rtype int"""
 
-        from pavilion.output import dbg_print
         search_key = args.series[0]
         search_value = args.series[1]
         ret_val = 0
@@ -386,7 +404,8 @@ class StatusCommand(commands.Command):
                 output.fprint("Only 'user' and 'sys_name' are supported"
                               " at this time for searchable series.",
                               color=output.RED)
-                return errno.EINVAL
+                ret_val = 1
+                return ret_val
 
             if value[0] == search_value:
                 rows.append({
@@ -395,13 +414,22 @@ class StatusCommand(commands.Command):
                     'User': var_dict['pav']['user'][0],
                     'System': var_dict['sys']['sys_name'][0]
                 })
-
-        output.draw_table(
-            outfile=self.outfile,
-            field_info={},
-            fields=fields,
-            rows=rows,
-            title='Series Data')
+        if len(rows) != 0:
+            output.draw_table(
+                outfile=self.outfile,
+                field_info={},
+                fields=fields,
+                rows=rows,
+                title='Series Data')
+        elif len(test_statuses) == 0:
+            output.fprint("No tests exist with the limit and/or time"
+                          "specification (-l, -t).", color=output.RED)
+            ret_val = 1
+        else:
+            output.fprint("Searching Pavilion tests for: {}={} yielded"
+                          " no results.".format(search_key, search_value),
+                          color=output.YELLOW)
+            ret_val = 1
 
         return ret_val
 
@@ -433,7 +461,7 @@ class StatusCommand(commands.Command):
                                                   '%Y-%m-%dT%H:%M:%S.%f'),
                         'note': val[2]
                     })
-        except (TestRunError, TestRunNotFoundError) as err:
+        except (TestRunError, TestRunNotFoundError):
             output.fprint("The test_id {} does not exist in your "
                           "working directory.".format(args.history),
                           file=self.errfile,

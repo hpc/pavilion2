@@ -1,12 +1,14 @@
 from pavilion import commands
+from pavilion import pavilion_variables
 from pavilion import plugins
 from pavilion import schedulers
 from pavilion import status_file
 from pavilion.series import TestSeries
-from pavilion.test_config import file_format, VariableSetManager
+from pavilion.test_config import file_format, VariableSetManager, variables
 from pavilion.unittest import PavTestCase
 from pavilion.test_run import TestRun
 import argparse
+import json
 import io
 
 
@@ -121,6 +123,27 @@ class StatusCmdTests(PavTestCase):
         arg_list = test_str.split()
         args = parser.parse_args(arg_list)
         self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
+
+        # Testing overflow time works.
+        parser = argparse.ArgumentParser()
+        status_cmd._setup_arguments(parser)
+        arg_list = ['--time', '15000', 'years'] + test_str.split()
+        args = parser.parse_args(arg_list)
+        self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
+
+        # Testing valid time works.
+        parser = argparse.ArgumentParser()
+        status_cmd._setup_arguments(parser)
+        arg_list = ['--time', '150', 'hours'] + test_str.split()
+        args = parser.parse_args(arg_list)
+        self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
+
+        # Testing bad time unit.
+        parser = argparse.ArgumentParser()
+        status_cmd._setup_arguments(parser)
+        arg_list = ['--time', '150', 'goobers'] + test_str.split()
+        args = parser.parse_args(arg_list)
+        self.assertEqual(status_cmd.run(self.pav_cfg, args), 1)
 
     def test_set_status_command(self):
         """Test set status command by generating a suite of tests."""
@@ -296,3 +319,88 @@ class StatusCmdTests(PavTestCase):
 
         # Testing that summary flags return correctly
         self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
+
+    def test_series_summary(self):
+        """Test status command to check series search."""
+
+        # Building 3 basic tests to check
+        config1 = file_format.TestConfigLoader().validate({
+            'scheduler': 'raw',
+            'run': {
+                'env': {
+                    'foo': 'bar',
+                },
+                'cmds': ['echo "I $foo, punks"'],
+            },
+        })
+
+        config1['name'] = 'run_test0'
+
+        config2 = file_format.TestConfigLoader().validate({
+            'scheduler': 'raw',
+            'run': {
+                'env': {
+                    'too': 'tar',
+                },
+                'cmds': ['echo "I $too, punks"'],
+            },
+        })
+
+        config2['name'] = 'run_test1'
+
+        config3 = file_format.TestConfigLoader().validate({
+            'scheduler': 'raw',
+            'run': {
+                'env': {
+                    'too': 'tar',
+                },
+                'cmds': ['sleep 1'],
+            },
+        })
+
+        config3['name'] = 'run_test2'
+
+        configs = [config1, config2, config3]
+
+        tests = [TestRun(self.pav_cfg, test)
+                 for test in configs]
+
+        for test in tests:
+            test.RUN_SILENT_TIMEOUT = 1
+            # Grab each tests variable file to modify
+            path = (self.pav_cfg.working_dir / 'test_runs' /
+                    str(test.id).zfill(7) /
+                    'variables')
+
+            # Change 'sys'/'pav' for searchable terms
+            var_dict = json.load(open(path))
+            var_dict['sys'] = {'sys_name': ['tatertot']}
+            var_dict['pav'] = {'user': ['frodo']}
+
+            var_dict = json.dumps(var_dict)
+            with open(path, "w") as outfile:
+                outfile.write(var_dict)
+
+        # Make sure this doesn't explode
+        suite = TestSeries(self.pav_cfg, tests)
+        test_str = " ".join([str(test) for test in suite.tests])
+
+        status_cmd = commands.get_command('status')
+        status_cmd.outfile = io.StringIO()
+        parser = argparse.ArgumentParser()
+        status_cmd._setup_arguments(parser)
+
+        # Test 1 - does sys_name work?
+        arg_list = ['--series', 'sys_name', 'tatertot'] + test_str.split()
+        args = parser.parse_args(arg_list)
+        self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
+
+        # Test 2 - does user work?
+        arg_list = ['--series', 'user', 'frodo'] + test_str.split()
+        args = parser.parse_args(arg_list)
+        self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
+
+        # Test 3 - does finding nothing exit cleanly
+        arg_list = ['--series', 'sys_name', 'batman'] + test_str.split()
+        args = parser.parse_args(arg_list)
+        self.assertEqual(status_cmd.run(self.pav_cfg, args), 1)
