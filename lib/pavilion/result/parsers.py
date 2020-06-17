@@ -156,7 +156,7 @@ deferred args. On error, should raise a ResultParserError.
         # setting 'required' in the yaml_config config items.
 
         kwargs = kwargs.copy()
-        for key in ('key', 'action', 'per_file', 'files'):
+        for key in ('action', 'per_file', 'files'):
             if key not in kwargs:
                 raise RuntimeError(
                     "Result parser '{}' missing required attribute '{}'. These "
@@ -173,7 +173,8 @@ deferred args. On error, should raise a ResultParserError.
 
     KEY_REGEX_STR = r'^[a-zA-Z0-9_-]+$'
 
-    def get_config_items(self):
+    @staticmethod
+    def get_config_items():
         """Get the config for this result parser. This should be a list of
 yaml_config.ConfigElement instances that will be added to the test
 config format at plugin activation time. The simplest format is a
@@ -198,10 +199,6 @@ Example: ::
 """
 
         return [
-            yc.RegexElem("key", required=True,
-                         regex=self.KEY_REGEX_STR,
-                         help_text="The key value in the result json for this"
-                                   "result component."),
             yc.StrElem(
                 "action",
                 required=True, default="store",
@@ -356,7 +353,7 @@ configured for that test.
 :param dict results: The dictionary of default result values.
 """
 
-    parser_configs = test.config['results']['parse']
+    parser_configs = test.config['result_parse']
 
     # A list of keys with duplicates already reported on, so we don't
     # report such errors multiple times.
@@ -370,11 +367,10 @@ configured for that test.
         parser = get_plugin(parser_name)
 
         # Each parser has a list of configs. Process each of them.
-        for rconf in parser_configs[parser_name]:
+        for key, rconf in parser_configs[parser_name].items():
 
             # Grab these for local use.
             action = rconf['action']
-            key = rconf['key']
             globs = rconf['files']
             per_file = rconf['per_file']
 
@@ -382,7 +378,7 @@ configured for that test.
                 # These config items are used here, but not expected by the
                 # parsers themselves.
                 args = rconf.copy()
-                for k in 'key', 'files', 'action', 'per_file':
+                for k in 'files', 'action', 'per_file':
                     del args[k]
             except KeyError as err:
                 raise ResultError(
