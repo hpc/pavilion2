@@ -164,6 +164,7 @@ class SeriesManager:
                             [test_name], [],
                             self.test_info[test_name]['modes']
                         )
+                        self.test_info[test_name]['obj'] = []
                         for config in raw_configs:
                             # Delete the conditionals - we're already
                             # skipping this test but for different reasons.
@@ -174,6 +175,9 @@ class SeriesManager:
                                 STATES.SKIPPED,
                                 "Skipping. Previous test did not PASS.")
                             skipped_test.set_run_complete()
+                            self.test_info[test_name]['obj'].append(
+                                skipped_test
+                            )
                             self.series_obj.add_tests([skipped_test])
                         self.not_started.remove(test_name)
                         self.finished.append(test_name)
