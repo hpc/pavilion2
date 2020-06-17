@@ -7,11 +7,10 @@ import time
 import threading
 from collections import defaultdict
 
-import pavilion.result
 from pavilion import commands
 from pavilion import output
 from pavilion.output import fprint
-from pavilion.result import parsers
+from pavilion import result
 from pavilion import schedulers
 from pavilion import system_variables
 from pavilion import test_config
@@ -160,7 +159,7 @@ class RunCommand(commands.Command):
             return res
 
         self._complete_tests([test for test in all_tests if
-                              test.opts.build_only and test.build_local])
+                              test.build_only and test.build_local])
 
         wait = getattr(args, 'wait', None)
         report_status = getattr(args, 'status', False)
@@ -215,11 +214,11 @@ class RunCommand(commands.Command):
             # that shouldn't be scheduled.
             tests = [test for test in tests if
                      # The non-build only tests
-                     (not test.opts.build_only) or
+                     (not test.build_only) or
                      # The build only tests that are built on nodes
                      (not test.build_local and
                       # As long they need to be built.
-                      (test.opts.rebuild or not test.builder.exists()))]
+                      (test.rebuild or not test.builder.exists()))]
 
             # Skip this scheduler if it doesn't have tests that need to run.
             if not tests:
@@ -234,6 +233,8 @@ class RunCommand(commands.Command):
                 fprint('Cancelling already kicked off tests.',
                        file=self.errfile)
                 self._cancel_all(tests_by_sched)
+                # return so the rest of the tests don't actually run
+                return errno.EINVAL
 
         # Tests should all be scheduled now, and have the SCHEDULED state
         # (at some point, at least). Wait until something isn't scheduled
@@ -442,15 +443,15 @@ name) of lists of tuples
 
             # Make sure the result parsers have reasonable arguments.
             try:
-                pavilion.result.check_config(test.config['results'])
-            except TestRunError as err:
-                rp_errors.append(str(err))
+                result.check_config(test.config['results'])
+            except result.ResultError as err:
+                rp_errors.append((test, str(err)))
 
         if rp_errors:
             fprint("Result Parser configurations had errors:",
                    file=self.errfile, color=output.RED)
-            for msg in rp_errors:
-                fprint(msg, bullet=' - ', file=self.errfile)
+            for test, msg in rp_errors:
+                fprint(test.name, '-', msg, file=self.errfile)
             return errno.EINVAL
 
         return 0
@@ -480,7 +481,7 @@ name) of lists of tuples
         # non-local tests can't tell what was built fresh either on a
         # front-end or by other tests rebuilding on nodes.
         for test in tests:
-            if test.opts.rebuild and test.builder.exists():
+            if test.rebuild and test.builder.exists():
                 test.builder.deprecate()
                 test.builder.rename_build()
                 test.save_build_name()

@@ -16,8 +16,9 @@ class TestConfigError(ValueError):
 TEST_NAME_RE_STR = r'^[a-zA-Z_][a-zA-Z0-9_-]*$'
 TEST_NAME_RE = re.compile(TEST_NAME_RE_STR)
 KEY_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_-]*$')
-VAR_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_-]*[?+]?$')
 VERS_RANGE_RE = re.compile(r'\d+\.\d+\.\d+-\d+\.\d+\.\d+')
+VAR_KEY_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_]*$')
+VAR_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_]*[?+]?$')
 
 class PathCategoryElem(yc.CategoryElem):
     """This is for category elements that need a valid unix path regex."""
@@ -33,7 +34,7 @@ class VariableElem(yc.CategoryElem):
     normalization of these values.
     """
 
-    _NAME_RE = KEY_NAME_RE
+    _NAME_RE = VAR_KEY_NAME_RE
 
     def __init__(self, name=None, **kwargs):
         """Just like a CategoryElem, but the sub_elem must be a StrElem
@@ -180,6 +181,17 @@ expected to be added to by various plugins.
             'subtitle',
             help_text="An extended title for this test. Required for "
                       "permuted tests."),
+        yc.StrElem(
+            'group', default=None,
+            help_text="The group under which to build and run tests. "
+                      "Defaults to the group specified in pavilion.yaml."
+        ),
+        yc.RegexElem(
+            'umask', regex=r'[0-7]{3}', default=None,
+            help_text="The octal umask to apply to files created during the "
+                      "build and run processes. Defaults to the umask in "
+                      "pavilion.yaml."
+        ),
         yc.StrElem(
             'summary', default='',
             help_text="Summary of the purpose of this test."

@@ -657,9 +657,9 @@ class TestConfigResolver:
         # generally means there are cycles in our dependency tree.
         if depended_on_by:
             raise TestConfigError(
-                "Tests in suite '{}' have dependencies on '{}' that "
+                "Tests in suite '{}' have dependencies on {} that "
                 "could not be resolved."
-                .format(suite_path, depended_on_by.keys()))
+                .format(suite_path, tuple(depended_on_by.keys())))
 
         # Remove the test base
         del suite_tests['__base__']
@@ -774,6 +774,7 @@ class TestConfigResolver:
                     "<key>=<value>. Ex. -c run.modules=['gcc'] ")
 
             key, value = ovr.split('=', 1)
+            key = key.strip()
             key = key.split('.')
 
             self._apply_override(test_cfg, key, value)

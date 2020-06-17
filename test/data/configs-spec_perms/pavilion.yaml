@@ -1,8 +1,8 @@
+config_dirs: [/home/pflarr/repos/pavilion/test/data/configs-spec_perms]
 default_results: {def_results_test: '{{pav.user}}'}
 no_proxy: [lanl.gov]
 proxies: {ftp: 'http://proxyout.lanl.gov:8080', http: 'http://proxyout.lanl.gov:8080',
   https: 'http://proxyout.lanl.gov:8080'}
-shared_group: adm
 umask: 7
 user_config: false
-working_dir: /home/pflarr/repos/pavilion/test/working_dir/wd_perms
+working_dir: /home/pflarr/repos/pavilion/test/working_dir/wd-spec_perms
