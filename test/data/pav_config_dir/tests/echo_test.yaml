@@ -1,7 +1,7 @@
 a:
     run:
         cmds:
-            - "sleep 10s"
+            - "sleep 1s"
             - "echo pass"
     variables:
         num: 12
@@ -29,7 +29,13 @@ b:
 c:
     inherits_from: a
     only_if:
-        "{{num1}}": 11
+        "{{num1}}": 12
+
+d:
+    inherits_from: a
+
+e:
+    inherits_from: a
 
 #d:
 #    inherits_from: a

@@ -1,3 +1,5 @@
+import time
+
 from pavilion.unittest import PavTestCase
 from pavilion import commands
 from pavilion import arguments
@@ -17,17 +19,23 @@ class SeriesFileTests(PavTestCase):
     def test_series_file(self):
         """Test if series works as intended."""
 
+        from pavilion import output
+        output.dbg_print('\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n')
+
         series_cmd = commands.get_command('_series')
         arg_parser = arguments.get_parser()
         series_args = arg_parser.parse_args(['_series', 'series_test'])
 
         # makes series manager and runs
         series_man = series_cmd.make_series_man(self.pav_cfg, series_args)
+        time.sleep(5)
 
         # check modes
         for name, test_dict in series_man.test_info.items():
             if 'obj' in test_dict.keys():
                 for test_obj in test_dict['obj']:
+
+                    # check modes
                     vars = test_obj.var_man.variable_sets['var']
                     # check if smode 2 values are there
                     a_num_value = vars.get('another_num', None, None)
@@ -43,4 +51,12 @@ class SeriesFileTests(PavTestCase):
                         letters_value = vars.get('letters', None, None)
                         self.assertEqual(asdf_value, 'asdf1')
                         self.assertEqual(letters_value, 'cup')
+
+                    # check that depends works
+                    output.dbg_print(test_obj,
+                                     test_obj.id,
+                                     test_obj.status.current().state)
+
+        output.dbg_print('\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n')
+
 
