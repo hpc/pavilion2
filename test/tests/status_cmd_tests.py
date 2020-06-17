@@ -404,3 +404,5 @@ class StatusCmdTests(PavTestCase):
         arg_list = ['--series', 'sys_name', 'batman'] + test_str.split()
         args = parser.parse_args(arg_list)
         self.assertEqual(status_cmd.run(self.pav_cfg, args), 1)
+
+
