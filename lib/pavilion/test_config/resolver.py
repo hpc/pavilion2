@@ -808,6 +808,7 @@ class TestConfigResolver:
                     "<key>=<value>. Ex. -c run.modules=['gcc'] ")
 
             key, value = ovr.split('=', 1)
+            key = key.strip()
             key = key.split('.')
 
             self._apply_override(test_cfg, key, value)

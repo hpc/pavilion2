@@ -62,14 +62,12 @@ class RawSchedTests(PavTestCase):
             def _in_alloc(self):
                 return self.in_alloc_var
 
-        test = TestRun(
-            pav_cfg=self.pav_cfg,
-            config={
-                'name': 'sched-vars',
-                'scheduler': 'dummy'
-            },
-            var_man=VariableSetManager(),
-        )
+        config = {
+                     'name':      'sched-vars',
+                     'scheduler': 'dummy'
+                 }
+
+        test = self._quick_test(config)
 
         dummy_sched = DummySched()
 
@@ -91,14 +89,11 @@ class RawSchedTests(PavTestCase):
         pav_cfg = self.pav_cfg
         pav_cfg['env_setup'] = ['test1', 'test2', 'test3']
 
-        test = TestRun(
-            pav_cfg=self.pav_cfg,
-            config={
-                'name': 'sched-vars',
-                'scheduler': 'dummy'
-            },
-            var_man=VariableSetManager(),
-        )
+        config = {
+                     'name':      'sched-vars',
+                     'scheduler': 'dummy'
+                 }
+        test = self._quick_test(config)
 
         dummy_sched = schedulers.get_plugin('dummy')
         path = dummy_sched._create_kickoff_script(pav_cfg, test)

@@ -80,8 +80,7 @@ class StatusCmdTests(PavTestCase):
 
         var_man = VariableSetManager()
 
-        tests = [TestRun(self.pav_cfg, test)
-                 for test in configs]
+        tests = [self._quick_test(cfg) for cfg in configs]
 
         for test in tests:
             test.RUN_SILENT_TIMEOUT = 1
@@ -163,8 +162,7 @@ class StatusCmdTests(PavTestCase):
 
         configs = [config1, config2, config3]
 
-        tests = [TestRun(self.pav_cfg, test)
-                 for test in configs]
+        tests = [self._quick_test(cfg) for cfg in configs]
 
         for test in tests:
             test.RUN_SILENT_TIMEOUT = 1
@@ -191,7 +189,7 @@ class StatusCmdTests(PavTestCase):
     def test_status_command_with_sched(self):
         """Test status command when test is 'SCHEDULED'."""
 
-        test = file_format.TestConfigLoader().validate({
+        cfg = file_format.TestConfigLoader().validate({
             'scheduler': 'raw',
             'run': {
                 'env': {
@@ -201,9 +199,9 @@ class StatusCmdTests(PavTestCase):
             },
         })
 
-        test['name'] = 'testytest'
+        cfg['name'] = 'testytest'
 
-        test = TestRun(self.pav_cfg, test)
+        test = self._quick_test(cfg, build=False, finalize=False)
 
         test.build()
         schedulers.get_plugin(test.scheduler) \
@@ -241,8 +239,7 @@ class StatusCmdTests(PavTestCase):
 
         configs = [test_cfg1, test_cfg2, test_cfg3]
 
-        tests = [TestRun(self.pav_cfg, test)
-                 for test in configs]
+        tests = [self._quick_test(cfg) for cfg in configs]
 
         for test in tests:
             test.RUN_SILENT_TIMEOUT = 1
@@ -289,8 +286,7 @@ class StatusCmdTests(PavTestCase):
         test_cfg3['name'] = 'test3'
 
         configs = [test_cfg1, test_cfg2, test_cfg3]
-        tests = [TestRun(self.pav_cfg, test)
-                 for test in configs]
+        tests = [self._quick_test(cfg) for cfg in configs]
         for test in tests:
             test.RUN_SILENT_TIMEOUT = 1
 

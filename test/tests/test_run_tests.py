@@ -1,17 +1,12 @@
-import copy
+import io
 import io
 import os
-import shutil
-import tempfile
-import unittest
 from pathlib import Path
 
 from pavilion import plugins
-from pavilion import wget
-from pavilion.test_run import TestRunError, TestRun
 from pavilion.series import TestSeries
-from pavilion.status_file import STATES
-from pavilion.test_config import variables, VariableSetManager
+from pavilion.test_config import VariableSetManager
+from pavilion.test_run import TestRunError, TestRun
 from pavilion.unittest import PavTestCase
 
 
@@ -24,6 +19,7 @@ class TestRunTests(PavTestCase):
         config = {
             # The only required param.
             'name': 'blank_test',
+
             'scheduler': 'raw',
         }
 
@@ -128,7 +124,7 @@ class TestRunTests(PavTestCase):
             'runtime_0': ['line_0', 'line_1'],
             'wild/runtime_1': ['line_0', 'line_1'],  # dir exists
             'wild/dir2/runtime_2': ['line_0', 'line_1'], # dir2 does not exist
-            'real.txt': ['line_0', 'line_1'], # file exists; overwrite
+            'real.txt': ['line_0', 'line_1'],  # file exists; overwrite
             'runtime_variable': ['{{var1}}',
                                  '{{var2.0}}', '{{var2.1}}', '{{var2.2}}',
                                  '{{var3.subvar_1}}', '{{var3.subvar_2}}',
