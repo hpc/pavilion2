@@ -37,7 +37,7 @@ def union_dictionary(dict1, dict2):
     """Combines two dictionaries with nested lists."""
 
     for key in dict2.keys():
-        dict1[key] = dict1.get(key, []) + dict1[key]
+        dict1[key] = dict1.get(key, []) + dict2[key]
 
     return dict1
 

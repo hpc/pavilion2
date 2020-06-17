@@ -71,5 +71,8 @@ class SeriesFileTests(PavTestCase):
         test_d = series_man.test_info['echo_test.d']['obj'][0]
         self.assertEqual(test_d.status.current().state, 'SKIPPED')
 
+        # only_if works if test wrong_year is skipped (result is None)
+        test_wrongyear = series_man.test_info['echo_test.wrong_year']['obj'][0]
+        self.assertIsNone(test_wrongyear.results['result'])
 
 

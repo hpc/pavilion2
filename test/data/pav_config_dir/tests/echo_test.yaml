@@ -44,5 +44,6 @@ e:
 #        num_nodes: 1
 
 wrong_year:
-    only_if:
-        '{{year}}': 1997
+    run:
+        cmds: 'echo hello'
+
