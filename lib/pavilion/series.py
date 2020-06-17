@@ -173,20 +173,24 @@ associated tests."""
         lockfile_path = json_file.parent/(json_file.name + '.lock')
         lockfile = LockFile(lockfile_path)
 
-        update_data = {
-            sys_name : self.id
-        }
-
         with lockfile:
-            with json_file.open('w+') as json_series_file:
-                try:
-                    data = json.load(json_series_file)
+            data = {}
+            try:
+                with json_file.open('r') as json_series_file:
+                    try:
+                        data = json.load(json_series_file)
+                    except json.decoder.JSONDecodeError as err:
+                        # File was empty, therefore json couldn't be loaded.
+                        pass
+                with json_file.open('w') as json_series_file:
                     data[sys_name] = self.id
                     json_series_file.write(json.dumps(data))
-                # File was likely just created and empty, therefore json couldn't
-                # be loaded.
-                except json.decoder.JSONDecodeError as err:
-                    json_series_file.write(json.dumps(update_data))
+
+            except FileNotFoundError as err:
+                # File hadn't been created yet.
+                with json_file.open('w') as json_series_file:
+                    data[sys_name] = self.id
+                    json_series_file.write(json.dumps(data))
 
     @classmethod
     def load_user_series_id(cls, pav_cfg):
