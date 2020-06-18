@@ -202,6 +202,16 @@ expected to be added to by various plugins.
                       "build and run processes. Defaults to the umask in "
                       "pavilion.yaml."
         ),
+        yc.KeyedElem(
+            'maintainer',
+            help_text="Information about who maintains this test.",
+            elements=[
+                yc.StrElem('name', default='unknown',
+                           help_text="Name or organization of the maintainer."),
+                yc.StrElem('email',
+                           help_text="Email address of the test maintainer."),
+            ]
+        ),
         yc.StrElem(
             'summary', default='',
             help_text="Summary of the purpose of this test."
@@ -293,22 +303,36 @@ expected to be added to by various plugins.
                               "script.  These are generally expected to "
                               "be host rather than test specific."),
                 yc.StrElem(
-                    'source_download_name',
-                    help_text='When downloading source, we by default use the '
-                              'last of the url path as the filename, or a hash '
-                              'of the url if is no suitable name. Use this '
-                              'parameter to override behavior with a '
-                              'pre-defined filename.'),
-                yc.StrElem(
-                    'source_location',
+                    'source_path',
                     help_text="Path to the test source. It may be a directory, "
-                              "a tar file, or a URI. If it's a directory or "
-                              "file, the path is to '$PAV_CONFIG/test_src' by "
-                              "default. For url's, the is automatically "
-                              "checked for updates every time the test run. "
-                              "Downloaded files are placed in a 'downloads' "
-                              "under the pavilion working directory. (set in "
-                              "pavilion.yaml)"),
+                              "compressed file, compressed or "
+                              "uncompressed archive (zip/tar), and is handled "
+                              "according to the internal (file-magic) type. "
+                              "For relative paths Pavilion looks in the "
+                              "test_src directory "
+                              "within all known config directories. If this"
+                              "is left blank, Pavilion will always assume "
+                              "there is no source to build."),
+                yc.StrElem(
+                    'source_url',
+                    help_text='Where to find the source on the internet. By '
+                              'default, Pavilion will try to download the '
+                              'source from the given URL if the source file '
+                              'can\'t otherwise be found. You must give a '
+                              'source path so Pavilion knows where to store '
+                              'the file (relative paths will be stored '
+                              'relative to the local test_src directory.'),
+                yc.StrElem(
+                    'source_download', choices=['never', 'missing', 'latest'],
+                    default='missing',
+                    help_text="When to attempt to download the test source.\n"
+                              "  never - The url is for reference only.\n"
+                              "  missing - (default) Download if the source "
+                              "can't be found.\n"
+                              "  latest - Always try to fetch the latest "
+                              "source, tracking changes by "
+                              "file size/timestamp/hash."
+                ),
                 yc.StrElem(
                     'specificity',
                     default='',
@@ -380,10 +404,9 @@ expected to be added to by various plugins.
             help_text="The keys and values in this section will also "
                       "be added to the result json. The values are "
                       "expressions (like in {{<expr>}} in normal Pavilion "
-                      "strings), but the result json itself is the "
-                      "only variable available. The expression results are "
-                      "stored directly without conversion into strings,"
-                      "and in the order given."),
+                      "strings). Other result values (including those "
+                      "from result parsers and other evaluations are "
+                      "available to reference as variables."),
     ]
 
     # We'll append the result parsers separately, to have an easy way to
