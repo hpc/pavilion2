@@ -223,8 +223,6 @@ expected to be added to by various plugins.
                       "the string syntax. They keys 'var', 'per', 'pav', "
                       "'sys' and 'sched' reserved. Each value may be a "
                       "single or list of strings key/string pairs."),
-        yc.RegexElem('scheduler', regex=r'\w+', default="raw",
-                     help_text="The scheduler class to use to run this test."),
         CondCategoryElem(
             'only_if', sub_elem=yc.ListElem(sub_elem=yc.StrElem()),
             key_case=EnvCatElem.KC_MIXED,
@@ -397,6 +395,12 @@ expected to be added to by various plugins.
                   "result json data.")
     ELEMENTS.append(_RESULT_PARSERS)
 
+    _SCHEDULER = yc.KeyedElem('schedule', elements=[
+        yc.RegexElem('scheduler', regex=r'\w+', default="raw",
+                     help_text="The scheduler plugin to use to run this "
+                               "test.")])
+    ELEMENTS.append(_SCHEDULER)
+
     @classmethod
     def add_subsection(cls, subsection):
         """Use this method to add additional sub-sections to the config.
@@ -438,6 +442,20 @@ expected to be added to by various plugins.
             if subsection_name == section.name:
                 cls.ELEMENTS.remove(section)
                 return
+
+    @classmethod
+    def setup_scheduler_configs(cls, general_config, sched_configs):
+        """Add the general config items for schedulers along with
+        the specific sub-section for each loaded scheduler plugin.
+        """
+
+        for item in general_config:
+            cls._SCHEDULER.add_element(item)
+
+
+
+        cls._SCHEDULER.ELEMENTS.extend(general_config)
+
 
     @classmethod
     def add_result_parser_config(cls, name, config_items):

@@ -20,8 +20,9 @@ from pavilion.commands import Command
 from pavilion.expression_functions import FunctionPlugin
 from pavilion.module_wrapper import ModuleWrapper
 from pavilion.result.parsers import ResultParser
-from pavilion.schedulers import SchedulerPlugin
+from pavilion import schedulers
 from pavilion.system_variables import SystemPlugin as System
+from pavilion.test_config import file_format
 from yapsy import PluginManager
 
 LOGGER = logging.getLogger('plugins')
@@ -33,7 +34,7 @@ PLUGIN_CATEGORIES = {
     'function': FunctionPlugin,
     'module': ModuleWrapper,
     'result': ResultParser,
-    'sched': SchedulerPlugin,
+    'sched': schedulers.SchedulerPlugin,
     'sys': System,
 }
 
@@ -97,6 +98,11 @@ def initialize_plugins(pav_cfg):
     for _, cat_obj in PLUGIN_CATEGORIES.items():
         if hasattr(cat_obj, 'register_core'):
             cat_obj.register_core()
+
+    file_format.TestConfigLoader.setup_scheduler_configs(
+        general_config=SchedulerPlugin.get_general_config(),
+        sched_configs={sched.name: sched.get_conf() for sched in }
+    )
 
     _PLUGIN_MANAGER = pman
 
