@@ -64,7 +64,6 @@ base class.
         'test_runs',
         'series',
         'users',
-        'downloads'
         ]
 
     def __init__(self, *args, **kwargs):
