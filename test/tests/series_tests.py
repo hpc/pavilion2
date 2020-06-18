@@ -30,6 +30,7 @@ class SeriesFileTests(PavTestCase):
 
         # check modes
         for name, test_dict in series_man.test_info.items():
+            self.assertIn('obj', test_dict.keys())
             for test_obj in test_dict['obj']:
                 try:
                     # check modes

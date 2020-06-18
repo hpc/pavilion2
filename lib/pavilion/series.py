@@ -118,7 +118,7 @@ class SeriesManager:
 
             while len(self.not_started) != 0:
                 self.series_tests_handler()
-                time.sleep(1)
+                time.sleep(0.1)
 
             # if restart isn't necessary, break out of loop
             if self.series_cfg['restart'] not in ['True', 'true']:
@@ -132,7 +132,7 @@ class SeriesManager:
                         if not self.is_done(test_name):
                             done = False
                             break
-                    time.sleep(1)
+                    time.sleep(0.1)
 
         return
 
@@ -300,7 +300,7 @@ class SeriesManager:
     def test_wait(self, simul):
 
         while len(self.get_currently_running()) >= simul:
-            time.sleep(5)
+            time.sleep(0.1)
 
         return
 
