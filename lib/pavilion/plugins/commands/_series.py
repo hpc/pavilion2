@@ -3,6 +3,7 @@ import sys
 from pavilion import commands
 from pavilion import arguments
 from pavilion import series
+from pavilion import output
 from pavilion.status_file import STATES
 from pavilion.test_config.resolver import TestConfigResolver
 from pavilion.test_config.file_format import SeriesConfigLoader
@@ -64,6 +65,11 @@ class AutoSeries(commands.Command):
             series_man = series.SeriesManager(pav_cfg,
                                               series_obj,
                                               series_cfg)
+
+            # print dependency graph
+            for test_name in series_man.dep_graph:
+                output.fprint(test_name, series_man.dep_graph[test_name],
+                              color=output.CYAN)
 
             # call method to actually run series
             series_man.run_series()
