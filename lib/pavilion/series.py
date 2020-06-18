@@ -140,7 +140,6 @@ class SeriesManager:
 
         return
 
-
     def series_tests_handler(self):
 
         # update lists
@@ -466,9 +465,10 @@ associated tests."""
                     )
 
             else:
-                logger.info("Polluted series directory in series '%s'",
-                            series_path)
-                raise ValueError(link_path)
+                if link_path.name != 'series.out':
+                    logger.info("Polluted series directory in series '%s'",
+                                series_path)
+                    raise ValueError(link_path)
 
         return cls(pav_cfg, tests, _id=id_)
 

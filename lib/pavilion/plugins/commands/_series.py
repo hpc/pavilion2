@@ -66,7 +66,7 @@ class AutoSeries(commands.Command):
                                               series_obj,
                                               series_cfg)
 
-            # print dependency graph
+            # print dependency graph -- for debugging purposes, mostly
             for test_name in series_man.dep_graph:
                 output.fprint(test_name, series_man.dep_graph[test_name],
                               color=output.CYAN)

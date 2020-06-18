@@ -135,13 +135,17 @@ class RunCommand(commands.Command):
             # make series object
             series_obj = TestSeries(pav_cfg)
 
+            series_path = series_obj.path
+
             # call _auto_series
             temp_args = ['pav', '_series', args.series,
                          '--series-id={}'.format(series_obj.id)]
             # this process will outlive the parent, and that's what we want
-            series_proc = subprocess.Popen(temp_args,
-                                           stdout=subprocess.DEVNULL,
-                                           stderr=subprocess.DEVNULL)
+
+            with open(series_path / 'series.out', 'w') as series_out:
+                series_proc = subprocess.Popen(temp_args,
+                                               stdout=series_out,
+                                               stderr=series_out)
 
             fprint("Started series {}. "
                    "Run `pav status {}` to view status. "
