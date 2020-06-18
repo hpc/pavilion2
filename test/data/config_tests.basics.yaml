@@ -17,7 +17,7 @@ variables:
     - {legs: 8, breed: asguardian}
 
 build:
-  source_location: /tmp/bleh
+  source_path: /tmp/bleh
   modules:
     - gcc
     - openmpi

@@ -54,7 +54,7 @@ class BuilderTests(PavTestCase):
 
         for archive in archives:
             config = copy.deepcopy(base_config)
-            config['build']['source_location'] = archive
+            config['build']['source_path'] = archive
             config['build']['specificity'] = archive
 
             test = self._quick_test(config, build=False, finalize=False)
@@ -71,7 +71,7 @@ class BuilderTests(PavTestCase):
 
         # Check directory copying
         config = copy.deepcopy(base_config)
-        config['build']['source_location'] = 'src'
+        config['build']['source_path'] = 'src'
         test = self._quick_test(config, build=False, finalize=False)
 
         if test.builder.path.exists():
@@ -89,7 +89,7 @@ class BuilderTests(PavTestCase):
 
         for file in files:
             config = copy.deepcopy(base_config)
-            config['build']['source_location'] = file
+            config['build']['source_path'] = file
             test = self._quick_test(config, build=False, finalize=False)
 
             if test.builder.path.exists():
@@ -101,7 +101,7 @@ class BuilderTests(PavTestCase):
 
         # Make sure extra files are getting copied over.
         config = copy.deepcopy(base_config)
-        config['build']['source_location'] = 'src.tar.gz'
+        config['build']['source_path'] = 'src.tar.gz'
         config['build']['extra_files'] = [
             'src.tar.gz',
             'src.xz',
@@ -131,7 +131,7 @@ class BuilderTests(PavTestCase):
             'real.txt': ['line1', 'line4']  # file exists
         }
         config = self._quick_test_cfg()
-        config['build']['source_location'] = 'file_tests.tgz'
+        config['build']['source_path'] = 'file_tests.tgz'
         config['build']['create_files'] = files_to_create
         test = self._quick_test(config)
 
@@ -158,7 +158,7 @@ class BuilderTests(PavTestCase):
         for file in files_to_fail:
             file_arg = {file: []}
             config = self._quick_test_cfg()
-            config['build']['source_location'] = 'file_tests.tgz'
+            config['build']['source_path'] = 'file_tests.tgz'
             config['build']['create_files'] = file_arg
             with self.assertRaises(RuntimeError) as context:
                 self._quick_test(config)
@@ -169,7 +169,7 @@ class BuilderTests(PavTestCase):
         for file in files_to_fail:
             file_arg = {file: []}
             config = self._quick_test_cfg()
-            config['build']['source_location'] = 'file_tests.tgz'
+            config['build']['source_path'] = 'file_tests.tgz'
             config['build']['create_files'] = file_arg
             test = self._quick_test(config, build=False, finalize=False)
             self.assertFalse(test.build())
@@ -180,7 +180,7 @@ class BuilderTests(PavTestCase):
         config = self._quick_test_cfg()
         # The copy_test source file contains several files to copy
         # for real and several to symlink.
-        config['build']['source_location'] = 'file_tests.tgz'
+        config['build']['source_path'] = 'file_tests.tgz'
         config['build']['copy_files'] = [
             'real.*',
             'wild/real_?i*[0-9].dat',
@@ -229,21 +229,18 @@ class BuilderTests(PavTestCase):
                      "The wget module is missing required libs.")
     def test_src_urls(self):
 
-        base_config = {
+        fake_configs = self.TEST_DATA_ROOT/'pav_config_dir'/'tests'
+
+        config = {
             'name': 'test',
             'scheduler': 'raw',
+            'suite_path': (fake_configs/'fake_test.yaml').as_posix(),
             'build': {
                 'modules': ['gcc'],
+                'source_url': self.TEST_URL,
+                'source_path': 'README.md'
             }
         }
-
-        config = copy.deepcopy(base_config)
-        config['build']['source_location'] = self.TEST_URL
-
-        # remove existing downloads, and replace the directory.
-        downloads_path = self.pav_cfg.working_dir/'downloads'
-        shutil.rmtree(str(downloads_path))
-        downloads_path.mkdir()
 
         test = self._quick_test(config, build=False, finalize=False)
         if test.builder.path.exists():
@@ -262,7 +259,7 @@ class BuilderTests(PavTestCase):
             'build': {
                 'timeout': '12',
                 'cmds': ['echo "Hello World [\x1esched.num_nodes\x1e]"'],
-                'source_location': 'binfile.gz',
+                'source_path': 'binfile.gz',
             },
         }
 
@@ -284,7 +281,7 @@ class BuilderTests(PavTestCase):
             'build': {
                 'timeout': '1',
                 'cmds': ['sleep 10'],
-                'source_location': 'binfile.gz',
+                'source_path': 'binfile.gz',
             },
         }
 
@@ -304,7 +301,7 @@ class BuilderTests(PavTestCase):
             'build': {
                 'timeout': '12',
                 'cmds': ['exit 0'],
-                'source_location': 'binfile.gz',
+                'source_path': 'binfile.gz',
             },
         }
 
