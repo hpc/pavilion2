@@ -36,12 +36,6 @@ d:
 e:
     inherits_from: a
 
-#d:
-#    inherits_from: a
-#    scheduler: slurm
-#    slurm:
-#        num_nodes: 1
-
 wrong_year:
     run:
         cmds: 'echo hello'
