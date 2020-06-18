@@ -1,7 +1,7 @@
 a:
     run:
         cmds:
-            - "sleep 1s"
+            - "sleep 0.5s"
             - "echo pass"
     variables:
         num: 12

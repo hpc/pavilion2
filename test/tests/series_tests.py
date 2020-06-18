@@ -28,7 +28,7 @@ class SeriesFileTests(PavTestCase):
         series_man = series_cmd.make_series_man(self.pav_cfg, series_args)
 
         # buffer time, in case last test doesn't finish before returning
-        time.sleep(2)
+        time.sleep(1)
 
         # check modes
         for name, test_dict in series_man.test_info.items():
