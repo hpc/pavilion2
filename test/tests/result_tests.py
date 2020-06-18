@@ -44,94 +44,79 @@ class ResultParserTests(PavTestCase):
                     'echo "I\'m here to cause Worldwide issues." >> other.txt'
                 ]
             },
-            'results': {
-                'parse': {
-                    'regex': [
-                        {
-                            # Look at the default output file. (run.log)
-                            'key': 'basic',
-                            'regex': r'.* World',
-                        },
-                        {
-                            # Look all the log files, and save 'True' on match.
-                            'key': 'true',
-                            'files': ['../run.log'],
-                            'regex': r'.* World',
-                            'action': parsers.ACTION_TRUE,
-                        },
-                        {
-                            # As before, but false. Also, with lists of data.
-                            'key': 'false',
-                            # By multiple globs.
-                            'files': ['../run.log', 'other.*'],
-                            'regex': r'.* World',
-                            'action': parsers.ACTION_FALSE,
-                        },
-                        {
-                            # As before, but keep match counts.
-                            'key': 'count',
-                            'files': ['../run.log', '*.log'],
-                            'regex': r'.* World',
-                            'match_type': parsers.MATCH_ALL,
-                            'action': parsers.ACTION_COUNT,
-                            'per_file': parsers.PER_FULLNAME,
-                        },
-                        {
-                            # Store matches by fullname
-                            'key': 'fullname',
-                            'files': ['../run.log', '*.log'],
-                            'regex': r'.* World',
-                            'per_file': parsers.PER_FULLNAME,
-                        },
-                        {
-                            # Store matches by name stub
-                            # Note there is a name conflict here between other.txt
-                            # and other.log.
-                            'key': 'name',
-                            'files': ['other.*'],
-                            'regex': r'.* World',
-                            'per_file': parsers.PER_NAME,
-                        },
-                        {
-                            # Store matches by name stub
-                            # Note there is a name conflict here between other.txt
-                            # and other.log.
-                            'key': 'name_list',
-                            'files': ['*.log'],
-                            'regex': r'World',
-                            'per_file': parsers.PER_NAME_LIST,
-                        },
-                        {
-                            # Store matches by name stub
-                            # Note there is a name conflict here between other.txt
-                            # and other.log.
-                            'key': 'fullname_list',
-                            'files': ['*.log'],
-                            'regex': r'World',
-                            'per_file': parsers.PER_FULLNAME_LIST,
-                        },
-                        {
-                            'key': 'lists',
-                            'files': ['other*'],
-                            'regex': r'.* World',
-                            'match_type': parsers.MATCH_ALL,
-                            'per_file': parsers.PER_LIST,
-                        },
-                        {
-                            'key': 'all',
-                            'files': ['other*'],
-                            'regex': r'.* World',
-                            'action': parsers.ACTION_TRUE,
-                            'per_file': parsers.PER_ALL
-                        },
-                        {
-                            'key': 'result',
-                            'files': ['other*'],
-                            'regex': r'.* World',
-                            'action': parsers.ACTION_TRUE,
-                            'per_file': parsers.PER_ANY
-                        },
-                    ]
+            'result_parse': {
+                'regex': {
+
+                    'basic': {'regex': r'.* World'},
+                    'true': {
+                        # Look all the log files, and save 'True' on match.
+                        'files': ['../run.log'],
+                        'regex': r'.* World',
+                        'action': parsers.ACTION_TRUE,
+                    },
+                    'false': {
+                        # As before, but false. Also, with lists of data.
+                        # By multiple globs.
+                        'files': ['../run.log', 'other.*'],
+                        'regex': r'.* World',
+                        'action': parsers.ACTION_FALSE,
+                    },
+                    'count': {
+                        # As before, but keep match counts.
+                        'files': ['../run.log', '*.log'],
+                        'regex': r'.* World',
+                        'match_type': parsers.MATCH_ALL,
+                        'action': parsers.ACTION_COUNT,
+                        'per_file': parsers.PER_FULLNAME,
+                    },
+                    'fullname': {
+                        # Store matches by fullname
+                        'files': ['../run.log', '*.log'],
+                        'regex': r'.* World',
+                        'per_file': parsers.PER_FULLNAME,
+                    },
+                    'name': {
+                        # Store matches by name stub
+                        # Note there is a name conflict here between other.txt
+                        # and other.log.
+                        'files': ['other.*'],
+                        'regex': r'.* World',
+                        'per_file': parsers.PER_NAME,
+                    },
+                    'name_list': {
+                        # Store matches by name stub
+                        # Note there is a name conflict here between other.txt
+                        # and other.log.
+                        'files': ['*.log'],
+                        'regex': r'World',
+                        'per_file': parsers.PER_NAME_LIST,
+                    },
+                    'fullname_list': {
+                        # Store matches by name stub
+                        # Note there is a name conflict here between other.txt
+                        # and other.log.
+                        'files': ['*.log'],
+                        'regex': r'World',
+                        'per_file': parsers.PER_FULLNAME_LIST,
+                    },
+                    'lists': {
+                        'files': ['other*'],
+                        'regex': r'.* World',
+                        'match_type': parsers.MATCH_ALL,
+                        'per_file': parsers.PER_LIST,
+                    },
+                    'all': {
+                        'files': ['other*'],
+                        'regex': r'.* World',
+                        'action': parsers.ACTION_TRUE,
+                        'per_file': parsers.PER_ALL
+                    },
+                    'result': {
+                        'files': ['other*'],
+                        'regex': r'.* World',
+                        'action': parsers.ACTION_TRUE,
+                        'per_file': parsers.PER_ANY
+                    },
                 }
             }
         }
@@ -187,30 +172,23 @@ class ResultParserTests(PavTestCase):
         # A list of regex
         parser_tests = [
             # Should work fine.
-            ([{'key': 'ok', 'regex': r'foo'}], None),
-            # Repeated key
-            ([{'key': 'repeated', 'regex': r'foo'},
-              {'key': 'repeated', 'regex': r'foo'}], ResultError),
+            ({'ok':{'regex': r'foo'}}, None),
             # Reserved key
-            ([{'key': 'created', 'regex': r'foo'}], ResultError),
-            # Missing key
-            ([{'regex': r'foo'}], yc.RequiredError),
-            ([{'key': 'started', 'regex': r'foo'}], ResultError),
+            ({'created': {'regex': r'foo'}}, ResultError),
             # Missing regex
-            ([{'key': 'nope'}], yc.RequiredError),
-            ([{'key': 'test', 'regex': '[[['}], ResultError),
-            ([{'key': 'result', 'per_file': 'name', 'regex': 'foo'}],
+            ({'nope': {}}, yc.RequiredError),
+            # Error in result parser specific args
+            ({'test': {'regex': '[[['}}, ResultError),
+            # You can't store the 'result' key 'per_file'.
+            ({'result': {'per_file': 'name', 'regex': 'foo'}},
              ResultError),
         ]
 
         for parsers_conf, err_type in parser_tests:
 
             test_cfg = self._quick_test_cfg()
-            test_cfg['results'] = {
-                    'parse': {
-                        'regex': parsers_conf,
-                    },
-                    'evaluate': {},
+            test_cfg['result_parse'] = {
+                    'regex': parsers_conf,
                 }
 
             if err_type is not None:
@@ -222,10 +200,11 @@ class ResultParserTests(PavTestCase):
                     # errors too.
                     test = self._quick_test(test_cfg)
 
-                    pavilion.result.check_config(test.config['results'])
+                    pavilion.result.check_config(test.config['result_parse'],
+                                                 {})
             else:
                 test = self._quick_test(test_cfg)
-                pavilion.result.check_config(test.config['results'])
+                pavilion.result.check_config(test.config['result_parse'], {})
 
         evaluate_confs = [
             # Reserved key
@@ -234,11 +213,7 @@ class ResultParserTests(PavTestCase):
         ]
 
         for eval_conf in evaluate_confs:
-            result_cfg = {
-                'evaluate': eval_conf,
-                'parse': {},
-            }
-            pavilion.result.check_config(result_cfg)
+            pavilion.result.check_config({}, eval_conf)
 
     def test_base_results(self):
         """Make all base result functions work."""
@@ -290,22 +265,13 @@ class ResultParserTests(PavTestCase):
                     'echo "some other text that doesnt matter"'
                 ]
             },
-            'results': {
-                'parse': {
-                    'table': [
-                        {
-                            'key': 'table1',
-                            'delimiter': r'\\|',
-                            'col_num': '3'
-                        }
-                    ],
-                    'constant': [
-                        {
-                            'key': 'result',
-                            'const': 'table1'
-                        }
-                    ]
-                }
+            'result_parse': {
+                'table': {
+                    'table1': {
+                        'delimiter': r'\\|',
+                        'col_num': '3'
+                    },
+                },
             }
         }
 
@@ -331,22 +297,13 @@ class ResultParserTests(PavTestCase):
                     'echo "some other text that doesnt matter"'
                 ]
             },
-            'results': {
-                'parse': {
-                    'table': [
-                        {
-                            'key': 'table2',
-                            'delimiter': ' ',
-                            'col_num': '3'
-                        }
-                    ],
-                    'constant': [
-                        {
-                            'key': 'result',
-                            'const': 'table2'
-                        }
-                    ]
-                }
+            'result_parse': {
+                'table': {
+                    'table2': {
+                        'delimiter': ' ',
+                        'col_num': '3'
+                    },
+                },
             }
         }
 
@@ -375,27 +332,18 @@ class ResultParserTests(PavTestCase):
                     'echo "CORAL2 RFP, 4 -1 256 10 32 1 100, 1.00, 27.04, 27.04, 9.41, 5.1, 18.72, 1.1, 162.56, 0.2, 18.50, 1.1"'
                 ]
             },
-            'results': {
-                'parse': {
-                    'table': [
-                        {
-                            'key': 'table3',
-                            'delimiter': ',',
-                            'col_num': '8',
-                            'has_header': 'True',
-                            'by_column': 'True',
-                            'col_names': [
-                                ' ', 'calc_deposit', 'OMP Barrier',
-                                'Scaled Serial Ref', 'Bestcase OMP',
-                                'Static OMP', 'Dynamic OMP', 'Manual OMP']
-                        }
-                    ],
-                    'constant': [
-                        {
-                            'key': 'result',
-                            'const': 'table3'
-                        }
-                    ]
+            'result_parse': {
+                'table': {
+                    'table3': {
+                        'delimiter': ',',
+                        'col_num': '8',
+                        'has_header': 'True',
+                        'by_column': 'True',
+                        'col_names': [
+                            ' ', 'calc_deposit', 'OMP Barrier',
+                            'Scaled Serial Ref', 'Bestcase OMP',
+                            'Static OMP', 'Dynamic OMP', 'Manual OMP']
+                    }
                 }
             }
         }
@@ -438,7 +386,7 @@ class ResultParserTests(PavTestCase):
         for evaluate_conf, exp_results in evaluate_tests:
 
             cfg = self._quick_test_cfg()
-            cfg['results']['evaluate'] = evaluate_conf
+            cfg['result_evaluate'] = evaluate_conf
 
             test = self._quick_test(cfg)
             test.run()
@@ -462,7 +410,7 @@ class ResultParserTests(PavTestCase):
 
         for error_conf in error_confs:
             cfg = self._quick_test_cfg()
-            cfg['results']['evaluate'] = error_conf
+            cfg['result_evaluate'] = error_conf
 
             test = self._quick_test(cfg)
             test.run()
@@ -487,18 +435,26 @@ class ResultParserTests(PavTestCase):
 
         arg_parser = arguments.get_parser()
         run_args = arg_parser.parse_args(['run', 'result_tests.*'])
-        run_cmd.run(self.pav_cfg, run_args)
+        if run_cmd.run(self.pav_cfg, run_args) != 0:
+            cmd_out, cmd_err = run_cmd.clear_output()
+            self.fail("Run command failed: \n{}\n{}".format(cmd_out, cmd_err))
 
         for test in run_cmd.last_tests:
             test.wait(3)
 
         res_args = arg_parser.parse_args(
             ('result', '--full') + tuple(str(t.id) for t in run_cmd.last_tests))
-        result_cmd.run(self.pav_cfg, res_args)
+        if result_cmd.run(self.pav_cfg, res_args) != 0:
+            cmd_out, cmd_err = result_cmd.clear_output()
+            self.fail("Result command failed: \n{}\n{}"
+                      .format(cmd_out, cmd_err))
 
         res_args = arg_parser.parse_args(
             ('result',) + tuple(str(t.id) for t in run_cmd.last_tests))
-        result_cmd.run(self.pav_cfg, res_args)
+        if result_cmd.run(self.pav_cfg, res_args) != 0:
+            cmd_out, cmd_err = result_cmd.clear_output()
+            self.fail("Result command failed: \n{}\n{}"
+                      .format(cmd_out, cmd_err))
 
         for test in run_cmd.last_tests:
             # Each of these tests should have a 'FAIL' as the result.
@@ -512,12 +468,12 @@ class ResultParserTests(PavTestCase):
             tuple(str(t.id) for t in run_cmd.last_tests))
         result_cmd.run(rerun_cfg, res_args)
 
-        data = result_cmd.outfile.getvalue()
+        data, err = result_cmd.clear_output()
         results = json.loads(data)
 
         basic = results['result_tests.basic']
-        per1 = results['result_tests.per.1']
-        per2 = results['result_tests.per.2']
+        per1 = results['result_tests.permuted.1']
+        per2 = results['result_tests.permuted.2']
 
         self.assertEqual(basic['result'], TestRun.PASS)
         self.assertEqual(per1['result'], TestRun.FAIL)

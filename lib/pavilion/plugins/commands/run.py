@@ -477,7 +477,8 @@ class RunCommand(commands.Command):
 
             # Make sure the result parsers have reasonable arguments.
             try:
-                result.check_config(test.config['results'])
+                result.check_config(test.config['result_parse'],
+                                    test.config['result_evaluate'])
             except result.ResultError as err:
                 rp_errors.append((test, str(err)))
 

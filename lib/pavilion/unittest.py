@@ -289,10 +289,8 @@ though."""
             'timeout': '300',
         },
         'slurm': {},
-        'results': {
-            'parse': {},
-            'evaluate': {},
-        }
+        'result_parse': {},
+        'result_evaluate': {},
     }
 
     def _quick_test_cfg(self):
