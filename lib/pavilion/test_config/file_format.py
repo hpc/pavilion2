@@ -306,8 +306,10 @@ expected to be added to by various plugins.
                     'source_path',
                     help_text="Path to the test source. It may be a directory, "
                               "compressed file, compressed or "
-                              "uncompressed archive (zip/tar). For relative "
-                              "paths Pavilion looks in the test_src directory "
+                              "uncompressed archive (zip/tar), and is handled "
+                              "according to the internal (file-magic) type. "
+                              "For relative paths Pavilion looks in the "
+                              "test_src directory "
                               "within all known config directories. If this"
                               "is left blank, Pavilion will always assume "
                               "there is no source to build."),
@@ -315,8 +317,11 @@ expected to be added to by various plugins.
                     'source_url',
                     help_text='Where to find the source on the internet. By '
                               'default, Pavilion will try to download the '
-                              'source from the given URL the source file '
-                              'can\'t otherwise be found.'),
+                              'source from the given URL if the source file '
+                              'can\'t otherwise be found. You must give a '
+                              'source path so Pavilion knows where to store '
+                              'the file (relative paths will be stored '
+                              'relative to the local test_src directory.'),
                 yc.StrElem(
                     'source_download', choices=['never', 'missing', 'latest'],
                     default='missing',
