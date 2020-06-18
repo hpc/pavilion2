@@ -2,6 +2,33 @@
 
 import datetime
 
+DISABLE_SCHED_KEYS = [
+    'node_up_list',
+    'node_avail_list',
+    'node_list',
+    'alloc_node_list',
+]
+
+
+def get_sched_keys(test):
+    """Return the sched section keys. Keys whose name ends in 'list' will
+    always be a list, otherwise they'll be single items. Keys in
+    DISABLE_SCHED_KEYS won't be added."""
+
+    sched_keys = {}
+
+    for key, value in test.var_man.as_dict().get('sched', {}).items():
+        if key in DISABLE_SCHED_KEYS:
+            continue
+
+        if isinstance(value, list) and len(value) > 1 or key.endswith('_list'):
+            sched_keys[key] = value
+        else:
+            sched_keys[key] = value[0] if value else None
+
+    return sched_keys
+
+
 BASE_RESULTS = {
     'name': lambda test: test.name,
     'id': lambda test: test.id,
@@ -12,7 +39,7 @@ BASE_RESULTS = {
     'duration': lambda test: str(test.finished - test.started),
     'user': lambda test: test.var_man['pav.user'],
     'job_id': lambda test: test.job_id,
-    'sched': lambda test: test.var_man.as_dict().get('sched', {}),
+    'sched': get_sched_keys,
     'sys_name': lambda test: test.var_man['sys.sys_name'],
     'pav_result_errors': lambda test: [],
     'return_value': None,

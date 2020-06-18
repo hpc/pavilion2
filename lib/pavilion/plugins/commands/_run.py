@@ -138,7 +138,8 @@ class _RunCommand(commands.Command):
             # the args are valid form _check_args, but those might not be
             # check-able before kickoff due to deferred variables.
             try:
-                result.check_config(test.config['results'])
+                result.check_config(test.config['result_parse'],
+                                    test.config['result_evaluate'])
             except TestRunError as err:
                 test.status.set(
                     STATES.RESULTS_ERROR,
