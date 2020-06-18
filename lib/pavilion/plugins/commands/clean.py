@@ -92,13 +92,11 @@ class CleanCommand(commands.Command):
 
         tests_dir = pav_cfg.working_dir / 'test_runs'     # type: Path
         series_dir = pav_cfg.working_dir / 'series'       # type: Path
-        download_dir = pav_cfg.working_dir / 'downloads'  # type: Path
         build_dir = pav_cfg.working_dir / 'builds'        # type: Path
 
         removed_tests = 0
         removed_series = 0
         removed_builds = 0
-        removed_downloads = 0
 
         used_builds = set()
 
@@ -188,29 +186,6 @@ class CleanCommand(commands.Command):
                         color=output.YELLOW, file=self.errfile
                     )
 
-        # Clean Downloads
-        output.fprint("Removing Downloads...", file=self.outfile,
-                      color=output.GREEN)
-        for download in download_dir.iterdir():
-            try:
-                download_time = datetime.fromtimestamp(
-                    download.lstat().st_mtime)
-                if download_time < cutoff_date:
-                    if download.is_dir():
-                        shutil.rmtree(download.as_posix())
-                    else:
-                        download.unlink()
-                    removed_downloads += 1
-                    if args.verbose:
-                        output.fprint(
-                            "Skipped download {}".format(download),
-                            file=self.outfile)
-
-            except OSError as err:
-                output.fprint("Could not remove download {}: {}"
-                              .format(download, err),
-                              color=output.YELLOW, file=self.errfile)
-
         # Clean Builds
         output.fprint("Removing Builds...", file=self.outfile,
                       color=output.GREEN)
@@ -228,10 +203,9 @@ class CleanCommand(commands.Command):
                     .format(build, err),
                     color=output.YELLOW, file=self.errfile)
 
-        output.fprint("Removed {tests} tests, {series} series, {builds} "
-                      "builds, and {downloads} downloads"
+        output.fprint("Removed {tests} tests, {series} series, and {builds} "
+                      "builds."
                       .format(tests=removed_tests, series=removed_series,
-                              builds=removed_builds,
-                              downloads=removed_downloads),
+                              builds=removed_builds),
                       color=output.GREEN, file=self.outfile)
         return 0
