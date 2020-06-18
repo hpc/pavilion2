@@ -145,7 +145,7 @@ class SeriesConfigLoader(yc.YamlConfigLoader):
     """This class describes a series file."""
 
     ELEMENTS = [
-        RegexDict(
+        CondCategoryElem(
             'series', sub_elem=yc.KeyedElem(
                 elements=[
                     yc.StrElem('depends_pass',
@@ -153,11 +153,11 @@ class SeriesConfigLoader(yc.YamlConfigLoader):
                                default='False'),
                     yc.ListElem('depends_on', sub_elem=yc.StrElem()),
                     yc.ListElem('modes', sub_elem=yc.StrElem()),
-                    RegexDict(
+                    CondCategoryElem(
                         'only_if', sub_elem=yc.ListElem(sub_elem=yc.StrElem()),
                         key_case=EnvCatElem.KC_MIXED
                     ),
-                    RegexDict(
+                    CondCategoryElem(
                         'not_if', sub_elem=yc.ListElem(sub_elem=yc.StrElem()),
                         key_case=EnvCatElem.KC_MIXED
                     ),
