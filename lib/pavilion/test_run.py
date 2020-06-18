@@ -4,6 +4,7 @@ the list of all known test runs."""
 # pylint: disable=too-many-lines
 
 import datetime
+import grp
 import json
 import logging
 import os
@@ -22,6 +23,7 @@ from pavilion import utils
 from pavilion.status_file import StatusFile, STATES
 from pavilion.test_config import variables, resolver
 from pavilion.test_config.file_format import TestConfigError
+from pavilion.permissions import PermissionsManager
 
 
 def get_latest_tests(pav_cfg, limit=None):
@@ -56,107 +58,6 @@ class TestRunError(RuntimeError):
 
 class TestRunNotFoundError(RuntimeError):
     """For when we try to find an existing test, but it doesn't exist."""
-
-
-# Keep track of files we've already hashed and updated before.
-__HASHED_FILES = {}
-
-
-# The options 'struct' for test runs.  This should match the defaults in
-class TestRunOptions:
-    """A 'struct' of options for test runs, to keep minor options fairly
-    well contained."""
-
-    OPTIONS_FN = 'options'
-
-    KNOWN_OPTIONS = [
-        'build_only',
-        'rebuild',
-    ]
-
-    def __init__(self, build_only=False, rebuild=False, **_):
-        """Initialize the options. Taking (and not using) generic
-        kwargs to make it more friendly to test runs across versions.
-
-        :param build_only: Only build, don't run, the test.
-        :param rebuild: Deprecate the current build, and build a new one.
-        :param _: We handle generic keyword args to make loading tests of
-            different versions of Pavilion a little more flexible.
-        """
-        self.build_only = build_only
-        self.rebuild = rebuild
-
-    def as_dict(self):
-        """Returns the options as a dictionary.
-        """
-
-        out_dict = {}
-
-        for opt_name in self.KNOWN_OPTIONS:
-            out_dict[opt_name] = getattr(self, opt_name)
-
-        return out_dict
-
-    def save(self, test):
-        """Create a file that records the options for this test run.
-
-        :param TestRun test: The TestRun to save this under.
-        """
-
-        build_opts_path = test.path/self.OPTIONS_FN
-
-        if not build_opts_path.exists():
-            try:
-                with build_opts_path.open('w') as opts_file:
-                    json.dump(self.as_dict(), opts_file)
-            except ValueError as err:
-                msg = ("Could not record build options for test {} due to a "
-                       "json error: {}"
-                       .format(test.id, err))
-                test.status.set(STATES.INFO, msg)
-                test.logger.warning(msg)
-
-            except OSError as err:
-                msg = ("System error when savingg build options for test {}: {}"
-                       .format(test.id, err))
-                test.status.set(STATES.INFO, msg)
-                test.logger.warning(msg)
-        else:
-            raise RuntimeError("Trying to write options a second time for "
-                               "test {}. This should never happen.")
-
-    @classmethod
-    def load(cls, test):
-        """Load the options from file.
-
-        :rtype: TestRunOptions
-        """
-
-        build_opts_path = test.path / cls.OPTIONS_FN
-        options = {}
-
-        if build_opts_path.exists():
-            try:
-                with build_opts_path.open() as opts_file:
-                    options = json.load(opts_file)
-
-            except ValueError as err:
-                msg = ("Could not load build options for test run {}: {}"
-                       .format(test.id, err))
-                test.status.set(STATES.INFO, msg)
-                test.logger.warning(msg)
-
-        return cls(**options)
-
-    def __eq__(self, other):
-        """Compare this with other TestRunOptions objects. For when we test if
-        test_run loading works as expected."""
-
-        if not isinstance(other, TestRunOptions):
-            raise RuntimeError("Can only compare TestRunOptions to other "
-                               "TestRunOption instances.")
-
-        return self.as_dict() == other.as_dict()
 
 
 class TestRun:
@@ -201,13 +102,9 @@ class TestRun:
     JOB_ID_FN = 'job_id'
     COMPLETE_FN = 'RUN_COMPLETE'
 
-    OPTIONS_DEFAULTS = {
-        'build_only': False,
-        'rebuild': False,
-    }
-
     def __init__(self, pav_cfg, config,
-                 build_tracker=None, var_man=None, _id=None, **options):
+                 build_tracker=None, var_man=None, _id=None,
+                 rebuild=False, build_only=False):
         """Create an new TestRun object. If loading an existing test
     instance, use the ``TestRun.from_id()`` method.
 
@@ -238,21 +135,54 @@ class TestRun:
 
         self.id = None  # pylint: disable=invalid-name
 
+        self._attrs = {}
+
         # Mark the run to build locally.
         self.build_local = config.get('build', {}) \
                                  .get('on_nodes', 'false').lower() != 'true'
 
+        # If a test access group was given, make sure it exists and the
+        # current user is a member.
+        self.group = config.get('group')
+        if self.group is not None:
+            try:
+                group_data = grp.getgrnam(self.group)
+                user = utils.get_login()
+                if self.group != user and user not in group_data.gr_mem:
+                    raise TestConfigError(
+                        "Test specified group '{}', but the current user '{}' "
+                        "is not a member of that group."
+                        .format(self.group, user))
+            except KeyError as err:
+                raise TestConfigError(
+                    "Test specified group '{}', but that group does not "
+                    "exist on this system. {}"
+                    .format(self.group, err))
+
+        self.umask = config.get('umask')
+        if self.umask is not None:
+            try:
+                self.umask = int(self.umask, 8)
+            except ValueError:
+                raise RuntimeError(
+                    "Invalid umask. This should have been enforced by the "
+                    "by the config format.")
+
+        self.build_only = build_only
+        self.rebuild = rebuild
+
         # Get an id for the test, if we weren't given one.
         if _id is None:
             self.id, self.path = self.create_id_dir(tests_path)
-            self._save_config()
-            if var_man is None:
-                var_man = variables.VariableSetManager()
-            self.var_man = var_man
-            self._variables_path = self.path / 'variables'
-            self.var_man.save(self._variables_path)
-            self.opts = TestRunOptions(**options)
-            self.opts.save(self)
+            with PermissionsManager(self.path, self.group, self.umask):
+                self._save_config()
+                if var_man is None:
+                    var_man = variables.VariableSetManager()
+                self.var_man = var_man
+                self._variables_path = self.path / 'variables'
+                self.var_man.save(self._variables_path)
+
+            self.save_attributes()
         else:
             self.id = _id
             self.path = utils.make_id_path(tests_path, self.id)
@@ -267,7 +197,7 @@ class TestRun:
             except RuntimeError as err:
                 raise TestRunError(*err.args)
 
-            self.opts = TestRunOptions.load(self)
+            self.load_attributes()
 
         name_parts = [
             self.config.get('suite', '<unknown>'),
@@ -286,11 +216,12 @@ class TestRun:
         # This will be set by the scheduler
         self._job_id = None
 
-        # Setup the initial status file.
-        self.status = StatusFile(self.path/'status')
-        if _id is None:
-            self.status.set(STATES.CREATED,
-                            "Test directory and status file created.")
+        with PermissionsManager(self.path/'status', self.group, self.umask):
+            # Setup the initial status file.
+            self.status = StatusFile(self.path/'status')
+            if _id is None:
+                self.status.set(STATES.CREATED,
+                                "Test directory and status file created.")
 
         self.run_timeout = self.parse_timeout(
             'run', config.get('run', {}).get('timeout'))
@@ -417,6 +348,11 @@ class TestRun:
                 # Create file parent directory(ies).
                 dirname = file_path.parent
                 (self.build_path / dirname).mkdir(parents=True, exist_ok=True)
+
+                # Don't try to overwrite a symlink without removing it first.
+                if file_path.is_symlink():
+                    file_path.unlink()
+
                 # Write file.
                 with file_path.open('w') as file_:
                     for line in contents:
@@ -448,8 +384,7 @@ class TestRun:
         lock_path = self.path/'config.lockfile'
         config_lock = lockfile.LockFile(
             lock_path,
-            group=self._pav_cfg.shared_group
-        )
+            group=self._pav_cfg.shared_group)
 
         try:
             config_lock.lock()
@@ -516,18 +451,26 @@ class TestRun:
         if self.builder.build(cancel_event=cancel_event):
             # Create the build origin path, to make tracking a test's build
             # a bit easier.
-            self.build_origin_path.symlink_to(self.builder.path)
+            with PermissionsManager(self.build_origin_path, self.group,
+                                    self.umask):
+                self.build_origin_path.symlink_to(self.builder.path)
 
-            return self.builder.copy_build(self.build_path)
+            with PermissionsManager(self.build_path, self.group, self.umask):
+                if not self.builder.copy_build(self.build_path):
+                    cancel_event.set()
         else:
             self.builder.fail_path.rename(self.build_path)
             return False
+
+        return True
 
     def save_build_name(self):
         """Save the builder's build name to the build name file for the test."""
 
         try:
-            with self._build_name_fn.open('w') as build_name_file:
+            with PermissionsManager(self._build_name_fn, self.group,
+                                    self.umask), \
+                    self._build_name_fn.open('w') as build_name_file:
                 build_name_file.write(self.builder.name)
         except OSError as err:
             raise TestRunError(
@@ -557,7 +500,7 @@ class TestRun:
             future.
         """
 
-        if self.opts.build_only:
+        if self.build_only:
             self.status.set(
                 STATES.RUN_ERROR,
                 "Tried to run a 'build_only' test object.")
@@ -566,7 +509,8 @@ class TestRun:
         self.status.set(STATES.PREPPING_RUN,
                         "Converting run template into run script.")
 
-        with self.run_log.open('wb') as run_log:
+        with PermissionsManager(self.path, self.group, self.umask), \
+                self.run_log.open('wb') as run_log:
             self.status.set(STATES.RUNNING,
                             "Starting the run script.")
 
@@ -605,12 +549,14 @@ class TestRun:
                                .format(self.run_timeout))
                         self.status.set(STATES.RUN_TIMEOUT, msg)
                         self.finished = datetime.datetime.now()
+                        self.save_attributes()
                         raise TimeoutError(msg)
                     else:
                         # Only wait a max of run_silent_timeout next 'wait'
                         timeout = timeout - quiet_time
 
         self.finished = datetime.datetime.now()
+        self.save_attributes()
 
         self.status.set(STATES.RUN_DONE,
                         "Test run has completed.")
@@ -625,7 +571,9 @@ class TestRun:
         # Write the current time to the file. We don't actually use the contents
         # of the file, but it's nice to have another record of when this was
         # run.
-        with (self.path/self.COMPLETE_FN).open('w') as run_complete:
+        with (self.path/self.COMPLETE_FN).open('w') as run_complete, \
+                PermissionsManager(self.path/self.COMPLETE_FN,
+                                   self.group, self.umask):
             json.dump({
                 'complete': datetime.datetime.now().isoformat(),
             }, run_complete)
@@ -650,41 +598,42 @@ class TestRun:
         else:
             return None
 
-    def _set_run_attr(self, attr, value):
-        """Set the given run attribute by writing it to the attributes JSON
-        file."""
+    ATTR_FILE_NAME = 'attributes'
 
-        if self._attributes.get(attr) == value:
-            return
+    def save_attributes(self):
+        """Save the attributes to file in the test directory."""
 
-        attr_path = self.path/'attributes'
+        attr_path = self.path/self.ATTR_FILE_NAME
+
+        with PermissionsManager(attr_path, self.group, self.umask), \
+                attr_path.open('w') as attr_file:
+            json.dump(self._attrs, attr_file)
+
+    def load_attributes(self):
+        """Load the attributes from file."""
+
+        attr_path = self.path/self.ATTR_FILE_NAME
+
         if attr_path.exists():
             with attr_path.open() as attr_file:
-                data = json.load(attr_file)
-        else:
-            data = {}
+                try:
+                    self._attrs = json.load(attr_file)
+                except (json.JSONDecodeError, OSError, ValueError, KeyError)\
+                        as err:
+                    raise TestRunError(
+                        "Could not load attributes file: \n{}"
+                        .format(err.args)
+                    )
 
-        data[attr] = value
-
-        with attr_path.open('w') as attr_file:
-            json.dump(data, attr_file)
-
-    def _get_run_attr(self, attr):
-        """Load the given attribute from the attributes JSON file."""
-
-        attr_path = self.path/'attributes'
-        if attr_path.exists():
-            with attr_path.open('r') as attr_file:
-                data = json.load(attr_file)
-        else:
-            data = {}
-
-        return data.get(attr)
+    OPTIONS_DEFAULTS = {
+        'build_only': False,
+        'rebuild': False,
+    }
 
     @property
     def finished(self):
         """The end time for this test run."""
-        value = self._get_run_attr('finished')
+        value = self._attrs.get('finished')
         if value is not None:
             value = datetime.datetime.strptime(value, "%Y-%m-%d %H:%M:%S.%f")
         return value
@@ -692,12 +641,12 @@ class TestRun:
     @finished.setter
     def finished(self, value: datetime.datetime):
         value = value.isoformat(" ")
-        self._set_run_attr('finished', value)
+        self._attrs['finished'] = value
 
     @property
     def started(self):
         """The start time for this test run."""
-        value = self._get_run_attr('started')
+        value = self._attrs.get('started')
         if value is not None:
             value = datetime.datetime.strptime(value, "%Y-%m-%d %H:%M:%S.%f")
         return value
@@ -705,7 +654,25 @@ class TestRun:
     @started.setter
     def started(self, value):
         value = value.isoformat(" ")
-        self._set_run_attr('started', value)
+        self._attrs['started'] = value
+
+    @property
+    def build_only(self):
+        """Only build this test, never run it."""
+        return self._attrs.get('build_only')
+
+    @build_only.setter
+    def build_only(self, value):
+        self._attrs['build_only'] = value
+
+    @property
+    def rebuild(self):
+        """Whether or not this test will rebuild it's build."""
+        return self._attrs.get('rebuild')
+
+    @rebuild.setter
+    def rebuild(self, value):
+        self._attrs['rebuild'] = value
 
     WAIT_INTERVAL = 0.5
 
@@ -748,7 +715,7 @@ of result keys.
                 .format(s=self)
             )
 
-        parser_configs = self.config['results']['parse']
+        parser_configs = self.config['result_parse']
 
         results = result.base_results(self)
 
@@ -774,11 +741,11 @@ of result keys.
         if not regather:
             self.status.set(STATES.RESULTS,
                             "Performing {} result evaluations."
-                            .format(len(self.config['results']['evaluate'])))
+                            .format(len(self.config['result_evaluate'])))
         try:
             result.evaluate_results(
                 results,
-                self.config['results']['evaluate'])
+                self.config['result_evaluate'])
         except result.ResultError as err:
             results['result'] = self.ERROR
             results['pav_result_errors'].append(err.args[0])
@@ -809,7 +776,8 @@ of result keys.
 :param dict results: The results dictionary.
 """
 
-        with self.results_path.open('w') as results_file:
+        with self.results_path.open('w') as results_file, \
+                PermissionsManager(self.results_path, self.group, self.umask):
             json.dump(results, results_file)
 
     def load_results(self):
@@ -924,11 +892,7 @@ modified date for the test directory."""
         :return:
         """
 
-        script = scriptcomposer.ScriptComposer(
-            details=scriptcomposer.ScriptDetails(
-                path=path,
-                group=self._pav_cfg.shared_group,
-            ))
+        script = scriptcomposer.ScriptComposer()
 
         verbose = config.get('verbose', 'false').lower() == 'true'
 
@@ -989,7 +953,8 @@ modified date for the test directory."""
         else:
             script.comment('No commands given for this script.')
 
-        script.write()
+        with PermissionsManager(path, self.group, self.umask):
+            script.write(path)
 
     @staticmethod
     def create_id_dir(id_dir):

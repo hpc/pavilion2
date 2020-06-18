@@ -4,6 +4,7 @@ for Pavilion."""
 import copy
 import fnmatch
 import inspect
+import time
 import io
 import os
 import pprint
@@ -288,10 +289,8 @@ though."""
             'timeout': '300',
         },
         'slurm': {},
-        'results': {
-            'parse': {},
-            'evaluate': {},
-        }
+        'result_parse': {},
+        'result_evaluate': {},
     }
 
     def _quick_test_cfg(self):
@@ -371,6 +370,33 @@ The default config is: ::
             fin_var_man.add_var_set('sys', fin_sys)
             test.finalize(fin_var_man)
         return test
+
+    def wait_tests(self, working_dir: Path, timeout=5):
+        """Wait on all the tests under the given path to complete.
+
+        :param working_dir: The path to a working directory.
+        :param timeout: How long to wait before giving up.
+        """
+
+        runs_dir = working_dir / 'test_runs'
+        end_time = time.time() + timeout
+        while time.time() < end_time:
+
+            completion_files = [path/TestRun.COMPLETE_FN
+                                for path in runs_dir.iterdir()]
+
+            if not completion_files:
+                self.fail("No tests started.")
+
+            all_done = all([cfile.exists() for cfile in completion_files])
+
+            if all_done:
+                break
+            else:
+                time.sleep(0.1)
+                continue
+        else:
+            raise TimeoutError
 
 
 class ColorResult(unittest.TextTestResult):
