@@ -467,6 +467,8 @@ class TestRun:
             self.builder.fail_path.rename(self.build_path)
             return False
 
+        return True
+
     def save_build_name(self):
         """Save the builder's build name to the build name file for the test."""
 
@@ -718,7 +720,7 @@ of result keys.
                 .format(s=self)
             )
 
-        parser_configs = self.config['results']['parse']
+        parser_configs = self.config['result_parse']
 
         results = result.base_results(self)
 
@@ -744,11 +746,11 @@ of result keys.
         if not regather:
             self.status.set(STATES.RESULTS,
                             "Performing {} result evaluations."
-                            .format(len(self.config['results']['evaluate'])))
+                            .format(len(self.config['result_evaluate'])))
         try:
             result.evaluate_results(
                 results,
-                self.config['results']['evaluate'])
+                self.config['result_evaluate'])
         except result.ResultError as err:
             results['result'] = self.ERROR
             results['pav_result_errors'].append(err.args[0])
