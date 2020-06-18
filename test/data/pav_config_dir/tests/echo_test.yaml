@@ -6,19 +6,18 @@ a:
     variables:
         num: 12
 
-    results:
-        parse:
-            constant:
-                - key: number
-                  const: '{{num}}'
-                - key: other_num
-                  const: '{{another_num}}'
-            regex:
-                key: fake_result
-                regex: "pass"
-        evaluate:
-            asdf: 'number - 10'
-            result: 'asdf < 3'
+    result_parse:
+        constant:
+            - key: number
+              const: '{{num}}'
+            - key: other_num
+              const: '{{another_num}}'
+        regex:
+            key: fake_result
+            regex: "pass"
+    result_evaluate:
+        asdf: 'number - 10'
+        result: 'asdf < 3'
 
 b:
     inherits_from: a

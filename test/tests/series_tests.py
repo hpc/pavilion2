@@ -28,8 +28,6 @@ class SeriesFileTests(PavTestCase):
         series_man = series_cmd.make_series_man(self.pav_cfg, series_args)
         time.sleep(0.5)
 
-        output.dbg_print(series_man.test_info)
-
         # check modes
         for name, test_dict in series_man.test_info.items():
             for test_obj in test_dict['obj']:
