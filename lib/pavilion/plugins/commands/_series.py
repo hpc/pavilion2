@@ -64,4 +64,8 @@ class AutoSeries(commands.Command):
             series_man = series.SeriesManager(pav_cfg,
                                               series_obj,
                                               series_cfg)
+
+            # call method to actually run series
+            series_man.run_series()
+
             return series_man

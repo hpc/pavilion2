@@ -89,6 +89,10 @@ class SeriesManager:
                     next_list.append(t_n)
             self.test_info[test_name]['next'] = next_list
 
+        return
+
+    def run_series(self):
+
         # handles SIGTERM (15) signal
         def sigterm_handler(*args):
 
@@ -135,6 +139,7 @@ class SeriesManager:
                     time.sleep(0.1)
 
         return
+
 
     def series_tests_handler(self):
 
