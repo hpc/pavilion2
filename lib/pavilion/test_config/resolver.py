@@ -567,6 +567,19 @@ class TestConfigResolver:
                         "{} in {} is empty. Nothing will execute."
                         .format(test_cfg_name, suite_path))
                 if test_cfg.get('inherits_from') is None:
+                    # Ensures we get no pre_cmds or post_cmds in the run or 
+                    # build section of a test config unless that test inherits
+                    # from another test.
+                    error = ("Test {} has {} element in the {} section of "
+                             "config, but no inheritance.")
+                    for section in ['build', 'run']:
+                        for cmd in ['pre_cmds', 'post_cmds']:
+                            try:
+                                if cmd in test_cfg[section].keys():
+                                    raise TestConfigError(error.format(
+                                        test_cfg_name, cmd, section))
+                            except KeyError:
+                                continue
                     test_cfg['inherits_from'] = '__base__'
                     # Tests that depend on nothing are ready to resolve.
                     ready_to_resolve.append(test_cfg_name)
