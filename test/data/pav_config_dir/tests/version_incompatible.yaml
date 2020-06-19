@@ -1,7 +1,6 @@
 one:
-    version:
-        test_version: 1.4
-        min_pav_version: 1.2.4-1.2.8
+    test_version: 1.4
+    min_pav_version: 1.2.4-1.2.8
     run:
         cmd:
             - 'sleep 1'

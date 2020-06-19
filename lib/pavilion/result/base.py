@@ -2,6 +2,7 @@
 
 import datetime
 
+
 BASE_RESULTS = {
     'name': lambda test: test.name,
     'id': lambda test: test.id,
