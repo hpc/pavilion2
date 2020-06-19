@@ -136,7 +136,7 @@ class TestRun:
 
         # Get the test version information
         self.test_version = config.get('test_version')
-        self.min_pav_version = config.get('min_pav_version')
+        self.compatible_pav_versions = config.get('compatible_pav_versions')
 
         self._attrs = {}
 

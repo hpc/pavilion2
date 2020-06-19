@@ -456,7 +456,7 @@ class TestConfigResolver:
         test_suite_cfg = yc_yaml.load(test_suite_cfg)
         for test in test_suite_cfg:
             test_cfg = test_suite_cfg.get(test)
-            compatible_versions = test_cfg.get('min_pav_version')
+            compatible_versions = test_cfg.get('compatible_pav_versions')
 
             # Assumes compatibility if not explicilty given in config
             if compatible_versions is not None:

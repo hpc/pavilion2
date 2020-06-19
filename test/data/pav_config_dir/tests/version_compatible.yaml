@@ -5,7 +5,7 @@ one:
             - 'sleep 1'
 two:
     test_version: beta
-    min_pav_version: 1.2.3-5.4.9
+    compatible_pav_versions: 1.2.3-5.4.9
     run:
         cmds:
             - 'sleep 1'
