@@ -240,19 +240,14 @@ expected to be added to by various plugins.
                       "the Pavilion variable matches one or more of the "
                       " values."
         ),
-        yc.KeyedElem(
-            'version', elements=[
-                yc.StrElem(
-                    'test_version', default='1.0',
-                    help_text="Documented test version."),
-                yc.RegexElem(
-                    'min_pav_version', regex=VERS_RANGE_RE,
-                    help_text="Minimum pavilion version to run test, should "
-                              "be a range.  "),
-            ],
-            help_text="Subsection in test configs to document compatible "
-                      "pavilion version as well as document current test "
-                      "version. "
+        yc.RegexElem(
+            'min_pav_version', regex=VERS_RANGE_RE,
+            help_text="Minimum pavilion version to run test, should be a "
+                      "range. "
+        ),
+        yc.StrElem(
+            'test_version', default='1.0',
+            help_text="Documented test version."
         ),
         yc.KeyedElem(
             'build', elements=[

@@ -456,30 +456,24 @@ class TestConfigResolver:
 
         compatible_errors = ""
         test_suite_cfg = yc_yaml.load(test_suite_cfg)
-        for test_cfg in test_suite_cfg:
-            try:
-                version_info = test_suite_cfg[test_cfg]['version']
-            except KeyError:
-                continue
+        for test in test_suite_cfg:
+            test_cfg = test_suite_cfg.get(test)
+            compatible_versions = test_cfg.get('min_pav_version')
 
-            try:
-                compatible_versions = version_info['min_pav_version']
             # Assumes compatibility if not explicilty given in config
-            except KeyError:
-                continue
+            if compatible_versions is not None:
+                pav_version = PavVars.version(self)
+                lowest, highest = compatible_versions.split("-")
 
-            pav_version = PavVars.version(self)
-            lowest, highest = compatible_versions.split("-")
+                lowest = [int(i) for i in lowest.split(".")]
+                highest = [int(i) for i in highest.split(".")]
+                pav_version = [int(i) for i in pav_version.split(".")]
 
-            lowest = [int(i) for i in lowest.split(".")]
-            highest = [int(i) for i in highest.split(".")]
-            pav_version = [int(i) for i in pav_version.split(".")]
-
-            if not (lowest <= pav_version <= highest):
-                err = ("'{}.{}' is not compatible with pavilion version '{}'."
-                      .format(test_suite, test_cfg,
+                if not (lowest <= pav_version <= highest):
+                    err = ("'{}.{}' is not compatible with pavilion "
+                           "version '{}'.".format(test_suite, test,
                               PavVars.version(self)))
-                compatible_errors = compatible_errors + "\n" + err
+                    compatible_errors = compatible_errors + "\n" + err
 
         if compatible_errors:
             return compatible_errors

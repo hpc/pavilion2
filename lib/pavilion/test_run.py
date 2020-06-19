@@ -133,12 +133,8 @@ class TestRun:
         self.id = None  # pylint: disable=invalid-name
 
         # Get the test version information
-        version_info = config.get('version', {})
-        self.test_version = version_info['test_version']
-        self.min_pav_version = version_info['min_pav_version']
-        # Removes null value and replaces with a string for result purposes
-        if not self.min_pav_version:
-            self.min_pav_version = "None"
+        self.test_version = config.get('test_version')
+        self.min_pav_version = config.get('min_pav_version')
 
         self._attrs = {}
 
