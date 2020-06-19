@@ -262,8 +262,8 @@ expected to be added to by various plugins.
         ),
         yc.RegexElem(
             'compatible_pav_versions', regex=VERS_RANGE_RE,
-            help_text="Minimum pavilion version to run test, should be a "
-                      "range. "
+            help_text="Range of compatible pavilion versions for this "
+                      "specific test."
         ),
         yc.StrElem(
             'test_version', default='1.0',
