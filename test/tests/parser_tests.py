@@ -127,6 +127,12 @@ class ParserTests(unittest.PavTestCase):
         'random() < 1': True,
         # Deep nesting.
         '((((((((1))))))))': 1,
+        '[1, 2, 3, 4] + 1':            [2, 3, 4, 5],
+        '[1, 2, 3, 4] // 2':           [0, 1, 1, 2],
+        '[1, 2, 3, 4] ^ 2':           [1, 4, 9, 16],
+        '[1, 2, 3, 4] * [4, 4, 2, 1]': [4, 8, 6, 4],
+        '[1, 2, 3, 4] < 3 < 10 < [10, 11, 12, 13]': [False, True, False, False],
+        '[1, "foo", False, 0, ""] and 2': [2, 2, False, 0, ""],
     }
 
     def test_good_expressions(self):
@@ -143,7 +149,8 @@ class ParserTests(unittest.PavTestCase):
             result = trans.transform(tree)
             self.assertEqual(result, expected_result,
                              msg="Expr: '{}' should be '{}', got '{}'\n{}"
-                                 .format(expr, expected_result, result, tree))
+                                 .format(expr, expected_result, result,
+                                         tree.pretty()))
 
     BAD_EXPRESSIONS = {
         # Doubled operations. This should error before
@@ -176,10 +183,10 @@ class ParserTests(unittest.PavTestCase):
         '1 2': 'Invalid Syntax',
         'a b': 'Invalid Syntax',
         'True False': 'Invalid Syntax',
-        '"hello" + 1': 'Non-numeric value in math operation',
-        '"hello" * 1': 'Non-numeric value in math operation',
-        '"hello" ^ 1': 'Non-numeric value in math operation',
-        '-"hello"': 'Non-numeric value in math operation',
+        '"hello" + 1': "Non-numeric value 'hello' in math operation.",
+        '"hello" * 1': "Non-numeric value 'hello' in math operation.",
+        '"hello" ^ 1': "Non-numeric value 'hello' in math operation.",
+        '-"hello"': "Non-numeric value 'hello' in math operation.",
         'var.1.2.3.4.5': "Invalid variable 'var.1.2.3.4.5': too many name "
                          "parts.",
         'var.structs.0.*': "Could not resolve reference 'var.structs.0.*': "
@@ -188,6 +195,13 @@ class ParserTests(unittest.PavTestCase):
         'sum(3)': "Invalid argument '3'. Expected a list.",
         'floor(3.2, 5)': 'Invalid number of arguments defined for function '
                          'floor. Got 2, but expected 1',
+        '[1, 2, 3] + [1, 2]': "List operations must be between two equal "
+                              "length lists. Arg1 had 3 values, arg2 had 2.",
+        '[1, "foo", 3] * 2': "Non-numeric value 'foo' in list in math "
+                             "operation.",
+        '3 + [1, "foo", 3]': "Non-numeric value 'foo' in list in math "
+                             "operation.",
+
     }
 
     def test_bad_expressions(self):

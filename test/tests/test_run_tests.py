@@ -143,7 +143,7 @@ class TestRunTests(PavTestCase):
         }
         config = self._quick_test_cfg()
         config['variables'] = variables
-        config['build']['source_location'] = 'file_tests.tgz'
+        config['build']['source_path'] = 'file_tests.tgz'
         config['run']['create_files'] = files_to_create
         test = self._quick_test(config)
 
@@ -175,7 +175,7 @@ class TestRunTests(PavTestCase):
         for file in files_to_fail:
             file_arg = {file: []}
             config = self._quick_test_cfg()
-            config['build']['source_location'] = 'file_tests.tgz'
+            config['build']['source_path'] = 'file_tests.tgz'
             config['build']['create_files'] = file_arg
             with self.assertRaises(TestRunError) as context:
                 self._quick_test(config)
@@ -186,7 +186,7 @@ class TestRunTests(PavTestCase):
         for file in files_to_fail:
             file_arg = {file: []}
             config = self._quick_test_cfg()
-            config['build']['source_location'] = 'file_tests.tgz'
+            config['build']['source_path'] = 'file_tests.tgz'
             config['build']['create_files'] = file_arg
             test = TestRun(self.pav_cfg, config)
             self.assertFalse(test.build())

@@ -1,6 +1,6 @@
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :caption: Tutorial Contents:
 
    writing_a_test.rst
    writing_a_unittest.rst
