@@ -82,6 +82,7 @@ class TestSeries:
                         .format(test.path, link_path, err))
 
             self._save_series_id()
+            # Update user.json to record last series run per sys_name
             self._sys_name_series_tracking()
 
         else:
