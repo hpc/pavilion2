@@ -47,7 +47,7 @@ class GraphCommand(commands.Command):
         ),
         parser.add_argument(
             'Xaxis', nargs=1, action='store',
-            help='Specify the X axis.'
+            help='Specify the value to be used on the X axis.'
         )
     def run(self, pav_cfg, args):
 
