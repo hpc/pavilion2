@@ -1,13 +1,11 @@
 one:
-    version:
-        test_version: 1.2.3
+    test_version: 1.2.3
     run:
         cmds:
             - 'sleep 1'
 two:
-    version:
-        test_version: beta
-        min_pav_version: 1.2.3-5.4.9
+    test_version: beta
+    compatible_pav_versions: 1.2.3-5.4.9
     run:
         cmds:
             - 'sleep 1'
