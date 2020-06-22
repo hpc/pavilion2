@@ -64,7 +64,6 @@ base class.
         'test_runs',
         'series',
         'users',
-        'downloads'
         ]
 
     def __init__(self, *args, **kwargs):
@@ -289,10 +288,8 @@ though."""
             'timeout': '300',
         },
         'slurm': {},
-        'results': {
-            'parse': {},
-            'evaluate': {},
-        }
+        'result_parse': {},
+        'result_evaluate': {},
     }
 
     def _quick_test_cfg(self):
