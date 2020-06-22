@@ -229,6 +229,8 @@ class TestRun:
                 self.status.set(STATES.CREATED,
                                 "Test directory and status file created.")
 
+        self.skipped = self._get_skipped()  # eval skip.
+
         self.run_timeout = self.parse_timeout(
             'run', config.get('run', {}).get('timeout'))
         self.build_timeout = self.parse_timeout(
@@ -292,7 +294,6 @@ class TestRun:
         self._results = None
         self._created = None
 
-        self.skipped = self._get_skipped()
 
     @classmethod
     def load(cls, pav_cfg, test_id):
