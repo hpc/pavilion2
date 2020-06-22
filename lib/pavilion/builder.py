@@ -15,12 +15,13 @@ import time
 import urllib.parse
 from collections import defaultdict
 from pathlib import Path
+from typing import Union
 
 from pavilion import extract
-from pavilion.permissions import PermissionsManager
 from pavilion import lockfile
 from pavilion import utils
 from pavilion import wget
+from pavilion.permissions import PermissionsManager
 from pavilion.status_file import STATES
 
 
@@ -257,6 +258,7 @@ class TestBuilder:
         specificity = self._config.get('specificity', '')
         hash_obj.update(specificity.encode('utf8'))
 
+        # Update the source and get the final source path.
         src_path = self._update_src()
 
         if src_path is not None:
@@ -348,12 +350,29 @@ class TestBuilder:
         :returns: src_path, extra_files
         """
 
-        src_loc = self._config.get('source_location')
-        if src_loc is None:
+        src_path = self._config.get('source_path')
+        if src_path is None:
+            # There is no source to do anything with.
             return None
 
-        # For URL's, check if the file needs to be updated, and try to do so.
-        if self._isurl(src_loc):
+        try:
+            src_path = Path(src_path)
+        except ValueError as err:
+            raise TestBuilderError(
+                "The source path must be a valid unix path, either relative "
+                "or absolute, got '{}':\n{}"
+                .format(src_path, err.args[0]))
+
+        found_src_path = self._find_file(src_path, 'test_src')
+
+        src_url = self._config.get('source_url')
+        src_download = self._config.get('source_download')
+
+        if (src_url is not None
+                and ((src_download == 'missing' and found_src_path is None)
+                     or src_download == 'latest')):
+
+            # Make sure we have the library support to perform a download.
             missing_libs = wget.missing_libs()
             if missing_libs:
                 raise TestBuilderError(
@@ -362,33 +381,42 @@ class TestBuilder:
                     "your test source locally."
                     .format(', '.join(missing_libs)))
 
-            dwn_name = self._config.get('source_download_name')
-            src_dest = self._download_path(src_loc, dwn_name)
+            if not src_path.is_absolute():
+                dwn_dest = self.test.suite_path.parents[1]/'test_src'/src_path
+            else:
+                dwn_dest = src_path
 
-            wget.update(self._pav_cfg, src_loc, src_dest)
+            self.tracker.update("Updating source at '{}'."
+                                .format(found_src_path),
+                                STATES.BUILDING)
 
-            return src_dest
+            try:
+                wget.update(self._pav_cfg, src_url, dwn_dest)
+            except wget.WGetError as err:
+                raise TestBuilderError(
+                    "Could not retrieve source from the given url '{}':\n{}"
+                    .format(src_url, err.args[0]))
 
-        src_path = self._find_file(Path(src_loc), 'test_src')
-        if src_path is None:
+            return dwn_dest
+
+        if found_src_path is None:
             raise TestBuilderError(
-                "Could not find and update src location '{}'"
-                .format(src_loc))
+                "Could not find source '{}'".format(src_path.as_posix()))
 
-        if src_path.is_dir():
+        if found_src_path.is_dir():
             # For directories, update the directories mtime to match the
             # latest mtime in the entire directory.
-            self._date_dir(src_path)
-            return src_path
+            self._date_dir(found_src_path)
+            return found_src_path
 
-        elif src_path.is_file():
+        elif found_src_path.is_file():
             # For static files, we'll end up just hashing the whole thing.
-            return src_path
+            return found_src_path
 
         else:
             raise TestBuilderError(
                 "Source location '{}' points to something unusable."
-                .format(src_path))
+                .format(found_src_path))
 
     def build(self, cancel_event=None):
         """Perform the build if needed, do a soft-link copy of the build
@@ -600,20 +628,15 @@ class TestBuilder:
         :return: None
         """
 
-        src_loc = self._config.get('source_location')
-        if src_loc is None:
+        raw_src_path = self._config.get('source_path')
+        if raw_src_path is None:
             src_path = None
-        elif self._isurl(src_loc):
-            # Remove special characters from the url to get a reasonable
-            # default file name.
-            download_name = self._config.get('source_download_name')
-            # Download the file to the downloads directory.
-            src_path = self._download_path(src_loc, download_name)
         else:
-            src_path = self._find_file(Path(src_loc), 'test_src')
+            src_path = self._find_file(Path(raw_src_path), 'test_src')
             if src_path is None:
                 raise TestBuilderError("Could not find source file '{}'"
-                                       .format(src_path))
+                                       .format(raw_src_path))
+
             # Resolve any softlinks to get the real file.
             src_path = src_path.resolve()
 
@@ -819,6 +842,18 @@ class TestBuilder:
         :param Path path: Path to the file to hash.
         """
 
+        stat = path.stat()
+        hash_fn = path.with_suffix('.hash')
+
+        # Read the has from the hashfile as long as it was created after
+        # our test source's last update.
+        if hash_fn.exists() and hash_fn.stat().st_mtime > stat.st_mtime:
+            try:
+                with hash_fn.open('rb') as hash_file:
+                    return hash_file.read()
+            except OSError:
+                pass
+
         hash_obj = hashlib.sha256()
 
         with path.open('rb') as file:
@@ -827,7 +862,13 @@ class TestBuilder:
                 hash_obj.update(chunk)
                 chunk = file.read(cls._BLOCK_SIZE)
 
-        return hash_obj.digest()
+        file_hash = hash_obj.digest()
+
+        # This should all be under the build lock.
+        with hash_fn.open('wb') as hash_file:
+            hash_file.write(file_hash)
+
+        return file_hash
 
     @classmethod
     def _hash_io(cls, contents):
@@ -861,29 +902,11 @@ class TestBuilder:
         parsed = urllib.parse.urlparse(url)
         return parsed.scheme != ''
 
-    def _download_path(self, loc, filename):
-        """Get the path to where a source_download would be downloaded.
-        :param str loc: The url for the download, from the config's
-            source_location field.
-        :param str filename: The name of the download, from the config's
-            source_download_name field."""
-
-        if filename is None:
-            url_parts = urllib.parse.urlparse(loc)
-            path_parts = url_parts.path.split('/')
-            if path_parts and path_parts[-1]:
-                filename = path_parts[-1]
-            else:
-                # Use a hash of the url if we can't get a name from it.
-                filename = hashlib.sha256(loc.encode()).hexdigest()
-
-        return self._pav_cfg.working_dir/'downloads'/filename
-
-    def _find_file(self, file, sub_dir=None):
+    def _find_file(self, file: Path, sub_dir=None) -> Union[Path, None]:
         """Look for the given file and return a full path to it. Relative paths
         are searched for in all config directories under 'test_src'.
 
-:param Path file: The path to the file.
+:param file: The path to the file.
 :param str sub_dir: The subdirectory in each config directory in which to
     search.
 :returns: The full path to the found file, or None if no such file

@@ -81,6 +81,8 @@ class TestRun:
     :ivar int id: The test id.
     :ivar dict config: The test's configuration.
     :ivar Path test.path: The path to the test's test_run directory.
+    :ivar Path suite_path: The path to the test suite file that this test came
+        from. May be None for artifically generated tests.
     :ivar dict results: The test results. Set None if results haven't been
         gathered.
     :ivar TestBuilder builder: The test builder object, with information on the
@@ -168,6 +170,13 @@ class TestRun:
         self.build_only = build_only
         self.rebuild = rebuild
 
+        self.suite_path = None
+        if self.config.get('suite_path') is not None:
+            try:
+                self.suite_path = Path(self.config['suite_path'])
+            except ValueError:
+                pass
+
         # Get an id for the test, if we weren't given one.
         if _id is None:
             self.id, self.path = self.create_id_dir(tests_path)
@@ -234,20 +243,10 @@ class TestRun:
 
         build_config = self.config.get('build', {})
 
-        # make sure build source_download_name is not set without
-        # source_location
-        try:
-            if build_config['source_download_name'] is not None:
-                if build_config['source_location'] is None:
-                    msg = "Test could not be built. Need 'source_location'."
-                    self.status.set(STATES.BUILD_ERROR,
-                                    "'source_download_name is set without a "
-                                    "'source_location'")
-                    raise TestConfigError(msg)
-        except KeyError:
-            # this is mostly for unit tests that create test configs without a
-            # build section at all
-            pass
+        if (build_config.get('source_path') is None and
+                build_config.get('source_url') is not None):
+            raise TestConfigError(
+                "Build source_url specified, but not a source_path.")
 
         self.build_script_path = self.path/'build.sh'  # type: Path
         self.build_path = self.path/'build'
@@ -458,6 +457,8 @@ class TestRun:
         else:
             self.builder.fail_path.rename(self.build_path)
             return False
+
+        return True
 
     def save_build_name(self):
         """Save the builder's build name to the build name file for the test."""
@@ -710,7 +711,7 @@ of result keys.
                 .format(s=self)
             )
 
-        parser_configs = self.config['results']['parse']
+        parser_configs = self.config['result_parse']
 
         results = result.base_results(self)
 
@@ -736,11 +737,11 @@ of result keys.
         if not regather:
             self.status.set(STATES.RESULTS,
                             "Performing {} result evaluations."
-                            .format(len(self.config['results']['evaluate'])))
+                            .format(len(self.config['result_evaluate'])))
         try:
             result.evaluate_results(
                 results,
-                self.config['results']['evaluate'])
+                self.config['result_evaluate'])
         except result.ResultError as err:
             results['result'] = self.ERROR
             results['pav_result_errors'].append(err.args[0])

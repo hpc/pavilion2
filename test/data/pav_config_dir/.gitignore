@@ -1,3 +1,6 @@
 pavilion.yaml
 pavilion.yaml.proxy
 modes/local_slurm.yaml
+outside.hash
+test_src/README.*
+test_src/*.hash
