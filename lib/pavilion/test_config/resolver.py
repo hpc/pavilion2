@@ -612,6 +612,18 @@ class TestConfigResolver:
             # Merge the parent and test.
             suite_tests[test_cfg_name] = test_config_loader.merge(parent,
                                                                   test_cfg)
+            if parent is not '__base__':
+                for section in ['build', 'run']:
+                    config = test_cfg.get(section)
+                    if not config:
+                        continue
+                    new_cmd_list = []
+                    if config.get('pre_cmds'):
+                        new_cmd_list += config.get('pre_cmds')
+                    new_cmd_list += suite_tests[test_cfg_name][section]['cmds']
+                    if config.get('post_cmds'):
+                        new_cmd_list += config.get('post_cmds')
+                    suite_tests[test_cfg_name][section]['cmds'] = new_cmd_list
 
             # Now all tests that depend on this one are ready to resolve.
             ready_to_resolve.extend(depended_on_by.get(test_cfg_name, []))
@@ -631,17 +643,6 @@ class TestConfigResolver:
         # Remove the test base
         del suite_tests['__base__']
 
-        # Inject pre and post commands into their respective config section.
-        for test_name, test_cfg in suite_tests.items():
-            if test_cfg.get('inherits_from') is not '__base__':
-                for section in ['build', 'run']:
-                    config = test_cfg.get(section)
-                    new_cmd_list = []
-                    for cmds in ['pre_cmds', 'cmds', 'post_cmds']:
-                        new_cmd_list += config.get(cmds)
-                    test_cfg[section]['cmds'] = new_cmd_list
-
-        # Validate each test config individually.
         for test_name, test_config in suite_tests.items():
             try:
                 suite_tests[test_name] = test_config_loader\
