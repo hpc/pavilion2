@@ -137,7 +137,7 @@ class TestRun:
         self._attrs = {}
 
         # Mark the run to build locally.
-        self.build_local = config.get('build', {}) \
+        self.build_local = config.get('build', {})\
                                  .get('on_nodes', 'false').lower() != 'true'
 
         # If a test access group was given, make sure it exists and the
@@ -229,8 +229,6 @@ class TestRun:
                 self.status.set(STATES.CREATED,
                                 "Test directory and status file created.")
 
-        self.skipped = self._get_skipped()  # eval skip.
-
         self.run_timeout = self.parse_timeout(
             'run', config.get('run', {}).get('timeout'))
         self.build_timeout = self.parse_timeout(
@@ -294,6 +292,9 @@ class TestRun:
         self._results = None
         self._created = None
 
+        self.skipped = self._get_skipped()  # eval skip.
+        if self.skipped:
+            return None
 
     @classmethod
     def load(cls, pav_cfg, test_id):
@@ -435,7 +436,8 @@ class TestRun:
 
         :returns: True if build successful
         """
-
+        if self.skipped:
+            return False
         if self.build_origin_path.exists():
             raise RuntimeError(
                 "Whatever called build() is calling it for a second time."
@@ -496,6 +498,8 @@ class TestRun:
         :raises TestRunError: We don't actually raise this, but might in the
             future.
         """
+        if self.skipped:
+            return False
 
         if self.build_only:
             self.status.set(
@@ -989,8 +993,13 @@ directory that doesn't already exist.
         return "TestRun({s.name}-{s.id})".format(s=self)
 
     def _get_skipped(self):
-        skip_reason_list = self._evaluate_skip_conditions()
-        matches = " ".join(skip_reason_list)
+        """Kicks off assessing if current test is skipped."""
+        if self.status.current().state == 'SKIPPED':
+            #Skip has already been evaluated.
+            return True
+        else:
+            skip_reason_list = self._evaluate_skip_conditions()
+            matches = " ".join(skip_reason_list)
 
         if len(skip_reason_list) == 0:
             return False
