@@ -1031,6 +1031,7 @@ class Slurm(SchedulerPlugin):
                 STATES.SCHED_CANCELLED,
                 msg
             )
+            test.set_run_complete()
             return StatusInfo(
                 STATES.SCHED_CANCELLED,
                 msg

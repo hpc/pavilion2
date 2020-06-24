@@ -57,7 +57,6 @@ def main():
             config.USER_HOME_PAV,
             config.USER_HOME_PAV/'working_dir',
             pav_cfg.working_dir/'builds',
-            pav_cfg.working_dir/'downloads',
             pav_cfg.working_dir/'series',
             pav_cfg.working_dir/'test_runs',
             pav_cfg.working_dir/'users']:

@@ -6,7 +6,7 @@
 """
 
 import ast
-from typing import Dict
+from typing import Dict, Callable, Any
 
 import lark
 import pavilion.expression_functions.common
@@ -103,7 +103,7 @@ __doc__ = __doc__.format('\n    '.join(EXPR_GRAMMAR.split('\n')))
 def get_expr_parser(debug=False):
     """Return an expression parser (cached if possible)."""
 
-    global _EXPR_PARSER
+    global _EXPR_PARSER  # pylint: disable=global-usage
 
     if debug or _EXPR_PARSER is None:
         parser = lark.Lark(
@@ -132,6 +132,49 @@ class BaseExprTransformer(PavTransformer):
         bool
     )
 
+    def _apply_op(self, op_func: Callable[[Any, Any], Any],
+                  arg1: lark.Token, arg2: lark.Token, allow_strings=True):
+        """"""
+
+        # Verify that the arg value types are something numeric, or that it's a
+        # string and strings are allowed.
+        for arg in arg1, arg2:
+            if isinstance(arg.value, list):
+                for val in arg.value:
+                    if (isinstance(val, str) and not allow_strings and
+                            not isinstance(val, self.NUM_TYPES)):
+                        raise ParserValueError(
+                            token=arg,
+                            message="Non-numeric value '{}' in list in math "
+                                    "operation.".format(val))
+            else:
+                if (isinstance(arg.value, str) and not allow_strings and
+                        not isinstance(arg.value, self.NUM_TYPES)):
+                    raise ParserValueError(
+                        token=arg1,
+                        message="Non-numeric value '{}' in math operation."
+                        .format(arg.value))
+
+        if (isinstance(arg1.value, list) and isinstance(arg2.value, list)
+                and len(arg1.value) != len(arg2.value)):
+            raise ParserValueError(
+                token=arg2,
+                message="List operations must be between two equal length "
+                "lists. Arg1 had {} values, arg2 had {}."
+                .format(len(arg1.value), len(arg2.value)))
+
+        val1 = arg1.value
+        val2 = arg2.value
+
+        if isinstance(val1, list) and not isinstance(val2, list):
+            return [op_func(val1_part, val2) for val1_part in val1]
+        elif not isinstance(val1, list) and isinstance(val2, list):
+            return [op_func(val1, val2_part) for val2_part in val2]
+        elif isinstance(val1, list) and isinstance(val2, list):
+            return [op_func(val1[i], val2[i]) for i in range(len(val1))]
+        else:
+            return op_func(val1, val2)
+
     def start(self, items):
         """Returns the final value of the expression."""
 
@@ -154,12 +197,15 @@ class BaseExprTransformer(PavTransformer):
         """
 
         or_items = items.copy()
-        acc = or_items.pop().value
+        or_items.reverse()
+        base_tok = or_items.pop()
 
         while or_items:
-            acc = or_items.pop().value or acc
+            next_tok = or_items.pop()
+            acc = self._apply_op(lambda a, b: a or b, base_tok, next_tok)
+            base_tok = self._merge_tokens([base_tok, next_tok], acc)
 
-        return self._merge_tokens(items, acc)
+        return base_tok
 
     def and_expr(self, items):
         """Pass a single item up. Otherwise, apply ``'and'`` logical operations.
@@ -170,12 +216,15 @@ class BaseExprTransformer(PavTransformer):
         """
 
         and_items = items.copy()
-        acc = and_items.pop().value
+        and_items.reverse()
+        base_tok = and_items.pop()
 
         while and_items:
-            acc = and_items.pop().value and acc
+            next_tok = and_items.pop()
+            acc = self._apply_op(lambda a, b: a and b, base_tok, next_tok)
+            base_tok = self._merge_tokens([base_tok, next_tok], acc)
 
-        return self._merge_tokens(items, acc)
+        return base_tok
 
     def not_expr(self, items) -> lark.Token:
         """Apply a logical not, if ``'not'`` is present.
@@ -184,7 +233,12 @@ class BaseExprTransformer(PavTransformer):
         """
 
         if items[0] == 'not':
-            return self._merge_tokens(items, not items[1].value)
+            # Ok, this is weird. _apply op is written for binary operations,
+            # but to retrofit it for unary ops we just pass the same token
+            # as both ops (so types can be checked) and make sure our lambda
+            # doesn't use the second argument.
+            val = self._apply_op(lambda a, b: not a, items[1], items[1])
+            return self._merge_tokens(items, val)
         return items[0]
 
     def compare_expr(self, items) -> lark.Token:
@@ -202,116 +256,85 @@ class BaseExprTransformer(PavTransformer):
 
         comp_items = items.copy()
         comp_items.reverse()
-        left = comp_items.pop().value
+        left = comp_items.pop()
 
-        acc = True
+        base_tok = self._merge_tokens([left], True)
 
-        while comp_items and acc:
+        while comp_items:
             comparator = comp_items.pop()
-            right = comp_items.pop().value
+            right = comp_items.pop()
 
             if comparator == '==':
-                acc = acc and (left == right)
+                op_func = lambda a, b: a == b  # NOQA
             elif comparator == '!=':
-                acc = acc and (left != right)
+                op_func = lambda a, b: a != b  # NOQA
             elif comparator == '<':
-                acc = acc and (left < right)
+                op_func = lambda a, b: a < b   # NOQA
             elif comparator == '>':
-                acc = acc and (left > right)
+                op_func = lambda a, b: a > b   # NOQA
             elif comparator == '<=':
-                acc = acc and (left <= right)
+                op_func = lambda a, b: a <= b  # NOQA
             elif comparator == '>=':
-                acc = acc and (left >= right)
+                op_func = lambda a, b: a >= b  # NOQA
             else:
                 raise RuntimeError("Invalid comparator '{}'".format(comparator))
 
+            result = self._apply_op(op_func, left, right)
+            next_tok = self._merge_tokens([left, right], result)
+            acc = self._apply_op(lambda a, b: a and b, base_tok, next_tok)
+            base_tok = self._merge_tokens([base_tok, right], acc)
             left = right
 
-        return self._merge_tokens(items, acc)
+        return base_tok
 
-    def add_expr(self, items) -> lark.Token:
+    def math_expr(self, items) -> lark.Token:
         """Pass single items up, otherwise, perform the chain of
-        addition and subtraction operations. These are valid for numeric
-        values only.
+        math operations. This function will be used for all binary math
+        operations with a tokenized operator.
 
         :param list[lark.Token] items: An odd number of tokens. Every second
-            token is an operator (``'+'`` or ``'-'``).
+            token is an operator.
         """
 
-        if len(items) > 1:
-            for tok in items[0::2]:
-                if not isinstance(tok.value, self.NUM_TYPES):
-                    raise ParserValueError(
-                        tok,
-                        "Non-numeric value in math operation")
-        elif len(items) == 1:
-            return items[0]
-        else:
-            raise RuntimeError("Add_expr expects at least one token.")
-
-        add_items = items.copy()
-        add_items.reverse()
-        accum = add_items.pop().value
-        while add_items:
-            operator = add_items.pop()
-            val = add_items.pop().value
+        math_items = items.copy()
+        math_items.reverse()
+        base_tok = math_items.pop()
+        while math_items:
+            operator = math_items.pop()
+            next_tok = math_items.pop()
             if operator == '+':
-                accum += val
+                op_func = lambda a, b: a + b  # NOQA
             elif operator == '-':
-                accum -= val
+                op_func = lambda a, b: a - b  # NOQA
+            elif operator == '*':
+                op_func = lambda a, b: a * b  # NOQA
+            elif operator == '/':
+                op_func = lambda a, b: a / b  # NOQA
+            elif operator == '//':
+                op_func = lambda a, b: a // b  # NOQA
+            elif operator == '%':
+                op_func = lambda a, b: a % b  # NOQA
+
             else:
                 raise RuntimeError("Invalid operation '{}' in expression."
                                    .format(operator))
 
-        return self._merge_tokens(items, accum)
-
-    def mult_expr(self, items) -> lark.Token:
-        """Pass single items up, otherwise, perform the chain of
-        multiplication and division operations. These are valid for numeric
-        values only.
-
-        :param list[lark.Token] items: An odd number of tokens. Every second
-            token is an operator (``'*'``, ``'/'``, ``'//'``, ``'%'``).
-        """
-
-        if len(items) > 1:
-            for tok in items[0::2]:
-                if not isinstance(tok.value, self.NUM_TYPES):
-                    raise ParserValueError(
-                        tok,
-                        "Non-numeric value in math operation")
-        elif len(items) == 1:
-            return items[0]
-        else:
-            raise RuntimeError("Mult_expr expects at least one token.")
-
-        mult_items = items.copy()
-        mult_items.reverse()
-
-        accum = mult_items.pop().value
-        while mult_items:
-            op = mult_items.pop()
-            val_token = mult_items.pop()
-            val = val_token.value
             try:
-                if op.value == '*':
-                    accum *= val
-                elif op.value == '/':
-                    accum /= val
-                elif op.value == '//':
-                    accum //= val
-                elif op.value == '%':
-                    accum %= val
-                else:
-                    raise RuntimeError("Invalid operation '{}' in expression."
-                                       .format(op))
+                acc = self._apply_op(op_func, base_tok, next_tok,
+                                     allow_strings=False)
             except ZeroDivisionError:
+                # This should obviously only occur for division operations.
                 raise ParserValueError(
-                    self._merge_tokens([op, val_token], None),
-                    "Division by zero"
-                )
+                    self._merge_tokens([operator, next_tok], None),
+                    "Division by zero")
 
-        return self._merge_tokens(items, accum)
+            base_tok = self._merge_tokens([base_tok, next_tok], acc)
+
+        return base_tok
+
+    # This have been generalized.
+    add_expr = math_expr
+    mult_expr = math_expr
 
     def pow_expr(self, items) -> lark.Token:
         """Pass single items up, otherwise raise the first item to the
@@ -320,19 +343,12 @@ class BaseExprTransformer(PavTransformer):
         """
 
         if len(items) == 2:
-            for tok in items:
-                if not isinstance(tok.value, self.NUM_TYPES):
-                    raise ParserValueError(
-                        tok,
-                        "Non-numeric value in math operation")
-
-        if len(items) == 2:
-            result = items[0].value ** items[1].value
+            result = self._apply_op(lambda a, b: a ** b, items[0], items[1],
+                                    allow_strings=False)
             if isinstance(result, complex):
                 raise ParserValueError(
                     self._merge_tokens(items, None),
-                    "Power expression has complex result"
-                )
+                    "Power expression has complex result")
 
             return self._merge_tokens(items, result)
         else:
@@ -352,15 +368,15 @@ class BaseExprTransformer(PavTransformer):
         :param list[lark.Token] items:
         :return:
         """
-        val = items[1].value
-        if not isinstance(val, self.NUM_TYPES):
-            raise ParserValueError(
-                items[1],
-                "Non-numeric value in math operation")
 
         value = items[1].value
+
         if items[0].value == '-':
-            value = -value
+            value = self._apply_op(lambda a, b: -a, items[1], items[1],
+                                   allow_strings=False)
+        elif items[0].value == '+':
+            value = self._apply_op(lambda a, b: a, items[1], items[1],
+                                   allow_strings=False)
 
         return self._merge_tokens(items, value)
 

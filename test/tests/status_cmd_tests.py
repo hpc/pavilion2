@@ -80,8 +80,7 @@ class StatusCmdTests(PavTestCase):
 
         var_man = VariableSetManager()
 
-        tests = [TestRun(self.pav_cfg, test)
-                 for test in configs]
+        tests = [self._quick_test(cfg) for cfg in configs]
 
         for test in tests:
             test.RUN_SILENT_TIMEOUT = 1
@@ -163,8 +162,7 @@ class StatusCmdTests(PavTestCase):
 
         configs = [config1, config2, config3]
 
-        tests = [TestRun(self.pav_cfg, test)
-                 for test in configs]
+        tests = [self._quick_test(cfg) for cfg in configs]
 
         for test in tests:
             test.RUN_SILENT_TIMEOUT = 1
@@ -191,7 +189,7 @@ class StatusCmdTests(PavTestCase):
     def test_status_command_with_sched(self):
         """Test status command when test is 'SCHEDULED'."""
 
-        test = file_format.TestConfigLoader().validate({
+        cfg = file_format.TestConfigLoader().validate({
             'scheduler': 'raw',
             'run': {
                 'env': {
@@ -201,9 +199,9 @@ class StatusCmdTests(PavTestCase):
             },
         })
 
-        test['name'] = 'testytest'
+        cfg['name'] = 'testytest'
 
-        test = TestRun(self.pav_cfg, test)
+        test = self._quick_test(cfg, build=False, finalize=False)
 
         test.build()
         schedulers.get_plugin(test.scheduler) \
@@ -241,8 +239,7 @@ class StatusCmdTests(PavTestCase):
 
         configs = [test_cfg1, test_cfg2, test_cfg3]
 
-        tests = [TestRun(self.pav_cfg, test)
-                 for test in configs]
+        tests = [self._quick_test(cfg) for cfg in configs]
 
         for test in tests:
             test.RUN_SILENT_TIMEOUT = 1
@@ -267,3 +264,31 @@ class StatusCmdTests(PavTestCase):
         # None int arguments "pav status --history lolol" throw
         # error in unit-test but are caught cleanly in pav usage
         # check.
+
+    def test_status_summary(self):
+        # Testing that status works with summary flag
+        status_cmd = commands.get_command('status')
+        status_cmd.outfile = io.StringIO()
+        parser = argparse.ArgumentParser()
+        status_cmd._setup_arguments(parser)
+        arg_list = ['-s', '-a']
+        args = parser.parse_args(arg_list)
+
+        # Test that an empty working_dir fails correctly
+        self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
+
+        base_cfg = self._quick_test_cfg()
+        test_cfg1 = base_cfg.copy()
+        test_cfg1['name'] = 'test1'
+        test_cfg2 = base_cfg.copy()
+        test_cfg2['name'] = 'test2'
+        test_cfg3 = base_cfg.copy()
+        test_cfg3['name'] = 'test3'
+
+        configs = [test_cfg1, test_cfg2, test_cfg3]
+        tests = [self._quick_test(cfg) for cfg in configs]
+        for test in tests:
+            test.RUN_SILENT_TIMEOUT = 1
+
+        # Testing that summary flags return correctly
+        self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
