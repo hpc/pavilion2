@@ -100,8 +100,9 @@ def initialize_plugins(pav_cfg):
             cat_obj.register_core()
 
     file_format.TestConfigLoader.setup_scheduler_configs(
-        general_config=SchedulerPlugin.get_general_config(),
-        sched_configs={sched.name: sched.get_conf() for sched in }
+        general_config=schedulers.SchedulerPlugin.get_general_config(),
+        sched_configs={sched: schedulers.get_plugin(sched).get_conf() for
+                       sched in schedulers.list_plugins()}
     )
 
     _PLUGIN_MANAGER = pman
