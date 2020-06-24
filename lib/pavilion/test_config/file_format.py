@@ -16,7 +16,7 @@ class TestConfigError(ValueError):
 TEST_NAME_RE_STR = r'^[a-zA-Z_][a-zA-Z0-9_-]*$'
 TEST_NAME_RE = re.compile(TEST_NAME_RE_STR)
 KEY_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_-]*$')
-VERS_RANGE_RE = re.compile(r'\d+\.\d+\.\d+-\d+\.\d+\.\d+')
+TEST_VERSION_RE = re.compile(r'\d+\.\d+\.(\d+-\d+\.\d+\.\d+|\*|\d+)')
 VAR_KEY_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_]*$')
 VAR_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_]*[?+]?$')
 
@@ -261,7 +261,7 @@ expected to be added to by various plugins.
                       " values."
         ),
         yc.RegexElem(
-            'compatible_pav_versions', regex=VERS_RANGE_RE,
+            'compatible_pav_versions', regex=TEST_VERSION_RE,
             help_text="Range of compatible pavilion versions for this "
                       "specific test."
         ),

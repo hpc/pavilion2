@@ -11,6 +11,7 @@ import copy
 import io
 import logging
 import os
+import re
 from collections import defaultdict
 
 import yc_yaml
@@ -452,6 +453,8 @@ class TestConfigResolver:
         """Make sure test suites are compatible with current pavilion
         version."""
 
+        TEST_VERSION_RE = re.compile(r'\d+\.\d+\.(\d+-\d+\.\d+\.\d+|\*|\d+)')
+
         compatible_errors = ""
         test_suite_cfg = yc_yaml.load(test_suite_cfg)
         for test in test_suite_cfg:
@@ -460,18 +463,36 @@ class TestConfigResolver:
 
             # Assumes compatibility if not explicilty given in config
             if compatible_versions is not None:
+                err = "\n" + test_suite
+                err += ".{}' is not compatible with pavilion version '{}'."
                 pav_version = PavVars.version(self)
-                lowest, highest = compatible_versions.split("-")
-
-                lowest = [int(i) for i in lowest.split(".")]
-                highest = [int(i) for i in highest.split(".")]
                 pav_version = [int(i) for i in pav_version.split(".")]
+                vers = TEST_VERSION_RE.match(compatible_versions).group(1)
 
-                if not (lowest <= pav_version <= highest):
-                    err = ("'{}.{}' is not compatible with pavilion "
-                           "version '{}'.".format(test_suite, test,
-                              PavVars.version(self)))
-                    compatible_errors = compatible_errors + "\n" + err
+                # Version was provided as a range. EX: 2.1.3-2.1.6
+                if '-' in vers:
+                    lowest, highest = compatible_versions.split("-")
+                    lowest = [int(i) for i in lowest.split(".")]
+                    highest = [int(i) for i in highest.split(".")]
+
+                    if not (lowest <= pav_version <= highest):
+                        compatible_errors += err.format(test,
+                                                        PavVars.version(self))
+
+                # Version Provided with wildcard. EX: 2.1.*
+                elif vers is '*':
+                    version = [int(i) for i in compatible_versions.split(".")[:-1]]
+                    pav_version = pav_version[:-1]
+                    if not pav_version == version:
+                        compatible_errors += err.format(test,
+                                                        PavVars.version(self))
+
+                # Specific Version Provided. EX: 2.1.3
+                else:
+                    version = [int(i) for i in compatible_versions.split(".")]
+                    if not pav_version == version:
+                        compatible_errors += err.format(test,
+                                                        PavVars.version(self))
 
         if compatible_errors:
             return compatible_errors
