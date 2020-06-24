@@ -293,8 +293,6 @@ class TestRun:
         self._created = None
 
         self.skipped = self._get_skipped()  # eval skip.
-        if self.skipped:
-            return None
 
     @classmethod
     def load(cls, pav_cfg, test_id):
@@ -437,7 +435,10 @@ class TestRun:
         :returns: True if build successful
         """
         if self.skipped:
-            return False
+            raise RuntimeError(
+                "This test is set to skip and shouldn't be building."
+                .format(s=self))
+
         if self.build_origin_path.exists():
             raise RuntimeError(
                 "Whatever called build() is calling it for a second time."
@@ -499,7 +500,9 @@ class TestRun:
             future.
         """
         if self.skipped:
-            return False
+            raise RuntimeError(
+                "This test is set to skip and shouldn't be running."
+                .format(s=self))
 
         if self.build_only:
             self.status.set(
@@ -995,7 +998,7 @@ directory that doesn't already exist.
     def _get_skipped(self):
         """Kicks off assessing if current test is skipped."""
         if self.status.current().state == 'SKIPPED':
-            #Skip has already been evaluated.
+            # Skip has already been evaluated.
             return True
         else:
             skip_reason_list = self._evaluate_skip_conditions()

@@ -149,6 +149,12 @@ class RunCommand(commands.Command):
             self._complete_tests(all_tests)
             return res
 
+        runnable_tests = []
+        for test in all_tests:
+            if not test.skipped:
+                runnable_tests.append(test)
+        all_tests = runnable_tests
+
         res = self.build_local(
             tests=all_tests,
             max_threads=pav_cfg.build_threads,
