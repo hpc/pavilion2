@@ -262,8 +262,10 @@ expected to be added to by various plugins.
         ),
         yc.RegexElem(
             'compatible_pav_versions', regex=TEST_VERSION_RE,
-            help_text="Range of compatible pavilion versions for this "
-                      "specific test."
+            help_text="Specify compatibile pavilion versions for this "
+                      "specific test. Can be represented as a single "
+                      "version, ex: 1.2.3, a wildcard ex: 1.2.*. or a "
+                      "range ex: 1.2.3-1.3.4 ."
         ),
         yc.StrElem(
             'test_version', default='0.0',
