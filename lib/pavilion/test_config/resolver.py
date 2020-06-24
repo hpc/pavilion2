@@ -694,7 +694,7 @@ class TestConfigResolver:
             for per_var in permute_on:
                 var_set, var, index, subvar = base_var_man.resolve_key(per_var)
                 if isinstance(var_dict[var_set][var][0], dict):
-                    subtitle.append(var + '?')
+                    subtitle.append('_' + var + '_')
                 else:
                     subtitle.append('{{' + per_var + '}}')
 

@@ -142,7 +142,7 @@ class TestRun:
 
         # If a test access group was given, make sure it exists and the
         # current user is a member.
-        self.group = config.get('group')
+        self.group = config.get('group', pav_cfg['shared_group'])
         if self.group is not None:
             try:
                 group_data = grp.getgrnam(self.group)
@@ -158,7 +158,7 @@ class TestRun:
                     "exist on this system. {}"
                     .format(self.group, err))
 
-        self.umask = config.get('umask')
+        self.umask = config.get('umask', pav_cfg['umask'])
         if self.umask is not None:
             try:
                 self.umask = int(self.umask, 8)
@@ -745,7 +745,6 @@ of result keys.
         except result.ResultError as err:
             results['result'] = self.ERROR
             results['pav_result_errors'].append(err.args[0])
-            results['result'] = self.ERROR
             if not regather:
                 self.status.set(STATES.RESULTS_ERROR,
                                 results['pav_result_errors'][-1])
@@ -756,11 +755,10 @@ of result keys.
         elif results['result'] is False:
             results['result'] = self.FAIL
         else:
-            results['result'] = self.ERROR
             results['pav_result_errors'].append(
                 "The value for the 'result' key in the results must be a "
                 "boolean. Got '{}' instead".format(results['result']))
-            return results
+            results['result'] = self.ERROR
 
         self._results = results
 
@@ -1045,7 +1043,7 @@ directory that doesn't already exist.
                     match = True
 
             if match is False:
-                message = ("Skipping because only_if key '{}' failed to match"
+                message = ("Skipping because only_if key '{}' failed to match "
                            "any of '{}'"
                            .format(key, only_if[key]))
                 match_list.append(message)

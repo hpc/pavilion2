@@ -205,3 +205,42 @@ class KeysPlugin(CoreFunctionPlugin):
         preserved."""
 
         return list(arg.keys())
+
+
+class AllPlugin(CoreFunctionPlugin):
+    """Return whether all of the items in the given list are true."""
+
+    def __init__(self):
+        """Setup plugin"""
+
+        super().__init__(
+            name='all',
+            description='Return whether all the items in the given list are '
+                        'true.',
+            arg_specs=([num],)
+        )
+
+    @staticmethod
+    def all(items):
+        """Just use the built-in all function."""
+        return all(items)
+
+
+class AnyPlugin(CoreFunctionPlugin):
+    """Return whether any of the items in the given list are true."""
+
+    def __init__(self):
+        """Setup plugin"""
+
+        super().__init__(
+            name='any',
+            description='Return whether any the items in the given list are '
+                        'true.',
+            arg_specs=([num],)
+        )
+
+    @staticmethod
+    def any(items):
+        """Just use the built-in all function."""
+        return any(items)
+

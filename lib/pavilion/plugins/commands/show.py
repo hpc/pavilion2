@@ -367,12 +367,13 @@ class ShowCommand(commands.Command):
             output.fprint(func.long_description, file=self.outfile)
 
         else:
-            rows = [
-                {'name':        func.name,
-                 'signature':   func.signature,
-                 'description': func.description}
-                for func in list_plugins()['function']
-            ]
+            rows = []
+            for func_name in sorted(expression_functions.list_plugins()):
+                func = expression_functions.get_plugin(func_name)
+                rows.append({
+                    'name':        func.name,
+                    'signature':   func.signature,
+                    'description': func.description})
             output.draw_table(
                 self.outfile,
                 field_info={},

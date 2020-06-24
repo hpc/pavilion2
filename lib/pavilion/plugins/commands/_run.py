@@ -148,8 +148,6 @@ class _RunCommand(commands.Command):
                 return 1
 
             results = test.gather_results(run_result)
-            if results['result'] == test.ERROR:
-                return 1
         except Exception as err:
             self.logger.error("Unexpected error gathering results: \n%s",
                               traceback.format_exc())
