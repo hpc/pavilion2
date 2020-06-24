@@ -266,7 +266,7 @@ expected to be added to by various plugins.
                       "specific test."
         ),
         yc.StrElem(
-            'test_version', default='1.0',
+            'test_version', default='0.0',
             help_text="Documented test version."
         ),
         yc.KeyedElem(
