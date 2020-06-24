@@ -6,6 +6,7 @@ import unittest
 
 from pavilion import wget
 from pavilion.unittest import PavTestCase
+import traceback
 
 PAV_DIR = Path(__file__).resolve().parents[2]
 
@@ -24,7 +25,10 @@ class TestWGet(PavTestCase):
     def test_get(self):
 
         # Try to get a configuration from the testing pavilion.yaml file.
-        info = wget.head(self.pav_cfg, self.GET_TARGET)
+        try:
+            info = wget.head(self.pav_cfg, self.GET_TARGET)
+        except wget.WGetError as err:
+            self.fail("Failed with: {}".format(err.args[0]))
 
         # Make sure we can pull basic info using an HTTP HEAD. The Etag can
         # change pretty easily; and the content-encoding may muck with the
@@ -37,7 +41,10 @@ class TestWGet(PavTestCase):
         dest_fn = Path(tempfile.mktemp(dir='/tmp'))
 
         # Raises an exception on failure.
-        wget.get(self.pav_cfg, self.GET_TARGET, dest_fn)
+        try:
+            wget.get(self.pav_cfg, self.GET_TARGET, dest_fn)
+        except wget.WGetError as err:
+            self.fail("Failed with: {}".format(err.args[0]))
 
         self.assertEqual(self.TARGET_HASH,
                          self.get_hash(dest_fn))
@@ -55,7 +62,11 @@ class TestWGet(PavTestCase):
         self.assertFalse(info_fn.exists())
 
         # Update should get the file if it doesn't exist.
-        wget.update(self.pav_cfg, self.GET_TARGET, dest_fn)
+        try:
+            wget.update(self.pav_cfg, self.GET_TARGET, dest_fn)
+        except wget.WGetError as err:
+            self.fail("Failed with: {}".format(err.args[0]))
+
         self.assertTrue(dest_fn.exists())
         self.assertTrue(info_fn.exists())
 
@@ -65,7 +76,10 @@ class TestWGet(PavTestCase):
         with dest_fn.open('ab') as dest_file:
             dest_file.write(b'a')
         info_fn.unlink()
-        wget.update(self.pav_cfg, self.GET_TARGET, dest_fn)
+        try:
+            wget.update(self.pav_cfg, self.GET_TARGET, dest_fn)
+        except wget.WGetError as err:
+            self.fail("Failed with: {}".format(err.args[0]))
         new_ctime = dest_fn.stat().st_ctime
         self.assertNotEqual(new_ctime, ctime)
         ctime = new_ctime
@@ -77,7 +91,10 @@ class TestWGet(PavTestCase):
         }
         with info_fn.open('w') as info_file:
             json.dump(db_data, info_file)
-        wget.update(self.pav_cfg, self.GET_TARGET, dest_fn)
+        try:
+            wget.update(self.pav_cfg, self.GET_TARGET, dest_fn)
+        except wget.WGetError as err:
+            self.fail("Failed with: {}".format(err.args[0]))
         new_ctime = dest_fn.stat().st_ctime
         self.assertNotEqual(new_ctime, ctime)
 

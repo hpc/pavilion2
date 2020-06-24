@@ -1,3 +1,6 @@
 testName.batch
 working_dir
-
+data/working_dir-permissions
+data/configs-permissions/pavilion.yaml
+data/configs-spec_perms/tests/perm.yaml
+*.hash
