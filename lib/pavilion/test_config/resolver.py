@@ -383,7 +383,7 @@ class TestConfigResolver:
                     detailed_error = self.check_version_compatibility(test_suite, test_suite_file)
                     if detailed_error:
                         raise TestConfigError(
-                            "Test suite '{}' has incompatibility issuses: {}"
+                            "Test suite '{}' has incompatibility issues: {}"
                             .format(test_suite, detailed_error))
 
                 suite_tests = self.resolve_inheritance(
