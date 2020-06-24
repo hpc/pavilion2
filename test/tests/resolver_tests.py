@@ -498,7 +498,7 @@ class ResolverTests(PavTestCase):
                 'compatible_pav_versions': '1.2.3-5.4.9'
             },
             'version_compatible.three': {
-                'test_version': '1.0',
+                'test_version': '0.0',
                 'pav_version': pav_version,
                 'compatible_pav_versions': 'none'
             }
@@ -507,8 +507,7 @@ class ResolverTests(PavTestCase):
         # Ensures Version information gets populated correclty even with empty
         # version section in test config
         run_cmd = commands.get_command(args.command_name)
-        run_cmd.outfile = io.StringIO()
-        run_cmd.errfile = run_cmd.outfile
+        run_cmd.silence()
         run_cmd.run(self.pav_cfg, args)
 
         for test in run_cmd.last_tests:
