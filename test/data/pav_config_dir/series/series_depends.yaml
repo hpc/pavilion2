@@ -1,13 +1,10 @@
 series:
 
-    # echo_test will be skipped
-    "echo_test.c":
-
-    "echo_test.e":
-
     "echo_test.d":
         depends_on: ["echo_test.c"]
         depends_pass: True
 
+    # echo_test will be skipped
+    "echo_test.c":
+
 modes: ['smode2']
-ordered: True

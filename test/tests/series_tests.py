@@ -29,7 +29,7 @@ class SeriesFileTests(PavTestCase):
         series_man = series_cmd.make_series_man(self.pav_cfg, series_args)
 
         # buffer time, in case last test doesn't finish before returning
-        time.sleep(1)
+        time.sleep(0.5)
 
         # check modes
         for name, test_dict in series_man.test_info.items():
@@ -70,7 +70,7 @@ class SeriesFileTests(PavTestCase):
         series_man = series_cmd.make_series_man(self.pav_cfg, series_args)
 
         # buffer time, in case last test doesn't finish before returning
-        time.sleep(1)
+        time.sleep(0.5)
 
         # depends_pass and depends_on works if test d is SKIPPED
         test_d = series_man.test_info['echo_test.d']['obj'][0]
@@ -88,7 +88,7 @@ class SeriesFileTests(PavTestCase):
         series_man = series_cmd.make_series_man(self.pav_cfg, series_args)
 
         # buffer time, in case last test doesn't finish before returning
-        time.sleep(1)
+        time.sleep(0.5)
 
         # only_if works if test wrong_year is skipped (result is None)
         test_wrongyear = series_man.test_info['echo_test.wrong_year']['obj'][0]
@@ -106,7 +106,7 @@ class SeriesFileTests(PavTestCase):
         series_man = series_cmd.make_series_man(self.pav_cfg, series_args)
 
         # buffer time, in case last test doesn't finish before returning
-        time.sleep(1)
+        time.sleep(0.5)
 
         # simultaneous works if third permutation of test b starts at least
         # a whole half second after the first one
