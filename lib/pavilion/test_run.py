@@ -137,7 +137,7 @@ class TestRun:
         self._attrs = {}
 
         # Mark the run to build locally.
-        self.build_local = config.get('build', {})\
+        self.build_local = config.get('build', {}) \
                                  .get('on_nodes', 'false').lower() != 'true'
 
         # If a test access group was given, make sure it exists and the
@@ -435,11 +435,6 @@ class TestRun:
         :returns: True if build successful
         """
 
-        #if self.skipped:
-        #    raise RuntimeError(
-        #        "This test is set to skip and shouldn't be building."
-        #        .format(s=self))
-
         if self.build_origin_path.exists():
             raise RuntimeError(
                 "Whatever called build() is calling it for a second time."
@@ -500,10 +495,6 @@ class TestRun:
         :raises TestRunError: We don't actually raise this, but might in the
             future.
         """
-        #if self.skipped:
-        #    raise RuntimeError(
-        #       "This test is set to skip and shouldn't be running."
-        #        .format(s=self))
 
         if self.build_only:
             self.status.set(
