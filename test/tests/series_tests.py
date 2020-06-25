@@ -17,12 +17,13 @@ class SeriesFileTests(PavTestCase):
     def tearDown(self):
         plugins._reset_plugins()
 
-    def test_series_file(self):
-        """Test if series works as intended."""
+    def test_series_modes(self):
+        """Test if modes are applied correctly."""
+        # test-level modes, series-level modes
 
         series_cmd = commands.get_command('_series')
         arg_parser = arguments.get_parser()
-        series_args = arg_parser.parse_args(['_series', 'series_test'])
+        series_args = arg_parser.parse_args(['_series', 'series_modes'])
 
         # makes series manager and runs
         series_man = series_cmd.make_series_man(self.pav_cfg, series_args)
@@ -57,10 +58,60 @@ class SeriesFileTests(PavTestCase):
             self.assertEqual(asdf_value, 'asdf1')
             self.assertEqual(letters_value, 'cup')
 
+    def test_series_depends(self):
+        """Test if test dependencies work as intended."""
+        # Test: depends_on, ordered, depends_pass
+
+        series_cmd = commands.get_command('_series')
+        arg_parser = arguments.get_parser()
+        series_args = arg_parser.parse_args(['_series', 'series_depends'])
+
+        # makes series manager and runs
+        series_man = series_cmd.make_series_man(self.pav_cfg, series_args)
+
+        # buffer time, in case last test doesn't finish before returning
+        time.sleep(1)
+
+        # depends_pass and depends_on works if test d is SKIPPED
+        test_d = series_man.test_info['echo_test.d']['obj'][0]
+        self.assertEqual(test_d.status.current().state, 'SKIPPED')
+
+    def test_series_conditionals(self):
+        """Test if conditionals work as intended."""
+        # only_if, not_if
+
+        series_cmd = commands.get_command('_series')
+        arg_parser = arguments.get_parser()
+        series_args = arg_parser.parse_args(['_series', 'series_conditionals'])
+
+        # makes series manager and runs
+        series_man = series_cmd.make_series_man(self.pav_cfg, series_args)
+
+        # buffer time, in case last test doesn't finish before returning
+        time.sleep(1)
+
+        # only_if works if test wrong_year is skipped (result is None)
+        test_wrongyear = series_man.test_info['echo_test.wrong_year']['obj'][0]
+        self.assertIsNone(test_wrongyear.results['result'])
+
+    def test_series_simultaneous(self):
+        """Test if simultaneous holds true."""
+        # simultaneous
+
+        series_cmd = commands.get_command('_series')
+        arg_parser = arguments.get_parser()
+        series_args = arg_parser.parse_args(['_series', 'series_simultaneous'])
+
+        # makes series manager and runs
+        series_man = series_cmd.make_series_man(self.pav_cfg, series_args)
+
+        # buffer time, in case last test doesn't finish before returning
+        time.sleep(1)
+
         # simultaneous works if third permutation of test b starts at least
         # a whole half second after the first one
         test_b0 = series_man.test_info['echo_test.b']['obj'][0]
-        test_b1 = series_man.test_info['echo_test.b']['obj'][2]
+        test_b1 = series_man.test_info['echo_test.b']['obj'][1]
         test_b0_start = datetime.strptime(test_b0.results['started'],
                                           '%Y-%m-%d %H:%M:%S.%f')
         test_b1_start = datetime.strptime(test_b1.results['started'],
@@ -68,12 +119,7 @@ class SeriesFileTests(PavTestCase):
         total_time = (test_b1_start - test_b0_start).total_seconds()
         self.assertGreaterEqual(total_time, 0.5)
 
-        # depends_pass and depends_on works if test d is SKIPPED
-        test_d = series_man.test_info['echo_test.d']['obj'][0]
-        self.assertEqual(test_d.status.current().state, 'SKIPPED')
-
-        # only_if works if test wrong_year is skipped (result is None)
-        test_wrongyear = series_man.test_info['echo_test.wrong_year']['obj'][0]
-        self.assertIsNone(test_wrongyear.results['result'])
-
+    def test_series_restart(self):
+        """Test if test can restart and die gracefully."""
+        # restart, pav cancel
 
