@@ -137,8 +137,3 @@ class SeriesFileTests(PavTestCase):
                                           '%Y-%m-%d %H:%M:%S.%f')
         total_time = (test_b1_start - test_b0_start).total_seconds()
         self.assertGreaterEqual(total_time, 0.5)
-
-    def test_series_restart(self):
-        """Test if test can restart and die gracefully."""
-        # restart, pav cancel
-
