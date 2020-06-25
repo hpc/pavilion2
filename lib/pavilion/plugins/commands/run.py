@@ -149,11 +149,11 @@ class RunCommand(commands.Command):
             self._complete_tests(all_tests)
             return res
 
-        runnable_tests = []
+        runnable_test = []
         for test in all_tests:
             if not test.skipped:
-                runnable_tests.append(test)
-        all_tests = runnable_tests
+                runnable_test.append(test)
+        all_tests = runnable_test
 
         res = self.build_local(
             tests=all_tests,
@@ -201,6 +201,15 @@ class RunCommand(commands.Command):
         """
 
         all_tests = sum(tests_by_sched.values(), [])
+        #from pavilion.output import dbg_print
+        #dbg_print(len(all_tests))
+        #runnable_tests = []
+        #for test in all_tests:
+        #    if not test.skipped:
+        #        runnable_tests.append(test)
+        #all_tests = runnable_tests
+        #dbg_print(all_tests)
+
 
         for sched_name in tests_by_sched.keys():
             sched = schedulers.get_plugin(sched_name)
@@ -216,8 +225,8 @@ class RunCommand(commands.Command):
             tests = [test for test in tests if not test.skipped]
             sched = schedulers.get_plugin(sched_name)
 
-            # Filter out any 'build_only' tests (it should be all or none)
-            # that shouldn't be scheduled.
+            # Filter out any 'build_only' or 'SKIPPED' tests
+            # (it should be all or none) that shouldn't be scheduled.
             tests = [test for test in tests if
                      # The non-build only tests
                      (not test.build_only) or

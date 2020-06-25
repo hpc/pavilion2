@@ -434,10 +434,11 @@ class TestRun:
 
         :returns: True if build successful
         """
-        if self.skipped:
-            raise RuntimeError(
-                "This test is set to skip and shouldn't be building."
-                .format(s=self))
+
+        #if self.skipped:
+        #    raise RuntimeError(
+        #        "This test is set to skip and shouldn't be building."
+        #        .format(s=self))
 
         if self.build_origin_path.exists():
             raise RuntimeError(
@@ -499,10 +500,10 @@ class TestRun:
         :raises TestRunError: We don't actually raise this, but might in the
             future.
         """
-        if self.skipped:
-            raise RuntimeError(
-                "This test is set to skip and shouldn't be running."
-                .format(s=self))
+        #if self.skipped:
+        #    raise RuntimeError(
+        #       "This test is set to skip and shouldn't be running."
+        #        .format(s=self))
 
         if self.build_only:
             self.status.set(
