@@ -1,9 +1,11 @@
 series:
 
-    # echo_test will be skipped
+    # this will be skipped
     "echo_test.c":
 
+    # this should also be skipped
     "echo_test.d":
         depends_pass: True
 
 modes: ['smode2']
+ordered: True 
