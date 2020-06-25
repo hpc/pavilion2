@@ -33,6 +33,21 @@ def get_parser():
                         version='Pavilion ' + pavilion.config.get_version(),
                         default=False,
                         help='Displays the current version of Pavilion.')
+                        
+    # Run Pavilion within the python profiler, and report the results.
+    parser.add_argument('--profile', action='store_true', default=False, 
+                        help=argparse.SUPPRESS)
+
+    # The sort method for the profile table. See: 
+    # https://docs.python.org/3.5/library/profile.html#pstats.Stats.sort_stats
+    parser.add_argument('--profile-sort', default='cumtime', 
+                        choices=['cumtime', 'calls', 'file', 'line', 'name', 
+                                 'nfl', 'time'], help=argparse.SUPPRESS)
+
+    # Number of rows in the profile table.
+    parser.add_argument('--profile-count', default=20, action='store', 
+                        type=int, help=argparse.SUPPRESS)
+
 
     _PAV_PARSER = parser
     _PAV_SUB_PARSER = parser.add_subparsers(dest='command_name')
