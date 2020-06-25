@@ -60,11 +60,30 @@ class SeriesFileTests(PavTestCase):
 
     def test_series_depends(self):
         """Test if test dependencies work as intended."""
-        # Test: depends_on, ordered, depends_pass
+        # Test: depends_on, depends_pass
 
         series_cmd = commands.get_command('_series')
         arg_parser = arguments.get_parser()
         series_args = arg_parser.parse_args(['_series', 'series_depends'])
+
+        # makes series manager and runs
+        series_man = series_cmd.make_series_man(self.pav_cfg, series_args)
+
+        # buffer time, in case last test doesn't finish before returning
+        time.sleep(0.5)
+
+        # depends_pass and depends_on works if test d is SKIPPED
+        test_d = series_man.test_info['echo_test.d']['obj'][0]
+        self.assertEqual(test_d.status.current().state, 'SKIPPED')
+
+    def test_series_ordered(self):
+        """Test if ordered: True works as intended."""
+        # test ordered, depends_pass
+        # outcome should be the same as depends test
+
+        series_cmd = commands.get_command('_series')
+        arg_parser = arguments.get_parser()
+        series_args = arg_parser.parse_args(['_series', 'series_ordered'])
 
         # makes series manager and runs
         series_man = series_cmd.make_series_man(self.pav_cfg, series_args)

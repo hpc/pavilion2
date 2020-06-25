@@ -1,0 +1,9 @@
+series:
+
+    # echo_test will be skipped
+    "echo_test.c":
+
+    "echo_test.d":
+        depends_pass: True
+
+modes: ['smode2']

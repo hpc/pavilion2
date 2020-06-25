@@ -20,5 +20,5 @@ series:
 
 modes: ['smode2']
 ordered: True
-simultaneous: 1
+simultaneous: 2
 #restart: True
