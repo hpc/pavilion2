@@ -8,4 +8,4 @@ series:
         depends_pass: True
 
 modes: ['smode2']
-ordered: True 
+ordered: True
