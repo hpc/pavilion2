@@ -465,12 +465,39 @@ associated tests."""
                     )
 
             else:
-                if link_path.name != 'series.out':
+                series_info_files = ['series.out', 'series.pgid']
+                if link_path.name not in series_info_files:
                     logger.info("Polluted series directory in series '%s'",
                                 series_path)
                     raise ValueError(link_path)
 
         return cls(pav_cfg, tests, _id=id_)
+
+    @staticmethod
+    def get_pgid(pav_cfg, id_):
+
+        try:
+            id_ = int(id_[1:])
+        except TypeError as err:
+            pass
+
+        from pavilion import output
+        series_path = pav_cfg.working_dir/'series'
+        series_path = utils.make_id_path(series_path, int(id_))
+        series_id_path = series_path/'series.pgid'
+
+        if not series_id_path.exists():
+            return False
+
+        with open(series_id_path, 'r') as series_id_file:
+            series_id = series_id_file.readline()
+
+        try:
+            series_id = int(series_id)
+        except ValueError:
+            return False
+
+        return series_id
 
     def add_tests(self, test_objs):
         """

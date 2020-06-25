@@ -2,6 +2,7 @@
 
 import errno
 import os
+import signal
 
 from pavilion import commands
 from pavilion import output
@@ -70,9 +71,15 @@ class CancelCommand(commands.Command):
         for test_id in args.tests:
             if test_id.startswith('s'):
                 try:
-                    test_list.extend(series.TestSeries.from_id(pav_cfg,
-                                                               test_id)
-                                     .tests)
+                    series_pgid = series.TestSeries.get_pgid(pav_cfg, test_id)
+                    if series_pgid:
+                        os.killpg(series_pgid, signal.SIGTERM)
+                        output.fprint('Killed process {}, which is series {}.'
+                                      .format(series_pgid, test_id))
+                    else:
+                        test_list.extend(series.TestSeries.from_id(pav_cfg,
+                                                                   test_id)
+                                         .tests)
                 except series.TestSeriesError as err:
                     output.fprint(
                         "Series {} could not be found.\n{}".format(test_id,
@@ -85,6 +92,10 @@ class CancelCommand(commands.Command):
                         .format(test_id, err),
                         color=output.RED, file=self.errfile)
                     return errno.EINVAL
+                except ProcessLookupError:
+                    output.fprint("Unable to kill {}. No such process: {}"
+                                  .format(test_id, series_pgid),
+                                  color=output.RED)
             else:
                 try:
                     test_list.append(int(test_id))
