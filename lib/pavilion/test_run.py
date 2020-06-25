@@ -7,7 +7,6 @@ import datetime
 import grp
 import json
 import logging
-import os
 import re
 import subprocess
 import threading
@@ -16,14 +15,15 @@ from pathlib import Path
 
 import pavilion.output
 from pavilion import builder
+from pavilion import dir_db
 from pavilion import lockfile
 from pavilion import result
 from pavilion import scriptcomposer
 from pavilion import utils
+from pavilion.permissions import PermissionsManager
 from pavilion.status_file import StatusFile, STATES
 from pavilion.test_config import variables, resolver
 from pavilion.test_config.file_format import TestConfigError
-from pavilion.permissions import PermissionsManager
 
 
 def get_latest_tests(pav_cfg, limit):
@@ -36,16 +36,18 @@ def get_latest_tests(pav_cfg, limit):
 """
 
     test_dir_list = []
-    top_dir = pav_cfg.working_dir/'test_runs'
-    for child in top_dir.iterdir():
-        mtime = child.stat().st_mtime
-        test_dir_list.append((mtime, child.name))
+    runs_dir = pav_cfg.working_dir/'test_runs'
+    for test_dir in dir_db.select(runs_dir):
+        mtime = test_dir.stat().st_mtime
+        try:
+            test_id = int(test_dir.name)
+        except ValueError:
+            continue
+
+        test_dir_list.append((mtime, test_id))
 
     test_dir_list.sort()
-    last_tests = test_dir_list[-limit:]
-    tests_only = [int(i[1]) for i in last_tests]
-
-    return tests_only
+    return [test_id for _, test_id in test_dir_list[-limit:]]
 
 
 class TestRunError(RuntimeError):
@@ -179,7 +181,7 @@ class TestRun:
 
         # Get an id for the test, if we weren't given one.
         if _id is None:
-            self.id, self.path = self.create_id_dir(tests_path)
+            self.id, self.path = dir_db.create_id_dir(tests_path)
             with PermissionsManager(self.path, self.group, self.umask):
                 self._save_config()
                 if var_man is None:
@@ -191,7 +193,7 @@ class TestRun:
             self.save_attributes()
         else:
             self.id = _id
-            self.path = utils.make_id_path(tests_path, self.id)
+            self.path = dir_db.make_id_path(tests_path, self.id)
             self._variables_path = self.path / 'variables'
             if not self.path.is_dir():
                 raise TestRunNotFoundError(
@@ -303,7 +305,7 @@ class TestRun:
         :rtype: TestRun
         """
 
-        path = utils.make_id_path(pav_cfg.working_dir/'test_runs', test_id)
+        path = dir_db.make_id_path(pav_cfg.working_dir / 'test_runs', test_id)
 
         if not path.is_dir():
             raise TestRunError("Test directory for test id {} does not exist "
@@ -949,38 +951,6 @@ modified date for the test directory."""
 
         with PermissionsManager(path, self.group, self.umask):
             script.write(path)
-
-    @staticmethod
-    def create_id_dir(id_dir):
-        """In the given directory, create the lowest numbered (positive integer)
-directory that doesn't already exist.
-
-:param Path id_dir: Path to the directory that contains these 'id'
-    directories
-:returns: The id and path to the created directory.
-:rtype: list(int, Path)
-:raises OSError: on directory creation failure.
-:raises TimeoutError: If we couldn't get the lock in time.
-"""
-
-        lockfile_path = id_dir/'.lockfile'
-        with lockfile.LockFile(lockfile_path, timeout=1):
-            ids = list(os.listdir(str(id_dir)))
-            # Only return the test directories that could be integers.
-            ids = [id_ for id_ in ids if id_.isdigit()]
-            ids = [id_ for id_ in ids if (id_dir/id_).is_dir()]
-            ids = [int(id_) for id_ in ids]
-            ids.sort()
-
-            # Find the first unused id.
-            id_ = 1
-            while id_ in ids:
-                id_ += 1
-
-            path = utils.make_id_path(id_dir, id_)
-            path.mkdir()
-
-        return id_, path
 
     def __repr__(self):
         return "TestRun({s.name}-{s.id})".format(s=self)

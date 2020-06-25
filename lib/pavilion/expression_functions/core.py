@@ -3,17 +3,22 @@ loading."""
 
 import math
 import random
+import re
 
 from .base import FunctionPlugin, num
-from .common import FunctionPluginError
+from .common import FunctionPluginError, FunctionArgError
 
 
 class CoreFunctionPlugin(FunctionPlugin):
     """A function plugin that sets defaults for core plugins. Use when adding
-    additional function plugins to the core_functions module."""
+    additional function plugins to the core_functions module. Classes that
+    inherit from this will automatically be added as function plugins.  If
+    adding non-core functions, use the standard plugin mechanisms."""
 
-    def __init__(self, name, description, arg_specs):
-        super().__init__(name, description, arg_specs,
+    core = True
+
+    def __init__(self, name, arg_specs, description=None):
+        super().__init__(name, arg_specs, description=description,
                          priority=self.PRIO_CORE)
 
 
@@ -201,10 +206,9 @@ class KeysPlugin(CoreFunctionPlugin):
 
     @staticmethod
     def keys(arg):
-        """Return a list of keys for the given dictionary. Order is
-        preserved."""
+        """Return a (sorted) list of keys for the given dictionary."""
 
-        return list(arg.keys())
+        return sorted(list(arg.keys()))
 
 
 class AllPlugin(CoreFunctionPlugin):
@@ -244,3 +248,53 @@ class AnyPlugin(CoreFunctionPlugin):
         """Just use the built-in all function."""
         return any(items)
 
+
+class RegexSearch(CoreFunctionPlugin):
+    """Search for the given regular expression. Returns the matched text or,
+    if a matching group (limit 1) was used, the matched group. Returns an
+    empty string on no match. Regexes use Python\'s regex syntax"""
+
+    def __init__(self):
+
+        super().__init__(
+            name='re_search',
+            description=' '.join(self.__doc__.split()),
+            arg_specs=(str, str),
+        )
+
+    @staticmethod
+    def re_search(regex, data):
+        """Search for the given regex in data."""
+
+        try:
+            regex = re.compile(regex)
+        except re.error as err:
+            raise FunctionArgError(
+                "Could not compile regex:\n{}".format(err.args[0])
+            )
+
+        match = regex.search(data)
+        if match is None:
+            return ''
+
+        if match.groups():
+            return match.groups()[0]
+        else:
+            return match.group()
+
+
+class Replace(CoreFunctionPlugin):
+    """Replace substrings from a given string."""
+
+    def __init__(self):
+
+        super().__init__(
+            'replace',
+            arg_specs=(str, str, str),
+        )
+
+    @staticmethod
+    def replace(string: str, find: str, replacement: str):
+        """Replace all instances of 'find' with 'replacement' in 'string'."""
+
+        return string.replace(find, replacement)

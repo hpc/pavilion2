@@ -5,6 +5,7 @@ import subprocess as sp
 
 import yc_yaml as yaml
 from pavilion import config
+from pavilion import dir_db
 from pavilion import plugins
 from pavilion import utils
 from pavilion.unittest import PavTestCase
@@ -47,7 +48,6 @@ class SpecificPermsTests(PavTestCase):
 
         self.working_dir.mkdir()
 
-        #raw_cfg['shared_group'] = self.alt_group.gr_name
         raw_cfg['umask'] = self.umask
         raw_cfg['working_dir'] = self.working_dir.as_posix()
         raw_cfg['config_dirs'] = [self.TEST_DATA_ROOT/'configs-spec_perms']
@@ -102,11 +102,11 @@ class SpecificPermsTests(PavTestCase):
             'spec_perms2': (self.alt_group2, 0o002),
         }
 
-        for test_path in (self.working_dir/'test_runs').iterdir():
+        for test_path in dir_db.select(self.working_dir / 'test_runs'):
             with (test_path/'config').open() as config_file:
-                config = yaml.load(config_file)
+                test_config = yaml.load(config_file)
 
-            name = config['name']
+            name = test_config['name']
 
             group, umask = perms[name]
 

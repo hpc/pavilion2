@@ -462,8 +462,9 @@ configured for that test.
                 if not presults:
                     raise ResultError(
                         "No files found that matched {} for key '{}'. If "
-                        "you're hoping no such files exist, use 'per_file: any'"
-                        .format(globs, key))
+                        "you're hoping no such files exist, use a 'per_file' "
+                        "setting other than {} or {}."
+                        .format(globs, key, PER_FIRST, PER_LAST))
 
                 # Do this backwards, if we want the last one.
                 if per_file == PER_LAST:

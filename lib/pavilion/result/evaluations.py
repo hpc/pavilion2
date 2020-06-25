@@ -43,7 +43,7 @@ def evaluate_results(results: dict, evaluations: Dict[str, str]):
     :return:
     """
 
-    if 'result' not in results:
+    if 'result' not in results and 'result' not in evaluations:
         evaluations['result'] = 'return_value == 0'
 
     try:

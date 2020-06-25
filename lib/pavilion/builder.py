@@ -487,8 +487,8 @@ class TestBuilder:
                     built_by_path = self.path / '.built_by'
                     try:
                         with PermissionsManager(
-                                built_by_path, self._group, self._umask), \
-                             built_by_path.open('w') as built_by:
+                            built_by_path, self._group, self._umask), \
+                                built_by_path.open('w') as built_by:
                             built_by.write(str(self.test.id))
                     except OSError:
                         self.tracker.warn("Could not create built_by file.")

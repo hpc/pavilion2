@@ -1,6 +1,7 @@
 import datetime
 import logging
 import json
+import pprint
 from collections import OrderedDict
 
 import pavilion.result
@@ -372,7 +373,8 @@ class ResultParserTests(PavTestCase):
         # (evaluate_conf, expected values)
         evaluate_tests = [
             ({'result': 'True'}, {'result': 'PASS'}),
-            ({'result': 'return_value != 0'}, {'result': 'FAIL'}),
+            ({'result': 'return_value != 0',
+              'blarg': 'return_value != 0'}, {'result': 'FAIL'}),
             # Make sure functions work.
             ({'sum': 'sum([1,2,3])'}, {'sum': 6}),
             #
@@ -393,11 +395,15 @@ class ResultParserTests(PavTestCase):
 
             results = test.gather_results(0)
 
-            for rkey, rval  in exp_results.items():
+            for rkey, rval in exp_results.items():
                 self.assertEqual(
                     results[rkey],
                     exp_results[rkey],
-                    msg="Result mismatch for {}.".format(evaluate_conf))
+                    msg="Result mismatch for {}.\n"
+                        "Expected '{}', got '{}'\n"
+                        "Full Results:\n{}"
+                        .format(evaluate_conf, exp_results[rkey],
+                                results[rkey], pprint.pformat(results)))
 
     def test_evaluate_errors(self):
         error_confs = (

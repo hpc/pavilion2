@@ -598,8 +598,10 @@ class EvaluationExprTransformer(BaseExprTransformer):
                     "component at that point '{}' isn't a list or dict."
                     .format('.'.join(seen_parts)))
 
+            # The 'sorted' here is important, as it ensures the values
+            # are always in the same order.
             return [self._resolve_ref(sub_base, key_parts, seen_parts, False)
-                    for sub_base in base]
+                    for sub_base in sorted(base.keys())]
 
         elif isinstance(base, list):
             try:

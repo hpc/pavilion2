@@ -5,8 +5,8 @@ import os
 import sys
 
 from pavilion import commands
+from pavilion import dir_db
 from pavilion import output
-from pavilion import utils
 
 
 class FileCommand(commands.Command):
@@ -48,7 +48,7 @@ class FileCommand(commands.Command):
         """List the run directory for the given run."""
 
         test_dir = pav_cfg.working_dir / 'test_runs'
-        job_dir = utils.make_id_path(test_dir, args.job_id)
+        job_dir = dir_db.make_id_path(test_dir, args.job_id)
 
         if os.path.isdir(job_dir.as_posix()) is False:
             output.fprint("directory '{}' does not exist.".format(job_dir),

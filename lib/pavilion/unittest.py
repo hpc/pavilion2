@@ -15,7 +15,7 @@ from hashlib import sha1
 from pathlib import Path
 
 from pavilion import arguments
-from pavilion import commands
+from pavilion import dir_db
 from pavilion import config
 from pavilion import pavilion_variables
 from pavilion import system_variables
@@ -377,25 +377,30 @@ The default config is: ::
         :param timeout: How long to wait before giving up.
         """
 
+        def is_complete(path: Path):
+            """Return True if test is complete."""
+
+            return (path/TestRun.COMPLETE_FN).exists()
+
         runs_dir = working_dir / 'test_runs'
         end_time = time.time() + timeout
         while time.time() < end_time:
 
-            completion_files = [path/TestRun.COMPLETE_FN
-                                for path in runs_dir.iterdir()]
+            completed = [is_complete(test) for test in dir_db.select(runs_dir)]
 
-            if not completion_files:
+            if not completed:
                 self.fail("No tests started.")
 
-            all_done = all([cfile.exists() for cfile in completion_files])
-
-            if all_done:
+            if all(completed):
                 break
             else:
                 time.sleep(0.1)
                 continue
         else:
-            raise TimeoutError
+            raise TimeoutError(
+                "Waiting on tests: {}"
+                .format(test.name for test in dir_db.select(runs_dir)
+                        if is_complete(test)))
 
 
 class ColorResult(unittest.TextTestResult):
