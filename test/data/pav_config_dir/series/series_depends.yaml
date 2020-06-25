@@ -1,8 +1,5 @@
 series:
 
-    "echo_test.a":
-        modes: ['smode1']
-
     # echo_test will be skipped
     "echo_test.c":
 
