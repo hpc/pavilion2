@@ -16,7 +16,6 @@ class TestConfigError(ValueError):
 TEST_NAME_RE_STR = r'^[a-zA-Z_][a-zA-Z0-9_-]*$'
 TEST_NAME_RE = re.compile(TEST_NAME_RE_STR)
 KEY_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_-]*$')
-TEST_VERSION_RE = re.compile(r'\d+\.\d+\.(\d+-\d+\.\d+\.\d+|\*|\d+)')
 VAR_KEY_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_]*$')
 VAR_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_]*[?+]?$')
 
@@ -260,8 +259,8 @@ expected to be added to by various plugins.
                       "the Pavilion variable matches one or more of the "
                       " values."
         ),
-        yc.RegexElem(
-            'compatible_pav_versions', regex=TEST_VERSION_RE,
+        yc.StrElem(
+            'compatible_pav_versions', default='all',
             help_text="Specify compatibile pavilion versions for this "
                       "specific test. Can be represented as a single "
                       "version, ex: 1.2.3, a wildcard ex: 1.2.*. or a "

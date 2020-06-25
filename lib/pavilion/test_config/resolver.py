@@ -453,7 +453,15 @@ class TestConfigResolver:
         """Make sure test suites are compatible with current pavilion
         version."""
 
-        TEST_VERSION_RE = re.compile(r'\d+\.\d+\.(\d+-\d+\.\d+\.\d+|\*|\d+)')
+        # User may provide compatible_pav:versions in the following formats:
+        # Single Version, EX: 1.2.3
+        # Wild Card Version, EX: 1.2 or 1.2.*
+        #   Note: These have the same behavior
+        # Range of Versions, EX: 1.2.3-1.4.5, 1.2-3.4, 1.2-1.2.4, etc.
+
+        ABBRV_RE = re.compile(r'^\d+\.\d+$')
+        FULL_RE = re.compile(r'^\d+\.\d+\.\d+$')
+        WC_RE = re.compile(r'^\d+\.\d+\.\*$')
 
         compatible_errors = ""
         test_suite_cfg = yc_yaml.load(test_suite_cfg)
@@ -463,36 +471,78 @@ class TestConfigResolver:
 
             # Assumes compatibility if not explicilty given in config
             if compatible_versions is not None:
-                err = "\n" + test_suite
-                err += ".{}' is not compatible with pavilion version '{}'."
+                err =("\n'" + test_suite + 
+                      ".{}' is not compatible with pavilion version '{}'."
+                      "\n\t - Compatible pavilion versions: '{}'.")
                 pav_version = PavVars.version(self)
                 pav_version = [int(i) for i in pav_version.split(".")]
-                vers = TEST_VERSION_RE.match(compatible_versions).group(1)
 
                 # Version was provided as a range. EX: 2.1.3-2.1.6
-                if '-' in vers:
+                if '-' in compatible_versions:
                     lowest, highest = compatible_versions.split("-")
-                    lowest = [int(i) for i in lowest.split(".")]
-                    highest = [int(i) for i in highest.split(".")]
+                    if (FULL_RE.match(lowest) is not None or
+                        ABBRV_RE.match(lowest) is not None):
+                        lowest = [int(i) for i in lowest.split(".")]
+                    else:
+                        err=("'{}.{}' has invalid value: "
+                             "\n'{} in compatible_pav_versions '{}' "
+                             "is not a valid version format."
+                             .format(test_suite, test, lowest,
+                                     compatible_version))
+                        raise TestConfigError(err)
+
+                    if (FULL_RE.match(highest) is not None or
+                        ABBRV_RE.match(highest) is not None):
+                        highest = [int(i) for i in highest.split(".")]
+                    else:
+                        err=("'{}.{}' has invalid value: "
+                             "\n'{}' in compatible_pav_versions '{}' "
+                             "is not a valid version format."
+                             .format(test_suite, test, highest,
+                                     compatible_versions))
+                        raise TestConfigError(err)
 
                     if not (lowest <= pav_version <= highest):
                         compatible_errors += err.format(test,
-                                                        PavVars.version(self))
+                                                        PavVars.version(self),
+                                                        compatible_versions)
 
                 # Version Provided with wildcard. EX: 2.1.*
-                elif vers is '*':
-                    version = [int(i) for i in compatible_versions.split(".")[:-1]]
-                    pav_version = pav_version[:-1]
-                    if not pav_version == version:
-                        compatible_errors += err.format(test,
-                                                        PavVars.version(self))
+                elif '.*' in compatible_versions:
+                    if WC_RE.match(compatible_versions) is not None:
+                        version = [int(i) for i in compatible_versions.split(".")[:-1]]
+                        pav_version = pav_version[:-1]
+                    else:
+                        err=("'{}.{}' has invalid value: "
+                             "\ncompatible_pav_versions '{}' in not a "
+                             "valid version format."
+                             .format(test_suite, test, compatible_versions))
+                        raise TestConfigError(err)
 
-                # Specific Version Provided. EX: 2.1.3
-                else:
-                    version = [int(i) for i in compatible_versions.split(".")]
                     if not pav_version == version:
                         compatible_errors += err.format(test,
-                                                        PavVars.version(self))
+                                                        PavVars.version(self),
+                                                        compatible_versions)
+
+                # Specific Version Provided. EX: 2.1.3, 2.1
+                else:
+                    if FULL_RE.match(compatible_versions) is not None:
+                        version = [int(i) for i in compatible_versions.split(".")]
+                    elif ABBRV_RE.match(compatible_versions) is not None:
+                        version = [int(i) for i in
+                                   compatible_versions.split(".")[:-1]]
+                        pav_version = pav_version[:-1]
+                    else:
+                        err=("'{}' in '{}' has invalid value: "
+                              "\ncompatible_pav_versions '{}' is not a "
+                              "valid version format."
+                             .format(test, test_suite, compatible_versions))
+                        raise TestConfigError(err)
+
+                    if not pav_version == version:
+                        compatible_errors += err.format(test,
+                                                        PavVars.version(self),
+                                                        compatible_versions)
 
         if compatible_errors:
             return compatible_errors

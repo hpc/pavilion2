@@ -137,8 +137,6 @@ class TestRun:
         # Get the test version information
         self.test_version = config.get('test_version')
         self.compatible_pav_versions = config.get('compatible_pav_versions')
-        if self.compatible_pav_versions is None:
-            self.compatible_pav_versions = "none"
 
         self._attrs = {}
 
