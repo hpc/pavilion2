@@ -89,7 +89,7 @@ class SeriesFileTests(PavTestCase):
         series_man = series_cmd.make_series_man(self.pav_cfg, series_args)
 
         # buffer time, in case last test doesn't finish before returning
-        time.sleep(0.5)
+        time.sleep(1)
 
         # depends_pass and depends_on works if test d is SKIPPED
         test_d = series_man.test_info['echo_test.d']['obj'][0]
