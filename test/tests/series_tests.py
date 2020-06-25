@@ -57,16 +57,16 @@ class SeriesFileTests(PavTestCase):
             self.assertEqual(asdf_value, 'asdf1')
             self.assertEqual(letters_value, 'cup')
 
-        # simultaneous works if second permutation of test b starts at least
-        # a whole second after the previous one
+        # simultaneous works if third permutation of test b starts at least
+        # a whole half second after the first one
         test_b0 = series_man.test_info['echo_test.b']['obj'][0]
-        test_b1 = series_man.test_info['echo_test.b']['obj'][1]
+        test_b1 = series_man.test_info['echo_test.b']['obj'][2]
         test_b0_start = datetime.strptime(test_b0.results['started'],
                                           '%Y-%m-%d %H:%M:%S.%f')
         test_b1_start = datetime.strptime(test_b1.results['started'],
                                           '%Y-%m-%d %H:%M:%S.%f')
         total_time = (test_b1_start - test_b0_start).total_seconds()
-        self.assertGreaterEqual(total_time, 1)
+        self.assertGreaterEqual(total_time, 0.5)
 
         # depends_pass and depends_on works if test d is SKIPPED
         test_d = series_man.test_info['echo_test.d']['obj'][0]
