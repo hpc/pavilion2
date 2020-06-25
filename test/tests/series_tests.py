@@ -74,7 +74,7 @@ class SeriesFileTests(PavTestCase):
 
         # depends_pass and depends_on works if test d is SKIPPED
         test_d = series_man.test_info['echo_test.d']['obj'][0]
-        self.assertEqual(test_d.status.current().state, 'SKIPPED')
+        self.assertTrue(test_d.status.has_state('SKIPPED'))
 
     def test_series_ordered(self):
         """Test if ordered: True works as intended."""
@@ -93,7 +93,7 @@ class SeriesFileTests(PavTestCase):
 
         # depends_pass and depends_on works if test d is SKIPPED
         test_d = series_man.test_info['echo_test.d']['obj'][0]
-        self.assertEqual(test_d.status.current().state, 'SKIPPED')
+        self.assertTrue(test_d.status.has_state('SKIPPED'))
 
     def test_series_conditionals(self):
         """Test if conditionals work as intended."""
