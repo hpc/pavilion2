@@ -466,3 +466,58 @@ class ResolverTests(PavTestCase):
                              "Got the following instead: \n{}"
                              .format(''.join(["{}: {}\n".format(*v) for v in
                                               exports])))
+
+    def test_command_inheritance(self):
+        """Make sure command inheritance works as expected."""
+
+        test_cfgs = self.resolver.load(['cmd_inherit_extend'])
+
+        correct = {
+            'test1': {
+                'build': {
+                    'cmds': ['echo "and I say hello"']
+                },
+                'run': {
+                    'cmds': ['echo "Hello"']
+                }
+            },
+            'test2': {
+                'build': {
+                    'cmds': [
+                        'echo "You say goodbye"',
+                        'echo "and I say hello"'
+                    ]
+                },
+                'run': {
+                    'cmds': [
+                        'echo "Hello"',
+                        'echo ", hello"'
+                    ]
+                }
+            },
+            'test3': {
+                'build': {
+                    'cmds': [
+                        'echo "You say goodbye"',
+                        'echo "and I say hello"'
+                    ]
+                },
+                'run': {
+                    'cmds': [
+                        'echo "Hello"',
+                        'echo ", hello"',
+                        'echo "I dont know why you say goodbye,"',
+                        'echo "I say hello"'
+                    ]
+                }
+            }
+        }
+
+        for config in test_cfgs:
+            test_cfg = config[0]
+            test_name = test_cfg.get('name')
+
+            for section in ['build', 'run']:
+                self.assertEqual(test_cfg[section]['cmds'],
+                                 correct[test_name][section]['cmds'])
+

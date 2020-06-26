@@ -602,11 +602,14 @@ class TestConfigResolver:
         # Add this so we can cleanly depend on it.
         suite_tests['__base__'] = base_config
 
+
+        orig_suite_tests = copy.deepcopy(suite_tests)
         # Resolve all the dependencies
         while ready_to_resolve:
             # Grab a test whose parent's are resolved and the parent test.
             test_cfg_name = ready_to_resolve.pop(0)
             test_cfg = suite_tests[test_cfg_name]
+            orig_test_cfg = orig_suite_tests[test_cfg_name]
             parent = suite_tests[test_cfg['inherits_from']]
 
             # Merge the parent and test.
@@ -618,10 +621,10 @@ class TestConfigResolver:
                 for cmd in ['pre_cmds', 'post_cmds']:
                     try:
                         suite_tests[test_cfg_name][sec][cmd] = \
-                        test_cfg[sec][cmd]
+                        orig_test_cfg[sec][cmd]
                     # Section/Command config doesn't exist.
                     except KeyError:
-                        continue
+                        suite_tests[test_cfg_name][sec][cmd] = []
 
             if parent is not '__base__':
                 for section in ['build', 'run']:
