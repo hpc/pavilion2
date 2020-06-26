@@ -599,10 +599,12 @@ class EvaluationExprTransformer(BaseExprTransformer):
             if isinstance(base, dict):
                 # The 'sorted' here is important, as it ensures the values
                 # are always in the same order.
-                return [self._resolve_ref(base[sub_base], key_parts, seen_parts, False)
+                return [self._resolve_ref(base[sub_base], key_parts,
+                                          seen_parts, False)
                         for sub_base in sorted(base.keys())]
             elif isinstance(base, list):
-                return [self._resolve_ref(sub_base, key_parts, seen_parts, False)
+                return [self._resolve_ref(sub_base, key_parts,
+                                          seen_parts, False)
                         for sub_base in base]
             else:
                 raise ValueError(
@@ -640,7 +642,8 @@ class EvaluationExprTransformer(BaseExprTransformer):
 
         raise ValueError("Key component '{}' given, but value '{}' at '{}'"
                          "is a '{}' not a dict or list."
-                         .format(key_part, base, '.'.join(seen_parts), type(base)))
+                         .format(key_part, base, '.'.join(seen_parts),
+                                 type(base)))
 
     @staticmethod
     def var_key(items) -> lark.Token:

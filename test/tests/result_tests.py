@@ -1,19 +1,20 @@
+import copy
 import datetime
-import logging
 import json
+import logging
 import pprint
 from collections import OrderedDict
 
 import pavilion.result
 import yaml_config as yc
-from pavilion.test_run import TestRun
 from pavilion import arguments
 from pavilion import commands
 from pavilion import plugins
-from pavilion.result import parsers, ResultError, base
-from pavilion.unittest import PavTestCase
-from pavilion.plugins.commands import run
 from pavilion import result
+from pavilion.plugins.commands import run
+from pavilion.result import parsers, ResultError, base
+from pavilion.test_run import TestRun
+from pavilion.unittest import PavTestCase
 
 LOGGER = logging.getLogger(__name__)
 
@@ -370,6 +371,23 @@ class ResultParserTests(PavTestCase):
         ordered['val_a'] = '3'
         ordered['val_b'] = 'val_a + 1'
 
+        base_cfg = self._quick_test_cfg()
+        base_cfg['run']['cmds'] = [
+            'echo True > bool.out',
+            'echo 1 > int.out',
+            'echo 2.3 > float.out',
+            'echo "blarg" > str.out',
+        ]
+        base_cfg['result_parse'] = {
+            'regex': {
+                'data': {
+                    'regex': r'.*',
+                    'per_file': 'name',
+                    'files': '*.out',
+                }
+            }
+        }
+
         # (evaluate_conf, expected values)
         evaluate_tests = [
             ({'result': 'True'}, {'result': 'PASS'}),
@@ -382,12 +400,17 @@ class ResultParserTests(PavTestCase):
             ({'val_a': '3',
               'val_b': 'val_a + val_c',
               'val_c': 'val_a*2'},
-             {'val_a': 3, 'val_b': 9, 'val_c': 6})
+             {'val_a': 3, 'val_b': 9, 'val_c': 6}),
+            ({'list_ops': '[1, 2, 3] == 2'},
+             {'list_ops': [False, True, False]}),
+            ({'type_conv': 'n.*.data'},
+             # The order here should be consistent
+             {'type_conv': [True, 2.3, 1, "blarg"]})
         ]
 
         for evaluate_conf, exp_results in evaluate_tests:
 
-            cfg = self._quick_test_cfg()
+            cfg = copy.deepcopy(base_cfg)
             cfg['result_evaluate'] = evaluate_conf
 
             test = self._quick_test(cfg)
