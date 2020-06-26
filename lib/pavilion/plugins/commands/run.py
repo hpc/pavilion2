@@ -149,11 +149,7 @@ class RunCommand(commands.Command):
             self._complete_tests(all_tests)
             return res
 
-        runnable_test = []
-        for test in all_tests:
-            if not test.skipped:
-                runnable_test.append(test)
-        all_tests = runnable_test
+        all_tests = [test for test in all_tests if not test.skipped]
 
         res = self.build_local(
             tests=all_tests,
