@@ -465,6 +465,11 @@ class BaseExprTransformer(PavTransformer):
         """Try to convert 'value' to a int, float, or bool. Otherwise leave
         as a string."""
 
+        if isinstance(value, list):
+            return [self._convert(item) for item in value]
+        elif isinstance(value, dict):
+            return {key: self._convert(val) for key, val in value.items()}
+
         try:
             return int(value)
         except ValueError:
@@ -560,9 +565,6 @@ class EvaluationExprTransformer(BaseExprTransformer):
                 token=self._merge_tokens(items, None),
                 message=err.args[0])
 
-        if isinstance(value, str):
-            value = self._convert(value)
-
         return self._merge_tokens(items, value)
 
     def _resolve_ref(self, base, key_parts: list, seen_parts: tuple = tuple(),
@@ -581,8 +583,10 @@ class EvaluationExprTransformer(BaseExprTransformer):
         :return:
         """
 
+        key_parts = key_parts.copy()
+
         if not key_parts:
-            return base
+            return self._convert(base)
 
         key_part = key_parts.pop(0)
         seen_parts = seen_parts + (key_part,)
@@ -592,16 +596,19 @@ class EvaluationExprTransformer(BaseExprTransformer):
                 raise ValueError(
                     "References can only contain a single '*'.")
 
-            if not isinstance(base, (list, dict)):
+            if isinstance(base, dict):
+                # The 'sorted' here is important, as it ensures the values
+                # are always in the same order.
+                return [self._resolve_ref(base[sub_base], key_parts, seen_parts, False)
+                        for sub_base in sorted(base.keys())]
+            elif isinstance(base, list):
+                return [self._resolve_ref(sub_base, key_parts, seen_parts, False)
+                        for sub_base in base]
+            else:
                 raise ValueError(
                     "Used a '*' in a variable name, but the "
                     "component at that point '{}' isn't a list or dict."
                     .format('.'.join(seen_parts)))
-
-            # The 'sorted' here is important, as it ensures the values
-            # are always in the same order.
-            return [self._resolve_ref(sub_base, key_parts, seen_parts, False)
-                    for sub_base in sorted(base.keys())]
 
         elif isinstance(base, list):
             try:
@@ -632,8 +639,8 @@ class EvaluationExprTransformer(BaseExprTransformer):
                                      allow_listing)
 
         raise ValueError("Key component '{}' given, but value '{}' at '{}'"
-                         "is not a dict or list."
-                         .format(key_part, base, '.'.join(seen_parts)))
+                         "is a '{}' not a dict or list."
+                         .format(key_part, base, '.'.join(seen_parts), type(base)))
 
     @staticmethod
     def var_key(items) -> lark.Token:

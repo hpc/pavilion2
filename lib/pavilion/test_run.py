@@ -734,8 +734,6 @@ of result keys.
                 self.status.set(STATES.RESULTS_ERROR,
                                 results['pav_result_errors'][-1])
 
-            return results
-
         if not regather:
             self.status.set(STATES.RESULTS,
                             "Performing {} result evaluations."
@@ -750,7 +748,6 @@ of result keys.
             if not regather:
                 self.status.set(STATES.RESULTS_ERROR,
                                 results['pav_result_errors'][-1])
-            return results
 
         if results['result'] is True:
             results['result'] = self.PASS
