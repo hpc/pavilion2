@@ -280,8 +280,13 @@ used when the string is formatted.
         """Wrap the text as with textwrap, but return ANSIString objects
         with the same ANSI code applied."""
 
-        return [ANSIString(row, code=self.code)
-                for row in textwrap.wrap(self.data, width=width)]
+        lines = []
+        for paragraph in str.splitlines(self.data):
+            lines.extend([
+                ANSIString(row, code=self.code)
+                for row in textwrap.wrap(paragraph, width=width)])
+
+        return lines
 
     def colorize(self):
         """Return the string wrapped in the appropriate ANSI escapes."""
