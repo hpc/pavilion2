@@ -33,7 +33,6 @@ BASE_RESULTS = {
     'id': lambda test: test.id,
     'test_version': lambda test: test.test_version,
     'pav_version': lambda test: test.var_man['pav.version'],
-    'compatible_pav_versions': lambda test: test.compatible_pav_versions,
     'created': lambda test: datetime.datetime.fromtimestamp(
         test.path.stat().st_mtime).isoformat(" "),
     'started': lambda test: test.started.isoformat(" "),

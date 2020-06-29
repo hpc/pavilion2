@@ -489,18 +489,15 @@ class ResolverTests(PavTestCase):
         expected_results = {
             'version_compatible.one': {
                 'test_version': '1.2.3',
-                'pav_version': pav_version,
-                'compatible_pav_versions': 'all'
+                'pav_version': pav_version
             },
             'version_compatible.two': {
                 'test_version': 'beta',
-                'pav_version': pav_version,
-                'compatible_pav_versions': '1.2.3-5.4.9'
+                'pav_version': pav_version
             },
             'version_compatible.three': {
                 'test_version': '0.0',
-                'pav_version': pav_version,
-                'compatible_pav_versions': 'all'
+                'pav_version': pav_version
             }
         }
 
