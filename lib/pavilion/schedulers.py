@@ -5,9 +5,7 @@ mechanisms to Pavilion.
 # pylint: disable=no-self-use
 
 import datetime
-import hashlib
 import inspect
-import json
 import logging
 import os
 import subprocess

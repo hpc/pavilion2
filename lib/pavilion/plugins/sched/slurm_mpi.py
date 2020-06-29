@@ -1,9 +1,7 @@
+import pavilion.plugins.sched.slurm as slurm
 import yaml_config as yc
 from pavilion.schedulers import SchedulerPlugin
-from pavilion.schedulers import SchedulerPluginError
-from pavilion.schedulers import SchedulerVariables
 from pavilion.schedulers import dfr_var_method
-import pavilion.plugins.sched.slurm as slurm
 
 
 class SlurmMPIVars(slurm.SlurmVars):
