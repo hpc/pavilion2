@@ -1,7 +1,10 @@
+import inspect
+import re
+
 from pavilion import plugins
 from pavilion import schedulers
+from pavilion.test_config import variables
 from pavilion.unittest import PavTestCase
-import inspect
 
 
 class SchedTests(PavTestCase):
