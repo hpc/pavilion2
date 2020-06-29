@@ -489,7 +489,7 @@ associated tests."""
         if not series_id_path.exists():
             return False
 
-        with open(series_id_path, 'r') as series_id_file:
+        with open(str(series_id_path), 'r') as series_id_file:
             series_id = series_id_file.readline()
 
         try:

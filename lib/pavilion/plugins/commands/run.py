@@ -143,7 +143,7 @@ class RunCommand(commands.Command):
             # this process will outlive the parent, and that's what we want
 
             try:
-                with open(series_path / 'series.out', 'w') as series_out:
+                with open(str(series_path/'series.out'), 'w') as series_out:
                     series_proc = subprocess.Popen(temp_args,
                                                    stdout=series_out,
                                                    stderr=series_out)
@@ -151,11 +151,16 @@ class RunCommand(commands.Command):
                 series_proc = subprocess.Popen(temp_args,
                                                stdout=subprocess.DEVNULL,
                                                stderr=subprocess.DEVNULL)
+            except FileNotFoundError:
+                fprint("Could not kick off tests. Cancelling.",
+                       color=output.RED)
+                return
 
             series_pgid = os.getpgid(series_proc.pid)
 
             try:
-                with open(series_path / 'series.pgid', 'w') as series_id_file:
+                with open(str(series_path/'series.pgid'), 'w') as \
+                        series_id_file:
                     series_id_file.write(str(series_pgid))
 
                 fprint("Started series {}. "
