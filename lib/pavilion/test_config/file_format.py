@@ -141,11 +141,18 @@ class EnvCatElem(yc.CategoryElem):
     type = OrderedDict
 
 
+class TestCatElem(yc.CategoryElem):
+    """A category element that ensures order of Keyed Elems retain order."""
+
+    _NAME_RE = re.compile(r'^.*$')
+    type = OrderedDict
+
+
 class SeriesConfigLoader(yc.YamlConfigLoader):
     """This class describes a series file."""
 
     ELEMENTS = [
-        CondCategoryElem(
+        TestCatElem(
             'series', sub_elem=yc.KeyedElem(
                 elements=[
                     yc.StrElem('depends_pass',

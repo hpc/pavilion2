@@ -1,5 +1,7 @@
 series:
 
+    "echo_test.e":
+
     # this will be skipped
     "echo_test.c":
 
