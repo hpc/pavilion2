@@ -292,7 +292,7 @@ class TestRun:
         self._results = None
         self._created = None
 
-        self.skipped = self._get_skipped()
+        self.skipped = self._get_skipped()  # eval skip.
 
     @classmethod
     def load(cls, pav_cfg, test_id):
@@ -988,8 +988,13 @@ directory that doesn't already exist.
         return "TestRun({s.name}-{s.id})".format(s=self)
 
     def _get_skipped(self):
-        skip_reason_list = self._evaluate_skip_conditions()
-        matches = " ".join(skip_reason_list)
+        """Kicks off assessing if current test is skipped."""
+        if self.status.current().state == 'SKIPPED':
+            # Skip has already been evaluated.
+            return True
+        else:
+            skip_reason_list = self._evaluate_skip_conditions()
+            matches = " ".join(skip_reason_list)
 
         if len(skip_reason_list) == 0:
             return False
