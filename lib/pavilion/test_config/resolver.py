@@ -383,34 +383,7 @@ class TestConfigResolver:
                         "should never happen. {}".format(test_suite_path, err))
 
                 # Check test compatibility with current pavilion version
-                comp_error = ""
-                with test_suite_path.open() as test_suite_file:
-                    for test in test_suite_cfg:
-                        test_cfg = test_suite_cfg.get(test)
-                        version = PavVars.version(self)
-                        comp_versions = test_cfg.get('compatible_pav_versions')
-
-                        # If no version is provided we assume compatibility
-                        if comp_versions is None:
-                            continue
-
-                        min_str = self.get_min_str(comp_versions)
-                        min_version = self.calc_min(min_str)
-                        max_str = self.get_max_str(comp_versions)
-                        max_version = self.calc_max(max_str)
-
-                        if min_version is None or max_version is None:
-                            raise TestConfigError(
-                                "'{}' in '{}' has invalid "
-                                "compatible_pav_versions value ('{}')."
-                                .format(test, test_suite, comp_versions))
-
-                        if not self.check_version(version, min_version,
-                                                  max_version):
-                            err = ("\n'{}' is not compatible with pavilion "
-                                   "'{}'. Compatible versions '{}'.")
-                            comp_error += err.format(test, version,
-                                                     comp_versions)
+                comp_error = self.check_version_compatibility(test_suite_cfg)
 
                 if comp_error:
                     raise TestConfigError(
@@ -539,6 +512,41 @@ class TestConfigResolver:
             return True
         else:
             return False
+
+    def check_version_compatibility(self, test_suite_cfg):
+        """Checks each test_cfg in a given suite for compatibility with current
+        pavilion install."""
+
+        comp_error = ""
+
+        for test in test_suite_cfg:
+            test_cfg = test_suite_cfg.get(test)
+            version = PavVars.version(self)
+            comp_versions = test_cfg.get('compatible_pav_versions')
+
+            # If no version is provided we assume compatibility
+            if comp_versions is None:
+                continue
+
+            min_str = self.get_min_str(comp_versions)
+            min_version = self.calc_min(min_str)
+            max_str = self.get_max_str(comp_versions)
+            max_version = self.calc_max(max_str)
+
+            if min_version is None or max_version is None:
+                raise TestConfigError(
+                    "'{}' in '{}' has invalid "
+                    "compatible_pav_versions value ('{}')."
+                    .format(test, test_suite, comp_versions))
+
+            if not self.check_version(version, min_version,
+                                      max_version):
+                err = ("\n'{}' is not compatible with pavilion "
+                       "'{}'. Compatible versions '{}'.")
+                comp_error += err.format(test, version,
+                                         comp_versions)
+
+        return comp_error
 
     def apply_host(self, test_cfg, host):
         """Apply the host configuration to the given config."""
