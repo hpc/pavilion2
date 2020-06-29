@@ -263,8 +263,8 @@ expected to be added to by various plugins.
             'compatible_pav_versions', default='all',
             help_text="Specify compatibile pavilion versions for this "
                       "specific test. Can be represented as a single "
-                      "version, ex: 1.2.3, a wildcard ex: 1.2.*. or a "
-                      "range ex: 1.2.3-1.3.4 ."
+                      "version, ex: 1, 1.2, 1.2.3, a wildcard, ex: 1.*, "
+                      "1.2.*, or a range, ex: 1.2-1.3.4, etc."
         ),
         yc.StrElem(
             'test_version', default='0.0',

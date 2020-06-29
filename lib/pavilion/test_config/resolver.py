@@ -33,6 +33,7 @@ CONF_TEST = 'tests'
 
 LOGGER = logging.getLogger('pav.' + __name__)
 
+TEST_VERS_RE = re.compile(r'^\d+(\.\d+|\.\*$){0,2}$')
 
 class TestConfigResolver:
     """Converts raw test configurations into their final, fully resolved
@@ -380,12 +381,38 @@ class TestConfigResolver:
                         "Test suite '{}' raised a type error, but that "
                         "should never happen. {}".format(test_suite_path, err))
 
+                # Check test compatibility with current pavilion version
+                comp_error = ""
                 with test_suite_path.open() as test_suite_file:
-                    detailed_error = self.check_version_compatibility(test_suite, test_suite_file)
-                    if detailed_error:
-                        raise TestConfigError(
-                            "Test suite '{}' has incompatibility issues: {}"
-                            .format(test_suite, detailed_error))
+                    for test in test_suite_cfg:
+                        test_cfg = test_suite_cfg.get(test)
+                        version = PavVars.version(self)
+                        comp_versions = test_cfg.get('compatible_pav_versions')
+
+                        # If no version is provided we assume compatibility
+                        if comp_versions is None:
+                            continue
+
+                        min_str = self.get_min_str(comp_versions)
+                        min_version = self.calc_min(min_str)
+                        max_str = self.get_max_str(comp_versions)
+                        max_version = self.calc_max(max_str)
+                        if min_version is None or max_version is None:
+                            raise TestConfigError(
+                                "'{}' in '{}' has invalid "
+                                "compatible_pav_versions value ('{}')."
+                                .format(test, test_suite, comp_versions))
+                        if not self.check_version(version, min_version,
+                                                  max_version):
+                            err = ("\n'{}' is not compatible with pavilion "
+                                   "'{}'. Compatible versions '{}'.")
+                            comp_error += err.format(test, version,
+                                                     comp_versions)
+
+                if comp_error:
+                    raise TestConfigError(
+                        "Test suite '{}' has incompatibility issues: {}"
+                        .format(test_suite, comp_error))
 
                 suite_tests = self.resolve_inheritance(
                     base_config,
@@ -449,105 +476,66 @@ class TestConfigResolver:
 
         return picked_tests
 
-    def check_version_compatibility(self, test_suite, test_suite_cfg):
-        """Make sure test suites are compatible with current pavilion
-        version."""
+    def get_min_str(self, versions):
+        """Takes compatible version string (compatible_pav_version) in
+        a test config and returns the lower bound for version compatiblity."""
 
-        # User may provide compatible_pav:versions in the following formats:
-        # Single Version, EX: 1.2.3
-        # Wild Card Version, EX: 1.2 or 1.2.*
-        #   Note: These have the same behavior
-        # Range of Versions, EX: 1.2.3-1.4.5, 1.2-3.4, 1.2-1.2.4, etc.
+        if '-' in versions:
+            return versions.split("-")[0]
+        else:
+            return versions
 
-        ABBRV_RE = re.compile(r'^\d+\.\d+$')
-        FULL_RE = re.compile(r'^\d+\.\d+\.\d+$')
-        WC_RE = re.compile(r'^\d+\.\d+\.\*$')
+    def get_max_str(self, versions):
+        """Takes compatible version string (compatible_pav_version) in
+        a test config and returns the upper bound for version compatibility."""
+        if '-' in versions:
+            return versions.split("-")[1]
+        else:
+            return versions
 
-        compatible_errors = ""
-        test_suite_cfg = yc_yaml.load(test_suite_cfg)
-        for test in test_suite_cfg:
-            test_cfg = test_suite_cfg.get(test)
-            compatible_versions = test_cfg.get('compatible_pav_versions')
+    def calc_min(self, min_str):
+        """Ensures version was provided in the correct format, and returns the
+        lower bound as a list of digits."""
 
-            # Assumes compatibility if not explicilty given in config
-            if compatible_versions is not None:
-                err =("\n'" + test_suite + 
-                      ".{}' is not compatible with pavilion version '{}'."
-                      "\n\t - Compatible pavilion versions: '{}'.")
-                pav_version = PavVars.version(self)
-                pav_version = [int(i) for i in pav_version.split(".")]
+        result = TEST_VERS_RE.match(min_str)
+        if result is not None:
+            min_version = min_str.split(".")
+            if min_version[-1] == '*':
+                del min_version[-1]
+            return [int(i) for i in min_version]
+        else:
+            return None
 
-                # Version was provided as a range. EX: 2.1.3-2.1.6
-                if '-' in compatible_versions:
-                    lowest, highest = compatible_versions.split("-")
-                    if (FULL_RE.match(lowest) is not None or
-                        ABBRV_RE.match(lowest) is not None):
-                        lowest = [int(i) for i in lowest.split(".")]
-                    else:
-                        err=("'{}.{}' has invalid value: "
-                             "\n'{} in compatible_pav_versions '{}' "
-                             "is not a valid version format."
-                             .format(test_suite, test, lowest,
-                                     compatible_version))
-                        raise TestConfigError(err)
+    def calc_max(self, max_str):
+        """Ensures version was provided in the correct format, and returns the
+        upper bound as a list of digits."""
 
-                    if (FULL_RE.match(highest) is not None or
-                        ABBRV_RE.match(highest) is not None):
-                        highest = [int(i) for i in highest.split(".")]
-                    else:
-                        err=("'{}.{}' has invalid value: "
-                             "\n'{}' in compatible_pav_versions '{}' "
-                             "is not a valid version format."
-                             .format(test_suite, test, highest,
-                                     compatible_versions))
-                        raise TestConfigError(err)
+        result = TEST_VERS_RE.match(max_str)
+        if result is not None:
+            max_version = max_str.split(".")
+            if max_version[-1] == '*':
+                del max_version[-1]
+            return [int(i) for i in max_version]
+        else:
+            return None
 
-                    if not (lowest <= pav_version <= highest):
-                        compatible_errors += err.format(test,
-                                                        PavVars.version(self),
-                                                        compatible_versions)
+    def check_version(self, version, min_version, max_version):
+        """Returns a bool on if the test is compatible with the current version
+        of pavilion."""
 
-                # Version Provided with wildcard. EX: 2.1.*
-                elif '.*' in compatible_versions:
-                    if WC_RE.match(compatible_versions) is not None:
-                        version = [int(i) for i in compatible_versions.split(".")[:-1]]
-                        pav_version = pav_version[:-1]
-                    else:
-                        err=("'{}.{}' has invalid value: "
-                             "\ncompatible_pav_versions '{}' in not a "
-                             "valid version format."
-                             .format(test_suite, test, compatible_versions))
-                        raise TestConfigError(err)
+        version = [int(i) for i in version.split(".")]
 
-                    if not pav_version == version:
-                        compatible_errors += err.format(test,
-                                                        PavVars.version(self),
-                                                        compatible_versions)
+        # Trim pavilion version to the degree dictated by min and max version.
+        # This only matters if they are equal, and only occurs when a specific 
+        # version is provided.  
+        if min_version == max_version and len(min_version) < len(version):
+            offset = len(version) - len(min_version)
+            del version[-offset]
 
-                # Specific Version Provided. EX: 2.1.3, 2.1
-                else:
-                    if FULL_RE.match(compatible_versions) is not None:
-                        version = [int(i) for i in compatible_versions.split(".")]
-                    elif ABBRV_RE.match(compatible_versions) is not None:
-                        version = [int(i) for i in
-                                   compatible_versions.split(".")[:-1]]
-                        pav_version = pav_version[:-1]
-                    else:
-                        err=("'{}' in '{}' has invalid value: "
-                              "\ncompatible_pav_versions '{}' is not a "
-                              "valid version format."
-                             .format(test, test_suite, compatible_versions))
-                        raise TestConfigError(err)
-
-                    if not pav_version == version:
-                        compatible_errors += err.format(test,
-                                                        PavVars.version(self),
-                                                        compatible_versions)
-
-        if compatible_errors:
-            return compatible_errors
-
-        return 0
+        if min_version <= version <= max_version:
+            return True
+        else:
+            return False
 
     def apply_host(self, test_cfg, host):
         """Apply the host configuration to the given config."""
