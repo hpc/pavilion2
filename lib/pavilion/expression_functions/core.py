@@ -30,7 +30,6 @@ class IntPlugin(CoreFunctionPlugin):
 
         super().__init__(
             name="int",
-            description="Convert integer strings to ints of arbitrary bases.",
             arg_specs=(str, int),
         )
 
@@ -50,7 +49,6 @@ class RoundPlugin(CoreFunctionPlugin):
 
         super().__init__(
             name="round",
-            description="Round the given number to the nearest integer.",
             arg_specs=(float,))
 
     @staticmethod
@@ -79,14 +77,13 @@ class FloorPlugin(CoreFunctionPlugin):
 
 
 class CeilPlugin(CoreFunctionPlugin):
-    """Get the ceiling of the given number."""
+    """Get the integer ceiling of the given number."""
 
     def __init__(self):
         """Setup plugin."""
 
         super().__init__(
             name="ceil",
-            description="Return the integer ceiling.",
             arg_specs=(float,))
 
     @staticmethod
@@ -104,7 +101,6 @@ class SumPlugin(CoreFunctionPlugin):
 
         super().__init__(
             name="sum",
-            description="Return the sum of the given numbers.",
             arg_specs=([num],))
 
     @staticmethod
@@ -123,7 +119,6 @@ class AvgPlugin(CoreFunctionPlugin):
 
         super().__init__(
             name="avg",
-            description="Returns the average of the given numbers.",
             arg_specs=([num],)
         )
 
@@ -143,8 +138,6 @@ class LenPlugin(CoreFunctionPlugin):
 
         super().__init__(
             name='len',
-            description='Return the integer length of the given str, int or '
-                        'mapping/dict.',
             arg_specs=None,
         )
 
@@ -173,7 +166,6 @@ class RandomPlugin(CoreFunctionPlugin):
 
         super().__init__(
             name="random",
-            description="Return a random float in [0,1).",
             arg_specs=tuple())
 
     @staticmethod
@@ -191,7 +183,6 @@ class KeysPlugin(CoreFunctionPlugin):
 
         super().__init__(
             name='keys',
-            description="Return the keys of the given dict.",
             arg_specs=None,
         )
 
@@ -212,7 +203,8 @@ class KeysPlugin(CoreFunctionPlugin):
 
 
 class AllPlugin(CoreFunctionPlugin):
-    """Return whether all of the items in the given list are true."""
+    """Return whether all of the items in the given list are true. Accepts
+    numeric and booleans as list items."""
 
     def __init__(self):
         """Setup plugin"""
@@ -231,34 +223,32 @@ class AllPlugin(CoreFunctionPlugin):
 
 
 class AnyPlugin(CoreFunctionPlugin):
-    """Return whether any of the items in the given list are true."""
+    """Return whether any of the items in the given list are true. Accepts
+    numeric and booleans as list items."""
 
     def __init__(self):
         """Setup plugin"""
 
         super().__init__(
             name='any',
-            description='Return whether any the items in the given list are '
-                        'true.',
             arg_specs=([num],)
         )
 
     @staticmethod
     def any(items):
-        """Just use the built-in all function."""
+        """Just use the built-in any function."""
         return any(items)
 
 
 class RegexSearch(CoreFunctionPlugin):
     """Search for the given regular expression. Returns the matched text or,
     if a matching group (limit 1) was used, the matched group. Returns an
-    empty string on no match. Regexes use Python\'s regex syntax"""
+    empty string on no match. Regexes use Python\'s regex syntax."""
 
     def __init__(self):
 
         super().__init__(
             name='re_search',
-            description=' '.join(self.__doc__.split()),
             arg_specs=(str, str),
         )
 

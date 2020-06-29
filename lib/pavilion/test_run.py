@@ -603,9 +603,11 @@ class TestRun:
 
         attr_path = self.path/self.ATTR_FILE_NAME
 
-        with PermissionsManager(attr_path, self.group, self.umask), \
-                attr_path.open('w') as attr_file:
-            json.dump(self._attrs, attr_file)
+        with PermissionsManager(attr_path, self.group, self.umask):
+            tmp_path = attr_path.with_suffix('.tmp')
+            with tmp_path.open('w') as attr_file:
+                json.dump(self._attrs, attr_file)
+            tmp_path.rename(attr_path)
 
     def load_attributes(self):
         """Load the attributes from file."""

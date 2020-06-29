@@ -1,7 +1,6 @@
 """Given a pre-existing test run, runs the test in the scheduled
 environment."""
 
-import errno
 import logging
 import traceback
 
@@ -38,7 +37,7 @@ class _RunCommand(commands.Command):
         except TestRunError as err:
             self.logger.error("Error loading test '%s': %s",
                               args.test_id, err)
-            return errno.EINVAL
+            raise
 
         try:
             sched = self._get_sched(test)
@@ -52,7 +51,7 @@ class _RunCommand(commands.Command):
                     STATES.RUN_ERROR,
                     "Unexpected error finalizing test\n{}"
                     .format(err.args[0]))
-                return errno.EINVAL
+                raise
 
             try:
                 if not test.build_local:
@@ -65,7 +64,7 @@ class _RunCommand(commands.Command):
                 test.status.set(
                     STATES.BUILD_ERROR,
                     "Unknown build error. Refer to the kickoff log.")
-                return errno.EINVAL
+                raise
 
             if not test.build_only:
                 return self._run(pav_cfg, test, sched)
