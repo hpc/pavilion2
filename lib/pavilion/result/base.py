@@ -28,6 +28,7 @@ def get_sched_keys(test):
 
     return sched_keys
 
+
 BASE_RESULTS = {
     'name': lambda test: test.name,
     'id': lambda test: test.id,

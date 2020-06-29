@@ -19,6 +19,7 @@ KEY_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_-]*$')
 VAR_KEY_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_]*$')
 VAR_NAME_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9_]*[?+]?$')
 
+
 class PathCategoryElem(yc.CategoryElem):
     """This is for category elements that need a valid unix path regex."""
     _NAME_RE = re.compile(r".+$")

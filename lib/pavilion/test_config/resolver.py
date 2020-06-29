@@ -35,6 +35,7 @@ LOGGER = logging.getLogger('pav.' + __name__)
 
 TEST_VERS_RE = re.compile(r'^\d+(\.\d+|\.\*$){0,2}$')
 
+
 class TestConfigResolver:
     """Converts raw test configurations into their final, fully resolved
     form."""
@@ -397,11 +398,13 @@ class TestConfigResolver:
                         min_version = self.calc_min(min_str)
                         max_str = self.get_max_str(comp_versions)
                         max_version = self.calc_max(max_str)
+
                         if min_version is None or max_version is None:
                             raise TestConfigError(
                                 "'{}' in '{}' has invalid "
                                 "compatible_pav_versions value ('{}')."
                                 .format(test, test_suite, comp_versions))
+
                         if not self.check_version(version, min_version,
                                                   max_version):
                             err = ("\n'{}' is not compatible with pavilion "
