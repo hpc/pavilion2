@@ -26,16 +26,17 @@ def has_sphinx():
         _HAS_SPHINX = False
         return False
 
-    proc = subprocess.run([_SPHINX_PATH, '--version'], encoding='utf8',
+    proc = subprocess.run([_SPHINX_PATH, '--version'],
                           stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    
+
     if proc.returncode != 0:
         # --version only exists for fairly recent versions
         # of sphinx build
         _HAS_SPHINX = False
         return False
 
-    vers = tuple(int(vpart) for vpart in proc.stdout.split()[-1].split('.'))
+    vers = proc.stdout.decode()
+    vers = tuple(int(vpart) for vpart in vers.split()[-1].split('.'))
     if vers >= _MIN_SPHINX_VERSION:
         _HAS_SPHINX = True
         return True
