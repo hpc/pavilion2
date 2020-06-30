@@ -466,7 +466,6 @@ class ShowCommand(commands.Command):
                             config_data = yc_yaml.load(config_file)
                         break
 
-                print("\nConfig for " + host + " found at: " + str(file))
                 pprint.pprint(config_data, compact=True)
 
 
@@ -528,7 +527,6 @@ class ShowCommand(commands.Command):
                             config_data = yc_yaml.load(config_file)
                         break
 
-                print("\nConfig for " + mode + " found at: " + str(file))
                 pprint.pprint(config_data, compact=True)
 
 
