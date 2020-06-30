@@ -560,7 +560,10 @@ class ShowCommand(commands.Command):
 
         if args.vars is not None:
             sched_vars = []
-            svars = sched.get_vars({})
+
+            empty_config = file_format.TestConfigLoader().load_empty()
+            
+            svars = sched.get_vars(empty_config[sched_name])
 
             for key in sorted(list(svars.keys())):
                 sched_vars.append(svars.info(key))

@@ -30,9 +30,9 @@ class LogCmdTest(PavTestCase):
         raw.schedule_test(self.pav_cfg, test)
 
         state = test.status.current().state
-        end = time.time() + 1
-        while ('ERROR' not in state and 'FAIL' not in state and
-                state != STATES.COMPLETE and time.time() < end):
+        end = time.time() + 5
+
+        while (test.complete is None and time.time() < end):
             time.sleep(.1)
 
         # test `pav log run test`
@@ -48,6 +48,7 @@ class LogCmdTest(PavTestCase):
         result = log_cmd.run(self.pav_cfg, args)
         err.seek(0)
         out.seek(0)
+        self.dbg_print('bad_test', test.id)
         self.assertEqual(err.read(), '')
         self.assertEqual(out.read(), 'Hello World.\n')
         self.assertEqual(result, 0)

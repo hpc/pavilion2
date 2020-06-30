@@ -10,6 +10,38 @@ from pavilion.unittest import PavTestCase
 from pavilion.utils import flat_walk
 
 _SPHINX_PATH = distutils.spawn.find_executable('sphinx-build')
+_MIN_SPHINX_VERSION = (3, 0, 0)
+_HAS_SPHINX = None
+
+
+def has_sphinx():
+    """Make sure we have a reasonably recent version of sphinx."""
+
+    global _HAS_SPHINX
+
+    if _HAS_SPHINX is not None:
+        return _HAS_SPHINX
+
+    if _SPHINX_PATH is None:
+        _HAS_SPHINX = False
+        return False
+
+    proc = subprocess.run([_SPHINX_PATH, '--version'], encoding='utf8',
+                          stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    
+    if proc.returncode != 0:
+        # --version only exists for fairly recent versions
+        # of sphinx build
+        _HAS_SPHINX = False
+        return False
+
+    vers = tuple(int(vpart) for vpart in proc.stdout.split()[-1].split('.'))
+    if vers >= _MIN_SPHINX_VERSION:
+        _HAS_SPHINX = True
+        return True
+
+    _HAS_SPHINX = False
+    return False
 
 
 class DocTests(PavTestCase):
@@ -158,7 +190,7 @@ class DocTests(PavTestCase):
 
         return bad_links, external_links
 
-    @unittest.skipIf(_SPHINX_PATH is None, "Could not find Sphinx.")
+    @unittest.skipIf(not has_sphinx(), "Could not find Sphinx.")
     def test_doc_build(self):
         """Build the documentation and check for warnings/errors."""
 
@@ -176,7 +208,7 @@ class DocTests(PavTestCase):
                             .format(len(warnings), '\n'.join(warnings),
                                     self.docs_build_out))
 
-    @unittest.skipIf(_SPHINX_PATH is None, "Could not find Sphinx")
+    @unittest.skipIf(not has_sphinx(), "Could not find Sphinx.")
     def test_doc_links(self):
         """Verify the links in all the documentation. This shouldn't run as
         its own test, but as a subtest of our document making test so we
@@ -190,7 +222,7 @@ class DocTests(PavTestCase):
         self.assertTrue(bad_links == [],
                         msg="\nFound the following bad links:\n" + link_desc)
 
-    @unittest.skipIf(_SPHINX_PATH is None or wget.missing_libs(),
+    @unittest.skipIf(not has_sphinx() or wget.missing_libs(),
                      "Could not find Sphinx (or maybe wget libs)")
     def test_doc_ext_links(self):
         """Check all the external doc links."""

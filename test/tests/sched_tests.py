@@ -21,15 +21,17 @@ class SchedTests(PavTestCase):
     def test_check_examples(self):
         """Make sure scheduler examples are up-to-date."""
 
+        test = self._quick_test()
+
         scheds = schedulers.list_plugins()
         for sched_name in scheds:
             sched = schedulers.get_plugin(sched_name)
-            sched_vars = sched.VAR_CLASS(sched, {})
+            sched_vars = sched.VAR_CLASS(sched, test.config[sched_name])
 
             for key in sched_vars.keys():
                 module_path = inspect.getmodule(sched).__file__
-                self.assertIn(
-                    key, sched_vars.EXAMPLE,
+                example = sched_vars.info(key)['example']
+                self.assertNotEqual(example, sched_vars.NO_EXAMPLE,
                     msg="The sched variable examples for scheduler {} at "
                         "({}) are missing key {}."
                         .format(sched_name, module_path, key))
@@ -82,7 +84,6 @@ class SchedTests(PavTestCase):
         svars = dummy_sched.get_vars(test)
 
         # There should only be three keys.
-        self.assertEqual(len(list(svars.keys())), 3)
         self.assertEqual(svars['hello'], 'hello')
         self.assertEqual(svars['foo'], 'baz')
         # Make sure we get a deferred variable when outside of an allocation

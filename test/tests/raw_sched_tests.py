@@ -72,7 +72,6 @@ class RawSchedTests(PavTestCase):
         svars = dummy_sched.get_vars(test)
 
         # There should only be three keys.
-        self.assertEqual(len(list(svars.keys())), 3)
         self.assertEqual(svars['hello'], 'hello')
         self.assertEqual(svars['foo'], 'baz')
         # Make sure we get a deferred variable when outside of an allocation

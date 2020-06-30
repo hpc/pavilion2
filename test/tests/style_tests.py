@@ -7,10 +7,34 @@ _PYLINT_PATH = distutils.spawn.find_executable('pylint')
 if _PYLINT_PATH is None:
     _PYLINT_PATH = distutils.spawn.find_executable('pylint3')
 
+_MIN_PYLINT_VERSION = (2, 5, 0)
+
+def has_pylint():
+    """Check for a reasonably up-to-date pylint."""
+
+    if _PYLINT_PATH is None:
+        return False
+
+    result = subprocess.run([_PYLINT_PATH, '--version'], encoding='utf8',
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    for line in result.stdout.split('\n'):
+        if line.startswith('pylint'):
+            version = line.split()[1]
+    else:
+        return False
+
+    version = tuple(int(vpart) for vpart in version.split('.'))
+    
+    if version < _MIN_PYLINT_VERSION:
+        return False
+
+    return True
+
 
 class StyleTests(PavTestCase):
 
     @unittest.skipIf(not _PYLINT_PATH, "pylint3 not found.")
+    @unittest.skipIf(not has_pylint(), "pylint version insufficient.")
     def test_style(self):
 
         enabled = [

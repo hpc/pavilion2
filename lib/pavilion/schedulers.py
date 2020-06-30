@@ -123,11 +123,21 @@ Naming Conventions:
 
         self.logger = logging.getLogger('{}_vars'.format(scheduler))
 
+    NO_EXAMPLE = '<no example>'
+
     def info(self, key):
         """Get the info dict for the given key, and add the example to it."""
 
         info = super().info(key)
-        info['example'] = self.EXAMPLE[key]
+        example = self[key]
+        if isinstance(example, DeferredVariable):
+            example = self.EXAMPLE.get(key, self.NO_EXAMPLE)
+
+        if isinstance(example, list):
+            if len(example) > 10: 
+                example = example[:10] + ['...']
+
+        info['example'] = example
 
         return info
 

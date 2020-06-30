@@ -10,8 +10,11 @@ class SlurmMPIVars(slurm.SlurmVars):
     EXAMPLE = {
         "alloc_cpu_total": "36",
         "alloc_max_mem": "128842",
+        "alloc_max_ppn": "36",
+        "alloc_min_mem": "128842",
         "alloc_min_ppn": "36",
         "alloc_node_list": ["node004", "node005"],
+        "alloc_nodes": "2",
         "max_mem": "128842",
         "max_ppn": "36",
         "mca_translation": "--mca mpi_show_handle_leaks 1",
@@ -24,6 +27,7 @@ class SlurmMPIVars(slurm.SlurmVars):
         "test_cmd": "mpirun --map-by ppr:2:node --rank-by slot --bind_to core",
         "test_node_list": ["node004", "node005"],
         "test_nodes": "1",
+        "test_procs": "2",
     }
 
     def procs_per_node(self):
