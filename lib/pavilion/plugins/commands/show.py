@@ -3,6 +3,7 @@
 import argparse
 import errno
 import os
+import pprint
 from typing import Union
 
 import yaml_config
@@ -124,19 +125,18 @@ class ShowCommand(commands.Command):
                         "depending on the host."
         )
 
-        hosts.add_argument(
-            '--cfg',
-            action='store_true', default=False,
-            help="Show full host config."
+        hosts_group = hosts.add_mutually_exclusive_group()
+        hosts_group.add_argument(
+            '--config', action='store', type=str, metavar='<host>',
+            help="Show full host config for desired host"
         )
 
-        hosts.add_argument(
+        hosts_group.add_argument(
             '--vars',
             action='store_true', default=False,
             help="Show defined variables in host config."
         )
 
-        hosts_group = hosts.add_mutually_exclusive_group()
         hosts_group.add_argument(
             '--verbose', '-v',
             action='store_true', default=False,
@@ -151,19 +151,18 @@ class ShowCommand(commands.Command):
                         "depending on the mode that is specified."
         )
 
-        modes.add_argument(
-            '--cfg',
-            action='store_true',
-            help="Show full mode config."
+        modes_group = modes.add_mutually_exclusive_group()
+        modes_group.add_argument(
+            '--config', action='store', type=str, metavar='<mode>',
+            help="Show full mode config for desired mode."
         )
 
-        modes.add_argument(
+        modes_group.add_argument(
             '--vars',
-            action='store_true',
+            action='store_true', default=False,
             help="Show defined variables in mode config."
         )
 
-        modes_group = modes.add_mutually_exclusive_group()
         modes_group.add_argument(
             '--verbose', '-v',
             action='store_true', default=False,
@@ -412,91 +411,126 @@ class ShowCommand(commands.Command):
     def _hosts_cmd(self, pav_cfg, args):
         """List all known host files."""
 
-        hosts = []
-        col_names = ['Name']
-        if args.verbose:
-            col_names.append('Path')
-        if args.cfg:
-            col_names.append('Full Config')
-        if args.vars:
-            col_names.append('Variables')
-        for conf_dir in pav_cfg.config_dirs:
-            path = conf_dir / 'hosts'
+        if args.config is None:
+            hosts = []
+            col_names = ['Name']
+            if args.verbose:
+                col_names.append('Path')
+            if args.vars:
+                col_names.append('Variables')
+            for conf_dir in pav_cfg.config_dirs:
+                path = conf_dir / 'hosts'
 
-            if not (path.exists() and path.is_dir()):
-                continue
+                if not (path.exists() and path.is_dir()):
+                    continue
 
-            for file in os.listdir(path.as_posix()):
+                for file in os.listdir(path.as_posix()):
 
-                file = path / file
-                if file.suffix == '.yaml' and file.is_file():
-                    host_id = file.stem
-                    host_path = file
-                    with file.open() as config_file:
-                        config_data = yc_yaml.load(config_file)
-                    try:
-                        host_vars = list(config_data['variables'].keys())
-                    except (KeyError, TypeError) as err:
-                        host_vars = []
+                    file = path / file
+                    if file.suffix == '.yaml' and file.is_file():
+                        host_id = file.stem
+                        host_path = file
+                        with file.open() as config_file:
+                            config_data = yc_yaml.load(config_file)
+                        try:
+                            host_vars = list(config_data['variables']
+                                             .keys())
+                        except (KeyError, TypeError) as err:
+                            host_vars = []
 
-                    hosts.append({
-                        'Name': host_id,
-                        'Path': host_path,
-                        'Full Config': config_data,
-                        'Variables': host_vars
-                    })
+                        hosts.append({
+                            'Name': host_id,
+                            'Path': host_path,
+                            'Variables': host_vars
+                        })
 
-        output.draw_table(
-            self.outfile,
-            field_info={},
-            fields=col_names,
-            rows=hosts
-        )
+            output.draw_table(
+                self.outfile,
+                field_info={},
+                fields=col_names,
+                rows=hosts
+            )
+
+        else:
+
+            host = args.config
+
+            for conf_dir in pav_cfg.config_dirs:
+                path = conf_dir / 'hosts'
+                if not (path.exists() and path.is_dir()):
+                    continue
+                for file in os.listdir(path.as_posix()):
+                    file = path / file
+                    if file.stem == host and file.suffix == '.yaml':
+                        with file.open() as config_file:
+                            config_data = yc_yaml.load(config_file)
+                        break
+
+                print("\nConfig for " + host + " found at: " + str(file))
+                pprint.pprint(config_data, compact=True)
+
 
     @show_cmd('mode')
     def _modes_cmd(self, pav_cfg, args):
         """List all known mode files."""
 
-        modes = []
-        col_names = ['Name']
-        if args.verbose:
-            col_names.append('Path')
-        if args.cfg:
-            col_names.append('Full Config')
-        if args.vars:
-            col_names.append('Variables')
-        for conf_dir in pav_cfg.config_dirs:
-            path = conf_dir / 'modes'
+        if ars.config is None:
+            modes = []
+            col_names = ['Name']
+            if args.verbose:
+                col_names.append('Path')
+            if args.vars:
+                col_names.append('Variables')
+            for conf_dir in pav_cfg.config_dirs:
+                path = conf_dir / 'modes'
 
-            if not (path.exists() and path.is_dir()):
-                continue
+                if not (path.exists() and path.is_dir()):
+                    continue
 
-            for file in os.listdir(path.as_posix()):
+                for file in os.listdir(path.as_posix()):
 
-                file = path / file
-                if file.suffix == '.yaml' and file.is_file():
-                    mode_id = file.stem
-                    mode_path = file
-                    with file.open() as config_file:
-                        config_data = yc_yaml.load(config_file)
-                    try:
-                        mode_vars = list(config_data['variables'].keys())
-                    except (KeyError, TypeError) as err:
-                        mode_vars = []
+                    file = path / file
+                    if file.suffix == '.yaml' and file.is_file():
+                        mode_id = file.stem
+                        mode_path = file
+                        with file.open() as config_file:
+                            config_data = yc_yaml.load(config_file)
+                        try:
+                            mode_vars = list(config_data['variables'].keys())
+                        except (KeyError, TypeError) as err:
+                            mode_vars = []
 
-                    modes.append({
-                        'Name': mode_id,
-                        'Path': mode_path,
-                        'Full Config': config_data,
-                        'Variables': mode_vars
-                    })
+                        modes.append({
+                            'Name': mode_id,
+                            'Path': mode_path,
+                            'Variables': mode_vars
+                        })
 
-        output.draw_table(
-            self.outfile,
-            field_info={},
-            fields=col_names,
-            rows=modes
-        )
+            output.draw_table(
+                self.outfile,
+                field_info={},
+                fields=col_names,
+                rows=modes
+            )
+
+        else:
+
+            mode = args.config
+
+            for conf_dir in pav_cfg.config_dirs:
+                path = conf_dir / 'modes'
+                if not (path.exists() and path.is_dir()):
+                    continue
+                for file in os.listdir(path.as_posix()):
+                    file = path / file
+                    if file.stem == host and file.suffix == '.yaml':
+                        with file.open() as config_file:
+                            config_data = yc_yaml.load(config_file)
+                        break
+
+                print("\nConfig for " + mode + " found at: " + str(file))
+                pprint.pprint(config_data, compact=True)
+
 
     @show_cmd('mod', 'module', 'modules', 'wrappers')
     def _module_wrappers_cmd(self, _, args):
