@@ -466,8 +466,8 @@ class ShowCommand(commands.Command):
                             config_data = yc_yaml.load(config_file)
                         break
 
-                pprint.pprint(config_data, compact=True)
-
+            output.fprint(("Host config for " + host + " found at:" + str(file)))
+            output.fprint(pprint.pformat(config_data, compact=True))
 
     @show_cmd('mode')
     def _modes_cmd(self, pav_cfg, args):
@@ -527,7 +527,8 @@ class ShowCommand(commands.Command):
                             config_data = yc_yaml.load(config_file)
                         break
 
-                pprint.pprint(config_data, compact=True)
+            output.fprint(("Mode config for " + host + " found at:" + str(file)))
+            output.fprint(pprint.pformat(config_data, compact=True))
 
 
     @show_cmd('mod', 'module', 'modules', 'wrappers')
