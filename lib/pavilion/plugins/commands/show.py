@@ -473,7 +473,7 @@ class ShowCommand(commands.Command):
     def _modes_cmd(self, pav_cfg, args):
         """List all known mode files."""
 
-        if ars.config is None:
+        if args.config is None:
             modes = []
             col_names = ['Name']
             if args.verbose:
@@ -522,12 +522,12 @@ class ShowCommand(commands.Command):
                     continue
                 for file in os.listdir(path.as_posix()):
                     file = path / file
-                    if file.stem == host and file.suffix == '.yaml':
+                    if file.stem == mode and file.suffix == '.yaml':
                         with file.open() as config_file:
                             config_data = yc_yaml.load(config_file)
                         break
 
-            output.fprint(("Mode config for " + host + " found at:" + str(file)))
+            output.fprint(("Mode config for " + mode + " found at:" + str(file)))
             output.fprint(pprint.pformat(config_data, compact=True))
 
 
