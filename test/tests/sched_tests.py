@@ -69,6 +69,9 @@ class SchedTests(PavTestCase):
                     'foo': 'baz'
                 }
 
+            def available(self):
+                return True
+
             def _in_alloc(self):
                 return self.in_alloc_var
 

@@ -48,7 +48,6 @@ class LogCmdTest(PavTestCase):
         result = log_cmd.run(self.pav_cfg, args)
         err.seek(0)
         out.seek(0)
-        self.dbg_print('bad_test', test.id)
         self.assertEqual(err.read(), '')
         self.assertEqual(out.read(), 'Hello World.\n')
         self.assertEqual(result, 0)

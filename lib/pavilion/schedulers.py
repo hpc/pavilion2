@@ -129,12 +129,17 @@ Naming Conventions:
         """Get the info dict for the given key, and add the example to it."""
 
         info = super().info(key)
-        example = self[key]
-        if isinstance(example, DeferredVariable):
+        example = None
+        try:
+            example = self[key]
+        except (KeyError, ValueError, OSError):
+            pass
+
+        if example is None or isinstance(example, DeferredVariable):
             example = self.EXAMPLE.get(key, self.NO_EXAMPLE)
 
         if isinstance(example, list):
-            if len(example) > 10: 
+            if len(example) > 10:
                 example = example[:10] + ['...']
 
         info['example'] = example
@@ -144,8 +149,11 @@ Naming Conventions:
     @property
     def sched_data(self):
         """A convenience function for getting data from the scheduler."""
-        data = self.sched.get_data()
-        return data
+
+        if self.sched.available():
+            return self.sched.get_data()
+        else:
+            return {}
 
     def __repr__(self):
         for k in self.keys():
