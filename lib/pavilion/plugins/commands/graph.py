@@ -1,7 +1,10 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 
 from pavilion import commands
+from pavilion import series
+from pavilion.test_run import TestRun
 
 
 class GraphCommand(commands.Command):
@@ -41,15 +44,24 @@ class GraphCommand(commands.Command):
             help='The names of the tests to graph'
         ),
         parser.add_argument(
-            'values', nargs='+', action='store',
+            '--y', nargs='+', action='store',
             help='Specify the value(s) graphed from the results '
                  'for each test.'
         ),
         parser.add_argument(
-            'Xaxis', nargs=1, action='store',
+            '--x', nargs=1, action='store',
             help='Specify the value to be used on the X axis.'
+        ),
+        parser.add_argument(
+            '--x_label', action='store', default=False,
+            help='Specify the x axis label.'
+        ),
+        parser.add_argument(
+            '--y_label', action='store', default=False,
+            help='Specify the y axis label.'
         )
     def run(self, pav_cfg, args):
 
         print(args)
+        pass
 
