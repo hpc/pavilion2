@@ -173,7 +173,7 @@ def get_statuses(pav_cfg, args, errfile):
     return test_statuses
 
 
-def print_status(statuses, outfile, json=False):
+def print_status(statuses, outfile, json=False, show_skipped=False):
     """Prints the statuses provided in the statuses parameter.
 
 :param list statuses: list of dictionary objects containing the test
@@ -185,6 +185,10 @@ def print_status(statuses, outfile, json=False):
 :return: success or failure.
 :rtype: int
 """
+    
+    if not show_skipped:
+        statuses = [status for status in statuses 
+                    if status['state'] != STATES.SKIPPED]
 
     ret_val = 1
     for stat in statuses:
@@ -257,9 +261,11 @@ class StatusCommand(commands.Command):
         )
         parser.add_argument(
             '-s', '--summary', default=False, action='store_true',
-            help='Summary will display a summed version of what'
-                 'state were observed in pav status. '
+            help='Display a single line summary of test statuses.'
         )
+        parser.add_argument(
+            '-k', '--show-skipped', default=False, action='store_true',
+            help='Show the status of skipped tests.')
 
     def run(self, pav_cfg, args):
         """Gathers and prints the statuses from the specified test runs and/or
@@ -279,7 +285,7 @@ class StatusCommand(commands.Command):
         elif args.summary:
             return self.print_summary(test_statuses)
         else:
-            return print_status(test_statuses, self.outfile, args.json)
+            return print_status(test_statuses, self.outfile, args.json, args.show_skipped)
 
     def display_history(self, pav_cfg, args):
         """Display_history takes a test_id from the command
