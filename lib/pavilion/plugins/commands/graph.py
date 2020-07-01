@@ -20,7 +20,7 @@ class GraphCommand(commands.Command):
     def _setup_arguments(self, parser):
 
         parser.add_argument(
-            '--exclude', nargs='*',
+            '--exclude', nargs='*', default=[],
             help='Exclude tests, series, sys_names, test_names, '
                  'or users by providing specific IDs or names.'
         ),
@@ -77,19 +77,40 @@ class GraphCommand(commands.Command):
                 if args.date:
                     pass
                 # Filter tests by user.
-                if test_path.owner() in args.exclude:
+                owner = test_path.owner()
+                if owner in args.exclude:
                     continue
-                if args.user and test_path.owner() not in args.user:
+                if args.user and owner not in args.user:
                     continue
                 args.tests.append(test_path.name)
 
         test_list = []
         for test_id in args.tests:
-            # Expand series provide, as long as it wasn't meant to be excluded.
-            if test_id.startswith('s') and test_id not in args.exclude:
-                test_list.extend(series.TestSeries.from_id(pav_cfg, test_id))
+            # Expand series provided, as long as it wasn't meant to be excluded.
+            if test_id.startswith('s'):
+                if test_id in args.exclude:
+                    continue
+                else:
+                    test_list.extend(series.TestSeries.from_id(pav_cfg,
+                                                               test_id).tests)
             else:
                 test_list.append(int(test_id))
+
+        test_objects = []
+        for test_id in test_list:
+            test = TestRun.load(pav_cfg, test_id)
+            host = test.config.get('host')
+            # Filter tests by test name.
+            if args.test_name and test.name not in args.test_name:
+                continue
+            if test.name in args.exclude:
+                continue
+            # Filter tests by sys name.
+            if args.sys_name and host not in args.sys_name:
+                continue
+            if host in args.exclude:
+                continue
+            test_objects.append(test)
 
 
 
