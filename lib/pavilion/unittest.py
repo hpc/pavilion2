@@ -5,7 +5,6 @@ import copy
 import fnmatch
 import inspect
 import time
-import io
 import os
 import pprint
 import tempfile
@@ -13,6 +12,7 @@ import types
 import unittest
 from hashlib import sha1
 from pathlib import Path
+from typing import List
 
 from pavilion import arguments
 from pavilion import dir_db
@@ -315,6 +315,35 @@ The default config is: ::
             cfg['slurm'] = slurm_cfg['slurm']
 
         return cfg
+
+    def _load_test(self, name: str, host: str = 'this',
+                   modes: List[str] = None,
+                   build=True, finalize=True) -> List[TestRun]:
+        """Load the named test config from file. Returns a list of the
+        resulting configs."""
+
+        if modes is None:
+            modes = []
+
+        res = resolver.TestConfigResolver(self.pav_cfg)
+        test_cfgs = res.load([name], host, modes)
+
+        tests = []
+        for test_cfg, var_man in test_cfgs:
+            test = TestRun(self.pav_cfg, test_cfg, var_man=var_man)
+
+            if build:
+                test.build()
+
+            if finalize:
+                fin_sys = system_variables.SysVarDict(unique=True)
+                fin_var_man = VariableSetManager()
+                fin_var_man.add_var_set('sys', fin_sys)
+                test.finalize(fin_var_man)
+
+            tests.append(test)
+
+        return tests
 
     __config_lines = pprint.pformat(QUICK_TEST_BASE_CFG).split('\n')
     # Code analysis indicating format isn't found for 'bytes' is a Pycharm bug.

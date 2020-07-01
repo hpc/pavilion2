@@ -15,6 +15,7 @@ from pavilion.plugins.commands import run
 from pavilion.result import parsers, ResultError, base
 from pavilion.test_run import TestRun
 from pavilion.unittest import PavTestCase
+from pavilion.test_config import resolver
 
 LOGGER = logging.getLogger(__name__)
 
@@ -395,12 +396,14 @@ class ResultParserTests(PavTestCase):
               'blarg': 'return_value != 0'}, {'result': 'FAIL'}),
             # Make sure functions work.
             ({'sum': 'sum([1,2,3])'}, {'sum': 6}),
-            #
 
+            # Check basic math.
             ({'val_a': '3',
               'val_b': 'val_a + val_c',
               'val_c': 'val_a*2'},
              {'val_a': 3, 'val_b': 9, 'val_c': 6}),
+
+            # Check list operations.
             ({'list_ops': '[1, 2, 3] == 2'},
              {'list_ops': [False, True, False]}),
             ({'type_conv': 'n.*.data'},
@@ -514,5 +517,13 @@ class ResultParserTests(PavTestCase):
         self.assertEqual(reloaded_test.results, orig_test.results)
         self.assertEqual(reloaded_test.config, orig_test.config)
 
+    def test_re_search(self):
+        """"""
 
+        test = self._load_test('re_search')[0]
+        test.run()
+
+        results = test.gather_results(0)
+
+        print(results)
 
