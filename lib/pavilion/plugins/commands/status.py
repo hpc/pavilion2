@@ -185,9 +185,9 @@ def print_status(statuses, outfile, json=False, show_skipped=False):
 :return: success or failure.
 :rtype: int
 """
-    
+
     if not show_skipped:
-        statuses = [status for status in statuses 
+        statuses = [status for status in statuses
                     if status['state'] != STATES.SKIPPED]
 
     ret_val = 1
@@ -285,7 +285,8 @@ class StatusCommand(commands.Command):
         elif args.summary:
             return self.print_summary(test_statuses)
         else:
-            return print_status(test_statuses, self.outfile, args.json, args.show_skipped)
+            return print_status(test_statuses, self.outfile, args.json,
+                                args.show_skipped)
 
     def display_history(self, pav_cfg, args):
         """Display_history takes a test_id from the command

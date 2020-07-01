@@ -271,7 +271,7 @@ class ResultParserTests(PavTestCase):
             'result_parse': {
                 'table': {
                     'table1': {
-                        'delimiter': r'\\|',
+                        'delimiter': r'\|',
                         'col_num': '3'
                     },
                 },

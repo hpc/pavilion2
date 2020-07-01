@@ -85,6 +85,7 @@ class StringParserError(ValueError):
     def __str__(self):
         return "\n".join([self.message, self.context])
 
+_TREE_CACHE = {}
 
 def parse_text(text, var_man) -> str:
     """Parse the given text and return the parsed result. Will try to figure
@@ -102,7 +103,15 @@ def parse_text(text, var_man) -> str:
 
     def parse_fn(txt):
         """Shorthand for parsing text."""
-        return transformer.transform(parser.parse(txt))
+
+        tree = _TREE_CACHE.get(txt)
+        if tree is None:
+            tree = parser.parse(txt)
+            _TREE_CACHE[txt] = tree
+        else:
+            print('reused', txt)
+
+        return transformer.transform(tree)
 
     try:
         # On the surface it may seem that parsing and transforming should be
