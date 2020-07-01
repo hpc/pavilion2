@@ -54,13 +54,14 @@ class GraphCommand(commands.Command):
             help='Specify the value to be used on the X axis.'
         ),
         parser.add_argument(
-            '--x_label', action='store', default=False,
+            '--x_label', action='store', default="",
             help='Specify the x axis label.'
         ),
         parser.add_argument(
-            '--y_label', action='store', default=False,
+            '--y_label', action='store', default="",
             help='Specify the y axis label.'
         )
+
     def run(self, pav_cfg, args):
 
         tests_dir = pav_cfg.working_dir / 'test_runs'
@@ -71,7 +72,7 @@ class GraphCommand(commands.Command):
                 if not test_path.is_dir():
                     continue
                 # Filter excluded test ids.
-                if test_path.name in args.exclude:
+                if test_path.name.strip('0') in args.exclude:
                    continue
                 # Filter tests by date.
                 if args.date:
@@ -112,5 +113,17 @@ class GraphCommand(commands.Command):
                 continue
             test_objects.append(test)
 
+        # All tests should be filtered at this point.
 
+        result = []
+        tests = []
+        for test in test_objects:
+            result.append(test.results.get(args.y[0]))
+            tests.append(test.results.get(args.x[0]))
 
+        result = [float(x) for x in result]
+
+        plt.plot(tests, result, 'ro')
+        plt.ylabel(args.y_label)
+        plt.xlabel(args.x_label)
+        plt.show()
