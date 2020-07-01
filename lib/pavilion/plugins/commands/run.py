@@ -149,6 +149,8 @@ class RunCommand(commands.Command):
             self._complete_tests(all_tests)
             return res
 
+        all_tests = [test for test in all_tests if not test.skipped]
+
         res = self.build_local(
             tests=all_tests,
             max_threads=pav_cfg.build_threads,
@@ -443,7 +445,8 @@ name) of lists of tuples
 
             # Make sure the result parsers have reasonable arguments.
             try:
-                result.check_config(test.config['results'])
+                result.check_config(test.config['result_parse'],
+                                    test.config['result_evaluate'])
             except result.ResultError as err:
                 rp_errors.append((test, str(err)))
 

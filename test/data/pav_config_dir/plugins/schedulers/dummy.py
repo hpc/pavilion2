@@ -1,12 +1,16 @@
 import yaml_config as yc
+from collections import defaultdict
 from pavilion import schedulers
 from pavilion.status_file import STATES
 
 
 class DummyVars(schedulers.SchedulerVariables):
 
+    EXAMPLE = defaultdict(lambda: '')
+
     @schedulers.var_method
     def am_i_dumb(self):
+        "Derr..."
         return True
 
 
@@ -39,3 +43,8 @@ class Dummy(schedulers.SchedulerPlugin):
         """Do nothing, like a lazy jerk Class."""
 
         return True, "There was nothing to cancel, dummy."
+
+    def _get_data(self):
+        """No data to return."""
+
+        return {}

@@ -93,7 +93,6 @@ class SpecificPermsTests(PavTestCase):
                 out = out.decode()
                 self.fail("Error running command.\n{}".format(out))
         except sp.TimeoutExpired:
-            self.dbg_print(proc.stdout.read())
             self.fail()
         self.wait_tests(self.working_dir)
 

@@ -176,6 +176,13 @@ case that includes:
             raise RuntimeError("Only silenced commands can be cleared.")
 
         self.outfile.seek(0)
+        data = self.outfile.read()
+        self.outfile.seek(0)
         self.outfile.truncate(0)
+
+        self.errfile.seek(0)
+        err_data = self.errfile.read()
         self.errfile.seek(0)
         self.errfile.truncate(0)
+
+        return data, err_data
