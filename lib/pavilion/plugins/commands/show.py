@@ -541,7 +541,7 @@ class ShowCommand(commands.Command):
             )
 
     @show_cmd("sched", "scheduler")
-    def _scheduler_cmd(self, _, args):
+    def _scheduler_cmd(self, pav_cfg, args):
         """
         :param argparse.Namespace args:
         """
@@ -561,7 +561,10 @@ class ShowCommand(commands.Command):
 
         if args.vars is not None:
             sched_vars = []
-            svars = sched.get_vars({})
+
+            empty_config = file_format.TestConfigLoader().load_empty()
+            
+            svars = sched.get_vars(empty_config[sched_name])
 
             for key in sorted(list(svars.keys())):
                 sched_vars.append(svars.info(key))
@@ -569,7 +572,7 @@ class ShowCommand(commands.Command):
             output.draw_table(
                 self.outfile,
                 field_info={},
-                fields=['name', 'deferred', 'help'],
+                fields=['name', 'deferred', 'example', 'help'],
                 rows=sched_vars,
                 title="Variables for the {} scheduler plugin.".format(args.vars)
             )

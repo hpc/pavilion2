@@ -17,3 +17,6 @@ class NotAvailable(schedulers.SchedulerPlugin):
 
     def available(self):
         return False
+
+    def _get_data(self):
+        return {}

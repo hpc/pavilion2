@@ -74,6 +74,30 @@ class SlurmVars(SchedulerVariables):
     """Scheduler variables for the Slurm scheduler."""
     # pylint: disable=no-self-use
 
+    EXAMPLE = {
+        "alloc_cpu_total": "36",
+        "alloc_max_mem": "128842",
+        "alloc_max_ppn": "36",
+        "alloc_min_mem": "128842",
+        "alloc_min_ppn": "36",
+        "alloc_node_list": ["node004", "node005"],
+        "alloc_nodes": "2",
+        "max_mem": "128842",
+        "max_ppn": "36",
+        "min_mem": "128842",
+        "min_ppn": "36",
+        "node_avail_list": ["node003", "node004", "node005"],
+        "node_list": ["node001", "node002", "node003", "node004", "node005"],
+        "node_up_list": ["node002", "node003", "node004", "node005"],
+        "nodes": "371",
+        "nodes_avail": "3",
+        "nodes_up": "350",
+        "test_cmd": "srun -N 2 -n 2",
+        "test_node_list": ["node004", "node005"],
+        "test_nodes": "2",
+        "test_procs": "2",
+    }
+
     @var_method
     def min_ppn(self):
         """The minimum processors per node across all nodes."""
