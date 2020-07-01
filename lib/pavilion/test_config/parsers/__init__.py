@@ -66,6 +66,10 @@ BAD_EXAMPLES = [
     ErrorCat('Unclosed List', ['{{a + [1, 2}}', '{{a + [1,}}']),
     ErrorCat('Misplaced Comma', ['{{a + [,1,2,]}}',
                                  '{{a + [1,2,,]}}']),
+    ErrorCat('Missing Close Parenthesis',
+             ['hello(1, "world"',
+              'hello(1, 12',
+              'hello(1, 12.3']),
 ]
 
 

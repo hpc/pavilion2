@@ -59,7 +59,7 @@ class FileCommand(commands.Command):
             output.fprint(job_dir)
             return 0
 
-        output.fprint(str(job_dir) + ':', file=sys.stdout)
+        output.fprint(str(job_dir) + ':', file=self.outfile)
 
         if args.tree is True:
             level = 0
@@ -71,25 +71,25 @@ class FileCommand(commands.Command):
         else:
             return self.ls_(job_dir)
 
-    @staticmethod
-    def ls_(dir_):
+    def ls_(self, dir_):
         """Print a directory listing for the given run directory."""
 
         if not dir_.is_dir():
             output.fprint("directory '{}' does not exist.".format(dir_),
-                          file=sys.stderr, color=output.RED)
+                          file=self.errfile, color=output.RED)
             return errno.EEXIST
 
         for filename in dir_.iterdir():
             if filename.is_dir():
-                output.fprint(filename.name, file=sys.stdout, color=output.BLUE)
+                output.fprint(filename.name, file=self.outfile,
+                              color=output.BLUE)
             elif filename.is_symlink():
                 output.fprint("{} -> {}".format(filename.name,
                                                 filename.resolve()),
-                              file=sys.stdout,
+                              file=self.outfile,
                               color=output.CYAN)
             else:
-                output.fprint(filename.name, file=sys.stdout)
+                output.fprint(filename.name, file=self.outfile)
 
         return 0
 
@@ -103,14 +103,14 @@ class FileCommand(commands.Command):
                 output.fprint("{}{} -> {}".format('    '*level,
                                                   filename.name,
                                                   filename.resolve()),
-                              file=sys.stdout,
+                              file=self.outfile,
                               color=output.CYAN)
             elif filename.is_dir():
                 output.fprint("{}{}/".format('    '*level,
                                              filename.name),
-                              file=sys.stdout,
+                              file=self.outfile,
                               color=output.BLUE)
                 self.tree_(level + 1, filename)
             else:
                 output.fprint("{}{}".format('    '*level, filename.name),
-                              file=sys.stdout)
+                              file=self.outfile)

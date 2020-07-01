@@ -66,7 +66,6 @@ class FloorPlugin(CoreFunctionPlugin):
 
         super().__init__(
             name="floor",
-            description="Return the integer floor.",
             arg_specs=(float,))
 
     @staticmethod
@@ -203,16 +202,13 @@ class KeysPlugin(CoreFunctionPlugin):
 
 
 class AllPlugin(CoreFunctionPlugin):
-    """Return whether all of the items in the given list are true. Accepts
-    numeric and booleans as list items."""
+    """Return whether all of the items in the given list are true."""
 
     def __init__(self):
         """Setup plugin"""
 
         super().__init__(
             name='all',
-            description='Return whether all the items in the given list are '
-                        'true.',
             arg_specs=([num],)
         )
 
@@ -223,8 +219,7 @@ class AllPlugin(CoreFunctionPlugin):
 
 
 class AnyPlugin(CoreFunctionPlugin):
-    """Return whether any of the items in the given list are true. Accepts
-    numeric and booleans as list items."""
+    """Return whether any of the items in the given list are true."""
 
     def __init__(self):
         """Setup plugin"""

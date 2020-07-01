@@ -520,10 +520,18 @@ class ResultParserTests(PavTestCase):
     def test_re_search(self):
         """"""
 
+        answers = {
+            'hello': '33',
+            'ip': '127.33.123.43',
+            'all_escapes': r'.^$*\+?\{}\[]|'
+        }
+
         test = self._load_test('re_search')[0]
         test.run()
 
         results = test.gather_results(0)
 
-        print(results)
+        for key, answer in answers.items():
+            self.assertEqual(results[key], answer)
+
 

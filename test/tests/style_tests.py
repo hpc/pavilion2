@@ -25,6 +25,8 @@ def has_pylint():
     else:
         return False
 
+    if version.endswith(','):
+        version = version[:-1]
     version = tuple(int(vpart) for vpart in version.split('.'))
 
     if version < _MIN_PYLINT_VERSION:

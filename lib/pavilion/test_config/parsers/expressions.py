@@ -454,11 +454,9 @@ class BaseExprTransformer(PavTransformer):
         return tok
 
     def ESCAPED_STRING(self, tok: lark.Token) -> lark.Token:
-        """Remove quotes and escapes from the given string."""
+        """Remove quotes from the given string."""
 
-        # I cannot think of a string that will make this fail that will
-        # also be matched as a token...
-        tok.value = ast.literal_eval(tok.value)
+        tok.value = ast.literal_eval('r' + tok.value)
         return tok
 
     def _convert(self, value):
