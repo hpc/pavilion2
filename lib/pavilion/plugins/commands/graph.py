@@ -139,9 +139,12 @@ class GraphCommand(commands.Command):
                     y_data_list.append(arg_data)
 
             else:
-                x_data.append(float(args.x[0]))
+                x_data.append(float(test.results.get(args.x[0])))
                 for arg in args.y:
-                    y_data_list.append(float(test.results.get(arg)))
+                    elem_dict = test.results
+                    for key in arg.split("."):
+                        elem_dict = elem_dict[key]
+                    y_data_list.append(float(elem_dict))
 
             for y_data, arg in zip(y_data_list, args.y):
                 plt.plot(x_data, y_data, 'o') # label = arg eventually.
