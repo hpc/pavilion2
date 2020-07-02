@@ -1,13 +1,9 @@
 """Series are a collection of test runs."""
 
 import logging
-import json
 import os
-from pathlib import Path
 
-from pavilion import system_variables
 from pavilion import utils
-from pavilion.lockfile import LockFile
 from pavilion.test_run import TestRun, TestRunError, TestRunNotFoundError
 
 
@@ -82,7 +78,6 @@ class TestSeries:
                         .format(test.path, link_path, err))
 
             self._save_series_id()
-            self._sys_name_series_tracking()
 
         else:
             self._id = _id
@@ -159,38 +154,6 @@ associated tests."""
             # It's ok if we can't write this file.
             self._logger.warning("Could not save series id to '%s'",
                                  last_series_fn)
-
-    def _sys_name_series_tracking(self):
-        """Save the series id to json file that tracks last series ran by user
-        on a per system basis."""
-
-        sys_vars = system_variables.get_vars(True)
-        sys_name = sys_vars['sys_name']
-
-        json_file = self.pav_cfg.working_dir/'users'
-        json_file /= '{}.json'.format(utils.get_login())
-
-        lockfile_path = json_file.parent/(json_file.name + '.lock')
-        lockfile = LockFile(lockfile_path)
-
-        with lockfile:
-            data = {}
-            try:
-                with json_file.open('r') as json_series_file:
-                    try:
-                        data = json.load(json_series_file)
-                    except json.decoder.JSONDecodeError as err:
-                        # File was empty, therefore json couldn't be loaded.
-                        pass
-                with json_file.open('w') as json_series_file:
-                    data[sys_name] = self.id
-                    json_series_file.write(json.dumps(data))
-
-            except FileNotFoundError as err:
-                # File hadn't been created yet.
-                with json_file.open('w') as json_series_file:
-                    data[sys_name] = self.id
-                    json_series_file.write(json.dumps(data))
 
     @classmethod
     def load_user_series_id(cls, pav_cfg):
