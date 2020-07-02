@@ -67,6 +67,9 @@ class GraphCommand(commands.Command):
 
         tests_dir = pav_cfg.working_dir / 'test_runs'
 
+        if args.date:
+            date = datetime.strptime(args.date, '%B %d %Y')
+
         # No tests provided, check filters, append tests.
         if not args.tests:
             for test_path in tests_dir.iterdir():
@@ -77,7 +80,9 @@ class GraphCommand(commands.Command):
                    continue
                 # Filter tests by date.
                 if args.date:
-                    pass
+                    test_date = datetime.fromtimestamp(test_path.stat().st_ctime)
+                    if test_date.date() != date.date():
+                        continue
                 # Filter tests by user.
                 owner = test_path.owner()
                 if owner in args.exclude:
@@ -114,10 +119,7 @@ class GraphCommand(commands.Command):
                 continue
             test_objects.append(test)
 
-        # All tests should be filtered at this point.
-
         KEYS_RE = re.compile(r'keys\((.*)\)')
-
         for test in test_objects:
             y_data_list = []
             x_data = []
