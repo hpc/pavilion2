@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+import re
 from datetime import datetime
 
 from pavilion import commands
@@ -115,15 +116,37 @@ class GraphCommand(commands.Command):
 
         # All tests should be filtered at this point.
 
-        result = []
-        tests = []
+        KEYS_RE = re.compile(r'keys\((.*)\)')
+
         for test in test_objects:
-            result.append(test.results.get(args.y[0]))
-            tests.append(test.results.get(args.x[0]))
+            y_data_list = []
+            x_data = []
+            if 'keys' in args.x[0]:
+                arg = KEYS_RE.match(args.x[0]).groups()[0]
+                r = test.results.get(arg)
+                # Get X Values.
+                for elem in r.keys():
+                    x_data.append(float(re.search(r'\d+',
+                                                  elem).group().strip('0')))
+                # Get Y Values.
+                for arg in args.y:
+                    arg_data = []
+                    for elem in r.keys():
+                        elem_dict = r.get(elem)
+                        for key in arg.split("."):
+                            elem_dict = elem_dict[key]
+                        arg_data.append(float(elem_dict))
+                    y_data_list.append(arg_data)
 
-        result = [float(x) for x in result]
+            else:
+                x_data.append(float(args.x[0]))
+                for arg in args.y:
+                    y_data_list.append(float(test.results.get(arg)))
 
-        plt.plot(tests, result, 'ro')
+            for y_data, arg in zip(y_data_list, args.y):
+                plt.plot(x_data, y_data, 'o') # label = arg eventually.
+
         plt.ylabel(args.y_label)
         plt.xlabel(args.x_label)
+        plt.legend()
         plt.show()
