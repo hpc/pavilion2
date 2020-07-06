@@ -1,24 +1,23 @@
 """The run command resolves tests by their names, builds them, and runs them."""
 
-import codecs
 import errno
 import pathlib
-import time
 import threading
+import time
 from collections import defaultdict
+from typing import List, Union
 
 from pavilion import commands
 from pavilion import output
-from pavilion.output import fprint
 from pavilion import result
 from pavilion import schedulers
-from pavilion import system_variables
 from pavilion import test_config
+from pavilion.builder import MultiBuildTracker
+from pavilion.output import fprint, clear_line
 from pavilion.plugins.commands.status import print_from_test_obj
 from pavilion.series import TestSeries, test_obj_from_id
 from pavilion.status_file import STATES
 from pavilion.test_run import TestRun, TestRunError, TestConfigError
-from pavilion.builder import MultiBuildTracker
 
 
 class RunCommand(commands.Command):
@@ -278,8 +277,7 @@ class RunCommand(commands.Command):
             return print_from_test_obj(
                 pav_cfg=pav_cfg,
                 test_obj=tests,
-                outfile=self.outfile,
-                json=False)
+                outfile=self.outfile)
 
         return 0
 
@@ -321,7 +319,8 @@ name) of lists of tuples
                 tests,
                 host,
                 modes,
-                overrides
+                overrides,
+                output_file=self.outfile,
             )
         except TestConfigError as err:
             raise commands.CommandError(err.args[0])
@@ -380,8 +379,6 @@ name) of lists of tuples
         :return:
         :rtype: {}
         """
-
-        sys_vars = system_variables.get_vars(True)
 
         try:
             configs_by_sched = self._get_test_configs(pav_cfg=pav_cfg,
@@ -474,7 +471,7 @@ name) of lists of tuples
         :param MultiBuildTracker mb_tracker: The tracker for all builds.
         """
 
-        test_threads = []   # type: [(threading.Thread, None)]
+        test_threads = []   # type: List[Union[threading.Thread, None]]
         remote_builds = []
 
         cancel_event = threading.Event()
@@ -512,9 +509,6 @@ name) of lists of tuples
 
         # Used to track which threads are for which tests.
         test_by_threads = {}
-
-        # The length of the last line printed when verbosity == 0.
-        last_line_len = None
 
         if build_verbosity > 0:
             fprint(self.BUILD_STATUS_PREAMBLE
@@ -572,6 +566,7 @@ name) of lists of tuples
                                     "Build aborted due to failures in other "
                                     "builds.")
 
+                clear_line(self.outfile)
                 fprint("Build error while building tests. Cancelling runs.",
                        color=output.RED, file=self.outfile)
 
@@ -594,10 +589,7 @@ name) of lists of tuples
                 for state in sorted(state_counts.keys()):
                     parts.append("{}: {}".format(state, state_counts[state]))
                 line = ' | '.join(parts)
-                if last_line_len is not None:
-                    fprint(' '*last_line_len, end='\r', file=self.outfile,
-                           width=None)
-                last_line_len = len(line)
+                clear_line(self.outfile)
                 fprint(line, end='\r', file=self.outfile, width=None)
             elif build_verbosity > 1:
                 for test in tests:

@@ -108,8 +108,6 @@ def parse_text(text, var_man) -> str:
         if tree is None:
             tree = parser.parse(txt)
             _TREE_CACHE[txt] = tree
-        else:
-            print('reused', txt)
 
         return transformer.transform(tree)
 
