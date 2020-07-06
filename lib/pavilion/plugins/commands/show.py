@@ -286,8 +286,7 @@ class ShowCommand(commands.Command):
             'tests',
             aliases=['test'],
             help="Show the available tests.",
-            description="""Test configurations that can be run using Pavilion.
-            """
+            description="""Test configurations that can be run using Pavilion."""
         )
         tests.add_argument(
             '--verbose', '-v',
@@ -303,6 +302,10 @@ class ShowCommand(commands.Command):
             '--err',
             action='store_true', default=False,
             help='Display any errors encountered while reading the test.'
+        )
+        tests.add_argument(
+            '--doc', action='store', type=str, dest='test_name', 
+            help="Show test documentation string."
         )
 
         subparsers.add_parser(
@@ -726,6 +729,10 @@ class ShowCommand(commands.Command):
     @show_cmd("test")
     def _tests_cmd(self, pav_cfg, args):
 
+        if args.test_name is not None:
+            self._test_docs_subcmd(pav_cfg, args)
+            return
+
         resolv = resolver.TestConfigResolver(pav_cfg)
         suites = resolv.find_all_tests()
         rows = []
@@ -775,6 +782,50 @@ class ShowCommand(commands.Command):
             rows=rows,
             title="Available Tests"
         )
+
+    def _test_docs_subcmd(self, pav_cfg, args): 
+        """Show the documentation for the requested test."""
+
+        resolv = resolver.TestConfigResolver(pav_cfg)
+        suites = resolv.find_all_tests()
+
+        parts = args.test_name.split('.')
+        if len(parts) != 2:
+            output.fprint(
+                "You must give a test name as '<suite>.<test>'.",
+                file=self.outfile, color=output.RED)
+            return
+
+        suite_name, test_name = parts
+
+        if suite_name not in suites:
+            output.fprint(
+                "No such suite: '{}'.\n"
+                "Available test suites:\n{}"
+                .format(suite_name, "\n".join(sorted(suites.keys()))),
+                file=self.outfile, color=output.RED)
+            return
+        tests = suites[suite_name]['tests']
+        if test_name not in tests:
+            output.fprint(
+                "No such test '{}' in suite '{}'.\n"
+                "Available tests in suite:\n{}"
+                .format(test_name, suite_name, 
+                        "\n".join(sorted(tests.keys()))))
+            return
+
+        test = tests[test_name]
+
+        output.fprint("Name:", args.test_name, file=self.outfile)
+        maintainer = test.get('maintainer', {}).get('name', '')
+        email = test.get('maintainer', {}).get('email', '')
+        output.fprint("Maintainer:", maintainer, file=self.outfile)
+        output.fprint("Email:", email, file=self.outfile)
+        output.fprint(
+            "Summary: {}".format(test.get('summary', '')), 
+            file=self.outfile)
+        output.fprint("Documentation:\n", file=self.outfile)
+        output.fprint(test.get('doc', ''))
 
     @show_cmd()
     def _test_config_cmd(self, *_):
