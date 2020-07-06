@@ -13,7 +13,7 @@ from pavilion import result
 from pavilion import schedulers
 from pavilion import test_config
 from pavilion.builder import MultiBuildTracker
-from pavilion.output import fprint, clear_line
+from pavilion.output import fprint
 from pavilion.plugins.commands.status import print_from_test_obj
 from pavilion.series import TestSeries, test_obj_from_id
 from pavilion.status_file import STATES
@@ -333,7 +333,7 @@ name) of lists of tuples
 
     @staticmethod
     def _configs_to_tests(pav_cfg, configs_by_sched, mb_tracker=None,
-                          build_only=False, rebuild=False):
+                          build_only=False, rebuild=False, outfile=None):
         """Convert the dictionary of test configs by scheduler into actual
         tests.
 
@@ -347,6 +347,8 @@ name) of lists of tuples
         """
 
         tests_by_sched = {}
+        progress = 0
+        tot_tests = sum([len(tests) for tests in configs_by_sched.values()])
 
         for sched_name in configs_by_sched.keys():
             tests_by_sched[sched_name] = []
@@ -361,8 +363,15 @@ name) of lists of tuples
                         build_only=build_only,
                         rebuild=rebuild,
                     ))
+                    progress += 1.0/tot_tests
+                    if outfile is not None:
+                        fprint("Creating Test Runs: {:.0%}".format(progress),
+                               file=outfile, end='\r')
             except (TestRunError, TestConfigError) as err:
                 raise commands.CommandError(err)
+
+        if outfile is not None:
+            fprint('', file=outfile)
 
         return tests_by_sched
 
@@ -406,6 +415,7 @@ name) of lists of tuples
                 mb_tracker=mb_tracker,
                 build_only=build_only,
                 rebuild=args.rebuild,
+                outfile=self.outfile,
             )
 
         except commands.CommandError as err:
@@ -542,6 +552,7 @@ name) of lists of tuples
                     builds_running -= 1
                     test_threads[i] = None
                     test = test_by_threads[thread]
+                    del test_by_threads[thread]
 
                     # Only output test status after joining a thread.
                     if build_verbosity == 1:
@@ -561,14 +572,15 @@ name) of lists of tuples
                 for thread in test_threads:
                     thread.join()
 
-                for test in build_order + remote_builds:
-                    test.status.set(STATES.ABORTED,
-                                    "Build aborted due to failures in other "
-                                    "builds.")
+                for test in tests:
+                    if (test.status.current().state not in
+                            (STATES.BUILD_FAILED, STATES.BUILD_ERROR)):
+                        test.status.set(
+                            STATES.ABORTED,
+                            "Run aborted due to failures in other builds.")
 
-                clear_line(self.outfile)
                 fprint("Build error while building tests. Cancelling runs.",
-                       color=output.RED, file=self.outfile)
+                       color=output.RED, file=self.outfile, clear=True)
 
                 for failed_build in mb_tracker.failures():
                     fprint(
@@ -589,8 +601,8 @@ name) of lists of tuples
                 for state in sorted(state_counts.keys()):
                     parts.append("{}: {}".format(state, state_counts[state]))
                 line = ' | '.join(parts)
-                clear_line(self.outfile)
-                fprint(line, end='\r', file=self.outfile, width=None)
+                fprint(line, end='\r', file=self.outfile, width=None, 
+                       clear=True)
             elif build_verbosity > 1:
                 for test in tests:
                     seen = message_counts[test.id]

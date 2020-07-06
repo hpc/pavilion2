@@ -283,7 +283,7 @@ class TestConfigResolver:
 
             if output_file is not None:
                 progress += 1.0/len(raw_tests)
-                output.fprint("Loading Tests: {:.0%}".format(progress),
+                output.fprint("Resolving Test Configs: {:.0%}".format(progress),
                               file=output_file, end='\r')
 
         if output_file:

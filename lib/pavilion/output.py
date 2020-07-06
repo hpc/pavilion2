@@ -126,7 +126,7 @@ def clear_line(outfile):
 
 
 def fprint(*args, color=None, bullet='', width=0, wrap_indent=0,
-           sep=' ', file=sys.stdout, end='\n', flush=False):
+           sep=' ', file=sys.stdout, end='\n', flush=False, clear=False):
     """Print with automatic wrapping, bullets, and other features. Also accepts
     all print() kwargs.
 
@@ -142,7 +142,11 @@ def fprint(*args, color=None, bullet='', width=0, wrap_indent=0,
         terminal's width and wrap to that.
     :param str end: String appended after the last value (default \\n)
     :param bool flush: Whether to forcibly flush the stream.
+    :param bool clear: Perform a 'clear_line' before printing.
 """
+
+    if clear:
+        clear_line(file)
 
     args = [str(a) for a in args]
     if color is not None:
