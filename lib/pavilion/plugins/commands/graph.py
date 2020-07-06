@@ -29,7 +29,7 @@ class GraphCommand(commands.Command):
         ),
         parser.add_argument(
             '--test_name', action='store', default=False,
-            help='Filter tests to graph by test_name.'
+            help='Filter tests by test_name.'
         ),
         parser.add_argument(
             '--sys_name', action='store', default=False,
@@ -77,16 +77,18 @@ class GraphCommand(commands.Command):
                               "format: {}".format(args.date, err))
                 return errno.EINVAL
 
-        # Expand ranges if they were provided.
-        for i in range(len(args.tests)):
-            if '-' in args.tests[i]:
-                lower, higher = args.tests[i].split('-')
-                range_list = range(int(lower), int(higher))
-                args.tests.extend([str(x) for x in range_list])
-                args.tests.pop(i)
+        # A list of tests or series was provided
+        if args.testss:
+            # Expand ranges if they were provided.
+            for i in range(len(args.tests)):
+                if '-' in args.tests[i]:
+                    lower, higher = args.tests[i].split('-')
+                    range_list = range(int(lower), int(higher))
+                    args.tests.extend([str(x) for x in range_list])
+                    args.tests.pop(i)
 
         # No tests provided, check filters, append tests.
-        if not args.tests:
+        else:
             for test_path in tests_dir.iterdir():
                 if not test_path.is_dir():
                     continue
@@ -106,17 +108,21 @@ class GraphCommand(commands.Command):
                     continue
                 args.tests.append(test_path.name)
 
-        test_list = []
-        for test_id in args.tests:
-            # Expand series provided, as long as it wasn't meant to be excluded.
-            if test_id.startswith('s'):
-                if test_id in args.exclude:
-                    continue
-                else:
-                    test_list.extend(series.TestSeries.from_id(pav_cfg,
+        if args.tests is None:
+            output.fprint("No tests matched theses filters.")
+            return errno.EINVAL
+
+        else:
+            test_list = []
+            for test_id in args.tests:
+                # Expand series provided, as long as it wasn't meant to be excluded.
+                if test_id.startswith('s') and test_id not in args.exclude:
+                        test_list.extend(series.TestSeries.from_id(pav_cfg,
                                                                test_id).tests)
-            else:
-                test_list.append(int(test_id))
+                elif test_id not in args.exclude:
+                        test_list.append(int(test_id))
+                else:
+                    continue
 
         test_objects = []
         for test_id in test_list:
