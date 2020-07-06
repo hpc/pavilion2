@@ -103,13 +103,11 @@ def parse_text(text, var_man) -> str:
 
     def parse_fn(txt):
         """Shorthand for parsing text."""
-
+        
         tree = _TREE_CACHE.get(txt)
         if tree is None:
             tree = parser.parse(txt)
             _TREE_CACHE[txt] = tree
-        else:
-            print('reused', txt)
 
         return transformer.transform(tree)
 
