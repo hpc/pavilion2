@@ -114,6 +114,17 @@ print dbg statements and easily excise it later.
     sys.stderr.flush()
 
 
+def clear_line(outfile):
+    """Clear the last line written to output. Assumes the line ended with
+    a \\r rather than a newline."""
+
+    size = shutil.get_terminal_size()
+
+    outfile.write('\r')
+    outfile.write(' '*size.columns)
+    outfile.write('\r')
+
+
 def fprint(*args, color=None, bullet='', width=0, wrap_indent=0,
            sep=' ', file=sys.stdout, end='\n', flush=False):
     """Print with automatic wrapping, bullets, and other features. Also accepts
