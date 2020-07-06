@@ -77,6 +77,14 @@ class GraphCommand(commands.Command):
                               "format: {}".format(args.date, err))
                 return errno.EINVAL
 
+        # Expand ranges if they were provided.
+        for i in range(len(args.tests)):
+            if '-' in args.tests[i]:
+                lower, higher = args.tests[i].split('-')
+                range_list = range(int(lower), int(higher))
+                args.tests.extend([str(x) for x in range_list])
+                args.tests.pop(i)
+
         # No tests provided, check filters, append tests.
         if not args.tests:
             for test_path in tests_dir.iterdir():
