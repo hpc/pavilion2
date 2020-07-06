@@ -1,0 +1,11 @@
+test:
+  variables:
+    ip_line: "this is an ip (127.33.123.43) address."
+
+  result_evaluate:
+    hello: 're_search("\d+", "hello 33")'
+    ip: 're_search("\d+\.[0-9]{1,3}\.\d*.[12]?[0-9]?[0-9]", "{{ip_line}}")'
+    all_escapes: 're_search("\.\^\$\*\\\+\?\\\{\}\\\[\]\|", "
+                  .^$*\+?\{}\[]|")'
+
+

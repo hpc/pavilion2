@@ -62,8 +62,8 @@ FORMAT: /:(.?[<>=^])?[+ -]?#?0?\d*[_,]?(.\d+)?[bcdeEfFgGnosxX%]?/
 //    escape the closing characters).
 //  - Strings must end with the end of string, an open expression '{{',
 //    an open iteration '[~', or a tilde.
-//  - If this is confusing, look at ESCAPED_STRING above. It's the uses the
-//    same basic structure, 
+//  - If this is confusing, look at ESCAPED_STRING above. It's uses the
+//    same basic structure, but is only bookended by quotes.
 STRING: /((?<=}}|.\]|\[~)|^)/ _STRING_INNER /(?=$|}}|{{|\[~|~)/
 _STRING_INNER: /(?!{{|\[~|~|}})(.|\s)+?(?<!\\)(\\\\)*/
 '''
@@ -150,7 +150,8 @@ class StringTransformer(PavTransformer):
                 token_list.append(item)
             else:
                 item.value = self._unescape(
-                    item.value, {'{': '{', '[': '[', '~': '~'})
+                    item.value, {'\\{{': '{{', '\\~': '~',
+                                 '\\\\{{': '\\{{', '\\\\~': '\\~'})
 
                 token_list.append(item)
 
@@ -201,7 +202,8 @@ class StringTransformer(PavTransformer):
 
         # The original tokens will be set as the inner value.
         inner_items = items[0].value
-        separator = self._unescape(items[1].value[1:-1], {']': ']'})
+        separator = self._unescape(items[1].value[1:-1],
+                                   {'\\]': ']', '\\\\]': '\\]'})
 
         expressions = [item for item in inner_items
                        if item.type == self.EXPRESSION]
@@ -272,13 +274,30 @@ class StringTransformer(PavTransformer):
         :return:
         """
 
-        escapes = escapes.copy()
-        escapes['\\'] = '\\'
+        pos = 0
+        text_parts = []
+        while pos < len(text):
+            idx = text.find('\\', pos)
+            if idx == -1:
+                break
 
-        for res, repl in escapes.items():
-            text = text.replace('\\' + res, repl)
+            for esc_key in escapes:
+                # Look for one of our escape sequences.
+                if text[idx:idx+len(esc_key)] == esc_key:
+                    text_parts.append(text[pos:idx])
+                    text_parts.append(escapes[esc_key])
+                    pos = idx + len(esc_key)
+                    break
+            else:
+                # Skip the backslash
+                text_parts.append(text[pos:idx+1])
+                pos = idx + 1
 
-        return text
+        text_parts.append(text[pos:])
+
+        out = ''.join(text_parts)
+
+        return out
 
     @staticmethod
     def parse_expr(expr: lark.Token) -> lark.Tree:

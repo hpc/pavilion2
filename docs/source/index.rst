@@ -6,6 +6,7 @@ API Documentation
     args_and_config.rst
     builder.rst
     commands.rst
+    dir_db.rst
     expression_functions.rst
     log_setup.rst
     misc.rst
