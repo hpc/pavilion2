@@ -54,6 +54,8 @@ def main():
                              "for this check.")
     parser.add_argument('-v', '--verbose', action='store_true', default=False,
                         help="Print all log output to stderr.")
+    parser.add_argument('-q', '--quiet', action='store_true', default=False,
+                        help="Silence.")
     parser.add_argument('-C', '--no-clear', action='store_true', default=False,
                         help="Don't clear the working directory before "
                              "running.")
@@ -71,11 +73,13 @@ def main():
         print("Clearing out the working directory from prior unit test runs.")
         shutil.rmtree(working_dir, ignore_errors=True)
 
+    verbosity = 0 if args.quiet else 2
+
     loader = unittest.TestLoader()
     suite = loader.discover(tests_dir.as_posix(), pattern='*_tests.py')
     runner = unittest.TextTestRunner(
         resultclass=ColorResult,
-        verbosity=2)
+        verbosity=verbosity)
     result = runner.run(suite)
     return len(result.errors) + len(result.failures)
 

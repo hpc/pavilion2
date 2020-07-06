@@ -5,7 +5,6 @@ import copy
 import fnmatch
 import inspect
 import time
-import io
 import os
 import pprint
 import tempfile
@@ -13,9 +12,10 @@ import types
 import unittest
 from hashlib import sha1
 from pathlib import Path
+from typing import List
 
 from pavilion import arguments
-from pavilion import commands
+from pavilion import dir_db
 from pavilion import config
 from pavilion import pavilion_variables
 from pavilion import system_variables
@@ -316,6 +316,35 @@ The default config is: ::
 
         return cfg
 
+    def _load_test(self, name: str, host: str = 'this',
+                   modes: List[str] = None,
+                   build=True, finalize=True) -> List[TestRun]:
+        """Load the named test config from file. Returns a list of the
+        resulting configs."""
+
+        if modes is None:
+            modes = []
+
+        res = resolver.TestConfigResolver(self.pav_cfg)
+        test_cfgs = res.load([name], host, modes)
+
+        tests = []
+        for test_cfg, var_man in test_cfgs:
+            test = TestRun(self.pav_cfg, test_cfg, var_man=var_man)
+
+            if build:
+                test.build()
+
+            if finalize:
+                fin_sys = system_variables.SysVarDict(unique=True)
+                fin_var_man = VariableSetManager()
+                fin_var_man.add_var_set('sys', fin_sys)
+                test.finalize(fin_var_man)
+
+            tests.append(test)
+
+        return tests
+
     __config_lines = pprint.pformat(QUICK_TEST_BASE_CFG).split('\n')
     # Code analysis indicating format isn't found for 'bytes' is a Pycharm bug.
     _quick_test_cfg.__doc__ = _quick_test_cfg.__doc__.format(
@@ -377,25 +406,30 @@ The default config is: ::
         :param timeout: How long to wait before giving up.
         """
 
+        def is_complete(path: Path):
+            """Return True if test is complete."""
+
+            return (path/TestRun.COMPLETE_FN).exists()
+
         runs_dir = working_dir / 'test_runs'
         end_time = time.time() + timeout
         while time.time() < end_time:
 
-            completion_files = [path/TestRun.COMPLETE_FN
-                                for path in runs_dir.iterdir()]
+            completed = [is_complete(test) for test in dir_db.select(runs_dir)]
 
-            if not completion_files:
+            if not completed:
                 self.fail("No tests started.")
 
-            all_done = all([cfile.exists() for cfile in completion_files])
-
-            if all_done:
+            if all(completed):
                 break
             else:
                 time.sleep(0.1)
                 continue
         else:
-            raise TimeoutError
+            raise TimeoutError(
+                "Waiting on tests: {}"
+                .format(test.name for test in dir_db.select(runs_dir)
+                        if is_complete(test)))
 
 
 class ColorResult(unittest.TextTestResult):

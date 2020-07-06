@@ -126,22 +126,6 @@ def get_mime_type(path):
     return category, subtype
 
 
-ID_DIGITS = 7
-ID_FMT = '{id:0{digits}d}'
-
-
-def make_id_path(base_path, id_):
-    """Create the full path to an id directory given its base path and
-    the id.
-
-    :param Path base_path: The path to where id directories are stored.
-    :param int id_: The id number
-    :rtype: Path
-    """
-
-    return base_path / (ID_FMT.format(id=id_, digits=ID_DIGITS))
-
-
 def get_login():
     """Get the current user's login, either through os.getlogin or
     the environment, or the id command."""

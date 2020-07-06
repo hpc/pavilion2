@@ -7,6 +7,7 @@ from pathlib import Path
 
 from pavilion import commands
 from pavilion import output
+from pavilion import dir_db
 from pavilion.status_file import STATES
 from pavilion.test_run import TestRun, TestRunError, TestRunNotFoundError
 
@@ -167,7 +168,7 @@ class CleanCommand(commands.Command):
         # Clean Series
         output.fprint("Removing Series...", file=self.outfile,
                       color=output.GREEN)
-        for series in series_dir.iterdir():
+        for series in dir_db.select(series_dir):
             for test in series.iterdir():
                 if (test.is_symlink() and
                         test.exists() and
