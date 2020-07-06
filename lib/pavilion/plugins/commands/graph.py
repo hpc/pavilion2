@@ -1,3 +1,4 @@
+import errno
 import matplotlib.pyplot as plt
 import numpy as np
 import os
@@ -5,6 +6,7 @@ import re
 from datetime import datetime
 
 from pavilion import commands
+from pavilion import output
 from pavilion import series
 from pavilion.test_run import TestRun
 
@@ -68,7 +70,12 @@ class GraphCommand(commands.Command):
         tests_dir = pav_cfg.working_dir / 'test_runs'
 
         if args.date:
-            date = datetime.strptime(args.date, '%B %d %Y')
+            try:
+                date = datetime.strptime(args.date, '%b %d %Y')
+            except ValueError as err:
+                output.fprint("{} is not a valid date "
+                              "format: {}".format(args.date, err))
+                return errno.EINVAL
 
         # No tests provided, check filters, append tests.
         if not args.tests:
@@ -127,9 +134,14 @@ class GraphCommand(commands.Command):
                 arg = KEYS_RE.match(args.x[0]).groups()[0]
                 r = test.results.get(arg)
                 # Get X Values.
+                if r is None:
+                    output.fprint("{} does not exist in {}'s results."
+                                  .format(arg, test.name))
+                    return errno.EINVAL
+
                 for elem in r.keys():
                     x_data.append(float(re.search(r'\d+',
-                                                  elem).group().strip('0')))
+                                              elem).group().strip('0')))
                 # Get Y Values.
                 for arg in args.y:
                     arg_data = []
@@ -141,7 +153,13 @@ class GraphCommand(commands.Command):
                     y_data_list.append(arg_data)
 
             else:
-                x_data.append(float(test.results.get(args.x[0])))
+                result = test.rests.get(args.x[0])
+                if result is None:
+                    output.fprint("{} does not exist in {}'s "
+                                  "results.".format(args.x[0]. test.name))
+                    return errno.EINVAL
+
+                x_data.append(float(result))
                 for arg in args.y:
                     elem_dict = test.results
                     for key in arg.split("."):
