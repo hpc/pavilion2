@@ -454,22 +454,17 @@ class ShowCommand(commands.Command):
         else:
 
             host = args.config
+            config_data, file = self.get_config(pav_cfg, host, 'hosts')
+            if config_data is not None:
+                output.fprint("Host config for {} found at:{}".format(host,
+                                                                       str(file)),
+                               file=self.outfile)
+                output.fprint(pprint.pformat(config_data, compact=True),
+                              file=self.outfile)
+            else:
+                output.fprint("No host config found for {}.".format(mode))
+                return errno.EINVAL
 
-            for conf_dir in pav_cfg.config_dirs:
-                path = conf_dir / 'hosts'
-                if not (path.exists() and path.is_dir()):
-                    continue
-                for file in os.listdir(path.as_posix()):
-                    file = path / file
-                    if file.stem == host and file.suffix == '.yaml':
-                        with file.open() as config_file:
-                            config_data = yc_yaml.load(config_file)
-                        break
-
-            output.fprint(("Host config for " + host + " found at:" +
-                           str(file)), file=self.outfile)
-            output.fprint(pprint.pformat(config_data, compact=True),
-                          file=self.outfile)
 
     @show_cmd('mode')
     def _modes_cmd(self, pav_cfg, args):
@@ -515,24 +510,17 @@ class ShowCommand(commands.Command):
             )
 
         else:
-
             mode = args.config
-
-            for conf_dir in pav_cfg.config_dirs:
-                path = conf_dir / 'modes'
-                if not (path.exists() and path.is_dir()):
-                    continue
-                for file in os.listdir(path.as_posix()):
-                    file = path / file
-                    if file.stem == mode and file.suffix == '.yaml':
-                        with file.open() as config_file:
-                            config_data = yc_yaml.load(config_file)
-                        break
-
-            output.fprint(("Mode config for " + mode + " found at:" +
-                           str(file)), file=self.outfile)
-            output.fprint(pprint.pformat(config_data, compact=True),
-                          file=self.outfile)
+            config_data, file = self.get_config(pav_cfg, mode, 'modes')
+            if config_data is not None:
+                output.fprint("Mode config for {} found at:{}".format(mode,
+                                                                       str(file)),
+                               file=self.outfile)
+                output.fprint(pprint.pformat(config_data, compact=True),
+                              file=self.outfile)
+            else:
+                output.fprint("No mode config found for {}.".format(mode))
+                return errno.EINVAL
 
 
     @show_cmd('mod', 'module', 'modules', 'wrappers')
@@ -866,3 +854,19 @@ class ShowCommand(commands.Command):
     def _test_config_cmd(self, *_):
         """Show the basic test config format."""
         file_format.TestConfigLoader().dump(self.outfile)
+
+    def get_config(self, pav_cfg, name, directory):
+
+        for conf_dir in pav_cfg.config_dirs:
+            path = conf_dir / directory
+            if not (path.exists() and path.is_dir()):
+                continue
+            for file in os.listdir(path.as_posix()):
+                file = path / file
+                if file.stem == name and file.suffix == '.yaml':
+                    with file.open() as config_file:
+                        config_data = yc_yaml.load(config_file)
+                    return config_data, file
+
+        return None, None
+
