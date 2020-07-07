@@ -8,6 +8,7 @@ import errno
 import os
 import subprocess
 import zipfile
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Iterator
 
@@ -236,3 +237,46 @@ def repair_symlinks(base: Path) -> None:
                 rel_target = relative_to(target, sym_dir)
                 file.unlink()
                 file.symlink_to(rel_target)
+
+
+def retrieve_datetime(args, errfile):
+    """Returns a valid datetime object range to filter
+    tests objects via time, e.g. show tests that ran this past week."""
+    # Converting time arguments into valid datetime object.
+    try:
+        time_amount = int(args.time[0])
+        time_unit = args.time[1]
+    except ValueError:
+        output.fprint("Invalid Format. Use the from: $AMOUNT $UNIT e.g."
+                      " '5 hours'", file=errfile, color=output.RED)
+        return None  # No datetime to return invalid format.
+
+    # Convert time into hours.
+    if time_unit == 'second' or time_unit == 'seconds':
+        time_amount = time_amount / 3600
+    elif time_unit == 'minute' or time_unit == 'minutes':
+        time_amount = time_amount / 60
+    elif time_unit == 'hour' or time_unit == 'hours':
+        time_amount = time_amount * 1
+    elif time_unit == 'day' or time_unit == 'days':
+        time_amount = time_amount * 24
+    elif time_unit == 'week' or time_unit == 'weeks':
+        time_amount = time_amount * 168
+    elif time_unit == 'month' or time_unit == 'months':
+        time_amount = time_amount * 720
+    elif time_unit == 'year' or time_unit == 'years':
+        time_amount = time_amount * 8760
+    else:
+        output.fprint("Invalid time unit, --time only accepts "
+                      "second(s), minute(s), hour(s), day(s), "
+                      "week(s), month(s), and year(s).",
+                      file=errfile, color=output.RED)
+        return None  # No datetime to return invalid format.
+    try:
+        search_date = datetime.today() - timedelta(hours=time_amount)
+    except OverflowError:
+        # Make the assumption if the user asks for tests in the last
+        # 10,000 year we just return the oldest possible datetime obj.
+        search_date = datetime(1, 1, 1)
+
+    return search_date

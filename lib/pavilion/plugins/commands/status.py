@@ -11,6 +11,7 @@ from pavilion import output
 from pavilion import schedulers
 from pavilion import series
 from pavilion import test_run
+from pavilion import utils
 from pavilion.status_file import STATES
 from pavilion.test_run import TestRun, TestRunError, TestRunNotFoundError
 
@@ -67,34 +68,6 @@ def status_from_test_obj(pav_cfg, test_obj):
     return test_statuses
 
 
-def get_all_tests(pav_cfg, args):
-    """Return the statuses for all tests, up to the limit in args.limit."""
-
-    latest_tests = test_run.get_latest_tests(pav_cfg, args.limit)
-
-    test_obj_list = []
-    test_statuses = []
-    for test_id in latest_tests:
-        try:
-            test = TestRun.load(pav_cfg, test_id)
-            test_obj_list.append(test)
-        except (TestRunError, TestRunNotFoundError) as err:
-            test_statuses.append({
-                'test_id': test_id,
-                'name':    "",
-                'state':   STATES.UNKNOWN,
-                'time':    "",
-                'note':    "Test not found: {}".format(err)
-            })
-
-    statuses = status_from_test_obj(pav_cfg, test_obj_list)
-
-    if statuses is not None:
-        test_statuses = test_statuses + statuses
-
-    return test_statuses
-
-
 def get_tests(pav_cfg, args, errfile):
     """
     Gets the tests depending on arguments.
@@ -139,37 +112,54 @@ def get_tests(pav_cfg, args, errfile):
     return test_list
 
 
-def get_statuses(pav_cfg, args, errfile):
-    """Get the statuses of the listed tests or series.
+def trim_tests(pav_cfg, args, errfile):
+    """Consolidates and filters test_status list based on
+    the limiting argument flags under 'pav status'. """
 
-:param pav_cfg: The pavilion config.
-:param argparse namespace args: The tests via the command line args.
-:param errfile: stream to output errors as needed.
-:returns: List of dictionary objects with the test id, name, state,
-          time that the most recent status was set, and the associated
-          note.
-"""
-
-    test_list = get_tests(pav_cfg, args, errfile)
     test_statuses = []
     test_obj_list = []
-    for test_id in test_list:
-        try:
-            test = TestRun.load(pav_cfg, test_id)
-            test_obj_list.append(test)
-        except (TestRunError, TestRunNotFoundError) as err:
-            test_statuses.append({
-                'test_id': test_id,
-                'name':    "",
-                'state':   STATES.UNKNOWN,
-                'time':    "",
-                'note':    "Error loading test: {}".format(err),
-            })
+
+    if args.all:
+        tests = test_run.get_latest_tests(pav_cfg)
+    else:
+        tests = test_run.get_latest_tests(pav_cfg, args.limit)
+
+    if args.time:
+        time_limit = utils.retrieve_datetime(args, errfile)
+        for test_id in tests:
+            try:
+                test = TestRun.load(pav_cfg, test_id)
+                if test.status.current().when > time_limit:
+                    test_obj_list.append(test)
+
+            except (TestRunError, TestRunNotFoundError) as err:
+                test_statuses.append({
+                    'test_id': test_id,
+                    'name':    "",
+                    'state':   STATES.UNKNOWN,
+                    'time':    "",
+                    'note':    "Test not found: {}".format(err)
+                })
+    else:
+        for test_id in tests:
+            try:
+                test = TestRun.load(pav_cfg, test_id)
+                test_obj_list.append(test)
+
+            except (TestRunError, TestRunNotFoundError) as err:
+                test_statuses.append({
+                    'test_id': test_id,
+                    'name':    "",
+                    'state':   STATES.UNKNOWN,
+                    'time':    "",
+                    'note':    "Test not found: {}".format(err)
+                })
 
     statuses = status_from_test_obj(pav_cfg, test_obj_list)
 
     if statuses is not None:
         test_statuses = test_statuses + statuses
+
     return test_statuses
 
 
@@ -260,15 +250,16 @@ class StatusCommand(commands.Command):
             help='Summary will display a summed version of what'
                  'state were observed in pav status. '
         )
+        parser.add_argument(
+            '-t', '--time', type=str, default=False, nargs=2,
+            help='Retrieves tests up to the given date or time.'
+        )
 
     def run(self, pav_cfg, args):
         """Gathers and prints the statuses from the specified test runs and/or
         series."""
         try:
-            if not args.all:
-                test_statuses = get_statuses(pav_cfg, args, self.errfile)
-            else:
-                test_statuses = get_all_tests(pav_cfg, args)
+            test_statuses = trim_tests(pav_cfg, args, self.errfile)
         except commands.CommandError as err:
             output.fprint("Status Error:", err, color=output.RED,
                           file=self.errfile)
