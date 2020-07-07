@@ -77,16 +77,15 @@ class GraphCommand(commands.Command):
                               "format: {}".format(args.date, err))
                 return errno.EINVAL
 
-        # A list of tests or series was provided
+        # A list of tests or series was provided.
         if args.tests:
             args.tests = self.expand_ranges(args.tests)
 
-        # No tests provided, check filters, append tests.
-        else:
-            args.tests = self.filter_tests(pav_cfg, args)
-            if args.tests is None:
-                output.fprint("No tests matched theses filters.")
-                return errno.EINVAL
+        # Check filters, append/remove tests.
+        args.tests = self.filter_tests(pav_cfg, args, args.tests)
+        if args.tests is None:
+            output.fprint("No tests matched theses filters.")
+            return errno.EINVAL
 
         tests = self.test_ids_to_objects(pav_cfg, args.tests, args)
 
@@ -155,17 +154,19 @@ class GraphCommand(commands.Command):
 
         return updated_test_list
 
-    def filter_tests(self, pav_cfg, args):
+    def filter_tests(self, pav_cfg, args, tests):
 
         tests_dir = pav_cfg.working_dir / 'test_runs'
 
         test_list = []
         for test_path in tests_dir.iterdir():
+            name = test_path.name.strip('0')
+            if tests is not None and name not in tests:
+                continue
             if not test_path.is_dir():
                 continue
-            # Filter excluded test ids.
-            if test_path.name.strip('0') in args.exclude:
-               continue
+            if name in args.exclude:
+                continue
             # Filter tests by date.
             if args.date:
                 test_date = datetime.fromtimestamp(test_path.stat().st_ctime)
