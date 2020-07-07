@@ -304,7 +304,7 @@ class ShowCommand(commands.Command):
             help='Display any errors encountered while reading the test.'
         )
         tests.add_argument(
-            '--doc', action='store', type=str, dest='test_name', 
+            '--doc', action='store', type=str, dest='test_name',
             help="Show test documentation string."
         )
 
@@ -783,7 +783,7 @@ class ShowCommand(commands.Command):
             title="Available Tests"
         )
 
-    def _test_docs_subcmd(self, pav_cfg, args): 
+    def _test_docs_subcmd(self, pav_cfg, args):
         """Show the documentation for the requested test."""
 
         resolv = resolver.TestConfigResolver(pav_cfg)
@@ -810,22 +810,20 @@ class ShowCommand(commands.Command):
             output.fprint(
                 "No such test '{}' in suite '{}'.\n"
                 "Available tests in suite:\n{}"
-                .format(test_name, suite_name, 
+                .format(test_name, suite_name,
                         "\n".join(sorted(tests.keys()))))
             return
 
         test = tests[test_name]
 
         output.fprint("Name:", args.test_name, file=self.outfile)
-        maintainer = test.get('maintainer', {}).get('name', '')
-        email = test.get('maintainer', {}).get('email', '')
-        output.fprint("Maintainer:", maintainer, file=self.outfile)
-        output.fprint("Email:", email, file=self.outfile)
+        output.fprint("Maintainer:", test['maintainer'], file=self.outfile)
+        output.fprint("Email:", test['email'], file=self.outfile)
         output.fprint(
-            "Summary: {}".format(test.get('summary', '')), 
+            "Summary: {}".format(test['summary']),
             file=self.outfile)
         output.fprint("Documentation:\n", file=self.outfile)
-        output.fprint(test.get('doc', ''))
+        output.fprint(test['doc'])
 
     @show_cmd()
     def _test_config_cmd(self, *_):

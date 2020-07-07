@@ -190,6 +190,8 @@ class TestConfigResolver:
                     for test_name, conf in suite_cfgs.items():
                         suites[suite_name]['tests'][test_name] = {
                             'conf': conf,
+                            'maintainer': conf['maintainer']['name'],
+                            'email': conf['maintainer']['email'],
                             'summary': conf['summary'],
                             'doc': conf['doc'],
                         }
