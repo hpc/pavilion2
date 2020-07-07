@@ -7,6 +7,7 @@ lazily executed, and the results are cached.
 from collections import UserDict
 from functools import wraps
 import logging
+import inspect
 
 
 def var_method(func):
@@ -79,18 +80,17 @@ class VarDict(UserDict):
 
         self.logger = logging.getLogger('{}_vars'.format(name))
 
-    @classmethod
-    def _find_vars(cls):
+    def _find_vars(self):
         """Find all the scheduler variables and add them as variables."""
 
         keys = set()
-        for key in cls.__dict__.keys():
+        for key, member in inspect.getmembers(self):
 
             # Ignore anything that starts with an underscore
             if key.startswith('_'):
                 continue
-            obj = getattr(cls, key)
-            if callable(obj) and getattr(obj, '_is_var_method', False):
+
+            if callable(member) and getattr(member, '_is_var_method', False):
                 keys.add(key)
         return keys
 

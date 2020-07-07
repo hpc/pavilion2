@@ -66,6 +66,10 @@ BAD_EXAMPLES = [
     ErrorCat('Unclosed List', ['{{a + [1, 2}}', '{{a + [1,}}']),
     ErrorCat('Misplaced Comma', ['{{a + [,1,2,]}}',
                                  '{{a + [1,2,,]}}']),
+    ErrorCat('Missing Close Parenthesis',
+             ['hello(1, "world"',
+              'hello(1, 12',
+              'hello(1, 12.3']),
 ]
 
 
@@ -81,6 +85,7 @@ class StringParserError(ValueError):
     def __str__(self):
         return "\n".join([self.message, self.context])
 
+_TREE_CACHE = {}
 
 def parse_text(text, var_man) -> str:
     """Parse the given text and return the parsed result. Will try to figure
@@ -98,7 +103,13 @@ def parse_text(text, var_man) -> str:
 
     def parse_fn(txt):
         """Shorthand for parsing text."""
-        return transformer.transform(parser.parse(txt))
+        
+        tree = _TREE_CACHE.get(txt)
+        if tree is None:
+            tree = parser.parse(txt)
+            _TREE_CACHE[txt] = tree
+
+        return transformer.transform(tree)
 
     try:
         # On the surface it may seem that parsing and transforming should be

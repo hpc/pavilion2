@@ -2,6 +2,7 @@
 It shouldn't be run directly; use bin/pav instead."""
 
 import logging
+import os
 import sys
 import traceback
 
@@ -34,11 +35,14 @@ def main():
     """Setup Pavilion and run a command."""
 
     # Pavilion is compatible with python >= 3.4
-    if sys.version_info[0] != 3 or sys.version_info[1] < 4:
-        output.fprint("Pavilion requires python 3.4 or higher.",
+    if sys.version_info[0] != 3 or sys.version_info[1] < 5:
+        output.fprint("Pavilion requires python 3.5 or higher.",
                       color=output.RED,
                       file=sys.stderr)
         sys.exit(-1)
+
+    # This has to be done before we initialize plugins
+    parser = arguments.get_parser()
 
     # Get the config, and
     try:
@@ -76,9 +80,6 @@ def main():
     if not log_setup.setup_loggers(pav_cfg):
         sys.exit(1)
 
-    # This has to be done before we initialize plugins
-    parser = arguments.get_parser()
-
     # Initialize all the plugins
     try:
         plugins.initialize_plugins(pav_cfg)
@@ -90,18 +91,35 @@ def main():
             file=sys.stderr)
         sys.exit(-1)
 
-    pav_cfg.pav_vars = pavilion_variables.PavVars()
-
     # Parse the arguments
     try:
         args = parser.parse_args()
     except Exception:
-        # TODO: Handle argument parsing errors correctly.
         raise
 
     if args.command_name is None:
         parser.print_help()
         sys.exit(0)
+
+    pav_cfg.pav_vars = pavilion_variables.PavVars()
+
+    if not args.profile:
+        run_cmd(pav_cfg, args)
+
+    else:
+        import cProfile
+        import pstats
+
+        stats_path = '/tmp/{}_pav_pstats'.format(os.getlogin())
+
+        cProfile.runctx('run_cmd(pav_cfg, args)', globals(), locals(), 
+                        stats_path)
+        stats = pstats.Stats(stats_path)
+        print("Profile Table")
+        stats.strip_dirs().sort_stats(args.profile_sort)\
+             .print_stats(args.profile_count) 
+
+def run_cmd(pav_cfg, args):
 
     try:
         cmd = commands.get_command(args.command_name)
