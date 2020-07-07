@@ -163,6 +163,40 @@ def trim_tests(pav_cfg, args, errfile):
     return test_statuses
 
 
+def get_statuses(pav_cfg, args, errfile):
+    """Get the statuses of the listed tests or series.
+
+:param pav_cfg: The pavilion config.
+:param argparse namespace args: The tests via the command line args.
+:param errfile: stream to output errors as needed.
+:returns: List of dictionary objects with the test id, name, state,
+          time that the most recent status was set, and the associated
+          note.
+"""
+
+    test_list = get_tests(pav_cfg, args, errfile)
+    test_statuses = []
+    test_obj_list = []
+    for test_id in test_list:
+        try:
+            test = TestRun.load(pav_cfg, test_id)
+            test_obj_list.append(test)
+        except (TestRunError, TestRunNotFoundError) as err:
+            test_statuses.append({
+                'test_id': test_id,
+                'name':    "",
+                'state':   STATES.UNKNOWN,
+                'time':    "",
+                'note':    "Error loading test: {}".format(err),
+            })
+
+    statuses = status_from_test_obj(pav_cfg, test_obj_list)
+
+    if statuses is not None:
+        test_statuses = test_statuses + statuses
+    return test_statuses
+
+
 def print_status(statuses, outfile, json=False, show_skipped=False):
     """Prints the statuses provided in the statuses parameter.
 
