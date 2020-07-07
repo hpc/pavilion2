@@ -67,27 +67,15 @@ class GraphCommand(commands.Command):
 
     def run(self, pav_cfg, args):
 
-        tests_dir = pav_cfg.working_dir / 'test_runs'
-
-        if args.date:
-            try:
-                date = datetime.strptime(args.date, '%b %d %Y')
-            except ValueError as err:
-                output.fprint("{} is not a valid date "
-                              "format: {}".format(args.date, err))
-                return errno.EINVAL
-
         # A list of tests or series was provided.
         if args.tests:
-            args.tests = self.expand_ranges(args.tests)
+            args.tests = self.normalize_args_tests(pav_cfg, args.tests)
 
         # Check filters, append/remove tests.
-        args.tests = self.filter_tests(pav_cfg, args, args.tests)
-        if args.tests is None:
-            output.fprint("No tests matched theses filters.")
+        tests = self.filter_tests(pav_cfg, args, args.tests)
+        if tests is None:
+            output.fprint("No tests matched these filters.")
             return errno.EINVAL
-
-        tests = self.test_ids_to_objects(pav_cfg, args.tests, args)
 
         KEYS_RE = re.compile(r'keys\((.*)\)')
         for test in tests:
@@ -140,7 +128,6 @@ class GraphCommand(commands.Command):
     def expand_ranges(self, test_list):
 
         updated_test_list = []
-
         for test in test_list:
             if '-' in test:
                 lower, higher = test.split('-')
@@ -151,27 +138,58 @@ class GraphCommand(commands.Command):
                 else:
                     range_list = range(int(lower), int(higher)+1)
                     updated_test_list.extend([str(x) for x in range_list])
+            else:
+                updated_test_list.append(test)
 
         return updated_test_list
 
+    def normalize_args_tests(self, pav_cfg, test_list):
+
+        test_list = self.expand_ranges(test_list)
+
+        normalized_test_list = []
+        for test in test_list:
+            # Normalize test string to appear as it would in test_runs dir.
+            if not test.startswith('s'):
+                normalized_test_list.append(test.zfill(7))
+            # If series, expand and normalize
+            else:
+                for s_test in series.TestSeries.from_id(pav_cfg,
+                                                        test).tests:
+                    normalized_test_list.append(str(s_test).zfill(7))
+
+        return normalized_test_list
+
     def filter_tests(self, pav_cfg, args, tests):
 
-        tests_dir = pav_cfg.working_dir / 'test_runs'
+        # Validate date filter, if provided.
+        if args.date:
+            try:
+                date = datetime.strptime(args.date, '%b %d %Y')
+            except ValueError as err:
+                output.fprint("{} is not a valid date "
+                              "format: {}".format(args.date, err))
+                return errno.EINVAL
 
+        tests_dir = pav_cfg.working_dir / 'test_runs'
         test_list = []
+        # Filter Tests
         for test_path in tests_dir.iterdir():
-            name = test_path.name.strip('0')
-            if tests is not None and name not in tests:
-                continue
             if not test_path.is_dir():
                 continue
-            if name in args.exclude:
+
+            # Tests were provided, check additonal filters on those only.
+            if tests and test_path.name not in tests:
                 continue
+            if test_path.name in args.exclude:
+                continue
+
             # Filter tests by date.
             if args.date:
                 test_date = datetime.fromtimestamp(test_path.stat().st_ctime)
                 if test_date.date() != date.date():
                     continue
+
             # Filter tests by user.
             owner = test_path.owner()
             if owner in args.exclude:
@@ -179,43 +197,23 @@ class GraphCommand(commands.Command):
             if args.user and owner not in args.user:
                 continue
 
-            test_list.append(test_path.name)
+            # Load Test Object, to check Host name and Test Name
+            test = TestRun.load(pav_cfg, int(test_path.name))
 
-        return test_list
-
-    def test_strings_to_ids(self, pav_cfg, tests, args):
-
-        test_list = []
-        for test_id in tests:
-            # Expand series provided, as long as it wasn't meant to be excluded.
-            if test_id.startswith('s') and test_id not in args.exclude:
-                    test_list.extend(series.TestSeries.from_id(pav_cfg,
-                                                           test_id).tests)
-            elif test_id not in args.exclude:
-                    test_list.append(int(test_id))
-            else:
-                continue
-
-        return test_list
-
-    def test_ids_to_objects(self, pav_cfg, tests, args):
-
-        tests = self.test_strings_to_ids(pav_cfg, tests, args)
-
-        test_objects = []
-        for test_id in tests:
-            test = TestRun.load(pav_cfg, test_id)
             host = test.config.get('host')
             # Filter tests by test name.
             if args.test_name and test.name not in args.test_name:
                 continue
             if test.name in args.exclude:
                 continue
+
             # Filter tests by sys name.
             if args.sys_name and host not in args.sys_name:
                 continue
             if host in args.exclude:
                 continue
-            test_objects.append(test)
 
-        return test_objects
+            test_list.append(test)
+
+        return test_list
+
