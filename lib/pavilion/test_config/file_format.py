@@ -310,7 +310,7 @@ expected to be added to by various plugins.
                               "according to the internal (file-magic) type. "
                               "For relative paths Pavilion looks in the "
                               "test_src directory "
-                              "within all known config directories. If this"
+                              "within all known config directories. If this "
                               "is left blank, Pavilion will always assume "
                               "there is no source to build."),
                 yc.StrElem(

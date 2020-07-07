@@ -60,11 +60,14 @@ class FunctionPlugin(IPlugin.IPlugin):
     PRIO_COMMON = 10
     PRIO_USER = 20
 
-    def __init__(self, name, description, arg_specs,
+    core = False
+
+    def __init__(self, name, arg_specs, description=None,
                  priority=PRIO_COMMON):
         """
         :param str name: The name of this function.
-        :param str description: A short description of this function.
+        :param str description: A short description of this function. The
+            class docstring is used by default.
         :param int priority: The plugin priority.
         :param [type] arg_specs: A list of type specs for each function
             argument. The spec for each argument defines what structure
@@ -79,8 +82,17 @@ class FunctionPlugin(IPlugin.IPlugin):
                 "Invalid function name: '{}'".format(name))
 
         self.name = name
-        self.description = description
         self.priority = priority
+
+        if description is None:
+            if self.__doc__ == FunctionPlugin.__doc__:
+                raise FunctionPluginError(
+                    "A plugin description is required. Either add a doc "
+                    "string to the plugin class, or provide a description "
+                    "argument to __init__."
+                )
+            description = ' '.join(self.__doc__.split())
+        self.description = description
 
         sig = inspect.signature(getattr(self, self.name))
 

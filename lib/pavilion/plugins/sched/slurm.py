@@ -340,6 +340,8 @@ class Slurm(SchedulerPlugin):
 
     VAR_CLASS = SlurmVars
 
+    NUM_NODES_REGEX = re.compile(r'^(\d+|all)(-(\d+|all))?$')
+
     NODE_SEQ_REGEX_STR = (
         # The characters in a valid hostname.
         r'[a-zA-Z][a-zA-Z_-]*\d*'
@@ -362,9 +364,8 @@ class Slurm(SchedulerPlugin):
     @staticmethod
     def _get_config_elems():
         return [
-            yc.RegexElem(
-                'num_nodes', regex=r'^(\d+|all)(-(\d+|all))?$',
-                default="1",
+            yc.StrElem(
+                'num_nodes', default="1",
                 help_text="Number of nodes requested for this test. "
                           "This can be a range (e.g. 12-24)."),
             yc.StrElem('tasks_per_node', default="1",
@@ -979,6 +980,12 @@ class Slurm(SchedulerPlugin):
 
         # Figure out the requested number of nodes
         num_nodes = sched_config.get('num_nodes')
+
+        if self.NUM_NODES_REGEX.match(num_nodes) is None:
+            raise SchedulerPluginError(
+                "Invalid value for 'num_nodes'. Got '{}', expected something "
+                "like '3', 'all', or '1-all'.".format(num_nodes))
+
         min_all = False
         if '-' in num_nodes:
             min_nodes, max_nodes = num_nodes.split('-')
