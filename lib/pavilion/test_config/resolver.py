@@ -383,7 +383,7 @@ class TestConfigResolver:
                         "should never happen. {}".format(test_suite_path, err))
 
                 # Check test compatibility with current pavilion version
-                comp_error = self.check_version_compatibility(test_suite_cfg)
+                comp_error = self.check_suite_version_compatibility(test_suite_cfg)
 
                 if comp_error:
                     raise TestConfigError(
@@ -495,7 +495,7 @@ class TestConfigResolver:
         else:
             return None
 
-    def check_version(self, version, min_version, max_version):
+    def check_test_version_compatibility(self, version, min_version, max_version):
         """Returns a bool on if the test is compatible with the current version
         of pavilion."""
 
@@ -513,7 +513,7 @@ class TestConfigResolver:
         else:
             return False
 
-    def check_version_compatibility(self, test_suite_cfg):
+    def check_suite_version_compatibility(self, test_suite_cfg):
         """Checks each test_cfg in a given suite for compatibility with current
         pavilion install."""
 
@@ -539,8 +539,8 @@ class TestConfigResolver:
                     "compatible_pav_versions value ('{}')."
                     .format(test, test_suite, comp_versions))
 
-            if not self.check_version(version, min_version,
-                                      max_version):
+            if not self.check_test_version_compatibility(version, min_version,
+                                                         max_version):
                 err = ("\n'{}' is not compatible with pavilion "
                        "'{}'. Compatible versions '{}'.")
                 comp_error += err.format(test, version,
