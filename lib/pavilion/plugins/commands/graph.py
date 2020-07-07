@@ -67,13 +67,17 @@ class GraphCommand(commands.Command):
 
     def run(self, pav_cfg, args):
 
+        # Validate Args.
+        args = self.validate_args(args)
+
         # A list of tests or series was provided.
+        # Expand series, convert test_ids into format found in working dir
         if args.tests:
             args.tests = self.normalize_args_tests(pav_cfg, args.tests)
 
         # Check filters, append/remove tests.
         tests = self.filter_tests(pav_cfg, args, args.tests)
-        if tests is None:
+        if not tests:
             output.fprint("No tests matched these filters.")
             return errno.EINVAL
 
@@ -125,6 +129,19 @@ class GraphCommand(commands.Command):
         plt.legend()
         plt.show()
 
+    def validate_args(self, args):
+
+        # Validate Date.
+        if args.date:
+            try:
+                args.date = datetime.strptime(args.date, '%b %d %Y')
+            except ValueError as err:
+                output.fprint("{} is not a valid date "
+                              "format: {}".format(args.date, err))
+                return errno.EINVAL
+
+        return args
+
     def expand_ranges(self, test_list):
 
         updated_test_list = []
@@ -162,58 +179,66 @@ class GraphCommand(commands.Command):
 
     def filter_tests(self, pav_cfg, args, tests):
 
-        # Validate date filter, if provided.
-        if args.date:
-            try:
-                date = datetime.strptime(args.date, '%b %d %Y')
-            except ValueError as err:
-                output.fprint("{} is not a valid date "
-                              "format: {}".format(args.date, err))
-                return errno.EINVAL
-
         tests_dir = pav_cfg.working_dir / 'test_runs'
         test_list = []
-        # Filter Tests
-        for test_path in tests_dir.iterdir():
-            if not test_path.is_dir():
-                continue
-
-            # Tests were provided, check additonal filters on those only.
-            if tests and test_path.name not in tests:
-                continue
-            if test_path.name in args.exclude:
-                continue
-
-            # Filter tests by date.
-            if args.date:
-                test_date = datetime.fromtimestamp(test_path.stat().st_ctime)
-                if test_date.date() != date.date():
+        # Filter All Tests.
+        if not tests:
+            for test_path in tests_dir.iterdir():
+                test = self.apply_filters(pav_cfg, args, test_path)
+                if test is None:
                     continue
+                test_list.append(test)
 
-            # Filter tests by user.
-            owner = test_path.owner()
-            if owner in args.exclude:
-                continue
-            if args.user and owner not in args.user:
-                continue
-
-            # Load Test Object, to check Host name and Test Name
-            test = TestRun.load(pav_cfg, int(test_path.name))
-
-            host = test.config.get('host')
-            # Filter tests by test name.
-            if args.test_name and test.name not in args.test_name:
-                continue
-            if test.name in args.exclude:
-                continue
-
-            # Filter tests by sys name.
-            if args.sys_name and host not in args.sys_name:
-                continue
-            if host in args.exclude:
-                continue
-
-            test_list.append(test)
+        # Filter provided list of tests.
+        else:
+            for test_id in tests:
+                test_path = tests_dir / test_id
+                test = self.apply_filters(pav_cfg, args, test_path)
+                if test is None:
+                    continue
+                test_list.append(test)
 
         return test_list
+
+    def apply_filters(self, pav_cfg, args, test_path):
+
+        # Make sure given path is a directory.
+        if not test_path.is_dir():
+            return None
+
+        if test_path.name in args.exclude:
+            return None
+
+        # Filter tests by date.
+        if args.date:
+            test_date = datetime.fromtimestamp(test_path.stat().st_ctime)
+            if test_date.date() != args.date.date():
+                return None
+
+        # Filter tests by user.
+        owner = test_path.owner()
+        if args.user and owner not in args.user:
+            return None
+        if owner in args.exclude:
+            return None
+
+        # Load Test Object, to check Host name and Test Name
+        test = TestRun.load(pav_cfg, int(test_path.name))
+
+        host = test.config.get('host')
+        # Filter tests by test name.
+        if args.test_name and test.name not in args.test_name:
+            return None
+        if test.name in args.exclude:
+            return None
+
+        # Filter tests by sys name.
+        if args.sys_name and host not in args.sys_name:
+            return None
+        if host in args.exclude:
+            return None
+
+        return test
+
+
 
