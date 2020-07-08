@@ -5,10 +5,6 @@ Utilities
 
 .. contents:: Table of Contents
 
-Test and Suite Directories
---------------------------
-.. autofunction:: pavilion.utils.make_id_path
-
 File Handling
 -------------
 .. autofunction:: pavilion.utils.flat_walk

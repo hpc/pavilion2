@@ -5,8 +5,8 @@ import errno
 import os
 from typing import Union
 
-import yaml_config
 import pavilion.result.base
+import yaml_config
 from pavilion import commands
 from pavilion import config
 from pavilion import expression_functions
@@ -15,7 +15,6 @@ from pavilion import output
 from pavilion import schedulers
 from pavilion import status_file
 from pavilion import system_variables
-from pavilion.plugins import list_plugins
 from pavilion.result import parsers
 from pavilion.test_config import DeferredVariable
 from pavilion.test_config import file_format
@@ -367,12 +366,13 @@ class ShowCommand(commands.Command):
             output.fprint(func.long_description, file=self.outfile)
 
         else:
-            rows = [
-                {'name':        func.name,
-                 'signature':   func.signature,
-                 'description': func.description}
-                for func in list_plugins()['function']
-            ]
+            rows = []
+            for func_name in sorted(expression_functions.list_plugins()):
+                func = expression_functions.get_plugin(func_name)
+                rows.append({
+                    'name':        func.name,
+                    'signature':   func.signature,
+                    'description': func.description})
             output.draw_table(
                 self.outfile,
                 field_info={},
@@ -540,12 +540,13 @@ class ShowCommand(commands.Command):
             )
 
     @show_cmd("sched", "scheduler")
-    def _scheduler_cmd(self, pav_cfg, args):
+    def _scheduler_cmd(self, _, args):
         """
         :param argparse.Namespace args:
         """
 
         sched = None  # type : schedulers.SchedulerPlugin
+        sched_name = None
         if args.vars is not None or args.config is not None:
             sched_name = args.vars if args.vars is not None else args.config
 
@@ -562,7 +563,7 @@ class ShowCommand(commands.Command):
             sched_vars = []
 
             empty_config = file_format.TestConfigLoader().load_empty()
-            
+
             svars = sched.get_vars(empty_config[sched_name])
 
             for key in sorted(list(svars.keys())):
