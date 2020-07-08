@@ -8,6 +8,7 @@ from datetime import datetime
 from pavilion import commands
 from pavilion import output
 from pavilion import series
+from pavilion.result import evaluations
 from pavilion.test_run import TestRun
 
 
@@ -67,8 +68,9 @@ class GraphCommand(commands.Command):
 
     def run(self, pav_cfg, args):
 
+        print(args)
         # Validate Args.
-        args = self.validate_args(args)
+        args, evals = self.validate_args(args)
 
         # A list of tests or series was provided.
         # Expand series, convert test_ids into format found in working dir
@@ -81,48 +83,14 @@ class GraphCommand(commands.Command):
             output.fprint("No tests matched these filters.")
             return errno.EINVAL
 
-        KEYS_RE = re.compile(r'keys\((.*)\)')
         for test in tests:
-            y_data_list = []
-            x_data = []
-            if 'keys' in args.x[0]:
-                arg = KEYS_RE.match(args.x[0]).groups()[0]
-                r = test.results.get(arg)
-                # Get X Values.
-                if r is None:
-                    output.fprint("{} does not exist in {}'s results."
-                                  .format(arg, test.name))
-                    return errno.EINVAL
 
-                for elem in r.keys():
-                    x_data.append(float(re.search(r'\d+',
-                                              elem).group().strip('0')))
-                # Get Y Values.
-                for arg in args.y:
-                    arg_data = []
-                    for elem in r.keys():
-                        elem_dict = r.get(elem)
-                        for key in arg.split("."):
-                            elem_dict = elem_dict[key]
-                        arg_data.append(float(elem_dict))
-                    y_data_list.append(arg_data)
+            x_data, y_data = self.get_data(evals, test.results)
 
-            else:
-                result = test.results.get(args.x[0])
-                if result is None:
-                    output.fprint("{} does not exist in {}'s "
-                                  "results.".format(args.x[0]. test.name))
-                    return errno.EINVAL
+            print(y_data)
 
-                x_data.append(float(result))
-                for arg in args.y:
-                    elem_dict = test.results
-                    for key in arg.split("."):
-                        elem_dict = elem_dict[key]
-                    y_data_list.append(float(elem_dict))
-
-            for y_data, arg in zip(y_data_list, args.y):
-                plt.plot(x_data, y_data, 'o') # label = arg eventually.
+            for y_val, arg in zip(y_data, args.y):
+                plt.plot(x_data, y_val, 'o', label = arg) # label = arg eventually.
 
         plt.ylabel(args.y_label)
         plt.xlabel(args.x_label)
@@ -140,7 +108,12 @@ class GraphCommand(commands.Command):
                               "format: {}".format(args.date, err))
                 return errno.EINVAL
 
-        return args
+        evals = {}
+        evals['x'] = args.x[0]
+        for i in range(len(args.y)):
+            evals['y'+str(i)] = args.y[i]
+
+        return args, evals
 
     def expand_ranges(self, test_list):
 
@@ -240,5 +213,17 @@ class GraphCommand(commands.Command):
 
         return test
 
+    def get_data(self, evals, results):
 
+        evaluations.evaluate_results(results, evals)
 
+        x_data = results['x']
+        y_data_list = []
+
+        for key in evals:
+            if key is 'x':
+                continue
+            else:
+                y_data_list.append(results[key])
+
+        return x_data, y_data_list
