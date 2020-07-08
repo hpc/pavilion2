@@ -119,7 +119,7 @@ def trim_tests(pav_cfg, args, errfile):
     test_statuses = []
     test_obj_list = []
 
-    if args.all:
+    if args.all and not args.limit:
         tests = test_run.get_latest_tests(pav_cfg)
     else:
         tests = test_run.get_latest_tests(pav_cfg, args.limit)

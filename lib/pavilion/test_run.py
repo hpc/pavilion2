@@ -34,7 +34,7 @@ def get_latest_tests(pav_cfg, limit=None):
 :return: list of test ID's
 :rtype: list(int)
 """
-
+    from pavilion.output import dbg_print
     test_dir_list = []
     runs_dir = pav_cfg.working_dir/'test_runs'
     for test_dir in dir_db.select(runs_dir):
@@ -44,9 +44,10 @@ def get_latest_tests(pav_cfg, limit=None):
         except ValueError:
             continue
             
-    test_dir_list.append((mtime, test_id))
+        test_dir_list.append((mtime, test_id))
 
     test_dir_list.sort()
+
     if limit is not None:
         return [test_id for _, test_id in test_dir_list[-limit:]]
     else:
