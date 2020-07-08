@@ -150,10 +150,12 @@ class _RunCommand(commands.Command):
                     .format(err.args[0]))
                 return 1
 
+
             with PermissionsManager(test.results_log,
                                     group=test.group, umask=test.umask), \
                     open(test.results_log, 'w') as log_file:
                 results = test.gather_results(run_result, log_file=log_file)
+
         except Exception as err:
             self.logger.error("Unexpected error gathering results: \n%s",
                               traceback.format_exc())
