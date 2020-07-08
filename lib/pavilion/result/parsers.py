@@ -522,7 +522,7 @@ configured for that test.
                 if per_file == PER_LAST:
                     presults = reversed(presults)
 
-                results[key] = None
+                results[key] = presults[0]
 
                 for pres in presults:
                     if pres in EMPTY_VALUES:
