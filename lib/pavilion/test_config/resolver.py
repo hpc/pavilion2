@@ -187,13 +187,19 @@ class TestConfigResolver:
                         suites[suite_name]['err'] = err
                         continue
 
+                    def default(val, dval):
+                        """Return the dval if val is None."""
+
+                        return dval if val is None else val
+
                     for test_name, conf in suite_cfgs.items():
                         suites[suite_name]['tests'][test_name] = {
                             'conf': conf,
-                            'maintainer': conf['maintainer']['name'],
-                            'email': conf['maintainer']['email'],
-                            'summary': conf['summary'],
-                            'doc': conf['doc'],
+                            'maintainer': default(
+                                conf['maintainer']['name'], ''),
+                            'email': default(conf['maintainer']['email'], ''),
+                            'summary': default(conf.get('summary', ''), ''),
+                            'doc': default(conf.get('doc', ''), ''),
                         }
 
         return suites

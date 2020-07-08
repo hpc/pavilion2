@@ -213,11 +213,11 @@ expected to be added to by various plugins.
             ]
         ),
         yc.StrElem(
-            'summary', default='',
+            'summary',
             help_text="Summary of the purpose of this test."
         ),
         yc.StrElem(
-            'doc', default='',
+            'doc',
             help_text="Detailed documentation string for this test."
         ),
         yc.ListElem(

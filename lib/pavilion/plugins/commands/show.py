@@ -816,14 +816,18 @@ class ShowCommand(commands.Command):
 
         test = tests[test_name]
 
-        output.fprint("Name:", args.test_name, file=self.outfile)
-        output.fprint("Maintainer:", test['maintainer'], file=self.outfile)
-        output.fprint("Email:", test['email'], file=self.outfile)
-        output.fprint(
-            "Summary: {}".format(test['summary']),
-            file=self.outfile)
-        output.fprint("Documentation:\n", file=self.outfile)
-        output.fprint(test['doc'])
+        def pvalue(header, *values):
+            """An item header."""
+            output.fprint(header, color=output.CYAN,
+                          file=self.outfile, end=' ')
+            for val in values:
+                output.fprint(val, file=self.outfile)
+
+        pvalue("Name:", args.test_name)
+        pvalue("Maintainer:", test['maintainer'])
+        pvalue("Email:", test['email'])
+        pvalue("Summary:", test['summary'])
+        pvalue("Documentation:", '\n\n', test['doc'], '\n')
 
     @show_cmd()
     def _test_config_cmd(self, *_):

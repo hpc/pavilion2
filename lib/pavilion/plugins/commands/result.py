@@ -88,9 +88,12 @@ class ResultsCommand(commands.Command):
         if args.json or args.full:
             if len(tests) > 1:
                 results = {test.name: test.results for test in tests}
-            else:
-                # There should always be at least one test
+            elif len(tests) == 1:
                 results = tests[0].results
+            else:
+                output.fprint("Could not find any matching tests.",
+                              color=output.RED, file=self.outfile)
+                return errno.EINVAL
 
             width = shutil.get_terminal_size().columns
 
