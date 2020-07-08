@@ -18,7 +18,7 @@ def get_result_logger(log_file: IO[str]) -> Callable[..., None]:
     """Return a result logger function that will write to the given outfile
     and track the indentation level. The logger will take
     the string to log, and an optional lvl argument to change the
-    indent level."""
+    indent level. If the log file is None, this will silently drop all logs."""
 
     log_tab_level = 0
 

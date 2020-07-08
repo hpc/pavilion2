@@ -87,7 +87,7 @@ def get_all_tests(pav_cfg, args):
                 'note':    "Test not found: {}".format(err)
             })
 
-    statuses = status_from_test_obj(pav_cfg, test_obj_list)
+    statuses = status_from_test_obj(pav_cfg, *test_obj_list)
 
     if statuses is not None:
         test_statuses = test_statuses + statuses
@@ -166,7 +166,7 @@ def get_statuses(pav_cfg, args, errfile):
                 'note':    "Error loading test: {}".format(err),
             })
 
-    statuses = status_from_test_obj(pav_cfg, test_obj_list)
+    statuses = status_from_test_obj(pav_cfg, *test_obj_list)
 
     if statuses is not None:
         test_statuses = test_statuses + statuses
@@ -223,7 +223,7 @@ def print_from_test_obj(pav_cfg, test_obj, outfile, json=False):
     :rtype: int
     """
 
-    status_list = status_from_test_obj(pav_cfg, test_obj)
+    status_list = status_from_test_obj(pav_cfg, *test_obj)
     return print_status(status_list, outfile, json)
 
 

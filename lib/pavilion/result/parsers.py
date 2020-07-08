@@ -421,6 +421,13 @@ configured for that test.
                 for path in glob.glob(file_glob):
                     paths.append(Path(path))
 
+            if not paths:
+                log("No matching files found.")
+                errors.append(
+                    "File globs {} for key {} found no files."
+                    .format(globs, key))
+                continue
+
             log("Found {} matching files.".format(len(paths)))
             log("Results will be stored with action '{}'".format(action))
 

@@ -198,8 +198,6 @@ class TestBuilder:
         self._script_path = test.build_script_path
         self.test = test
         self._timeout = test.build_timeout
-        self.tmp_log_path = self.path.with_suffix('.log')
-        self.log_path = self.path/self.LOG_NAME
 
         if not test.build_local:
             self.tracker.update(state=STATES.BUILD_DEFERRED,
@@ -213,6 +211,8 @@ class TestBuilder:
             self.name = build_name
 
         self.path = pav_cfg.working_dir/'builds'/self.name  # type: Path
+        self.tmp_log_path = self.path.with_suffix('.log')
+        self.log_path = self.path/self.LOG_NAME
         fail_name = 'fail.{}.{}'.format(self.name, self.test.id)
         self.fail_path = pav_cfg.working_dir/'builds'/fail_name
         self.finished_path = self.path.with_suffix(self.FINISHED_SUFFIX)

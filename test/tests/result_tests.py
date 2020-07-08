@@ -517,6 +517,15 @@ class ResultParserTests(PavTestCase):
         self.assertEqual(reloaded_test.results, orig_test.results)
         self.assertEqual(reloaded_test.config, orig_test.config)
 
+        # Make sure the log argument doesn't blow up.
+        res_args = arg_parser.parse_args(
+            ('result', '--show-log') +
+            tuple(str(t.id) for t in run_cmd.last_tests))
+        if result_cmd.run(self.pav_cfg, res_args) != 0:
+            cmd_out, cmd_err = result_cmd.clear_output()
+            self.fail("Result command failed: \n{}\n{}"
+                      .format(cmd_out, cmd_err))
+
     def test_re_search(self):
         """"""
 

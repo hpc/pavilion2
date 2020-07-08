@@ -701,13 +701,14 @@ class TestRun:
                 raise TimeoutError("Timed out waiting for test '{}' to "
                                    "complete".format(self.id))
 
-    def gather_results(self, run_result, regather=False):
+    def gather_results(self, run_result, regather=False, log_file=None):
         """Process and log the results of the test, including the default set
 of result keys.
 
 :param int run_result: The return code of the test run.
 :param bool regather: Gather results without performing any changes to the
     test itself.
+:param IO[str] log_file: The file to save result logs to.
 """
 
         if self.finished is None:
@@ -720,7 +721,7 @@ of result keys.
 
         parser_configs = self.config['result_parse']
 
-        result_log = result.get_result_logger(self.results_log.open('a'))
+        result_log = result.get_result_logger(log_file)
 
         result_log("Gathering base results.")
         results = result.base_results(self)
