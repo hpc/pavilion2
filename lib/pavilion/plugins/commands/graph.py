@@ -68,14 +68,13 @@ class GraphCommand(commands.Command):
 
     def run(self, pav_cfg, args):
 
-        print(args)
-        # Validate Args.
-        args, evals = self.validate_args(args)
+        # Validate Arguments.
+        result = self.validate_args(args)
+        if result:
+            return result
 
-        # A list of tests or series was provided.
-        # Expand series, convert test_ids into format found in working dir
-        if args.tests:
-            args.tests = self.normalize_args_tests(pav_cfg, args.tests)
+        # Expand series, convert test_ids (if provided). 
+        args.tests = self.normalize_args_tests(pav_cfg, args.tests)
 
         # Check filters, append/remove tests.
         tests = self.filter_tests(pav_cfg, args, args.tests)
@@ -83,12 +82,12 @@ class GraphCommand(commands.Command):
             output.fprint("No tests matched these filters.")
             return errno.EINVAL
 
+        evals = self.build_evaluations_dict(args.x, args.y)
         for test in tests:
 
             x_data, y_data = self.get_data(evals, test.results)
 
-            print(y_data)
-
+            # Plot this test.
             for y_val, arg in zip(y_data, args.y):
                 plt.plot(x_data, y_val, 'o', label = arg) # label = arg eventually.
 
@@ -108,12 +107,24 @@ class GraphCommand(commands.Command):
                               "format: {}".format(args.date, err))
                 return errno.EINVAL
 
-        evals = {}
-        evals['x'] = args.x[0]
-        for i in range(len(args.y)):
-            evals['y'+str(i)] = args.y[i]
+        if not args.x:
+            output.fprint("No value was given to graph on x-axis. Use --x "
+                          "flag to specify.")
+        if not args.y:
+            output.fprint("No values were given to graph on y-axis. Use --y "
+                          "flag to specify.")
+        if not args.x or not args.y:
+            return errno.EINVAL
 
-        return args, evals
+
+    def build_evaluations_dict(self, x_eval, y_eval):
+
+        evals = {}
+        evals['x'] = x_eval[0]
+        for i in range(len(y_eval)):
+            evals['y'+str(i)] = y_eval[i]
+
+        return evals
 
     def expand_ranges(self, test_list):
 
@@ -134,6 +145,9 @@ class GraphCommand(commands.Command):
         return updated_test_list
 
     def normalize_args_tests(self, pav_cfg, test_list):
+
+        if not test_list:
+            return []
 
         test_list = self.expand_ranges(test_list)
 
