@@ -467,6 +467,22 @@ class TestConfigResolver:
 
         return picked_tests
 
+    def verify_comp_versions(self, test, test_suite, comp_versions):
+
+        if comp_versions.count('-') > 1:
+            raise TestConfigError(
+                "'{}' in '{}' has invalid "
+                "compatible_pav_versions value ('{}'). \nNot a valid "
+                "range, too many '-' only 0 or 1 accepted."
+                .format(test, test_suite, comp_versions))
+
+        min_str = comp_versions.split('-')[0]
+        min_version = self.verify_version(test, test_suite, min_str)
+        max_str = comp_versions.split('-')[-1]
+        max_version = self.verify_version(test, test_suite, max_str)
+
+        return min_version, max_version
+
     def verify_version(self, version_str):
         """Ensures version was provided in the correct format, and returns the
         version as a list of digits."""
@@ -477,7 +493,11 @@ class TestConfigResolver:
                 del version[-1]
             return [int(i) for i in version]
         else:
-            return None
+            raise TestConfigError(
+                "'{}' in '{}' has invalid "
+                "compatible_pav_versions value ('{}'). \nCompatible "
+                "versions must be of form X, X.X, or X.X.X ."
+                .format(test, test_suite, version_str))
 
     def check_test_version_compatibility(self, version, min_version, max_version):
         """Returns a bool on if the test is compatible with the current version
@@ -512,16 +532,9 @@ class TestConfigResolver:
             if comp_versions is None:
                 continue
 
-            min_str = comp_versions.split('-')[0]
-            min_version = self.verify_version(min_str)
-            max_str = comp_versions.split('-')[-1]
-            max_version = self.verify_version(max_str)
-
-            if min_version is None or max_version is None:
-                raise TestConfigError(
-                    "'{}' in '{}' has invalid "
-                    "compatible_pav_versions value ('{}')."
-                    .format(test, test_suite, comp_versions))
+            min_version, max_version = self.verify_comp_versions(test,
+                                                                 test_suite,
+                                                                 comp_versions)
 
             if not self.check_test_version_compatibility(version, min_version,
                                                          max_version):
