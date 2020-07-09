@@ -154,10 +154,9 @@ associated tests."""
         json_file = self.pav_cfg.working_dir/'users'
         json_file /= '{}.json'.format(utils.get_login())
 
-        lockfile_path = json_file.parent/(json_file.name + '.lock')
-        lockfile = LockFile(lockfile_path)
+        lockfile_path = json_file.with_suffix('.lock')
 
-        with lockfile:
+        with LockFile(lockfile_path):
             data = {}
             try:
                 with json_file.open('r') as json_series_file:
