@@ -233,14 +233,19 @@ class TestBuilder:
         return self.path.exists()
 
     def log_updated(self) -> Union[float, None]:
-        """Return the last time the build log was updated."""
+        """Return the last time the build log was updated. Simply returns
+        None if the log can't be found or read."""
 
+        # The log will be here during the build.
         if self.tmp_log_path.exists():
             try:
                 return self.tmp_log_path.stat().st_mtime
             except OSError:
+                # This mostly for the race condition, but will also handle
+                # any permission problems.
                 pass
 
+        # After the build, the log will be here.
         if self.log_path.exists():
             try:
                 return self.log_path.stat().st_mtime
