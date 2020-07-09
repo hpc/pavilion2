@@ -8,6 +8,7 @@ from pathlib import Path
 from pavilion import system_variables
 from pavilion import utils
 from pavilion.lockfile import LockFile
+from pavilion import dir_db
 from pavilion.test_run import TestRun, TestRunError, TestRunNotFoundError
 
 
@@ -63,7 +64,7 @@ class TestSeries:
         if _id is None:
             # Get the series id and path.
             try:
-                self._id, self.path = TestRun.create_id_dir(series_path)
+                self._id, self.path = dir_db.create_id_dir(series_path)
             except (OSError, TimeoutError) as err:
                 raise TestSeriesError(
                     "Could not get id or series directory in '{}': {}"
@@ -72,7 +73,7 @@ class TestSeries:
             # Create a soft link to the test directory of each test in the
             # series.
             for test in tests:
-                link_path = utils.make_id_path(self.path, test.id)
+                link_path = dir_db.make_id_path(self.path, test.id)
 
                 try:
                     link_path.symlink_to(test.path)
@@ -86,7 +87,7 @@ class TestSeries:
 
         else:
             self._id = _id
-            self.path = utils.make_id_path(series_path, self._id)
+            self.path = dir_db.make_id_path(series_path, self._id)
 
         self._logger = logging.getLogger(self.LOGGER_FMT.format(self._id))
 
@@ -108,7 +109,7 @@ associated tests."""
             pass
 
         series_path = pav_cfg.working_dir/'series'
-        series_path = utils.make_id_path(series_path, id_)
+        series_path = dir_db.make_id_path(series_path, id_)
 
         if not series_path.exists():
             raise TestSeriesError("No such series found: '{}' at '{}'"

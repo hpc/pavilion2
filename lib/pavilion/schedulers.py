@@ -94,8 +94,16 @@ Naming Conventions:
 'test_*'
   Variable names prefixed with test denote that the variable
   is specific to a test. These also tend to be deferred.
-
 """
+
+    EXAMPLE = {
+        'min_cpus': "3",
+        'min_mem': "123412",
+    }
+    """Each scheduler variable class should provide an example set of
+    values for itself to display when using 'pav show' to list the variables.
+    These are easily obtained by running a test under the scheduler, and
+    then harvesting the results of the test run."""
 
     def __init__(self, scheduler, sched_config):
         """Initialize the scheduler var dictionary.
@@ -115,11 +123,37 @@ Naming Conventions:
 
         self.logger = logging.getLogger('{}_vars'.format(scheduler))
 
+    NO_EXAMPLE = '<no example>'
+
+    def info(self, key):
+        """Get the info dict for the given key, and add the example to it."""
+
+        info = super().info(key)
+        example = None
+        try:
+            example = self[key]
+        except (KeyError, ValueError, OSError):
+            pass
+
+        if example is None or isinstance(example, DeferredVariable):
+            example = self.EXAMPLE.get(key, self.NO_EXAMPLE)
+
+        if isinstance(example, list):
+            if len(example) > 10:
+                example = example[:10] + ['...']
+
+        info['example'] = example
+
+        return info
+
     @property
     def sched_data(self):
         """A convenience function for getting data from the scheduler."""
-        data = self.sched.get_data()
-        return data
+
+        if self.sched.available():
+            return self.sched.get_data()
+        else:
+            return {}
 
     def __repr__(self):
         for k in self.keys():

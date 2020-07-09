@@ -246,6 +246,7 @@ class ResultsCommand(commands.Command):
                 return False
 
             # The new results will be attached to the test (but not saved).
-            test.gather_results(test.results['return_value'], regather=True)
+            test.gather_results(test.results.get('return_value', 1),
+                                regather=True)
 
         return True
