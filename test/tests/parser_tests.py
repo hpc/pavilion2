@@ -234,6 +234,8 @@ class ParserTests(unittest.PavTestCase):
             '': '',
             'hello world': 'hello world',
             'hello\nworld': 'hello\nworld',
+            'trailing newlines\n': 'trailing newlines\n',
+            'trailing newlines\n\n': 'trailing newlines\n\n',
             # The string parser should be able to handle any combination
             # of A and B, where A is a basic string and B is an escape,
             # expression, or iteration.

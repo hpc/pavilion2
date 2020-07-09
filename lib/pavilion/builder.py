@@ -211,6 +211,8 @@ class TestBuilder:
             self.name = build_name
 
         self.path = pav_cfg.working_dir/'builds'/self.name  # type: Path
+        self.tmp_log_path = self.path.with_suffix('.log')
+        self.log_path = self.path/self.LOG_NAME
         fail_name = 'fail.{}.{}'.format(self.name, self.test.id)
         self.fail_path = pav_cfg.working_dir/'builds'/fail_name
         self.finished_path = self.path.with_suffix(self.FINISHED_SUFFIX)
@@ -229,6 +231,26 @@ class TestBuilder:
     def exists(self):
         """Return True if the given build exists."""
         return self.path.exists()
+
+    def log_updated(self) -> Union[float, None]:
+        """Return the last time the build log was updated. Simply returns
+        None if the log can't be found or read."""
+
+        # The log will be here during the build.
+        if self.tmp_log_path.exists():
+            try:
+                return self.tmp_log_path.stat().st_mtime
+            except OSError:
+                # This mostly for the race condition, but will also handle
+                # any permission problems.
+                pass
+
+        # After the build, the log will be here.
+        if self.log_path.exists():
+            try:
+                return self.log_path.stat().st_mtime
+            except OSError:
+                return None
 
     def create_build_hash(self):
         """Turn the build config, and everything the build needs, into a hash.
@@ -529,13 +551,9 @@ class TestBuilder:
                       .format(build_dir, err)))
             return False
 
-        # Create the build log outside the build directory, to avoid issues
-        # with the build process deleting the file.
-        build_log_path = build_dir.with_suffix('.log')
-
         try:
             # Do the build, and wait for it to complete.
-            with build_log_path.open('w') as build_log:
+            with self.tmp_log_path.open('w') as build_log:
                 # Build scripts take the test id as a first argument.
                 cmd = [self._script_path.as_posix(), str(self.test.id)]
                 proc = subprocess.Popen(cmd,
@@ -548,7 +566,7 @@ class TestBuilder:
                     try:
                         result = proc.wait(timeout=1)
                     except subprocess.TimeoutExpired:
-                        log_stat = build_log_path.stat()
+                        log_stat = self.tmp_log_path.stat()
                         timeout = log_stat.st_mtime + self._timeout
                         # Has the output file changed recently?
                         if time.time() > timeout:
@@ -586,12 +604,12 @@ class TestBuilder:
             return False
         finally:
             try:
-                build_log_path.rename(build_dir/self.LOG_NAME)
+                self.tmp_log_path.rename(build_dir/self.LOG_NAME)
             except OSError as err:
                 self.tracker.warn(
                     "Could not move build log from '{}' to final location "
                     "'{}': {}"
-                    .format(build_log_path, build_dir, err))
+                    .format(self.tmp_log_path, build_dir, err))
 
         try:
             self._fix_build_permissions(build_dir)

@@ -601,7 +601,7 @@ name) of lists of tuples
                 for state in sorted(state_counts.keys()):
                     parts.append("{}: {}".format(state, state_counts[state]))
                 line = ' | '.join(parts)
-                fprint(line, end='\r', file=self.outfile, width=None, 
+                fprint(line, end='\r', file=self.outfile, width=None,
                        clear=True)
             elif build_verbosity > 1:
                 for test in tests:
