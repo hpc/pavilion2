@@ -46,7 +46,6 @@ def evaluate_results(results: dict, evaluations: Dict[str, str],
     if log is None:
         def log(*_, **__):
             """Drop any log lines."""
-            pass
 
     log("Evaluating result evaluations.", lvl=0)
 

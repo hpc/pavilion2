@@ -286,7 +286,7 @@ class ShowCommand(commands.Command):
             'tests',
             aliases=['test'],
             help="Show the available tests.",
-            description="""Test configurations that can be run using Pavilion."""
+            description="Test configurations that can be run using Pavilion."
         )
         tests.add_argument(
             '--verbose', '-v',

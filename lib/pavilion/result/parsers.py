@@ -362,7 +362,6 @@ configured for that test.
     if log is None:
         def log(*_, **__):
             """Drop the logs."""
-            pass
 
     log("Starting result parsing.")
 
