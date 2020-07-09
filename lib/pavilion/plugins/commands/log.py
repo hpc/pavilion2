@@ -90,7 +90,8 @@ class LogCommand(commands.Command):
 
         try:
             with file_name.open() as file:
-                output.fprint(file.read(), file=self.outfile, width=None)
+                output.fprint(file.read(), file=self.outfile, width=None,
+                              end='')
         except (IOError, OSError) as err:
             output.fprint("Could not read log file '{}': {}"
                           .format(file_name, err),
