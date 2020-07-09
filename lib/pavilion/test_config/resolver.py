@@ -20,7 +20,6 @@ from pavilion import output
 from pavilion import pavilion_variables
 from pavilion import schedulers
 from pavilion import system_variables
-from pavilion.pavilion_variables import PavVars
 from pavilion.test_config import parsers
 from pavilion.test_config import variables
 from pavilion.test_config.file_format import (TestConfigError, TEST_NAME_RE,
@@ -523,7 +522,7 @@ class TestConfigResolver:
 
         for test in test_suite_cfg:
             test_cfg = test_suite_cfg.get(test)
-            version = PavVars.version(self)
+            version = self.pav_cfg['pav_vars']['version']
             comp_versions = test_cfg.get('compatible_pav_versions')
 
             # If no version is provided we assume compatibility
