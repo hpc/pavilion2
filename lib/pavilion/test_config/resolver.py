@@ -20,6 +20,7 @@ from pavilion import output
 from pavilion import pavilion_variables
 from pavilion import schedulers
 from pavilion import system_variables
+from pavilion.pavilion_variables import PavVars
 from pavilion.test_config import parsers
 from pavilion.test_config import variables
 from pavilion.test_config.file_format import (TestConfigError, TEST_NAME_RE,
@@ -396,14 +397,6 @@ class TestConfigResolver:
                         "Test suite '{}' raised a type error, but that "
                         "should never happen. {}".format(test_suite_path, err))
 
-                # Check test compatibility with current pavilion version
-                comp_error = self.check_suite_version_compatibility(test_suite_cfg)
-
-                if comp_error:
-                    raise TestConfigError(
-                        "Test suite '{}' has incompatibility issues: {}"
-                        .format(test_suite, comp_error))
-
                 suite_tests = self.resolve_inheritance(
                     base_config,
                     test_suite_cfg,
@@ -466,23 +459,22 @@ class TestConfigResolver:
 
         return picked_tests
 
-    def verify_comp_versions(self, test, test_suite, comp_versions):
+    def verify_version_range(comp_versions):
 
         if comp_versions.count('-') > 1:
             raise TestConfigError(
-                "'{}' in '{}' has invalid "
-                "compatible_pav_versions value ('{}'). \nNot a valid "
-                "range, too many '-' only 0 or 1 accepted."
-                .format(test, test_suite, comp_versions))
+                "Invalid compatible_pav_versions value ('{}'). Not a valid "
+                "range.".format(comp_versions))
 
         min_str = comp_versions.split('-')[0]
-        min_version = self.verify_version(test, test_suite, min_str)
         max_str = comp_versions.split('-')[-1]
-        max_version = self.verify_version(test, test_suite, max_str)
+
+        min_version = TestConfigResolver.verify_version(min_str, comp_versions)
+        max_version = TestConfigResolver.verify_version(max_str, comp_versions)
 
         return min_version, max_version
 
-    def verify_version(self, version_str):
+    def verify_version(version_str, comp_versions):
         """Ensures version was provided in the correct format, and returns the
         version as a list of digits."""
 
@@ -491,56 +483,36 @@ class TestConfigResolver:
             return [int(i) for i in version]
         else:
             raise TestConfigError(
-                "'{}' in '{}' has invalid "
-                "compatible_pav_versions value ('{}'). \nCompatible "
-                "versions must be of form X, X.X, or X.X.X ."
-                .format(test, test_suite, version_str))
+                "Invalid compatible_pav_versions value '{}' in '{}'. "
+                "Compatible versions must be of form X, X.X, or X.X.X ."
+                .format(version_str, comp_versions))
 
-    def check_test_version_compatibility(self, version, min_version, max_version):
+    def check_version_compatibility(test_cfg):
         """Returns a bool on if the test is compatible with the current version
         of pavilion."""
 
+        version = PavVars()['version']
         version = [int(i) for i in version.split(".")]
+        comp_versions = test_cfg.get('compatible_pav_versions')
+
+        # If no version is provided we assume compatibility
+        if not comp_versions:
+            return True
+
+        min_version, max_version = TestConfigResolver.verify_version_range(comp_versions)
 
         # Trim pavilion version to the degree dictated by min and max version.
         # This only matters if they are equal, and only occurs when a specific 
         # version is provided.  
         if min_version == max_version and len(min_version) < len(version):
             offset = len(version) - len(min_version)
-            del version[-offset]
-
+            version = version[:-offset]
         if min_version <= version <= max_version:
             return True
         else:
-            return False
-
-    def check_suite_version_compatibility(self, test_suite_cfg):
-        """Checks each test_cfg in a given suite for compatibility with current
-        pavilion install."""
-
-        comp_error = ""
-
-        for test in test_suite_cfg:
-            test_cfg = test_suite_cfg.get(test)
-            version = self.pav_cfg['pav_vars']['version']
-            comp_versions = test_cfg.get('compatible_pav_versions')
-
-            # If no version is provided we assume compatibility
-            if comp_versions is None:
-                continue
-
-            min_version, max_version = self.verify_comp_versions(test,
-                                                                 test_suite,
-                                                                 comp_versions)
-
-            if not self.check_test_version_compatibility(version, min_version,
-                                                         max_version):
-                err = ("\n'{}' is not compatible with pavilion "
-                       "'{}'. Compatible versions '{}'.")
-                comp_error += err.format(test, version,
-                                         comp_versions)
-
-        return comp_error
+            raise TestConfigError(
+                "Incompatible with pavilion version '{}', compatible versions "
+                "'{}'.".format(PavVars()['version'], comp_versions))
 
     def apply_host(self, test_cfg, host):
         """Apply the host configuration to the given config."""
@@ -748,6 +720,12 @@ class TestConfigResolver:
                     "Loaded test '{}' in suite '{}' raised a type error, "
                     "but that should never happen. {}"
                     .format(test_name, suite_path, err))
+            try:
+                TestConfigResolver.check_version_compatibility(test_config)
+            except TestConfigError as err:
+                raise TestConfigError(
+                   "Test '{}' in suite '{}' has incompatibility issues:\n{}"
+                   .format(test_name, suite_path, err))
 
         return suite_tests
 

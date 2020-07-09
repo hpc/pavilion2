@@ -261,7 +261,7 @@ expected to be added to by various plugins.
                       " values."
         ),
         yc.StrElem(
-            'compatible_pav_versions', default='all',
+            'compatible_pav_versions', default='',
             help_text="Specify compatibile pavilion versions for this "
                       "specific test. Can be represented as a single "
                       "version, ex: 1, 1.2, 1.2.3, a wildcard, ex: 1.*, "
