@@ -467,46 +467,16 @@ class TestConfigResolver:
 
         return picked_tests
 
-    def get_min_str(self, versions):
-        """Takes compatible version string (compatible_pav_version) in
-        a test config and returns the lower bound for version compatiblity."""
-
-        if '-' in versions:
-            return versions.split("-")[0]
-        else:
-            return versions
-
-    def get_max_str(self, versions):
-        """Takes compatible version string (compatible_pav_version) in
-        a test config and returns the upper bound for version compatibility."""
-        if '-' in versions:
-            return versions.split("-")[1]
-        else:
-            return versions
-
-    def calc_min(self, min_str):
+    def verify_version(self, version_str):
         """Ensures version was provided in the correct format, and returns the
-        lower bound as a list of digits."""
+        version as a list of digits."""
 
-        result = TEST_VERS_RE.match(min_str)
+        result = TEST_VERS_RE.match(version_str)
         if result is not None:
-            min_version = min_str.split(".")
-            if min_version[-1] == '*':
-                del min_version[-1]
-            return [int(i) for i in min_version]
-        else:
-            return None
-
-    def calc_max(self, max_str):
-        """Ensures version was provided in the correct format, and returns the
-        upper bound as a list of digits."""
-
-        result = TEST_VERS_RE.match(max_str)
-        if result is not None:
-            max_version = max_str.split(".")
-            if max_version[-1] == '*':
-                del max_version[-1]
-            return [int(i) for i in max_version]
+            version = version_str.split(".")
+            if version[-1] == '*':
+                del version[-1]
+            return [int(i) for i in version]
         else:
             return None
 
@@ -543,10 +513,10 @@ class TestConfigResolver:
             if comp_versions is None:
                 continue
 
-            min_str = self.get_min_str(comp_versions)
-            min_version = self.calc_min(min_str)
-            max_str = self.get_max_str(comp_versions)
-            max_version = self.calc_max(max_str)
+            min_str = comp_versions.split('-')[0]
+            min_version = self.verify_version(min_str)
+            max_str = comp_versions.split('-')[-1]
+            max_version = self.verify_version(max_str)
 
             if min_version is None or max_version is None:
                 raise TestConfigError(
