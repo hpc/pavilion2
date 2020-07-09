@@ -363,6 +363,12 @@ class TestConfigResolver:
                 test_suite_path = self._find_config(CONF_TEST, test_suite)
 
                 if test_suite_path is None:
+                    if test_suite == 'log':
+                        raise TestConfigError(
+                            "Could not find test suite 'log'. If you were "
+                            "trying to get the run log, use the 'pav log run "
+                            "<testid>' command.")
+
                     cdirs = [str(cdir) for cdir in self.pav_cfg.config_dirs]
                     raise TestConfigError(
                         "Could not find test suite {}. Looked in these "

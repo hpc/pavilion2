@@ -69,6 +69,7 @@ class LogCmdTest(PavTestCase):
         args = parser.parse_args(['kickoff', str(test.id)])
         result = log_cmd.run(self.pav_cfg, args)
         self.dbg_print(out.getvalue())
+        self.dbg_print([p.stat() for p in test.path.iterdir()])
         self.assertEqual(out.getvalue(), '')
         self.assertEqual(err.getvalue(), '')
         self.assertEqual(result, 0)
