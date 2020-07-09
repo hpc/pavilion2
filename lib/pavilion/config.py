@@ -60,7 +60,9 @@ class ExPathElem(yc.PathElem):
         elif isinstance(path, str):
             path = Path(path)
 
-        return Path(os.path.expandvars(path.as_posix()))
+        path = Path(os.path.expandvars(path.as_posix()))
+        path = path.expanduser()
+        return path
 
 
 def config_dirs_validator(config, values):

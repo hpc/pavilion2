@@ -247,7 +247,8 @@ Example: ::
                 help_text=(
                     "How to save results for multiple file matches.\n"
                     "  {FIRST} - The result from the first file with a "
-                    "non-empty result. (default)\n"
+                    "non-empty result. If no files were found, this "
+                    "is considerd an error. (default)\n"
                     "  {LAST} - As '{FIRST}', but last result.\n"
                     "  {FULLNAME} - Store the results on a per file "
                     "basis under results['fn'][<filename>][<key>]\n"
@@ -458,6 +459,12 @@ configured for that test.
                 # See the result parser docs.
 
                 presults = list(presults.values())
+                if not presults:
+                    raise ResultError(
+                        "No files found that matched {} for key '{}'. If "
+                        "you're hoping no such files exist, use a 'per_file' "
+                        "setting other than {} or {}."
+                        .format(globs, key, PER_FIRST, PER_LAST))
 
                 # Do this backwards, if we want the last one.
                 if per_file == PER_LAST:
