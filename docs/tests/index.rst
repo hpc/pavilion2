@@ -1,6 +1,6 @@
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :caption: Tests Contents:
 
    format.rst
    variables.rst

@@ -46,9 +46,11 @@ class _RunCommand(commands.Command):
 
             try:
                 test.finalize(var_man)
-            except Exception:
-                test.status.set(STATES.RUN_ERROR,
-                                "Unknown error finalizing test.")
+            except Exception as err:
+                test.status.set(
+                    STATES.RUN_ERROR,
+                    "Unexpected error finalizing test\n{}"
+                    .format(err.args[0]))
                 raise
 
             try:
@@ -64,7 +66,7 @@ class _RunCommand(commands.Command):
                     "Unknown build error. Refer to the kickoff log.")
                 raise
 
-            if not test.opts.build_only:
+            if not test.build_only:
                 return self._run(pav_cfg, test, sched)
         finally:
             test.set_run_complete()
@@ -138,7 +140,8 @@ class _RunCommand(commands.Command):
             # the args are valid form _check_args, but those might not be
             # check-able before kickoff due to deferred variables.
             try:
-                result.check_config(test.config['results'])
+                result.check_config(test.config['result_parse'],
+                                    test.config['result_evaluate'])
             except TestRunError as err:
                 test.status.set(
                     STATES.RESULTS_ERROR,
@@ -147,8 +150,6 @@ class _RunCommand(commands.Command):
                 return 1
 
             results = test.gather_results(run_result)
-            if results['result'] == test.ERROR:
-                return 1
         except Exception as err:
             self.logger.error("Unexpected error gathering results: \n%s",
                               traceback.format_exc())

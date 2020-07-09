@@ -12,8 +12,10 @@ import io
 import logging
 import os
 from collections import defaultdict
+from typing import List, IO, Tuple
 
 import yc_yaml
+from pavilion import output
 from pavilion import pavilion_variables
 from pavilion import schedulers
 from pavilion import system_variables
@@ -194,31 +196,37 @@ class TestConfigResolver:
 
         return suites
 
-    def load(self, tests, host=None, modes=None, overrides=None):
+    def load(self, tests: List[str], host: str = None,
+             modes: List[str] = None, overrides: List[str] = None,
+             output_file: IO[str] = None) \
+            -> List[Tuple[dict, variables.VariableSetManager]]:
         """Load the given tests, updated with their host and mode files.
 
-        :param [str] tests: A list of test names to load.
-        :param str host: The host to load tests for. Defaults to the value
+        :param tests: A list of test names to load.
+        :param host: The host to load tests for. Defaults to the value
             of the 'sys_name' variable.
-        :param [str] modes: A list of modes to load.
-        :param {str,str} overrides: A dict of key:value pairs to apply as
-            overrides.
+        :param modes: A list of modes to load.
+        :param overrides: A dict of key:value pairs to apply as overrides.
+        :param output_file: Where to write status output.
+
         :returns: A list test_config dict and var_man tuples
-        :rtype: [(dict,VariableSetManager)]
+        :rtype: [(dict, VariableSetManager)]
         """
 
         if modes is None:
             modes = []
 
         if overrides is None:
-            overrides = {}
+            overrides = []
 
         if host is None:
             host = self.base_var_man['sys.sys_name']
 
         raw_tests = self.load_raw_configs(tests, host, modes)
 
-        raw_tests_by_sched = defaultdict(lambda: [])
+        progress = 0
+
+        resolved_tests = []
 
         # Apply config overrides.
         for test_cfg in raw_tests:
@@ -229,9 +237,14 @@ class TestConfigResolver:
                 msg = 'Error applying overrides to test {} from {}: {}' \
                     .format(test_cfg['name'], test_cfg['suite_path'], err)
                 self.logger.error(msg)
+                if output_file:
+                    output.clear_line(output_file)
                 raise TestConfigError(msg)
 
             base_var_man = self.build_variable_manager(test_cfg)
+
+            # A list of tuples of test configs and their permuted var_man
+            permuted_tests = []  # type: (dict, variables.VariableSetManager)
 
             # Resolve all configuration permutations.
             try:
@@ -241,38 +254,40 @@ class TestConfigResolver:
                 )
                 for p_var_man in permutes:
                     # Get the scheduler from the config.
-                    sched = p_cfg['scheduler']
-                    sched = self.resolve_section_values(
-                        component=sched,
-                        var_man=p_var_man,
-                    )
-                    raw_tests_by_sched[sched].append((p_cfg, p_var_man))
+                    permuted_tests.append((p_cfg, p_var_man))
+
             except TestConfigError as err:
                 msg = 'Error resolving permutations for test {} from {}: {}' \
                     .format(test_cfg['name'], test_cfg['suite_path'], err)
                 self.logger.error(msg)
+                if output_file:
+                    output.clear_line(output_file)
                 raise TestConfigError(msg)
 
-        resolved_tests = []
-
-        # Get the schedulers for the tests, and the scheduler variables.
-        # The scheduler variables are based on all of the
-        for sched_name in raw_tests_by_sched.keys():
             # Set the scheduler variables for each test.
-            for test_cfg, test_var_man in raw_tests_by_sched[sched_name]:
+            for ptest_cfg, pvar_man in permuted_tests:
                 # Resolve all variables for the test (that aren't deferred).
                 try:
-                    resolved_config = self.resolve_config(
-                        test_cfg,
-                        test_var_man)
+                    resolved_config = self.resolve_config(ptest_cfg, pvar_man)
                 except TestConfigError as err:
                     msg = ('In test {} from {}:\n{}'
                            .format(test_cfg['name'], test_cfg['suite_path'],
                                    err.args[0]))
                     self.logger.error(msg)
+                    if output_file:
+                        output.clear_line(output_file)
+
                     raise TestConfigError(msg)
 
-                resolved_tests.append((resolved_config, test_var_man))
+                resolved_tests.append((resolved_config, pvar_man))
+
+            if output_file is not None:
+                progress += 1.0/len(raw_tests)
+                output.fprint("Resolving Test Configs: {:.0%}".format(progress),
+                              file=output_file, end='\r')
+
+        if output_file:
+            output.fprint('', file=output_file)
 
         return resolved_tests
 
@@ -416,17 +431,16 @@ class TestConfigResolver:
             for test_cfg in picked_tests]
 
         # Get the default configuration for a const result parser.
-        const_elem = TestConfigLoader().find('results.parse.constant.*')
+        const_elem = TestConfigLoader().find('result_parse.constant.*')
 
         # Add the pav_cfg default_result configuration items to each test.
         for test_cfg in picked_tests:
 
-            if 'constant' not in test_cfg['results']['parse']:
-                test_cfg['results']['parse']['constant'] = []
+            if 'constant' not in test_cfg['result_parse']:
+                test_cfg['result_parse']['constant'] = []
 
             const_keys = [
-                const['key'] for const in
-                test_cfg['results']['parse']['constant']]
+                key for key in test_cfg['result_parse']['constant']]
 
             for key, const in self.pav_cfg.default_results.items():
 
@@ -435,10 +449,9 @@ class TestConfigResolver:
                     continue
 
                 new_const = const_elem.validate({
-                    'key': key,
                     'const': const,
                 })
-                test_cfg['results']['parse']['constant'].append(new_const)
+                test_cfg['result_parse']['constant']['key'] = new_const
 
         return picked_tests
 
@@ -613,9 +626,9 @@ class TestConfigResolver:
         # generally means there are cycles in our dependency tree.
         if depended_on_by:
             raise TestConfigError(
-                "Tests in suite '{}' have dependencies on '{}' that "
+                "Tests in suite '{}' have dependencies on {} that "
                 "could not be resolved."
-                .format(suite_path, depended_on_by.keys()))
+                .format(suite_path, tuple(depended_on_by.keys())))
 
         # Remove the test base
         del suite_tests['__base__']
@@ -696,7 +709,7 @@ class TestConfigResolver:
             for per_var in permute_on:
                 var_set, var, index, subvar = base_var_man.resolve_key(per_var)
                 if isinstance(var_dict[var_set][var][0], dict):
-                    subtitle.append(var + '?')
+                    subtitle.append('_' + var + '_')
                 else:
                     subtitle.append('{{' + per_var + '}}')
 
@@ -730,6 +743,7 @@ class TestConfigResolver:
                     "<key>=<value>. Ex. -c run.modules=['gcc'] ")
 
             key, value = ovr.split('=', 1)
+            key = key.strip()
             key = key.split('.')
 
             self._apply_override(test_cfg, key, value)
@@ -1022,7 +1036,7 @@ class TestConfigResolver:
                         raise TestConfigError(
                             "Error resolving value '{}' in config at '{}':\n"
                             "{}\n{}"
-                            .format(component, '.'.join(key_parts),
+                            .format(component, '.'.join(map(str, key_parts)),
                                     err.message, err.context))
                     return resolved
 

@@ -1,0 +1,23 @@
+base:
+    # This test tries to do just about every kind of file creation.
+
+    build:
+        source_path: src.zip
+        extra_files: src.zip
+
+        cmds:
+           - 'echo "foo" > foo'
+           - 'cp foo bar'
+
+    run:
+        cmds:
+            - 'echo "run_foo" > run_foo'
+            - 'cp run_foo run_bar'
+
+spec_perms1:
+    inherits_from: base
+    umask: '022'
+
+spec_perms2:
+    inherits_from: base
+    umask: '002'

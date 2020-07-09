@@ -27,17 +27,15 @@ utils.RED
 
 import csv
 import datetime
-import pprint
 import json
+import pprint
 import re
 import shutil
 import sys
 import textwrap
 from collections import UserString, defaultdict, UserDict
 from pathlib import Path
-
-if sys.version_info.minor > 4:
-    import types
+from typing import List, Dict
 
 BLACK = 30
 RED = 31
@@ -116,8 +114,19 @@ print dbg statements and easily excise it later.
     sys.stderr.flush()
 
 
+def clear_line(outfile):
+    """Clear the last line written to output. Assumes the line ended with
+    a \\r rather than a newline."""
+
+    size = shutil.get_terminal_size()
+
+    outfile.write('\r')
+    outfile.write(' '*size.columns)
+    outfile.write('\r')
+
+
 def fprint(*args, color=None, bullet='', width=0, wrap_indent=0,
-           sep=' ', file=sys.stdout, end='\n', flush=False):
+           sep=' ', file=sys.stdout, end='\n', flush=False, clear=False):
     """Print with automatic wrapping, bullets, and other features. Also accepts
     all print() kwargs.
 
@@ -133,7 +142,11 @@ def fprint(*args, color=None, bullet='', width=0, wrap_indent=0,
         terminal's width and wrap to that.
     :param str end: String appended after the last value (default \\n)
     :param bool flush: Whether to forcibly flush the stream.
+    :param bool clear: Perform a 'clear_line' before printing.
 """
+
+    if clear:
+        clear_line(file)
 
     args = [str(a) for a in args]
     if color is not None:
@@ -164,7 +177,7 @@ def fprint(*args, color=None, bullet='', width=0, wrap_indent=0,
     if color is not None:
         print('\x1b[0m', file=file, end='')
 
-    print(end, end='', file=file, flush=True)
+    print(end, end='', file=file, flush=flush)
 
 
 def json_dumps(obj, skipkeys=False, ensure_ascii=True,
@@ -253,11 +266,10 @@ used when the string is formatted.
         """
 
         if isinstance(data, ANSIString):
-            data = data.data
             self.code = code if code is not None else data.code
+            data = data.data
         else:
             self.code = code
-            self.data = None
 
         super().__init__(data)
 
@@ -265,7 +277,7 @@ used when the string is formatted.
         r'''
         (?:(?P<fill>.)?(?P<align>[<>^]))?  # The fill and alignment
         (?P<min_width>\d+)?                # Minimum field width
-        (?P<type>s)?$                     # Field type conversion
+        (?P<type>s)?$                      # Field type conversion
         ''',
         flags=re.VERBOSE)
 
@@ -280,12 +292,13 @@ used when the string is formatted.
         """Wrap the text as with textwrap, but return ANSIString objects
         with the same ANSI code applied."""
 
-        rows = []
-        for paragraph in self.data.split('\n'):
-            for row in textwrap.wrap(paragraph, width=width,
-                                     replace_whitespace=False):
-                rows.append(ANSIString(row, code=self.code))
-        return rows
+        lines = []
+        for paragraph in str.splitlines(self.data):
+            lines.extend([
+                ANSIString(row, code=self.code)
+                for row in textwrap.wrap(paragraph, width=width)])
+
+        return lines
 
     def colorize(self):
         """Return the string wrapped in the appropriate ANSI escapes."""
@@ -337,37 +350,6 @@ used when the string is formatted.
         parts.extend((padding_left, self.data, padding_right))
 
         return ''.join(parts)
-
-
-def format_row(row, fields, widths, pad, border):
-    out = []
-    if border:
-        out.append('|')
-    if pad:
-        out.append(' ')
-
-    for field_i in range(len(fields)):
-        field = fields[field_i]
-        if field_i != 0:
-            if pad:
-                out.append(' | ')
-            else:
-                out.append('|')
-        data = row[field]
-        if isinstance(data, ANSIString):
-            color_data = data.colorize()
-            out.append(color_data)
-        else:
-            out.append(data)
-        out.append(' '*(widths[field] - len(data)))
-
-    if pad:
-        out.append(' ')
-    if border:
-        out.append('|')
-    out.append('\n')
-
-    return ''.join(out)
 
 
 # It's ok to wrap words longer than this
@@ -507,19 +489,95 @@ A more complicated example: ::
     # Column widths populates with a range of values, the minimum being the
     # length of the given field title, and the max being the longest entry in
     # that column
-    column_widths = {}
-    titles = {}
+    titles = dt_field_titles(fields, field_info)
 
+    # Format the rows according to the field_info format specifications.
+    rows = dt_format_rows(rows, fields, field_info)
+    rows.insert(0, titles)
+
+    # Calculate the min and max widths for each column.
+    min_widths, max_widths = dt_calculate_widths(rows, fields, field_info)
+
+    # Calculate the overall table width.
+    table_width = dt_calc_table_width(min_widths, pad, border, table_width)
+
+    # Adjust the column widths to minimize wraps
+    column_widths = dt_auto_widths(rows, table_width, min_widths, max_widths)
+
+    # Calculate the title format
+    title_length = sum(column_widths.values())
+    if pad:
+        title_length = title_length + 2 * len(fields)
+    title_format = ' {{0:{0}s}} '.format(title_length)
+    if border:
+        title_format = '|' + title_format + '|'
+    title_format += '\n'
+
+    # Generate the table break line.
+    # Add 2 dashes to each break line if we're padding the data
+    brk_pad_extra = 2 if pad else 0
+    horizontal_break = '+'.join(['-' * (column_widths[field] + brk_pad_extra)
+                                 for field in fields])
+    if border:
+        horizontal_break = '+' + horizontal_break + '+'
+    horizontal_break += '\n'
+
+    # Output the table.
+    try:
+        if border:
+            outfile.write(horizontal_break)
+        if title:
+            outfile.write(title_format.format(title))
+            outfile.write(horizontal_break)
+
+        for row_i in range(len(rows)):
+            row = rows[row_i]
+
+            wrap_rows = defaultdict(
+                lambda: defaultdict(lambda: ANSIString('')))
+            # Creates wrap list that holds list of strings for the wrapped text
+            for field in fields:
+                wraps = row[field].wrap(width=column_widths[field])
+                for wrap_i in range(len(wraps)):
+                    wrap_row = wrap_rows[wrap_i]
+                    wrap_row[field] = wraps[wrap_i]
+
+            # Turn the wrapped rows into a list sorted by index
+            wrap_rows = [wrap_rows[i] for i in sorted(list(wrap_rows.keys()))]
+
+            for wrap_row in wrap_rows:
+                outfile.write(dt_format_row(
+                    wrap_row, fields, column_widths, pad, border))
+
+            if row_i == 0:
+                outfile.write(horizontal_break)
+
+    except IOError:
+        # We may get a broken pipe, especially when the output is piped to
+        # something like head. It's ok, just move along.
+        pass
+
+
+def dt_field_titles(fields: List[str], field_info: dict) \
+        -> Dict[str, ANSIString]:
+    """Get the titles for each column in the table."""
+
+    titles = {}
     for field in fields:
         default_title = field.replace('_', ' ').capitalize()
         field_title = field_info.get(field, {}).get('title', default_title)
         # Gets the length of column title, adds it to the list of column widths
-        column_widths[field] = [len(field_title)]
         titles[field] = ANSIString(field_title)
 
-    blank_row = {}
-    for field in fields:
-        blank_row[field] = ANSIString('')
+    return titles
+
+
+def dt_format_rows(rows, fields, field_info):
+    """Format each field value in each row according to the format
+    specifications. Also converts each field value into an ANSIStr so we
+    can rely on it's built in '.wrap' method."""
+
+    blank_row = {field: ANSIString('') for field in fields}
 
     formatted_rows = []
     for row in rows:
@@ -553,26 +611,25 @@ A more complicated example: ::
             # and use ANSI friendly text wrapping.
             data = ANSIString(formatted_data, code=ansi_code)
 
-            # Appends the length of all rows at a given field longer than the
-            # title. Effectively forces that the minimum column width be no
-            # less than the title.
-            if len(data) > len(titles[field]):
-                column_widths[field].append(len(data))
-
             formatted_row[field] = data
         formatted_rows.append(formatted_row)
 
-    rows = formatted_rows
-    rows.insert(0, titles)
+    return formatted_rows
+
+
+def dt_calculate_widths(rows, fields, field_info):
+    """Calculate the min and max width for each column, based on the length
+    of all values in that column and the size of the words in each value."""
 
     # Gets dictionary with largest width, and smallest width for each field.
     # Also updates the default column_Widths dictionary to hold the max values
     # for each column.
-    max_widths = {field: max(widths) for field, widths in column_widths.items()}
     min_widths = {}
+    max_widths = {}
 
     for field in fields:
         all_words = sum([row[field].split() for row in rows], [])
+        max_widths[field] = max([len(row[field]) for row in rows])
         longest_word = ''
         for word in all_words:
             if len(word) > len(longest_word):
@@ -598,6 +655,23 @@ A more complicated example: ::
         if max_widths[field] < min_widths[field]:
             max_widths[field] = min_widths[field]
 
+    return min_widths, max_widths
+
+
+def dt_calc_table_width(min_widths: Dict[str, int], pad: bool, border: bool,
+                        table_width: int) -> int:
+    """Calculate the width of the table based on all of the table parameters
+    and column min widths.
+
+    :param min_widths: Minimum column width by column.
+    :param pad: Whether to pad each column with a space on either side
+        of the divider.
+    :param border: Whether the tables has a border.
+    :param table_width: The user specified table width.
+    """
+
+    fields = list(min_widths.keys())
+
     # Add divider widths
     divider_size = 3 if pad else 1
     deco_size = divider_size * (len(fields) - 1)
@@ -613,20 +687,33 @@ A more complicated example: ::
         table_width = shutil.get_terminal_size().columns
     table_width -= deco_size
 
-    # Makes sure window is at least large enough to display are smallest
+    # Makes sure window is at least large enough to display our smallest
     # possible table
     total_min = sum(min_widths.values())
     if total_min > table_width:
         table_width = total_min
 
+    return table_width
+
+
+def dt_auto_widths(rows, table_width, min_widths, max_widths):
+    """Calculate an 'optimal' width for each column. This works by finding
+    the column that will benefit the most from a single character of width
+    increase. In case of a tie, two characters of width are considered, and
+    so on. Remaining extra space is distributed amongst the final tied
+    columns."""
+
+    fields = list(min_widths.keys())
+
     extra_spaces = table_width - sum(min_widths.values())
+
     final_widths = min_widths.copy()
 
     def calc_wraps(fld_, width_):
         """Calculate the wraps for a given field at the given width across
         all rows."""
         return sum([len(row_[fld_].wrap(width=width_))
-                    for row_ in formatted_rows])
+                    for row_ in rows])
 
     field_wraps_by_width = defaultdict(dict)
     incr = 1
@@ -658,7 +745,7 @@ A more complicated example: ::
                 incr_width,
                 calc_wraps(field, curr_width + incr))
 
-            diff = (curr_wraps-incr_wraps)
+            diff = (curr_wraps - incr_wraps)
 
             if incr_width > max_width:
                 # Don't consider this column for an increase if the increase
@@ -691,61 +778,44 @@ A more complicated example: ::
             # amongst the tied winners.
             extra_spaces -= incr
             for field in best_fields:
-                final_widths[field] += incr//len(best_fields)
+                final_widths[field] += incr // len(best_fields)
         else:
             # Otherwise, increase the increment and try again.
             incr += 1
 
-    title_length = sum(final_widths.values())
+    return final_widths
+
+
+def dt_format_row(row, fields, widths, pad, border):
+    """Format a single row according to the table parameters and widths."""
+    out = []
+    if border:
+        out.append('|')
+    if pad:
+        out.append(' ')
+
+    for field_i in range(len(fields)):
+        field = fields[field_i]
+        if field_i != 0:
+            if pad:
+                out.append(' | ')
+            else:
+                out.append('|')
+        data = row[field]
+        if isinstance(data, ANSIString):
+            color_data = data.colorize()
+            out.append(color_data)
+        else:
+            out.append(data)
+        out.append(' '*(widths[field] - len(data)))
 
     if pad:
-        title_length = title_length + 2 * len(fields)
-
-    title_format = ' {{0:{0}s}} '.format(title_length)
-
-    # Add 2 dashes to each break line if we're padding the data
-    brk_pad_extra = 2 if pad else 0
-    horizontal_break = '+'.join(['-' * (final_widths[field] + brk_pad_extra)
-                                 for field in fields])
+        out.append(' ')
     if border:
-        horizontal_break = '+' + horizontal_break + '+'
-        title_format = '|' + title_format + '|'
+        out.append('|')
+    out.append('\n')
 
-    horizontal_break += '\n'
-    title_format += '\n'
-
-    try:
-        if border:
-            outfile.write(horizontal_break)
-        if title:
-            outfile.write(title_format.format(title))
-            outfile.write(horizontal_break)
-
-        for row_i in range(len(rows)):
-            row = rows[row_i]
-
-            wrap_rows = defaultdict(lambda: defaultdict(lambda: ''))
-            # Creates wrap list that holds list of strings for the wrapped text
-            for field in fields:
-                wraps = row[field].wrap(width=final_widths[field])
-                for wrap_i in range(len(wraps)):
-                    wrap_row = wrap_rows[wrap_i]
-                    wrap_row[field] = wraps[wrap_i]
-
-            # Turn the wrapped rows into a list sorted by index
-            wrap_rows = [wrap_rows[i] for i in sorted(list(wrap_rows.keys()))]
-
-            for wrap_row in wrap_rows:
-                outfile.write(format_row(wrap_row, fields, final_widths, pad,
-                                         border))
-
-            if row_i == 0:
-                outfile.write(horizontal_break)
-
-    except IOError:
-        # We may get a broken pipe, especially when the output is piped to
-        # something like head. It's ok, just move along.
-        pass
+    return ''.join(out)
 
 
 class PavEncoder(json.JSONEncoder):
@@ -753,6 +823,8 @@ class PavEncoder(json.JSONEncoder):
     automatically encode them."""
 
     def default(self, o):  # pylint: disable=E0202
+        """Handle additional types."""
+
         if isinstance(o, Path):
             return str(o)
         elif isinstance(o, datetime.datetime):

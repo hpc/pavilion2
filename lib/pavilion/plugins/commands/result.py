@@ -1,6 +1,7 @@
 """Print the test results for the given test/suite."""
 
 import datetime
+import shutil
 import errno
 import pprint
 from typing import List
@@ -85,17 +86,26 @@ class ResultsCommand(commands.Command):
                 return errno.EINVAL
 
         if args.json or args.full:
-            results = {test.name: test.results for test in tests}
+            if len(tests) > 1:
+                results = {test.name: test.results for test in tests}
+            else:
+                # There should always be at least one test
+                results = tests[0].results
+
+            width = shutil.get_terminal_size().columns
+
             try:
                 if args.json:
                     output.json_dump(results, self.outfile)
                 else:
                     pprint.pprint(results,  # ext-print: ignore
-                                  stream=self.outfile)
+                                  stream=self.outfile, width=width,
+                                  compact=True)
             except OSError:
                 # It's ok if this fails. Generally means we're piping to
                 # another command.
                 pass
+
             return 0
 
         else:
@@ -122,6 +132,8 @@ class ResultsCommand(commands.Command):
             rows=results,
             title="Test Results"
         )
+
+        return 0
 
     def _get_tests(self, pav_cfg, tests_arg):
         if not tests_arg:
@@ -196,35 +208,37 @@ class ResultsCommand(commands.Command):
                 continue
 
             cfg = configs[0]
-            results_section = cfg['results']
+            updates = {}
 
-            # Try to resolve the updated result section of the config using
-            # the original variable values.
-            try:
-                results_section = reslvr.resolve_section_values(
-                    component=results_section,
-                    var_man=test.var_man,
-                    key_parts=('results',),
-                )
-            except resolver.TestConfigError as err:
-                output.fprint(
-                    "Test '{}' had a results section that could not be "
-                    "resolved with it's original variables: {}"
-                    .format(test.name, err.args[0])
-                )
-                return False
-            except RuntimeError as err:
-                output.fprint(
-                    "Unexpected error updating result section for test '{}': "
-                    "{}".format(test.name, err.args[0]),
-                    color=output.RED, file=self.errfile)
-                return False
+            for section in 'result_parse', 'result_evaluate':
+                # Try to resolve the updated result section of the config using
+                # the original variable values.
+                try:
+                    updates[section] = reslvr.resolve_section_values(
+                        component=cfg[section],
+                        var_man=test.var_man,
+                    )
+                except resolver.TestConfigError as err:
+                    output.fprint(
+                        "Test '{}' had a {} section that could not be "
+                        "resolved with it's original variables: {}"
+                        .format(test.name, section, err.args[0])
+                    )
+                    return False
+                except RuntimeError as err:
+                    output.fprint(
+                        "Unexpected error updating {} section for test "
+                        "'{}': {}".format(section, test.name, err.args[0]),
+                        color=output.RED, file=self.errfile)
+                    return False
 
             # Set the test's result section to the newly resolved one.
-            test.config['results'] = results_section
+            test.config['result_parse'] = updates['result_parse']
+            test.config['result_evaluate'] = updates['result_evaluate']
 
             try:
-                check_config(results_section)
+                check_config(test.config['result_parse'],
+                             test.config['result_evaluate'])
             except TestRunError as err:
                 output.fprint(
                     "Error found in results configuration: {}"
@@ -232,6 +246,7 @@ class ResultsCommand(commands.Command):
                 return False
 
             # The new results will be attached to the test (but not saved).
-            test.gather_results(test.results['return_value'], regather=True)
+            test.gather_results(test.results.get('return_value', 1),
+                                regather=True)
 
         return True

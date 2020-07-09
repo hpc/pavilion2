@@ -8,9 +8,10 @@ from pavilion.test_config import resolver
 from .evaluations import check_expression, evaluate_results
 from .base import base_results, ResultError, BASE_RESULTS
 from .parsers import parse_results, ResultParser, get_plugin
+from . import parsers
 
 
-def check_config(result_configs):
+def check_config(parser_conf, evaluate_conf):
     """Make sure the result config is sensible, both for result parsers and
 evaluations.
 
@@ -27,15 +28,16 @@ For evaluations we check for:
 :raises TestRunError: When a config breaks the rules.
 """
 
-    parser_conf = result_configs['parse']
-    evaluate_conf = result_configs['evaluate']
-
-    key_names = []
+    # Track the key_names seen, along with the 'per_file' setting for each.
+    # Keys still have to be unique, even if they won't collide due to
+    # 'per_file'.
+    key_names = {key:parsers.PER_FIRST for key in BASE_RESULTS.keys()}
     errors = []
 
     for rtype in parser_conf:
-        for rconf in parser_conf[rtype]:
-            key = rconf.get('key')
+        for key, rconf in parser_conf[rtype].items():
+            action = rconf.get('action')
+            per_file = rconf.get('per_file')
 
             # Don't check args if they have deferred values.
             for values in rconf.values():
@@ -48,12 +50,10 @@ For evaluations we check for:
                     if resolver.TestConfigResolver.was_deferred(value):
                         continue
 
-            if key is None:
-                raise RuntimeError(
-                    "ResultParser config for parser '{}' missing the 'key' "
-                    "attribute. This should be required by the test config, "
-                    "but could be broken by a bad plugin."
-                    .format(rtype)
+            if key in BASE_RESULTS.keys():
+                raise ResultError(
+                    "Result parser key '{}' under parser '{}' is reserved."
+                    .format(key, rtype)
                 )
 
             if key in key_names:
@@ -62,16 +62,24 @@ For evaluations we check for:
                     .format(key, rtype)
                 )
 
-            if key in BASE_RESULTS.keys() or key == 'result':
+            if (key == 'result'
+                    and action not in (parsers.ACTION_TRUE,
+                                       parsers.ACTION_FALSE)
+                    and per_file not in (parsers.PER_FIRST, parsers.PER_LAST,
+                                         parsers.PER_ANY, parsers.PER_ALL)):
                 raise ResultError(
-                    "Result parser key '{}' under parser '{}' is reserved."
-                    .format(key, rtype)
-                )
+                    "Result parser has key 'result', but must store a "
+                    "boolean. Use action 'first' or 'last', along with a "
+                    "per_file setting of 'first', 'last', 'any', or 'all'")
 
-            key_names.append(key)
+            key_names[key] = per_file
 
             parser = get_plugin(rtype)
-            parser.check_args(**rconf)
+            try:
+                parser.check_args(**rconf)
+            except ResultError as err:
+                raise ResultError(
+                    "Key '{}': {}".format(key, err.args[0]))
 
         for key, expr in evaluate_conf.items():
             if key in BASE_RESULTS:
@@ -84,11 +92,6 @@ For evaluations we check for:
             if resolver.TestConfigResolver.was_deferred(expr):
                 continue
 
-            error = check_expression(expr)
-            if error is not None:
-                raise ResultError(
-                    "The result evaluate expression for key '{}' has a syntax "
-                    "error:\n{}"
-                    .format(key, error))
+            check_expression(expr)
 
     return errors

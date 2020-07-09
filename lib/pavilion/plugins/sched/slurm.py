@@ -74,6 +74,30 @@ class SlurmVars(SchedulerVariables):
     """Scheduler variables for the Slurm scheduler."""
     # pylint: disable=no-self-use
 
+    EXAMPLE = {
+        "alloc_cpu_total": "36",
+        "alloc_max_mem": "128842",
+        "alloc_max_ppn": "36",
+        "alloc_min_mem": "128842",
+        "alloc_min_ppn": "36",
+        "alloc_node_list": ["node004", "node005"],
+        "alloc_nodes": "2",
+        "max_mem": "128842",
+        "max_ppn": "36",
+        "min_mem": "128842",
+        "min_ppn": "36",
+        "node_avail_list": ["node003", "node004", "node005"],
+        "node_list": ["node001", "node002", "node003", "node004", "node005"],
+        "node_up_list": ["node002", "node003", "node004", "node005"],
+        "nodes": "371",
+        "nodes_avail": "3",
+        "nodes_up": "350",
+        "test_cmd": "srun -N 2 -n 2",
+        "test_node_list": ["node004", "node005"],
+        "test_nodes": "2",
+        "test_procs": "2",
+    }
+
     @var_method
     def min_ppn(self):
         """The minimum processors per node across all nodes."""
@@ -316,6 +340,8 @@ class Slurm(SchedulerPlugin):
 
     VAR_CLASS = SlurmVars
 
+    NUM_NODES_REGEX = re.compile(r'^(\d+|all)(-(\d+|all))?$')
+
     NODE_SEQ_REGEX_STR = (
         # The characters in a valid hostname.
         r'[a-zA-Z][a-zA-Z_-]*\d*'
@@ -338,9 +364,8 @@ class Slurm(SchedulerPlugin):
     @staticmethod
     def _get_config_elems():
         return [
-            yc.RegexElem(
-                'num_nodes', regex=r'^(\d+|all)(-(\d+|all))?$',
-                default="1",
+            yc.StrElem(
+                'num_nodes', default="1",
                 help_text="Number of nodes requested for this test. "
                           "This can be a range (e.g. 12-24)."),
             yc.StrElem('tasks_per_node', default="1",
@@ -955,6 +980,12 @@ class Slurm(SchedulerPlugin):
 
         # Figure out the requested number of nodes
         num_nodes = sched_config.get('num_nodes')
+
+        if self.NUM_NODES_REGEX.match(num_nodes) is None:
+            raise SchedulerPluginError(
+                "Invalid value for 'num_nodes'. Got '{}', expected something "
+                "like '3', 'all', or '1-all'.".format(num_nodes))
+
         min_all = False
         if '-' in num_nodes:
             min_nodes, max_nodes = num_nodes.split('-')
@@ -1007,6 +1038,7 @@ class Slurm(SchedulerPlugin):
                 STATES.SCHED_CANCELLED,
                 msg
             )
+            test.set_run_complete()
             return StatusInfo(
                 STATES.SCHED_CANCELLED,
                 msg

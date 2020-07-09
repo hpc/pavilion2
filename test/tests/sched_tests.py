@@ -1,30 +1,40 @@
-from pavilion import config
+import inspect
+import re
+
 from pavilion import plugins
 from pavilion import schedulers
 from pavilion.test_config import variables
-from pavilion.test_run import TestRun
 from pavilion.unittest import PavTestCase
-from pavilion.test_config import VariableSetManager
-import re
 
-class RawSchedTests(PavTestCase):
 
-    def __init__(self, *args, **kwargs):
-
-        super().__init__(*args, **kwargs)
-
-        # Do a default pav config, which will load from
-        # the pavilion lib path.
-        self.pav_config = config.PavilionConfigLoader().load_empty()
-        self.pav_config.config_dirs = [self.TEST_DATA_ROOT/'pav_config_dir']
+class SchedTests(PavTestCase):
+    """Assorted tests to apply across all scheduler plugins."""
 
     def setUp(self):
 
-        plugins.initialize_plugins(self.pav_config)
+        plugins.initialize_plugins(self.pav_cfg)
 
     def tearDown(self):
 
         plugins._reset_plugins()
+
+    def test_check_examples(self):
+        """Make sure scheduler examples are up-to-date."""
+
+        test = self._quick_test()
+
+        scheds = schedulers.list_plugins()
+        for sched_name in scheds:
+            sched = schedulers.get_plugin(sched_name)
+            sched_vars = sched.VAR_CLASS(sched, test.config[sched_name])
+
+            for key in sched_vars.keys():
+                module_path = inspect.getmodule(sched).__file__
+                example = sched_vars.info(key)['example']
+                self.assertNotEqual(example, sched_vars.NO_EXAMPLE,
+                    msg="The sched variable examples for scheduler {} at "
+                        "({}) are missing key {}."
+                        .format(sched_name, module_path, key))
 
     def test_sched_vars(self):
         """Make sure the scheduler variable class works as expected."""
@@ -59,24 +69,24 @@ class RawSchedTests(PavTestCase):
                     'foo': 'baz'
                 }
 
+            def available(self):
+                return True
+
             def _in_alloc(self):
                 return self.in_alloc_var
 
-        test = TestRun(
-            pav_cfg=self.pav_cfg,
-            config={
-                'name': 'sched-vars',
-                'scheduler': 'dummy'
-            },
-            var_man=VariableSetManager(),
-        )
+        config = {
+                     'name':      'sched-vars',
+                     'scheduler': 'dummy'
+                 }
+
+        test = self._quick_test(config)
 
         dummy_sched = DummySched()
 
         svars = dummy_sched.get_vars(test)
 
         # There should only be three keys.
-        self.assertEqual(len(list(svars.keys())), 3)
         self.assertEqual(svars['hello'], 'hello')
         self.assertEqual(svars['foo'], 'baz')
         # Make sure we get a deferred variable when outside of an allocation
@@ -91,14 +101,11 @@ class RawSchedTests(PavTestCase):
         pav_cfg = self.pav_cfg
         pav_cfg['env_setup'] = ['test1', 'test2', 'test3']
 
-        test = TestRun(
-            pav_cfg=self.pav_cfg,
-            config={
-                'name': 'sched-vars',
-                'scheduler': 'dummy'
-            },
-            var_man=VariableSetManager(),
-        )
+        config = {
+                     'name':      'sched-vars',
+                     'scheduler': 'dummy'
+                 }
+        test = self._quick_test(config)
 
         dummy_sched = schedulers.get_plugin('dummy')
         path = dummy_sched._create_kickoff_script(pav_cfg, test)
@@ -109,6 +116,3 @@ class RawSchedTests(PavTestCase):
         testlist = pav_cfg['env_setup']
         self.assertTrue(set(testlist).issubset(lines))
         self.assertTrue(re.match(r'pav _run.*', lines[-1]))
-
-
-
