@@ -471,8 +471,7 @@ class TestConfigResolver:
         """Ensures version was provided in the correct format, and returns the
         version as a list of digits."""
 
-        result = TEST_VERS_RE.match(version_str)
-        if result is not None:
+        if TEST_VERS_RE.match(version_str) is not None:
             version = version_str.split(".")
             if version[-1] == '*':
                 del version[-1]
