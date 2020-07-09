@@ -35,7 +35,7 @@ CONF_TEST = 'tests'
 
 LOGGER = logging.getLogger('pav.' + __name__)
 
-TEST_VERS_RE = re.compile(r'^\d+(\.\d+|\.\*$){0,2}$')
+TEST_VERS_RE = re.compile(r'^\d+(\.\d+){0,2}$')
 
 
 class TestConfigResolver:
@@ -489,8 +489,6 @@ class TestConfigResolver:
 
         if TEST_VERS_RE.match(version_str) is not None:
             version = version_str.split(".")
-            if version[-1] == '*':
-                del version[-1]
             return [int(i) for i in version]
         else:
             raise TestConfigError(
