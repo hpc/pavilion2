@@ -415,27 +415,21 @@ class ShowCommand(commands.Command):
             col_names.append('Path')
         if args.vars:
             col_names.append('Variables')
-        for conf_dir in pav_cfg.config_dirs:
-            path = conf_dir / directory
 
-            if not (path.exists() and path.is_dir()):
-                continue
+        config_info = resolver.TestConfigResolver.load_config_files(pav_cfg, directory) 
 
-            for file in os.listdir(path.as_posix()):
+        for config in config_info:
+            name = config[0]
+            full_path = config[1]
+            full_config = config[2]
 
-                file = path / file
-                if file.suffix == '.yaml' and file.is_file():
-                    name = file.stem
-                    full_path = file
-                    with file.open() as config_file:
-                        config = file_format.TestConfigLoader().load(config_file)
-                        variables = list(config['variables'].keys())
+            variables = list(full_config['variables'].keys())
 
-                    data.append({
-                        'Name': name,
-                        'Path': full_path,
-                        'Variables': variables
-                    })
+            data.append({
+                'Name': name,
+                'Path': full_path,
+                'Variables': variables
+            })
 
         output.draw_table(
             self.outfile,

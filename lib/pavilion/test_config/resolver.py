@@ -19,6 +19,7 @@ from pavilion import output
 from pavilion import pavilion_variables
 from pavilion import schedulers
 from pavilion import system_variables
+from pavilion.test_config import file_format
 from pavilion.test_config import parsers
 from pavilion.test_config import variables
 from pavilion.test_config.file_format import (TestConfigError, TEST_NAME_RE,
@@ -195,6 +196,27 @@ class TestConfigResolver:
                         }
 
         return suites
+
+    def load_config_files(pav_cfg, directory):
+        config_info = []
+        for conf_dir in pav_cfg.config_dirs:
+            path = conf_dir / directory
+
+            if not (path.exists() and path.is_dir()):
+                continue
+
+            for file in os.listdir(path.as_posix()):
+
+                file = path / file
+                if file.suffix == '.yaml' and file.is_file():
+                    name = file.stem
+                    full_path = file
+                    with file.open() as config_file:
+                        config = file_format.TestConfigLoader().load(config_file)
+
+                    config_info.append((name, full_path, config))
+
+        return config_info
 
     def load(self, tests: List[str], host: str = None,
              modes: List[str] = None, overrides: List[str] = None,
