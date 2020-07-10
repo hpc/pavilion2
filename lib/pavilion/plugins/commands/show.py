@@ -408,121 +408,76 @@ class ShowCommand(commands.Command):
                 title="Available Expression Functions"
             )
 
+    def show_table(self, pav_cfg, args, directory):
+        data = []
+        col_names = ['Name']
+        if args.verbose:
+            col_names.append('Path')
+        if args.vars:
+            col_names.append('Variables')
+        for conf_dir in pav_cfg.config_dirs:
+            path = conf_dir / directory
+
+            if not (path.exists() and path.is_dir()):
+                continue
+
+            for file in os.listdir(path.as_posix()):
+
+                file = path / file
+                if file.suffix == '.yaml' and file.is_file():
+                    name = file.stem
+                    full_path = file
+                    with file.open() as config_file:
+                        config = file_format.TestConfigLoader().load(config_file)
+                        variables = list(config['variables'].keys())
+
+                    data.append({
+                        'Name': name,
+                        'Path': full_path,
+                        'Variables': variables
+                    })
+
+        output.draw_table(
+            self.outfile,
+            field_info={},
+            fields=col_names,
+            rows=data
+        )
+
+    def show_full_config(self, pav_cfg, args, directory):
+
+        config_data, file = self.get_config(pav_cfg, args.config, directory)
+        if config_data is not None:
+            output.fprint("{} config for {} found "
+                          "at:{}".format(directory.strip('s'), args.config,
+                                         str(file)), file=self.outfile)
+            output.fprint(pprint.pformat(config_data, compact=True),
+                          file=self.outfile)
+        else:
+            output.fprint("No {} config found for "
+                          "{}.".format(directory.strip('s'), args.config))
+            return errno.EINVAL
+
+
     @show_cmd('host')
     def _hosts_cmd(self, pav_cfg, args):
         """List all known host files."""
 
         if args.config is None:
-            hosts = []
-            col_names = ['Name']
-            if args.verbose:
-                col_names.append('Path')
-            if args.vars:
-                col_names.append('Variables')
-            for conf_dir in pav_cfg.config_dirs:
-                path = conf_dir / 'hosts'
-
-                if not (path.exists() and path.is_dir()):
-                    continue
-
-                for file in os.listdir(path.as_posix()):
-
-                    file = path / file
-                    if file.suffix == '.yaml' and file.is_file():
-                        host_id = file.stem
-                        host_path = file
-                        with file.open() as config_file:
-                            config_data = yc_yaml.load(config_file)
-                        try:
-                            host_vars = list(config_data['variables']
-                                             .keys())
-                        except (KeyError, TypeError) as err:
-                            host_vars = []
-
-                        hosts.append({
-                            'Name': host_id,
-                            'Path': host_path,
-                            'Variables': host_vars
-                        })
-
-            output.draw_table(
-                self.outfile,
-                field_info={},
-                fields=col_names,
-                rows=hosts
-            )
+            self.show_table(pav_cfg, args, 'hosts')
 
         else:
-
-            host = args.config
-            config_data, file = self.get_config(pav_cfg, host, 'hosts')
-            if config_data is not None:
-                output.fprint("Host config for {} found at:{}".format(host,
-                                                                       str(file)),
-                               file=self.outfile)
-                output.fprint(pprint.pformat(config_data, compact=True),
-                              file=self.outfile)
-            else:
-                output.fprint("No host config found for {}.".format(mode))
-                return errno.EINVAL
-
+            self.show_full_config(pav_cfg, args, 'hosts')
 
     @show_cmd('mode')
     def _modes_cmd(self, pav_cfg, args):
         """List all known mode files."""
 
         if args.config is None:
-            modes = []
-            col_names = ['Name']
-            if args.verbose:
-                col_names.append('Path')
-            if args.vars:
-                col_names.append('Variables')
-            for conf_dir in pav_cfg.config_dirs:
-                path = conf_dir / 'modes'
-
-                if not (path.exists() and path.is_dir()):
-                    continue
-
-                for file in os.listdir(path.as_posix()):
-
-                    file = path / file
-                    if file.suffix == '.yaml' and file.is_file():
-                        mode_id = file.stem
-                        mode_path = file
-                        with file.open() as config_file:
-                            config_data = yc_yaml.load(config_file)
-                        try:
-                            mode_vars = list(config_data['variables'].keys())
-                        except (KeyError, TypeError) as err:
-                            mode_vars = []
-
-                        modes.append({
-                            'Name': mode_id,
-                            'Path': mode_path,
-                            'Variables': mode_vars
-                        })
-
-            output.draw_table(
-                self.outfile,
-                field_info={},
-                fields=col_names,
-                rows=modes
-            )
+            self.show_table(pav_cfg, args, 'modes')
 
         else:
-            mode = args.config
-            config_data, file = self.get_config(pav_cfg, mode, 'modes')
-            if config_data is not None:
-                output.fprint("Mode config for {} found at:{}".format(mode,
-                                                                       str(file)),
-                               file=self.outfile)
-                output.fprint(pprint.pformat(config_data, compact=True),
-                              file=self.outfile)
-            else:
-                output.fprint("No mode config found for {}.".format(mode))
-                return errno.EINVAL
-
+            self.show_full_config(pav_cfg, args, 'modes')
 
     @show_cmd('mod', 'module', 'modules', 'wrappers')
     def _module_wrappers_cmd(self, _, args):
