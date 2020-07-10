@@ -197,7 +197,7 @@ class TestConfigResolver:
 
         return suites
 
-    def find_all_configs(self, directory):
+    def find_all_configs(self, conf_type):
         """ Find all configs (host/modes) within known config directories.
 
     :return: Returns a dictionary of suite names to an info dict.
@@ -214,7 +214,7 @@ class TestConfigResolver:
 
         configs = {}
         for conf_dir in self.pav_cfg.config_dirs:
-            path = conf_dir / directory
+            path = conf_dir / conf_type
 
             if not (path.exists() and path.is_dir()):
                 continue

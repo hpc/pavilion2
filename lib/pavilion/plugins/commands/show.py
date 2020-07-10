@@ -408,7 +408,7 @@ class ShowCommand(commands.Command):
                 title="Available Expression Functions"
             )
 
-    def show_table(self, pav_cfg, args, directory):
+    def show_table(self, pav_cfg, args, conf_type):
         data = []
         col_names = ['Name']
         if args.verbose:
@@ -416,7 +416,7 @@ class ShowCommand(commands.Command):
         if args.vars:
             col_names.append('Variables')
 
-        configs = resolver.TestConfigResolver(pav_cfg).find_all_configs(directory)
+        configs = resolver.TestConfigResolver(pav_cfg).find_all_configs(conf_type)
 
         for config in configs:
             name = config
@@ -438,12 +438,16 @@ class ShowCommand(commands.Command):
             rows=data
         )
 
-    def show_full_config(self, pav_cfg, args, directory):
+    def show_full_config(self, pav_cfg, args, conf_type):
 
-        config_data, file = self.get_config(pav_cfg, args.config, directory)
+        file = resolver.TestConfigResolver(pav_cfg)._find_config(conf_type,
+                                                                 args.config)
+        with file.open() as config_file:
+            config_data = file_format.TestConfigLoader().load(config_file)
+
         if config_data is not None:
             output.fprint("{} config for {} found "
-                          "at:{}".format(directory.strip('s'), args.config,
+                          "at:{}".format(conf_type.strip('s'), args.config,
                                          str(file)), file=self.outfile)
             output.fprint(pprint.pformat(config_data, compact=True),
                           file=self.outfile)
@@ -468,7 +472,7 @@ class ShowCommand(commands.Command):
         """List all known mode files."""
 
         if args.config is None:
-            self.show_table(args, 'modes')
+            self.show_table(pav_cfg, args, 'modes')
 
         else:
             self.show_full_config(pav_cfg, args, 'modes')
@@ -809,18 +813,4 @@ class ShowCommand(commands.Command):
         """Show the basic test config format."""
         file_format.TestConfigLoader().dump(self.outfile)
 
-    def get_config(self, pav_cfg, name, directory):
-
-        for conf_dir in pav_cfg.config_dirs:
-            path = conf_dir / directory
-            if not (path.exists() and path.is_dir()):
-                continue
-            for file in os.listdir(path.as_posix()):
-                file = path / file
-                if file.stem == name and file.suffix == '.yaml':
-                    with file.open() as config_file:
-                        config_data = yc_yaml.load(config_file)
-                    return config_data, file
-
-        return None, None
 
