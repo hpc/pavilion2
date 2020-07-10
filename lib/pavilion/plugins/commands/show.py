@@ -416,18 +416,18 @@ class ShowCommand(commands.Command):
         if args.vars:
             col_names.append('Variables')
 
-        config_info = resolver.TestConfigResolver.load_config_files(pav_cfg, directory) 
+        configs = resolver.TestConfigResolver(pav_cfg).find_all_configs(directory)
 
-        for config in config_info:
-            name = config[0]
-            full_path = config[1]
-            full_config = config[2]
+        for config in configs:
+            name = config
+            path = configs[name]['path']
+            full_config = configs[name]['config']
 
             variables = list(full_config['variables'].keys())
 
             data.append({
                 'Name': name,
-                'Path': full_path,
+                'Path': path,
                 'Variables': variables
             })
 
@@ -468,7 +468,7 @@ class ShowCommand(commands.Command):
         """List all known mode files."""
 
         if args.config is None:
-            self.show_table(pav_cfg, args, 'modes')
+            self.show_table(args, 'modes')
 
         else:
             self.show_full_config(pav_cfg, args, 'modes')

@@ -197,9 +197,23 @@ class TestConfigResolver:
 
         return suites
 
-    def load_config_files(pav_cfg, directory):
-        config_info = []
-        for conf_dir in pav_cfg.config_dirs:
+    def find_all_configs(self, directory):
+        """ Find all configs (host/modes) within known config directories.
+
+    :return: Returns a dictionary of suite names to an info dict.
+    :rtype: dict(dict)
+
+    The returned data structure looks like: ::
+
+        config_name -> {
+            'path': Path to the suite file.
+            'config': Full config file, loaded as a dict.
+            }
+
+        """
+
+        configs = {}
+        for conf_dir in self.pav_cfg.config_dirs:
             path = conf_dir / directory
 
             if not (path.exists() and path.is_dir()):
@@ -210,13 +224,16 @@ class TestConfigResolver:
                 file = path / file
                 if file.suffix == '.yaml' and file.is_file():
                     name = file.stem
+                    configs[name] = {}
+
                     full_path = file
                     with file.open() as config_file:
                         config = file_format.TestConfigLoader().load(config_file)
 
-                    config_info.append((name, full_path, config))
+                    configs[name]['path'] = full_path
+                    configs[name]['config'] = config
 
-        return config_info
+        return configs
 
     def load(self, tests: List[str], host: str = None,
              modes: List[str] = None, overrides: List[str] = None,
