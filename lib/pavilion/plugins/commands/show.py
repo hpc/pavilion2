@@ -132,9 +132,8 @@ class ShowCommand(commands.Command):
         )
 
         hosts_group.add_argument(
-            '--vars',
-            action='store_true', default=False,
-            help="Show defined variables in host config."
+            '--vars', action='store', type=str, metavar='<host>',
+            help="Show defined variables for desired host config."
         )
 
         hosts_group.add_argument(
@@ -158,9 +157,8 @@ class ShowCommand(commands.Command):
         )
 
         modes_group.add_argument(
-            '--vars',
-            action='store_true', default=False,
-            help="Show defined variables in mode config."
+            '--vars', action='store', type=str, metavar='<mode>',
+            help="Show defined variables for desired mode config."
         )
 
         modes_group.add_argument(
@@ -408,27 +406,70 @@ class ShowCommand(commands.Command):
                 title="Available Expression Functions"
             )
 
-    def show_table(self, pav_cfg, args, conf_type):
+    def show_vars(self, pav_cfg, config, conf_type):
+
+        file = resolver.TestConfigResolver(pav_cfg)._find_config(conf_type,
+                                                                 config)
+        with file.open() as config_file:
+            config_data = file_format.TestConfigLoader().load(config_file)
+
         data = []
-        col_names = ['Name']
-        if args.verbose:
-            col_names.append('Path')
-        if args.vars:
-            col_names.append('Variables')
+        col_names = ['Variables', 'Type', 'Value']
+
+        name = config
+        path = file
+        config = config_data
+
+        for var in config['variables'].keys():
+            var_out = var
+            type_out = type(config['variables'][var]).__name__
+            for subvar in config['variables'][var]:
+                if type(subvar) is yaml_config.elements.ConfigDict:
+                    type_out = 'dict'
+                    for key, val in subvar.items():
+                        data.append({
+                            'Variables': var_out,
+                            'Type': type_out,
+                            'Value': key + ": " + val,
+                        })
+                        var_out = ''
+                        type_out = ''
+                else:
+                    data.append({
+                        'Variables': var_out,
+                        'Type': type_out,
+                        'Value': subvar,
+                    })
+                    var_out = ''
+                    type_out = ''
+
+        output.fprint("\n{} {} config at {}: ".format(name,
+                                                    conf_type.strip('s'),
+                                                    path))
+        output.draw_table(
+            self.outfile,
+            field_info={},
+            fields=col_names,
+            rows=data
+        )
+
+    def show_table(self, pav_cfg, args, conf_type):
 
         configs = resolver.TestConfigResolver(pav_cfg).find_all_configs(conf_type)
+
+        data = []
+        col_names = ['Name']
+
+        if args.verbose:
+            col_names.append('Path')
 
         for config in configs:
             name = config
             path = configs[name]['path']
-            full_config = configs[name]['config']
-
-            variables = list(full_config['variables'].keys())
 
             data.append({
                 'Name': name,
                 'Path': path,
-                'Variables': variables
             })
 
         output.draw_table(
@@ -438,44 +479,47 @@ class ShowCommand(commands.Command):
             rows=data
         )
 
-    def show_full_config(self, pav_cfg, args, conf_type):
+    def show_full_config(self, pav_cfg, config, conf_type):
 
         file = resolver.TestConfigResolver(pav_cfg)._find_config(conf_type,
-                                                                 args.config)
+                                                                 config)
         with file.open() as config_file:
             config_data = file_format.TestConfigLoader().load(config_file)
 
         if config_data is not None:
             output.fprint("{} config for {} found "
-                          "at:{}".format(conf_type.strip('s'), args.config,
+                          "at:{}".format(conf_type.strip('s'), config,
                                          str(file)), file=self.outfile)
             output.fprint(pprint.pformat(config_data, compact=True),
                           file=self.outfile)
         else:
             output.fprint("No {} config found for "
-                          "{}.".format(directory.strip('s'), args.config))
+                          "{}.".format(directory.strip('s'), config))
             return errno.EINVAL
 
+    def show_configs(self, pav_cfg, args):
+
+        if not args.show_cmd.endswith('s'):
+            args.show_cmd = args.show_cmd + 's'
+
+        if args.vars:
+            self.show_vars(pav_cfg, args.vars, args.show_cmd)
+        elif args.config:
+            self.show_full_config(pav_cfg, args.config, args.show_cmd)
+        else:
+            self.show_table(pav_cfg, args, args.show_cmd)
 
     @show_cmd('host')
     def _hosts_cmd(self, pav_cfg, args):
         """List all known host files."""
 
-        if args.config is None:
-            self.show_table(pav_cfg, args, 'hosts')
-
-        else:
-            self.show_full_config(pav_cfg, args, 'hosts')
+        self.show_configs(pav_cfg, args)
 
     @show_cmd('mode')
     def _modes_cmd(self, pav_cfg, args):
         """List all known mode files."""
 
-        if args.config is None:
-            self.show_table(pav_cfg, args, 'modes')
-
-        else:
-            self.show_full_config(pav_cfg, args, 'modes')
+        self.show_configs(pav_cfg, args)
 
     @show_cmd('mod', 'module', 'modules', 'wrappers')
     def _module_wrappers_cmd(self, _, args):
