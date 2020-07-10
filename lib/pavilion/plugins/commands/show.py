@@ -422,7 +422,6 @@ class ShowCommand(commands.Command):
 
         for var in config['variables'].keys():
             var_out = var
-            type_out = type(config['variables'][var]).__name__
             for subvar in config['variables'][var]:
                 if type(subvar) is yaml_config.elements.ConfigDict:
                     type_out = 'dict'
@@ -437,11 +436,10 @@ class ShowCommand(commands.Command):
                 else:
                     data.append({
                         'Variables': var_out,
-                        'Type': type_out,
+                        'Type': type(subvar).__name__,
                         'Value': subvar,
                     })
                     var_out = ''
-                    type_out = ''
 
         output.fprint("\n{} {} config at {}: ".format(name,
                                                     conf_type.strip('s'),
