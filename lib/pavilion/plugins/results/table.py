@@ -161,8 +161,6 @@ class Table(parsers.ResultParser):
                     result_dict[col_names[col_idx]][row_names[row_idx]] = \
                         match_list[row_idx][col_idx]
 
-            # return str(result_dict.keys())
-
             # "flip" the dictionary if by_column is set to False (default)
             if by_column == "False":
                 tmp_dict = {}
