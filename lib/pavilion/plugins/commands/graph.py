@@ -241,12 +241,9 @@ class GraphCommand(commands.Command):
 
     def get_data(self, evals, results):
 
-        print(results)
-
         evaluations.evaluate_results(results, evals)
 
-        x_data = []
-        x_data.append(results['x'])
+        x_data = results['x']
         y_data_list = []
 
         for key in evals:
@@ -254,7 +251,12 @@ class GraphCommand(commands.Command):
                 y_data_list.append(results[key])
 
         results = {}
-        for index in range(len(x_data)):
-            results[x_data[index]] = y_data_list[index]
+        if type(x_data) is list:
+            for index in range(len(x_data)):
+                results[x_data[index]] = []
+                for item in y_data_list:
+                    results[x_data[index]].append(item[index])
+        else:
+            results[x_data] = y_data_list[-1]
 
         return results

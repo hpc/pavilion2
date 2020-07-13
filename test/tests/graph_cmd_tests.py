@@ -126,6 +126,24 @@ class ResolverTests(PavTestCase):
             'id': 235
         }
 
+        # Get a single value out of results.
+        arg_parser = arguments.get_parser()
+        args = arg_parser.parse_args([
+            'graph',
+            '--x', 'id',
+            '--y', 'Info.Read'
+        ])
+
+        eval_dict = self.graph_cmd.build_evaluations_dict(args.x, args.y)
+        eval_res = self.graph_cmd.get_data(eval_dict, results)
+
+        eval_expected = {
+            235: 123424
+        }
+
+        self.assertEqual(eval_res, eval_expected)
+
+        # Get multiple values out of results.
         arg_parser = arguments.get_parser()
         args = arg_parser.parse_args([
             'graph',
@@ -133,17 +151,71 @@ class ResolverTests(PavTestCase):
             '--y', 'Info.*'
         ])
 
-        evals_dict = self.graph_cmd.build_evaluations_dict(args.x, args.y)
-        results = self.graph_cmd.get_data(evals_dict, results)
+        eval_dict = self.graph_cmd.build_evaluations_dict(args.x, args.y)
+        eval_res = self.graph_cmd.get_data(eval_dict, results)
 
-        expected = {
+        eval_expected = {
             235: [123424, 14214]
         }
 
-        self.assertEqual(results, expected)
+        self.assertEqual(eval_res, eval_expected)
 
+        results = {
+            'test': 'Test1',
+            'result': 'PASS',
+            'Info': {
+                1: {
+                    'Read': 123424,
+                    'Write': 14214
+                },
+                2: {
+                    'Read': 124342123,
+                    'Write': 124
+                },
+                3: {
+                    'Read': 33523,
+                    'Write': 2425
+                }
+            },
+            'id': 235
+        }
 
+        # Get a single value out of multiple keys in results.
+        arg_parser = arguments.get_parser()
+        args = arg_parser.parse_args([
+            'graph',
+            '--x', 'keys(Info)',
+            '--y', 'Info.*.Read'
+        ])
 
+        eval_dict = self.graph_cmd.build_evaluations_dict(args.x, args.y)
+        eval_res = self.graph_cmd.get_data(eval_dict, results)
 
+        eval_expected = {
+            1: [123424],
+            2: [124342123],
+            3: [33523]
+        }
+
+        self.assertEqual(eval_res, eval_expected)
+
+        # Get multiple values out of multiple keys in results.
+        arg_parser = arguments.get_parser()
+        args = arg_parser.parse_args([
+            'graph',
+            '--x', 'keys(Info)',
+            '--y', 'Info.*.Read', 'Info.*.Write'
+        ])
+
+        eval_dict = self.graph_cmd.build_evaluations_dict(args.x, args.y)
+        eval_res = self.graph_cmd.get_data(eval_dict, results)
+
+        eval_expected = {
+            1: [123424, 14214],
+            2: [124342123, 124],
+            3: [33523, 2425]
+        }
+
+        self.assertEqual(eval_res, eval_expected)
 
 
