@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 import re
+import time
 from datetime import datetime
 
 from pavilion import commands
@@ -86,21 +87,29 @@ class GraphCommand(commands.Command):
         evals = self.build_evaluations_dict(args.x, args.y)
         for test in tests:
 
-            x_data, y_data = self.get_data(evals, test.results)
+            results = self.get_data(evals, test.results)
+
+            #y_data = [item for sublist in y_data for item in sublist]
 
             # Plot this test.
-            for y_val, arg in zip(y_data, args.y):
-                plt.plot(x_data, y_val, 'o', label = arg) # label = arg eventually.
+            for x, y_list in results.items():
+                for y in y_list:
+                    plt.plot(x, y, 'o') # label = arg eventually.
 
         plt.ylabel(args.y_label)
         plt.xlabel(args.x_label)
         plt.legend()
         plt.show()
 
+        time.sleep(5)
+
+        plt.close()
+
     def validate_args(self, args):
 
         # Validate Date.
         if args.date:
+            args.date = args.date.strip("'")
             try:
                 args.date = datetime.strptime(args.date, '%b %d %Y')
             except ValueError as err:
@@ -116,7 +125,6 @@ class GraphCommand(commands.Command):
                           "flag to specify.")
         if not args.x or not args.y:
             return errno.EINVAL
-
 
     def build_evaluations_dict(self, x_eval, y_eval):
 
@@ -237,13 +245,16 @@ class GraphCommand(commands.Command):
 
         evaluations.evaluate_results(results, evals)
 
-        x_data = results['x']
+        x_data = []
+        x_data.append(results['x'])
         y_data_list = []
 
         for key in evals:
-            if key is 'x':
-                continue
-            else:
+            if key is not 'x':
                 y_data_list.append(results[key])
 
-        return x_data, y_data_list
+        results = {}
+        for index in range(len(x_data)):
+            results[x_data[index]] = y_data_list[index]
+
+        return results
