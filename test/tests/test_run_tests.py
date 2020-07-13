@@ -1,15 +1,12 @@
-import copy
+import io
+import io
 import os
-import shutil
-import tempfile
-import unittest
 from pathlib import Path
 
-from pavilion import wget
-from pavilion.test_run import TestRunError, TestRun
+from pavilion import plugins
 from pavilion.series import TestSeries
-from pavilion.status_file import STATES
-from pavilion.test_config import variables, VariableSetManager
+from pavilion.test_config import VariableSetManager
+from pavilion.test_run import TestRunError, TestRun
 from pavilion.unittest import PavTestCase
 
 
@@ -22,6 +19,7 @@ class TestRunTests(PavTestCase):
         config = {
             # The only required param.
             'name': 'blank_test',
+
             'scheduler': 'raw',
         }
 
@@ -83,7 +81,7 @@ class TestRunTests(PavTestCase):
         self.assert_(test.build())
         test.finalize(VariableSetManager())
 
-        self.assertTrue(test.run(), msg="Test failed to run.")
+        self.assertEqual(test.run(), 0, msg="Test failed to run.")
 
         config2 = config1.copy()
         config2['run']['modules'] = ['asdlfkjae', 'adjwerloijeflkasd']
@@ -94,8 +92,7 @@ class TestRunTests(PavTestCase):
         test.finalize(VariableSetManager())
 
         self.assertEqual(
-            test.run(),
-            False,
+            test.run(), 1,
             msg="Test should have failed because a module couldn't be "
                 "loaded. {}".format(test.path))
         # TODO: Make sure this is the exact reason for the failure
@@ -112,12 +109,87 @@ class TestRunTests(PavTestCase):
         }
 
         test = TestRun(self.pav_cfg, config3)
-        self.assert_(test.build())
+        self.assertTrue(test.build())
         test.finalize(VariableSetManager())
         with self.assertRaises(TimeoutError,
                                msg="Test should have failed due "
                                    "to timeout. {}"):
             test.run()
+
+    def test_create_file(self):
+        """Ensure runtime file creation is working correctly."""
+
+        plugins.initialize_plugins(self.pav_cfg)
+        files_to_create = {
+            'runtime_0': ['line_0', 'line_1'],
+            'wild/runtime_1': ['line_0', 'line_1'],  # dir exists
+            'wild/dir2/runtime_2': ['line_0', 'line_1'], # dir2 does not exist
+            'real.txt': ['line_0', 'line_1'],  # file exists; overwrite
+            'runtime_variable': ['{{var1}}',
+                                 '{{var2.0}}', '{{var2.1}}', '{{var2.2}}',
+                                 '{{var3.subvar_1}}', '{{var3.subvar_2}}',
+                                 '{{var4.0.subvar_3}}', '{{var4.0.subvar_4}}',
+                                 '{{var4.1.subvar_3}}', '{{var4.1.subvar_4}}']
+        }
+        variables = {
+            'var1': 'val_1',
+            'var2': ['val_2', 'val_3', 'val_4'],
+            'var3': {'subvar_1': 'val_5',
+                     'subvar_2': 'val_6'},
+            'var4': [{'subvar_3': 'val_7',
+                      'subvar_4': 'val_8'},
+                     {'subvar_3': 'val_9',
+                      'subvar_4': 'val_10'}]
+        }
+        config = self._quick_test_cfg()
+        config['variables'] = variables
+        config['build']['source_path'] = 'file_tests.tgz'
+        config['run']['create_files'] = files_to_create
+        test = self._quick_test(config)
+
+        for file, lines in files_to_create.items():
+            file_path = test.path / 'build' / file
+            self.assertTrue(file_path.exists())
+
+            # Stage file contents for comparison.
+            original = io.StringIO()
+            created_file = open(str(file_path), 'r', encoding='utf-8')
+            if file == 'runtime_variable':
+                original.write('val_1\nval_2\nval_3\nval_4\nval_5\nval_6'
+                               '\nval_7\nval_8\nval_9\nval_10\n')
+            else:
+                for line in lines:
+                    original.write("{}\n".format(line))
+
+            self.assertEquals(original.getvalue(), created_file.read())
+            original.close()
+            created_file.close()
+
+    def test_files_create_errors(self):
+        """Ensure runtime file creation expected errors occur."""
+
+        plugins.initialize_plugins(self.pav_cfg)
+
+        # Ensure a file can't be written outside the build context.
+        files_to_fail = ['../file', '../../file', 'wild/../../file']
+        for file in files_to_fail:
+            file_arg = {file: []}
+            config = self._quick_test_cfg()
+            config['build']['source_path'] = 'file_tests.tgz'
+            config['build']['create_files'] = file_arg
+            with self.assertRaises(TestRunError) as context:
+                self._quick_test(config)
+            self.assertTrue('outside build context' in str(context.exception))
+
+        # Ensure a file can't overwrite existing directories.
+        files_to_fail = ['wild', 'rec']
+        for file in files_to_fail:
+            file_arg = {file: []}
+            config = self._quick_test_cfg()
+            config['build']['source_path'] = 'file_tests.tgz'
+            config['build']['create_files'] = file_arg
+            test = TestRun(self.pav_cfg, config)
+            self.assertFalse(test.build())
 
     def test_suites(self):
         """Test suite creation and regeneration."""

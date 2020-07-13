@@ -3,14 +3,42 @@ import unittest
 import subprocess
 import distutils.spawn
 
-_PYLINT3_PATH = distutils.spawn.find_executable('pylint3')
-if _PYLINT3_PATH is None:
-    _PYLINT3_PATH = distutils.spawn.find_executable('pylint')
+_PYLINT_PATH = distutils.spawn.find_executable('pylint')
+if _PYLINT_PATH is None:
+    _PYLINT_PATH = distutils.spawn.find_executable('pylint3')
+
+_MIN_PYLINT_VERSION = (2, 5, 0)
+
+
+def has_pylint():
+    """Check for a reasonably up-to-date pylint."""
+
+    if _PYLINT_PATH is None:
+        return False
+
+    result = subprocess.run([_PYLINT_PATH, '--version'],
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    for line in result.stdout.decode().split('\n'):
+        if line.startswith('pylint'):
+            version = line.split()[1]
+            break
+    else:
+        return False
+
+    if version.endswith(','):
+        version = version[:-1]
+    version = tuple(int(vpart) for vpart in version.split('.'))
+
+    if version < _MIN_PYLINT_VERSION:
+        return False
+
+    return True
 
 
 class StyleTests(PavTestCase):
 
-    @unittest.skipIf(not _PYLINT3_PATH, "pylint3 not found.")
+    @unittest.skipIf(not _PYLINT_PATH, "pylint3 not found.")
+    @unittest.skipIf(not has_pylint(), "pylint version insufficient.")
     def test_style(self):
 
         enabled = [
@@ -29,7 +57,7 @@ class StyleTests(PavTestCase):
         ]
 
         cmd = [
-            _PYLINT3_PATH,
+            _PYLINT_PATH,
             '--disable=all',
             '--enable={}'.format(','.join(enabled)),
             '--disable={}'.format(','.join(disabled)),

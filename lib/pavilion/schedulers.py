@@ -89,13 +89,22 @@ value. Methods that start with '_' are ignored.
 Naming Conventions:
 
 'alloc_*'
-  Variable names should be prefixed with 'alloc\_' if they are deferred.
+  Variable names should be prefixed with 'alloc\\_' if they are deferred.
 
 'test_*'
   Variable names prefixed with test denote that the variable
   is specific to a test. These also tend to be deferred.
-
 """
+
+    EXAMPLE = {
+        'min_cpus': "3",
+        'min_mem': "123412",
+    }
+
+    """Each scheduler variable class should provide an example set of
+    values for itself to display when using 'pav show' to list the variables.
+    These are easily obtained by running a test under the scheduler, and
+    then harvesting the results of the test run."""
 
     def __init__(self, scheduler, sched_config):
         """Initialize the scheduler var dictionary.
@@ -115,11 +124,37 @@ Naming Conventions:
 
         self.logger = logging.getLogger('{}_vars'.format(scheduler))
 
+    NO_EXAMPLE = '<no example>'
+
+    def info(self, key):
+        """Get the info dict for the given key, and add the example to it."""
+
+        info = super().info(key)
+        example = None
+        try:
+            example = self[key]
+        except (KeyError, ValueError, OSError):
+            pass
+
+        if example is None or isinstance(example, DeferredVariable):
+            example = self.EXAMPLE.get(key, self.NO_EXAMPLE)
+
+        if isinstance(example, list):
+            if len(example) > 10:
+                example = example[:10] + ['...']
+
+        info['example'] = example
+
+        return info
+
     @property
     def sched_data(self):
         """A convenience function for getting data from the scheduler."""
-        data = self.sched.get_data()
-        return data
+
+        if self.sched.available():
+            return self.sched.get_data()
+        else:
+            return {}
 
     def __repr__(self):
         for k in self.keys():
@@ -133,6 +168,15 @@ Naming Conventions:
     # situations, namely when your general architecture is such that
     # front-end nodes have less resources than any compute node. Note that
     # they are all non-deferred, so they're safe to use in build scripts,
+
+    @var_method
+    def test_cmd(self):
+        """The command to prepend to a line to kick it off under the
+        scheduler. This is blank by default, but most schedulers will
+        want to define something that utilizes relevant scheduler
+        parameters."""
+
+        return ''
 
     @var_method
     def min_cpus(self):
@@ -219,7 +263,6 @@ def get_plugin(name):
             "Scheduler plugin not found: '{}'".format(name))
 
     return _SCHEDULER_PLUGINS[name]
-
 
 
 def list_plugins():
@@ -348,7 +391,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
         """
 
         # For syntax highlighting. These vars may be used when overridden.
-        del pav_cfg, test, self
+        _ = pav_cfg, test, self
 
         return None
 
@@ -471,13 +514,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
         header = self._get_kickoff_script_header(test_obj)
 
-        script = scriptcomposer.ScriptComposer(
-            header=header,
-            details=scriptcomposer.ScriptDetails(
-                path=self._kickoff_script_path(test_obj)
-            ),
-        )
-
+        script = scriptcomposer.ScriptComposer(header=header)
         script.comment("Redirect all output to kickoff.log")
         script.command("exec >{} 2>&1"
                        .format(test_obj.path/'kickoff.log'))
@@ -499,9 +536,10 @@ class SchedulerPlugin(IPlugin.IPlugin):
         # Run the test via pavilion
         script.command('pav _run {t.id}'.format(t=test_obj))
 
-        script.write()
+        path = self._kickoff_script_path(test_obj)
+        script.write(path)
 
-        return script.details.path
+        return path
 
     def _get_kickoff_script_header(self, test):
         # Unused in the base class
@@ -513,8 +551,6 @@ class SchedulerPlugin(IPlugin.IPlugin):
     def _add_schedule_script_body(script, test):
         """Add the script body to the given script object. This default
         simply adds a comment and the test run command."""
-
-        del test
 
         script.comment("Within the allocation, run the command.")
         script.command(test.run_cmd())
@@ -535,6 +571,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
         job_id = test.job_id
         if job_id is None:
             test.status.set(STATES.SCHED_CANCELLED, "Job was never started.")
+            test.set_run_complete()
             return StatusInfo(STATES.SCHED_CANCELLED, "Job was never started.")
 
         return self._cancel_job(test)

@@ -9,8 +9,7 @@ class HostOS(system_plugins.SystemPlugin):
             name='host_os',
             description="The target host's OS info (name, version).",
             priority=self.PRIO_CORE,
-            is_deferable=True,
-            sub_keys=['name', 'version'])
+            is_deferable=True)
 
     def _get(self):
         """Base method for determining the operating host and version."""

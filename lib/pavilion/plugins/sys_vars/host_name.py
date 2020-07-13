@@ -9,8 +9,7 @@ class HostName( system_plugins.SystemPlugin ):
             name='host_name',
             description="The target host's hostname.",
             priority=self.PRIO_CORE,
-            is_deferable=True,
-            sub_keys=None)
+            is_deferable=True)
 
     def _get( self ):
         """Base method for determining the host name."""

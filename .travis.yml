@@ -5,11 +5,18 @@ python:
     - "3.7"
 
 before_install:
-    - sudo apt-get install -y environment-modules tcl pylint3 python3-sphinx
+    - echo $USER
+    - sudo apt-get install -y environment-modules tcl python3-sphinx
+    # Some tests require that the test running user belong to multiple groups.
+    - sudo groupadd group_foo
+    - sudo groupadd group_bar
+    - sudo usermod -a -G group_foo,group_bar travis
 
 install:
-    - pip install -r requirements.txt sphinx
+    - pip install -r requirements.txt sphinx pylint
     - ln -s pavilion.yaml.travis-ci test/data/pav_config_dir/pavilion.yaml
 
 script: 
-    - ./test/run_tests
+    # This has to run this way to pick up the groups we've added above.
+    - sudo -E su $USER -c "./test/run_tests"
+

@@ -4,9 +4,10 @@ the list of all known test runs."""
 # pylint: disable=too-many-lines
 
 import datetime
+import grp
 import json
 import logging
-import os
+import pprint
 import re
 import subprocess
 import threading
@@ -15,12 +16,14 @@ from pathlib import Path
 
 import pavilion.output
 from pavilion import builder
+from pavilion import dir_db
 from pavilion import lockfile
-from pavilion import result_parsers
+from pavilion import result
 from pavilion import scriptcomposer
 from pavilion import utils
+from pavilion.permissions import PermissionsManager
 from pavilion.status_file import StatusFile, STATES
-from pavilion.test_config import variables, resolver, parsers
+from pavilion.test_config import variables, resolver
 from pavilion.test_config.file_format import TestConfigError
 
 
@@ -34,16 +37,18 @@ def get_latest_tests(pav_cfg, limit):
 """
 
     test_dir_list = []
-    top_dir = pav_cfg.working_dir/'test_runs'
-    for child in top_dir.iterdir():
-        mtime = child.stat().st_mtime
-        test_dir_list.append((mtime, child.name))
+    runs_dir = pav_cfg.working_dir/'test_runs'
+    for test_dir in dir_db.select(runs_dir):
+        mtime = test_dir.stat().st_mtime
+        try:
+            test_id = int(test_dir.name)
+        except ValueError:
+            continue
+
+        test_dir_list.append((mtime, test_id))
 
     test_dir_list.sort()
-    last_tests = test_dir_list[-limit:]
-    tests_only = [int(i[1]) for i in last_tests]
-
-    return tests_only
+    return [test_id for _, test_id in test_dir_list[-limit:]]
 
 
 class TestRunError(RuntimeError):
@@ -53,107 +58,6 @@ class TestRunError(RuntimeError):
 
 class TestRunNotFoundError(RuntimeError):
     """For when we try to find an existing test, but it doesn't exist."""
-
-
-# Keep track of files we've already hashed and updated before.
-__HASHED_FILES = {}
-
-
-# The options 'struct' for test runs.  This should match the defaults in
-class TestRunOptions:
-    """A 'struct' of options for test runs, to keep minor options fairly
-    well contained."""
-
-    OPTIONS_FN = 'options'
-
-    KNOWN_OPTIONS = [
-        'build_only',
-        'rebuild',
-    ]
-
-    def __init__(self, build_only=False, rebuild=False, **_):
-        """Initialize the options. Taking (and not using) generic
-        kwargs to make it more friendly to test runs across versions.
-
-        :param build_only: Only build, don't run, the test.
-        :param rebuild: Deprecate the current build, and build a new one.
-        :param _: We handle generic keyword args to make loading tests of
-            different versions of Pavilion a little more flexible.
-        """
-        self.build_only = build_only
-        self.rebuild = rebuild
-
-    def as_dict(self):
-        """Returns the options as a dictionary.
-        """
-
-        out_dict = {}
-
-        for opt_name in self.KNOWN_OPTIONS:
-            out_dict[opt_name] = getattr(self, opt_name)
-
-        return out_dict
-
-    def save(self, test):
-        """Create a file that records the options for this test run.
-
-        :param TestRun test: The TestRun to save this under.
-        """
-
-        build_opts_path = test.path/self.OPTIONS_FN
-
-        if not build_opts_path.exists():
-            try:
-                with build_opts_path.open('w') as opts_file:
-                    json.dump(self.as_dict(), opts_file)
-            except ValueError as err:
-                msg = ("Could not record build options for test {} due to a "
-                       "json error: {}"
-                       .format(test.id, err))
-                test.status.set(STATES.INFO, msg)
-                test.logger.warning(msg)
-
-            except OSError as err:
-                msg = ("System error when savingg build options for test {}: {}"
-                       .format(test.id, err))
-                test.status.set(STATES.INFO, msg)
-                test.logger.warning(msg)
-        else:
-            raise RuntimeError("Trying to write options a second time for "
-                               "test {}. This should never happen.")
-
-    @classmethod
-    def load(cls, test):
-        """Load the options from file.
-
-        :rtype: TestRunOptions
-        """
-
-        build_opts_path = test.path / cls.OPTIONS_FN
-        options = {}
-
-        if build_opts_path.exists():
-            try:
-                with build_opts_path.open() as opts_file:
-                    options = json.load(opts_file)
-
-            except ValueError as err:
-                msg = ("Could not load build options for test run {}: {}"
-                       .format(test.id, err))
-                test.status.set(STATES.INFO, msg)
-                test.logger.warning(msg)
-
-        return cls(**options)
-
-    def __eq__(self, other):
-        """Compare this with other TestRunOptions objects. For when we test if
-        test_run loading works as expected."""
-
-        if not isinstance(other, TestRunOptions):
-            raise RuntimeError("Can only compare TestRunOptions to other "
-                               "TestRunOption instances.")
-
-        return self.as_dict() == other.as_dict()
 
 
 class TestRun:
@@ -180,6 +84,8 @@ class TestRun:
     :ivar int id: The test id.
     :ivar dict config: The test's configuration.
     :ivar Path test.path: The path to the test's test_run directory.
+    :ivar Path suite_path: The path to the test suite file that this test came
+        from. May be None for artifically generated tests.
     :ivar dict results: The test results. Set None if results haven't been
         gathered.
     :ivar TestBuilder builder: The test builder object, with information on the
@@ -198,13 +104,9 @@ class TestRun:
     JOB_ID_FN = 'job_id'
     COMPLETE_FN = 'RUN_COMPLETE'
 
-    OPTIONS_DEFAULTS = {
-        'build_only': False,
-        'rebuild': False,
-    }
-
     def __init__(self, pav_cfg, config,
-                 build_tracker=None, var_man=None, _id=None, **options):
+                 build_tracker=None, var_man=None, _id=None,
+                 rebuild=False, build_only=False):
         """Create an new TestRun object. If loading an existing test
     instance, use the ``TestRun.from_id()`` method.
 
@@ -226,13 +128,6 @@ class TestRun:
 
         self.load_ok = True
 
-        # Compute the actual name of test, using the subtitle config parameter.
-        self.name = '.'.join([
-            config.get('suite', '<unknown>'),
-            config.get('name', '<unnamed>')])
-        if 'subtitle' in config and config['subtitle']:
-            self.name = self.name + '.' + config['subtitle']
-
         self.scheduler = config['scheduler']
 
         # Create the tests directory if it doesn't already exist.
@@ -242,24 +137,64 @@ class TestRun:
 
         self.id = None  # pylint: disable=invalid-name
 
+        self._attrs = {}
+
         # Mark the run to build locally.
         self.build_local = config.get('build', {}) \
                                  .get('on_nodes', 'false').lower() != 'true'
 
+        # If a test access group was given, make sure it exists and the
+        # current user is a member.
+        self.group = config.get('group', pav_cfg['shared_group'])
+        if self.group is not None:
+            try:
+                group_data = grp.getgrnam(self.group)
+                user = utils.get_login()
+                if self.group != user and user not in group_data.gr_mem:
+                    raise TestConfigError(
+                        "Test specified group '{}', but the current user '{}' "
+                        "is not a member of that group."
+                        .format(self.group, user))
+            except KeyError as err:
+                raise TestConfigError(
+                    "Test specified group '{}', but that group does not "
+                    "exist on this system. {}"
+                    .format(self.group, err))
+
+        self.umask = config.get('umask', pav_cfg['umask'])
+        if self.umask is not None:
+            try:
+                self.umask = int(self.umask, 8)
+            except ValueError:
+                raise RuntimeError(
+                    "Invalid umask. This should have been enforced by the "
+                    "by the config format.")
+
+        self.build_only = build_only
+        self.rebuild = rebuild
+
+        self.suite_path = None
+        if self.config.get('suite_path') is not None:
+            try:
+                self.suite_path = Path(self.config['suite_path'])
+            except ValueError:
+                pass
+
         # Get an id for the test, if we weren't given one.
         if _id is None:
-            self.id, self.path = self.create_id_dir(tests_path)
-            self._save_config()
-            if var_man is None:
-                var_man = variables.VariableSetManager()
-            self.var_man = var_man
-            self._variables_path = self.path / 'variables'
-            self.var_man.save(self._variables_path)
-            self.opts = TestRunOptions(**options)
-            self.opts.save(self)
+            self.id, self.path = dir_db.create_id_dir(tests_path)
+            with PermissionsManager(self.path, self.group, self.umask):
+                self._save_config()
+                if var_man is None:
+                    var_man = variables.VariableSetManager()
+                self.var_man = var_man
+                self._variables_path = self.path / 'variables'
+                self.var_man.save(self._variables_path)
+
+            self.save_attributes()
         else:
             self.id = _id
-            self.path = utils.make_id_path(tests_path, self.id)
+            self.path = dir_db.make_id_path(tests_path, self.id)
             self._variables_path = self.path / 'variables'
             if not self.path.is_dir():
                 raise TestRunNotFoundError(
@@ -271,7 +206,18 @@ class TestRun:
             except RuntimeError as err:
                 raise TestRunError(*err.args)
 
-            self.opts = TestRunOptions.load(self)
+            self.load_attributes()
+
+        name_parts = [
+            self.config.get('suite', '<unknown>'),
+            self.config.get('name', '<unnamed>'),
+        ]
+        subtitle = self.config.get('subtitle')
+        # Don't add undefined or empty subtitles.
+        if subtitle:
+            name_parts.append(subtitle)
+
+        self.name = '.'.join(name_parts)
 
         # Set a logger more specific to this test.
         self.logger = logging.getLogger('pav.TestRun.{}'.format(self.id))
@@ -279,41 +225,31 @@ class TestRun:
         # This will be set by the scheduler
         self._job_id = None
 
-        # Setup the initial status file.
-        self.status = StatusFile(self.path/'status')
-        if _id is None:
-            self.status.set(STATES.CREATED,
-                            "Test directory and status file created.")
+        with PermissionsManager(self.path/'status', self.group, self.umask):
+            # Setup the initial status file.
+            self.status = StatusFile(self.path/'status')
+            if _id is None:
+                self.status.set(STATES.CREATED,
+                                "Test directory and status file created.")
 
         self.run_timeout = self.parse_timeout(
             'run', config.get('run', {}).get('timeout'))
         self.build_timeout = self.parse_timeout(
             'build', config.get('build', {}).get('timeout'))
 
-        self.started = None
-        self.finished = None
-
         self.build_name = None
         self.run_log = self.path/'run.log'
+        self.build_log = self.path/'build.log'
+        self.results_log = self.path/'results.log'
         self.results_path = self.path/'results.json'
         self.build_origin_path = self.path/'build_origin'
 
         build_config = self.config.get('build', {})
 
-        # make sure build source_download_name is not set without
-        # source_location
-        try:
-            if build_config['source_download_name'] is not None:
-                if build_config['source_location'] is None:
-                    msg = "Test could not be built. Need 'source_location'."
-                    self.status.set(STATES.BUILD_ERROR,
-                                    "'source_download_name is set without a "
-                                    "'source_location'")
-                    raise TestConfigError(msg)
-        except KeyError:
-            # this is mostly for unit tests that create test configs without a
-            # build section at all
-            pass
+        if (build_config.get('source_path') is None and
+                build_config.get('source_url') is not None):
+            raise TestConfigError(
+                "Build source_url specified, but not a source_path.")
 
         self.build_script_path = self.path/'build.sh'  # type: Path
         self.build_path = self.path/'build'
@@ -359,7 +295,7 @@ class TestRun:
         self._results = None
         self._created = None
 
-        self.skipped = self._get_skipped()
+        self.skipped = self._get_skipped()  # eval skip.
 
     @classmethod
     def load(cls, pav_cfg, test_id):
@@ -370,7 +306,7 @@ class TestRun:
         :rtype: TestRun
         """
 
-        path = utils.make_id_path(pav_cfg.working_dir/'test_runs', test_id)
+        path = dir_db.make_id_path(pav_cfg.working_dir / 'test_runs', test_id)
 
         if not path.is_dir():
             raise TestRunError("Test directory for test id {} does not exist "
@@ -392,6 +328,34 @@ class TestRun:
         self._save_config()
         # Save our newly updated variables.
         self.var_man.save(self._variables_path)
+
+        # Create files specified via run config key.
+        files_to_create = self.config['run'].get('create_files', [])
+        if files_to_create:
+            for file, contents in files_to_create.items():
+                file_path = Path(self.build_path / file)
+                # Prevent files from being written outside build directory.
+                if not utils.dir_contains(file_path, self.build_path):
+                    raise TestRunError("'create_file: {}': file path"
+                                       " outside build context."
+                                       .format(file_path))
+                # Prevent files from overwriting existing directories.
+                if file_path.is_dir():
+                    raise TestRunError("'create_file: {}' clashes with"
+                                       " existing directory in build dir."
+                                       .format(file_path))
+                # Create file parent directory(ies).
+                dirname = file_path.parent
+                (self.build_path / dirname).mkdir(parents=True, exist_ok=True)
+
+                # Don't try to overwrite a symlink without removing it first.
+                if file_path.is_symlink():
+                    file_path.unlink()
+
+                # Write file.
+                with file_path.open('w') as file_:
+                    for line in contents:
+                        file_.write("{}\n".format(line))
 
         if not self.skipped:
             self.skipped = self._get_skipped()
@@ -419,8 +383,7 @@ class TestRun:
         lock_path = self.path/'config.lockfile'
         config_lock = lockfile.LockFile(
             lock_path,
-            group=self._pav_cfg.shared_group
-        )
+            group=self._pav_cfg.shared_group)
 
         try:
             config_lock.lock()
@@ -487,18 +450,28 @@ class TestRun:
         if self.builder.build(cancel_event=cancel_event):
             # Create the build origin path, to make tracking a test's build
             # a bit easier.
-            self.build_origin_path.symlink_to(self.builder.path)
+            with PermissionsManager(self.build_origin_path, self.group,
+                                    self.umask):
+                self.build_origin_path.symlink_to(self.builder.path)
 
-            return self.builder.copy_build(self.build_path)
+            with PermissionsManager(self.build_path, self.group, self.umask):
+                if not self.builder.copy_build(self.build_path):
+                    cancel_event.set()
+            build_result = True
         else:
             self.builder.fail_path.rename(self.build_path)
-            return False
+            build_result = False
+
+        self.build_log.symlink_to(self.build_path/'pav_build_log')
+        return build_result
 
     def save_build_name(self):
         """Save the builder's build name to the build name file for the test."""
 
         try:
-            with self._build_name_fn.open('w') as build_name_file:
+            with PermissionsManager(self._build_name_fn, self.group,
+                                    self.umask), \
+                    self._build_name_fn.open('w') as build_name_file:
                 build_name_file.write(self.builder.name)
         except OSError as err:
             raise TestRunError(
@@ -522,13 +495,13 @@ class TestRun:
         """Run the test.
 
         :rtype: bool
-        :returns: True if the test completed and returned zero, false otherwise.
+        :returns: The return code of the test command.
         :raises TimeoutError: When the run times out.
         :raises TestRunError: We don't actually raise this, but might in the
             future.
         """
 
-        if self.opts.build_only:
+        if self.build_only:
             self.status.set(
                 STATES.RUN_ERROR,
                 "Tried to run a 'build_only' test object.")
@@ -537,7 +510,8 @@ class TestRun:
         self.status.set(STATES.PREPPING_RUN,
                         "Converting run template into run script.")
 
-        with self.run_log.open('wb') as run_log:
+        with PermissionsManager(self.path, self.group, self.umask), \
+                self.run_log.open('wb') as run_log:
             self.status.set(STATES.RUNNING,
                             "Starting the run script.")
 
@@ -561,10 +535,10 @@ class TestRun:
             # Run the test, but timeout if it doesn't produce any output every
             # self._run_timeout seconds
             timeout = self.run_timeout
-            result = None
-            while result is None:
+            ret = None
+            while ret is None:
                 try:
-                    result = proc.wait(timeout=timeout)
+                    ret = proc.wait(timeout=timeout)
                 except subprocess.TimeoutExpired:
                     out_stat = self.run_log.stat()
                     quiet_time = time.time() - out_stat.st_mtime
@@ -576,20 +550,19 @@ class TestRun:
                                .format(self.run_timeout))
                         self.status.set(STATES.RUN_TIMEOUT, msg)
                         self.finished = datetime.datetime.now()
+                        self.save_attributes()
                         raise TimeoutError(msg)
                     else:
                         # Only wait a max of run_silent_timeout next 'wait'
                         timeout = timeout - quiet_time
 
         self.finished = datetime.datetime.now()
+        self.save_attributes()
 
         self.status.set(STATES.RUN_DONE,
                         "Test run has completed.")
-        if result == 0:
-            return True
 
-        # Return False in all other circumstances.
-        return False
+        return ret
 
     def set_run_complete(self):
         """Write a file in the test directory that indicates that the test
@@ -599,7 +572,9 @@ class TestRun:
         # Write the current time to the file. We don't actually use the contents
         # of the file, but it's nice to have another record of when this was
         # run.
-        with (self.path/self.COMPLETE_FN).open('w') as run_complete:
+        with (self.path/self.COMPLETE_FN).open('w') as run_complete, \
+                PermissionsManager(self.path/self.COMPLETE_FN,
+                                   self.group, self.umask):
             json.dump({
                 'complete': datetime.datetime.now().isoformat(),
             }, run_complete)
@@ -623,6 +598,84 @@ class TestRun:
                 return None
         else:
             return None
+
+    ATTR_FILE_NAME = 'attributes'
+
+    def save_attributes(self):
+        """Save the attributes to file in the test directory."""
+
+        attr_path = self.path/self.ATTR_FILE_NAME
+
+        with PermissionsManager(attr_path, self.group, self.umask):
+            tmp_path = attr_path.with_suffix('.tmp')
+            with tmp_path.open('w') as attr_file:
+                json.dump(self._attrs, attr_file)
+            tmp_path.rename(attr_path)
+
+    def load_attributes(self):
+        """Load the attributes from file."""
+
+        attr_path = self.path/self.ATTR_FILE_NAME
+
+        if attr_path.exists():
+            with attr_path.open() as attr_file:
+                try:
+                    self._attrs = json.load(attr_file)
+                except (json.JSONDecodeError, OSError, ValueError, KeyError)\
+                        as err:
+                    raise TestRunError(
+                        "Could not load attributes file: \n{}"
+                        .format(err.args)
+                    )
+
+    OPTIONS_DEFAULTS = {
+        'build_only': False,
+        'rebuild': False,
+    }
+
+    @property
+    def finished(self):
+        """The end time for this test run."""
+        value = self._attrs.get('finished')
+        if value is not None:
+            value = datetime.datetime.strptime(value, "%Y-%m-%d %H:%M:%S.%f")
+        return value
+
+    @finished.setter
+    def finished(self, value: datetime.datetime):
+        value = value.isoformat(" ")
+        self._attrs['finished'] = value
+
+    @property
+    def started(self):
+        """The start time for this test run."""
+        value = self._attrs.get('started')
+        if value is not None:
+            value = datetime.datetime.strptime(value, "%Y-%m-%d %H:%M:%S.%f")
+        return value
+
+    @started.setter
+    def started(self, value):
+        value = value.isoformat(" ")
+        self._attrs['started'] = value
+
+    @property
+    def build_only(self):
+        """Only build this test, never run it."""
+        return self._attrs.get('build_only')
+
+    @build_only.setter
+    def build_only(self, value):
+        self._attrs['build_only'] = value
+
+    @property
+    def rebuild(self):
+        """Whether or not this test will rebuild it's build."""
+        return self._attrs.get('rebuild')
+
+    @rebuild.setter
+    def rebuild(self, value):
+        self._attrs['rebuild'] = value
 
     WAIT_INTERVAL = 0.5
 
@@ -648,38 +701,14 @@ class TestRun:
                 raise TimeoutError("Timed out waiting for test '{}' to "
                                    "complete".format(self.id))
 
-    def gather_results(self, run_result):
+    def gather_results(self, run_result, regather=False, log_file=None):
         """Process and log the results of the test, including the default set
 of result keys.
 
-Default Result Keys:
-
-name
-    The name of the test
-id
-    The test id
-created
-    When the test was created.
-started
-    When the test was started.
-finished
-    When the test finished running (or failed).
-duration
-    Length of the test run.
-user
-    The user who ran the test.
-sys_name
-    The system (cluster) on which the test ran.
-job_id
-    The job id set by the scheduler.
-result
-    Defaults to PASS if the test completed (with a zero
-    exit status). Is generally expected to be overridden by other
-    result parsers.
-sched
-    All of the scheduler variable values.
-
-:param bool run_result: The result of the run.
+:param int run_result: The return code of the test run.
+:param bool regather: Gather results without performing any changes to the
+    test itself.
+:param IO[str] log_file: The file to save result logs to.
 """
 
         if self.finished is None:
@@ -690,23 +719,62 @@ sched
                 .format(s=self)
             )
 
-        parser_configs = self.config['results']
+        parser_configs = self.config['result_parse']
 
-        if run_result:
-            default_result = result_parsers.PASS
+        result_log = result.get_result_logger(log_file)
+
+        result_log("Gathering base results.")
+        results = result.base_results(self)
+
+        results['return_value'] = run_result
+
+        result_log("Base results:", lvl=1)
+        result_log(pprint.pformat(results))
+
+        if not regather:
+            self.status.set(STATES.RESULTS,
+                            "Parsing {} result types."
+                            .format(len(parser_configs)))
+
+        try:
+            result.parse_results(self, results, log=result_log)
+        except result.ResultError as err:
+            results['result'] = self.ERROR
+            results['pav_result_errors'].append(
+                "Error parsing results: {}".format(err.args[0]))
+            if not regather:
+                self.status.set(STATES.RESULTS_ERROR,
+                                results['pav_result_errors'][-1])
+
+        if not regather:
+            self.status.set(STATES.RESULTS,
+                            "Performing {} result evaluations."
+                            .format(len(self.config['result_evaluate'])))
+        try:
+            result.evaluate_results(
+                results,
+                self.config['result_evaluate'],
+                result_log
+            )
+        except result.ResultError as err:
+            results['result'] = self.ERROR
+            results['pav_result_errors'].append(err.args[0])
+            if not regather:
+                self.status.set(STATES.RESULTS_ERROR,
+                                results['pav_result_errors'][-1])
+
+        if results['result'] is True:
+            results['result'] = self.PASS
+        elif results['result'] is False:
+            results['result'] = self.FAIL
         else:
-            default_result = result_parsers.FAIL
+            results['pav_result_errors'].append(
+                "The value for the 'result' key in the results must be a "
+                "boolean. Got '{}' instead".format(results['result']))
+            results['result'] = self.ERROR
 
-        results = result_parsers.base_results(self)
-
-        # This may be overridden by result parsers.
-        results['result'] = default_result
-
-        self.status.set(STATES.RESULTS,
-                        "Parsing {} result types."
-                        .format(len(parser_configs)))
-
-        results = result_parsers.parse_results(self, results)
+        result_log("Set final result key to: '{}'".format(results['result']))
+        result_log("See results.json for the final result json.")
 
         self._results = results
 
@@ -718,7 +786,8 @@ sched
 :param dict results: The results dictionary.
 """
 
-        with self.results_path.open('w') as results_file:
+        with self.results_path.open('w') as results_file, \
+                PermissionsManager(self.results_path, self.group, self.umask):
             json.dump(results, results_file)
 
     def load_results(self):
@@ -733,6 +802,10 @@ sched
                 return json.load(results_file)
         else:
             return None
+
+    PASS = 'PASS'
+    FAIL = 'FAIL'
+    ERROR = 'ERROR'
 
     @property
     def results(self):
@@ -829,11 +902,7 @@ modified date for the test directory."""
         :return:
         """
 
-        script = scriptcomposer.ScriptComposer(
-            details=scriptcomposer.ScriptDetails(
-                path=path,
-                group=self._pav_cfg.shared_group,
-            ))
+        script = scriptcomposer.ScriptComposer()
 
         verbose = config.get('verbose', 'false').lower() == 'true'
 
@@ -894,51 +963,26 @@ modified date for the test directory."""
         else:
             script.comment('No commands given for this script.')
 
-        script.write()
-
-    @staticmethod
-    def create_id_dir(id_dir):
-        """In the given directory, create the lowest numbered (positive integer)
-directory that doesn't already exist.
-
-:param Path id_dir: Path to the directory that contains these 'id'
-    directories
-:returns: The id and path to the created directory.
-:rtype: list(int, Path)
-:raises OSError: on directory creation failure.
-:raises TimeoutError: If we couldn't get the lock in time.
-"""
-
-        lockfile_path = id_dir/'.lockfile'
-        with lockfile.LockFile(lockfile_path, timeout=1):
-            ids = list(os.listdir(str(id_dir)))
-            # Only return the test directories that could be integers.
-            ids = [id_ for id_ in ids if id_.isdigit()]
-            ids = [id_ for id_ in ids if (id_dir/id_).is_dir()]
-            ids = [int(id_) for id_ in ids]
-            ids.sort()
-
-            # Find the first unused id.
-            id_ = 1
-            while id_ in ids:
-                id_ += 1
-
-            path = utils.make_id_path(id_dir, id_)
-            path.mkdir()
-
-        return id_, path
+        with PermissionsManager(path, self.group, self.umask):
+            script.write(path)
 
     def __repr__(self):
         return "TestRun({s.name}-{s.id})".format(s=self)
 
     def _get_skipped(self):
-        skip_reason_list = self._evaluate_skip_conditions()
-        matches = " ".join(skip_reason_list)
+        """Kicks off assessing if current test is skipped."""
+        if self.status.current().state == 'SKIPPED':
+            # Skip has already been evaluated.
+            return True
+        else:
+            skip_reason_list = self._evaluate_skip_conditions()
+            matches = " ".join(skip_reason_list)
 
         if len(skip_reason_list) == 0:
             return False
         else:
-            self.status.set(STATES.COMPLETE, matches)
+            self.status.set(STATES.SKIPPED, matches)
+            self.set_run_complete()
             return True
 
     def _evaluate_skip_conditions(self):
@@ -988,7 +1032,7 @@ directory that doesn't already exist.
                     match = True
 
             if match is False:
-                message = ("Skipping because only_if key '{}' failed to match"
+                message = ("Skipping because only_if key '{}' failed to match "
                            "any of '{}'"
                            .format(key, only_if[key]))
                 match_list.append(message)

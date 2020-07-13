@@ -67,7 +67,7 @@ class ResolverTests(PavTestCase):
             for modes in ([], ['layer_mode']):
                 for test in ('layer_tests.layer_test',
                              'layer_tests.layer_test_part'):
-                    answer = ''
+                    answer = None
                     if host == 'layer_host':
                         answer = 'host'
                     if test.endswith('part'):
@@ -199,7 +199,8 @@ class ResolverTests(PavTestCase):
                 'baz': ['6'],
                 'blarg': ['7', '8']
             },
-            'permute_on': ['foo', 'bar', 'baz']
+            'permute_on': ['foo', 'bar', 'baz'],
+            'subtitle': '{{foo}}-{{bar.p}}-{{baz}}',
         }
 
         orig_permutations = raw_test['variables']
@@ -321,11 +322,10 @@ class ResolverTests(PavTestCase):
             'echo "{{sys.host_name}}"'
         ]
 
-        cfg['results'] = {
-            'regex': [{
-                'key': 'foo',
-                'regex': '{{sys.host_name}}',
-            }]
+        cfg['result_parse'] = {
+            'regex': {
+                'foo': {'regex': '{{sys.host_name}}'}
+            }
         }
 
         test = self._quick_test(cfg, 'finalize_test',
@@ -369,11 +369,14 @@ class ResolverTests(PavTestCase):
                     {'p': '4', 'q': '4a'},
                 ],
             },
-            'permute_on': ['foo', 'bar']
+            'permute_on': ['foo', 'bar'],
+            'subtitle': None,
         }
 
         answer1 = {
-                   'build': {
+                'permute_on': ['foo', 'bar'],
+                'subtitle': '1-_bar_',
+                'build': {
                        'cmds':
                            ["echo 1 4", "echo 1", "echo 4a"],
                        'env': [
@@ -387,6 +390,7 @@ class ResolverTests(PavTestCase):
         # This is all that changes between the two.
         answer2 = copy.deepcopy(answer1)
         answer2['build']['cmds'] = ["echo 2 4", "echo 2", "echo 4a"]
+        answer2['subtitle'] = '2-_bar_'
 
         answers = [answer1, answer2]
 

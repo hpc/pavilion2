@@ -4,6 +4,69 @@ RELEASE=2.1.2
 
 # Release History
 
+## 2.2 Pre-release notes
+ - All new test config parser.
+ - Variable references are now 'expressions'.
+   - In addition to variables, they can contain math and functions.
+     - `'hello {{world * 2}}'`
+     - Assuming 'world' has a value of 5, would be: 'hello 10'
+ - Iterations (formerly sub-strings) can now contain more than one variable.
+   This results in all combinations of the variables being used.
+   - `'Greetings: [~hello {{name}}{{num}}~,]'`
+   - With `name: ['bob', 'janet']` and `num: [1,2]` would result in:
+   - 'Greetings: hello bob1, hello bob2, hello janet1, hello janet2'
+ - per test permissions settings
+   ```yaml
+   mytest:
+     group: secret_group
+     umask: '007'
+   ```
+ - Backwards compatibility breaks
+   - All duplicate keys in configs are now detected and cause errors.
+   - Default values may no longer be specified using '{{foo?}}'
+   - Dashes are no longer allowed in Pavilion variable names.
+     - `'{{name-len}}'`
+   - You can no longer have nested 'sub-strings' (now called iterations).
+   - Not everything can be escaped in Pavilion strings anymore. This is now
+     limited to all normal python escapes
+     (https://docs.python.org/2.0/ref/strings.html),
+     plus '[', '{', and '~'.
+   - The results section is now 'results.parse'
+
+   ```yaml
+   mytest:
+     variables:
+       unit_base: 100
+     result_parse:
+       regex:
+          speed: 
+            regex: 'speed (\d+)'
+     result_evaluate:
+       speed_normalized: "speed / {{unit_base}}"
+       another_thing: '"some don''t string"'
+   ```
+   - build.source_location has changed.
+   ```yaml
+   mytest:
+     build:
+       source_path: mytest.zip
+       source_url: http://github.com/hpc/mytest/latest.zip
+       source_download: latest
+
+ - Build are now built in their final location, rather than in a tmp 
+   location. This fixes the issues with symlinks (as they no longer 
+   move, so they can be absolute), and issues with non-relocatable 
+   builds.
+
+ - New config keys:
+   - 
+   ```yaml
+   mytest:
+     maintainer:
+       name: Paul Ferrell
+       email: pferrell@lanl.gov
+    ```
+
 ## 2.1.2
  - Fixed some regressions from the 2.1.1 release.
 
@@ -19,7 +82,7 @@ RELEASE=2.1.2
  - Updated the ls and cat commands, merged the tree command into ls.
  - Moved build code into its own module
  - Added include/exclude_nodes option to slurm.
- - Added a 'build' command. Like the 'run' command, but only builds. 
+ - Added a 'build' command. Like the 'run' command, but only builds.
  - Added '--rebuild' option to both build and run (and the capability to do so)
  - Added better build tracking output and verbosity under the 'run' command.
 

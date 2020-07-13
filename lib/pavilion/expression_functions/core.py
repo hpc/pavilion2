@@ -3,8 +3,23 @@ loading."""
 
 import math
 import random
+import re
 
-from . import CoreFunctionPlugin, num, FunctionPluginError
+from .base import FunctionPlugin, num
+from .common import FunctionPluginError, FunctionArgError
+
+
+class CoreFunctionPlugin(FunctionPlugin):
+    """A function plugin that sets defaults for core plugins. Use when adding
+    additional function plugins to the core_functions module. Classes that
+    inherit from this will automatically be added as function plugins.  If
+    adding non-core functions, use the standard plugin mechanisms."""
+
+    core = True
+
+    def __init__(self, name, arg_specs, description=None):
+        super().__init__(name, arg_specs, description=description,
+                         priority=self.PRIO_CORE)
 
 
 class IntPlugin(CoreFunctionPlugin):
@@ -15,7 +30,6 @@ class IntPlugin(CoreFunctionPlugin):
 
         super().__init__(
             name="int",
-            description="Convert integer strings to ints of arbitrary bases.",
             arg_specs=(str, int),
         )
 
@@ -35,7 +49,6 @@ class RoundPlugin(CoreFunctionPlugin):
 
         super().__init__(
             name="round",
-            description="Round the given number to the nearest integer.",
             arg_specs=(float,))
 
     @staticmethod
@@ -53,7 +66,6 @@ class FloorPlugin(CoreFunctionPlugin):
 
         super().__init__(
             name="floor",
-            description="Return the integer floor.",
             arg_specs=(float,))
 
     @staticmethod
@@ -64,14 +76,13 @@ class FloorPlugin(CoreFunctionPlugin):
 
 
 class CeilPlugin(CoreFunctionPlugin):
-    """Get the ceiling of the given number."""
+    """Get the integer ceiling of the given number."""
 
     def __init__(self):
         """Setup plugin."""
 
         super().__init__(
             name="ceil",
-            description="Return the integer ceiling.",
             arg_specs=(float,))
 
     @staticmethod
@@ -89,7 +100,6 @@ class SumPlugin(CoreFunctionPlugin):
 
         super().__init__(
             name="sum",
-            description="Return the sum of the given numbers.",
             arg_specs=([num],))
 
     @staticmethod
@@ -108,7 +118,6 @@ class AvgPlugin(CoreFunctionPlugin):
 
         super().__init__(
             name="avg",
-            description="Returns the average of the given numbers.",
             arg_specs=([num],)
         )
 
@@ -128,15 +137,13 @@ class LenPlugin(CoreFunctionPlugin):
 
         super().__init__(
             name='len',
-            description='Return the integer length of the given str, int or '
-                        'mapping/dict.',
             arg_specs=None,
         )
 
     def _validate_arg(self, arg, spec):
         if not isinstance(arg, (list, str, dict)):
             raise FunctionPluginError(
-                "The list_len function only accepts lists, dicts, and "
+                "The len function only accepts lists, dicts, and "
                 "strings. Got {} of type {}.".format(arg, type(arg).__name__)
             )
         return arg
@@ -158,7 +165,6 @@ class RandomPlugin(CoreFunctionPlugin):
 
         super().__init__(
             name="random",
-            description="Return a random float in [0,1).",
             arg_specs=tuple())
 
     @staticmethod
@@ -166,3 +172,114 @@ class RandomPlugin(CoreFunctionPlugin):
         """Return a random float in [0,1)."""
 
         return random.random()
+
+
+class KeysPlugin(CoreFunctionPlugin):
+    """Return the keys of a given dict."""
+
+    def __init__(self):
+        """Setup."""
+
+        super().__init__(
+            name='keys',
+            arg_specs=None,
+        )
+
+    signature = "keys(dict)"
+
+    def _validate_arg(self, arg, spec):
+        if not isinstance(arg, dict):
+            raise FunctionPluginError(
+                "The dicts function only accepts dicts. Got {} of type {}."
+                .format(arg, type(arg).__name__))
+        return arg
+
+    @staticmethod
+    def keys(arg):
+        """Return a (sorted) list of keys for the given dictionary."""
+
+        return sorted(list(arg.keys()))
+
+
+class AllPlugin(CoreFunctionPlugin):
+    """Return whether all of the items in the given list are true."""
+
+    def __init__(self):
+        """Setup plugin"""
+
+        super().__init__(
+            name='all',
+            arg_specs=([num],)
+        )
+
+    @staticmethod
+    def all(items):
+        """Just use the built-in all function."""
+        return all(items)
+
+
+class AnyPlugin(CoreFunctionPlugin):
+    """Return whether any of the items in the given list are true."""
+
+    def __init__(self):
+        """Setup plugin"""
+
+        super().__init__(
+            name='any',
+            arg_specs=([num],)
+        )
+
+    @staticmethod
+    def any(items):
+        """Just use the built-in any function."""
+        return any(items)
+
+
+class RegexSearch(CoreFunctionPlugin):
+    """Search for the given regular expression. Returns the matched text or,
+    if a matching group (limit 1) was used, the matched group. Returns an
+    empty string on no match. Regexes use Python\'s regex syntax."""
+
+    def __init__(self):
+
+        super().__init__(
+            name='re_search',
+            arg_specs=(str, str),
+        )
+
+    @staticmethod
+    def re_search(regex, data):
+        """Search for the given regex in data."""
+
+        try:
+            regex = re.compile(regex)
+        except re.error as err:
+            raise FunctionArgError(
+                "Could not compile regex:\n{}".format(err.args[0])
+            )
+
+        match = regex.search(data)
+        if match is None:
+            return ''
+
+        if match.groups():
+            return match.groups()[0]
+        else:
+            return match.group()
+
+
+class Replace(CoreFunctionPlugin):
+    """Replace substrings from a given string."""
+
+    def __init__(self):
+
+        super().__init__(
+            'replace',
+            arg_specs=(str, str, str),
+        )
+
+    @staticmethod
+    def replace(string: str, find: str, replacement: str):
+        """Replace all instances of 'find' with 'replacement' in 'string'."""
+
+        return string.replace(find, replacement)

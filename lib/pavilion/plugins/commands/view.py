@@ -71,20 +71,18 @@ class ViewCommand(run.RunCommand):
         sys_vars = system_variables.get_vars(True)
 
         try:
-            configs = self._get_test_configs(
-                pav_cfg=pav_cfg,
-                host=args.host,
-                test_files=[],
-                tests=tests,
+            configs_by_sched = self._get_test_configs(
+                pav_cfg=pav_cfg, host=args.host,
+                test_files=[], tests=tests,
                 modes=args.modes,
-                overrides=overrides,
-                sys_vars=sys_vars,
-            )
+                overrides=overrides)
         except commands.CommandError as err:
             fprint(err, file=self.errfile, color=output.RED)
             return errno.EINVAL
 
-        configs = sum(configs.values(), [])
+        configs = []
+        for conf_tuples in configs_by_sched.values():
+            configs.extend([conf for conf, _ in conf_tuples])
 
         for config in configs:
             pprint.pprint(config, stream=self.outfile)  # ext-print: ignore

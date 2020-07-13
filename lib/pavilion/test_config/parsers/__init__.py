@@ -12,15 +12,17 @@ For most of these values the Pavilion StringParser is applied.
 If you need to parse an individual Pavilion value string, use the parse_text()
 function defined in this module.
 
-The exception to this is result analysis strings, which are interpreted
+The exception to this is result evaluation strings, which are interpreted
 directly as a ResultExpression.
 """
 
 import re
+from typing import List
 
 import lark as _lark
 from .common import ParserValueError
-from .expressions import get_expr_parser
+from .expressions import (get_expr_parser, EvaluationExprTransformer,
+                          VarRefVisitor)
 from .strings import get_string_parser, StringTransformer
 
 
@@ -64,6 +66,10 @@ BAD_EXAMPLES = [
     ErrorCat('Unclosed List', ['{{a + [1, 2}}', '{{a + [1,}}']),
     ErrorCat('Misplaced Comma', ['{{a + [,1,2,]}}',
                                  '{{a + [1,2,,]}}']),
+    ErrorCat('Missing Close Parenthesis',
+             ['hello(1, "world"',
+              'hello(1, 12',
+              'hello(1, 12.3']),
 ]
 
 
@@ -78,6 +84,9 @@ class StringParserError(ValueError):
 
     def __str__(self):
         return "\n".join([self.message, self.context])
+
+
+_TREE_CACHE = {}
 
 
 def parse_text(text, var_man) -> str:
@@ -96,9 +105,18 @@ def parse_text(text, var_man) -> str:
 
     def parse_fn(txt):
         """Shorthand for parsing text."""
-        return transformer.transform(parser.parse(txt))
+
+        tree = _TREE_CACHE.get(txt)
+        if tree is None:
+            tree = parser.parse(txt)
+            _TREE_CACHE[txt] = tree
+
+        return transformer.transform(tree)
 
     try:
+        # On the surface it may seem that parsing and transforming should be
+        # separate steps with their own errors, but expressions are parsed
+        # as part of the transformation and may raise their own parse errors.
         value = parse_fn(text)
     except (_lark.UnexpectedCharacters, _lark.UnexpectedToken) as err:
         # Try to figure out why the error happened based on examples.
@@ -110,6 +128,29 @@ def parse_text(text, var_man) -> str:
         raise StringParserError(err.args[0], err.get_context(text))
 
     return value
+
+
+def check_expression(expr: str) -> List[str]:
+    """Check that expr is valid, returning the variables used.
+
+    :raises StringParserError: When the expression can't be parsed.
+    """
+
+    parser = get_expr_parser()
+
+    try:
+        tree = parser.parse(expr)
+    except (_lark.UnexpectedCharacters, _lark.UnexpectedToken) as err:
+        # Try to figure out why the error happened based on examples.
+        err_type = match_examples(err, parser.parse, BAD_EXAMPLES, expr)
+        raise StringParserError(
+            "{}:\n{}".format(err_type, err.get_context(expr)),
+            err.get_context(expr))
+
+    visitor = VarRefVisitor()
+    vars_used = visitor.visit(tree)
+
+    return vars_used
 
 
 def match_examples(exc, parse_fn, examples, text):

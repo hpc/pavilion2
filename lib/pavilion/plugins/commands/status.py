@@ -1,8 +1,11 @@
 """The Status command, along with useful functions that make it easy for
 other commands to print statuses."""
 
+import errno
 import os
 import time
+from datetime import datetime
+from typing import List, Union
 
 from pavilion import commands
 from pavilion import output
@@ -21,29 +24,28 @@ def get_last_ctime(path):
     return ctime
 
 
-def status_from_test_obj(pav_cfg, test_obj):
+def status_from_test_obj(pav_cfg: dict,
+                         *test_objs: TestRun):
     """Takes a test object or list of test objects and creates the dictionary
     expected by the print_status function.
 
-:param dict pav_cfg: Pavilion base configuration.
-:param Union[TestRun,[TestRun] test_obj: Pavilion test object.
+:param pav_cfg: Pavilion base configuration.
+:param test_obj: Pavilion test object.
 :return: List of dictionary objects containing the test ID, name,
          statt time of state update, and note associated with that state.
 :rtype: list(dict)
     """
-    if not isinstance(test_obj, list):
-        test_obj = [test_obj]
 
     test_statuses = []
 
-    for test in test_obj:
+    for test in test_objs:
         status_f = test.status.current()
 
         if status_f.state == STATES.SCHEDULED:
             sched = schedulers.get_plugin(test.scheduler)
             status_f = sched.job_status(pav_cfg, test)
         elif status_f.state == STATES.BUILDING:
-            last_update = get_last_ctime(test.path/'build.log')
+            last_update = get_last_ctime(test.builder.log_updated())
             status_f.note = ' '.join([status_f.note,
                                       'Last updated: ',
                                       last_update])
@@ -85,7 +87,7 @@ def get_all_tests(pav_cfg, args):
                 'note':    "Test not found: {}".format(err)
             })
 
-    statuses = status_from_test_obj(pav_cfg, test_obj_list)
+    statuses = status_from_test_obj(pav_cfg, *test_obj_list)
 
     if statuses is not None:
         test_statuses = test_statuses + statuses
@@ -110,7 +112,7 @@ def get_tests(pav_cfg, args, errfile):
             args.tests.append(series_id)
         else:
             raise commands.CommandError(
-                "No tests specified and no last sries was found."
+                "No tests specified and no last series was found."
             )
 
     test_list = []
@@ -164,14 +166,14 @@ def get_statuses(pav_cfg, args, errfile):
                 'note':    "Error loading test: {}".format(err),
             })
 
-    statuses = status_from_test_obj(pav_cfg, test_obj_list)
+    statuses = status_from_test_obj(pav_cfg, *test_obj_list)
 
     if statuses is not None:
         test_statuses = test_statuses + statuses
     return test_statuses
 
 
-def print_status(statuses, outfile, json=False):
+def print_status(statuses, outfile, json=False, show_skipped=False):
     """Prints the statuses provided in the statuses parameter.
 
 :param list statuses: list of dictionary objects containing the test
@@ -184,11 +186,14 @@ def print_status(statuses, outfile, json=False):
 :rtype: int
 """
 
+    if not show_skipped:
+        statuses = [status for status in statuses
+                    if status['state'] != STATES.SKIPPED]
+
     ret_val = 1
     for stat in statuses:
         if stat['note'] != "Test not found.":
             ret_val = 0
-
     if json:
         json_data = {'statuses': statuses}
         output.json_dump(json_data, outfile)
@@ -218,7 +223,7 @@ def print_from_test_obj(pav_cfg, test_obj, outfile, json=False):
     :rtype: int
     """
 
-    status_list = status_from_test_obj(pav_cfg, test_obj)
+    status_list = status_from_test_obj(pav_cfg, *test_obj)
     return print_status(status_list, outfile, json)
 
 
@@ -250,6 +255,17 @@ class StatusCommand(commands.Command):
             '-l', '--limit', type=int, default=10,
             help='Max number of tests displayed if --all is used.'
         )
+        parser.add_argument(
+            '--history', type=int,
+            help="Shows the full status history of a job."
+        )
+        parser.add_argument(
+            '-s', '--summary', default=False, action='store_true',
+            help='Display a single line summary of test statuses.'
+        )
+        parser.add_argument(
+            '-k', '--show-skipped', default=False, action='store_true',
+            help='Show the status of skipped tests.')
 
     def run(self, pav_cfg, args):
         """Gathers and prints the statuses from the specified test runs and/or
@@ -260,7 +276,149 @@ class StatusCommand(commands.Command):
             else:
                 test_statuses = get_all_tests(pav_cfg, args)
         except commands.CommandError as err:
-            output.fprint("Status Error:", err, color=output.RED)
+            output.fprint("Status Error:", err, color=output.RED,
+                          file=self.errfile)
             return 1
 
-        return print_status(test_statuses, self.outfile, args.json)
+        if args.history:
+            return self.display_history(pav_cfg, args)
+        elif args.summary:
+            return self.print_summary(test_statuses)
+        else:
+            return print_status(test_statuses, self.outfile, args.json,
+                                args.show_skipped)
+
+    def display_history(self, pav_cfg, args):
+        """Display_history takes a test_id from the command
+        line arguments and formats the status file from the id
+        and displays it for the user through draw tables.
+        :param pav_cfg: The pavilion config.
+        :param argparse namespace args: The test via command line
+        :rtype int"""
+
+        ret_val = 0
+        # status_path locates the status file per test_run id.
+        status_path = (pav_cfg.working_dir / 'test_runs' /
+                       str(args.history).zfill(7) / 'status')
+
+        try:
+            test = TestRun.load(pav_cfg, args.history)
+            name_final = test.name
+            id_final = test.id
+            states = []  # dictionary list for table output
+
+            with status_path.open() as file:
+                for line in file:
+                    val = line.split(' ', 2)
+                    states.append({
+                        'state': val[1],
+                        'time': datetime.strptime(val[0],
+                                                  '%Y-%m-%dT%H:%M:%S.%f'),
+                        'note': val[2]
+                    })
+        except (TestRunError, TestRunNotFoundError) as err:
+            output.fprint("The test_id {} does not exist in your "
+                          "working directory.".format(args.history),
+                          file=self.errfile,
+                          color=output.RED)
+            return errno.EINVAL
+
+        fields = ['state', 'time', 'note']
+        output.draw_table(
+            outfile=self.outfile,
+            field_info={
+                'time': {'transform': output.get_relative_timestamp}
+            },
+            fields=fields,
+            rows=states,
+            title='Status history for test {} (id: {})'.format(name_final,
+                                                               id_final))
+
+        return ret_val
+
+    def print_summary(self, statuses):
+        """Print_summary takes in a list of test statuses.
+        It summarizes basic state output and displays
+        the data to the user through draw_table.
+        :param statuses: state list of current jobs
+        :rtype: int
+        """
+        # Populating table dynamically requires dict
+
+        summary_dict = {}
+        passes = 0
+        ret_val = 0
+        total_tests = len(statuses)
+        rows = []
+        fields = ['State', 'Amount', 'Percent']
+        fails = 0
+
+        # Shrink statues dict to singular keys with total
+        # amount of key as the value
+        for test in statuses:
+            if test['state'] not in summary_dict.keys():
+                summary_dict[test['state']] = 1
+            else:
+                summary_dict[test['state']] += 1
+
+            # Gathers info on passed tests from completed tests.
+            if 'COMPLETE' in test['state'] and 'PASS' in test['note']:
+                passes += 1
+
+        if 'COMPLETE' in summary_dict.keys():
+            fails = summary_dict['COMPLETE'] - passes
+            fields = ['State', 'Amount', 'Percent', 'PASSED', 'FAILED']
+
+        for key, value in summary_dict.items():
+            #  Build the rows for drawtables.
+
+            #  Determine Color.
+            if key.endswith('ERROR') or key.endswith('TIMEOUT') or \
+               key.endswith('FAILED') or key == 'ABORTED' or key == 'INVALID':
+                color = output.RED
+            elif key == 'COMPLETE':
+                color = output.GREEN
+            elif key == 'SKIPPED':
+                color = output.YELLOW
+            elif key == 'RUNNING' or key == 'SCHEDULED' \
+                    or key == 'PREPPING_RUN' \
+                    or key == 'BUILDING' or key == 'BUILD_DONE' \
+                    or key == 'BUILD_REUSED':
+                color = output.CYAN
+            else:
+                color = output.WHITE  # Not enough to warrant color.
+
+            # Populating rows...
+            if key == 'COMPLETE':  # only time we need to populate pass/fail
+                rows.append(
+                    {'State': output.ANSIString(key, color),
+                     'Amount': value,
+                     'Percent': '{0:.0%}'.format(value / total_tests),
+                     'PASSED': '{0:.0%}'.format(passes / value)
+                               + ',({}/{})'.format(passes, value),
+                     'FAILED': '{0:.0%}'.format(fails / value)
+                               + ',({}/{})'.format(fails, value)}
+                )
+            else:
+                rows.append(
+                    {'State': output.ANSIString(key, color),
+                     'Amount': value,
+                     'Percent': '{0:.0%}'.format(value / total_tests)}
+                )
+
+        field_info = {
+            'PASSED': {
+                'transform': lambda t: output.ANSIString(t, output.GREEN)
+            },
+            'FAILED': {
+                'transform': lambda t: output.ANSIString(t, output.RED),
+            }}
+
+        output.draw_table(outfile=self.outfile,
+                          field_info=field_info,
+                          fields=fields,
+                          rows=rows,
+                          border=True,
+                          title='Test Summary')
+
+        return ret_val

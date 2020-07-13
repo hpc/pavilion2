@@ -1,21 +1,21 @@
 """Show a variety of different internal information for Pavilion."""
 
+import argparse
 import errno
 import os
-import argparse
 from typing import Union
 
+import pavilion.result.base
 import yaml_config
 from pavilion import commands
 from pavilion import config
 from pavilion import expression_functions
 from pavilion import module_wrapper
 from pavilion import output
-from pavilion import result_parsers
 from pavilion import schedulers
 from pavilion import status_file
 from pavilion import system_variables
-from pavilion.plugins import list_plugins
+from pavilion.result import parsers
 from pavilion.test_config import DeferredVariable
 from pavilion.test_config import file_format
 from pavilion.test_config import resolver
@@ -64,7 +64,7 @@ class ShowCommand(commands.Command):
                 for alias in func.aliases:
                     self.cmds[alias] = func
 
-        self._parser = None   # type: Union[argparse.ArgumentParser,None]
+        self._parser = None  # type: Union[argparse.ArgumentParser,None]
 
     def _setup_arguments(self, parser):
 
@@ -286,8 +286,7 @@ class ShowCommand(commands.Command):
             'tests',
             aliases=['test'],
             help="Show the available tests.",
-            description="""Test configurations that can be run using Pavilion.
-            """
+            description="Test configurations that can be run using Pavilion."
         )
         tests.add_argument(
             '--verbose', '-v',
@@ -303,6 +302,10 @@ class ShowCommand(commands.Command):
             '--err',
             action='store_true', default=False,
             help='Display any errors encountered while reading the test.'
+        )
+        tests.add_argument(
+            '--doc', action='store', type=str, dest='test_name',
+            help="Show test documentation string."
         )
 
         subparsers.add_parser(
@@ -362,16 +365,17 @@ class ShowCommand(commands.Command):
             func = expression_functions.get_plugin(args.detail)
 
             output.fprint(func.signature, color=output.CYAN, file=self.outfile)
-            output.fprint('-'*len(func.signature), file=self.outfile)
+            output.fprint('-' * len(func.signature), file=self.outfile)
             output.fprint(func.long_description, file=self.outfile)
 
         else:
-            rows = [
-                {'name': func.name,
-                 'signature': func.signature,
-                 'description': func.description}
-                for func in list_plugins()['function']
-            ]
+            rows = []
+            for func_name in sorted(expression_functions.list_plugins()):
+                func = expression_functions.get_plugin(func_name)
+                rows.append({
+                    'name':        func.name,
+                    'signature':   func.signature,
+                    'description': func.description})
             output.draw_table(
                 self.outfile,
                 field_info={},
@@ -497,8 +501,8 @@ class ShowCommand(commands.Command):
 
         if args.config:
             try:
-                res_plugin = result_parsers.get_plugin(args.config)
-            except result_parsers.ResultParserError:
+                res_plugin = parsers.get_plugin(args.config)
+            except pavilion.result.base.ResultError:
                 output.fprint(
                     "Invalid result parser '{}'.".format(args.config),
                     color=output.RED
@@ -516,8 +520,8 @@ class ShowCommand(commands.Command):
         else:
 
             rps = []
-            for rp_name in result_parsers.list_plugins():
-                res_plugin = result_parsers.get_plugin(rp_name)
+            for rp_name in parsers.list_plugins():
+                res_plugin = parsers.get_plugin(rp_name)
                 desc = " ".join(str(res_plugin.__doc__).split())
                 rps.append({
                     'name':        rp_name,
@@ -545,6 +549,7 @@ class ShowCommand(commands.Command):
         """
 
         sched = None  # type : schedulers.SchedulerPlugin
+        sched_name = None
         if args.vars is not None or args.config is not None:
             sched_name = args.vars if args.vars is not None else args.config
 
@@ -559,7 +564,10 @@ class ShowCommand(commands.Command):
 
         if args.vars is not None:
             sched_vars = []
-            svars = sched.get_vars({})
+
+            empty_config = file_format.TestConfigLoader().load_empty()
+
+            svars = sched.get_vars(empty_config[sched_name])
 
             for key in sorted(list(svars.keys())):
                 sched_vars.append(svars.info(key))
@@ -567,7 +575,7 @@ class ShowCommand(commands.Command):
             output.draw_table(
                 self.outfile,
                 field_info={},
-                fields=['name', 'deferred', 'help'],
+                fields=['name', 'deferred', 'example', 'help'],
                 rows=sched_vars,
                 title="Variables for the {} scheduler plugin.".format(args.vars)
             )
@@ -721,6 +729,10 @@ class ShowCommand(commands.Command):
     @show_cmd("test")
     def _tests_cmd(self, pav_cfg, args):
 
+        if args.test_name is not None:
+            self._test_docs_subcmd(pav_cfg, args)
+            return
+
         resolv = resolver.TestConfigResolver(pav_cfg)
         suites = resolv.find_all_tests()
         rows = []
@@ -770,6 +782,52 @@ class ShowCommand(commands.Command):
             rows=rows,
             title="Available Tests"
         )
+
+    def _test_docs_subcmd(self, pav_cfg, args):
+        """Show the documentation for the requested test."""
+
+        resolv = resolver.TestConfigResolver(pav_cfg)
+        suites = resolv.find_all_tests()
+
+        parts = args.test_name.split('.')
+        if len(parts) != 2:
+            output.fprint(
+                "You must give a test name as '<suite>.<test>'.",
+                file=self.outfile, color=output.RED)
+            return
+
+        suite_name, test_name = parts
+
+        if suite_name not in suites:
+            output.fprint(
+                "No such suite: '{}'.\n"
+                "Available test suites:\n{}"
+                .format(suite_name, "\n".join(sorted(suites.keys()))),
+                file=self.outfile, color=output.RED)
+            return
+        tests = suites[suite_name]['tests']
+        if test_name not in tests:
+            output.fprint(
+                "No such test '{}' in suite '{}'.\n"
+                "Available tests in suite:\n{}"
+                .format(test_name, suite_name,
+                        "\n".join(sorted(tests.keys()))))
+            return
+
+        test = tests[test_name]
+
+        def pvalue(header, *values):
+            """An item header."""
+            output.fprint(header, color=output.CYAN,
+                          file=self.outfile, end=' ')
+            for val in values:
+                output.fprint(val, file=self.outfile)
+
+        pvalue("Name:", args.test_name)
+        pvalue("Maintainer:", test['maintainer'])
+        pvalue("Email:", test['email'])
+        pvalue("Summary:", test['summary'])
+        pvalue("Documentation:", '\n\n', test['doc'], '\n')
 
     @show_cmd()
     def _test_config_cmd(self, *_):

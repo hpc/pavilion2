@@ -12,8 +12,10 @@ import io
 import logging
 import os
 from collections import defaultdict
+from typing import List, IO, Tuple
 
 import yc_yaml
+from pavilion import output
 from pavilion import pavilion_variables
 from pavilion import schedulers
 from pavilion import system_variables
@@ -185,40 +187,54 @@ class TestConfigResolver:
                         suites[suite_name]['err'] = err
                         continue
 
+                    def default(val, dval):
+                        """Return the dval if val is None."""
+
+                        return dval if val is None else val
+
                     for test_name, conf in suite_cfgs.items():
                         suites[suite_name]['tests'][test_name] = {
                             'conf': conf,
-                            'summary': conf['summary'],
-                            'doc': conf['doc'],
+                            'maintainer': default(
+                                conf['maintainer']['name'], ''),
+                            'email': default(conf['maintainer']['email'], ''),
+                            'summary': default(conf.get('summary', ''), ''),
+                            'doc': default(conf.get('doc', ''), ''),
                         }
 
         return suites
 
-    def load(self, tests, host=None, modes=None, overrides=None):
+    def load(self, tests: List[str], host: str = None,
+             modes: List[str] = None, overrides: List[str] = None,
+             output_file: IO[str] = None) \
+            -> List[Tuple[dict, variables.VariableSetManager]]:
         """Load the given tests, updated with their host and mode files.
 
-        :param [str] tests: A list of test names to load.
-        :param str host: The host to load tests for. Defaults to the value
+        :param tests: A list of test names to load.
+        :param host: The host to load tests for. Defaults to the value
             of the 'sys_name' variable.
-        :param [str] modes: A list of modes to load.
-        :param {str,str} overrides: A dict of key:value pairs to apply as
-            overrides.
+        :param modes: A list of modes to load.
+        :param overrides: A dict of key:value pairs to apply as overrides.
+        :param output_file: Where to write status output.
+
         :returns: A list test_config dict and var_man tuples
-        :rtype: [(dict,VariableSetManager)]
+        :rtype: [(dict, VariableSetManager)]
         """
 
         if modes is None:
             modes = []
 
         if overrides is None:
-            overrides = {}
+            overrides = []
 
         if host is None:
             host = self.base_var_man['sys.sys_name']
 
         raw_tests = self.load_raw_configs(tests, host, modes)
 
-        raw_tests_by_sched = defaultdict(lambda: [])
+        progress = 0
+
+        resolved_tests = []
 
         # Apply config overrides.
         for test_cfg in raw_tests:
@@ -229,9 +245,14 @@ class TestConfigResolver:
                 msg = 'Error applying overrides to test {} from {}: {}' \
                     .format(test_cfg['name'], test_cfg['suite_path'], err)
                 self.logger.error(msg)
+                if output_file:
+                    output.clear_line(output_file)
                 raise TestConfigError(msg)
 
             base_var_man = self.build_variable_manager(test_cfg)
+
+            # A list of tuples of test configs and their permuted var_man
+            permuted_tests = []  # type: (dict, variables.VariableSetManager)
 
             # Resolve all configuration permutations.
             try:
@@ -241,31 +262,40 @@ class TestConfigResolver:
                 )
                 for p_var_man in permutes:
                     # Get the scheduler from the config.
-                    sched = p_cfg['scheduler']
-                    sched = self.resolve_section_values(
-                        component=sched,
-                        var_man=p_var_man,
-                    )
-                    raw_tests_by_sched[sched].append((p_cfg, p_var_man))
+                    permuted_tests.append((p_cfg, p_var_man))
+
             except TestConfigError as err:
                 msg = 'Error resolving permutations for test {} from {}: {}' \
                     .format(test_cfg['name'], test_cfg['suite_path'], err)
                 self.logger.error(msg)
+                if output_file:
+                    output.clear_line(output_file)
                 raise TestConfigError(msg)
 
-        resolved_tests = []
-
-        # Get the schedulers for the tests, and the scheduler variables.
-        # The scheduler variables are based on all of the
-        for sched_name in raw_tests_by_sched.keys():
             # Set the scheduler variables for each test.
-            for test_cfg, test_var_man in raw_tests_by_sched[sched_name]:
+            for ptest_cfg, pvar_man in permuted_tests:
                 # Resolve all variables for the test (that aren't deferred).
-                resolved_config = self.resolve_config(
-                    test_cfg,
-                    test_var_man)
+                try:
+                    resolved_config = self.resolve_config(ptest_cfg, pvar_man)
+                except TestConfigError as err:
+                    msg = ('In test {} from {}:\n{}'
+                           .format(test_cfg['name'], test_cfg['suite_path'],
+                                   err.args[0]))
+                    self.logger.error(msg)
+                    if output_file:
+                        output.clear_line(output_file)
 
-                resolved_tests.append((resolved_config, test_var_man))
+                    raise TestConfigError(msg)
+
+                resolved_tests.append((resolved_config, pvar_man))
+
+            if output_file is not None:
+                progress += 1.0/len(raw_tests)
+                output.fprint("Resolving Test Configs: {:.0%}".format(progress),
+                              file=output_file, end='\r')
+
+        if output_file:
+            output.fprint('', file=output_file)
 
         return resolved_tests
 
@@ -333,10 +363,17 @@ class TestConfigResolver:
                 test_suite_path = self._find_config(CONF_TEST, test_suite)
 
                 if test_suite_path is None:
+                    if test_suite == 'log':
+                        raise TestConfigError(
+                            "Could not find test suite 'log'. If you were "
+                            "trying to get the run log, use the 'pav log run "
+                            "<testid>' command.")
+
+                    cdirs = [str(cdir) for cdir in self.pav_cfg.config_dirs]
                     raise TestConfigError(
                         "Could not find test suite {}. Looked in these "
                         "locations: {}"
-                        .format(test_suite, self.pav_cfg.config_dirs))
+                        .format(test_suite, cdirs))
 
                 try:
                     with test_suite_path.open() as test_suite_file:
@@ -381,6 +418,8 @@ class TestConfigResolver:
                     test_cfg['name'] = test_cfg_name
                     test_cfg['suite'] = test_suite
                     test_cfg['suite_path'] = str(test_suite_path)
+                    test_cfg['host'] = host
+                    test_cfg['modes'] = modes
 
                 all_tests[test_suite] = suite_tests
 
@@ -406,16 +445,16 @@ class TestConfigResolver:
             for test_cfg in picked_tests]
 
         # Get the default configuration for a const result parser.
-        const_elem = TestConfigLoader().find('results.constant.*')
+        const_elem = TestConfigLoader().find('result_parse.constant.*')
 
         # Add the pav_cfg default_result configuration items to each test.
         for test_cfg in picked_tests:
 
-            if 'constant' not in test_cfg['results']:
-                test_cfg['results']['constant'] = []
+            if 'constant' not in test_cfg['result_parse']:
+                test_cfg['result_parse']['constant'] = []
 
-            const_keys = [const['key']
-                          for const in test_cfg['results']['constant']]
+            const_keys = [
+                key for key in test_cfg['result_parse']['constant']]
 
             for key, const in self.pav_cfg.default_results.items():
 
@@ -424,10 +463,9 @@ class TestConfigResolver:
                     continue
 
                 new_const = const_elem.validate({
-                    'key': key,
                     'const': const,
                 })
-                test_cfg['results']['constant'].append(new_const)
+                test_cfg['result_parse']['constant']['key'] = new_const
 
         return picked_tests
 
@@ -523,7 +561,14 @@ class TestConfigResolver:
     def resolve_inheritance(base_config, suite_cfg, suite_path):
         """Resolve inheritance between tests in a test suite. There's potential
         for loops in the inheritance hierarchy, so we have to be careful of
-        that."""
+        that.
+
+        :param base_config: Forms the 'defaults' for each test.
+        :param suite_cfg: The suite configuration, loaded from a suite file.
+        :param suite_path: The path to the suite file.
+        :return: A dictionary of test configs.
+        :rtype: dict(str,dict)
+        """
 
         test_config_loader = TestConfigLoader()
 
@@ -595,9 +640,9 @@ class TestConfigResolver:
         # generally means there are cycles in our dependency tree.
         if depended_on_by:
             raise TestConfigError(
-                "Tests in suite '{}' have dependencies on '{}' that "
+                "Tests in suite '{}' have dependencies on {} that "
                 "could not be resolved."
-                .format(suite_path, depended_on_by.keys()))
+                .format(suite_path, tuple(depended_on_by.keys())))
 
         # Remove the test base
         del suite_tests['__base__']
@@ -651,13 +696,11 @@ class TestConfigResolver:
         """
 
         permute_on = test_cfg['permute_on']
-        del test_cfg['permute_on']
 
         used_per_vars = set()
         for per_var in permute_on:
             try:
-                var_set, var, index, subvar = var_key = \
-                    base_var_man.resolve_key(per_var)
+                var_set, var, index, subvar = base_var_man.resolve_key(per_var)
             except KeyError:
                 raise TestConfigError(
                     "Permutation variable '{}' is not defined."
@@ -666,11 +709,27 @@ class TestConfigResolver:
                 raise TestConfigError(
                     "Permutation variable '{}' contains index or subvar."
                     .format(per_var))
-            elif base_var_man.is_deferred(var_key):
+            elif base_var_man.any_deferred(per_var):
+
                 raise TestConfigError(
-                    "Permutation variable '{}' references a deferred variable."
+                    "Permutation variable '{}' references a deferred variable "
+                    "or one with deferred components."
                     .format(per_var))
             used_per_vars.add((var_set, var))
+
+        if permute_on and test_cfg.get('subtitle', None) is None:
+            subtitle = []
+            var_dict = base_var_man.as_dict()
+            for per_var in permute_on:
+                var_set, var, index, subvar = base_var_man.resolve_key(per_var)
+                if isinstance(var_dict[var_set][var][0], dict):
+                    subtitle.append('_' + var + '_')
+                else:
+                    subtitle.append('{{' + per_var + '}}')
+
+            subtitle = '-'.join(subtitle)
+
+            test_cfg['subtitle'] = subtitle
 
         # var_men is a list of variable managers, one for each permutation
         var_men = base_var_man.get_permutations(list(used_per_vars))
@@ -678,14 +737,15 @@ class TestConfigResolver:
             var_man.resolve_references()
         return test_cfg, var_men
 
-    NOT_OVERRIDABLE = ['name', 'suite', 'suite_path', 'scheduler']
+    NOT_OVERRIDABLE = ['name', 'suite', 'suite_path', 'scheduler',
+                       'base_name', 'host', 'modes']
 
     def apply_overrides(self, test_cfg, overrides):
         """Apply overrides to this test.
 
         :param dict test_cfg: The test configuration.
         :param list overrides: A list of raw overrides in a.b.c=value form.
-        :raises: ValueError, KeyError
+        :raises: (ValueError,KeyError)
     """
 
         config_loader = TestConfigLoader()
@@ -697,6 +757,7 @@ class TestConfigResolver:
                     "<key>=<value>. Ex. -c run.modules=['gcc'] ")
 
             key, value = ovr.split('=', 1)
+            key = key.strip()
             key = key.split('.')
 
             self._apply_override(test_cfg, key, value)
@@ -710,9 +771,12 @@ class TestConfigResolver:
 
     def _apply_override(self, test_cfg, key, value):
         """Set the given key to the given value in test_cfg.
-        :param dict test_cfg: The test configuration.
-        :param [str] key: A
 
+        :param dict test_cfg: The test configuration.
+        :param [str] key: A list of key components, like
+            ``[`slurm', 'num_nodes']``
+        :param str value: The value to assign. If this looks like a json
+            structure, it will be decoded and treated as one.
         """
 
         cfg = test_cfg
@@ -785,6 +849,8 @@ class TestConfigResolver:
         strings.
 
         :param value: The value to normalize.
+        :returns: A string or a structure of dicts/lists whose leaves are
+            strings.
         """
         if isinstance(value, str):
             return value
@@ -934,6 +1000,7 @@ class TestConfigResolver:
         :param Union[tuple[str],None] key_parts: A list of the parts of the
             config key traversed to get to this point.
         :return: The component, resolved.
+        :raises: RuntimeError, TestConfigError
         """
 
         if key_parts is None:
@@ -983,7 +1050,7 @@ class TestConfigResolver:
                         raise TestConfigError(
                             "Error resolving value '{}' for key '{}':\n"
                             "{}\n{}"
-                            .format(component, '.'.join(key_parts),
+                            .format(component, '.'.join(map(str, key_parts)),
                                     err.message, err.context))
                     return resolved
 
@@ -1016,7 +1083,7 @@ class TestConfigResolver:
                     raise TestConfigError(
                         "Error resolving value '{}' for key '{}':\n"
                         "{}\n{}"
-                        .format(component, '.'.join(key_parts),
+                        .format(component, [str(part) for part in key_parts],
                                 err.message, err.context))
                 else:
                     return resolved

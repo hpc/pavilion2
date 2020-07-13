@@ -1,9 +1,12 @@
-from pavilion import result_parsers
+from pavilion.result import parsers
+
+import pavilion.result.base
 import yaml_config as yc
 import re
+import copy
 
 
-class Table(result_parsers.ResultParser):
+class Table(parsers.ResultParser):
 
     """Parses tables."""
 
@@ -66,19 +69,20 @@ class Table(result_parsers.ResultParser):
         try:
             if len(col_names) is not 0:
                 if len(col_names) != int(col_num):
-                    raise result_parsers.ResultParserError(
+                    raise pavilion.result.base.ResultError(
                         "Length of `col_names` does not match `col_num`."
                     )
         except ValueError:
-            raise result_parsers.ResultParserError(
-                "`col_num` needs to be an integer."
+            raise pavilion.result.base.ResultError(
+                "`col_names` needs to be an integer."
             )
         try:
             int(start_skip)
             int(row_num)
+            int(col_num)
         except ValueError:
-            raise result_parsers.ResultParserError(
-                "start_skip, col_num, and row_num need to be integers."
+            raise pavilion.result.base.ResultError(
+                "num_skip, col_num, and row_num need to be integers"
             )
 
     def __call__(self, test, file, delimiter=None, col_num=None,
@@ -121,6 +125,24 @@ class Table(result_parsers.ResultParser):
         if not col_names:
             col_names = match_list[0]
 
+        # fix naming conflicts in column names list if necessary
+        if len(set(col_names)) != len(col_names):
+            temp_col_names = []
+            name_tally = {}
+
+            for name in col_names:
+                name_tally[name] = 0
+
+            for name in col_names:
+                name_tally[name] = name_tally[name] + 1
+                if name not in temp_col_names:
+                    temp_col_names.append(name)
+                else:
+                    new_name = name + str(name_tally[name])
+                    temp_col_names.append(new_name)
+
+            col_names = temp_col_names
+
         # table has row names AND column names = dictionary of dictionaries
         if has_header == "True":
             result_dict = {}
@@ -138,6 +160,8 @@ class Table(result_parsers.ResultParser):
                 for row_idx in range(len(row_names)):
                     result_dict[col_names[col_idx]][row_names[row_idx]] = \
                         match_list[row_idx][col_idx]
+
+            # return str(result_dict.keys())
 
             # "flip" the dictionary if by_column is set to False (default)
             if by_column == "False":

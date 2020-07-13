@@ -1,24 +1,23 @@
 """The run command resolves tests by their names, builds them, and runs them."""
 
-import codecs
 import errno
 import pathlib
-import time
 import threading
+import time
 from collections import defaultdict
+from typing import List, Union
 
 from pavilion import commands
 from pavilion import output
-from pavilion.output import fprint
-from pavilion import result_parsers
+from pavilion import result
 from pavilion import schedulers
-from pavilion import system_variables
 from pavilion import test_config
+from pavilion.builder import MultiBuildTracker
+from pavilion.output import fprint
 from pavilion.plugins.commands.status import print_from_test_obj
 from pavilion.series import TestSeries, test_obj_from_id
 from pavilion.status_file import STATES
 from pavilion.test_run import TestRun, TestRunError, TestConfigError
-from pavilion.builder import MultiBuildTracker
 
 
 class RunCommand(commands.Command):
@@ -26,8 +25,8 @@ class RunCommand(commands.Command):
 
     :ivar TestSeries last_series: The suite number of the last suite to run
         with this command (for unit testing).
-    :ivar [TestRun] last_tests: A list of the last test runs that this command
-        started (also for unit testing).
+    :ivar List[TestRun] last_tests: A list of the last test runs that this
+        command started (also for unit testing).
     """
 
     BUILD_ONLY = False
@@ -38,7 +37,7 @@ class RunCommand(commands.Command):
                          short_help="Setup and run a set of tests.")
 
         self.last_series = None
-        self.last_tests = []
+        self.last_tests = []  # type: List[TestRun]
 
     def _setup_arguments(self, parser):
 
@@ -144,10 +143,12 @@ class RunCommand(commands.Command):
         series = TestSeries(pav_cfg, all_tests)
         self.last_series = series
 
-        res = self.check_result_parsers(all_tests)
+        res = self.check_result_format(all_tests)
         if res != 0:
             self._complete_tests(all_tests)
             return res
+
+        all_tests = [test for test in all_tests if not test.skipped]
 
         res = self.build_local(
             tests=all_tests,
@@ -159,7 +160,7 @@ class RunCommand(commands.Command):
             return res
 
         self._complete_tests([test for test in all_tests if
-                              test.opts.build_only and test.build_local])
+                              test.build_only and test.build_local])
 
         wait = getattr(args, 'wait', None)
         report_status = getattr(args, 'status', False)
@@ -214,11 +215,11 @@ class RunCommand(commands.Command):
             # that shouldn't be scheduled.
             tests = [test for test in tests if
                      # The non-build only tests
-                     (not test.opts.build_only) or
+                     (not test.build_only) or
                      # The build only tests that are built on nodes
                      (not test.build_local and
                       # As long they need to be built.
-                      (test.opts.rebuild or not test.builder.exists()))]
+                      (test.rebuild or not test.builder.exists()))]
 
             # Skip this scheduler if it doesn't have tests that need to run.
             if not tests:
@@ -233,6 +234,8 @@ class RunCommand(commands.Command):
                 fprint('Cancelling already kicked off tests.',
                        file=self.errfile)
                 self._cancel_all(tests_by_sched)
+                # return so the rest of the tests don't actually run
+                return errno.EINVAL
 
         # Tests should all be scheduled now, and have the SCHEDULED state
         # (at some point, at least). Wait until something isn't scheduled
@@ -274,13 +277,12 @@ class RunCommand(commands.Command):
             return print_from_test_obj(
                 pav_cfg=pav_cfg,
                 test_obj=tests,
-                outfile=self.outfile,
-                json=False)
+                outfile=self.outfile)
 
         return 0
 
     def _get_test_configs(self, pav_cfg, host, test_files, tests, modes,
-                          overrides, sys_vars):
+                          overrides):
         """Translate a general set of pavilion test configs into the final,
         resolved configurations. These objects will be organized in a
         dictionary by scheduler, and have a scheduler object instantiated and
@@ -292,9 +294,7 @@ class RunCommand(commands.Command):
             list of tests.
         :param list(str) tests: The tests to run.
         :param list(str) overrides: Overrides to apply to the configurations.
-        :param Union[system_variables.SysVarDict,{}] sys_vars: The system
-        variables dict.
-        :returns: A dictionary (by scheduler type name) of lists of tuples
+name) of lists of tuples
             test configs and their variable managers.
         """
         self.logger.debug("Finding Configs")
@@ -314,12 +314,16 @@ class RunCommand(commands.Command):
                 self.logger.error(msg)
                 raise commands.CommandError(msg)
 
-        resolved_cfgs = resolver.load(
-            tests,
-            host,
-            modes,
-            overrides
-        )
+        try:
+            resolved_cfgs = resolver.load(
+                tests,
+                host,
+                modes,
+                overrides,
+                output_file=self.outfile,
+            )
+        except TestConfigError as err:
+            raise commands.CommandError(err.args[0])
 
         tests_by_scheduler = defaultdict(lambda: [])
         for cfg, var_man in resolved_cfgs:
@@ -329,7 +333,7 @@ class RunCommand(commands.Command):
 
     @staticmethod
     def _configs_to_tests(pav_cfg, configs_by_sched, mb_tracker=None,
-                          build_only=False, rebuild=False):
+                          build_only=False, rebuild=False, outfile=None):
         """Convert the dictionary of test configs by scheduler into actual
         tests.
 
@@ -343,6 +347,8 @@ class RunCommand(commands.Command):
         """
 
         tests_by_sched = {}
+        progress = 0
+        tot_tests = sum([len(tests) for tests in configs_by_sched.values()])
 
         for sched_name in configs_by_sched.keys():
             tests_by_sched[sched_name] = []
@@ -357,8 +363,15 @@ class RunCommand(commands.Command):
                         build_only=build_only,
                         rebuild=rebuild,
                     ))
+                    progress += 1.0/tot_tests
+                    if outfile is not None:
+                        fprint("Creating Test Runs: {:.0%}".format(progress),
+                               file=outfile, end='\r')
             except (TestRunError, TestConfigError) as err:
                 raise commands.CommandError(err)
+
+        if outfile is not None:
+            fprint('', file=outfile)
 
         return tests_by_sched
 
@@ -376,18 +389,13 @@ class RunCommand(commands.Command):
         :rtype: {}
         """
 
-        sys_vars = system_variables.get_vars(True)
-
         try:
-            configs_by_sched = self._get_test_configs(
-                pav_cfg=pav_cfg,
-                host=args.host,
-                test_files=args.files,
-                tests=args.tests,
-                modes=args.modes,
-                overrides=args.overrides,
-                sys_vars=sys_vars,
-            )
+            configs_by_sched = self._get_test_configs(pav_cfg=pav_cfg,
+                                                      host=args.host,
+                                                      test_files=args.files,
+                                                      tests=args.tests,
+                                                      modes=args.modes,
+                                                      overrides=args.overrides)
 
             # Remove non-local builds when doing only local builds.
             if build_only and local_builds_only:
@@ -407,11 +415,10 @@ class RunCommand(commands.Command):
                 mb_tracker=mb_tracker,
                 build_only=build_only,
                 rebuild=args.rebuild,
+                outfile=self.outfile,
             )
 
         except commands.CommandError as err:
-            # Our error messages get escaped to a silly degree
-            err = codecs.decode(str(err), 'unicode-escape')
             fprint(err, file=self.errfile, flush=True)
             return None
 
@@ -437,7 +444,7 @@ class RunCommand(commands.Command):
         for test in tests:
             test.set_run_complete()
 
-    def check_result_parsers(self, tests):
+    def check_result_format(self, tests):
         """Make sure the result parsers for each test are ok."""
 
         rp_errors = []
@@ -445,15 +452,16 @@ class RunCommand(commands.Command):
 
             # Make sure the result parsers have reasonable arguments.
             try:
-                result_parsers.check_args(test.config['results'])
-            except TestRunError as err:
-                rp_errors.append(str(err))
+                result.check_config(test.config['result_parse'],
+                                    test.config['result_evaluate'])
+            except result.ResultError as err:
+                rp_errors.append((test, str(err)))
 
         if rp_errors:
             fprint("Result Parser configurations had errors:",
                    file=self.errfile, color=output.RED)
-            for msg in rp_errors:
-                fprint(msg, bullet=' - ', file=self.errfile)
+            for test, msg in rp_errors:
+                fprint(test.name, '-', msg, file=self.errfile)
             return errno.EINVAL
 
         return 0
@@ -473,7 +481,7 @@ class RunCommand(commands.Command):
         :param MultiBuildTracker mb_tracker: The tracker for all builds.
         """
 
-        test_threads = []   # type: [(threading.Thread, None)]
+        test_threads = []   # type: List[Union[threading.Thread, None]]
         remote_builds = []
 
         cancel_event = threading.Event()
@@ -483,7 +491,7 @@ class RunCommand(commands.Command):
         # non-local tests can't tell what was built fresh either on a
         # front-end or by other tests rebuilding on nodes.
         for test in tests:
-            if test.opts.rebuild and test.builder.exists():
+            if test.rebuild and test.builder.exists():
                 test.builder.deprecate()
                 test.builder.rename_build()
                 test.save_build_name()
@@ -511,9 +519,6 @@ class RunCommand(commands.Command):
 
         # Used to track which threads are for which tests.
         test_by_threads = {}
-
-        # The length of the last line printed when verbosity == 0.
-        last_line_len = None
 
         if build_verbosity > 0:
             fprint(self.BUILD_STATUS_PREAMBLE
@@ -547,6 +552,7 @@ class RunCommand(commands.Command):
                     builds_running -= 1
                     test_threads[i] = None
                     test = test_by_threads[thread]
+                    del test_by_threads[thread]
 
                     # Only output test status after joining a thread.
                     if build_verbosity == 1:
@@ -566,13 +572,15 @@ class RunCommand(commands.Command):
                 for thread in test_threads:
                     thread.join()
 
-                for test in build_order + remote_builds:
-                    test.status.set(STATES.ABORTED,
-                                    "Build aborted due to failures in other "
-                                    "builds.")
+                for test in tests:
+                    if (test.status.current().state not in
+                            (STATES.BUILD_FAILED, STATES.BUILD_ERROR)):
+                        test.status.set(
+                            STATES.ABORTED,
+                            "Run aborted due to failures in other builds.")
 
                 fprint("Build error while building tests. Cancelling runs.",
-                       color=output.RED, file=self.outfile)
+                       color=output.RED, file=self.outfile, clear=True)
 
                 for failed_build in mb_tracker.failures():
                     fprint(
@@ -593,11 +601,8 @@ class RunCommand(commands.Command):
                 for state in sorted(state_counts.keys()):
                     parts.append("{}: {}".format(state, state_counts[state]))
                 line = ' | '.join(parts)
-                if last_line_len is not None:
-                    fprint(' '*last_line_len, end='\r', file=self.outfile,
-                           width=None)
-                last_line_len = len(line)
-                fprint(line, end='\r', file=self.outfile, width=None)
+                fprint(line, end='\r', file=self.outfile, width=None,
+                       clear=True)
             elif build_verbosity > 1:
                 for test in tests:
                     seen = message_counts[test.id]
