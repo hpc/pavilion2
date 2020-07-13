@@ -89,8 +89,6 @@ class GraphCommand(commands.Command):
 
             results = self.get_data(evals, test.results)
 
-            #y_data = [item for sublist in y_data for item in sublist]
-
             # Plot this test.
             for x, y_list in results.items():
                 for y in y_list:
@@ -242,6 +240,8 @@ class GraphCommand(commands.Command):
         return test
 
     def get_data(self, evals, results):
+
+        print(results)
 
         evaluations.evaluate_results(results, evals)
 
