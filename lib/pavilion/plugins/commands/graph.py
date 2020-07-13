@@ -9,6 +9,7 @@ from pavilion import commands
 from pavilion import output
 from pavilion import series
 from pavilion.result import evaluations
+from pavilion.status_file import STATES
 from pavilion.test_run import TestRun
 
 
@@ -79,7 +80,7 @@ class GraphCommand(commands.Command):
         # Check filters, append/remove tests.
         tests = self.filter_tests(pav_cfg, args, args.tests)
         if not tests:
-            output.fprint("No tests matched these filters.")
+            output.fprint("No completed, successful tests matched these filters.")
             return errno.EINVAL
 
         evals = self.build_evaluations_dict(args.x, args.y)
@@ -211,6 +212,11 @@ class GraphCommand(commands.Command):
 
         # Load Test Object, to check Host name and Test Name
         test = TestRun.load(pav_cfg, int(test_path.name))
+
+        # Ensure test has completed, and successfully run.
+        status = test.status.current()
+        if status.state != STATES.COMPLETE:
+            return None
 
         host = test.config.get('host')
         # Filter tests by test name.
