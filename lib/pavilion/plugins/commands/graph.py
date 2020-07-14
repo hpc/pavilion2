@@ -87,7 +87,12 @@ class GraphCommand(commands.Command):
         evals = self.build_evaluations_dict(args.x, args.y)
         for test in tests:
 
-            results = self.get_data(evals, test.results)
+            try:
+                results = self.get_data(evals, test.results)
+            except ValueError as err:
+                output.fprint("Evaluations resulted in lists of different "
+                              "lengths.")
+                return errno.EINVAL
 
             # Plot this test.
             for x, y_list in results.items():
@@ -104,6 +109,9 @@ class GraphCommand(commands.Command):
         plt.close()
 
     def validate_args(self, args):
+        """Validates all arguments passed to the graph command. Will change 
+        :param args: The parsed command line argument object.
+        """
 
         # Validate Date.
         if args.date:
@@ -125,6 +133,21 @@ class GraphCommand(commands.Command):
             return errno.EINVAL
 
     def build_evaluations_dict(self, x_eval, y_eval):
+        """Take the parsed command arguments for --x and --y and build
+        an evaluations dictionary to be used later when gathering results.
+        :param list x_eval: List of evaluation string for x value.
+        :param list y_eval: List of evaluation strings for y values.
+        :return dict evals: A dictionary of the evaluations.
+
+            evals -> {
+                 'x': evaluation string,
+                'y0': evaluation string,
+                'y1': evaluation string,
+                .
+                .
+                .
+            }
+        """
 
         evals = {}
         evals['x'] = x_eval[0]
@@ -134,6 +157,12 @@ class GraphCommand(commands.Command):
         return evals
 
     def expand_ranges(self, test_list):
+        """Converts a string range of test IDs or series IDs into a list of
+        tests or series strings. Note, this is inclusive. Therefore a range of
+        123-126 will include 126.
+        :param list test_list: A list of tests, series, or ranges strings.
+        :return list update_test_list: A list of test or series strings.
+        """
 
         updated_test_list = []
         for test in test_list:
@@ -152,6 +181,15 @@ class GraphCommand(commands.Command):
         return updated_test_list
 
     def normalize_args_tests(self, pav_cfg, test_list):
+        """Converts test strings into string format used on test_run folder
+        names in the working directory, also expands series into their
+        respective test ids.
+        :param pav_cfg: The pavilion configuration.
+        :param list test_lists: A list of test or series strings.
+        :return list normalized_test_list: A list of tests strings, normalized
+                                           to appear as they do in the
+                                           working_dir.
+        """
 
         if not test_list:
             return []
@@ -172,6 +210,12 @@ class GraphCommand(commands.Command):
         return normalized_test_list
 
     def filter_tests(self, pav_cfg, args, tests):
+        """Filter provided tests, or entire directory, returns a list of tests
+        that match the search critetia.
+        :param pav_cfg: The pavilion configuration.
+        :param args: The parsed command line argument object.
+        :return list test_list: A list of valid test objects.
+        """
 
         tests_dir = pav_cfg.working_dir / 'test_runs'
         test_list = []
@@ -195,6 +239,13 @@ class GraphCommand(commands.Command):
         return test_list
 
     def apply_filters(self, pav_cfg, args, test_path):
+        """Apply the search filters to a given test.
+        :param pav_cfg: The pavilion configuration.
+        :param args: The parsed command line argument object.
+        :param test_path: A test path to check.
+        :return none: If a test is filtered out.
+        :return test: A test object is returned if not filtered out.
+        """
 
         # Make sure given path is a directory.
         if not test_path.is_dir():
@@ -240,23 +291,48 @@ class GraphCommand(commands.Command):
         return test
 
     def get_data(self, evals, results):
+        """Get the data from the test's results. Use pavilion's
+        evaluations to do so.
+        :param evals: The evaluations dictionary.
+        :param dict results: The loaded results dictionary.
+        :return dict results: The data pulled out of a tests results
+                              dictionary.
+        The returned data structure looks like:
+            results -> {
+                x: [Y,...+]
+                }
+        """
 
         evaluations.evaluate_results(results, evals)
 
         x_data = results['x']
         y_data_list = []
 
+        # Store Evaluations results in a y_data_list
         for key in evals:
             if key is not 'x':
                 y_data_list.append(results[key])
 
         results = {}
+        # Getting Values from Multiple Keys.
         if type(x_data) is list:
+            # Check to ensure lists are of the same length.
+            if len(x_data) != len(y_data_list):
+                raise ValueError
             for index in range(len(x_data)):
                 results[x_data[index]] = []
                 for item in y_data_list:
                     results[x_data[index]].append(item[index])
-        else:
+
+        # Getting Multiple Values for Single Key.
+        elif type(y_data_list[-1]) is list:
+            # Make sure there is only one sub_list in y_data_list.
+            if len(y_data_list) > 1:
+                raise ValueError
             results[x_data] = y_data_list[-1]
+
+        # Getting Single Value for Single Key.
+        else:
+            results[x_data] = y_data_list
 
         return results

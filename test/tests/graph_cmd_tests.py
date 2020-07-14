@@ -138,7 +138,7 @@ class ResolverTests(PavTestCase):
         eval_res = self.graph_cmd.get_data(eval_dict, results)
 
         eval_expected = {
-            235: 123424
+            235: [123424]
         }
 
         self.assertEqual(eval_res, eval_expected)
