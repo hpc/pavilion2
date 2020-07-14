@@ -40,7 +40,7 @@ Deferred variables are allowed in the only_if and not_if sections. Such
 conditions won't be evaluated until after the test is granted an
 allocation, so a test may only be ``SKIPPED`` right before it starts to
 run on an allocation. For additional information see
-`Deferred Variables <variables.html#deferred-variables>`__.
+:ref:`tests.variables.deferred`.
 
 
 not_if
@@ -70,8 +70,7 @@ The keys in the only_if and not_if sections can contain Pavilion
 variable references (unlike keys in the rest of Pavilion test
 configs). You can even have keys that reference multiple
 variables and static characters such as: "Lunix-{{sys_os}} {{user}}".
-More on
-`Pavilion Test Variables <variables.html>`__.
+More on :ref:`tests.variables`.
 
 Regex in Conditional Skips
 ~~~~~~~~~~~~~~~~~~~~~~~~~~

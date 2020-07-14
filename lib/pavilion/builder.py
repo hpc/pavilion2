@@ -199,6 +199,8 @@ class TestBuilder:
         self.test = test
         self._timeout = test.build_timeout
 
+        self._fix_source_path()
+
         if not test.build_local:
             self.tracker.update(state=STATES.BUILD_DEFERRED,
                                 note="Build will run on nodes.")
@@ -229,6 +231,20 @@ class TestBuilder:
     def exists(self):
         """Return True if the given build exists."""
         return self.path.exists()
+
+    DOWNLOAD_HASH_SIZE = 13
+
+    def _fix_source_path(self):
+        """Create a source path from the url if one wasn't given. These will
+        be put in a .downloads directory under test_src."""
+
+        src_path = self._config.get('source_path')
+        src_url = self._config.get('source_url')
+
+        if src_path is None and src_url is not None:
+            url_hash = hashlib.sha256(src_url.encode()).hexdigest()
+            src_path = '.downloads/' + url_hash[:self.DOWNLOAD_HASH_SIZE]
+            self._config['source_path'] = src_path
 
     def create_build_hash(self):
         """Turn the build config, and everything the build needs, into a hash.
@@ -385,6 +401,14 @@ class TestBuilder:
                 dwn_dest = self.test.suite_path.parents[1]/'test_src'/src_path
             else:
                 dwn_dest = src_path
+
+            if not src_path.parent.exists():
+                try:
+                    src_path.parent.mkdir(parents=True)
+                except OSError as err:
+                    raise TestBuilderError(
+                        "Could not create parent directory to place "
+                        "downloaded source:\n{}".format(err.args[0]))
 
             self.tracker.update("Updating source at '{}'."
                                 .format(found_src_path),

@@ -67,8 +67,13 @@ contain numbers, dashes and underscores.
           - "sleep {{var.sleep_time}}"
           - 'echo "Slept {{sleep_time}} seconds on node {{sched.node_num}}."'
 
-Variable References
-^^^^^^^^^^^^^^^^^^^
+Expressions
+^^^^^^^^^^^
+
+*Full Docs:* :ref:`tests.variables`
+
+Expressions allow you to access and manipulate variable values and insert them
+into Pavilion configuration strings.
 
 -  Use double curly brackets ``{{var.myvar}}``.
 -  Variable category is optional. ``{{myvar}}`` is fine.
@@ -77,8 +82,8 @@ Variable References
    you need to make the reference explicit.
 -  You'll also see ``{{myvar.2}}`` list references, ``{{myvar.foo}}``
    attribute references, and the combination of the two
-   ``{{myvar.1.bar}}``. See the full
-   `variable documentation <tests/variables.html>`__ for more info.
+   ``{{myvar.1.bar}}``.
+-  These can also contain math and function calls: ``{{ foo + 1 / bar }}``
 
 Listing Variables
 ^^^^^^^^^^^^^^^^^
@@ -118,13 +123,6 @@ a front-end) rather than on the nodes, deferred variables aren't allowed
 in those sections. Namely, this includes the ``build`` and various
 scheduler config sections, as well as root level config values. Pavilion
 will tell you when you make this mistake.
-
-More Info
-^^^^^^^^^
-
-Variables are a powerful feature of pavilion, and the above just
-scratches the surface. See the `variables <tests/variables.html>`__
-section of the docs for detailed information.
 
 Expressions
 ~~~~~~~~~~~
@@ -227,6 +225,8 @@ for more info.
 Skip Conditions
 ~~~~~~~~~~~~~~~
 
+*Full Docs:* :ref:`tests.skip_conditions`
+
 The ``only_if`` and ``not_if`` sections of the test config allow users
 to specify the conditions under which a test should run. Tests are 'SKIPPED'
 unless each of their ``only_if`` conditions (and none if their ``not_if``
@@ -246,10 +246,6 @@ value of the Pavilion variable might match to.
         run:
             cmds:
                 - 'echo "Helloworld"'
-
-See
-`Skip Conditions <tests/conditionals.html>`__
-for additional information.
 
 Environment
 -----------
@@ -344,8 +340,8 @@ Module Wrappers
 
 When tell pavilion to load/remove/swap modules, the code to do this is
 added to the test or build script automatically using
-`module wrapper <plugins/module_wrappers.html>`__
-plugins. The default module wrapper performs the module command, and
+:ref:`plugins.module_wrappers`.
+The default module wrapper performs the module command, and
 then verifies that the module is actually loaded.
 
 More complicated setups are possible by adding additional plugins
@@ -418,7 +414,7 @@ scheduler, but don't configure one. It's time to rectify that.
             # that conforms to the rest of the slurm settings.
             - {sched.test_cmd} ./supermagic -a
 
-`Schedulers are plugins <plugins/schedulers.html>`__ in Pavilion, and are
+Schedulers are plugins in Pavilion, and are
 fairly loosely defined. They must at least do the following:
 
 * Provide a scheduler variable set for use in configs (the set may be empty).

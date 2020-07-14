@@ -1,3 +1,5 @@
+.. _tests.env:
+
 Build and Run Environments
 ==========================
 
@@ -106,8 +108,7 @@ Modules
 Many clusters employ module systems to allow for easy switching between
 build environments. Pavilion supports both the environment (TCL) and the
 LMOD module systems, but other module systems can be supported by
-overriding the base `module\_wrapper
-plugin <../plugins/module_wrappers.html>`__.
+overriding the base :ref:`plugins.module_wrappers`.
 
 Loading modules
 ~~~~~~~~~~~~~~~
@@ -163,5 +164,4 @@ provides support for lmod and tmod, generates the source to load
 modules within run and build scripts, and checks to see if they've been
 successfully loaded (or unloaded).
 
-For more information on writing these, see `Module Wrapper
-Plugins <../plugins/module_wrappers.html>`__.
+For more information on writing these, see :ref:`plugins.module_wrappers`.

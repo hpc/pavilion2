@@ -205,7 +205,7 @@ def _save_info(path, head_data):
 
 def update(pav_cfg, url, dest):
     """Check if the file needs to be re-downloaded, and do so if necessary.
-    This will careate a '{dest}.info' file in the same directory that will
+    This will create a '{dest}.info' file in the same directory that will
     be used to check if updates are necessary.
     :param pav_cfg: The pavilion configuration object.
     :param str url: The url for the file to download.

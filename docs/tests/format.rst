@@ -1,3 +1,5 @@
+.. _tests.format:
+
 Test Format
 ===========
 
@@ -11,8 +13,7 @@ Tests and Suites
 
 Each Suite is a yaml file (with a ``.yaml`` extension) which can contain
 multiple tests. Suite files must reside in ``<config_dir>/tests/``,
-where ``<config_dir>`` is one of your
-`configuration directories <../config.html>`__. Tests
+where ``<config_dir>`` is one of your :ref:`config.config_dirs`. Tests
 in a suite can be run as a group or independently, and can even inherit
 from one another.
 
@@ -197,7 +198,7 @@ Host Configs
 Host configs allow you to have per-host settings. These are layered on
 top of the general defaults for every test run on a particular host.
 They are ``<name>.yaml`` files that go in the ``<config_dir>/hosts/``
-directory, in any of your `config directories <../config.html>`__.
+directory, in any of your :ref:`config.config_dirs`.
 
 Pavilion determines your current host through the ``sys_name`` system
 variable. The default plugin simply uses the short hostname, but it's
@@ -252,7 +253,7 @@ Tests within a single test suite file can inherit from each other.
             - echo "Running supermagic"
             - srun ./supermagic -a
 
-        results:
+        result_parse:
           ... # Various result parser configurations.
 
     # This gets all the attributes of supermagic, but overwrites the summary
@@ -286,8 +287,7 @@ Mode Configs
 Mode configs are exactly like host configs, except you can have more
 than one of them. They're meant for applying extra defaults to tests
 that are situational. They are ``<name>.yaml`` files that go in the
-``<config_dir>/modes/`` directory, in any of your `config
-directories <../config.html>`__.
+``<config_dir>/modes/`` directory, in any of your :ref:`config.config_dirs`.
 
 For instance, if you regularly run on the ``dev`` partition, you might
 have a ``<config_dir>/modes/dev.yaml`` file to set that up for you.
@@ -328,11 +328,11 @@ order.
    should't have ``sched`` variables in these sections.)
 6. Variables are resolved throughout the rest of the config.
 
-This results in the semi-final test config - deferred variables can't be
-resolved until we're on the allocation. Once there, we'll finish resolving
-those, and resolve any parts of the config that used them. Parts of the config
-that are required before kicking off the test (like the build and scheduler
-sections), can't use deferred variables.
+This results in the semi-final test config. :ref:`tests.variables.deferred`
+can't be resolved until we're on the allocation. Once there, we'll finish
+resolving those, and resolve any parts of the config that used them. Parts of
+the config that are required before kicking off the test (like the build and
+scheduler sections), can't use deferred variables.
 
 Top Level Test Config Keys
 --------------------------
@@ -372,7 +372,7 @@ variables
 A mapping of variables that are specific to this test. Each variable
 value can be a string, a list of strings, a mapping of strings, or a
 list of mappings (with the same keys) of strings. See the
-`variables <variables.html>`__ documentation for more info.
+:ref:`tests.variables` documentation for more info.
 
 scheduler
 ~~~~~~~~~
@@ -385,39 +385,35 @@ build
 
 This sub-section defines how the test source is built.
 
-See `Builds <build.html>`__ for the sub-section keys and usage.
+See :ref:`tests.build` for the sub-section keys and usage.
 
 run
 ~~~
 
 This sub-section defines how the test source is run.
 
-See `Run <run.html>`__ for the sub-section keys and usage.
+See :ref:`tests.run` for the sub-section keys and usage.
 
-results
-~~~~~~~
+result_parse
+~~~~~~~~~~~~
 
 This sub-section defines how test results are parsed.
 
-See `Results <results.html>`__ for the sub-section keys and usage.
+See :ref:`tests.results.result_parsers` for the sub-section keys and usage.
 
-only_if
-~~~~~~~
+result_evaluate
+~~~~~~~~~~~~~~~
 
-This sub-section defines how tests can be run only if certain
-conditions are met.
+Allows you to further modify and analyze test results.
 
-See `Conditional Statements <conditionals.html>`__ for the
-sub-section keys and usage.
+See :ref:`tests.results.evaluations`.
 
-not_if
-~~~~~~
+only_if and not_if
+~~~~~~~~~~~~~~~~~~
 
-This sub-section defines how tests can be skipped if certain
-conditions are met.
+These sub-sections defines conditions under which tests are skipped.
 
-See `Conditional Statements <conditionals.html>`__ for the sub-section
-keys and usage.
+See :ref:`tests.skip_conditions` for the sub-section keys and usage.
 
 <schedulers>
 ~~~~~~~~~~~~

@@ -6,6 +6,7 @@ the list of all known test runs."""
 import datetime
 import grp
 import json
+import hashlib
 import logging
 import re
 import subprocess
@@ -244,11 +245,6 @@ class TestRun:
         self.build_origin_path = self.path/'build_origin'
 
         build_config = self.config.get('build', {})
-
-        if (build_config.get('source_path') is None and
-                build_config.get('source_url') is not None):
-            raise TestConfigError(
-                "Build source_url specified, but not a source_path.")
 
         self.build_script_path = self.path/'build.sh'  # type: Path
         self.build_path = self.path/'build'

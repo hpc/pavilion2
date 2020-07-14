@@ -7,7 +7,9 @@
    run.rst
    build.rst
    env.rst
+   parsers/index.rst
    permutations.rst
    values.rst
    results.rst
+   scheduling.rst
    skip_conditions.rst

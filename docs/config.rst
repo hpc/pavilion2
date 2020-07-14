@@ -1,13 +1,12 @@
+.. _config:
+
 Configuring Pavilion
 ====================
 
 Pavilion is driven largely by configurations. This documentation page covers
 the ``pavilion.yaml`` file, which sets global pavilion settings.
 
-See `Test Configs <tests/format.html>`__,
-`Host Configs <tests/format.html#host-configs>`__,
-`Mode Configs <tests/format.html#mode-configs>`__, and
-`Plugins <plugins/basics.html>`__ for information on the other types of
+See :ref:`tests.format` for information on the other types of
 pavilion configuration.
 
 .. contents::
@@ -17,17 +16,18 @@ pavilion configuration.
 Config Directories
 ------------------
 
-Pavilion looks for configs in the following hierarchy by default, and
-uses the first one it finds.
+Pavilion looks its main ``pavilion.yaml`` config in the following hierarchy
+and uses the first one it finds.
 
--  The current directory
--  The user's home directory
+-  The user's `~/.pavilion` directory.
 -  The directory given via the ``PAV_CONFIG_DIR`` environment variable.
 -  The Pavilion lib directory **(don't put configs here)**
--  Additional config directories (the ``config_dirs`` option.
 
-   - These are only used when searching for test, host, and mode configs,
-     as well as plugins.
+The pavilion.yaml file can configure additional locations to look for test,
+mode, and host configs, as well as plugins using the ``config_dirs`` option.
+The ``~/.pavilion`` directory is only searched for ``pavilion.yaml`` by
+default, but searches for other configs there can be turned on in ``pavilion
+.yaml``
 
 Each config directory can (optionally) have any of the sub-directories
 shown here.
@@ -37,29 +37,24 @@ shown here.
 
    Config Directory Layout
 
-Pavilion.yaml
--------------
-
-Pavilion looks for a ``pavilion.yaml`` in the default config hierarchy,
-and uses the first one it finds.
-
-It's ok to run pavilion without a config; the defaults should be good
-enough in many cases.
+It's ok to run pavilion without a ``pavilion.yaml``; the defaults should
+be good enough in many cases.
 
 Generating a pavilion.yaml template
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Pavilion can print template files, with documentation, for all of it's
 config files. In this case, use the command ``pav show config --template``.
-Since this file is self documenting, refer to it for more information about
-each of the configuration settings.
-
+Since this file is self documenting, refer to
+it for more information about each of the configuration settings.
 
 Setting You Should Set
 ~~~~~~~~~~~~~~~~~~~~~~
 
 While everything has a workable default, you'll probably want to set the
 following.
+
+.. _config.working_dir:
 
 working_dir
 ^^^^^^^^^^^

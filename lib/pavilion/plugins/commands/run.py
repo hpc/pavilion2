@@ -581,6 +581,9 @@ name) of lists of tuples
 
                 fprint("Build error while building tests. Cancelling runs.",
                        color=output.RED, file=self.outfile, clear=True)
+                fprint("Failed builds are placed in <working_dir>/test_runs/"
+                       "<test_id>/build for the corresponding test run.",
+                       color=output.CYAN, file=self.outfile)
 
                 for failed_build in mb_tracker.failures():
                     fprint(
@@ -601,7 +604,7 @@ name) of lists of tuples
                 for state in sorted(state_counts.keys()):
                     parts.append("{}: {}".format(state, state_counts[state]))
                 line = ' | '.join(parts)
-                fprint(line, end='\r', file=self.outfile, width=None, 
+                fprint(line, end='\r', file=self.outfile, width=None,
                        clear=True)
             elif build_verbosity > 1:
                 for test in tests:
