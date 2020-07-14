@@ -14,7 +14,9 @@ from .expressions import get_expr_parser, ExprTransformer, VarRefVisitor
 
 STRING_GRAMMAR = r'''
 // All strings resolve to this token. 
-start: string
+start: string TRAILING_NEWLINE?
+
+TRAILING_NEWLINE: /\n/
 
 // It's important that each of these start with a terminal, rather than 
 // a reference back to the 'string' rule. A 'STRING' terminal (or nothing) 
@@ -132,6 +134,10 @@ class StringTransformer(PavTransformer):
                 parts.append(self._resolve_expr(item, self.var_man))
             else:
                 parts.append(item.value)
+
+        # Add a trailing newline if necessary.
+        if len(items) > 1:
+            parts.append('\n')
 
         return ''.join(parts)
 

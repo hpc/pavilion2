@@ -6,7 +6,6 @@ components to add sub-commands.
 import argparse
 
 import pavilion.config
-from pavilion import utils
 
 _PAV_PARSER = None
 _PAV_SUB_PARSER = None
@@ -24,6 +23,7 @@ def get_parser():
         return _PAV_PARSER
 
     parser = argparse.ArgumentParser(
+        prog='pav',
         description="Pavilion is a framework for running tests on "
                     "supercomputers.")
     parser.add_argument('-v', '--verbose', dest='verbose', action='store_true',

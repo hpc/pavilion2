@@ -39,6 +39,7 @@ class ShowTests(unittest.PavTestCase):
             ('show', 'test_config'),
             ('show', 'tests'),
             ('show', 'tests', '--err'),
+            ('show', 'tests', '--doc', 'hello_world.narf'),
             ('show', 'tests', '--hidden'),
             ('show', 'tests', '--verbose'),
         ]

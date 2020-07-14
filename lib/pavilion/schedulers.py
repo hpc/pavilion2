@@ -100,6 +100,7 @@ Naming Conventions:
         'min_cpus': "3",
         'min_mem': "123412",
     }
+
     """Each scheduler variable class should provide an example set of
     values for itself to display when using 'pav show' to list the variables.
     These are easily obtained by running a test under the scheduler, and
@@ -167,6 +168,15 @@ Naming Conventions:
     # situations, namely when your general architecture is such that
     # front-end nodes have less resources than any compute node. Note that
     # they are all non-deferred, so they're safe to use in build scripts,
+
+    @var_method
+    def test_cmd(self):
+        """The command to prepend to a line to kick it off under the
+        scheduler. This is blank by default, but most schedulers will
+        want to define something that utilizes relevant scheduler
+        parameters."""
+
+        return ''
 
     @var_method
     def min_cpus(self):
