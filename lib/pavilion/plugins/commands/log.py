@@ -30,27 +30,37 @@ class LogCommand(commands.Command):
 
         subparsers.add_parser(
             'run',
-            aliases=['run'],
-            help="Displays log of run.",
-            description="""Displays log of run."""
+            help="Show a test's run.log",
+            description="Displays the test run log (run.log)."
         )
 
         subparsers.add_parser(
             'kickoff',
-            aliases=['kickoff'],
-            help="Displays summary of kickoff.",
-            description="""Displays summary of kickoff."""
+            help="Show a test's kickoff.log",
+            description="""Displays the kickoff log (kickoff.log)"""
         )
 
         subparsers.add_parser(
             'build',
-            aliases=['build'],
-            help="Displays summary of build.",
-            description="""Displays summary of build."""
+            help = "Show a test's build.log",
+            description = """Displays the build log (build.log)"""
+        )
+
+        subparsers.add_parser(
+            'results',
+            help = "Show a test's results.log",
+            description = """Displays the results log (results.log)"""
         )
 
         parser.add_argument('test', type=int,
                             help="Test number argument.")
+
+    LOG_PATHS = {
+        'build': 'build.log',
+        'kickoff': 'kickoff.log',
+        'results': 'results.log',
+        'run': 'run.log',
+    }
 
     def run(self, pav_cfg, args):
         """Figure out which log the user wants and print it."""
@@ -69,14 +79,7 @@ class LogCommand(commands.Command):
                           file=self.errfile)
             return 1
 
-        if 'run'.startswith(cmd_name):
-            file_name = test.path / 'run.log'
-        elif 'kickoff'.startswith(cmd_name):
-            file_name = test.path / 'kickoff.log'
-        elif 'build'.startswith(cmd_name):
-            file_name = test.path / 'build' / 'pav_build_log'
-        else:
-            raise RuntimeError("Invalid log cmd '{}'".format(cmd_name))
+        file_name = test.path/self.LOG_PATHS[cmd_name]
 
         if not file_name.exists():
             output.fprint("Log file does not exist: {}"
@@ -88,7 +91,7 @@ class LogCommand(commands.Command):
         try:
             with file_name.open() as file:
                 output.fprint(file.read(), file=self.outfile, width=None,
-                              end="")
+                              end='')
         except (IOError, OSError) as err:
             output.fprint("Could not read log file '{}': {}"
                           .format(file_name, err),

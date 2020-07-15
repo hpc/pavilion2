@@ -12,6 +12,7 @@ from pavilion import system_variables
 from pavilion.test_config import VariableSetManager
 from pavilion.test_run import TestRun, TestRunError
 from pavilion.status_file import STATES
+from pavilion.permissions import PermissionsManager
 
 
 class _RunCommand(commands.Command):
@@ -149,7 +150,11 @@ class _RunCommand(commands.Command):
                     .format(err.args[0]))
                 return 1
 
-            results = test.gather_results(run_result)
+            with PermissionsManager(test.results_log,
+                                    group=test.group, umask=test.umask), \
+                    test.results_log.open('w') as log_file:
+                results = test.gather_results(run_result, log_file=log_file)
+
         except Exception as err:
             self.logger.error("Unexpected error gathering results: \n%s",
                               traceback.format_exc())

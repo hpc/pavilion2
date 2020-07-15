@@ -17,7 +17,7 @@ directly as a ResultExpression.
 """
 
 import re
-from typing import Union, List, Tuple
+from typing import List
 
 import lark as _lark
 from .common import ParserValueError
@@ -85,7 +85,9 @@ class StringParserError(ValueError):
     def __str__(self):
         return "\n".join([self.message, self.context])
 
+
 _TREE_CACHE = {}
+
 
 def parse_text(text, var_man) -> str:
     """Parse the given text and return the parsed result. Will try to figure
@@ -103,7 +105,7 @@ def parse_text(text, var_man) -> str:
 
     def parse_fn(txt):
         """Shorthand for parsing text."""
-        
+
         tree = _TREE_CACHE.get(txt)
         if tree is None:
             tree = parser.parse(txt)
