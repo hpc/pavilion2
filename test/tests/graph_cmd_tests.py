@@ -135,7 +135,7 @@ class ResolverTests(PavTestCase):
         ])
 
         eval_dict = self.graph_cmd.build_evaluations_dict(args.x, args.y)
-        eval_res = self.graph_cmd.get_data(eval_dict, results)
+        eval_res = self.graph_cmd.evaluate_results(eval_dict, results)
 
         eval_expected = {
             235: [123424]
@@ -152,7 +152,7 @@ class ResolverTests(PavTestCase):
         ])
 
         eval_dict = self.graph_cmd.build_evaluations_dict(args.x, args.y)
-        eval_res = self.graph_cmd.get_data(eval_dict, results)
+        eval_res = self.graph_cmd.evaluate_results(eval_dict, results)
 
         eval_expected = {
             235: [123424, 14214]
@@ -189,7 +189,7 @@ class ResolverTests(PavTestCase):
         ])
 
         eval_dict = self.graph_cmd.build_evaluations_dict(args.x, args.y)
-        eval_res = self.graph_cmd.get_data(eval_dict, results)
+        eval_res = self.graph_cmd.evaluate_results(eval_dict, results)
 
         eval_expected = {
             1: [123424],
@@ -208,7 +208,7 @@ class ResolverTests(PavTestCase):
         ])
 
         eval_dict = self.graph_cmd.build_evaluations_dict(args.x, args.y)
-        eval_res = self.graph_cmd.get_data(eval_dict, results)
+        eval_res = self.graph_cmd.evaluate_results(eval_dict, results)
 
         eval_expected = {
             1: [123424, 14214],

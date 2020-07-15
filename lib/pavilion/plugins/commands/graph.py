@@ -1,9 +1,8 @@
 import errno
 import matplotlib.pyplot as plt
-import numpy as np
 import os
+import random
 import re
-import time
 from datetime import datetime
 
 from pavilion import commands
@@ -88,28 +87,24 @@ class GraphCommand(commands.Command):
         for test in tests:
 
             try:
-                results = self.get_data(evals, test.results)
-            except ValueError as err:
-                output.fprint("Evaluations resulted in lists of different "
-                              "lengths.")
+                results = self.evaluate_results(evals, test.results)
+            except (ValueError, TypeError) as err:
+                output.fprint("Evaluations resulted in error: \n{}"
+                              .format(err))
                 return errno.EINVAL
 
             # Plot this test.
             for x, y_list in results.items():
                 for y in y_list:
-                    plt.plot(x, y, 'o') # label = arg eventually.
+                    plt.plot(x, y, marker='o')
 
         plt.ylabel(args.y_label)
         plt.xlabel(args.x_label)
         plt.legend()
         plt.show()
 
-        time.sleep(5)
-
-        plt.close()
-
     def validate_args(self, args):
-        """Validates all arguments passed to the graph command. Will change 
+        """Validates all arguments passed to the graph command. Will change
         :param args: The parsed command line argument object.
         """
 
@@ -290,7 +285,7 @@ class GraphCommand(commands.Command):
 
         return test
 
-    def get_data(self, evals, results):
+    def evaluate_results(self, evals, results):
         """Get the data from the test's results. Use pavilion's
         evaluations to do so.
         :param evals: The evaluations dictionary.
@@ -305,34 +300,90 @@ class GraphCommand(commands.Command):
 
         evaluations.evaluate_results(results, evals)
 
-        x_data = results['x']
+        x_data_list, y_data_list = self.get_evaluation_data(results, evals)
+
+        results = {}
+        for x, y in zip(x_data_list, y_data_list):
+            results[x] = y
+
+        return results
+
+    def verify_and_transform_data_list(self, x_data_list, y_data_list):
+        """ Transforms y_data_list to work if multiple x_values are present.
+        Also checks to ensure lists are of equal lenght.
+        :param list x_data_list: List of all x values to plot.
+        :param list y_data_list: List of all y values to plot, Sublists will be
+                                 ordered by evaluations, not x values.
+        :return list y_data_list: This is a verified, reordered list of y
+                                  values.
+        """
+
+        if len(x_data_list) > 1:
+            transformed = []
+            for index in range(len(x_data_list)):
+                transformed.append([item[index] for item in y_data_list])
+            y_data_list = transformed
+
+        if len(x_data_list) != len(y_data_list):
+            raise ValueError("Evaluations resulted in lists of different "
+                             "lengths.")
+
+        return y_data_list
+
+    def validate_result(self, result, evals):
+        """Ensures that the evaluation result is of a type we can use.
+        :param result: This is the result we are checking.
+        :param str evals: This is the evaluation that generated this result.
+        :return list result: Returns the given result in a list.
+        """
+
+        result_type = type(result)
+
+        # Ensure results are values we can plot.
+        if result_type not in (float, int, list):
+            raise TypeError("'{}' evaluation resulted in '{}'. "
+                            "Expected result of float, int, or list."
+                            .format(evals,
+                                    result_type.__name__))
+
+        # Ensure that lists contain values that we can plot. 
+        if result_type is list:
+            for item in result:
+                if type(item) not in (int, float):
+                    raise TypeError("'{}' evaluation resulted in a "
+                                    "list that contains invalid type "
+                                    "'{}'.".format(evals,
+                                                   type(item).__name__))
+            return result
+
+        else:
+            return [result]
+
+    def get_evaluation_data(self, results, evals):
+        """Get the evaluation data to plot out of results.
+        :param dict results: The test results dictionary.
+        :param dict evals: The graph command's evalaution arguments.
+        :return list x_data_list: The list of x values to plot.
+        :return list y_data_list: The list of y values to plot.
+        """
+
+        x_result = results['x']
+
+        if type(x_result) is list:
+            x_data_list = x_result
+        else:
+            x_data_list = [x_result]
+
         y_data_list = []
 
         # Store Evaluations results in a y_data_list
         for key in evals:
             if key is not 'x':
-                y_data_list.append(results[key])
+                result = results[key]
+                y_data_list.append(self.validate_result(result, evals[key]))
 
-        results = {}
-        # Getting Values from Multiple Keys.
-        if type(x_data) is list:
-            # Check to ensure lists are of the same length.
-            if len(x_data) != len(y_data_list):
-                raise ValueError
-            for index in range(len(x_data)):
-                results[x_data[index]] = []
-                for item in y_data_list:
-                    results[x_data[index]].append(item[index])
+        y_data_list = self.verify_and_transform_data_list(x_data_list,
+                                                          y_data_list)
 
-        # Getting Multiple Values for Single Key.
-        elif type(y_data_list[-1]) is list:
-            # Make sure there is only one sub_list in y_data_list.
-            if len(y_data_list) > 1:
-                raise ValueError
-            results[x_data] = y_data_list[-1]
+        return x_data_list, y_data_list
 
-        # Getting Single Value for Single Key.
-        else:
-            results[x_data] = y_data_list
-
-        return results
