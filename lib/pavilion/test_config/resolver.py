@@ -188,11 +188,19 @@ class TestConfigResolver:
                         suites[suite_name]['err'] = err
                         continue
 
+                    def default(val, dval):
+                        """Return the dval if val is None."""
+
+                        return dval if val is None else val
+
                     for test_name, conf in suite_cfgs.items():
                         suites[suite_name]['tests'][test_name] = {
                             'conf': conf,
-                            'summary': conf['summary'],
-                            'doc': conf['doc'],
+                            'maintainer': default(
+                                conf['maintainer']['name'], ''),
+                            'email': default(conf['maintainer']['email'], ''),
+                            'summary': default(conf.get('summary', ''), ''),
+                            'doc': default(conf.get('doc', ''), ''),
                         }
 
         return suites
@@ -394,6 +402,12 @@ class TestConfigResolver:
                 test_suite_path = self._find_config(CONF_TEST, test_suite)
 
                 if test_suite_path is None:
+                    if test_suite == 'log':
+                        raise TestConfigError(
+                            "Could not find test suite 'log'. If you were "
+                            "trying to get the run log, use the 'pav log run "
+                            "<testid>' command.")
+
                     cdirs = [str(cdir) for cdir in self.pav_cfg.config_dirs]
                     raise TestConfigError(
                         "Could not find test suite {}. Looked in these "
@@ -633,7 +647,7 @@ class TestConfigResolver:
                         .normalize(test_cfg)
                 except (TypeError, KeyError, ValueError) as err:
                     raise TestConfigError(
-                        "Test {} in suite {} has an error: {}"
+                        "Test {} in suite {} has an error:\n{}"
                         .format(test_cfg_name, suite_path, err))
         except AttributeError:
             raise TestConfigError(
@@ -1073,7 +1087,7 @@ class TestConfigResolver:
                         )
                     except parsers.StringParserError as err:
                         raise TestConfigError(
-                            "Error resolving value '{}' for key '{}':\n"
+                            "Error resolving value '{}' in config at '{}':\n"
                             "{}\n{}"
                             .format(component, '.'.join(map(str, key_parts)),
                                     err.message, err.context))
@@ -1106,9 +1120,10 @@ class TestConfigResolver:
                             .format(component, '.'.join(map(str, key_parts))))
                 except parsers.StringParserError as err:
                     raise TestConfigError(
-                        "Error resolving value '{}' for key '{}':\n"
+                        "Error resolving value '{}' in config at '{}':\n"
                         "{}\n{}"
-                        .format(component, [str(part) for part in key_parts],
+                        .format(component,
+                                '.'.join([str(part) for part in key_parts]),
                                 err.message, err.context))
                 else:
                     return resolved

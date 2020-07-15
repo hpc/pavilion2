@@ -4,6 +4,7 @@ loading."""
 import math
 import random
 import re
+from typing import List
 
 from .base import FunctionPlugin, num
 from .common import FunctionPluginError, FunctionArgError
@@ -283,3 +284,49 @@ class Replace(CoreFunctionPlugin):
         """Replace all instances of 'find' with 'replacement' in 'string'."""
 
         return string.replace(find, replacement)
+
+
+class Outliers(CoreFunctionPlugin):
+    """Calculate outliers given a list of values and a separate list
+    of their associated names. The lists should be the same length, and
+    in matching order (which Pavilion should generally guarantee). A value is
+    flagged as an outlier if it is more than 'limit' standard deviations
+    from the mean of the values.
+
+    Produces a dict of name -> (val - mean)/stddev for only those values
+    flagged as outliers.
+
+    Ex: 'bad_nodes: 'outliers(n.*.speed, keys(n), 2.0)`
+    This would find any nodes with a speed more than 2.0 std deviations
+    from the mean.
+    """
+
+    def __init__(self):
+        super().__init__(
+            'outliers',
+            arg_specs=([num], [str], float),
+        )
+
+    @staticmethod
+    def outliers(values: List[num], names: List[str], limit: float):
+        """Create the outlier dict."""
+
+        if len(values) != len(names):
+            raise FunctionPluginError(
+                "The 'values' and 'names' arguments must be lists of equal"
+                "length."
+            )
+
+        mean = sum(values)/len(values)
+        stddev = (sum([(val - mean)**2 for val in values])/len(values))**0.5
+
+        deviations = {}
+
+        for i in range(len(values)):
+            val = values[i]
+
+            dev = (val - mean)/stddev
+            if dev > limit:
+                deviations[names[i]] = dev
+
+        return deviations

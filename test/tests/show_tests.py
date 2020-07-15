@@ -27,7 +27,7 @@ class ShowTests(unittest.PavTestCase):
             ('show', 'module_wrappers', '--verbose'),
             ('show', 'pav_vars'),
             ('show', 'result_parsers'),
-            ('show', 'result_parsers', '--config=regex'),
+            ('show', 'result_parsers', '--doc=regex'),
             ('show', 'result_parsers', '--verbose'),
             ('show', 'sched'),
             ('show', 'sched', '--config=slurm'),
@@ -42,6 +42,7 @@ class ShowTests(unittest.PavTestCase):
             ('show', 'test_config'),
             ('show', 'tests'),
             ('show', 'tests', '--err'),
+            ('show', 'tests', '--doc', 'hello_world.narf'),
             ('show', 'tests', '--hidden'),
             ('show', 'tests', '--verbose'),
         ]

@@ -216,7 +216,8 @@ class ResultParserTests(PavTestCase):
         ]
 
         for eval_conf in evaluate_confs:
-            pavilion.result.check_config({}, eval_conf)
+            with self.assertRaises(ResultError):
+                pavilion.result.check_config({}, eval_conf)
 
     def test_base_results(self):
         """Make all base result functions work."""
@@ -516,6 +517,15 @@ class ResultParserTests(PavTestCase):
         reloaded_test = TestRun.load(self.pav_cfg, orig_test.id)
         self.assertEqual(reloaded_test.results, orig_test.results)
         self.assertEqual(reloaded_test.config, orig_test.config)
+
+        # Make sure the log argument doesn't blow up.
+        res_args = arg_parser.parse_args(
+            ('result', '--show-log') +
+            tuple(str(t.id) for t in run_cmd.last_tests))
+        if result_cmd.run(self.pav_cfg, res_args) != 0:
+            cmd_out, cmd_err = result_cmd.clear_output()
+            self.fail("Result command failed: \n{}\n{}"
+                      .format(cmd_out, cmd_err))
 
     def test_re_search(self):
         """"""
