@@ -1,4 +1,4 @@
-"""Execute a command and get it's output or return value."""
+"""Execute a command and get its output or return value."""
 
 from pavilion.result import parsers
 

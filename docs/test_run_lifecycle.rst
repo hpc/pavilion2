@@ -110,7 +110,7 @@ Finding Suite, Host, and Mode Configs
 Pavilion can be configured to look in multiple places for test configs
 (see :ref:`config.config_dirs`), and uses the first matching file found. In
 case, we need a suite config named ``tests/mytests.yaml`` and a host config
-named ``host/tester.yaml``. Pavilion will load the yaml from each of these
+named ``hosts/tester.yaml``. Pavilion will load the yaml from each of these
 files, and use it to construct our raw test config.
 
 Stacking the Configs

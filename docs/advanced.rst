@@ -261,7 +261,9 @@ Environment Variables
 You can set environment variables in your test scripts using the
 'env' section under both 'run' and 'build'. This will cause the variables to
 be exported within the generated run or build script, where they can be used
-by commands run as part of that script.
+by commands run as part of that script. Note that environment variables are
+**only** usable in the *cmds* and *env* sections, as these are written
+directly into the build and run scripts.
 
 .. code-block:: yaml
 

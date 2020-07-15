@@ -106,6 +106,6 @@ The list of commands to perform when running the test.
 timeout
 ^^^^^^^
 
-By default test runs timeout if they don't produce output within a certain
-amount of time. This setting allows you to extend that time arbitrarily,
+By default test runs timeout if they don't produce output within 30 seconds.
+This setting allows you to extend that time arbitrarily,
 including to such large numbers that your test will never time out.
