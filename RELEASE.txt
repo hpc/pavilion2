@@ -1,10 +1,10 @@
 # This number should track progressive changes in this software, and correspond to git tags
 # denoting releases. It is entirely independent of the the Pavilion's VERSION.
-RELEASE=2.1.2
+RELEASE=2.2
 
 # Release History
 
-## 2.2 Pre-release notes
+## 2.2 Release notes
  - All new test config parser.
  - Variable references are now 'expressions'.
    - In addition to variables, they can contain math and functions.
@@ -31,7 +31,10 @@ RELEASE=2.1.2
      limited to all normal python escapes
      (https://docs.python.org/2.0/ref/strings.html),
      plus '[', '{', and '~'.
-   - The results section is now 'results.parse'
+   - The results section is now 'result_parse'
+   - Result parsers plugins now have explicit argument default and validation settings, 
+     and the _check_args method must return the modified argument dictionary.
+     (rather than None before)
 
    ```yaml
    mytest:

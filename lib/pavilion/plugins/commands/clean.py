@@ -165,6 +165,9 @@ class CleanCommand(commands.Command):
                     .format(test_path, err),
                     color=output.YELLOW, file=self.errfile)
 
+        # Start numbering from the beginning again
+        dir_db.reset_pkey(tests_dir)
+
         # Clean Series
         output.fprint("Removing Series...", file=self.outfile,
                       color=output.GREEN)
@@ -186,6 +189,9 @@ class CleanCommand(commands.Command):
                         .format(series, err),
                         color=output.YELLOW, file=self.errfile
                     )
+
+        # Start numbering from the beginning again
+        dir_db.reset_pkey(series_dir)
 
         # Clean Builds
         output.fprint("Removing Builds...", file=self.outfile,

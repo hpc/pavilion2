@@ -1,9 +1,9 @@
-from pavilion.result import parsers
+import re
+import copy
 
 import pavilion.result.base
 import yaml_config as yc
-import re
-import copy
+from pavilion.result import parsers
 
 
 class Table(parsers.ResultParser):
@@ -13,62 +13,67 @@ class Table(parsers.ResultParser):
     def __init__(self):
         super().__init__(
             name='table',
-            description="Parses tables"
+            description="Parses tables",
+            config_elems=[
+                yc.StrElem(
+                    'delimiter',
+                    help_text="Delimiter that splits the data."
+                ),
+                yc.StrElem(
+                    'col_num', required=True,
+                    help_text="Number of columns in table, including row "
+                              "names, if there is such a column."
+                ),
+                yc.StrElem(
+                    'has_header',
+                    help_text="Set True if there is a column for row names. "
+                              "Will create dictionary of dictionaries."
+                ),
+                yc.ListElem(
+                    'col_names', required=False, sub_elem=yc.StrElem(),
+                    help_text="Column names if the user knows what they are."
+                ),
+                yc.StrElem(
+                    'by_column',
+                    help_text="Set to True if the user wants to organize the "
+                              "nested dictionaries by columns. Default False. "
+                              "Only set if `has_header` is True. "
+                              "Otherwise, Pavilion will ignore."
+                ),
+                yc.StrElem(
+                    'start_re',
+                    help_text="Partial regex of the start of the table. "
+                ),
+                yc.StrElem(
+                    'row_num',
+                    help_text="Number of row numbers, including column names."
+                ),
+                yc.StrElem(
+                    'start_skip',
+                    help_text="Number of lines between `start_re` and actual "
+                              "table. Only set if `start_re` is also set. "
+                )
+            ],
+            defaults={
+                'delimiter': ' ',
+                'has_header': 'False',
+                'by_column': 'True',
+            },
+            validators={
+                'has_header': ('True', 'False'),
+                'by_column': ('True', 'False'),
+                'col_num': int,
+            }
+
         )
 
-    def get_config_items(self):
+    def _check_args(self, **kwargs):
 
-        config_items = super().get_config_items()
-        config_items.extend([
-            yc.StrElem(
-                'delimiter', default=' ',
-                help_text="Delimiter that splits the data."
-            ),
-            yc.StrElem(
-                'col_num', required=False,
-                help_text="Number of columns in table, including row names, "
-                          "if there is such a column."
-            ),
-            yc.StrElem(
-                'has_header', default='False', choices=['True', 'False'],
-                help_text="Set True if there is a column for row names. Will "
-                          "create dictionary of dictionaries."
-            ),
-            yc.ListElem(
-                'col_names', required=False, sub_elem=yc.StrElem(),
-                help_text="Column names if the user knows what they are."
-            ),
-            yc.StrElem(
-                'by_column', choices=['True', 'False'], default='True',
-                help_text="Set to True if the user wants to organize the "
-                          "nested dictionaries by columns. Default False. "
-                          "Only set if `has_header` is True. "
-                          "Otherwise, Pavilion will ignore."
-            ),
-            yc.StrElem(
-                'start_re',
-                help_text="Partial regex of the start of the table. "
-            ),
-            yc.StrElem(
-                'row_num',
-                help_text="Number of row numbers, including column names."
-            ),
-            yc.StrElem(
-                'start_skip',
-                help_text="Number of lines between `start_re` and actual table. "
-                          "Only set if `start_re` is also set."
-            )
-        ])
-
-        return config_items
-
-    def _check_args(self, delimiter=None, col_num=None, has_header=None,
-                    col_names=[], by_column=True, start_re=None,
-                    row_num=None, start_skip=None):
+        col_names = kwargs['col_names']
 
         try:
             if len(col_names) is not 0:
-                if len(col_names) != int(col_num):
+                if len(col_names) != kwargs['col_num']:
                     raise pavilion.result.base.ResultError(
                         "Length of `col_names` does not match `col_num`."
                     )
@@ -77,16 +82,18 @@ class Table(parsers.ResultParser):
                 "`col_names` needs to be an integer."
             )
         try:
-            int(start_skip)
-            int(row_num)
-            int(col_num)
+            int(kwargs['start_skip'])
+            int(kwargs['row_num'])
+            int(kwargs['col_num'])
         except ValueError:
             raise pavilion.result.base.ResultError(
                 "num_skip, col_num, and row_num need to be integers"
             )
 
+        return kwargs
+
     def __call__(self, test, file, delimiter=None, col_num=None,
-                 has_header='', col_names=[], by_column=True, 
+                 has_header='', col_names=[], by_column=True,
                  start_re=None, row_num=None, start_skip=None):
 
         # TODO: start_occurence or start_re
@@ -122,13 +129,13 @@ class Table(parsers.ResultParser):
             new_lines = new_lines[1:int(row_num)+1]
 
         # generate regular expression
-        value_regex = '(\S+| )'
-        new_delimiter = '\s*' + delimiter + '\s*'
+        value_regex = r'(\S+| )'
+        new_delimiter = r'\s*' + delimiter + r'\s*'
         value_regex_list = []
         for i in range(int(col_num)):
             value_regex_list.append(value_regex)
         str_regex = new_delimiter.join(value_regex_list)
-        str_regex = '^\s*' + str_regex + '\s*$'
+        str_regex = r'^\s*' + str_regex + r'\s*$'
 
         regex = re.compile(str_regex)
         for line in new_lines:

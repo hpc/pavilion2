@@ -1,3 +1,5 @@
+.. _tests.env:
+
 Build and Run Environments
 ==========================
 
@@ -27,6 +29,8 @@ Lastly, Pavilion writes and runs *BASH* scripts. It assumes that
 whatever your environment is, the module system will work under *BASH*
 just as well as your native environment.
 
+.. _tests.env.variables:
+
 Environment Variables
 ---------------------
 
@@ -46,7 +50,7 @@ contain any bash shell syntax without issue.
           TEST_PARAM1: 37
           # The starting { means this has to be quoted.
           AN_ARRAY: "{hello world}"
-      
+
         cmds:
           - for value in ${AN_ARRAY[@]}; do echo $value; done
           - python3 mytest.py
@@ -76,9 +80,9 @@ twice, once for YAML and once for the quotes you actually need.
     quote_example:
       run:
         env:
-          DQUOTED: '"This will be in double quotes. It is a literal string as far 
+          DQUOTED: '"This will be in double quotes. It is a literal string as far
                    as YAML is concerned."'
-          SQUOTED: "'This $VAR will not be resolved in bash, because this is single 
+          SQUOTED: "'This $VAR will not be resolved in bash, because this is single
                    quoted.'"
           DDQUOTED: """Double quotes to escape them."""
           SSQUOTED: '"That goes for single quotes '' too."'
@@ -91,9 +95,12 @@ twice, once for YAML and once for the quotes you actually need.
 
     export DQUOTED="This will be in double quotes. It is a literal string as far as YAML is concerned."
     export SQUOTED='This $VAR will not be resolved in bash, because this is single quoted.'
-    export DDQUOTED="Double quotes to escape them." 
+    export DDQUOTED="Double quotes to escape them."
     export SSQUOTED="That goes for single quotes '' too."
     export NO_QUOTES=$(echo "YAML only quotes things if the first character is a quote. These are safe.")
+
+
+.. _tests.env.modules:
 
 Modules
 -------
@@ -101,8 +108,7 @@ Modules
 Many clusters employ module systems to allow for easy switching between
 build environments. Pavilion supports both the environment (TCL) and the
 LMOD module systems, but other module systems can be supported by
-overriding the base `module\_wrapper
-plugin <../plugins/module_wrappers.html>`__.
+overriding the base :ref:`plugins.module_wrappers`.
 
 Loading modules
 ~~~~~~~~~~~~~~~
@@ -113,7 +119,7 @@ by listing them (in the order needed) under the *modules* attribute.
 .. code:: yaml
 
     module_example:
-      build: 
+      build:
         modules: [gcc, openmpi/2.1.2]
 
 In the generated build script, each of these modules will be both loaded
@@ -127,7 +133,7 @@ and checked to see if they were actually loaded.
 
     module load gcc
     # This checks to make sure the module was loaded. If it isn't the script
-    # exits and updates the test status. 
+    # exits and updates the test status.
     is_module_loaded gcc $TEST_ID
 
     module load openmpi/2.1.2
@@ -146,7 +152,7 @@ You can also unload and swap modules.
       run:
         # This assumes gcc and openmpi are already loaded by default.
         modules: [gcc->intel/18.0.4, -openmpi, intel-mpi]
-        cmds: 
+        cmds:
           - $MPICC -o test_code test_code.c
 
 Module Wrappers
@@ -158,5 +164,4 @@ provides support for lmod and tmod, generates the source to load
 modules within run and build scripts, and checks to see if they've been
 successfully loaded (or unloaded).
 
-For more information on writing these, see `Module Wrapper
-Plugins <../plugins/module_wrappers.html>`__.
+For more information on writing these, see :ref:`plugins.module_wrappers`.

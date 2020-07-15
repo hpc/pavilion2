@@ -11,6 +11,7 @@ import copy
 import io
 import logging
 import os
+import re
 from collections import defaultdict
 from typing import List, IO, Tuple
 
@@ -19,6 +20,7 @@ from pavilion import output
 from pavilion import pavilion_variables
 from pavilion import schedulers
 from pavilion import system_variables
+from pavilion.pavilion_variables import PavVars
 from pavilion.test_config import parsers
 from pavilion.test_config import variables
 from pavilion.test_config.file_format import (TestConfigError, TEST_NAME_RE,
@@ -32,6 +34,8 @@ CONF_MODE = 'modes'
 CONF_TEST = 'tests'
 
 LOGGER = logging.getLogger('pav.' + __name__)
+
+TEST_VERS_RE = re.compile(r'^\d+(\.\d+){0,2}$')
 
 
 class TestConfigResolver:
@@ -469,6 +473,61 @@ class TestConfigResolver:
 
         return picked_tests
 
+    def verify_version_range(comp_versions):
+
+        if comp_versions.count('-') > 1:
+            raise TestConfigError(
+                "Invalid compatible_pav_versions value ('{}'). Not a valid "
+                "range.".format(comp_versions))
+
+        min_str = comp_versions.split('-')[0]
+        max_str = comp_versions.split('-')[-1]
+
+        min_version = TestConfigResolver.verify_version(min_str, comp_versions)
+        max_version = TestConfigResolver.verify_version(max_str, comp_versions)
+
+        return min_version, max_version
+
+    def verify_version(version_str, comp_versions):
+        """Ensures version was provided in the correct format, and returns the
+        version as a list of digits."""
+
+        if TEST_VERS_RE.match(version_str) is not None:
+            version = version_str.split(".")
+            return [int(i) for i in version]
+        else:
+            raise TestConfigError(
+                "Invalid compatible_pav_versions value '{}' in '{}'. "
+                "Compatible versions must be of form X, X.X, or X.X.X ."
+                .format(version_str, comp_versions))
+
+    def check_version_compatibility(test_cfg):
+        """Returns a bool on if the test is compatible with the current version
+        of pavilion."""
+
+        version = PavVars()['version']
+        version = [int(i) for i in version.split(".")]
+        comp_versions = test_cfg.get('compatible_pav_versions')
+
+        # If no version is provided we assume compatibility
+        if not comp_versions:
+            return True
+
+        min_version, max_version = TestConfigResolver.verify_version_range(comp_versions)
+
+        # Trim pavilion version to the degree dictated by min and max version.
+        # This only matters if they are equal, and only occurs when a specific 
+        # version is provided.  
+        if min_version == max_version and len(min_version) < len(version):
+            offset = len(version) - len(min_version)
+            version = version[:-offset]
+        if min_version <= version <= max_version:
+            return True
+        else:
+            raise TestConfigError(
+                "Incompatible with pavilion version '{}', compatible versions "
+                "'{}'.".format(PavVars()['version'], comp_versions))
+
     def apply_host(self, test_cfg, host):
         """Apply the host configuration to the given config."""
 
@@ -608,7 +667,7 @@ class TestConfigResolver:
                         .normalize(test_cfg)
                 except (TypeError, KeyError, ValueError) as err:
                     raise TestConfigError(
-                        "Test {} in suite {} has an error: {}"
+                        "Test {} in suite {} has an error:\n{}"
                         .format(test_cfg_name, suite_path, err))
         except AttributeError:
             raise TestConfigError(
@@ -675,6 +734,12 @@ class TestConfigResolver:
                     "Loaded test '{}' in suite '{}' raised a type error, "
                     "but that should never happen. {}"
                     .format(test_name, suite_path, err))
+            try:
+                TestConfigResolver.check_version_compatibility(test_config)
+            except TestConfigError as err:
+                raise TestConfigError(
+                   "Test '{}' in suite '{}' has incompatibility issues:\n{}"
+                   .format(test_name, suite_path, err))
 
         return suite_tests
 
@@ -1048,7 +1113,7 @@ class TestConfigResolver:
                         )
                     except parsers.StringParserError as err:
                         raise TestConfigError(
-                            "Error resolving value '{}' for key '{}':\n"
+                            "Error resolving value '{}' in config at '{}':\n"
                             "{}\n{}"
                             .format(component, '.'.join(map(str, key_parts)),
                                     err.message, err.context))
@@ -1081,9 +1146,10 @@ class TestConfigResolver:
                             .format(component, '.'.join(map(str, key_parts))))
                 except parsers.StringParserError as err:
                     raise TestConfigError(
-                        "Error resolving value '{}' for key '{}':\n"
+                        "Error resolving value '{}' in config at '{}':\n"
                         "{}\n{}"
-                        .format(component, [str(part) for part in key_parts],
+                        .format(component,
+                                '.'.join([str(part) for part in key_parts]),
                                 err.message, err.context))
                 else:
                     return resolved

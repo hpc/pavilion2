@@ -12,6 +12,7 @@ from pavilion import config
 from pavilion import expression_functions
 from pavilion import module_wrapper
 from pavilion import output
+from pavilion import result
 from pavilion import schedulers
 from pavilion import status_file
 from pavilion import system_variables
@@ -172,9 +173,9 @@ class ShowCommand(commands.Command):
             """
         )
 
-        result = subparsers.add_parser(
+        result_parsers = subparsers.add_parser(
             "result_parsers",
-            aliases=['res', 'result', 'results'],
+            aliases=['parsers', 'result'],
             help="Show result_parser plugin info.",
             description="""Pavilion provides result parsers to allow tests
             parse results out of a variety of formats. These can add keys to
@@ -183,20 +184,25 @@ class ShowCommand(commands.Command):
             result parsers via plugins.
             """
         )
-        result_group = result.add_mutually_exclusive_group()
+        result_group = result_parsers.add_mutually_exclusive_group()
         result_group.add_argument(
             '--list', action='store_true', default=False,
             help="Give an overview of the available result parsers plugins. ("
                  "default)"
         )
         result_group.add_argument(
-            '--config', action='store', type=str, metavar='<result_parser>',
+            '--doc', action='store', type=str, metavar='<result_parser>',
             help="Print the default config section for the result parser."
         )
         result_group.add_argument(
             '--verbose', '-v',
             action='store_true', default=False,
             help='Display the path to the plugin file.'
+        )
+
+        subparsers.add_parser(
+            "result_base",
+            help="Show base result keys.",
         )
 
         sched = subparsers.add_parser(
@@ -495,27 +501,37 @@ class ShowCommand(commands.Command):
             title="Available Pavilion Variables"
         )
 
-    @show_cmd('res', 'result', 'results')
+    @show_cmd()
+    def _result_base_cmd(self, _, __):
+        """Show base result keys."""
+
+        rows = [
+            {'name': key, 'doc': doc}
+            for key, (_, doc) in result.BASE_RESULTS.items()
+        ]
+
+        output.draw_table(
+            self.outfile,
+            {},
+            ['name', 'doc'],
+            rows
+        )
+
+    @show_cmd('parsers', 'result')
     def _result_parsers_cmd(self, _, args):
         """Show all the result parsers."""
 
-        if args.config:
+        if args.doc:
             try:
-                res_plugin = parsers.get_plugin(args.config)
+                res_plugin = parsers.get_plugin(args.doc)
             except pavilion.result.base.ResultError:
                 output.fprint(
-                    "Invalid result parser '{}'.".format(args.config),
+                    "Invalid result parser '{}'.".format(args.doc),
                     color=output.RED
                 )
                 return errno.EINVAL
 
-            config_items = res_plugin.get_config_items()
-
-            class Loader(yaml_config.YamlConfigLoader):
-                """Loader for just a result parser's config."""
-                ELEMENTS = config_items
-
-            Loader().dump(self.outfile)
+            output.fprint(res_plugin.doc(), file=self.outfile)
 
         else:
 

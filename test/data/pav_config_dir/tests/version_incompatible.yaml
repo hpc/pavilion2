@@ -1,0 +1,6 @@
+one:
+    test_version: 1.4
+    compatible_pav_versions: 1.2.4-1.2.8
+    run:
+        cmd:
+            - 'sleep 1'
