@@ -218,4 +218,14 @@ class ResolverTests(PavTestCase):
 
         self.assertEqual(eval_res, eval_expected)
 
+        # Invalid evaluation result.
+        arg_parser = arguments.get_parser()
+        args = arg_parser.parse_args([
+            'graph',
+            '--x', 'keys(Info)',
+            '--y', 'Info.*'
+        ])
 
+        eval_dict = self.graph_cmd.build_evaluations_dict(args.x, args.y)
+        self.assertRaises(TypeError, self.graph_cmd.evaluate_results,
+                          eval_dict, results)

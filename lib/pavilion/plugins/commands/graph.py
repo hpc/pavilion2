@@ -380,7 +380,8 @@ class GraphCommand(commands.Command):
         for key in evals:
             if key is not 'x':
                 result = results[key]
-                y_data_list.append(self.validate_result(result, evals[key]))
+                y_data_list.append(self.validate_result(result,
+                                                        evals[key]))
 
         y_data_list = self.verify_and_transform_data_list(x_data_list,
                                                           y_data_list)
