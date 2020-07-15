@@ -135,7 +135,7 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
                       "take precedence."),
         yc.BoolElem(
             "user_config",
-            default=True,
+            default=False,
             help_text="Whether to automatically add the user's config "
                       "directory at ~/.pavilion to the config_dirs. Configs "
                       "in this directory always take precedence."

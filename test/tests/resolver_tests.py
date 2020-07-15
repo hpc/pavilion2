@@ -72,7 +72,7 @@ class ResolverTests(PavTestCase):
             for modes in ([], ['layer_mode']):
                 for test in ('layer_tests.layer_test',
                              'layer_tests.layer_test_part'):
-                    answer = ''
+                    answer = None
                     if host == 'layer_host':
                         answer = 'host'
                     if test.endswith('part'):
