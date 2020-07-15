@@ -216,7 +216,8 @@ class ResultParserTests(PavTestCase):
         ]
 
         for eval_conf in evaluate_confs:
-            pavilion.result.check_config({}, eval_conf)
+            with self.assertRaises(ResultError):
+                pavilion.result.check_config({}, eval_conf)
 
     def test_base_results(self):
         """Make all base result functions work."""

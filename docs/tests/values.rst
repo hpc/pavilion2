@@ -78,7 +78,7 @@ the end of the expression after a colon:
             # The id will be the current time zero-padded to 10 digits.
             id: "{{pav.timestamp:010d}}"
 
-Formatting behaves exactly like `Python format specs`_, because that exactly
+Formatting behaves exactly like `Python format specs`_, because that's exactly
 what they are.
 
 .. _Python format specs: https://docs.python.org/3.4/library/string.html#formatspec

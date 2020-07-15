@@ -667,7 +667,7 @@ class TestConfigResolver:
                         .normalize(test_cfg)
                 except (TypeError, KeyError, ValueError) as err:
                     raise TestConfigError(
-                        "Test {} in suite {} has an error: {}"
+                        "Test {} in suite {} has an error:\n{}"
                         .format(test_cfg_name, suite_path, err))
         except AttributeError:
             raise TestConfigError(
@@ -1113,7 +1113,7 @@ class TestConfigResolver:
                         )
                     except parsers.StringParserError as err:
                         raise TestConfigError(
-                            "Error resolving value '{}' for key '{}':\n"
+                            "Error resolving value '{}' in config at '{}':\n"
                             "{}\n{}"
                             .format(component, '.'.join(map(str, key_parts)),
                                     err.message, err.context))
@@ -1146,9 +1146,10 @@ class TestConfigResolver:
                             .format(component, '.'.join(map(str, key_parts))))
                 except parsers.StringParserError as err:
                     raise TestConfigError(
-                        "Error resolving value '{}' for key '{}':\n"
+                        "Error resolving value '{}' in config at '{}':\n"
                         "{}\n{}"
-                        .format(component, [str(part) for part in key_parts],
+                        .format(component,
+                                '.'.join([str(part) for part in key_parts]),
                                 err.message, err.context))
                 else:
                     return resolved

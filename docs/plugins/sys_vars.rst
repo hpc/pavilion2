@@ -1,3 +1,5 @@
+.. _plugins.sys_vars:
+
 System Variables
 ================
 
@@ -17,9 +19,8 @@ Files
 -----
 
 System Variable plugins, like all other Pavilion plugins, require a
-python module and a yapsy-plugin file. See the `plugin
-basics <basics.html>`__ for more info on these files and where they should
-go.
+python module and a yapsy-plugin file. See the :ref:`plugins.basics`
+for more info on these files and where they should go.
 
 System Variable Module
 ^^^^^^^^^^^^^^^^^^^^^^
@@ -81,7 +82,7 @@ The ``__init__()`` Method
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The basics of the ``__init__()`` method and it's generic arguments are
-`covered elsewhere <basics.html>`__. This plugin type, like most others,
+:ref:`covered elsewhere <plugins.basics>`. This plugin type, like most others,
 can also accept a ``priority`` argument that can allow it to override other
 system variable plugins with the same name.
 
