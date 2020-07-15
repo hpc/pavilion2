@@ -138,6 +138,10 @@ class TestRun:
 
         self.id = None  # pylint: disable=invalid-name
 
+        # Get the test version information
+        self.test_version = config.get('test_version')
+        self.compatible_pav_versions = config.get('compatible_pav_versions')
+
         self._attrs = {}
 
         # Mark the run to build locally.

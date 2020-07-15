@@ -34,6 +34,10 @@ BASE_RESULTS = {
              "The test run name"),
     'id': (lambda test: test.id,
            "The test run id"),
+    'test_version': (lambda test: test.test_version,
+                     "The test config version."),
+    'pav_version': (lambda test: test.var_man['pav.version'],
+                    "The version of Pavilion used to run this test."),
     'created': (lambda test: datetime.datetime.fromtimestamp(
                 test.path.stat().st_mtime).isoformat(" "),
                 "When the test was created."),

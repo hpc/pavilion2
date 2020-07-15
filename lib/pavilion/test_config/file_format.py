@@ -260,6 +260,17 @@ expected to be added to by various plugins.
                       "the Pavilion variable matches one or more of the "
                       " values."
         ),
+        yc.StrElem(
+            'compatible_pav_versions', default='',
+            help_text="Specify compatibile pavilion versions for this "
+                      "specific test. Can be represented as a single "
+                      "version, ex: 1, 1.2, 1.2.3, or a range, "
+                      "ex: 1.2-1.3.4, etc."
+        ),
+        yc.StrElem(
+            'test_version', default='0.0',
+            help_text="Documented test version."
+        ),
         yc.KeyedElem(
             'build', elements=[
                 yc.ListElem(
