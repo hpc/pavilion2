@@ -163,7 +163,7 @@ be repeated for every combination of the variable values.
           test_users: [bob, jane]
 
         run:
-          cmds: 'srun ./super_magic [-w {{projects}}/{{test_users}} ]'
+          cmds: 'srun ./super_magic [~-w {{projects}}/{{test_users}} ~]'
 
 This would result in the command:
 
@@ -188,6 +188,8 @@ access a specific value from a variable that is being iterated over.
 
         cmds:
             # This is ok
-            - 'srun ./super_magic [-w {{projects}}/{{test_users.0}} ]'
-            # This is NOT ok.
-            - 'echo "[~{{test_users}} {{test_users.0}} ~]"
+            - 'srun ./super_magic [~-w {{projects}}/{{test_users.0}} ~]'
+            # srun ./super_magic -w origami/bob -w fusion/bob
+
+            # This is NOT ok, and will cause an error.
+            - 'echo "[~{{test_users}} {{test_users.1}} ~]"

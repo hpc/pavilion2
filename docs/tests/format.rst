@@ -114,9 +114,20 @@ Escapes
 
 The YAML library used by Pavilion has been modified to handle escapes more
 like Python. This makes it easier for Pavilion to separately handle escapes
-that are unique to it (like ``\\{``). Yaml would normally throw an error
+that are unique to it (like ``\{{``). Yaml would normally throw an error
 on such escapes when using double quoted strings, but now it simply leaves them
 as is.
+
+Additionally, there is no general escape syntax in Pavilion. In most cases,
+a backslash followed by a character remains as a backslash and that character
+. There are, however, a few exceptions.
+
+- ``\{{`` -> ``{{`` (Override special meaning of double brackets).
+- ``\[~`` -> ``[~`` (Override special meaning of iteration brackets).
+- ``\\{{`` -> A backslash followed by the start of an expression.
+- ``\\[~`` -> A backslash followed by the start of an iteration.
+- ``\~`` -> ``~``
+- ``\\~`` -> A backslash followed by the iteration seperator start character.
 
 Strings Only
 ^^^^^^^^^^^^
@@ -184,7 +195,7 @@ the base test is never supposed to run on its own.
             cmds: make
 
         run:
-            cmds: ./mytest -n {count|5}
+            cmds: ./mytest -n {{count}}
 
     big_run:
         inherits_from: _base
