@@ -510,7 +510,10 @@ A more complicated example: ::
         title_length = title_length + 2 * len(fields)
     title_format = ' {{0:{0}s}} '.format(title_length)
     if border:
-        title_format = '|' + title_format + '|'
+        if pad:
+            title_format = '| ' + title_format + ' |'
+        else:
+            title_format = '|' + title_format + '|'
     title_format += '\n'
 
     # Generate the table break line.
