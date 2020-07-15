@@ -8,6 +8,7 @@ import grp
 import json
 import hashlib
 import logging
+import pprint
 import re
 import subprocess
 import threading
@@ -237,10 +238,10 @@ class TestRun:
         self.build_timeout = self.parse_timeout(
             'build', config.get('build', {}).get('timeout'))
 
-        self._attributes = {}
-
         self.build_name = None
         self.run_log = self.path/'run.log'
+        self.build_log = self.path/'build.log'
+        self.results_log = self.path/'results.log'
         self.results_path = self.path/'results.json'
         self.build_origin_path = self.path/'build_origin'
 
@@ -452,11 +453,13 @@ class TestRun:
             with PermissionsManager(self.build_path, self.group, self.umask):
                 if not self.builder.copy_build(self.build_path):
                     cancel_event.set()
+            build_result = True
         else:
             self.builder.fail_path.rename(self.build_path)
-            return False
+            build_result = False
 
-        return True
+        self.build_log.symlink_to(self.build_path/'pav_build_log')
+        return build_result
 
     def save_build_name(self):
         """Save the builder's build name to the build name file for the test."""
@@ -694,13 +697,14 @@ class TestRun:
                 raise TimeoutError("Timed out waiting for test '{}' to "
                                    "complete".format(self.id))
 
-    def gather_results(self, run_result, regather=False):
+    def gather_results(self, run_result, regather=False, log_file=None):
         """Process and log the results of the test, including the default set
 of result keys.
 
 :param int run_result: The return code of the test run.
 :param bool regather: Gather results without performing any changes to the
     test itself.
+:param IO[str] log_file: The file to save result logs to.
 """
 
         if self.finished is None:
@@ -713,9 +717,15 @@ of result keys.
 
         parser_configs = self.config['result_parse']
 
+        result_log = result.get_result_logger(log_file)
+
+        result_log("Gathering base results.")
         results = result.base_results(self)
 
         results['return_value'] = run_result
+
+        result_log("Base results:", lvl=1)
+        result_log(pprint.pformat(results))
 
         if not regather:
             self.status.set(STATES.RESULTS,
@@ -723,7 +733,7 @@ of result keys.
                             .format(len(parser_configs)))
 
         try:
-            result.parse_results(self, results)
+            result.parse_results(self, results, log=result_log)
         except result.ResultError as err:
             results['result'] = self.ERROR
             results['pav_result_errors'].append(
@@ -739,7 +749,9 @@ of result keys.
         try:
             result.evaluate_results(
                 results,
-                self.config['result_evaluate'])
+                self.config['result_evaluate'],
+                result_log
+            )
         except result.ResultError as err:
             results['result'] = self.ERROR
             results['pav_result_errors'].append(err.args[0])
@@ -756,6 +768,9 @@ of result keys.
                 "The value for the 'result' key in the results must be a "
                 "boolean. Got '{}' instead".format(results['result']))
             results['result'] = self.ERROR
+
+        result_log("Set final result key to: '{}'".format(results['result']))
+        result_log("See results.json for the final result json.")
 
         self._results = results
 

@@ -4,12 +4,37 @@ themselves, as well as functions for performing this parsing. Additionally,
 it contains the functions used to get the base result values, as well as
 resolving result evaluations."""
 
+import textwrap
+from typing import IO, Callable
+
 from pavilion.test_config import resolver
 from .evaluations import check_expression, evaluate_results, StringParserError
 from .base import base_results, ResultError, BASE_RESULTS
 from . import parsers
 from .parsers import parse_results
 
+
+def get_result_logger(log_file: IO[str]) -> Callable[..., None]:
+    """Return a result logger function that will write to the given outfile
+    and track the indentation level. The logger will take
+    the string to log, and an optional lvl argument to change the
+    indent level. If the log file is None, this will silently drop all logs."""
+
+    log_tab_level = 0
+
+    def log(msg, lvl=None):
+        """Log the given message to the log_file."""
+
+        nonlocal log_tab_level
+
+        if lvl is not None:
+            log_tab_level = lvl
+
+        if log_file is not None:
+            log_file.write(textwrap.indent(msg, "  " * log_tab_level))
+            log_file.write('\n')
+
+    return log
 
 def check_config(parser_conf, evaluate_conf):
     """Make sure the result config is sensible, both for result parsers and

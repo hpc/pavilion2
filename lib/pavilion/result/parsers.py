@@ -4,9 +4,11 @@ to process result parser configurations defined by a test run."""
 import glob
 import inspect
 import logging
+import pprint
 from collections import OrderedDict
 from pathlib import Path
 import textwrap
+from typing import Dict, Callable
 
 import yaml_config as yc
 from pavilion.result.base import ResultError
@@ -524,7 +526,8 @@ NON_MATCH_VALUES = (None, [], False)
 EMPTY_VALUES = (None, [])
 
 
-def parse_results(test, results) -> None:
+def parse_results(test, results: Dict,
+                  log: Callable[..., None] = None) -> None:
     """Parse the results of the given test using all the result parsers
 configured for that test.
 
@@ -536,10 +539,22 @@ configured for that test.
 
 :param pavilion.test_run.TestRun test: The pavilion test run to gather
     results for.
-:param dict results: The dictionary of default result values.
+:param results: The dictionary of default result values. This will be
+    updated in place.
+:param log: The logging callable from 'result.get_result_logger'.
 """
 
+    if log is None:
+        def log(*_, **__):
+            """Drop the logs."""
+
+    log("Starting result parsing.")
+
     parser_configs = test.config['result_parse']
+
+    log("Got result parser configs:")
+    log(pprint.pformat(parser_configs))
+    log("---------------")
 
     # A list of keys with duplicates already reported on, so we don't
     # report such errors multiple times.
@@ -554,14 +569,19 @@ configured for that test.
 
         defaults = parser_configs[parser_name].get(DEFAULT_KEY, {})
 
+        log("Parsing results for parser {}".format(parser_name), lvl=1)
+
+
         # Each parser has a list of configs. Process each of them.
         for key, rconf in parser_configs[parser_name].items():
+            log("Parsing value for key '{}'".format(key), lvl=2)
 
             rconf = set_parser_defaults(rconf, defaults)
 
             # Grab these for local use.
             action = rconf['action']
             globs = rconf['files']
+
             per_file = rconf['per_file']
 
             # These config items are used here, but not expected by the
@@ -581,6 +601,9 @@ configured for that test.
             # The per-file results for this parser
             presults = OrderedDict()
 
+            log("Looking for files that match file globs: {}".format(globs),
+                lvl=2)
+
             # Find all the files we'll be parsing.
             paths = []
             for file_glob in globs:
@@ -590,16 +613,31 @@ configured for that test.
                 for path in glob.glob(file_glob):
                     paths.append(Path(path))
 
+            if not paths:
+                log("No matching files found.")
+                errors.append(
+                    "File globs {} for key {} found no files."
+                    .format(globs, key))
+                continue
+
+            log("Found {} matching files.".format(len(paths)))
+            log("Results will be stored with action '{}'".format(action))
+
             # Apply the result parser to each file we're parsing.
             # Handle the results according to the 'action' config attribute.
             for path in paths:
+                log("Parsing for file '{}':".format(path.as_posix()), lvl=3)
                 try:
                     if parser.open_mode is None:
                         res = parser(test, path, **parser_args)
                     else:
                         with path.open(parser.open_mode) as file:
                             res = parser(test, file, **parser_args)
+
+                    log("Raw parse result: '{}'".format(res))
+
                 except (IOError, PermissionError, OSError) as err:
+                    log("Error reading file: {}".format(err))
                     errors.append({
                         'result_parser': parser_name,
                         'file': str(path),
@@ -607,6 +645,7 @@ configured for that test.
                         'msg': "Error reading file: {}".format(err)})
                     continue
                 except Exception as err:  # pylint: disable=W0703
+                    log("UnexpectedError: {}".format(err))
                     errors.append({
                         'result_parser': parser_name,
                         'file': str(path),
@@ -619,6 +658,7 @@ configured for that test.
                 if (key == 'result' and
                         action not in (ACTION_FALSE, ACTION_TRUE)):
                     action = ACTION_TRUE
+                    log("Forcing action to '{}' for the 'result' key.")
 
                 if action == ACTION_STORE:
                     # Simply store the whole result.
@@ -642,6 +682,20 @@ configured for that test.
                         "Invalid action for result parser '{}': {}"
                         .format(parser_name, action))
 
+                log("Stored value '{}' for file '{}'"
+                    .format(presults[path], path.name))
+
+            log("Results for each found files:", lvl=2)
+            for res_path, res_value in presults.items():
+                if res_path.parent == test.build_path:
+                    res_path = res_path.name
+                else:
+                    res_path = res_path.as_posix()
+                log(' - {}: {}'.format(res_path, res_value))
+
+            log("Handling results for key '{}' on a per-file basis with "
+                "per_file setting '{}'".format(key, per_file))
+
             # Combine the results of all the files given according to the
             # 'per_file' config attribute.
             if per_file in (PER_FIRST, PER_LAST):
@@ -662,7 +716,7 @@ configured for that test.
                 if per_file == PER_LAST:
                     presults = reversed(presults)
 
-                results[key] = None
+                results[key] = presults[0]
 
                 for pres in presults:
                     if pres in EMPTY_VALUES:
@@ -671,6 +725,8 @@ configured for that test.
                     # Store the first non-empty item.
                     results[key] = pres
                     break
+                log("{}: Picked non-empty value '{}'"
+                    .format(per_file, results[key]))
 
             elif per_file in (PER_NAME, PER_FULLNAME):
                 # Store in results under the 'stem' or 'name' key as a dict
@@ -704,6 +760,10 @@ configured for that test.
 
                     per_dict[name][key] = value
 
+                log("Saved results under '{}' for each file {}."
+                    .format(per_key, per_file))
+                log(pprint.pformat(per_dict))
+
             elif per_file == PER_LIST:
                 # Simply put all results together in a list. Values that
                 # already are a list extend that list.
@@ -719,12 +779,17 @@ configured for that test.
 
                 results[key] = result_list
 
+                log("Saved results for all files as a list:\n{}"
+                    .format(results[key]))
+
             elif per_file == PER_NAME_LIST:
                 # Get the name stems from the files that matched.
                 results[key] = sorted([
                     fname.stem for fname, value in presults.items()
                     if value not in EMPTY_VALUES
                 ])
+                log("Saved the file name stems for files that matched.")
+                log(pprint.pformat(results[key]))
 
             elif per_file == PER_FULLNAME_LIST:
                 # Get the filenames from the files that matched.
@@ -733,10 +798,17 @@ configured for that test.
                     if value not in EMPTY_VALUES
                 ])
 
+                log("Saved the file name for files that matched.")
+                log(pprint.pformat(results[key]))
+
             elif per_file == PER_ALL:
                 results[key] = all(presults.values())
+                log("Saved the result of all() across all matched files: '{}'"
+                    .format(results[key]))
             elif per_file == PER_ANY:
                 results[key] = any(presults.values())
+                log("Saved the result of any() across all matched files: '{}'"
+                    .format(results[key]))
             else:
                 raise ResultError("Invalid per_file value for result parser "
                                   "'{}' - {}"
