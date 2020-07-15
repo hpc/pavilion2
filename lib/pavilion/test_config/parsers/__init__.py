@@ -45,7 +45,7 @@ class ErrorCat:
 
 
 BAD_EXAMPLES = [
-    ErrorCat('Unmatched "{{"', ['{{ 9', '{{', '[~ {{ ~]']),
+    ErrorCat('Unmatched "{{"', ['{{ 9', '{{', '[~ {{ ~]', 'a {{b }']),
     ErrorCat('Unmatched "[~"', ['[~ hello', '[~']),
     ErrorCat('Nested Expression', ['{{ foo {{ bar }} }}']),
     ErrorCat('Unmatched "}}"', ['baz }}', '}}', '[~ hello }} ~]']),
@@ -236,7 +236,8 @@ def match_examples(exc, parse_fn, examples, text):
                 return example.message
 
     if candidate is None:
-        candidate = 'Unknown syntax error.'
+        candidate = 'Unknown syntax error. Please report at ' \
+                    'https://github.com/hpc/pavilion2/issues'
 
     return candidate
 

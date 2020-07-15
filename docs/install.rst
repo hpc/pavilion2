@@ -1,5 +1,6 @@
 
 .. _installing-pavilion:
+.. _install:
 
 Installing Pavilion
 ===================
@@ -58,7 +59,7 @@ We recommend the following directory structure for Pavilion.
 
 - ``<root>/pavilion/src`` - Clone/install pavilion here.
 - ``<root>/pavilion/config`` - Your pavilion configuration files. See
-  '`configuring pavilion <config.html>`__'.
+  :ref:`config`.
 - ``<root>/pavilion/working_dir`` - Where test runs and builds will be written.
 
 The ``<root>/pavilion/config`` directory will contain all of your site
@@ -170,8 +171,7 @@ that supports multiple compilers and conflicting builds of libraries.
 
 It is assumed that the module environment is set up before you run Pavilion. If
 you need to set up this environment separately on allocations, use the
-'env_setup' option in the
-`general Pavilion configuration <config.html>`__ to add the commands
+'env_setup' option in the :ref:`config` to add the commands
 to do so.
 
 

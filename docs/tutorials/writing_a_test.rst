@@ -378,18 +378,19 @@ information, we can configure result parsers for our test:
     basic:
         ...
 
-        results:
+        result_parse:
             regex:
                   # The key is where to store found items in our results
                   # structure.
-                - key: num_tests
+                num_tests:
                   # The regex needs to be in 'literal' single quotes. The
                   # backslash still needs to be escaped.
                   regex: 'num tests.*: (\\d+)'
 
                 # If we match this regex, then we'll say the test passed.
-                - key: result
+                result:
                   regex:  '<results> PASSED'
+                  action: 'store_true'
 
 
 Now when we run the test, we get the 'num_tests' value added to our results.

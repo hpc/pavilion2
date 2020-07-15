@@ -8,67 +8,400 @@ Every successful test run generates a set of results in JSON. These are
 saved with the test, but are also logged to a central ``results.log``
 file that is formatted in a Splunk compatible manner.
 
-These results contain several useful values, but that's just the
-beginning. Result *parsers* are little parsing
-scripts that can be configured to parse data from your test's output files.
-They're designed to be simple enough to pull out small bits of data, but
-can be combined to extract a complex set of results from each test run.
-Each result parser is also a `plugin <../plugins/result_parsers.html>`__,
-so you can easily add custom parsers for tests with particularly complex
-results.
+This page covers how results are gathered for each test run, as well as how
+to use the results system to pull results from test output.
 
-.. toctree::
-    :maxdepth: 2
-    :caption: Result Parsers
+.. contents:
 
-    results/cmd.rst
-    results/regex.rst
-    results/const.rst
-    results/table.rst
-
-Similarly, result *evaluators* are mathematical expressions that can operate on
-the other result values themselves. These can also include arbitrary
-:ref:`tests.values.functions` defined via :ref:`plugins.expression_functions`.
-
-.. contents::
-
-Basic Result Keys
+Gathering Results
 -----------------
 
-These keys are present in the results for every test, whether the test
-passed or failed.
+Result gathering steps:
 
--  **name** - The name of the test.
--  **id** - The test's run id.
--  **created** - When the test run was created.
--  **started** - When the test run actually started running in a
-   scheduled allocation.
--  **finished** - When the test run finished.
--  **duration** - How long the test ran. Examples: ``0:01:04.304421`` or
-   ``2 days, 10:05:12.833312``
--  **result** - The PASS/FAIL result of the test.
--  **return_value** - The return value of the run.sh script.
+1) Generate the base result field values.
+2) Use result parser plugins to parse values from result files.
+3) Use result evaluations to modify results or generate additional values.
+4) Convert the 'result' key from True/False to 'PASS'/'FAIL'.
+
+All results are stored in a json mapping that looks like this:
+
+.. code-block:: json
+
+    {"avg_speed": 3.7999,
+     "command_test": "PASS",
+     "created": "2020-07-06 15:28:08.528899",
+     "duration": "0:00:06.130584",
+     "finished": "2020-07-06 15:28:08.528617",
+     "id": 16176,
+     "job_id": "123",
+     "name": "mytests.base",
+     "pav_result_errors": [],
+     "result": "PASS",
+     "return_value": 0,
+     "sched": {"avail_mem": "80445",
+               "cpus": "36",
+               "free_mem": "76261",
+               "min_cpus": "36",
+               "min_mem": "131933.144",
+               "total_mem": "125821"},
+     "started": "2020-07-06 15:28:02.398033",
+     "sys_name": "pav-test",
+     "n": {
+        "node01": {"raw_speed": 33},
+        "node03": {"raw_speed": 39},
+        "node05": {"raw_speed": 42}
+     }
+     "user": "bob"}
+
+- Most values are stored at the top level of the mapping.
+- Most scheduler variables are included, to improve tracking of how exactly
+  the test ran.
+- ``pav_result_errors`` stores a list of errors encountered when gathering
+  results.
+- The 'n' and 'fn' sections store per_file information. This can be used to
+  gather separate per-node information in cases where you have an output file
+  for each node when using result parsers.
+- Average speed in this case is a value calculated from each of the node speeds
+  using *result evaluations*.
+
+The Results Log
+~~~~~~~~~~~~~~~
+
+The results log records every step of the results gathering process in great
+detail. It is stored in each test run directory in ``results.log``, and is
+available via the ``pav log results <test_id>`` command.
+
+The general results log keeps a record of the results of every test run under
+your instance of Pavilion. It's location is configured via the general
+``pavilion.yaml`` config, but defaults to residing in the working directory.
+It's format is designed to be easily read by Splunk and similar tools.
+
+Basic Result Keys
+~~~~~~~~~~~~~~~~~
+
+These keys are present in the results for every test, whether the test
+passed or failed. To see the latest list of base result values, run
+``pav show result_base``. All of these keys, as well as 'result', are reserved.
+
+.. code-block:: text
+
+    $ pav show result_base
+     Name              | Doc
+    -------------------+-------------------------------------------------
+     name              | The test run name
+     id                | The test run id
+     created           | When the test was created.
+     started           | When the test run itself started.
+     finished          | When the test run finished.
+     duration          | Duration of the test run (finished - started)
+     user              | The user that started the test.
+     job_id            | The scheduler plugin's jobid for the test.
+     sched             | Most of the scheduler variables.
+     sys_name          | The system name '{{sys.sys_name}}'
+     pav_result_errors | Errors from processing results.
+     n                 | Per file results (the filename sans extension).
+     fn                | Per filename results.
+     return_value      | The return value of run.sh
 
 All time fields are in ISO8601 format.
 
-result
-~~~~~~
+Basic Result Parsing
+~~~~~~~~~~~~~~~~~~~~
+
+The ``result_parse`` section of the config lets you configure result parsers
+to pull useful information out of files generated by your test run.
+
+Result parsers are plugins. Pavilion comes with several that are useful in
+common scenarios, but tests with more complex results may warrant the
+development of a custom result parser to specially handle that test's output.
+To see the currently available result parsers, use ``pav show parsers``.
+
+.. code-block:: bash
+
+    $ pav show result_parsers
+     Available Result Parsers
+    -----------+----------------------------------------------------------
+     Name      | Description
+    -----------+----------------------------------------------------------
+     command   | Runs a given command.
+     filecheck | Checks the working directory for a given file. The
+               | parser will tell the user if the filename exists or not.
+     constant  | Set a constant as result.
+     table     | Parses tables.
+     regex     | Find matches to the given regex in the given file. The
+               | matched string or strings are returned as the result.
+
+Each of these is configured using its own configuration section under
+``result parse``. To see the full configuration documentation for a parser,
+use ``pav show result_parsers --config <parser_name>``.
+
+.. code:: yaml
+
+    mytest:
+      scheduler: raw
+      run:
+        cmds:
+          - ping -c 10 google.com
+
+      result_parse:
+          # The results.parse section is comprised of configs for result parsers,
+          # identified by name. Each parser type section is further comprised
+          # of a mapping of key to
+          regex:
+            # Each result parser can have multiple configs.
+
+            # The value matched will be stored in this key
+            loss:
+              # This tells the regex parser what regular expression to use.
+              # Single quotes are recommended, as they are literal in yaml.
+              regex: '\d+% packet loss'
+
+- Each result parser type can define multiple keys.
+- The found value is stored at the top level of the result JSON (by default).
+- All result parser keys must be unique.
+- For more information on result parsers, see
+  :ref:`tests.results.result_parsers`
+
+.. _tests.results.evaluations:
+
+Result Evaluations
+~~~~~~~~~~~~~~~~~~
+
+Result evaluations allow you to perform math operations or call various
+functions on your results to further process them. This allows you to perform
+normalization, set constants, calculate averages, and other useful operations.
+The syntax is identical to :ref:`tests.values.expressions` (the part inside the
+double curly braces), **except variables are looked up from the results**
+rather than Pavilion variables.
+
+.. code-block:: yaml
+
+    eval_example:
+        run:
+            cmds:
+                - time wget google.com
+
+        # This will produce results that include the line:
+        # real   0m3.256s
+
+        result_parse:
+            regex:
+                # Parse out the minutes and seconds
+                real_m:
+                    regex: 'real\s+(\d+)m'
+                real_s:
+                    regex: 'real\s\d+m([0-9.]+)s'
+
+        result_evaluate:
+            # combine the minutes and seconds that we parsed out
+            # into one number of seconds.
+            real: 'real_m * 60 + real_s'
+            # These can reference values set by other evaluations.
+            real_hours: 'real/60/60'
+
+- Result evaluations may reference each other. Order doesn't matter.
+- Values are automatically treated as the type that most resemble. This
+  conversion is applied both to constants and the contents of variables.
+
+  - 3.59 -> float
+  - 3 -> int
+  - True -> bool
+  - "hello" -> string
+  - hello -> variable
+  - You can refer to deeply nested values using dot notation:
+
+- "table.col.row" - Would refer to the 'row' key of the 'col' dict which
+  is itself a key in the 'table' dict.
+- "sched.test_node_list.5" - Would refer to the fifth item in the
+  node list.
+
+Complex Variable References
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The result JSON isn't necessarily a flat dictionary. It may contain lists,
+other dictionaries, lists of dicts containing lists, and so on.  To get to
+deeper keys, you simply provide each step in the path in a dot-seperated name.
+
+For example, given a result structure that looks like:
+
+.. code-block:: json
+
+    {
+        "name": "example_results",
+        "table":
+            "node1": {"speed": 30.0, "items": 5},
+            "node2": {"speed": 50.0, "items": 4},
+            "node3": {"speed": 70.0, "items": 3}
+        "sched": {
+            "test_nodes": 3,
+            "test_node_list": ["node1", "node2", "node3"],
+    }
+
+- "table.node1.speed" - Would refer to the 'speed' key of the 'node1' dict which
+  is itself a key in the 'table' dict. (It has value ``30.0``).
+- "sched.test_node_list.1" - Would refer to the second item in the node list.
+  ('node2' in this case)
+
+Pulling Lists of Values
+^^^^^^^^^^^^^^^^^^^^^^^
+
+You can also use a single '*' in a variable name to return a list of every
+matching value.
+
+- "table.*.speed" -> [30.0, 50.0, 70.0]
+- "test_node_list.*" -> ["node1", "node2", "node3"]
+
+  - Which is the same as "test_node_list" by itself, actually.
+
+To get the keys of a dictionary, use the ``keys`` function. The keys are
+guaranteed to be in the same order as the values produced when using a '*'.
+
+A Complex Example
+^^^^^^^^^^^^^^^^^
+
+Given a test that produces values per node and gathers them using the result
+parser :ref:`tests.results.per_file` feature, you may want to use all of
+those values to calculate an average or outliers.
+
+.. code-block:: yaml
+
+    multi_val:
+        slurm:
+            num_nodes: all
+
+        run:
+            # Get the root filesystem usage per node.
+            cmds: '{{test_cmd}} -o "%N.out" df /'
+
+        result_parse:
+            regex:
+                used:
+                    regex: '^rootfs\s+\d+\s+(\d+)'
+                    files: '*.out'
+                    per_file: 'name'
+
+1. This will give us a ``<node_name>.out`` file for each node with the command
+   output.
+2. The result parser will parse out the 3rd column from the 'rootfs' line from
+   each of these files.
+3. The 'per_file' option of 'name' will store these results in the 'n'
+   dictionary by the root filename.
+
+The results will look like:
+
+.. code-block:: json
+
+    {
+        "name": "examples.multi_val",
+        "n": {
+            "node01": {"used": "709248"},
+            "node03": {"used": "802218"},
+            "node04": {"used": "699320"},
+            "node05": {"used": "2030531"},
+        },
+        "etc": "...",
+    }
+
+We could then add the following to our test config to perform calculations
+on these values.
+
+.. code-block:: yaml
+
+    multi_val:
+        # ...
+
+    result_evaluate:
+        mean_used: 'avg(n.*.used)'
+        outlier_data: 'outliers(n.*.used, keys(n), 1.5)'
+        outliers: 'keys(outlier_data)'
+
+Would give us results like:
+
+.. code-block:: json
+
+    {
+        "name": "examples.multi_val",
+        "n": {
+            "node01": {"used": "709248"},
+            "node03": {"used": "802218"},
+            "node04": {"used": "699320"},
+            "node05": {"used": "2030531"},
+        },
+        "mean_used": 1060329.25,
+        "outlier_data": {"node05": 1.7276},
+        "outliers": {"node05"},
+    }
+
+String Expressions in Result Evaluations
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Pavilion variables and string expressions ('{{ stuff }}') can be used,
+carefully, in result evaluations. Keep in mind that they are evaluated as a
+separate step (using pavilion variables), and will become the string that is
+later evaluated in result evaluations.
+
+.. code-block:: yaml
+
+    expr_eval:
+
+        variables:
+            num_var: 'num'
+            num: 8
+            base: 2
+            message: "hello world"
+
+        result_evaluate:
+            # Set the result 'num' key to 52
+            num: '50'
+
+            half_num: '{{num_var}}/2'
+            # After strings are resolved, this will become:
+            # 'num/2'
+            # This will then be evaluated, and the 'num' result value will be
+            # used (50).
+            # The result 'half_num' key will thus be 25. (ie: ``50/2`` )
+
+            # If we want to include a Pavilion variable as a string, it must
+            # be put in quotes.
+            msg_len: 'len("{{message}}")'
+            # This will become: 'len("hello world")'
+            # Which will evaluate to ``11``.
+
+            # You can actually include more complex expressions in both
+            # the string expression and the evaluation, but this should be
+            # avoided
+            complicated: '(num * {{ base^10 }})/100'
+            # The value string resolves to: '(num * 1024)/100'
+            # Which evaluates to: ``(50 * 1024)/100`` -> ``512.0``
+
+The Test Result
+~~~~~~~~~~~~~~~
 
 The 'result' key denotes the final test result, and will always be
-either '**PASS**' or '**FAIL**'.
+either '**PASS**', '**FAIL**' or '**ERROR**'.  **ERROR** in this case means
+the test had a non-recoverable error when checking whether the test
+passed or failed.
 
-By default a test passes if it's run script returns a zero result, which
-generally means the last command in the test's ``run.cmds`` list also
-returned zero.
+You can set the 'result' using either result parsers or result evaluations.
+It must be set as a single True or False value.
 
-This is defined by a default result evaluation of `return_value == 0` for
-the 'result' key. The test_run then translates that into to '**PASS**' or
-'**FAIL**' keywords.
+- For result parsers, this means you should use an 'action' of 'store_true'
+  (the default) or 'store_false' (See :ref:`tests.results.actions`). You will
+  also need to use a 'per_file' setting that produces a single value, like
+  'first' or 'all' (See :ref:`tests.results.per_file`).
+- For result evaluations this simply means ensuring that the evaluation
+  returns a boolean, typically by way of a comparison operator.
+
+If you don't set the 'result' key yourself, Pavilion defaults to adding the
+evaluation: ``result: 'return_value == 0'``. This is why, by default,
+Pavilion test runs **PASS** if the run script returns 0.
+
+.. _tests.results.result_parsers:
 
 Result Parsers
 --------------
 
-The ``results`` section of each test config lets us configure additional
+The ``result_parse`` section of each test config lets us configure additional
 result parsers that can pull data out of test output files. By default
 each parser reads from the run log, which contains the stdout and stderr
 from the run script and your test.
@@ -81,22 +414,23 @@ from the run script and your test.
         cmds:
           - ping -c 10 google.com
 
-      results:
+      result_parse:
         # The results.parse section is comprised of configs for result parsers,
         # identified by name. Each parser can have a list of one or more
         # configs, each of which will parse a different result value from
         # the test output.
-        parse:
+        result_parse:
           regex:
-            # Each result parser can have multiple configs.
-            - # The value matched will be stored in this key
-              key: loss
+          # Each result parser can have multiple configs.
+            # The value matched will be stored in this key
+            loss:
               # This tells the regex parser what regular expression to use.
               # Single quotes are recommended, as they are literal in yaml.
               regex: '\d+% packet loss'
-            - # We're storing this value in the result key. If it's found
+
+              # We're storing this value in the result key. If it's found
               # (and has a value of 'True', then the test will 'PASS'.
-              key: result
+            result:
               regex: '10 received'
               # The action denotes how to handle the parser's data. In this case
               # a successful match will give a 'True' value.
@@ -117,43 +451,24 @@ The results for this test run might look like:
       "loss": "0% packet loss"
     }
 
-Keys
-----
-
-The key attribute is required for every result parser config, as
-Pavilion needs to know under what key in the results to store the parsed
-result. The default result keys (``id``, ``created``, etc) are not
-allowed, with the exception of ``result``.
-
-The ``result`` key
-~~~~~~~~~~~~~~~~~~
-
-The result key must always contain either a value of ``PASS`` or
-``FAIL``. Setting the ``result`` key allows you to override the default
-behavior by setting this value according to the results of any result
-parser, but there are a few special behaviors:
-
--  The result value must be either ``true`` or ``false``.
--  The `action <#actions>`__ must either be **store\_true** or
-   **store\_false**. Pavilion overrides the normal **store** default and
-   replaces it with **store\_true**.
--  If the ``result`` value is ``true``, ``PASS`` is stored. The result
-   is otherwise set to ``FAIL``.
-
 Result Value Types
 ~~~~~~~~~~~~~~~~~~
 
 Result parsers can return any sort of json compatible value. This can be
 a string, number (int or float), boolean, or a complex structure that
 includes lists and dictionaries. Pavilion, in handling result values,
-groups these into a few internal categories. - **empty** - An empty
-result is a json ``null``, or an empty list. Everything else is
-**non-empty**. - **match** - A **match** is a **non-empty** result that
-is also not json ``false``. - **false** - False is special, in that it
-is neither **empty** nor a **match**.
+groups these into a few internal categories.
+
+- **empty** - An empty result is a json ``null``, or an empty list.
+  Everything else is **non-empty**.
+- **match** - A **match** is a **non-empty** result that is also not json
+  ``false``.
+- **false** - False is special, in that it is neither **empty** nor a **match**.
 
 The *actions* and *per\_file* sections below work with these categories
 when deciding how to handle result parser values.
+
+.. _tests.results.actions:
 
 Actions
 ~~~~~~~
@@ -168,6 +483,8 @@ be selected:
 -  **store\_false** - Stores ``true`` if the result is not a **match**.
 -  **count** - Count the length of list matches, regardless of contents.
    Non-list matches are 1 if a match, 0 otherwise.
+
+.. _tests.results.files:
 
 Files
 ~~~~~
@@ -199,16 +516,17 @@ depends on the **per\_file** attribute for the result parser.
             # to be written to separate files.
             - {{sched.test_cmd}} --output="%N.out" env
 
-        results:
-          parse:
+        result_parse:
             regex:
               # The matched values will be stored under the 'huge_size' key,
               # but that will vary based on the 'per_file' value.
-              key: huge_size
-              regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
-              # Run the parser against all files that end in .out
-              files: '*.out'
-              per_file: # We'll demonstrate these settings below
+              huge_size:
+                  regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
+                  # Run the parser against all files that end in .out
+                  files: '*.out'
+                  per_file: # We'll demonstrate these settings below
+
+.. _tests.results.per_file:
 
 per\_file: Manipulating Multiple File Results
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -231,13 +549,12 @@ first - Keep the first result (Default)
 
 .. code:: yaml
 
-    results:
-      parse:
+    result_parse:
         regex:
-          key: huge_size
-          regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
-          files: '*.out'
-          per_file: first
+          huge_size:
+            regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
+            files: '*.out'
+            per_file: first
 
 Only the result from the first file with a **match** is kept. In this
 case, the value from node1 would be ignored in favor of that of node2. The
@@ -257,13 +574,12 @@ last - Keep the last result
 
 .. code:: yaml
 
-    results:
-      parse:
+    result_parse:
         regex:
-          key: huge_size
-          regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
-          files: '*.out'
-          per_file: last
+          huge_size:
+              regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
+              files: '*.out'
+              per_file: last
 
 Just like '**first**', except we work backwards through the files and
 get the last match value. In this case, that means ignoring node4's
@@ -280,13 +596,12 @@ all - True if each file returned a True result
 
 .. code:: yaml
 
-    results:
-      parse:
+    result_parse:
         regex:
-          key: huge_size
-          regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
-          files: '*.out'
-          per_file: all
+          huge_size:
+              regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
+              files: '*.out'
+              per_file: all
 
 By itself, '**all**' sets the key to True if the result values for all
 the files evaluate to True. Setting ``action: store_true`` produces more
@@ -324,13 +639,12 @@ any - True if any file returned a True result
 
 .. code:: yaml
 
-    results:
-      parse:
+    result_parse:
         regex:
-          key: huge_size
-          regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
-          files: '*.out'
-          per_file: any
+          huge_size:
+              regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
+              files: '*.out'
+              per_file: any
 
 Like '**all**', but is ``true`` if any of the results evaluates to True. In
 the case of our example, since at least one file matched, the key will be
@@ -347,13 +661,12 @@ list - Merge the file results into a single list
 
 .. code:: yaml
 
-    results:
-      parse:
+    result_parse:
         regex:
-          key: huge_size
-          regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
-          files: '*.out'
-          per_file: list
+          huge_size:
+              regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
+              files: '*.out'
+              per_file: list
 
 For each result from each file, add them into a single list. **empty**
 values are not added, but ``false`` is. If the result value is a list
@@ -370,13 +683,12 @@ fullname - Stores in a filename based dict.
 
 .. code:: yaml
 
-    results:
-      parse:
+    result_parse:
         regex:
-          key: huge_size
-          regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
-          files: '*.out'
-          per_file: fullname
+          huge_size:
+              regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
+              files: '*.out'
+              per_file: fullname
 
 Put the result under the key, but in a dictionary specific to that file. All
 the file specific dictionaries are stored under the ``fn`` key by filename.
@@ -404,13 +716,12 @@ name - Stores in a filename (without extension) based dict.
 
 .. code:: yaml
 
-    results:
-      parse:
+    result_parse:
         regex:
-          key: huge_size
-          regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
-          files: '*.out'
-          per_file: fullname
+          huge_size:
+              regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
+              files: '*.out'
+              per_file: fullname
 
 Just like **fullname**, but instead the file name with the file extension
 removed. These are stored under the ``n`` key in the results.
@@ -432,13 +743,12 @@ fullname_list - Stores the name of the files that matched.
 
 .. code:: yaml
 
-    results:
-      parse:
+    result_parse:
         regex:
-          key: huge_size
-          regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
-          files: '*.out'
-          per_file: fullname_list
+          huge_size:
+              regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
+              files: '*.out'
+              per_file: fullname_list
 
 Stores a list of the names of the files that matched. The actual matched values
 aren't saved.
@@ -454,13 +764,12 @@ name_list - Stores the name of the files that matched.
 
 .. code:: yaml
 
-    results:
-      parse:
+    result_parse:
         regex:
-          key: huge_size
-          regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
-          files: '*.out'
-          per_file: name_list
+          huge_size:
+              regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
+              files: '*.out'
+              per_file: name_list
 
 Stores a list of the names of the files that matched, minus extension. The
 actual matched values aren't saved.
@@ -492,179 +801,3 @@ these is a dictionary with some useful values:
       }]
     }
 
-.. _tests.result.evaluations:
-
-Result Evaluations
-------------------
-
-The ``evaluate`` section of the result config is a dictionary of keys and
-expressions to evaluate. The result of the expression is stored at the given
-key in the result JSON structure. The expressions are evaluated similarly
-to the double curly brace expressions that can be used in all Pavilion value
-strings, with a few important differences:
-
-- You **don't** put them in double curly braces.
-- The value **isn't** converted into a string.
-
-  - Int's stay as ints, etc.
-  - Lists and dicts/mappings are allowable results.
-- The variables aren't Pavilion variables; they reference other values
-  in the result JSON.
-
-.. code-block:: yaml
-
-    basic_evaluation:
-        run:
-            cmds:
-                cat /proc/cpuinfo
-
-        result:
-            # Parsers are always run before evaluations, so the keys they set
-            # can be used as evaluation variables.
-            parsers:
-                regex:
-                    # Count the number of processors
-                    - key: 'cores'
-                      action: 'count'
-                      regex: '^processor'
-                    # Count the number of processors with hyperthreading
-                    - key: 'ht_cores'
-                      action: 'count'
-                      regex: '^flags:.*ht'
-
-            # Analysis values are evaluated in the order given, and can
-            # thus refer to each other.
-            evaluate:
-                # Count only half the hyperthreading cores.
-                # Note that the variables are from the results JSON structure.
-                physical_cores: 'cores - ht_cores//2'
-
-                # This test is a success if our physical core count is
-                # more than 5.
-                result: 'physical_cores > 5'
-
-                # All the expression functions are available.
-                weird: 'avg([5*random(), 6*random(), 7*random()])
-
-Deeper Result Values and Lists
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-The result JSON isn't necessarily a flat dictionary. It may contain lists,
-other dictionaries, lists of dicts containing lists, and so on.  To get to
-deeper keys, you simply provide each step in the path in a dot-seperated name.
-
-For example, given a result structure that looks like:
-
-.. code-block:: json
-
-    {
-        "jobid": "1234",
-        "etc...": "...",
-        "transfer_times": {
-            "10":   {"min": 5.3, "max": 10.4, "avg": "7.0"},
-            "100":  {"min": 11.3, "max": 15.4, "avg": "13.1"},
-            "1000": {"min": 15.2, "max": 21.3, "avg": "17.5"}
-        },
-        "n": {
-            "node1": {"speed": 47, "procs: 10"},
-            "node2": {"speed": 35, "procs: 5"},
-            "node3": {"speed": 20, "procs: 10"}
-        }
-    }
-
-.. code-block:: yaml
-
-    mytest:
-        result:
-            # Assume we have the result parsers to actually get the above value.
-            # A more complete example is below.
-
-            evaluate:
-                small_ok: "transfer_times.10.avg < 10"
-                large_ok: "transfer_times.1000.avg < 30"
-
-                # You can use the 'keys()' function to grab the keys of
-                # of a dictionary.
-                nodes: "keys(n)"
-
-                base_speed: "node
-
-Pulling Lists of Values
-~~~~~~~~~~~~~~~~~~~~~~~
-
-Lists of values can be dynamically generated by using a '*' in your variable
-name, such as ``foo.*.bar``. The name parts up to the star determine where to
-find the list/dict of items. The parts after the star denote what element to
-pull from each of the values in that list. So ``foo.*.bar``, will return the
-'bar' key from each item in the list at 'foo'.
-
-Using the same result JSON as above:
-
-.. code-block:: yaml
-
-    mytest:
-        results:
-            evaluate:
-                # Get a list of every the proc counts from each node.
-                procs: "n.*.procs"
-
-                # Get an average of the speeds across all nodes
-                avg_speed: "avg(n.*.speeds)"
-
-                # Find, outliers that are more 3.0 standard deviations from
-                # the mean of the speeds. See the function documentation
-                # for more info.
-                speed_outliers: "outliers(n.*.speeds, keys(n), 3.0)"
-
-                # Only PASS if there are no outliers.
-                result: "len(outliers) == 0"
-
-A Combined Example
-------------------
-
-.. code-block:: yaml
-
-    mytest:
-        slurm:
-            tasks_per_node: 1
-
-        # This will produce a <hostname>.out file for each node containing
-        # the contents of that system's /proc/meminfo file.
-        cmds: '{{sched.test_cmd}} -o "%N.out" cat /proc/meminfo'
-
-        results:
-            parse:
-                regex:
-                    # These will look over each of the out files, pull out
-                    # the regex value, and store in a per_file dictionary.
-                    - key: MemTotal
-                      regex: '^MemTotal:\s+(\d+)'
-                      files: '*.out'
-                      per_file: 'name'
-                    - key: MemFree
-                      regex: '^MemFree:\s+(\d+)'
-                      files: '*.out'
-                      per_file: 'name'
-
-        # The two results parsers above will look for the regex in each
-        # of the .out files, and store the result by the name of the file
-        # (without an extension), which happens to be our node name.
-        # This will result in a result JSON structure that looks like.
-        # {
-        #   'jobid': 4321,
-        #   ...
-        #
-        #   'n': {
-        #           'host1': {
-        #               'MemTotal': 65559088,
-        #               'MemFree': 49359920
-        #           },
-        #           'host1': {
-        #               'MemTotal': 65559088,
-        #               'MemFree': 49359920
-        #           },
-        #           ...
-
-            evaluate:
-                avg_free_mem: "avg(n.*.MemFree)"
-                free_mem_outliers: "outliers(n.*.MemFree, keys(n), 2.0)"

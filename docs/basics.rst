@@ -7,7 +7,7 @@ Getting Started
 Setup
 ~~~~~
 
-See the `install docs <install.html>`__ if you need to install Pavilion*
+See the :ref:`install` if you need to install Pavilion*
 
 Add the PAV bin directory to your Path.
 
@@ -29,8 +29,8 @@ Configure Tests
 Pavilion doesn't come with any tests itself; it's just a system for
 running them on HPC clusters. Each test needs a configuration script,
 and most will need some source files. Both of these will live in one of
-your `config directories <config.html#config-directories>`__ under the
-``tests/`` and ``test_src/`` sub-directories.
+your :ref:`config.config_dirs` under the ``tests/`` and ``test_src/``
+sub-directories.
 
 Test configs tell pavilion what environment it needs to build and run
 your test, the commands to run it, how to schedule it on a cluster, and
@@ -72,7 +72,7 @@ config directory.
 This config is used to override the Pavilion defaults for values in
 every test config run on that system. You can use these to set default
 values for things like the max nodes per job in a given scheduler,
-or setting useful `variables <tests/variables.html>`__ for that system. The
+or setting useful :ref:`tests.variables` for that system. The
 format is the same as a test config file, except with only one test and
 without the name for that test.
 
@@ -85,8 +85,8 @@ without the name for that test.
 The above host config would set the default scheduler to 'slurm' for
 tests kicked off on a host with a hostname of ``my_host``. Pavilion uses
 the contents of the ``sys_name`` test config variable to determine the
-current host, which is provided via a built-in `system variable
-plugin <plugins/sys_vars.html>`__. This behaviour can be overridden by
+current host, which is provided via a built-in
+:ref:`plugins.sys_vars`. This behaviour can be overridden by
 providing your own sys\_var plugin, which is especially useful on
 clusters with multiple front-ends.
 
@@ -171,7 +171,7 @@ From the above, you may have noticed that each test gets a series id
 like ``s24`` and a test id like ``41``. You can use these id's to
 reference tests or suites of tests to get their status, results, and
 logs through the pavilion interface. The ID's are unique for a given
-Pavilion `working\_directory <config.html#working-dir>`__, but they will
+Pavilion :ref:`config.working_dir` but they will
 get reused as old tests are cleaned up.
 
 Test Results
@@ -203,7 +203,8 @@ When the test run was created - started - When the test actually started
 - finished - When the test run completed
 
 By default, a test passes if it's last command returns 0. You can
-override this behaviour by using `result parsers <tests/results.html>`__.
+override this behaviour by using result parsers and evaluations
+(:ref:`tests.results`).
 You can also use result parsers to add additional, arbitrary values to
 the test results.
 

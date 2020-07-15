@@ -1,5 +1,5 @@
 
-.. _plugin_basics:
+.. _plugins.basics:
 
 Plugin Basics
 =============
@@ -11,7 +11,7 @@ general.
 Plugin Files
 ------------
 
-As mentioned in the general `config <../config.html>`__ documentation,
+As mentioned in the general :ref:`config` documentation,
 Pavilion can have several configuration directories. Within each of
 these there can be a ``plugins/`` directory. While Pavilion organizes
 plugins in sub-directories by type (``/schedulers``,

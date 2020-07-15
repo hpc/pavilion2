@@ -1,9 +1,11 @@
-from pavilion.result import parsers
+"""Parse regular expressions from file."""
+
+import re
+import sre_constants
 
 import pavilion.result.base
 import yaml_config as yc
-import re
-import sre_constants
+from pavilion.result import parsers
 
 
 class Regex(parsers.ResultParser):
@@ -11,35 +13,31 @@ class Regex(parsers.ResultParser):
     or strings are returned as the result."""
 
     def __init__(self):
-        super().__init__(name='regex',
-                         description="Find data using a basic regular "
-                                     "expression.")
-        self.range_re = re.compile('(-?[0-9]*\.?[0-9]*):(-?.*)')
+        super().__init__(
+            name='regex',
+            description="Find data using a basic regular expressions.",
+            config_elems=[
+                yc.StrElem(
+                    'regex', required=True,
+                    help_text="The python regex to use to search the given "
+                              "file. See: 'https://docs.python.org/3/"
+                              "library/re.html'. You can use single quotes "
+                              "in YAML to have the string interpreted "
+                              "literally. IE '\\n' is a '\\' "
+                              "and an 'n'. "
+                ),
+                parsers.MATCHES_ELEM]
+        )
 
-    def get_config_items(self):
-
-        config_items = super().get_config_items()
-        config_items.extend([
-            yc.StrElem(
-                'regex', required=True,
-                help_text="The python regex to use to search the given file. "
-                          "See: 'https://docs.python.org/3/library/re.html' "
-                          "You can use single quotes in YAML to have the "
-                          "string interpreted literally. IE '\\n' is a '\\' "
-                          "and an 'n'."
-            ),
-            parsers.MATCHES_ELEM,
-        ])
-
-        return config_items
-
-    def _check_args(self, regex=None, match_type=None):
+    def _check_args(self, **kwargs):
 
         try:
-            re.compile(regex)
+            kwargs['regex'] = re.compile(kwargs['regex'])
         except (ValueError, sre_constants.error) as err:
             raise pavilion.result.base.ResultError(
                 "Invalid regular expression: {}".format(err))
+
+        return kwargs
 
     def __call__(self, test, file, regex=None, match_type=None):
 

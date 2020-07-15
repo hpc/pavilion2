@@ -10,6 +10,8 @@ from pavilion import lockfile
 ID_DIGITS = 7
 ID_FMT = '{id:0{digits}d}'
 
+PKEY_FN = 'next_id'
+
 
 def make_id_path(base_path, id_):
     """Create the full path to an id directory given its base path and
@@ -21,6 +23,17 @@ def make_id_path(base_path, id_):
     """
 
     return base_path / (ID_FMT.format(id=id_, digits=ID_DIGITS))
+
+
+def reset_pkey(id_dir: Path) -> None:
+    """Reset the the 'next_id' for the given directory by deleting
+    the pkey file ('next_id') if present."""
+
+    with lockfile.LockFile(id_dir/'.lockfile', timeout=1):
+        try:
+            (id_dir/PKEY_FN).unlink()
+        except OSError:
+            pass
 
 
 def create_id_dir(id_dir: Path) -> (int, Path):
@@ -36,7 +49,7 @@ def create_id_dir(id_dir: Path) -> (int, Path):
 
     lockfile_path = id_dir/'.lockfile'
     with lockfile.LockFile(lockfile_path, timeout=1):
-        next_fn = id_dir/'next_id'
+        next_fn = id_dir/PKEY_FN
 
         next_valid = True
 

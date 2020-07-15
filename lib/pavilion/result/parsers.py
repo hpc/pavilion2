@@ -7,11 +7,12 @@ import logging
 import pprint
 from collections import OrderedDict
 from pathlib import Path
+import textwrap
 from typing import Dict, Callable
 
 import yaml_config as yc
 from pavilion.result.base import ResultError
-from pavilion.test_config import file_format
+from pavilion.test_config import file_format, resolver
 from yapsy import IPlugin
 
 LOGGER = logging.getLogger(__file__)
@@ -65,15 +66,10 @@ PER_ALL = 'all'
 MATCH_FIRST = 'first'
 MATCH_LAST = 'last'
 MATCH_ALL = 'all'
+MATCH_CHOICES = (MATCH_FIRST, MATCH_LAST, MATCH_ALL)
 
 MATCHES_ELEM = yc.StrElem(
     "match_type",
-    default=MATCH_FIRST,
-    choices=[
-        MATCH_FIRST,
-        MATCH_LAST,
-        MATCH_ALL,
-    ],
     help_text=(
         "How to handle multiple matches. '{FIRST}' (default) and '{LAST}'"
         "should return a single item (or nothing), while '{ALL}' "
@@ -88,6 +84,89 @@ MATCHES_ELEM = yc.StrElem(
 It's provided here for consistency between plugins."""
 
 
+DEFAULTS = {
+    'per_file': PER_FIRST,
+    'action': ACTION_STORE,
+    'files': ['../run.log']
+}
+
+CHOICES = {
+    'per_file': (PER_FIRST, PER_LAST, PER_ANY, PER_ALL, PER_LIST, PER_NAME,
+                 PER_FULLNAME, PER_NAME_LIST, PER_FULLNAME_LIST),
+    'action': (ACTION_COUNT, ACTION_STORE, ACTION_TRUE, ACTION_FALSE),
+}
+
+DEFAULT_KEY = '_defaults'
+
+
+def set_parser_defaults(rconf: dict, def_conf: dict):
+    """Set the default values for each result parser. The default conf
+    can hold defaults that apply across an entire result parser."""
+
+    base = DEFAULTS.copy()
+
+    for key, val in def_conf.items():
+        if val not in (None, []):
+            base[key] = val
+
+    for key, val in rconf.items():
+        if val is None:
+            continue
+
+        if key in base and val == []:
+            continue
+
+        base[key] = val
+
+    return base
+
+
+def check_parser_conf(rconf, key, parser):
+    """Validate the given parser configuration.
+
+    :raises: ResultError on failure.
+    """
+
+    action = rconf.get('action')
+    per_file = rconf.get('per_file')
+
+    found_deferred = False
+    # Don't check args if they have deferred values.
+    for option, values in rconf.items():
+        if not isinstance(values, list):
+            values = [values]
+
+        for value in values:
+            if resolver.TestConfigResolver.was_deferred(value):
+                found_deferred = True
+            elif option in CHOICES:
+                if value not in CHOICES[option]:
+                    raise ResultError(
+                        "Option '{}' in result parser for key '{}' has a "
+                        "value of '{}', but it must be one of '{}'"
+                        .format(option, key, value, CHOICES[option]))
+
+    if found_deferred:
+        # We can't continue checking from this point if anything was deferred.
+        return
+
+    if (key == 'result'
+            and action not in (ACTION_TRUE,
+                               ACTION_FALSE)
+            and per_file not in (PER_FIRST, PER_LAST,
+                                 PER_ANY, PER_ALL)):
+        raise ResultError(
+            "Result parser has key 'result', but must store a "
+            "boolean. Use action 'first' or 'last', along with a "
+            "per_file setting of 'first', 'last', 'any', or 'all'")
+
+    try:
+        parser.check_args(**rconf)
+    except ResultError as err:
+        raise ResultError(
+            "Key '{}': {}".format(key, err.args[0]))
+
+
 class ResultParser(IPlugin.IPlugin):
     """Base class for creating a result parser plugin. These are essentially
 a callable that implements operations on the test or test files. The
@@ -99,19 +178,76 @@ text for that class, along with the help from the config items."""
     PRIO_COMMON = 10
     PRIO_USER = 20
 
-    def __init__(self, name, description, open_mode='r', priority=PRIO_COMMON):
+    def __init__(self, name, description, defaults=None,
+                 config_elems=None, validators=None, open_mode='r',
+                 priority=PRIO_COMMON):
         """Initialize the plugin object
 
 :param str name: The name of this plugin.
 :param str description: A short description of this result parser.
 :param Union[str, None] open_mode: How to open each file handed to the parser.
     None denotes that a path rather than a file object is expected.
+:param List[yaml_config.ConfigElement] config_elems: A list of configuration
+    elements (from the yaml_config library) to use to define the
+    config section for this result parser. These will be passed as arguments
+    to the parser function. Only StrElem and ListElems are accepted. Any type
+    conversions should be done with validators. Use the defaults and validators
+    argument to set defaults, rather than the YamlConfig options.
+:param dict defaults: A dictionary of defaults for the result parser's
+    arguments.
+:param dict validators: A dictionary of auto-validators. These can
+    take several forms:
+
+    - A tuple - The value must be one of the items in the tuple.
+    - a function - The function should accept a single argument. The
+      returned value is used. ValueError or ResultError should be raised
+      if there are issues. Typically this will be a type conversion function.
+      For list arguments this is applied to each of the list values.
 :param int priority: The priority of this plugin, compared to plugins
     of the same name. Higher priority plugins will supersede others.
 """
 
         self.name = name
         self.description = description
+        self.defaults = {} if defaults is None else defaults
+
+        if validators is not None:
+            for key, val in validators.items():
+                if not (isinstance(val, tuple) or
+                        callable(val)):
+                    raise RuntimeError(
+                        "Validator for key {} in result parser {} at {} must "
+                        "be a tuple or a function."
+                        .format(key, name, self.path)
+                    )
+        self.validators = {} if validators is None else validators
+
+        config_elems = config_elems if config_elems is not None else []
+        for elem in config_elems:
+            if not (isinstance(elem, yc.StrElem) or
+                    (isinstance(elem, yc.ListElem) and
+                     isinstance(elem._sub_elem, yc.StrElem))):
+                raise RuntimeError(
+                    "Config elements for result parsers must be strings"
+                    "or lists of strings. Got elem {} in parser at {}"
+                    .format(elem, self.path)
+                )
+
+            if elem.default not in [None, []] or elem._choices is not None:
+                raise RuntimeError(
+                    "Config elements for result parsers shouldn't set "
+                    "a default or choices (use the defaults or choices"
+                    "argument for the result_parser init). Problem found "
+                    "in {} in result parser at {}"
+                    .format(elem, self.path)
+                )
+
+            if elem is MATCHES_ELEM:
+                self.validators['match_type'] = MATCH_CHOICES
+                if 'match_type' not in self.defaults:
+                    self.defaults['match_type'] = MATCH_FIRST
+
+            self.config_elems = config_elems
         self.priority = priority
         self.open_mode = open_mode
 
@@ -132,7 +268,7 @@ text for that class, along with the help from the config items."""
         raise NotImplementedError("A result parser plugin must implement"
                                   "the __call__ method.")
 
-    def _check_args(self, **kwargs):
+    def _check_args(self, **kwargs) -> dict:
         """Override this to add custom checking of the arguments at test
 kickoff time. This prevents errors in your arguments from causing
 a problem in the middle of a test run. The yaml_config module handles
@@ -145,7 +281,11 @@ descriptive ResultParserError if any issues are found.
 :raises ResultParserError: If there are bad arguments.
 """
 
-    def check_args(self, **kwargs):
+        _ = self
+
+        return kwargs
+
+    def check_args(self, **kwargs) -> dict:
         """Check the arguments for any errors at test kickoff time, if they
 don't contain deferred variables. We can't check tests with
 deferred args. On error, should raise a ResultParserError.
@@ -156,8 +296,13 @@ deferred args. On error, should raise a ResultParserError.
 
         # The presence or absence of needed args should be enforced by
         # setting 'required' in the yaml_config config items.
+        args = self.defaults.copy()
+        for key, val in kwargs.items():
+            if val is None or (key in args and val == []):
+                continue
+            args[key] = kwargs[key]
+        kwargs = args
 
-        kwargs = kwargs.copy()
         for key in ('action', 'per_file', 'files'):
             if key not in kwargs:
                 raise RuntimeError(
@@ -171,12 +316,36 @@ deferred args. On error, should raise a ResultParserError.
             # handled at a higher level.
             del kwargs[key]
 
-        self._check_args(**kwargs)
+        for key, validator in self.validators.items():
+            if isinstance(validator, tuple):
+                if kwargs[key] not in validator:
+                    raise ResultError(
+                        "Invalid value for option '{}'. "
+                        "Expected one of {}, got '{}'."
+                        .format(key, validator, kwargs[key])
+                    )
+            else:
+                # Must be a validator function.
+                value = kwargs[key]
+
+                try:
+                    if isinstance(value, list):
+                        kwargs[key] = [validator(val) for val in value]
+                    else:
+                        kwargs[key] = validator(value)
+
+                except ValueError as err:
+                    raise ResultError(
+                        "Validation error for option '{}' with "
+                        "value '{}'.\n{}"
+                        .format(key, kwargs[key], err.args[0])
+                    )
+
+        return self._check_args(**kwargs)
 
     KEY_REGEX_STR = r'^[a-zA-Z0-9_-]+$'
 
-    @staticmethod
-    def get_config_items():
+    def get_config_items(self):
         """Get the config for this result parser. This should be a list of
 yaml_config.ConfigElement instances that will be added to the test
 config format at plugin activation time. The simplest format is a
@@ -200,16 +369,9 @@ Example: ::
 
 """
 
-        return [
+        config_items = [
             yc.StrElem(
                 "action",
-                required=True, default="store",
-                choices=[
-                    ACTION_STORE,
-                    ACTION_TRUE,
-                    ACTION_FALSE,
-                    ACTION_COUNT
-                ],
                 help_text=(
                     "What to do with parsed results.\n"
                     "  {STORE} - Just store the result (default).\n"
@@ -225,27 +387,12 @@ Example: ::
             # The default for the file is handled by the test object.
             yc.ListElem(
                 "files",
-                required=True,
                 sub_elem=yc.StrElem(),
-                defaults=['../run.log'],
                 help_text="Path to the file/s that this result parser "
                           "will examine. Each may be a file glob,"
                           "such as '*.log'"),
             yc.StrElem(
                 "per_file",
-                default=PER_FIRST,
-                required=True,
-                choices=[
-                    PER_FIRST,
-                    PER_LAST,
-                    PER_FULLNAME,
-                    PER_NAME,
-                    PER_NAME_LIST,
-                    PER_FULLNAME_LIST,
-                    PER_LIST,
-                    PER_ANY,
-                    PER_ALL,
-                ],
                 help_text=(
                     "How to save results for multiple file matches.\n"
                     "  {FIRST} - The result from the first file with a "
@@ -281,16 +428,54 @@ Example: ::
             ),
         ]
 
+        config_items.extend(self.config_elems)
+        return config_items
+
     @property
     def path(self):
         """The path to the file containing this result parser plugin."""
 
         return inspect.getfile(self.__class__)
 
-    def help(self):
-        """Return a formatted help string for the parser."""
+    def doc(self):
+        """Return documentation on this result parser."""
 
-        return self.__doc__
+        def wrap(text: str, indent=0):
+
+            indent = ' ' * indent
+
+            out_lines = []
+            for line in text.splitlines():
+                out_lines.extend(
+                    textwrap.wrap(line, initial_indent=indent,
+                                  subsequent_indent=indent))
+
+            return out_lines
+
+        doc = [
+            self.name,
+            '-'*len(self.name)
+        ]
+        doc.extend(wrap(self.description))
+
+        doc.extend([
+            '\nArguments',
+            '---------',
+        ])
+
+        for arg in self.config_elems:
+            doc.append('  ' + arg.name)
+            doc.extend(wrap(arg.help_text, indent=4))
+            if arg.name in self.defaults:
+                doc.extend(wrap("default: '{}'".format(self.defaults[arg.name]),
+                                indent=4))
+            if arg.name in self.validators:
+                validator = self.validators[arg.name]
+                if isinstance(validator, tuple):
+                    doc.extend(wrap('choices: ' + str(validator), indent=4))
+            doc.append('')
+
+        return '\n'.join(doc)
 
     def activate(self):
         """Yapsy runs this when adding the plugin.
@@ -382,11 +567,16 @@ configured for that test.
         # have validated otherwise.
         parser = get_plugin(parser_name)
 
+        defaults = parser_configs[parser_name].get(DEFAULT_KEY, {})
+
         log("Parsing results for parser {}".format(parser_name), lvl=1)
+
 
         # Each parser has a list of configs. Process each of them.
         for key, rconf in parser_configs[parser_name].items():
             log("Parsing value for key '{}'".format(key), lvl=2)
+
+            rconf = set_parser_defaults(rconf, defaults)
 
             # Grab these for local use.
             action = rconf['action']
@@ -394,16 +584,19 @@ configured for that test.
 
             per_file = rconf['per_file']
 
+            # These config items are used here, but not expected by the
+            # parsers themselves.
+            args = rconf.copy()
+
             try:
-                # These config items are used here, but not expected by the
-                # parsers themselves.
-                args = rconf.copy()
-                for k in 'files', 'action', 'per_file':
-                    del args[k]
-            except KeyError as err:
-                raise ResultError(
-                    "Invalid config for result parser '{}': {}"
-                    .format(parser_name, err))
+                parser_args = parser.check_args(**args)
+            except ResultError as err:
+                errors.append({
+                    'result_parser': parser_name,
+                    'file':          str(parser.path),
+                    'key':           key,
+                    'msg':           err.args[0]})
+                continue
 
             # The per-file results for this parser
             presults = OrderedDict()
@@ -436,11 +629,13 @@ configured for that test.
                 log("Parsing for file '{}':".format(path.as_posix()), lvl=3)
                 try:
                     if parser.open_mode is None:
-                        res = parser(test, path, **args)
+                        res = parser(test, path, **parser_args)
                     else:
                         with path.open(parser.open_mode) as file:
-                            res = parser(test, file, **args)
+                            res = parser(test, file, **parser_args)
+
                     log("Raw parse result: '{}'".format(res))
+
                 except (IOError, PermissionError, OSError) as err:
                     log("Error reading file: {}".format(err))
                     errors.append({
