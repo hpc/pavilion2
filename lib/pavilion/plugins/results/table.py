@@ -25,7 +25,7 @@ class Table(parsers.ResultParser):
                 help_text="Delimiter that splits the data."
             ),
             yc.StrElem(
-                'col_num', required=True,
+                'col_num', required=False,
                 help_text="Number of columns in table, including row names, "
                           "if there is such a column."
             ),
@@ -88,6 +88,20 @@ class Table(parsers.ResultParser):
     def __call__(self, test, file, delimiter=None, col_num=None,
                  has_header='', col_names=[], by_column=True, 
                  start_re=None, row_num=None, start_skip=None):
+
+        # TODO: start_occurence or start_re
+
+        # Step 1. Cut the section of the file to only necessary parts
+        # use start_re, start_skip, row_num
+        start_lines = []
+        if start_re:
+            lines = file.readlines()
+            for line_index in range(len(lines)):
+                start_regex = re.compile(start_re)
+                if start_regex.findall(lines[line_index]):
+                    start_lines.append(lines[line_index])
+
+        return str(start_lines)
 
         match_list = []
         lines = file.readlines()
