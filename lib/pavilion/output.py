@@ -555,6 +555,9 @@ A more complicated example: ::
             if row_i == 0:
                 outfile.write(horizontal_break)
 
+        if border:
+            outfile.write(horizontal_break)
+
     except IOError:
         # We may get a broken pipe, especially when the output is piped to
         # something like head. It's ok, just move along.
