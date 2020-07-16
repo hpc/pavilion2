@@ -1,4 +1,5 @@
 import errno
+import unittest
 
 from pavilion import arguments
 from pavilion import commands
@@ -6,11 +7,21 @@ from pavilion import plugins
 from pavilion.unittest import PavTestCase
 
 
+def has_matplotlib():
+    try:
+        import matplotlib
+    except (ImportError, ModuleNotFoundError):
+        return False
+
+    return True
+
+
 class ResolverTests(PavTestCase):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+    @unittest.skipIf(not has_matplotlib(), "matplotlib not found.")
     def setUp(self):
         plugins.initialize_plugins(self.pav_cfg)
         self.graph_cmd = commands.get_command('graph')

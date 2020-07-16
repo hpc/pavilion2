@@ -1,5 +1,4 @@
 import errno
-import matplotlib.pyplot as plt
 import os
 import random
 import re
@@ -68,6 +67,12 @@ class GraphCommand(commands.Command):
         )
 
     def run(self, pav_cfg, args):
+
+        try:
+            import matplotlib.pyplot as plt
+        except (ImportError, ModuleNotFoundError) as err:
+            output.fprint("matplotlib not found.")
+            return
 
         # Validate Arguments.
         result = self.validate_args(args)
@@ -301,6 +306,8 @@ class GraphCommand(commands.Command):
         evaluations.evaluate_results(results, evals)
 
         x_data_list, y_data_list = self.get_evaluation_data(results, evals)
+
+        print(zip(x_data_list, y_data_list))
 
         results = {}
         for x, y in zip(x_data_list, y_data_list):
