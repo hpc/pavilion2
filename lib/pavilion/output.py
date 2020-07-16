@@ -707,7 +707,8 @@ def dt_auto_widths(rows, table_width, min_widths, max_widths):
     the column that will benefit the most from a single character of width
     increase. In case of a tie, two characters of width are considered, and
     so on. Remaining extra space is distributed amongst the final tied
-    columns."""
+    columns. To limit how long this takes, this makes a best guess using  
+    the first 20 rows."""
 
     fields = list(min_widths.keys())
 
@@ -715,9 +716,11 @@ def dt_auto_widths(rows, table_width, min_widths, max_widths):
 
     final_widths = min_widths.copy()
 
+    # Limit to just the first 20 rows for speed.
+    rows = rows[:20]
+
     def calc_wraps(fld_, width_):
-        """Calculate the wraps for a given field at the given width across
-        all rows."""
+        """Calculate the wraps for a given field at the given width."""
         return sum([len(row_[fld_].wrap(width=width_))
                     for row_ in rows])
 
