@@ -16,9 +16,9 @@ Requirements
 
 Pavilion has very few dependencies and requirements:
 
-- Python 3.5 newer
+- Python 3.5 or newer
 - A writeable space on a filesystem shared across all (tested) hosts in
-  each cluster. (Assuming you're scheduling jobs a across a cluster).
+  each cluster. (Assuming you're scheduling jobs across a cluster).
 
   - The path to this directory must be consistent across all cluster hosts.
   - It must support atomic file creation and appends of < 4kb.
@@ -107,8 +107,8 @@ Pavilion for a couple reasons.
     per-release in the `_static/RELEASE.txt`_ file.
  2) We run a large bevy of unit tests against every change in Pavilion, but
     each release is used in production before it is actually tagged. This
-    often reveals bug, regressions, and practical usage issues. We fix those,
-    and then tag the release.
+    often reveals bug, regressions, and practical usage issues. We fix those
+    issues, then tag the release. Bugfix releases are provided as needed.
 
 Dependencies
 ------------
