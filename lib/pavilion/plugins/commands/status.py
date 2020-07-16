@@ -83,7 +83,7 @@ def get_all_tests(pav_cfg, args):
                 'test_id': test_id,
                 'name':    "",
                 'state':   STATES.UNKNOWN,
-                'time':    "",
+                'time':    None,
                 'note':    "Test not found: {}".format(err)
             })
 
@@ -162,7 +162,7 @@ def get_statuses(pav_cfg, args, errfile):
                 'test_id': test_id,
                 'name':    "",
                 'state':   STATES.UNKNOWN,
-                'time':    "",
+                'time':    None,
                 'note':    "Error loading test: {}".format(err),
             })
 

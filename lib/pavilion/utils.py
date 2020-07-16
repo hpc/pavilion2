@@ -130,13 +130,15 @@ def get_login():
     """Get the current user's login, either through os.getlogin or
     the environment, or the id command."""
 
+    # We've found this to be generally more reliable in sudo situations
+    # than getlogin.
+    if 'USER' in os.environ:
+        return os.environ['USER']
+
     try:
         return os.getlogin()
     except OSError:
         pass
-
-    if 'USER' in os.environ:
-        return os.environ['USER']
 
     try:
         name = subprocess.check_output(['id', '-un'],
