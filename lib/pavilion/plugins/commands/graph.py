@@ -71,34 +71,39 @@ class GraphCommand(commands.Command):
         try:
             import matplotlib.pyplot as plt
         except (ImportError, ModuleNotFoundError) as err:
-            output.fprint("matplotlib not found.")
-            return
+            output.fprint("matplotlib not found.", color=output.RED)
+            return errno.EINVAL
 
         # Validate Arguments.
-        result = self.validate_args(args)
-        if result:
-            return result
+        try:
+            self.validate_args(args)
+        except (ValueError, commands.CommandError) as err:
+            output.fprint("Invalid command arguments: {}".format(err))
+            return errno.EINVAL
 
-        # Expand series, convert test_ids (if provided). 
-        args.tests = self.normalize_args_tests(pav_cfg, args.tests)
+        # Expand series, convert test_ids (if provided).
+        try:
+            args.tests = self.normalize_args_tests(pav_cfg, args.tests)
+        except (ValueError, series.TestSeriesError) as err:
+            output.fprint("Invalid test arguments: \n{}".format(err))
+            return errno.EINVAL
 
         # Check filters, append/remove tests.
-        tests = self.filter_tests(pav_cfg, args, args.tests)
-        if not tests:
-            output.fprint("No completed, successful tests matched these filters.")
+        try:
+            tests = self.filter_tests(pav_cfg, args, args.tests)
+        except commands.CommandError as err:
+            output.fprint(err)
             return errno.EINVAL
 
         evals = self.build_evaluations_dict(args.x, args.y)
-        for test in tests:
 
-            try:
-                results = self.evaluate_results(evals, test.results)
-            except (ValueError, TypeError) as err:
-                output.fprint("Evaluations resulted in error: \n{}"
-                              .format(err))
-                return errno.EINVAL
+        try:
+            test_results = self.get_test_results(tests, evals)
+        except (ValueError, TypeError) as err:
+            output.fprint("Evaluations resulted in error: \n{}".format(err))
+            return errno.EINVAL
 
-            # Plot this test.
+        for test_id, results in test_results.items():
             for x, y_list in results.items():
                 for y in y_list:
                     plt.plot(x, y, marker='o')
@@ -119,42 +124,19 @@ class GraphCommand(commands.Command):
             try:
                 args.date = datetime.strptime(args.date, '%b %d %Y')
             except ValueError as err:
-                output.fprint("{} is not a valid date "
+                raise ValueError("{} is not a valid date "
                               "format: {}".format(args.date, err))
-                return errno.EINVAL
 
-        if not args.x:
-            output.fprint("No value was given to graph on x-axis. Use --x "
-                          "flag to specify.")
-        if not args.y:
-            output.fprint("No values were given to graph on y-axis. Use --y "
-                          "flag to specify.")
         if not args.x or not args.y:
-            return errno.EINVAL
+            error = ""
+            if not args.x:
+                error = error + ("\nNo value was given to graph on x-axis. Use --x "
+                                 "flag to specify.")
+            if not args.y:
+                error = error + ("\nNo values were given to graph on y-axis. Use --y "
+                                 "flag to specify.")
 
-    def build_evaluations_dict(self, x_eval, y_eval):
-        """Take the parsed command arguments for --x and --y and build
-        an evaluations dictionary to be used later when gathering results.
-        :param list x_eval: List of evaluation string for x value.
-        :param list y_eval: List of evaluation strings for y values.
-        :return dict evals: A dictionary of the evaluations.
-
-            evals -> {
-                 'x': evaluation string,
-                'y0': evaluation string,
-                'y1': evaluation string,
-                .
-                .
-                .
-            }
-        """
-
-        evals = {}
-        evals['x'] = x_eval[0]
-        for i in range(len(y_eval)):
-            evals['y'+str(i)] = y_eval[i]
-
-        return evals
+            raise commands.CommandError(error)
 
     def expand_ranges(self, test_list):
         """Converts a string range of test IDs or series IDs into a list of
@@ -209,35 +191,6 @@ class GraphCommand(commands.Command):
 
         return normalized_test_list
 
-    def filter_tests(self, pav_cfg, args, tests):
-        """Filter provided tests, or entire directory, returns a list of tests
-        that match the search critetia.
-        :param pav_cfg: The pavilion configuration.
-        :param args: The parsed command line argument object.
-        :return list test_list: A list of valid test objects.
-        """
-
-        tests_dir = pav_cfg.working_dir / 'test_runs'
-        test_list = []
-        # Filter All Tests.
-        if not tests:
-            for test_path in tests_dir.iterdir():
-                test = self.apply_filters(pav_cfg, args, test_path)
-                if test is None:
-                    continue
-                test_list.append(test)
-
-        # Filter provided list of tests.
-        else:
-            for test_id in tests:
-                test_path = tests_dir / test_id
-                test = self.apply_filters(pav_cfg, args, test_path)
-                if test is None:
-                    continue
-                test_list.append(test)
-
-        return test_list
-
     def apply_filters(self, pav_cfg, args, test_path):
         """Apply the search filters to a given test.
         :param pav_cfg: The pavilion configuration.
@@ -290,30 +243,62 @@ class GraphCommand(commands.Command):
 
         return test
 
-    def evaluate_results(self, evals, results):
-        """Get the data from the test's results. Use pavilion's
-        evaluations to do so.
-        :param evals: The evaluations dictionary.
-        :param dict results: The loaded results dictionary.
-        :return dict results: The data pulled out of a tests results
-                              dictionary.
-        The returned data structure looks like:
-            results -> {
-                x: [Y,...+]
-                }
+    def filter_tests(self, pav_cfg, args, tests):
+        """Filter provided tests, or entire directory, returns a list of tests
+        that match the search critetia.
+        :param pav_cfg: The pavilion configuration.
+        :param args: The parsed command line argument object.
+        :return list test_list: A list of valid test objects.
         """
 
-        evaluations.evaluate_results(results, evals)
+        tests_dir = pav_cfg.working_dir / 'test_runs'
+        test_list = []
+        # Filter All Tests.
+        if not tests:
+            for test_path in tests_dir.iterdir():
+                test = self.apply_filters(pav_cfg, args, test_path)
+                if test is None:
+                    continue
+                test_list.append(test)
 
-        x_data_list, y_data_list = self.get_evaluation_data(results, evals)
+        # Filter provided list of tests.
+        else:
+            for test_id in tests:
+                test_path = tests_dir / test_id
+                test = self.apply_filters(pav_cfg, args, test_path)
+                if test is None:
+                    continue
+                test_list.append(test)
 
-        print(zip(x_data_list, y_data_list))
+        if not test_list:
+            raise commands.CommandError("No successful, completed tests "
+                                        "matched these filters.")
 
-        results = {}
-        for x, y in zip(x_data_list, y_data_list):
-            results[x] = y
+        return test_list
 
-        return results
+    def build_evaluations_dict(self, x_eval, y_eval):
+        """Take the parsed command arguments for --x and --y and build
+        an evaluations dictionary to be used later when gathering results.
+        :param list x_eval: List of evaluation string for x value.
+        :param list y_eval: List of evaluation strings for y values.
+        :return dict evals: A dictionary of the evaluations.
+
+            evals -> {
+                 'x': evaluation string,
+                'y0': evaluation string,
+                'y1': evaluation string,
+                .
+                .
+                .
+            }
+        """
+
+        evals = {}
+        evals['x'] = x_eval[0]
+        for i in range(len(y_eval)):
+            evals['y'+str(i)] = y_eval[i]
+
+        return evals
 
     def verify_and_transform_data_list(self, x_data_list, y_data_list):
         """ Transforms y_data_list to work if multiple x_values are present.
@@ -394,4 +379,50 @@ class GraphCommand(commands.Command):
                                                           y_data_list)
 
         return x_data_list, y_data_list
+
+    def evaluate_results(self, evals, results):
+        """Get the data from the test's results. Use pavilion's
+        evaluations to do so.
+        :param evals: The evaluations dictionary.
+        :param dict results: The loaded results dictionary.
+        :return dict results: The data pulled out of a tests results
+                              dictionary.
+        The returned data structure looks like:
+            results -> {
+                x: [Y,...+]
+                }
+        """
+
+        evaluations.evaluate_results(results, evals)
+
+        x_data_list, y_data_list = self.get_evaluation_data(results, evals)
+
+        results = {}
+        for x, y in zip(x_data_list, y_data_list):
+            results[x] = y
+
+        return results
+
+    def get_test_results(self, tests, evals):
+        """Get all test results in a single dictionary.
+        :param list tests: A list of test objects.
+        :param dict evals: A dictionary of the result evaluations.
+        :return dict test_results: A dictionary of test results in which the
+                                   test id is the key, and the value is it's 
+                                   respective results.
+        The returned data structure looks like:
+            test_results -> {
+                test_id: {
+                        x: [list of Y values]
+                    }
+                }
+        """
+
+        test_results = {}
+
+        for test in tests:
+            results = self.evaluate_results(evals, test.results)
+            test_results[test.id] = results
+
+        return test_results
 
