@@ -76,6 +76,10 @@ def get_relative_timestamp(base_dt):
     :returns: A formatted time string.
     :rtype str:
     """
+
+    if not isinstance(base_dt, datetime.datetime):
+        return ''
+
     now = datetime.datetime.now()
     format_ = ['%Y', '%b', '%a', '%H:%M:%S']  # year, month, day, time
 

@@ -1,0 +1,8 @@
+cmds: 
+    - srun -n 8 ./laghos --problem "{{dim_runs.problem}}" "{{dim_runs.dim_flag}}" "{{dim_runs.dim_val}}" 
+      -rp "{{dim_runs.rp}}" 
+      -ok "{{dim_runs.ok}}" 
+      -ot "{{dim_runs.ot}}" 
+      -tf "{{dim_runs.tf}}" 
+      -s "{{dim_runs.s}}" 
+      "{{dim_runs.assembly}}" &> {{dim_runs.id}}.out
