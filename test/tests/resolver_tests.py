@@ -480,38 +480,57 @@ class ResolverTests(PavTestCase):
         correct = {
             'test1': {
                 'build': {
-                    'cmds': ['echo "and I say hello"']
+                    'pre_cmds': [],
+                    'cmds': ['echo "and I say hello"'],
+                    'post_cmds': []
                 },
                 'run': {
-                    'cmds': ['echo "Hello"']
+                    'pre_cmds': [],
+                    'cmds': ['echo "Hello"'],
+                    'post_cmds': []
                 }
             },
             'test2': {
                 'build': {
+                    'pre_cmds': [
+                        'echo "You say goodbye"'
+                    ],
                     'cmds': [
                         'echo "You say goodbye"',
                         'echo "and I say hello"'
-                    ]
+                    ],
+                    'post_cmds': []
                 },
                 'run': {
+                    'pre_cmds': [],
                     'cmds': [
                         'echo "Hello"',
+                        'echo ", hello"'
+                    ],
+                    'post_cmds': [
                         'echo ", hello"'
                     ]
                 }
             },
             'test3': {
                 'build': {
+                    'pre_cmds': [],
                     'cmds': [
                         'echo "You say goodbye"',
                         'echo "and I say hello"'
-                    ]
+                    ],
+                    'post_cmds': []
                 },
                 'run': {
+                    'pre_cmds': [],
                     'cmds': [
                         'echo "Hello"',
                         'echo ", hello"',
                         'echo "I dont know why you say goodbye,"',
+                        'echo "I say hello"'
+                    ],
+                    'post_cmds': [
+                        'echo "I dont know why you say goodbye."',
                         'echo "I say hello"'
                     ]
                 }
@@ -523,8 +542,9 @@ class ResolverTests(PavTestCase):
             test_name = test_cfg.get('name')
 
             for section in ['build', 'run']:
-                self.assertEqual(test_cfg[section]['cmds'],
-                                 correct[test_name][section]['cmds'])
+                for subsection in ['cmds', 'pre_cmds', 'post_cmds']:
+                    self.assertEqual(test_cfg[section][subsection],
+                                     correct[test_name][section][subsection])
 
     def test_version_compatibility(self):
         """Make sure version compatibility checks are working and populate the

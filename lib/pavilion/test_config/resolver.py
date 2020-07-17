@@ -663,10 +663,10 @@ class TestConfigResolver:
                     for section in ['build', 'run']:
                         for cmd in ['pre_cmds', 'post_cmds']:
                             try:
-                                if cmd in test_cfg[section].keys():
+                                if test_cfg[section][cmd]:
                                     raise TestConfigError(error.format(
                                         test_cfg_name, cmd, section))
-                            except KeyError:
+                            except KeyError as err:
                                 continue
                     test_cfg['inherits_from'] = '__base__'
                     # Tests that depend on nothing are ready to resolve.
