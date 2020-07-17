@@ -704,16 +704,6 @@ class TestConfigResolver:
             suite_tests[test_cfg_name] = test_config_loader.merge(parent,
                                                                   test_cfg)
 
-            # Reset the pre and post cmds.
-            for sec in ['build', 'run']:
-                for cmd in ['pre_cmds', 'post_cmds']:
-                    try:
-                        suite_tests[test_cfg_name][sec][cmd] = \
-                        orig_test_cfg[sec][cmd]
-                    # Section/Command config doesn't exist.
-                    except KeyError:
-                        suite_tests[test_cfg_name][sec][cmd] = []
-
             if parent is not '__base__':
                 for section in ['build', 'run']:
                     config = test_cfg.get(section)
