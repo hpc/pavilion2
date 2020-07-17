@@ -64,6 +64,10 @@ class GraphCommand(commands.Command):
         parser.add_argument(
             '--y_label', action='store', default="",
             help='Specify the y axis label.'
+        ),
+        parser.add_argument(
+            '--title', action='store', default="",
+            help='Specify the title of the graph.'
         )
 
     def run(self, pav_cfg, args):
@@ -103,13 +107,16 @@ class GraphCommand(commands.Command):
             output.fprint("Evaluations resulted in error: \n{}".format(err))
             return errno.EINVAL
 
+        ax = plt.gca()
         for test_id, results in test_results.items():
+            color = next(ax._get_lines.prop_cycler)['color']
             for x, y_list in results.items():
                 for y in y_list:
-                    plt.plot(x, y, marker='o')
+                    plt.plot(x, y, marker='o', color=color)
 
         plt.ylabel(args.y_label)
         plt.xlabel(args.x_label)
+        plt.title(args.title)
         plt.legend()
         plt.show()
 
