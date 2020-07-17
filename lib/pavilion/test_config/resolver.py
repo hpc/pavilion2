@@ -690,14 +690,11 @@ class TestConfigResolver:
         # Add this so we can cleanly depend on it.
         suite_tests['__base__'] = base_config
 
-
-        orig_suite_tests = copy.deepcopy(suite_tests)
         # Resolve all the dependencies
         while ready_to_resolve:
             # Grab a test whose parent's are resolved and the parent test.
             test_cfg_name = ready_to_resolve.pop(0)
             test_cfg = suite_tests[test_cfg_name]
-            orig_test_cfg = orig_suite_tests[test_cfg_name]
             parent = suite_tests[test_cfg['inherits_from']]
 
             # Merge the parent and test.
