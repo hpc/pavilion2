@@ -78,7 +78,7 @@ the end of the expression after a colon:
             # The id will be the current time zero-padded to 10 digits.
             id: "{{pav.timestamp:010d}}"
 
-Formatting behaves exactly like `Python format specs`_, because that exactly
+Formatting behaves exactly like `Python format specs`_, because that's exactly
 what they are.
 
 .. _Python format specs: https://docs.python.org/3.4/library/string.html#formatspec
@@ -163,7 +163,7 @@ be repeated for every combination of the variable values.
           test_users: [bob, jane]
 
         run:
-          cmds: 'srun ./super_magic [-w {{projects}}/{{test_users}} ]'
+          cmds: 'srun ./super_magic [~-w {{projects}}/{{test_users}} ~]'
 
 This would result in the command:
 
@@ -188,6 +188,8 @@ access a specific value from a variable that is being iterated over.
 
         cmds:
             # This is ok
-            - 'srun ./super_magic [-w {{projects}}/{{test_users.0}} ]'
-            # This is NOT ok.
-            - 'echo "[~{{test_users}} {{test_users.0}} ~]"
+            - 'srun ./super_magic [~-w {{projects}}/{{test_users.0}} ~]'
+            # srun ./super_magic -w origami/bob -w fusion/bob
+
+            # This is NOT ok, and will cause an error.
+            - 'echo "[~{{test_users}} {{test_users.1}} ~]"

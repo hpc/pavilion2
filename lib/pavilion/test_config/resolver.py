@@ -11,12 +11,16 @@ import copy
 import io
 import logging
 import os
+import re
 from collections import defaultdict
+from typing import List, IO, Tuple
 
 import yc_yaml
+from pavilion import output
 from pavilion import pavilion_variables
 from pavilion import schedulers
 from pavilion import system_variables
+from pavilion.pavilion_variables import PavVars
 from pavilion.test_config import parsers
 from pavilion.test_config import variables
 from pavilion.test_config.file_format import (TestConfigError, TEST_NAME_RE,
@@ -30,6 +34,8 @@ CONF_MODE = 'modes'
 CONF_TEST = 'tests'
 
 LOGGER = logging.getLogger('pav.' + __name__)
+
+TEST_VERS_RE = re.compile(r'^\d+(\.\d+){0,2}$')
 
 
 class TestConfigResolver:
@@ -185,40 +191,54 @@ class TestConfigResolver:
                         suites[suite_name]['err'] = err
                         continue
 
+                    def default(val, dval):
+                        """Return the dval if val is None."""
+
+                        return dval if val is None else val
+
                     for test_name, conf in suite_cfgs.items():
                         suites[suite_name]['tests'][test_name] = {
                             'conf': conf,
-                            'summary': conf['summary'],
-                            'doc': conf['doc'],
+                            'maintainer': default(
+                                conf['maintainer']['name'], ''),
+                            'email': default(conf['maintainer']['email'], ''),
+                            'summary': default(conf.get('summary', ''), ''),
+                            'doc': default(conf.get('doc', ''), ''),
                         }
 
         return suites
 
-    def load(self, tests, host=None, modes=None, overrides=None):
+    def load(self, tests: List[str], host: str = None,
+             modes: List[str] = None, overrides: List[str] = None,
+             output_file: IO[str] = None) \
+            -> List[Tuple[dict, variables.VariableSetManager]]:
         """Load the given tests, updated with their host and mode files.
 
-        :param [str] tests: A list of test names to load.
-        :param str host: The host to load tests for. Defaults to the value
+        :param tests: A list of test names to load.
+        :param host: The host to load tests for. Defaults to the value
             of the 'sys_name' variable.
-        :param [str] modes: A list of modes to load.
-        :param {str,str} overrides: A dict of key:value pairs to apply as
-            overrides.
+        :param modes: A list of modes to load.
+        :param overrides: A dict of key:value pairs to apply as overrides.
+        :param output_file: Where to write status output.
+
         :returns: A list test_config dict and var_man tuples
-        :rtype: [(dict,VariableSetManager)]
+        :rtype: [(dict, VariableSetManager)]
         """
 
         if modes is None:
             modes = []
 
         if overrides is None:
-            overrides = {}
+            overrides = []
 
         if host is None:
             host = self.base_var_man['sys.sys_name']
 
         raw_tests = self.load_raw_configs(tests, host, modes)
 
-        raw_tests_by_sched = defaultdict(lambda: [])
+        progress = 0
+
+        resolved_tests = []
 
         # Apply config overrides.
         for test_cfg in raw_tests:
@@ -229,9 +249,14 @@ class TestConfigResolver:
                 msg = 'Error applying overrides to test {} from {}: {}' \
                     .format(test_cfg['name'], test_cfg['suite_path'], err)
                 self.logger.error(msg)
+                if output_file:
+                    output.clear_line(output_file)
                 raise TestConfigError(msg)
 
             base_var_man = self.build_variable_manager(test_cfg)
+
+            # A list of tuples of test configs and their permuted var_man
+            permuted_tests = []  # type: (dict, variables.VariableSetManager)
 
             # Resolve all configuration permutations.
             try:
@@ -241,38 +266,40 @@ class TestConfigResolver:
                 )
                 for p_var_man in permutes:
                     # Get the scheduler from the config.
-                    sched = p_cfg['scheduler']
-                    sched = self.resolve_section_values(
-                        component=sched,
-                        var_man=p_var_man,
-                    )
-                    raw_tests_by_sched[sched].append((p_cfg, p_var_man))
+                    permuted_tests.append((p_cfg, p_var_man))
+
             except TestConfigError as err:
                 msg = 'Error resolving permutations for test {} from {}: {}' \
                     .format(test_cfg['name'], test_cfg['suite_path'], err)
                 self.logger.error(msg)
+                if output_file:
+                    output.clear_line(output_file)
                 raise TestConfigError(msg)
 
-        resolved_tests = []
-
-        # Get the schedulers for the tests, and the scheduler variables.
-        # The scheduler variables are based on all of the
-        for sched_name in raw_tests_by_sched.keys():
             # Set the scheduler variables for each test.
-            for test_cfg, test_var_man in raw_tests_by_sched[sched_name]:
+            for ptest_cfg, pvar_man in permuted_tests:
                 # Resolve all variables for the test (that aren't deferred).
                 try:
-                    resolved_config = self.resolve_config(
-                        test_cfg,
-                        test_var_man)
+                    resolved_config = self.resolve_config(ptest_cfg, pvar_man)
                 except TestConfigError as err:
                     msg = ('In test {} from {}:\n{}'
                            .format(test_cfg['name'], test_cfg['suite_path'],
                                    err.args[0]))
                     self.logger.error(msg)
+                    if output_file:
+                        output.clear_line(output_file)
+
                     raise TestConfigError(msg)
 
-                resolved_tests.append((resolved_config, test_var_man))
+                resolved_tests.append((resolved_config, pvar_man))
+
+            if output_file is not None:
+                progress += 1.0/len(raw_tests)
+                output.fprint("Resolving Test Configs: {:.0%}".format(progress),
+                              file=output_file, end='\r')
+
+        if output_file:
+            output.fprint('', file=output_file)
 
         return resolved_tests
 
@@ -340,6 +367,12 @@ class TestConfigResolver:
                 test_suite_path = self._find_config(CONF_TEST, test_suite)
 
                 if test_suite_path is None:
+                    if test_suite == 'log':
+                        raise TestConfigError(
+                            "Could not find test suite 'log'. If you were "
+                            "trying to get the run log, use the 'pav log run "
+                            "<testid>' command.")
+
                     cdirs = [str(cdir) for cdir in self.pav_cfg.config_dirs]
                     raise TestConfigError(
                         "Could not find test suite {}. Looked in these "
@@ -439,6 +472,61 @@ class TestConfigResolver:
                 test_cfg['result_parse']['constant']['key'] = new_const
 
         return picked_tests
+
+    def verify_version_range(comp_versions):
+
+        if comp_versions.count('-') > 1:
+            raise TestConfigError(
+                "Invalid compatible_pav_versions value ('{}'). Not a valid "
+                "range.".format(comp_versions))
+
+        min_str = comp_versions.split('-')[0]
+        max_str = comp_versions.split('-')[-1]
+
+        min_version = TestConfigResolver.verify_version(min_str, comp_versions)
+        max_version = TestConfigResolver.verify_version(max_str, comp_versions)
+
+        return min_version, max_version
+
+    def verify_version(version_str, comp_versions):
+        """Ensures version was provided in the correct format, and returns the
+        version as a list of digits."""
+
+        if TEST_VERS_RE.match(version_str) is not None:
+            version = version_str.split(".")
+            return [int(i) for i in version]
+        else:
+            raise TestConfigError(
+                "Invalid compatible_pav_versions value '{}' in '{}'. "
+                "Compatible versions must be of form X, X.X, or X.X.X ."
+                .format(version_str, comp_versions))
+
+    def check_version_compatibility(test_cfg):
+        """Returns a bool on if the test is compatible with the current version
+        of pavilion."""
+
+        version = PavVars()['version']
+        version = [int(i) for i in version.split(".")]
+        comp_versions = test_cfg.get('compatible_pav_versions')
+
+        # If no version is provided we assume compatibility
+        if not comp_versions:
+            return True
+
+        min_version, max_version = TestConfigResolver.verify_version_range(comp_versions)
+
+        # Trim pavilion version to the degree dictated by min and max version.
+        # This only matters if they are equal, and only occurs when a specific 
+        # version is provided.  
+        if min_version == max_version and len(min_version) < len(version):
+            offset = len(version) - len(min_version)
+            version = version[:-offset]
+        if min_version <= version <= max_version:
+            return True
+        else:
+            raise TestConfigError(
+                "Incompatible with pavilion version '{}', compatible versions "
+                "'{}'.".format(PavVars()['version'], comp_versions))
 
     def apply_host(self, test_cfg, host):
         """Apply the host configuration to the given config."""
@@ -592,7 +680,7 @@ class TestConfigResolver:
                         .normalize(test_cfg)
                 except (TypeError, KeyError, ValueError) as err:
                     raise TestConfigError(
-                        "Test {} in suite {} has an error: {}"
+                        "Test {} in suite {} has an error:\n{}"
                         .format(test_cfg_name, suite_path, err))
         except AttributeError:
             raise TestConfigError(
@@ -684,6 +772,12 @@ class TestConfigResolver:
                     "Loaded test '{}' in suite '{}' raised a type error, "
                     "but that should never happen. {}"
                     .format(test_name, suite_path, err))
+            try:
+                TestConfigResolver.check_version_compatibility(test_config)
+            except TestConfigError as err:
+                raise TestConfigError(
+                   "Test '{}' in suite '{}' has incompatibility issues:\n{}"
+                   .format(test_name, suite_path, err))
 
         return suite_tests
 
@@ -732,7 +826,7 @@ class TestConfigResolver:
             for per_var in permute_on:
                 var_set, var, index, subvar = base_var_man.resolve_key(per_var)
                 if isinstance(var_dict[var_set][var][0], dict):
-                    subtitle.append(var + '?')
+                    subtitle.append('_' + var + '_')
                 else:
                     subtitle.append('{{' + per_var + '}}')
 
@@ -1057,9 +1151,9 @@ class TestConfigResolver:
                         )
                     except parsers.StringParserError as err:
                         raise TestConfigError(
-                            "Error resolving value '{}' for key '{}':\n"
+                            "Error resolving value '{}' in config at '{}':\n"
                             "{}\n{}"
-                            .format(component, '.'.join(key_parts),
+                            .format(component, '.'.join(map(str, key_parts)),
                                     err.message, err.context))
                     return resolved
 
@@ -1090,9 +1184,10 @@ class TestConfigResolver:
                             .format(component, '.'.join(map(str, key_parts))))
                 except parsers.StringParserError as err:
                     raise TestConfigError(
-                        "Error resolving value '{}' for key '{}':\n"
+                        "Error resolving value '{}' in config at '{}':\n"
                         "{}\n{}"
-                        .format(component, [str(part) for part in key_parts],
+                        .format(component,
+                                '.'.join([str(part) for part in key_parts]),
                                 err.message, err.context))
                 else:
                     return resolved

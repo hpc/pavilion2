@@ -9,6 +9,8 @@ give you a better idea of what it's capable of.
 Mode Configs
 ------------
 
+*Full Docs:* :ref:`tests.format.mode`
+
 In addition to host config files, you can provide mode config files that
 you can apply to any test when you run it. They have the same format as
 the host configs, but multiple can be provided per test.
@@ -22,9 +24,9 @@ set of slurm vars:
         account: tester
         partition: post-dst
 
-::
+.. code-block:: bash
 
-    pav run -m tester -f post_dst_tests.txt
+    $ pav run -m tester -f post_dst_tests.txt
 
 Advanced Test Configs
 ---------------------
@@ -35,6 +37,8 @@ variables.
 
 Variables
 ~~~~~~~~~
+
+*Full Docs:* :ref:`tests.variables`
 
 Test configs can contain *expressions* within their config values that
 reference and manipulate variables.
@@ -63,8 +67,13 @@ contain numbers, dashes and underscores.
           - "sleep {{var.sleep_time}}"
           - 'echo "Slept {{sleep_time}} seconds on node {{sched.node_num}}."'
 
-Variable References
-^^^^^^^^^^^^^^^^^^^
+Expressions
+^^^^^^^^^^^
+
+*Full Docs:* :ref:`tests.variables`
+
+Expressions allow you to access and manipulate variable values and insert them
+into Pavilion configuration strings.
 
 -  Use double curly brackets ``{{var.myvar}}``.
 -  Variable category is optional. ``{{myvar}}`` is fine.
@@ -73,8 +82,8 @@ Variable References
    you need to make the reference explicit.
 -  You'll also see ``{{myvar.2}}`` list references, ``{{myvar.foo}}``
    attribute references, and the combination of the two
-   ``{{myvar.1.bar}}``. See the full
-   `variable documentation <tests/variables.html>`__ for more info.
+   ``{{myvar.1.bar}}``.
+-  These can also contain math and function calls: ``{{ foo + 1 / bar }}``
 
 Listing Variables
 ^^^^^^^^^^^^^^^^^
@@ -115,19 +124,14 @@ in those sections. Namely, this includes the ``build`` and various
 scheduler config sections, as well as root level config values. Pavilion
 will tell you when you make this mistake.
 
-More Info
-^^^^^^^^^
-
-Variables are a powerful feature of pavilion, and the above just
-scratches the surface. See the `variables <tests/variables.html>`__
-section of the docs for detailed information.
-
 Expressions
 ~~~~~~~~~~~
 
+*Full Docs:* :ref:`tests.values.expressions`
+
 The double curly brace sections that can contain variables are really fully
-capable *expressions*, and can contain math operations and function calls. The
-syntax is Python-like and most operations work identically.
+capable :ref:`tests.values.expressions`, and can contain math operations and
+function calls.
 Functions are provided via plugins.
 
 .. code-block:: yaml
@@ -140,44 +144,33 @@ Functions are provided via plugins.
         cmds:
           - "sleep {{ max([var.sleep_time/4, 1, sleep_time + 1]) }}"
 
-See
 
 Inheritance
 ~~~~~~~~~~~
+
+*Full Docs:* :ref:`tests.format.inheritance`
 
 Tests within a single test suite file can inherit from each other.
 
 .. code-block:: yaml
 
-    super_magic:
-        summary: Run all standard super_magic tests.
-        scheduler: slurm
-        build:
-          modules:
-            - gcc
-            - openmpi
-          cmds:
-            - mpicc -o super_magic super_magic.c
+    test_a:
+        variables:
+            key1: "apple"
+            key2: "pear"
 
         run:
-          modules:
-            - gcc
-            - openmpi
-          cmds:
-            - echo "Running supermagic"
-            - srun ./supermagic -a
+            cmds: 'echo "{{key1}} {{key2}}"'
 
-        results:
-          ... # Various result parser configurations.
+    test_b:
+        inherits_from: test_a
 
-    # This gets all the attributes of supermagic, but overwrites the summary
-    # and the test commands.
-    super_magic-fs:
-        summary: Run all standard super_magic tests, and the write test too.
-        inherits_from: super_magic
-        run:
-          cmds:
-            - srun ./supermagic -a -w /mnt/projects/myproject/
+        variables:
+            key2: "banana"
+
+The first test, 'test_a', would echo "apple pear", while the second would
+echo "apple banana".
+
 
 Rules of Inheritance
 ^^^^^^^^^^^^^^^^^^^^
@@ -232,6 +225,8 @@ for more info.
 Skip Conditions
 ~~~~~~~~~~~~~~~
 
+*Full Docs:* :ref:`tests.skip_conditions`
+
 The ``only_if`` and ``not_if`` sections of the test config allow users
 to specify the conditions under which a test should run. Tests are 'SKIPPED'
 unless each of their ``only_if`` conditions (and none if their ``not_if``
@@ -252,10 +247,6 @@ value of the Pavilion variable might match to.
             cmds:
                 - 'echo "Helloworld"'
 
-See
-`Skip Conditions <tests/conditionals.html>`__
-for additional information.
-
 Environment
 -----------
 
@@ -265,8 +256,14 @@ environment (or lmod) modules.
 Environment Variables
 ~~~~~~~~~~~~~~~~~~~~~
 
-You can set/unset environment variables in your test configs, and use
-them in your scripts.
+*Full Docs:* :ref:`tests.env.variables`
+
+You can set environment variables in your test scripts using the
+'env' section under both 'run' and 'build'. This will cause the variables to
+be exported within the generated run or build script, where they can be used
+by commands run as part of that script. Note that environment variables are
+**only** usable in the *cmds* and *env* sections, as these are written
+directly into the build and run scripts.
 
 .. code-block:: yaml
 
@@ -277,11 +274,27 @@ them in your scripts.
             PYTHONPATH:
             # Use a different python home
             PYTHONHOME: /home/mario/python_root/
+            # Specify a python version
+            PY_VERS: 3
           cmds:
-            - 'python${PY_VERS} -c "print(\"hello world\")"'
+            - python${PY_VERS} -c "print('hello world')"
+
+This will result in a run script that looks like:
+
+.. code-block:: bash
+
+    #!/bin/bash
+
+    unset PYTHONPATH
+    export PYTHONHOME=/home/mario/python_root
+    export PY_VERS=3
+
+    python${PY_VERS} -c "print ('hello world')"
 
 Modules
 ~~~~~~~
+
+*Full Docs:* :ref:`tests.env.modules`
 
 You can have pavilion load module files automatically for each test or
 build. This assumes the modules (and module build combinations) are
@@ -329,8 +342,8 @@ Module Wrappers
 
 When tell pavilion to load/remove/swap modules, the code to do this is
 added to the test or build script automatically using
-`module wrapper <plugins/module_wrappers.html>`__
-plugins. The default module wrapper performs the module command, and
+:ref:`plugins.module_wrappers`.
+The default module wrapper performs the module command, and
 then verifies that the module is actually loaded.
 
 More complicated setups are possible by adding additional plugins
@@ -403,7 +416,7 @@ scheduler, but don't configure one. It's time to rectify that.
             # that conforms to the rest of the slurm settings.
             - {sched.test_cmd} ./supermagic -a
 
-`Schedulers are plugins <plugins/schedulers.html>`__ in Pavilion, and are
+Schedulers are plugins in Pavilion, and are
 fairly loosely defined. They must at least do the following:
 
 * Provide a scheduler variable set for use in configs (the set may be empty).

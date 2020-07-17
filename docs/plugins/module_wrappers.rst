@@ -1,3 +1,5 @@
+.. _plugins.module_wrappers:
+
 Module Wrapper Plugins
 ======================
 
