@@ -655,13 +655,12 @@ class TestConfigResolver:
                         "{} in {} is empty. Nothing will execute."
                         .format(test_cfg_name, suite_path))
                 if test_cfg.get('inherits_from') is None:
-                    # Ensures we get no pre_cmds or post_cmds in the run or 
-                    # build section of a test config unless that test inherits
-                    # from another test.
+                    # Only allow for extending commands keys if the test
+                    # inherits from another test.
                     error = ("Test {} has {} element in the {} section of "
                              "config, but no inheritance.")
                     for section in ['build', 'run']:
-                        for cmd in ['pre_cmds', 'post_cmds']:
+                        for cmd in ['cmds_extend_before', 'cmds_extend_after']:
                             try:
                                 if test_cfg[section][cmd]:
                                     raise TestConfigError(error.format(
@@ -707,11 +706,11 @@ class TestConfigResolver:
                     if not config:
                         continue
                     new_cmd_list = []
-                    if config.get('pre_cmds'):
-                        new_cmd_list += config.get('pre_cmds')
+                    if config.get('cmds_extend_before'):
+                        new_cmd_list += config.get('cmds_extend_before')
                     new_cmd_list += suite_tests[test_cfg_name][section]['cmds']
-                    if config.get('post_cmds'):
-                        new_cmd_list += config.get('post_cmds')
+                    if config.get('cmds_extend_after'):
+                        new_cmd_list += config.get('cmds_extend_after')
                     suite_tests[test_cfg_name][section]['cmds'] = new_cmd_list
 
             # Now all tests that depend on this one are ready to resolve.

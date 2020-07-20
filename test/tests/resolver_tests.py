@@ -480,14 +480,10 @@ class ResolverTests(PavTestCase):
         correct = {
             'test1': {
                 'build': {
-                    'pre_cmds': [],
                     'cmds': ['echo "and I say hello"'],
-                    'post_cmds': []
                 },
                 'run': {
-                    'pre_cmds': [],
                     'cmds': ['echo "Hello"'],
-                    'post_cmds': []
                 }
             },
             'test2': {

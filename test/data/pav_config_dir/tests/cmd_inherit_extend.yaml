@@ -9,15 +9,15 @@ test1:
 test2:
     inherits_from: test1
     build:
-        pre_cmds:
+        cmds_extend_before:
             - 'echo "You say goodbye"'
     run:
-        post_cmds: 
+        cmds_extend_after: 
             - 'echo ", hello"'
 
 test3:
     inherits_from: test2
     run:
-        post_cmds:
+        cmds_extend_after:
             - 'echo "I dont know why you say goodbye,"'
             - 'echo "I say hello"'
