@@ -104,94 +104,12 @@ class CleanCommand(commands.Command):
         # Clean Tests
         output.fprint("Removing Tests...", file=self.outfile,
                       color=output.GREEN)
-        for test_path in tests_dir.iterdir():
-            test = test_path.name
-            try:
-                int(test)
-            except ValueError:
-                # Skip files that aren't numeric
-                continue
-
-            # Skip non-directories.
-            if not test_path.is_dir():
-                continue
-
-            try:
-                test_time = datetime.fromtimestamp(test_path.lstat().st_mtime)
-            except FileNotFoundError:
-                # The file no longer exists. This is a race condition.
-                continue
-
-            build_origin_symlink = test_path/'build_origin'
-            # 'None' will probably end up in used_builds, but that's ok.
-            build_origin = None
-            if (build_origin_symlink.exists() and
-                    build_origin_symlink.is_symlink() and
-                    build_origin_symlink.resolve().exists()):
-                build_origin = build_origin_symlink.resolve()
-
-            if test_time > cutoff_date:
-                used_builds.add(build_origin)
-                continue
-
-            state = None
-            try:
-                test_obj = TestRun.load(pav_cfg, int(test))
-                state = test_obj.status.current().state
-            except (TestRunError, TestRunNotFoundError):
-                # It's ok if this happens, we'll still remove by date.
-                # It is possible the test isn't completely written (a race
-                # condition).
-                pass
-            except PermissionError as err:
-                err = str(err).split("'")
-                output.fprint("Permission Error: {} cannot be removed"
-                              .format(err[1]), file=self.errfile, color=31)
-                continue
-
-            if state in (STATES.RUNNING, STATES.SCHEDULED):
-                used_builds.add(build_origin)
-                continue
-
-            try:
-                shutil.rmtree(test_path.as_posix())
-                if args.verbose:
-                    output.fprint("Removed test {}".format(test_path),
-                                  file=self.outfile)
-                removed_tests += 1
-            except OSError as err:
-                output.fprint(
-                    "Could not remove test {}: {}"
-                    .format(test_path, err),
-                    color=output.YELLOW, file=self.errfile)
-
-        # Start numbering from the beginning again
-        dir_db.reset_pkey(tests_dir)
+        dir_db.delete(tests_dir, pav_cfg, cutoff_date)
 
         # Clean Series
         output.fprint("Removing Series...", file=self.outfile,
                       color=output.GREEN)
-        for series in dir_db.select(series_dir):
-            for test in series.iterdir():
-                if (test.is_symlink() and
-                        test.exists() and
-                        test.resolve().exists()):
-                    # This test is still present, so keep the series.
-                    break
-            else:
-                # This series has no remaining tests, we can delete it.
-                try:
-                    shutil.rmtree(series.as_posix())
-                    removed_series += 1
-                except OSError as err:
-                    output.fprint(
-                        "Could not remove series {}: {}"
-                        .format(series, err),
-                        color=output.YELLOW, file=self.errfile
-                    )
-
-        # Start numbering from the beginning again
-        dir_db.reset_pkey(series_dir)
+        dir_db.delete(series_dir)
 
         # Clean Builds
         output.fprint("Removing Builds...", file=self.outfile,
@@ -216,3 +134,4 @@ class CleanCommand(commands.Command):
                               builds=removed_builds),
                       color=output.GREEN, file=self.outfile)
         return 0
+    """

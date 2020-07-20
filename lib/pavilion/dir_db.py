@@ -2,10 +2,16 @@
 essentially serves as a filesystem primary key."""
 
 import os
+import shutil
+from datetime import datetime
 from typing import Callable, List
 from pathlib import Path
 
 from pavilion import lockfile
+from pavilion import test_run
+from pavilion import output
+from pavilion.status_file import STATES
+
 
 ID_DIGITS = 7
 ID_FMT = '{id:0{digits}d}'
@@ -113,3 +119,63 @@ def select(id_dir: Path,
                 passed.append(path)
 
     return passed
+
+def filter_series(path) -> bool:
+
+    if not path.is_dir():
+        return False
+
+    for test_path in path.iterdir():
+        print(test_path)
+        if (test_path.is_symlink() and
+            test_path.exists() and
+            test_path.resolve().exists()):
+            return False
+    return True
+
+def filter_test(pav_cfg, path, cutoff_date) -> bool:
+
+    test_time = datetime.fromtimestamp(path.lstat().st_mtime)
+    if test_time > cutoff_date:
+        return False
+
+    # Check if RUN_COMPLETE file exists.
+    complete_path = path/'RUN_COMPLETE'
+    if complete_path.exists():
+        return True
+
+    # Load Test object, to determine test status
+    try:
+        test_obj = test_run.TestRun.load(pav_cfg, int(path.name))
+    except PermissionError as err:
+        err = str(err).split("'")
+        output.fprint("Permission Error: {} cannot be removed".format(err[1]),
+                      file=self.errfile, color=output.RED)
+        return False
+
+    # Get the test's state, if it is RUNNING or SCHEDULED, we don't want to
+    # remove it. Everything else can be removed.
+    state = test_obj.status.current().state
+    if state in (STATES.RUNNING, STATES.SCHEDULED):
+        return False
+
+    return True
+
+def delete(id_dir, pav_cfg=None, cutoff_date=None):
+    """Deletes a directory and it's entire contents."""
+
+    for path in select(id_dir):
+        # Removes test_runs directory.
+        if id_dir.name is 'test_runs':
+            if filter_test(pav_cfg, path, cutoff_date):
+                shutil.rmtree(path)
+        # Removes series directory.
+        elif id_dir.name is 'series':
+            if filter_series(path):
+                shutil.rmtree(path)
+        # Not an expected directory.
+        else:
+            pass
+
+    reset_pkey(id_dir)
+
