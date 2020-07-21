@@ -1044,8 +1044,14 @@ def delete(tests_dir, builds_dir, verbose=False):
     with lockfile.LockFile(lock_path):
         for path in builds_dir.iterdir():
             if filter_builds(tests_dir, path):
-                shutil.rmtree(path)
-                os.remove(path.with_suffix('.finished'))
+                try:
+                    shutil.rmtree(path)
+                    os.remove(path.with_suffix('.finished'))
+                except OSError as err:
+                    output.fprint("Could not remove build {}: {}"
+                                  .format(path, err), color=output.YELLOW,
+                                  file=self.errfile)
+                    continue
                 count += 1
                 if verbose:
                     output.fprint('Removed build {}.'.format(path.name))

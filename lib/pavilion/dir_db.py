@@ -133,14 +133,11 @@ def filter_series(path) -> bool:
 
 def filter_test(pav_cfg, path, cutoff_date) -> bool:
 
-    build_origin_symlink = path/'build_origin'
-    build_origin = None
-    if (build_origin_symlink.exists() and
-        build_origin_symlink.is_symlink() and
-        build_origin_symlink.resolve().exists()):
-        build_origin = build_origin_symlink.resolve()
+    try:
+        test_time = datetime.fromtimestamp(path.lstat().st_mtime)
+    except FileNotFoundError:
+        return False
 
-    test_time = datetime.fromtimestamp(path.lstat().st_mtime)
     if test_time > cutoff_date:
         return False
 
@@ -157,6 +154,8 @@ def filter_test(pav_cfg, path, cutoff_date) -> bool:
         output.fprint("Permission Error: {} cannot be removed".format(err[1]),
                       file=self.errfile, color=output.RED)
         return False
+    except (test_run.TestRunError, test_run.TestRunNotFoundError):
+        pass
 
     # Get the test's state, if it is RUNNING or SCHEDULED, we don't want to
     # remove it. Everything else can be removed.
@@ -178,17 +177,31 @@ def delete(id_dir, pav_cfg=None, cutoff_date=None, verbose=False):
             # Removes test_runs directory.
             if id_dir.name is 'test_runs':
                 if filter_test(pav_cfg, path, cutoff_date):
-                    shutil.rmtree(path)
+                    try:
+                        shutil.rmtree(path)
+                    except OSError as err:
+                        output.fprint("Could not remove test {}: "
+                                      "{}".format(path, err),
+                                      color=output.YELLOW, file=self.errfile)
+                        continue
                     count += 1
                     if verbose:
                         output.fprint("Removed test {}.".format(path.name))
+
             # Removes series directory.
             elif id_dir.name is 'series':
                 if filter_series(path):
-                    shutil.rmtree(path)
+                    try:
+                        shutil.rmtree(path)
+                    except OSError as err:
+                        output.fprint("Could not remove series {}: "
+                                      "{}".format(path, err),
+                                      color=output.YELLOW, file=self.errfile)
+                        continue
                     count += 1
                     if verbose:
                         output.fprint("Removed series {}.".format(path.name))
+
             # Not an expected directory
             else:
                 pass
