@@ -1048,7 +1048,7 @@ def delete(tests_dir, builds_dir, verbose=False):
         for path in builds_dir.iterdir():
             if filter_builds(tests_dir, path):
                 try:
-                    shutil.rmtree(path)
+                    shutil.rmtree(path.as_posix())
                     path.with_suffix('.finished').unlink()
                 except OSError as err:
                     output.fprint("Could not remove build {}: {}"
