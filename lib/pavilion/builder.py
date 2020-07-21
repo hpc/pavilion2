@@ -1052,8 +1052,7 @@ def delete(tests_dir, builds_dir, verbose=False):
                     path.with_suffix('.finished').unlink()
                 except OSError as err:
                     output.fprint("Could not remove build {}: {}"
-                                  .format(path, err), color=output.YELLOW,
-                                  file=self.errfile)
+                                  .format(path, err), color=output.YELLOW)
                     continue
                 count += 1
                 if verbose:

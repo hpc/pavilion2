@@ -152,7 +152,7 @@ def filter_test(pav_cfg, path, cutoff_date) -> bool:
     except PermissionError as err:
         err = str(err).split("'")
         output.fprint("Permission Error: {} cannot be removed".format(err[1]),
-                      file=self.errfile, color=output.RED)
+                      color=output.RED)
         return False
     except (test_run.TestRunError, test_run.TestRunNotFoundError):
         pass
@@ -182,7 +182,7 @@ def delete(id_dir, pav_cfg=None, cutoff_date=None, verbose=False):
                     except OSError as err:
                         output.fprint("Could not remove test {}: "
                                       "{}".format(path, err),
-                                      color=output.YELLOW, file=self.errfile)
+                                      color=output.YELLOW)
                         continue
                     count += 1
                     if verbose:
@@ -196,7 +196,7 @@ def delete(id_dir, pav_cfg=None, cutoff_date=None, verbose=False):
                     except OSError as err:
                         output.fprint("Could not remove series {}: "
                                       "{}".format(path, err),
-                                      color=output.YELLOW, file=self.errfile)
+                                      color=output.YELLOW)
                         continue
                     count += 1
                     if verbose:
