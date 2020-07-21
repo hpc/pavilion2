@@ -1030,6 +1030,9 @@ def filter_builds(tests_dir, build_path):
             build_origin_symlink.resolve().exists()):
             build_origin = build_origin_symlink.resolve()
 
+        if build_origin is None:
+            continue
+
         if build_path.name == build_origin.name:
             return False
 
