@@ -20,6 +20,7 @@ from typing import Union
 from pavilion import dir_db
 from pavilion import extract
 from pavilion import lockfile
+from pavilion import output
 from pavilion import utils
 from pavilion import wget
 from pavilion.permissions import PermissionsManager
@@ -1034,9 +1035,19 @@ def filter_builds(tests_dir, build_path):
 
     return True
 
-def delete(tests_dir, builds_dir):
+def delete(tests_dir, builds_dir, verbose=False):
 
-    for path in builds_dir.iterdir():
-        if filter_builds(tests_dir, path):
-            shutil.rmtree(path)
-            os.remove(path.with_suffix('.finished'))
+    count = 0
+
+    lock_path = builds_dir.with_suffix('.lock;')
+
+    with lockfile.LockFile(lock_path):
+        for path in builds_dir.iterdir():
+            if filter_builds(tests_dir, path):
+                shutil.rmtree(path)
+                os.remove(path.with_suffix('.finished'))
+                count += 1
+                if verbose:
+                    output.fprint('Removed build {}.'.format(path.name))
+
+    return count

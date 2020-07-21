@@ -27,6 +27,11 @@ class CleanCommand(commands.Command):
         )
 
     def _setup_arguments(self, parser):
+        parser.add_argument(
+            '-v', '--verbose', action='store_true', default=False,
+            help='Verbose output.'
+        )
+
         group = parser.add_mutually_exclusive_group()
         group.add_argument(
             '--older-than', action='store',
@@ -50,32 +55,37 @@ class CleanCommand(commands.Command):
             output.fprint(err)
             return errno.EINVAL
 
-        removed_tests = 0
-        removed_series = 0
-        removed_builds = 0
+        if args.verbose:
+            end = '\n'
+        else:
+            end = ''
 
         # Clean Tests
+        removed_tests = 0
         tests_dir = pav_cfg.working_dir / 'test_runs'     # type: Path
-        output.fprint("Removing Tests...", file=self.outfile,
-                      color=output.GREEN)
-        dir_db.delete(tests_dir, pav_cfg, cutoff_date)
+        output.fprint("Removing Tests...", file=self.outfile, end=end)
+        removed_tests = dir_db.delete(tests_dir, pav_cfg, cutoff_date,
+                                      verbose=args.verbose)
+        output.fprint("Removed {} test(s).".format(removed_tests),
+                      file=self.outfile, color=output.GREEN)
 
         # Clean Series
+        removed_series = 0
         series_dir = pav_cfg.working_dir / 'series'       # type: Path
-        output.fprint("Removing Series...", file=self.outfile,
-                      color=output.GREEN)
-        dir_db.delete(series_dir)
+        output.fprint("Removing Series...", file=self.outfile, end=end)
+        removed_series = dir_db.delete(series_dir, verbose=args.verbose)
+        output.fprint("Removed {} series.".format(removed_series),
+                      file=self.outfile, color=output.GREEN)
 
         # Clean Builds
+        removed_builds = 0
         builds_dir = pav_cfg.working_dir / 'builds'        # type: Path
-        output.fprint("Removing Builds...", file=self.outfile,
-                      color=output.GREEN)
-        builder.delete(tests_dir, builds_dir)
+        output.fprint("Removing Builds...", file=self.outfile, end=end)
+        removed_builds = builder.delete(tests_dir, builds_dir,
+                                        verbose=args.verbose)
+        output.fprint("Removed {} build(s).".format(removed_builds),
+                      file=self.outfile, color=output.GREEN)
 
-
-        output.fprint("Removed {} tests, {} series, and {} builds."
-                      .format(removed_tests, removed_series, removed_builds),
-                      color=output.GREEN, file=self.outfile)
         return 0
 
     def validate_args(self, args):

@@ -166,21 +166,33 @@ def filter_test(pav_cfg, path, cutoff_date) -> bool:
 
     return True
 
-def delete(id_dir, pav_cfg=None, cutoff_date=None):
+def delete(id_dir, pav_cfg=None, cutoff_date=None, verbose=False):
     """Deletes a directory and it's entire contents."""
 
-    for path in select(id_dir):
-        # Removes test_runs directory.
-        if id_dir.name is 'test_runs':
-            if filter_test(pav_cfg, path, cutoff_date):
-                shutil.rmtree(path)
-        # Removes series directory.
-        elif id_dir.name is 'series':
-            if filter_series(path):
-                shutil.rmtree(path)
-        # Not an expected directory
-        else:
-            pass
+    count = 0
 
-    reset_pkey(id_dir)
+    lock_path = id_dir.with_suffix('.lock')
+
+    with lockfile.LockFile(lock_path):
+        for path in select(id_dir):
+            # Removes test_runs directory.
+            if id_dir.name is 'test_runs':
+                if filter_test(pav_cfg, path, cutoff_date):
+                    shutil.rmtree(path)
+                    count += 1
+                    if verbose:
+                        output.fprint("Removed test {}.".format(path.name))
+            # Removes series directory.
+            elif id_dir.name is 'series':
+                if filter_series(path):
+                    shutil.rmtree(path)
+                    count += 1
+                    if verbose:
+                        output.fprint("Removed series {}.".format(path.name))
+            # Not an expected directory
+            else:
+                pass
+
+        reset_pkey(id_dir)
+        return count
 
