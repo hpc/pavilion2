@@ -18,7 +18,6 @@ ID_FMT = '{id:0{digits}d}'
 
 PKEY_FN = 'next_id'
 
-
 def make_id_path(base_path, id_):
     """Create the full path to an id directory given its base path and
     the id.
@@ -126,7 +125,6 @@ def filter_series(path) -> bool:
         return False
 
     for test_path in path.iterdir():
-        print(test_path)
         if (test_path.is_symlink() and
             test_path.exists() and
             test_path.resolve().exists()):
@@ -134,6 +132,13 @@ def filter_series(path) -> bool:
     return True
 
 def filter_test(pav_cfg, path, cutoff_date) -> bool:
+
+    build_origin_symlink = path/'build_origin'
+    build_origin = None
+    if (build_origin_symlink.exists() and
+        build_origin_symlink.is_symlink() and
+        build_origin_symlink.resolve().exists()):
+        build_origin = build_origin_symlink.resolve()
 
     test_time = datetime.fromtimestamp(path.lstat().st_mtime)
     if test_time > cutoff_date:
@@ -173,7 +178,7 @@ def delete(id_dir, pav_cfg=None, cutoff_date=None):
         elif id_dir.name is 'series':
             if filter_series(path):
                 shutil.rmtree(path)
-        # Not an expected directory.
+        # Not an expected directory
         else:
             pass
 

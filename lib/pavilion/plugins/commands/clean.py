@@ -5,6 +5,7 @@ import shutil
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from pavilion import builder
 from pavilion import commands
 from pavilion import output
 from pavilion import dir_db
@@ -26,11 +27,6 @@ class CleanCommand(commands.Command):
         )
 
     def _setup_arguments(self, parser):
-        parser.add_argument(
-            '-v', '--verbose', action='store_true', default=False,
-            help='Verbose output.'
-        )
-
         group = parser.add_mutually_exclusive_group()
         group.add_argument(
             '--older-than', action='store',
@@ -45,6 +41,44 @@ class CleanCommand(commands.Command):
 
     def run(self, pav_cfg, args):
         """Run this command."""
+
+        try:
+            cutoff_date = self.validate_args(args)
+        except (commands.CommandError, ValueError) as err:
+            output.fprint("Command Argument Error:",
+                          color=output.RED, file=self.errfile)
+            output.fprint(err)
+            return errno.EINVAL
+
+        removed_tests = 0
+        removed_series = 0
+        removed_builds = 0
+
+        # Clean Tests
+        tests_dir = pav_cfg.working_dir / 'test_runs'     # type: Path
+        output.fprint("Removing Tests...", file=self.outfile,
+                      color=output.GREEN)
+        dir_db.delete(tests_dir, pav_cfg, cutoff_date)
+
+        # Clean Series
+        series_dir = pav_cfg.working_dir / 'series'       # type: Path
+        output.fprint("Removing Series...", file=self.outfile,
+                      color=output.GREEN)
+        dir_db.delete(series_dir)
+
+        # Clean Builds
+        builds_dir = pav_cfg.working_dir / 'builds'        # type: Path
+        output.fprint("Removing Builds...", file=self.outfile,
+                      color=output.GREEN)
+        builder.delete(tests_dir, builds_dir)
+
+
+        output.fprint("Removed {} tests, {} series, and {} builds."
+                      .format(removed_tests, removed_series, removed_builds),
+                      color=output.GREEN, file=self.outfile)
+        return 0
+
+    def validate_args(self, args):
 
         cutoff_date = datetime.today() - timedelta(days=30)
 
@@ -73,65 +107,20 @@ class CleanCommand(commands.Command):
                 elif args.older_than[1] in ['month', 'months']:
                     cutoff_date = datetime.today() - timedelta(
                         days=30*int(args.older_than[0]))
+
             elif len(args.older_than) == 3:
                 date = ' '.join(args.older_than)
                 try:
                     cutoff_date = datetime.strptime(date, '%b %d %Y')
-                except (TypeError, ValueError):
-                    output.fprint("{} is not a valid date."
-                                  .format(args.older_than),
-                                  file=self.errfile, color=output.RED)
-                    return errno.EINVAL
+                except ValueError as err:
+                    raise ValueError("{} is not a valid date: {}".format(date,
+                                                                        err))
             else:
-                output.fprint(
-                    "Invalid `--older-than` value.", file=self.errfile,
-                    color=output.RED
+                raise commands.CommandError(
+                    "Invalid `--older-than` value."
                 )
-                return errno.EINVAL
+
         elif args.all:
             cutoff_date = datetime.today()
 
-        tests_dir = pav_cfg.working_dir / 'test_runs'     # type: Path
-        series_dir = pav_cfg.working_dir / 'series'       # type: Path
-        build_dir = pav_cfg.working_dir / 'builds'        # type: Path
-
-        removed_tests = 0
-        removed_series = 0
-        removed_builds = 0
-
-        used_builds = set()
-
-        # Clean Tests
-        output.fprint("Removing Tests...", file=self.outfile,
-                      color=output.GREEN)
-        dir_db.delete(tests_dir, pav_cfg, cutoff_date)
-
-        # Clean Series
-        output.fprint("Removing Series...", file=self.outfile,
-                      color=output.GREEN)
-        dir_db.delete(series_dir)
-
-        # Clean Builds
-        output.fprint("Removing Builds...", file=self.outfile,
-                      color=output.GREEN)
-        for build in build_dir.iterdir():
-            if build in used_builds:
-                continue
-
-            try:
-                shutil.rmtree(build.as_posix())
-                if args.verbose:
-                    output.fprint("Removed build", build, file=self.outfile)
-            except OSError as err:
-                output.fprint(
-                    "Could not remove build {}: {}"
-                    .format(build, err),
-                    color=output.YELLOW, file=self.errfile)
-
-        output.fprint("Removed {tests} tests, {series} series, and {builds} "
-                      "builds."
-                      .format(tests=removed_tests, series=removed_series,
-                              builds=removed_builds),
-                      color=output.GREEN, file=self.outfile)
-        return 0
-    """
+        return cutoff_date

@@ -17,6 +17,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Union
 
+from pavilion import dir_db
 from pavilion import extract
 from pavilion import lockfile
 from pavilion import utils
@@ -1014,3 +1015,28 @@ class TestBuilder:
         compares = [getattr(self, key) == getattr(other, key)
                     for key in compare_keys]
         return all(compares)
+
+def filter_builds(tests_dir, build_path):
+
+    if not build_path.is_dir():
+        return False
+
+    for path in dir_db.select(tests_dir):
+        build_origin_symlink = path/'build_origin'
+        build_origin = None
+        if (build_origin_symlink.exists() and
+            build_origin_symlink.is_symlink() and
+            build_origin_symlink.resolve().exists()):
+            build_origin = build_origin_symlink.resolve()
+
+        if build_path.name == build_origin.name:
+            return False
+
+    return True
+
+def delete(tests_dir, builds_dir):
+
+    for path in builds_dir.iterdir():
+        if filter_builds(tests_dir, path):
+            shutil.rmtree(path)
+            os.remove(path.with_suffix('.finished'))
