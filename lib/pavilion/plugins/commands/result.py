@@ -53,14 +53,21 @@ class ResultsCommand(commands.Command):
             "-f", "--full", action="store_true", default=False,
             help="Show all result keys."
         )
-        parser.add_argument(
+        rerun_group = parser.add_mutually_exclusive_group()
+        rerun_group.add_argument(
             '-r', '--re-run', dest="re_run",
             action='store_true', default=False,
-            help="Re-run the results based on the latest version of the test"
+            help="Re-run the results based on the latest version of the test "
                  "configs, though only changes to the 'result' section are "
                  "applied. This will not alter anything in the test's run "
                  "directory; the new results will be displayed but not "
                  "otherwise saved or logged."
+        )
+        rerun_group.add_argument(
+            '-rs', '--re-run-save', dest="re_save",
+            action='store_true', default=False,
+            help="Does everything the re-run flag does, but alters the results"
+                 ".json file in the test's run directory."
         )
         parser.add_argument(
             '-l', '--show-log', action='store_true', default=False,
@@ -94,6 +101,13 @@ class ResultsCommand(commands.Command):
 
         if args.re_run:
             if not self.update_results(pav_cfg, tests, log_file):
+                return errno.EINVAL
+
+        if args.show_log and args.re_save:
+            log_file = io.StringIO()
+
+        if args.re_save:
+            if not self.update_results(pav_cfg, tests, log_file, save=True):
                 return errno.EINVAL
 
         if args.json or args.full:
@@ -191,7 +205,7 @@ class ResultsCommand(commands.Command):
         return map(int, test_list)
 
     def update_results(self, pav_cfg: dict, tests: List[TestRun],
-                       log_file: IO[str]) -> bool:
+                       log_file: IO[str], save=False) -> bool:
         """Update each of the given tests with the result section from the
         current version of their configs. Then rerun result processing and
         update the results in the test object (but change nothing on disk).
@@ -278,7 +292,16 @@ class ResultsCommand(commands.Command):
                 return False
 
             # The new results will be attached to the test (but not saved).
-            test.gather_results(test.results.get('return_value', 1),
-                                regather=True, log_file=log_file)
+            results = test.gather_results(test.results.get('return_value', 1),
+                                          regather=True, log_file=log_file)
+
+            if save:
+                results_log = test.path/'results.log'
+                test.save_results(results)
+                with results_log.open('a') as log:
+                    log.write("Results were re-ran and saved on {}\n"
+                              .format(datetime.datetime.today()
+                                      .strftime('%m-%d-%Y')))
+                    log.write("See results.json for updated results.\n")
 
         return True
