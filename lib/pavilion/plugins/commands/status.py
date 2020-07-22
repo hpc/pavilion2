@@ -5,6 +5,7 @@ import errno
 import os
 import time
 from datetime import datetime
+from typing import List, Union
 
 from pavilion import commands
 from pavilion import output
@@ -23,29 +24,28 @@ def get_last_ctime(path):
     return ctime
 
 
-def status_from_test_obj(pav_cfg, test_obj):
+def status_from_test_obj(pav_cfg: dict,
+                         *test_objs: TestRun):
     """Takes a test object or list of test objects and creates the dictionary
     expected by the print_status function.
 
-:param dict pav_cfg: Pavilion base configuration.
-:param Union[TestRun,[TestRun] test_obj: Pavilion test object.
+:param pav_cfg: Pavilion base configuration.
+:param test_obj: Pavilion test object.
 :return: List of dictionary objects containing the test ID, name,
          statt time of state update, and note associated with that state.
 :rtype: list(dict)
     """
-    if not isinstance(test_obj, list):
-        test_obj = [test_obj]
 
     test_statuses = []
 
-    for test in test_obj:
+    for test in test_objs:
         status_f = test.status.current()
 
         if status_f.state == STATES.SCHEDULED:
             sched = schedulers.get_plugin(test.scheduler)
             status_f = sched.job_status(pav_cfg, test)
         elif status_f.state == STATES.BUILDING:
-            last_update = get_last_ctime(test.path/'build.log')
+            last_update = get_last_ctime(test.builder.log_updated())
             status_f.note = ' '.join([status_f.note,
                                       'Last updated: ',
                                       last_update])
@@ -83,11 +83,11 @@ def get_all_tests(pav_cfg, args):
                 'test_id': test_id,
                 'name':    "",
                 'state':   STATES.UNKNOWN,
-                'time':    "",
+                'time':    None,
                 'note':    "Test not found: {}".format(err)
             })
 
-    statuses = status_from_test_obj(pav_cfg, test_obj_list)
+    statuses = status_from_test_obj(pav_cfg, *test_obj_list)
 
     if statuses is not None:
         test_statuses = test_statuses + statuses
@@ -162,11 +162,11 @@ def get_statuses(pav_cfg, args, errfile):
                 'test_id': test_id,
                 'name':    "",
                 'state':   STATES.UNKNOWN,
-                'time':    "",
+                'time':    None,
                 'note':    "Error loading test: {}".format(err),
             })
 
-    statuses = status_from_test_obj(pav_cfg, test_obj_list)
+    statuses = status_from_test_obj(pav_cfg, *test_obj_list)
 
     if statuses is not None:
         test_statuses = test_statuses + statuses
@@ -223,7 +223,7 @@ def print_from_test_obj(pav_cfg, test_obj, outfile, json=False):
     :rtype: int
     """
 
-    status_list = status_from_test_obj(pav_cfg, test_obj)
+    status_list = status_from_test_obj(pav_cfg, *test_obj)
     return print_status(status_list, outfile, json)
 
 

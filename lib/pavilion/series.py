@@ -1,9 +1,13 @@
 """Series are a collection of test runs."""
 
 import logging
+import json
 import os
+from pathlib import Path
 
+from pavilion import system_variables
 from pavilion import utils
+from pavilion.lockfile import LockFile
 from pavilion import dir_db
 from pavilion.test_run import TestRun, TestRunError, TestRunNotFoundError
 
@@ -78,6 +82,7 @@ class TestSeries:
                         "Could not link test '{}' in series at '{}': {}"
                         .format(test.path, link_path, err))
 
+            # Update user.json to record last series run per sys_name
             self._save_series_id()
 
         else:
@@ -140,21 +145,35 @@ associated tests."""
         return cls(pav_cfg, tests, _id=id_)
 
     def _save_series_id(self):
-        """Save the series id to the user's .pavilion directory."""
+        """Save the series id to json file that tracks last series ran by user
+        on a per system basis."""
 
-        # Save the last series we created to the .pavilion directory
-        # in the user's home dir. Pavilion commands can use this so the
-        # user doesn't actually have to know the series_id of tests.
+        sys_vars = system_variables.get_vars(True)
+        sys_name = sys_vars['sys_name']
 
-        last_series_fn = self.pav_cfg.working_dir/'users'
-        last_series_fn /= '{}.series'.format(utils.get_login())
-        try:
-            with last_series_fn.open('w') as last_series_file:
-                last_series_file.write(self.id)
-        except (IOError, OSError):
-            # It's ok if we can't write this file.
-            self._logger.warning("Could not save series id to '%s'",
-                                 last_series_fn)
+        json_file = self.pav_cfg.working_dir/'users'
+        json_file /= '{}.json'.format(utils.get_login())
+
+        lockfile_path = json_file.with_suffix('.lock')
+
+        with LockFile(lockfile_path):
+            data = {}
+            try:
+                with json_file.open('r') as json_series_file:
+                    try:
+                        data = json.load(json_series_file)
+                    except json.decoder.JSONDecodeError as err:
+                        # File was empty, therefore json couldn't be loaded.
+                        pass
+                with json_file.open('w') as json_series_file:
+                    data[sys_name] = self.id
+                    json_series_file.write(json.dumps(data))
+
+            except FileNotFoundError as err:
+                # File hadn't been created yet.
+                with json_file.open('w') as json_series_file:
+                    data[sys_name] = self.id
+                    json_series_file.write(json.dumps(data))
 
     @classmethod
     def load_user_series_id(cls, pav_cfg):
@@ -162,14 +181,18 @@ associated tests."""
         logger = logging.getLogger(cls.LOGGER_FMT.format('<unknown>'))
 
         last_series_fn = pav_cfg.working_dir/'users'
-        last_series_fn /= '{}.series'.format(utils.get_login())
+        last_series_fn /= '{}.json'.format(utils.get_login())
+
+        sys_vars = system_variables.get_vars(True)
+        sys_name = sys_vars['sys_name']
 
         if not last_series_fn.exists():
             return None
         try:
             with last_series_fn.open() as last_series_file:
-                return last_series_file.read().strip()
-        except (IOError, OSError) as err:
+                sys_name_series_dict = json.load(last_series_file)
+                return sys_name_series_dict[sys_name].strip()
+        except (IOError, OSError, KeyError) as err:
             logger.warning("Failed to read series id file '%s': %s",
                            last_series_fn, err)
             return None

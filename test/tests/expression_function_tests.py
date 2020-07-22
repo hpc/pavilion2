@@ -39,7 +39,11 @@ class ExprFuncTests(PavTestCase):
                     (([False, 0],), False)],
             're_search': [((r'hello (\w+)', 'hello world'), 'world'),
                           ((r'\d+', 'apples, 14, bananas'), '14')],
-            'replace': [(('I am a banana! ', ' ', '_'), 'I_am_a_banana!_')]
+            'replace': [(('I am a banana! ', ' ', '_'), 'I_am_a_banana!_')],
+            'outliers': [(([1, 2, 3, 4, 5, 6, 7, 99, 108],
+                           ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'],
+                           1.5),
+                          {'h': 1.7581382586345833, 'i': 1.9752254521550119})]
         }
 
         exp_funcs = expression_functions.list_plugins()

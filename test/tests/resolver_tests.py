@@ -1,9 +1,14 @@
 """Test the various components of the test resolver."""
 
 import copy
+import io
+import json
 
+from pavilion import arguments
+from pavilion import commands
 from pavilion import plugins
 from pavilion import system_variables
+from pavilion.pavilion_variables import PavVars
 from pavilion.test_config import TestConfigError, resolver
 from pavilion.test_config import variables
 from pavilion.unittest import PavTestCase
@@ -67,7 +72,7 @@ class ResolverTests(PavTestCase):
             for modes in ([], ['layer_mode']):
                 for test in ('layer_tests.layer_test',
                              'layer_tests.layer_test_part'):
-                    answer = ''
+                    answer = None
                     if host == 'layer_host':
                         answer = 'host'
                     if test.endswith('part'):
@@ -466,3 +471,60 @@ class ResolverTests(PavTestCase):
                              "Got the following instead: \n{}"
                              .format(''.join(["{}: {}\n".format(*v) for v in
                                               exports])))
+
+    def test_version_compatibility(self):
+        """Make sure version compatibility checks are working and populate the
+        results.json file correctly."""
+
+        pav_version = PavVars.version(self)
+
+        arg_parser = arguments.get_parser()
+        args = arg_parser.parse_args([
+            'run',
+            '-w',
+            '5',
+            'version_compatible'
+        ])
+
+        expected_results = {
+            'version_compatible.one': {
+                'test_version': '1.2.3',
+                'pav_version': pav_version
+            },
+            'version_compatible.two': {
+                'test_version': 'beta',
+                'pav_version': pav_version
+            },
+            'version_compatible.three': {
+                'test_version': '0.0',
+                'pav_version': pav_version
+            }
+        }
+
+        # Ensures Version information gets populated correclty even with empty
+        # version section in test config
+        run_cmd = commands.get_command(args.command_name)
+        run_cmd.silence()
+        run_cmd.run(self.pav_cfg, args)
+
+        for test in run_cmd.last_tests:
+            results = test.load_results()
+            name = results['name']
+            for key in expected_results[name].keys():
+                self.assertEqual(expected_results[name][key],
+                                 results[key])
+
+    def test_version_incompatibility(self):
+        """Make sure incompatible versions exit gracefully when attempting to
+        run."""
+
+        arg_parser = arguments.get_parser()
+        args = arg_parser.parse_args([
+            'run',
+            'version_incompatible'
+        ])
+
+        run_cmd = commands.get_command(args.command_name)
+        run_cmd.outfile = io.StringIO()
+        run_cmd.errfile = run_cmd.outfile
+        self.assertEqual(run_cmd.run(self.pav_cfg, args), 22)

@@ -199,6 +199,8 @@ class TestBuilder:
         self.test = test
         self._timeout = test.build_timeout
 
+        self._fix_source_path()
+
         if not test.build_local:
             self.tracker.update(state=STATES.BUILD_DEFERRED,
                                 note="Build will run on nodes.")
@@ -211,6 +213,8 @@ class TestBuilder:
             self.name = build_name
 
         self.path = pav_cfg.working_dir/'builds'/self.name  # type: Path
+        self.tmp_log_path = self.path.with_suffix('.log')
+        self.log_path = self.path/self.LOG_NAME
         fail_name = 'fail.{}.{}'.format(self.name, self.test.id)
         self.fail_path = pav_cfg.working_dir/'builds'/fail_name
         self.finished_path = self.path.with_suffix(self.FINISHED_SUFFIX)
@@ -229,6 +233,40 @@ class TestBuilder:
     def exists(self):
         """Return True if the given build exists."""
         return self.path.exists()
+      
+    DOWNLOAD_HASH_SIZE = 13
+
+    def _fix_source_path(self):
+        """Create a source path from the url if one wasn't given. These will
+        be put in a .downloads directory under test_src."""
+
+        src_path = self._config.get('source_path')
+        src_url = self._config.get('source_url')
+
+        if src_path is None and src_url is not None:
+            url_hash = hashlib.sha256(src_url.encode()).hexdigest()
+            src_path = '.downloads/' + url_hash[:self.DOWNLOAD_HASH_SIZE]
+            self._config['source_path'] = src_path
+
+    def log_updated(self) -> Union[float, None]:
+        """Return the last time the build log was updated. Simply returns
+        None if the log can't be found or read."""
+
+        # The log will be here during the build.
+        if self.tmp_log_path.exists():
+            try:
+                return self.tmp_log_path.stat().st_mtime
+            except OSError:
+                # This mostly for the race condition, but will also handle
+                # any permission problems.
+                pass
+
+        # After the build, the log will be here.
+        if self.log_path.exists():
+            try:
+                return self.log_path.stat().st_mtime
+            except OSError:
+                return None
 
     def create_build_hash(self):
         """Turn the build config, and everything the build needs, into a hash.
@@ -386,6 +424,14 @@ class TestBuilder:
             else:
                 dwn_dest = src_path
 
+            if not src_path.parent.exists():
+                try:
+                    src_path.parent.mkdir(parents=True)
+                except OSError as err:
+                    raise TestBuilderError(
+                        "Could not create parent directory to place "
+                        "downloaded source:\n{}".format(err.args[0]))
+
             self.tracker.update("Updating source at '{}'."
                                 .format(found_src_path),
                                 STATES.BUILDING)
@@ -529,13 +575,9 @@ class TestBuilder:
                       .format(build_dir, err)))
             return False
 
-        # Create the build log outside the build directory, to avoid issues
-        # with the build process deleting the file.
-        build_log_path = build_dir.with_suffix('.log')
-
         try:
             # Do the build, and wait for it to complete.
-            with build_log_path.open('w') as build_log:
+            with self.tmp_log_path.open('w') as build_log:
                 # Build scripts take the test id as a first argument.
                 cmd = [self._script_path.as_posix(), str(self.test.id)]
                 proc = subprocess.Popen(cmd,
@@ -548,7 +590,7 @@ class TestBuilder:
                     try:
                         result = proc.wait(timeout=1)
                     except subprocess.TimeoutExpired:
-                        log_stat = build_log_path.stat()
+                        log_stat = self.tmp_log_path.stat()
                         timeout = log_stat.st_mtime + self._timeout
                         # Has the output file changed recently?
                         if time.time() > timeout:
@@ -586,12 +628,12 @@ class TestBuilder:
             return False
         finally:
             try:
-                build_log_path.rename(build_dir/self.LOG_NAME)
+                self.tmp_log_path.rename(build_dir/self.LOG_NAME)
             except OSError as err:
                 self.tracker.warn(
                     "Could not move build log from '{}' to final location "
                     "'{}': {}"
-                    .format(build_log_path, build_dir, err))
+                    .format(self.tmp_log_path, build_dir, err))
 
         try:
             self._fix_build_permissions(build_dir)

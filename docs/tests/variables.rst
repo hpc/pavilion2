@@ -245,6 +245,8 @@ add at least one value.
         # This will add the single value to the list of test_drives
         test_drives+: /tmp
 
+.. _tests.variables.deferred:
+
 Deferred Variables
 ------------------
 

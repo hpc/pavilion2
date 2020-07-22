@@ -1,7 +1,7 @@
-from pavilion.result import parsers
+"""Return a constant."""
 
-import pavilion.result.base
 import yaml_config as yc
+from pavilion.result import parsers
 
 
 class Constant(parsers.ResultParser):
@@ -11,27 +11,14 @@ class Constant(parsers.ResultParser):
         super().__init__(
             name='constant',
             description="Insert a constant (can contain Pavilion variables) "
-                        "into the results.")
-
-    def get_config_items(self):
-
-        config_items = super().get_config_items()
-        config_items.extend([
-            yc.StrElem(
-                'const', required=True,
-                help_text="Constant that will be placed in result."
-            )
-        ])
-
-        return config_items
-
-    def _check_args(self, const=None):
-
-        if const == "":
-            raise pavilion.result.base.ResultError(
-                "Constant required."
+                        "into the results.",
+            config_elems=[
+                yc.StrElem(
+                    'const', required=True,
+                    help_text="Constant that will be placed in result."
+                )
+            ]
         )
 
     def __call__(self, test, file, const=None):
-
         return const
