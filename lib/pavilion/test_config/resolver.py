@@ -205,7 +205,6 @@ class TestConfigResolver:
                             'summary': default(conf.get('summary', ''), ''),
                             'doc': default(conf.get('doc', ''), ''),
                         }
-
         return suites
 
     def load(self, tests: List[str], host: str = None,
@@ -417,6 +416,10 @@ class TestConfigResolver:
                     test_suite_path
                 )
 
+                # Updates a test config to accurately track cmds_extend_before
+                # and cmds_extend_after keys.
+                suite_tests = self.cmd_extend_update(test_suite_cfg, suite_tests)
+
                 # Add some basic information to each test config.
                 for test_cfg_name, test_cfg in suite_tests.items():
                     test_cfg['name'] = test_cfg_name
@@ -472,6 +475,26 @@ class TestConfigResolver:
                 test_cfg['result_parse']['constant']['key'] = new_const
 
         return picked_tests
+
+    def cmd_extend_update(self, test_suite_cfg, suite_tests):
+
+        new_suite_tests = copy.deepcopy(suite_tests)
+
+        for test_name, test_cfg in test_suite_cfg.items():
+            for sec in ['build', 'run']:
+                new_suite_tests[test_name][sec] = {}
+                for key in suite_tests[test_name][sec].keys():
+                    if key in ['cmds_extend_before', 'cmds_extend_after']:
+                        new_suite_tests[test_name][sec][key] = []
+                        try:
+                            new_suite_tests[test_name][sec][key] = test_cfg[sec][key]
+                        except KeyError as err:
+                            pass
+                    else:
+                        new_suite_tests[test_name][sec][key] = \
+                        suite_tests[test_name][sec][key]
+
+        return new_suite_tests
 
     def verify_version_range(comp_versions):
 
