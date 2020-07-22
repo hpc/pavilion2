@@ -491,7 +491,7 @@ class ShowCommand(commands.Command):
         file = resolver.TestConfigResolver(pav_cfg)._find_config(conf_type,
                                                                  config)
         with file.open() as config_file:
-            config_data = file_format.TestConfigLoader().load(config_file)
+            config_data = file_format.TestConfigLoader().load_raw(config_file)
 
         if config_data is not None:
             output.fprint("{} config for {} found "
