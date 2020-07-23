@@ -18,6 +18,7 @@ ID_FMT = '{id:0{digits}d}'
 
 PKEY_FN = 'next_id'
 
+
 def make_id_path(base_path, id_):
     """Create the full path to an id directory given its base path and
     the id.
@@ -119,93 +120,73 @@ def select(id_dir: Path,
 
     return passed
 
-def filter_series(path) -> bool:
+def delete(pav_cfg, id_dir, args):
+    """Deletes a directory and it's entire contents."""
 
-    if not path.is_dir():
-        return False
+    def filter_series(_: Path) -> bool:
 
-    for test_path in path.iterdir():
-        if (test_path.is_symlink() and
-            test_path.exists() and
-            test_path.resolve().exists()):
-            return False
-    return True
+        path = _
 
-def filter_test(pav_cfg, path, cutoff_date) -> bool:
+        for test_path in path.iterdir():
+            if (test_path.is_symlink() and
+                test_path.exists() and
+                test_path.resolve().exists()):
+                return False
 
-    try:
-        test_time = datetime.fromtimestamp(path.lstat().st_mtime)
-    except FileNotFoundError:
-        return False
-
-    if test_time > cutoff_date:
-        return False
-
-    # Check if RUN_COMPLETE file exists.
-    complete_path = path/'RUN_COMPLETE'
-    if complete_path.exists():
         return True
 
-    # Load Test object, to determine test status
-    try:
-        test_obj = test_run.TestRun.load(pav_cfg, int(path.name))
-    except PermissionError as err:
-        err = str(err).split("'")
-        output.fprint("Permission Error: {} cannot be removed".format(err[1]),
-                      color=output.RED)
-        return False
-    except (test_run.TestRunError, test_run.TestRunNotFoundError):
-        pass
+    def filter_test_by_date(_: Path) -> bool:
 
-    # Get the test's state, if it is RUNNING or SCHEDULED, we don't want to
-    # remove it. Everything else can be removed.
-    state = test_obj.status.current().state
-    if state in (STATES.RUNNING, STATES.SCHEDULED):
-        return False
+        path = _
 
-    return True
+        try:
+            test_time = datetime.fromtimestamp(path.lstat().st_mtime)
+        except FileNotFoundError:
+            return False
 
-def delete(id_dir, pav_cfg=None, cutoff_date=None, verbose=False):
-    """Deletes a directory and it's entire contents."""
+        if test_time > args.cutoff_date:
+            return False
+
+        # Check if RUN_COMPLETE file exists.
+        complete_path = path/'RUN_COMPLETE'
+        if complete_path.exists():
+            return True
+
+        # Load Test object, to determine test status
+        try:
+            test_obj = test_run.TestRun.load(pav_cfg, int(path.name))
+            state = test_obj.status.current().state
+            if state in (STATES.RUNNING, STATES.SCHEDULED):
+                return False
+
+        except PermissionError as err:
+            err = str(err).split("'")
+            output.fprint("Permission Error: {} cannot be removed".format(err[1]),
+                          color=output.RED)
+            return False
+
+        except (test_run.TestRunError, test_run.TestRunNotFoundError):
+            pass
+
+        return True
 
     count = 0
 
     lock_path = id_dir.with_suffix('.lock')
-
     with lockfile.LockFile(lock_path):
-        for path in select(id_dir):
-            # Removes test_runs directory.
-            if id_dir.name is 'test_runs':
-                if filter_test(pav_cfg, path, cutoff_date):
-                    try:
-                        shutil.rmtree(path)
-                    except OSError as err:
-                        output.fprint("Could not remove test {}: "
-                                      "{}".format(path, err),
-                                      color=output.YELLOW)
-                        continue
-                    count += 1
-                    if verbose:
-                        output.fprint("Removed test {}.".format(path.name))
+        for path in select(id_dir, filter_test_by_date):
+            try:
+                shutil.rmtree(path)
+            except OSError as err:
+                output.fprint("Could not remove {} {}: "
+                              "{}".format(id_dir.name, path, err),
+                              color=output.YELLOW)
+                continue
+            count += 1
+            if args.verbose:
+                output.fprint("Removed {} {}.".format(id_dir.name,
+                                                      path.name))
 
-            # Removes series directory.
-            elif id_dir.name is 'series':
-                if filter_series(path):
-                    try:
-                        shutil.rmtree(path)
-                    except OSError as err:
-                        output.fprint("Could not remove series {}: "
-                                      "{}".format(path, err),
-                                      color=output.YELLOW)
-                        continue
-                    count += 1
-                    if verbose:
-                        output.fprint("Removed series {}.".format(path.name))
-
-            # Not an expected directory
-            else:
-                pass
-
-        reset_pkey(id_dir)
-        return count
+    reset_pkey(id_dir)
+    return count
 

@@ -48,7 +48,7 @@ class CleanCommand(commands.Command):
         """Run this command."""
 
         try:
-            cutoff_date = self.validate_args(args)
+            args = self.validate_args(args)
         except (commands.CommandError, ValueError) as err:
             output.fprint("Command Argument Error:",
                           color=output.RED, file=self.errfile)
@@ -64,8 +64,7 @@ class CleanCommand(commands.Command):
         removed_tests = 0
         tests_dir = pav_cfg.working_dir / 'test_runs'     # type: Path
         output.fprint("Removing Tests...", file=self.outfile, end=end)
-        removed_tests = dir_db.delete(tests_dir, pav_cfg, cutoff_date,
-                                      verbose=args.verbose)
+        removed_tests = dir_db.delete(pav_cfg, tests_dir, args)
         output.fprint("Removed {} test(s).".format(removed_tests),
                       file=self.outfile, color=output.GREEN)
 
@@ -73,7 +72,7 @@ class CleanCommand(commands.Command):
         removed_series = 0
         series_dir = pav_cfg.working_dir / 'series'       # type: Path
         output.fprint("Removing Series...", file=self.outfile, end=end)
-        removed_series = dir_db.delete(series_dir, verbose=args.verbose)
+        removed_series = dir_db.delete(pav_cfg, series_dir, args)
         output.fprint("Removed {} series.".format(removed_series),
                       file=self.outfile, color=output.GREEN)
 
@@ -133,4 +132,6 @@ class CleanCommand(commands.Command):
         elif args.all:
             cutoff_date = datetime.today()
 
-        return cutoff_date
+        args.cutoff_date = cutoff_date
+
+        return args

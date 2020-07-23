@@ -15,7 +15,7 @@ import time
 import urllib.parse
 from collections import defaultdict
 from pathlib import Path
-from typing import Union
+from typing import Callable, List, Union
 
 from pavilion import dir_db
 from pavilion import extract
@@ -1017,45 +1017,57 @@ class TestBuilder:
                     for key in compare_keys]
         return all(compares)
 
-def filter_builds(tests_dir, build_path):
-
-    if not build_path.is_dir():
-        return False
-
-    for path in dir_db.select(tests_dir):
-        build_origin_symlink = path/'build_origin'
-        build_origin = None
-        if (build_origin_symlink.exists() and
-            build_origin_symlink.is_symlink() and
-            build_origin_symlink.resolve().exists()):
-            build_origin = build_origin_symlink.resolve()
-
-        if build_origin is None:
-            continue
-
-        if build_path.name == build_origin.name:
-            return False
+def default_filter(_: Path) -> bool:
+    """Pass every path."""
 
     return True
 
+def select(id_dir: Path,
+           filter_func: Callable[[Path], bool] = default_filter) -> List[Path]:
+
+    passed = []
+    for path in id_dir.iterdir():
+        if path.is_dir():
+            if filter_func(path):
+                passed.append(path)
+
+    return passed
+
+
 def delete(tests_dir, builds_dir, verbose=False):
+
+    def filter_builds(_: Path):
+
+        for path in dir_db.select(tests_dir):
+            build_origin_symlink = path/'build_origin'
+            build_origin = None
+            if (build_origin_symlink.exists() and
+                build_origin_symlink.is_symlink() and
+                build_origin_symlink.resolve().exists()):
+                build_origin = build_origin_symlink.resolve()
+
+            if build_origin is None:
+                continue
+
+            if _.name == build_origin.name:
+                return False
+
+        return True
 
     count = 0
 
     lock_path = builds_dir.with_suffix('.lock;')
-
     with lockfile.LockFile(lock_path):
-        for path in builds_dir.iterdir():
-            if filter_builds(tests_dir, path):
-                try:
-                    shutil.rmtree(path.as_posix())
-                    path.with_suffix('.finished').unlink()
-                except OSError as err:
-                    output.fprint("Could not remove build {}: {}"
-                                  .format(path, err), color=output.YELLOW)
-                    continue
-                count += 1
-                if verbose:
-                    output.fprint('Removed build {}.'.format(path.name))
+        for path in select(builds_dir, filter_builds):
+            try:
+                shutil.rmtree(path.as_posix())
+                path.with_suffix('.finished').unlink()
+            except OSError as err:
+                output.fprint("Could not remove build {}: {}"
+                              .format(path, err), color=output.YELLOW)
+                continue
+            count += 1
+            if verbose:
+                output.fprint('Removed build {}.'.format(path.name))
 
     return count
