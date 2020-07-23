@@ -121,9 +121,27 @@ def select(id_dir: Path,
     return passed
 
 def delete(pav_cfg, id_dir, args):
-    """Deletes a directory and it's entire contents."""
+    """Deletes a directory and it's entire contents.
+
+    :param pav_cfg: The pavilion configuration.
+    :param id_dir: The directory to iterate through (should be 'test_runs' or
+                  'series'.
+    :param args: The parsed command arguments object.
+
+    :return int count: The number of directories removed.
+
+    """
 
     def filter_series(_: Path) -> bool:
+        """Filter  a series based on if they have a any symlinked tests that
+        still exist.
+
+        :param _: This is a passed path object.
+
+        :return True: If series dir can be removed.
+        :return False: If series dir cannot be removed.
+
+        """
 
         path = _
 
@@ -136,6 +154,15 @@ def delete(pav_cfg, id_dir, args):
         return True
 
     def filter_test_by_date(_: Path) -> bool:
+        """Filter a given test directory by a provided cutoff date. If it isn't
+        older than the cutoof date we ensure that the tests are completed.
+
+        :param _: A passed test path object.
+
+        :return True: The test dir can be removed.
+        "return False: The test dir cannot be removed.
+
+        """
 
         path = _
 

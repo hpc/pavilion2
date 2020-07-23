@@ -48,7 +48,7 @@ class CleanCommand(commands.Command):
         """Run this command."""
 
         try:
-            args = self.validate_args(args)
+            self.validate_args(args)
         except (commands.CommandError, ValueError) as err:
             output.fprint("Command Argument Error:",
                           color=output.RED, file=self.errfile)
@@ -80,14 +80,19 @@ class CleanCommand(commands.Command):
         removed_builds = 0
         builds_dir = pav_cfg.working_dir / 'builds'        # type: Path
         output.fprint("Removing Builds...", file=self.outfile, end=end)
-        removed_builds = builder.delete(tests_dir, builds_dir,
-                                        verbose=args.verbose)
+        removed_builds = builder.delete(tests_dir, builds_dir, args)
         output.fprint("Removed {} build(s).".format(removed_builds),
                       file=self.outfile, color=output.GREEN)
 
         return 0
 
     def validate_args(self, args):
+        """Validate the command arguments. Basically, ensure that the
+        provided cutoff date is a valid date.
+
+        :param args: The parsed command line argument object.
+
+        """
 
         cutoff_date = datetime.today() - timedelta(days=30)
 
@@ -133,5 +138,3 @@ class CleanCommand(commands.Command):
             cutoff_date = datetime.today()
 
         args.cutoff_date = cutoff_date
-
-        return args

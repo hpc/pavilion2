@@ -1024,7 +1024,10 @@ def default_filter(_: Path) -> bool:
 
 def select(id_dir: Path,
            filter_func: Callable[[Path], bool] = default_filter) -> List[Path]:
-
+    """Returns a list of all the build paths in the given id_dir that pass the
+    given filter function. The paths returned are guaranteed to be a build
+    directory, and only paths that pass the filter function are returned.
+    """
     passed = []
     for path in id_dir.iterdir():
         if path.is_dir():
@@ -1034,9 +1037,27 @@ def select(id_dir: Path,
     return passed
 
 
-def delete(tests_dir, builds_dir, verbose=False):
+def delete(tests_dir, builds_dir, args):
+    """Delete all the build directories, that satisfy some filter.
+
+    :param tests_dir: The test_runs directory path object.
+    :param builds_dir: The builds directory path object.
+    :param args: The parsed command arguments object.
+
+    :return int count: The number of builds that were removed.
+
+    """
 
     def filter_builds(_: Path):
+        """Build filter function. Build paths that have no associated 
+        tests and can be removed return true, otherwise they return false.
+
+        :param _: The passed build path object.
+
+        :return True: The passed build path can be removed.
+        :return False: The passed build path cannot be removed.
+
+        """
 
         for path in dir_db.select(tests_dir):
             build_origin_symlink = path/'build_origin'
@@ -1067,7 +1088,7 @@ def delete(tests_dir, builds_dir, verbose=False):
                               .format(path, err), color=output.YELLOW)
                 continue
             count += 1
-            if verbose:
+            if args.verbose:
                 output.fprint('Removed build {}.'.format(path.name))
 
     return count
