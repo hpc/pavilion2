@@ -247,7 +247,7 @@ text for that class, along with the help from the config items."""
                 if 'match_type' not in self.defaults:
                     self.defaults['match_type'] = MATCH_FIRST
 
-            self.config_elems = config_elems
+        self.config_elems = config_elems
         self.priority = priority
         self.open_mode = open_mode
 

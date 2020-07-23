@@ -11,7 +11,7 @@ from pavilion.test_config import resolver
 from .evaluations import check_expression, evaluate_results, StringParserError
 from .base import base_results, ResultError, BASE_RESULTS
 from . import parsers
-from .parsers import parse_results
+from .parsers import parse_results, ResultParser
 
 
 def get_result_logger(log_file: IO[str]) -> Callable[..., None]:
@@ -35,6 +35,7 @@ def get_result_logger(log_file: IO[str]) -> Callable[..., None]:
             log_file.write('\n')
 
     return log
+
 
 def check_config(parser_conf, evaluate_conf):
     """Make sure the result config is sensible, both for result parsers and
