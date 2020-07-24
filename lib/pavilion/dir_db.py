@@ -155,7 +155,7 @@ def delete(pav_cfg, id_dir, args):
 
     def filter_test_by_date(_: Path) -> bool:
         """Filter a given test directory by a provided cutoff date. If it isn't
-        older than the cutoof date we ensure that the tests are completed.
+        older than the cutoff date we ensure that the tests are completed.
 
         :param _: A passed test path object.
 
