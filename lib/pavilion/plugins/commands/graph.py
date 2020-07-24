@@ -322,7 +322,7 @@ class GraphCommand(Command):
 
     def verify_and_transform_data_list(self, x_data_list, y_data_list):
         """ Transforms y_data_list to work if multiple x_values are present.
-        Also checks to ensure lists are of equal lenght.
+        Also checks to ensure lists are of equal length.
         :param list x_data_list: List of all x values to plot.
         :param list y_data_list: List of all y values to plot, Sublists will be
                                  ordered by evaluations, not x values.
@@ -330,11 +330,11 @@ class GraphCommand(Command):
                                   values.
         """
 
-        if len(x_data_list) > 1:
-            transformed = []
-            for index in range(len(x_data_list)):
-                transformed.append([item[index] for item in y_data_list])
-            y_data_list = transformed
+        #if len(x_data_list) > 1:
+        transformed = []
+        for index in range(len(x_data_list)):
+            transformed.append([item[index] for item in y_data_list])
+        y_data_list = transformed
 
         if len(x_data_list) != len(y_data_list):
             raise ValueError("Evaluations resulted in lists of different "
@@ -390,10 +390,18 @@ class GraphCommand(Command):
 
         # Store Evaluations results in a y_data_list
         for key in evals:
-            if key is not 'x':
-                result = results[key]
+            if key is 'x':
+                continue
+
+            result = results[key]
+
+            if '*' in evals[key]:
+                for item in result:
+                    y_data_list.append(self.validate_result(item,
+                                                            evals[key]))
+            else:
                 y_data_list.append(self.validate_result(result,
-                                                        evals[key]))
+                                                    evals[key]))
 
         y_data_list = self.verify_and_transform_data_list(x_data_list,
                                                           y_data_list)
