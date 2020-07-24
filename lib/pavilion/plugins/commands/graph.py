@@ -26,11 +26,16 @@ class GraphCommand(commands.Command):
         parser.add_argument(
             '--exclude', nargs='*', default=[],
             help='Exclude tests, series, sys_names, test_names, '
-                 'or users by providing specific IDs or names.'
+                 'test suites, or users by providing specific IDs '
+                 'or names.'
         ),
         parser.add_argument(
             '--test_name', action='store', default=False,
             help='Filter tests by test_name.'
+        ),
+        parser.add_argument(
+            '--suite', action='store', default=False,
+            help='Filter tests by test suite.'
         ),
         parser.add_argument(
             '--sys_name', action='store', default=False,
@@ -235,14 +240,21 @@ class GraphCommand(commands.Command):
         if status.state != STATES.COMPLETE:
             return None
 
-        host = test.config.get('host')
         # Filter tests by test name.
         if args.test_name and test.name not in args.test_name:
             return None
         if test.name in args.exclude:
             return None
 
+        # Filter tests by suite name.
+        suite = test.config.get('suite')
+        if args.suite and suite not in args.test_name:
+            return None
+        if suite in args.exclude:
+            return None
+
         # Filter tests by sys name.
+        host = test.config.get('host')
         if args.sys_name and host not in args.sys_name:
             return None
         if host in args.exclude:
