@@ -4,15 +4,17 @@ import random
 import re
 from datetime import datetime
 
-from pavilion import commands
+#from pavilion import commands
 from pavilion import output
 from pavilion import series
+from pavilion.commands import Command, CommandError
 from pavilion.result import evaluations
+from pavilion.result.base import ResultError
 from pavilion.status_file import STATES
 from pavilion.test_run import TestRun
 
 
-class GraphCommand(commands.Command):
+class GraphCommand(Command):
 
     def __init__(self):
         super().__init__(
@@ -38,11 +40,11 @@ class GraphCommand(commands.Command):
             help='Filter tests by test suite.'
         ),
         parser.add_argument(
-            '--sys_name', action='store', default=False,
+            '--sys_name', nargs='+', action='store', default=False,
             help='Filter tests by sys_name.'
         ),
         parser.add_argument(
-            '--user', action='store', default=False,
+            '--user', nargs='+', action='store', default=False,
             help='Filter tests by user.'
         ),
         parser.add_argument(
@@ -86,21 +88,23 @@ class GraphCommand(commands.Command):
         # Validate Arguments.
         try:
             self.validate_args(args)
-        except (ValueError, commands.CommandError) as err:
-            output.fprint("Invalid command arguments: {}".format(err))
+        except (ValueError, CommandError) as err:
+            output.fprint("Invalid command arguments:", color=output.RED)
+            output.fprint(err)
             return errno.EINVAL
 
         # Expand series, convert test_ids (if provided).
         try:
             args.tests = self.normalize_args_tests(pav_cfg, args.tests)
         except (ValueError, series.TestSeriesError) as err:
-            output.fprint("Invalid test arguments: \n{}".format(err))
+            output.fprint("Invalid test arguments:", color=output.RED)
+            output.fprint(err)
             return errno.EINVAL
 
         # Check filters, append/remove tests.
         try:
             tests = self.filter_tests(pav_cfg, args, args.tests)
-        except commands.CommandError as err:
+        except CommandError as err:
             output.fprint(err)
             return errno.EINVAL
 
@@ -108,8 +112,9 @@ class GraphCommand(commands.Command):
 
         try:
             test_results = self.get_test_results(tests, evals)
-        except (ValueError, TypeError) as err:
-            output.fprint("Evaluations resulted in error: \n{}".format(err))
+        except (ValueError, TypeError, ResultError) as err:
+            output.fprint("Evaluations resulted in error:", color=output.RED)
+            output.fprint(err)
             return errno.EINVAL
 
         ax = plt.gca()
@@ -139,16 +144,12 @@ class GraphCommand(commands.Command):
                 raise ValueError("{} is not a valid date "
                               "format: {}".format(args.date, err))
 
-        if not args.x or not args.y:
-            error = ""
-            if not args.x:
-                error = error + ("\nNo value was given to graph on x-axis. Use --x "
-                                 "flag to specify.")
-            if not args.y:
-                error = error + ("\nNo values were given to graph on y-axis. Use --y "
-                                 "flag to specify.")
-
-            raise commands.CommandError(error)
+        if not args.x:
+            raise CommandError("No value was given to graph on X-axis. Use "
+                               "--x flag to specify.")
+        if not args.y:
+            raise CommandError("No values were given to graph on y-axis. "
+                               "Use --y flag to specify.")
 
     def expand_ranges(self, test_list):
         """Converts a string range of test IDs or series IDs into a list of
@@ -248,7 +249,7 @@ class GraphCommand(commands.Command):
 
         # Filter tests by suite name.
         suite = test.config.get('suite')
-        if args.suite and suite not in args.test_name:
+        if args.suite and suite not in args.suite:
             return None
         if suite in args.exclude:
             return None
@@ -290,8 +291,8 @@ class GraphCommand(commands.Command):
                 test_list.append(test)
 
         if not test_list:
-            raise commands.CommandError("No successful, completed tests "
-                                        "matched these filters.")
+            raise CommandError("No successful, completed tests "
+                               "matched these filters.")
 
         return test_list
 
