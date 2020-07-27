@@ -13,8 +13,36 @@ class Table(parsers.ResultParser):
     def __init__(self):
         super().__init__(
             name='table',
-            description="Parses tables",
+            description="Parses tables.",
             config_elems=[
+                yc.StrElem(
+                    'start_re',
+                    help_text="Optional. Partial regex near the start of the "
+                              "table. Helps Pavilion locate table. "
+                ),
+                yc.StrElem(
+                    'nth_start_re',
+                    help_text="Optional. Nth `start_re` to consider. Default "
+                              "first occurence (0th). "
+                ),
+                yc.StrElem(
+                    'start_skip',
+                    help_text="Optional. Number of lines between `start_re` "
+                              "and actual table. "
+                              "Only set if `start_re` is also set. "
+                ),
+                yc.StrElem(
+                    'line_num', required=False,
+                    help_text="Optional. Number of lines after `start_re` "
+                              "that Pavilion should look at. "
+                ),
+                yc.ListElem(
+                    'row_ignore', sub_elem=yc.StrElem(),
+                    help_text="Optional. Indices of rows to ignore. "
+                              "(Note: arrays start at zero). "
+                              "The row with column names "
+                              "count as part of the table."
+                ),
                 yc.StrElem(
                     'delimiter',
                     help_text="Delimiter that splits the data."
@@ -40,28 +68,6 @@ class Table(parsers.ResultParser):
                               "Only set if `has_header` is True. "
                               "Otherwise, Pavilion will ignore."
                 ),
-                yc.StrElem(
-                    'start_re',
-                    help_text="Partial regex of the start of the table. "
-                ),
-                yc.StrElem(
-                    'nth_start_re',
-                    help_text="Nth start_re to consider. Default first "
-                              "occurence (0th). "
-                ),
-                yc.StrElem(
-                    'row_num',
-                    help_text="Number of row numbers, including column names."
-                ),
-                yc.StrElem(
-                    'start_skip',
-                    help_text="Number of lines between `start_re` and actual "
-                              "table. Only set if `start_re` is also set. "
-                ),
-                yc.ListElem(
-                    'row_ignore', sub_elem=yc.StrElem(),
-                    help_text="Rows to ignore."
-                ),
                 yc.ListElem(
                     'col_ignore', sub_elem=yc.StrElem(),
                     help_text="Columns to ignore."
@@ -81,34 +87,9 @@ class Table(parsers.ResultParser):
 
         )
 
-    def _check_args(self, **kwargs):
-
-        col_names = kwargs['col_names']
-
-        # try:
-        #     if len(col_names) is not 0:
-        #         if len(col_names) != kwargs['col_num']:
-        #             raise pavilion.result.base.ResultError(
-        #                 "Length of `col_names` does not match `col_num`."
-        #             )
-        # except ValueError:
-        #     raise pavilion.result.base.ResultError(
-        #         "`col_names` needs to be an integer."
-        #     )
-        try:
-            int(kwargs['start_skip'])
-            int(kwargs['row_num'])
-            int(kwargs['col_num'])
-        except ValueError:
-            raise pavilion.result.base.ResultError(
-                "num_skip, col_num, and row_num need to be integers"
-            )
-
-        return kwargs
-
     def __call__(self, test, file, delimiter=None, col_num=None,
                  has_header='', col_names=[], by_column=True,
-                 start_re=None, row_num=None, start_skip=None,
+                 start_re=None, line_num=None, start_skip=None,
                  nth_start_re=None, row_ignore=[], col_ignore=[]):
 
         lines = file.readlines()
@@ -139,8 +120,8 @@ class Table(parsers.ResultParser):
         if start_skip:
             lines = lines[int(start_skip)+1:]
 
-        if row_num:
-            lines = lines[:int(row_num)]
+        if line_num:
+            lines = lines[:int(line_num)]
 
         # Step 2: Redraw table
         # TODO: decide if I still want to ignore columns?
