@@ -6,7 +6,7 @@ Installing Pavilion
 ===================
 
 Installing Pavilion is mostly a matter of placing it's source somewhere,
-providing it's (few) dependencies, and creating a pavilion.yaml config
+providing its (few) dependencies, and creating a pavilion.yaml config
 file.
 
 .. contents::
@@ -16,8 +16,9 @@ Requirements
 
 Pavilion has very few dependencies and requirements:
 
-- Python 3.4 or newer
-- A writeable space on a filesystem shared across all (tested) hosts in each cluster.
+- Python 3.5 or newer
+- A writeable space on a filesystem shared across all (tested) hosts in
+  each cluster. (Assuming you're scheduling jobs across a cluster).
 
   - The path to this directory must be consistent across all cluster hosts.
   - It must support atomic file creation and appends of < 4kb.
@@ -30,7 +31,7 @@ Filesystems
 
 Pavilion works by recursively running itself in different modes at
 different points in the testing process. This means certain paths, like
-the Pavilion **root directory**, **working directory**, and used
+the Pavilion **source directory**, **working directory**, and used
 **config directories** must have paths that are consistent across the
 nodes and front-ends of any given system.
 
@@ -44,6 +45,16 @@ to ``~/.pavilion/``).
 - Both of these requirements are probably already satisfied by one or more of
   your cluster NFS partitions. Lustre filesystems are not recommended, mostly
   due to the type of load Pavilion presents to these.
+
+Testing Filesystems
+~~~~~~~~~~~~~~~~~~~
+
+If you're unsure if your shared filesystem is reliable, there's a test for
+that in `test/utils`.
+
+.. code-block:: bash
+
+    $ python3 lock_test.py --help
 
 Result Log
 ~~~~~~~~~~
@@ -84,6 +95,21 @@ starts with a git pull of the latest release of Pavilion.
 
 You can also simply download and extract the source.
 
+Releases
+~~~~~~~~
+
+You should probably pick the latest Pavilion *release* when installing
+Pavilion for a couple reasons.
+
+ 1) While we try to maintain backwards compatibility as much as possible,
+    the reality is that every release contains several major compatibility
+    breaks both for test configurations and plugins. These are documented
+    per-release in the `_static/RELEASE.txt`_ file.
+ 2) We run a large bevy of unit tests against every change in Pavilion, but
+    each release is used in production before it is actually tagged. This
+    often reveals bug, regressions, and practical usage issues. We fix those
+    issues, then tag the release. Bugfix releases are provided as needed.
+
 Dependencies
 ------------
 
@@ -95,10 +121,10 @@ supported and tests versions for each are recorded in ``requirements.txt``.
 
 -  `yaml\_config <https://github.com/lanl/yaml_config>`__ **(required)**
    - Used to define the test and pavilion configurations.
--  `**yc\_yaml** <https://github.com/pflarr/yc_yaml>`__ **(required)** - A
-   modified pyyaml used by yaml\_config.
--  `**yapsy** <http://yapsy.sourceforge.net/>`__ **(required)** - The basis
+-  `yapsy <http://yapsy.sourceforge.net/>`__ **(required)** - The basis
    for Pavilion's plugin architecture.
+-  `lark <https://github.com/lark-parser/lark>`__ **(required)** - Used for
+   Pavilion string value and expression parsing.
 -  `requests <https://pypi.org/project/requests/2.7.0/>`__ - Used for
    automatic downloads of test source files. This feature is disabled in
    the absence of this library, and tests that use it will fail with an
