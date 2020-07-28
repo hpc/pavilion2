@@ -423,7 +423,7 @@ class ShowCommand(commands.Command):
             config_data = file_format.TestConfigLoader().load(config_file)
 
         data = []
-        col_names = ['Variables', 'Type', 'Value']
+        col_names = ['Variables', ' ', 'Type', 'Value']
 
         name = config
         path = file
@@ -431,34 +431,42 @@ class ShowCommand(commands.Command):
 
         for var in config['variables'].keys():
             var_out = var
+            index = 0
             for subvar in config['variables'][var]:
                 if type(subvar) is yaml_config.elements.ConfigDict:
                     type_out = 'dict'
+                    index_out = index
                     for key, val in subvar.items():
                         data.append({
                             'Variables': var_out,
+                            ' ': index_out,
                             'Type': type_out,
                             'Value': key + ": " + val,
                         })
                         var_out = ''
                         type_out = ''
+                        index_out = ' '
+                    index += 1
                 else:
                     data.append({
                         'Variables': var_out,
+                        ' ': index,
                         'Type': type(subvar).__name__,
                         'Value': subvar,
                     })
                     var_out = ''
+                    index += 1
 
-        output.fprint("\n{} {} config at {}: ".format(name,
-                                                    conf_type.strip('s'),
-                                                    path))
-        output.draw_table(
-            self.outfile,
-            field_info={},
-            fields=col_names,
-            rows=data
-        )
+        output.fprint("Showing Variables for {} {} config at {}: "
+                      .format(name, conf_type.strip('s'), path))
+
+        if data:
+            output.draw_table(
+                self.outfile,
+                field_info={},
+                fields=col_names,
+                rows=data
+            )
 
     def show_table(self, pav_cfg, args, conf_type):
 
