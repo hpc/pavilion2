@@ -15,7 +15,7 @@ import time
 import urllib.parse
 from collections import defaultdict
 from pathlib import Path
-from typing import Callable, List, Union
+from typing import Union
 
 from pavilion import dir_db
 from pavilion import extract
@@ -33,14 +33,12 @@ class TestBuilderError(RuntimeError):
 
 class MultiBuildTracker:
     """Allows for the central organization of multiple build tracker objects.
-
         :ivar {StatusFile} status_files: The dictionary of status
             files by build.
     """
 
     def __init__(self, log=True):
         """Setup the build tracker.
-
         :param bool log: Whether to also log messages in some instances.
         """
 
@@ -56,7 +54,6 @@ class MultiBuildTracker:
 
     def register(self, builder, test_status_file):
         """Register a builder, and get your own build tracker.
-
         :param TestBuilder builder: The builder object to track.
         :param status_file.StatusFile test_status_file: The status file object
             for the corresponding test.
@@ -74,7 +71,6 @@ class MultiBuildTracker:
 
     def update(self, builder, note, state=None, log=None):
         """Add a message for the given builder without changes the status.
-
         :param TestBuilder builder: The builder object to set the message.
         :param note: The message to set.
         :param str state: A status_file state to set on this builder's status
@@ -150,7 +146,6 @@ class BuildTracker:
     def notes(self):
         """Return the notes for this tracker."""
         return self.tracker.get_notes(self.builder)
-
 
 class TestBuilder:
     """Manages a test build and their organization.
@@ -235,7 +230,7 @@ class TestBuilder:
     def exists(self):
         """Return True if the given build exists."""
         return self.path.exists()
-      
+     
     DOWNLOAD_HASH_SIZE = 13
 
     def _fix_source_path(self):
@@ -1017,27 +1012,24 @@ class TestBuilder:
                     for key in compare_keys]
         return all(compares)
 
-def default_filter(_: Path) -> bool:
-    """Pass every path."""
+def get_used_build_paths(tests_dir: Path) -> set:
 
-    return True
+    used_builds = set()
 
-def select(id_dir: Path,
-           filter_func: Callable[[Path], bool] = default_filter) -> List[Path]:
-    """Returns a list of all the build paths in the given id_dir that pass the
-    given filter function. The paths returned are guaranteed to be a build
-    directory, and only paths that pass the filter function are returned.
-    """
-    passed = []
-    for path in id_dir.iterdir():
-        if path.is_dir():
-            if filter_func(path):
-                passed.append(path)
+    for path in dir_db.select(tests_dir):
+        build_origin_symlink = path/'build_origin'
+        build_origin = None
+        if (build_origin_symlink.exists() and
+            build_origin_symlink.is_symlink() and
+            build_origin_symlink.resolve().exists):
+            build_origin = build_origin_symlink.resolve()
 
-    return passed
+        if build_origin is not None:
+            used_builds.add(path.name)
 
+    return used_builds
 
-def delete(tests_dir, builds_dir, args):
+def delete_unused(tests_dir: Path, builds_dir: Path, verbose: bool = False) -> int:
     """Delete all the build directories, that satisfy some filter.
 
     :param tests_dir: The test_runs directory path object.
@@ -1047,6 +1039,8 @@ def delete(tests_dir, builds_dir, args):
     :return int count: The number of builds that were removed.
 
     """
+
+    used_build_paths = get_used_build_paths(tests_dir)
 
     def filter_builds(_: Path):
         """Build filter function. Build paths that have no associated 
@@ -1058,28 +1052,13 @@ def delete(tests_dir, builds_dir, args):
         :return False: The passed build path cannot be removed.
 
         """
-
-        for path in dir_db.select(tests_dir):
-            build_origin_symlink = path/'build_origin'
-            build_origin = None
-            if (build_origin_symlink.exists() and
-                build_origin_symlink.is_symlink() and
-                build_origin_symlink.resolve().exists()):
-                build_origin = build_origin_symlink.resolve()
-
-            if build_origin is None:
-                continue
-
-            if _.name == build_origin.name:
-                return False
-
-        return True
+        return not _.name in used_build_paths
 
     count = 0
 
     lock_path = builds_dir.with_suffix('.lock;')
     with lockfile.LockFile(lock_path):
-        for path in select(builds_dir, filter_builds):
+        for path in dir_db.select(builds_dir, filter_builds, build_dirs=True):
             try:
                 shutil.rmtree(path.as_posix())
                 path.with_suffix('.finished').unlink()
@@ -1088,7 +1067,7 @@ def delete(tests_dir, builds_dir, args):
                               .format(path, err), color=output.YELLOW)
                 continue
             count += 1
-            if args.verbose:
+            if verbose:
                 output.fprint('Removed build {}.'.format(path.name))
 
     return count

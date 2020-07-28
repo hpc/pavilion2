@@ -98,7 +98,6 @@ def create_id_dir(id_dir: Path) -> (int, Path):
 
         return next_id, next_id_path
 
-
 def default_filter(_: Path) -> bool:
     """Pass every path."""
 
@@ -106,7 +105,8 @@ def default_filter(_: Path) -> bool:
 
 
 def select(id_dir: Path,
-           filter_func: Callable[[Path], bool] = default_filter) -> List[Path]:
+           filter_func: Callable[[Path], bool] = default_filter,
+           build_dirs: bool = False) -> List[Path]:
     """Return a list of all test paths in the given id_dir that pass the
     given filter function. The paths returned are guaranteed (within limits)
     to be an id directory, and only paths that pass the filter function
@@ -114,94 +114,33 @@ def select(id_dir: Path,
 
     passed = []
     for path in id_dir.iterdir():
-        if path.name.isdigit() and path.is_dir():
-            if filter_func(path):
-                passed.append(path)
+        if not build_dirs:
+            if path.name.isdigit() and path.is_dir():
+                if filter_func(path):
+                    passed.append(path)
+        else:
+            if path.is_dir():
+                if filter_func(path):
+                    passed.append(path)
 
     return passed
 
-def delete(pav_cfg, id_dir, args):
+def delete(id_dir: Path,
+           filter_func: Callable[[Path], bool] = default_filter,
+           verbose: bool = False) -> int:
     """Deletes a directory and it's entire contents.
 
-    :param pav_cfg: The pavilion configuration.
-    :param id_dir: The directory to iterate through (should be 'test_runs' or
-                  'series'.
-    :param args: The parsed command arguments object.
-
+    :param id_dir: The directory to iterate through
+    :param verbose: True or False based on if you want verbose output. Default
+                    is false.
     :return int count: The number of directories removed.
-
     """
-
-    def filter_series(_: Path) -> bool:
-        """Filter  a series based on if they have a any symlinked tests that
-        still exist.
-
-        :param _: This is a passed path object.
-
-        :return True: If series dir can be removed.
-        :return False: If series dir cannot be removed.
-
-        """
-
-        path = _
-
-        for test_path in path.iterdir():
-            if (test_path.is_symlink() and
-                test_path.exists() and
-                test_path.resolve().exists()):
-                return False
-
-        return True
-
-    def filter_test_by_date(_: Path) -> bool:
-        """Filter a given test directory by a provided cutoff date. If it isn't
-        older than the cutoff date we ensure that the tests are completed.
-
-        :param _: A passed test path object.
-
-        :return True: The test dir can be removed.
-        "return False: The test dir cannot be removed.
-
-        """
-
-        path = _
-
-        try:
-            test_time = datetime.fromtimestamp(path.lstat().st_mtime)
-        except FileNotFoundError:
-            return False
-
-        if test_time > args.cutoff_date:
-            return False
-
-        # Check if RUN_COMPLETE file exists.
-        complete_path = path/'RUN_COMPLETE'
-        if complete_path.exists():
-            return True
-
-        # Load Test object, to determine test status
-        try:
-            test_obj = test_run.TestRun.load(pav_cfg, int(path.name))
-            state = test_obj.status.current().state
-            if state in (STATES.RUNNING, STATES.SCHEDULED):
-                return False
-
-        except PermissionError as err:
-            err = str(err).split("'")
-            output.fprint("Permission Error: {} cannot be removed".format(err[1]),
-                          color=output.RED)
-            return False
-
-        except (test_run.TestRunError, test_run.TestRunNotFoundError):
-            pass
-
-        return True
 
     count = 0
 
     lock_path = id_dir.with_suffix('.lock')
     with lockfile.LockFile(lock_path):
-        for path in select(id_dir, filter_test_by_date):
+        for path in select(id_dir, filter_func):
             try:
                 shutil.rmtree(path)
             except OSError as err:
@@ -210,7 +149,7 @@ def delete(pav_cfg, id_dir, args):
                               color=output.YELLOW)
                 continue
             count += 1
-            if args.verbose:
+            if verbose:
                 output.fprint("Removed {} {}.".format(id_dir.name,
                                                       path.name))
 

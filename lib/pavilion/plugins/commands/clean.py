@@ -7,6 +7,7 @@ from pathlib import Path
 
 from pavilion import builder
 from pavilion import commands
+from pavilion import clean
 from pavilion import output
 from pavilion import dir_db
 from pavilion.status_file import STATES
@@ -39,7 +40,7 @@ class CleanCommand(commands.Command):
                  '"Jan 1 2019" or , or a number of days/weeks ex:"32 weeks"'
         )
         group.add_argument(
-            '--all', '-a', action='store_true',
+            '-a', '--all', action='store_true',
             help='Attempts to remove everything in the working directory, '
                  'regardless of age.'
         )
@@ -48,41 +49,43 @@ class CleanCommand(commands.Command):
         """Run this command."""
 
         try:
-            self.validate_args(args)
-        except (commands.CommandError, ValueError) as err:
-            output.fprint("Command Argument Error:",
+            cutoff_date = self.validate_args(args)
+        except OlderThanError as err:
+            output.fprint("Command Argument Error: \n{}"
+                          .format(err),
                           color=output.RED, file=self.errfile)
-            output.fprint(err)
+            return errno.EINVAL
+        except InvalidDateError as err:
+            output.fprint("Command Argument Error: \n{}"
+                          .format(err),
+                          color=output.RED, file=self.errfile)
             return errno.EINVAL
 
-        if args.verbose:
-            end = '\n'
-        else:
-            end = ''
+        end = '\n' if args.verbose else '\r'
 
         # Clean Tests
-        removed_tests = 0
         tests_dir = pav_cfg.working_dir / 'test_runs'     # type: Path
         output.fprint("Removing Tests...", file=self.outfile, end=end)
-        removed_tests = dir_db.delete(pav_cfg, tests_dir, args)
+        removed_tests = clean.delete_tests_by_date(pav_cfg, tests_dir,
+                                                   cutoff_date,
+                                                   args.verbose)
         output.fprint("Removed {} test(s).".format(removed_tests),
-                      file=self.outfile, color=output.GREEN)
+                      file=self.outfile, color=output.GREEN, clear=True)
 
         # Clean Series
-        removed_series = 0
         series_dir = pav_cfg.working_dir / 'series'       # type: Path
         output.fprint("Removing Series...", file=self.outfile, end=end)
-        removed_series = dir_db.delete(pav_cfg, series_dir, args)
+        removed_series = clean.delete_series(series_dir, args.verbose)
         output.fprint("Removed {} series.".format(removed_series),
-                      file=self.outfile, color=output.GREEN)
+                      file=self.outfile, color=output.GREEN, clear=True)
 
         # Clean Builds
-        removed_builds = 0
         builds_dir = pav_cfg.working_dir / 'builds'        # type: Path
         output.fprint("Removing Builds...", file=self.outfile, end=end)
-        removed_builds = builder.delete(tests_dir, builds_dir, args)
+        removed_builds = builder.delete_unused(tests_dir, builds_dir,
+                                               args.verbose)
         output.fprint("Removed {} build(s).".format(removed_builds),
-                      file=self.outfile, color=output.GREEN)
+                      file=self.outfile, color=output.GREEN, clear=True)
 
         return 0
 
@@ -102,7 +105,7 @@ class CleanCommand(commands.Command):
             if len(args.older_than) == 2:
 
                 if not args.older_than[0].isdigit():
-                    raise commands.CommandError(
+                    raise OlderThanError(
                         "Invalid `--older-than` value."
                     )
 
@@ -121,20 +124,32 @@ class CleanCommand(commands.Command):
                 elif args.older_than[1] in ['month', 'months']:
                     cutoff_date = datetime.today() - timedelta(
                         days=30*int(args.older_than[0]))
+                else:
+                    raise OlderThanError(
+                        "Invalid --older-than value: {}"
+                        .format(args.older_than[1])
+                    )
 
             elif len(args.older_than) == 3:
                 date = ' '.join(args.older_than)
                 try:
                     cutoff_date = datetime.strptime(date, '%b %d %Y')
                 except ValueError as err:
-                    raise ValueError("{} is not a valid date: {}".format(date,
+                    raise InvalidDateError("{} is not a valid date: {}".format(date,
                                                                         err))
             else:
-                raise commands.CommandError(
+                raise OlderThanError(
                     "Invalid `--older-than` value."
                 )
 
         elif args.all:
             cutoff_date = datetime.today()
 
-        args.cutoff_date = cutoff_date
+        return cutoff_date
+
+class OlderThanError(RuntimeError):
+    """Error to raise for invalid older than argument."""
+
+class InvalidDateError(RuntimeError):
+    """Error to raise for invalid date arguments."""
+
