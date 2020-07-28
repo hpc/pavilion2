@@ -2,7 +2,6 @@
 essentially serves as a filesystem primary key."""
 
 import os
-import re
 import shutil
 from datetime import datetime
 from typing import Callable, List
