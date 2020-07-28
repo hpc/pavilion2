@@ -4,7 +4,8 @@ import datetime
 import shutil
 import errno
 import pprint
-from typing import List
+from typing import List, IO
+import io
 
 from pavilion import commands
 from pavilion import output
@@ -62,6 +63,12 @@ class ResultsCommand(commands.Command):
                  "otherwise saved or logged."
         )
         parser.add_argument(
+            '-l', '--show-log', action='store_true', default=False,
+            help="Also show the result processing log. This is particularly"
+                 "useful when re-parsing results, as the log is not saved."
+        )
+
+        parser.add_argument(
             "tests",
             nargs="*",
             help="The tests to show the results for."
@@ -81,16 +88,23 @@ class ResultsCommand(commands.Command):
             except TestRunNotFoundError as err:
                 self.logger.warning("Could not find test %s - %s", id_, err)
 
+        log_file = None
+        if args.show_log and args.re_run:
+            log_file = io.StringIO()
+
         if args.re_run:
-            if not self.update_results(pav_cfg, tests):
+            if not self.update_results(pav_cfg, tests, log_file):
                 return errno.EINVAL
 
         if args.json or args.full:
             if len(tests) > 1:
                 results = {test.name: test.results for test in tests}
-            else:
-                # There should always be at least one test
+            elif len(tests) == 1:
                 results = tests[0].results
+            else:
+                output.fprint("Could not find any matching tests.",
+                              color=output.RED, file=self.outfile)
+                return errno.EINVAL
 
             width = shutil.get_terminal_size().columns
 
@@ -106,32 +120,48 @@ class ResultsCommand(commands.Command):
                 # another command.
                 pass
 
-            return 0
-
         else:
             fields = self.BASE_FIELDS + args.key
             results = [test.results for test in tests]
 
-        def fix_timestamp(ts_str: str) -> str:
-            """Read the timestamp text and get a minimized, formatted value."""
-            try:
-                when = datetime.datetime.strptime(ts_str,
-                                                  '%Y-%m-%d %H:%M:%S.%f')
-            except ValueError:
-                return ''
+            def fix_timestamp(ts_str: str) -> str:
+                """Read the timestamp text and get a minimized,
+                formatted value."""
+                try:
+                    when = datetime.datetime.strptime(ts_str,
+                                                      '%Y-%m-%d %H:%M:%S.%f')
+                except ValueError:
+                    return ''
 
-            return output.get_relative_timestamp(when)
+                return output.get_relative_timestamp(when)
 
-        output.draw_table(
-            outfile=self.outfile,
-            field_info={
-                'started': {'transform': fix_timestamp},
-                'finished': {'transform': fix_timestamp},
-            },
-            fields=fields,
-            rows=results,
-            title="Test Results"
-        )
+            output.draw_table(
+                outfile=self.outfile,
+                field_info={
+                    'started': {'transform': fix_timestamp},
+                    'finished': {'transform': fix_timestamp},
+                },
+                fields=fields,
+                rows=results,
+                title="Test Results"
+            )
+
+        if args.show_log:
+            if log_file is not None:
+                output.fprint(log_file.getvalue(), file=self.outfile,
+                              color=output.GREY)
+            else:
+                for test in tests:
+                    output.fprint("\nResult logs for test {}\n"
+                                  .format(test.name))
+                    if test.results_log.exists():
+                        with test.results_log.open() as log_file:
+                            output.fprint(
+                                log_file.read(), color=output.GREY,
+                                file=self.outfile)
+                    else:
+                        output.fprint("<log file missing>", file=self.outfile,
+                                      color=output.YELLOW)
 
         return 0
 
@@ -160,13 +190,15 @@ class ResultsCommand(commands.Command):
 
         return map(int, test_list)
 
-    def update_results(self, pav_cfg: dict, tests: List[TestRun]) -> bool:
+    def update_results(self, pav_cfg: dict, tests: List[TestRun],
+                       log_file: IO[str]) -> bool:
         """Update each of the given tests with the result section from the
         current version of their configs. Then rerun result processing and
         update the results in the test object (but change nothing on disk).
 
         :param pav_cfg: The pavilion config.
         :param tests: A list of test objects to update.
+        :param log_file: The logfile to log results to. May be None.
         :returns: True if successful, False otherwise. Will handle
             printing of any failure related errors.
         """
@@ -246,6 +278,7 @@ class ResultsCommand(commands.Command):
                 return False
 
             # The new results will be attached to the test (but not saved).
-            test.gather_results(test.results['return_value'], regather=True)
+            test.gather_results(test.results.get('return_value', 1),
+                                regather=True, log_file=log_file)
 
         return True

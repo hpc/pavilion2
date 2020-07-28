@@ -1,0 +1,16 @@
+one:
+    test_version: 1.2.3
+    run:
+        cmds:
+            - 'sleep 1'
+two:
+    test_version: beta
+    compatible_pav_versions: 1.2.3-5.4.9
+    run:
+        cmds:
+            - 'sleep 1'
+
+three:
+    run:
+        cmds:
+            - 'sleep 1'

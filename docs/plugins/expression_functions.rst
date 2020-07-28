@@ -25,7 +25,7 @@ Needed Files
 ------------
 
 Expression Function plugins are just like every other Pavilion plugin. See
-:ref:`plugin_basics` for instructions on setting up the basic files.
+:ref:`plugins.basics` for instructions on setting up the basic files.
 
 The Plugin Base Class
 ---------------------

@@ -7,6 +7,7 @@ from pathlib import Path
 
 from pavilion import commands
 from pavilion import output
+from pavilion import dir_db
 from pavilion.status_file import STATES
 from pavilion.test_run import TestRun, TestRunError, TestRunNotFoundError
 
@@ -164,10 +165,13 @@ class CleanCommand(commands.Command):
                     .format(test_path, err),
                     color=output.YELLOW, file=self.errfile)
 
+        # Start numbering from the beginning again
+        dir_db.reset_pkey(tests_dir)
+
         # Clean Series
         output.fprint("Removing Series...", file=self.outfile,
                       color=output.GREEN)
-        for series in series_dir.iterdir():
+        for series in dir_db.select(series_dir):
             for test in series.iterdir():
                 if (test.is_symlink() and
                         test.exists() and
@@ -185,6 +189,9 @@ class CleanCommand(commands.Command):
                         .format(series, err),
                         color=output.YELLOW, file=self.errfile
                     )
+
+        # Start numbering from the beginning again
+        dir_db.reset_pkey(series_dir)
 
         # Clean Builds
         output.fprint("Removing Builds...", file=self.outfile,

@@ -6,8 +6,9 @@ the list of all known test runs."""
 import datetime
 import grp
 import json
+import hashlib
 import logging
-import os
+import pprint
 import re
 import subprocess
 import threading
@@ -16,14 +17,15 @@ from pathlib import Path
 
 import pavilion.output
 from pavilion import builder
+from pavilion import dir_db
 from pavilion import lockfile
 from pavilion import result
 from pavilion import scriptcomposer
 from pavilion import utils
+from pavilion.permissions import PermissionsManager
 from pavilion.status_file import StatusFile, STATES
 from pavilion.test_config import variables, resolver
 from pavilion.test_config.file_format import TestConfigError
-from pavilion.permissions import PermissionsManager
 
 
 def get_latest_tests(pav_cfg, limit):
@@ -36,16 +38,18 @@ def get_latest_tests(pav_cfg, limit):
 """
 
     test_dir_list = []
-    top_dir = pav_cfg.working_dir/'test_runs'
-    for child in top_dir.iterdir():
-        mtime = child.stat().st_mtime
-        test_dir_list.append((mtime, child.name))
+    runs_dir = pav_cfg.working_dir/'test_runs'
+    for test_dir in dir_db.select(runs_dir):
+        mtime = test_dir.stat().st_mtime
+        try:
+            test_id = int(test_dir.name)
+        except ValueError:
+            continue
+
+        test_dir_list.append((mtime, test_id))
 
     test_dir_list.sort()
-    last_tests = test_dir_list[-limit:]
-    tests_only = [int(i[1]) for i in last_tests]
-
-    return tests_only
+    return [test_id for _, test_id in test_dir_list[-limit:]]
 
 
 class TestRunError(RuntimeError):
@@ -134,6 +138,10 @@ class TestRun:
 
         self.id = None  # pylint: disable=invalid-name
 
+        # Get the test version information
+        self.test_version = config.get('test_version')
+        self.compatible_pav_versions = config.get('compatible_pav_versions')
+
         self._attrs = {}
 
         # Mark the run to build locally.
@@ -142,7 +150,7 @@ class TestRun:
 
         # If a test access group was given, make sure it exists and the
         # current user is a member.
-        self.group = config.get('group')
+        self.group = config.get('group', pav_cfg['shared_group'])
         if self.group is not None:
             try:
                 group_data = grp.getgrnam(self.group)
@@ -158,7 +166,7 @@ class TestRun:
                     "exist on this system. {}"
                     .format(self.group, err))
 
-        self.umask = config.get('umask')
+        self.umask = config.get('umask', pav_cfg['umask'])
         if self.umask is not None:
             try:
                 self.umask = int(self.umask, 8)
@@ -179,7 +187,7 @@ class TestRun:
 
         # Get an id for the test, if we weren't given one.
         if _id is None:
-            self.id, self.path = self.create_id_dir(tests_path)
+            self.id, self.path = dir_db.create_id_dir(tests_path)
             with PermissionsManager(self.path, self.group, self.umask):
                 self._save_config()
                 if var_man is None:
@@ -191,7 +199,7 @@ class TestRun:
             self.save_attributes()
         else:
             self.id = _id
-            self.path = utils.make_id_path(tests_path, self.id)
+            self.path = dir_db.make_id_path(tests_path, self.id)
             self._variables_path = self.path / 'variables'
             if not self.path.is_dir():
                 raise TestRunNotFoundError(
@@ -234,19 +242,14 @@ class TestRun:
         self.build_timeout = self.parse_timeout(
             'build', config.get('build', {}).get('timeout'))
 
-        self._attributes = {}
-
         self.build_name = None
         self.run_log = self.path/'run.log'
+        self.build_log = self.path/'build.log'
+        self.results_log = self.path/'results.log'
         self.results_path = self.path/'results.json'
         self.build_origin_path = self.path/'build_origin'
 
         build_config = self.config.get('build', {})
-
-        if (build_config.get('source_path') is None and
-                build_config.get('source_url') is not None):
-            raise TestConfigError(
-                "Build source_url specified, but not a source_path.")
 
         self.build_script_path = self.path/'build.sh'  # type: Path
         self.build_path = self.path/'build'
@@ -303,7 +306,7 @@ class TestRun:
         :rtype: TestRun
         """
 
-        path = utils.make_id_path(pav_cfg.working_dir/'test_runs', test_id)
+        path = dir_db.make_id_path(pav_cfg.working_dir / 'test_runs', test_id)
 
         if not path.is_dir():
             raise TestRunError("Test directory for test id {} does not exist "
@@ -454,11 +457,13 @@ class TestRun:
             with PermissionsManager(self.build_path, self.group, self.umask):
                 if not self.builder.copy_build(self.build_path):
                     cancel_event.set()
+            build_result = True
         else:
             self.builder.fail_path.rename(self.build_path)
-            return False
+            build_result = False
 
-        return True
+        self.build_log.symlink_to(self.build_path/'pav_build_log')
+        return build_result
 
     def save_build_name(self):
         """Save the builder's build name to the build name file for the test."""
@@ -601,9 +606,11 @@ class TestRun:
 
         attr_path = self.path/self.ATTR_FILE_NAME
 
-        with PermissionsManager(attr_path, self.group, self.umask), \
-                attr_path.open('w') as attr_file:
-            json.dump(self._attrs, attr_file)
+        with PermissionsManager(attr_path, self.group, self.umask):
+            tmp_path = attr_path.with_suffix('.tmp')
+            with tmp_path.open('w') as attr_file:
+                json.dump(self._attrs, attr_file)
+            tmp_path.rename(attr_path)
 
     def load_attributes(self):
         """Load the attributes from file."""
@@ -694,13 +701,14 @@ class TestRun:
                 raise TimeoutError("Timed out waiting for test '{}' to "
                                    "complete".format(self.id))
 
-    def gather_results(self, run_result, regather=False):
+    def gather_results(self, run_result, regather=False, log_file=None):
         """Process and log the results of the test, including the default set
 of result keys.
 
 :param int run_result: The return code of the test run.
 :param bool regather: Gather results without performing any changes to the
     test itself.
+:param IO[str] log_file: The file to save result logs to.
 """
 
         if self.finished is None:
@@ -713,9 +721,15 @@ of result keys.
 
         parser_configs = self.config['result_parse']
 
+        result_log = result.get_result_logger(log_file)
+
+        result_log("Gathering base results.")
         results = result.base_results(self)
 
         results['return_value'] = run_result
+
+        result_log("Base results:", lvl=1)
+        result_log(pprint.pformat(results))
 
         if not regather:
             self.status.set(STATES.RESULTS,
@@ -723,7 +737,7 @@ of result keys.
                             .format(len(parser_configs)))
 
         try:
-            result.parse_results(self, results)
+            result.parse_results(self, results, log=result_log)
         except result.ResultError as err:
             results['result'] = self.ERROR
             results['pav_result_errors'].append(
@@ -732,8 +746,6 @@ of result keys.
                 self.status.set(STATES.RESULTS_ERROR,
                                 results['pav_result_errors'][-1])
 
-            return results
-
         if not regather:
             self.status.set(STATES.RESULTS,
                             "Performing {} result evaluations."
@@ -741,26 +753,28 @@ of result keys.
         try:
             result.evaluate_results(
                 results,
-                self.config['result_evaluate'])
+                self.config['result_evaluate'],
+                result_log
+            )
         except result.ResultError as err:
             results['result'] = self.ERROR
             results['pav_result_errors'].append(err.args[0])
-            results['result'] = self.ERROR
             if not regather:
                 self.status.set(STATES.RESULTS_ERROR,
                                 results['pav_result_errors'][-1])
-            return results
 
         if results['result'] is True:
             results['result'] = self.PASS
         elif results['result'] is False:
             results['result'] = self.FAIL
         else:
-            results['result'] = self.ERROR
             results['pav_result_errors'].append(
                 "The value for the 'result' key in the results must be a "
                 "boolean. Got '{}' instead".format(results['result']))
-            return results
+            results['result'] = self.ERROR
+
+        result_log("Set final result key to: '{}'".format(results['result']))
+        result_log("See results.json for the final result json.")
 
         self._results = results
 
@@ -952,38 +966,6 @@ modified date for the test directory."""
         with PermissionsManager(path, self.group, self.umask):
             script.write(path)
 
-    @staticmethod
-    def create_id_dir(id_dir):
-        """In the given directory, create the lowest numbered (positive integer)
-directory that doesn't already exist.
-
-:param Path id_dir: Path to the directory that contains these 'id'
-    directories
-:returns: The id and path to the created directory.
-:rtype: list(int, Path)
-:raises OSError: on directory creation failure.
-:raises TimeoutError: If we couldn't get the lock in time.
-"""
-
-        lockfile_path = id_dir/'.lockfile'
-        with lockfile.LockFile(lockfile_path, timeout=1):
-            ids = list(os.listdir(str(id_dir)))
-            # Only return the test directories that could be integers.
-            ids = [id_ for id_ in ids if id_.isdigit()]
-            ids = [id_ for id_ in ids if (id_dir/id_).is_dir()]
-            ids = [int(id_) for id_ in ids]
-            ids.sort()
-
-            # Find the first unused id.
-            id_ = 1
-            while id_ in ids:
-                id_ += 1
-
-            path = utils.make_id_path(id_dir, id_)
-            path.mkdir()
-
-        return id_, path
-
     def __repr__(self):
         return "TestRun({s.name}-{s.id})".format(s=self)
 
@@ -1050,7 +1032,7 @@ directory that doesn't already exist.
                     match = True
 
             if match is False:
-                message = ("Skipping because only_if key '{}' failed to match"
+                message = ("Skipping because only_if key '{}' failed to match "
                            "any of '{}'"
                            .format(key, only_if[key]))
                 match_list.append(message)

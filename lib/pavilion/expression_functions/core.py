@@ -3,17 +3,23 @@ loading."""
 
 import math
 import random
+import re
+from typing import List
 
 from .base import FunctionPlugin, num
-from .common import FunctionPluginError
+from .common import FunctionPluginError, FunctionArgError
 
 
 class CoreFunctionPlugin(FunctionPlugin):
     """A function plugin that sets defaults for core plugins. Use when adding
-    additional function plugins to the core_functions module."""
+    additional function plugins to the core_functions module. Classes that
+    inherit from this will automatically be added as function plugins.  If
+    adding non-core functions, use the standard plugin mechanisms."""
 
-    def __init__(self, name, description, arg_specs):
-        super().__init__(name, description, arg_specs,
+    core = True
+
+    def __init__(self, name, arg_specs, description=None):
+        super().__init__(name, arg_specs, description=description,
                          priority=self.PRIO_CORE)
 
 
@@ -25,7 +31,6 @@ class IntPlugin(CoreFunctionPlugin):
 
         super().__init__(
             name="int",
-            description="Convert integer strings to ints of arbitrary bases.",
             arg_specs=(str, int),
         )
 
@@ -45,7 +50,6 @@ class RoundPlugin(CoreFunctionPlugin):
 
         super().__init__(
             name="round",
-            description="Round the given number to the nearest integer.",
             arg_specs=(float,))
 
     @staticmethod
@@ -63,7 +67,6 @@ class FloorPlugin(CoreFunctionPlugin):
 
         super().__init__(
             name="floor",
-            description="Return the integer floor.",
             arg_specs=(float,))
 
     @staticmethod
@@ -74,14 +77,13 @@ class FloorPlugin(CoreFunctionPlugin):
 
 
 class CeilPlugin(CoreFunctionPlugin):
-    """Get the ceiling of the given number."""
+    """Get the integer ceiling of the given number."""
 
     def __init__(self):
         """Setup plugin."""
 
         super().__init__(
             name="ceil",
-            description="Return the integer ceiling.",
             arg_specs=(float,))
 
     @staticmethod
@@ -99,7 +101,6 @@ class SumPlugin(CoreFunctionPlugin):
 
         super().__init__(
             name="sum",
-            description="Return the sum of the given numbers.",
             arg_specs=([num],))
 
     @staticmethod
@@ -118,7 +119,6 @@ class AvgPlugin(CoreFunctionPlugin):
 
         super().__init__(
             name="avg",
-            description="Returns the average of the given numbers.",
             arg_specs=([num],)
         )
 
@@ -138,8 +138,6 @@ class LenPlugin(CoreFunctionPlugin):
 
         super().__init__(
             name='len',
-            description='Return the integer length of the given str, int or '
-                        'mapping/dict.',
             arg_specs=None,
         )
 
@@ -168,7 +166,6 @@ class RandomPlugin(CoreFunctionPlugin):
 
         super().__init__(
             name="random",
-            description="Return a random float in [0,1).",
             arg_specs=tuple())
 
     @staticmethod
@@ -186,7 +183,6 @@ class KeysPlugin(CoreFunctionPlugin):
 
         super().__init__(
             name='keys',
-            description="Return the keys of the given dict.",
             arg_specs=None,
         )
 
@@ -201,7 +197,136 @@ class KeysPlugin(CoreFunctionPlugin):
 
     @staticmethod
     def keys(arg):
-        """Return a list of keys for the given dictionary. Order is
-        preserved."""
+        """Return a (sorted) list of keys for the given dictionary."""
 
-        return list(arg.keys())
+        return sorted(list(arg.keys()))
+
+
+class AllPlugin(CoreFunctionPlugin):
+    """Return whether all of the items in the given list are true."""
+
+    def __init__(self):
+        """Setup plugin"""
+
+        super().__init__(
+            name='all',
+            arg_specs=([num],)
+        )
+
+    @staticmethod
+    def all(items):
+        """Just use the built-in all function."""
+        return all(items)
+
+
+class AnyPlugin(CoreFunctionPlugin):
+    """Return whether any of the items in the given list are true."""
+
+    def __init__(self):
+        """Setup plugin"""
+
+        super().__init__(
+            name='any',
+            arg_specs=([num],)
+        )
+
+    @staticmethod
+    def any(items):
+        """Just use the built-in any function."""
+        return any(items)
+
+
+class RegexSearch(CoreFunctionPlugin):
+    """Search for the given regular expression. Returns the matched text or,
+    if a matching group (limit 1) was used, the matched group. Returns an
+    empty string on no match. Regexes use Python\'s regex syntax."""
+
+    def __init__(self):
+
+        super().__init__(
+            name='re_search',
+            arg_specs=(str, str),
+        )
+
+    @staticmethod
+    def re_search(regex, data):
+        """Search for the given regex in data."""
+
+        try:
+            regex = re.compile(regex)
+        except re.error as err:
+            raise FunctionArgError(
+                "Could not compile regex:\n{}".format(err.args[0])
+            )
+
+        match = regex.search(data)
+        if match is None:
+            return ''
+
+        if match.groups():
+            return match.groups()[0]
+        else:
+            return match.group()
+
+
+class Replace(CoreFunctionPlugin):
+    """Replace substrings from a given string."""
+
+    def __init__(self):
+
+        super().__init__(
+            'replace',
+            arg_specs=(str, str, str),
+        )
+
+    @staticmethod
+    def replace(string: str, find: str, replacement: str):
+        """Replace all instances of 'find' with 'replacement' in 'string'."""
+
+        return string.replace(find, replacement)
+
+
+class Outliers(CoreFunctionPlugin):
+    """Calculate outliers given a list of values and a separate list
+    of their associated names. The lists should be the same length, and
+    in matching order (which Pavilion should generally guarantee). A value is
+    flagged as an outlier if it is more than 'limit' standard deviations
+    from the mean of the values.
+
+    Produces a dict of name -> (val - mean)/stddev for only those values
+    flagged as outliers.
+
+    Ex: 'bad_nodes: 'outliers(n.*.speed, keys(n), 2.0)`
+    This would find any nodes with a speed more than 2.0 std deviations
+    from the mean.
+    """
+
+    def __init__(self):
+        super().__init__(
+            'outliers',
+            arg_specs=([num], [str], float),
+        )
+
+    @staticmethod
+    def outliers(values: List[num], names: List[str], limit: float):
+        """Create the outlier dict."""
+
+        if len(values) != len(names):
+            raise FunctionPluginError(
+                "The 'values' and 'names' arguments must be lists of equal"
+                "length."
+            )
+
+        mean = sum(values)/len(values)
+        stddev = (sum([(val - mean)**2 for val in values])/len(values))**0.5
+
+        deviations = {}
+
+        for i in range(len(values)):
+            val = values[i]
+
+            dev = (val - mean)/stddev
+            if dev > limit:
+                deviations[names[i]] = dev
+
+        return deviations

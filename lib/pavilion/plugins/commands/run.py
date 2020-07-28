@@ -1,26 +1,25 @@
 """The run command resolves tests by their names, builds them, and runs them."""
 
-import codecs
 import errno
 import pathlib
-import time
 import threading
 import subprocess
 import os
+import time
 from collections import defaultdict
+from typing import List, Union
 
 from pavilion import commands
 from pavilion import output
-from pavilion.output import fprint
 from pavilion import result
 from pavilion import schedulers
-from pavilion import system_variables
 from pavilion import test_config
+from pavilion.builder import MultiBuildTracker
+from pavilion.output import fprint
 from pavilion.plugins.commands.status import print_from_test_obj
 from pavilion.series import TestSeries, test_obj_from_id
 from pavilion.status_file import STATES
 from pavilion.test_run import TestRun, TestRunError, TestConfigError
-from pavilion.builder import MultiBuildTracker
 
 
 class RunCommand(commands.Command):
@@ -341,8 +340,7 @@ class RunCommand(commands.Command):
             return print_from_test_obj(
                 pav_cfg=pav_cfg,
                 test_obj=tests,
-                outfile=self.outfile,
-                json=False)
+                outfile=self.outfile)
 
         return 0
 
@@ -388,7 +386,8 @@ class RunCommand(commands.Command):
                 host,
                 modes,
                 overrides,
-                conditions=conditions
+                conditions=conditions,
+                output_file=self.outfile,
             )
         except TestConfigError as err:
             raise commands.CommandError(err.args[0])
@@ -401,7 +400,7 @@ class RunCommand(commands.Command):
 
     @staticmethod
     def configs_to_tests(pav_cfg, configs_by_sched, mb_tracker=None,
-                         build_only=False, rebuild=False):
+                          build_only=False, rebuild=False, outfile=None):
         """Convert the dictionary of test configs by scheduler into actual
             tests.
 
@@ -415,6 +414,8 @@ class RunCommand(commands.Command):
         """
 
         tests_by_sched = {}
+        progress = 0
+        tot_tests = sum([len(tests) for tests in configs_by_sched.values()])
 
         for sched_name in configs_by_sched.keys():
             tests_by_sched[sched_name] = []
@@ -429,8 +430,15 @@ class RunCommand(commands.Command):
                         build_only=build_only,
                         rebuild=rebuild,
                     ))
+                    progress += 1.0/tot_tests
+                    if outfile is not None:
+                        fprint("Creating Test Runs: {:.0%}".format(progress),
+                               file=outfile, end='\r')
             except (TestRunError, TestConfigError) as err:
                 raise commands.CommandError(err)
+
+        if outfile is not None:
+            fprint('', file=outfile)
 
         return tests_by_sched
 
@@ -447,8 +455,6 @@ class RunCommand(commands.Command):
         :return:
         :rtype: {}
         """
-
-        sys_vars = system_variables.get_vars(True)
 
         try:
             configs_by_sched = self.get_test_configs(pav_cfg=pav_cfg,
@@ -476,6 +482,7 @@ class RunCommand(commands.Command):
                 mb_tracker=mb_tracker,
                 build_only=build_only,
                 rebuild=args.rebuild,
+                outfile=self.outfile,
             )
 
         except commands.CommandError as err:
@@ -541,7 +548,7 @@ class RunCommand(commands.Command):
         :param MultiBuildTracker mb_tracker: The tracker for all builds.
         """
 
-        test_threads = []   # type: [(threading.Thread, None)]
+        test_threads = []   # type: List[Union[threading.Thread, None]]
         remote_builds = []
 
         cancel_event = threading.Event()
@@ -580,9 +587,6 @@ class RunCommand(commands.Command):
         # Used to track which threads are for which tests.
         test_by_threads = {}
 
-        # The length of the last line printed when verbosity == 0.
-        last_line_len = None
-
         if build_verbosity > 0:
             fprint(self.BUILD_STATUS_PREAMBLE
                    .format(when='When', test_id='TestID',
@@ -615,6 +619,7 @@ class RunCommand(commands.Command):
                     builds_running -= 1
                     test_threads[i] = None
                     test = test_by_threads[thread]
+                    del test_by_threads[thread]
 
                     # Only output test status after joining a thread.
                     if build_verbosity == 1:
@@ -634,13 +639,18 @@ class RunCommand(commands.Command):
                 for thread in test_threads:
                     thread.join()
 
-                for test in build_order + remote_builds:
-                    test.status.set(STATES.ABORTED,
-                                    "Build aborted due to failures in other "
-                                    "builds.")
+                for test in tests:
+                    if (test.status.current().state not in
+                            (STATES.BUILD_FAILED, STATES.BUILD_ERROR)):
+                        test.status.set(
+                            STATES.ABORTED,
+                            "Run aborted due to failures in other builds.")
 
                 fprint("Build error while building tests. Cancelling runs.",
-                       color=output.RED, file=self.outfile)
+                       color=output.RED, file=self.outfile, clear=True)
+                fprint("Failed builds are placed in <working_dir>/test_runs/"
+                       "<test_id>/build for the corresponding test run.",
+                       color=output.CYAN, file=self.outfile)
 
                 for failed_build in mb_tracker.failures():
                     fprint(
@@ -661,11 +671,8 @@ class RunCommand(commands.Command):
                 for state in sorted(state_counts.keys()):
                     parts.append("{}: {}".format(state, state_counts[state]))
                 line = ' | '.join(parts)
-                if last_line_len is not None:
-                    fprint(' '*last_line_len, end='\r', file=self.outfile,
-                           width=None)
-                last_line_len = len(line)
-                fprint(line, end='\r', file=self.outfile, width=None)
+                fprint(line, end='\r', file=self.outfile, width=None,
+                       clear=True)
             elif build_verbosity > 1:
                 for test in tests:
                     seen = message_counts[test.id]

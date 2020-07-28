@@ -60,7 +60,9 @@ class ExPathElem(yc.PathElem):
         elif isinstance(path, str):
             path = Path(path)
 
-        return Path(os.path.expandvars(path.as_posix()))
+        path = Path(os.path.expandvars(path.as_posix()))
+        path = path.expanduser()
+        return path
 
 
 def config_dirs_validator(config, values):
@@ -133,7 +135,7 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
                       "take precedence."),
         yc.BoolElem(
             "user_config",
-            default=True,
+            default=False,
             help_text="Whether to automatically add the user's config "
                       "directory at ~/.pavilion to the config_dirs. Configs "
                       "in this directory always take precedence."
@@ -287,7 +289,7 @@ def get_version():
             lines = file.readlines()
             for line in lines:
                 if line.startswith('RELEASE='):
-                    return line.split('=')[1]
+                    return line.split('=')[1].strip()
 
             return '<unknown>'
 

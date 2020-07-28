@@ -245,11 +245,11 @@ expected to be added to by various plugins.
             ]
         ),
         yc.StrElem(
-            'summary', default='',
+            'summary',
             help_text="Summary of the purpose of this test."
         ),
         yc.StrElem(
-            'doc', default='',
+            'doc',
             help_text="Detailed documentation string for this test."
         ),
         yc.ListElem(
@@ -291,6 +291,17 @@ expected to be added to by various plugins.
                       "A clause is true if the value of "
                       "the Pavilion variable matches one or more of the "
                       " values."
+        ),
+        yc.StrElem(
+            'compatible_pav_versions', default='',
+            help_text="Specify compatibile pavilion versions for this "
+                      "specific test. Can be represented as a single "
+                      "version, ex: 1, 1.2, 1.2.3, or a range, "
+                      "ex: 1.2-1.3.4, etc."
+        ),
+        yc.StrElem(
+            'test_version', default='0.0',
+            help_text="Documented test version."
         ),
         yc.KeyedElem(
             'build', elements=[
@@ -342,7 +353,7 @@ expected to be added to by various plugins.
                               "according to the internal (file-magic) type. "
                               "For relative paths Pavilion looks in the "
                               "test_src directory "
-                              "within all known config directories. If this"
+                              "within all known config directories. If this "
                               "is left blank, Pavilion will always assume "
                               "there is no source to build."),
                 yc.StrElem(
