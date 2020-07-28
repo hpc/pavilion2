@@ -375,17 +375,19 @@ class TestSeries:
 
     LOGGER_FMT = 'series({})'
 
-    def __init__(self, pav_cfg, tests=None, _id=None):
+    def __init__(self, pav_cfg, tests=None, _id=None, series_config=None):
         """Initialize the series.
 
         :param pav_cfg: The pavilion configuration object.
         :param list tests: The list of test objects that belong to this series.
         :param int _id: The test id number. If this is given, it implies that
             we're regenerating this series from saved files.
+        :param dict series_cfg: Series config, if generated from a serie file.
         """
 
         self.pav_cfg = pav_cfg
         self.tests = {}
+        self.config = series_config
 
         if tests:
             self.tests = {test.id: test for test in tests}
@@ -423,6 +425,79 @@ class TestSeries:
             self.path = dir_db.make_id_path(series_path, self._id)
 
         self._logger = logging.getLogger(self.LOGGER_FMT.format(self._id))
+
+    def create_dependency_tree(self):
+
+        from pavilion import output
+
+        self.dep_graph = {}
+
+        # create dependency tree
+        for set_name, set_config in self.config['series'].items():
+            self.dep_graph[set_name] = set_config['depends_on']
+
+        output.dbg_print(self.dep_graph, color=output.CYAN)
+
+        # check for circular dependencies
+        unresolved = list(self.dep_graph.keys())
+        resolved = []
+
+        while unresolved:
+            resolved_something = False
+
+            for unresolved_set in unresolved:
+                # Find if there any dependencies are/were resolved
+                temp_dep_list = copy.deepcopy(self.dep_graph[unresolved_set])
+                for dep in self.dep_graph[unresolved_set]:
+                    if dep in resolved:
+                        temp_dep_list.remove(dep)
+                self.dep_graph[unresolved_set] = temp_dep_list
+
+                # If this was already fully resolved, add it to resolved
+                if not self.dep_graph[unresolved_set]:
+                    resolved.append(unresolved_set)
+                    unresolved.remove(unresolved_set)
+                    resolved_something = True
+
+            if not resolved_something:
+                break
+
+        output.dbg_print(self.dep_graph, color=output.GREEN)
+        output.dbg_print(resolved, color=output.MAGENTA)
+        output.dbg_print(unresolved, color=output.RED)
+
+        return
+
+        # check for circular dependencies
+        unresolved = self.config['series']
+        resolved = []
+
+        output.dbg_print(unresolved, color=output.CYAN)
+
+        while unresolved:
+            resolved_something = False
+            temp_unresolved = copy.deepcopy(unresolved)
+
+            for unresolved_set in temp_unresolved:
+                # Find if any dependencies were resolved
+                for dependency in unresolved_set['depends_on']:
+                    if dependency in resolved:
+                        unresolved_set['depends_on'].remove(dependency)
+                        # Add to dependency graph
+
+                if not unresolved_set['depends_on']:
+                    resolved.append(unresolved_set)
+                    del unresolved[unresolved_set]
+                    resolved_something = True
+
+            if not resolved_something:
+                break
+
+        if unresolved:
+            output.dbg_print('BAD', color=output.RED)
+        else:
+            output.dbg_print(resolved, color=output.MAGENTA)
+
 
     @property
     def id(self):  # pylint: disable=invalid-name

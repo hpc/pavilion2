@@ -1,0 +1,9 @@
+series:
+
+    initial_tests:
+        depends_on: ['initial_tests']
+
+    next_tests:
+        depends_on: ['next_tests']
+
+ordered: True

@@ -1,24 +1,16 @@
 series:
 
-    "echo_test.a":
-        modes: ['smode1']
+    initial_tests:
+        tests: ["echo_test.a", "echo_test.b"]
+        modes: ["smode1"]
 
-    "echo_test.b":
+    next_tests:
+        tests: ["echo_test.d"]
+        depends_on: [initial_tests]
 
-    # echo_test will be skipped
-    "echo_test.c":
-
-    "echo_test.e":
-
-    "echo_test.d":
-        depends_on: ["echo_test.c"]
-        depends_pass: True
-
-    "echo_test.wrong_year":
+    last_tests:
+        tests: ["echo_test.wrong_year"]
         only_if:
             '{{year}}': 1997
 
 modes: ['smode2']
-ordered: True
-simultaneous: 2
-#restart: True

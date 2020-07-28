@@ -155,6 +155,7 @@ class SeriesConfigLoader(yc.YamlConfigLoader):
         TestCatElem(
             'series', sub_elem=yc.KeyedElem(
                 elements=[
+                    yc.ListElem('tests', sub_elem=yc.StrElem()),
                     yc.StrElem('depends_pass',
                                choices=['True', 'true', 'False', 'false'],
                                default='False'),
