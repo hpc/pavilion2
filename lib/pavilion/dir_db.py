@@ -2,6 +2,7 @@
 essentially serves as a filesystem primary key."""
 
 import os
+import re
 import shutil
 from datetime import datetime
 from typing import Callable, List
@@ -17,7 +18,6 @@ ID_DIGITS = 7
 ID_FMT = '{id:0{digits}d}'
 
 PKEY_FN = 'next_id'
-
 
 def make_id_path(base_path, id_):
     """Create the full path to an id directory given its base path and
@@ -103,6 +103,18 @@ def default_filter(_: Path) -> bool:
 
     return True
 
+def is_hex(string: str) -> bool:
+    """Determines if passed string is valide hex or not.
+    :param string: A string to check.
+    :return bool: True if hex, False, if not hex.
+    """
+
+    try:
+        int(string, 16)
+    except ValueError as err:
+        return False
+
+    return True
 
 def select(id_dir: Path,
            filter_func: Callable[[Path], bool] = default_filter,
@@ -119,7 +131,7 @@ def select(id_dir: Path,
                 if filter_func(path):
                     passed.append(path)
         else:
-            if path.is_dir():
+            if is_hex(path.name) and path.is_dir():
                 if filter_func(path):
                     passed.append(path)
 
