@@ -6,7 +6,6 @@ series:
 
     next_tests:
         tests: ["echo_test.d"]
-        depends_on: [initial_tests]
 
     last_tests:
         tests: ["echo_test.wrong_year"]
@@ -14,3 +13,4 @@ series:
             '{{year}}': 1997
 
 modes: ['smode2']
+ordered: True

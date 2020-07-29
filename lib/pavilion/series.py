@@ -19,6 +19,7 @@ from pavilion import schedulers
 from pavilion import arguments
 from pavilion import test_config
 from pavilion import system_variables
+from pavilion import output
 from pavilion.test_config import resolver
 from pavilion.status_file import STATES
 from pavilion.builder import MultiBuildTracker
@@ -57,7 +58,7 @@ def test_obj_from_id(pav_cfg, test_ids):
 
 
 class SeriesManager:
-    """Series Manger"""
+    """Series Manager"""
 
     def __init__(self, pav_cfg, series_obj, series_cfg):
         # set everything up
@@ -370,12 +371,151 @@ class SeriesManager:
             self.dep_graph[test_name] = test_config['depends_on']
 
 
+class TestSet:
+    # need info like
+    # modes, only/not_ifs, next, prev
+    def __init__(self, name, tests, modes, only_if, not_if, pav_cfg,
+                 series_obj):
+        self.name = name
+        self.tests = tests
+        self.modes = modes
+        self.only_if = only_if
+        self.not_if = not_if
+        self.pav_cfg = pav_cfg
+        self.series_obj = series_obj
+
+        self._before = []
+        self._after = []
+
+    # def __repr__(self):
+    #     set_attritbutes = {"name": self.name,
+    #                        "tests": self.tests,
+    #                        "modes": self.modes,
+    #                        "only_if": self.only_if,
+    #                        "not_if": self.not_if
+    #                        }
+    #
+    #     return str(set_attritbutes)
+
+    @property
+    def before(self):
+        return self._before
+
+    @before.setter
+    def before(self, prev_tests):
+
+        if isinstance(prev_tests, list):
+            self._before.extend(prev_tests)
+        elif isinstance(prev_tests, str):
+            self._before.append(prev_tests)
+        else:
+            raise TestSeriesError("Something went wrong.")
+
+    @property
+    def after(self):
+        return self._after
+
+    @after.setter
+    def after(self, next_tests):
+
+        if isinstance(next_tests, list):
+            self._after.extend(next_tests)
+        elif isinstance(next_tests, str):
+            self._after.append(next_tests)
+        else:
+            raise TestSeriesError("Something went wrong.")
+
+    def run_set(self):
+
+        # basically copy what the run command is doing here
+        mb_tracker = MultiBuildTracker()
+
+        run_cmd = commands.get_command('run')
+
+        # run.RunCommand._get_tests function
+        try:
+            new_conditions = {
+                'only_if': self.only_if,
+                'not_if': self.not_if
+            }
+
+            # resolve configs
+            configs_by_sched = run_cmd.get_test_configs(
+                pav_cfg=self.pav_cfg,
+                host=None,
+                test_files=[],
+                tests=self.tests,
+                modes=self.modes,
+                overrides=None,
+                conditions=new_conditions
+            )
+
+            # configs->tests
+            tests_by_sched = run_cmd.configs_to_tests(
+                pav_cfg=self.pav_cfg,
+                configs_by_sched=configs_by_sched,
+                mb_tracker=mb_tracker,
+                build_only=False,
+                rebuild=False
+            )
+
+        except commands.CommandError as err:
+            # probably won't happen
+            err = codecs.decode(str(err), 'unicode-escape')
+            return None
+
+        except test_config.file_format.TestConfigError as err:
+            return None
+
+        if tests_by_sched is None:
+            # probably won't happen but just in case
+            return None
+
+        all_tests = sum(tests_by_sched.values(), [])
+        run_cmd.last_tests = list(all_tests)
+
+        if not all_tests:
+            # probalby won't happen but just in case
+            return None
+
+        # assign tests to series and vice versa
+        self.series_obj.add_tests(all_tests)
+        run_cmd.last_series = self.series_obj
+
+        # make sure result parsers are ok
+        res = run_cmd.check_result_format(all_tests)
+        if res != 0:
+            run_cmd.complete_tests(all_tests)
+            return None
+
+        # attempt to build
+        res = run_cmd.build_local(
+            tests=all_tests,
+            max_threads=self.pav_cfg.build_threads,
+            mb_tracker=mb_tracker,
+            build_verbosity=0
+        )
+        if res != 0:
+            run_cmd.complete_tests(all_tests)
+            return None
+
+        # deal with simultaneous here
+        run_cmd.run_tests(
+            pav_cfg=self.pav_cfg,
+            tests_by_sched=tests_by_sched,
+            series=self.series_obj,
+            wait=None,
+            report_status=False
+        )
+
+
 class TestSeries:
     """Series are a collection of tests. Every time """
 
     LOGGER_FMT = 'series({})'
 
-    def __init__(self, pav_cfg, tests=None, _id=None, series_config=None):
+    def __init__(self, pav_cfg, tests=None, _id=None, series_config=None,
+                 dep_graph=None):
         """Initialize the series.
 
         :param pav_cfg: The pavilion configuration object.
@@ -388,6 +528,11 @@ class TestSeries:
         self.pav_cfg = pav_cfg
         self.tests = {}
         self.config = series_config
+        if not dep_graph:
+            self.dep_graph = {}
+        else:
+            self.dep_graph = dep_graph
+        self.test_sets = {} # { set_name: TestSetObject }
 
         if tests:
             self.tests = {test.id: test for test in tests}
@@ -428,15 +573,11 @@ class TestSeries:
 
     def create_dependency_tree(self):
 
-        from pavilion import output
-
-        self.dep_graph = {}
-
         # create dependency tree
         for set_name, set_config in self.config['series'].items():
             self.dep_graph[set_name] = set_config['depends_on']
 
-        output.dbg_print(self.dep_graph, color=output.CYAN)
+        temp_original_dep = copy.deepcopy(self.dep_graph)
 
         # check for circular dependencies
         unresolved = list(self.dep_graph.keys())
@@ -462,42 +603,14 @@ class TestSeries:
             if not resolved_something:
                 break
 
-        output.dbg_print(self.dep_graph, color=output.GREEN)
-        output.dbg_print(resolved, color=output.MAGENTA)
-        output.dbg_print(unresolved, color=output.RED)
+        if unresolved:
+            raise TestSeriesError(
+                "Circular dependencies detected. Please fix. No tests are run.",
+            )
+
+        self.dep_graph = temp_original_dep
 
         return
-
-        # check for circular dependencies
-        unresolved = self.config['series']
-        resolved = []
-
-        output.dbg_print(unresolved, color=output.CYAN)
-
-        while unresolved:
-            resolved_something = False
-            temp_unresolved = copy.deepcopy(unresolved)
-
-            for unresolved_set in temp_unresolved:
-                # Find if any dependencies were resolved
-                for dependency in unresolved_set['depends_on']:
-                    if dependency in resolved:
-                        unresolved_set['depends_on'].remove(dependency)
-                        # Add to dependency graph
-
-                if not unresolved_set['depends_on']:
-                    resolved.append(unresolved_set)
-                    del unresolved[unresolved_set]
-                    resolved_something = True
-
-            if not resolved_something:
-                break
-
-        if unresolved:
-            output.dbg_print('BAD', color=output.RED)
-        else:
-            output.dbg_print(resolved, color=output.MAGENTA)
-
 
     @property
     def id(self):  # pylint: disable=invalid-name
@@ -546,13 +659,77 @@ associated tests."""
                     )
 
             else:
-                series_info_files = ['series.out', 'series.pgid']
+                series_info_files = ['series.out', 'series.pgid', 'config',
+                                     'dependency']
                 if link_path.name not in series_info_files:
                     logger.info("Polluted series directory in series '%s'",
                                 series_path)
                     raise ValueError(link_path)
 
         return cls(pav_cfg, tests, _id=id_)
+
+    @classmethod
+    def get_config_dep_from_id(cls, pav_cfg, id_):
+        """Load a series object from the given id, along with the config and
+        dependency tree."""
+
+        id_ = int(id_)
+
+        series_path = pav_cfg.working_dir/'series'
+        series_path = dir_db.make_id_path(series_path, id_)
+
+        try:
+            with open(str(series_path/'config'), 'r') as config_file:
+                config = config_file.readline()
+            config = json.loads(config)
+
+            with open(str(series_path/'dependency'), 'r') as dep_file:
+                dep = dep_file.readline()
+            dep = json.loads(dep)
+
+        except FileNotFoundError as fnfe:
+            raise TestSeriesError("Files not found. {}".format(fnfe))
+
+        return cls(pav_cfg, _id=id_, series_config=config, dep_graph=dep)
+
+    def create_set_graph(self):
+
+        # create all TestSet objects
+        universal_modes = self.config['modes']
+        for set_name, set_info in self.config['series'].items():
+            modes = universal_modes + set_info['modes']
+            set_obj = TestSet(set_name, set_info['tests'], modes,
+                              set_info['only_if'], set_info['not_if'],
+                              self.pav_cfg, self)
+            self.test_sets[set_name] = set_obj
+
+        # create doubly linked graph of TestSet objects
+        for set_name in self.dep_graph:
+            self.test_sets[set_name].before = self.dep_graph[set_name]
+
+            next_list = []
+            for s_n in self.dep_graph:
+                if set_name in self.dep_graph[s_n]:
+                    next_list.append(s_n)
+            self.test_sets[set_name].after = next_list
+
+        return
+
+    def run_series(self):
+
+        # run tests in order
+        while True:
+            self.all_sets = list(self.test_sets.keys())
+            self.started = []
+            self.finished = []
+            self.not_started = []
+
+            # kick off any sets that aren't waiting on any sets to complete
+            for set_name in self.test_sets:
+                if not self.test_sets[set_name].before:
+                    self.test_sets[set_name].run_set()
+
+            break
 
     @staticmethod
     def get_pgid(pav_cfg, id_):
@@ -562,9 +739,8 @@ associated tests."""
         except TypeError as err:
             pass
 
-        from pavilion import output
         series_path = pav_cfg.working_dir/'series'
-        series_path = utils.make_id_path(series_path, int(id_))
+        series_path = dir_db.make_id_path(series_path, int(id_))
         series_id_path = series_path/'series.pgid'
 
         if not series_id_path.exists():
@@ -591,7 +767,7 @@ associated tests."""
             self.tests[test.id] = test
 
             # attempt to make symlink
-            link_path = utils.make_id_path(self.path, test.id)
+            link_path = dir_db.make_id_path(self.path, test.id)
 
             try:
                 link_path.symlink_to(test.path)

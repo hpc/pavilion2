@@ -17,6 +17,17 @@ class SeriesFileTests(PavTestCase):
     def tearDown(self):
         plugins._reset_plugins()
 
+    def test_series_circle(self):
+        """Test if it can detect circular references and that ordered: True
+        works as intended."""
+
+        series_cmd = commands.get_command('series')
+        arg_parser = arguments.get_parser()
+        series_args = arg_parser.parse_args(['series', 'series_circle1'])
+
+        self.assertRaises(series.TestSeriesError,
+                          lambda: series_cmd.run(self.pav_cfg, series_args))
+
     def test_series_modes(self):
         """Test if modes are applied correctly."""
         # test-level modes, series-level modes

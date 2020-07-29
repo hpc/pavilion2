@@ -22,56 +22,21 @@ class AutoSeries(commands.Command):
     def _setup_arguments(self, parser):
 
         parser.add_argument(
-            'series', action='store',
-            help="Suite name."
-        )
-        parser.add_argument(
-            '--series-id',
-            help='Provide series ID if test is already part of a series.'
+            'series_id', action='store',
+            help="Series ID."
         )
 
     def run(self, pav_cfg, args):
 
-        self.make_series_man(pav_cfg, args)
+        # load series obj
+        series_obj = series.TestSeries.get_config_dep_from_id(pav_cfg,
+                                                              args.series_id)
+
+        # create doubly linked series stuff
+        series_obj.create_set_graph()
+
+        # call function to actually run series
+        series_obj.run_series()
 
         return 0
 
-    # pylint: disable=no-self-use
-    def make_series_man(self, pav_cfg, args):
-
-        series_name = args.series
-
-        series_config_loader = SeriesConfigLoader()
-
-        # pylint: disable=protected-access
-        tsr = TestConfigResolver(pav_cfg)
-        series_path = tsr._find_config('series', series_name)
-
-        with series_path.open() as series_file:
-            if not args.series_id:
-                series_obj = series.TestSeries(pav_cfg)
-            else:
-                series_obj = series.TestSeries.from_id(pav_cfg, args.series_id)
-
-            series_cfg = series_config_loader.load(series_file)
-            if series_cfg['ordered'] in ['True', 'true']:
-                ser_keys = list(series_cfg['series'].keys())
-                for ser_idx in range(len(ser_keys)-1):
-                    temp_depends_on = series_cfg['series'][ser_keys[
-                        ser_idx+1]]['depends_on']
-                    if ser_keys[ser_idx] not in temp_depends_on:
-                        temp_depends_on.append(ser_keys[ser_idx])
-
-            series_man = series.SeriesManager(pav_cfg,
-                                              series_obj,
-                                              series_cfg)
-
-            # print dependency graph -- for debugging purposes, mostly
-            for test_name in series_man.dep_graph:
-                output.fprint(test_name, series_man.dep_graph[test_name],
-                              color=output.CYAN)
-
-            # call method to actually run series
-            series_man.run_series()
-
-            return series_man
