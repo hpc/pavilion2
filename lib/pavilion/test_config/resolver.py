@@ -416,10 +416,6 @@ class TestConfigResolver:
                     test_suite_path
                 )
 
-                # Updates a test config to accurately track cmds_extend_before
-                # and cmds_extend_after keys.
-                suite_tests = self.cmd_extend_update(test_suite_cfg, suite_tests)
-
                 # Add some basic information to each test config.
                 for test_cfg_name, test_cfg in suite_tests.items():
                     test_cfg['name'] = test_cfg_name
@@ -476,25 +472,6 @@ class TestConfigResolver:
 
         return picked_tests
 
-    def cmd_extend_update(self, test_suite_cfg, suite_tests):
-
-        new_suite_tests = copy.deepcopy(suite_tests)
-
-        for test_name, test_cfg in test_suite_cfg.items():
-            for sec in ['build', 'run']:
-                new_suite_tests[test_name][sec] = {}
-                for key in suite_tests[test_name][sec].keys():
-                    if key in ['cmds_extend_before', 'cmds_extend_after']:
-                        new_suite_tests[test_name][sec][key] = []
-                        try:
-                            new_suite_tests[test_name][sec][key] = test_cfg[sec][key]
-                        except KeyError as err:
-                            pass
-                    else:
-                        new_suite_tests[test_name][sec][key] = \
-                        suite_tests[test_name][sec][key]
-
-        return new_suite_tests
 
     def verify_version_range(comp_versions):
 
@@ -590,6 +567,8 @@ class TestConfigResolver:
                         "Host config '{}' raised a type error, but that "
                         "should never happen. {}".format(host_cfg_path, err))
 
+            test_cfg = resolve_cmd_inheritance(test_cfg)
+
         return test_cfg
 
     def apply_modes(self, test_cfg, modes):
@@ -637,6 +616,8 @@ class TestConfigResolver:
                     "Mode config '{}' raised a type error, but that "
                     "should never happen. {}".format(mode_cfg_path, err))
 
+            test_cfg = resolve_cmd_inheritance(test_cfg)
+
         return test_cfg
 
     @staticmethod
@@ -678,18 +659,6 @@ class TestConfigResolver:
                         "{} in {} is empty. Nothing will execute."
                         .format(test_cfg_name, suite_path))
                 if test_cfg.get('inherits_from') is None:
-                    # Only allow for extending commands keys if the test
-                    # inherits from another test.
-                    error = ("Test {} has {} element in the {} section of "
-                             "config, but no inheritance.")
-                    for section in ['build', 'run']:
-                        for cmd in ['cmds_extend_before', 'cmds_extend_after']:
-                            try:
-                                if test_cfg[section][cmd]:
-                                    raise TestConfigError(error.format(
-                                        test_cfg_name, cmd, section))
-                            except KeyError as err:
-                                continue
                     test_cfg['inherits_from'] = '__base__'
                     # Tests that depend on nothing are ready to resolve.
                     ready_to_resolve.append(test_cfg_name)
@@ -723,18 +692,8 @@ class TestConfigResolver:
             suite_tests[test_cfg_name] = test_config_loader.merge(parent,
                                                                   test_cfg)
 
-            if parent is not '__base__':
-                for section in ['build', 'run']:
-                    config = test_cfg.get(section)
-                    if not config:
-                        continue
-                    new_cmd_list = []
-                    if config.get('cmds_extend_before'):
-                        new_cmd_list += config.get('cmds_extend_before')
-                    new_cmd_list += suite_tests[test_cfg_name][section]['cmds']
-                    if config.get('cmds_extend_after'):
-                        new_cmd_list += config.get('cmds_extend_after')
-                    suite_tests[test_cfg_name][section]['cmds'] = new_cmd_list
+            suite_tests[test_cfg_name] = \
+            resolve_cmd_inheritance(suite_tests[test_cfg_name])
 
             # Now all tests that depend on this one are ready to resolve.
             ready_to_resolve.extend(depended_on_by.get(test_cfg_name, []))
@@ -1206,3 +1165,21 @@ class TestConfigResolver:
             raise TestConfigError("Invalid value type '{}' for '{}' when "
                                   "resolving strings."
                                   .format(type(component), component))
+
+def resolve_cmd_inheritance(test_cfg):
+
+    for section in ['build', 'run']:
+        config = test_cfg.get(section)
+        if not config:
+            continue
+        new_cmd_list = []
+        if config.get('cmds_extend_before'):
+            new_cmd_list += config.get('cmds_extend_before')
+            config['cmds_extend_before'] = []
+        new_cmd_list += test_cfg[section]['cmds']
+        if config.get('cmds_extend_after'):
+            new_cmd_list += config.get('cmds_extend_after')
+            config['cmds_extend_after'] = []
+        test_cfg[section]['cmds'] = new_cmd_list
+
+    return test_cfg

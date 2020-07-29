@@ -492,44 +492,29 @@ class ResolverTests(PavTestCase):
             },
             'test2': {
                 'build': {
-                    'cmds_extend_before': [
-                        'echo "You say goodbye"'
-                    ],
                     'cmds': [
                         'echo "You say goodbye"',
                         'echo "and I say hello"'
-                    ],
-                    'cmds_extend_after': []
+                    ]
                 },
                 'run': {
-                    'cmds_extend_before': [],
                     'cmds': [
                         'echo "Hello"',
-                        'echo ", hello"'
-                    ],
-                    'cmds_extend_after': [
                         'echo ", hello"'
                     ]
                 }
             },
             'test3': {
                 'build': {
-                    'cmds_extend_before': [],
                     'cmds': [
                         'echo "You say goodbye"',
                         'echo "and I say hello"'
-                    ],
-                    'cmds_extend_after': []
+                    ]
                 },
                 'run': {
-                    'cmds_extend_before': [],
                     'cmds': [
                         'echo "Hello"',
                         'echo ", hello"',
-                        'echo "I dont know why you say goodbye,"',
-                        'echo "I say hello"'
-                    ],
-                    'cmds_extend_after': [
                         'echo "I dont know why you say goodbye,"',
                         'echo "I say hello"'
                     ]
@@ -542,9 +527,8 @@ class ResolverTests(PavTestCase):
             test_name = test_cfg.get('name')
 
             for sec in ['build', 'run']:
-                for key in ['cmds_extend_before', 'cmds', 'cmds_extend_after']:
-                    self.assertEqual(test_cfg[sec][key],
-                                     correct[test_name][sec][key])
+                self.assertEqual(test_cfg[sec]['cmds'],
+                                 correct[test_name][sec]['cmds'])
 
     def test_version_compatibility(self):
         """Make sure version compatibility checks are working and populate the
