@@ -117,7 +117,7 @@ def is_hex(string: str) -> bool:
 
 def select(id_dir: Path,
            filter_func: Callable[[Path], bool] = default_filter,
-           build_dirs: bool = False) -> List[Path]:
+           builds_dir: bool = False) -> List[Path]:
     """Return a list of all test paths in the given id_dir that pass the
     given filter function. The paths returned are guaranteed (within limits)
     to be an id directory, and only paths that pass the filter function
@@ -125,7 +125,7 @@ def select(id_dir: Path,
 
     passed = []
     for path in id_dir.iterdir():
-        if not build_dirs:
+        if not builds_dir:
             if path.name.isdigit() and path.is_dir():
                 if filter_func(path):
                     passed.append(path)

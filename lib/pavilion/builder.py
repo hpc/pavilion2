@@ -1021,7 +1021,7 @@ def get_used_build_paths(tests_dir: Path) -> set:
         build_origin = None
         if (build_origin_symlink.exists() and
             build_origin_symlink.is_symlink() and
-            build_origin_symlink.resolve().exists):
+            build_origin_symlink.resolve().exists()):
             build_origin = build_origin_symlink.resolve()
 
         if build_origin is not None:
@@ -1042,7 +1042,7 @@ def delete_unused(tests_dir: Path, builds_dir: Path, verbose: bool = False) -> i
 
     used_build_paths = get_used_build_paths(tests_dir)
 
-    def filter_builds(_: Path):
+    def filter_builds(_: Path) -> bool:
         """Build filter function. Build paths that have no associated 
         tests and can be removed return true, otherwise they return false.
 
@@ -1058,7 +1058,7 @@ def delete_unused(tests_dir: Path, builds_dir: Path, verbose: bool = False) -> i
 
     lock_path = builds_dir.with_suffix('.lock;')
     with lockfile.LockFile(lock_path):
-        for path in dir_db.select(builds_dir, filter_builds, build_dirs=True):
+        for path in dir_db.select(builds_dir, filter_builds, builds_dir=True):
             try:
                 shutil.rmtree(path.as_posix())
                 path.with_suffix('.finished').unlink()
