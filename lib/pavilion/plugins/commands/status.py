@@ -8,10 +8,12 @@ from datetime import datetime
 from typing import List, Union
 
 from pavilion import commands
+from pavilion import dir_db
 from pavilion import output
 from pavilion import schedulers
 from pavilion import series
 from pavilion import test_run
+from pavilion import utils
 from pavilion.status_file import STATES
 from pavilion.test_run import TestRun, TestRunError, TestRunNotFoundError
 
@@ -67,16 +69,16 @@ def status_from_test_obj(pav_cfg: dict,
     return test_statuses
 
 
-def get_all_tests(pav_cfg, args):
+def get_all_tests(pav_cfg, args, list):
     """Return the statuses for all tests, up to the limit in args.limit."""
 
-    latest_tests = test_run.get_latest_tests(pav_cfg, args.limit)
-
+    #latest_tests = test_run.get_latest_tests(pav_cfg, args.limit)
+    latest_tests = list
     test_obj_list = []
     test_statuses = []
     for test_id in latest_tests:
         try:
-            test = TestRun.load(pav_cfg, test_id)
+            test = TestRun.load(pav_cfg, int(test_id))
             test_obj_list.append(test)
         except (TestRunError, TestRunNotFoundError) as err:
             test_statuses.append({
@@ -104,7 +106,7 @@ def get_tests(pav_cfg, args, errfile):
 :param errfile: stream to output errors as needed
 :return: List of test objects
     """
-
+ 
     if not args.tests:
         # Get the last series ran by this user
         series_id = series.TestSeries.load_user_series_id(pav_cfg)
@@ -136,6 +138,7 @@ def get_tests(pav_cfg, args, errfile):
             test_list.append(test_id)
 
     test_list = list(map(int, test_list))
+    dbg_print(test_list)
     return test_list
 
 
@@ -267,14 +270,47 @@ class StatusCommand(commands.Command):
             '-k', '--show-skipped', default=False, action='store_true',
             help='Show the status of skipped tests.')
 
+        parser.add_argument(
+            '-u', '--user', type=str, nargs=1,
+            help='Filter status by user.'
+        )
+        parser.add_argument(
+            '-o', '--older', action='store_true',
+            help='Filter status by oldest test first'
+        )
+        parser.add_argument(
+            '-n', '-newer', action='store_true',
+            help='Filter status by newest test first.'
+        )
+        parser.add_argument(
+            '-p', '--passed', action='store_true',
+            help='Filter status by tests passed.'
+        )
+        parser.add_argument(
+            '-f', '--failed', action='store_true',
+            help='Filter status by tests failed.'
+        )
+        parser.add_argument(
+            '-c', '--complete', action='store_true',
+            help='Filter status by tests completed.'
+        )
+        parser.add_argument(
+            '-i', '--incomplete', action='store_true',
+            help='Filter status by tests incomplete.'
+        )
+        parser.add_argument(
+            '--sys_name', type=str, nargs=1,
+            help='Filter status by type of machine.'
+        )
+
+
     def run(self, pav_cfg, args):
         """Gathers and prints the statuses from the specified test runs and/or
         series."""
+
         try:
-            if not args.all:
-                test_statuses = get_statuses(pav_cfg, args, self.errfile)
-            else:
-                test_statuses = get_all_tests(pav_cfg, args)
+            list = utils.filter_tests(pav_cfg, args)
+            test_statuses = get_all_tests(pav_cfg, args, list)
         except commands.CommandError as err:
             output.fprint("Status Error:", err, color=output.RED,
                           file=self.errfile)

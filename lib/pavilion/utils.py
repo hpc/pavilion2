@@ -5,9 +5,11 @@ plugins.
 """
 
 import errno
+import json
 import os
 import subprocess
 import zipfile
+from pavilion import dir_db
 from pathlib import Path
 from typing import Iterator
 
@@ -222,3 +224,131 @@ def repair_symlinks(base: Path) -> None:
                 rel_target = relative_to(target, sym_dir)
                 file.unlink()
                 file.symlink_to(rel_target)
+
+
+def filter_tests(pav_cfg, args):
+    """Filter and return test paths for display"""
+    from pavilion.output import dbg_print
+    main_path =  pav_cfg.working_dir / 'test_runs'
+    #  All the smaller filters are not in use. We want to call
+    #  select once so we only make one filter....?
+
+    def filter_test_by_user(_: Path) -> bool:
+        """filter_by_user is passed a test_id path and checks if
+        the user provided matches the test and returns True
+         or False."""
+
+        path = _
+        if str(path.owner()) == args.user[0]:
+            return True
+        else:
+            return False
+
+    def filter_test_by_sysname(_: Path) -> bool:
+        """filter_test_by_sysname displas is passed a test_id
+        path and checks if the sysname provided match and returns
+        True  or False."""
+        path = _
+        with open(path / 'variables') as var_file:
+            vars = json.load(var_file)
+            if vars['sys']['sys_name'] == args.sys_name:
+                return True
+            else:
+                return False
+
+    def filter_test_by_complete(_: Path) -> bool:
+        """Returns only tests that have completed"""
+        path = _ / 'RUN_COMPLETE'
+        if path.exists():
+            return True
+        else:
+            return False
+
+    def filter_test_by_incomplete(_: Path) -> bool:
+        """Returns tests that do not contain a RUN_
+        COMPLETE file."""
+        path = _ / 'RUN_COMPLETE'
+        if path.exists():
+            return False
+        else:
+            return True
+
+    def filter_test_by_pass(_: Path) -> bool:
+        """Returns tests that passed."""
+        path = _ / 'results.json'
+        try:
+            with open(path) as file:
+                result = json.load(file)
+                if result['result'] == 'PASS':
+                    return True
+                else:
+                    return False
+        except (FileNotFoundError, NotADirectoryError):
+            return False
+
+    def filter_test_by_failed(_: Path) -> bool:
+        """Returns tests that failed"""
+        path = _ / 'results.json'
+        try:
+            with open(path) as file:
+                result = json.load(file)
+                if result['result'] == 'FAIL':
+                    return True
+                else:
+                    return False
+        except (FileNotFoundError, NotADirectoryError):
+            return False
+
+    def filter_all(_: Path) -> bool:
+
+        path = _
+        try:
+            if args.complete:
+                complete_path = path / 'RUN_COMPLETE'
+                if not complete_path.exists():
+                    return False
+            if args.incomplete:
+                incomplete_path = path / 'RUN_COMPLETE'
+                if incomplete_path.exists():
+                    return False
+            if args.user:
+                if str(path.owner()) != args.user[0]:
+                    return False
+            if args.sys_name:
+                with open(path / 'variables') as var_file:
+                    vars = json.load(var_file)
+                    if vars['sys']['sys_name'] != args.sys_name:
+                        return False
+            if args.passed:
+                path = _ / 'results.json'
+                with open(path) as file:
+                    result = json.load(file)
+                    if result['result'] != 'PASS':
+                        return False
+            if args.failed:
+                path = _ / 'results.json'
+                with open(path) as file:
+                    result = json.load(file)
+                    if result['result'] != 'FAIL':
+                        return False
+        except (FileNotFoundError, NotADirectoryError):
+            return False
+        return True
+
+    list = dir_db.select(main_path, filter_all)
+
+    #if args.user:
+    #    list = dir_db.select(main_path, filter_test_by_user)
+    #if args.sys_name:
+    #    list = dir_db.select(main_path, filter_test_by_sysname)
+    #if args.complete:
+    #    list = dir_db.select(main_path, filter_test_by_complete)
+    #if args.incomplete:
+    #    list = dir_db.select(main_path, filter_test_by_incomplete)
+    #if args.passed:
+    #    list = dir_db.select(main_path, filter_test_by_pass)
+
+    final = []
+    for path in list:
+        final.append(path.name.lstrip('0'))
+    return final
