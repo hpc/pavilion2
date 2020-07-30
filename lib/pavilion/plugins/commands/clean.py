@@ -197,18 +197,34 @@ class CleanCommand(commands.Command):
         output.fprint("Removing Builds...", file=self.outfile,
                       color=output.GREEN)
         for build in build_dir.iterdir():
+
+            if '.finished' in build.name:
+                build_name = build.name[:-9]
+                if build_name in used_builds:
+                    continue
+
             if build in used_builds:
                 continue
 
-            try:
-                shutil.rmtree(build.as_posix())
-                if args.verbose:
-                    output.fprint("Removed build", build, file=self.outfile)
-            except OSError as err:
-                output.fprint(
-                    "Could not remove build {}: {}"
-                    .format(build, err),
-                    color=output.YELLOW, file=self.errfile)
+            if build.is_dir():
+                try:
+                    shutil.rmtree(build.as_posix())
+                    removed_builds += 1
+                    if args.verbose:
+                        output.fprint("Removed build", build, file=self.outfile)
+                except OSError as err:
+                    output.fprint(
+                        "Could not remove build {}: {}"
+                        .format(build, err),
+                        color=output.YELLOW, file=self.errfile)
+            else:
+                try:
+                    build.unlink()
+                except OSError as err:
+                    output.fprint(
+                        "Could not remove build {}: {}"
+                        .format(build, err),
+                        color=output.YELLOW, file=self.errfile)
 
         output.fprint("Removed {tests} tests, {series} series, and {builds} "
                       "builds."
