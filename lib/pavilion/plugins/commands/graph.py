@@ -78,7 +78,7 @@ class GraphCommand(commands.Command):
 
         try:
             import matplotlib.pyplot as plt
-        except ImportError) as err:
+        except ImportError as err:
             output.fprint("matplotlib not found.", color=output.RED)
             return errno.EINVAL
 

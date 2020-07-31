@@ -10,7 +10,7 @@ from pavilion.unittest import PavTestCase
 def has_matplotlib():
     try:
         import matplotlib
-    except (ImportError, ModuleNotFoundError):
+    except ImportError as err:
         return False
 
     return True
