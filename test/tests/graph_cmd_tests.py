@@ -239,7 +239,9 @@ class ResolverTests(PavTestCase):
             '--x', 'keys(Info)',
             '--y', 'Info.*'
         ])
-
         eval_dict = self.graph_cmd.build_evaluations_dict(args.x, args.y)
-        self.assertRaises(TypeError, self.graph_cmd.evaluate_results,
-                          eval_dict, results)
+
+        graph_cmd = commands.get_command(args.command_name)
+        graph_cmd.silence()
+
+        self.assertEquals(graph_cmd.run(self.pav_cfg, args), errno.EINVAL)

@@ -1,10 +1,7 @@
 import errno
-import os
-import random
-import re
 from datetime import datetime
 
-#from pavilion import commands
+from pavilion import commands
 from pavilion import output
 from pavilion import series
 from pavilion.commands import Command, CommandError
@@ -14,7 +11,7 @@ from pavilion.status_file import STATES
 from pavilion.test_run import TestRun
 
 
-class GraphCommand(Command):
+class GraphCommand(commands.Command):
 
     def __init__(self):
         super().__init__(
@@ -347,7 +344,7 @@ class GraphCommand(Command):
 
         # Ensure results are values we can plot.
         if result_type not in (float, int, list):
-            raise TypeError("'{}' evaluation resulted in '{}'. "
+            raise ResultError("'{}' evaluation resulted in '{}'. "
                             "Expected result of float, int, or list."
                             .format(evals,
                                     result_type.__name__))
@@ -356,7 +353,7 @@ class GraphCommand(Command):
         if result_type is list:
             for item in result:
                 if type(item) not in (int, float):
-                    raise TypeError("'{}' evaluation resulted in a "
+                    raise ResultError("'{}' evaluation resulted in a "
                                     "list that contains invalid type "
                                     "'{}'.".format(evals,
                                                    type(item).__name__))
@@ -441,3 +438,6 @@ class GraphCommand(Command):
 
 class InvalidDateError(RuntimeError):
     """Error to raise for invalid date argument."""
+
+class ResultError(RuntimeError):
+    """Error to raise when results don't go as expected."""
