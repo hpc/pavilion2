@@ -1071,3 +1071,23 @@ def delete_unused(tests_dir: Path, builds_dir: Path, verbose: bool = False) -> i
                 output.fprint('Removed build {}.'.format(path.name))
 
     return count
+
+def remove_lingering_finished_files(builds_dir: Path) -> None:
+    """Removed any build.finished files without an associated build
+    directory.
+    :param builds_dir: The build directory path object.
+    """
+
+    for path in builds_dir.iterdir():
+        if '.finished' not in path.name:
+            continue
+        build_dir = path.name[:-9]
+        build_path = builds_dir/build_dir
+
+        if build_path.exists():
+            continue
+
+        path.unlink()
+
+    return None
+

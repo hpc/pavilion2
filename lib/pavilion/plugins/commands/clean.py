@@ -84,6 +84,7 @@ class CleanCommand(commands.Command):
         output.fprint("Removing Builds...", file=self.outfile, end=end)
         removed_builds = builder.delete_unused(tests_dir, builds_dir,
                                                args.verbose)
+        builder.remove_lingering_finished_files(builds_dir)
         output.fprint("Removed {} build(s).".format(removed_builds),
                       file=self.outfile, color=output.GREEN, clear=True)
 
