@@ -88,9 +88,8 @@ class GraphCommand(Command):
         # Validate Arguments.
         try:
             self.validate_args(args)
-        except (ValueError, CommandError) as err:
-            output.fprint("Invalid command arguments:", color=output.RED)
-            output.fprint(err)
+        except (CommandError, ValueError) as err:
+            output.fprint("Invalid command arguments: \n{}".format(err), color=output.RED)
             return errno.EINVAL
 
         # Expand series, convert test_ids (if provided).
@@ -138,11 +137,7 @@ class GraphCommand(Command):
         # Validate Date.
         if args.date:
             args.date = args.date.strip("'")
-            try:
-                args.date = datetime.strptime(args.date, '%b %d %Y')
-            except ValueError as err:
-                raise ValueError("{} is not a valid date "
-                              "format: {}".format(args.date, err))
+            args.date = datetime.strptime(args.date, '%b %d %Y')
 
         if not args.x:
             raise CommandError("No value was given to graph on X-axis. Use "
@@ -320,9 +315,9 @@ class GraphCommand(Command):
 
         return evals
 
-    def verify_and_transform_data_list(self, x_data_list, y_data_list):
-        """ Transforms y_data_list to work if multiple x_values are present.
-        Also checks to ensure lists are of equal length.
+    def transform_data_list(self, x_data_list, y_data_list):
+        """ Transforms y_data_list to expected format even with multiple 
+        x_values are present.
         :param list x_data_list: List of all x values to plot.
         :param list y_data_list: List of all y values to plot, Sublists will be
                                  ordered by evaluations, not x values.
@@ -330,15 +325,14 @@ class GraphCommand(Command):
                                   values.
         """
 
-        #if len(x_data_list) > 1:
         transformed = []
-        for index in range(len(x_data_list)):
-            transformed.append([item[index] for item in y_data_list])
-        y_data_list = transformed
-
-        if len(x_data_list) != len(y_data_list):
-            raise ValueError("Evaluations resulted in lists of different "
-                             "lengths.")
+        if len(x_data_list) > 1:
+            for index in range(len(x_data_list)):
+                temp = []
+                for item in y_data_list:
+                    temp.append(item[index])
+                transformed.append(temp)
+            y_data_list = transformed
 
         return y_data_list
 
@@ -392,19 +386,10 @@ class GraphCommand(Command):
         for key in evals:
             if key is 'x':
                 continue
-
             result = results[key]
+            y_data_list.append(self.validate_result(result, evals[key]))
 
-            if '*' in evals[key]:
-                for item in result:
-                    y_data_list.append(self.validate_result(item,
-                                                            evals[key]))
-            else:
-                y_data_list.append(self.validate_result(result,
-                                                    evals[key]))
-
-        y_data_list = self.verify_and_transform_data_list(x_data_list,
-                                                          y_data_list)
+        y_data_list = self.transform_data_list(x_data_list, y_data_list)
 
         return x_data_list, y_data_list
 
@@ -454,3 +439,5 @@ class GraphCommand(Command):
 
         return test_results
 
+class InvalidDateError(RuntimeError):
+    """Error to raise for invalid date argument."""

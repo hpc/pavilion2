@@ -54,7 +54,10 @@ class ResolverTests(PavTestCase):
             '--y', 'beans'
         ])
 
-        self.assertEqual(self.graph_cmd.validate_args(args), errno.EINVAL)
+        graph_cmd = commands.get_command(args.command_name)
+        graph_cmd.silence()
+
+        self.assertEquals(graph_cmd.run(self.pav_cfg, args), errno.EINVAL)
 
         args = arg_parser.parse_args([
             'graph',
@@ -69,7 +72,7 @@ class ResolverTests(PavTestCase):
             'graph'
         ])
 
-        self.assertEqual(self.graph_cmd.validate_args(args), errno.EINVAL)
+        self.assertEqual(graph_cmd.run(self.pav_cfg, args), errno.EINVAL)
 
     def test_build_evaluations_dict(self):
         """Make sure the evaluations dictionary is built correctly."""
