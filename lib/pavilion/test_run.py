@@ -237,8 +237,9 @@ class TestRun:
                 self.status.set(STATES.CREATED,
                                 "Test directory and status file created.")
 
-        self.run_timeout = self.parse_timeout(
+        run_timeout = self.parse_timeout(
             'run', config.get('run', {}).get('timeout'))
+
         self.build_timeout = self.parse_timeout(
             'build', config.get('build', {}).get('timeout'))
 
@@ -248,6 +249,16 @@ class TestRun:
         self.results_log = self.path/'results.log'
         self.results_path = self.path/'results.json'
         self.build_origin_path = self.path/'build_origin'
+
+        build_timeout_file = config.get('build', {}).get('timeout_file')
+        if self.build_timeout_file is not None:
+            self.build_timeout_file = self.path/self.build_timeout_file
+
+        # Use run.log as the default timeout file
+        self.timeout_file = self.run_log
+        run_timeout_file = config.get('run', {}).get('timeout_file')
+        if run_timeout_file is not None:
+            self.timeout_file = self.path/run_timeout_file
 
         build_config = self.config.get('build', {})
 
@@ -540,7 +551,7 @@ class TestRun:
                 try:
                     ret = proc.wait(timeout=timeout)
                 except subprocess.TimeoutExpired:
-                    out_stat = self.run_log.stat()
+                    out_stat = self.timeout_file.stat()
                     quiet_time = time.time() - out_stat.st_mtime
                     # Has the output file changed recently?
                     if self.run_timeout < quiet_time:

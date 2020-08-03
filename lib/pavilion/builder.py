@@ -198,6 +198,7 @@ class TestBuilder:
         self._script_path = test.build_script_path
         self.test = test
         self._timeout = test.build_timeout
+        self._timeout_file = test.build_timeout_file
 
         self._fix_source_path()
 
@@ -585,12 +586,15 @@ class TestBuilder:
                                         stdout=build_log,
                                         stderr=build_log)
 
+                if self._timeout_file is None:
+                    self._timeout_file = self.tmp_log_path
+
                 result = None
                 while result is None:
                     try:
                         result = proc.wait(timeout=1)
                     except subprocess.TimeoutExpired:
-                        log_stat = self.tmp_log_path.stat()
+                        log_stat = self._timeout_file.stat()
                         timeout = log_stat.st_mtime + self._timeout
                         # Has the output file changed recently?
                         if time.time() > timeout:
