@@ -340,19 +340,17 @@ class GraphCommand(commands.Command):
         :return list result: Returns the given result in a list.
         """
 
-        result_type = type(result)
-
         # Ensure results are values we can plot.
-        if result_type not in (float, int, list):
+        if not isinstance(result,(float, int, list)):
             raise ResultError("'{}' evaluation resulted in '{}'. "
                             "Expected result of float, int, or list."
                             .format(evals,
-                                    result_type.__name__))
+                                    type(result).__name__))
 
         # Ensure that lists contain values that we can plot. 
-        if result_type is list:
+        if isinstance(result, list):
             for item in result:
-                if type(item) not in (int, float):
+                if not isinstance(item, (int, float)):
                     raise ResultError("'{}' evaluation resulted in a "
                                     "list that contains invalid type "
                                     "'{}'.".format(evals,
@@ -372,7 +370,7 @@ class GraphCommand(commands.Command):
 
         x_result = results['x']
 
-        if type(x_result) is list:
+        if isinstance(x_result, list):
             x_data_list = x_result
         else:
             x_data_list = [x_result]
