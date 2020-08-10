@@ -28,123 +28,145 @@ class SeriesFileTests(PavTestCase):
         self.assertRaises(series.TestSeriesError,
                           lambda: series_cmd.run(self.pav_cfg, series_args))
 
+    def test_series_simultaneous(self):
+
+        series_config = {
+            'series':
+                { 'only_set':
+                      { 'modes': [],
+                        'tests': ['echo_test.b'],
+                        'only_if': {},
+                        'not_if': {}}
+                },
+            'modes': ['smode2'],
+            'simultaneous': '1',
+            'restart': False
+        }
+
+        test_series_obj = series.TestSeries(self.pav_cfg,
+                                            series_config=series_config)
+
+        test_series_obj.create_set_graph()
+
+        test_series_obj.run_series()
+
+        # make sure test actually ends
+        time.sleep(0.5)
+
+        test1_obj = test_series_obj.tests[1]
+        test2_obj = test_series_obj.tests[2]
+        test1_start = datetime.strptime(test1_obj.results['started'],
+                                        '%Y-%m-%d %H:%M:%S.%f')
+        test2_start = datetime.strptime(test2_obj.results['started'],
+                                        '%Y-%m-%d %H:%M:%S.%f')
+        time_diff = (test2_start - test1_start).total_seconds()
+        self.assertGreaterEqual(time_diff, 0.5)
+
     def test_series_modes(self):
         """Test if modes are applied correctly."""
-        # test-level modes, series-level modes
 
-        series_cmd = commands.get_command('_series')
-        arg_parser = arguments.get_parser()
-        series_args = arg_parser.parse_args(['_series', 'series_modes'])
+        series_config = {
+            'series':
+                { 'only_set':
+                      { 'modes': ['smode1'],
+                        'tests': ['echo_test.a'],
+                        'only_if': {},
+                        'not_if': {}}
+                  },
+            'modes': ['smode2'],
+            'simultaneous': None,
+            'restart': False
+        }
 
-        # makes series manager and runs
-        series_man = series_cmd.make_series_man(self.pav_cfg, series_args)
+        test_series_obj = series.TestSeries(self.pav_cfg,
+                                            series_config=series_config)
 
-        # buffer time, in case last test doesn't finish before returning
+        test_series_obj.create_set_graph()
+
+        test_series_obj.run_series()
+
+        # make sure test actually ends
         time.sleep(0.5)
 
-        # check modes
-        for name, test_dict in series_man.test_info.items():
-            self.assertIn('obj', test_dict.keys())
-            for test_obj in test_dict['obj']:
-                try:
-                    # check modes
-                    vars = test_obj.var_man.variable_sets['var']
-                    # check if smode 2 values are there
-                    a_num_value = vars.get('another_num', None, None)
-                    num1_value = vars.get('num1', None, None)
-                    num2_value = vars.get('num2', None, None)
-                    self.assertEqual(a_num_value, '13')
-                    self.assertEqual(num1_value, '11')
-                    self.assertEqual(num2_value, '98')
-                except KeyError:
-                    # none of the above will apply for skipped test
-                    if name == 'echo_test.d':
-                        pass
+        self.assertNotEqual(test_series_obj.tests, {})
 
-        # make sure 'echo_test.a' has both modes applied to it
-        for test_obj in series_man.test_info['echo_test.a']['obj']:
+        for test_id, test_obj in test_series_obj.tests.items():
             vars = test_obj.var_man.variable_sets['var']
+            a_num_value = vars.get('another_num', None, None)
+            self.assertEqual(a_num_value, '13')
             asdf_value = vars.get('asdf', None, None)
-            letters_value = vars.get('letters', None, None)
             self.assertEqual(asdf_value, 'asdf1')
-            self.assertEqual(letters_value, 'cup')
 
     def test_series_depends(self):
-        """Test if test dependencies work as intended."""
-        # Test: depends_on, depends_pass
+        """Tests if dependencies work as intended."""
 
-        series_cmd = commands.get_command('_series')
-        arg_parser = arguments.get_parser()
-        series_args = arg_parser.parse_args(['_series', 'series_depends'])
+        series_config = {
+            'series':
+                { 'set_d':
+                      { 'modes': [],
+                        'tests': ['echo_test.d'],
+                        'depends_on': ['set_c'],
+                        'depends_pass': 'True',
+                        'only_if': {},
+                        'not_if': {}},
+                  'set_c':
+                      { 'modes': [],
+                        'tests': ['echo_test.c'],
+                        'depends_on': [],
+                        'only_if': {},
+                        'not_if': {}
+                      }
+                },
+            'modes': ['smode2'],
+            'simultaneous': None,
+            'restart': False
+        }
 
-        # makes series manager and runs
-        series_man = series_cmd.make_series_man(self.pav_cfg, series_args)
+        test_series_obj = series.TestSeries(self.pav_cfg,
+                                            series_config=series_config)
 
-        # buffer time, in case last test doesn't finish before returning
-        time.sleep(0.5)
+        test_series_obj.create_dependency_tree()
 
-        # depends_pass and depends_on works if test d is SKIPPED
-        test_d = series_man.test_info['echo_test.d']['obj'][0]
-        self.assertTrue(test_d.status.has_state('SKIPPED'))
+        test_series_obj.create_set_graph()
 
-    def test_series_ordered(self):
-        """Test if ordered: True works as intended."""
-        # test ordered, depends_pass
-        # outcome should be the same as depends test
+        test_series_obj.run_series()
 
-        series_cmd = commands.get_command('_series')
-        arg_parser = arguments.get_parser()
-        series_args = arg_parser.parse_args(['_series', 'series_ordered'])
+        time.sleep(0.1)
 
-        # makes series manager and runs
-        series_man = series_cmd.make_series_man(self.pav_cfg, series_args)
-
-        # buffer time, in case last test doesn't finish before returning
-        time.sleep(1)
-
-        # depends_pass and depends_on works if test d is SKIPPED
-        test_d = series_man.test_info['echo_test.d']['obj'][0]
-        self.assertTrue(test_d.status.has_state('SKIPPED'))
+        # check if echo_test.d is skipped
+        for test_id, test_obj in test_series_obj.tests.items():
+            if test_obj.name == 'echo_test.d':
+                self.assertTrue(test_obj.status.has_state('SKIPPED'))
 
     def test_series_conditionals(self):
         """Test if conditionals work as intended."""
         # only_if, not_if
 
-        series_cmd = commands.get_command('_series')
-        arg_parser = arguments.get_parser()
-        series_args = arg_parser.parse_args(['_series', 'series_conditionals'])
+        series_config = {
+            'series':
+                { 'only_set':
+                      { 'modes': ['smode1'],
+                        'tests': ['echo_test.wrong_year'],
+                        'only_if': {},
+                        'not_if': {}}
+                  },
+            'modes': ['smode2'],
+            'simultaneous': None,
+            'restart': False
+        }
 
-        # makes series manager and runs
-        series_man = series_cmd.make_series_man(self.pav_cfg, series_args)
 
-        # buffer time, in case last test doesn't finish before returning
-        time.sleep(0.5)
+        test_series_obj = series.TestSeries(self.pav_cfg,
+                                            series_config=series_config)
 
-        # only_if works if test wrong_year is skipped (result is None)
-        test_wrongyear = series_man.test_info['echo_test.wrong_year']['obj'][0]
-        self.assertIsNone(test_wrongyear.results['result'])
+        test_series_obj.create_set_graph()
 
-    def test_series_simultaneous(self):
-        """Test if simultaneous holds true."""
-        # simultaneous
+        test_series_obj.run_series()
 
-        series_cmd = commands.get_command('_series')
-        arg_parser = arguments.get_parser()
-        series_args = arg_parser.parse_args(['_series', 'series_simultaneous'])
+        time.sleep(0.1)
 
-        # makes series manager and runs
-        series_man = series_cmd.make_series_man(self.pav_cfg, series_args)
+        self.assertEqual(len(list(test_series_obj.tests.keys())), 1)
 
-        # buffer time, in case last test doesn't finish before returning
-        time.sleep(0.5)
+        for test_id, test_obj in test_series_obj.tests.items():
+            self.assertIsNone(test_obj.results['result'])
 
-        # simultaneous works if third permutation of test b starts at least
-        # a whole half second after the first one
-        test_b0 = series_man.test_info['echo_test.b']['obj'][0]
-        test_b1 = series_man.test_info['echo_test.b']['obj'][1]
-        test_b0_start = datetime.strptime(test_b0.results['started'],
-                                          '%Y-%m-%d %H:%M:%S.%f')
-        test_b1_start = datetime.strptime(test_b1.results['started'],
-                                          '%Y-%m-%d %H:%M:%S.%f')
-        total_time = (test_b1_start - test_b0_start).total_seconds()
-        self.assertGreaterEqual(total_time, 0.5)
