@@ -377,7 +377,10 @@ class TestSet:
     def __init__(self, name, tests, modes, only_if, not_if, pav_cfg,
                  series_obj):
         self.name = name
-        self.tests = tests
+        # self.tests = tests
+        self.tests = {} # { 'test_name': <test obj> }
+        for test in tests:
+            self.tests[test] = None
         self.modes = modes
         self.only_if = only_if
         self.not_if = not_if
@@ -387,15 +390,8 @@ class TestSet:
         self._before = []
         self._after = []
 
-    # def __repr__(self):
-    #     set_attritbutes = {"name": self.name,
-    #                        "tests": self.tests,
-    #                        "modes": self.modes,
-    #                        "only_if": self.only_if,
-    #                        "not_if": self.not_if
-    #                        }
-    #
-    #     return str(set_attritbutes)
+        self.done = False
+        self.all_pass = False
 
     @property
     def before(self):
@@ -480,6 +476,9 @@ class TestSet:
 
         # assign tests to series and vice versa
         self.series_obj.add_tests(all_tests)
+        for test_obj in all_tests:
+            self.tests[test_obj.name] = test_obj
+
         run_cmd.last_series = self.series_obj
 
         # make sure result parsers are ok
@@ -500,13 +499,97 @@ class TestSet:
             return None
 
         # deal with simultaneous here
-        run_cmd.run_tests(
-            pav_cfg=self.pav_cfg,
-            tests_by_sched=tests_by_sched,
-            series=self.series_obj,
-            wait=None,
-            report_status=False
+        if self.series_obj.config['simultaneous'] is None:
+            run_cmd.run_tests(
+                pav_cfg=self.pav_cfg,
+                tests_by_sched=tests_by_sched,
+                series=self.series_obj,
+                wait=None,
+                report_status=False
+            )
+        else:
+            simult = int(self.series_obj.config['simultaneous'])
+
+            # [ { sched: test_obj }, { sched: test_obj }, etc. ]
+            list_of_tests_by_sched = []
+            for sched, test_objs in tests_by_sched.items():
+                for test_obj in test_objs:
+                    list_of_tests_by_sched.append({sched: [test_obj]})
+
+            for test in list_of_tests_by_sched:
+                self.test_wait(simult)
+                run_cmd.run_tests(
+                    pav_cfg=self.pav_cfg,
+                    tests_by_sched=test,
+                    series=self.series_obj,
+                    wait=None,
+                    report_status=False
+                )
+
+    def test_wait(self, simul):
+
+        while len(self.series_obj.get_currently_running()) >= simul:
+            time.sleep(0.1)
+
+        return
+
+    def is_done(self):
+
+        all_tests_passed = True
+
+        for test_name, test_obj in self.series_obj.tests.items():
+            # check if test object even exists
+            if test_obj is None:
+                return False
+
+            # update the status
+            if test_obj._job_id:
+                test_sched = schedulers.get_plugin(test_obj.scheduler)
+                test_sched.job_status(self.pav_cfg, test_obj)
+
+            # check if RUN_COMPLETE exists
+            if not (test_obj.path/'RUN_COMPLETE').exists():
+                return False
+
+            # check if test passed
+            try:
+                if test_obj.results['result'] != 'PASS':
+                    all_tests_passed = False
+            except KeyError:
+                all_tests_passed = False
+
+        # if all_tests_passed is still True, update object variable
+        self.all_pass = all_tests_passed
+
+        self.done = True
+        return True
+
+    def skip_set(self):
+
+        temp_resolver = resolver.TestConfigResolver(self.pav_cfg)
+        raw_configs = temp_resolver.load_raw_configs(
+            list(self.tests.keys()), [], self.modes
         )
+        for config in raw_configs:
+            # Delete conditionals - we're already skipping this test but for
+            # different reasons
+            del config['only_if']
+            del config['not_if']
+            skipped_test = TestRun(self.pav_cfg, config)
+            skipped_test.status.set(STATES.SKIPPED,
+                                    'Skipping. Previous test did not PASS.')
+            skipped_test.set_run_complete()
+            self.series_obj.add_tests([skipped_test])
+            self.tests[skipped_test.name] = skipped_test
+
+        self.done = True
+
+    def kill_set(self):
+
+        for test_name, test_obj in self.tests.items():
+            if test_obj:
+                test_obj.status.set(STATES.COMPLETE, "Killed by SIGTERM. ")
+                test_obj.set_run_complete()
 
 
 class TestSeries:
@@ -533,6 +616,7 @@ class TestSeries:
         else:
             self.dep_graph = dep_graph
         self.test_sets = {} # { set_name: TestSetObject }
+        self.test_objs = {}
 
         if tests:
             self.tests = {test.id: test for test in tests}
@@ -570,6 +654,14 @@ class TestSeries:
             self.path = dir_db.make_id_path(series_path, self._id)
 
         self._logger = logging.getLogger(self.LOGGER_FMT.format(self._id))
+
+    def get_currently_running(self):
+        cur_run = []
+        for test_id, test_obj in self.tests.items():
+            temp_state = test_obj.status.current().state
+            if temp_state in ['SCHEDULED', 'RUNNING']:
+                cur_run.append(test_obj)
+        return cur_run
 
     def create_dependency_tree(self):
 
@@ -717,19 +809,95 @@ associated tests."""
 
     def run_series(self):
 
-        # run tests in order
+        # handles SIGTERM (15) signal
+        def sigterm_handler(*args):
+
+            for set_name in self.started:
+                self.test_sets[set_name].kill_set()
+
+            # for set_name, set_obj in self.test_sets.items():
+            #     set_obj.kill_set()
+            sys.exit()
+
+        signal.signal(signal.SIGTERM, sigterm_handler)
+
+        # run sets in order
         while True:
+
             self.all_sets = list(self.test_sets.keys())
             self.started = []
+            self.waiting = []
             self.finished = []
-            self.not_started = []
 
             # kick off any sets that aren't waiting on any sets to complete
-            for set_name in self.test_sets:
-                if not self.test_sets[set_name].before:
-                    self.test_sets[set_name].run_set()
+            for set_name, set_obj in self.test_sets.items():
+                if not set_obj.before:
+                    set_obj.run_set()
+                    self.started.append(set_name)
+                    self.waiting = list(set(self.all_sets) - set(self.started))
 
-            break
+            while len(self.waiting) != 0:
+
+                self.series_test_handler()
+                time.sleep(0.1)
+
+            self.update_finished_list()
+
+            # if restart isn't necessary, break out of loop
+            if self.config['restart'] not in ['True', 'true']:
+                break
+            else:
+                # wait for all the tests to be finished to continue
+                done = False
+                while not done:
+                    done = True
+                    for set_name, set_obj in self.test_sets.items():
+                        if not set_obj.done:
+                            done = False
+                            break
+                    time.sleep(0.1)
+
+                # create a whole new test sets dictionary
+                if done:
+                    self.create_set_graph()
+
+    def update_finished_list(self):
+
+        for set_name in self.started:
+            if self.test_sets[set_name].is_done():
+                self.finished.append(set_name)
+                self.started.remove(set_name)
+
+    def series_test_handler(self):
+
+        self.update_finished_list()
+
+        # logic on what needs to be done based on new information
+        temp_waiting = copy.deepcopy(self.waiting)
+        for set_name in temp_waiting:
+            # check if all the sets this set depends on are finished
+            ready = all(prev in self.finished for prev in self.test_sets[
+                set_name].before)
+            if ready:
+                # this set requires that the sets it depends on passes
+                if self.config['series'][set_name]['depends_pass'] in \
+                        ['True', 'true']:
+                    # all the tests passed, so run this test
+                    if self.test_sets[set_name].all_pass:
+                        self.tests_sets[set_name].run_set()
+                        self.started.append(set_name)
+                        self.waiting.remove(set_name)
+                    # the tests didn't all pass, so skip this test
+                    else:
+                        self.test_sets[set_name].skip_set()
+                        self.finished.append(set_name)
+                        self.waiting.remove(set_name)
+                else:
+                    # All the sets completed and we don't care if they passed so
+                    # run this set
+                    self.test_sets[set_name].run_set()
+                    self.started.append(set_name)
+                    self.waiting.remove(set_name)
 
     @staticmethod
     def get_pgid(pav_cfg, id_):
