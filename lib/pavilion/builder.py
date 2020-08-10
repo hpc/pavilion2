@@ -23,6 +23,7 @@ from pavilion import utils
 from pavilion import wget
 from pavilion.permissions import PermissionsManager
 from pavilion.status_file import STATES
+from pavilion.spack_builder import SpackBuilder
 
 
 class TestBuilderError(RuntimeError):
@@ -574,6 +575,9 @@ class TestBuilder:
                 note=("Error setting up build directory '{}': {}"
                       .format(build_dir, err)))
             return False
+
+        spack = SpackBuilder(self._pav_cfg, build_dir)
+        #spack.activate()
 
         try:
             # Do the build, and wait for it to complete.

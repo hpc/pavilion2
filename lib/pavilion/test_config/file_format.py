@@ -344,6 +344,16 @@ expected to be added to by various plugins.
                               "source, tracking changes by "
                               "file size/timestamp/hash."
                 ),
+                yc.KeyedElem(
+                    'spack', elements=[
+                        yc.ListElem(
+                            'install', sub_elem=yc.StrElem(),
+                            help_text='The list of packages to be installed.'),
+                        yc.ListElem(
+                            'load', sub_elem=yc.StrElem(),
+                            help_text='The list of packages to be loaded.')
+                    ],
+                    help_text='Used to specify package installs from spack.'),
                 yc.StrElem(
                     'specificity',
                     default='',
@@ -394,6 +404,16 @@ expected to be added to by various plugins.
                               "script. Added to the beginning of the run "
                               "script. These are generally expected to "
                               "be host rather than test specific."),
+                yc.KeyedElem(
+                    'spack', elements=[
+                        yc.ListElem(
+                            'install', sub_elem=yc.StrElem(),
+                            help_text='The list of packages to be installed.'),
+                        yc.ListElem(
+                            'load', sub_elem=yc.StrElem(),
+                            help_text='The list of packages to be loaded.')
+                    ],
+                    help_text='Used to specify package installs from spack.'),
                 yc.StrElem(
                     'timeout', default='300',
                     help_text="Time that a build can continue without "
