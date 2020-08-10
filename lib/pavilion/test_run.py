@@ -928,20 +928,24 @@ modified date for the test directory."""
             for cmd in config['preamble']:
                 script.command(cmd)
 
-        script.newline()
-        script.comment('Activate build spack environment.')
-        script.command("spack env activate -V .")
-        script.newline()
+        spack_config = config.get('spack')
+        install_packages = spack_config.get('install')
+        load_packages = spack_config.get('load')
+        if install_packages or load_packages:
+            script.newline()
+            script.comment('Activate build spack environment.')
+            script.command("spack env activate -V .")
+            script.newline()
 
-        if config.get('spack').get('install'):
-            for package in config.get('spack').get('install'):
-                script.comment('Install spack package {}.'.format(package))
-                script.command('spack install {}'.format(package))
+            if install_packages:
+                for package in install_packages:
+                    script.comment('Install spack package {}.'.format(package))
+                    script.command('spack install {}'.format(package))
 
-        if config.get('spack').get('load'):
-            for package in config.get('spack').get('load'):
-                script.comment('Load spack package {}.'.format(package))
-                script.command('spack load {}'.format(package))
+            if load_packages:
+                for package in load_packages:
+                    script.comment('Load spack package {}.'.format(package))
+                    script.command('spack load {}'.format(package))
 
         if stype == 'build' and not self.build_local:
             script.comment('To be built in an allocation.')

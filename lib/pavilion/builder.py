@@ -576,7 +576,10 @@ class TestBuilder:
                       .format(build_dir, err)))
             return False
 
-        spack = SpackBuilder(self._pav_cfg, build_dir)
+        spack_config = self._config.get('spack')
+
+        if spack_config['install'] or spack_config['load']:
+            SpackBuilder(self._pav_cfg, build_dir)
         #spack.activate()
 
         try:
