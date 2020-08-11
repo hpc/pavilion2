@@ -65,7 +65,8 @@ class ResultsCommand(commands.Command):
         parser.add_argument(
             '-s', '--save',
             action='store_true', default=False,
-            help="Save the the re-run to the Test's results file."
+            help="Save the re-run to the test's results json and log. Will "
+                 "not update the general pavilion result log."
         )
         parser.add_argument(
             '-l', '--show-log', action='store_true', default=False,
@@ -100,9 +101,6 @@ class ResultsCommand(commands.Command):
         if args.re_run:
             if not self.update_results(pav_cfg, tests, log_file):
                 return errno.EINVAL
-
-        if args.show_log and args.save:
-            log_file = io.StringIO()
 
         if args.save:
             if not self.update_results(pav_cfg, tests, log_file, save=True):
@@ -211,8 +209,8 @@ class ResultsCommand(commands.Command):
         :param pav_cfg: The pavilion config.
         :param tests: A list of test objects to update.
         :param log_file: The logfile to log results to. May be None.
-        :param save: A bool that determines if the updated results will be
-                     saved or not. By default it is always false.
+        :param save: Whether to save the updated results to the test's result
+                     log. It will not update the general result log.
         :returns: True if successful, False otherwise. Will handle
             printing of any failure related errors.
         """
