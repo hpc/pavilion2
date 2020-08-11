@@ -102,37 +102,36 @@ def default_filter(_: Path) -> bool:
 
     return True
 
-def is_hex(string: str) -> bool:
-    """Determines if passed string is valide hex or not.
-    :param string: A string to check.
-    :return bool: True if hex, False, if not hex.
-    """
-
-    try:
-        int(string, 16)
-    except ValueError as err:
-        return False
-
-    return True
-
 def select(id_dir: Path,
            filter_func: Callable[[Path], bool] = default_filter,
-           builds_dir: bool = False) -> List[Path]:
+           fn_base: int = 10) -> List[Path]:
     """Return a list of all test paths in the given id_dir that pass the
     given filter function. The paths returned are guaranteed (within limits)
     to be an id directory, and only paths that pass the filter function
-    are returned."""
+    are returned.
+
+    :param id_dir: A directory containing subdirectories to be filtered and
+                   removed.
+    :param filter_func: The filter function used to filter subdirectories in
+                        id_dir.
+    :param fn_base: The Integer base used to check whether directory names are
+                    valid intergers or hex. 16 for hex, 10 (Default) for ints.
+    :return passed: The list of path objects that passed the filter.
+    """
 
     passed = []
     for path in id_dir.iterdir():
-        if not builds_dir:
-            if path.name.isdigit() and path.is_dir():
-                if filter_func(path):
-                    passed.append(path)
-        else:
-            if is_hex(path.name) and path.is_dir():
-                if filter_func(path):
-                    passed.append(path)
+
+        # Check if dir_name is valid hex or int
+        # fn_base = 16 for hex, 10 for int
+        try:
+            int(path.name, fn_base)
+        except ValueError:
+            continue
+
+        if path.is_dir():
+            if filter_func(path):
+                passed.append(path)
 
     return passed
 

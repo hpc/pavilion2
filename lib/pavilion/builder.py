@@ -1059,7 +1059,7 @@ def delete_unused(tests_dir: Path, builds_dir: Path, verbose: bool = False) -> i
     lock_path = builds_dir.with_suffix('.lock;')
     error_list = []
     with lockfile.LockFile(lock_path):
-        for path in dir_db.select(builds_dir, filter_builds, builds_dir=True):
+        for path in dir_db.select(builds_dir, filter_builds, fn_base = 16):
             try:
                 shutil.rmtree(path.as_posix())
                 path.with_suffix('.finished').unlink()
