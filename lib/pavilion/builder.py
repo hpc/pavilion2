@@ -1042,35 +1042,36 @@ def delete_unused(tests_dir: Path, builds_dir: Path, verbose: bool = False) -> i
 
     used_build_paths = get_used_build_paths(tests_dir)
 
-    def filter_builds(_: Path) -> bool:
+    def filter_builds(path: Path) -> bool:
         """Build filter function. Build paths that have no associated 
         tests and can be removed return true, otherwise they return false.
 
-        :param _: The passed build path object.
+        :param path: The passes build path object
 
         :return True: The passed build path can be removed.
         :return False: The passed build path cannot be removed.
 
         """
-        return not _.name in used_build_paths
+        return not path.name in used_build_paths
 
     count = 0
 
     lock_path = builds_dir.with_suffix('.lock;')
+    error_list = []
     with lockfile.LockFile(lock_path):
         for path in dir_db.select(builds_dir, filter_builds, builds_dir=True):
             try:
                 shutil.rmtree(path.as_posix())
                 path.with_suffix('.finished').unlink()
             except OSError as err:
-                output.fprint("Could not remove build {}: {}"
-                              .format(path, err), color=output.YELLOW)
+                error_list.append("Could not remove build {}: {}"
+                                  .format(path, err))
                 continue
             count += 1
             if verbose:
                 output.fprint('Removed build {}.'.format(path.name))
 
-    return count
+    return count, error_list
 
 def remove_lingering_finished_files(builds_dir: Path) -> None:
     """Removed any build.finished files without an associated build

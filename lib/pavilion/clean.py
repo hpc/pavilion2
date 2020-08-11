@@ -12,22 +12,22 @@ from pavilion.status_file import STATES
 def delete_tests_by_date(pav_cfg, id_dir: Path, cutoff_date: datetime, verbose:
                          bool=False) -> int:
 
-    def filter_test_by_date(_: Path) -> bool:
+    def filter_test_by_date(path: Path) -> bool:
 
         try:
-            test_time = datetime.fromtimestamp(_.lstat().st_mtime)
+            test_time = datetime.fromtimestamp(path.lstat().st_mtime)
         except FileNotFoundError:
             return False
 
         if test_time > cutoff_date:
             return False
 
-        complete_path = _/'RUN_COMPLETE'
+        complete_path = path/'RUN_COMPLETE'
         if complete_path.exists():
             return True
 
         try:
-            test_obj = test_run.TestRun.load(pav_cfg, int(_.name))
+            test_obj = test_run.TestRun.load(pav_cfg, int(path.name))
             state = test_obj.status.current().state
             if state in (STATES.RUNNING, STATES.SCHEDULED):
                 return False

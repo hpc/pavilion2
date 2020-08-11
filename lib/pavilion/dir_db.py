@@ -148,6 +148,7 @@ def delete(id_dir: Path,
     """
 
     count = 0
+    error_list = []
 
     lock_path = id_dir.with_suffix('.lock')
     with lockfile.LockFile(lock_path):
@@ -155,9 +156,8 @@ def delete(id_dir: Path,
             try:
                 shutil.rmtree(path)
             except OSError as err:
-                output.fprint("Could not remove {} {}: "
-                              "{}".format(id_dir.name, path, err),
-                              color=output.YELLOW)
+                error_list.append("Could not remove {} {}: {}"
+                                  .format(id_dir.name, path, err))
                 continue
             count += 1
             if verbose:
@@ -165,5 +165,5 @@ def delete(id_dir: Path,
                                                       path.name))
 
     reset_pkey(id_dir)
-    return count
+    return count, error_list
 
