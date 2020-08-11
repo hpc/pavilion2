@@ -56,7 +56,7 @@ def resolve_path(path, strict=False):
                 path_ = _resolve(path_, target)
                 seen[newpath] = path_  # resolved symlink
 
-        return path_
+        return Path(path_)
 
     # NOTE: according to POSIX, getcwd() cannot contain path components
     # which are symlinks.

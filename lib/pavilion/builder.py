@@ -1021,7 +1021,7 @@ def get_used_build_paths(tests_dir: Path) -> set:
         build_origin = None
         if (build_origin_symlink.exists() and
             build_origin_symlink.is_symlink() and
-            build_origin_symlink.resolve().exists()):
+            utils.resolve_path(build_origin_symlink).exists()):
             build_origin = build_origin_symlink.resolve()
 
         if build_origin is not None:

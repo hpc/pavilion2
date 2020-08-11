@@ -6,6 +6,7 @@ from pavilion import builder
 from pavilion import dir_db
 from pavilion import output
 from pavilion import test_run
+from pavilion import utils
 from pavilion.status_file import STATES
 
 
@@ -58,7 +59,7 @@ def delete_series(id_dir: Path, verbose: bool=False) -> int:
         for test_path in path.iterdir():
             if (test_path.is_symlink() and
                 test_path.exists() and
-                test_path.resolve().exists()):
+                utils.resolve_path(test_path).exists()):
                 return False
         return True
 
