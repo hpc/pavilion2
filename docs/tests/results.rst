@@ -468,6 +468,52 @@ groups these into a few internal categories.
 The *actions* and *per\_file* sections below work with these categories
 when deciding how to handle result parser values.
 
+Result Parser Defaults
+~~~~~~~~~~~~~~~~~~~~~~
+
+(New in 2.2 - Forgot to add it to the docs though)
+
+So you're parsing out 300 different bits of information with the *regex*
+parser, and they all use the same, non-default, settings:
+
+```yaml
+result_parse:
+    regex:
+        normal_key:
+            regex: 'normal_key: (\s*)'
+        mykey1:
+            regex: 'mykey: (\s*)'
+            per_file: name
+            files: *.out
+        mykey2:
+            regex: 'mykey: (\s*)'
+            per_file: name
+            files: *.out
+        # etc...
+```
+
+You can use the '_default' key to set defaults for all keys under that
+result parser. Be careful with keys that don't need your new defaults though:
+
+```yaml
+result_parse:
+    regex:
+        # Note that there is no order to these keys.
+        _default:
+            per_file: name
+            files: *.out
+        normal_key:
+            # You have to go back to the defaults here, unfortunately.
+            regex: 'normal_key: (\s*)'
+            per_file: first
+            files: '../run.log'
+        mykey1:
+            regex: 'mykey: (\s*)'
+        mykey2:
+            regex: 'mykey: (\s*)'
+        # etc...
+```
+
 .. _tests.results.actions:
 
 Actions
@@ -477,9 +523,9 @@ We saw in the above example that we can use an *action* to change how
 the results are stored. There are several additional *actions* that can
 be selected:
 
--  **store** - (Default) Simply store the result parser's output.
--  **store\_true** - Store ``true`` if the result is a **match**
-   (non-empty and not false)
+-  **store** - *(Default, mostly)* Simply store the result parser's output.
+-  **store\_true** - *(Default for 'result' key)* Store ``true`` if the result
+   is a **match** (non-empty and not false).
 -  **store\_false** - Stores ``true`` if the result is not a **match**.
 -  **count** - Count the length of list matches, regardless of contents.
    Non-list matches are 1 if a match, 0 otherwise.
