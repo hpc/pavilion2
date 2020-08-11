@@ -348,12 +348,15 @@ expected to be added to by various plugins.
                     'spack', elements=[
                         yc.ListElem(
                             'install', sub_elem=yc.StrElem(),
-                            help_text='The list of packages to be installed.'),
+                            help_text='The list of spack packages to be '
+                                      'installed.'),
                         yc.ListElem(
                             'load', sub_elem=yc.StrElem(),
-                            help_text='The list of packages to be loaded.')
+                            help_text='The list of spack packages to be '
+                                      'loaded.')
                     ],
-                    help_text='Used to specify package installs from spack.'),
+                    help_text='Used to specify spack package loads and '
+                              'installs.'),
                 yc.StrElem(
                     'specificity',
                     default='',
@@ -408,12 +411,15 @@ expected to be added to by various plugins.
                     'spack', elements=[
                         yc.ListElem(
                             'install', sub_elem=yc.StrElem(),
-                            help_text='The list of packages to be installed.'),
+                            help_text='The list of spack packages to be '
+                                      'installed.'),
                         yc.ListElem(
                             'load', sub_elem=yc.StrElem(),
-                            help_text='The list of packages to be loaded.')
+                            help_text='The list of spack packages to be '
+                                      'loaded.')
                     ],
-                    help_text='Used to specify package installs from spack.'),
+                    help_text='Used to specify spack package loads and '
+                              'installs.'),
                 yc.StrElem(
                     'timeout', default='300',
                     help_text="Time that a build can continue without "

@@ -145,7 +145,7 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
             help_text="Where pavilion puts it's run files, downloads, etc."),
         ExPathElem(
             'spack_path', default=None, required=False,
-            help_text="Where pavilion looks for spack packages."),
+            help_text="Where pavilion looks for a spack install."),
         yc.ListElem(
             "disable_plugins", sub_elem=yc.StrElem(),
             help_text="Allows you to disable plugins by '<type>.<name>'. For "

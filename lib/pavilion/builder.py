@@ -580,7 +580,6 @@ class TestBuilder:
 
         if spack_config['install'] or spack_config['load']:
             SpackBuilder(self._pav_cfg, build_dir)
-        #spack.activate()
 
         try:
             # Do the build, and wait for it to complete.

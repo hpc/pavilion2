@@ -26,6 +26,7 @@ class SpackBuilder:
         self.spack_path = pav_cfg.spack_path
         self.build_dir = build_dir
 
+        # Set the install tree to the build dir
         config = {
             'spack': {
                 'config': {
