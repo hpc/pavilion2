@@ -51,16 +51,18 @@ class SeriesFileTests(PavTestCase):
         test_series_obj.run_series()
 
         # make sure test actually ends
-        time.sleep(0.5)
+        time.sleep(2)
 
-        test1_obj = test_series_obj.tests[1]
-        test2_obj = test_series_obj.tests[2]
-        test1_start = datetime.strptime(test1_obj.results['started'],
-                                        '%Y-%m-%d %H:%M:%S.%f')
-        test2_start = datetime.strptime(test2_obj.results['started'],
-                                        '%Y-%m-%d %H:%M:%S.%f')
-        time_diff = (test2_start - test1_start).total_seconds()
-        self.assertGreaterEqual(time_diff, 0.5)
+        test_starts = []
+        for test_id, test_obj in test_series_obj.tests.items():
+            test_starts.append(datetime.strptime(test_obj.results['started'],
+                                                 '%Y-%m-%d %H:%M:%S.%f'))
+
+        timediff1 = (test_starts[1] - test_starts[0]).total_seconds()
+        timediff2 = (test_starts[2] - test_starts[1]).total_seconds()
+
+        self.assertGreaterEqual(timediff1, 0.5)
+        self.assertGreaterEqual(timediff2, 0.5)
 
     def test_series_modes(self):
         """Test if modes are applied correctly."""
