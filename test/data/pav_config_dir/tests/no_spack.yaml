@@ -1,0 +1,7 @@
+no_spack:
+        summary: This is a test with no spack commands
+        build:
+                cmds:
+                        - "echo 'I do nothing :)'"
+
+

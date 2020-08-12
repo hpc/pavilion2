@@ -1,0 +1,8 @@
+spack_stuff:
+        summary: This test does spack stuff
+        build:
+                spack:
+                        install: tcl
+        run:
+                spack:
+                        load: tcl
