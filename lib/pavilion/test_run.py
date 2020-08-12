@@ -237,9 +237,8 @@ class TestRun:
                 self.status.set(STATES.CREATED,
                                 "Test directory and status file created.")
 
-        run_timeout = self.parse_timeout(
+        self.run_timeout = self.parse_timeout(
             'run', config.get('run', {}).get('timeout'))
-
         self.build_timeout = self.parse_timeout(
             'build', config.get('build', {}).get('timeout'))
 
@@ -250,11 +249,12 @@ class TestRun:
         self.results_path = self.path/'results.json'
         self.build_origin_path = self.path/'build_origin'
 
+        self.build_timeout_file = None
         build_timeout_file = config.get('build', {}).get('timeout_file')
-        if self.build_timeout_file is not None:
-            self.build_timeout_file = self.path/self.build_timeout_file
+        if build_timeout_file is not None:
+            self.build_timeout_file = self.path/build_timeout_file
 
-        # Use run.log as the default timeout file
+        # Use run.log as the default run timeout file
         self.timeout_file = self.run_log
         run_timeout_file = config.get('run', {}).get('timeout_file')
         if run_timeout_file is not None:
