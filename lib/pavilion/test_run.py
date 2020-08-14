@@ -940,13 +940,13 @@ modified date for the test directory."""
             script.newline()
 
             if install_packages:
+                script.comment('Install spack packages.')
                 for package in install_packages:
-                    script.comment('Install spack package {}.'.format(package))
                     script.command('spack install {}'.format(package))
 
             if load_packages:
+                script.comment('Load spack packages.')
                 for package in load_packages:
-                    script.comment('Load spack package {}.'.format(package))
                     script.command('spack load {}'.format(package))
 
         if stype == 'build' and not self.build_local:

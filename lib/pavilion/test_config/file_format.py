@@ -216,6 +216,22 @@ expected to be added to by various plugins.
             'summary',
             help_text="Summary of the purpose of this test."
         ),
+        yc.KeyedElem(
+            'spack', elements = [
+                yc.CategoryElem(
+                    'mirrors', sub_elem=yc.StrElem(),
+                    help_text="The keys and values of this section will be "
+                              "added as additional mirrors to the spack env "
+                              "for this build."
+                ),
+                yc.ListElem(
+                    'repos', sub_elem=yc.StrElem(),
+                    help_text="This is a list of repos spack will search "
+                              "through for packages."
+                )
+                ],
+            help_text = "Test specific spack configs."
+        ),
         yc.StrElem(
             'doc',
             help_text="Detailed documentation string for this test."
