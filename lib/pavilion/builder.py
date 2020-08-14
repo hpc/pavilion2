@@ -23,7 +23,7 @@ from pavilion import utils
 from pavilion import wget
 from pavilion.permissions import PermissionsManager
 from pavilion.status_file import STATES
-from pavilion.spack_builder import SpackBuilder
+from pavilion.spack_builder import SpackEnvBuilder
 
 
 class TestBuilderError(RuntimeError):
@@ -578,8 +578,10 @@ class TestBuilder:
 
         spack_config = self._config.get('spack')
 
+        # If there are spack commands in the config, create an anonymous spack
+        # environment for this build.
         if spack_config['install'] or spack_config['load']:
-            SpackBuilder(self._pav_cfg, build_dir)
+            SpackEnvBuilder(self._pav_cfg, build_dir)
 
         try:
             # Do the build, and wait for it to complete.

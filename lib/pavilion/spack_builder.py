@@ -17,7 +17,7 @@ class SpackConfig(yc.YamlConfigLoader):
                 )]
         )]
 
-class SpackBuilder:
+class SpackEnvBuilder:
     """Creates the spack.yaml file, so each test can spin up it's own spack
     environement."""
 
