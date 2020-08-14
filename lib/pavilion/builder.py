@@ -199,7 +199,6 @@ class TestBuilder:
         self._script_path = test.build_script_path
         self.test = test
         self._timeout = test.build_timeout
-        self._spack_config = test.config.get("spack")
 
         self._fix_source_path()
 
@@ -579,9 +578,9 @@ class TestBuilder:
 
         # If there are spack commands in the build config, create an anonymous
         # spack environment for this build.
-        spack_build = self._config.get('spack')
-        if self._spack_config or spack_build['install'] or spack_build['load']:
-            SpackEnvBuilder(self._pav_cfg, self._spack_config, build_dir)
+        spack_build_config = self._config.get('spack')
+        if spack_build_config['install'] or spack_build_config['load']:
+            SpackEnvBuilder(spack_build_config, build_dir)
 
         try:
             # Do the build, and wait for it to complete.

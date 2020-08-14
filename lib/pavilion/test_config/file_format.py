@@ -216,27 +216,6 @@ expected to be added to by various plugins.
             'summary',
             help_text="Summary of the purpose of this test."
         ),
-        yc.KeyedElem(
-            'spack', elements = [
-                yc.CategoryElem(
-                    'mirrors', sub_elem=yc.StrElem(),
-                    help_text="The keys and values of this section will be "
-                              "added as additional mirrors to the spack env "
-                              "for this build."
-                ),
-                yc.ListElem(
-                    'repos', sub_elem=yc.StrElem(),
-                    help_text="This is a list of repos spack will search "
-                              "through for packages."
-                ),
-                yc.StrElem(
-                    'build_jobs',
-                    help_text='The maximum number of jobs to use when running ' 
-                              '\'make\' in parallel.'
-                )
-                ],
-            help_text = "Test specific spack configs."
-        ),
         yc.StrElem(
             'doc',
             help_text="Detailed documentation string for this test."
@@ -370,14 +349,32 @@ expected to be added to by various plugins.
                         yc.ListElem(
                             'install', sub_elem=yc.StrElem(),
                             help_text='The list of spack packages to be '
-                                      'installed.'),
+                                      'installed.'
+                        ),
                         yc.ListElem(
                             'load', sub_elem=yc.StrElem(),
                             help_text='The list of spack packages to be '
-                                      'loaded.')
+                                      'loaded.'
+                        ),
+                        yc.CategoryElem(
+                            'mirrors', sub_elem=yc.StrElem(),
+                            help_text='The keys and values of this section '
+                                      'wil be added as mirrors to the spack '
+                                      'environment for this build.'
+                        ),
+                        yc.ListElem(
+                            'repos', sub_elem=yc.StrElem(),
+                            help_text='This is a list of repos spack will '
+                                      'search through for packages before '
+                                      'attempting to build.'
+                        ),
+                        yc.StrElem(
+                            'build_jobs',
+                            help_text='The maximum number of jobs to use '
+                                      'when running \'make\' in parallel.'
+                        )
                     ],
-                    help_text='Used to specify spack package loads and '
-                              'installs.'),
+                    help_text='Spack package build configs.'),
                 yc.StrElem(
                     'specificity',
                     default='',

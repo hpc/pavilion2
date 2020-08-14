@@ -29,7 +29,7 @@ class SpackEnvBuilder:
     """Creates the spack.yaml file, so each test can spin up it's own spack
     environement."""
 
-    def __init__(self, pav_cfg, spack_config, build_dir):
+    def __init__(self, spack_config, build_dir):
 
         # Set the spack env file's configs based on the passed spack_config.
         config = {
