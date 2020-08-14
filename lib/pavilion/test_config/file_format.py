@@ -228,6 +228,11 @@ expected to be added to by various plugins.
                     'repos', sub_elem=yc.StrElem(),
                     help_text="This is a list of repos spack will search "
                               "through for packages."
+                ),
+                yc.StrElem(
+                    'build_jobs',
+                    help_text='The maximum number of jobs to use when running ' 
+                              '\'make\' in parallel.'
                 )
                 ],
             help_text = "Test specific spack configs."
