@@ -576,11 +576,9 @@ class TestBuilder:
                       .format(build_dir, err)))
             return False
 
-        # If there are spack commands in the build config, create an anonymous
-        # spack environment for this build.
+        # Generate an anonymous spack environment for a new build.
         spack_build_config = self._config.get('spack')
-        if spack_build_config['install'] or spack_build_config['load']:
-            SpackEnvBuilder(spack_build_config, build_dir)
+        SpackEnvBuilder(spack_build_config, build_dir)
 
         try:
             # Do the build, and wait for it to complete.

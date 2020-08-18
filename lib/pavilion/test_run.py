@@ -931,23 +931,22 @@ modified date for the test directory."""
         spack_config = config.get('spack')
         install_packages = spack_config.get('install')
         load_packages = spack_config.get('load')
-        if install_packages or load_packages:
-            script.newline()
-            script.comment('Run the spack setup script and activate the spack '
-                           'build environment.')
-            script.command('source ' + str(self._pav_cfg.spack_path)+'/share/spack/setup-env.sh')
-            script.command("spack env activate -V .")
-            script.newline()
 
-            if install_packages:
-                script.comment('Install spack packages.')
-                for package in install_packages:
-                    script.command('spack install {}'.format(package))
+        script.newline()
+        script.comment('Run the spack setup script and activate the spack '
+                       'build environment.')
+        script.command('source ' + str(self._pav_cfg.spack_path)+'/share/spack/setup-env.sh')
+        script.command("spack env activate -V .")
 
-            if load_packages:
-                script.comment('Load spack packages.')
-                for package in load_packages:
-                    script.command('spack load {}'.format(package))
+        if install_packages:
+            script.comment('Install spack packages.')
+            for package in install_packages:
+                script.command('spack install {}'.format(package))
+
+        if load_packages:
+            script.comment('Load spack packages.')
+            for package in load_packages:
+                script.command('spack load {}'.format(package))
 
         if stype == 'build' and not self.build_local:
             script.comment('To be built in an allocation.')

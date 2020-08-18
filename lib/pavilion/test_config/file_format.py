@@ -346,6 +346,11 @@ expected to be added to by various plugins.
                 ),
                 yc.KeyedElem(
                     'spack', elements=[
+                        yc.StrElem(
+                            'build_jobs',
+                            help_text='The maximum number of jobs to use '
+                                      'when running \'make\' in parallel.'
+                        ),
                         yc.ListElem(
                             'install', sub_elem=yc.StrElem(),
                             help_text='The list of spack packages to be '
@@ -368,11 +373,12 @@ expected to be added to by various plugins.
                                       'search through for packages before '
                                       'attempting to build.'
                         ),
-                        yc.StrElem(
-                            'build_jobs',
-                            help_text='The maximum number of jobs to use '
-                                      'when running \'make\' in parallel.'
-                        )
+                        yc.CategoryElem(
+                            'upstreams', sub_elem=yc.KeyedElem(
+                                elements=[yc.StrElem('install_tree'),
+                                          yc.CategoryElem('modules',
+                                                          sub_elem=yc.StrElem())])
+                        ),
                     ],
                     help_text='Spack package build configs.'),
                 yc.StrElem(

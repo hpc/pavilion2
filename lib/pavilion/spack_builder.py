@@ -12,7 +12,7 @@ class SpackEnvConfig(yc.YamlConfigLoader):
                 yc.KeyedElem(
                     'config', elements=[
                         yc.StrElem('install_tree'),
-                        yc.StrElem('build_jobs')
+                        yc.StrElem('build_jobs', default=6)
                     ]
                 ),
                 yc.CategoryElem(
@@ -20,7 +20,13 @@ class SpackEnvConfig(yc.YamlConfigLoader):
                 ),
                 yc.ListElem(
                     'repos', sub_elem=yc.StrElem()
-                )
+                ),
+                yc.CategoryElem(
+                    'upstreams', sub_elem=yc.KeyedElem(
+                        elements=[yc.StrElem('install_tree'),
+                                  yc.CategoryElem('modules',
+                                    sub_elem=yc.StrElem())])
+                ),
             ]
         )
     ]
@@ -41,6 +47,7 @@ class SpackEnvBuilder:
                 },
                 'mirrors': spack_config['mirrors'],
                 'repos': spack_config['repos'],
+                'upstreams': spack_config['upstreams']
             }
         }
 
