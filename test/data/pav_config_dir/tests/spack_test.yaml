@@ -2,7 +2,7 @@ spack_stuff:
         summary: This test does spack stuff
         build:
                 spack:
-                        install: tcl
+                        install: stuff
         run:
                 spack:
-                        load: tcl
+                        load: stuff

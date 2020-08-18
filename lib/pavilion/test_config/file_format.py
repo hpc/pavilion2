@@ -436,11 +436,13 @@ expected to be added to by various plugins.
                         yc.ListElem(
                             'install', sub_elem=yc.StrElem(),
                             help_text='The list of spack packages to be '
-                                      'installed.'),
+                                      'installed.'
+                        ),
                         yc.ListElem(
                             'load', sub_elem=yc.StrElem(),
                             help_text='The list of spack packages to be '
-                                      'loaded.')
+                                      'loaded.'
+                        )
                     ],
                     help_text='Used to specify spack package loads and '
                               'installs.'),

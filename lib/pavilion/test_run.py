@@ -939,11 +939,13 @@ modified date for the test directory."""
         script.command("spack env activate -V .")
 
         if install_packages:
+            script.newline()
             script.comment('Install spack packages.')
             for package in install_packages:
                 script.command('spack install {}'.format(package))
 
         if load_packages:
+            script.newline()
             script.comment('Load spack packages.')
             for package in load_packages:
                 script.command('spack load {}'.format(package))

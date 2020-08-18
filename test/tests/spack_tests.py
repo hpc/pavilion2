@@ -51,21 +51,4 @@ class SpackTests(PavTestCase):
         self.assertTrue("source ~/a/fake/path/share/spack/setup-env.sh" in
                         build_script_str)
         self.assertTrue("spack env activate -V ." in build_script_str)
-        self.assertTrue("spack install tcl" in build_script_str)
-
-        # This test contains no spack commands
-        arg_parser = arguments.get_parser()
-        args = arg_parser.parse_args([
-            'build',
-            'no_spack'
-        ])
-
-        build_cmd = commands.get_command(args.command_name)
-        build_cmd.silence()
-        build_cmd.run(self.pav_cfg, args)
-
-        test_dir = self.working_dir/'test_runs'/'0000002'
-        spack_build_env = test_dir/'build'/'spack.yaml'
-
-        # We should not have created a spack.yaml (spack build env) file.
-        self.assertFalse(spack_build_env.exists())
+        self.assertTrue("spack install stuff" in build_script_str)
