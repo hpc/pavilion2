@@ -23,7 +23,7 @@ from pavilion import utils
 from pavilion import wget
 from pavilion.permissions import PermissionsManager
 from pavilion.status_file import STATES
-from pavilion.spack_builder import SpackEnvBuilder
+from pavilion.spack_builder import SpackEnvConfig
 
 
 class TestBuilderError(RuntimeError):
@@ -559,6 +559,30 @@ class TestBuilder:
 
         return True
 
+    def create_spack_env(self, spack_config, build_dir):
+        """Creates a spack.yaml file in the build dir, so that each unique
+        build can activate it's own spack environment."""
+
+        # Se the spack env based on the passed spack_config and build_dir.
+        config = {
+            'spack': {
+                'config': {
+                    # New spack installs will be built in the specified
+                    # build_dir.
+                    'install_tree': str(build_dir),
+                    'build_jobs': spack_config['build_jobs']
+                },
+                'mirrors': spack_config['mirrors'],
+                'repos': spack_config['repos'],
+                'upstreams': spack_config['upstreams']
+            },
+        }
+
+        # Create the spack.yaml file with the updated configs.
+        spack_env_config = build_dir/'spack.yaml'
+        with open(spack_env_config, "w+") as spack_env_file:
+            SpackEnvConfig().dump(spack_env_file, values=config)
+
     def _build(self, build_dir, cancel_event):
         """Perform the build. This assumes there actually is a build to perform.
         :param Path build_dir: The directory in which to perform the build.
@@ -578,7 +602,7 @@ class TestBuilder:
 
         # Generate an anonymous spack environment for a new build.
         spack_build_config = self._config.get('spack')
-        SpackEnvBuilder(spack_build_config, build_dir)
+        self.create_spack_env(spack_build_config, build_dir)
 
         try:
             # Do the build, and wait for it to complete.
