@@ -90,7 +90,6 @@ class CleanCommand(commands.Command):
                                                        args.verbose)
         for error in errors:
             output.fprint(error, color=output.YELLOW)
-        builder.remove_lingering_finished_files(builds_dir)
         output.fprint("Removed {} build(s).".format(removed_builds),
                       file=self.outfile, color=output.GREEN, clear=True)
 
