@@ -23,7 +23,7 @@ from pavilion import utils
 from pavilion import wget
 from pavilion.permissions import PermissionsManager
 from pavilion.status_file import STATES
-from pavilion.spack_builder import SpackEnvConfig
+from pavilion.test_config.spack_env_format import SpackEnvConfig
 
 
 class TestBuilderError(RuntimeError):
