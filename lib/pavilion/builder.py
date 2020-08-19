@@ -601,8 +601,8 @@ class TestBuilder:
             return False
 
         # Generate an anonymous spack environment for a new build.
-        spack_build_config = self._config.get('spack')
-        self.create_spack_env(spack_build_config, build_dir)
+        spack_config = self.test.config.get('spack_config')
+        self.create_spack_env(spack_config, build_dir)
 
         try:
             # Do the build, and wait for it to complete.

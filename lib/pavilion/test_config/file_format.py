@@ -272,6 +272,34 @@ expected to be added to by various plugins.
             help_text="Documented test version."
         ),
         yc.KeyedElem(
+            'spack_config', elements=[
+                yc.StrElem(
+                    'build_jobs',
+                    help_text='The maximum number of jobs to use '
+                              'when running \'make\' in parallel.'
+                ),
+                yc.CategoryElem(
+                    'mirrors', sub_elem=yc.StrElem(),
+                    help_text='The keys and values of this section '
+                              'wil be added as mirrors to the spack '
+                              'environment for this build.'
+                ),
+                yc.ListElem(
+                    'repos', sub_elem=yc.StrElem(),
+                    help_text='This is a list of repos spack will '
+                              'search through for packages before '
+                              'attempting to build.'
+                ),
+                yc.CategoryElem(
+                    'upstreams', sub_elem=yc.KeyedElem(
+                        elements=[yc.StrElem('install_tree'),
+                                  yc.CategoryElem('modules',
+                                                  sub_elem=yc.StrElem())])
+                ),
+            ],
+            help_text="Spack configuration items to set for this test."
+        ),
+        yc.KeyedElem(
             'build', elements=[
                 yc.ListElem(
                     'cmds', sub_elem=yc.StrElem(),
@@ -346,11 +374,6 @@ expected to be added to by various plugins.
                 ),
                 yc.KeyedElem(
                     'spack', elements=[
-                        yc.StrElem(
-                            'build_jobs',
-                            help_text='The maximum number of jobs to use '
-                                      'when running \'make\' in parallel.'
-                        ),
                         yc.ListElem(
                             'install', sub_elem=yc.StrElem(),
                             help_text='The list of spack packages to be '
@@ -360,24 +383,6 @@ expected to be added to by various plugins.
                             'load', sub_elem=yc.StrElem(),
                             help_text='The list of spack packages to be '
                                       'loaded.'
-                        ),
-                        yc.CategoryElem(
-                            'mirrors', sub_elem=yc.StrElem(),
-                            help_text='The keys and values of this section '
-                                      'wil be added as mirrors to the spack '
-                                      'environment for this build.'
-                        ),
-                        yc.ListElem(
-                            'repos', sub_elem=yc.StrElem(),
-                            help_text='This is a list of repos spack will '
-                                      'search through for packages before '
-                                      'attempting to build.'
-                        ),
-                        yc.CategoryElem(
-                            'upstreams', sub_elem=yc.KeyedElem(
-                                elements=[yc.StrElem('install_tree'),
-                                          yc.CategoryElem('modules',
-                                                          sub_elem=yc.StrElem())])
                         ),
                     ],
                     help_text='Spack package build configs.'),
