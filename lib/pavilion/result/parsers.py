@@ -47,11 +47,62 @@ def __reset():
     for parser in list(_RESULT_PARSERS.values()):
         parser.deactivate()
 
+NON_MATCH_VALUES = (None, [], False)
+EMPTY_VALUES = (None, [])
 
 ACTION_STORE = 'store'
 ACTION_TRUE = 'store_true'
 ACTION_FALSE = 'store_false'
 ACTION_COUNT = 'count'
+ACTION_MULTI = 'store_multi'
+
+
+def action_store(stor: dict, key: str, value):
+    """Simply store the value under the key."""
+    stor[key] = value
+
+
+def action_true(stor: dict, key: str, value):
+    """Evaluate for truth and store."""
+    stor[key] = value not in NON_MATCH_VALUES
+
+
+def action_false(stor: dict, key: str, value):
+    """Evaluate for truth and store."""
+    stor[key] = value in NON_MATCH_VALUES
+
+
+def action_count(stor: dict, key: str, value):
+    """Store the number of items. A value that isn't a list/tuple gets
+    stored as 1 or 0 depending on its truth value."""
+    # Count the returned items.
+
+    if isinstance(value, (list, tuple)):
+        stor[key] = len(value)
+    elif value not in NON_MATCH_VALUES:
+        stor[key] = 1
+    else:
+        stor[key] = 0
+
+
+def action_multi(stor: dict, key: str, value):
+    """Evaluate for truth and store."""
+
+    if isinstance(value, dict):
+        stor.update(value)
+    else:
+        stor[key] = "Non-dict result could not be stored with 'store_multi'"
+
+
+# Action functions should take a dictionary, the key, and the raw value to
+# store.
+ACTIONS = {
+    ACTION_STORE: action_store,
+    ACTION_COUNT: action_count,
+    ACTION_TRUE: action_true,
+    ACTION_FALSE: action_false,
+    ACTION_MULTI: action_multi,
+}
 
 PER_FIRST = 'first'
 PER_LAST = 'last'
@@ -522,10 +573,6 @@ do this in unittests.
         del _RESULT_PARSERS[self.name]
 
 
-NON_MATCH_VALUES = (None, [], False)
-EMPTY_VALUES = (None, [])
-
-
 def parse_results(test, results: Dict,
                   log: Callable[..., None] = None) -> None:
     """Parse the results of the given test using all the result parsers
@@ -570,7 +617,6 @@ configured for that test.
         defaults = parser_configs[parser_name].get(DEFAULT_KEY, {})
 
         log("Parsing results for parser {}".format(parser_name), lvl=1)
-
 
         # Each parser has a list of configs. Process each of them.
         for key, rconf in parser_configs[parser_name].items():
@@ -660,28 +706,8 @@ configured for that test.
                     action = ACTION_TRUE
                     log("Forcing action to '{}' for the 'result' key.")
 
-                if action == ACTION_STORE:
-                    # Simply store the whole result.
-                    presults[path] = res
-                elif action == ACTION_TRUE:
-                    # Any non-null/empty value is true
-                    presults[path] = res not in NON_MATCH_VALUES
-                elif action == ACTION_FALSE:
-                    # Any null/empty value is false
-                    presults[path] = res in NON_MATCH_VALUES
-                elif action == ACTION_COUNT:
-                    # Count the returned items.
-                    if isinstance(res, (list, tuple)):
-                        presults[path] = len(res)
-                    elif res not in NON_MATCH_VALUES:
-                        presults[path] = 1
-                    else:
-                        presults[path] = 0
-                else:
-                    raise ResultError(
-                        "Invalid action for result parser '{}': {}"
-                        .format(parser_name, action))
-
+                # We'll deal with the action later.
+                presults[path] = res
                 log("Stored value '{}' for file '{}'"
                     .format(presults[path], path.name))
 
@@ -716,14 +742,12 @@ configured for that test.
                 if per_file == PER_LAST:
                     presults = reversed(presults)
 
-                results[key] = presults[0]
-
                 for pres in presults:
                     if pres in EMPTY_VALUES:
                         continue
 
                     # Store the first non-empty item.
-                    results[key] = pres
+                    ACTIONS[action](results, key, pres)
                     break
                 log("{}: Picked non-empty value '{}'"
                     .format(per_file, results[key]))
@@ -743,17 +767,7 @@ configured for that test.
                     if name not in per_dict:
                         per_dict[name] = dict()
 
-                    if (key in per_dict[name] and
-                            name not in per_error_keys):
-                        errors.append({
-                            'result_parser': parser_name,
-                            'file': str(fname),
-                            'key': key,
-                            'msg': "Duplicate file key '{}' matched by {}"
-                                   .format(name, per_file)})
-                        continue
-
-                    per_dict[name][key] = value
+                    ACTIONS[action](per_dict[name], key, value)
 
                 log("Saved results under '{}' for each file {}."
                     .format("per_file", per_file))
@@ -764,40 +778,41 @@ configured for that test.
                 # already are a list extend that list.
                 # None values are ignored.
 
-                result_list = list()
+                results[key] = list()
 
+                class ListDict(dict):
+                    """Ok, this is madness, but setting an item in this
+                    dict actually just extends the list in our actual
+                    results dict."""
+                    def __setitem__(self, key, value):
+                        if isinstance(value, list):
+                            results[key].extend(value)
+                        elif value not in EMPTY_VALUES:
+                            results[key].append(value)
+
+                dummy = ListDict()
                 for value in presults.values():
-                    if isinstance(value, list):
-                        result_list.extend(value)
-                    elif value not in EMPTY_VALUES:
-                        result_list.append(value)
-
-                results[key] = result_list
+                    ACTIONS[action](dummy, key, value)
 
                 log("Saved results for all files as a list:\n{}"
                     .format(results[key]))
 
-            elif per_file == PER_NAME_LIST:
-                # Get the name stems from the files that matched.
-                results[key] = sorted([
-                    fname.stem for fname, value in presults.items()
-                    if value not in EMPTY_VALUES
-                ])
-                log("Saved the file name stems for files that matched.")
-                log(pprint.pformat(results[key]))
+            elif per_file in (PER_FULLNAME_LIST, PER_NAME_LIST):
 
-            elif per_file == PER_FULLNAME_LIST:
-                # Get the filenames from the files that matched.
-                results[key] = sorted([
-                    fname.name for fname, value in presults.items()
-                    if value not in EMPTY_VALUES
-                ])
+                matches = []
+                for fname, value in presults.items():
+                    fname = fname.stem if PER_NAME_LIST else fname.name
+                    dummy = {}
+                    ACTIONS[action](dummy, key, value)
+                    if dummy[key] not in EMPTY_VALUES:
+                        matches.append(fname)
 
                 log("Saved the file name for files that matched.")
                 log(pprint.pformat(results[key]))
 
             elif per_file == PER_ALL:
                 results[key] = all(presults.values())
+
                 log("Saved the result of all() across all matched files: '{}'"
                     .format(results[key]))
             elif per_file == PER_ANY:
