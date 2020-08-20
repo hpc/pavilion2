@@ -187,9 +187,9 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
         yc.BoolElem(
             "flatten_results", default=True,
             help_text="Flatten results with multiple 'per_file' values into "
-                      "multiple result log lines, one for each 'by_file' "
+                      "multiple result log lines, one for each 'per_file' "
                       "value. Each flattened result will have a 'file' key, "
-                      "and the contents of its 'by_file' data will be added "
+                      "and the contents of its 'per_file' data will be added "
                       "to the base results mapping."),
         ExPathElem(
             'exception_log',
