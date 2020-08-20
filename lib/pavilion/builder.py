@@ -580,7 +580,7 @@ class TestBuilder:
 
         # Create the spack.yaml file with the updated configs.
         spack_env_config = build_dir/'spack.yaml'
-        with open(spack_env_config, "w+") as spack_env_file:
+        with open(spack_env_config.as_posix(), "w+") as spack_env_file:
             SpackEnvConfig().dump(spack_env_file, values=config)
 
     def _build(self, build_dir, cancel_event):
