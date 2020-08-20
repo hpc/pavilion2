@@ -220,6 +220,11 @@ class TestBuilder:
         self.fail_path = pav_cfg.working_dir/'builds'/fail_name
         self.finished_path = self.path.with_suffix(self.FINISHED_SUFFIX)
 
+        if self._timeout_file is not None:
+            self._timeout_file = self.path/self._timeout_file
+        else:
+            self._timeout_file = self.tmp_log_path
+
         # Don't allow a file to be written outside of the build context dir.
         files_to_create = self._config.get('create_files')
         if files_to_create:
@@ -586,15 +591,15 @@ class TestBuilder:
                                         stdout=build_log,
                                         stderr=build_log)
 
-                if self._timeout_file is None:
-                    self._timeout_file = self.tmp_log_path
-
                 result = None
                 while result is None:
                     try:
                         result = proc.wait(timeout=1)
                     except subprocess.TimeoutExpired:
-                        log_stat = self._timeout_file.stat()
+                        try:
+                            log_stat = self._timeout_file.stat()
+                        except FileNotFoundError as err:
+                            continue
                         timeout = log_stat.st_mtime + self._timeout
                         # Has the output file changed recently?
                         if time.time() > timeout:

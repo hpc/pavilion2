@@ -248,11 +248,7 @@ class TestRun:
         self.results_log = self.path/'results.log'
         self.results_path = self.path/'results.json'
         self.build_origin_path = self.path/'build_origin'
-
-        self.build_timeout_file = None
-        build_timeout_file = config.get('build', {}).get('timeout_file')
-        if build_timeout_file is not None:
-            self.build_timeout_file = self.path/build_timeout_file
+        self.build_timeout_file = config.get('build', {}).get('timeout_file')
 
         # Use run.log as the default run timeout file
         self.timeout_file = self.run_log
@@ -551,7 +547,10 @@ class TestRun:
                 try:
                     ret = proc.wait(timeout=timeout)
                 except subprocess.TimeoutExpired:
-                    out_stat = self.timeout_file.stat()
+                    try:
+                        out_stat = self.timeout_file.stat()
+                    except FileNotFoundError as err:
+                        continue
                     quiet_time = time.time() - out_stat.st_mtime
                     # Has the output file changed recently?
                     if self.run_timeout < quiet_time:
