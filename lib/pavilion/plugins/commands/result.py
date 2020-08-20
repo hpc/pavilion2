@@ -163,7 +163,7 @@ class ResultsCommand(commands.Command):
             else:
                 for test in tests:
                     output.fprint("\nResult logs for test {}\n"
-                                  .format(test.name))
+                                  .format(test.name), file=self.outfile)
                     if test.results_log.exists():
                         with test.results_log.open() as log_file:
                             output.fprint(
@@ -266,8 +266,8 @@ class ResultsCommand(commands.Command):
                     output.fprint(
                         "Test '{}' had a {} section that could not be "
                         "resolved with it's original variables: {}"
-                        .format(test.name, section, err.args[0])
-                    )
+                        .format(test.name, section, err.args[0]),
+                        file=self.errfile, color=output.RED)
                     return False
                 except RuntimeError as err:
                     output.fprint(
@@ -286,7 +286,8 @@ class ResultsCommand(commands.Command):
             except TestRunError as err:
                 output.fprint(
                     "Error found in results configuration: {}"
-                    .format(err.args[0]))
+                    .format(err.args[0]),
+                    color=output.RED, file=self.errfile)
                 return False
 
             # The new results will be attached to the test (but not saved).

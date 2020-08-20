@@ -184,6 +184,13 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
             help_text="Results are put in both the general log and a specific "
                       "results log. This defaults to 'results.log' in the "
                       "working directory."),
+        yc.BoolElem(
+            "flatten_results", default=True,
+            help_text="Flatten results with multiple 'by_file' values into "
+                      "multiple result log lines, one for each 'by_file' "
+                      "value. Each flattened result will have a 'file' key, "
+                      "and the contents of its 'by_file' data will be added "
+                      "to the base results mapping."),
         ExPathElem(
             'exception_log',
             # Derive the default from the working directory, if a value isn't
