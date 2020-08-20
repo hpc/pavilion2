@@ -928,9 +928,9 @@ modified date for the test directory."""
             for cmd in config['preamble']:
                 script.command(cmd)
 
-        spack_config = config.get('spack')
-        install_packages = spack_config.get('install')
-        load_packages = spack_config.get('load')
+        spack_config = config.get('spack', {})
+        install_packages = spack_config.get('install', [])
+        load_packages = spack_config.get('load', [])
 
         script.newline()
         script.comment('Run the spack setup script and activate the spack '
