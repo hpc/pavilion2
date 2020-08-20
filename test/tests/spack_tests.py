@@ -48,7 +48,8 @@ class SpackTests(PavTestCase):
             build_script_str = build_script.read()
 
         # Ensure the spack commands get placed in the build_script correctly
-        self.assertTrue("source ~/a/fake/path/share/spack/setup-env.sh" in
+        self.assertTrue("source {}/share/spack/setup-env.sh"
+                        .format(self.pav_cfg['spack_path']) in
                         build_script_str)
         self.assertTrue("spack env activate -V ." in build_script_str)
         self.assertTrue("spack install stuff" in build_script_str)

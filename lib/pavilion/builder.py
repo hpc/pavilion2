@@ -570,11 +570,11 @@ class TestBuilder:
                     # New spack installs will be built in the specified
                     # build_dir.
                     'install_tree': str(build_dir),
-                    'build_jobs': spack_config['build_jobs']
+                    'build_jobs': spack_config.get('build_jobs', 6)
                 },
-                'mirrors': spack_config['mirrors'],
-                'repos': spack_config['repos'],
-                'upstreams': spack_config['upstreams']
+                'mirrors': spack_config.get('mirrors', []),
+                'repos': spack_config.get('repos',[]),
+                'upstreams': spack_config.get('upstreams', {})
             },
         }
 
@@ -601,7 +601,7 @@ class TestBuilder:
             return False
 
         # Generate an anonymous spack environment for a new build.
-        spack_config = self.test.config.get('spack_config')
+        spack_config = self.test.config.get('spack_config', {})
         self.create_spack_env(spack_config, build_dir)
 
         try:
