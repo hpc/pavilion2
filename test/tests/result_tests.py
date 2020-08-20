@@ -545,7 +545,7 @@ class ResultParserTests(PavTestCase):
             self.assertEqual(results[key], answer)
 
     def test_flatten_results(self):
-        """Make sure result flattening workds as expected."""
+        """Make sure result flattening works as expected."""
 
         config = self._quick_test_cfg()
 
@@ -568,7 +568,7 @@ class ResultParserTests(PavTestCase):
 
         records = {}
 
-        with open(self.pav_cfg['result_log']) as results_log:
+        with self.pav_cfg['result_log'].open() as results_log:
             for line in results_log.readlines():
                 _result = json.loads(line)
 
