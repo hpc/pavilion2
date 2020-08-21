@@ -65,7 +65,6 @@ def status_from_test_obj(pav_cfg: dict,
             'note':    status_f.note,
         })
 
-    test_statuses.sort(key=lambda x: x['test_id'])
     return test_statuses
 
 
@@ -73,6 +72,7 @@ def get_all_tests(pav_cfg, args, list):
     """Return the statuses for all tests, up to the limit in args.limit."""
 
     #latest_tests = test_run.get_latest_tests(pav_cfg, args.limit)
+    from pavilion.output import dbg_print
     latest_tests = list
     test_obj_list = []
     test_statuses = []
@@ -276,11 +276,11 @@ class StatusCommand(commands.Command):
         )
         parser.add_argument(
             '-o', '--older', action='store_true',
-            help='Filter status by oldest test first'
+            help='Orders status by oldest test first'
         )
         parser.add_argument(
-            '-n', '-newer', action='store_true',
-            help='Filter status by newest test first.'
+            '-n', '--newer', action='store_true',
+            help='Orders status by newest test first.'
         )
         parser.add_argument(
             '-p', '--passed', action='store_true',
@@ -302,12 +302,21 @@ class StatusCommand(commands.Command):
             '--sys_name', type=str, nargs=1,
             help='Filter status by type of machine.'
         )
-
+        parser.add_argument(
+            '--older_than', type=str, nargs=2,
+            help='Filter tests older than x.'
+        )
+        parser.add_argument(
+            '--newer_than', type=str,  nargs=2,
+            help='Filter tests newer than x.'
+        )
 
     def run(self, pav_cfg, args):
         """Gathers and prints the statuses from the specified test runs and/or
         series."""
 
+        if not args.all:
+            args.series_info = series.TestSeries.load_user_series_id(pav_cfg)
         try:
             list = utils.filter_tests(pav_cfg, args)
             test_statuses = get_all_tests(pav_cfg, args, list)

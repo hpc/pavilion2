@@ -9,7 +9,9 @@ import json
 import os
 import subprocess
 import zipfile
+from datetime import datetime, timedelta
 from pavilion import dir_db
+from pavilion import output
 from pathlib import Path
 from typing import Iterator
 
@@ -229,76 +231,21 @@ def repair_symlinks(base: Path) -> None:
 def filter_tests(pav_cfg, args):
     """Filter and return test paths for display"""
     from pavilion.output import dbg_print
-    main_path =  pav_cfg.working_dir / 'test_runs'
-    #  All the smaller filters are not in use. We want to call
-    #  select once so we only make one filter....?
 
-    def filter_test_by_user(_: Path) -> bool:
-        """filter_by_user is passed a test_id path and checks if
-        the user provided matches the test and returns True
-         or False."""
+    if not args.all:
+        main_path = pav_cfg.working_dir / 'series' / \
+        args.series_info.strip('s').zfill(7)
+    else:
+        main_path = pav_cfg.working_dir / 'test_runs'
 
-        path = _
-        if str(path.owner()) == args.user[0]:
-            return True
-        else:
-            return False
-
-    def filter_test_by_sysname(_: Path) -> bool:
-        """filter_test_by_sysname displas is passed a test_id
-        path and checks if the sysname provided match and returns
-        True  or False."""
+    def order_list(_: Path) -> int:
         path = _
         with open(path / 'variables') as var_file:
             vars = json.load(var_file)
-            if vars['sys']['sys_name'] == args.sys_name:
-                return True
-            else:
-                return False
+            time = vars['pav']['timestamp']
+        return time
 
-    def filter_test_by_complete(_: Path) -> bool:
-        """Returns only tests that have completed"""
-        path = _ / 'RUN_COMPLETE'
-        if path.exists():
-            return True
-        else:
-            return False
-
-    def filter_test_by_incomplete(_: Path) -> bool:
-        """Returns tests that do not contain a RUN_
-        COMPLETE file."""
-        path = _ / 'RUN_COMPLETE'
-        if path.exists():
-            return False
-        else:
-            return True
-
-    def filter_test_by_pass(_: Path) -> bool:
-        """Returns tests that passed."""
-        path = _ / 'results.json'
-        try:
-            with open(path) as file:
-                result = json.load(file)
-                if result['result'] == 'PASS':
-                    return True
-                else:
-                    return False
-        except (FileNotFoundError, NotADirectoryError):
-            return False
-
-    def filter_test_by_failed(_: Path) -> bool:
-        """Returns tests that failed"""
-        path = _ / 'results.json'
-        try:
-            with open(path) as file:
-                result = json.load(file)
-                if result['result'] == 'FAIL':
-                    return True
-                else:
-                    return False
-        except (FileNotFoundError, NotADirectoryError):
-            return False
-
+    #  select once so we only make one filter.
     def filter_all(_: Path) -> bool:
 
         path = _
@@ -331,24 +278,73 @@ def filter_tests(pav_cfg, args):
                     result = json.load(file)
                     if result['result'] != 'FAIL':
                         return False
+            if args.older_than:
+                path = _ / 'variables'
+                cutoff = retrieve_datetime(args.older_than)
+                with open(path) as file:
+                    result = json.load(file)
+                    if float(result['pav']['timestamp'][0]) > cutoff:
+                        return False
+            if args.newer_than:
+                path = _ / 'variables'
+                cutoff = retrieve_datetime(args.newer_than)
+                with open(path) as file:
+                    result = json.load(file)
+                    if float(result['pav']['timestamp'][0]) < cutoff:
+                        return False
         except (FileNotFoundError, NotADirectoryError):
             return False
         return True
 
-    list = dir_db.select(main_path, filter_all)
 
-    #if args.user:
-    #    list = dir_db.select(main_path, filter_test_by_user)
-    #if args.sys_name:
-    #    list = dir_db.select(main_path, filter_test_by_sysname)
-    #if args.complete:
-    #    list = dir_db.select(main_path, filter_test_by_complete)
-    #if args.incomplete:
-    #    list = dir_db.select(main_path, filter_test_by_incomplete)
-    #if args.passed:
-    #    list = dir_db.select(main_path, filter_test_by_pass)
+    list = dir_db.select(main_path, filter_all, order_list, args)
 
     final = []
+
     for path in list:
         final.append(path.name.lstrip('0'))
     return final
+
+
+def retrieve_datetime(cutoff_time):
+    """Returns a valid datetime object range to filter
+    tests objects via time, e.g. show tests that ran this past week."""
+    # Converting time arguments into valid datetime object.
+    try:
+        time_amount = int(cutoff_time[0])
+        time_unit = cutoff_time[1]
+    except ValueError:
+        output.fprint("Invalid Format. Use the from: $AMOUNT $UNIT e.g."
+                      " '5 hours'", color=output.RED)
+        return None  # No datetime to return invalid format.
+
+    # Convert time into hours.
+    if time_unit == 'second' or time_unit == 'seconds':
+        time_amount = time_amount / 3600
+    elif time_unit == 'minute' or time_unit == 'minutes':
+        time_amount = time_amount / 60
+    elif time_unit == 'hour' or time_unit == 'hours':
+        time_amount = time_amount * 1
+    elif time_unit == 'day' or time_unit == 'days':
+        time_amount = time_amount * 24
+    elif time_unit == 'week' or time_unit == 'weeks':
+        time_amount = time_amount * 168
+    elif time_unit == 'month' or time_unit == 'months':
+        time_amount = time_amount * 720
+    elif time_unit == 'year' or time_unit == 'years':
+        time_amount = time_amount * 8760
+    else:
+        raise ValueError
+            #output.fprint("Invalid time unit, --time only accepts "
+            #              "second(s), minute(s), hour(s), day(s), "
+            #              "week(s), month(s), and year(s).",
+            #              color=output.RED)
+            #return None  # No datetime to return invalid format.
+    try:
+        search_date = datetime.today() - timedelta(hours=time_amount)
+    except OverflowError:
+        # Make the assumption if the user asks for tests in the last
+        # 10,000 year we just return the oldest possible datetime obj.
+        search_date = datetime(1, 1, 1)
+    search_date = datetime.timestamp(search_date)
+    return search_date

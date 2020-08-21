@@ -6,6 +6,7 @@ from typing import Callable, List
 from pathlib import Path
 
 from pavilion import lockfile
+from pavilion import utils
 
 ID_DIGITS = 7
 ID_FMT = '{id:0{digits}d}'
@@ -99,17 +100,40 @@ def default_filter(_: Path) -> bool:
     return True
 
 
+def default_order(_: Path) -> list:
+    """Ignore order and return whole list"""
+    list = []
+    for path in id_dir.iterdir():
+        if path.name.isdigit() and path.is_dir():
+            list.append(path)
+    return path
+
+
 def select(id_dir: Path,
-           filter_func: Callable[[Path], bool] = default_filter) -> List[Path]:
+           filter_func: Callable[[Path], bool] = default_filter,
+           order_func: Callable[[Path], int] = default_order,
+           args=None, ) -> List[Path]:
     """Return a list of all test paths in the given id_dir that pass the
     given filter function. The paths returned are guaranteed (within limits)
     to be an id directory, and only paths that pass the filter function
     are returned."""
+    from pavilion.output import dbg_print
+
+    list = []
+    for path in id_dir.iterdir():
+        if path.name.isdigit() and path.is_dir:
+            time = order_func(path)
+            list.append((time, path))
+
+    if not args.older:
+        list.sort(reverse=True)
+    else:
+        list.sort()
 
     passed = []
-    for path in id_dir.iterdir():
-        if path.name.isdigit() and path.is_dir():
-            if filter_func(path):
-                passed.append(path)
-
+    for path in list:
+        if filter_func(path[1]):
+            passed.append(path[1])
+        if args.limit == len(passed):
+            return passed
     return passed
