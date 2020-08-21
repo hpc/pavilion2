@@ -572,7 +572,7 @@ class TestBuilder:
                     'install_tree': str(build_dir),
                     'build_jobs': spack_config.get('build_jobs', 6)
                 },
-                'mirrors': spack_config.get('mirrors', []),
+                'mirrors': spack_config.get('mirrors', {}),
                 'repos': spack_config.get('repos',[]),
                 'upstreams': spack_config.get('upstreams', {})
             },

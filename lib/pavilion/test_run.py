@@ -933,7 +933,7 @@ modified date for the test directory."""
         load_packages = spack_config.get('load', [])
         setup_spack_env = self.config.get('setup_spack_env')
 
-        if setup_spack_env is not 'False':
+        if setup_spack_env not in ['False', None]:
             script.newline()
             script.comment('Run the spack setup script and activate the spack '
                            'build environment.')
