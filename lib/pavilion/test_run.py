@@ -931,13 +931,15 @@ modified date for the test directory."""
         spack_config = config.get('spack', {})
         install_packages = spack_config.get('install', [])
         load_packages = spack_config.get('load', [])
+        setup_spack_env = self.config.get('setup_spack_env')
 
-        script.newline()
-        script.comment('Run the spack setup script and activate the spack '
-                       'build environment.')
-        script.command('source ' + str(self._pav_cfg.get('spack_path'))
-                       +'/share/spack/setup-env.sh')
-        script.command("spack env activate -V .")
+        if setup_spack_env is not 'False':
+            script.newline()
+            script.comment('Run the spack setup script and activate the spack '
+                           'build environment.')
+            script.command('source ' + str(self._pav_cfg.get('spack_path'))
+                           +'/share/spack/setup-env.sh')
+            script.command("spack env activate -V .")
 
         if install_packages:
             script.newline()

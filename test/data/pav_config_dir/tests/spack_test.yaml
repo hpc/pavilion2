@@ -1,5 +1,6 @@
 spack_stuff:
         summary: This test does spack stuff
+        setup_spack_env: True
         build:
                 spack:
                         install: stuff

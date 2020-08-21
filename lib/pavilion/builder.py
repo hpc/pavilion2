@@ -602,7 +602,9 @@ class TestBuilder:
 
         # Generate an anonymous spack environment for a new build.
         spack_config = self.test.config.get('spack_config', {})
-        self.create_spack_env(spack_config, build_dir)
+        if (self._pav_cfg.get('spack_path') is not None and
+        self.test.config.get('setup_spack_env') is not 'False'):
+            self.create_spack_env(spack_config, build_dir)
 
         try:
             # Do the build, and wait for it to complete.
