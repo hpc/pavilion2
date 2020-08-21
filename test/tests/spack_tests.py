@@ -7,7 +7,7 @@ from pavilion import commands
 from pavilion import plugins
 from pavilion import test_run
 from pavilion.unittest import PavTestCase
-
+from pavilion.plugins.commands.status import get_tests
 
 class SpackTests(PavTestCase):
 
@@ -37,7 +37,13 @@ class SpackTests(PavTestCase):
         # path. That is ok as I only need to check the generated build script.
         build_cmd.run(self.pav_cfg, args)
 
-        test_dir = self.working_dir/'test_runs'/'0000001'
+        args = arg_parser.parse_args([
+            'status'
+        ])
+
+        test_id = str(get_tests(self.pav_cfg, args, io.StringIO())[0]).zfill(7)
+
+        test_dir = self.working_dir/'test_runs'/test_id
         spack_build_env = test_dir/'build'/'spack.yaml'
 
         # We should have created a spack.yaml (spack build env) file.
