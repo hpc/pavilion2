@@ -58,7 +58,7 @@ class Table(parsers.ResultParser):
         col_names = kwargs['col_names']
 
         try:
-            if len(col_names) is not 0:
+            if len(col_names) != 0:
                 if len(col_names) != kwargs['col_num']:
                     raise pavilion.result.base.ResultError(
                         "Length of `col_names` does not match `col_num`."
