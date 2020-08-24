@@ -127,7 +127,7 @@ class ResultParserTests(PavTestCase):
         test = self._quick_test(test_cfg, 'result_parser_test')
         test.run()
 
-        results = {'pav_result_errors': []}
+        results = base.base_results(test)
         parsers.parse_results(test, results)
 
         # Check all the different results to make sure they're what we expect.
@@ -145,10 +145,10 @@ class ResultParserTests(PavTestCase):
             False,
         )
 
-        self.assertEqual(results['fn']['run.log']['count'], 2)
-        self.assertEqual(results['fn']['other.log']['count'], 1)
+        self.assertEqual(results['per_file']['run.log']['count'], 2)
+        self.assertEqual(results['per_file']['other.log']['count'], 1)
 
-        self.assertEqual(results['fn']['other.log']['fullname'],
+        self.assertEqual(results['per_file']['other.log']['fullname'],
                          'In a World')
 
         self.assertEqual(results['name_list'],
@@ -157,7 +157,7 @@ class ResultParserTests(PavTestCase):
         self.assertEqual(results['fullname_list'],
                          ['other.log', 'other3.log'])
 
-        self.assertIn(results['n']['other']['name'],
+        self.assertIn(results['per_file']['other']['name'],
                       ['In a World', "I'm here to cause World"])
         self.assertIn("Duplicate file key 'other' matched by name",
                       [e['msg'] for e in results['pav_result_errors']])
@@ -451,7 +451,7 @@ class ResultParserTests(PavTestCase):
             # Check list operations.
             ({'list_ops': '[1, 2, 3] == 2'},
              {'list_ops': [False, True, False]}),
-            ({'type_conv': 'n.*.data'},
+            ({'type_conv': 'per_file.*.data'},
              # The order here should be consistent
              {'type_conv': [True, 2.3, 1, "blarg"]})
         ]
@@ -588,4 +588,56 @@ class ResultParserTests(PavTestCase):
         for key, answer in answers.items():
             self.assertEqual(results[key], answer)
 
+    def test_flatten_results(self):
+        """Make sure result flattening works as expected, as well as regular
+        result output while we're at it."""
 
+        config = self._quick_test_cfg()
+
+        config['run']['cmds'] = [
+            'for i in 1 2 3 4; do echo "hello $i" > $i.out; done'
+        ]
+        config['result_parse']['regex'] = {
+            'hello': {
+                'regex':    r'hello \d+',
+                'files':    '*.out',
+                'per_file': 'name',
+            }
+        }
+
+        test = self._quick_test(config, name="flatten_results_test1")
+
+        run_result = test.run()
+        results = test.gather_results(run_result)
+        test.save_results(results)
+
+        flattened = {}
+
+        test2 = self._quick_test(config, name="flatten_results_test2")
+        run_result = test2.run()
+        results = test2.gather_results(run_result)
+        test2._pav_cfg = test2._pav_cfg.copy()
+        test2._pav_cfg['flatten_results'] = False
+        test2.save_results(results)
+
+        with self.pav_cfg['result_log'].open() as results_log:
+            for line in results_log.readlines():
+                _result = json.loads(line)
+
+                # Reconstruct the per_file dict, so that flattened and
+                # unflattened are the same. If there's a format error, this
+                # will have problems.
+                if _result['name'] == "unittest.flatten_results_test1":
+                    flattened[_result['file']] = {'hello': _result['hello']}
+                elif _result['name'] == "unittest.flatten_results_test2":
+                    unflattened = _result['per_file']
+
+        answer = {
+            '1': {'hello': 'hello 1'},
+            '2': {'hello': 'hello 2'},
+            '3': {'hello': 'hello 3'},
+            '4': {'hello': 'hello 4'},
+        }
+
+        self.assertEqual(flattened, answer)
+        self.assertEqual(unflattened, answer)

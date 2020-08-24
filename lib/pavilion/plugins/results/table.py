@@ -87,6 +87,21 @@ class Table(parsers.ResultParser):
 
         )
 
+    def _check_args(self, **kwargs):
+
+        col_names = kwargs['col_names']
+
+        try:
+            if len(col_names) != 0:
+                if len(col_names) != kwargs['col_num']:
+                    raise pavilion.result.base.ResultError(
+                        "Length of `col_names` does not match `col_num`."
+                    )
+        except ValueError:
+            raise pavilion.result.base.ResultError(
+                "`col_names` needs to be an integer."
+            )
+
     def __call__(self, test, file, delimiter=None, col_num=None,
                  has_header='', col_names=[], by_column=True,
                  start_re=None, line_num=None, start_skip=None,
