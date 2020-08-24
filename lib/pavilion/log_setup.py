@@ -198,7 +198,7 @@ def setup_loggers(pav_cfg, verbose=False, err_out=sys.stderr):
         )
         return False
 
-    result_logger = logging.getLogger('results')
+    result_logger = logging.getLogger('common_results')
     result_handler = LockFileRotatingFileHandler(
         file_name=str(pav_cfg.result_log),
         # 20 MB
