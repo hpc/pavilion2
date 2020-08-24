@@ -8,7 +8,7 @@ import pprint
 from collections import OrderedDict
 from pathlib import Path
 import textwrap
-from typing import Dict, Callable
+from typing import Dict, Callable, Any, List
 
 import yaml_config as yc
 from pavilion.result.base import ResultError
@@ -103,6 +103,50 @@ ACTIONS = {
     ACTION_FALSE: action_false,
     ACTION_MULTI: action_multi,
 }
+
+
+def per_first(results: dict, key: str, file_vals: dict,
+             action: Callable[[dict, str, Any], None],
+             errors: List[str], log: Callable):
+    """Store the first non-empty value."""
+
+    first = [val for val in file_vals if val not in EMPTY_VALUES][:1]
+    if not first:
+        first = [None]
+        errors.append("No matches for key {}.".format(key))
+        log(errors[-1])
+
+    action(results, key, first)
+
+    log("PER_FIRST: Picked non-empty value '{}'".format(first))
+
+
+def per_last(results: dict, key: str, file_vals: dict,
+             action: Callable[[dict, str, Any], None],
+             errors: List[str], log: Callable):
+    """Store the last non-empty value."""
+
+    last = [val for val in file_vals if val not in EMPTY_VALUES][-1:]
+    if not last:
+        last = [None]
+        errors.append("No matches for key {}.".format(key))
+        log(errors[-1])
+
+    action(results, key, last[0])
+
+    log("PER_LAST: Picked non-empty value '{}'".format(last))
+
+
+def per_fullname(results: dict, key: str, file_vals: dict,
+                 action: Callable[[dict, str, Any], None],
+                 errors: List[str], log: Callable):
+    """Store in a dict by file fullname."""
+
+    per_file = results['per_file']
+
+
+
+
 
 PER_FIRST = 'first'
 PER_LAST = 'last'
@@ -605,7 +649,6 @@ configured for that test.
 
     # A list of keys with duplicates already reported on, so we don't
     # report such errors multiple times.
-    per_error_keys = []
     errors = []
 
     # Get the results for each of the parsers specified.
@@ -625,7 +668,8 @@ configured for that test.
             rconf = set_parser_defaults(rconf, defaults)
 
             # Grab these for local use.
-            action = rconf['action']
+            action_name = rconf['action']
+            action = ACTIONS[action_name]
             globs = rconf['files']
 
             per_file = rconf['per_file']
@@ -667,7 +711,7 @@ configured for that test.
                 continue
 
             log("Found {} matching files.".format(len(paths)))
-            log("Results will be stored with action '{}'".format(action))
+            log("Results will be stored with action '{}'".format(action_name))
 
             # Apply the result parser to each file we're parsing.
             # Handle the results according to the 'action' config attribute.
@@ -702,8 +746,8 @@ configured for that test.
                 # The result key is always true/false. It's ACTION_TRUE by
                 # default.
                 if (key == 'result' and
-                        action not in (ACTION_FALSE, ACTION_TRUE)):
-                    action = ACTION_TRUE
+                        action_name not in (ACTION_FALSE, ACTION_TRUE)):
+                    action_name = ACTION_TRUE
                     log("Forcing action to '{}' for the 'result' key.")
 
                 # We'll deal with the action later.
@@ -722,35 +766,23 @@ configured for that test.
             log("Handling results for key '{}' on a per-file basis with "
                 "per_file setting '{}'".format(key, per_file))
 
+
+            presults_list = []
+
+            class ListDict(dict):
+                """Ok, this is madness, but setting an item in this
+                dict actually just extends the list in our actual
+                results dict."""
+
+                def __setitem__(self, key, value):
+                    presults_list.append(value)
+
+            list_dict = ListDict()
+            [actiofor key, value ]
+
             # Combine the results of all the files given according to the
             # 'per_file' config attribute.
             if per_file in (PER_FIRST, PER_LAST):
-                # Per first and last find the first non-empty result
-                # from all the found files, and uses that.
-                # Empty lists (not tuples!) and None are considered empty.
-                # See the result parser docs.
-
-                presults = list(presults.values())
-                if not presults:
-                    raise ResultError(
-                        "No files found that matched {} for key '{}'. If "
-                        "you're hoping no such files exist, use a 'per_file' "
-                        "setting other than {} or {}."
-                        .format(globs, key, PER_FIRST, PER_LAST))
-
-                # Do this backwards, if we want the last one.
-                if per_file == PER_LAST:
-                    presults = reversed(presults)
-
-                for pres in presults:
-                    if pres in EMPTY_VALUES:
-                        continue
-
-                    # Store the first non-empty item.
-                    ACTIONS[action](results, key, pres)
-                    break
-                log("{}: Picked non-empty value '{}'"
-                    .format(per_file, results[key]))
 
             elif per_file in (PER_NAME, PER_FULLNAME):
                 # Store in results under the 'stem' or 'name' key as a dict
@@ -772,7 +804,7 @@ configured for that test.
                     if name not in per_dict:
                         per_dict[name] = dict()
 
-                    ACTIONS[action](per_dict[name], key, value)
+                    action(per_dict[name], key, value)
 
                 log("Saved results under '{}' for each file {}."
                     .format(per_key, per_file))
@@ -785,19 +817,10 @@ configured for that test.
 
                 results[key] = list()
 
-                class ListDict(dict):
-                    """Ok, this is madness, but setting an item in this
-                    dict actually just extends the list in our actual
-                    results dict."""
-                    def __setitem__(self, key, value):
-                        if isinstance(value, list):
-                            results[key].extend(value)
-                        elif value not in EMPTY_VALUES:
-                            results[key].append(value)
 
                 dummy = ListDict()
                 for value in presults.values():
-                    ACTIONS[action](dummy, key, value)
+                    action(dummy, key, value)
 
                 log("Saved results for all files as a list:\n{}"
                     .format(results[key]))
@@ -808,7 +831,7 @@ configured for that test.
                 for fname, value in presults.items():
                     fname = fname.stem if PER_NAME_LIST else fname.name
                     dummy = {}
-                    ACTIONS[action](dummy, key, value)
+                    action(dummy, key, value)
                     if dummy[key] not in EMPTY_VALUES:
                         matches.append(fname)
 
