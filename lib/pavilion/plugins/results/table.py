@@ -70,7 +70,7 @@ class Table(parsers.ResultParser):
                 ),
                 yc.ListElem(
                     'col_ignore', sub_elem=yc.StrElem(),
-                    help_text="Columns to ignore."
+                    help_text="(Coming soon) Columns to ignore."
                 )
             ],
             defaults={
@@ -101,6 +101,8 @@ class Table(parsers.ResultParser):
             raise pavilion.result.base.ResultError(
                 "`col_names` needs to be an integer."
             )
+
+        return kwargs
 
     def __call__(self, test, file, delimiter=None, col_num=None,
                  has_header='', col_names=[], by_column=True,
