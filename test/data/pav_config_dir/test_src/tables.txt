@@ -1,0 +1,45 @@
+stuff
+--  --  --  --  --
+Col1 | Col2 | Col3
+- - - - - - - - -
+data1 | 3   | data4
+data2 | 8   | data5
+data3 |     | data6
+
+asdf
+
+stuff
+--  --  --  --  --
+Col1  | Col2 | Col3
+- - - - - - - - -
+data7 | 0   | data10
+data8 | 9   | data11
+data9 |     | data12
+
+stuff
+--  --  --  --  --
+Col1  | Col2 | Col3
+- - - - - - - - -
+data13 | 4   | data16
+data14 | 8   | data17
+data15 |     | data18
+
+skip rows
+colA   colB   colC   colD
+-----  -----  ----   ----
+11111  12222   1333  14444
+item1  item2  item3  item4
+item5  item6  item7  item8
+41111  42222  43333  44444
+item9  item10 item11 item12
+item13 item14 item15 item16
+
+start skip
+a    b     c     d     e
+-    -     -     -     -
+   col1  col2  col3  col4
+r1   1     2      3     4
+r2   5     6      7     7
+r3   8     9     10     11
+some other words not  needed
+more words that are unnecessary

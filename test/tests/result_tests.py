@@ -255,71 +255,115 @@ class ResultParserTests(PavTestCase):
         :return:
         """
 
-        # line+space delimiter
-        table_test1 = {
+        # start & nth start with line+space delimiter
+        table_test_start_nth = {
             'scheduler': 'raw',
+            'build': {
+                'source_path': 'tables.txt'
+            },
             'run': {
                 'cmds': [
-                    'echo "SAMPLE TABLE"',
-                    'echo "Col1 | Col2 | Col3"',
-                    'echo "------------------"',
-                    'echo "data1 | 3 | data2"',
-                    'echo "data3 | 8 | data4"',
-                    'echo "data5 |   | data6"',
-                    'echo "some other text that doesnt matter"'
+                    'cat tables.txt'
                 ]
             },
             'result_parse': {
                 'table': {
-                    'table1': {
+                    'stuff_table': {
                         'delimiter': r'\|',
-                        'col_num': '3'
-                    },
-                },
+                        'col_num': '3',
+                        'col_names': ['Col1', 'Col2', 'Col3'],
+                        'start_re': r'^stuff',
+                        'nth_start_re': '1'
+                    }
+                }
             }
         }
 
-        test = self._quick_test(table_test1, 'result_parser_test')
-        test.run()
+        start_table_test = self._quick_test(table_test_start_nth,
+                                            'result_parser_test')
+        start_table_test.run()
+        start_results = {'pav_result_errors': []}
+        parsers.parse_results(start_table_test, start_results)
 
-        results = {'pav_result_errors': []}
-        parsers.parse_results(test, results)
+        self.assertEqual(['data7', 'data8', 'data9'],
+                         start_results['stuff_table']['Col1'])
+        self.assertEqual(['0', '9', ' '], start_results['stuff_table']['Col2'])
+        self.assertEqual(['data10', 'data11', 'data12'],
+                         start_results['stuff_table']['Col3'])
 
-        self.assertEqual(['data1', 'data3', 'data5'], results['table1']['Col1'])
-        self.assertEqual(['3', '8', ' '], results['table1']['Col2'])
-        self.assertEqual(['data2', 'data4', 'data6'], results['table1']['Col3'])
-
-        # space delimiter
-        table_test2 = {
+        # ignore rows, space delimited
+        table_test_ignore_rows = {
             'scheduler': 'raw',
+            'build': {
+                'source_path': 'tables.txt'
+            },
             'run': {
                 'cmds': [
-                    'echo "SAMPLE TABLE"',
-                    'echo "d1 d2 d3"',
-                    'echo "d4 d5 d6"',
-                    'echo "d7   d9"',
-                    'echo "some other text that doesnt matter"'
+                    'cat tables.txt'
                 ]
             },
             'result_parse': {
                 'table': {
-                    'table2': {
+                    'with_skip': {
                         'delimiter': ' ',
-                        'col_num': '3'
-                    },
-                },
+                        'col_num': '4',
+                        'col_names': ['colA', 'colB', 'colC', 'colD'],
+                        'start_re': r'^skip rows',
+                        'row_ignore': ['2', '3', '6'],
+                        'line_num': '9'
+                    }
+                }
             }
         }
+        ignore_rows_test = self._quick_test(table_test_ignore_rows,
+                                            'result_parser_test')
+        ignore_rows_test.run()
+        ignore_rows_results = {'pav_result_errors': []}
+        parsers.parse_results(ignore_rows_test, ignore_rows_results)
 
-        test = self._quick_test(table_test2, 'result_parser_test')
-        test.run()
+        self.assertEqual(['item1', 'item5', 'item9', 'item13'],
+                         ignore_rows_results['with_skip']['colA'])
+        self.assertEqual(['item2', 'item6', 'item10', 'item14'],
+                         ignore_rows_results['with_skip']['colB'])
+        self.assertEqual(['item3', 'item7', 'item11', 'item15'],
+                         ignore_rows_results['with_skip']['colC'])
+        self.assertEqual(['item4', 'item8', 'item12', 'item16'],
+                         ignore_rows_results['with_skip']['colD'])
 
-        results = {'pav_result_errors': []}
-        parsers.parse_results(test, results)
+        # start skip, row_nums, and with rows
+        rows_and_cols = {
+            'scheduler': 'raw',
+            'build': {
+                'source_path': 'tables.txt'
+            },
+            'run': {
+                'cmds': [
+                    'cat tables.txt'
+                ]
+            },
+            'result_parse': {
+                'table': {
+                    'with_rows': {
+                        'delimiter': ' ',
+                        'col_num': '5',
+                        'start_re': r'^start skip',
+                        'has_header': 'True',
+                        'start_skip': '2',
+                        'col_names': [' ', 'col1', 'col2', 'col3', 'col4'],
+                        'line_num': '4'
+                    }
+                }
+            }
+        }
+        has_header_test = self._quick_test(rows_and_cols, 'result_parser_test')
+        has_header_test.run()
+        has_header_results = {'pav_result_errors': []}
+        parsers.parse_results(has_header_test, has_header_results)
 
-        self.assertEqual(['d4', 'd7'], results['table2']['d1'])
-        self.assertEqual(['d5', ' '], results['table2']['d2'])
-        self.assertEqual(['d6', 'd9'], results['table2']['d3'])
+        self.assertEqual(3, len(has_header_results['with_rows'].keys()))
+        self.assertEqual('1', has_header_results['with_rows']['r1']['col1'])
+        self.assertEqual('6', has_header_results['with_rows']['r2']['col2'])
+        self.assertEqual('10', has_header_results['with_rows']['r3']['col3'])
 
         # comma delimiter
         table_test3 = {
