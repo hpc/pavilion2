@@ -545,7 +545,8 @@ class ResultParserTests(PavTestCase):
             self.assertEqual(results[key], answer)
 
     def test_flatten_results(self):
-        """Make sure result flattening works as expected."""
+        """Make sure result flattening works as expected, as well as regular
+        result output while we're at it."""
 
         config = self._quick_test_cfg()
 
@@ -560,27 +561,39 @@ class ResultParserTests(PavTestCase):
             }
         }
 
-        test = self._quick_test(config, name="flatten_results_test")
+        test = self._quick_test(config, name="flatten_results_test1")
 
         run_result = test.run()
         results = test.gather_results(run_result)
         test.save_results(results)
 
-        records = {}
+        flattened = {}
+
+        test2 = self._quick_test(config, name="flatten_results_test2")
+        run_result = test2.run()
+        results = test2.gather_results(run_result)
+        test2._pav_cfg = test2._pav_cfg.copy()
+        test2._pav_cfg['flatten_results'] = False
+        test2.save_results(results)
 
         with self.pav_cfg['result_log'].open() as results_log:
             for line in results_log.readlines():
                 _result = json.loads(line)
 
-                if _result['name'] != "unittest.flatten_results_test":
-                    continue
+                # Reconstruct the per_file dict, so that flattened and
+                # unflattened are the same. If there's a format error, this
+                # will have problems.
+                if _result['name'] == "unittest.flatten_results_test1":
+                    flattened[_result['file']] = {'hello': _result['hello']}
+                elif _result['name'] == "unittest.flatten_results_test2":
+                    unflattened = _result['per_file']
 
-                records[_result['file']] = _result['hello']
+        answer = {
+            '1': {'hello': 'hello 1'},
+            '2': {'hello': 'hello 2'},
+            '3': {'hello': 'hello 3'},
+            '4': {'hello': 'hello 4'},
+        }
 
-        self.assertEqual(records, {
-            '1': 'hello 1',
-            '2': 'hello 2',
-            '3': 'hello 3',
-            '4': 'hello 4',
-        })
-
+        self.assertEqual(flattened, answer)
+        self.assertEqual(unflattened, answer)
