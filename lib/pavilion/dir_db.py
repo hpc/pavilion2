@@ -3,7 +3,7 @@ essentially serves as a filesystem primary key."""
 
 import json
 import os
-from typing import Callable, List
+from typing import Callable, List, Iterable
 from pathlib import Path
 
 from pavilion import lockfile
@@ -100,102 +100,70 @@ def default_filter(_: Path) -> bool:
 
     return True
 
-#  select once so we only make one filter.
-def filter_all(_: Path) -> bool:
-
-    path = _
-    try:
-        if args.complete:
-            complete_path = path / 'RUN_COMPLETE'
-            if not complete_path.exists():
-                return False
-        if args.incomplete:
-            incomplete_path = path / 'RUN_COMPLETE'
-            if incomplete_path.exists():
-                return False
-        if args.user:
-            if str(path.owner()) != args.user[0]:
-                return False
-        if args.sys_name:
-            with open(path / 'variables') as var_file:
-                vars = json.load(var_file)
-                if vars['sys']['sys_name'] != args.sys_name:
-                    return False
-        if args.passed:
-            path = _ / 'results.json'
-            with open(path) as file:
-                result = json.load(file)
-                if result['result'] != 'PASS':
-                    return False
-        if args.failed:
-            path = _ / 'results.json'
-            with open(path) as file:
-                result = json.load(file)
-                if result['result'] != 'FAIL':
-                    return False
-        if args.older_than:
-            path = _ / 'variables'
-            cutoff = retrieve_datetime(args.older_than)
-            with open(path) as file:
-                result = json.load(file)
-                if float(result['pav']['timestamp'][0]) > cutoff:
-                    return False
-        if args.newer_than:
-            path = _ / 'variables'
-            cutoff = retrieve_datetime(args.newer_than)
-            with open(path) as file:
-                result = json.load(file)
-                if float(result['pav']['timestamp'][0]) < cutoff:
-                    return False
-    except (FileNotFoundError, NotADirectoryError):
-        return False
-    return True
-
-
-def default_order(_: Path) -> list:
-    """Ignore order and return whole list"""
-    list = []
-    for path in id_dir.iterdir():
-        if path.name.isdigit() and path.is_dir():
-            list.append(path)
-    return path
-
-
-def order_list(_: Path) -> int:
-    path = _
-    with open(path / 'variables') as var_file:
-        vars = json.load(var_file)
-        time = vars['pav']['timestamp']
-    return time
-
 
 def select(id_dir: Path,
            filter_func: Callable[[Path], bool] = default_filter,
-           order_func: Callable[[Path], int] = default_order,
-           args=None, ) -> List[Path]:
-    """Return a list of all test paths in the given id_dir that pass the
-    given filter function. The paths returned are guaranteed (within limits)
-    to be an id directory, and only paths that pass the filter function
-    are returned."""
-    from pavilion.output import dbg_print
+           order_func: Callable[[Path], int] = None,
+           limit: int = None) -> List[Path]:
+    """
+    :param id_dir: The dir_db directory to select from.
+    :param filter_func: A function that takes a directory, and returns whether
+        to include that directory. True -> include, False -> exclude
+    :param order_func: A function that returns a comparable value for sorting,
+        as per the list.sort keys argument.
+    :param limit: The max items to return. None denotes return all.
+    """
 
-    list = []
-    for path in id_dir.iterdir():
-        if path.name.isdigit() and path.is_dir:
+    return select_from(paths=id_dir.iterdir(),
+                       filter_func=filter_func,
+                       order_func=order_func,
+                       limit=limit)
 
-            time = order_func(path)
-            dbg_print(time)
-            list.append((time, path))
 
-    if not args.older:
-        list.sort(reverse=True)
-    else:
-        list.sort()
+def select_from(paths: Iterable[Path],
+                filter_func: Callable[[Path], bool] = default_filter,
+                order_func: Callable[[Path], int] = None,
+                limit: int = None) -> List[Path]:
+    """Return a list of test paths in the given id_dir, filtered, ordered, and
+    potentially limited.
+    :param paths: A list of paths to filter, order, and limit.
+    :param filter_func: A function that takes a directory, and returns whether
+        to include that directory. True -> include, False -> exclude
+    :param order_func: A function that returns a comparable value for sorting,
+        as per the list.sort keys argument.
+    :param limit: The max items to return. None denotes return all.
 
-    passed = []
-    for path in list:
-        if filter_func(path[1]):
-            passed.append(path[1])
-        if args.limit == len(passed):
-            return passed
-    return passed
+    Other arguments are as per 'select'.
+    """
+
+    items = []
+    for path in paths:
+        if not (path.name.isdigit() and path.is_dir()):
+            continue
+
+        if not filter_func(path):
+            continue
+
+        items.append(path)
+
+    if order_func:
+        items.sort(key=order_func)
+
+    return items[:limit]
+
+
+def paths_to_ids(paths: List[Path]) -> List[int]:
+    """Convert a list of list of dir_db paths to ids.
+
+    :param paths: A list of id paths.
+    :raises ValueError: For invalid paths
+    """
+
+    ids = []
+    for path in paths:
+        try:
+            ids.append(int(path.name))
+        except ValueError:
+            raise ValueError(
+                "Invalid dir_db path '{}'".format(path.as_posix()))
+    return ids

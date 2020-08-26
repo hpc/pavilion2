@@ -9,7 +9,7 @@ from typing import List, Union
 
 from pavilion import commands
 from pavilion import dir_db
-from pavilion import make_testrun_filter
+from pavilion import filters
 from pavilion import output
 from pavilion import schedulers
 from pavilion import series
@@ -107,7 +107,7 @@ def get_tests(pav_cfg, args, errfile):
 :param errfile: stream to output errors as needed
 :return: List of test objects
     """
- 
+
     if not args.tests:
         # Get the last series ran by this user
         series_id = series.TestSeries.load_user_series_id(pav_cfg)
@@ -256,7 +256,7 @@ class StatusCommand(commands.Command):
         )
         parser.add_argument(
             '-a', '--all', action='store_true',
-            help='Displays all tests within a certain limit.'
+            help="Search over all tests."
         )
         parser.add_argument(
             '-l', '--limit', type=int, default=10,
@@ -314,20 +314,19 @@ class StatusCommand(commands.Command):
             '--newer_than', type=str,  nargs=2,
             help='Filter tests newer than x.'
         )
-        #summary_group = parser.add_mutually_exclusive__group()
-        #history_group = parser.add_mutually_exclusive_group()
-        #history_group.add_arguemnt('')
-
-
 
     def run(self, pav_cfg, args):
         """Gathers and prints the statuses from the specified test runs and/or
         series."""
 
-        args.series_info = series.TestSeries.load_user_series_id(pav_cfg)
-        make_testrun_filter.build_filter()
+        if args.tests:
+            test_list = []
+            for test_id in args.tests:
+                if test_id.startswith('s'):
+                    try:
+                        series.TestSeries
 
-        test_statuses = get_all_tests(pav_cfg, args, list)
+
 
         try:
             #list = utils.filter_tests(pav_cfg, args)
