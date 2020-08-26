@@ -62,6 +62,23 @@ class ModuleUnload(ModuleAction):
                 .format(s=self)]
 
 
+class ModuleRestore(ModuleAction):
+    """Provides module restore commands and verification for collections.
+       This should only be used with Cray PrgEnv-* collections for now.  The
+       check for this working is the presence of a 'cpe-*' module matching
+       the environment of the collection."""
+
+    def action(self):
+        return ['module restore {s.module}'.format(s=self)]
+
+    def verify(self):
+        cmd = ['verify_module_loaded',
+               '$TEST_ID',
+               'cpe-{s}'.format(s=self.name.split('-')[1]),
+               '{s.version}'.format(s=self)]
+        return " ".join(cmd)
+
+
 class ModuleSwap(ModuleAction):
     """Provides module swapping commands and verification."""
 
