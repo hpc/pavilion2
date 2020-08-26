@@ -222,3 +222,28 @@ def repair_symlinks(base: Path) -> None:
                 rel_target = relative_to(target, sym_dir)
                 file.unlink()
                 file.symlink_to(rel_target)
+
+
+def auto_convert_str(value):
+    """Try to convert 'value' to a int, float, or bool. Otherwise leave
+    as a string. This is done recursively with complex values."""
+
+    if isinstance(value, list):
+        return [auto_convert_str(item) for item in value]
+    elif isinstance(value, dict):
+        return {key: auto_convert_str(val) for key, val in value.items()}
+
+    try:
+        return int(value)
+    except ValueError:
+        pass
+
+    try:
+        return float(value)
+    except ValueError:
+        pass
+
+    if value in ('True', 'False'):
+        return bool(value)
+
+    return value

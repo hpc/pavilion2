@@ -5,12 +5,14 @@ import glob
 import inspect
 import logging
 import pprint
-from collections import OrderedDict
+import re
+from collections import OrderedDict, namedtuple
 from pathlib import Path
 import textwrap
 from typing import Dict, Callable, Any, List
 
 import yaml_config as yc
+from pavilion.utils import auto_convert_str
 from pavilion.result.base import ResultError
 from pavilion.test_config import file_format, resolver
 from yapsy import IPlugin
@@ -20,6 +22,25 @@ LOGGER = logging.getLogger(__file__)
 
 # The dictionary of result parsers.
 _RESULT_PARSERS = {}
+
+
+class ParseErrorMsg:
+    def __init__(self, key, parser, file, msg):
+        """
+        :param key:
+        :param parser:
+        :param file:
+        :param msg:
+        """
+
+    def __str__(self):
+
+ParseErrorMsg = namedtuple("ParseErrorMsg", [
+    'key',      # The key being processed
+    'parser',   # The parser object.
+    'file',     # The file being processed
+    'msg',      # The error message.
+])
 
 
 def get_plugin(name):
@@ -47,10 +68,26 @@ def __reset():
     for parser in list(_RESULT_PARSERS.values()):
         parser.deactivate()
 
+
+def normalize_filename(name: Path):
+    """Remove any characters that aren't allowed in Pavilion variable names."""
+
+    name = name.name.split('.')[0]
+
+    parts = []
+    for p in name:
+        if not p.isalnum():
+            parts.append('_')
+        else:
+            parts.append(p)
+    return ''.join(parts)
+
+
 NON_MATCH_VALUES = (None, [], False)
 EMPTY_VALUES = (None, [])
 
 ACTION_STORE = 'store'
+ACTION_STORE_STR = 'store_str'
 ACTION_TRUE = 'store_true'
 ACTION_FALSE = 'store_false'
 ACTION_COUNT = 'count'
@@ -59,6 +96,11 @@ ACTION_MULTI = 'store_multi'
 
 def action_store(stor: dict, key: str, value):
     """Simply store the value under the key."""
+    stor[key] = auto_convert_str(value)
+
+
+def action_store_str(stor: dict, key: str, value):
+    """Store the value under the key as a string."""
     stor[key] = value
 
 
@@ -98,6 +140,7 @@ def action_multi(stor: dict, key: str, value):
 # store.
 ACTIONS = {
     ACTION_STORE: action_store,
+    ACTION_STORE_STR: action_store_str,
     ACTION_COUNT: action_count,
     ACTION_TRUE: action_true,
     ACTION_FALSE: action_false,
@@ -105,77 +148,106 @@ ACTIONS = {
 }
 
 
-def per_first(results: dict, key: str, file_vals: dict,
-             action: Callable[[dict, str, Any], None],
-             errors: List[str], log: Callable):
+def per_first(results: dict, key: str, file_vals: Dict[Path, Any],
+              action: Callable[[dict, str, Any], None]):
     """Store the first non-empty value."""
 
     first = [val for val in file_vals if val not in EMPTY_VALUES][:1]
     if not first:
-        first = [None]
-        errors.append("No matches for key {}.".format(key))
-        log(errors[-1])
+        raise ResultError("No matches for key {}.".format(key))
 
     action(results, key, first)
 
-    log("PER_FIRST: Picked non-empty value '{}'".format(first))
 
-
-def per_last(results: dict, key: str, file_vals: dict,
-             action: Callable[[dict, str, Any], None],
-             errors: List[str], log: Callable):
+def per_last(results: dict, key: str, file_vals: Dict[Path, Any],
+             action: Callable[[dict, str, Any], None]):
     """Store the last non-empty value."""
 
     last = [val for val in file_vals if val not in EMPTY_VALUES][-1:]
     if not last:
-        last = [None]
-        errors.append("No matches for key {}.".format(key))
-        log(errors[-1])
+        raise ResultError("No matches for key {}.".format(key))
 
     action(results, key, last[0])
 
-    log("PER_LAST: Picked non-empty value '{}'".format(last))
 
-
-def per_fullname(results: dict, key: str, file_vals: dict,
-                 action: Callable[[dict, str, Any], None],
-                 errors: List[str], log: Callable):
+def per_name(results: dict, key: str, file_vals: Dict[Path, Any],
+             action: Callable[[dict, str, Any], None]):
     """Store in a dict by file fullname."""
 
     per_file = results['per_file']
 
+    for file, val in file_vals.items():
+        name = normalize_filename(file)
+        per_file[name] = per_file.get(name, {})
+        action(per_file[name], key, val)
 
 
+def per_name_list(results: dict, key: str, file_vals: Dict[Path, Any], _):
+    """Store the file name for each file with a match. The action is ignored."""
+
+    matches = []
+
+    for file, val in file_vals.items():
+        name = normalize_filename(file)
+
+        if val not in NON_MATCH_VALUES:
+            matches.append(name)
+
+    results[key] = matches
+
+
+def per_list(results: dict, key: str, file_vals: Dict[Path, Any],
+             action: Callable[[dict, str, Any], None]):
+    """Merge all values from all files into a single list. If the values
+    are lists, they will be merged and the action will be applied to each
+    sub-item."""
+
+    all_vals = []
+    for _, val in file_vals.items():
+        if val in EMPTY_VALUES:
+            continue
+
+        if isinstance(val, list):
+            for subval in val:
+                dummy = {}
+                action(dummy, key, subval)
+                all_vals.append(dummy.get(key, None))
+        else:
+            dummy = {}
+            action(dummy, key, val)
+            all_vals.append(dummy.get(key, None))
+
+    results[key] = all_vals
 
 
 PER_FIRST = 'first'
 PER_LAST = 'last'
-PER_FULLNAME = 'fullname'
 PER_NAME = 'name'
-PER_FULLNAME_LIST = 'fullname_list'
 PER_NAME_LIST = 'name_list'
 PER_LIST = 'list'
-PER_ANY = 'any'
-PER_ALL = 'all'
+
+PER_FILES = {
+    PER_FIRST: per_first,
+    PER_LAST: per_last,
+    PER_NAME: per_name,
+    PER_NAME_LIST: per_name_list,
+    PER_LIST: per_list,
+}
 
 MATCH_FIRST = 'first'
 MATCH_LAST = 'last'
 MATCH_ALL = 'all'
 MATCH_CHOICES = (MATCH_FIRST, MATCH_LAST, MATCH_ALL)
 
-MATCHES_ELEM = yc.StrElem(
-    "match_type",
+
+KEYS_ELEM = yc.ListElem(
+    'keys', sub_elem=yc.StrElem(),
     help_text=(
-        "How to handle multiple matches. '{FIRST}' (default) and '{LAST}'"
-        "should return a single item (or nothing), while '{ALL}' "
-        "should return a list of all matches."
-        .format(
-            FIRST=MATCH_FIRST,
-            LAST=MATCH_LAST,
-            ALL=MATCH_ALL,
-        ))
+        "A list of keys used by a multi-keyed result parser, typically for"
+        "a returned dictionary."
+    )
 )
-"""This is to use in any result parser plugin that can match multiple items.
+"""This is to use in any result parser plugin that can return a dictionary. 
 It's provided here for consistency between plugins."""
 
 
@@ -185,11 +257,6 @@ DEFAULTS = {
     'files': ['../run.log']
 }
 
-CHOICES = {
-    'per_file': (PER_FIRST, PER_LAST, PER_ANY, PER_ALL, PER_LIST, PER_NAME,
-                 PER_FULLNAME, PER_NAME_LIST, PER_FULLNAME_LIST),
-    'action': (ACTION_COUNT, ACTION_STORE, ACTION_TRUE, ACTION_FALSE),
-}
 
 DEFAULT_KEY = '_defaults'
 
@@ -216,50 +283,43 @@ def set_parser_defaults(rconf: dict, def_conf: dict):
     return base
 
 
-def check_parser_conf(rconf, key, parser):
-    """Validate the given parser configuration.
+def key_validator(key):
+    """Make sure the key is reasonable."""
 
-    :raises: ResultError on failure.
-    """
+    if normalize_filename(key) != key:
+        raise ValueError(
+            "Result parser keys can only contain letters "
+            "numbers and underscores.".format(key))
 
-    action = rconf.get('action')
-    per_file = rconf.get('per_file')
 
-    found_deferred = False
-    # Don't check args if they have deferred values.
-    for option, values in rconf.items():
-        if not isinstance(values, list):
-            values = [values]
-
-        for value in values:
-            if resolver.TestConfigResolver.was_deferred(value):
-                found_deferred = True
-            elif option in CHOICES:
-                if value not in CHOICES[option]:
-                    raise ResultError(
-                        "Option '{}' in result parser for key '{}' has a "
-                        "value of '{}', but it must be one of '{}'"
-                        .format(option, key, value, CHOICES[option]))
-
-    if found_deferred:
-        # We can't continue checking from this point if anything was deferred.
-        return
-
-    if (key == 'result'
-            and action not in (ACTION_TRUE,
-                               ACTION_FALSE)
-            and per_file not in (PER_FIRST, PER_LAST,
-                                 PER_ANY, PER_ALL)):
-        raise ResultError(
-            "Result parser has key 'result', but must store a "
-            "boolean. Use action 'first' or 'last', along with a "
-            "per_file setting of 'first', 'last', 'any', or 'all'")
-
+def match_select_validator(match_select):
+    """Make sure this is predefined string or integer."""
     try:
-        parser.check_args(**rconf)
-    except ResultError as err:
-        raise ResultError(
-            "Key '{}': {}".format(key, err.args[0]))
+        int(match_select)
+    except ValueError:
+        raise ValueError(
+            "This must be one of {} or an integer."
+            .format(match_select, MATCH_CHOICES))
+
+
+def match_pos_validator(match_pos):
+    """Validate match position arguments."""
+    try:
+        re.compile(match_pos)
+    except re.error as err:
+        raise ValueError("Invalid regular expression.\n{}"
+                         .format(match_pos, err.args[0]))
+
+
+BASE_VALIDATORS = {
+    'keys': key_validator,
+    'match_select': match_select_validator,
+    'match_after': match_pos_validator,  # Auto-applied to each list value
+    'match_at': match_pos_validator,
+    'match_before': match_pos_validator,
+    'action': tuple(ACTIONS.keys()),
+    'per_file': tuple(PER_FILES.keys()),
+}
 
 
 class ResultParser(IPlugin.IPlugin):
@@ -306,16 +366,19 @@ text for that class, along with the help from the config items."""
         self.description = description
         self.defaults = {} if defaults is None else defaults
 
+        self.validators = BASE_VALIDATORS.copy()
+
         if validators is not None:
-            for key, val in validators.items():
-                if not (isinstance(val, tuple) or
-                        callable(val)):
+            for key, validator in validators.items():
+                if not (isinstance(validator, tuple) or
+                        callable(validator)):
                     raise RuntimeError(
                         "Validator for key {} in result parser {} at {} must "
                         "be a tuple or a function."
                         .format(key, name, self.path)
                     )
-        self.validators = {} if validators is None else validators
+
+                validators[key] = validator
 
         config_elems = config_elems if config_elems is not None else []
         for elem in config_elems:
@@ -331,16 +394,11 @@ text for that class, along with the help from the config items."""
             if elem.default not in [None, []] or elem._choices is not None:
                 raise RuntimeError(
                     "Config elements for result parsers shouldn't set "
-                    "a default or choices (use the defaults or choices"
+                    "a default or choices (use the defaults or validators"
                     "argument for the result_parser init). Problem found "
                     "in {} in result parser at {}"
                     .format(elem, self.path)
                 )
-
-            if elem is MATCHES_ELEM:
-                self.validators['match_type'] = MATCH_CHOICES
-                if 'match_type' not in self.defaults:
-                    self.defaults['match_type'] = MATCH_FIRST
 
         self.config_elems = config_elems
         self.priority = priority
@@ -386,7 +444,7 @@ don't contain deferred variables. We can't check tests with
 deferred args. On error, should raise a ResultParserError.
 
 :param dict kwargs: The arguments from the config.
-:raises ResultParserError: When bad arguments are given.
+:raises ResultError: When bad arguments are given.
 """
 
         # The presence or absence of needed args should be enforced by
@@ -397,6 +455,12 @@ deferred args. On error, should raise a ResultParserError.
                 continue
             args[key] = kwargs[key]
         kwargs = args
+
+        if args['action'] == ACTION_MULTI and args['per_file'] == PER_LIST:
+            raise ResultError(
+                "The '{}' action and per_file setting of '{}' are "
+                "incompatible."
+                .format(args['action'], args['per_file']))
 
         for key in ('action', 'per_file', 'files'):
             if key not in kwargs:
@@ -415,7 +479,7 @@ deferred args. On error, should raise a ResultParserError.
             if isinstance(validator, tuple):
                 if kwargs[key] not in validator:
                     raise ResultError(
-                        "Invalid value for option '{}'. "
+                        "Invalid value for option '{}'.\n"
                         "Expected one of {}, got '{}'."
                         .format(key, validator, kwargs[key])
                     )
@@ -437,8 +501,6 @@ deferred args. On error, should raise a ResultParserError.
                     )
 
         return self._check_args(**kwargs)
-
-    KEY_REGEX_STR = r'^[a-zA-Z0-9_-]+$'
 
     def get_config_items(self):
         """Get the config for this result parser. This should be a list of
@@ -494,32 +556,62 @@ Example: ::
                     "non-empty result. If no files were found, this "
                     "is considerd an error. (default)\n"
                     "  {LAST} - As '{FIRST}', but last result.\n"
-                    "  {FULLNAME} - Store the results on a per file "
-                    "basis under results['fn'][<filename>][<key>]\n"
-                    "  {NAME} - As '{FULLNAME}', except use the "
-                    "filename minus extension (foo.bar.log -> foo.bar), and"
-                    "store under the results['n'][<name>][<key>]\n"
-                    "  {FULLNAME_LIST} - Save the matching file names, rather\n"
-                    "than the parsed values, in a list.\n"
-                    "  {NAME_LIST} - As '{FULLNAME_LIST}' except store the \n"
-                    "filenames minus the extension.\n"
+                    "  {NAME} - Store the results on a per file "
+                    "basis under results['per_name'][<filename>][<key>]. The "
+                    "filename only includes the parts before any '.', and "
+                    "is normalized to replace non-alphanum characters with "
+                    "'_'\n"
+                    "  {NAME_LIST} - Save the matching (normalized) file "
+                    "names, rather than the parsed values, in a list.\n"
                     "  {LIST} - Merge all each result and result list "
                     "into a single list.\n"
-                    "  {ALL} - Use only with the 'store_true' or "
-                    "'store_false' action. Set true if all files had a "
-                    "true result. Note that 0 is a false result.\n"
-                    "  {ANY} - As '{ALL}', but set true if any file had"
-                    "a true result.\n"
                     .format(
                         FIRST=PER_FIRST,
                         LAST=PER_LAST,
-                        FULLNAME=PER_FULLNAME,
                         NAME=PER_NAME,
                         NAME_LIST=PER_NAME_LIST,
-                        FULLNAME_LIST=PER_FULLNAME_LIST,
-                        LIST=PER_LIST,
-                        ALL=PER_ALL,
-                        ANY=PER_ANY))
+                        LIST=PER_LIST))
+            ),
+            yc.StrElem(
+                "match_at",
+                help_text=(
+                    "A regular expression used to identify the line where "
+                    "result parsing should start. The result parser will "
+                    "see the file starting at this line. Mutually exclusive "
+                    "with 'match_after' and 'match_before'."
+                )
+            ),
+            yc.ListElem(
+                "match_after", sub_elem=yc.StrElem(),
+                help_text=(
+                    "A list of regular expressions that must match lines that "
+                    "precede the lines to be parsed. Empty items"
+                    "in the sequence will match anything. The result parser "
+                    "will see the file starting from start of the line after "
+                    "these match. Mutually exclusive with 'match_before' and "
+                    "'match_at'."
+                )
+            ),
+            yc.ListElem(
+                "match_before", sub_elem=yc.StrElem(),
+                help_text=(
+                    "A list of regular expressions that must follow the lines "
+                    "to be parsed. The result parser will see the file "
+                    "starting from the line before these. Mutually exclusive "
+                    "with 'match_after' and 'match_at'.")
+            ),
+            yc.StrElem(
+                "match_select",
+                help_text=(
+                    "In cases where multiple matches are possible, how to"
+                    "handle them. By default, find the first '{FIRST}' "
+                    "match and use it. '{LAST}' returns  the final match, and "
+                    "'{ALL}' will return a list of all matches. You may also "
+                    "give an integer to get the Nth match."
+                    .format(
+                        FIRST=MATCH_FIRST,
+                        LAST=MATCH_LAST,
+                        ALL=MATCH_ALL))
             ),
         ]
 
@@ -536,6 +628,7 @@ Example: ::
         """Return documentation on this result parser."""
 
         def wrap(text: str, indent=0):
+            """Wrap a multi-line string."""
 
             indent = ' ' * indent
 
@@ -617,8 +710,54 @@ do this in unittests.
         del _RESULT_PARSERS[self.name]
 
 
-def parse_results(test, results: Dict,
-                  log: Callable[..., None] = None) -> None:
+def check_parser_conf(rconf, key, parser):
+    """Validate the given parser configuration.
+
+    :raises: ResultError on failure.
+    """
+
+    action = rconf.get('action')
+    per_file = rconf.get('per_file')
+
+    found_deferred = False
+    # Don't check args if they have deferred values.
+    for option, values in rconf.items():
+        if not isinstance(values, list):
+            values = [values]
+
+        for value in values:
+            if resolver.TestConfigResolver.was_deferred(value):
+                found_deferred = True
+
+    if found_deferred:
+        # We can't continue checking from this point if anything was deferred.
+        return
+
+    try:
+        key_validator(key)
+    except ValueError as err:
+        raise ResultError(
+            "Result parser key '{}' is invalid.\n{}"
+            .format(key, err.args[0]))
+
+    if (key == 'result'
+            and action not in (ACTION_TRUE,
+                               ACTION_FALSE)
+            and per_file not in (PER_FIRST, PER_LAST)):
+        raise ResultError(
+            "Result parser has key 'result', but must store a "
+            "boolean. Use action '{}' or '{}', along with a "
+            "per_file setting of 'first', 'last', 'any', or 'all'"
+            .format(ACTION_TRUE, ACTION_FALSE))
+
+    try:
+        parser.check_args(**rconf)
+    except ResultError as err:
+        raise ResultError(
+            "Key '{}': {}".format(key, err.args[0]))
+
+
+def parse_results(test, results: Dict, log: Callable = None) -> None:
     """Parse the results of the given test using all the result parsers
 configured for that test.
 
@@ -665,186 +804,152 @@ configured for that test.
         for key, rconf in parser_configs[parser_name].items():
             log("Parsing value for key '{}'".format(key), lvl=2)
 
-            rconf = set_parser_defaults(rconf, defaults)
+            error = parse_result(
+                results=results,
+                key=key,
+                parser_cfg=set_parser_defaults(rconf, defaults),
+                parser=parser,
+                test=test,
+                log=log)
 
-            # Grab these for local use.
-            action_name = rconf['action']
-            action = ACTIONS[action_name]
-            globs = rconf['files']
-
-            per_file = rconf['per_file']
-
-            # These config items are used here, but not expected by the
-            # parsers themselves.
-            args = rconf.copy()
-
-            try:
-                parser_args = parser.check_args(**args)
-            except ResultError as err:
-                errors.append({
-                    'result_parser': parser_name,
-                    'file':          str(parser.path),
-                    'key':           key,
-                    'msg':           err.args[0]})
-                continue
-
-            # The per-file results for this parser
-            presults = OrderedDict()
-
-            log("Looking for files that match file globs: {}".format(globs),
-                lvl=2)
-
-            # Find all the files we'll be parsing.
-            paths = []
-            for file_glob in globs:
-                if not file_glob.startswith('/'):
-                    file_glob = '{}/build/{}'.format(test.path, file_glob)
-
-                for path in glob.glob(file_glob):
-                    paths.append(Path(path))
-
-            if not paths:
-                log("No matching files found.")
+            if error is not None:
+                if error.file:
                 errors.append(
-                    "File globs {} for key {} found no files."
-                    .format(globs, key))
-                continue
-
-            log("Found {} matching files.".format(len(paths)))
-            log("Results will be stored with action '{}'".format(action_name))
-
-            # Apply the result parser to each file we're parsing.
-            # Handle the results according to the 'action' config attribute.
-            for path in paths:
-                log("Parsing for file '{}':".format(path.as_posix()), lvl=3)
-                try:
-                    if parser.open_mode is None:
-                        res = parser(test, path, **parser_args)
-                    else:
-                        with path.open(parser.open_mode) as file:
-                            res = parser(test, file, **parser_args)
-
-                    log("Raw parse result: '{}'".format(res))
-
-                except (IOError, PermissionError, OSError) as err:
-                    log("Error reading file: {}".format(err))
-                    errors.append({
-                        'result_parser': parser_name,
-                        'file': str(path),
-                        'key': key,
-                        'msg': "Error reading file: {}".format(err)})
-                    continue
-                except Exception as err:  # pylint: disable=W0703
-                    log("UnexpectedError: {}".format(err))
-                    errors.append({
-                        'result_parser': parser_name,
-                        'file': str(path),
-                        'key': key,
-                        'msg': "Unexpected Error: {}".format(err)})
-                    continue
-
-                # The result key is always true/false. It's ACTION_TRUE by
-                # default.
-                if (key == 'result' and
-                        action_name not in (ACTION_FALSE, ACTION_TRUE)):
-                    action_name = ACTION_TRUE
-                    log("Forcing action to '{}' for the 'result' key.")
-
-                # We'll deal with the action later.
-                presults[path] = res
-                log("Stored value '{}' for file '{}'"
-                    .format(presults[path], path.name))
-
-            log("Results for each found files:", lvl=2)
-            for res_path, res_value in presults.items():
-                if res_path.parent == test.build_path:
-                    res_path = res_path.name
-                else:
-                    res_path = res_path.as_posix()
-                log(' - {}: {}'.format(res_path, res_value))
-
-            log("Handling results for key '{}' on a per-file basis with "
-                "per_file setting '{}'".format(key, per_file))
+                    "Error parsing results using results parser "
+                    "'{.parser.name}' at '{.parser.path}' "
+                    "for key '{.key}'\n{.msg}"
+                    .format(error)
+                )
 
 
-            presults_list = []
+def parse_result(results: Dict, key: str, parser_cfg: Dict,
+                 parser: ResultParser, test, log: Callable) -> ParseErrorMsg:
+    """
+    :param results:
+    :param key:
+    :param parser_cfg:
+    :param parser:
+    :param test:
+    :param log:
+    :return:
+    """
 
-            class ListDict(dict):
-                """Ok, this is madness, but setting an item in this
-                dict actually just extends the list in our actual
-                results dict."""
+    # Grab these for local use.
+    action_name = parser_cfg['action']
+    globs = parser_cfg['files']
+    per_file_name = parser_cfg['per_file']
 
-                def __setitem__(self, key, value):
-                    presults_list.append(value)
+    # The result key is always true/false. It's ACTION_TRUE by
+    # default.
+    if (key == 'result' and
+            action_name not in (ACTION_FALSE, ACTION_TRUE)):
+        action_name = ACTION_TRUE
+        log("Forcing action to '{}' for the 'result' key.")
 
-            list_dict = ListDict()
-            [actiofor key, value ]
+    # These config items are used here, but not expected by the
+    # parsers themselves.
+    try:
+        parser_args = parser.check_args(**parser_cfg.copy())
+    except ResultError as err:
+        return ParseErrorMsg(
+            parser=parser,
+            file=None,
+            key=key,
+            msg=err.args[0]
+        )
 
-            # Combine the results of all the files given according to the
-            # 'per_file' config attribute.
-            if per_file in (PER_FIRST, PER_LAST):
+    # The per-file results for this parser
+    presults = OrderedDict()
 
-            elif per_file in (PER_NAME, PER_FULLNAME):
-                # Store in results under the 'stem' or 'name' key as a dict
-                # where each name/stem has a dict with this key and the value.
+    log("Looking for files that match file globs: {}".format(globs),
+        lvl=2)
 
-                per_dict = results["per_file"]  # type: dict
+    # Find all the files we'll be parsing.
+    paths = []
+    for file_glob in globs:
+        if not file_glob.startswith('/'):
+            file_glob = '{}/build/{}'.format(test.path, file_glob)
 
-                for fname, value in presults.items():
-                    if per_file == PER_FULLNAME:
-                        name = str(fname.name)
-                    else:
-                        name = str(fname.stem)
+        for path in glob.glob(file_glob):
+            paths.append(Path(path))
 
-                    if name not in per_dict:
-                        per_dict[name] = dict()
+    if not paths:
+        msg = "File globs {} for key {} found no files.".format(globs, key)
+        log(msg)
+        return {
+            'result_parser': parser.name,
+            'file':          str(parser.path),
+            'key':           key,
+            'msg':           msg}
 
-                    action(per_dict[name], key, value)
+    log("Found {} matching files.".format(len(paths)))
+    log("Results will be stored with action '{}'".format(action_name))
 
-                log("Saved results under '{}' for each file {}."
-                    .format("per_file", per_file))
-                log(pprint.pformat(per_dict))
-
-            elif per_file == PER_LIST:
-                # Simply put all results together in a list. Values that
-                # already are a list extend that list.
-                # None values are ignored.
-
-                results[key] = list()
-
-
-                dummy = ListDict()
-                for value in presults.values():
-                    action(dummy, key, value)
-
-                log("Saved results for all files as a list:\n{}"
-                    .format(results[key]))
-
-            elif per_file in (PER_FULLNAME_LIST, PER_NAME_LIST):
-
-                matches = []
-                for fname, value in presults.items():
-                    fname = fname.stem if PER_NAME_LIST else fname.name
-                    dummy = {}
-                    action(dummy, key, value)
-                    if dummy[key] not in EMPTY_VALUES:
-                        matches.append(fname)
-
-                log("Saved the file name for files that matched.")
-                log(pprint.pformat(results[key]))
-
-            elif per_file == PER_ALL:
-                results[key] = all(presults.values())
-
-                log("Saved the result of all() across all matched files: '{}'"
-                    .format(results[key]))
-            elif per_file == PER_ANY:
-                results[key] = any(presults.values())
-                log("Saved the result of any() across all matched files: '{}'"
-                    .format(results[key]))
+    # Apply the result parser to each file we're parsing.
+    # Handle the results according to the 'action' config attribute.
+    for path in paths:
+        log("Parsing for file '{}':".format(path.as_posix()), lvl=3)
+        try:
+            if parser.open_mode is None:
+                res = parser(test, path, **parser_args)
             else:
-                raise ResultError("Invalid per_file value for result parser "
-                                  "'{}' - {}"
-                                  .format(parser_name, per_file))
+                with path.open(parser.open_mode) as file:
+                    res = parser(test, file, **parser_args)
 
-        results['pav_result_errors'].extend(errors)
+            log("Raw parse result: '{}'".format(res))
+
+        except (IOError, PermissionError, OSError) as err:
+            log("Error reading file: {}".format(err))
+            return {
+                'result_parser': parser.name,
+                'file': str(path),
+                'key': key,
+                'msg': "Error reading file: {}".format(err)}
+        except Exception as err:  # pylint: disable=W0703
+            log("UnexpectedError: {}".format(err))
+            return {
+                'result_parser': parser.name,
+                'file': str(path),
+                'key': key,
+                'msg': "Unexpected Error: {}".format(err)}
+
+        # We'll deal with the action later.
+        presults[path] = res
+        log("Stored value '{}' for file '{}'"
+            .format(presults[path], path.name))
+
+    log("Results for each found files:", lvl=2)
+    for res_path, res_value in presults.items():
+        if res_path.parent == test.build_path:
+            res_path = res_path.name
+        else:
+            res_path = res_path.as_posix()
+        log(' - {}: {}'.format(res_path, res_value))
+
+    log("Handling results for key '{}' on a per-file basis with "
+        "per_file setting '{}'".format(key, per_file_name))
+
+    per_file_func = PER_FILES[per_file_name]  # type: per_first
+
+    try:
+        per_file_func(
+            results=results,
+            key=key,
+            file_vals=presults,
+            action=ACTIONS[parser_cfg['action']]
+        )
+
+        log("Processed results from key {} with per_file setting {} "
+            "and action {}.".format(key, per_file_name, action_name))
+
+    except ResultError as err:
+        msg = (
+            "Error handling results with per_file and action options.\n{}"
+            .format(err.args[0]))
+
+        log(msg)
+        return {
+            'result_parser': parser.name,
+            'file':          '*',
+            'key':           key,
+            'msg':           msg}
