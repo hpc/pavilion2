@@ -59,9 +59,13 @@ def get_command(command_name):
 
 
 class Command(IPlugin.IPlugin):
-    """Provides a pavilion command via a plugin."""
+    """Provides a pavilion command via a plugin.
 
-    def __init__(self, name, description, short_help=None, aliases=None):
+    :ivar argparse.ArgumentParser parser: The plugin's argument parser object.
+    """
+
+    def __init__(self, name, description, short_help=None, aliases=None,
+                 sub_commands=False):
         """Initialize this command. This should be overridden by subclasses, to
         set reasonable values. Multiple commands of the same name are not
         allowed to exist.
@@ -74,6 +78,8 @@ class Command(IPlugin.IPlugin):
             when doing a 'pav --help'. If this is None, the command won't
             be listed.
         :param list aliases: A list of aliases for the command.
+        :param bool sub_commands: Enable the standardized way of adding sub
+            commands.
         """
         super().__init__()
 
@@ -92,6 +98,22 @@ class Command(IPlugin.IPlugin):
         # These are to allow tests to redirect output as needed.
         self.outfile = sys.stdout
         self.errfile = sys.stderr
+
+        self.sub_cmds = {}
+        if sub_commands:
+            self._inventory_sub_commands()
+
+        self.parser = None
+
+    def _inventory_sub_commands(self):
+        """Find all the sub commands and populate the sub_cmds dict."""
+
+        # Walk the class dictionary and add any functions with aliases
+        # to our dict of commands under each listed alias.
+        for func in self.__class__.__dict__.values():
+            if callable(func) and hasattr(func, 'aliases'):
+                for alias in func.aliases:
+                    self.sub_cmds[alias] = func
 
     def _setup_arguments(self, parser):
         """Setup the commands arguments in the Pavilion argument parser. This
@@ -134,6 +156,9 @@ case that includes:
                                            aliases=self.aliases,
                                            description=self.description,
                                            help=self.short_help)
+
+        # Save the argument parser, as it can come in handy.
+        self.parser = parser
 
         self._setup_arguments(parser)
 
@@ -186,3 +211,27 @@ case that includes:
         self.errfile.truncate(0)
 
         return data, err_data
+
+
+def sub_cmd(*aliases):
+    """Tag this given function as a sub_cmd, and record its aliases."""
+
+    def tag_aliases(func):
+        """Attach all the aliases to the given function, but return the
+        function itself. The function name, absent leading underscores and
+        without a trailing '_cmd', is added by default."""
+        name = func.__name__
+
+        while name.startswith('_'):
+            name = name[1:]
+
+        if name.endswith('_cmd'):
+            name = name[:-4]
+
+        func.aliases = [name]
+        for alias in aliases:
+            func.aliases.append(alias)
+
+        return func
+
+    return tag_aliases

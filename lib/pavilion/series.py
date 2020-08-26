@@ -108,7 +108,7 @@ differentiate it from test ids."""
         except ValueError:
             raise TestSeriesError(
                 "Series paths must have a numerical directory name, got '{}'"
-                    .format(series_path.as_posix())
+                .format(series_path.as_posix())
             )
 
     @classmethod
@@ -143,7 +143,7 @@ differentiate it from test ids."""
         if not series_path.exists():
             raise TestSeriesError(
                 "No such test series '{}'. Looked in {}."
-                    .format(sid, series_path))
+                .format(sid, series_path))
 
         return dir_db.select(series_path)
 
@@ -152,9 +152,10 @@ differentiate it from test ids."""
         """Load a series object from the given id, along with all of its
 associated tests."""
 
+        # TODO: This is terrible.
         try:
             id_ = int(id_[1:])
-        except TypeError as err:
+        except TypeError:
             pass
 
         series_path = pav_cfg.working_dir/'series'
@@ -211,14 +212,14 @@ associated tests."""
                 with json_file.open('r') as json_series_file:
                     try:
                         data = json.load(json_series_file)
-                    except json.decoder.JSONDecodeError as err:
+                    except json.decoder.JSONDecodeError:
                         # File was empty, therefore json couldn't be loaded.
                         pass
                 with json_file.open('w') as json_series_file:
                     data[sys_name] = self.id
                     json_series_file.write(json.dumps(data))
 
-            except FileNotFoundError as err:
+            except FileNotFoundError:
                 # File hadn't been created yet.
                 with json_file.open('w') as json_series_file:
                     data[sys_name] = self.id
