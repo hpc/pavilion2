@@ -98,6 +98,39 @@ differentiate it from test ids."""
 
         return 's{}'.format(self._id)
 
+    @staticmethod
+    def path_to_sid(series_path: Path):
+        """Return the sid for a given series path.
+        :raises TestSeriesError: For an invalid series path."""
+
+        try:
+            return 's{}'.format(int(series_path.name))
+        except ValueError:
+            raise TestSeriesError(
+                "Series paths must have a numerical directory name, got '{}'"
+                .format(series_path.as_posix())
+            )
+
+    @classmethod
+    def path_from_id(cls, pav_cfg, sid: str):
+        """Return the path to the series directory given a series id (in the
+        format 's[0-9]+'.
+        :raises TestSeriesError: For an invalid id.
+        """
+
+        if not sid.startswith('s'):
+            raise TestSeriesError(
+                "Series id's must start with 's'. Got '{}'".format(sid))
+
+        try:
+            raw_id = int(sid[1:])
+        except ValueError:
+            raise TestSeriesError(
+                "Invalid series id '{}'. Series id's must be in the format "
+                "s[0-9]+".format(sid))
+
+        return dir_db.make_id_path(pav_cfg.working_dir/'series', raw_id)
+
     @classmethod
     def from_id(cls, pav_cfg, id_):
         """Load a series object from the given id, along with all of its
@@ -143,6 +176,22 @@ associated tests."""
                 raise ValueError(link_path)
 
         return cls(pav_cfg, tests, _id=id_)
+
+    @classmethod
+    def list_series_tests(cls, pav_cfg, sid: str):
+        """Return a list of paths to test run directories for the given series
+        id.
+        :raises TestSeriesError: If the series doesn't exist.
+        """
+
+        series_path = cls.path_from_id(pav_cfg, sid)
+
+        if not series_path.exists():
+            raise TestSeriesError(
+                "No such test series '{}'. Looked in {}."
+                    .format(sid, series_path))
+
+        return dir_db.select(series_path)
 
     def _save_series_id(self):
         """Save the series id to json file that tracks last series ran by user

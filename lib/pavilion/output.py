@@ -358,37 +358,48 @@ used when the string is formatted.
 
 # It's ok to wrap words longer than this
 MAX_WORD_LEN = 15
+DEFAULT_BORDER_CHARS = {
+    'vsep': '|',
+    'hsep': '-',
+    'inter': '+',
+}
 
 
-def draw_table(outfile, field_info, fields, rows, border=False, pad=True,
-               title=None, table_width=None):
+def draw_table(outfile, fields, rows,
+               field_info=None, border=False, pad=True,
+               border_chars=None, header=True, title=None, table_width=None):
     """Prints a table from the given data, dynamically setting
 the column width.
 
 :param outfile: The file-like object to write to.
-:param dict field_info: Should be a dictionary of field names where the value
-  is a dict of:
-
-  - title (optional) - The column header for this field. Defaults to the
-    field name, capitalized.
-  - transform (optional) - a function that takes the field value,
-    transforms it in some way, and returns the result to be inserted
-    into the table.
-  - format (optional) - a format string in the new style format syntax.
-    It will expect the data for that row as arg 0. IE: '{0:2.2f}%'.
-  - default (optional) - A default value for the field. A blank is
-    printed by default.
-  - no_wrap (optional) - a boolean that determines if a field will be
-    wrapped or not.
-  - max_width (optional) - the max width for a given field.
-  - min_width (optional) - the min width for a given field.
 :param list fields: A list of the fields to include, in the given order. These
     also serve as the default column titles (Capitalized).
 :param list(dict) rows: A list of data dictionaries. A None may be included to
     denote that a horizontal line row should be inserted.
+:param dict field_info: Should be a dictionary of field names (all of
+    which are optional) where the value is a dict of:
+
+  - title - The column header for this field. Defaults to the
+    field name, capitalized.
+  - transform - a function that takes the field value,
+    transforms it in some way, and returns the result to be inserted
+    into the table.
+  - format - a format string in the new style format syntax.
+    It will expect the data for that row as arg 0. IE: '{0:2.2f}%'.
+  - default - A default value for the field. A blank is
+    printed by default.
+  - no_wrap - a boolean that determines if a field will be
+    wrapped or not.
+  - max_width - the max width for a given field.
+  - min_width - the min width for a given field.
 :param bool border: Put a border around the table. Defaults False.
+:param bool header: Print a header row of column names followed by a
+    horizontal seperator. Defaults to True.
 :param bool pad: Put a space on either side of each header and row entry.
     Default True.
+:param dict border_chars: A dictionary of characters for drawing the table
+    borders and separators. Expects the keys 'vsep', 'hsep', 'isep'. By default
+    these are '|', '-', and '+'.
 :param str title: Add the given title above the table. Default None
 :param int table_width: By default size table to the terminal width. If set
     size the table to this width instead.
@@ -490,6 +501,15 @@ A more complicated example: ::
     # +-------+---------+------------------+
 """
 
+    if field_info is None:
+        field_info = {}
+
+    vsep = border_chars.get('vsep', DEFAULT_BORDER_CHARS['vsep'])
+    hsep = border_chars.get('hsep', DEFAULT_BORDER_CHARS['hsep'])
+    isep = border_chars.get('isep', DEFAULT_BORDER_CHARS['isep'])
+    if len(vsep) != 1 or len(hsep) != 1 or len(isep) != 1:
+        raise RuntimeError("Separators must each be one character long.")
+
     # Column widths populates with a range of values, the minimum being the
     # length of the given field title, and the max being the longest entry in
     # that column
@@ -497,7 +517,8 @@ A more complicated example: ::
 
     # Format the rows according to the field_info format specifications.
     rows = dt_format_rows(rows, fields, field_info)
-    rows.insert(0, titles)
+    if header:
+        rows.insert(0, titles)
 
     # Calculate the min and max widths for each column.
     min_widths, max_widths = dt_calculate_widths(rows, fields, field_info)
@@ -515,18 +536,18 @@ A more complicated example: ::
     title_format = ' {{0:{0}s}} '.format(title_length)
     if border:
         if pad:
-            title_format = '| ' + title_format + ' |'
+            title_format = vsep + ' ' + title_format + ' ' + vsep
         else:
-            title_format = '|' + title_format + '|'
+            title_format = vsep + title_format + vsep
     title_format += '\n'
 
     # Generate the table break line.
     # Add 2 dashes to each break line if we're padding the data
     brk_pad_extra = 2 if pad else 0
-    horizontal_break = '+'.join(['-' * (column_widths[field] + brk_pad_extra)
+    horizontal_break = isep.join([hsep * (column_widths[field] + brk_pad_extra)
                                  for field in fields])
     if border:
-        horizontal_break = '+' + horizontal_break + '+'
+        horizontal_break = isep + horizontal_break + isep
     horizontal_break += '\n'
 
     # Output the table.
@@ -556,7 +577,8 @@ A more complicated example: ::
                 outfile.write(dt_format_row(
                     wrap_row, fields, column_widths, pad, border))
 
-            if row_i == 0:
+            # Write the horizontal break after the header, if we have one.
+            if row_i == 0 and header:
                 outfile.write(horizontal_break)
 
         if border:
@@ -711,7 +733,7 @@ def dt_auto_widths(rows, table_width, min_widths, max_widths):
     the column that will benefit the most from a single character of width
     increase. In case of a tie, two characters of width are considered, and
     so on. Remaining extra space is distributed amongst the final tied
-    columns. To limit how long this takes, this makes a best guess using  
+    columns. To limit how long this takes, this makes a best guess using
     the first 20 rows."""
 
     fields = list(min_widths.keys())
