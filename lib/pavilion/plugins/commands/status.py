@@ -9,6 +9,7 @@ from typing import List, Union
 
 from pavilion import commands
 from pavilion import dir_db
+from pavilion import make_testrun_filter
 from pavilion import output
 from pavilion import schedulers
 from pavilion import series
@@ -240,6 +241,9 @@ class StatusCommand(commands.Command):
 
     def _setup_arguments(self, parser):
 
+        history_group = parser.add_mutually_exclusive_group()
+        pf_group = parser.add_mutually_exclusive_group()
+
         parser.add_argument(
             '-j', '--json', action='store_true', default=False,
             help='Give output as json, rather than as standard human readable.'
@@ -282,11 +286,11 @@ class StatusCommand(commands.Command):
             '-n', '--newer', action='store_true',
             help='Orders status by newest test first.'
         )
-        parser.add_argument(
+        pf_group.add_argument(
             '-p', '--passed', action='store_true',
             help='Filter status by tests passed.'
         )
-        parser.add_argument(
+        pf_group.add_argument(
             '-f', '--failed', action='store_true',
             help='Filter status by tests failed.'
         )
@@ -310,15 +314,23 @@ class StatusCommand(commands.Command):
             '--newer_than', type=str,  nargs=2,
             help='Filter tests newer than x.'
         )
+        #summary_group = parser.add_mutually_exclusive__group()
+        #history_group = parser.add_mutually_exclusive_group()
+        #history_group.add_arguemnt('')
+
+
 
     def run(self, pav_cfg, args):
         """Gathers and prints the statuses from the specified test runs and/or
         series."""
 
-        if not args.all:
-            args.series_info = series.TestSeries.load_user_series_id(pav_cfg)
+        args.series_info = series.TestSeries.load_user_series_id(pav_cfg)
+        make_testrun_filter.build_filter()
+
+        test_statuses = get_all_tests(pav_cfg, args, list)
+
         try:
-            list = utils.filter_tests(pav_cfg, args)
+            #list = utils.filter_tests(pav_cfg, args)
             test_statuses = get_all_tests(pav_cfg, args, list)
         except commands.CommandError as err:
             output.fprint("Status Error:", err, color=output.RED,

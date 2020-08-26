@@ -228,96 +228,13 @@ def repair_symlinks(base: Path) -> None:
                 file.symlink_to(rel_target)
 
 
-def filter_tests(pav_cfg, args):
-    """Filter and return test paths for display"""
-    from pavilion.output import dbg_print
-
-    if not args.all:
-        main_path = pav_cfg.working_dir / 'series' / \
-        args.series_info.strip('s').zfill(7)
-    else:
-        main_path = pav_cfg.working_dir / 'test_runs'
-
-    def order_list(_: Path) -> int:
-        path = _
-        with open(path / 'variables') as var_file:
-            vars = json.load(var_file)
-            time = vars['pav']['timestamp']
-        return time
-
-    #  select once so we only make one filter.
-    def filter_all(_: Path) -> bool:
-
-        path = _
-        try:
-            if args.complete:
-                complete_path = path / 'RUN_COMPLETE'
-                if not complete_path.exists():
-                    return False
-            if args.incomplete:
-                incomplete_path = path / 'RUN_COMPLETE'
-                if incomplete_path.exists():
-                    return False
-            if args.user:
-                if str(path.owner()) != args.user[0]:
-                    return False
-            if args.sys_name:
-                with open(path / 'variables') as var_file:
-                    vars = json.load(var_file)
-                    if vars['sys']['sys_name'] != args.sys_name:
-                        return False
-            if args.passed:
-                path = _ / 'results.json'
-                with open(path) as file:
-                    result = json.load(file)
-                    if result['result'] != 'PASS':
-                        return False
-            if args.failed:
-                path = _ / 'results.json'
-                with open(path) as file:
-                    result = json.load(file)
-                    if result['result'] != 'FAIL':
-                        return False
-            if args.older_than:
-                path = _ / 'variables'
-                cutoff = retrieve_datetime(args.older_than)
-                with open(path) as file:
-                    result = json.load(file)
-                    if float(result['pav']['timestamp'][0]) > cutoff:
-                        return False
-            if args.newer_than:
-                path = _ / 'variables'
-                cutoff = retrieve_datetime(args.newer_than)
-                with open(path) as file:
-                    result = json.load(file)
-                    if float(result['pav']['timestamp'][0]) < cutoff:
-                        return False
-        except (FileNotFoundError, NotADirectoryError):
-            return False
-        return True
-
-
-    list = dir_db.select(main_path, filter_all, order_list, args)
-
-    final = []
-
-    for path in list:
-        final.append(path.name.lstrip('0'))
-    return final
-
-
 def retrieve_datetime(cutoff_time):
     """Returns a valid datetime object range to filter
     tests objects via time, e.g. show tests that ran this past week."""
     # Converting time arguments into valid datetime object.
-    try:
-        time_amount = int(cutoff_time[0])
-        time_unit = cutoff_time[1]
-    except ValueError:
-        output.fprint("Invalid Format. Use the from: $AMOUNT $UNIT e.g."
-                      " '5 hours'", color=output.RED)
-        return None  # No datetime to return invalid format.
 
+    time_amount = int(cutoff_time[0])
+    time_unit = cutoff_time[1]
     # Convert time into hours.
     if time_unit == 'second' or time_unit == 'seconds':
         time_amount = time_amount / 3600
@@ -335,16 +252,11 @@ def retrieve_datetime(cutoff_time):
         time_amount = time_amount * 8760
     else:
         raise ValueError
-            #output.fprint("Invalid time unit, --time only accepts "
-            #              "second(s), minute(s), hour(s), day(s), "
-            #              "week(s), month(s), and year(s).",
-            #              color=output.RED)
-            #return None  # No datetime to return invalid format.
     try:
         search_date = datetime.today() - timedelta(hours=time_amount)
     except OverflowError:
         # Make the assumption if the user asks for tests in the last
         # 10,000 year we just return the oldest possible datetime obj.
-        search_date = datetime(1, 1, 1)
+        search_date = datetime(1972, 1, 1)
     search_date = datetime.timestamp(search_date)
     return search_date

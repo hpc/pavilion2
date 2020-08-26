@@ -1,6 +1,7 @@
 """Manage 'id' directories. The name of the directory is an integer, which
 essentially serves as a filesystem primary key."""
 
+import json
 import os
 from typing import Callable, List
 from pathlib import Path
@@ -99,6 +100,57 @@ def default_filter(_: Path) -> bool:
 
     return True
 
+#  select once so we only make one filter.
+def filter_all(_: Path) -> bool:
+
+    path = _
+    try:
+        if args.complete:
+            complete_path = path / 'RUN_COMPLETE'
+            if not complete_path.exists():
+                return False
+        if args.incomplete:
+            incomplete_path = path / 'RUN_COMPLETE'
+            if incomplete_path.exists():
+                return False
+        if args.user:
+            if str(path.owner()) != args.user[0]:
+                return False
+        if args.sys_name:
+            with open(path / 'variables') as var_file:
+                vars = json.load(var_file)
+                if vars['sys']['sys_name'] != args.sys_name:
+                    return False
+        if args.passed:
+            path = _ / 'results.json'
+            with open(path) as file:
+                result = json.load(file)
+                if result['result'] != 'PASS':
+                    return False
+        if args.failed:
+            path = _ / 'results.json'
+            with open(path) as file:
+                result = json.load(file)
+                if result['result'] != 'FAIL':
+                    return False
+        if args.older_than:
+            path = _ / 'variables'
+            cutoff = retrieve_datetime(args.older_than)
+            with open(path) as file:
+                result = json.load(file)
+                if float(result['pav']['timestamp'][0]) > cutoff:
+                    return False
+        if args.newer_than:
+            path = _ / 'variables'
+            cutoff = retrieve_datetime(args.newer_than)
+            with open(path) as file:
+                result = json.load(file)
+                if float(result['pav']['timestamp'][0]) < cutoff:
+                    return False
+    except (FileNotFoundError, NotADirectoryError):
+        return False
+    return True
+
 
 def default_order(_: Path) -> list:
     """Ignore order and return whole list"""
@@ -107,6 +159,14 @@ def default_order(_: Path) -> list:
         if path.name.isdigit() and path.is_dir():
             list.append(path)
     return path
+
+
+def order_list(_: Path) -> int:
+    path = _
+    with open(path / 'variables') as var_file:
+        vars = json.load(var_file)
+        time = vars['pav']['timestamp']
+    return time
 
 
 def select(id_dir: Path,
@@ -122,7 +182,9 @@ def select(id_dir: Path,
     list = []
     for path in id_dir.iterdir():
         if path.name.isdigit() and path.is_dir:
+
             time = order_func(path)
+            dbg_print(time)
             list.append((time, path))
 
     if not args.older:
