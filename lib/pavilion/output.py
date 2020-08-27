@@ -361,7 +361,7 @@ MAX_WORD_LEN = 15
 DEFAULT_BORDER_CHARS = {
     'vsep': '|',
     'hsep': '-',
-    'inter': '+',
+    'isep': '+',
 }
 
 
@@ -504,6 +504,7 @@ A more complicated example: ::
     if field_info is None:
         field_info = {}
 
+    border_chars = {} if border_chars is None else border_chars
     vsep = border_chars.get('vsep', DEFAULT_BORDER_CHARS['vsep'])
     hsep = border_chars.get('hsep', DEFAULT_BORDER_CHARS['hsep'])
     isep = border_chars.get('isep', DEFAULT_BORDER_CHARS['isep'])

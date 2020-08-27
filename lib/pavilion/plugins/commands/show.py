@@ -8,6 +8,7 @@ from typing import Union
 import pavilion.result.base
 import yaml_config
 from pavilion import commands
+from pavilion.commands import sub_cmd
 from pavilion import config
 from pavilion import expression_functions
 from pavilion import module_wrapper
@@ -326,7 +327,6 @@ class ShowCommand(commands.Command):
 
         output.draw_table(
             self.outfile,
-            field_info={},
             fields=['path'],
             rows=rows,
             title="Config directories by priority."
@@ -353,7 +353,6 @@ class ShowCommand(commands.Command):
                     'description': func.description})
             output.draw_table(
                 self.outfile,
-                field_info={},
                 fields=['name', 'signature', 'description'],
                 rows=rows,
                 title="Available Expression Functions"
@@ -386,7 +385,6 @@ class ShowCommand(commands.Command):
 
         output.draw_table(
             self.outfile,
-            field_info={},
             fields=col_names,
             rows=hosts
         )
@@ -418,7 +416,6 @@ class ShowCommand(commands.Command):
 
         output.draw_table(
             self.outfile,
-            field_info={},
             fields=col_names,
             rows=modes
         )
@@ -444,7 +441,6 @@ class ShowCommand(commands.Command):
 
         output.draw_table(
             self.outfile,
-            field_info={},
             fields=fields,
             rows=modules,
             title="Available Module Wrapper Plugins"
@@ -464,7 +460,6 @@ class ShowCommand(commands.Command):
 
         output.draw_table(
             self.outfile,
-            field_info={},
             fields=['name', 'value', 'description'],
             rows=rows,
             title="Available Pavilion Variables"
@@ -481,7 +476,6 @@ class ShowCommand(commands.Command):
 
         output.draw_table(
             self.outfile,
-            {},
             ['name', 'doc'],
             rows
         )
@@ -521,7 +515,6 @@ class ShowCommand(commands.Command):
 
             output.draw_table(
                 self.outfile,
-                field_info={},
                 fields=fields,
                 rows=rps,
                 title="Available Result Parsers"
@@ -559,7 +552,6 @@ class ShowCommand(commands.Command):
 
             output.draw_table(
                 self.outfile,
-                field_info={},
                 fields=['name', 'deferred', 'example', 'help'],
                 rows=sched_vars,
                 title="Variables for the {} scheduler plugin.".format(args.vars)
@@ -597,7 +589,6 @@ class ShowCommand(commands.Command):
 
             output.draw_table(
                 self.outfile,
-                field_info={},
                 fields=fields,
                 rows=scheds,
                 title="Available Scheduler Plugins"
@@ -616,7 +607,6 @@ class ShowCommand(commands.Command):
 
         output.draw_table(
             self.outfile,
-            field_info={},
             fields=['name', 'description'],
             rows=states,
             title="Pavilion Test States"
@@ -654,7 +644,6 @@ class ShowCommand(commands.Command):
 
         output.draw_table(
             self.outfile,
-            field_info={},
             fields=fields,
             rows=rows,
             title="Available System Variables"
@@ -703,7 +692,6 @@ class ShowCommand(commands.Command):
 
         output.draw_table(
             self.outfile,
-            field_info={},
             fields=fields,
             rows=rows,
             title="Available Test Suites"
@@ -762,7 +750,6 @@ class ShowCommand(commands.Command):
 
         output.draw_table(
             self.outfile,
-            field_info={},
             fields=fields,
             rows=rows,
             title="Available Tests"

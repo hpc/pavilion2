@@ -57,8 +57,11 @@ class TestRunTests(PavTestCase):
         #  - get_test_path
         #  - write_tmpl
         for key in set(t.__dict__.keys()).union(t2.__dict__.keys()):
-            self.assertEqual(t.__dict__[key], t2.__dict__[key],
-                             msg="Mismatch for key {}".format(key))
+            val1 = t.__dict__[key]
+            val2 = t2.__dict__[key]
+            self.assertEqual(
+                val1, val2,
+                msg="Mismatch for key {}.\n{}\n{}".format(key, val1, val2))
 
     def test_run(self):
         config1 = {
@@ -223,7 +226,7 @@ class TestRunTests(PavTestCase):
 
         self._is_softlink_dir(suite.path)
 
-        suite2 = TestSeries.from_id(self.pav_cfg, suite._id)
+        suite2 = TestSeries.from_id(self.pav_cfg, suite.id)
         self.assertEqual(sorted(suite.tests.keys()),
                          sorted(suite2.tests.keys()))
         self.assertEqual(sorted([t.id for t in suite.tests.values()]),

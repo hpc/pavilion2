@@ -98,6 +98,23 @@ differentiate it from test ids."""
 
         return 's{}'.format(self._id)
 
+    @classmethod
+    def sid_to_id(cls, sid:str) -> int:
+        """Convert a sid string to a numeric series id.
+
+        :raises TestSeriesError: On an invalid sid.
+        """
+
+        if not sid.startswith('s'):
+            raise TestSeriesError(
+                "Invalid SID '{}'. Must start with 's'.".format(sid))
+
+        try:
+            return int(sid[1:])
+        except ValueError:
+            raise TestSeriesError(
+                "Invalid SID '{}'. Must end in an integer.".format(sid))
+
     @staticmethod
     def path_to_sid(series_path: Path):
         """Return the sid for a given series path.
@@ -148,51 +165,39 @@ differentiate it from test ids."""
         return dir_db.select(series_path)
 
     @classmethod
-    def from_id(cls, pav_cfg, id_):
+    def from_id(cls, pav_cfg, sid: str):
         """Load a series object from the given id, along with all of its
-associated tests."""
+    associated tests.
 
-        # TODO: This is terrible.
-        try:
-            id_ = int(id_[1:])
-        except TypeError:
-            pass
+        :raises TestSeriesError: From invalid series id or path.
+        """
+
+        sid = cls.sid_to_id(sid)
 
         series_path = pav_cfg.working_dir/'series'
-        series_path = dir_db.make_id_path(series_path, id_)
+        series_path = dir_db.make_id_path(series_path, sid)
 
         if not series_path.exists():
             raise TestSeriesError("No such series found: '{}' at '{}'"
-                                  .format(id_, series_path))
+                                  .format(sid, series_path))
 
-        logger = logging.getLogger(cls.LOGGER_FMT.format(id_))
+        logger = logging.getLogger(cls.LOGGER_FMT.format(sid))
 
         tests = []
-        for path in os.listdir(str(series_path)):
-            link_path = series_path/path
-            if link_path.is_symlink() and link_path.is_dir():
-                try:
-                    test_id = int(link_path.name)
-                except ValueError:
-                    logger.info(
-                        "Bad test id in series from dir '%s'",
-                        link_path)
-                    continue
+        for path in dir_db.select(series_path):
+            try:
+                test_id = int(path.name)
+            except ValueError:
+                logger.info("Bad test id in series from dir '%s'", path)
+                continue
 
-                try:
-                    tests.append(TestRun.load(pav_cfg, test_id=test_id))
-                except TestRunError as err:
-                    logger.info(
-                        "Error loading test %s: %s",
-                        test_id, err
-                    )
+            try:
+                tests.append(TestRun.load(pav_cfg, test_id=test_id))
+            except TestRunError as err:
+                logger.info("Error loading test %s: %s",
+                            test_id, err.args[0])
 
-            else:
-                logger.info("Polluted series directory in series '%s'",
-                            series_path)
-                raise ValueError(link_path)
-
-        return cls(pav_cfg, tests, _id=id_)
+        return cls(pav_cfg, tests, _id=sid)
 
     def _save_series_id(self):
         """Save the series id to json file that tracks last series ran by user

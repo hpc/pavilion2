@@ -128,6 +128,19 @@ def get_mime_type(path):
     return category, subtype
 
 
+def serialize_datetime(when: dt.datetime) -> str:
+    """Return a serialized datetime string."""
+
+    return when.isoformat(" ")
+
+
+def deserialize_datetime(when_str: str) -> dt.datetime:
+    """Return a datetime object from a serialized representation produced
+    by serialize_datetime()."""
+
+    return dt.datetime.strptime(when_str, "%Y-%m-%d %H:%M:%S.%f")
+
+
 def get_login():
     """Get the current user's login, either through os.getlogin or
     the environment, or the id command."""
@@ -226,44 +239,83 @@ def repair_symlinks(base: Path) -> None:
                 file.symlink_to(rel_target)
 
 
-def retrieve_datetime(cutoff_time: str):
-    """Returns a valid datetime object range to filter
-    tests objects via time, e.g. show tests that ran this past week."""
-    # Converting time arguments into valid datetime object.
+def hr_cutoff_to_datetime(cutoff_time: str, _now: dt.datetime = None):
+    """Convert a human readable datetime string to an actual datetime. The
+    string can come in two forms:
 
-    hr_time_regex = re.compile(r'^(\d+)\s*([a-z]+)$')
+    1. An ISO-8601 like timestamp (YYYY-MM-DD.HH:MM:SS), where the
+       sep can be any non-digit. This can be partial; components may be left
+       off from right to left. So '2019-3' is valid, but '3-12' is not.
+    2. As an amount of time before the current time, expressed as an
+       number followed by a unit. Valid units are seconds, minutes, hours,
+       days, weeks, months (approximate), and years (or the singular form of
+       those words). The value and unit may be separated by whitespace.
 
-    match = hr_time_regex.match(cutoff_time)
-    if match is None:
-        raise ValueError("Invalid time period. Should look like "
-                         "'5 days' or '10years', etc.")
+    :param cutoff_time: The string time to parse.
+    :param _now: For testing purposes. The current time.
+    """
 
-    time_amount = int(match.groups()[0])
-    time_unit = match.groups()[1]
-
-    # Convert time into hours.
-    if time_unit == 'second' or time_unit == 'seconds':
-        time_amount = time_amount / 3600
-    elif time_unit == 'minute' or time_unit == 'minutes':
-        time_amount = time_amount / 60
-    elif time_unit == 'hour' or time_unit == 'hours':
-        time_amount = time_amount * 1
-    elif time_unit == 'day' or time_unit == 'days':
-        time_amount = time_amount * 24
-    elif time_unit == 'week' or time_unit == 'weeks':
-        time_amount = time_amount * 168
-    elif time_unit == 'month' or time_unit == 'months':
-        time_amount = time_amount * 720
-    elif time_unit == 'year' or time_unit == 'years':
-        time_amount = time_amount * 8760
+    if _now is None:
+        now = dt.datetime.now()
     else:
-        raise ValueError("Invalid unit time unit '{}'".format(time_unit))
+        now = _now
 
-    try:
-        search_date = dt.datetime.today() - dt.timedelta(hours=time_amount)
-    except OverflowError:
-        # Make the assumption if the user asks for tests in the last
-        # 10,000 year we just return the oldest possible datetime obj.
-        search_date = dt.datetime(1, 1, 1)
+    rel_time_regex = re.compile(r'^(\d+(?:\.\d+)?)\s*([a-z]+)$')
+    ts_regex = re.compile(r'^(\d{4})'
+                          r'(?:-(\d{1,2})'
+                          r'(?:-(\d{1,2})'
+                          r'(?:[T ](\d{1,2})'
+                          r'(?::(\d{1,2})'
+                          r'(?::(\d{1,2})?)?)?)?)?)?$')
 
-    return search_date
+    ptime_fmt_parts = ['%Y', '-%m', '-%d', None, '%H', '%M', '%S']
+
+    match = rel_time_regex.match(cutoff_time)
+    if match is not None:
+        time_amount = float(match.groups()[0])
+        time_unit = match.groups()[1]
+
+        # Convert time into hours.
+        if time_unit == 'second' or time_unit == 'seconds':
+            delta = dt.timedelta(seconds=time_amount)
+        elif time_unit == 'minute' or time_unit == 'minutes':
+            delta = dt.timedelta(minutes=time_amount)
+        elif time_unit == 'hour' or time_unit == 'hours':
+            delta = dt.timedelta(hours=time_amount)
+        elif time_unit == 'day' or time_unit == 'days':
+            delta = dt.timedelta(days=time_amount)
+        elif time_unit == 'week' or time_unit == 'weeks':
+            delta = dt.timedelta(weeks=time_amount)
+        elif time_unit == 'month' or time_unit == 'months':
+            delta = dt.timedelta(days=time_amount*365.25/12)
+        elif time_unit == 'year' or time_unit == 'years':
+            delta = dt.timedelta(days=time_amount*365.25)
+        else:
+            raise ValueError("Invalid unit time unit '{}'".format(time_unit))
+
+        try:
+            return now - delta
+        except OverflowError:
+            # Make the assumption if the user asks for tests in the last
+            # 10,000 year we just return the oldest possible datetime obj.
+            return dt.datetime(1, 1, 1)
+
+    match = ts_regex.match(cutoff_time)
+    if match is not None:
+
+        parts = [part if part is None else int(part)
+                 for part in match.groups()]
+        # Set defaults for missing parts
+        defaults = (1, 1, 1, 0, 0, 0)
+        for i in (1, 2, 3, 4, 5):
+            if parts[i] is None:
+                parts[i] = defaults[i]
+
+        try:
+            return dt.datetime(*parts)
+        except ValueError as err:
+            raise ValueError(
+                "Invalid time '{}':\n{}".format(cutoff_time, err.args[0])
+            )
+
+    raise ValueError("Invalid cutoff value '{}'".format(cutoff_time))

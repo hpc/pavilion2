@@ -1,16 +1,21 @@
-import errno
+"""A command to (relatively) quickly list tests, series, and other (as yet
+undefined) bits."""
+
 import datetime
+import errno
 import pwd
 
 from pavilion import commands
-from pavilion.commands import sub_cmd
 from pavilion import dir_db
-from pavilion.test_run import TestAttributes, TestRunError
+from pavilion import filters
 from pavilion import output
+from pavilion.commands import sub_cmd
 from pavilion.series import TestSeries, TestSeriesError
+from pavilion.test_run import TestAttributes
 
 
-class List(commands.Command):
+class ListCommand(commands.Command):
+    """List test runs, series, and other bits."""
 
     def __init__(self):
 
@@ -52,9 +57,6 @@ class List(commands.Command):
             '--header', action='store_true', default=False,
             help="Print a header "
         )
-        parser.add_argument('--limit', '-L', default="20",
-                            help="Max items to show. A limit of 'all/none' "
-                                 "will print all items.")
 
         subparsers = parser.add_subparsers(
             dest="list_cmd",
@@ -67,6 +69,7 @@ class List(commands.Command):
             help="List test runs.",
             description="Print a list of test run id's."
         )
+        filters.add_test_filter_args(runs_p)
         runs_p.add_argument(
             'series', nargs="*",
             help="Print only test runs from these series."
@@ -133,6 +136,21 @@ class List(commands.Command):
                         "--list-fields.".format(field))
             args.long = True
 
+        filter_func = filters.make_test_run_filter(
+            complete=args.complete,
+            failed=args.failed,
+            incomplete=args.incomplete,
+            name=args.name,
+            newer_than=args.newer_than,
+            older_than=args.older_than,
+            passed=args.passed,
+            show_skipped=args.show_skipped,
+            sys_name=args.sys_name,
+            user=args.user,
+        )
+
+        order_func, sort_asc = filters.make_test_sort_func(args.sort_by)
+
         if args.series:
             all_runs = []
             for series_id in args.series:
@@ -149,20 +167,21 @@ class List(commands.Command):
         else:
             all_runs = dir_db.select(pav_cfg.working_dir/'test_runs')
 
-        runs = []
-        for run_path in all_runs:
-            try:
-                runs.append(TestAttributes(run_path).as_dict())
-            except TestRunError:
-                continue
+        runs = dir_db.select_from(
+            paths=all_runs,
+            transform=TestAttributes,
+            filter_func=filter_func,
+            order_func=order_func,
+            order_asc=sort_asc,
+            limit=args.limit,
+        )
 
-        runs.sort(key=lambda run: run.created, reverse=True)
-        runs = runs[:args.limit]
+        rows = [run.as_dict() for run in runs]
 
         output.draw_table(
             outfile=self.outfile,
             fields=fields,
-            rows=runs,
+            rows=rows,
             header=args.header,
             border_chars={'vsep': ' '},
         )
@@ -223,4 +242,3 @@ class List(commands.Command):
             rows=series,
             border_chars={'hsep': ' '}
         )
-

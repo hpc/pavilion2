@@ -1,13 +1,11 @@
 """Manage 'id' directories. The name of the directory is an integer, which
 essentially serves as a filesystem primary key."""
 
-import json
 import os
-from typing import Callable, List, Iterable
 from pathlib import Path
+from typing import Callable, List, Iterable, Any
 
 from pavilion import lockfile
-from pavilion import utils
 
 ID_DIGITS = 7
 ID_FMT = '{id:0{digits}d}'
@@ -15,7 +13,7 @@ ID_FMT = '{id:0{digits}d}'
 PKEY_FN = 'next_id'
 
 
-def make_id_path(base_path, id_):
+def make_id_path(base_path, id_) -> Path:
     """Create the full path to an id directory given its base path and
     the id.
 
@@ -102,38 +100,53 @@ def default_filter(_: Path) -> bool:
 
 
 def select(id_dir: Path,
-           filter_func: Callable[[Path], bool] = default_filter,
-           order_func: Callable[[Path], int] = None,
-           limit: int = None) -> List[Path]:
+           filter_func: Callable[[Any], bool] = default_filter,
+           transform: Callable[[Path], Any] = lambda v: v,
+           order_func: Callable[[Any], Any] = None,
+           order_asc: bool = True,
+           limit: int = None) -> List[Any]:
     """
     :param id_dir: The dir_db directory to select from.
-    :param filter_func: A function that takes a directory, and returns whether
-        to include that directory. True -> include, False -> exclude
-    :param order_func: A function that returns a comparable value for sorting,
-        as per the list.sort keys argument.
-    :param limit: The max items to return. None denotes return all.
+    :param filter_func:
+    :param transform:
+    :param order_func:
+    :param order_asc:
+    :param limit:
+    :returns: A filtered, ordered list of transformed objects.
+
+    Other arguments are as per select_from.
     """
 
-    return select_from(paths=id_dir.iterdir(),
-                       filter_func=filter_func,
-                       order_func=order_func,
-                       limit=limit)
+    return select_from(
+        paths=id_dir.iterdir(),
+        transform=transform,
+        filter_func=filter_func,
+        order_func=order_func,
+        order_asc=order_asc,
+        limit=limit,
+    )
 
 
 def select_from(paths: Iterable[Path],
-                filter_func: Callable[[Path], bool] = default_filter,
-                order_func: Callable[[Path], int] = None,
-                limit: int = None) -> List[Path]:
+                filter_func: Callable[[Any], bool] = default_filter,
+                transform: Callable[[Path], Any] = lambda v: v,
+                order_func: Callable[[Any], Any] = None,
+                order_asc: bool = True,
+                limit: int = None) -> List[Any]:
     """Return a list of test paths in the given id_dir, filtered, ordered, and
     potentially limited.
     :param paths: A list of paths to filter, order, and limit.
+    :param transform: Function to apply to each path before applying filters
+        or ordering. The filter and order functions should expect the type
+        returned by this.
     :param filter_func: A function that takes a directory, and returns whether
         to include that directory. True -> include, False -> exclude
     :param order_func: A function that returns a comparable value for sorting,
-        as per the list.sort keys argument.
+        as per the list.sort keys argument. Items for which this returns
+        None are removed.
+    :param order_asc: Whether to sort in ascending or descending order.
     :param limit: The max items to return. None denotes return all.
-
-    Other arguments are as per 'select'.
+    :returns: A filtered, ordered list of transformed objects.
     """
 
     items = []
@@ -141,13 +154,21 @@ def select_from(paths: Iterable[Path],
         if not (path.name.isdigit() and path.is_dir()):
             continue
 
-        if not filter_func(path):
+        try:
+            item = transform(path)
+        except ValueError:
             continue
 
-        items.append(path)
+        if not filter_func(item):
+            continue
+
+        if order_func is not None and order_func(item) is None:
+            continue
+
+        items.append(item)
 
     if order_func:
-        items.sort(key=order_func)
+        items.sort(key=order_func, reverse=order_asc)
 
     return items[:limit]
 

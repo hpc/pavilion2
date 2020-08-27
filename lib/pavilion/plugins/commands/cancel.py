@@ -7,7 +7,7 @@ from pavilion import commands
 from pavilion import output
 from pavilion import schedulers
 from pavilion import series
-from pavilion.plugins.commands.status import print_from_test_obj
+from pavilion.plugins.commands.status import print_from_tests
 from pavilion.status_file import STATES
 from pavilion.test_run import TestRun, TestRunError
 
@@ -138,8 +138,8 @@ class CancelCommand(commands.Command):
         # Only prints statuses of tests if option is selected
         # and test_list is not empty
         if args.status and test_object_list:
-            print_from_test_obj(pav_cfg, test_object_list, self.outfile,
-                                args.json)
+            print_from_tests(pav_cfg, test_object_list, self.outfile,
+                             args.json)
             return cancel_failed
 
         return cancel_failed
