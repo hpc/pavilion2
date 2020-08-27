@@ -4,14 +4,12 @@ generally be used to help make Pavilion consistent across its code and
 plugins.
 """
 
+import datetime as dt
 import errno
-import json
 import os
+import re
 import subprocess
 import zipfile
-from datetime import datetime, timedelta
-from pavilion import dir_db
-from pavilion import output
 from pathlib import Path
 from typing import Iterator
 
@@ -228,13 +226,21 @@ def repair_symlinks(base: Path) -> None:
                 file.symlink_to(rel_target)
 
 
-def retrieve_datetime(cutoff_time):
+def retrieve_datetime(cutoff_time: str):
     """Returns a valid datetime object range to filter
     tests objects via time, e.g. show tests that ran this past week."""
     # Converting time arguments into valid datetime object.
 
-    time_amount = int(cutoff_time[0])
-    time_unit = cutoff_time[1]
+    hr_time_regex = re.compile(r'^(\d+)\s*([a-z]+)$')
+
+    match = hr_time_regex.match(cutoff_time)
+    if match is None:
+        raise ValueError("Invalid time period. Should look like "
+                         "'5 days' or '10years', etc.")
+
+    time_amount = int(match.groups()[0])
+    time_unit = match.groups()[1]
+
     # Convert time into hours.
     if time_unit == 'second' or time_unit == 'seconds':
         time_amount = time_amount / 3600
@@ -251,12 +257,13 @@ def retrieve_datetime(cutoff_time):
     elif time_unit == 'year' or time_unit == 'years':
         time_amount = time_amount * 8760
     else:
-        raise ValueError
+        raise ValueError("Invalid unit time unit '{}'".format(time_unit))
+
     try:
-        search_date = datetime.today() - timedelta(hours=time_amount)
+        search_date = dt.datetime.today() - dt.timedelta(hours=time_amount)
     except OverflowError:
         # Make the assumption if the user asks for tests in the last
         # 10,000 year we just return the oldest possible datetime obj.
-        search_date = datetime(1972, 1, 1)
-    search_date = datetime.timestamp(search_date)
+        search_date = dt.datetime(1, 1, 1)
+
     return search_date

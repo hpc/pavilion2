@@ -10,9 +10,11 @@ from typing import List, Union
 from pavilion import commands
 from pavilion import dir_db
 from pavilion import filters
+from pavilion import system_variables
 from pavilion import output
 from pavilion import schedulers
 from pavilion import series
+from pavilion.series import TestSeries, TestSeriesError
 from pavilion import test_run
 from pavilion import utils
 from pavilion.status_file import STATES
@@ -69,18 +71,18 @@ def status_from_test_obj(pav_cfg: dict,
     return test_statuses
 
 
-def get_all_tests(pav_cfg, args, list):
-    """Return the statuses for all tests, up to the limit in args.limit."""
+def get_test_statuses(pav_cfg, test_ids):
+    """Return the statuses for all tests, up to the limit in args.limit.
+    :param List[int] test_ids: A list of test ids to load.
+    """
 
-    #latest_tests = test_run.get_latest_tests(pav_cfg, args.limit)
-    from pavilion.output import dbg_print
-    latest_tests = list
-    test_obj_list = []
     test_statuses = []
-    for test_id in latest_tests:
+
+    for test_id in test_ids:
         try:
-            test = TestRun.load(pav_cfg, int(test_id))
-            test_obj_list.append(test)
+            test = TestRun.load(pav_cfg, test_id)
+            test_statuses.append(status_from_test_obj(pav_cfg, test)[0])
+
         except (TestRunError, TestRunNotFoundError) as err:
             test_statuses.append({
                 'test_id': test_id,
@@ -89,11 +91,6 @@ def get_all_tests(pav_cfg, args, list):
                 'time':    None,
                 'note':    "Test not found: {}".format(err)
             })
-
-    statuses = status_from_test_obj(pav_cfg, *test_obj_list)
-
-    if statuses is not None:
-        test_statuses = test_statuses + statuses
 
     return test_statuses
 
@@ -139,7 +136,6 @@ def get_tests(pav_cfg, args, errfile):
             test_list.append(test_id)
 
     test_list = list(map(int, test_list))
-    dbg_print(test_list)
     return test_list
 
 
@@ -241,7 +237,6 @@ class StatusCommand(commands.Command):
 
     def _setup_arguments(self, parser):
 
-        history_group = parser.add_mutually_exclusive_group()
         pf_group = parser.add_mutually_exclusive_group()
 
         parser.add_argument(
@@ -250,21 +245,13 @@ class StatusCommand(commands.Command):
         )
         parser.add_argument(
             'tests', nargs='*', action='store',
-            help='The name(s) of the tests to check.  These may be any mix of '
-                 'test IDs and series IDs.  If no value is provided, the most '
-                 'recent series submitted by this user is checked.'
+            help="The name(s) of the tests to check.  These may be any mix of "
+                 "test IDs and series IDs. Use 'last' to get just the last "
+                 "series you ran."
         )
         parser.add_argument(
-            '-a', '--all', action='store_true',
-            help="Search over all tests."
-        )
-        parser.add_argument(
-            '-l', '--limit', type=int, default=10,
-            help='Max number of tests displayed if --all is used.'
-        )
-        parser.add_argument(
-            '--history', type=int,
-            help="Shows the full status history of a job."
+            '-l', '--limit', type=int,
+            help="Max number of tests to display."
         )
         parser.add_argument(
             '-s', '--summary', default=False, action='store_true',
@@ -275,8 +262,8 @@ class StatusCommand(commands.Command):
             help='Show the status of skipped tests.')
 
         parser.add_argument(
-            '-u', '--user', type=str, nargs=1,
-            help='Filter status by user.'
+            '-u', '--user', type=str, default=utils.get_login(),
+            help='Filter status by user. Defaults '
         )
         parser.add_argument(
             '-o', '--older', action='store_true',
@@ -303,15 +290,15 @@ class StatusCommand(commands.Command):
             help='Filter status by tests incomplete.'
         )
         parser.add_argument(
-            '--sys_name', type=str, nargs=1,
+            '--sys_name', type=str,
             help='Filter status by type of machine.'
         )
         parser.add_argument(
-            '--older_than', type=str, nargs=2,
+            '--older_than', type=str,
             help='Filter tests older than x.'
         )
         parser.add_argument(
-            '--newer_than', type=str,  nargs=2,
+            '--newer_than', type=str, default='1 day',
             help='Filter tests newer than x.'
         )
 
@@ -319,29 +306,80 @@ class StatusCommand(commands.Command):
         """Gathers and prints the statuses from the specified test runs and/or
         series."""
 
+        if args.sys_name is None:
+            args.sys_name = system_variables.get_vars(defer=True)['sys_name']
+
+        older_than = None
+        if args.older_than is not None:
+            try:
+                older_than = utils.retrieve_datetime(args.older_than)
+            except ValueError as msg:
+                output.fprint(
+                    "Invalid older than date.\n{}".format(msg.args[0]),
+                    color=output.RED, file=self.errfile)
+
+        newer_than = None
+        if args.newer_than is not None:
+            try:
+                newer_than = utils.retrieve_datetime(args.newer_than)
+            except ValueError as msg:
+                output.fprint(
+                    "Invalid newer than date.\n{}".format(msg.args[0]),
+                    color=output.RED, file=self.errfile)
+
+        filter_func = filters.make_test_run_filter(
+            complete=args.complete,
+            incomplete=args.incomplete,
+            passed=args.passed,
+            failed=args.failed,
+            users=[args.user],
+            sys_names=[args.sys_name],
+            older_than=older_than,
+            newer_than=newer_than,
+        )
+
         if args.tests:
-            test_list = []
+
+            test_paths = []
             for test_id in args.tests:
+                if test_id == 'last':
+                    test_id = series.TestSeries.load_user_series_id(pav_cfg)
+
                 if test_id.startswith('s'):
                     try:
-                        series.TestSeries
+                        test_paths.extend(
+                            TestSeries.list_series_tests(pav_cfg, test_id))
+                    except TestSeriesError:
+                        output.fprint("Invalid series id '{}'".format(test_id))
+                        return errno.EINVAL
+                else:
+                    try:
+                        test_id = int(test_id)
+                    except ValueError:
+                        output.fprint("Invalid test id '{}'".format(test_id))
 
+                    test_dir = dir_db.make_id_path(
+                        pav_cfg.working_dir/'test_runs', test_id)
 
+                    if not test_dir.exists():
+                        output.fprint("No such test '{}'".format(test_id))
+                        return errno.EINVAL
 
-        try:
-            #list = utils.filter_tests(pav_cfg, args)
-            test_statuses = get_all_tests(pav_cfg, args, list)
-        except commands.CommandError as err:
-            output.fprint("Status Error:", err, color=output.RED,
-                          file=self.errfile)
-            return 1
+                    test_paths.append(test_dir)
 
-        if args.history:
-            return self.display_history(pav_cfg, args)
-        elif args.summary:
-            return self.print_summary(test_statuses)
         else:
-            return print_status(test_statuses, self.outfile, args.json,
+            test_paths = dir_db.select(
+                id_dir=pav_cfg.working_dir/'test_runs',
+                filter_func=filter_func,
+                limit=args.limit)
+
+        test_ids = dir_db.paths_to_ids(test_paths)
+        statuses = get_test_statuses(pav_cfg, test_ids)
+
+        if args.summary:
+            return self.print_summary(statuses)
+        else:
+            return print_status(statuses, self.outfile, args.json,
                                 args.show_skipped)
 
     def display_history(self, pav_cfg, args):
@@ -372,7 +410,7 @@ class StatusCommand(commands.Command):
                                                   '%Y-%m-%dT%H:%M:%S.%f'),
                         'note': val[2]
                     })
-        except (TestRunError, TestRunNotFoundError) as err:
+        except (TestRunError, TestRunNotFoundError):
             output.fprint("The test_id {} does not exist in your "
                           "working directory.".format(args.history),
                           file=self.errfile,
