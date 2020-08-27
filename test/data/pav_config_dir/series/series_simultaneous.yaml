@@ -1,6 +1,0 @@
-series:
-
-    "echo_test.b":
-
-modes: ['smode2']
-simultaneous: 1
