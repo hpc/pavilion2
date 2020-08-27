@@ -26,40 +26,52 @@ class TimeoutFileTests(PavTestCase):
 
         arg_parser = arguments.get_parser()
 
+        # Successful build where timeout file is not created.
         args = arg_parser.parse_args([
             'run',
             'timeout_build_tests.GoodBuild'
         ])
+
         self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
 
+        # Successful build after creating/touching timeout file.
         args = arg_parser.parse_args([
             'run',
             'timeout_build_tests.GoodBuild2'
         ])
+
         self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
 
+        # Successful build after deleting timeout file.
         args = arg_parser.parse_args([
             'run',
             'timeout_build_tests.GoodBuild3'
         ])
+
         self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
 
+        # Unsuccessful build, where timeout file is not created.
         args = arg_parser.parse_args([
             'run',
             'timeout_build_tests.BadBuild'
         ])
+
         self.assertEqual(run_cmd.run(self.pav_cfg, args), 22)
 
+        # Unsuccessful build after creating/touching timeout file.
         args = arg_parser.parse_args([
             'run',
             'timeout_build_tests.BadBuild2'
         ])
+
         self.assertEqual(run_cmd.run(self.pav_cfg, args), 22)
 
+        # Unsuccessful build after deleting timeout file.
         args = arg_parser.parse_args([
             'run',
             'timeout_build_tests.BadBuild3'
         ])
+
         self.assertEqual(run_cmd.run(self.pav_cfg, args), 22)
 
     def test_run_timeouts(self):
@@ -74,6 +86,8 @@ class TimeoutFileTests(PavTestCase):
             'status'
         ])
 
+        # All test follow the same pattern seen above, but we can run them all
+        # at once, since a run timeout doesn't effect the others. 
         args = arg_parser.parse_args([
             'run',
             'timeout_run_tests'
