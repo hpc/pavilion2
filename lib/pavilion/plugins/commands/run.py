@@ -63,10 +63,6 @@ class RunCommand(commands.Command):
             '-s', '--status', action='store_true', default=False,
             help='Display test statuses'
         )
-        parser.add_argument(
-            '--series', default=None,
-            help="Series name. Will ignore other sub-command options."
-        )
 
     @staticmethod
     def _generic_arguments(parser):
@@ -129,63 +125,6 @@ class RunCommand(commands.Command):
         #   - Get sched vars from scheduler.
         #   - Compile variables.
         #
-
-        series_arg = getattr(args, 'series', None)
-        if series_arg:
-            # make series object
-            series_obj = TestSeries(pav_cfg)
-
-            series_path = series_obj.path
-
-            # call _auto_series
-            temp_args = ['pav', '_series', args.series,
-                         '--series-id={}'.format(series_obj.id)]
-            # this process will outlive the parent, and that's what we want
-
-            try:
-                with open(str(series_path/'series.out'), 'w') as series_out:
-                    series_proc = subprocess.Popen(temp_args,
-                                                   stdout=series_out,
-                                                   stderr=series_out)
-            except TypeError:
-                series_proc = subprocess.Popen(temp_args,
-                                               stdout=subprocess.DEVNULL,
-                                               stderr=subprocess.DEVNULL)
-            except FileNotFoundError:
-                fprint("Could not kick off tests. Cancelling.",
-                       color=output.RED)
-                return
-
-            series_pgid = os.getpgid(series_proc.pid)
-
-            try:
-                with open(str(series_path/'series.pgid'), 'w') as \
-                        series_id_file:
-                    series_id_file.write(str(series_pgid))
-
-                fprint("Started series {}. "
-                       "Run `pav status {}` to view status. "
-                       "PGID is {}. "
-                       "To kill, use `kill -15 -{}` or `pav cancel {}`."
-                       .format(series_obj.id,
-                               series_obj.id,
-                               series_pgid,
-                               series_pgid,
-                               series_obj.id))
-            except TypeError:
-                fprint("Warning: Could not write series PGID to a file.",
-                       color=output.YELLOW)
-                fprint("Started series {}. "
-                       "Run `pav status {}` to view status. "
-                       "PGID is {}. "
-                       "To kill, use `kill -15 -{}`."
-                       .format(series_obj.id,
-                               series_obj.id,
-                               series_pgid,
-                               series_pgid))
-
-
-            return 0
 
         mb_tracker = MultiBuildTracker()
 
