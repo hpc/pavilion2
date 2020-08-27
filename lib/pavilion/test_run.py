@@ -543,15 +543,26 @@ class TestRun:
             # self._run_timeout seconds
             timeout = self.run_timeout
             ret = None
+            start = time.time()
+            deleted = None
+            file_created = False
             while ret is None:
                 try:
                     ret = proc.wait(timeout=timeout)
                 except subprocess.TimeoutExpired:
                     try:
                         out_stat = self.timeout_file.stat()
+                        file_created = True
+                        quiet_time = time.time() - out_stat.st_mtime
                     except FileNotFoundError as err:
-                        continue
-                    quiet_time = time.time() - out_stat.st_mtime
+                        # Timeout File has not been created.
+                        if not file_created:
+                            quiet_time = time.time() - start
+                        # Timeout File has been removed
+                        else:
+                            if deleted is None:
+                                deleted = time.time()
+                            quiet_time = time.time() - deleted
                     # Has the output file changed recently?
                     if self.run_timeout < quiet_time:
                         # Give up on the build, and call it a failure.
