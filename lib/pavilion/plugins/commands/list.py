@@ -69,7 +69,9 @@ class ListCommand(commands.Command):
             help="List test runs.",
             description="Print a list of test run id's."
         )
+
         filters.add_test_filter_args(runs_p)
+
         runs_p.add_argument(
             'series', nargs="*",
             help="Print only test runs from these series."
