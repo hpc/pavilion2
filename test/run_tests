@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 
 import argparse
-import logging
-import os
 import shutil
 import sys
 import unittest
@@ -15,21 +13,10 @@ tests_dir = this_file.parent/'tests'
 # Setup our paths to the pavilion libraries.
 sys.path.append(str(lib_dir))
 
-logging_root = this_file.parent/'working_dir'
-if not logging_root.exists():
-    os.makedirs(str(logging_root))
-log_path = logging_root/'pav.log'
-logging.basicConfig(filename=str(log_path))
-console = logging.StreamHandler()
-console.setLevel(logging.INFO)
-console.setFormatter(logging.Formatter(fmt='\x1b[2m{message}\x1b[0m',
-                                       style='{'))
-
-logging.getLogger('').handlers.pop(0)
-
 
 def main():
     from pavilion.unittest import PavTestCase, ColorResult
+    from pavilion import log_setup
 
     config = PavTestCase.TEST_DATA_ROOT/'pav_config_dir'/'pavilion.yaml'
     if not config.exists():
@@ -65,13 +52,13 @@ def main():
         PavTestCase.set_skip(args.skip)
     if args.only:
         PavTestCase.set_only(args.only)
-    if args.verbose:
-        logging.getLogger('').addHandler(console)
 
     working_dir = this_file.parent/'working_dir'
     if not args.no_clear and working_dir.exists():
         print("Clearing out the working directory from prior unit test runs.")
         shutil.rmtree(working_dir, ignore_errors=True)
+
+    log_setup.setup_loggers(PavTestCase().pav_cfg, verbose=args.verbose)
 
     verbosity = 0 if args.quiet else 2
 

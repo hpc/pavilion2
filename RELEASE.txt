@@ -4,6 +4,14 @@ RELEASE=2.2
 
 # Release History
 
+## 2.3 Release Notes
+ - Added 'flatten_results' option to the base Pavilion config. Allows for
+   producing a separate result log line for each 'per_file' result, making
+   charting in Splunk significantly easier.
+
+ - Backwards compatibility breaks
+   - 'fn' and 'n' result fields have been merged into 'per_file'.
+
 ## 2.2 Release notes
  - All new test config parser.
  - Variable references are now 'expressions'.
@@ -32,7 +40,7 @@ RELEASE=2.2
      (https://docs.python.org/2.0/ref/strings.html),
      plus '[', '{', and '~'.
    - The results section is now 'result_parse'
-   - Result parsers plugins now have explicit argument default and validation settings, 
+   - Result parsers plugins now have explicit argument default and validation settings,
      and the _check_args method must return the modified argument dictionary.
      (rather than None before)
 
@@ -42,7 +50,7 @@ RELEASE=2.2
        unit_base: 100
      result_parse:
        regex:
-          speed: 
+          speed:
             regex: 'speed (\d+)'
      result_evaluate:
        speed_normalized: "speed / {{unit_base}}"
@@ -56,13 +64,13 @@ RELEASE=2.2
        source_url: http://github.com/hpc/mytest/latest.zip
        source_download: latest
 
- - Build are now built in their final location, rather than in a tmp 
-   location. This fixes the issues with symlinks (as they no longer 
-   move, so they can be absolute), and issues with non-relocatable 
+ - Build are now built in their final location, rather than in a tmp
+   location. This fixes the issues with symlinks (as they no longer
+   move, so they can be absolute), and issues with non-relocatable
    builds.
 
  - New config keys:
-   - 
+   -
    ```yaml
    mytest:
      maintainer:
