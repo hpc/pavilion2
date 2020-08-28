@@ -272,7 +272,8 @@ expected to be added to by various plugins.
             help_text="Documented test version."
         ),
         yc.StrElem(
-            'setup_spack_env', default = 'False',
+            'setup_spack_env', choices = ['True', 'true', 'False', 'false'],
+            default = 'False',
             help_text='Tell pavilion to set up test with or without a spack '
                       'environment.'
         ),
