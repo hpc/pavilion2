@@ -11,7 +11,7 @@ import re
 import subprocess
 import zipfile
 from pathlib import Path
-from typing import Iterator
+from typing import Iterator, Union
 
 
 # Python 3.5 issue. Python 3.6 Path.resolve() handles this correctly.
@@ -239,7 +239,8 @@ def repair_symlinks(base: Path) -> None:
                 file.symlink_to(rel_target)
 
 
-def hr_cutoff_to_datetime(cutoff_time: str, _now: dt.datetime = None):
+def hr_cutoff_to_datetime(cutoff_time: str,
+                          _now: dt.datetime = None) -> Union[dt.datetime, None]:
     """Convert a human readable datetime string to an actual datetime. The
     string can come in two forms:
 
@@ -250,10 +251,14 @@ def hr_cutoff_to_datetime(cutoff_time: str, _now: dt.datetime = None):
        number followed by a unit. Valid units are seconds, minutes, hours,
        days, weeks, months (approximate), and years (or the singular form of
        those words). The value and unit may be separated by whitespace.
+    3. An empty string, which implies no time (returns None).
 
     :param cutoff_time: The string time to parse.
     :param _now: For testing purposes. The current time.
     """
+
+    if cutoff_time == '':
+        return None
 
     if _now is None:
         now = dt.datetime.now()
@@ -267,8 +272,6 @@ def hr_cutoff_to_datetime(cutoff_time: str, _now: dt.datetime = None):
                           r'(?:[T ](\d{1,2})'
                           r'(?::(\d{1,2})'
                           r'(?::(\d{1,2})?)?)?)?)?)?$')
-
-    ptime_fmt_parts = ['%Y', '-%m', '-%d', None, '%H', '%M', '%S']
 
     match = rel_time_regex.match(cutoff_time)
     if match is not None:

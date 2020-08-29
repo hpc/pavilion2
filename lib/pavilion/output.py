@@ -220,7 +220,8 @@ our custom encoder."""
                      **kw)
 
 
-def output_csv(outfile, field_info, fields, rows):
+def output_csv(outfile, fields, rows, field_info=None,
+               header=False):
     """Write the given rows out as a CSV.
 
     :param outfile: The file object to write to.
@@ -231,13 +232,20 @@ def output_csv(outfile, field_info, fields, rows):
     :return: None
     """
 
+    row_data = []
+
+    if field_info is None:
+        field_info = {}
+
     # Generate a header row, using the title from field_info for each row if
     # given.
-    header_row = [field_info.get(field, {}).get('title', field)
-                  for field in fields]
-    row_data = [header_row]
+    if header:
+        header_row = [field_info.get(field, {}).get('title', field)
+                      for field in fields]
+        row_data = [header_row]
+
     for row in rows:
-        row_list = [row[f] for f in fields]
+        row_list = [row.get(f, '') for f in fields]
         row_data.append(row_list)
 
     try:
@@ -576,7 +584,7 @@ A more complicated example: ::
 
             for wrap_row in wrap_rows:
                 outfile.write(dt_format_row(
-                    wrap_row, fields, column_widths, pad, border))
+                    wrap_row, fields, column_widths, pad, border, vsep))
 
             # Write the horizontal break after the header, if we have one.
             if row_i == 0 and header:
@@ -625,7 +633,12 @@ def dt_format_rows(rows, fields, field_info):
             info = field_info.get(field, {})
             data = row.get(field, info.get('default', ''))
             # Transform the data, if a transform is given
-            data = info.get('transform', lambda a: a)(data)
+            if data != '' and data is not None:
+                try:
+                    data = info.get('transform', lambda a: a)(data)
+                except (ValueError, AttributeError, KeyError):
+                    data = '<transform error on {}>'.format(data)
+
             # Format the data
             col_format = info.get('format', '{0}')
             try:
@@ -822,21 +835,23 @@ def dt_auto_widths(rows, table_width, min_widths, max_widths):
     return final_widths
 
 
-def dt_format_row(row, fields, widths, pad, border):
+def dt_format_row(row, fields, widths, pad, border, vsep):
     """Format a single row according to the table parameters and widths."""
     out = []
     if border:
-        out.append('|')
+        out.append(vsep)
     if pad:
         out.append(' ')
+
+    if pad:
+        col_sep = ' ' + vsep + ' '
+    else:
+        col_sep = vsep
 
     for field_i in range(len(fields)):
         field = fields[field_i]
         if field_i != 0:
-            if pad:
-                out.append(' | ')
-            else:
-                out.append('|')
+            out.append(col_sep)
         data = row[field]
         if isinstance(data, ANSIString):
             color_data = data.colorize()
@@ -848,7 +863,7 @@ def dt_format_row(row, fields, widths, pad, border):
     if pad:
         out.append(' ')
     if border:
-        out.append('|')
+        out.append('vsep')
     out.append('\n')
 
     return ''.join(out)

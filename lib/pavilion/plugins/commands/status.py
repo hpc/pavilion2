@@ -5,18 +5,15 @@ import errno
 import os
 import time
 from datetime import datetime
-from typing import List, Union
+from typing import List
 
 from pavilion import commands
 from pavilion import dir_db
 from pavilion import filters
-from pavilion import system_variables
 from pavilion import output
 from pavilion import schedulers
 from pavilion import series
 from pavilion.series import TestSeries, TestSeriesError
-from pavilion import test_run
-from pavilion import utils
 from pavilion.status_file import STATES
 from pavilion.test_run import (
     TestRun, TestRunError, TestRunNotFoundError, TestAttributes)
@@ -261,7 +258,10 @@ class StatusCommand(commands.Command):
             show_skipped=args.show_skipped,
         )
 
-        order_func, order_asc = filters.make_test_sort_func(args.sort_by)
+        order_func, order_asc = filters.get_sort_opts(
+            sort_name=args.sort_by,
+            choices=filters.TEST_SORT_FUNCS,
+        )
 
         if args.tests:
 

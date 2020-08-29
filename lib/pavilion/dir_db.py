@@ -167,8 +167,8 @@ def select_from(paths: Iterable[Path],
 
         items.append(item)
 
-    if order_func:
-        items.sort(key=order_func, reverse=order_asc)
+    if order_func is not None:
+        items.sort(key=order_func, reverse=not order_asc)
 
     return items[:limit]
 

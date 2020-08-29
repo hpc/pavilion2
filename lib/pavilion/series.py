@@ -1,15 +1,16 @@
 """Series are a collection of test runs."""
 
-import logging
+import datetime as dt
 import json
-import os
+import logging
 from pathlib import Path
 
+from pavilion import dir_db
 from pavilion import system_variables
 from pavilion import utils
 from pavilion.lockfile import LockFile
-from pavilion import dir_db
-from pavilion.test_run import TestRun, TestRunError, TestRunNotFoundError
+from pavilion.test_run import (
+    TestRun, TestRunError, TestRunNotFoundError, TestAttributes)
 
 
 class TestSeriesError(RuntimeError):
@@ -92,7 +93,7 @@ class TestSeries:
         self._logger = logging.getLogger(self.LOGGER_FMT.format(self._id))
 
     @property
-    def id(self):  # pylint: disable=invalid-name
+    def sid(self):  # pylint: disable=invalid-name
         """Return the series id as a string, with an 's' in the front to
 differentiate it from test ids."""
 
@@ -132,7 +133,7 @@ differentiate it from test ids."""
         return dir_db.make_id_path(pav_cfg.working_dir/'series', raw_id)
 
     @classmethod
-    def sid_to_id(cls, sid:str) -> int:
+    def sid_to_id(cls, sid: str) -> int:
         """Convert a sid string to a numeric series id.
 
         :raises TestSeriesError: On an invalid sid.
@@ -147,39 +148,6 @@ differentiate it from test ids."""
         except ValueError:
             raise TestSeriesError(
                 "Invalid SID '{}'. Must end in an integer.".format(sid))
-
-    @staticmethod
-    def path_to_sid(series_path: Path):
-        """Return the sid for a given series path.
-        :raises TestSeriesError: For an invalid series path."""
-
-        try:
-            return 's{}'.format(int(series_path.name))
-        except ValueError:
-            raise TestSeriesError(
-                "Series paths must have a numerical directory name, got '{}'"
-                .format(series_path.as_posix())
-            )
-
-    @classmethod
-    def path_from_id(cls, pav_cfg, sid: str):
-        """Return the path to the series directory given a series id (in the
-        format 's[0-9]+'.
-        :raises TestSeriesError: For an invalid id.
-        """
-
-        if not sid.startswith('s'):
-            raise TestSeriesError(
-                "Series id's must start with 's'. Got '{}'".format(sid))
-
-        try:
-            raw_id = int(sid[1:])
-        except ValueError:
-            raise TestSeriesError(
-                "Invalid series id '{}'. Series id's must be in the format "
-                "s[0-9]+".format(sid))
-
-        return dir_db.make_id_path(pav_cfg.working_dir/'series', raw_id)
 
     @classmethod
     def list_series_tests(cls, pav_cfg, sid: str):
@@ -232,22 +200,6 @@ differentiate it from test ids."""
 
         return cls(pav_cfg, tests, _id=sid)
 
-    @classmethod
-    def list_series_tests(cls, pav_cfg, sid: str):
-        """Return a list of paths to test run directories for the given series
-        id.
-        :raises TestSeriesError: If the series doesn't exist.
-        """
-
-        series_path = cls.path_from_id(pav_cfg, sid)
-
-        if not series_path.exists():
-            raise TestSeriesError(
-                "No such test series '{}'. Looked in {}."
-                    .format(sid, series_path))
-
-        return dir_db.select(series_path)
-
     def _save_series_id(self):
         """Save the series id to json file that tracks last series ran by user
         on a per system basis."""
@@ -270,13 +222,13 @@ differentiate it from test ids."""
                         # File was empty, therefore json couldn't be loaded.
                         pass
                 with json_file.open('w') as json_series_file:
-                    data[sys_name] = self.id
+                    data[sys_name] = self.sid
                     json_series_file.write(json.dumps(data))
 
             except FileNotFoundError:
                 # File hadn't been created yet.
                 with json_file.open('w') as json_series_file:
-                    data[sys_name] = self.id
+                    data[sys_name] = self.sid
                     json_series_file.write(json.dumps(data))
 
     @classmethod
@@ -307,3 +259,89 @@ differentiate it from test ids."""
 modified date for the test directory."""
         # Leave it up to the caller to deal with time properly.
         return self.path.stat().st_mtime
+
+
+class SeriesInfo:
+    """This class is a stop-gap. It's not meant to provide the same
+    functionality as test_run.TestAttributes, but a lazily evaluated set
+    of properties for a given series path. It should be replaced with
+    something like TestAttributes in the future."""
+
+    def __init__(self, path: Path):
+
+        self.path = path
+
+        self._complete = None
+        self._tests = [tpath for tpath in dir_db.select(self.path)]
+
+    @classmethod
+    def list_attrs(cls):
+        """Return a list of available attributes."""
+
+        return [
+            key for key, val in cls.__dict__.items()
+            if isinstance(val, property)
+        ]
+
+    def attr_dict(self):
+        """Return all values as a dict."""
+
+        return {key: getattr(self, key) for key in self.list_attrs()}
+
+    @classmethod
+    def attr_doc(cls, attr):
+        """Return the doc string for the given attributes."""
+
+        if attr not in cls.list_attrs():
+            raise KeyError("No such series attribute '{}'".format(attr))
+
+        attr_prop = cls.__dict__[attr]
+        return attr_prop.__doc__
+
+    @property
+    def sid(self):
+        """The sid of this series."""
+
+        return TestSeries.path_to_sid(self.path)
+
+    @property
+    def id(self):
+        """The id of this series."""
+        return int(self.path.name)
+
+    @property
+    def complete(self):
+        """True if all tests are complete."""
+        if self._complete is None:
+            self._complete = all([(test_path / TestRun.COMPLETE_FN).exists()
+                                  for test_path in self._tests])
+        return self._complete
+
+    @property
+    def user(self):
+        """The user who created the suite."""
+        try:
+            return self.path.owner()
+        except KeyError:
+            return None
+
+    @property
+    def created(self) -> dt.datetime:
+        """When the test was created."""
+
+        return dt.datetime.fromtimestamp(self.path.stat().st_mtime)
+
+    @property
+    def num_tests(self):
+        """The number of tests belonging to this series."""
+        return len(self._tests)
+
+    @property
+    def sys_name(self):
+        """The sys_name the series ran on."""
+
+        if not self._tests:
+            return None
+
+        return TestAttributes(self._tests[0]).sys_name
+

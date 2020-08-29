@@ -142,7 +142,6 @@ class BuildCmdTests(PavTestCase):
     def test_build_verbosity(self):
         """Make sure that the build verbosity levels at least appear to work."""
 
-
         arg_parser = arguments.get_parser()
         arg_sets = [
             ['build', '-H', 'this', '-l', '-b', 'build_parallel'],

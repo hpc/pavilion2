@@ -83,6 +83,18 @@ class TestAttributes:
     All attributes should be defined as getters and (optionally) setters.
     Getters should return None if no value is available.
     Getters should all have a docstring.
+
+    *************
+      WARNING
+    ************
+    This object is not thread or any sort of multi-processing safe. It relies
+    on the expectation that the test lifecycle should generally mean there's
+    only one instance of a test around that might change these values at any
+    given time. The upside is that it's so unsafe, problems reveal themselves
+    quickly in the unit tests.
+
+    It's safe to set these values in the TestRun __init__, finalize,
+    and gather_results.
     """
 
     serializers = {
@@ -172,17 +184,23 @@ class TestAttributes:
         base RunAttributes class, so it won't contain anything from child
         classes."""
 
-        attrs = ['id']
+        attrs = []
         for key, val in TestAttributes.__dict__.items():
             if isinstance(val, property):
                 attrs.append(key)
         attrs.sort()
         return attrs
 
-    def as_dict(self):
+    def attr_dict(self, include_empty=True):
         """Return the attributes as a dictionary."""
 
-        return {key: getattr(self, key) for key in self.list_attrs()}
+        attrs = {}
+        for key in self.list_attrs():
+            val = getattr(self, key)
+            if val is not None or include_empty:
+                attrs[key] = val
+
+        return attrs
 
     @classmethod
     def attr_serializer(cls, attr) -> Callable[[Any], Any]:

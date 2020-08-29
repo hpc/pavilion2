@@ -226,11 +226,11 @@ class TestRunTests(PavTestCase):
 
         self._is_softlink_dir(suite.path)
 
-        suite2 = TestSeries.from_id(self.pav_cfg, suite.id)
+        suite2 = TestSeries.from_id(self.pav_cfg, suite.sid)
         self.assertEqual(sorted(suite.tests.keys()),
                          sorted(suite2.tests.keys()))
         self.assertEqual(sorted([t.id for t in suite.tests.values()]),
                          sorted([t.id for t in suite2.tests.values()]))
 
         self.assertEqual(suite.path, suite2.path)
-        self.assertEqual(suite.id, suite2.id)
+        self.assertEqual(suite.sid, suite2.id)
