@@ -267,7 +267,7 @@ class RunCommand(commands.Command):
         fprint("{} test{} started as test series {}."
                .format(len(all_tests),
                        's' if len(all_tests) > 1 else '',
-                       series.id),
+                       series.sid),
                file=self.outfile,
                color=output.GREEN)
 

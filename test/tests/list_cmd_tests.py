@@ -96,13 +96,6 @@ class ListCmdTest(PavTestCase):
                          [t.id for t in tests if (t.uuid < 25 and
                                                   t.result == t.PASS)])
 
-        args = parser.parse_args(['list', 'series'])
-        self.assertEqual(cmd.run(self.pav_cfg, args), 0)
-        out, err = cmd.clear_output()
-        self.assertEqual(err, '')
-        self.assertEqual(out.split(),
-                         list(reversed([s.sid for s in series])))
-
         for arglist in [
                 ['list', '--long', '--header', '--vsep=$', 'runs'],
                 ['list', '--csv', '--header', 'test_runs'],
