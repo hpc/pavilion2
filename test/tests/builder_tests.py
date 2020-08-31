@@ -270,7 +270,7 @@ class BuilderTests(PavTestCase):
         self.assertGreater(expected_path.stat().st_mtime, orig_time)
 
         config = copy.deepcopy(config)
-        config['build']['source_download'] = 'latest'
+        config['build']['source_download'] = 'never'
         config['build']['source_url'] = 'http://nowhere-that-exists.com'
         self._quick_test(config, build=False, finalize=False)
         # This should succeed, because the file exists and we're not
