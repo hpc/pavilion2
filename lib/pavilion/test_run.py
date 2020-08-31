@@ -937,8 +937,8 @@ modified date for the test directory."""
             script.newline()
             script.comment('Run the spack setup script and activate the spack '
                            'build environment.')
-            script.command('source ' + str(self._pav_cfg.get('spack_path'))
-                           +'/share/spack/setup-env.sh')
+            script.command('source {}/share/spack/setup-env.sh'
+                           .format(self._pav_cfg.get('spack_path')))
             script.command("spack env activate -V .")
 
         if install_packages:

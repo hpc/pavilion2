@@ -280,7 +280,7 @@ expected to be added to by various plugins.
         yc.KeyedElem(
             'spack_config', elements=[
                 yc.StrElem(
-                    'build_jobs',
+                    'build_jobs', default='1',
                     help_text='The maximum number of jobs to use '
                               'when running \'make\' in parallel.'
                 ),
