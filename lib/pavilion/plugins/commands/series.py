@@ -80,6 +80,7 @@ class RunSeries(commands.Command):
         except FileNotFoundError:
             fprint("Could not write dependency tree to file. Cancelling.",
                    color=output.RED)
+            return
 
         try:
             with open(str(series_path/'config'), 'w') as config_file:
@@ -87,6 +88,7 @@ class RunSeries(commands.Command):
         except FileNotFoundError:
             fprint("Could not write series config to file. Cancelling.",
                    color=output.RED)
+            return
 
         # pav _series runs in background using subprocess
         temp_args = ['pav', '_series', str(series_id)]

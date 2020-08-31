@@ -3,8 +3,9 @@
 import errno
 import pathlib
 import threading
-import subprocess
 import os
+import json
+import subprocess
 import time
 import argparse
 from collections import defaultdict
@@ -15,6 +16,7 @@ from pavilion import output
 from pavilion import result
 from pavilion import schedulers
 from pavilion import test_config
+from pavilion import series
 from pavilion.builder import MultiBuildTracker
 from pavilion.output import fprint
 from pavilion.plugins.commands.status import print_from_test_obj
@@ -121,6 +123,69 @@ class RunCommand(commands.Command):
         :param pav_cfg: The pavilion configuration.
         :param args: The parsed command line argument object.
         """
+
+        # make series config
+        series_config = {}
+        series_config['modes'] = getattr(args, 'modes', [])
+        if args.host:
+            seriVes_config['modes'].append(getattr(args, 'host', None))
+
+        series_config['restart'] = 'False'
+        series_config['ordered'] = 'False'
+        series_config['simultaneous'] = None
+        series_config['series'] = {}
+        series_config['series']['only_set'] = {
+            'tests': getattr(args, 'tests', []),
+            'depends_on': [],
+            'modes': [],
+            'only_if': {},
+            'not_if': {},
+            'depends_pass': 'False'
+        }
+
+        # make series object
+        series_obj = TestSeries(pav_cfg, series_config=series_config)
+
+        # create dependency tree
+        series_obj.create_dependency_tree()
+
+        # write dependency tree and config in series dir
+        try:
+            with open(str(series_obj.path/'dependency'), 'w') as dep_file:
+                dep_file.write(json.dumps(series_obj.dep_graph))
+        except FileNotFoundError:
+            fprint("Could not write dependency tree to file. Cancelling.",
+                   color=output.RED)
+            return
+
+        try:
+            with open(str(series_obj.path/'config'), 'w') as config_file:
+                config_file.write(json.dumps(series_config))
+        except FileNotFoundError:
+            fprint("Could not write series config to file. Cancelling.",
+                   color=output.RED)
+            return
+
+        # pav _series runs in background using subprocess
+        temp_args = ['pav', '_series', str(series_obj._id)]
+        try:
+            with open(str(series_obj.path/'series.out'), 'w') as series_out:
+                series_proc = subprocess.Popen(temp_args,
+                                               stdout=series_out,
+                                               stderr=series_out)
+                fprint("Series ID: ", series_obj.id)
+        except TypeError:
+            series_proc = subprocess.Popen(temp_args,
+                                           stdout=subprocess.DEVNULL,
+                                           stderr=subprocess.DEVNULL)
+            fprint("Series ID: ", series_obj.id)
+        except FileNotFoundError:
+            fprint("Could not kick off tests. Cancelling.",
+                   color=output.RED)
+            return
+
+        return
+
         # 1. Resolve the test configs
         #   - Get sched vars from scheduler.
         #   - Compile variables.
