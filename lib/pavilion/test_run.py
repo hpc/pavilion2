@@ -101,12 +101,14 @@ class TestAttributes:
         'created': utils.serialize_datetime,
         'finished': utils.serialize_datetime,
         'started': utils.serialize_datetime,
+        'suite_path': lambda p: p.as_posix(),
     }
 
     deserializers = {
         'created': utils.deserialize_datetime,
         'finished': utils.deserialize_datetime,
         'started': utils.deserialize_datetime,
+        'suite_path': Path,
     }
 
     def __init__(self, path: Path, group: str = None, umask: int = None):
@@ -268,6 +270,10 @@ class TestAttributes:
     started = basic_attr(
         name='started',
         doc="The start time for this test run.")
+    suite_path = basic_attr(
+        name='suite_path',
+        doc="Path to the suite_file that defined this test run."
+    )
     sys_name = basic_attr(
         name='sys_name',
         doc="The system this test was started on.")
@@ -364,6 +370,7 @@ class TestRun(TestAttributes):
             self.created = dt.datetime.now()
             self.name = self.make_name(config)
             self.rebuild = rebuild
+            self.suite_path = Path(config.get('suite_path', '.'))
             self.user = utils.get_login()
             self.uuid = str(uuid.uuid4())
         else:

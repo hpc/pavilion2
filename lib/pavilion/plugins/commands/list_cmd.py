@@ -85,6 +85,10 @@ class ListCommand(commands.Command):
             '--vsep', default='|', type=lambda s: s[0],
             help="Vertical separator for --long mode. Single character only."
         )
+        parser.add_argument(
+            '--wrap', action='store_true', default=False,
+            help="Auto-wrap the table columns in long output mode."
+        )
 
         subparsers = parser.add_subparsers(
             dest="list_cmd",
@@ -166,14 +170,15 @@ class ListCommand(commands.Command):
 
         return fields, mode_arg
 
-    def do_output(self, mode: str, rows: List[dict], fields: List[str],
-                  header: bool, vsep: str):
+    def write_output(self, mode: str, rows: List[dict], fields: List[str],
+                     header: bool, vsep: str, wrap: bool):
         """Generically produce the output.
         :param mode: The output mode
         :param rows: Output items
         :param fields: List of fields to display.
         :param header: Whether to display a header in long/cvs mode
         :param vsep: Long mode vertical separator
+        :param wrap: Wrap columns in long output mode.
         """
 
         if not rows:
@@ -194,6 +199,7 @@ class ListCommand(commands.Command):
                 rows=rows,
                 header=header,
                 border_chars={'vsep': vsep},
+                table_width=None if wrap else 1024**2
             )
         else:  # CSV
             output.output_csv(
@@ -268,12 +274,13 @@ class ListCommand(commands.Command):
             limit=args.limit,
         )
 
-        self.do_output(
+        self.write_output(
             mode=mode,
             rows=[run.attr_dict(include_empty=False) for run in runs],
             fields=fields,
             header=args.header,
             vsep=args.vsep,
+            wrap=args.wrap,
         )
 
     SERIES_LONG_FIELDS = ['id', 'user', 'created', 'num_tests']
@@ -316,11 +323,11 @@ class ListCommand(commands.Command):
             order_func=series_order,
             order_asc=ascending,
         )
-
-        self.do_output(
+        self.write_output(
             mode=mode,
             rows=[sinfo.attr_dict() for sinfo in series],
             fields=fields,
             header=args.header,
             vsep=args.vsep,
+            wrap=args.wrap,
         )

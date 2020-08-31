@@ -420,7 +420,7 @@ class TestBuilder:
                     .format(', '.join(missing_libs)))
 
             if not src_path.is_absolute():
-                dwn_dest = self.test.path.parents[1]/'test_src'/src_path
+                dwn_dest = self.test.suite_path.parents[1]/'test_src'/src_path
             else:
                 dwn_dest = src_path
 
