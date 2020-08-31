@@ -128,7 +128,7 @@ class RunCommand(commands.Command):
         series_config = {}
         series_config['modes'] = getattr(args, 'modes', [])
         if args.host:
-            seriVes_config['modes'].append(getattr(args, 'host', None))
+            series_config['modes'].append(getattr(args, 'host', None))
 
         series_config['restart'] = 'False'
         series_config['ordered'] = 'False'
