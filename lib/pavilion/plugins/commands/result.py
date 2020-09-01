@@ -13,6 +13,7 @@ from pavilion import series
 from pavilion.result import check_config
 from pavilion.test_config import resolver
 from pavilion.test_run import TestRun, TestRunError, TestRunNotFoundError
+from pavilion import filters
 
 
 class ResultsCommand(commands.Command):
@@ -69,6 +70,13 @@ class ResultsCommand(commands.Command):
                  "not update the general pavilion result log."
         )
         parser.add_argument(
+            '-D', '--delete',
+            action='store_true', default=False,
+            help="Delete the matched results. From the general result log."
+                 "The results will still be present and viewable in the "
+                 "individual test results."
+        )
+        parser.add_argument(
             '-l', '--show-log', action='store_true', default=False,
             help="Also show the result processing log. This is particularly"
                  "useful when re-parsing results, as the log is not saved."
@@ -77,8 +85,10 @@ class ResultsCommand(commands.Command):
         parser.add_argument(
             "tests",
             nargs="*",
-            help="The tests to show the results for."
+            help="The tests to show the results for. Use 'last' to get the "
+                 "results of the last test series you ran on this machine."
         )
+        filters.add_test_filter_args(parser)
 
     def run(self, pav_cfg, args):
         """Print the test results in a variety of formats."""
