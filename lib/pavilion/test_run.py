@@ -446,6 +446,7 @@ class TestRun(TestAttributes):
                 mb_tracker=build_tracker,
                 build_name=self.build_name
             )
+            self.build_name = self.builder.name
         except builder.TestBuilderError as err:
             raise TestRunError(
                 "Could not create builder for test {s.name} (run {s.id}): {err}"
