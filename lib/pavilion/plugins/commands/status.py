@@ -13,6 +13,7 @@ from pavilion import filters
 from pavilion import output
 from pavilion import schedulers
 from pavilion import series
+from pavilion import cmd_utils
 from pavilion.series import TestSeries, TestSeriesError
 from pavilion.status_file import STATES
 from pavilion.test_run import (
@@ -239,6 +240,11 @@ class StatusCommand(commands.Command):
             '-s', '--summary', default=False, action='store_true',
             help='Display a single line summary of test statuses.'
         )
+        parser.add_argument(
+            '-f', '--force-filter', default=False, action='store_true',
+            help="Apply filtering even to tests that are specifically "
+                 "requested."
+        )
 
         filters.add_test_filter_args(parser)
 
@@ -264,34 +270,20 @@ class StatusCommand(commands.Command):
         )
 
         if args.tests:
+            test_paths = cmd_utils.test_list_to_paths(pav_cfg, args.tests)
 
-            test_paths = []
-            for test_id in args.tests:
-                if test_id == 'last':
-                    test_id = series.TestSeries.load_user_series_id(pav_cfg)
-
-                if test_id.startswith('s'):
-                    try:
-                        test_paths.extend(
-                            TestSeries.list_series_tests(pav_cfg, test_id))
-                    except TestSeriesError:
-                        output.fprint("Invalid series id '{}'".format(test_id))
-                        return errno.EINVAL
-                else:
-                    try:
-                        test_id = int(test_id)
-                    except ValueError:
-                        output.fprint("Invalid test id '{}'".format(test_id))
-
-                    test_dir = dir_db.make_id_path(
-                        pav_cfg.working_dir/'test_runs', test_id)
-
-                    if not test_dir.exists():
-                        output.fprint("No such test '{}'".format(test_id))
-                        return errno.EINVAL
-
-                    test_paths.append(test_dir)
-            test_ids = dir_db.paths_to_ids(test_paths)
+            if args.force_filter:
+                tests = dir_db.select_from(
+                    paths=test_paths,
+                    transform=TestAttributes,
+                    filter_func=filter_func,
+                    order_func=order_func,
+                    order_asc=order_asc,
+                    limit=args.limit
+                )
+                test_ids = [test.id for test in tests]
+            else:
+                test_ids = dir_db.paths_to_ids(test_paths)
 
         else:
             tests = dir_db.select(
