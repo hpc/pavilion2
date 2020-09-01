@@ -21,7 +21,7 @@ from pavilion.test_run import (
 
 def get_last_ctime(path):
     """Gets the time path was modified."""
-    mtime = os.path.getmtime(path)
+    mtime = os.path.getmtime(str(path))
     ctime = str(time.ctime(mtime))
     ctime = ctime[11:19]
     return ctime
