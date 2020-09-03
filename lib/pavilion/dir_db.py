@@ -149,9 +149,6 @@ def select_from(paths: Iterable[Path],
     :returns: A filtered, ordered list of transformed objects.
     """
 
-    import traceback
-    traceback.print_stack()
-
     items = []
     for path in paths:
         if not (path.name.isdigit() and path.is_dir()):
