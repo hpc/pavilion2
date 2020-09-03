@@ -250,10 +250,10 @@ class ListCommand(commands.Command):
             args.sort_by, filters.TEST_SORT_FUNCS)
 
         if args.series:
-            all_runs = []
+            picked_runs = []
             for series_id in args.series:
                 try:
-                    all_runs.extend(TestSeries.list_series_tests(
+                    picked_runs.extend(TestSeries.list_series_tests(
                         pav_cfg=pav_cfg,
                         sid=series_id))
                 except TestSeriesError as err:
@@ -262,17 +262,23 @@ class ListCommand(commands.Command):
                         .format(series_id, err.args[0]),
                         color=output.RED, file=self.errfile)
                     return errno.EINVAL
+            runs = dir_db.select_from(
+                paths=picked_runs,
+                transform=TestAttributes,
+                filter_func=filter_func,
+                order_func=order_func,
+                order_asc=ascending,
+                limit=args.limit,
+            )
         else:
-            all_runs = dir_db.select(pav_cfg.working_dir/'test_runs')
-
-        runs = dir_db.select_from(
-            paths=all_runs,
-            transform=TestAttributes,
-            filter_func=filter_func,
-            order_func=order_func,
-            order_asc=ascending,
-            limit=args.limit,
-        )
+            runs = dir_db.select(
+                id_dir=pav_cfg.working_dir/'test_runs',
+                transform=TestAttributes,
+                filter_func=filter_func,
+                order_func=order_func,
+                order_asc=ascending,
+                limit=args.limit,
+            )
 
         self.write_output(
             mode=mode,
