@@ -59,5 +59,5 @@ class SpackTests(PavTestCase):
                         build_script_str)
         self.assertTrue("export PATH=$SPACK_ROOT/bin:$PATH" in
                         build_script_str)
-        self.assertTrue("spack env activate -V ." in build_script_str)
+        self.assertTrue("spack env activate -d ." in build_script_str)
         self.assertTrue("spack install stuff" in build_script_str)
