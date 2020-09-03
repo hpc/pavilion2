@@ -20,9 +20,9 @@ class SpackEnvConfig(yc.YamlConfigLoader):
                 ),
                 yc.CategoryElem(
                     'upstreams', sub_elem=yc.KeyedElem(
-                        elements=[yc.StrElem('install_tree'),
-                                  yc.CategoryElem('modules',
-                                    sub_elem=yc.StrElem())])
+                        elements=[yc.StrElem('install_tree')
+                                 ]
+                    )
                 ),
             ]
         )

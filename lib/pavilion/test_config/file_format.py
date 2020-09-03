@@ -298,9 +298,9 @@ expected to be added to by various plugins.
                 ),
                 yc.CategoryElem(
                     'upstreams', sub_elem=yc.KeyedElem(
-                        elements=[yc.StrElem('install_tree'),
-                                  yc.CategoryElem('modules',
-                                                  sub_elem=yc.StrElem())])
+                        elements=[
+                            yc.StrElem('install_tree')
+                        ])
                 ),
             ],
             help_text="Spack configuration items to set for this test."

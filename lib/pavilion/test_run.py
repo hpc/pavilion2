@@ -928,31 +928,6 @@ modified date for the test directory."""
             for cmd in config['preamble']:
                 script.command(cmd)
 
-        spack_config = config.get('spack', {})
-        install_packages = spack_config.get('install', [])
-        load_packages = spack_config.get('load', [])
-        setup_spack_env = self.config.get('setup_spack_env', 'False')
-
-        if setup_spack_env in ['True', 'true']:
-            script.newline()
-            script.comment('Run the spack setup script and activate the spack '
-                           'build environment.')
-            script.command('source {}/share/spack/setup-env.sh'
-                           .format(self._pav_cfg.get('spack_path')))
-            script.command("spack env activate -V .")
-
-        if install_packages:
-            script.newline()
-            script.comment('Install spack packages.')
-            for package in install_packages:
-                script.command('spack install {}'.format(package))
-
-        if load_packages:
-            script.newline()
-            script.comment('Load spack packages.')
-            for package in load_packages:
-                script.command('spack load {}'.format(package))
-
         if stype == 'build' and not self.build_local:
             script.comment('To be built in an allocation.')
 
@@ -977,6 +952,33 @@ modified date for the test directory."""
             script.newline()
             script.comment('Output the environment for posterity')
             script.command("declare -p")
+
+        spack_commands = config.get('spack', {})
+        install_packages = spack_commands.get('install', [])
+        load_packages = spack_commands.get('load', [])
+        setup_spack_env = self.config.get('setup_spack_env', 'False')
+        spack_config = self.config.get('spack_config', {})
+
+        if setup_spack_env in ['True', 'true']:
+            script.newline()
+            script.comment('Add Spack path to path.')
+            script.command('export SPACK_ROOT={}'
+                           .format(self._pav_cfg.get('spack_path')))
+            script.command('export PATH=$SPACK_ROOT/bin:$PATH')
+            script.comment('Activate spack environment.')
+            script.command("spack env activate -d .")
+
+        if install_packages:
+            script.newline()
+            script.comment('Install spack packages.')
+            for package in install_packages:
+                script.command('spack install {}'.format(package))
+
+        if load_packages:
+            script.newline()
+            script.comment('Load spack packages.')
+            for package in load_packages:
+                script.command('spack load {}'.format(package))
 
         script.newline()
         cmds = config.get('cmds', [])

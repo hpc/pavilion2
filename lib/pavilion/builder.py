@@ -563,18 +563,30 @@ class TestBuilder:
         """Creates a spack.yaml file in the build dir, so that each unique
         build can activate it's own spack environment."""
 
-        # Se the spack env based on the passed spack_config and build_dir.
+        spack_path = self._pav_cfg.get('spack_path')
+        opt_spack_dir = spack_path/'opt'/'spack'
+
+        # Set up upstreams, will always have 'main', so that builds in the
+        # global spack instance can be reused.
+        upstreams = {
+            'main': {
+                'install_tree': opt_spack_dir
+            }
+        }
+        upstreams.update(spack_config.get('upstreams', {}))
+
+        # Set the spack env based on the passed spack_config and build_dir.
         config = {
             'spack': {
                 'config': {
                     # New spack installs will be built in the specified
                     # build_dir.
-                    'install_tree': str(build_dir),
+                    'install_tree': str(build_dir/'spack_installs'),
                     'build_jobs': spack_config.get('build_jobs', 6)
                 },
                 'mirrors': spack_config.get('mirrors', {}),
                 'repos': spack_config.get('repos',[]),
-                'upstreams': spack_config.get('upstreams', {})
+                'upstreams': upstreams,
             },
         }
 
@@ -582,6 +594,7 @@ class TestBuilder:
         spack_env_config = build_dir/'spack.yaml'
         with open(spack_env_config.as_posix(), "w+") as spack_env_file:
             SpackEnvConfig().dump(spack_env_file, values=config)
+
 
     def _build(self, build_dir, cancel_event):
         """Perform the build. This assumes there actually is a build to perform.
