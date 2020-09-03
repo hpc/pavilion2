@@ -24,6 +24,7 @@ class SpackEnvConfig(yc.YamlConfigLoader):
                                  ]
                     )
                 ),
-            ]
+            ],
+            help_text='Spack environment configuration file.'
         )
     ]
