@@ -464,7 +464,7 @@ class ShowCommand(commands.Command):
             output.fprint("\n")
 
 
-    def show_table(self, pav_cfg, args, conf_type):
+    def show_configs_table(self, pav_cfg, args, conf_type):
 
         configs = resolver.TestConfigResolver(pav_cfg).find_all_configs(conf_type)
 
@@ -517,7 +517,7 @@ class ShowCommand(commands.Command):
         elif args.config:
             self.show_full_config(pav_cfg, args.config, args.show_cmd)
         else:
-            self.show_table(pav_cfg, args, args.show_cmd)
+            self.show_configs_table(pav_cfg, args, args.show_cmd)
 
     @show_cmd('host')
     def _hosts_cmd(self, pav_cfg, args):
