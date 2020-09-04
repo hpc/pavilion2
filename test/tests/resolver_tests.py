@@ -472,6 +472,120 @@ class ResolverTests(PavTestCase):
                              .format(''.join(["{}: {}\n".format(*v) for v in
                                               exports])))
 
+    def test_command_inheritance(self):
+        """Make sure command inheritance works as expected."""
+
+        test_cfgs = self.resolver.load(['cmd_inherit_extend'])
+
+        correct = {
+            'test1': {
+                'build': {
+                    'cmds': ['echo "and I say hello"'],
+                },
+                'run': {
+                    'cmds': ['echo "Hello"'],
+                }
+            },
+            'test2': {
+                'build': {
+                    'cmds': [
+                        'echo "You say goodbye"',
+                        'echo "and I say hello"'
+                    ]
+                },
+                'run': {
+                    'cmds': [
+                        'echo "Hello"',
+                        'echo ", hello"'
+                    ]
+                }
+            },
+            'test3': {
+                'build': {
+                    'cmds': [
+                        'echo "You say goodbye"',
+                        'echo "and I say hello"'
+                    ]
+                },
+                'run': {
+                    'cmds': [
+                        'echo "Hello"',
+                        'echo ", hello"',
+                        'echo "I dont know why you say goodbye,"',
+                        'echo "I say hello"'
+                    ]
+                }
+            }
+        }
+
+        for config in test_cfgs:
+            test_cfg = config[0]
+            test_name = test_cfg.get('name')
+
+            for sec in ['build', 'run']:
+                self.assertEqual(test_cfg[sec]['cmds'],
+                                 correct[test_name][sec]['cmds'])
+
+    def test_cmd_inheritance_layering(self):
+        """Test command inheritance with host and mode configs."""
+
+        correct = {
+            'test1': {
+                'build': {
+                    'cmds': ['echo "and I say hello"'],
+                },
+                'run': {
+                    'cmds': ['echo "Hello"'],
+                }
+            },
+            'test2': {
+                'build': {
+                    'cmds': [
+                        'echo "You say goodbye"',
+                        'echo "and I say hello"'
+                    ]
+                },
+                'run': {
+                    'cmds': [
+                        'echo "Hello"',
+                        'echo ", hello"'
+                    ]
+                }
+            },
+            'test3': {
+                'build': {
+                    'cmds': [
+                        'echo "You say goodbye"',
+                        'echo "and I say hello"'
+                    ]
+                },
+                'run': {
+                    'cmds': [
+                        'echo "Hello"',
+                        'echo ", hello"',
+                        'echo "I dont know why you say goodbye,"',
+                        'echo "I say hello"'
+                    ]
+                }
+            }
+        }
+
+        for host in ('this', 'layer_host'):
+            for modes in ([], ['layer_mode']):
+                for test in ('cmd_inherit_extend.test1',
+                             'cmd_inherit_extend.test2',
+                             'cmd_inherit_extend.test3'):
+                    answer = None
+
+                    tests = self.resolver.load([test], host=host,modes=modes)
+                    test_cfg, _ = tests[0]
+                    test_name = test_cfg.get('name')
+                    for sec in ['build', 'run']:
+                        self.assertEqual(test_cfg[sec]['cmds'],
+                                         correct[test_name][sec]['cmds'])
+                    self.assertEqual(test_cfg['host'], host)
+                    self.assertEqual(test_cfg['modes'], modes)
+
     def test_version_compatibility(self):
         """Make sure version compatibility checks are working and populate the
         results.json file correctly."""
