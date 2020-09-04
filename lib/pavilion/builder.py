@@ -593,25 +593,19 @@ class TestBuilder:
 
                 result = None
                 start = time.time()
-                deleted = None
-                file_created = False
+                timeout = self._timeout
                 while result is None:
                     try:
                         result = proc.wait(timeout=1)
                     except subprocess.TimeoutExpired:
-                        try:
+                        if self._timeout_file.exists():
                             log_stat = self._timeout_file.stat()
-                            file_created = True
-                            timeout = log_stat.st_mtime + self._timeout
-                        except FileNotFoundError as err:
-                            # Timeout file has not been created yet.
-                            if not file_created:
-                                timeout = start + self._timeout
-                            # Timeout file existed, but was deleted.
-                            else:
-                                if deleted is None:
-                                    deleted = time.time()
-                                timeout = deleted + self._timeout
+                            timeout = max(timeout, log_stat.st_mtime +
+                                          self._timeout)
+                        else:
+                            log_stat = self.tmp_log_path.stat()
+                            timeout = max(timeout, log_stat.st_mtime +
+                                          self._timeout)
                         # Has the output file changed recently?
                         if time.time() > timeout:
                             # Give up on the build, and call it a failure.

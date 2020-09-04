@@ -82,10 +82,6 @@ class TimeoutFileTests(PavTestCase):
 
         arg_parser = arguments.get_parser()
 
-        status_args = arg_parser.parse_args([
-            'status'
-        ])
-
         # All test follow the same pattern seen above, but we can run them all
         # at once, since a run timeout doesn't effect the others. 
         args = arg_parser.parse_args([
@@ -94,7 +90,7 @@ class TimeoutFileTests(PavTestCase):
         ])
         self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
 
-        time.sleep(30)
+        time.sleep(35)
 
         correct_statuses = {
             'timeout_run_tests.GoodRun': 'COMPLETE',
@@ -104,6 +100,10 @@ class TimeoutFileTests(PavTestCase):
             'timeout_run_tests.BadRun2': 'RUN_TIMEOUT',
             'timeout_run_tests.BadRun3': 'RUN_TIMEOUT'
         }
+
+        status_args = arg_parser.parse_args([
+            'status'
+        ])
 
         statuses = get_statuses(self.pav_cfg, status_args, io.StringIO())
         for test_status in statuses:
