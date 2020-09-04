@@ -278,11 +278,11 @@ expected to be added to by various plugins.
                     help_text='The sequence of commands to run to perform '
                               'the build.'),
                 yc.ListElem(
-                    'cmds_extend_before', sub_elem=yc.StrElem(),
+                    'prepend_cmds', sub_elem=yc.StrElem(),
                     help_text='Commands to run before inherited build '
                               'commands.'),
                 yc.ListElem(
-                    'cmds_extend_after', sub_elem=yc.StrElem(),
+                    'append_cmds', sub_elem=yc.StrElem(),
                     help_text='Commands to run after inherited build '
                               'commands.'),
                 yc.ListElem(
@@ -384,11 +384,11 @@ expected to be added to by various plugins.
                             help_text='The sequence of commands to run to run '
                                       'the test.'),
                 yc.ListElem(
-                    'cmds_extend_before', sub_elem=yc.StrElem(),
+                    'prepend_cmds', sub_elem=yc.StrElem(),
                     help_text='Commands to run before inherited build '
                               'commands.'),
                 yc.ListElem(
-                    'cmds_extend_after', sub_elem=yc.StrElem(),
+                    'append_cmds', sub_elem=yc.StrElem(),
                     help_text='Commands to run after inherited build '
                               'commands.'),
                 PathCategoryElem(

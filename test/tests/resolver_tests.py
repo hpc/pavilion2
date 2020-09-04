@@ -480,14 +480,10 @@ class ResolverTests(PavTestCase):
         correct = {
             'test1': {
                 'build': {
-                    'cmds_extend_before': [],
                     'cmds': ['echo "and I say hello"'],
-                    'cmds_extend_after': []
                 },
                 'run': {
-                    'cmds_extend_before': [],
                     'cmds': ['echo "Hello"'],
-                    'cmds_extend_after': []
                 }
             },
             'test2': {
@@ -536,14 +532,10 @@ class ResolverTests(PavTestCase):
         correct = {
             'test1': {
                 'build': {
-                    'cmds_extend_before': [],
                     'cmds': ['echo "and I say hello"'],
-                    'cmds_extend_after': []
                 },
                 'run': {
-                    'cmds_extend_before': [],
                     'cmds': ['echo "Hello"'],
-                    'cmds_extend_after': []
                 }
             },
             'test2': {

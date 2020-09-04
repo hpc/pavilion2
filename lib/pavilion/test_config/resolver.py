@@ -1173,13 +1173,13 @@ def resolve_cmd_inheritance(test_cfg):
         if not config:
             continue
         new_cmd_list = []
-        if config.get('cmds_extend_before'):
-            new_cmd_list += config.get('cmds_extend_before')
-            config['cmds_extend_before'] = []
+        if config.get('prepend_cmds', []):
+            new_cmd_list.extend(config.get('prepend_cmds'))
+            config['prepend_cmds'] = []
         new_cmd_list += test_cfg[section]['cmds']
-        if config.get('cmds_extend_after'):
-            new_cmd_list += config.get('cmds_extend_after')
-            config['cmds_extend_after'] = []
+        if config.get('append_cmds', []):
+            new_cmd_list.extend(config.get('append_cmds'))
+            config['append_cmds'] = []
         test_cfg[section]['cmds'] = new_cmd_list
 
     return test_cfg
