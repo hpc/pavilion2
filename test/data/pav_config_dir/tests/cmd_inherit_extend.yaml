@@ -1,0 +1,23 @@
+test1:
+    build:
+        cmds:
+            - 'echo "and I say hello"'
+    run:
+        cmds: 
+            - 'echo "Hello"'
+
+test2:
+    inherits_from: test1
+    build:
+        prepend_cmds:
+            - 'echo "You say goodbye"'
+    run:
+        append_cmds: 
+            - 'echo ", hello"'
+
+test3:
+    inherits_from: test2
+    run:
+        append_cmds:
+            - 'echo "I dont know why you say goodbye,"'
+            - 'echo "I say hello"'

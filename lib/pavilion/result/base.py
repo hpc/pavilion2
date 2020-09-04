@@ -57,10 +57,8 @@ BASE_RESULTS = {
                  "The system name '{{sys.sys_name}}'"),
     'pav_result_errors': (lambda test: [],
                           "Errors from processing results."),
-    'n': (lambda test: {},
-          "Per file results (the filename sans extension)."),
-    'fn': (lambda test: {},
-           "Per filename results."),
+    'per_file': (lambda test: {},
+                 "Per file results."),
     'return_value': (None,
                      "The return value of run.sh"),
 }
