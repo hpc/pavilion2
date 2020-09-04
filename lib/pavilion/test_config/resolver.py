@@ -219,6 +219,9 @@ class TestConfigResolver:
         config_name -> {
             'path': Path to the suite file.
             'config': Full config file, loaded as a dict.
+            'status': Nothing if successful, 'Loading the config failes.'
+                      if TectConfigError.
+            'error': Detailed error if applicable.
             }
 
         """
@@ -238,11 +241,22 @@ class TestConfigResolver:
                     configs[name] = {}
 
                     full_path = file
-                    with file.open() as config_file:
-                        config = file_format.TestConfigLoader().load(config_file)
-
-                    configs[name]['path'] = full_path
-                    configs[name]['config'] = config
+                    try:
+                        with file.open() as config_file:
+                            config = file_format.TestConfigLoader().load(
+                                config_file)
+                        configs[name]['path'] = full_path
+                        configs[name]['config'] = config
+                        configs[name]['status'] = ''
+                        configs[name]['error'] = ''
+                    except (TestConfigError, TypeError) as err:
+                        configs[name]['path'] = full_path
+                        configs[name]['config'] = ''
+                        configs[name]['status'] = ('Loading the config failed.'
+                                                   ' For more info run \'pav '
+                                                   'show {} --err\'.'
+                                                   .format(conf_type))
+                        configs[name]['error'] = err
 
         return configs
 

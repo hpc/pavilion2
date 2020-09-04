@@ -133,6 +133,11 @@ class ShowCommand(commands.Command):
         )
 
         hosts_group.add_argument(
+            '--err', action='store_true', default=False,
+            help="Display any errors encountered while reading a host file."
+        )
+
+        hosts_group.add_argument(
             '--vars', action='store', type=str, metavar='<host>',
             help="Show defined variables for desired host config."
         )
@@ -140,7 +145,7 @@ class ShowCommand(commands.Command):
         hosts_group.add_argument(
             '--verbose', '-v',
             action='store_true', default=False,
-            help="Display paths to the host files"
+            help="Display paths to the host files."
         )
 
         modes = subparsers.add_parser(
@@ -158,6 +163,11 @@ class ShowCommand(commands.Command):
         )
 
         modes_group.add_argument(
+            '--err', action='store_true', default=False,
+            help="Display any errors encountered while reading a mode file."
+        )
+
+        modes_group.add_argument(
             '--vars', action='store', type=str, metavar='<mode>',
             help="Show defined variables for desired mode config."
         )
@@ -165,7 +175,7 @@ class ShowCommand(commands.Command):
         modes_group.add_argument(
             '--verbose', '-v',
             action='store_true', default=False,
-            help="Display paths to mode files"
+            help="Display paths to mode files."
         )
 
         module_wrappers = subparsers.add_parser(
@@ -456,22 +466,26 @@ class ShowCommand(commands.Command):
 
     def show_table(self, pav_cfg, args, conf_type):
 
-        print(args)
         configs = resolver.TestConfigResolver(pav_cfg).find_all_configs(conf_type)
 
         data = []
-        col_names = ['Name']
+        col_names = ['name', 'summary']
 
         if args.verbose:
-            col_names.append('Path')
+            col_names.append('path')
+
+        if args.err:
+            col_names.append('path')
+            col_names.append('err')
 
         for config in configs:
             name = config
-            path = configs[name]['path']
 
             data.append({
-                'Name': name,
-                'Path': path,
+                'name': name,
+                'summary': configs[name]['status'],
+                'path': configs[name]['path'],
+                'err': configs[name]['error']
             })
 
         output.draw_table(
