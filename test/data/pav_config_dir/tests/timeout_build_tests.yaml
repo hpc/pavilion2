@@ -19,7 +19,7 @@ GoodBuild2:
 GoodBuild3:
     summary: Successful Build
     build:
-        timeout: 2
+        timeout: 3
         timeout_file: test.txt
         cmds:
             - 'touch test.txt'
