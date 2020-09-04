@@ -14,6 +14,7 @@ for Pavilion to recognize them.
 
 import inspect
 import logging
+import traceback
 from pathlib import Path
 
 from pavilion.commands import Command
@@ -90,8 +91,9 @@ def initialize_plugins(pav_cfg):
         try:
             plugin.plugin_object.activate()
         except Exception as err:
-            raise PluginError("Error activating plugin {name}: {err}"
-                              .format(name=plugin.name, err=err))
+            raise PluginError("Error activating plugin {name}:\n{err}\n{tb}"
+                              .format(name=plugin.name, err=err,
+                                      tb=traceback.format_exc()))
 
     # Some plugin types have core plugins that are built-in.
     for _, cat_obj in PLUGIN_CATEGORIES.items():
