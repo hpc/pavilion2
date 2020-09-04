@@ -732,12 +732,7 @@ configured for that test.
                 # Store in results under the 'stem' or 'name' key as a dict
                 # where each name/stem has a dict with this key and the value.
 
-                per_key = 'n' if per_file == PER_NAME else 'fn'
-
-                if per_key not in results:
-                    results[per_key] = dict()
-
-                per_dict = results[per_key]  # type: dict
+                per_dict = results["per_file"]  # type: dict
 
                 for fname, value in presults.items():
                     if per_file == PER_FULLNAME:
@@ -761,7 +756,7 @@ configured for that test.
                     per_dict[name][key] = value
 
                 log("Saved results under '{}' for each file {}."
-                    .format(per_key, per_file))
+                    .format("per_file", per_file))
                 log(pprint.pformat(per_dict))
 
             elif per_file == PER_LIST:

@@ -166,9 +166,6 @@ class _RunCommand(commands.Command):
 
         try:
             test.save_results(results)
-
-            result_logger = logging.getLogger('results')
-            result_logger.info(output.json_dumps(results))
         except Exception:
             test.status.set(
                 STATES.RESULTS_ERROR,
