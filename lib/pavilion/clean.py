@@ -34,9 +34,6 @@ def delete_tests_by_date(pav_cfg, id_dir: Path, cutoff_date: datetime, verbose:
                 return False
 
         except PermissionError as err:
-            err = str(err).split("'")
-            output.fprint("Permission Error: {} cannot be removed."
-                          .format(err[1]), color=output.RED)
             return False
 
         except (test_run.TestRunError, test_run.TestRunNotFoundError):
@@ -48,14 +45,13 @@ def delete_tests_by_date(pav_cfg, id_dir: Path, cutoff_date: datetime, verbose:
 
 def delete_series(id_dir: Path, verbose: bool=False) -> int:
 
-    def filter_series(_: Path) -> bool:
+    def filter_series(path: Path) -> bool:
         """Filter  a series based on if they have a any symlinked tests that
         still exist.
-        :param _: This is a passed path object.
+        :param path: This is a passed path object.
         :return True: If series dir can be removed.
         :return False: If series dir cannot be removed.
         """
-        path = _
         for test_path in path.iterdir():
             if (test_path.is_symlink() and
                 test_path.exists() and
@@ -64,3 +60,12 @@ def delete_series(id_dir: Path, verbose: bool=False) -> int:
         return True
 
     return dir_db.delete(id_dir, filter_series, verbose)
+
+def delete_builds(builds_dir: Path, tests_dir: Path, verbose: bool=False):
+    """Delete all build directories that are unused by any test run.
+    :param builds_dir: Path to the pavilion builds directory.
+    :param tests_dir: Path to the pavilion test_runs directory.
+    :param verbose: Bool to determine if verbose output or not.
+    """
+
+    return builder.delete_unused(tests_dir, builds_dir, verbose)

@@ -138,7 +138,7 @@ def select(id_dir: Path,
 def delete(id_dir: Path,
            filter_func: Callable[[Path], bool] = default_filter,
            verbose: bool = False) -> int:
-    """Deletes a directory and it's entire contents.
+    """Delete all id directories in 'id_dir' that match the given filter.
 
     :param id_dir: The directory to iterate through
     :param verbose: True or False based on if you want verbose output. Default
@@ -147,7 +147,7 @@ def delete(id_dir: Path,
     """
 
     count = 0
-    error_list = []
+    msgs = []
 
     lock_path = id_dir.with_suffix('.lock')
     with lockfile.LockFile(lock_path):
@@ -155,14 +155,14 @@ def delete(id_dir: Path,
             try:
                 shutil.rmtree(path)
             except OSError as err:
-                error_list.append("Could not remove {} {}: {}"
+                msgs.append("Could not remove {} {}: {}"
                                   .format(id_dir.name, path, err))
                 continue
             count += 1
             if verbose:
-                output.fprint("Removed {} {}.".format(id_dir.name,
-                                                      path.name))
+                msgs.append("Removed {} {}.".format(id_dir.name,
+                                                    path.name))
 
     reset_pkey(id_dir)
-    return count, error_list
+    return count, msgs
 

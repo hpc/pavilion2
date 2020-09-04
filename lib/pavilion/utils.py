@@ -33,7 +33,7 @@ def resolve_path(path, strict=False):
                 # parent dir
                 path_, _, _ = path_.rpartition(sep)
                 continue
-            newpath = path_ + sep + name
+            newpath = str(path_) + sep + name
             if newpath in seen:
                 # Already seen this path
                 path_ = seen[newpath]

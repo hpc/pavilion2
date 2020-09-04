@@ -66,31 +66,34 @@ class CleanCommand(commands.Command):
         # Clean Tests
         tests_dir = pav_cfg.working_dir / 'test_runs'     # type: Path
         output.fprint("Removing Tests...", file=self.outfile, end=end)
-        removed_tests, errors = clean.delete_tests_by_date(pav_cfg, tests_dir,
-                                                           cutoff_date,
-                                                           args.verbose)
-        for error in errors:
-            output.fprint(error, color=output.YELLOW)
-        output.fprint("Removed {} test(s).".format(removed_tests),
+        rm_tests_count, msgs = clean.delete_tests_by_date(pav_cfg, tests_dir,
+                                                          cutoff_date,
+                                                          args.verbose)
+        if args.verbose:
+            for msg in msgs:
+                output.fprint(msg, color=output.YELLOW)
+        output.fprint("Removed {} test(s).".format(rm_tests_count),
                       file=self.outfile, color=output.GREEN, clear=True)
 
         # Clean Series
         series_dir = pav_cfg.working_dir / 'series'       # type: Path
         output.fprint("Removing Series...", file=self.outfile, end=end)
-        removed_series, errors = clean.delete_series(series_dir, args.verbose)
-        for error in errors:
-            output.fprint(error, color=output.YELLOW)
-        output.fprint("Removed {} series.".format(removed_series),
+        rm_series_count, msgs = clean.delete_series(series_dir, args.verbose)
+        if args.verbose:
+            for msg in msgs:
+                output.fprint(msg, color=output.YELLOW)
+        output.fprint("Removed {} series.".format(rm_series_count),
                       file=self.outfile, color=output.GREEN, clear=True)
 
         # Clean Builds
         builds_dir = pav_cfg.working_dir / 'builds'        # type: Path
         output.fprint("Removing Builds...", file=self.outfile, end=end)
-        removed_builds, errors = builder.delete_unused(tests_dir, builds_dir,
-                                                       args.verbose)
-        for error in errors:
-            output.fprint(error, color=output.YELLOW)
-        output.fprint("Removed {} build(s).".format(removed_builds),
+        rm_builds_count, msgs = clean.delete_builds(builds_dir, tests_dir,
+                                                    args.verbose)
+        if args.verbose:
+            for msg in msgs:
+                output.fprint(msg, color=output.YELLOW)
+        output.fprint("Removed {} build(s).".format(rm_builds_count),
                       file=self.outfile, color=output.GREEN, clear=True)
 
         return 0

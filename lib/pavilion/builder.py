@@ -1030,7 +1030,7 @@ def get_used_build_paths(tests_dir: Path) -> set:
     return used_builds
 
 def delete_unused(tests_dir: Path, builds_dir: Path, verbose: bool = False) -> int:
-    """Delete all the build directories, that satisfy some filter.
+    """Delete all the build directories, that are unused by any test run.
 
     :param tests_dir: The test_runs directory path object.
     :param builds_dir: The builds directory path object.
@@ -1043,7 +1043,7 @@ def delete_unused(tests_dir: Path, builds_dir: Path, verbose: bool = False) -> i
     used_build_paths = get_used_build_paths(tests_dir)
 
     def filter_builds(path: Path) -> bool:
-        """Build filter function. Build paths that have no associated 
+        """Build filter function. Build paths that have no associated
         tests and can be removed return true, otherwise they return false.
 
         :param path: The passes build path object
@@ -1057,18 +1057,18 @@ def delete_unused(tests_dir: Path, builds_dir: Path, verbose: bool = False) -> i
     count = 0
 
     lock_path = builds_dir.with_suffix('.lock')
-    error_list = []
+    msgs = []
     with lockfile.LockFile(lock_path):
         for path in dir_db.select(builds_dir, filter_builds, fn_base = 16):
             try:
                 shutil.rmtree(path.as_posix())
                 path.with_suffix('.finished').unlink()
             except OSError as err:
-                error_list.append("Could not remove build {}: {}"
+                msgs.append("Could not remove build {}: {}"
                                   .format(path, err))
                 continue
             count += 1
             if verbose:
-                output.fprint('Removed build {}.'.format(path.name))
+                msgs.append('Removed build {}.'.format(path.name))
 
-    return count, error_list
+    return count, msgs
