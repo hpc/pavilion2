@@ -6,7 +6,6 @@ the list of all known test runs."""
 import datetime
 import grp
 import json
-import hashlib
 import logging
 import pprint
 import re
@@ -15,10 +14,10 @@ import threading
 import time
 from pathlib import Path
 
-import pavilion.output
 from pavilion import builder
 from pavilion import dir_db
 from pavilion import lockfile
+from pavilion import output
 from pavilion import result
 from pavilion import scriptcomposer
 from pavilion import utils
@@ -388,7 +387,7 @@ class TestRun:
         try:
             config_lock.lock()
             with config_path.open('w') as json_file:
-                pavilion.output.json_dump(self.config, json_file)
+                output.json_dump(self.config, json_file)
         except (OSError, IOError) as err:
             raise TestRunError(
                 "Could not save TestRun ({}) config at {}: {}"
@@ -781,14 +780,30 @@ of result keys.
         return results
 
     def save_results(self, results):
-        """Save the results to the results file.
+        """Save the results to the test specific resutls file and the general
+        pavilion results file.
 
-:param dict results: The results dictionary.
-"""
+        :param dict results: The results dictionary.
+        """
 
         with self.results_path.open('w') as results_file, \
                 PermissionsManager(self.results_path, self.group, self.umask):
             json.dump(results, results_file)
+
+        result_logger = logging.getLogger('common_results')
+        if self._pav_cfg.get('flatten_results') and results.get('per_file'):
+            # Flatten 'per_file' results into separate result records.
+            base = results.copy()
+            del base['per_file']
+
+            for per_file, values in results['per_file'].items():
+                per_result = base.copy()
+                per_result['file'] = per_file
+                per_result.update(values)
+
+                result_logger.info(output.json_dumps(per_result))
+        else:
+            result_logger.info(output.json_dumps(results))
 
     def load_results(self):
         """Load results from the results file.

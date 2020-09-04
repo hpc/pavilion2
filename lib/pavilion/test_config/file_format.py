@@ -278,6 +278,14 @@ expected to be added to by various plugins.
                     help_text='The sequence of commands to run to perform '
                               'the build.'),
                 yc.ListElem(
+                    'prepend_cmds', sub_elem=yc.StrElem(),
+                    help_text='Commands to run before inherited build '
+                              'commands.'),
+                yc.ListElem(
+                    'append_cmds', sub_elem=yc.StrElem(),
+                    help_text='Commands to run after inherited build '
+                              'commands.'),
+                yc.ListElem(
                     'copy_files', sub_elem=yc.StrElem(),
                     help_text="When attaching the build to a test run, copy "
                               "these files instead of creating a symlink."
@@ -375,6 +383,14 @@ expected to be added to by various plugins.
                 yc.ListElem('cmds', sub_elem=yc.StrElem(),
                             help_text='The sequence of commands to run to run '
                                       'the test.'),
+                yc.ListElem(
+                    'prepend_cmds', sub_elem=yc.StrElem(),
+                    help_text='Commands to run before inherited build '
+                              'commands.'),
+                yc.ListElem(
+                    'append_cmds', sub_elem=yc.StrElem(),
+                    help_text='Commands to run after inherited build '
+                              'commands.'),
                 PathCategoryElem(
                     'create_files',
                     key_case=PathCategoryElem.KC_MIXED,
