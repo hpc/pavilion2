@@ -422,54 +422,41 @@ class ShowCommand(commands.Command):
         with file.open() as config_file:
             config_data = file_format.TestConfigLoader().load(config_file)
 
-        data = []
-        col_names = ['Variables', ' ', 'Type', 'Value']
-
         name = config
         path = file
         config = config_data
 
         for var in config['variables'].keys():
+            data = []
             var_out = var
-            index = 0
-            for subvar in config['variables'][var]:
-                if type(subvar) is yaml_config.elements.ConfigDict:
-                    type_out = 'dict'
-                    index_out = index
+            for idx in range(len(config['variables'][var])):
+                subvar = config['variables'][var][idx]
+                if isinstance(subvar, dict):
+                    index_set = False
                     for key, val in subvar.items():
                         data.append({
-                            'Variables': var_out,
-                            ' ': index_out,
-                            'Type': type_out,
-                            'Value': key + ": " + val,
+                            'index': idx if index_set is False else '',
+                            'value': key + ": " + val,
                         })
-                        var_out = ''
-                        type_out = ''
-                        index_out = ' '
-                    index += 1
+                        index_set = True
                 else:
                     data.append({
-                        'Variables': var_out,
-                        ' ': index,
-                        'Type': type(subvar).__name__,
-                        'Value': subvar,
+                        'index': idx,
+                        'value': subvar,
                     })
-                    var_out = ''
-                    index += 1
-
-        output.fprint("Showing Variables for {} {} config at {}: "
-                      .format(name, conf_type.strip('s'), path))
-
-        if data:
             output.draw_table(
                 self.outfile,
                 field_info={},
-                fields=col_names,
-                rows=data
+                fields=['index', 'value'],
+                rows=data,
+                title=var
             )
+            output.fprint("\n")
+
 
     def show_table(self, pav_cfg, args, conf_type):
 
+        print(args)
         configs = resolver.TestConfigResolver(pav_cfg).find_all_configs(conf_type)
 
         data = []
@@ -502,9 +489,6 @@ class ShowCommand(commands.Command):
             config_data = file_format.TestConfigLoader().load_raw(config_file)
 
         if config_data is not None:
-            output.fprint("{} config for {} found "
-                          "at:{}".format(conf_type.strip('s'), config,
-                                         str(file)), file=self.outfile)
             output.fprint(pprint.pformat(config_data, compact=True),
                           file=self.outfile)
         else:
@@ -513,9 +497,6 @@ class ShowCommand(commands.Command):
             return errno.EINVAL
 
     def show_configs(self, pav_cfg, args):
-
-        if not args.show_cmd.endswith('s'):
-            args.show_cmd = args.show_cmd + 's'
 
         if args.vars:
             self.show_vars(pav_cfg, args.vars, args.show_cmd)
