@@ -219,6 +219,7 @@ def delete(id_dir: Path, filter_func: Callable[[Path],bool]=default_filter,
     with lockfile.LockFile(lock_path):
         for path in select(id_dir, filter_func):
             try:
+                print(path)
                 shutil.rmtree(path)
             except OSError as err:
                 msgs.append("Could not remove {} {}: {}"

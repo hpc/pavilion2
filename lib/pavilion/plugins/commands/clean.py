@@ -50,7 +50,17 @@ class CleanCommand(commands.Command):
         filter_func = None
         if not args.all:
             filter_func = filters.make_test_run_filter(
+                complete = args.complete,
+                failed = args.failed,
+                incomplete = args.incomplete,
+                name = args.name,
+                newer_than = args.newer_than,
                 older_than = args.older_than,
+                passed = args.passed,
+                result_error = args.result_error,
+                show_skipped = args.show_skipped,
+                sys_name = args.sys_name,
+                user = args.user
             )
 
         end = '\n' if args.verbose else '\r'
@@ -71,7 +81,12 @@ class CleanCommand(commands.Command):
 
         if not args.all:
             filter_func = filters.make_series_filter(
-                older_than = args.older_than
+                complete = args.complete,
+                incomplete = args.incomplete,
+                newer_than = args.newer_than,
+                older_than = args.older_than,
+                sys_name = args.sys_name,
+                user = args.user
             )
 
         # Clean Series
