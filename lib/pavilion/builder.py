@@ -230,7 +230,7 @@ class TestBuilder:
     def exists(self):
         """Return True if the given build exists."""
         return self.path.exists()
-     
+
     DOWNLOAD_HASH_SIZE = 13
 
     def _fix_source_path(self):

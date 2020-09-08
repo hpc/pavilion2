@@ -57,8 +57,11 @@ class TestRunTests(PavTestCase):
         #  - get_test_path
         #  - write_tmpl
         for key in set(t.__dict__.keys()).union(t2.__dict__.keys()):
-            self.assertEqual(t.__dict__[key], t2.__dict__[key],
-                             msg="Mismatch for key {}".format(key))
+            val1 = t.__dict__[key]
+            val2 = t2.__dict__[key]
+            self.assertEqual(
+                val1, val2,
+                msg="Mismatch for key {}.\n{}\n{}".format(key, val1, val2))
 
     def test_run(self):
         config1 = {
@@ -211,23 +214,23 @@ class TestRunTests(PavTestCase):
             tests.append(TestRun(self.pav_cfg, config1))
 
         # Make sure this doesn't explode
-        suite = TestSeries(self.pav_cfg, tests)
+        series = TestSeries(self.pav_cfg, tests)
 
         # Make sure we got all the tests
-        self.assertEqual(len(suite.tests), 3)
-        test_paths = [Path(suite.path, p)
-                      for p in os.listdir(str(suite.path))]
+        self.assertEqual(len(series.tests), 3)
+        test_paths = [Path(series.path, p)
+                      for p in os.listdir(str(series.path))]
         # And that the test paths are unique
         self.assertEqual(len(set(test_paths)),
                          len([p.resolve() for p in test_paths]))
 
-        self._is_softlink_dir(suite.path)
+        self._is_softlink_dir(series.path)
 
-        suite2 = TestSeries.from_id(self.pav_cfg, suite._id)
-        self.assertEqual(sorted(suite.tests.keys()),
-                         sorted(suite2.tests.keys()))
-        self.assertEqual(sorted([t.id for t in suite.tests.values()]),
-                         sorted([t.id for t in suite2.tests.values()]))
+        series2 = TestSeries.from_id(self.pav_cfg, series.sid)
+        self.assertEqual(sorted(series.tests.keys()),
+                         sorted(series2.tests.keys()))
+        self.assertEqual(sorted([t.id for t in series.tests.values()]),
+                         sorted([t.id for t in series2.tests.values()]))
 
-        self.assertEqual(suite.path, suite2.path)
-        self.assertEqual(suite.id, suite2.id)
+        self.assertEqual(series.path, series2.path)
+        self.assertEqual(series.sid, series2.sid)

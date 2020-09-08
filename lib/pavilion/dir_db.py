@@ -6,6 +6,7 @@ import shutil
 from datetime import datetime
 from typing import Callable, List
 from pathlib import Path
+from typing import Callable, List, Iterable, Any
 
 from pavilion import lockfile
 from pavilion import test_run
@@ -18,7 +19,7 @@ ID_FMT = '{id:0{digits}d}'
 
 PKEY_FN = 'next_id'
 
-def make_id_path(base_path, id_):
+def make_id_path(base_path, id_) -> Path:
     """Create the full path to an id directory given its base path and
     the id.
 
@@ -103,66 +104,91 @@ def default_filter(_: Path) -> bool:
     return True
 
 def select(id_dir: Path,
-           filter_func: Callable[[Path], bool] = default_filter,
-           fn_base: int = 10) -> List[Path]:
-    """Return a list of all test paths in the given id_dir that pass the
-    given filter function. The paths returned are guaranteed (within limits)
-    to be an id directory, and only paths that pass the filter function
-    are returned.
+           filter_func: Callable[[Any], bool] = default_filter,
+           transform: Callable[[Path], Any] = lambda v: v,
+           order_func: Callable[[Any], Any] = None,
+           order_asc: bool = True,
+           limit: int = None) -> List[Any]:
+    """
+    :param id_dir: The dir_db directory to select from.
+    :param filter_func:
+    :param transform:
+    :param order_func:
+    :param order_asc:
+    :param limit:
+    :returns: A filtered, ordered list of transformed objects.
 
-    :param id_dir: A directory containing subdirectories to be filtered and
-                   removed.
-    :param filter_func: The filter function used to filter subdirectories in
-                        id_dir.
-    :param fn_base: The Integer base used to check whether directory names are
-                    valid intergers or hex. 16 for hex, 10 (Default) for ints.
-    :return passed: The list of path objects that passed the filter.
+    Other arguments are as per select_from.
     """
 
-    passed = []
-    for path in id_dir.iterdir():
+    return select_from(
+        paths=id_dir.iterdir(),
+        transform=transform,
+        filter_func=filter_func,
+        order_func=order_func,
+        order_asc=order_asc,
+        limit=limit,
+    )
 
-        # Check if dir_name is valid hex or int
-        # fn_base = 16 for hex, 10 for int
+
+def select_from(paths: Iterable[Path],
+                filter_func: Callable[[Any], bool] = default_filter,
+                transform: Callable[[Path], Any] = lambda v: v,
+                order_func: Callable[[Any], Any] = None,
+                order_asc: bool = True,
+                limit: int = None) -> List[Any]:
+    """Return a list of test paths in the given id_dir, filtered, ordered, and
+    potentially limited.
+    :param paths: A list of paths to filter, order, and limit.
+    :param transform: Function to apply to each path before applying filters
+        or ordering. The filter and order functions should expect the type
+        returned by this.
+    :param filter_func: A function that takes a directory, and returns whether
+        to include that directory. True -> include, False -> exclude
+    :param order_func: A function that returns a comparable value for sorting,
+        as per the list.sort keys argument. Items for which this returns
+        None are removed.
+    :param order_asc: Whether to sort in ascending or descending order.
+    :param limit: The max items to return. None denotes return all.
+    :returns: A filtered, ordered list of transformed objects.
+    """
+
+    items = []
+    for path in paths:
+        if not (path.name.isdigit() and path.is_dir()):
+            continue
+
         try:
-            int(path.name, fn_base)
+            item = transform(path)
         except ValueError:
             continue
 
-        if path.is_dir():
-            if filter_func(path):
-                passed.append(path)
+        if not filter_func(item):
+            continue
 
-    return passed
+        if order_func is not None and order_func(item) is None:
+            continue
 
-def delete(id_dir: Path,
-           filter_func: Callable[[Path], bool] = default_filter,
-           verbose: bool = False) -> int:
-    """Delete all id directories in 'id_dir' that match the given filter.
+        items.append(item)
 
-    :param id_dir: The directory to iterate through
-    :param verbose: True or False based on if you want verbose output. Default
-                    is false.
-    :return int count: The number of directories removed.
+    if order_func is not None:
+        items.sort(key=order_func, reverse=not order_asc)
+
+    return items[:limit]
+
+
+def paths_to_ids(paths: List[Path]) -> List[int]:
+    """Convert a list of list of dir_db paths to ids.
+
+    :param paths: A list of id paths.
+    :raises ValueError: For invalid paths
     """
 
-    count = 0
-    msgs = []
-
-    lock_path = id_dir.with_suffix('.lock')
-    with lockfile.LockFile(lock_path):
-        for path in select(id_dir, filter_func):
-            try:
-                shutil.rmtree(path)
-            except OSError as err:
-                msgs.append("Could not remove {} {}: {}"
-                                  .format(id_dir.name, path, err))
-                continue
-            count += 1
-            if verbose:
-                msgs.append("Removed {} {}.".format(id_dir.name,
-                                                    path.name))
-
-    reset_pkey(id_dir)
-    return count, msgs
-
+    ids = []
+    for path in paths:
+        try:
+            ids.append(int(path.name))
+        except ValueError:
+            raise ValueError(
+                "Invalid dir_db path '{}'".format(path.as_posix()))
+    return ids

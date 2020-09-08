@@ -4,12 +4,14 @@ generally be used to help make Pavilion consistent across its code and
 plugins.
 """
 
+import datetime as dt
 import errno
 import os
+import re
 import subprocess
 import zipfile
 from pathlib import Path
-from typing import Iterator
+from typing import Iterator, Union
 
 
 # Python 3.5 issue. Python 3.6 Path.resolve() handles this correctly.
@@ -126,6 +128,19 @@ def get_mime_type(path):
     return category, subtype
 
 
+def serialize_datetime(when: dt.datetime) -> str:
+    """Return a serialized datetime string."""
+
+    return when.isoformat(" ")
+
+
+def deserialize_datetime(when_str: str) -> dt.datetime:
+    """Return a datetime object from a serialized representation produced
+    by serialize_datetime()."""
+
+    return dt.datetime.strptime(when_str, "%Y-%m-%d %H:%M:%S.%f")
+
+
 def get_login():
     """Get the current user's login, either through os.getlogin or
     the environment, or the id command."""
@@ -222,3 +237,88 @@ def repair_symlinks(base: Path) -> None:
                 rel_target = relative_to(target, sym_dir)
                 file.unlink()
                 file.symlink_to(rel_target)
+
+
+def hr_cutoff_to_datetime(cutoff_time: str,
+                          _now: dt.datetime = None) -> Union[dt.datetime, None]:
+    """Convert a human readable datetime string to an actual datetime. The
+    string can come in two forms:
+
+    1. An ISO-8601 like timestamp (YYYY-MM-DD.HH:MM:SS), where the
+       sep can be any non-digit. This can be partial; components may be left
+       off from right to left. So '2019-3' is valid, but '3-12' is not.
+    2. As an amount of time before the current time, expressed as an
+       number followed by a unit. Valid units are seconds, minutes, hours,
+       days, weeks, months (approximate), and years (or the singular form of
+       those words). The value and unit may be separated by whitespace.
+    3. An empty string, which implies no time (returns None).
+
+    :param cutoff_time: The string time to parse.
+    :param _now: For testing purposes. The current time.
+    """
+
+    if cutoff_time == '':
+        return None
+
+    if _now is None:
+        now = dt.datetime.now()
+    else:
+        now = _now
+
+    rel_time_regex = re.compile(r'^(\d+(?:\.\d+)?)\s*([a-z]+)$')
+    ts_regex = re.compile(r'^(\d{4})'
+                          r'(?:-(\d{1,2})'
+                          r'(?:-(\d{1,2})'
+                          r'(?:[T ](\d{1,2})'
+                          r'(?::(\d{1,2})'
+                          r'(?::(\d{1,2})?)?)?)?)?)?$')
+
+    match = rel_time_regex.match(cutoff_time)
+    if match is not None:
+        time_amount = float(match.groups()[0])
+        time_unit = match.groups()[1]
+
+        # Convert time into hours.
+        if time_unit == 'second' or time_unit == 'seconds':
+            delta = dt.timedelta(seconds=time_amount)
+        elif time_unit == 'minute' or time_unit == 'minutes':
+            delta = dt.timedelta(minutes=time_amount)
+        elif time_unit == 'hour' or time_unit == 'hours':
+            delta = dt.timedelta(hours=time_amount)
+        elif time_unit == 'day' or time_unit == 'days':
+            delta = dt.timedelta(days=time_amount)
+        elif time_unit == 'week' or time_unit == 'weeks':
+            delta = dt.timedelta(weeks=time_amount)
+        elif time_unit == 'month' or time_unit == 'months':
+            delta = dt.timedelta(days=time_amount*365.25/12)
+        elif time_unit == 'year' or time_unit == 'years':
+            delta = dt.timedelta(days=time_amount*365.25)
+        else:
+            raise ValueError("Invalid unit time unit '{}'".format(time_unit))
+
+        try:
+            return now - delta
+        except OverflowError:
+            # Make the assumption if the user asks for tests in the last
+            # 10,000 year we just return the oldest possible datetime obj.
+            return dt.datetime(1, 1, 1)
+
+    match = ts_regex.match(cutoff_time)
+    if match is not None:
+
+        parts = [part if part is None else int(part)
+                 for part in match.groups()]
+        # Set defaults for missing parts
+        defaults = (1, 1, 1, 0, 0, 0)
+        for i in (1, 2, 3, 4, 5):
+            if parts[i] is None:
+                parts[i] = defaults[i]
+
+        try:
+            return dt.datetime(*parts)
+        except ValueError as err:
+            raise ValueError(
+                "Invalid time '{}':\n{}".format(cutoff_time, err.args[0])
+            )
+
+    raise ValueError("Invalid cutoff value '{}'".format(cutoff_time))
