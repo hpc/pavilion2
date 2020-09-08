@@ -426,6 +426,8 @@ class ShowCommand(commands.Command):
             )
 
     def show_vars(self, pav_cfg, config, conf_type):
+        """Show the variables of a config, each variable is displayed as a
+        table."""
 
         file = resolver.TestConfigResolver(pav_cfg)._find_config(conf_type,
                                                                  config)
@@ -465,6 +467,8 @@ class ShowCommand(commands.Command):
 
 
     def show_configs_table(self, pav_cfg, args, conf_type):
+        """Default config table, shows the config name and if it can be
+        loaded."""
 
         configs = resolver.TestConfigResolver(pav_cfg).find_all_configs(conf_type)
 
@@ -496,6 +500,7 @@ class ShowCommand(commands.Command):
         )
 
     def show_full_config(self, pav_cfg, config, conf_type):
+        """Show the full config of a given host/mode."""
 
         file = resolver.TestConfigResolver(pav_cfg)._find_config(conf_type,
                                                                  config)
