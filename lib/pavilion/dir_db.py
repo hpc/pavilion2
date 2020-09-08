@@ -108,6 +108,7 @@ def select(id_dir: Path,
            transform: Callable[[Path], Any] = lambda v: v,
            order_func: Callable[[Any], Any] = None,
            order_asc: bool = True,
+           fn_base: int = 10,
            limit: int = None) -> List[Any]:
     """
     :param id_dir: The dir_db directory to select from.
@@ -127,6 +128,7 @@ def select(id_dir: Path,
         filter_func=filter_func,
         order_func=order_func,
         order_asc=order_asc,
+        fn_base=fn_base,
         limit=limit,
     )
 
@@ -136,6 +138,7 @@ def select_from(paths: Iterable[Path],
                 transform: Callable[[Path], Any] = lambda v: v,
                 order_func: Callable[[Any], Any] = None,
                 order_asc: bool = True,
+                fn_base: int = 10,
                 limit: int = None) -> List[Any]:
     """Return a list of test paths in the given id_dir, filtered, ordered, and
     potentially limited.
@@ -155,7 +158,11 @@ def select_from(paths: Iterable[Path],
 
     items = []
     for path in paths:
-        if not (path.name.isdigit() and path.is_dir()):
+        if not path.is_dir():
+            continue
+        try:
+            int(path.name, fn_base)
+        except ValueError:
             continue
 
         try:
@@ -163,7 +170,10 @@ def select_from(paths: Iterable[Path],
         except ValueError:
             continue
 
-        if not filter_func(item):
+        try:
+            if not filter_func(item):
+                continue
+        except AttributeError as err:
             continue
 
         if order_func is not None and order_func(item) is None:
@@ -192,3 +202,30 @@ def paths_to_ids(paths: List[Path]) -> List[int]:
             raise ValueError(
                 "Invalid dir_db path '{}'".format(path.as_posix()))
     return ids
+
+def delete(id_dir: Path, filter_func: Callable[[Path],bool]=default_filter,
+           verbose: bool=False):
+    """Delete all id directories in a given path that match the given filter.
+    :param id_dir: The directory to iterate through.
+    :param verbose: Verbose output.
+    :return int count: The number of directories removed.
+    :return list msgs: Any messages generated during removal.
+    """
+
+    count = 0
+    msgs = []
+
+    lock_path = id_dir.with_suffix('.lock')
+    with lockfile.LockFile(lock_path):
+        for path in select(id_dir, filter_func):
+            try:
+                shutil.rmtree(path)
+            except OSError as err:
+                msgs.append("Could not remove {} {}: {}"
+                            .format(id_dir.name, path, err))
+                continue
+            count += 1
+            if verbose:
+                msgs.append("Removed {} {}.".format(id_dir.name, path.name))
+    reset_pkey(id_dir)
+    return count, msgs

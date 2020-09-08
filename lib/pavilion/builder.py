@@ -39,7 +39,7 @@ class MultiBuildTracker:
 
     def __init__(self, log=True):
         """Setup the build tracker.
-        :param bool log: Whether to also log messages in some instances.
+       :param bool log: Whether to also log messages in some instances.
         """
 
         # A map of build tokens to build names

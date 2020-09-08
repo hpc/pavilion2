@@ -1,65 +1,24 @@
 
-from datetime import datetime
 from pathlib import Path
 
 from pavilion import builder
 from pavilion import dir_db
-from pavilion import output
-from pavilion import test_run
-from pavilion import utils
-from pavilion.status_file import STATES
 
 
-def delete_tests_by_date(pav_cfg, id_dir: Path, cutoff_date: datetime, verbose:
-                         bool=False) -> int:
+def delete_tests(pav_cfg, id_dir: Path, filter_func, verbose: bool=False):
 
-    def filter_test_by_date(path: Path) -> bool:
+    if filter_func is None:
+        # Use default filter. This will likely remove every test dir.
+        return dir_db.delete(id_dir, verbose)
+    return dir_db.delete(id_dir, filter_func, verbose)
 
-        try:
-            test_time = datetime.fromtimestamp(path.lstat().st_mtime)
-        except FileNotFoundError:
-            return False
+def delete_series(id_dir: Path, filter_func, verbose: bool=False) -> int:
 
-        if test_time > cutoff_date:
-            return False
+    if filter_func is None:
+        # Use default filter. This will likely remove every series dir.
+        return dir_db.delete(id_dir, verbose)
 
-        complete_path = path/'RUN_COMPLETE'
-        if complete_path.exists():
-            return True
-
-        try:
-            test_obj = test_run.TestRun.load(pav_cfg, int(path.name))
-            state = test_obj.status.current().state
-            if state in (STATES.RUNNING, STATES.SCHEDULED):
-                return False
-
-        except PermissionError as err:
-            return False
-
-        except (test_run.TestRunError, test_run.TestRunNotFoundError):
-            pass
-
-        return True
-
-    return dir_db.delete(id_dir, filter_test_by_date, verbose)
-
-def delete_series(id_dir: Path, verbose: bool=False) -> int:
-
-    def filter_series(path: Path) -> bool:
-        """Filter  a series based on if they have a any symlinked tests that
-        still exist.
-        :param path: This is a passed path object.
-        :return True: If series dir can be removed.
-        :return False: If series dir cannot be removed.
-        """
-        for test_path in path.iterdir():
-            if (test_path.is_symlink() and
-                test_path.exists() and
-                utils.resolve_path(test_path).exists()):
-                return False
-        return True
-
-    return dir_db.delete(id_dir, filter_series, verbose)
+    return dir_db.delete(id_dir, filter_func, verbose)
 
 def delete_builds(builds_dir: Path, tests_dir: Path, verbose: bool=False):
     """Delete all build directories that are unused by any test run.
