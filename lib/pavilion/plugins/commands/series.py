@@ -56,6 +56,7 @@ class RunSeries(commands.Command):
                     )
         except AttributeError as err:
             fprint("Cannot load series. {}".format(err), color=output.RED)
+            raise series.TestSeriesError()
 
         # apply ordered: True before checking for dependencies
         if series_cfg['ordered'] in ['True', 'true']:
