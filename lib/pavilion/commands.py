@@ -107,6 +107,7 @@ class Command(IPlugin.IPlugin):
 
         self._parser = None
 
+
     def _inventory_sub_commands(self):
         """Find all the sub commands and populate the sub_cmds dict."""
 

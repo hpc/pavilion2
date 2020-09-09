@@ -28,6 +28,7 @@ TEST_FILTER_DEFAULTS = {
     'user': utils.get_login(),
     'limit': None,
     'force_filter': False,
+
 }
 
 TEST_SORT_FUNCS = {
@@ -51,6 +52,7 @@ def add_common_filter_args(target: str,
     :param arg_parser: The argparser to add arguments to.
     :param defaults: A dictionary of default values for all arguments.
     :param sort_options: A list of possible sort options.
+
     :return:
     """
     ci_group = arg_parser.add_mutually_exclusive_group()
@@ -69,6 +71,7 @@ def add_common_filter_args(target: str,
         '-l', '--limit', type=int, default=defaults['limit'],
         help="Max number of {} to display.  Default: {}"
         .format(target, defaults['limit'])
+
     )
     arg_parser.add_argument(
         '--older-than', type=utils.hr_cutoff_to_datetime,
