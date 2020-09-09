@@ -4,10 +4,10 @@ for Pavilion."""
 import copy
 import fnmatch
 import inspect
-import time
 import os
 import pprint
 import tempfile
+import time
 import types
 import unittest
 from hashlib import sha1
@@ -15,8 +15,8 @@ from pathlib import Path
 from typing import List
 
 from pavilion import arguments
-from pavilion import dir_db
 from pavilion import config
+from pavilion import dir_db
 from pavilion import pavilion_variables
 from pavilion import system_variables
 from pavilion.output import dbg_print
@@ -51,7 +51,11 @@ base class.
 
     PAV_CONFIG_PATH = TEST_DATA_ROOT/'pav_config_dir'/'pavilion.yaml'
 
-    TEST_URL = 'https://github.com/lanl/Pavilion/archive/master.zip'
+    TEST_URL = ('https://raw.githubusercontent.com/hpc/'
+                'pavilion2/2.1.1/README.md')
+    TEST_URL2 = ('https://raw.githubusercontent.com/hpc/'
+                 'pavilion2/2.1.1/RELEASE.txt')
+    TEST_URL_HASH = '0a3ad5bec7c8f6929115d33091e53819ecaca1ae'
 
     # Skip any tests that match these globs.
     SKIP = []

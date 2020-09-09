@@ -1,11 +1,13 @@
 # pylint: disable=too-many-lines
 """The Slurm Scheduler Plugin."""
 
+import distutils.spawn
+import math
 import os
 import re
 import subprocess
 from pathlib import Path
-import distutils.spawn
+from typing import List
 
 import yaml_config as yc
 from pavilion import scriptcomposer
@@ -80,7 +82,7 @@ class SlurmVars(SchedulerVariables):
         "alloc_max_ppn": "36",
         "alloc_min_mem": "128842",
         "alloc_min_ppn": "36",
-        "alloc_node_list": ["node004", "node005"],
+        "alloc_node_list": "node004 node005",
         "alloc_nodes": "2",
         "max_mem": "128842",
         "max_ppn": "36",
@@ -93,7 +95,8 @@ class SlurmVars(SchedulerVariables):
         "nodes_avail": "3",
         "nodes_up": "350",
         "test_cmd": "srun -N 2 -n 2",
-        "test_node_list": ["node004", "node005"],
+        "test_node_list": "node004 node005",
+        "test_node_list_short": "node00[4-5]",
         "test_nodes": "2",
         "test_procs": "2",
     }
@@ -193,33 +196,8 @@ Warning: Tests that use this will fail to start if no nodes are available."""
     @dfr_var_method
     def alloc_node_list(self):
         """A space separated list of nodes in this allocation."""
-        final_list = []
-        nodelist = os.getenv('SLURM_NODELIST')
 
-        if '[' in nodelist:
-            prefix = nodelist.split('[')[0]
-            nodes = nodelist.split('[')[1].split(']')[0]
-
-            range_list = nodes.split(',')
-
-            for item in range_list:
-                if '-' in item:
-                    node_range = range(int(item.split('-')[0]),
-                                       int(item.split('-')[1])+1)
-                    zfill = len(item.split('-')[0])
-                    for i in range(0, len(node_range)):
-                        final_list.append(str(node_range[i]).zfill(zfill))
-                else:
-                    final_list.append(item)
-
-            for i in range(0, len(final_list)):
-                final_list[i] = prefix + final_list[i]
-        else:
-            final_list.append(nodelist)
-
-        # Deferred variables can't be lists, so we have to make this into
-        # a space separated string.
-        return ' '.join(final_list)
+        return ' '.join(Slurm.parse_node_list(os.getenv('SLURM_NODELIST')))
 
     @dfr_var_method
     def alloc_min_ppn(self):
@@ -250,6 +228,14 @@ Warning: Tests that use this will fail to start if no nodes are available."""
     def test_node_list(self):
         """A list of nodes dedicated to this test run."""
         return self.alloc_node_list()
+
+    @dfr_var_method
+    def test_node_list_short(self):
+        """Node list, compressed in a slurm compatible way."""
+
+        return Slurm.short_node_list(
+            self.test_node_list().split(),
+            self.sched.logger)
 
     @dfr_var_method
     def test_nodes(self):
@@ -478,7 +464,7 @@ class Slurm(SchedulerPlugin):
     }
 
     @classmethod
-    def _parse_node_list(cls, node_list):
+    def parse_node_list(cls, node_list):
         """Convert a slurm format node list into a list of nodes, and throw
         errors that help the user identify their exact mistake."""
         if node_list is None or node_list == '':
@@ -526,6 +512,77 @@ class Slurm(SchedulerPlugin):
                 nodes.append(part)
 
         return nodes
+
+    @classmethod
+    def short_node_list(cls, nodes: List[str], logger):
+        """Convert a list of nodes into an abbreviated node list that
+        slurm should understand."""
+
+        # Pull apart the node name into a prefix and number. The prefix
+        # is matched minimally to avoid consuming any parts of the
+        # node number.
+        node_re = re.compile(r'^([a-zA-Z0-9_-]+?)(\d+)$')
+
+        seqs = {}
+        nodes = sorted(nodes)
+        for node in nodes:
+            node_match = node_re.match(node)
+            if node_match is None:
+                logger.warning(
+                    "Node '{}' did not match node_re when trying to dissect "
+                    "node name in slurm.short_node_list."
+                    .format(node))
+                continue
+
+            base, raw_number = node_match.groups()
+            number = int(raw_number)
+            if base not in seqs:
+                seqs[base] = (len(raw_number), [])
+
+            _, node_nums = seqs[base]
+            node_nums.append(number)
+
+        node_seqs = []
+        for base, (digits, nums) in sorted(seqs.items()):
+            nums.sort(reverse=True)
+            num_digits = math.ceil(math.log(nums[0], 10))
+            pre_digits = digits - num_digits
+
+            num_list = []
+
+            num_series = []
+            start = last = nums.pop()
+            while nums:
+                next_num = nums.pop()
+                if next_num != last + 1:
+                    num_series.append((start, last))
+                    start = next_num
+                last = next_num
+
+            num_series.append((start, last))
+
+            for start, last in num_series:
+                if start == last:
+                    num_list.append(
+                        '{num:0{digits}d}'
+                        .format(base=base, num=start, digits=num_digits))
+                else:
+                    num_list.append(
+                        '{start:0{num_digits}d}-{last:0{num_digits}d}'
+                        .format(
+                            start=start, last=last, num_digits=num_digits))
+
+            num_list = ','.join(num_list)
+            if ',' in num_list or '-' in num_list:
+                seq_format = '{base}{z}[{num_list}]'
+            else:
+                seq_format = '{base}{z}{num_list}'
+
+            node_seqs.append(
+                seq_format
+                .format(base=base, z='0' * pre_digits, num_list=num_list))
+
+        return ','.join(node_seqs)
 
     def _collect_node_data(self, nodes=None):
         """Use the `scontrol show node` command to collect data on nodes.
@@ -629,8 +686,8 @@ class Slurm(SchedulerPlugin):
 
         up_states = config['up_states']
 
-        include_nodes = self._parse_node_list(config['include_nodes'])
-        exclude_nodes = self._parse_node_list(config['exclude_nodes'])
+        include_nodes = self.parse_node_list(config['include_nodes'])
+        exclude_nodes = self.parse_node_list(config['exclude_nodes'])
 
         def in_up_states(state):
             """state in up states"""
@@ -999,7 +1056,7 @@ class Slurm(SchedulerPlugin):
 
         nodes = self._filter_nodes(int(min_nodes), sched_config, nodes)
 
-        include_nodes = self._parse_node_list(sched_config['include_nodes'])
+        include_nodes = self.parse_node_list(sched_config['include_nodes'])
         if min_all:
             min_nodes = len(nodes)
         else:

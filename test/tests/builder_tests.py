@@ -223,32 +223,58 @@ class BuilderTests(PavTestCase):
             self.assertTrue(sym.is_symlink(),
                             msg="{} is not a symlink".format(sym))
 
-    README_HASH = '275fa3c8aeb10d145754388446be1f24bb16fb00'
-
     @unittest.skipIf(wget.missing_libs(),
                      "The wget module is missing required libs.")
     def test_src_urls(self):
 
-        fake_configs = self.TEST_DATA_ROOT/'pav_config_dir'/'tests'
+        config_dir = self.TEST_DATA_ROOT/'pav_config_dir'
 
         config = {
             'name': 'test',
             'scheduler': 'raw',
-            'suite_path': (fake_configs/'fake_test.yaml').as_posix(),
+            'suite_path': (config_dir/'tests'/'fake_test.yaml').as_posix(),
             'build': {
                 'modules': ['gcc'],
                 'source_url': self.TEST_URL,
-                'source_path': 'README.md'
+                'source_path': 'README.md',
+                'source_download': 'missing',
             }
         }
 
-        test = self._quick_test(config, build=False, finalize=False)
-        if test.builder.path.exists():
-            shutil.rmtree(str(test.builder.path))
+        expected_path = config_dir/'test_src'/'README.md'
+        if expected_path.exists():
+            expected_path.unlink()
 
+        self.assertFalse(expected_path.exists())
+
+        test = self._quick_test(config, build=False, finalize=False)
         test.builder._setup_build_dir(test.builder.path)
-        self.assertEqual(self.README_HASH,
+
+        self.assertEqual(self.TEST_URL_HASH,
                          self.get_hash(test.builder.path/'README.md'))
+        self.assertTrue(expected_path.exists())
+
+        # Make sure the build isn't updated even the local is different.
+        with expected_path.open('a') as readme_file:
+            readme_file.write("<extra>")
+        orig_time = expected_path.stat().st_mtime
+        self._quick_test(config, build=False, finalize=False)
+        self.assertEqual(orig_time, expected_path.stat().st_mtime)
+
+        # Here it should be updated. We're playing a weird trick here though,
+        # by pointing to a completely different url.
+        config = copy.deepcopy(config)
+        config['build']['source_url'] = self.TEST_URL2
+        config['build']['source_download'] = 'latest'
+        self._quick_test(config, build=False, finalize=False)
+        self.assertGreater(expected_path.stat().st_mtime, orig_time)
+
+        config = copy.deepcopy(config)
+        config['build']['source_download'] = 'never'
+        config['build']['source_url'] = 'http://nowhere-that-exists.com'
+        self._quick_test(config, build=False, finalize=False)
+        # This should succeed, because the file exists and we're not
+        # going to download it.
 
     def test_build(self):
         """Make sure building works."""

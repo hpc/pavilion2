@@ -1,5 +1,6 @@
 """Tests for various utils functions."""
 
+import datetime as dt
 import os
 import tempfile
 from pathlib import Path
@@ -9,6 +10,48 @@ from pavilion import utils
 
 
 class UtilsTests(unittest.PavTestCase):
+
+    def test_hr_cutoff(self):
+        """Check hr_cutoff_to_datetime function."""
+
+        now = dt.datetime.now()
+        examples = {
+            '2020': dt.datetime(2020, 1, 1),
+            '2019-3': dt.datetime(2019, 3, 1),
+            '2009-04-9': dt.datetime(2009, 4, 9),
+            '1999-05-10 10': dt.datetime(1999, 5, 10, 10),
+            '1989-06-11T11:9': dt.datetime(1989, 6, 11, 11, 9),
+            '1979-07-12 12:10:9': dt.datetime(1979, 7, 12, 12, 10, 9),
+            '1969-08-13T13:11:10': dt.datetime(1969, 8, 13, 13, 11, 10),
+            '5second': now - dt.timedelta(seconds=5),
+            '9 minutes': now - dt.timedelta(minutes=9),
+            '11.5   hours': now - dt.timedelta(hours=11.5),
+            '31    day': now - dt.timedelta(days=31),
+            '14     week': now - dt.timedelta(weeks=14),
+            '13      month': now - dt.timedelta(days=13 * 365.25/12),
+            '14       year': now - dt.timedelta(days=14 * 365.25),
+        }
+
+        for example, answer in examples.items():
+            self.assertEqual(
+                utils.hr_cutoff_to_datetime(example, _now=now),
+                answer,
+                msg="Parsing '{}' failed.".format(example)
+            )
+
+        bad_examples = [
+            '2019-3 12',  # You can only leave out values right-to-left
+            '2019-3-4  12',  # Only one in-between char allowed.
+            '2019-3-4Q11',  # Only 'T' or space allowed.
+            '2019-3-4 5:6:77',  # Outside limits
+            '1 blargl',  # No such time unit.
+            'weeks'  # No time amount
+        ]
+
+        for example in bad_examples:
+            with self.assertRaises(ValueError):
+                utils.hr_cutoff_to_datetime(example)
+
 
     def test_relative_to(self):
         """Check relative path calculations."""
