@@ -14,7 +14,7 @@ from pavilion import schedulers
 from pavilion import test_config
 from pavilion.builder import MultiBuildTracker
 from pavilion.output import fprint
-from pavilion.plugins.commands.status import print_from_test_obj
+from pavilion.plugins.commands.status import print_from_tests
 from pavilion.series import TestSeries, test_obj_from_id
 from pavilion.status_file import STATES
 from pavilion.test_run import TestRun, TestRunError, TestConfigError
@@ -267,16 +267,16 @@ class RunCommand(commands.Command):
         fprint("{} test{} started as test series {}."
                .format(len(all_tests),
                        's' if len(all_tests) > 1 else '',
-                       series.id),
+                       series.sid),
                file=self.outfile,
                color=output.GREEN)
 
         if report_status:
             tests = list(series.tests.keys())
             tests, _ = test_obj_from_id(pav_cfg, tests)
-            return print_from_test_obj(
+            return print_from_tests(
                 pav_cfg=pav_cfg,
-                test_obj=tests,
+                tests=tests,
                 outfile=self.outfile)
 
         return 0
@@ -494,7 +494,8 @@ name) of lists of tuples
             if test.rebuild and test.builder.exists():
                 test.builder.deprecate()
                 test.builder.rename_build()
-                test.save_build_name()
+                test.build_name = test.builder.name
+                test.save_attributes()
 
         # We don't want to start threads that are just going to wait on a lock,
         # so we'll rearrange the builds so that the uniq build names go first.

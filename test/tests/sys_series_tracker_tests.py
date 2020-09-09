@@ -45,4 +45,4 @@ class SysNameSeriesTrackerTests(PavTestCase):
         with json_file.open('r') as json_series_file:
             data = json.load(json_series_file)
 
-        self.assertEqual(data[sys_name], series.id)
+        self.assertEqual(data[sys_name], series.sid)
