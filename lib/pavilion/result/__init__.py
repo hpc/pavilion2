@@ -4,13 +4,16 @@ themselves, as well as functions for performing this parsing. Additionally,
 it contains the functions used to get the base result values, as well as
 resolving result evaluations."""
 
+import json
 import textwrap
-from typing import IO, Callable
+from pathlib import Path
+from typing import IO, Callable, List
 
+from pavilion import lockfile as _lockfile
 from pavilion.test_config import resolver
-from .evaluations import check_expression, evaluate_results, StringParserError
-from .base import base_results, ResultError, BASE_RESULTS
 from . import parsers
+from .base import base_results, ResultError, BASE_RESULTS
+from .evaluations import check_expression, evaluate_results, StringParserError
 from .parsers import parse_results, ResultParser
 
 
@@ -108,3 +111,41 @@ For evaluations we check for:
             )
 
     return errors
+
+
+def prune_result_log(log_path: Path, ids: List[str]) -> List[dict]:
+    """Remove records corresponding to the given test ids. Ids can be either
+    an test run id or a test run uuid.
+
+    :param log_path: The result log path.
+    :param ids: A list of test run ids and/or uuids.
+    :returns: A list of the pruned result dictionaries.
+    :raises ResultError: When we can't overwrite the log file.
+    """
+
+    pruned = []
+    rewrite_log_path = log_path.with_suffix('.rewrite')
+    lockfile_path = log_path.with_suffix(log_path.suffix + '.lock')
+
+    with _lockfile.LockFile(lockfile_path), \
+         log_path.open() as result_log, \
+            rewrite_log_path.open('w') as rewrite_log:
+
+        for line in result_log:
+            try:
+                result = json.loads(line)
+            except json.JSONDecodeError:
+                # If we can't parse the line, just rewrite it as is.
+                rewrite_log.write(line)
+                continue
+
+            if not (str(result.get('id')) in ids
+                    or result.get('uuid') in ids):
+                rewrite_log.write(line)
+            else:
+                pruned.append(result)
+
+        log_path.unlink()
+        rewrite_log_path.rename(log_path)
+
+    return pruned

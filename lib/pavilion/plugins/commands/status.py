@@ -5,79 +5,77 @@ import errno
 import os
 import time
 from datetime import datetime
-from typing import List, Union
+from typing import List
 
 from pavilion import commands
+from pavilion import dir_db
+from pavilion import filters
 from pavilion import output
 from pavilion import schedulers
 from pavilion import series
-from pavilion import test_run
+from pavilion import cmd_utils
+from pavilion.series import TestSeries, TestSeriesError
 from pavilion.status_file import STATES
-from pavilion.test_run import TestRun, TestRunError, TestRunNotFoundError
+from pavilion.test_run import (
+    TestRun, TestRunError, TestRunNotFoundError, TestAttributes)
 
 
 def get_last_ctime(path):
     """Gets the time path was modified."""
-    mtime = os.path.getmtime(path)
+    mtime = os.path.getmtime(str(path))
     ctime = str(time.ctime(mtime))
     ctime = ctime[11:19]
     return ctime
 
 
-def status_from_test_obj(pav_cfg: dict,
-                         *test_objs: TestRun):
+def status_from_test_obj(pav_cfg: dict, test: TestRun):
     """Takes a test object or list of test objects and creates the dictionary
     expected by the print_status function.
 
 :param pav_cfg: Pavilion base configuration.
-:param test_obj: Pavilion test object.
+:param test: Pavilion test object.
 :return: List of dictionary objects containing the test ID, name,
-         statt time of state update, and note associated with that state.
+         stat time of state update, and note associated with that state.
 :rtype: list(dict)
+    """
+
+    status_f = test.status.current()
+
+    if status_f.state == STATES.SCHEDULED:
+        sched = schedulers.get_plugin(test.scheduler)
+        status_f = sched.job_status(pav_cfg, test)
+    elif status_f.state == STATES.BUILDING:
+        last_update = test.builder.log_updated()
+        status_f.note = ' '.join([
+            status_f.note, '\nLast updated: ',
+            last_update if last_update is not None else '<unknown>'])
+    elif status_f.state == STATES.RUNNING:
+        last_update = get_last_ctime(test.path/'run.log')
+        status_f.note = ' '.join([
+            status_f.note, '\nLast updated:',
+            last_update if last_update is not None else '<unknown>'])
+
+    return {
+        'test_id': test.id,
+        'name':    test.name,
+        'state':   status_f.state,
+        'time':    status_f.when,
+        'note':    status_f.note,
+    }
+
+
+def get_test_statuses(pav_cfg, test_ids):
+    """Return the statuses for all tests, up to the limit in args.limit.
+    :param List[int] test_ids: A list of test ids to load.
     """
 
     test_statuses = []
 
-    for test in test_objs:
-        status_f = test.status.current()
-
-        if status_f.state == STATES.SCHEDULED:
-            sched = schedulers.get_plugin(test.scheduler)
-            status_f = sched.job_status(pav_cfg, test)
-        elif status_f.state == STATES.BUILDING:
-            last_update = get_last_ctime(test.builder.log_updated())
-            status_f.note = ' '.join([status_f.note,
-                                      'Last updated: ',
-                                      last_update])
-        elif status_f.state == STATES.RUNNING:
-            last_update = get_last_ctime(test.path/'run.log')
-            status_f.note = ' '.join([status_f.note,
-                                      'Last updated:',
-                                      last_update])
-
-        test_statuses.append({
-            'test_id': test.id,
-            'name':    test.name,
-            'state':   status_f.state,
-            'time':    status_f.when,
-            'note':    status_f.note,
-        })
-
-    test_statuses.sort(key=lambda x: x['test_id'])
-    return test_statuses
-
-
-def get_all_tests(pav_cfg, args):
-    """Return the statuses for all tests, up to the limit in args.limit."""
-
-    latest_tests = test_run.get_latest_tests(pav_cfg, args.limit)
-
-    test_obj_list = []
-    test_statuses = []
-    for test_id in latest_tests:
+    for test_id in test_ids:
         try:
             test = TestRun.load(pav_cfg, test_id)
-            test_obj_list.append(test)
+            test_statuses.append(status_from_test_obj(pav_cfg, test))
+
         except (TestRunError, TestRunNotFoundError) as err:
             test_statuses.append({
                 'test_id': test_id,
@@ -86,11 +84,6 @@ def get_all_tests(pav_cfg, args):
                 'time':    None,
                 'note':    "Test not found: {}".format(err)
             })
-
-    statuses = status_from_test_obj(pav_cfg, *test_obj_list)
-
-    if statuses is not None:
-        test_statuses = test_statuses + statuses
 
     return test_statuses
 
@@ -166,14 +159,14 @@ def get_statuses(pav_cfg, args, errfile):
                 'note':    "Error loading test: {}".format(err),
             })
 
-    statuses = status_from_test_obj(pav_cfg, *test_obj_list)
+    statuses = [status_from_test_obj(pav_cfg, test) for test in test_obj_list]
 
     if statuses is not None:
         test_statuses = test_statuses + statuses
     return test_statuses
 
 
-def print_status(statuses, outfile, json=False, show_skipped=False):
+def print_status(statuses, outfile, json=False):
     """Prints the statuses provided in the statuses parameter.
 
 :param list statuses: list of dictionary objects containing the test
@@ -185,10 +178,6 @@ def print_status(statuses, outfile, json=False, show_skipped=False):
 :return: success or failure.
 :rtype: int
 """
-
-    if not show_skipped:
-        statuses = [status for status in statuses
-                    if status['state'] != STATES.SKIPPED]
 
     ret_val = 1
     for stat in statuses:
@@ -211,11 +200,11 @@ def print_status(statuses, outfile, json=False, show_skipped=False):
     return ret_val
 
 
-def print_from_test_obj(pav_cfg, test_obj, outfile, json=False):
+def print_from_tests(pav_cfg, tests, outfile, json=False):
     """Print the statuses given a list of test objects or a single test object.
 
     :param dict pav_cfg: Base pavilion configuration.
-    :param Union(test_run.TestRun,list(test_run.TestRun) test_obj:
+    :param Union(test_run.TestRun,list(test_run.TestRun) tests:
         Single or list of test objects.
     :param bool json: Whether the output should be a JSON object or not.
     :param stream outfile: Stream to which the statuses should be printed.
@@ -223,7 +212,7 @@ def print_from_test_obj(pav_cfg, test_obj, outfile, json=False):
     :rtype: int
     """
 
-    status_list = status_from_test_obj(pav_cfg, *test_obj)
+    status_list = [status_from_test_obj(pav_cfg, test) for test in tests]
     return print_status(status_list, outfile, json)
 
 
@@ -243,50 +232,29 @@ class StatusCommand(commands.Command):
         )
         parser.add_argument(
             'tests', nargs='*', action='store',
-            help='The name(s) of the tests to check.  These may be any mix of '
-                 'test IDs and series IDs.  If no value is provided, the most '
-                 'recent series submitted by this user is checked.'
-        )
-        parser.add_argument(
-            '-a', '--all', action='store_true',
-            help='Displays all tests within a certain limit.'
-        )
-        parser.add_argument(
-            '-l', '--limit', type=int, default=10,
-            help='Max number of tests displayed if --all is used.'
-        )
-        parser.add_argument(
-            '--history', type=int,
-            help="Shows the full status history of a job."
+            help="The name(s) of the tests to check.  These may be any mix of "
+                 "test IDs and series IDs. Use 'last' to get just the last "
+                 "series you ran."
         )
         parser.add_argument(
             '-s', '--summary', default=False, action='store_true',
             help='Display a single line summary of test statuses.'
         )
-        parser.add_argument(
-            '-k', '--show-skipped', default=False, action='store_true',
-            help='Show the status of skipped tests.')
+
+        filters.add_test_filter_args(parser)
 
     def run(self, pav_cfg, args):
         """Gathers and prints the statuses from the specified test runs and/or
         series."""
-        try:
-            if not args.all:
-                test_statuses = get_statuses(pav_cfg, args, self.errfile)
-            else:
-                test_statuses = get_all_tests(pav_cfg, args)
-        except commands.CommandError as err:
-            output.fprint("Status Error:", err, color=output.RED,
-                          file=self.errfile)
-            return 1
 
-        if args.history:
-            return self.display_history(pav_cfg, args)
-        elif args.summary:
-            return self.print_summary(test_statuses)
+        test_ids = cmd_utils.arg_filtered_tests(pav_cfg, args)
+
+        statuses = get_test_statuses(pav_cfg, test_ids)
+
+        if args.summary:
+            return self.print_summary(statuses)
         else:
-            return print_status(test_statuses, self.outfile, args.json,
-                                args.show_skipped)
+            return print_status(statuses, self.outfile, args.json)
 
     def display_history(self, pav_cfg, args):
         """Display_history takes a test_id from the command
@@ -316,7 +284,7 @@ class StatusCommand(commands.Command):
                                                   '%Y-%m-%dT%H:%M:%S.%f'),
                         'note': val[2]
                     })
-        except (TestRunError, TestRunNotFoundError) as err:
+        except (TestRunError, TestRunNotFoundError):
             output.fprint("The test_id {} does not exist in your "
                           "working directory.".format(args.history),
                           file=self.errfile,
