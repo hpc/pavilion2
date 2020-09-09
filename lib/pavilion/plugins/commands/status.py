@@ -240,11 +240,6 @@ class StatusCommand(commands.Command):
             '-s', '--summary', default=False, action='store_true',
             help='Display a single line summary of test statuses.'
         )
-        parser.add_argument(
-            '-f', '--force-filter', default=False, action='store_true',
-            help="Apply filtering even to tests that are specifically "
-                 "requested."
-        )
 
         filters.add_test_filter_args(parser)
 

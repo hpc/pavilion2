@@ -3,12 +3,14 @@
 # pylint: disable=W0603
 
 import argparse
+import errno
 import inspect
 import io
 import logging
 import sys
 
 from pavilion import arguments
+from pavilion import output
 from yapsy import IPlugin
 
 _COMMANDS = {}
@@ -103,7 +105,7 @@ class Command(IPlugin.IPlugin):
         if sub_commands:
             self._inventory_sub_commands()
 
-        self.parser = None
+        self._parser = None
 
     def _inventory_sub_commands(self):
         """Find all the sub commands and populate the sub_cmds dict."""
@@ -158,7 +160,7 @@ case that includes:
                                            help=self.short_help)
 
         # Save the argument parser, as it can come in handy.
-        self.parser = parser
+        self._parser = parser
 
         self._setup_arguments(parser)
 
@@ -180,6 +182,24 @@ case that includes:
 """
         raise NotImplementedError(
             "Command plugins must override the 'run' method.")
+
+    def _run_sub_command(self, pav_cfg, args):
+        """Find and run the subcommand."""
+
+        cmd_name = args.sub_cmd
+
+        if cmd_name is None:
+            output.fprint(
+                "You must provide a sub command '{}'.".format(cmd_name),
+                color=output.RED, file=self.errfile)
+            self._parser.print_help(file=self.errfile)
+            return errno.EINVAL
+
+        if cmd_name not in self.sub_cmds:
+            raise RuntimeError("Invalid sub-cmd '{}'".format(cmd_name))
+
+        cmd_result = self.sub_cmds[cmd_name](self, pav_cfg, args)
+        return 0 if cmd_result is None else cmd_result
 
     def __repr__(self):
         return '<{} from file {} named {}>'.format(
@@ -211,6 +231,12 @@ case that includes:
         self.errfile.truncate(0)
 
         return data, err_data
+
+    @property
+    def path(self):
+        """The path to the object that defined this instance."""
+
+        return inspect.getfile(self.__class__)
 
 
 def sub_cmd(*aliases):
