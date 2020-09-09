@@ -4,6 +4,29 @@ RELEASE=2.2
 
 # Release History
 
+## 2.3 Release Notes
+ - Added 'flatten_results' option to the base Pavilion config. Allows for
+   producing a separate result log line for each 'per_file' result, making
+   charting in Splunk significantly easier. The results can be significantly 
+   larger, however, expecially on large machines.
+ - Added unified test run filtering in 'status' and 'result'.
+ - Added the 'list' command for searching test runs and series
+ - Added 'maint' command for maintanence operations.
+ - Results now include a 'uuid' key - A completely unique id for each test.
+
+
+ - Backwards compatibility breaks
+   - 'fn' and 'n' result fields have been merged into 'per_file'.
+   - The 'status', and 'result' commands now search all available test runs
+     and select recent (1 day) tests by the current user on the current 
+     machine. For the old behavior, use ``pav status last``, etc. 
+   - Old tests will lack some expected properties for searching, 
+     as that information has been consolidated into the 'attributes' file
+     which they won't have.
+   - 'test_node_list' in the results has been replaced with the much shorter
+     'test_node_list_short' key.
+   - The results command '-l' (--show-logs) option is now '-L'.
+
 ## 2.2 Release notes
  - All new test config parser.
  - Variable references are now 'expressions'.
@@ -32,7 +55,7 @@ RELEASE=2.2
      (https://docs.python.org/2.0/ref/strings.html),
      plus '[', '{', and '~'.
    - The results section is now 'result_parse'
-   - Result parsers plugins now have explicit argument default and validation settings, 
+   - Result parsers plugins now have explicit argument default and validation settings,
      and the _check_args method must return the modified argument dictionary.
      (rather than None before)
 
@@ -42,7 +65,7 @@ RELEASE=2.2
        unit_base: 100
      result_parse:
        regex:
-          speed: 
+          speed:
             regex: 'speed (\d+)'
      result_evaluate:
        speed_normalized: "speed / {{unit_base}}"
@@ -56,13 +79,13 @@ RELEASE=2.2
        source_url: http://github.com/hpc/mytest/latest.zip
        source_download: latest
 
- - Build are now built in their final location, rather than in a tmp 
-   location. This fixes the issues with symlinks (as they no longer 
-   move, so they can be absolute), and issues with non-relocatable 
+ - Build are now built in their final location, rather than in a tmp
+   location. This fixes the issues with symlinks (as they no longer
+   move, so they can be absolute), and issues with non-relocatable
    builds.
 
  - New config keys:
-   - 
+   -
    ```yaml
    mytest:
      maintainer:

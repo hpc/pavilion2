@@ -13,7 +13,7 @@ class SlurmMPIVars(slurm.SlurmVars):
         "alloc_max_ppn": "36",
         "alloc_min_mem": "128842",
         "alloc_min_ppn": "36",
-        "alloc_node_list": ["node004", "node005"],
+        "alloc_node_list": "node004 node005",
         "alloc_nodes": "2",
         "max_mem": "128842",
         "max_ppn": "36",
@@ -28,7 +28,8 @@ class SlurmMPIVars(slurm.SlurmVars):
         "nodes_up": "350",
         "procs_per_node": "2",
         "test_cmd": "mpirun --map-by ppr:2:node --rank-by slot --bind_to core",
-        "test_node_list": ["node004", "node005"],
+        "test_node_list": "node004 node005",
+        "test_node_list_short": "node00[4-5]",
         "test_nodes": "1",
         "test_procs": "2",
     }

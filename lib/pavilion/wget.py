@@ -142,16 +142,22 @@ def _get_proxies(pav_cfg, url):
     return pav_cfg.proxies
 
 
+def _get_info_fn(path):
+    """Return the path to the info filename for the given path."""
+
+    info_fn = '.' + path.with_suffix(path.suffix + '.info').name
+    return path.parent/info_fn
+
+
 def _get_info(path):
-    """Get the contents of the info file for the given file, which is located
-    at <filename>.info. Additionally, add some useful stat information to
-    the info object we return.
+    """Get the contents of the info file for the given file.
+    Additionally, add some useful stat information to the info object we return.
     :param Path path: The path to the file we want the info object for.
     :returns: A dictionary of the info information.
     :rtype dict:
     """
 
-    info_fn = path.with_suffix(path.suffix + '.info')
+    info_fn = _get_info_fn(path)
 
     info = {}
 
@@ -188,7 +194,7 @@ def _save_info(path, head_data):
     for the object.
     """
 
-    info_fn = path.with_suffix(path.suffix + '.info')
+    info_fn = _get_info_fn(path)
 
     data = {}
     for field in INFO_HEADER_FIELDS:
@@ -214,20 +220,22 @@ def update(pav_cfg, url, dest):
 
     fetch = False
 
-    info_path = dest.with_suffix(dest.suffix+'.info')
+    info_path = _get_info_fn(dest)
 
-    head_data = head(pav_cfg, url)
+    head_data = None
 
     # If the file doesn't exist, just get it.
     if not dest.exists():
         fetch = True
     else:
+        head_data = head(pav_cfg, url)
+
         info = _get_info(dest)
 
         # If the file .info file doesn't exist, check to see if we can get a
         # matching Content-Length and fetch it if we can't.
         if (not info_path.exists() and
-                head_data.get('Content-Length') != info['size']):
+            (head_data.get('Content-Length') != info['size'])):
             fetch = True
 
         # If we do have an info file and neither the ETag or content length
@@ -235,7 +243,7 @@ def update(pav_cfg, url, dest):
         # depends on the transfer encoding. It should match for any already
         # compressed files, but other data types are frequently compressed.
         elif (not (
-                info['ETag'] == head_data.get('ETag') or
+                info.get('ETag') == head_data.get('ETag') or
                 # If the old content length is the same, it's probably
                 # unchanged. Probably...
                 head_data.get('Content-Length') == info.get('Content-Length') or
@@ -244,5 +252,8 @@ def update(pav_cfg, url, dest):
             fetch = True
 
     if fetch:
+        if head_data is None:
+            head_data = head(pav_cfg, url)
+
         get(pav_cfg, url, dest)
         _save_info(dest, head_data)
