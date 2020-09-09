@@ -40,7 +40,7 @@ class ShowCommand(commands.Command):
     def _setup_arguments(self, parser):
 
         subparsers = parser.add_subparsers(
-            dest="show_cmd",
+            dest="sub_cmd",
             help="Types of information to show."
         )
 
@@ -310,21 +310,9 @@ class ShowCommand(commands.Command):
 
 
     def run(self, pav_cfg, args):
-        """Run the show command's chosen sub-command.
-        """
+        """Run the show command's chosen sub-command."""
 
-        if args.show_cmd is None:
-            # If no sub command is given, print the help for 'show'
-            self._parser.print_help(self.outfile)
-            return errno.EINVAL
-        else:
-            cmd_name = args.show_cmd
-
-        if cmd_name not in self.sub_cmds:
-            raise RuntimeError("Invalid show cmd '{}'".format(cmd_name))
-
-        cmd_result = self.sub_cmds[cmd_name](self, pav_cfg, args)
-        return 0 if cmd_result is None else cmd_result
+        return self._run_sub_command(pav_cfg, args)
 
     @sub_cmd('conf')
     def _config_cmd(self, pav_cfg, args):

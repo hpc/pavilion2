@@ -91,7 +91,7 @@ class ListCommand(commands.Command):
         )
 
         subparsers = parser.add_subparsers(
-            dest="list_cmd",
+            dest="sub_cmd",
             help="What to list."
         )
 
@@ -118,21 +118,9 @@ class ListCommand(commands.Command):
         filters.add_series_filter_args(series_p)
 
     def run(self, pav_cfg, args):
-        """Find """
+        """Find the proper subcommand and run it."""
 
-        if args.list_cmd is None:
-            output.fprint("Invalid command '{}'.".format(args.list_cmd),
-                          color=output.RED, file=self.errfile)
-            self._parser.print_help(file=self.errfile)
-            return errno.EINVAL
-
-        cmd_name = args.list_cmd
-
-        if cmd_name not in self.sub_cmds:
-            raise RuntimeError("Invalid list sub-cmd '{}'".format(cmd_name))
-
-        cmd_result = self.sub_cmds[cmd_name](self, pav_cfg, args)
-        return 0 if cmd_result is None else cmd_result
+        return self._run_sub_command(pav_cfg, args)
 
     def get_fields(self, fields_arg: str, mode_arg: str,
                    avail_fields: List[str],
