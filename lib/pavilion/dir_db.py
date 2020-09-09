@@ -172,10 +172,7 @@ def select_from(paths: Iterable[Path],
         except ValueError:
             continue
 
-        try:
-            if not filter_func(item):
-                continue
-        except AttributeError as err:
+        if not filter_func(item):
             continue
 
         if order_func is not None and order_func(item) is None:
@@ -205,10 +202,10 @@ def paths_to_ids(paths: List[Path]) -> List[int]:
                 "Invalid dir_db path '{}'".format(path.as_posix()))
     return ids
 
-def delete(id_dir: Path, filter_func: Callable[[Path],bool]=default_filter,
+def delete(dir_path: Path, filter_func: Callable[[Path],bool]=default_filter,
            verbose: bool=False):
     """Delete all id directories in a given path that match the given filter.
-    :param id_dir: The directory to iterate through.
+    :param dir_path: The directory to iterate through.
     :param verbose: Verbose output.
     :return int count: The number of directories removed.
     :return list msgs: Any messages generated during removal.
@@ -217,17 +214,33 @@ def delete(id_dir: Path, filter_func: Callable[[Path],bool]=default_filter,
     count = 0
     msgs = []
 
-    lock_path = id_dir.with_suffix('.lock')
+    lock_path = dir_path.with_suffix('.lock')
     with lockfile.LockFile(lock_path):
-        for path in select(id_dir, filter_func):
-            try:
-                shutil.rmtree(path)
-            except OSError as err:
-                msgs.append("Could not remove {} {}: {}"
-                            .format(id_dir.name, path, err))
-                continue
-            count += 1
-            if verbose:
-                msgs.append("Removed {} {}.".format(id_dir.name, path.name))
-    reset_pkey(id_dir)
+        if dir_path.name is 'test_runs':
+            for item in select(id_dir=dir_path, filter_func=filter_func,
+                               transform=test_run.TestAttributes):
+                try:
+                    shutil.rmtree(item.path)
+                except OSError as err:
+                    msgs.append("Could not remove {} {}: {}"
+                                .format(id_dir.name, item.path, err))
+                    continue
+                count += 1
+                if verbose:
+                    msgs.append("Removed {} {}.".format(dir_path.name,
+                                                        str(item.id)
+                                                        .zfill(7)))
+        else:
+            for item in select(id_dir=dir_path, filter_func=filter_func):
+                try:
+                    shutil.rmtree(item)
+                except OSError as err:
+                    msgs.append("Could not remove {} {}: {}"
+                                .format(id_dir.name, item, err))
+                    continue
+                count += 1
+                if verbose:
+                    msgs.append("Removed {} {}.".format(dir_path.name,
+                                                        item.name))
+    reset_pkey(dir_path)
     return count, msgs
