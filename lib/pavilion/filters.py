@@ -27,6 +27,8 @@ TEST_FILTER_DEFAULTS = {
     'sys_name': LOCAL_SYS_NAME,
     'user': utils.get_login(),
     'limit': None,
+    'force_filter': False,
+
 }
 
 TEST_SORT_FUNCS = {
@@ -47,9 +49,10 @@ def add_common_filter_args(target: str,
 
     :param target: The name of what is being filtered, to be inserted
         in documentation. Should be plural.
-    :param arg_parser:
-    :param defaults:
-    :param sort_options:
+    :param arg_parser: The argparser to add arguments to.
+    :param defaults: A dictionary of default values for all arguments.
+    :param sort_options: A list of possible sort options.
+
     :return:
     """
     ci_group = arg_parser.add_mutually_exclusive_group()
@@ -67,7 +70,8 @@ def add_common_filter_args(target: str,
     arg_parser.add_argument(
         '-l', '--limit', type=int, default=defaults['limit'],
         help="Max number of {} to display.  Default: {}"
-            .format(target, defaults['limit'])
+        .format(target, defaults['limit'])
+
     )
     arg_parser.add_argument(
         '--older-than', type=utils.hr_cutoff_to_datetime,
@@ -90,14 +94,6 @@ def add_common_filter_args(target: str,
              .format(target, defaults['newer_than'])
     )
     arg_parser.add_argument(
-        '--sort-by', type=str, default=defaults['sort_by'],
-        choices=sort_options,
-        help="How to sort the {}. Ascending by default. Prepend a '-' to "
-             "sort descending. This will also filter any items that "
-             "don't have the sorted attribute. Default: {}"
-             .format(target, defaults['sort_by'])
-    )
-    arg_parser.add_argument(
         '--sys-name', type=str, default=defaults['sys_name'],
         help='Include only {} that match the given system name, as '
              'presented by the sys.sys_name pavilion variable. '
@@ -106,8 +102,17 @@ def add_common_filter_args(target: str,
     arg_parser.add_argument(
         '--user', type=str, default=defaults['user'],
         help='Include only {} started by this user. Default: {}'
-            .format(target, defaults['user'])
+        .format(target, defaults['user'])
     )
+    if sort_options:
+        arg_parser.add_argument(
+            '--sort-by', type=str, default=defaults['sort_by'],
+            choices=sort_options,
+            help="How to sort the {}. Ascending by default. Prepend a '-' to "
+                 "sort descending. This will also filter any items that "
+                 "don't have the sorted attribute. Default: {}"
+                 .format(target, defaults['sort_by'])
+        )
 
 
 def add_test_filter_args(arg_parser: argparse.ArgumentParser,
@@ -122,7 +127,8 @@ def add_test_filter_args(arg_parser: argparse.ArgumentParser,
 
     :param arg_parser: The arg parser (or sub-parser) to add arguments to.
     :param default_overrides: A dictionary of defaults to override.
-    :param sort_functions:
+    :param sort_functions: A dict of sort-by names and sorting functions. The
+        functions don't matter at this point. If empty, sorting is disabled.
     """
 
     defaults = TEST_FILTER_DEFAULTS.copy()
@@ -173,6 +179,11 @@ def add_test_filter_args(arg_parser: argparse.ArgumentParser,
         help='Include only test runs with a result error. Default: {}'
             .format(defaults['result_error'])
     )
+    arg_parser.add_argument(
+        '--force-filter', default=False, action='store_true',
+        help="Apply filtering even to tests that are specifically "
+             "requested."
+    )
 
 
 add_test_filter_args.__doc__.format(
@@ -198,7 +209,8 @@ def add_series_filter_args(arg_parser: argparse.ArgumentParser,
 
     :param arg_parser: The arg parser (or sub-parser) to add arguments to.
     :param default_overrides: A dictionary of defaults to override.
-    :param sort_functions:
+    :param sort_functions: A dict of sort-by names and sorting functions. The
+        functions don't matter at this point. If empty, sorting is disabled.
     """
 
     defaults = SERIES_FILTER_DEFAULTS.copy()

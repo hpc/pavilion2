@@ -4,6 +4,6 @@ Module = list_cmd
 
 [Documentation]
 Description = Show (summarized) log
-Author = Francine Lapid
+Author = Paul Ferrell
 Version = 1.0
 Website =

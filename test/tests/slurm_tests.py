@@ -1,6 +1,7 @@
 import subprocess
 import time
 import unittest
+import logging
 
 from pavilion import config
 from pavilion import plugins
@@ -98,7 +99,7 @@ class SlurmTests(PavTestCase):
         )
 
         for ex, answer in examples:
-            nodes = slurm._parse_node_list(ex)
+            nodes = slurm.parse_node_list(ex)
             self.assertEqual(nodes, answer)
 
         bad_examples = (
@@ -114,7 +115,24 @@ class SlurmTests(PavTestCase):
             with self.assertRaises(
                     ValueError,
                     msg="Did not throw error for {}".format(problem)):
-                slurm._parse_node_list(ex)
+                slurm.parse_node_list(ex)
+
+    def test_node_list_shortening(self):
+        """Check that node lists are shortened properly."""
+
+        nodes = (
+            ['node001', 'node002', 'n0de047', 'n0de49'] +
+            ['n0de{:04d}'.format(i) for i in range(20, 35)] +
+            ['n0de{:04d}'.format(i) for i in range(99, 1235)] +
+            ['baaaad'] +
+            ['another000003'])
+
+        snodes = Slurm.short_node_list(nodes, logging.getLogger("discard"))
+
+        self.assertEqual(
+            snodes,
+            'another000003,n0de[0020-0034,0047,0049,0099-1234],node00[1-2]'
+        )
 
     @unittest.skipIf(not has_slurm(), "Only runs on a system with slurm.")
     def test_job_status(self):
