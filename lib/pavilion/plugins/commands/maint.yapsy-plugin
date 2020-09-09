@@ -1,0 +1,9 @@
+[Core]
+Name = Maint command
+Module = maint
+
+[Documentation]
+Description = Perform maintenance operations
+Author = Paul Ferrell
+Version = 1.0
+Website =

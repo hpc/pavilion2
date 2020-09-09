@@ -130,8 +130,9 @@ class BuildCmdTests(PavTestCase):
         self.assertEqual(len(build_names), 4)
 
         for test in build_cmd.last_tests:
+            test.load_attributes()
             expected_name = orig_names[test.name] + '-2'
-            self.assertEqual(test._load_build_name(), expected_name,
+            self.assertEqual(test.build_name, expected_name,
                              msg=test.name)
 
             origin = test.build_origin_path.resolve().name
@@ -140,7 +141,6 @@ class BuildCmdTests(PavTestCase):
 
     def test_build_verbosity(self):
         """Make sure that the build verbosity levels at least appear to work."""
-
 
         arg_parser = arguments.get_parser()
         arg_sets = [
