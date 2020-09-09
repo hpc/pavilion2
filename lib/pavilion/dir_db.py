@@ -206,6 +206,7 @@ def delete(dir_path: Path, filter_func: Callable[[Path],bool]=default_filter,
            verbose: bool=False):
     """Delete all id directories in a given path that match the given filter.
     :param dir_path: The directory to iterate through.
+    :param filter_func: A passed filter function, to be passed to select.
     :param verbose: Verbose output.
     :return int count: The number of directories removed.
     :return list msgs: Any messages generated during removal.

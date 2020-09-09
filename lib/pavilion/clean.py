@@ -10,8 +10,6 @@ def delete_tests(pav_cfg, id_dir: Path, filter_func, verbose: bool=False):
 
     if filter_func is None:
         filter_func = dir_db.default_filter
-        # Use default filter. This will likely remove every test dir.
-        #return dir_db.delete(id_dir, verbose)
     return dir_db.delete(id_dir, filter_func, verbose)
 
 def delete_series(id_dir: Path, verbose: bool=False) -> int:
