@@ -239,7 +239,7 @@ class TestBuilder:
     def exists(self):
         """Return True if the given build exists."""
         return self.path.exists()
-      
+
     DOWNLOAD_HASH_SIZE = 13
 
     def _fix_source_path(self):
@@ -592,20 +592,23 @@ class TestBuilder:
                                         stderr=build_log)
 
                 result = None
-                start = time.time()
                 timeout = self._timeout
                 while result is None:
                     try:
                         result = proc.wait(timeout=1)
                     except subprocess.TimeoutExpired:
                         if self._timeout_file.exists():
-                            log_stat = self._timeout_file.stat()
-                            timeout = max(timeout, log_stat.st_mtime +
-                                          self._timeout)
+                            timeout_file = self._timeout_file
                         else:
-                            log_stat = self.tmp_log_path.stat()
-                            timeout = max(timeout, log_stat.st_mtime +
-                                          self._timeout)
+                            timeout_file = self.tmp_log_path
+
+                        try:
+                            timeout = max(
+                                timeout,
+                                timeout_file.stat().st_mtime + self._timeout)
+                        except OSError:
+                            pass
+
                         # Has the output file changed recently?
                         if time.time() > timeout:
                             # Give up on the build, and call it a failure.

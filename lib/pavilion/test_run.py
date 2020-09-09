@@ -542,21 +542,24 @@ class TestRun:
             # self._run_timeout seconds
             timeout = self.run_timeout
             ret = None
-            start = time.time()
             while ret is None:
                 try:
                     ret = proc.wait(timeout=timeout)
                 except subprocess.TimeoutExpired:
                     if self.timeout_file.exists():
-                        out_stat = self.timeout_file.stat()
-                        quiet_time = max(timeout, time.time() -
-                                         out_stat.st_mtime)
+                        timeout_file = self.timeout_file
                     else:
-                        out_stat = self.run_log.stat()
-                        quiet_time = max(timeout, time.time() -
-                                         out_stat.st_mtime)
+                        timeout_file = self.run_log
+
+                    try:
+                        timeout = max(
+                            timeout,
+                            timeout_file.stat().st_mtime + self.run_timeout)
+                    except OSError:
+                        pass
+
                     # Has the output file changed recently?
-                    if timeout < quiet_time:
+                    if time.time() > timeout:
                         # Give up on the build, and call it a failure.
                         proc.kill()
                         msg = ("Run timed out after {} seconds"
