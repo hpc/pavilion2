@@ -416,6 +416,14 @@ index, sub_var) tuple.
                 "Could not resolve reference '{}': {}"
                 .format(self.key_as_dotted(key), msg.args[0]))
 
+    def get(self, key: str, default=None) -> str:
+        """Get an item, or the provided default, as per dict.get. """
+
+        try:
+            return self[key]
+        except KeyError:
+            return default
+
     def _set_value(self, key, value):
         """Set the value at 'key' to the new value. A value must already
         exist at this location."""

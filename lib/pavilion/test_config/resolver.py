@@ -215,7 +215,6 @@ class TestConfigResolver:
                             'summary': default(conf.get('summary', ''), ''),
                             'doc': default(conf.get('doc', ''), ''),
                         }
-
         return suites
 
     def find_all_series(self):
@@ -552,6 +551,7 @@ class TestConfigResolver:
 
         return picked_tests
 
+
     def verify_version_range(comp_versions):
 
         if comp_versions.count('-') > 1:
@@ -646,6 +646,8 @@ class TestConfigResolver:
                         "Host config '{}' raised a type error, but that "
                         "should never happen. {}".format(host_cfg_path, err))
 
+            test_cfg = resolve_cmd_inheritance(test_cfg)
+
         return test_cfg
 
     def apply_modes(self, test_cfg, modes):
@@ -692,6 +694,8 @@ class TestConfigResolver:
                 raise RuntimeError(
                     "Mode config '{}' raised a type error, but that "
                     "should never happen. {}".format(mode_cfg_path, err))
+
+            test_cfg = resolve_cmd_inheritance(test_cfg)
 
         return test_cfg
 
@@ -767,6 +771,9 @@ class TestConfigResolver:
             suite_tests[test_cfg_name] = test_config_loader.merge(parent,
                                                                   test_cfg)
 
+            suite_tests[test_cfg_name] = \
+            resolve_cmd_inheritance(suite_tests[test_cfg_name])
+
             # Now all tests that depend on this one are ready to resolve.
             ready_to_resolve.extend(depended_on_by.get(test_cfg_name, []))
             # Delete this test from here, for a sanity check to know we
@@ -785,7 +792,6 @@ class TestConfigResolver:
         # Remove the test base
         del suite_tests['__base__']
 
-        # Validate each test config individually.
         for test_name, test_config in suite_tests.items():
             try:
                 suite_tests[test_name] = test_config_loader\
@@ -1238,3 +1244,21 @@ class TestConfigResolver:
             raise TestConfigError("Invalid value type '{}' for '{}' when "
                                   "resolving strings."
                                   .format(type(component), component))
+
+def resolve_cmd_inheritance(test_cfg):
+
+    for section in ['build', 'run']:
+        config = test_cfg.get(section)
+        if not config:
+            continue
+        new_cmd_list = []
+        if config.get('prepend_cmds', []):
+            new_cmd_list.extend(config.get('prepend_cmds'))
+            config['prepend_cmds'] = []
+        new_cmd_list += test_cfg[section]['cmds']
+        if config.get('append_cmds', []):
+            new_cmd_list.extend(config.get('append_cmds'))
+            config['append_cmds'] = []
+        test_cfg[section]['cmds'] = new_cmd_list
+
+    return test_cfg

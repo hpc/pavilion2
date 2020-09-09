@@ -39,7 +39,7 @@ Then just activate your virtual environment before running tests.
    - `pip install --upgrade pylint sphinx`
 
 ### Slurm Config
-If you need any special configuration for slurm, put in in a mode file in 
+If you need any special configuration for slurm, put it in a mode file in 
 `data/pav_config_dir/modes/local_slurm.yaml`. The `_quick_test_cfg()` method 
 (see below) will include that as the slurm defaults.
 

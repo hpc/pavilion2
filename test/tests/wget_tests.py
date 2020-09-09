@@ -56,7 +56,7 @@ class TestWGet(PavTestCase):
     def test_update(self):
 
         dest_fn = Path(tempfile.mktemp(dir='/tmp'))
-        info_fn = dest_fn.with_suffix(dest_fn.suffix + '.info')
+        info_fn = wget._get_info_fn(dest_fn)
 
         self.assertFalse(dest_fn.exists())
         self.assertFalse(info_fn.exists())

@@ -130,7 +130,8 @@ class RunCmdTests(PavTestCase):
         statuses = set(statuses)
         self.assertEqual(statuses, {STATES.ABORTED, STATES.BUILD_FAILED})
 
-        self.assertTrue(all([test.complete for test in run_cmd.last_tests]))
+        self.assertTrue(all([test.check_run_complete() for test in
+                             run_cmd.last_tests]))
 
     def test_build_parallel_lots(self):
         """Make sure building works beyond the parallel building limit."""

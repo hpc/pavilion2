@@ -8,9 +8,17 @@ RELEASE=2.2
  - Added 'flatten_results' option to the base Pavilion config. Allows for
    producing a separate result log line for each 'per_file' result, making
    charting in Splunk significantly easier.
+ - Added unified test run filtering in 'status' and 'result'.
+ - Added the 'list' command.
 
  - Backwards compatibility breaks
    - 'fn' and 'n' result fields have been merged into 'per_file'.
+   - The 'status', and 'result' commands now search all available test runs
+     and select recent (1 day) tests by the current user on the current 
+     machine. For the old behavior, use ``pav status last``, etc. 
+   - Old tests will lack some expected properties for searching, 
+     as that information has been consolidated into the 'attributes' file
+     which they won't have.
 
 ## 2.2 Release notes
  - All new test config parser.

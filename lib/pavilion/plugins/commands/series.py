@@ -55,7 +55,7 @@ class RunSeries(commands.Command):
                         None
                     )
         except AttributeError as err:
-            fprint("Cannot load series. {}".format(err), color=output.RED)
+            raise series.TestSeriesError("Cannot load series. {}".format(err))
 
         # apply ordered: True before checking for dependencies
         if series_cfg['ordered'] in ['True', 'true']:
@@ -110,24 +110,24 @@ class RunSeries(commands.Command):
             with open(str(series_path/'series.pgid'), 'w') as series_id_file:
                 series_id_file.write(str(series_pgid))
 
-            fprint("Started series {}. "
-                   "Run `pav status {}` to view status. "
+            fprint("Started series s{}. "
+                   "Run `pav status s{}` to view status. "
                    "PGID is {}. "
-                   "To kill, use `kill -15 -{}` or `pav cancel {}`."
-                   .format(series_obj.id,
-                           series_obj.id,
+                   "To kill, use `kill -15 -{}` or `pav cancel s{}`."
+                   .format(series_obj._id,
+                           series_obj._id,
                            series_pgid,
                            series_pgid,
-                           series_obj.id))
+                           series_obj._id))
         except TypeError:
             fprint("Warning: Could not write series PGID to a file.",
                    color=output.YELLOW)
-            fprint("Started series {}."
-                   "Run `pav status {}` to view status. "
+            fprint("Started series s{}."
+                   "Run `pav status s{}` to view status. "
                    "PGID is {}."
-                   "To kill, use `kill -15 -{}`."
-                   .format(series_obj.id,
-                           series_obj.id,
+                   "To kill, use `kill -15 -s{}`."
+                   .format(series_obj._id,
+                           series_obj._id,
                            series_pgid,
                            series_pgid))
 
