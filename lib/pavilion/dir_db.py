@@ -152,6 +152,8 @@ def select_from(paths: Iterable[Path],
         as per the list.sort keys argument. Items for which this returns
         None are removed.
     :param order_asc: Whether to sort in ascending or descending order.
+    :param fn_base: Number base for file names. 10 by default, ensure dir name
+        is a valid integer.
     :param limit: The max items to return. None denotes return all.
     :returns: A filtered, ordered list of transformed objects.
     """

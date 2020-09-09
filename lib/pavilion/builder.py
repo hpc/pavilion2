@@ -1025,7 +1025,7 @@ def get_used_build_paths(tests_dir: Path) -> set:
             build_origin = build_origin_symlink.resolve()
 
         if build_origin is not None:
-            used_builds.add(path.name)
+            used_builds.add(build_origin.name)
 
     return used_builds
 
@@ -1046,10 +1046,10 @@ def delete_unused(tests_dir: Path, builds_dir: Path, verbose: bool = False) -> i
         """Build filter function. Build paths that have no associated
         tests and can be removed return true, otherwise they return false.
 
-        :param path: The passes build path object
+        :param path: The passed build path object
 
-        :return True: The passed build path can be removed.
-        :return False: The passed build path cannot be removed.
+        :return True: The build path can be removed.
+        :return False: The build path cannot be removed.
 
         """
         return not path.name in used_build_paths
