@@ -208,13 +208,14 @@ class StatusCmdTests(PavTestCase):
             .schedule_test(self.pav_cfg, test)
 
         status_cmd = commands.get_command('status')
-        status_cmd.outfile = io.StringIO()
+        status_cmd.silence()
 
         parser = argparse.ArgumentParser()
         status_cmd._setup_arguments(parser)
         args = parser.parse_args([str(test.id)])
         test.status.set(status_file.STATES.SCHEDULED, "faker")
-        self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
+        self.assertEqual(status_cmd.run(self.pav_cfg, args), 0,
+                         msg=status_cmd.clear_output())
 
         parser = argparse.ArgumentParser()
         status_cmd._setup_arguments(parser)
@@ -224,6 +225,8 @@ class StatusCmdTests(PavTestCase):
 
         # TODO: Test that the above have actually been set.
 
+    # This is being moved.
+    '''
     def test_history_status(self):
         """Checks pav status --history $id command when
         passed a valid and invalid test id.
@@ -264,6 +267,7 @@ class StatusCmdTests(PavTestCase):
         # None int arguments "pav status --history lolol" throw
         # error in unit-test but are caught cleanly in pav usage
         # check.
+    '''
 
     def test_status_summary(self):
         # Testing that status works with summary flag
@@ -271,7 +275,7 @@ class StatusCmdTests(PavTestCase):
         status_cmd.outfile = io.StringIO()
         parser = argparse.ArgumentParser()
         status_cmd._setup_arguments(parser)
-        arg_list = ['-s', '-a']
+        arg_list = ['-s']
         args = parser.parse_args(arg_list)
 
         # Test that an empty working_dir fails correctly

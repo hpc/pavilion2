@@ -11,6 +11,7 @@ import yc_yaml
 import pavilion.result.base
 import yaml_config
 from pavilion import commands
+from pavilion.commands import sub_cmd
 from pavilion import config
 from pavilion import expression_functions
 from pavilion import module_wrapper
@@ -25,55 +26,24 @@ from pavilion.test_config import file_format
 from pavilion.test_config import resolver
 
 
-def show_cmd(*aliases):
-    """Tag this given function as a show_cmd, and record its aliases."""
-
-    def tag_aliases(func):
-        """Attach all the aliases to the given function, but return the
-        function itself. The function name, absent leading underscores and
-        without a trailing '_cmd', is added by default."""
-        name = func.__name__
-
-        while name.startswith('_'):
-            name = name[1:]
-
-        if name.endswith('_cmd'):
-            name = name[:-4]
-
-        func.aliases = [name]
-        for alias in aliases:
-            func.aliases.append(alias)
-
-        return func
-
-    return tag_aliases
-
-
 class ShowCommand(commands.Command):
     """Plugin to show Pavilion internal info."""
 
     def __init__(self):
         super().__init__(
-            'show',
-            'Show internal information about pavilion plugins and '
+            name='show',
+            description='Show internal information about pavilion plugins and '
             'configuration settings.',
-            short_help="Show pavilion plugin/config info."
+            short_help="Show pavilion plugin/config info.",
+            sub_commands=True,
         )
-
-        self.cmds = {}
-        # Walk the class dictionary and add any functions with aliases
-        # to our dict of commands under each listed alias.
-        for func in self.__class__.__dict__.values():
-            if callable(func) and hasattr(func, 'aliases'):
-                for alias in func.aliases:
-                    self.cmds[alias] = func
 
         self._parser = None  # type: Union[argparse.ArgumentParser,None]
 
     def _setup_arguments(self, parser):
 
         subparsers = parser.add_subparsers(
-            dest="show_cmd",
+            dest="sub_cmd",
             help="Types of information to show."
         )
 
@@ -358,23 +328,11 @@ class ShowCommand(commands.Command):
                         "configs, except without the test name.")
 
     def run(self, pav_cfg, args):
-        """Run the show command's chosen sub-command.
-        """
+        """Run the show command's chosen sub-command."""
 
-        if args.show_cmd is None:
-            # If no sub command is given, print the help for 'show'
-            self._parser.print_help(self.outfile)
-            return errno.EINVAL
-        else:
-            cmd_name = args.show_cmd
+        return self._run_sub_command(pav_cfg, args)
 
-        if cmd_name not in self.cmds:
-            raise RuntimeError("Invalid show cmd '{}'".format(cmd_name))
-
-        result = self.cmds[cmd_name](self, pav_cfg, args)
-        return 0 if result is None else result
-
-    @show_cmd('conf')
+    @sub_cmd('conf')
     def _config_cmd(self, pav_cfg, args):
         """Show the whole pavilion config or a config template."""
 
@@ -384,7 +342,7 @@ class ShowCommand(commands.Command):
             config.PavilionConfigLoader().dump(self.outfile,
                                                values=pav_cfg)
 
-    @show_cmd('config_dir')
+    @sub_cmd('config_dir')
     def _config_dirs_cmd(self, pav_cfg, _):
         """List the configuration directories."""
 
@@ -392,13 +350,12 @@ class ShowCommand(commands.Command):
 
         output.draw_table(
             self.outfile,
-            field_info={},
             fields=['path'],
             rows=rows,
             title="Config directories by priority."
         )
 
-    @show_cmd('function', 'func')
+    @sub_cmd('function', 'func')
     def _functions_cmd(self, _, args):
         """List all of the known function plugins."""
 
@@ -419,7 +376,6 @@ class ShowCommand(commands.Command):
                     'description': func.description})
             output.draw_table(
                 self.outfile,
-                field_info={},
                 fields=['name', 'signature', 'description'],
                 rows=rows,
                 title="Available Expression Functions"
@@ -494,10 +450,10 @@ class ShowCommand(commands.Command):
 
         output.draw_table(
             self.outfile,
-            field_info={},
             fields=col_names,
             rows=data
         )
+
 
     def show_full_config(self, pav_cfg, config, conf_type):
         """Show the full config of a given host/mode."""
@@ -536,7 +492,7 @@ class ShowCommand(commands.Command):
 
         self.show_configs(pav_cfg, args)
 
-    @show_cmd('mod', 'module', 'modules', 'wrappers')
+    @sub_cmd('mod', 'module', 'modules', 'wrappers')
     def _module_wrappers_cmd(self, _, args):
         """List the various module wrapper plugins."""
 
@@ -557,13 +513,12 @@ class ShowCommand(commands.Command):
 
         output.draw_table(
             self.outfile,
-            field_info={},
             fields=fields,
             rows=modules,
             title="Available Module Wrapper Plugins"
         )
 
-    @show_cmd('pav_vars', 'pav_var', 'pav')
+    @sub_cmd('pav_vars', 'pav_var', 'pav')
     def _pavilion_variables_cmd(self, pav_cfg, _):
 
         rows = []
@@ -577,13 +532,12 @@ class ShowCommand(commands.Command):
 
         output.draw_table(
             self.outfile,
-            field_info={},
             fields=['name', 'value', 'description'],
             rows=rows,
             title="Available Pavilion Variables"
         )
 
-    @show_cmd()
+    @sub_cmd()
     def _result_base_cmd(self, _, __):
         """Show base result keys."""
 
@@ -594,12 +548,11 @@ class ShowCommand(commands.Command):
 
         output.draw_table(
             self.outfile,
-            {},
             ['name', 'doc'],
             rows
         )
 
-    @show_cmd('parsers', 'result')
+    @sub_cmd('parsers', 'result')
     def _result_parsers_cmd(self, _, args):
         """Show all the result parsers."""
 
@@ -634,13 +587,12 @@ class ShowCommand(commands.Command):
 
             output.draw_table(
                 self.outfile,
-                field_info={},
                 fields=fields,
                 rows=rps,
                 title="Available Result Parsers"
             )
 
-    @show_cmd("sched", "scheduler")
+    @sub_cmd("sched", "scheduler")
     def _scheduler_cmd(self, _, args):
         """
         :param argparse.Namespace args:
@@ -672,7 +624,6 @@ class ShowCommand(commands.Command):
 
             output.draw_table(
                 self.outfile,
-                field_info={},
                 fields=['name', 'deferred', 'example', 'help'],
                 rows=sched_vars,
                 title="Variables for the {} scheduler plugin.".format(args.vars)
@@ -710,13 +661,12 @@ class ShowCommand(commands.Command):
 
             output.draw_table(
                 self.outfile,
-                field_info={},
                 fields=fields,
                 rows=scheds,
                 title="Available Scheduler Plugins"
             )
 
-    @show_cmd("state")
+    @sub_cmd("state")
     def _states_cmd(self, *_):
         """Show all of the states that a test can be in."""
 
@@ -729,13 +679,12 @@ class ShowCommand(commands.Command):
 
         output.draw_table(
             self.outfile,
-            field_info={},
             fields=['name', 'description'],
             rows=states,
             title="Pavilion Test States"
         )
 
-    @show_cmd("sys_var", "sys", "sys_vars")
+    @sub_cmd("sys_var", "sys", "sys_vars")
     def _system_variables_cmd(self, _, args):
 
         rows = []
@@ -767,13 +716,12 @@ class ShowCommand(commands.Command):
 
         output.draw_table(
             self.outfile,
-            field_info={},
             fields=fields,
             rows=rows,
             title="Available System Variables"
         )
 
-    @show_cmd("suite")
+    @sub_cmd("suite")
     def _suites_cmd(self, pav_cfg, args):
         suites = resolver.TestConfigResolver(pav_cfg).find_all_tests()
 
@@ -816,7 +764,6 @@ class ShowCommand(commands.Command):
 
         output.draw_table(
             self.outfile,
-            field_info={},
             fields=fields,
             rows=rows,
             title="Available Test Suites"
@@ -824,7 +771,7 @@ class ShowCommand(commands.Command):
 
     SUMMARY_SIZE_LIMIT = 100
 
-    @show_cmd("test")
+    @sub_cmd("test")
     def _tests_cmd(self, pav_cfg, args):
 
         if args.test_name is not None:
@@ -875,7 +822,6 @@ class ShowCommand(commands.Command):
 
         output.draw_table(
             self.outfile,
-            field_info={},
             fields=fields,
             rows=rows,
             title="Available Tests"
@@ -927,7 +873,7 @@ class ShowCommand(commands.Command):
         pvalue("Summary:", test['summary'])
         pvalue("Documentation:", '\n\n', test['doc'], '\n')
 
-    @show_cmd()
+    @sub_cmd()
     def _test_config_cmd(self, *_):
         """Show the basic test config format."""
         file_format.TestConfigLoader().dump(self.outfile)
