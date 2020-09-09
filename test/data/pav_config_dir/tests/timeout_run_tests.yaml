@@ -1,0 +1,54 @@
+GoodRun:
+    summary: Successful Run
+    run:
+        timeout: 2
+        timeout_file: test.txt
+        cmds:
+            - 'sleep 1'
+GoodRun2:
+    summary: Successful Run
+    run:
+        timeout: 4
+        timeout_file: test.txt
+        cmds:
+            - 'sleep 1'
+            - 'touch test.txt'
+            - 'sleep 2'
+GoodRun3:
+    summary: Successful Run
+    run:
+        timeout: 3
+        timeout_file: test.txt
+        cmds:
+            - 'touch test.txt'
+            - 'sleep 1'
+            - 'rm test.txt'
+            - 'sleep 1'
+BadRun:
+    summary: Unsuccessful Run
+    run:
+        timeout: 2
+        timeout_file: test.txt
+        cmds:
+            - 'sleep 4'
+BadRun2:
+    summary: Unsuccessful Run
+    run:
+        timeout: 2
+        timeout_file: test.txt
+        cmds:
+            - 'sleep 1'
+            - 'touch test.txt'
+            - 'sleep 1'
+            - 'touch test.txt'
+            - 'sleep 3'
+BadRun3:
+    summary: Unsuccessful Run
+    run:
+        timeout: 2
+        cmds:
+            - 'touch test.txt'
+            - 'sleep 1'
+            - 'rm test.txt'
+            - 'sleep 3'
+
