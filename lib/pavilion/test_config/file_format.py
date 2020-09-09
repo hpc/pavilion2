@@ -271,18 +271,16 @@ expected to be added to by various plugins.
             'test_version', default='0.0',
             help_text="Documented test version."
         ),
-        yc.StrElem(
-            'setup_spack_env', choices = ['True', 'true', 'False', 'false'],
-            default = 'False',
-            help_text='Tell pavilion to set up test with or without a spack '
-                      'environment.'
-        ),
         yc.KeyedElem(
-            'spack_config', elements=[
+            'spack', elements=[
                 yc.StrElem(
-                    'build_jobs', default='1',
+                    'build_jobs', default='4',
                     help_text='The maximum number of jobs to use '
                               'when running \'make\' in parallel.'
+                ),
+                yc.StrElem(
+                    'enable', default='False',
+                    help_text='Setup a spack environment for this test.'
                 ),
                 yc.CategoryElem(
                     'mirrors', sub_elem=yc.StrElem(),

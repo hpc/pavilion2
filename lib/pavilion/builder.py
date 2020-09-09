@@ -23,7 +23,7 @@ from pavilion import utils
 from pavilion import wget
 from pavilion.permissions import PermissionsManager
 from pavilion.status_file import STATES
-from pavilion.test_config.spack_env_format import SpackEnvConfig
+from pavilion.test_config.spack import SpackEnvConfig
 
 
 class TestBuilderError(RuntimeError):
@@ -613,9 +613,9 @@ class TestBuilder:
             return False
 
         # Generate an anonymous spack environment for a new build.
-        spack_config = self.test.config.get('spack_config', {})
+        spack_config = self.test.config.get('spack', {})
         if (self._pav_cfg.get('spack_path') is not None and
-        self.test.config.get('setup_spack_env') in ['True', 'true']):
+            spack_config.get('enable', 'False') is not 'False'):
             self.create_spack_env(spack_config, build_dir)
 
         try:

@@ -1,9 +1,10 @@
 spack_stuff:
         summary: This test does spack stuff
-        setup_spack_env: True
+        spack:
+            enable: true
         build:
-                spack:
-                        install: stuff
+            spack:
+                install: stuff
         run:
-                spack:
-                        load: stuff
+            spack:
+                load: stuff

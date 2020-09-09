@@ -953,13 +953,12 @@ modified date for the test directory."""
             script.comment('Output the environment for posterity')
             script.command("declare -p")
 
+        spack_config = self.config.get('spack', {})
         spack_commands = config.get('spack', {})
         install_packages = spack_commands.get('install', [])
         load_packages = spack_commands.get('load', [])
-        setup_spack_env = self.config.get('setup_spack_env', 'False')
-        spack_config = self.config.get('spack_config', {})
 
-        if setup_spack_env in ['True', 'true']:
+        if spack_config.get('enable', 'False') is not 'False':
             script.newline()
             script.comment('Add Spack path to path.')
             script.command('export SPACK_ROOT={}'
