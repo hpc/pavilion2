@@ -356,10 +356,9 @@ class TestRun(TestAttributes):
 
         group, umask = self.get_permissions(pav_cfg, config)
 
-        try:
-            self._validate_configs(self._pav_cfg, self.config)
-        except SpackConfigError as err:
-            raise TestConfigError("Test config error: {}".format(err))
+        if not self._validate_configs(self._pav_cfg, self.config):
+            raise TestRunError("Spack cannot be enabled without 'spack_path' "
+                               "being defined in the pavilion config.")
 
         # Get an id for the test, if we weren't given one.
         if _id is None:
@@ -483,17 +482,16 @@ class TestRun(TestAttributes):
 
         self.skipped = self._get_skipped()  # eval skip.
 
-    @staticmethod
-    def _validate_configs(pav_cfg, test_config):
+    def _validate_configs(self, pav_cfg, test_config):
         """Validate test configs, specifically those that are spack related."""
 
         spack_path = pav_cfg.get('spack_path', None)
         spack_enable = test_config.get('spack', {}).get('enable', 'False')
 
         if spack_enable != 'False' and spack_path is None:
-            raise SpackConfigError("Spack cannot be enabled without "
-                                   "'spack_path' being defined in the "
-                                   "pavilion config.")
+            return False
+
+        return True
 
     @classmethod
     def load(cls, pav_cfg, test_id):
