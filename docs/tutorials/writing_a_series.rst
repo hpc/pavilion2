@@ -1,24 +1,25 @@
 Writing a Series File
 =====================
 
-This is a step-by-step tutorial on how to write a series file in Pavilion.
-
-A Test Series is a group of tests that is created whenever the user invokes
-``pav run <test names>`` or ``pav run -f <file of test names>``. A series file
-allows the user to specify test hierarchies, assign modes to specific tests,
-and dictate other settings for tests which are grouped together in the same
-series. Creating Test Series in this way also gives the user the option of
-running tests in a continuous manner.
+A test series is a group of interrelated test runs. While tests started together
+via ``pav run`` are automatically grouped together as a simple series, more
+complex relationships are possible by explicitly defining a series with a test
+series config file. A series file allows the user to specify test hierarchies,
+assign modes to specific tests, and dictate other settings for the group of
+tests. Creating a test series in this way also gives the user the option of
+limiting the number of tests running or scheduled at any given time and running
+the tests in a continuous manner.
 
 .. contents:: Table of Contents
 
 Where to Write Series Files
 ---------------------------
 
-Series files are yaml files and are placed in the <pav config dir>/series
-directory.
+Series configs are yaml files and are placed in the <pav config dir>/series
+directory. Like all the other config files in Pavilion, the config file name
+must follow the format ``<series name>.yaml``.
 
-Series File Elements
+Series Configuration
 --------------------
 
 Here's an example series file. Let's call it ``sanity_tests.yaml`` and include
@@ -34,7 +35,9 @@ tests that are normally run just to make sure the machine works.
     # don't run on compute nodes with this set.
     front_end_tests:
 
-      # List names of tests
+      # Names of the tests that will run as part of this test set.
+      # The ordering of these tests (relative to each other) is generally up to
+      # the scheduler.
       tests:
         - check_mounts
         - ping_compute_nodes
@@ -42,13 +45,15 @@ tests that are normally run just to make sure the machine works.
 
       # List modes that need to be applied to this set of tests
       modes:
-        - mode1
-        - mode2
+        - fe_settings
+        - maintenance_testing
 
-      # Define conditions. These will be addd to the only_if/not_if conditions
+      # Define conditions. These will be added to the only_if/not_if conditions
       # that already exist in each test, if any.
+
+      # Only run this test if it's being run on the machine 'blue_cluster'
       only_if:
-        "{{sys.system_name}}": "machine"
+        "{{sys.sys_name}}": "blue_cluster"
 
       # Don't run this set if the week day is Friday
       not_if:
@@ -70,7 +75,7 @@ tests that are normally run just to make sure the machine works.
 
     mp_tests:
 
-      modes: ['mode5']
+      modes: ['mpi8']
 
       depends_on: ['front_end_tests']
       depends_pass: True
@@ -89,7 +94,7 @@ tests that are normally run just to make sure the machine works.
 
   # series-level modes: These modes will be applied to all sets and therefore
   # all tests
-  modes: ['mode3', 'mode4']
+  modes: ['all_partitions', 'all_nodes']
 
   # We want this series to run continuously. The default is 'False', which means
   # the series will run (or attempt to run) each set once only.
