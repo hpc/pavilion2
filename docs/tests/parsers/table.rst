@@ -7,7 +7,7 @@ into either a dictionary of lists or dictionary of dictionaries
 
 +--------------+--------------------+--------------------+------------------+
 | Config Item  | Description        | Required?          | Notes            |
-+--------------+--------------------+--------------------+------------------+
++==============+====================+====================+==================+
 | start_re     | Partial regex      | No                 | regex            |
 |              | near start of      |                    |                  |
 |              | table.             |                    |                  |
