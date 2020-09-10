@@ -28,3 +28,6 @@ class SpackEnvConfig(yc.YamlConfigLoader):
             help_text='Spack environment configuration file.'
         )
     ]
+
+class SpackConfigError(RuntimeError):
+    """Error to be raised for spack config issues."""
