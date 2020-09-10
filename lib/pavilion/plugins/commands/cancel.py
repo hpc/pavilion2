@@ -76,10 +76,10 @@ class CancelCommand(commands.Command):
                         os.killpg(series_pgid, signal.SIGTERM)
                         output.fprint('Killed process {}, which is series {}.'
                                       .format(series_pgid, test_id))
-                    else:
-                        test_list.extend(series.TestSeries.from_id(pav_cfg,
-                                                                   test_id)
-                                         .tests)
+
+                    test_list.extend(series.TestSeries.from_id(pav_cfg,
+                                                               test_id)
+                                     .tests)
                 except series.TestSeriesError as err:
                     output.fprint(
                         "Series {} could not be found.\n{}".format(test_id,
