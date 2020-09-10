@@ -284,7 +284,6 @@ class TestAttributes:
         name='uuid',
         doc="A completely unique id for this test run (test id's can rotate).")
 
-
 class TestRun(TestAttributes):
     """The central pavilion test object. Handle saving, monitoring and running
     tests.
@@ -428,6 +427,13 @@ class TestRun(TestAttributes):
         self.results_log = self.path/'results.log'
         self.results_path = self.path/'results.json'
         self.build_origin_path = self.path/'build_origin'
+
+        # Validate spack configs before trying to write scripts.
+        spack_path = self._pav_cfg.get('spack_path', None)
+        spack_enabled = self.config.get('spack', {}).get('enable', 'False')
+        if spack_enabled != 'False' and spack_path is None:
+            raise TestConfigError("Spack cannot be enabled without a "
+                                  "'spack_path' key in the pavilion config.")
 
         build_config = self.config.get('build', {})
 
@@ -1091,10 +1097,12 @@ be set by the scheduler plugin as soon as it's known."""
             script.command("declare -p")
 
         spack_config = self.config.get('spack', {})
-        spack_commands = config.get('spack', {})
-        install_packages = spack_commands.get('install', [])
-        load_packages = spack_commands.get('load', [])
-        if spack_config.get('enable', 'False') != 'False':
+        spack_enable = spack_config.get('enable', 'False')
+        if spack_enable != 'False':
+            spack_commands = config.get('spack', {})
+            install_packages = spack_commands.get('install', [])
+            load_packages = spack_commands.get('load', [])
+
             script.newline()
             script.comment('Add Spack path to path.')
             script.command('export SPACK_ROOT={}'
@@ -1103,23 +1111,25 @@ be set by the scheduler plugin as soon as it's known."""
             script.comment('Activate spack environment.')
             script.command("spack env activate -d .")
 
-        if install_packages:
-            script.newline()
-            script.comment('Install spack packages.')
-            for package in install_packages:
-                script.command('spack install {}'.format(package))
+            if install_packages:
+                script.newline()
+                script.comment('Install spack packages.')
+                for package in install_packages:
+                    script.command('spack install {}'.format(package))
 
-        if load_packages:
-            script.newline()
-            script.comment('Load spack packages.')
-            for package in load_packages:
-                script.command('spack load {}'.format(package))
+            if load_packages:
+                script.newline()
+                script.comment('Load spack packages.')
+                for package in load_packages:
+                    script.command('spack load {}'.format(package))
 
         script.newline()
         cmds = config.get('cmds', [])
         if cmds:
             script.comment("Perform the sequence of test commands.")
             for line in config.get('cmds', []):
+                if 'spack' in line and spack_enable == 'False':
+                    continue
                 for split_line in line.split('\n'):
                     script.command(split_line)
         else:
