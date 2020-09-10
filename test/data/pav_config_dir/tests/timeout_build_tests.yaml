@@ -1,0 +1,56 @@
+GoodBuild:
+    summary: Successful Build
+    build:
+        timeout: 5
+        timeout_file: test.txt
+        cmds:
+            - 'sleep 3'
+GoodBuild2:
+    summary: Successful Build
+    build:
+        timeout: 3
+        timeout_file: test.txt
+        cmds:
+            - 'sleep 1'
+            - 'touch test.txt'
+            - 'sleep 2'
+            - 'touch test.txt'
+            - 'sleep 1'
+GoodBuild3:
+    summary: Successful Build
+    build:
+        timeout: 3
+        timeout_file: test.txt
+        cmds:
+            - 'touch test.txt'
+            - 'sleep 1'
+            - 'rm test.txt'
+            - 'sleep 1'
+BadBuild:
+    summary: Unsuccessful Build
+    build:
+        timeout: 2
+        timeout_file: test.txt
+        cmds:
+            - 'sleep 4'
+BadBuild2:
+    summary: Unsuccessful Build
+    build:
+        timeout: 2
+        timeout_file: test.txt
+        cmds:
+            - 'sleep 1'
+            - 'touch test.txt'
+            - 'sleep 1'
+            - 'touch test.txt'
+            - 'sleep 3'
+BadBuild3:
+    summary: Unsuccessful Build
+    build:
+        timeout: 2
+        timeout_file: test.txt
+        cmds:
+            - 'touch test.txt'
+            - 'sleep 1'
+            - 'rm test.txt'
+            - 'sleep 3'

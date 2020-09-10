@@ -406,6 +406,10 @@ expected to be added to by various plugins.
                     help_text="Echo commands (including sourced files) in the"
                               " build log, and print the modules loaded and "
                               "environment before the cmds run."),
+                yc.StrElem(
+                    'timeout_file', default=None,
+                    help_text='Specify a different file to follow for build '
+                              'timeouts.'),
             ],
             help_text="The test build configuration. This will be "
                       "used to dynamically generate a build script for "
@@ -454,6 +458,10 @@ expected to be added to by various plugins.
                     help_text="Echo commands (including sourced files) in the "
                               "build log, and print the modules loaded and "
                               "environment before the cmds run."),
+                yc.StrElem(
+                    'timeout_file', default=None,
+                    help_text='Specify a different file to follow for run '
+                              'timeouts.'),
             ],
             help_text="The test run configuration. This will be used "
                       "to dynamically generate a run script for the "
