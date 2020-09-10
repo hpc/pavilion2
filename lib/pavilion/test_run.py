@@ -1094,8 +1094,7 @@ be set by the scheduler plugin as soon as it's known."""
         spack_commands = config.get('spack', {})
         install_packages = spack_commands.get('install', [])
         load_packages = spack_commands.get('load', [])
-
-        if spack_config.get('enable', 'False') is not 'False':
+        if spack_config.get('enable', 'False') != 'False':
             script.newline()
             script.comment('Add Spack path to path.')
             script.command('export SPACK_ROOT={}'

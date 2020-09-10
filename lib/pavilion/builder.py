@@ -614,8 +614,7 @@ class TestBuilder:
 
         # Generate an anonymous spack environment for a new build.
         spack_config = self.test.config.get('spack', {})
-        if (self._pav_cfg.get('spack_path') is not None and
-            spack_config.get('enable', 'False') is not 'False'):
+        if (spack_config.get('enable', 'False') != 'False'):
             self.create_spack_env(spack_config, build_dir)
 
         try:
