@@ -76,7 +76,7 @@ class ModuleRestore(ModuleAction):
                '$TEST_ID',
                'cpe-{s}'.format(s=self.name.split('-')[1]),
                '{s.version}'.format(s=self)]
-        return " ".join(cmd)
+        return [" ".join(cmd)]
 
 
 class ModuleSwap(ModuleAction):
