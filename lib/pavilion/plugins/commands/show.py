@@ -480,13 +480,13 @@ class ShowCommand(commands.Command):
         else:
             self.show_configs_table(pav_cfg, args, args.show_cmd)
 
-    @show_cmd('host')
+    @sub_cmd('host')
     def _hosts_cmd(self, pav_cfg, args):
         """List all known host files."""
 
         self.show_configs(pav_cfg, args)
 
-    @show_cmd('mode')
+    @sub_cmd('mode')
     def _modes_cmd(self, pav_cfg, args):
         """List all known mode files."""
 
