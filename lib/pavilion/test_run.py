@@ -1120,10 +1120,9 @@ be set by the scheduler plugin as soon as it's known."""
             load_packages = spack_commands.get('load', [])
 
             script.newline()
-            script.comment('Add Spack path to path.')
-            script.command('export SPACK_ROOT={}'
+            script.comment('Source spack setup script.')
+            script.command('source {}/share/spack/setup-env.sh'
                            .format(self._pav_cfg.get('spack_path')))
-            script.command('export PATH=$SPACK_ROOT/bin:$PATH')
             script.comment('Activate spack environment.')
             script.command("spack env activate -d .")
 
