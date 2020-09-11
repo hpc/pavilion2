@@ -474,11 +474,11 @@ class ShowCommand(commands.Command):
     def show_configs(self, pav_cfg, args):
 
         if args.vars:
-            self.show_vars(pav_cfg, args.vars, args.show_cmd)
+            self.show_vars(pav_cfg, args.vars, args.sub_cmd)
         elif args.config:
-            self.show_full_config(pav_cfg, args.config, args.show_cmd)
+            self.show_full_config(pav_cfg, args.config, args.sub_cmd)
         else:
-            self.show_configs_table(pav_cfg, args, args.show_cmd)
+            self.show_configs_table(pav_cfg, args, args.sub_cmd)
 
     @sub_cmd('host')
     def _hosts_cmd(self, pav_cfg, args):
