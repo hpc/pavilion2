@@ -222,7 +222,7 @@ def delete(dir_path: Path, filter_func: Callable[[Path],bool]=default_filter,
                                transform=test_run.TestAttributes):
                 try:
                     shutil.rmtree(item.path)
-                except OSError as err:
+                except (OSError, TypeError) as err:
                     msgs.append("Could not remove {} {}: {}"
                                 .format(id_dir.name, item.path, err))
                     continue
@@ -235,7 +235,7 @@ def delete(dir_path: Path, filter_func: Callable[[Path],bool]=default_filter,
             for item in select(id_dir=dir_path, filter_func=filter_func):
                 try:
                     shutil.rmtree(item)
-                except OSError as err:
+                except (OSError,TypeError) as err:
                     msgs.append("Could not remove {} {}: {}"
                                 .format(id_dir.name, item, err))
                     continue
