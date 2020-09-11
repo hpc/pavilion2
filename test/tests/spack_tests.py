@@ -1,6 +1,7 @@
 import io
 from pathlib import Path
 import re
+import unittest
 
 from pavilion import arguments
 from pavilion import commands
@@ -9,11 +10,23 @@ from pavilion import test_run
 from pavilion.unittest import PavTestCase
 from pavilion.plugins.commands.status import get_tests
 
+_HAS_SPACK = None
+
+
+def has_spack():
+    global _HAS_SPACK
+    if _HAS_SPACK is None:
+        return False
+
+    return True
+
+
 class SpackTests(PavTestCase):
 
     def setUp(self):
 
-        self.pav_cfg['spack_path'] = Path('~/a/fake/path')
+        global _HAS_SPACK
+        _HAS_SPACK = self.pav_cfg.get('spack_path', None)
         self.working_dir = self.pav_cfg['working_dir']
         plugins.initialize_plugins(self.pav_cfg)
 
@@ -21,6 +34,7 @@ class SpackTests(PavTestCase):
 
         plugins._reset_plugins()
 
+    @unittest.skipIf(not has_spack(), "No 'spack_path' defined.")
     def test_spack_build(self):
         """Test to ensure that a test is built correctly."""
 
