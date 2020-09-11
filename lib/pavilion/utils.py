@@ -322,3 +322,12 @@ def hr_cutoff_to_datetime(cutoff_time: str,
             )
 
     raise ValueError("Invalid cutoff value '{}'".format(cutoff_time))
+
+
+def union_dictionary(dict1, dict2):
+    """Combines two dictionaries with nested lists."""
+
+    for key in dict2.keys():
+        dict1[key] = dict1.get(key, []) + dict2[key]
+
+    return dict1

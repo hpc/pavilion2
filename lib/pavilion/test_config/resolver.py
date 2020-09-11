@@ -27,6 +27,7 @@ from pavilion.test_config.file_format import (TestConfigError, TEST_NAME_RE,
                                               KEY_NAME_RE)
 from pavilion.test_config.file_format import TestConfigLoader, \
     TestSuiteLoader, SeriesConfigLoader
+from pavilion.utils import union_dictionary
 from yaml_config import RequiredError
 
 # Config file types
@@ -37,15 +38,6 @@ CONF_TEST = 'tests'
 LOGGER = logging.getLogger('pav.' + __name__)
 
 TEST_VERS_RE = re.compile(r'^\d+(\.\d+){0,2}$')
-
-
-def union_dictionary(dict1, dict2):
-    """Combines two dictionaries with nested lists."""
-
-    for key in dict2.keys():
-        dict1[key] = dict1.get(key, []) + dict2[key]
-
-    return dict1
 
 
 class TestConfigResolver:
@@ -114,7 +106,7 @@ class TestConfigResolver:
 
         return var_man
 
-    def _find_config(self, conf_type, conf_name):
+    def find_config(self, conf_type, conf_name):
         """Search all of the known configuration directories for a config of the
         given type and name.
 
@@ -216,63 +208,6 @@ class TestConfigResolver:
                             'doc': default(conf.get('doc', ''), ''),
                         }
         return suites
-
-    def find_all_series(self):
-        """Find all the series within known config directories.
-
-    :return: Returns a dictionary of series names to an info dict.
-    :rtype: dict(dict)
-
-    The returned data structure looks like: ::
-
-        series_name -> {
-            'path': Path to the series file.
-            'supersedes': [superseded_suite_files],
-            'err': errors
-            'tests': [test_names]
-            }
-    """
-
-        series = {}
-
-        for conf_dir in self.pav_cfg.config_dirs:
-            path = conf_dir/'series'
-
-            if not (path.exists() and path.is_dir()):
-                continue
-
-            for file in os.listdir(path.as_posix()):
-
-                file = path/file
-                if file.suffix == '.yaml' and file.is_file():
-                    series_name = file.stem
-
-                    if series_name not in series:
-                        series[series_name] = {
-                            'path': file,
-                            'err': '',
-                            'tests': [],
-                            'supersedes': [],
-                        }
-                    else:
-                        suites[suite_name]['supersedes'].append(file)
-
-                    with file.open('r') as series_file:
-                        try:
-                            series_cfg = SeriesConfigLoader().load(
-                                series_file, partial=True)
-                            series[series_name]['tests'] = list(series_cfg[
-                                'series'].keys())
-                        except (
-                                TypeError,
-                                KeyError,
-                                ValueError,
-                                yc_yaml.YAMLError,
-                        ) as err:
-                            series[series_name]['err'] = err
-                            continue
-
-        return series
 
     def load(self, tests: List[str], host: str = None,
              modes: List[str] = None, overrides: List[str] = None,
@@ -442,7 +377,7 @@ class TestConfigResolver:
 
             # Only load each test suite's tests once.
             if test_suite not in all_tests:
-                test_suite_path = self._find_config(CONF_TEST, test_suite)
+                test_suite_path = self.find_config(CONF_TEST, test_suite)
 
                 if test_suite_path is None:
                     if test_suite == 'log':
@@ -613,7 +548,7 @@ class TestConfigResolver:
         test_config_loader = TestConfigLoader()
 
         if host is not None:
-            host_cfg_path = self._find_config(CONF_HOST, host)
+            host_cfg_path = self.find_config(CONF_HOST, host)
 
             if host_cfg_path is not None:
                 try:
@@ -659,7 +594,7 @@ class TestConfigResolver:
         test_config_loader = TestConfigLoader()
 
         for mode in modes:
-            mode_cfg_path = self._find_config(CONF_MODE, mode)
+            mode_cfg_path = self.find_config(CONF_MODE, mode)
 
             if mode_cfg_path is None:
                 raise TestConfigError(

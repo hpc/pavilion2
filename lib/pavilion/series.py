@@ -286,14 +286,14 @@ class TestSeries:
     LOGGER_FMT = 'series({})'
 
     def __init__(self, pav_cfg, tests=None, _id=None, series_config=None,
-                 dep_graph=None):
+                 dep_graph=None, ):
         """Initialize the series.
 
         :param pav_cfg: The pavilion configuration object.
         :param list tests: The list of test objects that belong to this series.
         :param int _id: The test id number. If this is given, it implies that
             we're regenerating this series from saved files.
-        :param dict series_cfg: Series config, if generated from a serie file.
+        :param dict series_cfg: Series config, if generated from a series file.
         """
 
         self.pav_cfg = pav_cfg
@@ -321,6 +321,17 @@ class TestSeries:
                     "Could not get id or series directory in '{}': {}"
                     .format(series_path, err))
 
+            # TODO:
+            # apply ordered: True before checking for dependencies
+            if self.config['ordered'] in ['True', 'true']:
+                ser_keys = list(self.config['series'].keys())
+                for ser_idx in range(len(ser_keys) - 1):
+                    temp_depends_on = \
+                        self.config['series'][ser_keys[ser_idx + 1]][
+                            'depends_on']
+                    if ser_keys[ser_idx] not in temp_depends_on:
+                        temp_depends_on.append(ser_keys[ser_idx])
+
             # Create a soft link to the test directory of each test in the
             # series.
             if tests:
@@ -340,6 +351,7 @@ class TestSeries:
         else:
             self._id = _id
             self.path = dir_db.make_id_path(series_path, self._id)
+            self.dep_graph = self.load_dep_graph()
 
         self._logger = logging.getLogger(self.LOGGER_FMT.format(self._id))
 
@@ -352,6 +364,15 @@ class TestSeries:
         return cur_run
 
     def create_dependency_tree(self):
+
+        # apply ordered: True before checking for dependencies
+        if self.config['ordered'] in ['True', 'true']:
+            ser_keys = list(self.config['series'].keys())
+            for ser_idx in range(len(ser_keys)-1):
+                temp_depends_on = series_cfg['series'][ser_keys[ser_idx+1]][
+                    'depends_on']
+                if ser_keys[ser_idx] not in temp_depends_on:
+                    temp_depends_on.append(ser_keys[ser_idx])
 
         # create dependency tree
         for set_name, set_config in self.config['series'].items():
@@ -503,29 +524,17 @@ differentiate it from test ids."""
 
         return cls(pav_cfg, tests, _id=sid)
 
-    @classmethod
-    def get_config_dep_from_id(cls, pav_cfg, id_):
+    def load_dep_graph(self):
         """Load a series object from the given id, along with the config and
         dependency tree."""
 
-        id_ = int(id_)
-
-        series_path = pav_cfg.working_dir/'series'
-        series_path = dir_db.make_id_path(series_path, id_)
-
         try:
-            with open(str(series_path/'config'), 'r') as config_file:
-                config = config_file.readline()
-            config = json.loads(config)
-
-            with open(str(series_path/'dependency'), 'r') as dep_file:
+            with (self.path/'dependency').open() as dep_file:
                 dep = dep_file.readline()
-            dep = json.loads(dep)
+            return json.loads(dep)
 
         except FileNotFoundError as fnfe:
             raise TestSeriesError("Files not found. {}".format(fnfe))
-
-        return cls(pav_cfg, _id=id_, series_config=config, dep_graph=dep)
 
     def create_set_graph(self):
 

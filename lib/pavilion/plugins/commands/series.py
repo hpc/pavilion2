@@ -6,9 +6,10 @@ from pavilion import commands
 from pavilion import arguments
 from pavilion import series
 from pavilion import output
+from pavilion import series_config
 from pavilion.output import fprint
 from pavilion.test_config.resolver import TestConfigResolver
-from pavilion.test_config.file_format import SeriesConfigLoader
+from pavilion.series_config.file_format import SeriesConfigLoader
 
 
 class RunSeries(commands.Command):
@@ -27,44 +28,26 @@ class RunSeries(commands.Command):
             'series_name', action='store',
             help="Series name."
         )
+        parser.add_argument(
+            '-H', '--host', action='store',
+            help='The host to configure this test for. If not specified, the '
+                 'current host as denoted by the sys plugin \'sys_host\' is '
+                 'used.')
+        parser.add_argument(
+            '-m', '--mode', action='append', dest='modes', default=[],
+            help='Mode configurations to overlay on the host configuration for '
+                 'each test. These are overlayed in the order given.')
 
     def run(self, pav_cfg, args):
 
         # load series and test files
-        series_config_loader = SeriesConfigLoader()
-        test_config_resolver = TestConfigResolver(pav_cfg)
+        series_cfg = series_config.load_series_configs(pav_cfg,
+                                                       args.series_name,
+                                                       args.modes,
+                                                       args.host)
 
-        # pylint: disable=protected-access
-        series_file_path = test_config_resolver._find_config('series',
-                                                             args.series_name)
-
-        try:
-            with series_file_path.open() as series_file:
-                series_cfg = series_config_loader.load(series_file)
-
-                # make series object
-                series_obj = series.TestSeries(pav_cfg,
-                                               series_config=series_cfg)
-
-                for set_name, set_dict in series_cfg['series'].items():
-                    all_modes = series_cfg['modes'] + set_dict['modes']
-                    test_config_resolver.load(
-                        set_dict['tests'],
-                        None,
-                        all_modes,
-                        None
-                    )
-        except AttributeError as err:
-            raise series.TestSeriesError("Cannot load series. {}".format(err))
-
-        # apply ordered: True before checking for dependencies
-        if series_cfg['ordered'] in ['True', 'true']:
-            ser_keys = list(series_cfg['series'].keys())
-            for ser_idx in range(len(ser_keys)-1):
-                temp_depends_on = series_cfg['series'][ser_keys[ser_idx+1]][
-                    'depends_on']
-                if ser_keys[ser_idx] not in temp_depends_on:
-                    temp_depends_on.append(ser_keys[ser_idx])
+        series_obj = series.TestSeries(pav_cfg,
+                                       series_config=series_cfg)
 
         # check for circular dependencies and create dependencies tree
         series_obj.create_dependency_tree()
@@ -74,6 +57,8 @@ class RunSeries(commands.Command):
 
         # write dependency tree and config in series dir
         # TODO: make sure this is atomic???
+        from pavilion import output
+        output.dbg_print(series_obj.dep_graph)
         try:
             with open(str(series_path/'dependency'), 'w') as dep_file:
                 dep_file.write(json.dumps(series_obj.dep_graph))

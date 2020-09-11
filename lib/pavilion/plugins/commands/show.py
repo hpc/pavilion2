@@ -21,6 +21,7 @@ from pavilion.result import parsers
 from pavilion.test_config import DeferredVariable
 from pavilion.test_config import file_format
 from pavilion.test_config import resolver
+from pavilion import series_config
 
 
 class ShowCommand(commands.Command):
@@ -763,8 +764,7 @@ class ShowCommand(commands.Command):
     @sub_cmd('series')
     def _series_cmd(self, pav_cfg, args):
 
-        resolv = resolver.TestConfigResolver(pav_cfg)
-        series_dict = resolv.find_all_series()
+        series_dict = series_config.find_all_series(pav_cfg)
 
         rows = []
 
