@@ -36,11 +36,13 @@ class SeriesFileTests(PavTestCase):
                       { 'modes': [],
                         'tests': ['echo_test.b'],
                         'only_if': {},
+                        'depends_on': [],
                         'not_if': {}}
                 },
             'modes': ['smode2'],
             'simultaneous': '1',
-            'restart': False
+            'restart': False,
+            'ordered': False
         }
 
         test_series_obj = series.TestSeries(self.pav_cfg,
@@ -71,12 +73,14 @@ class SeriesFileTests(PavTestCase):
             'series':
                 { 'only_set':
                       { 'modes': ['smode1'],
+                        'depends_on': [],
                         'tests': ['echo_test.a'],
                         'only_if': {},
                         'not_if': {}}
                   },
             'modes': ['smode2'],
             'simultaneous': None,
+            'ordered': False,
             'restart': False
         }
 
@@ -121,13 +125,14 @@ class SeriesFileTests(PavTestCase):
                 },
             'modes': ['smode2'],
             'simultaneous': None,
+            'ordered': False,
             'restart': False
         }
 
         test_series_obj = series.TestSeries(self.pav_cfg,
                                             series_config=series_config)
 
-        test_series_obj.create_dependency_tree()
+        test_series_obj.create_dependency_graph()
 
         test_series_obj.create_set_graph()
 
@@ -148,15 +153,16 @@ class SeriesFileTests(PavTestCase):
             'series':
                 { 'only_set':
                       { 'modes': ['smode1'],
+                        'depends_on': [],
                         'tests': ['echo_test.wrong_year'],
                         'only_if': {},
                         'not_if': {}}
                   },
             'modes': ['smode2'],
             'simultaneous': None,
+            'ordered': False,
             'restart': False
         }
-
 
         test_series_obj = series.TestSeries(self.pav_cfg,
                                             series_config=series_config)
