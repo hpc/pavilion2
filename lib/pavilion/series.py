@@ -403,6 +403,9 @@ class TestSeries:
         :return:
         """
 
+        if not self.config:
+            return
+
         dep_graph = {}
 
         # create dependency tree

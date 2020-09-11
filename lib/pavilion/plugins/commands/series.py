@@ -52,13 +52,6 @@ class RunSeries(commands.Command):
         series_path = series_obj.path
         series_id = series_obj._id
 
-        try:
-            with open(str(series_path/'config'), 'w') as config_file:
-                config_file.write(json.dumps(series_cfg))
-        except FileNotFoundError:
-            fprint("Could not write series config to file. Cancelling.",
-                   color=output.RED)
-
         # pav _series runs in background using subprocess
         temp_args = ['pav', '_series', str(series_id)]
         try:
