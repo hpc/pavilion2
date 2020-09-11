@@ -224,8 +224,6 @@ class TestRunTests(PavTestCase):
         self.assertEqual(len(set(test_paths)),
                          len([p.resolve() for p in test_paths]))
 
-        self._is_softlink_dir(series.path)
-
         series2 = TestSeries.from_id(self.pav_cfg, series.sid)
         self.assertEqual(sorted(series.tests.keys()),
                          sorted(series2.tests.keys()))
