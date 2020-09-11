@@ -202,10 +202,10 @@ def paths_to_ids(paths: List[Path]) -> List[int]:
                 "Invalid dir_db path '{}'".format(path.as_posix()))
     return ids
 
-def delete(dir_path: Path, filter_func: Callable[[Path],bool]=default_filter,
+def delete(id_dir: Path, filter_func: Callable[[Path],bool]=default_filter,
            verbose: bool=False):
     """Delete all id directories in a given path that match the given filter.
-    :param dir_path: The directory to iterate through.
+    :param id_dir: The directory to iterate through.
     :param filter_func: A passed filter function, to be passed to select.
     :param verbose: Verbose output.
     :return int count: The number of directories removed.
@@ -215,10 +215,10 @@ def delete(dir_path: Path, filter_func: Callable[[Path],bool]=default_filter,
     count = 0
     msgs = []
 
-    lock_path = dir_path.with_suffix('.lock')
+    lock_path = id_dir.with_suffix('.lock')
     with lockfile.LockFile(lock_path):
-        if dir_path.name is 'test_runs':
-            for item in select(id_dir=dir_path, filter_func=filter_func,
+        if id_dir.name is 'test_runs':
+            for item in select(id_dir=id_dir, filter_func=filter_func,
                                transform=test_run.TestAttributes):
                 try:
                     shutil.rmtree(item.path)
@@ -228,11 +228,11 @@ def delete(dir_path: Path, filter_func: Callable[[Path],bool]=default_filter,
                     continue
                 count += 1
                 if verbose:
-                    msgs.append("Removed {} {}.".format(dir_path.name,
+                    msgs.append("Removed {} {}.".format(id_dir.name,
                                                         str(item.id)
                                                         .zfill(7)))
         else:
-            for item in select(id_dir=dir_path, filter_func=filter_func):
+            for item in select(id_dir=id_dir, filter_func=filter_func):
                 try:
                     shutil.rmtree(item)
                 except (OSError,TypeError) as err:
@@ -241,7 +241,7 @@ def delete(dir_path: Path, filter_func: Callable[[Path],bool]=default_filter,
                     continue
                 count += 1
                 if verbose:
-                    msgs.append("Removed {} {}.".format(dir_path.name,
+                    msgs.append("Removed {} {}.".format(id_dir.name,
                                                         item.name))
-    reset_pkey(dir_path)
+    reset_pkey(id_dir)
     return count, msgs
