@@ -29,8 +29,8 @@ class AutoSeries(commands.Command):
     def run(self, pav_cfg, args):
 
         # load series obj
-        series_obj = series.TestSeries.from_id(pav_cfg,
-                                               args.series_id)
+        sid = 's' + args.series_id
+        series_obj = series.TestSeries.from_id(pav_cfg, sid)
 
         # create doubly linked series stuff
         series_obj.create_set_graph()

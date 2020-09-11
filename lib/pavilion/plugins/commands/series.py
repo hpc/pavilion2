@@ -49,22 +49,8 @@ class RunSeries(commands.Command):
         series_obj = series.TestSeries(pav_cfg,
                                        series_config=series_cfg)
 
-        # check for circular dependencies and create dependencies tree
-        series_obj.create_dependency_tree()
-
         series_path = series_obj.path
         series_id = series_obj._id
-
-        # write dependency tree and config in series dir
-        # TODO: make sure this is atomic???
-        from pavilion import output
-        output.dbg_print(series_obj.dep_graph)
-        try:
-            with open(str(series_path/'dependency'), 'w') as dep_file:
-                dep_file.write(json.dumps(series_obj.dep_graph))
-        except FileNotFoundError:
-            fprint("Could not write dependency tree to file. Cancelling.",
-                   color=output.RED)
 
         try:
             with open(str(series_path/'config'), 'w') as config_file:

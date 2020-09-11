@@ -126,7 +126,7 @@ class TestSet:
             # resolve configs
             configs_by_sched = run_cmd.get_test_configs(
                 pav_cfg=self.pav_cfg,
-                host=None,
+                host=None, # TODO: add hosts
                 test_files=[],
                 tests=self.tests,
                 modes=self.modes,
@@ -321,16 +321,13 @@ class TestSeries:
                     "Could not get id or series directory in '{}': {}"
                     .format(series_path, err))
 
-            # TODO:
-            # apply ordered: True before checking for dependencies
-            if self.config['ordered'] in ['True', 'true']:
-                ser_keys = list(self.config['series'].keys())
-                for ser_idx in range(len(ser_keys) - 1):
-                    temp_depends_on = \
-                        self.config['series'][ser_keys[ser_idx + 1]][
-                            'depends_on']
-                    if ser_keys[ser_idx] not in temp_depends_on:
-                        temp_depends_on.append(ser_keys[ser_idx])
+            # Create self.dep_graph, apply ordered: True, check for circular
+            # dependencies
+            self.dep_graph = self.create_dependency_graph()
+            self.save_dep_graph()
+
+            # save series config
+            self.save_series_config()
 
             # Create a soft link to the test directory of each test in the
             # series.
@@ -351,9 +348,28 @@ class TestSeries:
         else:
             self._id = _id
             self.path = dir_db.make_id_path(series_path, self._id)
-            self.dep_graph = self.load_dep_graph()
+            self.dep_graph, self.config = self.load_dep_graph()
 
         self._logger = logging.getLogger(self.LOGGER_FMT.format(self._id))
+
+    def run_series_background(self):
+
+        # pav _series runs in background using subprocess
+        temp_args = ['pav', '_series', str(self._id)]
+        try:
+            with open(str(self.path/'series.out'), 'w') as series_out:
+                series_proc = subprocess.Popen(temp_args,
+                                               stdout=series_out,
+                                               stderr=series_out)
+        except TypeError:
+            series_proc = subprocess.Popen(temp_args,
+                                           stdout=subprocess.DEVNULL,
+                                           stderr=subprocess.DEVNULL)
+        except FileNotFoundError:
+            fprint("Could not kick off tests. Cancelling.",
+                   color=output.RED)
+            return
+
 
     def get_currently_running(self):
         cur_run = []
@@ -363,25 +379,48 @@ class TestSeries:
                 cur_run.append(test_obj)
         return cur_run
 
-    def create_dependency_tree(self):
+    def save_series_config(self):
+        """
+        Saves series config to a file.
+        :return:
+        """
 
-        # apply ordered: True before checking for dependencies
-        if self.config['ordered'] in ['True', 'true']:
-            ser_keys = list(self.config['series'].keys())
-            for ser_idx in range(len(ser_keys)-1):
-                temp_depends_on = series_cfg['series'][ser_keys[ser_idx+1]][
-                    'depends_on']
-                if ser_keys[ser_idx] not in temp_depends_on:
-                    temp_depends_on.append(ser_keys[ser_idx])
+        series_config_path = self.path/'config'
+        try:
+            with series_config_path.with_suffix('.tmp').open('w') as \
+                    config_file:
+                config_file.write(json.dumps(self.config))
+
+            series_config_path.with_suffix('.tmp').rename(series_config_path)
+        except OSError:
+            fprint("Could not write series config to file. Cancelling.",
+                   color=output.RED)
+
+    def create_dependency_graph(self):
+        """
+        Create self.dep_graph, apply ordered: True, check for circular
+        dependencies.
+        :return:
+        """
+
+        dep_graph = {}
 
         # create dependency tree
+        last_set_name = None
+        is_ordered = self.config['ordered'] in ['True', 'true']
         for set_name, set_config in self.config['series'].items():
-            self.dep_graph[set_name] = set_config['depends_on']
+            dep_graph[set_name] = set_config['depends_on']
 
-        temp_original_dep = copy.deepcopy(self.dep_graph)
+            if is_ordered and last_set_name is not None \
+                    and last_set_name not in dep_graph[set_name]:
+                dep_graph[set_name].append(last_set_name)
+
+            last_set_name = set_name
+
+        temp_original_dep = copy.deepcopy(dep_graph)
 
         # check for circular dependencies
-        unresolved = list(self.dep_graph.keys())
+        unresolved = list(dep_graph.keys())
         resolved = []
 
         while unresolved:
@@ -389,14 +428,14 @@ class TestSeries:
 
             for unresolved_set in unresolved:
                 # Find if there any dependencies are/were resolved
-                temp_dep_list = copy.deepcopy(self.dep_graph[unresolved_set])
-                for dep in self.dep_graph[unresolved_set]:
+                temp_dep_list = copy.deepcopy(dep_graph[unresolved_set])
+                for dep in dep_graph[unresolved_set]:
                     if dep in resolved:
                         temp_dep_list.remove(dep)
-                self.dep_graph[unresolved_set] = temp_dep_list
+                dep_graph[unresolved_set] = temp_dep_list
 
                 # If this was already fully resolved, add it to resolved
-                if not self.dep_graph[unresolved_set]:
+                if not dep_graph[unresolved_set]:
                     resolved.append(unresolved_set)
                     unresolved.remove(unresolved_set)
                     resolved_something = True
@@ -409,9 +448,23 @@ class TestSeries:
                 "Circular dependencies detected. Please fix. No tests are run.",
             )
 
-        self.dep_graph = temp_original_dep
+        return temp_original_dep
 
-        return
+    def save_dep_graph(self):
+        """
+        Write dependency tree and config in series dir
+        :return:
+        """
+
+        series_dep_path = self.path/'dependency'
+        try:
+            with series_dep_path.with_suffix('.tmp').open('w') as dep_file:
+                dep_file.write(json.dumps(self.dep_graph))
+
+            series_dep_path.with_suffix('.tmp').rename(series_dep_path)
+        except OSError:
+            fprint("Could not write dependency tree to file. Cancelling.",
+                   color=output.RED)
 
     @property
     def sid(self):  # pylint: disable=invalid-name
@@ -531,7 +584,11 @@ differentiate it from test ids."""
         try:
             with (self.path/'dependency').open() as dep_file:
                 dep = dep_file.readline()
-            return json.loads(dep)
+
+            with (self.path/'config').open() as config_file:
+                config = config_file.readline()
+
+            return json.loads(dep), json.loads(config)
 
         except FileNotFoundError as fnfe:
             raise TestSeriesError("Files not found. {}".format(fnfe))
