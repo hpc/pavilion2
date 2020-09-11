@@ -472,8 +472,8 @@ class TestConfigResolver:
 
         return picked_tests
 
-
-    def verify_version_range(comp_versions):
+    def verify_version_range(self, comp_versions):
+        """Validate a version range value."""
 
         if comp_versions.count('-') > 1:
             raise TestConfigError(
@@ -483,12 +483,12 @@ class TestConfigResolver:
         min_str = comp_versions.split('-')[0]
         max_str = comp_versions.split('-')[-1]
 
-        min_version = TestConfigResolver.verify_version(min_str, comp_versions)
-        max_version = TestConfigResolver.verify_version(max_str, comp_versions)
+        min_version = self.verify_version(min_str, comp_versions)
+        max_version = self.verify_version(max_str, comp_versions)
 
         return min_version, max_version
 
-    def verify_version(version_str, comp_versions):
+    def verify_version(self, version_str, comp_versions):
         """Ensures version was provided in the correct format, and returns the
         version as a list of digits."""
 
@@ -501,7 +501,7 @@ class TestConfigResolver:
                 "Compatible versions must be of form X, X.X, or X.X.X ."
                 .format(version_str, comp_versions))
 
-    def check_version_compatibility(test_cfg):
+    def check_version_compatibility(self, test_cfg):
         """Returns a bool on if the test is compatible with the current version
         of pavilion."""
 
@@ -513,11 +513,11 @@ class TestConfigResolver:
         if not comp_versions:
             return True
 
-        min_version, max_version = TestConfigResolver.verify_version_range(comp_versions)
+        min_version, max_version = self.verify_version_range(comp_versions)
 
         # Trim pavilion version to the degree dictated by min and max version.
-        # This only matters if they are equal, and only occurs when a specific 
-        # version is provided.  
+        # This only matters if they are equal, and only occurs when a specific
+        # version is provided.
         if min_version == max_version and len(min_version) < len(version):
             offset = len(version) - len(min_version)
             version = version[:-offset]
@@ -567,7 +567,7 @@ class TestConfigResolver:
                         "Host config '{}' raised a type error, but that "
                         "should never happen. {}".format(host_cfg_path, err))
 
-            test_cfg = resolve_cmd_inheritance(test_cfg)
+            test_cfg = self.resolve_cmd_inheritance(test_cfg)
 
         return test_cfg
 
@@ -616,12 +616,11 @@ class TestConfigResolver:
                     "Mode config '{}' raised a type error, but that "
                     "should never happen. {}".format(mode_cfg_path, err))
 
-            test_cfg = resolve_cmd_inheritance(test_cfg)
+            test_cfg = self.resolve_cmd_inheritance(test_cfg)
 
         return test_cfg
 
-    @staticmethod
-    def resolve_inheritance(base_config, suite_cfg, suite_path):
+    def resolve_inheritance(self, base_config, suite_cfg, suite_path):
         """Resolve inheritance between tests in a test suite. There's potential
         for loops in the inheritance hierarchy, so we have to be careful of
         that.
@@ -692,8 +691,8 @@ class TestConfigResolver:
             suite_tests[test_cfg_name] = test_config_loader.merge(parent,
                                                                   test_cfg)
 
-            suite_tests[test_cfg_name] = \
-            resolve_cmd_inheritance(suite_tests[test_cfg_name])
+            suite_tests[test_cfg_name] = self.resolve_cmd_inheritance(
+                suite_tests[test_cfg_name])
 
             # Now all tests that depend on this one are ready to resolve.
             ready_to_resolve.extend(depended_on_by.get(test_cfg_name, []))
@@ -741,7 +740,7 @@ class TestConfigResolver:
                     "but that should never happen. {}"
                     .format(test_name, suite_path, err))
             try:
-                TestConfigResolver.check_version_compatibility(test_config)
+                self.check_version_compatibility(test_config)
             except TestConfigError as err:
                 raise TestConfigError(
                    "Test '{}' in suite '{}' has incompatibility issues:\n{}"
@@ -1166,20 +1165,23 @@ class TestConfigResolver:
                                   "resolving strings."
                                   .format(type(component), component))
 
-def resolve_cmd_inheritance(test_cfg):
+    def resolve_cmd_inheritance(self, test_cfg):
+        """Extend the command list by adding any prepend or append commands,
+        then clear those sections so they don't get added at additional
+        levels of config merging."""
 
-    for section in ['build', 'run']:
-        config = test_cfg.get(section)
-        if not config:
-            continue
-        new_cmd_list = []
-        if config.get('prepend_cmds', []):
-            new_cmd_list.extend(config.get('prepend_cmds'))
-            config['prepend_cmds'] = []
-        new_cmd_list += test_cfg[section]['cmds']
-        if config.get('append_cmds', []):
-            new_cmd_list.extend(config.get('append_cmds'))
-            config['append_cmds'] = []
-        test_cfg[section]['cmds'] = new_cmd_list
+        for section in ['build', 'run']:
+            config = test_cfg.get(section)
+            if not config:
+                continue
+            new_cmd_list = []
+            if config.get('prepend_cmds', []):
+                new_cmd_list.extend(config.get('prepend_cmds'))
+                config['prepend_cmds'] = []
+            new_cmd_list += test_cfg[section]['cmds']
+            if config.get('append_cmds', []):
+                new_cmd_list.extend(config.get('append_cmds'))
+                config['append_cmds'] = []
+            test_cfg[section]['cmds'] = new_cmd_list
 
-    return test_cfg
+        return test_cfg

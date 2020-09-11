@@ -6,15 +6,15 @@ import inspect
 import logging
 import pprint
 import re
-from collections import OrderedDict, namedtuple
-from pathlib import Path
 import textwrap
-from typing import Dict, Callable, Any, List
+from collections import OrderedDict
+from pathlib import Path
+from typing import Dict, Callable, Any, List, Union, TextIO
 
 import yaml_config as yc
-from pavilion.utils import auto_convert_str
 from pavilion.result.base import ResultError
 from pavilion.test_config import file_format, resolver
+from pavilion.utils import auto_convert_str
 from yapsy import IPlugin
 
 LOGGER = logging.getLogger(__file__)
@@ -25,22 +25,42 @@ _RESULT_PARSERS = {}
 
 
 class ParseErrorMsg:
-    def __init__(self, key, parser, file, msg):
+    """Standardized result parser error message."""
+
+    def __init__(self, key: str, parser: 'ResultParser',
+                 msg: str, file: str = None):
+        """Initialize the message.
+        :param key: The key being parsed when the error occured.
+        :param parser: The result parser being handled.
+        :param msg: The error message.
+        :param file: The file being parsed.
         """
-        :param key:
-        :param parser:
-        :param file:
-        :param msg:
-        """
+
+        self.key = key
+        self.parser = parser
+        self.file = file
+        self.msg = msg
 
     def __str__(self):
-
-ParseErrorMsg = namedtuple("ParseErrorMsg", [
-    'key',      # The key being processed
-    'parser',   # The parser object.
-    'file',     # The file being processed
-    'msg',      # The error message.
-])
+        if self.file:
+            return (
+                "Error parsing for key '{key}' under the result parser "
+                "'{parser_name}' for file {file_path}.\n"
+                "Parser module path: {module_path}\n{msg}".format(
+                    key=self.key,
+                    parser_name=self.parser.name,
+                    file_path=self.file,
+                    module_path=inspect.getfile(self.parser.__class__),
+                    msg=self.msg))
+        else:
+            return (
+                "Error parsing for key '{key}' under the result parser "
+                "'{parser_name}'.\n"
+                "Parser module path: {module_path}\n{msg}".format(
+                    key=self.key,
+                    parser_name=self.parser.name,
+                    module_path=inspect.getfile(self.parser.__class__),
+                    msg=self.msg))
 
 
 def get_plugin(name):
@@ -311,12 +331,13 @@ def match_pos_validator(match_pos):
                          .format(match_pos, err.args[0]))
 
 
+# Validators are used to check the attribute values. When a attribute
+# is a list, they are applied against each list item.
 BASE_VALIDATORS = {
     'keys': key_validator,
     'match_select': match_select_validator,
-    'match_after': match_pos_validator,  # Auto-applied to each list value
+    'match_after': match_pos_validator,
     'match_at': match_pos_validator,
-    'match_before': match_pos_validator,
     'action': tuple(ACTIONS.keys()),
     'per_file': tuple(PER_FILES.keys()),
 }
@@ -475,6 +496,12 @@ deferred args. On error, should raise a ResultParserError.
             # handled at a higher level.
             del kwargs[key]
 
+        if kwargs['match_at'] is None and not kwargs['match_after']:
+            raise ResultError(
+                "At least one of 'match_at' or 'match_after' "
+                "must be set. You should only see this if the default for "
+                "'match_at' was explicitly set to null.")
+
         for key, validator in self.validators.items():
             if isinstance(validator, tuple):
                 if kwargs[key] not in validator:
@@ -573,32 +600,23 @@ Example: ::
                         LIST=PER_LIST))
             ),
             yc.StrElem(
-                "match_at",
+                "when_line_matches", default='',
                 help_text=(
                     "A regular expression used to identify the line where "
                     "result parsing should start. The result parser will "
-                    "see the file starting at this line. Mutually exclusive "
-                    "with 'match_after' and 'match_before'."
+                    "see the file starting at this line. Defaults to matching "
+                    "every line."
                 )
             ),
             yc.ListElem(
-                "match_after", sub_elem=yc.StrElem(),
+                "after_lines_matching", sub_elem=yc.StrElem(),
                 help_text=(
                     "A list of regular expressions that must match lines that "
                     "precede the lines to be parsed. Empty items"
                     "in the sequence will match anything. The result parser "
                     "will see the file starting from start of the line after "
-                    "these match. Mutually exclusive with 'match_before' and "
-                    "'match_at'."
+                    "these match."
                 )
-            ),
-            yc.ListElem(
-                "match_before", sub_elem=yc.StrElem(),
-                help_text=(
-                    "A list of regular expressions that must follow the lines "
-                    "to be parsed. The result parser will see the file "
-                    "starting from the line before these. Mutually exclusive "
-                    "with 'match_after' and 'match_at'.")
             ),
             yc.StrElem(
                 "match_select",
@@ -813,31 +831,81 @@ configured for that test.
                 log=log)
 
             if error is not None:
-                if error.file:
-                errors.append(
-                    "Error parsing results using results parser "
-                    "'{.parser.name}' at '{.parser.path}' "
-                    "for key '{.key}'\n{.msg}"
-                    .format(error)
-                )
+                errors.append(str(error))
+
+
+def advance_file(file: TextIO, after: List[str], at: str):
+    """Advance the file to a position where the previous lines match each
+    of the 'before' regexes (in order) and the 'at' regex.
+
+    :param file: The file to search. The file cursor will (probably) be moved.
+    :param after: A list of regexes that must match the sequence of lines
+        that precede the line we
+        can claim a match.
+    :param at: The regex
+    :return: Nothing
+    """
+
+    if not after and at == '':
+        # This will always match the current line, so don't advance
+        return
+
+    # Merge the match_before and match_at conditions into a single list
+    # of conditions.
+    conds = after.copy()
+    if at is not None:
+        conds.append(at)
+    else:
+        conds.append('')
+
+    conds = [re.compile(cond) for cond in conds]
+
+    rewind_pos = None
+    pos = file.tell()
+    cond_idx = 0
+
+    for line in file:
+        # We've satisfied all conditions, stop searching.
+        if cond_idx == len(conds):
+            break
+
+        # When we finish matching, we need to rewind to the beginning of
+        # the current line.
+        rewind_pos = pos
+        pos += len(line)
+
+        # When we match a condition, advance to the next one, otherwise reset.
+        if conds[cond_idx].search(line) is not None:
+            cond_idx += 1
+        else:
+            cond_idx = 0
+
+    if rewind_pos is not None:
+        file.seek(rewind_pos)
 
 
 def parse_result(results: Dict, key: str, parser_cfg: Dict,
-                 parser: ResultParser, test, log: Callable) -> ParseErrorMsg:
-    """
-    :param results:
-    :param key:
-    :param parser_cfg:
-    :param parser:
-    :param test:
-    :param log:
-    :return:
+                 parser: ResultParser, test, log: Callable) \
+        -> Union[ParseErrorMsg, None]:
+    """Use a result parser and it's settings to parse a single value.
+
+    :param results: The results dictionary.
+    :param key: The key we're parsing.
+    :param parser_cfg: The parser config dict.
+    :param parser: The result parser plugin object.
+    :param test: The test object.
+    :param log: The result log callback.
+    :returns: A ParseErrorMsg object, which standardizes the error message
+        format.
     """
 
     # Grab these for local use.
     action_name = parser_cfg['action']
     globs = parser_cfg['files']
     per_file_name = parser_cfg['per_file']
+    match_select = parser_cfg['match_select']
+    match_after = parser_cfg['match_after']
+    match_at = parser_cfg['match_at']
 
     # The result key is always true/false. It's ACTION_TRUE by
     # default.
@@ -851,12 +919,7 @@ def parse_result(results: Dict, key: str, parser_cfg: Dict,
     try:
         parser_args = parser.check_args(**parser_cfg.copy())
     except ResultError as err:
-        return ParseErrorMsg(
-            parser=parser,
-            file=None,
-            key=key,
-            msg=err.args[0]
-        )
+        return ParseErrorMsg(key, parser, err.args[0])
 
     # The per-file results for this parser
     presults = OrderedDict()
@@ -876,11 +939,7 @@ def parse_result(results: Dict, key: str, parser_cfg: Dict,
     if not paths:
         msg = "File globs {} for key {} found no files.".format(globs, key)
         log(msg)
-        return {
-            'result_parser': parser.name,
-            'file':          str(parser.path),
-            'key':           key,
-            'msg':           msg}
+        return ParseErrorMsg(key, parser, msg)
 
     log("Found {} matching files.".format(len(paths)))
     log("Results will be stored with action '{}'".format(action_name))
@@ -899,19 +958,13 @@ def parse_result(results: Dict, key: str, parser_cfg: Dict,
             log("Raw parse result: '{}'".format(res))
 
         except (IOError, PermissionError, OSError) as err:
-            log("Error reading file: {}".format(err))
-            return {
-                'result_parser': parser.name,
-                'file': str(path),
-                'key': key,
-                'msg': "Error reading file: {}".format(err)}
+            msg = "Error reading file: {}".format(err)
+            log(msg)
+            return ParseErrorMsg(key, parser, msg, file=path.as_posix())
         except Exception as err:  # pylint: disable=W0703
-            log("UnexpectedError: {}".format(err))
-            return {
-                'result_parser': parser.name,
-                'file': str(path),
-                'key': key,
-                'msg': "Unexpected Error: {}".format(err)}
+            msg = "UnexpectedError: {}".format(err)
+            log(msg)
+            return ParseErrorMsg(key, parser, msg, file=path.as_posix())
 
         # We'll deal with the action later.
         presults[path] = res
@@ -948,8 +1001,6 @@ def parse_result(results: Dict, key: str, parser_cfg: Dict,
             .format(err.args[0]))
 
         log(msg)
-        return {
-            'result_parser': parser.name,
-            'file':          '*',
-            'key':           key,
-            'msg':           msg}
+        return ParseErrorMsg(key, parser, msg, file='*')
+
+    return None

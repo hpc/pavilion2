@@ -25,8 +25,7 @@ class Regex(parsers.ResultParser):
                               "in YAML to have the string interpreted "
                               "literally. IE '\\n' is a '\\' "
                               "and an 'n'. "
-                ),
-                parsers.MATCHES_ELEM]
+                )]
         )
 
     def _check_args(self, **kwargs):
@@ -50,10 +49,3 @@ class Regex(parsers.ResultParser):
             # if more than one capture is used, list contains tuples of
             # captured strings.
             matches.extend(regex.findall(line))
-
-        if match_type == parsers.MATCH_ALL:
-            return matches
-        elif match_type == parsers.MATCH_FIRST:
-            return matches[0] if matches else None
-        elif match_type == parsers.MATCH_LAST:
-            return matches[-1] if matches else None
