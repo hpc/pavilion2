@@ -4,10 +4,10 @@ for Pavilion."""
 import copy
 import fnmatch
 import inspect
-import time
 import os
 import pprint
 import tempfile
+import time
 import types
 import unittest
 from hashlib import sha1
@@ -15,8 +15,8 @@ from pathlib import Path
 from typing import List
 
 from pavilion import arguments
-from pavilion import dir_db
 from pavilion import config
+from pavilion import dir_db
 from pavilion import pavilion_variables
 from pavilion import system_variables
 from pavilion.output import dbg_print

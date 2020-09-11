@@ -13,6 +13,7 @@ from pavilion import filters
 from pavilion import output
 from pavilion import schedulers
 from pavilion import series
+from pavilion import cmd_utils
 from pavilion.series import TestSeries, TestSeriesError
 from pavilion.status_file import STATES
 from pavilion.test_run import (
@@ -246,62 +247,7 @@ class StatusCommand(commands.Command):
         """Gathers and prints the statuses from the specified test runs and/or
         series."""
 
-        filter_func = filters.make_test_run_filter(
-            complete=args.complete,
-            incomplete=args.incomplete,
-            passed=args.passed,
-            failed=args.failed,
-            user=args.user,
-            sys_name=args.sys_name,
-            older_than=args.older_than,
-            newer_than=args.newer_than,
-            show_skipped=args.show_skipped,
-        )
-
-        order_func, order_asc = filters.get_sort_opts(
-            sort_name=args.sort_by,
-            choices=filters.TEST_SORT_FUNCS,
-        )
-
-        if args.tests:
-
-            test_paths = []
-            for test_id in args.tests:
-                if test_id == 'last':
-                    test_id = series.TestSeries.load_user_series_id(pav_cfg)
-
-                if test_id.startswith('s'):
-                    try:
-                        test_paths.extend(
-                            TestSeries.list_series_tests(pav_cfg, test_id))
-                    except TestSeriesError:
-                        output.fprint("Invalid series id '{}'".format(test_id))
-                        return errno.EINVAL
-                else:
-                    try:
-                        test_id = int(test_id)
-                    except ValueError:
-                        output.fprint("Invalid test id '{}'".format(test_id))
-
-                    test_dir = dir_db.make_id_path(
-                        pav_cfg.working_dir/'test_runs', test_id)
-
-                    if not test_dir.exists():
-                        output.fprint("No such test '{}'".format(test_id))
-                        return errno.EINVAL
-
-                    test_paths.append(test_dir)
-            test_ids = dir_db.paths_to_ids(test_paths)
-
-        else:
-            tests = dir_db.select(
-                id_dir=pav_cfg.working_dir/'test_runs',
-                transform=TestAttributes,
-                filter_func=filter_func,
-                order_func=order_func,
-                order_asc=order_asc,
-                limit=args.limit)
-            test_ids = [test.id for test in tests]
+        test_ids = cmd_utils.arg_filtered_tests(pav_cfg, args)
 
         statuses = get_test_statuses(pav_cfg, test_ids)
 
