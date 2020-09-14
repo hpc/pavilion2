@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Dict, Callable, Any, List, Union, TextIO
 
 import yaml_config as yc
+from pavilion.utils import auto_convert_str
 from pavilion.result.base import ResultError
 from pavilion.test_config import file_format, resolver
 from pavilion.utils import auto_convert_str
@@ -61,6 +62,7 @@ class ParseErrorMsg:
                     parser_name=self.parser.name,
                     module_path=inspect.getfile(self.parser.__class__),
                     msg=self.msg))
+
 
 
 def get_plugin(name):
@@ -615,8 +617,17 @@ Example: ::
                     "precede the lines to be parsed. Empty items"
                     "in the sequence will match anything. The result parser "
                     "will see the file starting from start of the line after "
-                    "these match."
+                    "these match. Mutually exclusive with 'match_before' and "
+                    "'match_at'."
                 )
+            ),
+            yc.ListElem(
+                "match_before", sub_elem=yc.StrElem(),
+                help_text=(
+                    "A list of regular expressions that must follow the lines "
+                    "to be parsed. The result parser will see the file "
+                    "starting from the line before these. Mutually exclusive "
+                    "with 'match_after' and 'match_at'.")
             ),
             yc.StrElem(
                 "match_select",
