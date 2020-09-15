@@ -7,6 +7,7 @@ import pathlib
 import time
 import copy
 import codecs
+import subprocess
 import sys
 import errno
 import signal
@@ -353,8 +354,9 @@ class TestSeries:
         self._logger = logging.getLogger(self.LOGGER_FMT.format(self._id))
 
     def run_series_background(self):
+        """Run pav _series in background using subprocess module."""
 
-        # pav _series runs in background using subprocess
+        # start subprocess
         temp_args = ['pav', '_series', str(self._id)]
         try:
             with open(str(self.path/'series.out'), 'w') as series_out:
@@ -366,12 +368,44 @@ class TestSeries:
                                            stdout=subprocess.DEVNULL,
                                            stderr=subprocess.DEVNULL)
         except FileNotFoundError:
-            fprint("Could not kick off tests. Cancelling.",
-                   color=output.RED)
+            output.fprint("Could not kick off tests. Cancelling.",
+                          color=output.RED)
             return
 
+        # write pgid to a file (atomically)
+        series_pgid = os.getpgid(series_proc.pid)
+        series_pgid_path = self.path/'series.pgid'
+        try:
+            with series_pgid_path.with_suffix('.tmp').open('w') as \
+                    series_id_file:
+                series_id_file.write(str(series_pgid))
+
+            series_pgid_path.with_suffix('.tmp').rename(series_pgid_path)
+            output.fprint("Started series s{}. "
+                          "Run `pav status s{}` to view status. "
+                          "PGID is {}. "
+                          "To kill, use `kill -15 -{}` or `pav cancel s{}`."
+                          .format(self._id,
+                                  self._id,
+                                  series_pgid,
+                                  series_pgid,
+                                  self._id))
+        except TypeError:
+            output.fprint("Warning: Could not write series PGID to a file.",
+                          color=output.YELLOW)
+            output.fprint("Started series s{}."
+                          "Run `pav status s{}` to view status. "
+                          "PGID is {}."
+                          "To kill, use `kill -15 -s{}`."
+                          .format(self._id,
+                                  self._id,
+                                  series_pgid,
+                                  series_pgid))
 
     def get_currently_running(self):
+        """Returns list of tests that have states of either SCHEDULED or
+        RUNNING. """
+
         cur_run = []
         for test_id, test_obj in self.tests.items():
             temp_state = test_obj.status.current().state
@@ -597,6 +631,8 @@ differentiate it from test ids."""
             raise TestSeriesError("Files not found. {}".format(fnfe))
 
     def create_set_graph(self):
+        """Create doubly linked list of TestSets and applies hosts and modes
+        to them"""
 
         # create all TestSet objects
         universal_modes = self.config['modes']
@@ -627,8 +663,6 @@ differentiate it from test ids."""
             for set_name in self.started:
                 self.test_sets[set_name].kill_set()
 
-            # for set_name, set_obj in self.test_sets.items():
-            #     set_obj.kill_set()
             sys.exit()
 
         signal.signal(signal.SIGTERM, sigterm_handler)
@@ -664,7 +698,7 @@ differentiate it from test ids."""
                 while not done:
                     done = True
                     for set_name, set_obj in self.test_sets.items():
-                        if not set_obj.done:
+                        if not set_obj.is_done:
                             done = False
                             break
                     time.sleep(0.1)

@@ -53,47 +53,7 @@ class RunSeries(commands.Command):
         series_id = series_obj._id
 
         # pav _series runs in background using subprocess
-        temp_args = ['pav', '_series', str(series_id)]
-        try:
-            with open(str(series_path/'series.out'), 'w') as series_out:
-                series_proc = subprocess.Popen(temp_args,
-                                               stdout=series_out,
-                                               stderr=series_out)
-        except TypeError:
-            series_proc = subprocess.Popen(temp_args,
-                                           stdout=subprocess.DEVNULL,
-                                           stderr=subprocess.DEVNULL)
-        except FileNotFoundError:
-            fprint("Could not kick off tests. Cancelling.",
-                   color=output.RED)
-            return
-
-        # write pgid to a series file and tell the user how to kill series
-        series_pgid = os.getpgid(series_proc.pid)
-        try:
-            with open(str(series_path/'series.pgid'), 'w') as series_id_file:
-                series_id_file.write(str(series_pgid))
-
-            fprint("Started series s{}. "
-                   "Run `pav status s{}` to view status. "
-                   "PGID is {}. "
-                   "To kill, use `kill -15 -{}` or `pav cancel s{}`."
-                   .format(series_obj._id,
-                           series_obj._id,
-                           series_pgid,
-                           series_pgid,
-                           series_obj._id))
-        except TypeError:
-            fprint("Warning: Could not write series PGID to a file.",
-                   color=output.YELLOW)
-            fprint("Started series s{}."
-                   "Run `pav status s{}` to view status. "
-                   "PGID is {}."
-                   "To kill, use `kill -15 -s{}`."
-                   .format(series_obj._id,
-                           series_obj._id,
-                           series_pgid,
-                           series_pgid))
+        series_proc = series_obj.run_series_background()
 
         return
 
