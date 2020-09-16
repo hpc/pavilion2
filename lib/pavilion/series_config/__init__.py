@@ -93,6 +93,10 @@ def load_series_configs(pav_cfg, series_name: str, cl_modes: List[str],
                     cl_host,
                     all_modes,
                 )
+
+            # add modes and host from command line to config
+            series_cfg['modes'] = all_modes
+            series_cfg['host'] = cl_host
     except AttributeError as err:
         raise SeriesConfigError("Cannot load series. {}".format(err.args[0]))
     except TestConfigError as err:

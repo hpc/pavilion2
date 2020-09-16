@@ -1,12 +1,5 @@
-import signal
-import sys
 from pavilion import commands
-from pavilion import arguments
 from pavilion import series
-from pavilion import output
-from pavilion.status_file import STATES
-from pavilion.test_config.resolver import TestConfigResolver
-from pavilion.test_config.file_format import SeriesConfigLoader
 
 
 class AutoSeries(commands.Command):

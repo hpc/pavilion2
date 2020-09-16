@@ -1,15 +1,6 @@
-import subprocess
-import os
-import json
-
 from pavilion import commands
-from pavilion import arguments
 from pavilion import series
-from pavilion import output
 from pavilion import series_config
-from pavilion.output import fprint
-from pavilion.test_config.resolver import TestConfigResolver
-from pavilion.series_config.file_format import SeriesConfigLoader
 
 
 class RunSeries(commands.Command):
@@ -39,6 +30,7 @@ class RunSeries(commands.Command):
                  'each test. These are overlayed in the order given.')
 
     def run(self, pav_cfg, args):
+        """Gets called when `pav series <series_name> is executed. """
 
         # load series and test files
         series_cfg = series_config.load_series_configs(pav_cfg,
@@ -46,14 +38,12 @@ class RunSeries(commands.Command):
                                                        args.modes,
                                                        args.host)
 
+        # create brand-new series object
         series_obj = series.TestSeries(pav_cfg,
                                        series_config=series_cfg)
 
-        series_path = series_obj.path
-        series_id = series_obj._id
-
         # pav _series runs in background using subprocess
-        series_proc = series_obj.run_series_background()
+        series_obj.run_series_background()
 
         return
 

@@ -9,7 +9,6 @@ import copy
 import codecs
 import subprocess
 import sys
-import errno
 import signal
 import logging
 from pathlib import Path
@@ -18,7 +17,6 @@ from pavilion import dir_db
 from pavilion import utils
 from pavilion import commands
 from pavilion import schedulers
-from pavilion import arguments
 from pavilion import test_config
 from pavilion import system_variables
 from pavilion import output
@@ -290,7 +288,7 @@ class TestSeries:
     LOGGER_FMT = 'series({})'
 
     def __init__(self, pav_cfg, tests=None, _id=None, series_config=None,
-                 dep_graph=None, ):
+                 dep_graph=None):
         """Initialize the series.
 
         :param pav_cfg: The pavilion configuration object.
@@ -349,6 +347,8 @@ class TestSeries:
             # Update user.json to record last series run per sys_name
             self._save_series_id()
 
+        # We're not creating this from scratch (an object was made ahead of
+        # time).
         else:
             self._id = _id
             self.path = dir_db.make_id_path(series_path, self._id)

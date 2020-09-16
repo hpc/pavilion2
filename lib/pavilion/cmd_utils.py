@@ -4,13 +4,11 @@ multiple commands."""
 from pavilion import dir_db
 from pavilion import test_config
 from pavilion import commands
-from pavilion.series import TestSeries, TestSeriesError
 from pavilion.test_run import TestAttributes
 from pavilion.builder import MultiBuildTracker
 from pavilion.test_run import TestConfigError, TestRunError, TestRun
 from pavilion.output import fprint
 from pavilion.status_file import STATES
-from pavilion import filters
 from pavilion import output
 
 import argparse
@@ -42,6 +40,8 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace) -> List[int]:
         keyword.
     :return: A list of test id ints.
     """
+
+    from pavilion import filters
 
     limit = args.limit
 
@@ -101,6 +101,8 @@ def test_list_to_paths(pav_cfg, req_tests) -> List[Path]:
     :param req_tests: A list of test id's, series id's, or 'last'.
     :return: A list of test id's.
     """
+
+    from pavilion.series import TestSeries, TestSeriesError
 
     test_paths = []
     for test_id in req_tests:
