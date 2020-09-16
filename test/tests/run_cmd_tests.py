@@ -1,5 +1,6 @@
 from pavilion import plugins
 from pavilion import commands
+from pavilion import cmd_utils
 from pavilion.unittest import PavTestCase
 from pavilion import arguments
 from pavilion.plugins.commands.run import RunCommand
@@ -25,12 +26,13 @@ class RunCmdTests(PavTestCase):
 
         run_cmd = commands.get_command('run')  # type: RunCommand
 
-        configs_by_sched = run_cmd.get_test_configs(pav_cfg=self.pav_cfg,
-                                                     host='this', test_files=[],
-                                                     tests=['hello_world'],
-                                                     modes=[], overrides={})
+        configs_by_sched = cmd_utils.get_test_configs(pav_cfg=self.pav_cfg,
+                                                      host='this',
+                                                      test_files=[],
+                                                      tests=['hello_world'],
+                                                      modes=[], overrides={})
 
-        tests = run_cmd.configs_to_tests(
+        tests = cmd_utils.configs_to_tests(
             pav_cfg=self.pav_cfg,
             configs_by_sched=configs_by_sched,
         )
@@ -47,13 +49,13 @@ class RunCmdTests(PavTestCase):
 
         tests_file = self.TEST_DATA_ROOT/'run_test_list'
 
-        configs_by_sched = run_cmd.get_test_configs(pav_cfg=self.pav_cfg,
-                                                     host='this',
-                                                     test_files=[tests_file],
-                                                     tests=[], modes=[],
-                                                     overrides={})
+        configs_by_sched = cmd_utils.get_test_configs(pav_cfg=self.pav_cfg,
+                                                      host='this',
+                                                      test_files=[tests_file],
+                                                      tests=[], modes=[],
+                                                      overrides={})
 
-        tests = run_cmd.configs_to_tests(
+        tests = cmd_utils.configs_to_tests(
             pav_cfg=self.pav_cfg,
             configs_by_sched=configs_by_sched,
         )

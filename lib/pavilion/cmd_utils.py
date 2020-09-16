@@ -9,11 +9,15 @@ from pavilion.test_run import TestAttributes
 from pavilion.builder import MultiBuildTracker
 from pavilion.test_run import TestConfigError, TestRunError, TestRun
 from pavilion.output import fprint
+from pavilion.status_file import STATES
 from pavilion import filters
+from pavilion import output
 
 import argparse
 import threading
 import time
+import errno
+import pathlib
 from typing import List
 from pathlib import Path
 from collections import defaultdict
@@ -129,7 +133,7 @@ def test_list_to_paths(pav_cfg, req_tests) -> List[Path]:
 
 
 def get_test_configs(pav_cfg, host, test_files, tests, modes,
-                     overrides, logger, conditions=None, outfile=None):
+                     overrides, logger=None, conditions=None, outfile=None):
     """Translate a general set of pavilion test configs into the final,
         resolved configurations. These objects will be organized in a
         dictionary by scheduler, and have a scheduler object instantiated

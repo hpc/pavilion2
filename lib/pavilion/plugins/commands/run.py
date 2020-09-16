@@ -154,7 +154,7 @@ class RunCommand(commands.Command):
 
         all_tests = [test for test in all_tests if not test.skipped]
 
-        res = self.build_local(
+        res = cmd_utils.build_local(
             tests=all_tests,
             max_threads=pav_cfg.build_threads,
             mb_tracker=mb_tracker,
