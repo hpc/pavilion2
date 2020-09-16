@@ -15,7 +15,6 @@ import logging
 from pathlib import Path
 
 from pavilion import dir_db
-from pavilion import system_variables
 from pavilion import utils
 from pavilion import commands
 from pavilion import schedulers
@@ -23,6 +22,7 @@ from pavilion import arguments
 from pavilion import test_config
 from pavilion import system_variables
 from pavilion import output
+from pavilion import cmd_utils
 from pavilion.test_config import resolver
 from pavilion.status_file import STATES
 from pavilion.builder import MultiBuildTracker
@@ -125,18 +125,19 @@ class TestSet:
             }
 
             # resolve configs
-            configs_by_sched = run_cmd.get_test_configs(
+            configs_by_sched = cmd_utils.get_test_configs(
                 pav_cfg=self.pav_cfg,
                 host=None, # TODO: add hosts
                 test_files=[],
                 tests=self.tests,
                 modes=self.modes,
+                logger=None, # TODO: logger??????
                 overrides=None,
-                conditions=new_conditions
+                conditions=new_conditions,
             )
 
             # configs->tests
-            tests_by_sched = run_cmd.configs_to_tests(
+            tests_by_sched = cmd_utils.configs_to_tests(
                 pav_cfg=self.pav_cfg,
                 configs_by_sched=configs_by_sched,
                 mb_tracker=mb_tracker,
@@ -177,11 +178,13 @@ class TestSet:
             return None
 
         # attempt to build
-        res = run_cmd.build_local(
+        res = cmd_utils.build_local(
             tests=all_tests,
             max_threads=self.pav_cfg.build_threads,
             mb_tracker=mb_tracker,
-            build_verbosity=0
+            build_verbosity=0,
+            outfile=open(os.devnull, 'w'), # TODO: FIX THIS
+            errfile=open(os.devnull, 'w')
         )
         if res != 0:
             run_cmd.complete_tests(all_tests)
