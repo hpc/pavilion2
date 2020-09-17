@@ -79,7 +79,7 @@ class SeriesFileTests(PavTestCase):
                         'tests': ['echo_test.a'],
                         'only_if': {},
                         'not_if': {}}
-                  },
+                },
             'modes': ['smode2'],
             'simultaneous': None,
             'ordered': False,

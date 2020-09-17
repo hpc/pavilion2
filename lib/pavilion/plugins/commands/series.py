@@ -20,7 +20,7 @@ class RunSeries(commands.Command):
             help="Series name."
         )
         parser.add_argument(
-            '-H', '--host', action='store',
+            '-H', '--host', action='store', default=None,
             help='The host to configure this test for. If not specified, the '
                  'current host as denoted by the sys plugin \'sys_host\' is '
                  'used.')
@@ -30,7 +30,7 @@ class RunSeries(commands.Command):
                  'each test. These are overlayed in the order given.')
 
     def run(self, pav_cfg, args):
-        """Gets called when `pav series <series_name> is executed. """
+        """Gets called when `pav series <series_name>` is executed. """
 
         # load series and test files
         series_cfg = series_config.load_series_configs(pav_cfg,

@@ -61,6 +61,8 @@ def test_obj_from_id(pav_cfg, test_ids):
 class TestSet:
     """Class describes a set of tests."""
 
+    LOGGER_FMT = 'series({})'
+
     # need info like
     # modes, only/not_ifs, next, prev
     def __init__(self, name, tests, modes, host, only_if, not_if, pav_cfg,
@@ -82,6 +84,9 @@ class TestSet:
 
         self.done = False
         self.all_pass = False
+
+        self.logger = logging.getLogger(
+            self.LOGGER_FMT.format(self.series_obj._id))
 
     @property
     def before(self):
@@ -135,8 +140,8 @@ class TestSet:
                 test_files=[],
                 tests=self.tests,
                 modes=self.modes,
-                logger=None, # TODO: logger??????
                 overrides=None,
+                logger=self.logger,
                 conditions=new_conditions,
             )
 
@@ -146,7 +151,8 @@ class TestSet:
                 configs_by_sched=configs_by_sched,
                 mb_tracker=mb_tracker,
                 build_only=False,
-                rebuild=False
+                rebuild=False,
+                outfile=sys.stdout
             )
 
         except commands.CommandError as err:
@@ -187,8 +193,8 @@ class TestSet:
             max_threads=self.pav_cfg.build_threads,
             mb_tracker=mb_tracker,
             build_verbosity=0,
-            outfile=open(os.devnull, 'w'), # TODO: FIX THIS
-            errfile=open(os.devnull, 'w')
+            outfile=sys.stdout,  # writing to stdout because subprocess will
+            errfile=sys.stdout   # redirect output to series out file anyway
         )
         if res != 0:
             run_cmd.complete_tests(all_tests)

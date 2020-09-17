@@ -153,8 +153,8 @@ def get_test_configs(pav_cfg, host, test_files, tests, modes,
     :returns: A dictionary (by scheduler type name) of lists of tuples
         test configs and their variable managers.
     """
-    if logger:
-        logger.debug("Finding Configs")
+
+    logger.debug("Finding Configs")
 
     resolver = test_config.TestConfigResolver(pav_cfg)
 
@@ -168,8 +168,7 @@ def get_test_configs(pav_cfg, host, test_files, tests, modes,
                         tests.append(line)
         except (OSError, IOError) as err:
             msg = "Could not read test file {}: {}".format(file, err)
-            if logger:
-                logger.error(msg)
+            logger.error(msg)
             raise commands.CommandError(msg)
 
     try:
