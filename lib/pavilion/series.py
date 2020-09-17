@@ -663,8 +663,11 @@ differentiate it from test ids."""
         # handles SIGTERM (15) signal
         def sigterm_handler(*args):
 
-            for set_name in self.started:
-                self.test_sets[set_name].kill_set()
+            for test_id, test_obj in self.tests.items():
+                if not (test_obj.path/'RUN_COMPLETE').exists():
+                    test_obj.status.set(STATES.COMPLETE,
+                                        "Killed by SIGTERM.")
+                    test_obj.set_run_complete()
 
             sys.exit()
 
