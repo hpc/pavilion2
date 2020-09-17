@@ -63,7 +63,7 @@ class TestSet:
 
     # need info like
     # modes, only/not_ifs, next, prev
-    def __init__(self, name, tests, modes, only_if, not_if, pav_cfg,
+    def __init__(self, name, tests, modes, host, only_if, not_if, pav_cfg,
                  series_obj):
         self.name = name
         # self.tests = tests
@@ -71,6 +71,7 @@ class TestSet:
         for test in tests:
             self.tests[test] = None
         self.modes = modes
+        self.host = host
         self.only_if = only_if
         self.not_if = not_if
         self.pav_cfg = pav_cfg
@@ -130,7 +131,7 @@ class TestSet:
             # resolve configs
             configs_by_sched = cmd_utils.get_test_configs(
                 pav_cfg=self.pav_cfg,
-                host=None, # TODO: add hosts
+                host=self.host,
                 test_files=[],
                 tests=self.tests,
                 modes=self.modes,
@@ -653,8 +654,8 @@ differentiate it from test ids."""
         for set_name, set_info in self.config['series'].items():
             modes = universal_modes + set_info['modes']
             set_obj = TestSet(set_name, set_info['tests'], modes,
-                              set_info['only_if'], set_info['not_if'],
-                              self.pav_cfg, self)
+                              self.config['host'], set_info['only_if'],
+                              set_info['not_if'], self.pav_cfg, self)
             self.test_sets[set_name] = set_obj
 
         # create doubly linked graph of TestSet objects

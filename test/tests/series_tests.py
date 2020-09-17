@@ -29,6 +29,7 @@ class SeriesFileTests(PavTestCase):
                           lambda: series_cmd.run(self.pav_cfg, series_args))
 
     def test_series_simultaneous(self):
+        """Tests to see if simultaneous: <num> works as intended. """
 
         series_config = {
             'series':
@@ -42,7 +43,8 @@ class SeriesFileTests(PavTestCase):
             'modes': ['smode2'],
             'simultaneous': '1',
             'restart': False,
-            'ordered': False
+            'ordered': False,
+            'host': None
         }
 
         test_series_obj = series.TestSeries(self.pav_cfg,
@@ -67,7 +69,7 @@ class SeriesFileTests(PavTestCase):
         self.assertGreaterEqual(timediff2, 0.5)
 
     def test_series_modes(self):
-        """Test if modes are applied correctly."""
+        """Test if modes and host are applied correctly."""
 
         series_config = {
             'series':
@@ -81,7 +83,8 @@ class SeriesFileTests(PavTestCase):
             'modes': ['smode2'],
             'simultaneous': None,
             'ordered': False,
-            'restart': False
+            'restart': False,
+            'host': 'this'
         }
 
         test_series_obj = series.TestSeries(self.pav_cfg,
@@ -102,6 +105,8 @@ class SeriesFileTests(PavTestCase):
             self.assertEqual(a_num_value, '13')
             asdf_value = vars.get('asdf', None, None)
             self.assertEqual(asdf_value, 'asdf1')
+            hosty_value = vars.get('hosty', None, None)
+            self.assertEqual(hosty_value, 'this')
 
     def test_series_depends(self):
         """Tests if dependencies work as intended."""
@@ -126,7 +131,8 @@ class SeriesFileTests(PavTestCase):
             'modes': ['smode2'],
             'simultaneous': None,
             'ordered': False,
-            'restart': False
+            'restart': False,
+            'host': None
         }
 
         test_series_obj = series.TestSeries(self.pav_cfg,
@@ -161,7 +167,8 @@ class SeriesFileTests(PavTestCase):
             'modes': ['smode2'],
             'simultaneous': None,
             'ordered': False,
-            'restart': False
+            'restart': False,
+            'host': None
         }
 
         test_series_obj = series.TestSeries(self.pav_cfg,
