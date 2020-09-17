@@ -59,6 +59,8 @@ def test_obj_from_id(pav_cfg, test_ids):
 
 
 class TestSet:
+    """Class describes a set of tests."""
+
     # need info like
     # modes, only/not_ifs, next, prev
     def __init__(self, name, tests, modes, only_if, not_if, pav_cfg,
@@ -82,6 +84,7 @@ class TestSet:
 
     @property
     def before(self):
+        """Returns the list of sets that this set depends on. """
         return self._before
 
     @before.setter
@@ -96,6 +99,7 @@ class TestSet:
 
     @property
     def after(self):
+        """Returns list of sets that depend on this set. """
         return self._after
 
     @after.setter
@@ -109,6 +113,7 @@ class TestSet:
             raise TestSeriesError("Something went wrong.")
 
     def run_set(self):
+        """Runs tests in set. """
 
         # basically copy what the run command is doing here
         mb_tracker = MultiBuildTracker()
@@ -217,6 +222,9 @@ class TestSet:
                 )
 
     def test_wait(self, simul):
+        """Returns when the number of tests running is less than or equal to
+        the number of tests that can run or be scheduled simultaneously,
+        if the simultaneous parameter is set. """
 
         while len(self.series_obj.get_currently_running()) >= simul:
             time.sleep(0.1)
@@ -224,6 +232,7 @@ class TestSet:
         return
 
     def is_done(self):
+        """Returns True if all the tests in the set are completed."""
 
         all_tests_passed = True
 
@@ -255,6 +264,7 @@ class TestSet:
         return True
 
     def skip_set(self):
+        """Procedure to skip tests. """
 
         temp_resolver = resolver.TestConfigResolver(self.pav_cfg)
         raw_configs = temp_resolver.load_raw_configs(
@@ -275,6 +285,7 @@ class TestSet:
         self.done = True
 
     def kill_set(self):
+        """Goes through all the tests assigned to set and kills tests. """
 
         for test_name, test_obj in self.tests.items():
             if test_obj:
@@ -659,14 +670,18 @@ differentiate it from test ids."""
         return
 
     def run_series(self):
+        """Runs series."""
 
         # handles SIGTERM (15) signal
         def sigterm_handler(*args):
+            """Goes through all test objects assigned to series and cancels
+            tests that haven't completed. """
 
             for test_id, test_obj in self.tests.items():
                 if not (test_obj.path/'RUN_COMPLETE').exists():
-                    test_obj.status.set(STATES.COMPLETE,
-                                        "Killed by SIGTERM.")
+                    sched = schedulers.get_plugin(test_obj.scheduler)
+                    sched.cancel_job(test_obj)
+                    test_obj.status.set(STATES.COMPLETE, "Killed by SIGTERM.")
                     test_obj.set_run_complete()
 
             sys.exit()
@@ -714,6 +729,7 @@ differentiate it from test ids."""
                     self.create_set_graph()
 
     def update_finished_list(self):
+        """Updates finished and started lists if necessary. """
 
         for set_name in self.started:
             if self.test_sets[set_name].is_done():
@@ -721,6 +737,8 @@ differentiate it from test ids."""
                 self.started.remove(set_name)
 
     def series_test_handler(self):
+        """Loops through all current sets, calls necessary functions,
+        and updates lists as necessary. """
 
         self.update_finished_list()
 
@@ -753,6 +771,7 @@ differentiate it from test ids."""
 
     @staticmethod
     def get_pgid(pav_cfg, id_):
+        """Returns pgid of series if it exists. """
 
         try:
             id_ = int(id_[1:])
