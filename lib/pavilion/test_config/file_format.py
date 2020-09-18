@@ -279,7 +279,7 @@ expected to be added to by various plugins.
                               'when running \'make\' in parallel.'
                 ),
                 yc.StrElem(
-                    'enable', default='False',
+                    'enable', default='',
                     help_text='Setup a spack environment for this test.'
                 ),
                 yc.CategoryElem(

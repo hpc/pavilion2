@@ -1113,8 +1113,8 @@ be set by the scheduler plugin as soon as it's known."""
             script.command("declare -p")
 
         spack_config = self.config.get('spack', {})
-        spack_enable = spack_config.get('enable', 'False')
-        if spack_enable != 'False':
+        spack_enable = spack_config.get('enable', '')
+        if spack_enable:
             spack_commands = config.get('spack', {})
             install_packages = spack_commands.get('install', [])
             load_packages = spack_commands.get('load', [])
@@ -1123,8 +1123,10 @@ be set by the scheduler plugin as soon as it's known."""
             script.comment('Source spack setup script.')
             script.command('source {}/share/spack/setup-env.sh'
                            .format(self._pav_cfg.get('spack_path')))
+            script.newline()
             script.comment('Activate spack environment.')
-            script.command("spack env activate -d .")
+            script.command('spack env activate -d .')
+            script.command('if [ -z $SPACK_ENV ]; then exit 1; fi')
 
             if install_packages:
                 script.newline()
@@ -1136,7 +1138,8 @@ be set by the scheduler plugin as soon as it's known."""
                 script.newline()
                 script.comment('Load spack packages.')
                 for package in load_packages:
-                    script.command('spack load {}'.format(package))
+                    script.command('spack load {}'
+                                   .format(package))
 
         script.newline()
         cmds = config.get('cmds', [])
