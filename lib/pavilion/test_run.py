@@ -433,13 +433,6 @@ class TestRun(TestAttributes):
         self.results_path = self.path/'results.json'
         self.build_origin_path = self.path/'build_origin'
 
-        # Validate spack configs before trying to write scripts.
-        spack_path = self._pav_cfg.get('spack_path', None)
-        spack_enabled = self.config.get('spack', {}).get('enable', 'False')
-        if spack_enabled != 'False' and spack_path is None:
-            raise TestConfigError("Spack cannot be enabled without a "
-                                  "'spack_path' key in the pavilion config.")
-
         build_config = self.config.get('build', {})
 
         self.build_script_path = self.path/'build.sh'  # type: Path
@@ -486,9 +479,9 @@ class TestRun(TestAttributes):
         """Validate test configs, specifically those that are spack related."""
 
         spack_path = pav_cfg.get('spack_path', None)
-        spack_enable = test_config.get('spack', {}).get('enable', 'False')
+        spack_enable = test_config.get('spack', {}).get('enable', '')
 
-        if spack_enable != 'False' and spack_path is None:
+        if spack_enable and spack_path is None:
             return False
 
         return True
@@ -1146,7 +1139,7 @@ be set by the scheduler plugin as soon as it's known."""
         if cmds:
             script.comment("Perform the sequence of test commands.")
             for line in config.get('cmds', []):
-                if 'spack' in line and spack_enable == 'False':
+                if 'spack' in line and not spack_enable:
                     continue
                 for split_line in line.split('\n'):
                     script.command(split_line)
