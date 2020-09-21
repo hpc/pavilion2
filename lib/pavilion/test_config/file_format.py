@@ -459,11 +459,6 @@ expected to be added to by various plugins.
                 yc.KeyedElem(
                     'spack', elements=[
                         yc.ListElem(
-                            'install', sub_elem=yc.StrElem(),
-                            help_text='The list of spack packages to be '
-                                      'installed.'
-                        ),
-                        yc.ListElem(
                             'load', sub_elem=yc.StrElem(),
                             help_text='The list of spack packages to be '
                                       'loaded.'
