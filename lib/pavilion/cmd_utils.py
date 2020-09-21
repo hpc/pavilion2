@@ -154,7 +154,8 @@ def get_test_configs(pav_cfg, host, test_files, tests, modes,
         test configs and their variable managers.
     """
 
-    logger.debug("Finding Configs")
+    if logger:
+        logger.debug("Finding Configs")
 
     resolver = test_config.TestConfigResolver(pav_cfg)
 
@@ -168,7 +169,8 @@ def get_test_configs(pav_cfg, host, test_files, tests, modes,
                         tests.append(line)
         except (OSError, IOError) as err:
             msg = "Could not read test file {}: {}".format(file, err)
-            logger.error(msg)
+            if logger:
+                logger.error(msg)
             raise commands.CommandError(msg)
 
     try:

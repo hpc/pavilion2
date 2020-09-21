@@ -6,6 +6,7 @@ from pavilion import arguments
 from pavilion.plugins.commands.run import RunCommand
 from pavilion.status_file import STATES
 import io
+import logging
 
 
 class RunCmdTests(PavTestCase):
@@ -30,7 +31,10 @@ class RunCmdTests(PavTestCase):
                                                       host='this',
                                                       test_files=[],
                                                       tests=['hello_world'],
-                                                      modes=[], overrides={})
+                                                      modes=[], overrides={},
+                                                      logger=None,
+                                                      conditions=None,
+                                                      outfile=run_cmd.outfile)
 
         tests = cmd_utils.configs_to_tests(
             pav_cfg=self.pav_cfg,
