@@ -262,7 +262,7 @@ expected to be added to by various plugins.
         ),
         yc.StrElem(
             'compatible_pav_versions', default='',
-            help_text="Specify compatibile pavilion versions for this "
+            help_text="Specify compatible pavilion versions for this "
                       "specific test. Can be represented as a single "
                       "version, ex: 1, 1.2, 1.2.3, or a range, "
                       "ex: 1.2-1.3.4, etc."
@@ -553,7 +553,7 @@ expected to be added to by various plugins.
     @classmethod
     def add_result_parser_config(cls, name, config_items):
         """Add the given list of config items as a result parser
-        configuration named 'name'. Throws errors for invalid configuraitons.
+        configuration named 'name'. Throws errors for invalid configurations.
         """
 
         # Validate the config.

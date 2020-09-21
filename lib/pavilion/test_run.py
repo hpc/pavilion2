@@ -285,6 +285,7 @@ class TestAttributes:
         name='uuid',
         doc="A completely unique id for this test run (test id's can rotate).")
 
+
 class TestRun(TestAttributes):
     """The central pavilion test object. Handle saving, monitoring and running
     tests.
@@ -356,7 +357,7 @@ class TestRun(TestAttributes):
 
         group, umask = self.get_permissions(pav_cfg, config)
 
-        if not self._validate_configs(self._pav_cfg, self.config):
+        if not self._validate_configs():
             raise TestRunError("Spack cannot be enabled without 'spack_path' "
                                "being defined in the pavilion config.")
 
@@ -475,11 +476,11 @@ class TestRun(TestAttributes):
 
         self.skipped = self._get_skipped()  # eval skip.
 
-    def _validate_configs(self, pav_cfg, test_config):
+    def _validate_configs(self):
         """Validate test configs, specifically those that are spack related."""
 
-        spack_path = pav_cfg.get('spack_path', None)
-        spack_enable = test_config.get('spack', {}).get('enable', '')
+        spack_path = self._pav_cfg.get('spack_path', None)
+        spack_enable = self.config.get('spack', {}).get('enable', '')
 
         if spack_enable and spack_path is None:
             return False

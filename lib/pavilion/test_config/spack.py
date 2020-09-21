@@ -20,14 +20,14 @@ class SpackEnvConfig(yc.YamlConfigLoader):
                 ),
                 yc.CategoryElem(
                     'upstreams', sub_elem=yc.KeyedElem(
-                        elements=[yc.StrElem('install_tree')
-                                 ]
+                        elements=[yc.StrElem('install_tree')]
                     )
                 ),
             ],
             help_text='Spack environment configuration file.'
         )
     ]
+
 
 class SpackConfigError(RuntimeError):
     """Error to be raised for spack config issues."""

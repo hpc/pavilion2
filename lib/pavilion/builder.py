@@ -177,7 +177,7 @@ class TestBuilder:
     LOG_NAME = "pav_build_log"
 
     def __init__(self, pav_cfg, test, mb_tracker, build_name=None):
-        """Inititalize the build object.
+        """Initialize the build object.
         :param pav_cfg: The Pavilion config object
         :param pavilion.test_run.TestRun test: The test run responsible for
         starting this build.
@@ -564,13 +564,13 @@ class TestBuilder:
         build can activate it's own spack environment."""
 
         spack_path = self._pav_cfg.get('spack_path')
-        opt_spack_dir = spack_path/'opt'/'spack'
+        spack_dir = spack_path/'opt'/'spack'
 
         # Set up upstreams, will always have 'main', so that builds in the
         # global spack instance can be reused.
         upstreams = {
             'main': {
-                'install_tree': opt_spack_dir
+                'install_tree': spack_dir
             }
         }
         upstreams.update(spack_config.get('upstreams', {}))
@@ -585,7 +585,7 @@ class TestBuilder:
                     'build_jobs': spack_config.get('build_jobs', 6)
                 },
                 'mirrors': spack_config.get('mirrors', {}),
-                'repos': spack_config.get('repos',[]),
+                'repos': spack_config.get('repos', []),
                 'upstreams': upstreams,
             },
         }
