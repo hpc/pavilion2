@@ -26,7 +26,6 @@ from pavilion.permissions import PermissionsManager
 from pavilion.status_file import StatusFile, STATES
 from pavilion.test_config import variables, resolver
 from pavilion.test_config.file_format import TestConfigError
-from pavilion.test_config.spack import SpackConfigError
 
 
 def get_latest_tests(pav_cfg, limit):
