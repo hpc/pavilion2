@@ -394,33 +394,61 @@ class ShowCommand(commands.Command):
         path = file
         config = config_data
 
-        for var in config['variables'].keys():
-            data = []
-            var_out = var
-            for idx in range(len(config['variables'][var])):
-                subvar = config['variables'][var][idx]
-                if isinstance(subvar, dict):
-                    index_set = False
-                    for key, val in subvar.items():
-                        data.append({
-                            'index': idx if index_set is False else '',
-                            'value': key + ": " + val,
-                        })
-                        index_set = True
-                else:
-                    data.append({
-                        'index': idx,
-                        'value': subvar,
-                    })
+        data = []
+        complex_vars = []
+        for var in config.get('variables').keys():
+            subvar = config['variables'][var]
+            if isinstance(subvar, list) and len(subvar) > 1:
+                complex_vars.append(var)
+                continue
+            data.append({
+                'name': var,
+                'value': config['variables'][var]
+            })
+        if data:
             output.draw_table(
                 self.outfile,
                 field_info={},
-                fields=['index', 'value'],
+                fields=['name', 'value'],
                 rows=data,
-                title=var
+                title="Simple Variables"
             )
-            output.fprint("\n")
 
+        for var in complex_vars:
+            subvar = config['variables'][var][0]
+            # List of strings.
+            if isinstance(subvar, str):
+                data = []
+                for idx in range(len(config['variables'][var])):
+                    data.append({
+                        'index': idx,
+                        'value': config['variables'][var][idx]
+                    })
+                output.draw_table(
+                    self.outfile,
+                    field_info={},
+                    fields=['index', 'value'],
+                    rows=data,
+                    title=var
+                )
+            # List of dicts.
+            else:
+                data = []
+                fields = ['index']
+                for idx in range(len(config['variables'][var])):
+                    dict_data = {'index': idx}
+                    for key, val in config['variables'][var][idx].items():
+                        if idx is 0: fields.append(key)
+                        dict_data.update({key: val})
+                    data.append(dict_data)
+                output.draw_table(
+                    self.outfile,
+                    field_info={},
+                    fields=fields,
+                    rows=data,
+                    title=var
+                )
+            output.fprint("\n")
 
     def show_configs_table(self, pav_cfg, args, conf_type):
         """Default config table, shows the config name and if it can be
