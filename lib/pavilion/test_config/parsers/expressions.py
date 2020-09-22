@@ -12,7 +12,7 @@ import lark
 import pavilion.expression_functions.common
 from pavilion import expression_functions as functions
 from .common import PavTransformer, ParserValueError
-from pavilion.utils import auto_convert_str
+from pavilion.utils import auto_type_convert
 
 EXPR_GRAMMAR = r'''
 
@@ -501,7 +501,7 @@ class ExprTransformer(BaseExprTransformer):
 
         # Convert val into the type it looks most like.
         if isinstance(val, str):
-            val = auto_convert_str(val)
+            val = auto_type_convert(val)
 
         return self._merge_tokens(items, val)
 
@@ -561,7 +561,7 @@ class EvaluationExprTransformer(BaseExprTransformer):
         key_parts = key_parts.copy()
 
         if not key_parts:
-            return auto_convert_str(base)
+            return auto_type_convert(base)
 
         key_part = key_parts.pop(0)
         seen_parts = seen_parts + (key_part,)

@@ -12,10 +12,9 @@ from pathlib import Path
 from typing import Dict, Callable, Any, List, Union, TextIO
 
 import yaml_config as yc
-from pavilion.utils import auto_convert_str
 from pavilion.result.base import ResultError
 from pavilion.test_config import file_format, resolver
-from pavilion.utils import auto_convert_str
+from pavilion.utils import auto_type_convert, IndentedLog
 from yapsy import IPlugin
 
 LOGGER = logging.getLogger(__file__)
@@ -113,72 +112,82 @@ ACTION_STORE_STR = 'store_str'
 ACTION_TRUE = 'store_true'
 ACTION_FALSE = 'store_false'
 ACTION_COUNT = 'count'
-ACTION_MULTI = 'store_multi'
 
-
-def action_store(stor: dict, key: str, value):
-    """Simply store the value under the key."""
-    stor[key] = auto_convert_str(value)
-
-
-def action_store_str(stor: dict, key: str, value):
-    """Store the value under the key as a string."""
-    stor[key] = value
-
-
-def action_true(stor: dict, key: str, value):
-    """Evaluate for truth and store."""
-    stor[key] = value not in NON_MATCH_VALUES
-
-
-def action_false(stor: dict, key: str, value):
-    """Evaluate for truth and store."""
-    stor[key] = value in NON_MATCH_VALUES
-
-
-def action_count(stor: dict, key: str, value):
-    """Store the number of items. A value that isn't a list/tuple gets
-    stored as 1 or 0 depending on its truth value."""
-    # Count the returned items.
-
-    if isinstance(value, (list, tuple)):
-        stor[key] = len(value)
-    elif value not in NON_MATCH_VALUES:
-        stor[key] = 1
-    else:
-        stor[key] = 0
-
-
-def action_multi(stor: dict, key: str, value):
-    """Evaluate for truth and store."""
-
-    if isinstance(value, dict):
-        stor.update(value)
-    else:
-        stor[key] = "Non-dict result could not be stored with 'store_multi'"
-
-
-# Action functions should take a dictionary, the key, and the raw value to
-# store.
+# Action functions should take the raw value and convert it to a final value.
 ACTIONS = {
-    ACTION_STORE: action_store,
-    ACTION_STORE_STR: action_store_str,
-    ACTION_COUNT: action_count,
-    ACTION_TRUE: action_true,
-    ACTION_FALSE: action_false,
-    ACTION_MULTI: action_multi,
+    ACTION_STORE: auto_type_convert,
+    ACTION_STORE_STR: lambda raw_val: raw_val,
+    ACTION_COUNT: lambda raw_val: len(raw_val),
+    ACTION_TRUE: lambda raw_val: raw_val not in NON_MATCH_VALUES,
+    ACTION_FALSE: lambda raw_val: raw_val in NON_MATCH_VALUES,
 }
 
 
+def store_values(stor: dict, keys: str, values: Any,
+                 action: Callable[[Any], Any]) -> List[str]:
+    """Store the values under the appropriate keys in the given dictionary
+    using the given action.
+
+    For single keys like 'flops', the action modified value is simply stored.
+
+    For complex keys like 'flops, , speed', values is expected to be a list
+    of at least this length, and the action modified values are stored in
+    the key that matches their index.
+
+    A list of errors/warnings are returned."""
+
+    errors = []
+
+    if ',' in keys:
+        keys = [k.strip() for k in keys.split(',')]
+        # Strip the last item if it's empty, as it can be used to denote
+        # storing a single item from a list.
+        if keys[-1] == '':
+            keys = keys[:-1]
+
+        if not isinstance(values, list):
+            errors.append(
+                "Trying to store non-list value in a multi-keyed result.\n"
+                "Just storing under the first non-null key.\n"
+                "keys: {}\nvalue: {}".format(keys, values))
+            key = [k for k in keys if k][0]
+            stor[key] = action(values)
+
+        else:
+            values = list(reversed(values))
+
+            if len(values) < len(keys):
+                errors.append(
+                    "More values than keys for multi-keyed result.\n"
+                    "Storing 'null' for missing values.\n"
+                    "keys: {}, values: {}".format(keys, values))
+
+            for key in keys:
+                val = values.pop() if values else None
+                if key:
+                    stor[key] = action(val)
+
+    else:
+        stor[keys] = action(values)
+
+    return errors
+
+
+# Per file callbacks.
+# These should take a results dict, key string (which may list multiple
+# keys), per_file values dict, and an action callable.
+# In general, they'll choose one or more of the per-file results
+# to store in the results dict at the given key/s.
+# They should return a list of errors/warnings.
 def per_first(results: dict, key: str, file_vals: Dict[Path, Any],
-              action: Callable[[dict, str, Any], None]):
+              action: Callable[[dict, str, Any], None]) -> List[str]:
     """Store the first non-empty value."""
 
     first = [val for val in file_vals if val not in EMPTY_VALUES][:1]
     if not first:
         raise ResultError("No matches for key {}.".format(key))
 
-    action(results, key, first)
+    return store_values(results, key, first[0], action)
 
 
 def per_last(results: dict, key: str, file_vals: Dict[Path, Any],
@@ -189,7 +198,7 @@ def per_last(results: dict, key: str, file_vals: Dict[Path, Any],
     if not last:
         raise ResultError("No matches for key {}.".format(key))
 
-    action(results, key, last[0])
+    return store_values(results, key, last[0], action)
 
 
 def per_name(results: dict, key: str, file_vals: Dict[Path, Any],
@@ -197,15 +206,21 @@ def per_name(results: dict, key: str, file_vals: Dict[Path, Any],
     """Store in a dict by file fullname."""
 
     per_file = results['per_file']
+    errors = []
 
     for file, val in file_vals.items():
         name = normalize_filename(file)
         per_file[name] = per_file.get(name, {})
-        action(per_file[name], key, val)
+
+        errors.extend(
+            store_values(per_file[name], key, val, action))
+
+    return errors
 
 
 def per_name_list(results: dict, key: str, file_vals: Dict[Path, Any], _):
-    """Store the file name for each file with a match. The action is ignored."""
+    """Store the file name for each file with a match. The action is ignored,
+    and the key is expected to be a single value."""
 
     matches = []
 
@@ -216,13 +231,14 @@ def per_name_list(results: dict, key: str, file_vals: Dict[Path, Any], _):
             matches.append(name)
 
     results[key] = matches
+    return []
 
 
 def per_list(results: dict, key: str, file_vals: Dict[Path, Any],
              action: Callable[[dict, str, Any], None]):
     """Merge all values from all files into a single list. If the values
     are lists, they will be merged and the action will be applied to each
-    sub-item."""
+    sub-item. Single valued keys only."""
 
     all_vals = []
     for _, val in file_vals.items():
@@ -242,6 +258,22 @@ def per_list(results: dict, key: str, file_vals: Dict[Path, Any],
     results[key] = all_vals
 
 
+def per_any(results: dict, key: str, file_vals: Dict[Path, Any], _):
+    """Set True (single valued keys only) if any file had a match. The
+    action is ignored."""
+
+    results[key] = any(val not in NON_MATCH_VALUES
+                       for val in file_vals.values())
+
+
+def per_all(results: dict, key: str, file_vals: Dict[Path, Any], _):
+    """Set True (single valued keys only) if any file had a match. The
+    action is ignored."""
+
+    results[key] = all(val not in NON_MATCH_VALUES
+                       for val in file_vals.values())
+
+
 PER_FIRST = 'first'
 PER_LAST = 'last'
 PER_NAME = 'name'
@@ -259,7 +291,11 @@ PER_FILES = {
 MATCH_FIRST = 'first'
 MATCH_LAST = 'last'
 MATCH_ALL = 'all'
-MATCH_CHOICES = (MATCH_FIRST, MATCH_LAST, MATCH_ALL)
+MATCH_CHOICES = {
+    MATCH_FIRST: 0,
+    MATCH_LAST: -1,
+    MATCH_ALL: None,
+}
 
 
 KEYS_ELEM = yc.ListElem(
@@ -305,23 +341,18 @@ def set_parser_defaults(rconf: dict, def_conf: dict):
     return base
 
 
-def key_validator(key):
-    """Make sure the key is reasonable."""
-
-    if normalize_filename(key) != key:
-        raise ValueError(
-            "Result parser keys can only contain letters "
-            "numbers and underscores.".format(key))
-
-
 def match_select_validator(match_select):
     """Make sure this is predefined string or integer."""
+
+    if match_select in ('first', 'last', 'all'):
+        return
+
     try:
         int(match_select)
     except ValueError:
         raise ValueError(
             "This must be one of {} or an integer."
-            .format(match_select, MATCH_CHOICES))
+            .format(match_select, list(MATCH_CHOICES.keys())))
 
 
 def match_pos_validator(match_pos):
@@ -336,10 +367,9 @@ def match_pos_validator(match_pos):
 # Validators are used to check the attribute values. When a attribute
 # is a list, they are applied against each list item.
 BASE_VALIDATORS = {
-    'keys': key_validator,
     'match_select': match_select_validator,
-    'match_after': match_pos_validator,
-    'match_at': match_pos_validator,
+    'preceded_by': match_pos_validator,
+    'on_lines_matching': match_pos_validator,
     'action': tuple(ACTIONS.keys()),
     'per_file': tuple(PER_FILES.keys()),
 }
@@ -357,14 +387,12 @@ text for that class, along with the help from the config items."""
     PRIO_USER = 20
 
     def __init__(self, name, description, defaults=None,
-                 config_elems=None, validators=None, open_mode='r',
+                 config_elems=None, validators=None,
                  priority=PRIO_COMMON):
         """Initialize the plugin object
 
 :param str name: The name of this plugin.
 :param str description: A short description of this result parser.
-:param Union[str, None] open_mode: How to open each file handed to the parser.
-    None denotes that a path rather than a file object is expected.
 :param List[yaml_config.ConfigElement] config_elems: A list of configuration
     elements (from the yaml_config library) to use to define the
     config section for this result parser. These will be passed as arguments
@@ -425,16 +453,15 @@ text for that class, along with the help from the config items."""
 
         self.config_elems = config_elems
         self.priority = priority
-        self.open_mode = open_mode
 
         super().__init__()
 
-    def __call__(self, test, file, **kwargs):
+    def __call__(self, file, **kwargs):
         """This is where the result parser is actually implemented.
 
 :param pavilion.test_run.TestRun test: The test run object.
-:param file: This will be a file object or a string, depending on the
-    parser's 'open_mode' setting in __init__.
+:param file: This will be a file object advanced to a position that fits
+    the criteria of the 'preceded_by' and 'for_lines_matching' options.
 :param dict kwargs: The arguments are the config values from the the
     test's result config section for this parser. These should be
     explicitly defined in your result parser class.
@@ -479,12 +506,6 @@ deferred args. On error, should raise a ResultParserError.
             args[key] = kwargs[key]
         kwargs = args
 
-        if args['action'] == ACTION_MULTI and args['per_file'] == PER_LIST:
-            raise ResultError(
-                "The '{}' action and per_file setting of '{}' are "
-                "incompatible."
-                .format(args['action'], args['per_file']))
-
         for key in ('action', 'per_file', 'files'):
             if key not in kwargs:
                 raise RuntimeError(
@@ -498,11 +519,11 @@ deferred args. On error, should raise a ResultParserError.
             # handled at a higher level.
             del kwargs[key]
 
-        if kwargs['match_at'] is None and not kwargs['match_after']:
+        if kwargs['on_lines_matching'] is None and not kwargs['match_after']:
             raise ResultError(
-                "At least one of 'match_at' or 'match_after' "
+                "At least one of 'on_lines_matching' or 'match_after' "
                 "must be set. You should only see this if the default for "
-                "'match_at' was explicitly set to null.")
+                "'on_lines_matching' was explicitly set to null.")
 
         for key, validator in self.validators.items():
             if isinstance(validator, tuple):
@@ -531,6 +552,90 @@ deferred args. On error, should raise a ResultParserError.
 
         return self._check_args(**kwargs)
 
+    GLOBAL_CONFIG_ELEMS = [
+        yc.StrElem(
+            "action",
+            help_text=(
+                "What to do with parsed results.\n"
+                "  {STORE} - Just store the result automatically converting "
+                "       the value's type(default).\n"
+                "  {STORE_STR} - Just store the value, with no type "
+                "       conversion.\n"
+                "  {TRUE} - Store True if there was a result.\n"
+                "  {FALSE} - Store True for no result.\n"
+                "  {COUNT} - Count the number of results.\n"
+                .format(
+                    STORE=ACTION_STORE,
+                    STORE_STR=ACTION_STORE_STR,
+                    TRUE=ACTION_TRUE,
+                    FALSE=ACTION_FALSE,
+                    COUNT=ACTION_COUNT))
+        ),
+        # The default for the file is handled by the test object.
+        yc.ListElem(
+            "files",
+            sub_elem=yc.StrElem(),
+            help_text="Path to the file/s that this result parser "
+                      "will examine. Each may be a file glob,"
+                      "such as '*.log'"),
+        yc.StrElem(
+            "per_file",
+            help_text=(
+                "How to save results for multiple file matches.\n"
+                "  {FIRST} - The result from the first file with a "
+                "non-empty result. If no files were found, this "
+                "is considerd an error. (default)\n"
+                "  {LAST} - As '{FIRST}', but last result.\n"
+                "  {NAME} - Store the results on a per file "
+                "basis under results['per_name'][<filename>][<key>]. The "
+                "filename only includes the parts before any '.', and "
+                "is normalized to replace non-alphanum characters with "
+                "'_'\n"
+                "  {NAME_LIST} - Save the matching (normalized) file "
+                "names, rather than the parsed values, in a list.\n"
+                "  {LIST} - Merge all each result and result list "
+                "into a single list.\n"
+                .format(
+                    FIRST=PER_FIRST,
+                    LAST=PER_LAST,
+                    NAME=PER_NAME,
+                    NAME_LIST=PER_NAME_LIST,
+                    LIST=PER_LIST))
+        ),
+        yc.StrElem(
+            "for_lines_matching", default='',
+            help_text=(
+                "A regular expression used to identify the line where "
+                "result parsing should start. The result parser will "
+                "see the file starting at this line. Defaults to matching "
+                "every line."
+            )
+        ),
+        yc.ListElem(
+            "preceded_by", sub_elem=yc.StrElem(),
+            help_text=(
+                "A list of regular expressions that must match lines that "
+                "precede the lines to be parsed. Empty items"
+                "in the sequence will match anything. The result parser "
+                "will see the file starting from start of the line after "
+                "these match.")),
+        yc.StrElem(
+            "match_select",
+            help_text=(
+                "In cases where multiple matches are possible, how to"
+                "handle them. By default, find the first '{FIRST}' "
+                "match and use it. '{LAST}' returns  the final match, and "
+                "'{ALL}' will return a list of all matches. You may also "
+                "give an integer to get the Nth match. Negative integers "
+                "can be used to count in reverse."
+
+                .format(
+                    FIRST=MATCH_FIRST,
+                    LAST=MATCH_LAST,
+                    ALL=MATCH_ALL))
+        ),
+    ]
+
     def get_config_items(self):
         """Get the config for this result parser. This should be a list of
 yaml_config.ConfigElement instances that will be added to the test
@@ -555,95 +660,7 @@ Example: ::
 
 """
 
-        config_items = [
-            yc.StrElem(
-                "action",
-                help_text=(
-                    "What to do with parsed results.\n"
-                    "  {STORE} - Just store the result (default).\n"
-                    "  {TRUE} - Store True if there was a result.\n"
-                    "  {FALSE} - Store True for no result.\n"
-                    "  {COUNT} - Count the number of results.\n"
-                    .format(
-                        STORE=ACTION_STORE,
-                        TRUE=ACTION_TRUE,
-                        FALSE=ACTION_FALSE,
-                        COUNT=ACTION_COUNT))
-            ),
-            # The default for the file is handled by the test object.
-            yc.ListElem(
-                "files",
-                sub_elem=yc.StrElem(),
-                help_text="Path to the file/s that this result parser "
-                          "will examine. Each may be a file glob,"
-                          "such as '*.log'"),
-            yc.StrElem(
-                "per_file",
-                help_text=(
-                    "How to save results for multiple file matches.\n"
-                    "  {FIRST} - The result from the first file with a "
-                    "non-empty result. If no files were found, this "
-                    "is considerd an error. (default)\n"
-                    "  {LAST} - As '{FIRST}', but last result.\n"
-                    "  {NAME} - Store the results on a per file "
-                    "basis under results['per_name'][<filename>][<key>]. The "
-                    "filename only includes the parts before any '.', and "
-                    "is normalized to replace non-alphanum characters with "
-                    "'_'\n"
-                    "  {NAME_LIST} - Save the matching (normalized) file "
-                    "names, rather than the parsed values, in a list.\n"
-                    "  {LIST} - Merge all each result and result list "
-                    "into a single list.\n"
-                    .format(
-                        FIRST=PER_FIRST,
-                        LAST=PER_LAST,
-                        NAME=PER_NAME,
-                        NAME_LIST=PER_NAME_LIST,
-                        LIST=PER_LIST))
-            ),
-            yc.StrElem(
-                "when_line_matches", default='',
-                help_text=(
-                    "A regular expression used to identify the line where "
-                    "result parsing should start. The result parser will "
-                    "see the file starting at this line. Defaults to matching "
-                    "every line."
-                )
-            ),
-            yc.ListElem(
-                "after_lines_matching", sub_elem=yc.StrElem(),
-                help_text=(
-                    "A list of regular expressions that must match lines that "
-                    "precede the lines to be parsed. Empty items"
-                    "in the sequence will match anything. The result parser "
-                    "will see the file starting from start of the line after "
-                    "these match. Mutually exclusive with 'match_before' and "
-                    "'match_at'."
-                )
-            ),
-            yc.ListElem(
-                "match_before", sub_elem=yc.StrElem(),
-                help_text=(
-                    "A list of regular expressions that must follow the lines "
-                    "to be parsed. The result parser will see the file "
-                    "starting from the line before these. Mutually exclusive "
-                    "with 'match_after' and 'match_at'.")
-            ),
-            yc.StrElem(
-                "match_select",
-                help_text=(
-                    "In cases where multiple matches are possible, how to"
-                    "handle them. By default, find the first '{FIRST}' "
-                    "match and use it. '{LAST}' returns  the final match, and "
-                    "'{ALL}' will return a list of all matches. You may also "
-                    "give an integer to get the Nth match."
-                    .format(
-                        FIRST=MATCH_FIRST,
-                        LAST=MATCH_LAST,
-                        ALL=MATCH_ALL))
-            ),
-        ]
-
+        config_items = self.GLOBAL_CONFIG_ELEMS.copy()
         config_items.extend(self.config_elems)
         return config_items
 
@@ -680,7 +697,7 @@ Example: ::
             '---------',
         ])
 
-        for arg in self.config_elems:
+        for arg in self.get_config_items():
             doc.append('  ' + arg.name)
             doc.extend(wrap(arg.help_text, indent=4))
             if arg.name in self.defaults:
@@ -729,8 +746,7 @@ In this case it:
 
     def deactivate(self):
         """Yapsy calls this to remove this plugin. We only ever
-do this in unittests.
-"""
+    do this in unittests."""
 
         # Remove the section from the config.
         file_format.TestConfigLoader.remove_result_parser_config(self.name)
@@ -739,7 +755,7 @@ do this in unittests.
         del _RESULT_PARSERS[self.name]
 
 
-def check_parser_conf(rconf, key, parser):
+def check_parser_conf(rconf: dict, keys: List[str], parser) -> None:
     """Validate the given parser configuration.
 
     :raises: ResultError on failure.
@@ -762,14 +778,7 @@ def check_parser_conf(rconf, key, parser):
         # We can't continue checking from this point if anything was deferred.
         return
 
-    try:
-        key_validator(key)
-    except ValueError as err:
-        raise ResultError(
-            "Result parser key '{}' is invalid.\n{}"
-            .format(key, err.args[0]))
-
-    if (key == 'result'
+    if ('result' in keys
             and action not in (ACTION_TRUE,
                                ACTION_FALSE)
             and per_file not in (PER_FIRST, PER_LAST)):
@@ -783,10 +792,10 @@ def check_parser_conf(rconf, key, parser):
         parser.check_args(**rconf)
     except ResultError as err:
         raise ResultError(
-            "Key '{}': {}".format(key, err.args[0]))
+            "Key '{}': {}".format(keys, err.args[0]))
 
 
-def parse_results(test, results: Dict, log: Callable = None) -> None:
+def parse_results(test, results: Dict, log: IndentedLog) -> None:
     """Parse the results of the given test using all the result parsers
 configured for that test.
 
@@ -803,10 +812,6 @@ configured for that test.
 :param log: The logging callable from 'result.get_result_logger'.
 """
 
-    if log is None:
-        def log(*_, **__):
-            """Drop the logs."""
-
     log("Starting result parsing.")
 
     parser_configs = test.config['result_parse']
@@ -814,10 +819,6 @@ configured for that test.
     log("Got result parser configs:")
     log(pprint.pformat(parser_configs))
     log("---------------")
-
-    # A list of keys with duplicates already reported on, so we don't
-    # report such errors multiple times.
-    errors = []
 
     # Get the results for each of the parsers specified.
     for parser_name in parser_configs.keys():
@@ -827,11 +828,13 @@ configured for that test.
 
         defaults = parser_configs[parser_name].get(DEFAULT_KEY, {})
 
-        log("Parsing results for parser {}".format(parser_name), lvl=1)
+        log.indent = 1
+        log("Parsing results for parser {}".format(parser_name))
 
         # Each parser has a list of configs. Process each of them.
         for key, rconf in parser_configs[parser_name].items():
-            log("Parsing value for key '{}'".format(key), lvl=2)
+            log.indent = 2
+            log("Parsing value for key '{}'".format(key))
 
             error = parse_result(
                 results=results,
@@ -842,34 +845,20 @@ configured for that test.
                 log=log)
 
             if error is not None:
-                errors.append(str(error))
+                results['pav_result_errors'].append(str(error))
 
 
-def advance_file(file: TextIO, after: List[str], at: str):
+def advance_file(file: TextIO, conds: List[re.Pattern]) -> Union[int, None]:
     """Advance the file to a position where the previous lines match each
     of the 'before' regexes (in order) and the 'at' regex.
 
     :param file: The file to search. The file cursor will (probably) be moved.
-    :param after: A list of regexes that must match the sequence of lines
-        that precede the line we
+    :param conds: A list of regexes that must match the sequence of lines
+        that precede the line up to and including the current line before we
         can claim a match.
-    :param at: The regex
-    :return: Nothing
+    :return: The position of the start of the line after the one advanced
+        to. If None, then no matched position was found.
     """
-
-    if not after and at == '':
-        # This will always match the current line, so don't advance
-        return
-
-    # Merge the match_before and match_at conditions into a single list
-    # of conditions.
-    conds = after.copy()
-    if at is not None:
-        conds.append(at)
-    else:
-        conds.append('')
-
-    conds = [re.compile(cond) for cond in conds]
 
     rewind_pos = None
     pos = file.tell()
@@ -890,13 +879,57 @@ def advance_file(file: TextIO, after: List[str], at: str):
             cond_idx += 1
         else:
             cond_idx = 0
+    else:
+        return None
+
+    next_pos = file.tell()
 
     if rewind_pos is not None:
         file.seek(rewind_pos)
 
+    return next_pos
+
+
+def parse_file(path: Path, parser: Callable, parser_args: dict,
+               match_idx: Union[int, None],
+               pos_regexes: List[re.Pattern],
+               log: Callable) -> Any:
+    """Parse results for a single results file.
+
+    :return: A list of all matching results found. Will be cut short if
+        we only need the first result.
+    """
+
+    matches = []
+
+    log("Parsing for file '{}':".format(path.as_posix()), lvl=3)
+    with path.open() as file:
+        next_pos = advance_file(file, pos_regexes)
+
+        while next_pos is not None:
+            log("Found potential match at pos {} in file."
+                .format(file.tell()))
+            res = parser(file, **parser_args)
+
+            if res is None:
+                continue
+
+            matches.append(res)
+            log("Parser extracted result '{}'".format(res))
+
+    if match_idx is None:
+        return matches
+    else:
+        try:
+            return matches[match_idx]
+        except IndexError:
+            log("Match select index '{}' out of range. There were only {} "
+                "matches.".format(match_idx, len(matches)))
+            return None
+
 
 def parse_result(results: Dict, key: str, parser_cfg: Dict,
-                 parser: ResultParser, test, log: Callable) \
+                 parser: ResultParser, test, log: IndentedLog) \
         -> Union[ParseErrorMsg, None]:
     """Use a result parser and it's settings to parse a single value.
 
@@ -914,9 +947,14 @@ def parse_result(results: Dict, key: str, parser_cfg: Dict,
     action_name = parser_cfg['action']
     globs = parser_cfg['files']
     per_file_name = parser_cfg['per_file']
-    match_select = parser_cfg['match_select']
-    match_after = parser_cfg['match_after']
-    match_at = parser_cfg['match_at']
+
+    match_idx = MATCH_CHOICES.get(parser_cfg['match_select'],
+                                  default=int(parser_cfg['match_select']))
+
+    # Compile the regexes for finding the appropriate lines on which to
+    # call the result parser.
+    match_cond_rex = [re.compile(cond) for cond in parser_cfg['preceded_by']]
+    match_cond_rex.append(re.compile(parser_cfg['for_lines_matching']))
 
     # The result key is always true/false. It's ACTION_TRUE by
     # default.
@@ -925,8 +963,6 @@ def parse_result(results: Dict, key: str, parser_cfg: Dict,
         action_name = ACTION_TRUE
         log("Forcing action to '{}' for the 'result' key.")
 
-    # These config items are used here, but not expected by the
-    # parsers themselves.
     try:
         parser_args = parser.check_args(**parser_cfg.copy())
     except ResultError as err:
@@ -935,8 +971,7 @@ def parse_result(results: Dict, key: str, parser_cfg: Dict,
     # The per-file results for this parser
     presults = OrderedDict()
 
-    log("Looking for files that match file globs: {}".format(globs),
-        lvl=2)
+    log("Looking for files that match file globs: {}".format(globs))
 
     # Find all the files we'll be parsing.
     paths = []
@@ -944,31 +979,35 @@ def parse_result(results: Dict, key: str, parser_cfg: Dict,
         if not file_glob.startswith('/'):
             file_glob = '{}/build/{}'.format(test.path, file_glob)
 
-        for path in glob.glob(file_glob):
-            paths.append(Path(path))
+        paths_found = glob.glob(file_glob)
+
+        if paths_found:
+            for path in glob.glob(file_glob):
+                paths.append(Path(path))
+        else:
+            presults[file_glob] = None
 
     if not paths:
         msg = "File globs {} for key {} found no files.".format(globs, key)
         log(msg)
-        return ParseErrorMsg(key, parser, msg)
 
     log("Found {} matching files.".format(len(paths)))
     log("Results will be stored with action '{}'".format(action_name))
+    log.indent = 3
 
     # Apply the result parser to each file we're parsing.
     # Handle the results according to the 'action' config attribute.
     for path in paths:
-        log("Parsing for file '{}':".format(path.as_posix()), lvl=3)
         try:
-            if parser.open_mode is None:
-                res = parser(test, path, **parser_args)
-            else:
-                with path.open(parser.open_mode) as file:
-                    res = parser(test, file, **parser_args)
+            res = parse_file(
+                path=path,
+                parser=parser, parser_args=parser_args,
+                pos_regexes=match_cond_rex,
+                match_idx=match_idx,
+                log=log,
+            )
 
-            log("Raw parse result: '{}'".format(res))
-
-        except (IOError, PermissionError, OSError) as err:
+        except OSError as err:
             msg = "Error reading file: {}".format(err)
             log(msg)
             return ParseErrorMsg(key, parser, msg, file=path.as_posix())
@@ -977,12 +1016,11 @@ def parse_result(results: Dict, key: str, parser_cfg: Dict,
             log(msg)
             return ParseErrorMsg(key, parser, msg, file=path.as_posix())
 
-        # We'll deal with the action later.
         presults[path] = res
-        log("Stored value '{}' for file '{}'"
-            .format(presults[path], path.name))
+        log("Stored value '{}' for file '{}'".format(res, path.name))
 
-    log("Results for each found files:", lvl=2)
+    log.indent = 2
+    log("Results for each found files:")
     for res_path, res_value in presults.items():
         if res_path.parent == test.build_path:
             res_path = res_path.name

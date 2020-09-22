@@ -21,10 +21,23 @@ class Regex(parsers.ResultParser):
                     'regex', required=True,
                     help_text="The python regex to use to search the given "
                               "file. See: 'https://docs.python.org/3/"
-                              "library/re.html'. You can use single quotes "
+                              "library/re.html'.\n"
+                              "You can use single quotes "
                               "in YAML to have the string interpreted "
                               "literally. IE '\\n' is a '\\' "
-                              "and an 'n'. "
+                              "and an 'n'.\n"
+                              "If you include no matching groups, "
+                              "(ie '^my regex.*') all matched text will be "
+                              "the result. \n"
+                              "With a single matching group, "
+                              "(ie '^my field: (\\d+)') the "
+                              "result will be the value in that group.\n"
+                              "With multiple matching groups, "
+                              "(ie '^(\\d+) \\d+ (\\d+)') the result value "
+                              "will be a list of all matched values. You "
+                              "can use a complex key like 'speed, flops' "
+                              "to store each value in a different result field "
+                              "if desired."
                 )]
         )
 
@@ -38,14 +51,22 @@ class Regex(parsers.ResultParser):
 
         return kwargs
 
-    def __call__(self, test, file, regex=None, match_type=None):
+    def __call__(self, file, regex=None, match_type=None):
 
         regex = re.compile(regex)
 
         matches = []
 
-        for line in file.readlines():
-            # Find all non-overlapping matches and return them as a list.
-            # if more than one capture is used, list contains tuples of
-            # captured strings.
-            matches.extend(regex.findall(line))
+        line = file.readline()
+
+        match = regex.search(line)
+
+        if match is None:
+            return None
+
+        if regex.groups == 0:
+            return match.group()
+        elif regex.groups == 1:
+            return match.groups[0]
+        else:
+            return list(match.groups())

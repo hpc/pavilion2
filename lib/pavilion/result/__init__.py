@@ -7,7 +7,7 @@ resolving result evaluations."""
 import json
 import textwrap
 from pathlib import Path
-from typing import IO, Callable, List
+from typing import TextIO, Callable, List
 
 from pavilion import lockfile as _lockfile
 from pavilion.test_config import resolver
@@ -15,29 +15,6 @@ from . import parsers
 from .base import base_results, ResultError, BASE_RESULTS
 from .evaluations import check_expression, evaluate_results, StringParserError
 from .parsers import parse_results, ResultParser
-
-
-def get_result_logger(log_file: IO[str]) -> Callable[..., None]:
-    """Return a result logger function that will write to the given outfile
-    and track the indentation level. The logger will take
-    the string to log, and an optional lvl argument to change the
-    indent level. If the log file is None, this will silently drop all logs."""
-
-    log_tab_level = 0
-
-    def log(msg, lvl=None):
-        """Log the given message to the log_file."""
-
-        nonlocal log_tab_level
-
-        if lvl is not None:
-            log_tab_level = lvl
-
-        if log_file is not None:
-            log_file.write(textwrap.indent(msg, "  " * log_tab_level))
-            log_file.write('\n')
-
-    return log
 
 
 def check_config(parser_conf, evaluate_conf):
@@ -67,28 +44,40 @@ For evaluations we check for:
 
         defaults = parser_conf[rtype].get('_defaults', {})
 
-        for key, rconf in parser_conf[rtype].items():
+        for key_str, rconf in parser_conf[rtype].items():
 
-            # Don't process this as a normal result parser
-            if key == parsers.DEFAULT_KEY:
-                continue
+            if ',' in key_str:
+                keys = [k.strip() for k in key_str.split() if k.strip()]
+                if parsers.DEFAULT_KEY in keys:
+                    raise ResultError(
+                        "The default setting key '{}' can't be used in "
+                        "a key list. Found in '{}' under parser '{}'"
+                        .format(parsers.DEFAULT_KEY, key_str, rtype))
+            else:
+                keys = [key_str]
 
-            if key in BASE_RESULTS.keys():
-                raise ResultError(
-                    "Result parser key '{}' under parser '{}' is reserved."
-                    .format(key, rtype)
-                )
+            for key in keys:
+                # Don't process this as a normal result parser
+                if key == parsers.DEFAULT_KEY:
+                    continue
 
-            if key in key_names:
-                raise ResultError(
-                    "Duplicate result parser key name '{}' under parser '{}'"
-                    .format(key, rtype))
+                if key in BASE_RESULTS.keys():
+                    raise ResultError(
+                        "Result parser key '{}' under parser '{}' is reserved."
+                        .format(key, rtype)
+                    )
 
-            key_names.add(key)
+                if key in key_names:
+                    raise ResultError(
+                        "Duplicate result parser key name '{}' under parser "
+                        "'{}'".format(key, rtype))
+
+                key_names.add(key)
+
             parser = parsers.get_plugin(rtype)
 
             rconf = parsers.set_parser_defaults(rconf, defaults)
-            parsers.check_parser_conf(rconf, key, parser)
+            parsers.check_parser_conf(rconf, keys, parser)
 
     for key, expr in evaluate_conf.items():
         if key in BASE_RESULTS:
