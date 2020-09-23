@@ -59,13 +59,21 @@ class SpackTests(PavTestCase):
 
         args = arg_parser.parse_args([
             'wait',
-            '--oneline',
             test_id
         ])
 
         wait_cmd = commands.get_command(args.command_name)
         wait_cmd.silence()
         wait_cmd.run(self.pav_cfg, args)
+
+        args = arg_parser.parse_Args([
+            'cat',
+            test_id,
+            'build.log'
+        ])
+
+        cat_cmd = commands.get_command(args.command_name)
+        cat_cmd.run(self.pav_cfg, args)
 
         test_dir = self.working_dir/'test_runs'/test_id.zfill(7)
         spack_build_env = test_dir/'build'/'spack.yaml'
