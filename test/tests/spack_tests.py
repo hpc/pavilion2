@@ -66,7 +66,7 @@ class SpackTests(PavTestCase):
         wait_cmd.silence()
         wait_cmd.run(self.pav_cfg, args)
 
-        args = arg_parser.parse_Args([
+        args = arg_parser.parse_args([
             'cat',
             test_id,
             'build.log'
