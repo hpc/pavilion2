@@ -279,8 +279,9 @@ expected to be added to by various plugins.
                               'when running \'make\' in parallel.'
                 ),
                 yc.StrElem(
-                    'enable', default='',
-                    help_text='Setup a spack environment for this test.'
+                    'enable', default='false',
+                    help_text='Set to \'true\' to create a spack build '
+                              'environment for this test.'
                 ),
                 yc.CategoryElem(
                     'mirrors', sub_elem=yc.StrElem(),

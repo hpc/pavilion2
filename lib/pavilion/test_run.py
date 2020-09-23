@@ -356,9 +356,7 @@ class TestRun(TestAttributes):
 
         group, umask = self.get_permissions(pav_cfg, config)
 
-        if not self._validate_configs():
-            raise TestRunError("Spack cannot be enabled without 'spack_path' "
-                               "being defined in the pavilion config.")
+        self._validate_config()
 
         # Get an id for the test, if we weren't given one.
         if _id is None:
@@ -475,16 +473,16 @@ class TestRun(TestAttributes):
 
         self.skipped = self._get_skipped()  # eval skip.
 
-    def _validate_configs(self):
+    def _validate_config(self):
         """Validate test configs, specifically those that are spack related."""
 
         spack_path = self._pav_cfg.get('spack_path', None)
-        spack_enable = self.config.get('spack', {}).get('enable', '')
+        spack_enable = self.config.get('spack', {}).get('enable',
+                                                        'false').lower()
 
-        if spack_enable and spack_path is None:
-            return False
-
-        return True
+        if spack_enable == 'true' and spack_path is None:
+            raise TestRunError("Spack cannot be enabled without 'spack_path' "
+                               "being defined in the pavilion config.")
 
     @classmethod
     def load(cls, pav_cfg, test_id):
@@ -1106,8 +1104,8 @@ be set by the scheduler plugin as soon as it's known."""
             script.command("declare -p")
 
         spack_config = self.config.get('spack', {})
-        spack_enable = spack_config.get('enable', '')
-        if spack_enable:
+        spack_enable = spack_config.get('enable', 'false').lower()
+        if spack_enable == 'true':
             spack_commands = config.get('spack', {})
             install_packages = spack_commands.get('install', [])
             load_packages = spack_commands.get('load', [])
@@ -1139,8 +1137,6 @@ be set by the scheduler plugin as soon as it's known."""
         if cmds:
             script.comment("Perform the sequence of test commands.")
             for line in config.get('cmds', []):
-                if 'spack' in line and not spack_enable:
-                    continue
                 for split_line in line.split('\n'):
                     script.command(split_line)
         else:
