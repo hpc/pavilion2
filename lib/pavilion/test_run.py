@@ -479,8 +479,8 @@ class TestRun(TestAttributes):
         spack_path = self._pav_cfg.get('spack_path', None)
         spack_enable = self.config.get('spack', {}).get('enable',
                                                         'false').lower()
-
         if spack_enable == 'true' and spack_path is None:
+            output.dbg_print("INSIDE?")
             raise TestRunError("Spack cannot be enabled without 'spack_path' "
                                "being defined in the pavilion config.")
 

@@ -4,7 +4,12 @@ spack_stuff:
             enable: true
         build:
             spack:
-                install: stuff
+                install: activemq
+                load: activemq
+            cmds:
+                - 'which activemq'
         run:
             spack:
-                load: stuff
+                load: activemq
+            cmds:
+                - 'which activemq'

@@ -88,6 +88,8 @@ base class.
 
         raw_pav_cfg.result_log = raw_pav_cfg.working_dir/'results.log'
 
+        raw_pav_cfg.spack_path = raw_pav_cfg.working_dir/'spack'
+
         if not raw_pav_cfg.working_dir.exists():
             raw_pav_cfg.working_dir.mkdir()
 
