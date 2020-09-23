@@ -17,6 +17,6 @@ install:
 
 script: 
     # This has to run this way to pick up the groups we've added above.
-    - sudo -E su $USER -c "./test/utils/spack_setup."
+    - sudo -E su $USER -c "./test/utils/spack_setup"
     - sudo -E su $USER -c "./test/run_tests"
 
