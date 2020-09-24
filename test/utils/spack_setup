@@ -2,6 +2,7 @@
 
 import subprocess
 
+subprocess.run(["pwd"])
 subprocess.run(["git", "clone", 
 		"https://github.com/spack/spack.git", 
 		"../working_dir/spack/"])
