@@ -13,7 +13,9 @@ RELEASE=2.2
  - Added the 'list' command for searching test runs and series
  - Added 'maint' command for maintanence operations.
  - Results now include a 'uuid' key - A completely unique id for each test.
-
+ - Added spack options to test config. Allows for spack packages to be built
+   and/or loaded inside of a pavilion test. Requires a valid spack path to
+   be provided in the Pavilion config under the new key `spack_path`.
 
  - Backwards compatibility breaks
    - 'fn' and 'n' result fields have been merged into 'per_file'.
