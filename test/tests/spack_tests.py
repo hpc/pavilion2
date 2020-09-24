@@ -103,7 +103,7 @@ class SpackTests(PavTestCase):
         # Ensure spack package is installed in the correct location. If it
         # installed correctly, this directory should not be empty. 
         spack_install_dir = test_dir/'build'/'spack_installs'
-        self.assertIsNot(os.listdir(spack_install_dir), [])
+        self.assertIsNot(os.listdir(str(spack_install_dir)), [])
 
         # Ensure spack package can be loaded in the build section. Will only
         # see the following if the package install was unsuccessful.
