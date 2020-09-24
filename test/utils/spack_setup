@@ -4,6 +4,6 @@ import subprocess
 
 subprocess.run(["git", "clone",
 		"https://github.com/spack/spack.git",
-		"test/working_dir/spack/"])
+		"test/spack/"])
 
 
