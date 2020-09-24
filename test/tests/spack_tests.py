@@ -12,7 +12,7 @@ from pavilion.unittest import PavTestCase
 
 def has_spack_path():
 
-    spack_path = os.getcwd() + '/spack'
+    spack_path = os.getcwd() + '/test/spack'
     return os.path.exists(spack_path)
 
 
