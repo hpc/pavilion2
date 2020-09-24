@@ -10,6 +10,11 @@ from pavilion import series
 from pavilion import test_run
 from pavilion.unittest import PavTestCase
 
+def has_spack_path():
+
+    spack_path = os.getcwd() + '/spack'
+    return os.path.exists(spack_path)
+
 
 class SpackTests(PavTestCase):
 
@@ -22,6 +27,7 @@ class SpackTests(PavTestCase):
 
         plugins._reset_plugins()
 
+    @unittest.skipIf(not has_spack_path(), "spack dir does not exist")
     def test_spack_build(self):
         """Test to ensure that a test is built correctly."""
 

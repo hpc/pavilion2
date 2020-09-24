@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
-
 import subprocess
 
 subprocess.run(["git", "clone",
-		"https://github.com/spack/spack.git",
-		"test/spack/"])
-
-
+                "https://github.com/spack/spack.git",
+                "/test/spack/"])
