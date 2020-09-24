@@ -12,9 +12,7 @@ from pavilion.unittest import PavTestCase
 
 _HAS_SPACK = None
 
-
 def has_spack():
-    global _HAS_SPACK
     if _HAS_SPACK is None:
         return False
 
@@ -26,7 +24,7 @@ class SpackTests(PavTestCase):
     def setUp(self):
 
         global _HAS_SPACK
-        _HAS_SPACK = self.pav_cfg.get('spack_path', None)
+        _HAS_SPACK = self.pav_cfg.get("spack_path", None)
         self.working_dir = self.pav_cfg['working_dir']
         plugins.initialize_plugins(self.pav_cfg)
 
@@ -34,7 +32,7 @@ class SpackTests(PavTestCase):
 
         plugins._reset_plugins()
 
-    #@unittest.skipIf(not has_spack(), "No 'spack_path' defined.")
+    @unittest.skipIf(not has_spack(), "No 'spack_path' defined.")
     def test_spack_build(self):
         """Test to ensure that a test is built correctly."""
 
@@ -71,9 +69,6 @@ class SpackTests(PavTestCase):
             test_id,
             'build.log'
         ])
-
-        cat_cmd = commands.get_command(args.command_name)
-        cat_cmd.run(self.pav_cfg, args)
 
         test_dir = self.working_dir/'test_runs'/test_id.zfill(7)
         spack_build_env = test_dir/'build'/'spack.yaml'
