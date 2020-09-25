@@ -8,8 +8,8 @@ class AutoSeries(commands.Command):
     def __init__(self):
         super().__init__(
             name='_series',
-            description='Run Series, but make this hidden.',
-            short_help='Run complicated series, but make this hidden.',
+            description='Runs series in background.',
+            short_help='Runs series in background.',
         )
 
     def _setup_arguments(self, parser):
@@ -24,9 +24,6 @@ class AutoSeries(commands.Command):
         # load series obj
         sid = 's' + args.series_id
         series_obj = series.TestSeries.from_id(pav_cfg, sid)
-
-        # create doubly linked series stuff
-        series_obj.create_set_graph()
 
         # call function to actually run series
         series_obj.run_series()

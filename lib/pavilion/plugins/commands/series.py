@@ -9,8 +9,9 @@ class RunSeries(commands.Command):
     def __init__(self):
         super().__init__(
             name='series',
-            description='Run Series.',
-            short_help='Run complicated series.',
+            description='Runs a series that is defined/configured from a test '
+                        'series file.',
+            short_help='Run a predefined series.',
         )
 
     def _setup_arguments(self, parser):

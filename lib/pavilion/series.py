@@ -300,6 +300,12 @@ class TestSet:
                 test_obj.set_run_complete()
 
 
+DEPENDENCY_FN = 'dependency'
+CONFIG_FN = 'config'
+SERIES_OUT_FN = 'series.out'
+SERIES_PGID_FN = 'series.pgid'
+
+
 class TestSeries:
     """Series are a collection of tests. Every time """
 
@@ -380,7 +386,7 @@ class TestSeries:
         # start subprocess
         temp_args = ['pav', '_series', str(self._id)]
         try:
-            with open(str(self.path/'series.out'), 'w') as series_out:
+            with open(str(self.path/SERIES_OUT_FN), 'w') as series_out:
                 series_proc = subprocess.Popen(temp_args,
                                                stdout=series_out,
                                                stderr=series_out)
@@ -395,7 +401,7 @@ class TestSeries:
 
         # write pgid to a file (atomically)
         series_pgid = os.getpgid(series_proc.pid)
-        series_pgid_path = self.path/'series.pgid'
+        series_pgid_path = self.path/SERIES_PGID_FN
         try:
             with series_pgid_path.with_suffix('.tmp').open('w') as \
                     series_id_file:
@@ -440,7 +446,7 @@ class TestSeries:
         :return:
         """
 
-        series_config_path = self.path/'config'
+        series_config_path = self.path/CONFIG_FN
         try:
             with series_config_path.with_suffix('.tmp').open('w') as \
                     config_file:
@@ -514,7 +520,7 @@ class TestSeries:
         :return:
         """
 
-        series_dep_path = self.path/'dependency'
+        series_dep_path = self.path/DEPENDENCY_FN
         try:
             with series_dep_path.with_suffix('.tmp').open('w') as dep_file:
                 dep_file.write(json.dumps(self.dep_graph))
@@ -621,8 +627,10 @@ differentiate it from test ids."""
             try:
                 test_id = int(path.name)
             except ValueError:
-                series_info_files = ['series.out', 'series.pgid', 'config',
-                                     'dependency']
+                series_info_files = [SERIES_OUT_FN,
+                                     SERIES_PGID_FN,
+                                     CONFIG_FN,
+                                     DEPENDENCY_FN]
                 if path.name not in series_info_files:
                     logger.info("Bad test id in series from dir '%s'", path)
                 continue
@@ -640,10 +648,10 @@ differentiate it from test ids."""
         dependency tree."""
 
         try:
-            with (self.path/'dependency').open() as dep_file:
+            with (self.path/DEPENDENCY_FN).open() as dep_file:
                 dep = dep_file.readline()
 
-            with (self.path/'config').open() as config_file:
+            with (self.path/CONFIG_FN).open() as config_file:
                 config = config_file.readline()
 
             return json.loads(dep), json.loads(config)
@@ -694,6 +702,9 @@ differentiate it from test ids."""
             sys.exit()
 
         signal.signal(signal.SIGTERM, sigterm_handler)
+
+        # create set graph once
+        self.create_set_graph()
 
         # run sets in order
         while True:

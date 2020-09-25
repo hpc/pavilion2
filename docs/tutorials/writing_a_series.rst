@@ -89,7 +89,7 @@ tests that are normally run just to make sure the machine works.
   ordered: False
 
   # The total number of tests that will be run or scheduled at any given time.
-  # There is no default setting
+  # default: no limit
   simultaneous: 3
 
   # series-level modes: These modes will be applied to all sets and therefore
