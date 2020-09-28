@@ -62,11 +62,13 @@ class OutputTests(PavTestCase):
                 title = None if random.randint(0, 1) == 0 else 'Title'
                 pad = random.randint(0, 1) == 0
                 border = random.randint(0, 1) == 0
-                args = (dev_null, field_info, columns[:col_count], rows)
-                kwargs = {'table_width': table_width,
-                          'title': title,
-                          'pad': pad,
-                          'border': border}
+                args = (dev_null, columns[:col_count], rows)
+                kwargs = {
+                    'field_info': field_info,
+                    'table_width': table_width,
+                    'title': title,
+                    'pad': pad,
+                    'border': border}
                 start = time.time()
                 output.draw_table(*args, **kwargs)
                 timer += time.time() - start

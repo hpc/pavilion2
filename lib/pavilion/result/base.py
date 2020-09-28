@@ -7,6 +7,7 @@ DISABLE_SCHED_KEYS = [
     'node_avail_list',
     'node_list',
     'alloc_node_list',
+    'test_node_list',
 ]
 
 
@@ -57,12 +58,12 @@ BASE_RESULTS = {
                  "The system name '{{sys.sys_name}}'"),
     'pav_result_errors': (lambda test: [],
                           "Errors from processing results."),
-    'n': (lambda test: {},
-          "Per file results (the filename sans extension)."),
-    'fn': (lambda test: {},
-           "Per filename results."),
+    'per_file': (lambda test: {},
+                 "Per file results."),
     'return_value': (None,
                      "The return value of run.sh"),
+    'uuid': (lambda test: test.uuid,
+             "The test's fully unique identifier.")
 }
 '''A dictionary of result key names and a tuple of the function to acquire the
 value and a documentation string.

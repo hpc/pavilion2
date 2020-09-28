@@ -1,18 +1,19 @@
 """Print the test results for the given test/suite."""
 
 import datetime
-import shutil
 import errno
-import pprint
-from typing import List, IO
 import io
+import pprint
+import shutil
+from typing import List, IO
 
+from pavilion import cmd_utils
 from pavilion import commands
+from pavilion import filters
 from pavilion import output
-from pavilion import series
 from pavilion.result import check_config
 from pavilion.test_config import resolver
-from pavilion.test_run import TestRun, TestRunError, TestRunNotFoundError
+from pavilion.test_run import (TestRun, TestRunError, TestRunNotFoundError)
 
 
 class ResultsCommand(commands.Command):
@@ -56,14 +57,20 @@ class ResultsCommand(commands.Command):
         parser.add_argument(
             '-r', '--re-run', dest="re_run",
             action='store_true', default=False,
-            help="Re-run the results based on the latest version of the test"
+            help="Re-run the results based on the latest version of the test "
                  "configs, though only changes to the 'result' section are "
                  "applied. This will not alter anything in the test's run "
                  "directory; the new results will be displayed but not "
                  "otherwise saved or logged."
         )
         parser.add_argument(
-            '-l', '--show-log', action='store_true', default=False,
+            '-s', '--save',
+            action='store_true', default=False,
+            help="Save the re-run to the test's results json and log. Will "
+                 "not update the general pavilion result log."
+        )
+        parser.add_argument(
+            '-L', '--show-log', action='store_true', default=False,
             help="Also show the result processing log. This is particularly"
                  "useful when re-parsing results, as the log is not saved."
         )
@@ -71,13 +78,15 @@ class ResultsCommand(commands.Command):
         parser.add_argument(
             "tests",
             nargs="*",
-            help="The tests to show the results for."
+            help="The tests to show the results for. Use 'last' to get the "
+                 "results of the last test series you ran on this machine."
         )
+        filters.add_test_filter_args(parser)
 
     def run(self, pav_cfg, args):
         """Print the test results in a variety of formats."""
 
-        test_ids = self._get_tests(pav_cfg, args.tests)
+        test_ids = cmd_utils.arg_filtered_tests(pav_cfg, args)
 
         tests = []
         for id_ in test_ids:
@@ -94,6 +103,10 @@ class ResultsCommand(commands.Command):
 
         if args.re_run:
             if not self.update_results(pav_cfg, tests, log_file):
+                return errno.EINVAL
+
+        if args.save:
+            if not self.update_results(pav_cfg, tests, log_file, save=True):
                 return errno.EINVAL
 
         if args.json or args.full:
@@ -153,7 +166,7 @@ class ResultsCommand(commands.Command):
             else:
                 for test in tests:
                     output.fprint("\nResult logs for test {}\n"
-                                  .format(test.name))
+                                  .format(test.name), file=self.outfile)
                     if test.results_log.exists():
                         with test.results_log.open() as log_file:
                             output.fprint(
@@ -165,33 +178,8 @@ class ResultsCommand(commands.Command):
 
         return 0
 
-    def _get_tests(self, pav_cfg, tests_arg):
-        if not tests_arg:
-            # Get the last series ran by this user.
-            series_id = series.TestSeries.load_user_series_id(pav_cfg)
-            if series_id is not None:
-                tests_arg.append(series_id)
-
-        test_list = []
-        for test_id in tests_arg:
-            if test_id.startswith('s'):
-                try:
-                    test_list.extend(
-                        series.TestSeries.from_id(
-                            pav_cfg,
-                            int(test_id[1:])).tests)
-                except series.TestSeriesError as err:
-                    self.logger.warning(
-                        "Suite %s could not be found.\n%s", test_id[1:], err
-                    )
-                    continue
-            else:
-                test_list.append(test_id)
-
-        return map(int, test_list)
-
     def update_results(self, pav_cfg: dict, tests: List[TestRun],
-                       log_file: IO[str]) -> bool:
+                       log_file: IO[str], save: bool = False) -> bool:
         """Update each of the given tests with the result section from the
         current version of their configs. Then rerun result processing and
         update the results in the test object (but change nothing on disk).
@@ -199,6 +187,8 @@ class ResultsCommand(commands.Command):
         :param pav_cfg: The pavilion config.
         :param tests: A list of test objects to update.
         :param log_file: The logfile to log results to. May be None.
+        :param save: Whether to save the updated results to the test's result
+                     log. It will not update the general result log.
         :returns: True if successful, False otherwise. Will handle
             printing of any failure related errors.
         """
@@ -254,8 +244,8 @@ class ResultsCommand(commands.Command):
                     output.fprint(
                         "Test '{}' had a {} section that could not be "
                         "resolved with it's original variables: {}"
-                        .format(test.name, section, err.args[0])
-                    )
+                        .format(test.name, section, err.args[0]),
+                        file=self.errfile, color=output.RED)
                     return False
                 except RuntimeError as err:
                     output.fprint(
@@ -274,11 +264,22 @@ class ResultsCommand(commands.Command):
             except TestRunError as err:
                 output.fprint(
                     "Error found in results configuration: {}"
-                    .format(err.args[0]))
+                    .format(err.args[0]),
+                    color=output.RED, file=self.errfile)
                 return False
 
             # The new results will be attached to the test (but not saved).
-            test.gather_results(test.results.get('return_value', 1),
-                                regather=True, log_file=log_file)
+            results = test.gather_results(test.results.get('return_value', 1),
+                                          regather=True, log_file=log_file)
+
+            if save:
+                test.save_results(results)
+                with test.results_log.open('a') as log_file:
+                    log_file.write(
+                        "Results were re-ran and saved on {}\n"
+                        .format(datetime.datetime.today()
+                                .strftime('%m-%d-%Y')))
+                    log_file.write("See results.json for updated results.\n")
 
         return True
+

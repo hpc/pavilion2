@@ -3,6 +3,7 @@
 import io
 import logging
 import uuid
+import json
 from pathlib import Path
 import threading
 
@@ -22,8 +23,10 @@ class LoggingTests(PavTestCase):
         # Log through each of the logging mechanisms.
 
         # Check the result logger
-        result_logger = logging.getLogger('results')
-        result_msg = str(uuid.uuid4())
+        result_logger = logging.getLogger('common_results')
+        result_msg = json.dumps({
+            "name": str(uuid.uuid4()),
+        })
         result_logger.error(result_msg)
         # Make sure our message got logged.
         result_log_data = self.pav_cfg.result_log.open().read()
