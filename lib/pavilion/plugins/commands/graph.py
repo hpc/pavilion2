@@ -1,5 +1,6 @@
 import errno
 from datetime import datetime
+from typing import Dict
 
 from pavilion import cmd_utils
 from pavilion import commands
@@ -89,7 +90,7 @@ class GraphCommand(commands.Command):
         plt.legend()
         plt.show()
 
-    def gather_results(self, evals, test_results) -> Dict(results):
+    def gather_results(self, evals, test_results) -> Dict:
         """
         Gather and format a test run objects results.
         :param evals: The evaluations dictionary to be used to gather results.
@@ -123,7 +124,7 @@ class GraphCommand(commands.Command):
     def validate_args(self, args) -> None:
         """Validate command arguments.
         :param args: the passed args parse object.
-        :return: None.
+        :return:
         """
 
         if not args.x:
@@ -133,7 +134,7 @@ class GraphCommand(commands.Command):
             raise CommandError("No values were given to graph on y-axis. "
                                "Use --y flag to specify.")
 
-    def build_evaluations_dict(self, x_eval, y_eval) -> Dict(evals):
+    def build_evaluations_dict(self, x_eval, y_eval) -> Dict:
         """Take the parsed command arguments for --x and  --y and build an
         evaluations dictionary to be used later for gathering results.
         :param x_eval: List of evaluation string for x value.
