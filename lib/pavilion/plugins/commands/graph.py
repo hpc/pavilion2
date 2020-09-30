@@ -7,7 +7,7 @@ from pavilion import commands
 from pavilion import filters
 from pavilion import output
 from pavilion.commands import Command, CommandError
-from pavilion.result import evaluations
+from pavilion.result.evaluations import check_evaluations, evaluate_results
 from pavilion.result.base import ResultError
 from pavilion.status_file import STATES
 from pavilion.test_run import TestRun
@@ -48,10 +48,6 @@ class GraphCommand(commands.Command):
             '--y_label', action='store', default="",
             help='Specify the y axis label.'
         ),
-        parser.add_argument(
-            '--title', action='store', default="",
-            help='Specify the title of the graph.'
-        ),
 
     def run(self, pav_cfg, args):
 
@@ -72,33 +68,48 @@ class GraphCommand(commands.Command):
         test_ids = cmd_utils.arg_filtered_tests(pav_cfg, args)
         tests = [TestRun.load(pav_cfg, test_id) for test_id in test_ids]
 
-        evals = self.build_evaluations_dict(args.x, args.y)
+        if not tests:
+            output.fprint("Test filtering resulted in an empty list.")
+            return errno.EINVAL
+
+        evaluations = self.build_evaluations_dict(args.x, args.y)
+
+        colormap = plt.get_cmap('Accent')
+        colormap = self.set_colors(evaluations, colormap.colors)
 
         for test in tests:
-            results = self.gather_results(evals, test.results)
-            for key, vals in results.items():
-                for yval in vals.values():
-                    if isinstance(yval, list):
-                        for item in yval:
-                            plt.plot(key, item, marker="o")
+            try:
+                results = self.gather_results(evaluations, test.results)
+            except ResultError as err:
+                output.fprint("Error while gathering results: \n{}"
+                              .format(err))
+                return errno.EINVAL
+            print(results)
+            for key, values in results.items():
+                for evl, value in values.items():
+                    color = colormap[evl]
+                    if isinstance(value, list):
+                        for item in value:
+                            plt.plot(key, item, marker="o", color=color)
+
                     else:
-                        plt.plot(key, yval, marker="o")
+                        plt.plot(key, value, marker="o", color=color)
 
         plt.ylabel(args.y_label)
         plt.xlabel(args.x_label)
-        plt.title(args.title)
         plt.legend()
         plt.show()
 
-    def gather_results(self, evals, test_results) -> Dict:
+    def gather_results(self, evaluations, test_results) -> Dict:
         """
         Gather and format a test run objects results.
-        :param evals: The evaluations dictionary to be used to gather results.
+        :param evaluations: The evaluations dictionary to be used to gather
+               results.
         :param test_results: A test run's result dictionary.
         :return: result, a dictionary containing parsed/formatted results for
                  the given test run.
         """
-        evaluations.evaluate_results(test_results, evals)
+        evaluate_results(test_results, evaluations)
 
         if isinstance(test_results['x'], list):
             results = {}
@@ -113,7 +124,7 @@ class GraphCommand(commands.Command):
         else:
             results = {}
             result_dict = {}
-            for key in evals.keys():
+            for key in evaluations.keys():
                 if key == 'x':
                     continue
                 result_dict.update({key: test_results[key]})
@@ -122,7 +133,8 @@ class GraphCommand(commands.Command):
         return results
 
     def validate_args(self, args) -> None:
-        """Validate command arguments.
+        """
+        Validate command arguments.
         :param args: the passed args parse object.
         :return:
         """
@@ -135,18 +147,39 @@ class GraphCommand(commands.Command):
                                "Use --y flag to specify.")
 
     def build_evaluations_dict(self, x_eval, y_eval) -> Dict:
-        """Take the parsed command arguments for --x and  --y and build an
+        """
+        Take the parsed command arguments for --x and  --y and build an
         evaluations dictionary to be used later for gathering results.
         :param x_eval: List of evaluation string for x value.
         :param y_eval: List of evaluation string for y values.
         :return: A dictionary to be used with pavilion's evaluations module.
         """
 
-        evals = {}
-        evals['x'] = x_eval[0]
+        evaluations = {}
+        evaluations['x'] = x_eval[0]
         for i in range(len(y_eval)):
-            evals['y'+str(i)] = y_eval[i]
+            evaluations['y'+str(i)] = y_eval[i]
 
-        evaluations.check_evaluations(evals)
+        check_evaluations(evaluations)
 
-        return evals
+        return evaluations
+
+    def set_colors(self, evaluations, colors):
+        """
+        Set color for each y value to be plotted.
+        :param evaluations: evaluations dictionary.
+        :param colors: List of colors form a matplotlib color map.
+        :return: A dictionary with color lookups, by y value.
+        """
+
+        colormap = {}
+        colors = [color for color in colors]
+
+        print(len(evaluations.keys())-1)
+
+        for key in evaluations.keys():
+            if key == 'x':
+                continue
+            colormap[key] = colors.pop()
+
+        return colormap
