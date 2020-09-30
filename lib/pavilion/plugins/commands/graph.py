@@ -84,7 +84,7 @@ class GraphCommand(commands.Command):
                 output.fprint("Error while gathering results: \n{}"
                               .format(err))
                 return errno.EINVAL
-            print(results)
+            
             for key, values in results.items():
                 for evl, value in values.items():
                     color = colormap[evl]
