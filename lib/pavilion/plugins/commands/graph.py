@@ -114,21 +114,21 @@ class GraphCommand(commands.Command):
         if isinstance(test_results['x'], list):
             results = {}
             for i in range(len(test_results['x'])):
-                result_dict = {}
-                for key in evals.keys():
+                evals = {}
+                for key in evaluations.keys():
                     if key == 'x':
                         continue
-                    result_dict.update({key: test_results[key][i]})
-                results[test_results['x'][i]] = result_dict
+                    evals.update({key: test_results[key][i]})
+                results[test_results['x'][i]] = evals
 
         else:
             results = {}
-            result_dict = {}
+            evals = {}
             for key in evaluations.keys():
                 if key == 'x':
                     continue
-                result_dict.update({key: test_results[key]})
-            results[test_results['x']] = result_dict
+                evals.update({key: test_results[key]})
+            results[test_results['x']] = evals
 
         return results
 
@@ -155,7 +155,7 @@ class GraphCommand(commands.Command):
         :return: A dictionary to be used with pavilion's evaluations module.
         """
 
-        evaluations = {}
+        evaluations = dict()
         evaluations['x'] = x_eval[0]
         for i in range(len(y_eval)):
             evaluations['y'+str(i)] = y_eval[i]
@@ -168,14 +168,12 @@ class GraphCommand(commands.Command):
         """
         Set color for each y value to be plotted.
         :param evaluations: evaluations dictionary.
-        :param colors: List of colors form a matplotlib color map.
+        :param colors: Tuple of colors from a matplotlib color map.
         :return: A dictionary with color lookups, by y value.
         """
 
         colormap = {}
         colors = [color for color in colors]
-
-        print(len(evaluations.keys())-1)
 
         for key in evaluations.keys():
             if key == 'x':
