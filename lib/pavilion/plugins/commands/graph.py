@@ -41,18 +41,18 @@ class GraphCommand(commands.Command):
             help='Specify the value to be used on the X axis.'
         ),
         parser.add_argument(
-            '--x_label', action='store', default="",
+            '--xlabel', action='store', default="",
             help='Specify the x axis label.'
         ),
         parser.add_argument(
-            '--y_label', action='store', default="",
+            '--ylabel', action='store', default="",
             help='Specify the y axis label.'
         ),
 
     def run(self, pav_cfg, args):
 
         try:
-            import matplotlib.pyplot as plt
+            import matplotlib.pyplot
         except ImportError:
             output.fprint("matplotlib not found.", color=output.RED)
             return errno.EINVAL
@@ -74,7 +74,7 @@ class GraphCommand(commands.Command):
 
         evaluations = self.build_evaluations_dict(args.x, args.y)
 
-        colormap = plt.get_cmap('Accent')
+        colormap = matplotlib.pyplot.get_cmap('Accent')
         colormap = self.set_colors(evaluations, colormap.colors)
 
         for test in tests:
@@ -90,15 +90,21 @@ class GraphCommand(commands.Command):
                     color = colormap[evl]
                     if isinstance(value, list):
                         for item in value:
-                            plt.plot(key, item, marker="o", color=color)
+                            matplotlib.pyplot.plot(key, item, marker="o",
+                                                   color=color,
+                                                   label=evaluations[evl])
 
                     else:
-                        plt.plot(key, value, marker="o", color=color)
+                        matplotlib.pyplot.plot(key, value, marker="o",
+                                               color=color,
+                                               label=evaluations[evl])
 
-        plt.ylabel(args.y_label)
-        plt.xlabel(args.x_label)
-        plt.legend()
-        plt.show()
+        matplotlib.pyplot.ylabel(args.ylabel)
+        matplotlib.pyplot.xlabel(args.xlabel)
+        handles, labels = matplotlib.pyplot.gca().get_legend_handles_labels()
+        labels = list(dict.fromkeys(labels))
+        matplotlib.pyplot.legend(handles, labels)
+        matplotlib.pyplot.show()
 
     def gather_results(self, evaluations, test_results) -> Dict:
         """
@@ -141,10 +147,10 @@ class GraphCommand(commands.Command):
 
         if not args.x:
             raise CommandError("No value was given to graph on X-axis. Use "
-                               "--x flag to specify.")
+                               "'--x' flag to specify.")
         if not args.y:
             raise CommandError("No values were given to graph on y-axis. "
-                               "Use --y flag to specify.")
+                               "Use '--y' flag to specify.")
 
     def build_evaluations_dict(self, x_eval, y_eval) -> Dict:
         """
