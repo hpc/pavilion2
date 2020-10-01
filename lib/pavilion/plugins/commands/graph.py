@@ -30,24 +30,27 @@ class GraphCommand(commands.Command):
             'tests', nargs='*', action='store',
             help='Specific Test Ids to graph.'
         )
-
+        parser.add_argument(
+            '--exclude', nargs='*', action='store',
+            help='Exclude Test Ids from the graph.'
+        )
         parser.add_argument(
             '--y', nargs='+', action='store',
             help='Specify the value(s) graphed from the results '
                  'for each test.'
-        ),
+        )
         parser.add_argument(
             '--x', nargs=1, action='store',
             help='Specify the value to be used on the X axis.'
-        ),
+        )
         parser.add_argument(
             '--xlabel', action='store', default="",
             help='Specify the x axis label.'
-        ),
+        )
         parser.add_argument(
             '--ylabel', action='store', default="",
             help='Specify the y axis label.'
-        ),
+        )
 
     def run(self, pav_cfg, args):
 
@@ -60,13 +63,18 @@ class GraphCommand(commands.Command):
         try:
             self.validate_args(args)
         except CommandError as err:
-            output.fprint("Invalid command arguments: \n{}".format(err),
-                          color=output.RED)
+            output.fprint("Invalid command arguments:", color=output.RED)
+            output.fprint(err)
+        except ValueError as err:
+            output.fprint("Invalid '--exclude' argument:", color=output.RED)
+            output.fprint(err)
             return errno.EINVAL
 
-        # Get filtered Test IDs, and then load TestRun objects.
+        # Get filtered Test IDs.
         test_ids = cmd_utils.arg_filtered_tests(pav_cfg, args)
-        tests = [TestRun.load(pav_cfg, test_id) for test_id in test_ids]
+        # Load TestRun for all tests, skip those that are to be excluded.
+        tests = [TestRun.load(pav_cfg, test_id) for test_id in test_ids
+                 if test_id not in args.exclude]
 
         if not tests:
             output.fprint("Test filtering resulted in an empty list.")
@@ -101,9 +109,12 @@ class GraphCommand(commands.Command):
 
         matplotlib.pyplot.ylabel(args.ylabel)
         matplotlib.pyplot.xlabel(args.xlabel)
+
+        # Only display unique labels in legend.
         handles, labels = matplotlib.pyplot.gca().get_legend_handles_labels()
         labels = list(dict.fromkeys(labels))
         matplotlib.pyplot.legend(handles, labels)
+
         matplotlib.pyplot.show()
 
     def gather_results(self, evaluations, test_results) -> Dict:
@@ -151,6 +162,9 @@ class GraphCommand(commands.Command):
         if not args.y:
             raise CommandError("No values were given to graph on y-axis. "
                                "Use '--y' flag to specify.")
+
+        # Convert test exclude args into integers
+        args.exclude = [int(test) for test in args.exclude]
 
     def build_evaluations_dict(self, x_eval, y_eval) -> Dict:
         """
