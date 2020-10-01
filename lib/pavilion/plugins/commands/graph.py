@@ -81,10 +81,10 @@ class GraphCommand(commands.Command):
             try:
                 results = self.gather_results(evaluations, test.results)
             except ResultError as err:
-                output.fprint("Error while gathering results: \n{}"
-                              .format(err))
+                output.fprint("Error gathering results for test {}: \n{}"
+                              .format(test.id, err))
                 return errno.EINVAL
-            
+
             for key, values in results.items():
                 for evl, value in values.items():
                     color = colormap[evl]

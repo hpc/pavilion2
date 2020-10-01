@@ -11,7 +11,7 @@ from pavilion.unittest import PavTestCase
 def has_matplotlib():
     try:
         import matplotlib
-    except ImportError as err:
+    except ImportError:
         return False
 
     return True
@@ -25,24 +25,9 @@ class ResolverTests(PavTestCase):
     @unittest.skipIf(not has_matplotlib(), "matplotlib not found.")
     def setUp(self):
         plugins.initialize_plugins(self.pav_cfg)
-        self.graph_cmd = commands.get_command('graph')
 
     def tearDown(self):
         plugins._reset_plugins()
-
-
-    #def test_expand_ranges(self):
-        #"""Make sure test ranges get expanded correctly."""
-
-        #test_list = ['167-170']
-        #test_list = self.graph_cmd.expand_ranges(test_list)
-
-        #self.assertEqual(test_list, ['167', '168', '169', '170'])
-
-        #test_list = ['s123-s125']
-        #test_list = self.graph_cmd.expand_ranges(test_list)
-
-        #self.assertEqual(test_list, ['s123', 's124', 's125'])
 
     def test_arg_validation(self):
         """Make sure arguments get validated correctly, and catch the right
@@ -83,7 +68,7 @@ class ResolverTests(PavTestCase):
 
         expected = {
              'x': 'cool',
-            'y0': 'beans'
+             'y0': 'beans'
         }
 
         for key in evals_dict.keys():
@@ -99,27 +84,13 @@ class ResolverTests(PavTestCase):
 
         expected = {
              'x': 'cool',
-            'y0': 'beans',
-            'y1': 'and',
-            'y2': 'stuff'
+             'y0': 'beans',
+             'y1': 'and',
+             'y2': 'stuff'
         }
 
         for key in evals_dict.keys():
             self.assertEqual(evals_dict[key], expected[key])
-
-    #def test_normalize_test_args(self):
-    #    """Make sure test normalization works as it is supposed to."""
-
-    #    arg_parser = arguments.get_parser()
-    #    args = arg_parser.parse_args([
-    #        'graph', '123-126'
-    #    ])
-
-    #    test_list = self.graph_cmd.normalize_args_tests(self.pav_cfg,
-    #                                                    args.tests)
-
-    #    self.assertEqual(test_list, ['0000123', '0000124', '0000125',
-    #                                 '0000126'])
 
     def test_get_data(self):
         """Make sure data is pulled out of the test results and returned as
