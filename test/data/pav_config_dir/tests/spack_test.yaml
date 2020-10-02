@@ -1,7 +1,5 @@
 spack_stuff:
         summary: This test does spack stuff
-        spack:
-            enable: true
         build:
             spack:
                 install: activemq

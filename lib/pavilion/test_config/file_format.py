@@ -278,11 +278,6 @@ expected to be added to by various plugins.
                     help_text='The maximum number of jobs to use '
                               'when running \'make\' in parallel.'
                 ),
-                yc.StrElem(
-                    'enable', default='false',
-                    help_text='Set to \'true\' to create a spack build '
-                              'environment for this test.'
-                ),
                 yc.CategoryElem(
                     'mirrors', sub_elem=yc.StrElem(),
                     help_text='The keys and values of this section '

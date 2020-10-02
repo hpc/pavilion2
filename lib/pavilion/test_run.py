@@ -477,8 +477,7 @@ class TestRun(TestAttributes):
         """Validate test configs, specifically those that are spack related."""
 
         spack_path = self._pav_cfg.get('spack_path', None)
-        spack_enable = self.config.get('spack', {}).get('enable',
-                                                        'false').lower()
+        spack_enable = self.config.get('enable_spack', 'false').lower()
         if spack_enable == 'true' and spack_path is None:
             raise TestRunError("Spack cannot be enabled without 'spack_path' "
                                "being defined in the pavilion config.")
@@ -666,6 +665,22 @@ class TestRun(TestAttributes):
                                .format(config_path, err))
         finally:
             config_lock.unlock()
+
+    def enable_spack(self):
+
+        spack_build = self.config.get('build', {}).get('spack', {})
+        spack_run = self.config.get('run', {}).get('spack', {})
+
+        if spack_build.get('install', []):
+            return True
+
+        if spack_build.get('load', []):
+            return True
+
+        if spack_run.get('load', []):
+            return True
+
+        return False
 
     def build(self, cancel_event=None):
         """Build the test using its builder object and symlink copy it to
@@ -1102,9 +1117,7 @@ be set by the scheduler plugin as soon as it's known."""
             script.comment('Output the environment for posterity')
             script.command("declare -p")
 
-        spack_config = self.config.get('spack', {})
-        spack_enable = spack_config.get('enable', 'false').lower()
-        if spack_enable == 'true':
+        if self.enable_spack():
             spack_commands = config.get('spack', {})
             install_packages = spack_commands.get('install', [])
             load_packages = spack_commands.get('load', [])
@@ -1114,6 +1127,7 @@ be set by the scheduler plugin as soon as it's known."""
             script.command('source {}/share/spack/setup-env.sh'
                            .format(self._pav_cfg.get('spack_path')))
             script.newline()
+            script.command('spack env deactivate &>/dev/null')
             script.comment('Activate spack environment.')
             script.command('spack env activate -d .')
             script.command('if [ -z $SPACK_ENV ]; then exit 1; fi')
