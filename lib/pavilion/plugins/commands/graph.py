@@ -1,6 +1,9 @@
 import errno
+import re
+import statistics
 from datetime import datetime
 from typing import Dict
+import itertools
 
 from pavilion import cmd_utils
 from pavilion import commands
@@ -31,7 +34,7 @@ class GraphCommand(commands.Command):
             help='Specific Test Ids to graph.'
         )
         parser.add_argument(
-            '--exclude', nargs='*', action='store',
+            '--exclude', nargs='*', default=[], action='store',
             help='Exclude Test Ids from the graph.'
         )
         parser.add_argument(
@@ -56,8 +59,10 @@ class GraphCommand(commands.Command):
 
         try:
             import matplotlib.pyplot
-        except ImportError:
-            output.fprint("matplotlib not found.", color=output.RED)
+            matplotlib.pyplot.ioff()
+        except ImportError as err:
+            output.fprint("Error importing matplotlib: {}".format(err),
+                          color=output.RED)
             return errno.EINVAL
 
         try:
@@ -65,6 +70,7 @@ class GraphCommand(commands.Command):
         except CommandError as err:
             output.fprint("Invalid command arguments:", color=output.RED)
             output.fprint(err)
+            return errno.EINVAL
         except ValueError as err:
             output.fprint("Invalid '--exclude' argument:", color=output.RED)
             output.fprint(err)
@@ -72,6 +78,7 @@ class GraphCommand(commands.Command):
 
         # Get filtered Test IDs.
         test_ids = cmd_utils.arg_filtered_tests(pav_cfg, args)
+
         # Load TestRun for all tests, skip those that are to be excluded.
         tests = [TestRun.load(pav_cfg, test_id) for test_id in test_ids
                  if test_id not in args.exclude]
@@ -85,36 +92,35 @@ class GraphCommand(commands.Command):
         colormap = matplotlib.pyplot.get_cmap('Accent')
         colormap = self.set_colors(evaluations, colormap.colors)
 
+        results = {}
         for test in tests:
             try:
-                results = self.gather_results(evaluations, test.results)
+                test_results = self.gather_results(evaluations, test.results)
             except ResultError as err:
                 output.fprint("Error gathering results for test {}: \n{}"
                               .format(test.id, err))
                 return errno.EINVAL
 
-            for key, values in results.items():
-                for evl, value in values.items():
-                    color = colormap[evl]
-                    if isinstance(value, list):
-                        for item in value:
-                            matplotlib.pyplot.plot(key, item, marker="o",
-                                                   color=color,
-                                                   label=evaluations[evl])
+            results = self.update_results_dict(results, test_results)
 
-                    else:
-                        matplotlib.pyplot.plot(key, value, marker="o",
-                                               color=color,
-                                               label=evaluations[evl])
+        labels = set()
+
+        for x, eval_dict in results.items():
+            for evl, y_list in eval_dict.items():
+                color = colormap[evl]
+
+                label = evaluations[evl].split(".")[0]
+                label = label if label not in labels else ""
+                labels.add(label)
+
+                x_list = [x] * len(y_list)
+                matplotlib.pyplot.scatter(x=x_list, y=y_list,
+                                          color=color, label=label)
 
         matplotlib.pyplot.ylabel(args.ylabel)
         matplotlib.pyplot.xlabel(args.xlabel)
 
-        # Only display unique labels in legend.
-        handles, labels = matplotlib.pyplot.gca().get_legend_handles_labels()
-        labels = list(dict.fromkeys(labels))
-        matplotlib.pyplot.legend(handles, labels)
-
+        matplotlib.pyplot.legend()
         matplotlib.pyplot.show()
 
     def gather_results(self, evaluations, test_results) -> Dict:
@@ -126,8 +132,11 @@ class GraphCommand(commands.Command):
         :return: result, a dictionary containing parsed/formatted results for
                  the given test run.
         """
+
         evaluate_results(test_results, evaluations)
 
+        # X value evaluations should only result in a list when graphing
+        # individual node results in a single test run.
         if isinstance(test_results['x'], list):
             results = {}
             for i in range(len(test_results['x'])):
@@ -136,7 +145,9 @@ class GraphCommand(commands.Command):
                     if key == 'x':
                         continue
                     evals.update({key: test_results[key][i]})
-                results[test_results['x'][i]] = evals
+                node = re.match(r'[a-zA-Z]*(\d*)$', test_results['x'][i])
+                node = int(node.groups()[0])
+                results[node] = evals
 
         else:
             results = {}
@@ -184,7 +195,7 @@ class GraphCommand(commands.Command):
 
         return evaluations
 
-    def set_colors(self, evaluations, colors):
+    def set_colors(self, evaluations, colors) -> Dict:
         """
         Set color for each y value to be plotted.
         :param evaluations: evaluations dictionary.
@@ -195,9 +206,34 @@ class GraphCommand(commands.Command):
         colormap = {}
         colors = [color for color in colors]
 
+        colormap['avg'] = colors.pop()
+
         for key in evaluations.keys():
             if key == 'x':
                 continue
             colormap[key] = colors.pop()
 
         return colormap
+
+    def update_results_dict(self, results, test_results) -> Dict:
+        """
+        Update results dictionary with the passed test run results. Will extend
+        lists of values for the same x value and evaluation so they can be
+        graphed in a single pass.
+        :param results: Passed  pav graph results dict.
+        :param test_results: Passed individual TestRun's results dict.
+        :return: Updated results dict.
+        """
+
+        for key, values in test_results.items():
+            if key not in results:
+                results[key] = {}
+            for evl, value in values.items():
+                if evl not in results[key]:
+                    results[key][evl] = []
+                if isinstance(value, list):
+                    results[key][evl].extend(value)
+                else:
+                    results[key][evl].extend([value])
+
+        return results
