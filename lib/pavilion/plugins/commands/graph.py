@@ -54,6 +54,10 @@ class GraphCommand(commands.Command):
             '--ylabel', action='store', default="",
             help='Specify the y axis label.'
         )
+        parser.add_argument(
+            '--plot-average', nargs='+', action='store', default=[],
+            help='Generate an average plot for the specified x value(s).'
+        )
 
     def run(self, pav_cfg, args):
 
@@ -87,9 +91,9 @@ class GraphCommand(commands.Command):
             output.fprint("Test filtering resulted in an empty list.")
             return errno.EINVAL
 
-        evaluations = self.build_evaluations_dict(args.x, args.y)
+        evaluations, stats_dict = self.build_dicts(args.x, args.y)
 
-        colormap = matplotlib.pyplot.get_cmap('Accent')
+        colormap = matplotlib.pyplot.get_cmap('tab20')
         colormap = self.set_colors(evaluations, colormap.colors)
 
         results = {}
@@ -104,18 +108,32 @@ class GraphCommand(commands.Command):
             results = self.update_results_dict(results, test_results)
 
         labels = set()
-
         for x, eval_dict in results.items():
             for evl, y_list in eval_dict.items():
-                color = colormap[evl]
+                color = colormap[evl]['plot']
 
                 label = evaluations[evl].split(".")[0]
                 label = label if label not in labels else ""
                 labels.add(label)
 
                 x_list = [x] * len(y_list)
-                matplotlib.pyplot.scatter(x=x_list, y=y_list,
-                                          color=color, label=label)
+
+                matplotlib.pyplot.scatter(x=x_list, y=y_list, marker=".",
+                                          color=color,
+                                          label=label)
+
+                if evaluations[evl] in args.plot_average:
+                    stats_dict[evl]['x'].append(x)
+                    stats_dict[evl]['y'].append(statistics.mean(y_list))
+
+        for evl, values in stats_dict.items():
+            if evaluations[evl] not in args.plot_average:
+                continue
+            xs, ys = zip(*sorted(zip(values['x'], values['y'])))
+            label = evaluations[evl].split(".")[0]
+            matplotlib.pyplot.scatter(xs, ys, marker="+",
+                                      color=colormap[evl]['stat'],
+                                      label="average({})".format(label))
 
         matplotlib.pyplot.ylabel(args.ylabel)
         matplotlib.pyplot.xlabel(args.xlabel)
@@ -145,6 +163,7 @@ class GraphCommand(commands.Command):
                     if key == 'x':
                         continue
                     evals.update({key: test_results[key][i]})
+
                 node = re.match(r'[a-zA-Z]*(\d*)$', test_results['x'][i])
                 node = int(node.groups()[0])
                 results[node] = evals
@@ -177,23 +196,27 @@ class GraphCommand(commands.Command):
         # Convert test exclude args into integers
         args.exclude = [int(test) for test in args.exclude]
 
-    def build_evaluations_dict(self, x_eval, y_eval) -> Dict:
+    def build_dicts(self, x_eval, y_eval) -> (Dict, Dict):
         """
         Take the parsed command arguments for --x and  --y and build an
         evaluations dictionary to be used later for gathering results.
+        Additionally, build a statistics dict based on evaluations dict.
         :param x_eval: List of evaluation string for x value.
         :param y_eval: List of evaluation string for y values.
         :return: A dictionary to be used with pavilion's evaluations module.
         """
 
         evaluations = dict()
+        stats_dict = dict()
         evaluations['x'] = x_eval[0]
         for i in range(len(y_eval)):
-            evaluations['y'+str(i)] = y_eval[i]
+            key = 'y'+str(i)
+            evaluations[key] = y_eval[i]
+            stats_dict.update({key: {'x': [], 'y': []}})
 
         check_evaluations(evaluations)
 
-        return evaluations
+        return evaluations, stats_dict
 
     def set_colors(self, evaluations, colors) -> Dict:
         """
@@ -206,12 +229,10 @@ class GraphCommand(commands.Command):
         colormap = {}
         colors = [color for color in colors]
 
-        colormap['avg'] = colors.pop()
-
         for key in evaluations.keys():
             if key == 'x':
                 continue
-            colormap[key] = colors.pop()
+            colormap[key] = {'plot': colors.pop(0), 'stat': colors.pop(0)}
 
         return colormap
 
