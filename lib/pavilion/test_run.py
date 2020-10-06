@@ -754,14 +754,13 @@ class TestRun(TestAttributes):
                         timeout_file = self.run_log
 
                     try:
-                        timeout = max(
-                            timeout,
-                            timeout_file.stat().st_mtime + self.run_timeout)
+                        out_stat = timeout_file.stat()
+                        quiet_time = time.time() - out_stat.st_mtime
                     except OSError:
                         pass
 
                     # Has the output file changed recently?
-                    if time.time() > timeout:
+                    if self.run_timeout < quiet_time:
                         # Give up on the build, and call it a failure.
                         proc.kill()
                         msg = ("Run timed out after {} seconds"
