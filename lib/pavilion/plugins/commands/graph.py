@@ -117,10 +117,16 @@ class GraphCommand(commands.Command):
                 labels.add(label)
 
                 x_list = [x] * len(y_list)
-
-                matplotlib.pyplot.scatter(x=x_list, y=y_list, marker=".",
-                                          color=color,
-                                          label=label)
+                try:
+                    matplotlib.pyplot.scatter(x=x_list, y=y_list, marker=".",
+                                              color=color,
+                                              label=label)
+                except ValueError as err:
+                    output.fprint("Evaluation {} resulted in "
+                                  "unplottable type {}."
+                                  .format(evaluations[evl],
+                                          type(y_list[-1]).__name__))
+                    return errno.EINVAL
 
                 if evaluations[evl] in args.plot_average:
                     stats_dict[evl]['x'].append(x)
@@ -154,8 +160,12 @@ class GraphCommand(commands.Command):
         evaluate_results(test_results, evaluations)
 
         # X value evaluations should only result in a list when graphing
-        # individual node results in a single test run.
+        # individual node results from a single test run.
         if isinstance(test_results['x'], list):
+            if not isinstance(test_results['x'][-1], (int, str, float)):
+                raise ResultError("X value evaluated to list of invalid type "
+                                  "{}."
+                                  .format(type(test_results['x'][-1]).__name__))
             results = {}
             for i in range(len(test_results['x'])):
                 evals = {}
@@ -168,14 +178,17 @@ class GraphCommand(commands.Command):
                 node = int(node.groups()[0])
                 results[node] = evals
 
-        else:
+        elif isinstance(test_results['x'], (int, float)):
             results = {}
             evals = {}
             for key in evaluations.keys():
                 if key == 'x':
                     continue
-                evals.update({key: test_results[key]})
             results[test_results['x']] = evals
+
+        else:
+            raise ResultError("X value evaluated to invalid type {}."
+                              .format(type(test_results['x']).__name__))
 
         return results
 
