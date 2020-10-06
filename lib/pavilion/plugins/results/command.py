@@ -10,6 +10,8 @@ import subprocess
 class Command(parsers.ResultParser):
     """Runs a given command."""
 
+    FORCE_DEFAULTS = ['match_select', 'files', 'per_file']
+
     def __init__(self):
         super().__init__(
             name='command',
@@ -40,7 +42,7 @@ class Command(parsers.ResultParser):
             }
         )
 
-    def __call__(self, test, file, command=None, output_type=None,
+    def __call__(self, file, command=None, output_type=None,
                  stderr_dest=None):
 
         # where to redirect stderr

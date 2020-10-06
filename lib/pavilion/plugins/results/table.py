@@ -70,7 +70,7 @@ class Table(parsers.ResultParser):
 
         return kwargs
 
-    def __call__(self, test, file, delimiter=None, col_num=None,
+    def __call__(self, file, delimiter=None, col_num=None,
                  has_header=None, col_names=None, by_column=None):
 
         match_list = []

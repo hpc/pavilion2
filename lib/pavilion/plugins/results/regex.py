@@ -55,8 +55,6 @@ class Regex(parsers.ResultParser):
 
         regex = re.compile(regex)
 
-        matches = []
-
         line = file.readline()
 
         match = regex.search(line)
@@ -67,6 +65,6 @@ class Regex(parsers.ResultParser):
         if regex.groups == 0:
             return match.group()
         elif regex.groups == 1:
-            return match.groups[0]
+            return match.groups()[0]
         else:
             return list(match.groups())

@@ -866,14 +866,15 @@ of result keys.
 
         parser_configs = self.config['result_parse']
 
-        result_log = result.get_result_logger(log_file)
+        result_log = utils.IndentedLog(log_file)
 
         result_log("Gathering base results.")
         results = result.base_results(self)
 
         results['return_value'] = run_result
 
-        result_log("Base results:", lvl=1)
+        result_log("Base results:")
+        result_log.indent = 1
         result_log(pprint.pformat(results))
 
         if not regather:

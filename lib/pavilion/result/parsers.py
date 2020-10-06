@@ -9,7 +9,7 @@ import re
 import textwrap
 from collections import OrderedDict
 from pathlib import Path
-from typing import Dict, Callable, Any, List, Union, TextIO
+from typing import Dict, Callable, Any, List, Union, TextIO, Pattern
 
 import yaml_config as yc
 from pavilion.result.base import ResultError
@@ -61,7 +61,6 @@ class ParseErrorMsg:
                     parser_name=self.parser.name,
                     module_path=inspect.getfile(self.parser.__class__),
                     msg=self.msg))
-
 
 
 def get_plugin(name):
@@ -298,24 +297,6 @@ MATCH_CHOICES = {
 }
 
 
-KEYS_ELEM = yc.ListElem(
-    'keys', sub_elem=yc.StrElem(),
-    help_text=(
-        "A list of keys used by a multi-keyed result parser, typically for"
-        "a returned dictionary."
-    )
-)
-"""This is to use in any result parser plugin that can return a dictionary. 
-It's provided here for consistency between plugins."""
-
-
-DEFAULTS = {
-    'per_file': PER_FIRST,
-    'action': ACTION_STORE,
-    'files': ['../run.log']
-}
-
-
 DEFAULT_KEY = '_defaults'
 
 
@@ -375,6 +356,15 @@ BASE_VALIDATORS = {
 }
 
 
+DEFAULTS = {
+    'per_file':           PER_FIRST,
+    'action':             ACTION_STORE,
+    'files':              ['../run.log'],
+    'match_select':       MATCH_FIRST,
+    'for_lines_matching': '',
+}
+
+
 class ResultParser(IPlugin.IPlugin):
     """Base class for creating a result parser plugin. These are essentially
 a callable that implements operations on the test or test files. The
@@ -385,6 +375,10 @@ text for that class, along with the help from the config items."""
     PRIO_CORE = 0
     PRIO_COMMON = 10
     PRIO_USER = 20
+
+    FORCE_DEFAULTS = []
+    """Let the user know they can't set these config keys for this result
+    parser, effectively forcing the value to the default."""
 
     def __init__(self, name, description, defaults=None,
                  config_elems=None, validators=None,
@@ -519,6 +513,13 @@ deferred args. On error, should raise a ResultParserError.
             # handled at a higher level.
             del kwargs[key]
 
+        for arg in self.FORCE_DEFAULTS:
+            if kwargs[arg] != DEFAULTS[arg]:
+                raise ResultError(
+                    "This parser requires that you not set the '{}' key, as "
+                    "the default value is the only valid option."
+                    .format(arg))
+
         if kwargs['on_lines_matching'] is None and not kwargs['match_after']:
             raise ResultError(
                 "At least one of 'on_lines_matching' or 'match_after' "
@@ -603,7 +604,7 @@ deferred args. On error, should raise a ResultParserError.
                     LIST=PER_LIST))
         ),
         yc.StrElem(
-            "for_lines_matching", default='',
+            "for_lines_matching",
             help_text=(
                 "A regular expression used to identify the line where "
                 "result parsing should start. The result parser will "
@@ -848,7 +849,7 @@ configured for that test.
                 results['pav_result_errors'].append(str(error))
 
 
-def advance_file(file: TextIO, conds: List[re.Pattern]) -> Union[int, None]:
+def advance_file(file: TextIO, conds: List[Pattern]) -> Union[int, None]:
     """Advance the file to a position where the previous lines match each
     of the 'before' regexes (in order) and the 'at' regex.
 
@@ -892,7 +893,7 @@ def advance_file(file: TextIO, conds: List[re.Pattern]) -> Union[int, None]:
 
 def parse_file(path: Path, parser: Callable, parser_args: dict,
                match_idx: Union[int, None],
-               pos_regexes: List[re.Pattern],
+               pos_regexes: List[Pattern],
                log: Callable) -> Any:
     """Parse results for a single results file.
 
