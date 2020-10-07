@@ -6,6 +6,8 @@ from pavilion import commands
 from pavilion import output
 from pavilion import plugins
 from pavilion.unittest import PavTestCase
+from pavilion.result.base import ResultError
+from pavilion.plugins.commands.graph import ResultTypeError
 
 
 def has_matplotlib():
@@ -43,7 +45,7 @@ class ResolverTests(PavTestCase):
         graph_cmd = commands.get_command(args.command_name)
         graph_cmd.silence()
 
-        self.assertEqual(self.graph_cmd.validate_args(args), None)
+        self.assertEqual(graph_cmd.validate_args(args), None)
 
         args = arg_parser.parse_args([
             'graph'
@@ -64,7 +66,10 @@ class ResolverTests(PavTestCase):
             '--y', 'beans'
         ])
 
-        evals_dict = self.graph_cmd.build_evaluations_dict(args.x, args.y)
+        graph_cmd = commands.get_command(args.command_name)
+        graph_cmd.silence()
+
+        evals_dict, _ = graph_cmd.build_dicts(args.x, args.y)
 
         expected = {
              'x': 'cool',
@@ -80,7 +85,7 @@ class ResolverTests(PavTestCase):
             '--y', 'beans', 'and', 'stuff'
         ])
 
-        evals_dict = self.graph_cmd.build_evaluations_dict(args.x, args.y)
+        evals_dict, _ = graph_cmd.build_dicts(args.x, args.y)
 
         expected = {
              'x': 'cool',
@@ -114,10 +119,11 @@ class ResolverTests(PavTestCase):
             '--y', 'Info.Read'
         ])
 
-        eval_dict = self.graph_cmd.build_evaluations_dict(args.x, args.y)
-        output.fprint(eval_dict)
-        eval_res = self.graph_cmd.evaluate_results(eval_dict, results)
-        output.fprint(eval_res)
+        graph_cmd = commands.get_command(args.command_name)
+        graph_cmd.silence()
+
+        eval_dict, _ = graph_cmd.build_dicts(args.x, args.y)
+        eval_res = graph_cmd.gather_results(eval_dict, results)
 
         eval_expected = {
             235: {'y0': 123424}
@@ -126,16 +132,14 @@ class ResolverTests(PavTestCase):
         self.assertEqual(eval_res, eval_expected)
 
         # Get multiple values out of results.
-        arg_parser = arguments.get_parser()
         args = arg_parser.parse_args([
             'graph',
             '--x', 'id',
             '--y', 'Info.*'
         ])
 
-        eval_dict = self.graph_cmd.build_evaluations_dict(args.x, args.y)
-        eval_res = self.graph_cmd.evaluate_results(eval_dict, results)
-        output.fprint(eval_res)
+        eval_dict, _ = graph_cmd.build_dicts(args.x, args.y)
+        eval_res = graph_cmd.gather_results(eval_dict, results)
 
         eval_expected = {
             235: {'y0': [123424, 14214]}
@@ -164,16 +168,14 @@ class ResolverTests(PavTestCase):
         }
 
         # Get a single value out of multiple keys in results.
-        arg_parser = arguments.get_parser()
         args = arg_parser.parse_args([
             'graph',
             '--x', 'keys(Info)',
             '--y', 'Info.*.Read'
         ])
 
-        eval_dict = self.graph_cmd.build_evaluations_dict(args.x, args.y)
-        eval_res = self.graph_cmd.evaluate_results(eval_dict, results)
-        output.fprint(eval_res)
+        eval_dict, _ = graph_cmd.build_dicts(args.x, args.y)
+        eval_res = graph_cmd.gather_results(eval_dict, results)
 
         eval_expected = {
             1: {'y0': 123424},
@@ -184,16 +186,14 @@ class ResolverTests(PavTestCase):
         self.assertEqual(eval_res, eval_expected)
 
         # Get multiple values out of multiple keys in results.
-        arg_parser = arguments.get_parser()
         args = arg_parser.parse_args([
             'graph',
             '--x', 'keys(Info)',
             '--y', 'Info.*.Read', 'Info.*.Write'
         ])
 
-        eval_dict = self.graph_cmd.build_evaluations_dict(args.x, args.y)
-        eval_res = self.graph_cmd.evaluate_results(eval_dict, results)
-        output.fprint(eval_res)
+        eval_dict, _ = graph_cmd.build_dicts(args.x, args.y)
+        eval_res = graph_cmd.gather_results(eval_dict, results)
 
         eval_expected = {
             1: {'y0': 123424, 'y1': 14214},
@@ -202,19 +202,3 @@ class ResolverTests(PavTestCase):
         }
 
         self.assertEqual(eval_res, eval_expected)
-
-        # Invalid evaluation result.
-        arg_parser = arguments.get_parser()
-        args = arg_parser.parse_args([
-            'graph',
-            '--x', 'keys(Info)',
-            '--y', 'Info.*.*'
-        ])
-        eval_dict = self.graph_cmd.build_evaluations_dict(args.x, args.y)
-        eval_res = self.graph_cmd.evaluate_results(eval_dict, results)
-        output.fprint(eval_res)
-
-        graph_cmd = commands.get_command(args.command_name)
-        graph_cmd.silence()
-
-        self.assertEquals(graph_cmd.run(self.pav_cfg, args), errno.EINVAL)

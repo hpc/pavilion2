@@ -3,7 +3,6 @@ import re
 import statistics
 from datetime import datetime
 from typing import Dict
-import itertools
 
 from pavilion import cmd_utils
 from pavilion import commands
@@ -100,7 +99,7 @@ class GraphCommand(commands.Command):
         for test in tests:
             try:
                 test_results = self.gather_results(evaluations, test.results)
-            except ResultError as err:
+            except (ResultError, ResultTypeError) as err:
                 output.fprint("Error gathering results for test {}: \n{}"
                               .format(test.id, err))
                 return errno.EINVAL
@@ -117,15 +116,18 @@ class GraphCommand(commands.Command):
                 labels.add(label)
 
                 x_list = [x] * len(y_list)
+
                 try:
                     matplotlib.pyplot.scatter(x=x_list, y=y_list, marker=".",
                                               color=color,
                                               label=label)
-                except ValueError as err:
-                    output.fprint("Evaluation {} resulted in "
-                                  "unplottable type {}."
-                                  .format(evaluations[evl],
+                except ValueError:
+                    output.fprint("Evaluations '{}, {}' resulted in "
+                                  "un-plottable point with types ({}, {})."
+                                  .format(evaluations['x'], evaluations[evl],
+                                          type(x_list[-1]).__name__,
                                           type(y_list[-1]).__name__))
+
                     return errno.EINVAL
 
                 if evaluations[evl] in args.plot_average:
@@ -135,9 +137,9 @@ class GraphCommand(commands.Command):
         for evl, values in stats_dict.items():
             if evaluations[evl] not in args.plot_average:
                 continue
-            xs, ys = zip(*sorted(zip(values['x'], values['y'])))
             label = evaluations[evl].split(".")[0]
-            matplotlib.pyplot.scatter(xs, ys, marker="+",
+            matplotlib.pyplot.scatter(values['x'], values['y'],
+                                      marker="+",
                                       color=colormap[evl]['stat'],
                                       label="average({})".format(label))
 
@@ -163,32 +165,52 @@ class GraphCommand(commands.Command):
         # individual node results from a single test run.
         if isinstance(test_results['x'], list):
             if not isinstance(test_results['x'][-1], (int, str, float)):
-                raise ResultError("X value evaluated to list of invalid type "
-                                  "{}."
-                                  .format(type(test_results['x'][-1]).__name__))
+                raise ResultTypeError("x value evaluation '{}' resulted in a "
+                                      "list of invalid type {}."
+                                      .format(evaluations['x'],
+                                              type(test_results['x'][-1])
+                                              .__name__))
             results = {}
             for i in range(len(test_results['x'])):
+                x = test_results['x'][i]
+
+                # Determines if x value is node name, if so convert name to int.
+                if isinstance(x, str):
+                    node = re.match(r'[a-zA-Z]*(\d*)$', x)
+                    if node:
+                        x = int(node.groups()[0])
+
                 evals = {}
                 for key in evaluations.keys():
                     if key == 'x':
                         continue
+                    if not isinstance(test_results[key], list):
+                        raise ResultTypeError("y value evaluation '{}' resulted"
+                                              " in invalid type {}."
+                                              .format(evaluations[key],
+                                                      type(test_results[key])
+                                                      .__name__))
                     evals.update({key: test_results[key][i]})
 
-                node = re.match(r'[a-zA-Z]*(\d*)$', test_results['x'][i])
-                node = int(node.groups()[0])
-                results[node] = evals
+                results[x] = evals
 
-        elif isinstance(test_results['x'], (int, float)):
+        elif isinstance(test_results['x'], (int, float, str)):
             results = {}
             evals = {}
+
+            x = test_results['x']
+
             for key in evaluations.keys():
                 if key == 'x':
                     continue
-            results[test_results['x']] = evals
+                evals.update({key: test_results[key]})
+            results[x] = evals
 
         else:
-            raise ResultError("X value evaluated to invalid type {}."
-                              .format(type(test_results['x']).__name__))
+            raise ResultTypeError("x value  evaluation '{}' resulted in invalid"
+                                  " type {}."
+                                  .format(evaluations['x'],
+                                          type(test_results['x']).__name__))
 
         return results
 
@@ -271,3 +293,7 @@ class GraphCommand(commands.Command):
                     results[key][evl].extend([value])
 
         return results
+
+
+class ResultTypeError(RuntimeError):
+    """Raise when evaluation results in an invalid type"""
