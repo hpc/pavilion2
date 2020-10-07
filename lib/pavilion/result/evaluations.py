@@ -9,6 +9,7 @@ from pavilion.test_config.parsers import (check_expression, StringParserError,
                                           VarRefVisitor, match_examples,
                                           BAD_EXAMPLES, ParserValueError)
 from .base import BASE_RESULTS, ResultError
+from pavilion import utils
 
 
 def check_evaluations(evaluations: Dict[str, str]):
@@ -33,7 +34,7 @@ def check_evaluations(evaluations: Dict[str, str]):
 
 
 def evaluate_results(results: dict, evaluations: Dict[str, str],
-                     log: Callable[..., None] = None):
+                     log: utils.IndentedLog):
     """Perform result evaluations using an expression parser. The variables
     in such expressions are pulled from the results data structure, and the
     results are stored there too.
@@ -47,7 +48,8 @@ def evaluate_results(results: dict, evaluations: Dict[str, str],
         def log(*_, **__):
             """Drop any log lines."""
 
-    log("Evaluating result evaluations.", lvl=0)
+    log.indent = 0
+    log("Evaluating result evaluations.")
 
     if 'result' not in results and 'result' not in evaluations:
         evaluations['result'] = 'return_value == 0'
@@ -78,8 +80,9 @@ def parse_evaluation_dict(eval_dict: Dict[str, str], results: dict,
 
     unresolved = {}
 
+    log.indent = 1
     for key, expr in eval_dict.items():
-        log("Parsing the evaluate expression '{}'".format(expr), lvl=1)
+        log("Parsing the evaluate expression '{}'".format(expr))
         try:
             tree = parser.parse(expr)
         except (_lark.UnexpectedCharacters, _lark.UnexpectedToken) as err:
@@ -96,7 +99,9 @@ def parse_evaluation_dict(eval_dict: Dict[str, str], results: dict,
 
         unresolved[key] = (tree, var_refs, expr)
 
-    log("Resolving evaluations.", lvl=0)
+    log.indent = 0
+    log("Resolving evaluations.")
+    log.indent = 1
 
     while unresolved:
         resolved = []
@@ -105,7 +110,7 @@ def parse_evaluation_dict(eval_dict: Dict[str, str], results: dict,
                 if var in unresolved:
                     break
             else:
-                log("Resolving evaluation '{}': '{}'".format(key, expr), lvl=1)
+                log("Resolving evaluation '{}': '{}'".format(key, expr))
                 try:
                     results[key] = transformer.transform(tree)
                 except ParserValueError as err:
@@ -115,7 +120,8 @@ def parse_evaluation_dict(eval_dict: Dict[str, str], results: dict,
                     # Any value errors should be converted to this error type.
                     raise StringParserError(err.args[0], err.get_context(expr))
                 resolved.append(key)
-                log("Value resolved to: '{}'".format(results[key]), lvl=3)
+                log.indent = 2
+                log("Value resolved to: '{}'".format(results[key]))
 
         if not resolved:
             # Pass up the unresolved
@@ -125,4 +131,5 @@ def parse_evaluation_dict(eval_dict: Dict[str, str], results: dict,
         for key in resolved:
             del unresolved[key]
 
-    log("Finished resolving expressions", lvl=0)
+    log.indent = 0
+    log("Finished resolving expressions")

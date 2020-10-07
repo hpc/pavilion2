@@ -12,9 +12,10 @@ from typing import TextIO, Callable, List
 from pavilion import lockfile as _lockfile
 from pavilion.test_config import resolver
 from . import parsers
-from .base import base_results, ResultError, BASE_RESULTS
+from .base import base_results, ResultError, BASE_RESULTS, RESULT_ERRORS
 from .evaluations import check_expression, evaluate_results, StringParserError
 from .parsers import parse_results, ResultParser
+from pavilion import utils
 
 
 def check_config(parser_conf, evaluate_conf):
@@ -138,3 +139,14 @@ def prune_result_log(log_path: Path, ids: List[str]) -> List[dict]:
         rewrite_log_path.rename(log_path)
 
     return pruned
+
+
+def remove_temp_results(results: dict, log: utils.IndentedLog) -> None:
+    """Remove all result keys that start with an underscore."""
+
+    for key, value in list(results.items()):
+        if key.startswith('_'):
+            log("Removing temp key: '{}'".format(key))
+            del results[key]
+        if isinstance(value, dict):
+            remove_temp_results(value, log)

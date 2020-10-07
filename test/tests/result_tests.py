@@ -16,6 +16,7 @@ from pavilion.result import parsers, ResultError, base
 from pavilion.test_run import TestRun
 from pavilion.unittest import PavTestCase
 from pavilion.test_config import resolver
+from pavilion import utils
 
 LOGGER = logging.getLogger(__name__)
 
@@ -41,6 +42,15 @@ class ResultParserTests(PavTestCase):
                 'cmds': [
                     'echo "Hello World."',
                     'echo "Goodbye Cruel World."',
+                    'echo "Multipass 1, 2, 3"',
+                    'echo "A: 1"',
+                    'echo "B: 2"',
+                    'echo "B: 3"',
+                    'echo "C: 4"',
+                    'echo "D: 5"',
+                    'echo "B: 6"',
+                    'echo "D: 7"',
+                    'echo "E: 8"',
                     'echo "In a World where..." >> other.log',
                     'echo "something happens..." >> other2.log',
                     'echo "and someone saves the World." >> other3.log',
@@ -49,8 +59,54 @@ class ResultParserTests(PavTestCase):
             },
             'result_parse': {
                 'regex': {
-
                     'basic': {'regex': r'.* World'},
+                    'bc': {
+                        'regex': r'.: (\d)',
+                        'preceded_by': [r'^B:', r'^C:'],
+                        'match_select': 'all',
+                    },
+                    'bcd': {
+                        'regex': r'.: (\d)',
+                        'preceded_by': [r'^B:', r'^C:'],
+                        'for_lines_matching': r'^D:',
+                        'match_select': 'all',
+                    },
+                    'bees': {
+                        'regex': r'.: (\d)',
+                        'for_lines_matching': r'^B:',
+                        'match_select': 'all',
+                    },
+                    'last_b': {
+                        'regex':              r'.: (\d)',
+                        'for_lines_matching': r'^B:',
+                        'match_select':       'last',
+                    },
+                    'middle_b': {
+                        'regex':              r'.: (\d)',
+                        'for_lines_matching': r'^B:',
+                        'match_select':       '1',
+                    },
+                    'other_middle_b': {
+                        'regex':              r'.: (\d)',
+                        'for_lines_matching': r'^B:',
+                        'match_select':       '-2',
+                    },
+                    'no_lines_match': {
+                        'regex':              r'.*',
+                        'for_lines_matching': r'nothing',
+                        'match_select':       parsers.MATCH_ALL,
+                    },
+                    'no_lines_match_last': {
+                        'regex':              r'.*',
+                        'for_lines_matching': r'nothing',
+                        'match_select':       parsers.MATCH_FIRST,
+                    },
+                    'mp1, _  ,   mp3': {
+                        'regex': r'Multipass (\d), (\d), (\d)'
+                    },
+                    'mp4,mp5': {
+                        'regex': r'Multipass (\d), (\d), (\d)'
+                    },
                     'true': {
                         # Look all the log files, and save 'True' on match.
                         'files': ['../run.log'],
@@ -68,15 +124,9 @@ class ResultParserTests(PavTestCase):
                         # As before, but keep match counts.
                         'files': ['../run.log', '*.log'],
                         'regex': r'.* World',
-                        'match_type': parsers.MATCH_ALL,
+                        'match_select': parsers.MATCH_ALL,
                         'action': parsers.ACTION_COUNT,
-                        'per_file': parsers.PER_FULLNAME,
-                    },
-                    'fullname': {
-                        # Store matches by fullname
-                        'files': ['../run.log', '*.log'],
-                        'regex': r'.* World',
-                        'per_file': parsers.PER_FULLNAME,
+                        'per_file': parsers.PER_NAME,
                     },
                     'name': {
                         # Store matches by name stub
@@ -94,18 +144,10 @@ class ResultParserTests(PavTestCase):
                         'regex': r'World',
                         'per_file': parsers.PER_NAME_LIST,
                     },
-                    'fullname_list': {
-                        # Store matches by name stub
-                        # Note there is a name conflict here between other.txt
-                        # and other.log.
-                        'files': ['*.log'],
-                        'regex': r'World',
-                        'per_file': parsers.PER_FULLNAME_LIST,
-                    },
                     'lists': {
                         'files': ['other*'],
                         'regex': r'.* World',
-                        'match_type': parsers.MATCH_ALL,
+                        'match_select': parsers.MATCH_ALL,
                         'per_file': parsers.PER_LIST,
                     },
                     'all': {
@@ -127,55 +169,74 @@ class ResultParserTests(PavTestCase):
         test = self._quick_test(test_cfg, 'result_parser_test')
         test.run()
 
-        results = base.base_results(test)
-        parsers.parse_results(test, results)
+        results = test.gather_results(0)
 
-        # Check all the different results to make sure they're what we expect.
-        self.assertEqual(
-            results['basic'],
-            'Hello World')
+        expected = {
+            'basic': 'Hello World',
+            'bc': [5],
+            'bcd': [5],
+            'bees': [2, 3, 6],
+            'last_b': 6,
+            'middle_b': 3,
+            'other_middle_b': 3,
+            'no_lines_match': None,
+            'no_lines_match_last': None,
+            'true': True,
+            'false': False,
+            'per_file': {
+                'other': {
+                    'count': 1,
+                    'name': 'In a World'},
+                'other2': {
+                    'count': 0},
+                'other3': {
+                    'count': 1},
+                'run': {
+                    'count': 2},
+            },
+            'mp1': 1,
+            'mp3': 3,
+            'mp4': 1,
+            'mp5': 2,
+            'name_list': ['other', 'other3'],
+            'lists': [
+                "I'm here to cause World",
+                "In a World",
+                "and someone saves the World"],
+            'all': False,
+            'result': 'PASS',  # Any test
+        }
 
-        self.assertEqual(
-            results['true'],
-            True,
-        )
+        for key in expected:
+            self.assertEqual(results[key], expected[key])
+        self.assertIn(
+            "When storing value for key 'name' per 'name', multiple files "
+            "normalized to the name 'other': other.txt, other.log",
+            results[result.RESULT_ERRORS])
 
-        self.assertEqual(
-            results['false'],
-            False,
-        )
+        def find_hidden(resultd: dict) -> set:
+            """Find any result bits that start with underscore."""
 
-        self.assertEqual(results['per_file']['run.log']['count'], 2)
-        self.assertEqual(results['per_file']['other.log']['count'], 1)
+            found = set()
 
-        self.assertEqual(results['per_file']['other.log']['fullname'],
-                         'In a World')
+            for key, value in resultd.items():
+                if key.startswith('_'):
+                    found.add(key)
+                if isinstance(value, dict):
+                    found.update(find_hidden(value))
 
-        self.assertEqual(results['name_list'],
-                         ['other', 'other3'])
+            return found
 
-        self.assertEqual(results['fullname_list'],
-                         ['other.log', 'other3.log'])
-
-        self.assertIn(results['per_file']['other']['name'],
-                      ['In a World', "I'm here to cause World"])
-        self.assertIn("Duplicate file key 'other' matched by name",
-                      [e['msg'] for e in results['pav_result_errors']])
-
-        self.assertEqual(sorted(results['lists']),
-                         sorted(['and someone saves the World',
-                                 'In a World',
-                                 "I'm here to cause World"]))
-
-        self.assertEqual(results['all'], False)
-        self.assertEqual(results['result'], True)
+        self.assertEqual(find_hidden(results), set(),
+                         msg="All hidden ('_' prefixed) result keys were "
+                             "supposed to be deleted.")
 
     def test_check_config(self):
 
         # A list of regex
         parser_tests = [
             # Should work fine.
-            ({'ok':{'regex': r'foo'}}, None),
+            ({'ok': {'regex': r'foo'}}, None),
             # Reserved key
             ({'created': {'regex': r'foo'}}, ResultError),
             # Missing regex
@@ -283,10 +344,10 @@ class ResultParserTests(PavTestCase):
         test.run()
 
         results = {'pav_result_errors': []}
-        parsers.parse_results(test, results)
+        parsers.parse_results(test, results, utils.IndentedLog())
 
         self.assertEqual(['data1', 'data3', 'data5'], results['table1']['Col1'])
-        self.assertEqual(['3', '8', ' '], results['table1']['Col2'])
+        self.assertEqual([3, 8, ' '], results['table1']['Col2'])
         self.assertEqual(['data2', 'data4', 'data6'], results['table1']['Col3'])
 
         # space delimiter
@@ -315,7 +376,7 @@ class ResultParserTests(PavTestCase):
         test.run()
 
         results = {'pav_result_errors': []}
-        parsers.parse_results(test, results)
+        parsers.parse_results(test, results, utils.IndentedLog())
 
         self.assertEqual(['d4', 'd7'], results['table2']['d1'])
         self.assertEqual(['d5', ' '], results['table2']['d2'])
@@ -356,7 +417,7 @@ class ResultParserTests(PavTestCase):
         test.run()
 
         results = {'pav_result_errors': []}
-        parsers.parse_results(test, results)
+        parsers.parse_results(test, results, utils.IndentedLog())
 
         self.assertEqual('0.000', results['table3']['calc_deposit']['Runtime'])
         self.assertEqual('9.41', results['table3']['OMP Barrier']['us/Loop'])
@@ -449,7 +510,7 @@ class ResultParserTests(PavTestCase):
             test.run()
 
             with self.assertRaises(result.ResultError):
-                result.evaluate_results({}, error_conf)
+                result.evaluate_results({}, error_conf, utils.IndentedLog())
 
     def test_result_cmd(self):
         """Make sure the result command works as expected, including the
@@ -528,7 +589,7 @@ class ResultParserTests(PavTestCase):
                       .format(cmd_out, cmd_err))
 
     def test_re_search(self):
-        """"""
+        """Check basic re functionality."""
 
         answers = {
             'hello': '33',
@@ -543,6 +604,45 @@ class ResultParserTests(PavTestCase):
 
         for key, answer in answers.items():
             self.assertEqual(results[key], answer)
+
+    def test_split_parser(self):
+        """Check the split parser."""
+
+        cfg = self._quick_test_cfg()
+
+        cfg['run']['cmds'] = [
+            'echo "Results1"',
+            'echo " 1 1.2       hello "',
+            'echo "Results2"',
+            'echo "1, 3, 5, 9, blarg, 11"',
+        ]
+
+        cfg['result_parse'] = {
+            'split': {
+                'a1,b1,c1': {
+                    'preceded_by': [r'Results1']
+                },
+                'a2, _, _, _, b2':      {
+                    'preceded_by':        [r'Results2'],
+                },
+            }
+        }
+
+        expected = {
+            'a1': 1,
+            'b1': 1.2,
+            'c1': 'hello',
+            'a2': 1,
+            'b2': 'blarg',
+        }
+
+        test = self._quick_test(cfg, 'split_test')
+        test.run()
+        results = test.gather_results(0)
+        import pprint
+        pprint.pprint(results)
+
+
 
     def test_flatten_results(self):
         """Make sure result flattening works as expected, as well as regular

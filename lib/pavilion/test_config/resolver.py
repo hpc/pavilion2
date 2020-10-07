@@ -456,7 +456,7 @@ class TestConfigResolver:
                     # Don't override any that are already there.
                     continue
 
-                test_cfg['result_evaluate'][key] = const
+                test_cfg['result_evaluate'][key] = '"{}"'.format(const)
 
         return picked_tests
 

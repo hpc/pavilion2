@@ -329,10 +329,16 @@ def auto_type_convert(value):
     """Try to convert 'value' to a int, float, or bool. Otherwise leave
     as a string. This is done recursively with complex values."""
 
+    if value is None:
+        return None
+
     if isinstance(value, list):
         return [auto_type_convert(item) for item in value]
     elif isinstance(value, dict):
         return {key: auto_type_convert(val) for key, val in value.items()}
+
+    if isinstance(value, (int, float, bool)):
+        return value
 
     try:
         return int(value)
@@ -345,7 +351,7 @@ def auto_type_convert(value):
         pass
 
     if value in ('True', 'False'):
-        return bool(value)
+        return value == 'True'
 
     return value
 
@@ -353,7 +359,7 @@ def auto_type_convert(value):
 class IndentedLog:
     """A logging object for writing indented, easy to follow logs."""
 
-    def __init__(self, log_file: TextIO = None):
+    def __init__(self, log_file: Union[TextIO, None] = None):
 
         self._indent = 0
         self._file = log_file

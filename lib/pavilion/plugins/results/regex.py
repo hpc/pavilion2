@@ -53,18 +53,20 @@ class Regex(parsers.ResultParser):
 
     def __call__(self, file, regex=None, match_type=None):
 
-        regex = re.compile(regex)
+        cregex = re.compile(regex)
 
         line = file.readline()
 
-        match = regex.search(line)
+        print('re matching', regex, line)
+
+        match = cregex.search(line)
 
         if match is None:
             return None
 
-        if regex.groups == 0:
+        if cregex.groups == 0:
             return match.group()
-        elif regex.groups == 1:
+        elif cregex.groups == 1:
             return match.groups()[0]
         else:
             return list(match.groups())

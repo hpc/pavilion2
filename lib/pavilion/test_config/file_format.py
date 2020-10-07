@@ -74,6 +74,12 @@ class VarKeyCategoryElem(yc.CategoryElem):
                           r'(?:\.|[a-zA-Z][a-zA-Z0-9_-]*)*')
 
 
+class ResultParserCatElem(yc.CategoryElem):
+    _NAME_RE = re.compile(
+        r'^[a-zA-Z_]\w*(\s*,\s*[a-zA-Z_]\w*)*$'
+    )
+
+
 class VarCatElem(yc.CategoryElem):
     """For describing how the variables section itself works.
 
@@ -525,7 +531,7 @@ expected to be added to by various plugins.
             elements=config_items
         )
 
-        list_elem = yc.CategoryElem(name, sub_elem=config)
+        list_elem = ResultParserCatElem(name, sub_elem=config)
 
         if name in [e.name for e in cls._RESULT_PARSERS.config_elems.values()]:
             raise ValueError("Tried to add result parser with name '{}'"

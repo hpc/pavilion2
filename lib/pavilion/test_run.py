@@ -921,6 +921,10 @@ of result keys.
         result_log("Set final result key to: '{}'".format(results['result']))
         result_log("See results.json for the final result json.")
 
+        result_log("Removing temporary values.")
+        result_log.indent = 1
+        result.remove_temp_results(results, result_log)
+
         self._results = results
 
         return results

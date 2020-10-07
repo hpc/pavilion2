@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Dict, Callable, Any, List, Union, TextIO, Pattern
 
 import yaml_config as yc
-from pavilion.result.base import ResultError
+from pavilion.result.base import ResultError, RESULT_ERRORS
 from pavilion.test_config import file_format, resolver
 from pavilion.utils import auto_type_convert, IndentedLog
 from yapsy import IPlugin
@@ -89,7 +89,7 @@ def __reset():
         parser.deactivate()
 
 
-def normalize_filename(name: Path):
+def normalize_filename(name: Path) -> str:
     """Remove any characters that aren't allowed in Pavilion variable names."""
 
     name = name.name.split('.')[0]
@@ -135,6 +135,9 @@ def store_values(stor: dict, keys: str, values: Any,
 
     A list of errors/warnings are returned."""
 
+    print('storing:\n stor - {}\n keys - {}\n values - {}\n action - {}\n'
+          .format(stor, keys, values, action))
+
     errors = []
 
     if ',' in keys:
@@ -157,7 +160,7 @@ def store_values(stor: dict, keys: str, values: Any,
 
             if len(values) < len(keys):
                 errors.append(
-                    "More values than keys for multi-keyed result.\n"
+                    "More keys than values for multi-keyed result.\n"
                     "Storing 'null' for missing values.\n"
                     "keys: {}, values: {}".format(keys, values))
 
@@ -182,22 +185,34 @@ def per_first(results: dict, key: str, file_vals: Dict[Path, Any],
               action: Callable[[dict, str, Any], None]) -> List[str]:
     """Store the first non-empty value."""
 
-    first = [val for val in file_vals if val not in EMPTY_VALUES][:1]
-    if not first:
-        raise ResultError("No matches for key {}.".format(key))
+    errors = []
 
-    return store_values(results, key, first[0], action)
+    first = [val for val in file_vals.values() if val not in EMPTY_VALUES][:1]
+    if not first:
+        first = [None]
+        errors.append(
+            "No matches for key '{}' for any of these found files: {}."
+            .format(key, ','.join(f.name for f in file_vals.keys())))
+
+    errors.extend(store_values(results, key, first[0], action))
+    return errors
 
 
 def per_last(results: dict, key: str, file_vals: Dict[Path, Any],
              action: Callable[[dict, str, Any], None]):
     """Store the last non-empty value."""
 
+    errors = []
+
     last = [val for val in file_vals if val not in EMPTY_VALUES][-1:]
     if not last:
-        raise ResultError("No matches for key {}.".format(key))
+        last = [None]
+        errors.append(
+            "No matches for key '{}' for any of these found files: {}."
+            .format(key, ','.join(f.name for f in file_vals.keys())))
 
-    return store_values(results, key, last[0], action)
+    errors.extend(store_values(results, key, last[0], action))
+    return errors
 
 
 def per_name(results: dict, key: str, file_vals: Dict[Path, Any],
@@ -206,35 +221,56 @@ def per_name(results: dict, key: str, file_vals: Dict[Path, Any],
 
     per_file = results['per_file']
     errors = []
+    normalized = {}
 
     for file, val in file_vals.items():
         name = normalize_filename(file)
+        normalized[name] = normalized.get(name, []) + [file]
         per_file[name] = per_file.get(name, {})
 
-        errors.extend(
-            store_values(per_file[name], key, val, action))
+        errors.extend(store_values(per_file[name], key, val, action))
+
+    for name, files in normalized.items():
+        if len(files) > 1:
+            errors.append(
+                "When storing value for key '{}' per 'name', "
+                "multiple files normalized to the name '{}': {}"
+                .format(key, name, ', '.join([f.name for f in files])))
 
     return errors
 
 
-def per_name_list(results: dict, key: str, file_vals: Dict[Path, Any], _):
+def per_name_list(results: dict, key: str, file_vals: Dict[Path, Any],
+                  action):
     """Store the file name for each file with a match. The action is ignored,
     and the key is expected to be a single value."""
 
+    _ = action
+
     matches = []
+    normalized = {}
 
     for file, val in file_vals.items():
         name = normalize_filename(file)
+        normalized[name] = normalized.get(name, []) + [file]
 
         if val not in NON_MATCH_VALUES:
             matches.append(name)
 
     results[key] = matches
-    return []
+
+    errors = []
+    for name, files in normalized.items():
+        if len(files) > 1:
+            errors.append(
+                "When storing value for key '{}' per 'name_list', "
+                "multiple files normalized to the name '{}': {}"
+                .format(key, name, ', '.join([f.name for f in files])))
+    return errors
 
 
 def per_list(results: dict, key: str, file_vals: Dict[Path, Any],
-             action: Callable[[dict, str, Any], None]):
+             action: Callable):
     """Merge all values from all files into a single list. If the values
     are lists, they will be merged and the action will be applied to each
     sub-item. Single valued keys only."""
@@ -245,32 +281,35 @@ def per_list(results: dict, key: str, file_vals: Dict[Path, Any],
             continue
 
         if isinstance(val, list):
-            for subval in val:
-                dummy = {}
-                action(dummy, key, subval)
-                all_vals.append(dummy.get(key, None))
+            all_vals.extend(val)
         else:
-            dummy = {}
-            action(dummy, key, val)
-            all_vals.append(dummy.get(key, None))
+            all_vals.append(val)
 
-    results[key] = all_vals
+    return store_values(results, key, all_vals, action)
 
 
-def per_any(results: dict, key: str, file_vals: Dict[Path, Any], _):
+def per_any(results: dict, key: str, file_vals: Dict[Path, Any], action):
     """Set True (single valued keys only) if any file had a match. The
     action is ignored."""
+
+    _ = action
 
     results[key] = any(val not in NON_MATCH_VALUES
                        for val in file_vals.values())
 
+    return []
 
-def per_all(results: dict, key: str, file_vals: Dict[Path, Any], _):
+
+def per_all(results: dict, key: str, file_vals: Dict[Path, Any], action):
     """Set True (single valued keys only) if any file had a match. The
     action is ignored."""
 
+    _ = action
+
     results[key] = all(val not in NON_MATCH_VALUES
                        for val in file_vals.values())
+
+    return []
 
 
 PER_FIRST = 'first'
@@ -278,6 +317,8 @@ PER_LAST = 'last'
 PER_NAME = 'name'
 PER_NAME_LIST = 'name_list'
 PER_LIST = 'list'
+PER_ALL = 'all'
+PER_ANY = 'any'
 
 PER_FILES = {
     PER_FIRST: per_first,
@@ -285,6 +326,8 @@ PER_FILES = {
     PER_NAME: per_name,
     PER_NAME_LIST: per_name_list,
     PER_LIST: per_list,
+    PER_ALL: per_all,
+    PER_ANY: per_any,
 }
 
 MATCH_FIRST = 'first'
@@ -350,7 +393,7 @@ def match_pos_validator(match_pos):
 BASE_VALIDATORS = {
     'match_select': match_select_validator,
     'preceded_by': match_pos_validator,
-    'on_lines_matching': match_pos_validator,
+    'for_lines_matching': match_pos_validator,
     'action': tuple(ACTIONS.keys()),
     'per_file': tuple(PER_FILES.keys()),
 }
@@ -500,7 +543,10 @@ deferred args. On error, should raise a ResultParserError.
             args[key] = kwargs[key]
         kwargs = args
 
-        for key in ('action', 'per_file', 'files'):
+        base_keys = ('action', 'per_file', 'files', 'match_select',
+                     'for_lines_matching', 'preceded_by')
+
+        for key in base_keys:
             if key not in kwargs:
                 raise RuntimeError(
                     "Result parser '{}' missing required attribute '{}'. These "
@@ -509,9 +555,15 @@ deferred args. On error, should raise a ResultParserError.
                     .format(self.name, key)
                 )
 
-            # The parser plugins don't know about these keys, as they're
-            # handled at a higher level.
-            del kwargs[key]
+        match_select = MATCH_CHOICES.get(kwargs['match_select'],
+                                         kwargs['match_select'])
+        if match_select is not None:
+            try:
+                int(match_select)
+            except ValueError:
+                raise ResultError(
+                    "Invalid value for 'match_select'. Must be one of "
+                    "{} or an integer.")
 
         for arg in self.FORCE_DEFAULTS:
             if kwargs[arg] != DEFAULTS[arg]:
@@ -520,11 +572,11 @@ deferred args. On error, should raise a ResultParserError.
                     "the default value is the only valid option."
                     .format(arg))
 
-        if kwargs['on_lines_matching'] is None and not kwargs['match_after']:
+        if kwargs['for_lines_matching'] is None and not kwargs['preceded_by']:
             raise ResultError(
-                "At least one of 'on_lines_matching' or 'match_after' "
+                "At least one of 'for_lines_matching' or 'preceded_by' "
                 "must be set. You should only see this if the default for "
-                "'on_lines_matching' was explicitly set to null.")
+                "'for_lines_matching' was explicitly set to null.")
 
         for key, validator in self.validators.items():
             if isinstance(validator, tuple):
@@ -550,6 +602,11 @@ deferred args. On error, should raise a ResultParserError.
                         "value '{}'.\n{}"
                         .format(key, kwargs[key], err.args[0])
                     )
+
+        for key in base_keys:
+            # The parser plugins don't know about these keys, as they're
+            # handled at a higher level.
+            del kwargs[key]
 
         return self._check_args(**kwargs)
 
@@ -627,8 +684,8 @@ deferred args. On error, should raise a ResultParserError.
                 "handle them. By default, find the first '{FIRST}' "
                 "match and use it. '{LAST}' returns  the final match, and "
                 "'{ALL}' will return a list of all matches. You may also "
-                "give an integer to get the Nth match. Negative integers "
-                "can be used to count in reverse."
+                "give an integer to get the Nth match (starting at 0). "
+                "Negative integers (starting at -1)count in reverse."
 
                 .format(
                     FIRST=MATCH_FIRST,
@@ -846,7 +903,7 @@ configured for that test.
                 log=log)
 
             if error is not None:
-                results['pav_result_errors'].append(str(error))
+                results[RESULT_ERRORS].append(str(error))
 
 
 def advance_file(file: TextIO, conds: List[Pattern]) -> Union[int, None]:
@@ -861,32 +918,35 @@ def advance_file(file: TextIO, conds: List[Pattern]) -> Union[int, None]:
         to. If None, then no matched position was found.
     """
 
-    rewind_pos = None
-    pos = file.tell()
+    next_pos = file.tell()
+    restart = None
     cond_idx = 0
+    rewind_pos = None
 
-    for line in file:
-        # We've satisfied all conditions, stop searching.
-        if cond_idx == len(conds):
-            break
+    while cond_idx < len(conds):
+        rewind_pos = next_pos
 
-        # When we finish matching, we need to rewind to the beginning of
-        # the current line.
-        rewind_pos = pos
-        pos += len(line)
+        line = file.readline()
+        print('pos', rewind_pos, 'line', line)
+
+        if line == '':
+            return None
+
+        next_pos = file.tell()
+        if cond_idx == 0:
+            restart = next_pos
 
         # When we match a condition, advance to the next one, otherwise reset.
         if conds[cond_idx].search(line) is not None:
             cond_idx += 1
         else:
             cond_idx = 0
-    else:
-        return None
+            file.seek(restart)
 
-    next_pos = file.tell()
+        print(cond_idx, len(conds))
+        # We've satisfied all conditions, stop searching.
 
-    if rewind_pos is not None:
-        file.seek(rewind_pos)
+    file.seek(rewind_pos)
 
     return next_pos
 
@@ -894,7 +954,7 @@ def advance_file(file: TextIO, conds: List[Pattern]) -> Union[int, None]:
 def parse_file(path: Path, parser: Callable, parser_args: dict,
                match_idx: Union[int, None],
                pos_regexes: List[Pattern],
-               log: Callable) -> Any:
+               log: IndentedLog) -> Any:
     """Parse results for a single results file.
 
     :return: A list of all matching results found. Will be cut short if
@@ -903,20 +963,28 @@ def parse_file(path: Path, parser: Callable, parser_args: dict,
 
     matches = []
 
-    log("Parsing for file '{}':".format(path.as_posix()), lvl=3)
+    log.indent = 3
+    log("Parsing for file '{}':".format(path.as_posix()))
     with path.open() as file:
+        print("advancing file")
         next_pos = advance_file(file, pos_regexes)
+        print("next_pos", next_pos, flush=True)
 
         while next_pos is not None:
             log("Found potential match at pos {} in file."
                 .format(file.tell()))
             res = parser(file, **parser_args)
+            print('result', res)
 
-            if res is None:
-                continue
+            if res is not None:
 
-            matches.append(res)
-            log("Parser extracted result '{}'".format(res))
+                matches.append(res)
+                log("Parser extracted result '{}'".format(res))
+
+            if match_idx is not None and 0 <= match_idx < len(matches):
+                break
+
+            next_pos = advance_file(file, pos_regexes)
 
     if match_idx is None:
         return matches
@@ -949,8 +1017,11 @@ def parse_result(results: Dict, key: str, parser_cfg: Dict,
     globs = parser_cfg['files']
     per_file_name = parser_cfg['per_file']
 
+    print('key: {}, parser: {}'.format(key, parser.name))
+    print(MATCH_CHOICES, parser_cfg)
     match_idx = MATCH_CHOICES.get(parser_cfg['match_select'],
-                                  default=int(parser_cfg['match_select']))
+                                  parser_cfg['match_select'])
+    match_idx = int(match_idx) if match_idx is not None else None
 
     # Compile the regexes for finding the appropriate lines on which to
     # call the result parser.
@@ -974,6 +1045,8 @@ def parse_result(results: Dict, key: str, parser_cfg: Dict,
 
     log("Looking for files that match file globs: {}".format(globs))
 
+    print('globs', globs)
+
     # Find all the files we'll be parsing.
     paths = []
     for file_glob in globs:
@@ -981,12 +1054,13 @@ def parse_result(results: Dict, key: str, parser_cfg: Dict,
             file_glob = '{}/build/{}'.format(test.path, file_glob)
 
         paths_found = glob.glob(file_glob)
-
+        paths_found.reverse()
         if paths_found:
-            for path in glob.glob(file_glob):
-                paths.append(Path(path))
+            paths.extend(Path(path) for path in paths_found)
         else:
             presults[file_glob] = None
+
+    print('paths: {}'.format([p.name for p in paths]))
 
     if not paths:
         msg = "File globs {} for key {} found no files.".format(globs, key)
@@ -1020,6 +1094,8 @@ def parse_result(results: Dict, key: str, parser_cfg: Dict,
         presults[path] = res
         log("Stored value '{}' for file '{}'".format(res, path.name))
 
+    print('presults', presults)
+
     log.indent = 2
     log("Results for each found files:")
     for res_path, res_value in presults.items():
@@ -1035,12 +1111,16 @@ def parse_result(results: Dict, key: str, parser_cfg: Dict,
     per_file_func = PER_FILES[per_file_name]  # type: per_first
 
     try:
-        per_file_func(
+        errors = per_file_func(
             results=results,
             key=key,
             file_vals=presults,
             action=ACTIONS[parser_cfg['action']]
         )
+
+        for error in errors:
+            results[RESULT_ERRORS].append(error)
+            log(error)
 
         log("Processed results from key {} with per_file setting {} "
             "and action {}.".format(key, per_file_name, action_name))
@@ -1051,6 +1131,6 @@ def parse_result(results: Dict, key: str, parser_cfg: Dict,
             .format(err.args[0]))
 
         log(msg)
-        return ParseErrorMsg(key, parser, msg, file='*')
+        return ParseErrorMsg(key, parser, msg, file=globs)
 
     return None
