@@ -2,6 +2,7 @@ import re
 import copy
 
 import pavilion.result.base
+import pavilion.result.common
 import yaml_config as yc
 from pavilion.result import parsers
 
@@ -94,11 +95,11 @@ class Table(parsers.ResultParser):
         try:
             if len(col_names) != 0:
                 if len(col_names) != kwargs['col_num']:
-                    raise pavilion.result.base.ResultError(
+                    raise pavilion.result.common.ResultError(
                         "Length of `col_names` does not match `col_num`."
                     )
         except ValueError:
-            raise pavilion.result.base.ResultError(
+            raise pavilion.result.common.ResultError(
                 "`col_names` needs to be an integer."
             )
 

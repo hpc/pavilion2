@@ -10,6 +10,8 @@ DISABLE_SCHED_KEYS = [
     'test_node_list',
 ]
 
+RESULT_ERRORS = 'pav_result_errors'
+
 
 def get_sched_keys(test):
     """Return the sched section keys. Keys whose name ends in 'list' will
@@ -56,8 +58,8 @@ BASE_RESULTS = {
               "Most of the scheduler variables."),
     'sys_name': (lambda test: test.var_man['sys.sys_name'],
                  "The system name '{{sys.sys_name}}'"),
-    'pav_result_errors': (lambda test: [],
-                          "Errors from processing results."),
+    RESULT_ERRORS: (lambda test: [],
+                    "Errors from processing results."),
     'per_file': (lambda test: {},
                  "Per file results."),
     'return_value': (None,
@@ -86,7 +88,3 @@ def base_results(test) -> dict:
             results[key] = func(test)
 
     return results
-
-
-class ResultError(RuntimeError):
-    """Error thrown when a failure occurs with any sort of result processing."""

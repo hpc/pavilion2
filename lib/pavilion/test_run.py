@@ -15,6 +15,7 @@ import uuid
 from pathlib import Path
 from typing import Callable, Any
 
+import pavilion.result.common
 from pavilion import builder
 from pavilion import dir_db
 from pavilion import lockfile
@@ -754,14 +755,13 @@ class TestRun(TestAttributes):
                         timeout_file = self.run_log
 
                     try:
-                        timeout = max(
-                            timeout,
-                            timeout_file.stat().st_mtime + self.run_timeout)
+                        out_stat = timeout_file.stat()
+                        quiet_time = time.time() - out_stat.st_mtime
                     except OSError:
                         pass
 
                     # Has the output file changed recently?
-                    if time.time() > timeout:
+                    if self.run_timeout < quiet_time:
                         # Give up on the build, and call it a failure.
                         proc.kill()
                         msg = ("Run timed out after {} seconds"
@@ -866,14 +866,15 @@ of result keys.
 
         parser_configs = self.config['result_parse']
 
-        result_log = result.get_result_logger(log_file)
+        result_log = utils.IndentedLog(log_file)
 
         result_log("Gathering base results.")
         results = result.base_results(self)
 
         results['return_value'] = run_result
 
-        result_log("Base results:", lvl=1)
+        result_log("Base results:")
+        result_log.indent = 1
         result_log(pprint.pformat(results))
 
         if not regather:
@@ -883,7 +884,7 @@ of result keys.
 
         try:
             result.parse_results(self, results, log=result_log)
-        except result.ResultError as err:
+        except pavilion.result.common.ResultError as err:
             results['result'] = self.ERROR
             results['pav_result_errors'].append(
                 "Error parsing results: {}".format(err.args[0]))
@@ -901,7 +902,7 @@ of result keys.
                 self.config['result_evaluate'],
                 result_log
             )
-        except result.ResultError as err:
+        except pavilion.result.common.ResultError as err:
             results['result'] = self.ERROR
             results['pav_result_errors'].append(err.args[0])
             if not regather:
@@ -920,6 +921,10 @@ of result keys.
 
         result_log("Set final result key to: '{}'".format(results['result']))
         result_log("See results.json for the final result json.")
+
+        result_log("Removing temporary values.")
+        result_log.indent = 1
+        result.remove_temp_results(results, result_log)
 
         self._results = results
 
