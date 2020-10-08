@@ -1,14 +1,10 @@
 import re
-import copy
 
-import pavilion.result.base
-import pavilion.result.common
 import yaml_config as yc
-from pavilion.result import parsers
+from pavilion.result import parsers, ResultError
 
 
 class Table(parsers.ResultParser):
-
     """Parses tables."""
 
     def __init__(self):
@@ -17,36 +13,36 @@ class Table(parsers.ResultParser):
             description="Parses tables.",
             config_elems=[
                 yc.StrElem(
-                    'start_re',
-                    help_text="Optional. Partial regex near the start of the "
-                              "table. Helps Pavilion locate table. "
-                ),
-                yc.StrElem(
-                    'nth_start_re',
-                    help_text="Optional. Nth `start_re` to consider. Default "
-                              "first occurence (0th). "
-                ),
-                yc.StrElem(
-                    'start_skip',
-                    help_text="Optional. Number of lines between `start_re` "
-                              "and actual table. "
-                              "Only set if `start_re` is also set. "
-                ),
-                yc.StrElem(
                     'line_num', required=False,
                     help_text="Optional. Number of lines after `start_re` "
                               "that Pavilion should look at. "
                 ),
-                yc.ListElem(
-                    'row_ignore', sub_elem=yc.StrElem(),
-                    help_text="Optional. Indices of rows to ignore. "
-                              "(Note: arrays start at zero). "
-                              "The row with column names "
-                              "count as part of the table."
+                yc.StrElem(
+                    'row_ignore_re',
+                    help_text="Optional. Regex of lines to ignore when "
+                              "parsing the table. Mainly for skipping lines "
+                              "of dashes and similar."
+                ),
+                yc.StrElem(
+                    'table_end_re',
+                    help_text="The regular expression that denotes the end "
+                              "of the table. Defaults to a '^\\s*$' "
+                              "(a line of nothing but whitespace)."
                 ),
                 yc.StrElem(
                     'delimiter',
-                    help_text="Delimiter that splits the data."
+                    help_text="Delimiter that splits the data in each row. "
+                              "Defaults to whitespace two or more whitespace "
+                              "characters ('\\s\\s+'). Regardless of "
+                              "the delimiter, whitespace is always stripped "
+                              "from each either end of extracted data."
+                ),
+                yc.ListElem(
+                    'col_names', required=False, sub_elem=yc.StrElem(),
+                    help_text="The column names. By default, the first line "
+                              "of the table is considered to be the column "
+                              "names. Data for columns with an empty name"
+                              "(ie '') are not included in the results."
                 ),
                 yc.StrElem(
                     'col_num', required=True,
@@ -54,13 +50,10 @@ class Table(parsers.ResultParser):
                               "names, if there is such a column."
                 ),
                 yc.StrElem(
-                    'has_header',
+                    'has_row_labels',
                     help_text="Set True if there is a column for row names. "
-                              "Will create dictionary of dictionaries."
-                ),
-                yc.ListElem(
-                    'col_names', required=False, sub_elem=yc.StrElem(),
-                    help_text="Column names if the user knows what they are."
+                              "Row data "
+
                 ),
                 yc.StrElem(
                     'by_column',
@@ -75,15 +68,14 @@ class Table(parsers.ResultParser):
                 )
             ],
             defaults={
-                'delimiter': ' ',
-                'has_header': 'False',
-                'by_column': 'False',
-                'nth_start_re': '0'
+                'delimiter':    ' ',
+                'has_header':   'False',
+                'by_column':    'False',
             },
             validators={
                 'has_header': ('True', 'False'),
-                'by_column': ('True', 'False'),
-                'col_num': int,
+                'by_column':  ('True', 'False'),
+                'col_num':    int,
             }
 
         )
@@ -95,64 +87,66 @@ class Table(parsers.ResultParser):
         try:
             if len(col_names) != 0:
                 if len(col_names) != kwargs['col_num']:
-                    raise pavilion.result.common.ResultError(
+                    raise ResultError(
                         "Length of `col_names` does not match `col_num`."
                     )
         except ValueError:
-            raise pavilion.result.common.ResultError(
+            raise ResultError(
                 "`col_names` needs to be an integer."
             )
 
         return kwargs
 
-    def __call__(self, test, file, delimiter=None, col_num=None,
-                 has_header='', col_names=[], by_column=True,
-                 start_re=None, line_num=None, start_skip=None,
-                 nth_start_re=None, row_ignore=[], col_ignore=[]):
+    def __call__(self, file, delimiter_re=None, col_num=None,
+                 has_header='', col_names=None, by_column=True,
+                 line_num=None, table_end_re=None,
+                 row_ignore_re=None, col_ignore=None):
 
-        lines = file.readlines()
+        col_names = [] if col_names is None else col_names
+        row_ignore_re = re.compile(row_ignore_re)
+        table_end_re = re.compile(table_end_re)
+        delimiter_re = re.compile(delimiter_re)
 
-        # Step 1: "Remove" unnecessary lines from file
-        # (narrow down the list of lines Pavilion needs to look at)
-        nth_start_re = int(nth_start_re)
+        lines = []
+        # Record the first non-empty line we find as a point of reference
+        # for errors.
+        reference_line = None
 
-        if start_re:
-            lines_with_start_re = []
-            start_re_regex = re.compile(start_re)
-            for line_index in range(len(lines)):
-                if start_re_regex.findall(lines[line_index]):
-                    lines_with_start_re.append((line_index, lines[line_index]))
+        # Collect all the lines that belong to our table.
+        for line in file:
+            if reference_line is None and line.strip():
+                reference_line = line
 
-            if not lines_with_start_re:
-                raise pavilion.result.base.ResultError(
-                    "`start_re` not found in output."
-                )
+            # Skip lines that match this regex.
+            if row_ignore_re.search(line) is not None:
+                continue
 
-            start_num, start_line = lines_with_start_re[nth_start_re]
-            try:
-                end_num, end_line = lines_with_start_re[nth_start_re+1]
-                lines = lines[start_num:end_num]
-            except IndexError:
-                lines = lines[start_num:]
+            # Stop collecting lines after this.
+            if table_end_re.search(line) is not None:
+                break
 
-        if start_skip:
-            lines = lines[int(start_skip)+1:]
+            lines.append(line)
 
-        if line_num:
-            lines = lines[:int(line_num)]
+        if reference_line is None:
+            reference_line = file.readline()
 
-        # Step 2: Redraw table
-        # TODO: decide if I still want to ignore columns?
-        if row_ignore:
-            rows_to_remove = []
-            for row_idx in row_ignore:
-                rows_to_remove.append(lines[int(row_idx)])
+        if not lines:
+            raise ResultError(
+                'Found table at "{}", but all lines were ignored by the '
+                'row_ignore_re \'{}\'.'
+                .format(reference_line, row_ignore_re.pattern))
 
-            for rows in rows_to_remove:
-                lines.remove(rows)
+        lines.reverse()
 
-        if col_ignore:
-            pass
+        if not col_names:
+            col_names = delimiter_re.split(lines.pop())
+
+        row_idx = 0
+
+        while lines:
+            row = delimiter_re.split(lines.pop())
+
+
 
         # Step 3: Use regex to get values
         # generate regular expression
@@ -203,7 +197,7 @@ class Table(parsers.ResultParser):
             if len(col_names) == int(col_num):
                 col_names.pop(0)
 
-            row_names = [] # assume first element in list is row name
+            row_names = []  # assume first element in list is row name
             for m_idx in range(len(match_list)):
                 row_names.append(match_list[m_idx][0])
                 match_list[m_idx] = match_list[m_idx][1:]
@@ -231,4 +225,3 @@ class Table(parsers.ResultParser):
                     result_dict[col_names[col_idx]].append(row_match[col_idx])
 
         return result_dict
-
