@@ -8,7 +8,8 @@ from pavilion.test_config.parsers import (check_expression, StringParserError,
                                           EvaluationExprTransformer,
                                           VarRefVisitor, match_examples,
                                           BAD_EXAMPLES, ParserValueError)
-from .base import BASE_RESULTS, ResultError
+from .base import BASE_RESULTS
+from . import ResultError
 from pavilion import utils
 
 

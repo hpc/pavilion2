@@ -7,6 +7,14 @@ from pavilion.result import parsers
 class Constant(parsers.ResultParser):
     """Set a constant as result."""
 
+    FORCE_DEFAULTS = [
+        'match_select',
+        'files',
+        'per_file',
+        'for_lines_matching',
+        'preceded_by',
+    ]
+
     def __init__(self):
         super().__init__(
             name='constant',
@@ -20,5 +28,5 @@ class Constant(parsers.ResultParser):
             ]
         )
 
-    def __call__(self, test, file, const=None):
+    def __call__(self, file, const=None):
         return const

@@ -6,17 +6,17 @@ import pprint
 from collections import OrderedDict
 
 import pavilion.result
+import pavilion.result.common
 import yaml_config as yc
 from pavilion import arguments
 from pavilion import commands
 from pavilion import plugins
 from pavilion import result
+from pavilion import utils
 from pavilion.plugins.commands import run
 from pavilion.result import parsers, ResultError, base
 from pavilion.test_run import TestRun
 from pavilion.unittest import PavTestCase
-from pavilion.test_config import resolver
-from pavilion import utils
 
 LOGGER = logging.getLogger(__name__)
 
@@ -219,9 +219,9 @@ class ResultParserTests(PavTestCase):
 
             found = set()
 
-            for key, value in resultd.items():
-                if key.startswith('_'):
-                    found.add(key)
+            for rkey, value in resultd.items():
+                if rkey.startswith('_'):
+                    found.add(rkey)
                 if isinstance(value, dict):
                     found.update(find_hidden(value))
 
@@ -344,7 +344,7 @@ class ResultParserTests(PavTestCase):
         test.run()
 
         results = {'pav_result_errors': []}
-        parsers.parse_results(test, results, utils.IndentedLog())
+        result.parse_results(test, results, utils.IndentedLog())
 
         self.assertEqual(['data1', 'data3', 'data5'], results['table1']['Col1'])
         self.assertEqual([3, 8, ' '], results['table1']['Col2'])
@@ -376,7 +376,7 @@ class ResultParserTests(PavTestCase):
         test.run()
 
         results = {'pav_result_errors': []}
-        parsers.parse_results(test, results, utils.IndentedLog())
+        result.parse_results(test, results, utils.IndentedLog())
 
         self.assertEqual(['d4', 'd7'], results['table2']['d1'])
         self.assertEqual(['d5', ' '], results['table2']['d2'])
@@ -417,7 +417,7 @@ class ResultParserTests(PavTestCase):
         test.run()
 
         results = {'pav_result_errors': []}
-        parsers.parse_results(test, results, utils.IndentedLog())
+        result.parse_results(test, results, utils.IndentedLog())
 
         self.assertEqual('0.000', results['table3']['calc_deposit']['Runtime'])
         self.assertEqual('9.41', results['table3']['OMP Barrier']['us/Loop'])
@@ -509,7 +509,7 @@ class ResultParserTests(PavTestCase):
             test = self._quick_test(cfg)
             test.run()
 
-            with self.assertRaises(result.ResultError):
+            with self.assertRaises(pavilion.result.common.ResultError):
                 result.evaluate_results({}, error_conf, utils.IndentedLog())
 
     def test_result_cmd(self):
@@ -605,6 +605,62 @@ class ResultParserTests(PavTestCase):
         for key, answer in answers.items():
             self.assertEqual(results[key], answer)
 
+    def test_constant_parser(self):
+        """Check the constant parser."""
+
+        cfg = self._quick_test_cfg()
+        cfg['variables'] = {
+            'foo': ['bar']
+        }
+        cfg['result_parse'] = {
+            'constant': {
+                'foo': {
+                    'const': '{{foo}}',
+                },
+                'baz': {
+                    'const': '33',
+                }
+            }
+        }
+
+        expected = {
+            'foo': 'bar',
+            'baz': 33,
+        }
+
+        test = self._quick_test(cfg, 'const_parser_test')
+        test.run()
+        results = test.gather_results(0)
+
+        for key in expected:
+            self.assertEqual(results[key], expected[key])
+
+    def test_forced_parser_defaults(self):
+        """Make sure we honor the result parser's FORCED_DEFAULTS."""
+
+        cfg = self._quick_test_cfg()
+        cfg['result_parse'] = {
+            'constant': {
+                'foo': {
+                    'const': 'bar',
+                    'preceded_by': 'unsettable',
+                }
+            }
+        }
+
+        with self.assertRaises(pavilion.result.common.ResultError):
+            result.check_config(cfg['result_parse'], {})
+
+        test = self._quick_test(cfg, 'split_test')
+        test.run()
+        results = test.gather_results(0)
+
+        self.assertNotIn('foo', results)
+        self.assertTrue(results[result.RESULT_ERRORS][0].endswith(
+            "This parser requires that you not set the 'preceded_by' key, as "
+            "the default value is the only valid option."
+        ))
+
     def test_split_parser(self):
         """Check the split parser."""
 
@@ -623,6 +679,7 @@ class ResultParserTests(PavTestCase):
                     'preceded_by': [r'Results1']
                 },
                 'a2, _, _, _, b2':      {
+                    'sep': ',',
                     'preceded_by':        [r'Results2'],
                 },
             }
@@ -639,10 +696,9 @@ class ResultParserTests(PavTestCase):
         test = self._quick_test(cfg, 'split_test')
         test.run()
         results = test.gather_results(0)
-        import pprint
-        pprint.pprint(results)
 
-
+        for key in expected:
+            self.assertEqual(results[key], expected[key])
 
     def test_flatten_results(self):
         """Make sure result flattening works as expected, as well as regular

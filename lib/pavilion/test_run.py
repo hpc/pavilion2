@@ -15,6 +15,7 @@ import uuid
 from pathlib import Path
 from typing import Callable, Any
 
+import pavilion.result.common
 from pavilion import builder
 from pavilion import dir_db
 from pavilion import lockfile
@@ -883,7 +884,7 @@ of result keys.
 
         try:
             result.parse_results(self, results, log=result_log)
-        except result.ResultError as err:
+        except pavilion.result.common.ResultError as err:
             results['result'] = self.ERROR
             results['pav_result_errors'].append(
                 "Error parsing results: {}".format(err.args[0]))
@@ -901,7 +902,7 @@ of result keys.
                 self.config['result_evaluate'],
                 result_log
             )
-        except result.ResultError as err:
+        except pavilion.result.common.ResultError as err:
             results['result'] = self.ERROR
             results['pav_result_errors'].append(err.args[0])
             if not regather:

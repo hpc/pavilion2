@@ -1,5 +1,6 @@
 import glob
 
+import pavilion.result.common
 import yaml_config as yc
 from pavilion.result import parsers
 
@@ -22,7 +23,7 @@ class Filecheck(parsers.ResultParser):
         """This should always have match_select set to 'first'."""
 
         if kwargs.get('match_select') != parsers.MATCH_FIRST:
-            raise parsers.ResultError(
+            raise pavilion.result.common.ResultError(
                 "You must use 'match_select: {}' with the filecheck parser. "
                 "(it's the default)"
                 .format(parsers.MATCH_FIRST))

@@ -14,16 +14,16 @@ class Split(parsers.ResultParser):
                         "stripped parts.",
             config_elems=[
                 yc.StrElem(
-                    'substring',
+                    'sep',
                     help_text="The substring to split by. Default is "
                               "to split by whitespace.")]
         )
 
-    def __call__(self, file, substring=None):
+    def __call__(self, file, sep=None):
         """Simply use the split string method to split"""
 
-        substring = None if substring == '' else substring
+        sep = None if sep == '' else sep
 
         line = file.readline().strip()
 
-        return [part.strip() for part in line.split(substring)]
+        return [part.strip() for part in line.split(sep)]

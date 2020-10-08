@@ -88,7 +88,3 @@ def base_results(test) -> dict:
             results[key] = func(test)
 
     return results
-
-
-class ResultError(RuntimeError):
-    """Error thrown when a failure occurs with any sort of result processing."""

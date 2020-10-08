@@ -5,17 +5,18 @@ it contains the functions used to get the base result values, as well as
 resolving result evaluations."""
 
 import json
-import textwrap
 from pathlib import Path
-from typing import TextIO, Callable, List
+from typing import List
 
 from pavilion import lockfile as _lockfile
+from pavilion import utils
 from pavilion.test_config import resolver
 from . import parsers
-from .base import base_results, ResultError, BASE_RESULTS, RESULT_ERRORS
+from .base import base_results, BASE_RESULTS, RESULT_ERRORS
+from .common import ResultError
 from .evaluations import check_expression, evaluate_results, StringParserError
-from .parsers import parse_results, ResultParser
-from pavilion import utils
+from .parse import parse_results, DEFAULT_KEY
+from .parsers import ResultParser
 
 
 def check_config(parser_conf, evaluate_conf):
@@ -32,7 +33,7 @@ For evaluations we check for:
 - Reserved key names.
 - Invalid expression syntax.
 
-:raises TestRunError: When a config breaks the rules.
+:raises ResultError: When a config breaks the rules.
 """
 
     # Track the key_names seen, along with the 'per_file' setting for each.
@@ -49,17 +50,17 @@ For evaluations we check for:
 
             if ',' in key_str:
                 keys = [k.strip() for k in key_str.split() if k.strip()]
-                if parsers.DEFAULT_KEY in keys:
+                if parse.DEFAULT_KEY in keys:
                     raise ResultError(
                         "The default setting key '{}' can't be used in "
                         "a key list. Found in '{}' under parser '{}'"
-                        .format(parsers.DEFAULT_KEY, key_str, rtype))
+                        .format(parse.DEFAULT_KEY, key_str, rtype))
             else:
                 keys = [key_str]
 
             for key in keys:
                 # Don't process this as a normal result parser
-                if key == parsers.DEFAULT_KEY:
+                if key == parse.DEFAULT_KEY:
                     continue
 
                 if key in BASE_RESULTS.keys():
@@ -77,8 +78,8 @@ For evaluations we check for:
 
             parser = parsers.get_plugin(rtype)
 
-            rconf = parsers.set_parser_defaults(rconf, defaults)
-            parsers.check_parser_conf(rconf, keys, parser)
+            rconf = parser.set_parser_defaults(rconf, defaults)
+            parser.check_config(rconf, keys)
 
     for key, expr in evaluate_conf.items():
         if key in BASE_RESULTS:

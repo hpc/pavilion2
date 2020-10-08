@@ -1,5 +1,5 @@
 """Execute a command and get its output or return value."""
-
+import pavilion.result.common
 from pavilion.result import parsers
 
 import pavilion.result.base
@@ -59,7 +59,7 @@ class Command(parsers.ResultParser):
                 stderr=err,
             )
         except subprocess.CalledProcessError as err:
-            raise pavilion.result.base.ResultError(
+            raise pavilion.result.common.ResultError(
                 "Command cannot be executed: '{}'\n{}"
                 .format(command, err.args[0])
             )

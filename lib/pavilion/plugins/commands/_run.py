@@ -143,7 +143,7 @@ class _RunCommand(commands.Command):
             try:
                 result.check_config(test.config['result_parse'],
                                     test.config['result_evaluate'])
-            except TestRunError as err:
+            except result.ResultError as err:
                 test.status.set(
                     STATES.RESULTS_ERROR,
                     "Error checking result parser configs: {}"
