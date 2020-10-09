@@ -310,14 +310,11 @@ class ResultParserTests(PavTestCase):
                 base_results[key],
                 msg="Base result key '{}' was None.".format(key))
 
-    def test_table_result_parser(self):
-        """
-        Makes sure Table Result Parser Works
-        :return:
-        """
+    def test_table_parser(self):
+        """Check table result parser operation."""
 
         # start & nth start with line+space delimiter
-        table_test_start_nth = {
+        cfg = {
             'scheduler': 'raw',
             'build': {
                 'source_path': 'tables.txt'
@@ -329,149 +326,135 @@ class ResultParserTests(PavTestCase):
             },
             'result_parse': {
                 'table': {
-                    'stuff_table': {
-                        'delimiter': r'\|',
-                        'col_num': '3',
-                        'col_names': ['Col1', 'Col2', 'Col3'],
-                        'start_re': r'^stuff',
-                        'nth_start_re': '1'
-                    }
-                }
-            }
-        }
-
-        start_table_test = self._quick_test(table_test_start_nth,
-                                            'result_parser_test')
-        start_table_test.run()
-        start_results = {'pav_result_errors': []}
-        parsers.parse_results(start_table_test, start_results)
-
-        self.assertEqual(['data7', 'data8', 'data9'],
-                         start_results['stuff_table']['Col1'])
-        self.assertEqual(['0', '9', ' '], start_results['stuff_table']['Col2'])
-        self.assertEqual(['data10', 'data11', 'data12'],
-                         start_results['stuff_table']['Col3'])
-
-        # ignore rows, space delimited
-        table_test_ignore_rows = {
-            'scheduler': 'raw',
-            'build': {
-                'source_path': 'tables.txt'
-            },
-            'run': {
-                'cmds': [
-                    'cat tables.txt'
-                ]
-            },
-            'result_parse': {
-                'table': {
-                    'with_skip': {
-                        'delimiter': ' ',
-                        'col_num': '4',
-                        'col_names': ['colA', 'colB', 'colC', 'colD'],
-                        'start_re': r'^skip rows',
-                        'row_ignore': ['2', '3', '6'],
-                        'line_num': '9'
-                    }
-                }
-            }
-        }
-
-        ignore_rows_test = self._quick_test(table_test_ignore_rows,
-                                            'result_parser_test')
-        ignore_rows_test.run()
-        ignore_rows_results = {'pav_result_errors': []}
-        parsers.parse_results(ignore_rows_test, ignore_rows_results)
-
-        self.assertEqual(['item1', 'item5', 'item9', 'item13'],
-                         ignore_rows_results['with_skip']['colA'])
-        self.assertEqual(['item2', 'item6', 'item10', 'item14'],
-                         ignore_rows_results['with_skip']['colB'])
-        self.assertEqual(['item3', 'item7', 'item11', 'item15'],
-                         ignore_rows_results['with_skip']['colC'])
-        self.assertEqual(['item4', 'item8', 'item12', 'item16'],
-                         ignore_rows_results['with_skip']['colD'])
-
-        # start skip, row_nums, and with rows
-        rows_and_cols = {
-            'scheduler': 'raw',
-            'build': {
-                'source_path': 'tables.txt'
-            },
-            'run': {
-                'cmds': [
-                    'cat tables.txt'
-                ]
-            },
-            'result_parse': {
-                'table': {
-                    'with_rows': {
-                        'delimiter': ' ',
-                        'col_num': '5',
-                        'start_re': r'^start skip',
-                        'has_header': 'True',
-                        'start_skip': '2',
-                        'col_names': [' ', 'col1', 'col2', 'col3', 'col4'],
-                        'line_num': '4'
-                    }
-                }
-            }
-        }
-        has_header_test = self._quick_test(rows_and_cols, 'result_parser_test')
-        has_header_test.run()
-        has_header_results = {'pav_result_errors': []}
-        parsers.parse_results(has_header_test, has_header_results)
-
-        self.assertEqual(3, len(has_header_results['with_rows'].keys()))
-        self.assertEqual('1', has_header_results['with_rows']['r1']['col1'])
-        self.assertEqual('6', has_header_results['with_rows']['r2']['col2'])
-        self.assertEqual('10', has_header_results['with_rows']['r3']['col3'])
-
-        # comma delimiter
-        table_test3 = {
-            'scheduler': 'raw',
-            'run': {
-                'cmds': [
-                    'echo "----------- Comma-delimited summary ---------"',
-                    'echo "./clomp_hwloc 4 -1 256 10 32 1 100, calc_deposit, OMP Barrier, Scaled Serial Ref, Bestcase OMP, Static OMP, Dynamic OMP, Manual OMP"',
-                    'echo "Runtime,   0.000,   0.919,   2.641,   0.517,   2.345,  16.392,   2.324"',
-                    'echo "us/Loop,    0.00,    9.41,   27.04,    5.29,   24.01,  167.85,   23.79"',
-                    'echo "Speedup,     N/A,     N/A,    1.00,     5.1,     1.1,     0.2,     1.1"',
-                    'echo "Efficacy,    N/A,     N/A,     N/A,   100%,   22.0%,    3.2%, 22.2%"',
-                    'echo "Overhead,    N/A,     N/A,     N/A,    0.00,   18.72,  162.56,   18.50"',
-                    'echo "CORAL2 RFP, 4 -1 256 10 32 1 100, 1.00, 27.04, 27.04, 9.41, 5.1, 18.72, 1.1, 162.56, 0.2, 18.50, 1.1"'
-                ]
-            },
-            'result_parse': {
-                'table': {
+                    'table1': {
+                        'delimiter_re': r'\|',
+                        'col_names': ['cola', 'soda', 'pop'],
+                        'preceded_by': ['table1', '', ''],
+                        'for_lines_matching': '^- - -',
+                    },
+                    'table1b': {
+                        'delimiter_re': r'\|',
+                        'has_row_labels': 'False',
+                        'preceded_by': ['table1'],
+                        'for_lines_matching': '^--  --  --',
+                    },
+                    'table2': {
+                        'delimiter_re':       r'\|',
+                        'preceded_by':        ['table2'],
+                        'for_lines_matching': '^--  --  --',
+                    },
+                    'table2_by_col': {
+                        'delimiter_re':       r'\|',
+                        'preceded_by':        ['table2'],
+                        'for_lines_matching': '^--  --  --',
+                        'by_column':          'True',
+                    },
                     'table3': {
-                        'delimiter': ',',
-                        'col_num': '8',
-                        'has_header': 'True',
+                        'delimiter_re':       r'\|',
+                        'for_lines_matching': '^Col1',
+                        'match_select': '1',
+                    },
+                    'table4': {
+                        'for_lines_matching': 'colA',
+                    },
+                    'table5': {
+                        'for_lines_matching': r'\s+col1',
+                        'table_end_re': r'^some other words',
+                    },
+                    'clomp': {
+                        'preceded_by': '-+ Comma-delimited summary -+',
+                        'delimiter_re': r',',
                         'by_column': 'True',
-                        'col_names': [
-                            ' ', 'calc_deposit', 'OMP Barrier',
-                            'Scaled Serial Ref', 'Bestcase OMP',
-                            'Static OMP', 'Dynamic OMP', 'Manual OMP']
-                    }
+                    },
                 }
             }
         }
 
-        test = self._quick_test(table_test3, 'result_parser_test')
+        expected = {
+            'table1': {
+                'data1': {'cola': 3,    'soda': 'data4', 'pop': None},
+                'data2': {'cola': 8,    'soda': 'data5', 'pop': None},
+                'data3': {'cola': None, 'soda': 'data6', 'pop': None},
+            },
+            'table1b': {
+                'row_0': {'Col1': 'data1', 'Col2': 3, 'Col3': 'data4'},
+                'row_1': {'Col1': 'data2', 'Col2': 8, 'Col3': 'data5'},
+                'row_2': {'Col1': 'data3', 'Col2': None, 'Col3': 'data6'},
+            },
+            'table2': {
+                'data7': {'Col2': 0, 'Col3': 'data10'},
+                'data8': {'Col2': 9, 'Col3': 'data11'},
+                'data9': {'Col2': None, 'Col3': 'data12'},
+                'row_0': {'Col2': 90, 'Col3': 'data90'}
+            },
+            'table2_by_col': {
+                 'Col2': {'data7': 0, 'data8': 9, 'data9': None, 'row_0': 90},
+                 'Col3': {'data7': 'data10', 'data8': 'data11',
+                          'data9': 'data12', 'row_0': 'data90'}
+            },
+            'table3': {
+                'data13': {'Col2': 4, 'Col3': None},
+                'data14512': {'Col2': 8, 'Col3': 'data17'},
+                'data15': {'Col2': None, 'Col3': 'data18'}
+            },
+            'table4': {
+                '11111': {'colB': 12222, 'colC': 1333, 'colD': 14444},
+                '41111': {'colB': 42222, 'colC': 43333, 'colD': 44444},
+                'item1': {'colB': 'item2', 'colC': 'item3', 'colD': 'item4'},
+                'item13': {'colB': 'item14', 'colC': 'item15', 'colD':
+                           'item16'},
+                'item5': {'colB': 'item6', 'colC': 'item7', 'colD': 'item8'},
+                'item9': {'colB': 'item10', 'colC': 'item11', 'colD': 'item12'}
+            },
+            'table5': {
+                'r1': {'col1': 1, 'col2': 2, 'col3': 3, 'col4': 4},
+                'r2': {'col1': 5, 'col2': 6, 'col3': 7, 'col4': 7},
+                'r3': {'col1': 8, 'col2': 9, 'col3': 10, 'col4': 11}
+            },
+            'clomp': {
+                'Bestcase OMP': {
+                    'CORAL2_RFP': 27.04, 'Efficacy': '100%', 'Overhead': 0.0,
+                    'Runtime': 0.517, 'Speedup': 5.1, 'us_Loop': 5.29},
+                'Dynamic OMP': {
+                    'CORAL2_RFP': 5.1, 'Efficacy': '3.2%', 'Overhead': 162.56,
+                    'Runtime': 16.392, 'Speedup': 0.2, 'us_Loop': 167.85},
+                'Manual OMP': {
+                    'CORAL2_RFP': 18.72, 'Efficacy': '22.2%', 'Overhead': 18.5,
+                    'Runtime': 2.324, 'Speedup': 1.1, 'us_Loop': 23.79},
+                'OMP Barrier': {
+                    'CORAL2_RFP': 1.0, 'Efficacy': 'N/A', 'Overhead': 'N/A',
+                    'Runtime': 0.919, 'Speedup': 'N/A', 'us_Loop': 9.41},
+                'Scaled Serial Ref': {
+                    'CORAL2_RFP': 27.04, 'Efficacy': 'N/A', 'Overhead': 'N/A',
+                    'Runtime': 2.641,
+                                 'Speedup': 1.0,
+                                 'us_Loop': 27.04},
+           'Static OMP': {'CORAL2_RFP': 9.41,
+                          'Efficacy': '22.0%',
+                          'Overhead': 18.72,
+                          'Runtime': 2.345,
+                          'Speedup': 1.1,
+                          'us_Loop': 24.01},
+           'calc_deposit': {'CORAL2_RFP': '4 -1 256 10 32 1 100',
+                            'Efficacy': 'N/A',
+                            'Overhead': 'N/A',
+                            'Runtime': 0.0,
+                            'Speedup': 'N/A',
+                            'us_Loop': 0.0}},
+
+        }
+
+        test = self._quick_test(cfg, 'table_test')
         test.run()
 
-        results = {'pav_result_errors': []}
-        result.parse_results(test, results, utils.IndentedLog())
+        log_file = open(test.path / 'results.log', 'w')
+        results = test.gather_results(0, log_file=log_file)
 
-        self.assertEqual('0.000', results['table3']['calc_deposit']['Runtime'])
-        self.assertEqual('9.41', results['table3']['OMP Barrier']['us/Loop'])
-        self.assertEqual('1.00',
-                         results['table3']['Scaled Serial Ref']['Speedup'])
-        self.assertEqual('100%', results['table3']['Bestcase OMP']['Efficacy'])
-        self.assertEqual('18.72', results['table3']['Static OMP']['Overhead'])
-        self.assertEqual('16.392', results['table3']['Dynamic OMP']['Runtime'])
-        self.assertEqual('23.79', results['table3']['Manual OMP']['us/Loop'])
+        import pprint
+        pprint.pprint(results)
+
+        for key in expected:
+            self.assertEqual(expected[key], results[key])
 
     def test_evaluate(self):
 

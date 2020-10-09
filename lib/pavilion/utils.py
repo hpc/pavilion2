@@ -340,6 +340,7 @@ def auto_type_convert(value):
     if isinstance(value, (int, float, bool)):
         return value
 
+    # Probably a string?
     try:
         return int(value)
     except ValueError:

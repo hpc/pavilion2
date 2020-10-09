@@ -2,7 +2,7 @@
 
 from typing import Dict, Callable, Any, List
 from pathlib import Path
-from .common import EMPTY_VALUES, NON_MATCH_VALUES
+from .common import EMPTY_VALUES, NON_MATCH_VALUES, normalize_filename
 from pavilion.utils import auto_type_convert
 
 
@@ -79,21 +79,6 @@ MATCH_CHOICES = {
     MATCH_LAST: -1,
     MATCH_ALL: None,
 }
-
-
-def normalize_filename(name: Path) -> str:
-    """Remove any characters that aren't allowed in Pavilion
-    result variable names."""
-
-    name = name.name.lower().split('.')[0]
-
-    parts = []
-    for p in name:
-        if not p.isalnum():
-            parts.append('_')
-        else:
-            parts.append(p)
-    return ''.join(parts)
 
 
 # Per file callbacks.

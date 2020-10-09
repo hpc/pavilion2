@@ -204,6 +204,7 @@ def parse_file(path: Path, parser: Callable, parser_args: dict,
             log("Found potential match at pos {} in file."
                 .format(file.tell()))
             res = parser(file, **parser_args)
+            file.seek(next_pos)
 
             if res is not None:
 

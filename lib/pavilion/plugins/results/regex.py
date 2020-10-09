@@ -52,7 +52,7 @@ class Regex(parsers.ResultParser):
 
         return kwargs
 
-    def __call__(self, file, regex=None, match_type=None):
+    def __call__(self, file, regex=None):
 
         cregex = re.compile(regex)
 
