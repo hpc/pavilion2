@@ -108,7 +108,7 @@ class ModuleWrapper(IPlugin.IPlugin):
     PRIO_COMMON = 10
     PRIO_USER = 20
 
-    NAME_VERS_RE = re.compile(r'^[a-zA-Z0-9_.-]+$')
+    NAME_VERS_RE = re.compile(r'^[a-zA-Z0-9_.-]+(/[a-zA-Z0-9_.-]+)*$')
 
     def __init__(self, name, description, version=None, priority=PRIO_COMMON):
         """Initialize the module wrapper instance. This must be overridden in
