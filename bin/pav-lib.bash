@@ -90,7 +90,7 @@ function module_avail() {
 
     # Get the available modules
     local mod_name mod_vers is_default
-    for mod in $(${MOD_CMD} avail --terse 2>&1 |
+    for mod in $(${MOD_CMD} -t avail 2>&1 |
                  grep -v -E '.*(:|/)$' |
                  sort); do
         mod_name=$(echo $mod | awk -F/ '{ print $1 }')
@@ -221,11 +221,10 @@ function module_loaded_version() {
 
     local mod=$(module -t list 2>&1 | grep -E "^$1(/|$)" | head -1)
     if [[ -z "${mod}" ]]; then
-        # Module is not loaded.
-        echo '<none>'
+        return 1
     fi
 
-    local version=$(echo ${mod} | awk -F/ '{ print $2 }')
+    local version=$(echo ${mod} | awk -F/ '{ print $NF }')
 
     echo "${version}"
     return 0
@@ -260,10 +259,9 @@ function module_loaded() {
                      grep ",default" | head -1 | awk -F, '{ print $2 }')
   fi
 
-
   # Get the version of the module that is currently loaded, if at all.
   local loaded_version=$(module_loaded_version $1)
-  if [[ ${loaded_version} == "<none>" ]]; then
+  if [[ $? != 0 ]]; then
     echo "Error: module ${module_name} was not loaded."
     return 1
   fi
