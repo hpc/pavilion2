@@ -243,6 +243,8 @@ class FunctionPlugin(IPlugin.IPlugin):
             return [self._spec_to_desc(spec[0])]
         elif isinstance(spec, dict):
             return {k: self._spec_to_desc(v) for k, v in spec.items()}
+        elif spec is None:
+            return 'Any'
         else:
             return spec.__name__
 
