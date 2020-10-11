@@ -106,7 +106,7 @@ Usage: ::
 """
 
     # The variable sets, in order of resolution.
-    VAR_SETS = ('var', 'sys', 'pav', 'sched')
+    VAR_SETS = ('$ctx', 'var', 'sys', 'pav', 'sched')
 
     def __init__(self):
         """Initialize the var set manager."""
@@ -133,7 +133,7 @@ Usage: ::
         if name not in self.reserved_keys:
             raise ValueError("Unknown variable set name: '{}'".format(name))
 
-        if name in self.variable_sets:
+        if name in self.variable_sets and name != '$ctx':
             raise ValueError(
                 "Variable set '{}' already initialized.".format(name))
 

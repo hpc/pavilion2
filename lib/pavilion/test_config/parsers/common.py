@@ -1,6 +1,7 @@
 """This module contains base classes and exceptions shared by the various
 Pavilion parsers."""
 
+import copy
 import lark
 
 
@@ -55,81 +56,106 @@ class PavTransformer(lark.Transformer):
             else:
                 return func(children)
 
-    @staticmethod
-    def _merge_tokens(tokens, value, type_='<merged>'):
-        """As tokens are resolved, we pass up a single, merged token
-        that retains awareness of all the text that contributed to its value.
-        This is generally necessary because of type errors, as we don't
-        immediately know when a type is inappropriate. Consider::
-        {{ 1 + reverse("hello") }}
+# TODO: Replace this with the utils version in the results branch
+def convert(value):
+    """Try to convert 'value' to a int, float, or bool. Otherwise leave
+    as a string."""
 
-        The ``reverse()`` function may accept a string, but we can't add
-        1 to the returned (string) result. The whole of the function call
-        is thus erroneous, rather than any single component of it.
+    if isinstance(value, list):
+        return [convert(item) for item in value]
+    elif isinstance(value, dict):
+        return {key: convert(val) for key, val in value.items()}
 
-        :param list[lark.Token] tokens:
-        :return:
-        """
+    try:
+        return int(value)
+    except ValueError:
+        pass
 
-        if not tokens:
-            return lark.Token(
-                value=value,
-                type_='<empty>',
-            )
+    try:
+        return float(value)
+    except ValueError:
+        pass
 
-        tokens = tokens.copy()
-        tokens.reverse()
+    if value in ('True', 'False'):
+        return bool(value)
 
-        tok = tokens.pop()
-        pos_in_stream = tok.pos_in_stream
-        line = tok.line
-        column = tok.column
-        end_line = tok.end_line
-        end_column = tok.end_column
-        end_pos = tok.end_pos
+    return value
 
-        while tokens:
-            tok = tokens.pop()
 
-            if (pos_in_stream is None or
-                    tok.pos_in_stream is not None and
-                    pos_in_stream > tok.pos_in_stream):
-                pos_in_stream = tok.pos_in_stream
+def merge_tokens(tokens, value, type_='<merged>'):
+    """As tokens are resolved, we pass up a single, merged token
+    that retains awareness of all the text that contributed to its value.
+    This is generally necessary because of type errors, as we don't
+    immediately know when a type is inappropriate. Consider::
+    {{ 1 + reverse("hello") }}
 
-            if (end_pos is None or
-                    tok.end_pos is not None and
-                    end_pos > tok.pos_in_stream):
-                end_pos = tok.pos_in_stream
+    The ``reverse()`` function may accept a string, but we can't add
+    1 to the returned (string) result. The whole of the function call
+    is thus erroneous, rather than any single component of it.
 
-            if line is None:
-                line = tok.line
-                column = tok.column
-            elif tok.line is None:
-                pass
-            elif tok.line < line:
-                line = tok.line
-                column = tok.column
-            elif tok.line == line:
-                column = tok.column
+    :param list[lark.Token] tokens:
+    :return:
+    """
 
-            if end_line is None:
-                end_line = tok.end_line
-                end_column = tok.end_column
-            elif tok.end_line is None:
-                pass
-            elif tok.end_line > end_line:
-                end_line = tok.end_line
-                end_column = tok.end_column
-            elif tok.end_line == end_line:
-                end_column = tok.end_column
-
+    if not tokens:
         return lark.Token(
-            type_=type_,
             value=value,
-            line=line,
-            column=column,
-            end_line=end_line,
-            end_column=end_column,
-            pos_in_stream=pos_in_stream,
-            end_pos=end_pos
+            type_='<empty>',
         )
+
+    tokens = tokens.copy()
+    tokens.reverse()
+
+    tok = tokens.pop()
+    pos_in_stream = tok.pos_in_stream
+    line = tok.line
+    column = tok.column
+    end_line = tok.end_line
+    end_column = tok.end_column
+    end_pos = tok.end_pos
+
+    while tokens:
+        tok = tokens.pop()
+
+        if (pos_in_stream is None or
+                tok.pos_in_stream is not None and
+                pos_in_stream > tok.pos_in_stream):
+            pos_in_stream = tok.pos_in_stream
+
+        if (end_pos is None or
+                tok.end_pos is not None and
+                end_pos > tok.pos_in_stream):
+            end_pos = tok.pos_in_stream
+
+        if line is None:
+            line = tok.line
+            column = tok.column
+        elif tok.line is None:
+            pass
+        elif tok.line < line:
+            line = tok.line
+            column = tok.column
+        elif tok.line == line:
+            column = tok.column
+
+        if end_line is None:
+            end_line = tok.end_line
+            end_column = tok.end_column
+        elif tok.end_line is None:
+            pass
+        elif tok.end_line > end_line:
+            end_line = tok.end_line
+            end_column = tok.end_column
+        elif tok.end_line == end_line:
+            end_column = tok.end_column
+
+    return lark.Token(
+        type_=type_,
+        value=value,
+        line=line,
+        column=column,
+        end_line=end_line,
+        end_column=end_column,
+        pos_in_stream=pos_in_stream,
+        end_pos=end_pos
+    )

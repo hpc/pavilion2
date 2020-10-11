@@ -516,8 +516,8 @@ class TestConfigResolver:
         min_version, max_version = TestConfigResolver.verify_version_range(comp_versions)
 
         # Trim pavilion version to the degree dictated by min and max version.
-        # This only matters if they are equal, and only occurs when a specific 
-        # version is provided.  
+        # This only matters if they are equal, and only occurs when a specific
+        # version is provided.
         if min_version == max_version and len(min_version) < len(version):
             offset = len(version) - len(min_version)
             version = version[:-offset]
@@ -1080,25 +1080,45 @@ class TestConfigResolver:
         if isinstance(component, dict):
             resolved_dict = type(component)()
             for key in component.keys():
-                resolved_dict[key] = cls.resolve_section_values(
+                res_val = cls.resolve_section_values(
                     component[key],
                     var_man,
                     allow_deferred=allow_deferred,
                     deferred_only=deferred_only,
                     key_parts=key_parts + (key,))
 
+                # With strings expanding to lists, it's ok if we get back a
+                # list as long as the original value was already a list.
+                if (isinstance(component[key], str) and
+                        not isinstance(res_val, str)):
+                    raise TestConfigError(
+                        "Error resolving value '{}' in config at '{}':\n"
+                        "You cannot expand a string into a list as a "
+                        "mapping value, except as part of an existing list."
+                        .format(component[key], ''.join(map(str, key_parts))))
+
+                resolved_dict[key] = res_val
+
             return resolved_dict
 
         elif isinstance(component, list):
             resolved_list = type(component)()
             for i in range(len(component)):
-                resolved_list.append(
-                    cls.resolve_section_values(
-                        component[i], var_man,
-                        allow_deferred=allow_deferred,
-                        deferred_only=deferred_only,
-                        key_parts=key_parts + (i,)
-                    ))
+                res_val = cls.resolve_section_values(
+                    component[i], var_man,
+                    allow_deferred=allow_deferred,
+                    deferred_only=deferred_only,
+                    key_parts=key_parts + (i,))
+
+                # This works by virtue of the fact that if the underlying
+                # structure of this list were anything but strings (rather
+                # than a lists of dicts, for example), the yaml_config
+                # parser would have already caught any type mismatches.
+                if isinstance(res_val, list) and isinstance(component[i], str):
+                    resolved_list.extend(res_val)
+                else:
+                    resolved_list.append(res_val)
+
             return resolved_list
 
         elif isinstance(component, str):

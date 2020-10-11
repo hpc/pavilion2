@@ -6,12 +6,13 @@
 """
 
 import ast
+import copy
 from typing import Dict, Callable, Any
 
 import lark
 import pavilion.expression_functions.common
 from pavilion import expression_functions as functions
-from .common import PavTransformer, ParserValueError
+from .common import PavTransformer, ParserValueError, merge_tokens, convert
 
 EXPR_GRAMMAR = r'''
 
@@ -40,6 +41,7 @@ primary: literal
        | "(" expr ")"
        | function_call
        | list_
+       | list_gen
 
 // A function call can contain zero or more arguments. 
 function_call: NAME "(" (expr ("," expr)*)? ")"
@@ -54,6 +56,7 @@ literal: INTEGER
        
 // Allows for trailing commas
 list_: L_BRACKET (expr ("," expr)* ","?)? R_BRACKET
+list_gen: L_BRACKET expr "for" NAME ("," NAME)? "in" expr R_BRACKET
 
 // Variable references are kept generic. We'll use this both
 // for Pavilion string variables and result calculation variables.
@@ -134,7 +137,19 @@ class BaseExprTransformer(PavTransformer):
 
     def _apply_op(self, op_func: Callable[[Any, Any], Any],
                   arg1: lark.Token, arg2: lark.Token, allow_strings=True):
-        """"""
+        """Apply the op to the given arguments.
+        If one argument is a list and the other is not, return a new
+        list of the op and val applied to each list item.
+        For two lists (equal length required), apply the op between the
+        corresponding list items.
+        For two non-lists, just apply the op.
+
+        :param op_func: A two argument callable that performs the operation.
+        :param arg1: First op argument
+        :param arg2: Second op argument
+        :param allow_strings: Many ops are numeric only; set to False to
+            raise an error when an argument is a string.
+        """
 
         # Verify that the arg value types are something numeric, or that it's a
         # string and strings are allowed.
@@ -166,13 +181,35 @@ class BaseExprTransformer(PavTransformer):
         val1 = arg1.value
         val2 = arg2.value
 
+        # For 'list op val' (or flipped), apply the op between each member
+        # of the list and the val.
+        # This has to be done recursively, for a cases like:
+        # [1,2] + [[1,2], [3,4]]
         if isinstance(val1, list) and not isinstance(val2, list):
-            return [op_func(val1_part, val2) for val1_part in val1]
+            return [self._apply_op(
+                op_func=op_func,
+                arg1=merge_tokens([arg1], val1_part),
+                arg2=merge_tokens([arg2], val2),
+                allow_strings=allow_strings)
+                for val1_part in val1]
         elif not isinstance(val1, list) and isinstance(val2, list):
-            return [op_func(val1, val2_part) for val2_part in val2]
+            return [self._apply_op(
+                op_func=op_func,
+                arg1=merge_tokens([arg1], val1),
+                arg2=merge_tokens([arg2], val2_part),
+                allow_strings=allow_strings)
+                for val2_part in val2]
+        # For 'list op list', apply the ops between the lists. We already
+        # verified that the lists are equal length.
         elif isinstance(val1, list) and isinstance(val2, list):
-            return [op_func(val1[i], val2[i]) for i in range(len(val1))]
+            return [self._apply_op(
+                op_func=op_func,
+                arg1=merge_tokens([arg1], val1[i]),
+                arg2=merge_tokens([arg2], val2[i]),
+                allow_strings=allow_strings)
+                for i in range(len(val1))]
         else:
+            # For 'val op val', just apply the op to the two vals
             return op_func(val1, val2)
 
     def start(self, items):
@@ -203,7 +240,7 @@ class BaseExprTransformer(PavTransformer):
         while or_items:
             next_tok = or_items.pop()
             acc = self._apply_op(lambda a, b: a or b, base_tok, next_tok)
-            base_tok = self._merge_tokens([base_tok, next_tok], acc)
+            base_tok = merge_tokens([base_tok, next_tok], acc)
 
         return base_tok
 
@@ -222,7 +259,7 @@ class BaseExprTransformer(PavTransformer):
         while and_items:
             next_tok = and_items.pop()
             acc = self._apply_op(lambda a, b: a and b, base_tok, next_tok)
-            base_tok = self._merge_tokens([base_tok, next_tok], acc)
+            base_tok = merge_tokens([base_tok, next_tok], acc)
 
         return base_tok
 
@@ -238,7 +275,7 @@ class BaseExprTransformer(PavTransformer):
             # as both ops (so types can be checked) and make sure our lambda
             # doesn't use the second argument.
             val = self._apply_op(lambda a, b: not a, items[1], items[1])
-            return self._merge_tokens(items, val)
+            return merge_tokens(items, val)
         return items[0]
 
     def compare_expr(self, items) -> lark.Token:
@@ -258,7 +295,7 @@ class BaseExprTransformer(PavTransformer):
         comp_items.reverse()
         left = comp_items.pop()
 
-        base_tok = self._merge_tokens([left], True)
+        base_tok = merge_tokens([left], True)
 
         while comp_items:
             comparator = comp_items.pop()
@@ -280,9 +317,9 @@ class BaseExprTransformer(PavTransformer):
                 raise RuntimeError("Invalid comparator '{}'".format(comparator))
 
             result = self._apply_op(op_func, left, right)
-            next_tok = self._merge_tokens([left, right], result)
+            next_tok = merge_tokens([left, right], result)
             acc = self._apply_op(lambda a, b: a and b, base_tok, next_tok)
-            base_tok = self._merge_tokens([base_tok, right], acc)
+            base_tok = merge_tokens([base_tok, right], acc)
             left = right
 
         return base_tok
@@ -325,10 +362,10 @@ class BaseExprTransformer(PavTransformer):
             except ZeroDivisionError:
                 # This should obviously only occur for division operations.
                 raise ParserValueError(
-                    self._merge_tokens([operator, next_tok], None),
+                    merge_tokens([operator, next_tok], None),
                     "Division by zero")
 
-            base_tok = self._merge_tokens([base_tok, next_tok], acc)
+            base_tok = merge_tokens([base_tok, next_tok], acc)
 
         return base_tok
 
@@ -347,10 +384,10 @@ class BaseExprTransformer(PavTransformer):
                                     allow_strings=False)
             if isinstance(result, complex):
                 raise ParserValueError(
-                    self._merge_tokens(items, None),
+                    merge_tokens(items, None),
                     "Power expression has complex result")
 
-            return self._merge_tokens(items, result)
+            return merge_tokens(items, result)
         else:
             return items[0]
 
@@ -378,7 +415,7 @@ class BaseExprTransformer(PavTransformer):
             value = self._apply_op(lambda a, b: a, items[1], items[1],
                                    allow_strings=False)
 
-        return self._merge_tokens(items, value)
+        return merge_tokens(items, value)
 
     def literal(self, items) -> lark.Token:
         """Just pass up the literal value.
@@ -393,7 +430,16 @@ class BaseExprTransformer(PavTransformer):
         :param list[lark.Token] items: The list item tokens.
         """
 
-        return self._merge_tokens(items, [item.value for item in items[1:-1]])
+        return merge_tokens(items, [item.value for item in items[1:-1]])
+
+    def list_gen(self, items) -> lark.Token:
+        """Generate a list given an iterable expression
+
+        :param items:
+        :return:
+        """
+
+        return merge_tokens(items, [item.value for item in items[1:-1]])
 
     def function_call(self, items) -> lark.Token:
         """Look up the function call, and call it with the given argument
@@ -417,13 +463,19 @@ class BaseExprTransformer(PavTransformer):
             result = func(*args)
         except pavilion.expression_functions.common.FunctionArgError as err:
             raise ParserValueError(
-                self._merge_tokens(items, None),
+                merge_tokens(items, None),
                 "Invalid arguments: {}".format(err))
         except pavilion.expression_functions.common.FunctionPluginError as err:
             # The function plugins give a reasonable message.
-            raise ParserValueError(self._merge_tokens(items, None), err.args[0])
+            raise ParserValueError(merge_tokens(items, None), err.args[0])
 
-        return self._merge_tokens(items, result)
+        return merge_tokens(items, result)
+
+    def var_ref(self, tok) -> lark.Token:
+        """The interpreter should have already resolved the variable value,
+        so just return the pre-merged token."""
+
+        return tok[0]
 
     def INTEGER(self, tok) -> lark.Token:
         """Convert to an int.
@@ -459,30 +511,6 @@ class BaseExprTransformer(PavTransformer):
         tok.value = ast.literal_eval('r' + tok.value)
         return tok
 
-    def _convert(self, value):
-        """Try to convert 'value' to a int, float, or bool. Otherwise leave
-        as a string."""
-
-        if isinstance(value, list):
-            return [self._convert(item) for item in value]
-        elif isinstance(value, dict):
-            return {key: self._convert(val) for key, val in value.items()}
-
-        try:
-            return int(value)
-        except ValueError:
-            pass
-
-        try:
-            return float(value)
-        except ValueError:
-            pass
-
-        if value in ('True', 'False'):
-            return bool(value)
-
-        return value
-
 
 class ExprTransformer(BaseExprTransformer):
     """Convert Pavilion string expressions into their final values given
@@ -509,7 +537,7 @@ class ExprTransformer(BaseExprTransformer):
         var_key = '.'.join(var_key_parts)
         if len(var_key_parts) > 4:
             raise ParserValueError(
-                self._merge_tokens(items, var_key),
+                merge_tokens(items, var_key),
                 "Invalid variable '{}': too many name parts."
                 .format(var_key))
 
@@ -519,23 +547,75 @@ class ExprTransformer(BaseExprTransformer):
             val = self.var_man[var_key]
         except KeyError as err:
             raise ParserValueError(
-                self._merge_tokens(items, var_key),
+                merge_tokens(items, var_key),
                 err.args[0])
 
         # Convert val into the type it looks most like.
         if isinstance(val, str):
-            val = self._convert(val)
+            val = convert(val)
 
-        return self._merge_tokens(items, val)
+        return merge_tokens(items, val)
 
     @staticmethod
     def var_key(items) -> lark.Token:
         """Just return the key component."""
 
-        return items[0]
+        return items
 
 
-class EvaluationExprTransformer(BaseExprTransformer):
+class ExprInterpreter(lark.visitors.Interpreter):
+    """foo"""
+
+    def __init__(self):
+        """foo"""
+
+        self.context = {}
+
+    def list_gen(self, tree: lark.Tree):
+
+        # Strip the brackets
+        lbracket = tree.children[0]
+        rbracket = tree.children[-1]
+        left = tree.children[1]  # Type: lark.Tree
+        right = tree.children[-2]  # Type: lark.Tree
+        middle = tree.children[2:-2]
+
+        if len(middle) == 1:
+            key_name = None
+            val_name = middle[0].value
+        else:
+            key_name = middle[0].value
+            val_name = middle[1].value
+
+        trans = BaseExprTransformer()
+        self.visit(right)
+        right_val = trans.transform(right)
+
+        int_tree = [lbracket]
+
+        if isinstance(right_val.value, list):
+            for i in range(len(right_val.value)):
+                leftc = copy.deepcopy(left)
+                old_context = self.context
+                self.context = self.context.copy()
+                self.context[val_name] = right_val.value[i]
+                if key_name is not None:
+                    self.context[key_name] = i
+
+                self.visit(leftc)
+                int_tree.append(trans.transform(leftc))
+                self.context = old_context
+
+        if not isinstance(right_val.value, (list, dict)):
+            raise ValueError(
+                "List generator 'in' expression must produce a list or dict, "
+                "but we got '{}' instead.".format(right_val.value))
+
+        int_tree.append(rbracket)
+        tree.children = int_tree
+
+
+class EvaluationInterpreter(ExprInterpreter):
     """Transform result evaluation expressions into their final value.
     The result dictionary referenced for values will be updated in place,
     so subsequent uses of this will have the cumulative results.
@@ -545,7 +625,7 @@ class EvaluationExprTransformer(BaseExprTransformer):
         super().__init__()
         self.results = results
 
-    def var_ref(self, items) -> lark.Token:
+    def var_ref(self, tree):
         """Iteratively traverse the results structure to find a value
         given a key. A '*' in the key will return a list of all values
         located by the remaining key. ('foo.*.bar' will return a list
@@ -555,15 +635,18 @@ class EvaluationExprTransformer(BaseExprTransformer):
         :return:
         """
 
-        key_parts = [item.value for item in items]
+        var_set = self.results.copy()
+        var_set.update(self.context)
+
+        key_parts = [item.value for item in tree.children]
         try:
-            value = self._resolve_ref(self.results, key_parts)
+            value = self._resolve_ref(var_set, tree.children)
         except ValueError as err:
             raise ParserValueError(
-                token=self._merge_tokens(items, None),
+                token=merge_tokens(tree.children, None),
                 message=err.args[0])
 
-        return self._merge_tokens(items, value)
+        tree.children = [merge_tokens(tree.children, value)]
 
     def _resolve_ref(self, base, key_parts: list, seen_parts: tuple = tuple(),
                      allow_listing: bool = True):
@@ -584,7 +667,7 @@ class EvaluationExprTransformer(BaseExprTransformer):
         key_parts = key_parts.copy()
 
         if not key_parts:
-            return self._convert(base)
+            return convert(base)
 
         key_part = key_parts.pop(0)
         seen_parts = seen_parts + (key_part,)
@@ -632,7 +715,7 @@ class EvaluationExprTransformer(BaseExprTransformer):
             if key_part not in base:
                 raise ValueError(
                     "Results dict does not have the key '{}'."
-                    .format('.'.join([str(part) for part in seen_parts]))
+                        .format('.'.join([str(part) for part in seen_parts]))
                 )
 
             return self._resolve_ref(base[key_part], key_parts, seen_parts,
