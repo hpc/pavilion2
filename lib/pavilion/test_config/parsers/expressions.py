@@ -41,7 +41,7 @@ primary: literal
        | "(" expr ")"
        | function_call
        | list_
-       | list_gen
+       | list_comp
 
 // A function call can contain zero or more arguments. 
 function_call: NAME "(" (expr ("," expr)*)? ")"
@@ -56,7 +56,7 @@ literal: INTEGER
        
 // Allows for trailing commas
 list_: L_BRACKET (expr ("," expr)* ","?)? R_BRACKET
-list_gen: L_BRACKET expr "for" NAME ("," NAME)? "in" expr R_BRACKET
+list_comp: L_BRACKET expr "for" NAME "in" expr R_BRACKET
 
 // Variable references are kept generic. We'll use this both
 // for Pavilion string variables and result calculation variables.
@@ -123,7 +123,7 @@ def get_expr_parser(debug=False):
     return parser
 
 
-class BaseExprTransformer(PavTransformer):
+class ExpressionTransformer(PavTransformer):
     """Transforms the expression parse tree into an actual value.  The
     resolved value will be one of the literal types."""
 
@@ -432,7 +432,7 @@ class BaseExprTransformer(PavTransformer):
 
         return merge_tokens(items, [item.value for item in items[1:-1]])
 
-    def list_gen(self, items) -> lark.Token:
+    def list_comp(self, items) -> lark.Token:
         """Generate a list given an iterable expression
 
         :param items:
@@ -512,110 +512,78 @@ class BaseExprTransformer(PavTransformer):
         return tok
 
 
-class ExprTransformer(BaseExprTransformer):
-    """Convert Pavilion string expressions into their final values given
-    a variable manager."""
+class ExpressionInterpreter(lark.visitors.Interpreter):
+    """The parsed expression tree needs to be walked from top to bottom in
+    order to generate the context needed for dynamically included variables.
+    This is mainly (only at this time) because of list comprehensions; the
+    right side of the comprehensions create values needed by the left side.
 
-    def __init__(self, var_man):
-        """Initialize the transformer.
-
-        :param pavilion.test_config.variables.VariableSetManager var_man:
-            The variable manager to use to resolve references.
-        """
-
-        self.var_man = var_man
-        super().__init__()
-
-    def var_ref(self, items) -> lark.Token:
-        """Resolve a Pavilion variable reference.
-
-        :param items:
-        :return:
-        """
-
-        var_key_parts = [str(item.value) for item in items]
-        var_key = '.'.join(var_key_parts)
-        if len(var_key_parts) > 4:
-            raise ParserValueError(
-                merge_tokens(items, var_key),
-                "Invalid variable '{}': too many name parts."
-                .format(var_key))
-
-        try:
-            # This may also raise a DeferredError, but we don't want to
-            # catch those.
-            val = self.var_man[var_key]
-        except KeyError as err:
-            raise ParserValueError(
-                merge_tokens(items, var_key),
-                err.args[0])
-
-        # Convert val into the type it looks most like.
-        if isinstance(val, str):
-            val = convert(val)
-
-        return merge_tokens(items, val)
-
-    @staticmethod
-    def var_key(items) -> lark.Token:
-        """Just return the key component."""
-
-        return items
-
-
-class ExprInterpreter(lark.visitors.Interpreter):
-    """foo"""
+    This will resolve all variable references in the tree. It will also
+    resolve and convert list comprehensions into a token with the resulting
+    value (presumably a list).
+    """
 
     def __init__(self):
-        """foo"""
+        """Initialize the context."""
 
         self.context = {}
 
-    def list_gen(self, tree: lark.Tree):
+    def list_comp(self, tree: lark.Tree):
+        """Resolve a list comprehension. This involves resolving the
+        right-hand 'values' expression, then resolving the left-hand
+        'item' expression once for each of those values saved in the
+        context."""
 
-        # Strip the brackets
+        # Strip the brackets; we'll reuse them in the modified tree.
         lbracket = tree.children[0]
         rbracket = tree.children[-1]
-        left = tree.children[1]  # Type: lark.Tree
-        right = tree.children[-2]  # Type: lark.Tree
-        middle = tree.children[2:-2]
+        item_expr = tree.children[1]  # Type: lark.Tree
+        values_expr = tree.children[-2]  # Type: lark.Tree
+        val_name_tok = tree.children[2]
 
-        if len(middle) == 1:
-            key_name = None
-            val_name = middle[0].value
-        else:
-            key_name = middle[0].value
-            val_name = middle[1].value
+        val_name = val_name_tok[0].value
 
-        trans = BaseExprTransformer()
-        self.visit(right)
-        right_val = trans.transform(right)
+        # Resolve the values (right) expression.
+        trans = ExpressionTransformer()
+        self.visit(values_expr)
+        values_tok = trans.transform(values_expr)
+        values = values_tok.value
 
-        int_tree = [lbracket]
+        modified_tree = [lbracket]
 
-        if isinstance(right_val.value, list):
-            for i in range(len(right_val.value)):
-                leftc = copy.deepcopy(left)
+        if isinstance(values, (list, dict)):
+            for value_tok in values:
+                # Copy the item expression. It will end up with it's own
+                # modified expression tree with the variables resolved.
+                item_expr_copy = copy.deepcopy(item_expr)
+                # We save the context and modify it with this instance's
+                # value.
                 old_context = self.context
                 self.context = self.context.copy()
-                self.context[val_name] = right_val.value[i]
-                if key_name is not None:
-                    self.context[key_name] = i
+                self.context[val_name] = value_tok.value
+                # Interpret the item expression. It might contain further
+                # list comprehensions, have variables to resolve (with our
+                # modified context), both, or neither.
+                self.visit(item_expr_copy)
 
-                self.visit(leftc)
-                int_tree.append(trans.transform(leftc))
+                # Build a new 'list' of the interpreted item expressions.
+                modified_tree.append(trans.transform(item_expr_copy))
+
+                # Restore the old context
                 self.context = old_context
-
-        if not isinstance(right_val.value, (list, dict)):
+        else:
             raise ValueError(
-                "List generator 'in' expression must produce a list or dict, "
-                "but we got '{}' instead.".format(right_val.value))
+                "List comprehension 'in' expression must produce a list or "
+                "dict, but we got '{}' instead.".format(values.value))
 
-        int_tree.append(rbracket)
-        tree.children = int_tree
+        # Finish off our modified 'list' and save it in place of the
+        # comprehension. The item expressions will be resolved by
+        # an expression transformer.
+        modified_tree.append(rbracket)
+        tree.children = modified_tree
 
 
-class EvaluationInterpreter(ExprInterpreter):
+class ResultEvalInterpreter(ExpressionInterpreter):
     """Transform result evaluation expressions into their final value.
     The result dictionary referenced for values will be updated in place,
     so subsequent uses of this will have the cumulative results.
@@ -631,14 +599,12 @@ class EvaluationInterpreter(ExprInterpreter):
         located by the remaining key. ('foo.*.bar' will return a list
         of all 'bar' elements under the 'foo' key.).
 
-        :param items:
-        :return:
+        :param tree: The tree will contain a list of variable reference parts.
         """
 
         var_set = self.results.copy()
         var_set.update(self.context)
 
-        key_parts = [item.value for item in tree.children]
         try:
             value = self._resolve_ref(var_set, tree.children)
         except ValueError as err:
@@ -715,7 +681,7 @@ class EvaluationInterpreter(ExprInterpreter):
             if key_part not in base:
                 raise ValueError(
                     "Results dict does not have the key '{}'."
-                        .format('.'.join([str(part) for part in seen_parts]))
+                    .format('.'.join([str(part) for part in seen_parts]))
                 )
 
             return self._resolve_ref(base[key_part], key_parts, seen_parts,
@@ -731,6 +697,56 @@ class EvaluationInterpreter(ExprInterpreter):
         """Just return the key component."""
 
         return items[0]
+
+
+class StrExpInterpreter(ExpressionInterpreter):
+    """Convert Pavilion string expressions into their final values given
+    a variable manager."""
+
+    def __init__(self, var_man):
+        """Initialize the transformer.
+
+        :param pavilion.test_config.variables.VariableSetManager var_man:
+            The variable manager to use to resolve references.
+        """
+
+        self.var_man = var_man
+        super().__init__()
+
+    def var_ref(self, tree: lark.Tree) -> None:
+        """Resolve a Pavilion variable reference.
+
+        :param tree: The Parse tree at this point.
+        :return:
+        """
+        var_key_parts = [str(item.value) for item in tree.children]
+        var_key = '.'.join(var_key_parts)
+        if len(var_key_parts) > 4:
+            raise ParserValueError(
+                merge_tokens(tree.children, var_key),
+                "Invalid variable '{}': too many name parts."
+                .format(var_key))
+
+        try:
+            # This may also raise a DeferredError, but we don't want to
+            # catch those.
+            val = self.var_man[var_key]
+        except KeyError as err:
+            raise ParserValueError(
+                merge_tokens(tree.children, var_key),
+                err.args[0])
+
+        # Convert val into the type it looks most like.
+        if isinstance(val, str):
+            val = convert(val)
+
+        tree.children = merge_tokens(tree.children, val)
+
+    @staticmethod
+    def var_key(items) -> lark.Token:
+        """Just return the key component."""
+
+        return items
 
 
 class VarRefVisitor(lark.Visitor):

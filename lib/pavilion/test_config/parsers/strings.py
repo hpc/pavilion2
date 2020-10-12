@@ -9,8 +9,10 @@ String LALR Grammar
 """
 
 import lark
-from .common import ParserValueError, PavTransformer
-from .expressions import get_expr_parser, ExprTransformer, VarRefVisitor
+from .common import ParserValueError, PavTransformer, merge_tokens
+from .expressions import (get_expr_parser, StrExpInterpreter,
+                          VarRefVisitor, ExpressionTransformer)
+from typing import List, Union, Any
 
 STRING_GRAMMAR = r'''
 // All strings resolve to this token. 
@@ -128,6 +130,9 @@ class StringTransformer(PavTransformer):
         :param list[lark.Token] items: A single token of string components.
         """
 
+        # Strip out empty strings.
+        items = [item for item in items if item.value != '']
+
         parts = []
         for item in items[0].value:
             if item.type == self.EXPRESSION:
@@ -135,11 +140,25 @@ class StringTransformer(PavTransformer):
             else:
                 parts.append(item.value)
 
-        # Add a trailing newline if necessary.
-        if len(items) > 1:
-            parts.append('\n')
+        if len(parts) == 1 and isinstance(parts[0], list):
+            return parts[0]
 
-        return ''.join(parts)
+        elif all([isinstance(part, str) for part in parts]):
+            return ''.join(parts)
+
+        # There are mixed strings and lists. Find the (first) list.
+        for i in range(len(parts)):
+            part = parts[i]
+            if not isinstance(part, str):
+                raise ParserValueError(
+                    items[i],
+                    "Expressions in Pavilion strings can resolve to a list, "
+                    "but ONLY if they're the only thing in the string. "
+                    "IE '{{[1,2,3]}}'. Got: {}".format(parts))
+
+    #    # Add a trailing newline if necessary.
+    #    if len(items) > 1:
+    #        parts.append('\n')
 
     def string(self, items) -> lark.Token:
         """Strings are merged into a single token whose value is all
@@ -161,7 +180,7 @@ class StringTransformer(PavTransformer):
 
                 token_list.append(item)
 
-        return self._merge_tokens(items, token_list)
+        return merge_tokens(items, token_list)
 
     @classmethod
     def expr(cls, items) -> lark.Token:
@@ -192,7 +211,7 @@ class StringTransformer(PavTransformer):
             'format_spec': expr_format,
         }
 
-        return cls._merge_tokens(items, value, type_=cls.EXPRESSION)
+        return merge_tokens(items, value, type_=cls.EXPRESSION)
 
     def iter(self, items: [lark.Token]) -> lark.Token:
         """Handle an iteration section. These can contain anything except
@@ -245,7 +264,7 @@ class StringTransformer(PavTransformer):
             if (var_set, var) in filtered_vars:
                 key = self.var_man.key_as_dotted(direct_ref)
                 raise ParserValueError(
-                    token=self._merge_tokens(items, None),
+                    token=merge_tokens(items, None),
                     message="Variable {} was referenced, but is also being "
                     "iterated over. You can't do both.".format(key)
                 )
@@ -266,7 +285,7 @@ class StringTransformer(PavTransformer):
 
             iterations.append(''.join(parts))
 
-        return self._merge_tokens(items, separator.join(iterations))
+        return merge_tokens(items, separator.join(iterations))
 
     @staticmethod
     def _unescape(text, escapes) -> str:
@@ -324,7 +343,7 @@ class StringTransformer(PavTransformer):
 
     def _resolve_expr(self,
                       expr: lark.Token, var_man,
-                      tree=None) -> str:
+                      tree=None) -> Union[str, List[str]]:
         """Resolve the value of the the given expression token.
         :param expr: An expression token. The value will be a dict
             of the expr string and the formatter.
@@ -338,26 +357,55 @@ class StringTransformer(PavTransformer):
         if tree is None:
             tree = self.parse_expr(expr)
 
-        transformer = ExprTransformer(var_man)
+        interpreter = StrExpInterpreter(var_man)
+        transformer = ExpressionTransformer()
         try:
+            tree = interpreter.visit(tree)
             value = transformer.transform(tree)
         except ParserValueError as err:
             err.pos_in_stream += expr.pos_in_stream
             raise
 
-        if not isinstance(value, (int, float, bool, str)):
-            type_name = type(value).__name__
+        basic_types = (int, float, bool, str)
+
+        if isinstance(value, basic_types):
+
+            return self._format_expr(expr, value)
+
+        elif isinstance(value, list):
+            formatted_vals = []
+
+            for subval in value:
+                if not isinstance(subval, basic_types):
+                    raise ParserValueError(
+                        expr,
+                        "Pavilion expressions that resolve to a list can only "
+                        "contain simple types {}. Got value '{}' with type"
+                        "'{}' instead."
+                        .format(
+                            [type(t).__name__ for t in basic_types],
+                            subval, type(subval).__name__))
+                formatted_vals.append(self._format_expr(expr, subval))
+
+            return formatted_vals
+
+        else:
             raise ParserValueError(
                 expr,
                 "Pavilion expressions must resolve to a string, int, float, "
-                "or boolean. Instead, we got {} '{}'"
-                .format('an' if type_name[0] in 'aeiou' else 'a', type_name))
+                "or boolean, or a list of those. Instead, we got type '{}'"
+                .format(type(value).__name__))
+
+    def _format_expr(self, expr: lark.Token, value: Any) \
+            -> Union[str, List[str]]:
+        """Format the given expression's resolved value, if a format
+        spec was included. Otherwise, convert the value to a string."""
 
         format_spec = expr.value['format_spec']
 
         if format_spec is not None:
             try:
-                value = '{value:{format_spec}}'.format(
+                return '{value:{format_spec}}'.format(
                     format_spec=format_spec[1:],
                     value=value)
             except ValueError as err:
@@ -366,9 +414,7 @@ class StringTransformer(PavTransformer):
                     "Invalid format_spec '{}': {}"
                     .format(format_spec, err.args[0]))
         else:
-            value = str(value)
-
-        return value
+            return str(value)
 
     @staticmethod
     def _displace_token(base: lark.Token, inner: lark.Token):
@@ -394,7 +440,7 @@ class StringTransformer(PavTransformer):
             else:
                 flat_items.append(item)
 
-        return self._merge_tokens(items, flat_items)
+        return merge_tokens(items, flat_items)
 
 
 class StringVarRefVisitor(VarRefVisitor):
