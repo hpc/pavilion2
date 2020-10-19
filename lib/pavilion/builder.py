@@ -15,12 +15,11 @@ import time
 import urllib.parse
 from collections import defaultdict
 from pathlib import Path
-from typing import Union
+from typing import Union, List
 
 from pavilion import dir_db
 from pavilion import extract
 from pavilion import lockfile
-from pavilion import output
 from pavilion import utils
 from pavilion import wget
 from pavilion.permissions import PermissionsManager
@@ -146,6 +145,7 @@ class BuildTracker:
     def notes(self):
         """Return the notes for this tracker."""
         return self.tracker.get_notes(self.builder)
+
 
 class TestBuilder:
     """Manages a test build and their organization.
@@ -1029,16 +1029,19 @@ class TestBuilder:
                     for key in compare_keys]
         return all(compares)
 
-def get_used_build_paths(tests_dir: Path) -> set:
+
+def _get_used_build_paths(tests_dir: Path) -> set:
+    """Generate a set of all build paths currently used by one or more test
+    runs."""
 
     used_builds = set()
 
-    for path in dir_db.select(tests_dir):
+    for path in dir_db.select(tests_dir)[0]:
         build_origin_symlink = path/'build_origin'
         build_origin = None
         if (build_origin_symlink.exists() and
             build_origin_symlink.is_symlink() and
-            utils.resolve_path(build_origin_symlink).exists()):
+                utils.resolve_path(build_origin_symlink).exists()):
             build_origin = build_origin_symlink.resolve()
 
         if build_origin is not None:
@@ -1046,43 +1049,37 @@ def get_used_build_paths(tests_dir: Path) -> set:
 
     return used_builds
 
-def delete_unused(tests_dir: Path, builds_dir: Path, verbose: bool = False) -> int:
+
+def delete_unused(tests_dir: Path, builds_dir: Path, verbose: bool = False) \
+        -> (int, List[str]):
     """Delete all the build directories, that are unused by any test run.
 
     :param tests_dir: The test_runs directory path object.
     :param builds_dir: The builds directory path object.
-    :param args: The parsed command arguments object.
+    :param verbose: Print
 
     :return int count: The number of builds that were removed.
 
     """
 
-    used_build_paths = get_used_build_paths(tests_dir)
+    used_build_paths = _get_used_build_paths(tests_dir)
 
-    def filter_builds(path: Path) -> bool:
-        """Build filter function. Build paths that have no associated
-        tests and can be removed return true, otherwise they return false.
-
-        :param path: The passed build path object
-
-        :return True: The build path can be removed.
-        :return False: The build path cannot be removed.
-
-        """
-        return not path.name in used_build_paths
+    def filter_builds(build_path: Path) -> bool:
+        """Return whether a build is not used."""
+        return build_path.name not in used_build_paths
 
     count = 0
 
     lock_path = builds_dir.with_suffix('.lock')
     msgs = []
     with lockfile.LockFile(lock_path):
-        for path in dir_db.select(builds_dir, filter_builds, fn_base = 16):
+        for path in dir_db.select(builds_dir, filter_builds, fn_base=16)[0]:
             try:
                 shutil.rmtree(path.as_posix())
                 path.with_suffix('.finished').unlink()
             except OSError as err:
                 msgs.append("Could not remove build {}: {}"
-                                  .format(path, err))
+                            .format(path, err))
                 continue
             count += 1
             if verbose:

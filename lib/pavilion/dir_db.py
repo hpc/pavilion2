@@ -3,21 +3,16 @@ essentially serves as a filesystem primary key."""
 
 import os
 import shutil
-from datetime import datetime
-from typing import Callable, List
 from pathlib import Path
 from typing import Callable, List, Iterable, Any
 
 from pavilion import lockfile
-from pavilion import test_run
-from pavilion import output
-from pavilion.status_file import STATES
-
 
 ID_DIGITS = 7
 ID_FMT = '{id:0{digits}d}'
 
 PKEY_FN = 'next_id'
+
 
 def make_id_path(base_path, id_) -> Path:
     """Create the full path to an id directory given its base path and
@@ -98,10 +93,12 @@ def create_id_dir(id_dir: Path) -> (int, Path):
 
         return next_id, next_id_path
 
+
 def default_filter(_: Path) -> bool:
     """Pass every path."""
 
     return True
+
 
 def select(id_dir: Path,
            filter_func: Callable[[Any], bool] = default_filter,
@@ -109,16 +106,12 @@ def select(id_dir: Path,
            order_func: Callable[[Any], Any] = None,
            order_asc: bool = True,
            fn_base: int = 10,
-           limit: int = None) -> List[Any]:
-    """
-    :param id_dir: The dir_db directory to select from.
-    :param filter_func:
-    :param transform:
-    :param order_func:
-    :param order_asc:
-    :param limit:
-    :returns: A filtered, ordered list of transformed objects.
-
+           limit: int = None) -> (List[Any], List[Path]):
+    """Takes the same arguments as 'select_from', except a directory to search
+    from instead of a list of paths. Then picks from the files in that
+    directory according to the given filter.
+    :returns: A filtered, ordered list of transformed objects, and the list
+              of untransformed paths.
     Other arguments are as per select_from.
     """
 
@@ -139,7 +132,7 @@ def select_from(paths: Iterable[Path],
                 order_func: Callable[[Any], Any] = None,
                 order_asc: bool = True,
                 fn_base: int = 10,
-                limit: int = None) -> List[Any]:
+                limit: int = None) -> (List[Any], List[Path]):
     """Return a list of test paths in the given id_dir, filtered, ordered, and
     potentially limited.
     :param paths: A list of paths to filter, order, and limit.
@@ -155,7 +148,8 @@ def select_from(paths: Iterable[Path],
     :param fn_base: Number base for file names. 10 by default, ensure dir name
         is a valid integer.
     :param limit: The max items to return. None denotes return all.
-    :returns: A filtered, ordered list of transformed objects.
+    :returns: A filtered, ordered list of transformed objects, and the list
+              of untransformed paths.
     """
 
     items = []
@@ -202,11 +196,14 @@ def paths_to_ids(paths: List[Path]) -> List[int]:
                 "Invalid dir_db path '{}'".format(path.as_posix()))
     return ids
 
-def delete(id_dir: Path, filter_func: Callable[[Path],bool]=default_filter,
-           verbose: bool=False):
+
+def delete(id_dir: Path, filter_func: Callable[[Path], bool] = default_filter,
+           transform: Callable[[Path], Any] = lambda v: v,
+           verbose: bool = False):
     """Delete all id directories in a given path that match the given filter.
     :param id_dir: The directory to iterate through.
     :param filter_func: A passed filter function, to be passed to select.
+    :param transform: As per 'select_from'
     :param verbose: Verbose output.
     :return int count: The number of directories removed.
     :return list msgs: Any messages generated during removal.
@@ -217,31 +214,17 @@ def delete(id_dir: Path, filter_func: Callable[[Path],bool]=default_filter,
 
     lock_path = id_dir.with_suffix('.lock')
     with lockfile.LockFile(lock_path):
-        if id_dir.name is 'test_runs':
-            for item in select(id_dir=id_dir, filter_func=filter_func,
-                               transform=test_run.TestAttributes):
-                try:
-                    shutil.rmtree(item.path.as_posix())
-                except OSError as err:
-                    msgs.append("Could not remove {} {}: {}"
-                                .format(id_dir.name, item.path, err))
-                    continue
-                count += 1
-                if verbose:
-                    msgs.append("Removed {} {}.".format(id_dir.name,
-                                                        str(item.id)
-                                                        .zfill(7)))
-        else:
-            for item in select(id_dir=id_dir, filter_func=filter_func):
-                try:
-                    shutil.rmtree(item.as_posix())
-                except OSError as err:
-                    msgs.append("Could not remove {} {}: {}"
-                                .format(id_dir.name, item, err))
-                    continue
-                count += 1
-                if verbose:
-                    msgs.append("Removed {} {}.".format(id_dir.name,
-                                                        item.name))
+        for path in select(id_dir=id_dir, filter_func=filter_func,
+                           transform=transform)[1]:
+            try:
+                shutil.rmtree(path.as_posix())
+            except OSError as err:
+                msgs.append("Could not remove {} {}: {}"
+                            .format(id_dir.name, path.as_posix(), err))
+                continue
+            count += 1
+            if verbose:
+                msgs.append("Removed {} {}.".format(id_dir.name, path.name))
+
     reset_pkey(id_dir)
     return count, msgs

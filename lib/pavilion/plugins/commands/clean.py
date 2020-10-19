@@ -1,20 +1,11 @@
 """Clean old tests/builds/etc from the working directory."""
 
-import argparse
-import errno
-import shutil
-from datetime import datetime, timedelta
 from pathlib import Path
 
-from pavilion import builder
-from pavilion import commands
 from pavilion import clean
-from pavilion import dir_db
+from pavilion import commands
 from pavilion import filters
 from pavilion import output
-from pavilion import utils
-from pavilion.status_file import STATES
-from pavilion.test_run import TestRun, TestRunError, TestRunNotFoundError
 
 
 class CleanCommand(commands.Command):
@@ -34,9 +25,8 @@ class CleanCommand(commands.Command):
             '-v', '--verbose', action='store_true', default=False,
             help='Verbose output.'
         ),
-        group = parser.add_mutually_exclusive_group()
-        filters.add_test_filter_args(group)
-        group.add_argument(
+        filters.add_test_filter_args(parser)
+        parser.add_argument(
             '-a', '--all', action='store_true',
             help='Attempts to remove everything in the working directory, '
                  'regardless of age.'
@@ -48,17 +38,17 @@ class CleanCommand(commands.Command):
         filter_func = None
         if not args.all:
             filter_func = filters.make_test_run_filter(
-                complete = args.complete,
-                failed = args.failed,
-                incomplete = args.incomplete,
-                name = args.name,
-                newer_than = args.newer_than,
-                older_than = args.older_than,
-                passed = args.passed,
-                result_error = args.result_error,
-                show_skipped = args.show_skipped,
-                sys_name = args.sys_name,
-                user = args.user
+                complete=args.complete,
+                failed=args.failed,
+                incomplete=args.incomplete,
+                name=args.name,
+                newer_than=args.newer_than,
+                older_than=args.older_than,
+                passed=args.passed,
+                result_error=args.result_error,
+                show_skipped=args.show_skipped,
+                sys_name=args.sys_name,
+                user=args.user
             )
 
         end = '\n' if args.verbose else '\r'
@@ -66,11 +56,8 @@ class CleanCommand(commands.Command):
         # Clean Tests
         tests_dir = pav_cfg.working_dir / 'test_runs'     # type: Path
         output.fprint("Removing Tests...", file=self.outfile, end=end)
-        try:
-            rm_tests_count, msgs = clean.delete_tests(pav_cfg, tests_dir,
-                                                      filter_func, args.verbose)
-        except (ValueError, argparse.ArgumentError) as err:
-            return errno.EINVAL
+        rm_tests_count, msgs = clean.delete_tests(tests_dir, filter_func,
+                                                  args.verbose)
         if args.verbose:
             for msg in msgs:
                 output.fprint(msg, color=output.YELLOW)
@@ -99,4 +86,3 @@ class CleanCommand(commands.Command):
                       file=self.outfile, color=output.GREEN, clear=True)
 
         return 0
-

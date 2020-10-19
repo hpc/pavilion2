@@ -73,7 +73,7 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace) -> List[int]:
             filter_func=filter_func,
             order_func=order_func,
             order_asc=order_asc,
-            limit=limit)
+            limit=limit)[0]
         test_ids = [test.id for test in tests]
 
     return test_ids
