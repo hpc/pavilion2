@@ -92,7 +92,8 @@ configured for that test.
         defaults = parser_configs[parser_name].get(DEFAULT_KEY, {})
 
         log.indent = 1
-        log("Parsing results for parser {}".format(parser_name))
+        if parser_configs[parser_name]:
+            log("Parsing results for parser '{}'".format(parser_name))
 
         # Each parser has a list of configs. Process each of them.
         for key, rconf in parser_configs[parser_name].items():
@@ -201,8 +202,9 @@ def parse_file(path: Path, parser: Callable, parser_args: dict,
         next_pos = advance_file(file, pos_regexes)
 
         while next_pos is not None:
-            log("Found potential match at pos {} in file."
-                .format(file.tell()))
+            if pos_regexes[-1].pattern != '':
+                log("Found potential match at pos {} in file."
+                    .format(file.tell()))
             res = parser(file, **parser_args)
             file.seek(next_pos)
 
@@ -276,6 +278,7 @@ def parse_result(results: Dict, key: str, parser_cfg: Dict,
     # Find all the files we'll be parsing.
     paths = []
     for file_glob in globs:
+        base_glob = file_glob
         if not file_glob.startswith('/'):
             file_glob = '{}/build/{}'.format(test.path, file_glob)
 
@@ -284,7 +287,12 @@ def parse_result(results: Dict, key: str, parser_cfg: Dict,
         if paths_found:
             paths.extend(Path(path) for path in paths_found)
         else:
-            presults[file_glob] = None
+            presults[Path('_unmatched_glob_' + base_glob.split('/')[-1])] = None
+            log("Setting a non match result for unmatched glob '{}'"
+                .format(file_glob))
+            results[RESULT_ERRORS].append(
+                "No matches for glob '{}' under key '{}'"
+                .format(base_glob, key))
 
     if not paths:
         msg = "File globs {} for key {} found no files.".format(globs, key)

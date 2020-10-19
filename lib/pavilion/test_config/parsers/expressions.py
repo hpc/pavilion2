@@ -89,8 +89,9 @@ FLOAT: /\d+\.\d+/
 // This will be prioritized over 'NAME' matches
 BOOL.2: "True" | "False"
 
-// Names can be lower-case or capitalized, but must start with a letter.
-NAME.1: /[a-zA-Z][a-zA-Z0-9_]*/
+// Names can be lower-case or capitalized, but must start with a letter or 
+// underscore
+NAME.1: /[a-zA-Z_][a-zA-Z0-9_]*/
 
 // Ignore all whitespace between tokens. 
 %ignore  / +(?=[^.(])/

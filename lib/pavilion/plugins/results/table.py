@@ -138,11 +138,15 @@ class Table(parsers.ResultParser):
         # columns with unique names.
         fixed_col_names = []
         for col in col_names:
+            col = col.lower()
             col = ncol = self.NON_WORD_RE.sub('_', col)
             i = 2
             while ncol and ncol in fixed_col_names:
                 ncol = '{}_{}'.format(col, i)
+            if ncol[0] in '0134576789':
+                ncol = 'c_' + ncol
             fixed_col_names.append(ncol)
+        col_names = fixed_col_names
 
         row_idx = 0
         table = {}
@@ -152,9 +156,9 @@ class Table(parsers.ResultParser):
             row.reverse()
 
             if has_row_labels:
-                row_label = row.pop().strip()
+                row_label = row.pop().strip().lower()
                 row_label = self.NON_WORD_RE.sub('_', row_label)
-                if not row_label:
+                if not row_label or row_label[0] in '0123456789':
                     row_label = 'row_{}'.format(row_idx)
 
                 if row_label and row_label in table:

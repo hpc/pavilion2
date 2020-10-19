@@ -291,13 +291,13 @@ deferred args. On error, should raise a ResultParserError.
             "action",
             help_text=(
                 "What to do with parsed results.\n"
-                "  {STORE} - Just store the result automatically converting "
-                "       the value's type(default).\n"
-                "  {STORE_STR} - Just store the value, with no type "
-                "       conversion.\n"
-                "  {TRUE} - Store True if there was a result.\n"
-                "  {FALSE} - Store True for no result.\n"
-                "  {COUNT} - Count the number of results.\n"
+                "{STORE} - Just store the result automatically converting \n"
+                "  the value's type(default).\n"
+                "{STORE_STR} - Just store the value, with no type "
+                "conversion.\n"
+                "{TRUE} - Store True if there was a result.\n"
+                "{FALSE} - Store True for no result.\n"
+                "{COUNT} - Count the number of results.\n"
                 .format(
                     STORE=ACTION_STORE,
                     STORE_STR=ACTION_STORE_STR,
@@ -316,21 +316,20 @@ deferred args. On error, should raise a ResultParserError.
             "per_file",
             help_text=(
                 "How to save results for multiple file matches.\n"
-                "  {FIRST} - The result from the first file with a "
-                "non-empty result. If no files were found, this "
-                "is considerd an error. (default)\n"
-                "  {LAST} - As '{FIRST}', but last result.\n"
-                "  {NAME} - Store the results on a per file "
-                "basis under results['per_name'][<filename>][<key>]. The "
-                "filename only includes the parts before any '.', and "
-                "is normalized to replace non-alphanum characters with "
-                "'_'\n"
-                "  {NAME_LIST} - Save the matching (normalized) file "
-                "names, rather than the parsed values, in a list.\n"
-                "  {LIST} - Merge all each result and result list "
-                "into a single list.\n"
-                "  {ALL} - Set 'True' if all files found at least one match.\n"
-                "  {ANY} - Set 'True' if any file found at lest one match.\n"
+                "{FIRST} - (default) The result from the first file with a \n"
+                "  non-empty result. If no files were found, this is \n"
+                "  considerd an error. (default)\n"
+                "{LAST} - As '{FIRST}', but last result.\n"
+                "{NAME} - Store the results on a per file basis under \n"
+                "  results['per_name'][<filename>][<key>]. The \n"
+                "  filename only includes the parts before any '.', and \n"
+                "  is normalized to replace non-alphanum characters with '_'\n"
+                "{NAME_LIST} - Save the matching (normalized) file \n"
+                "  names, rather than the parsed values, in a list.\n"
+                "{LIST} - Merge all each result and result list \n"
+                "  into a single list.\n"
+                "{ALL} - Set 'True' if all files found at least one match.\n"
+                "{ANY} - Set 'True' if any file found at lest one match.\n"
                 .format(
                     FIRST=PER_FIRST,
                     LAST=PER_LAST,
@@ -431,12 +430,15 @@ Example: ::
         ]
         doc.extend(wrap(self.description))
 
-        doc.extend([
-            '\nArguments',
-            '---------',
-        ])
+        doc.append('\n{} Parser Specific Arguments'.format(self.name))
+        doc.append('-'*len(doc[-1]))
 
-        for arg in self.get_config_items():
+        args = self.get_config_items()
+        specific_args = [arg for arg in args
+                         if arg.name not in self._DEFAULTS]
+
+        def add_arg_doc(arg):
+            """Add an arg to the documentation."""
             doc.append('  ' + arg.name)
             doc.extend(wrap(arg.help_text, indent=4))
             if arg.name in self.defaults:
@@ -447,6 +449,17 @@ Example: ::
                 if isinstance(validator, tuple):
                     doc.extend(wrap('choices: ' + str(validator), indent=4))
             doc.append('')
+
+        for arg in specific_args:
+            if arg.name not in self._DEFAULTS:
+                add_arg_doc(arg)
+
+        doc.append('Universal Parser Arguments')
+        doc.append('-'*len(doc[-1]))
+
+        for arg in args:
+            if arg.name in self._DEFAULTS:
+                add_arg_doc(arg)
 
         return '\n'.join(doc)
 

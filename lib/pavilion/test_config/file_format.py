@@ -65,6 +65,12 @@ class CondCategoryElem(yc.CategoryElem):
     _NAME_RE = re.compile(r'^.*$')
 
 
+class EvalCategoryElem(yc.CategoryElem):
+    """Allow keys that start with underscore. Lowercase only."""
+
+    _NAME_RE = re.compile(r'[a-z_][a-z0-9_]*')
+
+
 class VarKeyCategoryElem(yc.CategoryElem):
     """Allow Pavilion variable name like keys."""
 
@@ -439,7 +445,7 @@ expected to be added to by various plugins.
             help_text="The test run configuration. This will be used "
                       "to dynamically generate a run script for the "
                       "test."),
-        yc.CategoryElem(
+        EvalCategoryElem(
             'result_evaluate',
             sub_elem=yc.StrElem(),
             help_text="The keys and values in this section will also "

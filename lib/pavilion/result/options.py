@@ -6,8 +6,7 @@ from .common import EMPTY_VALUES, NON_MATCH_VALUES, normalize_filename
 from pavilion.utils import auto_type_convert
 
 
-def store_values(stor: dict, keys: str, values: Any,
-                 action: Callable[[Any], Any]) -> List[str]:
+def store_values(stor: dict, keys: str, values: Any) -> List[str]:
     """Store the values under the appropriate keys in the given dictionary
     using the given action.
 
@@ -33,8 +32,11 @@ def store_values(stor: dict, keys: str, values: Any,
                 "Trying to store non-list value in a multi-keyed result.\n"
                 "Just storing under the first non-null key.\n"
                 "keys: {}\nvalue: {}".format(keys, values))
-            key = [k for k in keys if k][0]
-            stor[key] = action(values)
+            keys = [k for k in keys if k and k != '_']
+            if not keys:
+                errors.append("There was no valid key to store under.")
+            else:
+                stor[keys[0]] = values
 
         else:
             values = list(reversed(values))
@@ -47,11 +49,11 @@ def store_values(stor: dict, keys: str, values: Any,
 
             for key in keys:
                 val = values.pop() if values else None
-                if key:
-                    stor[key] = action(val)
+                if key and key != '_':
+                    stor[key] = val
 
     else:
-        stor[keys] = action(values)
+        stor[keys] = values
 
     return errors
 
@@ -62,11 +64,29 @@ ACTION_TRUE = 'store_true'
 ACTION_FALSE = 'store_false'
 ACTION_COUNT = 'count'
 
+
+def action_store(raw_val):
+    """Auto type convert the value, if possible."""
+    if raw_val not in EMPTY_VALUES:
+        return auto_type_convert(raw_val)
+    else:
+        return raw_val
+
+
+def action_count(raw_val):
+    """Count the items in raw_val, or set it to None if it isn't a list."""
+
+    if isinstance(raw_val, list):
+        return len(raw_val)
+    else:
+        return None
+
+
 # Action functions should take the raw value and convert it to a final value.
 ACTIONS = {
-    ACTION_STORE: auto_type_convert,
+    ACTION_STORE: action_store,
     ACTION_STORE_STR: lambda raw_val: raw_val,
-    ACTION_COUNT: lambda raw_val: len(raw_val),
+    ACTION_COUNT: action_count,
     ACTION_TRUE: lambda raw_val: raw_val not in NON_MATCH_VALUES,
     ACTION_FALSE: lambda raw_val: raw_val in NON_MATCH_VALUES,
 }
@@ -88,41 +108,43 @@ MATCH_CHOICES = {
 # to store in the results dict at the given key/s.
 # They should return a list of errors/warnings.
 def per_first(results: dict, key: str, file_vals: Dict[Path, Any],
-              action: Callable[[dict, str, Any], None]) -> List[str]:
+              action: Callable):
     """Store the first non-empty value."""
 
     errors = []
 
-    first = [val for val in file_vals.values() if val not in EMPTY_VALUES][:1]
+    vals = [action(val) for val in file_vals.values()]
+    first = [val for val in vals if val not in EMPTY_VALUES][:1]
     if not first:
         first = [None]
         errors.append(
             "No matches for key '{}' for any of these found files: {}."
             .format(key, ','.join(f.name for f in file_vals.keys())))
 
-    errors.extend(store_values(results, key, first[0], action))
+    errors.extend(store_values(results, key, first[0]))
     return errors
 
 
 def per_last(results: dict, key: str, file_vals: Dict[Path, Any],
-             action: Callable[[dict, str, Any], None]):
+             action: Callable):
     """Store the last non-empty value."""
 
     errors = []
 
-    last = [val for val in file_vals if val not in EMPTY_VALUES][-1:]
+    vals = [action(val) for val in file_vals.values()]
+    last = [val for val in vals if val not in EMPTY_VALUES][-1:]
     if not last:
         last = [None]
         errors.append(
             "No matches for key '{}' for any of these found files: {}."
             .format(key, ','.join(f.name for f in file_vals.keys())))
 
-    errors.extend(store_values(results, key, last[0], action))
+    errors.extend(store_values(results, key, last[0]))
     return errors
 
 
 def per_name(results: dict, key: str, file_vals: Dict[Path, Any],
-             action: Callable[[dict, str, Any], None]):
+             action: Callable):
     """Store in a dict by file fullname."""
 
     per_file = results['per_file']
@@ -134,7 +156,9 @@ def per_name(results: dict, key: str, file_vals: Dict[Path, Any],
         normalized[name] = normalized.get(name, []) + [file]
         per_file[name] = per_file.get(name, {})
 
-        errors.extend(store_values(per_file[name], key, val, action))
+        print(file)
+
+        errors.extend(store_values(per_file[name], key, action(val)))
 
     for name, files in normalized.items():
         if len(files) > 1:
@@ -183,15 +207,14 @@ def per_list(results: dict, key: str, file_vals: Dict[Path, Any],
 
     all_vals = []
     for _, val in file_vals.items():
-        if val in EMPTY_VALUES:
-            continue
+        val = action(val)
 
         if isinstance(val, list):
             all_vals.extend(val)
         else:
             all_vals.append(val)
 
-    return store_values(results, key, all_vals, action)
+    return store_values(results, key, all_vals)
 
 
 def per_any(results: dict, key: str, file_vals: Dict[Path, Any], action):
@@ -200,7 +223,7 @@ def per_any(results: dict, key: str, file_vals: Dict[Path, Any], action):
 
     _ = action
 
-    results[key] = any(val not in NON_MATCH_VALUES
+    results[key] = any(action(val) not in NON_MATCH_VALUES
                        for val in file_vals.values())
 
     return []
@@ -212,7 +235,7 @@ def per_all(results: dict, key: str, file_vals: Dict[Path, Any], action):
 
     _ = action
 
-    results[key] = all(val not in NON_MATCH_VALUES
+    results[key] = all(action(val) not in NON_MATCH_VALUES
                        for val in file_vals.values())
 
     return []
