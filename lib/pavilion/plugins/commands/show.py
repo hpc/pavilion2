@@ -2,16 +2,12 @@
 
 import argparse
 import errno
-import os
 import pprint
 from typing import Union
 
-import yaml_config
-import yc_yaml
 import pavilion.result.base
 import yaml_config
 from pavilion import commands
-from pavilion.commands import sub_cmd
 from pavilion import config
 from pavilion import expression_functions
 from pavilion import module_wrapper
@@ -20,6 +16,7 @@ from pavilion import result
 from pavilion import schedulers
 from pavilion import status_file
 from pavilion import system_variables
+from pavilion.commands import sub_cmd
 from pavilion.result import parsers
 from pavilion.test_config import DeferredVariable
 from pavilion.test_config import file_format
@@ -381,80 +378,83 @@ class ShowCommand(commands.Command):
                 title="Available Expression Functions"
             )
 
-    def show_vars(self, pav_cfg, config, conf_type):
+    def show_vars(self, pav_cfg, cfg, conf_type):
         """Show the variables of a config, each variable is displayed as a
         table."""
 
         file = resolver.TestConfigResolver(pav_cfg)._find_config(conf_type,
-                                                                 config)
+                                                                 cfg)
         with file.open() as config_file:
-            config_data = file_format.TestConfigLoader().load(config_file)
+            cfg = file_format.TestConfigLoader().load(config_file)
 
-        name = config
-        path = file
-        config = config_data
-
-        data = []
+        simple_vars = []
         complex_vars = []
-        for var in config.get('variables').keys():
-            subvar = config['variables'][var]
-            if isinstance(subvar, list) and len(subvar) > 1:
+        for var in cfg.get('variables').keys():
+            subvar = cfg['variables'][var]
+            if isinstance(subvar, list) and (len(subvar) > 1
+                                             or isinstance(subvar[0], dict)):
                 complex_vars.append(var)
                 continue
-            data.append({
-                'name': var,
-                'value': config['variables'][var]
+            simple_vars.append({
+                'name':  var,
+                'value': cfg['variables'][var]
             })
-        if data:
+        if simple_vars:
             output.draw_table(
                 self.outfile,
                 field_info={},
                 fields=['name', 'value'],
-                rows=data,
+                rows=simple_vars,
                 title="Simple Variables"
             )
 
         for var in complex_vars:
-            subvar = config['variables'][var][0]
+            subvar = cfg['variables'][var][0]
             # List of strings.
             if isinstance(subvar, str):
-                data = []
-                for idx in range(len(config['variables'][var])):
-                    data.append({
+                simple_vars = []
+                for idx in range(len(cfg['variables'][var])):
+                    simple_vars.append({
                         'index': idx,
-                        'value': config['variables'][var][idx]
+                        'value': cfg['variables'][var][idx]
                     })
                 output.draw_table(
                     self.outfile,
                     field_info={},
                     fields=['index', 'value'],
-                    rows=data,
+                    rows=simple_vars,
                     title=var
                 )
             # List of dicts.
-            else:
-                data = []
+            elif len(subvar) < 10:
+                simple_vars = []
                 fields = ['index']
-                for idx in range(len(config['variables'][var])):
+                for idx in range(len(cfg['variables'][var])):
                     dict_data = {'index': idx}
-                    for key, val in config['variables'][var][idx].items():
-                        if idx is 0: fields.append(key)
+                    for key, val in cfg['variables'][var][idx].items():
+                        if idx is 0:
+                            fields.append(key)
                         dict_data.update({key: val})
-                    data.append(dict_data)
+                    simple_vars.append(dict_data)
                 output.draw_table(
                     self.outfile,
                     field_info={},
                     fields=fields,
-                    rows=data,
+                    rows=simple_vars,
                     title=var
                 )
+            else:
+                print(var)
+                print("(Showing as json due to the insane number of keys)")
+                pprint.pprint(cfg['variables'][var])
             output.fprint("\n")
 
     def show_configs_table(self, pav_cfg, args, conf_type):
         """Default config table, shows the config name and if it can be
         loaded."""
 
-        configs = resolver.TestConfigResolver(pav_cfg).find_all_configs(conf_type)
+        configs = resolver.TestConfigResolver(pav_cfg).find_all_configs(
+            conf_type)
 
         data = []
         col_names = ['name', 'summary']
@@ -466,9 +466,7 @@ class ShowCommand(commands.Command):
             col_names.append('path')
             col_names.append('err')
 
-        for config in configs:
-            name = config
-
+        for name in configs:
             data.append({
                 'name': name,
                 'summary': configs[name]['status'],
@@ -482,12 +480,11 @@ class ShowCommand(commands.Command):
             rows=data
         )
 
-
-    def show_full_config(self, pav_cfg, config, conf_type):
+    def show_full_config(self, pav_cfg, cfg_name, conf_type):
         """Show the full config of a given host/mode."""
 
         file = resolver.TestConfigResolver(pav_cfg)._find_config(conf_type,
-                                                                 config)
+                                                                 cfg_name)
         with file.open() as config_file:
             config_data = file_format.TestConfigLoader().load_raw(config_file)
 
@@ -496,10 +493,12 @@ class ShowCommand(commands.Command):
                           file=self.outfile)
         else:
             output.fprint("No {} config found for "
-                          "{}.".format(directory.strip('s'), config))
+                          "{}.".format(conf_type.strip('s'), cfg_name))
             return errno.EINVAL
 
-    def show_configs(self, pav_cfg, args):
+    @sub_cmd('host')
+    def _hosts_cmd(self, pav_cfg, args):
+        """List all known host files."""
 
         if args.vars:
             self.show_vars(pav_cfg, args.vars, args.sub_cmd)
@@ -508,17 +507,16 @@ class ShowCommand(commands.Command):
         else:
             self.show_configs_table(pav_cfg, args, args.sub_cmd)
 
-    @sub_cmd('host')
-    def _hosts_cmd(self, pav_cfg, args):
-        """List all known host files."""
-
-        self.show_configs(pav_cfg, args)
-
     @sub_cmd('mode')
     def _modes_cmd(self, pav_cfg, args):
         """List all known mode files."""
 
-        self.show_configs(pav_cfg, args)
+        if args.vars:
+            self.show_vars(pav_cfg, args.vars, args.sub_cmd)
+        elif args.config:
+            self.show_full_config(pav_cfg, args.config, args.sub_cmd)
+        else:
+            self.show_configs_table(pav_cfg, args, args.sub_cmd)
 
     @sub_cmd('mod', 'module', 'modules', 'wrappers')
     def _module_wrappers_cmd(self, _, args):
