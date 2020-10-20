@@ -444,9 +444,11 @@ class ShowCommand(commands.Command):
                     title=var
                 )
             else:
-                print(var)
-                print("(Showing as json due to the insane number of keys)")
-                pprint.pprint(cfg['variables'][var])
+                output.fprint(var)
+                output.fprint("(Showing as json due to the insane number of "
+                              "keys)")
+                output.fprint(pprint.pformat(cfg['variables'][var],
+                                             compact=True))
             output.fprint("\n")
 
     def show_configs_table(self, pav_cfg, args, conf_type):
@@ -903,5 +905,3 @@ class ShowCommand(commands.Command):
     def _test_config_cmd(self, *_):
         """Show the basic test config format."""
         file_format.TestConfigLoader().dump(self.outfile)
-
-
