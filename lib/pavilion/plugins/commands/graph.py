@@ -20,8 +20,8 @@ class GraphCommand(commands.Command):
     def __init__(self):
         super().__init__(
             'graph',
-            'Command used to produce graph for a group of tests.',
-            short_help="Produce graph for tests."
+            'Command used to produce graph for a set of test results.',
+            short_help="Produce a graph from a set of test results."
         )
 
     def _setup_arguments(self, parser):
@@ -31,6 +31,10 @@ class GraphCommand(commands.Command):
         parser.add_argument(
             'tests', nargs='*', action='store',
             help='Specific Test Ids to graph.'
+        )
+        parser.add_argument(
+            '--filename', action='store',
+            help='File name to use for saving graph.'
         )
         parser.add_argument(
             '--exclude', nargs='*', default=[], action='store',
@@ -61,6 +65,8 @@ class GraphCommand(commands.Command):
     def run(self, pav_cfg, args):
 
         try:
+            import matplotlib
+            matplotlib.use('agg')
             import matplotlib.pyplot
             matplotlib.pyplot.ioff()
         except ImportError as err:
@@ -79,6 +85,7 @@ class GraphCommand(commands.Command):
             output.fprint(err)
             return errno.EINVAL
 
+        output.fprint("Generating Graph...", file=self.outfile, end='\r')
         # Get filtered Test IDs.
         test_ids = cmd_utils.arg_filtered_tests(pav_cfg, args)
 
@@ -145,9 +152,12 @@ class GraphCommand(commands.Command):
 
         matplotlib.pyplot.ylabel(args.ylabel)
         matplotlib.pyplot.xlabel(args.xlabel)
-
         matplotlib.pyplot.legend()
-        matplotlib.pyplot.show()
+
+        matplotlib.pyplot.savefig(args.filename)
+        output.fprint("Completed. Graph saved as '{}.png'."
+                      .format(args.filename), color=output.GREEN,
+                      file=self.outfile)
 
     def gather_results(self, evaluations, test_results) -> Dict:
         """
@@ -227,6 +237,10 @@ class GraphCommand(commands.Command):
         if not args.y:
             raise CommandError("No values were given to graph on y-axis. "
                                "Use '--y' flag to specify.")
+
+        if not args.filename:
+            raise CommandError("No filename provided. Use '--filename' to "
+                               "specify an output file.")
 
         # Convert test exclude args into integers
         args.exclude = [int(test) for test in args.exclude]
