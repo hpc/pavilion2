@@ -36,7 +36,11 @@ class SlurmMPIVars(slurm.SlurmVars):
 
     def procs_per_node(self):
         """Returns tasks per node"""
-        return self.sched_config.get('tasks_per_node')
+        tasks = self.sched_config.get('tasks_per_node')
+        if tasks == 'all':
+            return self['min_ppn']
+        else:
+            return self.sched_config.get('tasks_per_node')
 
     def mca_translation(self):
         """Formats --mca argument(s)."""
@@ -55,7 +59,11 @@ class SlurmMPIVars(slurm.SlurmVars):
             cmd.extend(self.mca_translation())
 
         # create list of hosts if need be
-        if int(self.sched_config.get('num_nodes')) < int(self.alloc_nodes()):
+        if self.sched_config.get('num_nodes') == 'all':
+            hostlist = ','.join(self.alloc_node_list().split())
+            cmd.extend(['--host', hostlist])
+
+        elif int(self.sched_config.get('num_nodes')) < int(self.alloc_nodes()):
             hostlist = self.alloc_node_list().split()
             hostlist = hostlist[:int(self.sched_config.get('num_nodes'))]
             hostlist = ','.join(hostlist)
