@@ -358,11 +358,10 @@ index, sub_var) tuple.
                     if var_key[2] == '*':
                         # If the var references a whole list of items,
                         # make sure all are resolved.
-                        list_matches = [key for key in unresolved_vars
-                                        if (key[:2], key[3]) ==
-                                        (var_key[:2], var_key[3])]
-                        if list_matches:
-                            continue
+                        if [key for key in unresolved_vars
+                                if (key[:2], key[3]) == 
+                                    (var_key[:2], var_key[3])]:
+                            break
                     else:
                         if var_key[2] is None:
                             var_key = (var_key[0], var_key[1], 0, var_key[2])
@@ -372,7 +371,12 @@ index, sub_var) tuple.
                 else:
                     # All variables referenced in uvar are resolvable
                     var_set, var_name, index, sub_var = uvar
-                    res_val = transformer.transform(tree)
+
+                    try:
+                        res_val = transformer.transform(tree)
+                    except DeferredError:
+                        res_val = None
+
                     if res_val is None:
                         # One or more of the variables is deferred, so we can't
                         # resolve this now. Mark it as deferred.
@@ -441,10 +445,13 @@ index, sub_var) tuple.
         """
 
         var_set, var, idx, sub_var = self.resolve_key(key)
+        if idx is None:
+            idx = 0
 
-        return ((var_set, var, None, None) in self.deferred or
+        is_def = ((var_set, var, None, None) in self.deferred or
                 (var_set, var, idx, None) in self.deferred or
                 (var_set, var, idx, sub_var) in self.deferred)
+        return is_def
 
     def any_deferred(self, key: Union[str, tuple]) -> bool:
         """Return whether any members of the given variable are deferred."""
@@ -621,26 +628,26 @@ index, sub_var) tuple.
         # Now we have to go through the very specifically deferred variables
         # (an artifact of when we resolved variable value references)
         # and resolve them. This will look a lot like resolve_references
-        def_parsed = {key: parsers.parse_text(self[key], self) for key in
-                      self.deferred}
 
-        while def_parsed:
+        while self.deferred:
             resolved_any = False
-            for key, p_val in def_parsed.items():
-                for var in p_val.variables:
-                    if self.is_deferred(var):
-                        break
-                else:
-                    # This variable can be resolved.
-                    self._set_value(key, p_val.resolve(self))
-                    self.deferred.remove(key)
-                    del def_parsed[key]
-                    resolved_any = True
+            for def_key in self.deferred.copy():
+                var_set, var, index, sub_var = def_key
+                def_val = self.variable_sets[var_set].get(var, index, sub_var)
+
+                try:
+                    resolved = parsers.parse_text(def_val, self)
+                except DeferredError:
+                    continue
+
+                self._set_value(def_key, resolved)
+                self.deferred.remove(def_key)
+                resolved_any = True
 
             if not resolved_any:
                 raise VariableError(
                     "Reference loop in variable resolution for variables: {}."
-                    .format(list(def_parsed.keys()))
+                    .format(list(self.deferred))
                 )
 
     def __deepcopy__(self, memodict=None):
