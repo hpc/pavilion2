@@ -477,8 +477,8 @@ class TestRun(TestAttributes):
         """Validate test configs, specifically those that are spack related."""
 
         spack_path = self._pav_cfg.get('spack_path', None)
-        spack_enable = self.config.get('enable_spack', 'false').lower()
-        if spack_enable == 'true' and spack_path is None:
+        spack_enable = self.enable_spack()
+        if spack_enable is True and spack_path is None:
             raise TestRunError("Spack cannot be enabled without 'spack_path' "
                                "being defined in the pavilion config.")
 
