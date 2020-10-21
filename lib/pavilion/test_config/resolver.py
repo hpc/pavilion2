@@ -279,7 +279,8 @@ class TestConfigResolver:
             for ptest_cfg, pvar_man in permuted_tests:
                 # Resolve all variables for the test (that aren't deferred).
                 try:
-                    resolved_config = self.resolve_config(ptest_cfg, pvar_man)
+                    resolved_config = self.resolve_test_vars(
+                        ptest_cfg, pvar_man)
                 except TestConfigError as err:
                     msg = ('In test {} from {}:\n{}'
                            .format(test_cfg['name'], test_cfg['suite_path'],
@@ -472,8 +473,7 @@ class TestConfigResolver:
 
         return picked_tests
 
-
-    def verify_version_range(comp_versions):
+    def verify_version_range(self, comp_versions):
 
         if comp_versions.count('-') > 1:
             raise TestConfigError(
@@ -483,12 +483,12 @@ class TestConfigResolver:
         min_str = comp_versions.split('-')[0]
         max_str = comp_versions.split('-')[-1]
 
-        min_version = TestConfigResolver.verify_version(min_str, comp_versions)
-        max_version = TestConfigResolver.verify_version(max_str, comp_versions)
+        min_version = self.verify_version(min_str, comp_versions)
+        max_version = self.verify_version(max_str, comp_versions)
 
         return min_version, max_version
 
-    def verify_version(version_str, comp_versions):
+    def verify_version(self, version_str, comp_versions):
         """Ensures version was provided in the correct format, and returns the
         version as a list of digits."""
 
@@ -501,7 +501,7 @@ class TestConfigResolver:
                 "Compatible versions must be of form X, X.X, or X.X.X ."
                 .format(version_str, comp_versions))
 
-    def check_version_compatibility(test_cfg):
+    def check_version_compatibility(self, test_cfg):
         """Returns a bool on if the test is compatible with the current version
         of pavilion."""
 
@@ -513,11 +513,11 @@ class TestConfigResolver:
         if not comp_versions:
             return True
 
-        min_version, max_version = TestConfigResolver.verify_version_range(comp_versions)
+        min_version, max_version = self.verify_version_range(comp_versions)
 
         # Trim pavilion version to the degree dictated by min and max version.
-        # This only matters if they are equal, and only occurs when a specific 
-        # version is provided.  
+        # This only matters if they are equal, and only occurs when a specific
+        # version is provided.
         if min_version == max_version and len(min_version) < len(version):
             offset = len(version) - len(min_version)
             version = version[:-offset]
@@ -620,8 +620,7 @@ class TestConfigResolver:
 
         return test_cfg
 
-    @staticmethod
-    def resolve_inheritance(base_config, suite_cfg, suite_path):
+    def resolve_inheritance(self, base_config, suite_cfg, suite_path):
         """Resolve inheritance between tests in a test suite. There's potential
         for loops in the inheritance hierarchy, so we have to be careful of
         that.
@@ -741,7 +740,7 @@ class TestConfigResolver:
                     "but that should never happen. {}"
                     .format(test_name, suite_path, err))
             try:
-                TestConfigResolver.check_version_compatibility(test_config)
+                self.check_version_compatibility(test_config)
             except TestConfigError as err:
                 raise TestConfigError(
                    "Test '{}' in suite '{}' has incompatibility issues:\n{}"
@@ -749,8 +748,7 @@ class TestConfigResolver:
 
         return suite_tests
 
-    @staticmethod
-    def resolve_permutations(test_cfg, base_var_man):
+    def resolve_permutations(self, test_cfg, base_var_man):
         """Resolve permutations for all used permutation variables, returning a
         variable manager for each permuted version of the test config. We use
         this opportunity to populate the variable manager with most other
@@ -949,7 +947,7 @@ class TestConfigResolver:
         return val.startswith(cls.DEFERRED_PREFIX)
 
     @classmethod
-    def resolve_config(cls, config, var_man):
+    def resolve_test_vars(cls, config, var_man):
         """Recursively resolve the variables in the value strings in the given
         configuration.
 

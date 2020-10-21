@@ -359,7 +359,7 @@ index, sub_var) tuple.
                         # If the var references a whole list of items,
                         # make sure all are resolved.
                         if [key for key in unresolved_vars
-                                if (key[:2], key[3]) == 
+                                if (key[:2], key[3]) ==
                                     (var_key[:2], var_key[3])]:
                             break
                     else:

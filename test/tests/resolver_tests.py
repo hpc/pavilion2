@@ -273,13 +273,47 @@ class ResolverTests(PavTestCase):
         with self.assertRaises(TestConfigError):
             self.resolver.resolve_permutations(test, var_man)
 
+    def test_resolve_deferred(self):
+        """Make sure deeply nested deferred references are resolved
+        correctly"""
+
+        cfg = self._quick_test_cfg()
+
+        cfg['variables'] = {
+            'testa': '{{sys.host_name}}',
+            'testb': '{{testa}}',
+            'testc': ['{{testa}}', '{{testb}}'],
+            'testd': {
+                'd1': '{{testa}}',
+                'd2': '{{testc.1}}',
+            },
+            'teste': '{{testd.d1}}',
+        }
+
+        test = self._quick_test(cfg, 'deep_deferred')
+
+        host_name = test.var_man['sys.host_name']
+        # It looks nuts that these all resolve to the same basic thing, but
+        # what's important is that they get resolved at all.
+        expected = {
+            'testa': [host_name],
+            'testb': [host_name],
+            'testc': [host_name, host_name],
+            'testd': [{'d1': host_name, 'd2': host_name}],
+            'teste': [host_name],
+        }
+
+        vars = test.var_man.as_dict()['var']
+        for var in expected:
+            self.assertEqual(expected[var], vars[var])
+
     def test_resolve_vars_in_vars(self):
         test = {
             'permute_on': ['fruit', 'snacks'],
             'variables': {
                 'fruit': ['apple', 'orange', 'banana'],
                 'snacks': ['{{fruit}}-x', '{{sys.soda}}'],
-                'stuff': 'y{{fruit}}-{{snacks}}'
+                'stuff': 'y{{fruit}}-{{snacks}}',
             }
         }
 
@@ -411,7 +445,7 @@ class ResolverTests(PavTestCase):
 
         # Make sure each of our permuted results is in the list of answers.
         for var_man in permuted:
-            out_test = self.resolver.resolve_config(test, var_man)
+            out_test = self.resolver.resolve_test_vars(test, var_man)
             self.assertIn(out_test, answers)
 
         # Make sure we can successfully disallow deferred variables in a
@@ -432,7 +466,7 @@ class ResolverTests(PavTestCase):
 
         with self.assertRaises(resolver.TestConfigError):
             # No deferred variables in the build section.
-            self.resolver.resolve_config(test, permuted[0])
+            self.resolver.resolve_test_vars(test, permuted[0])
 
     def test_env_order(self):
         """Make sure environment variables keep their order from the test
