@@ -4,6 +4,7 @@ import glob
 import inspect
 import pprint
 import re
+import traceback
 from collections import OrderedDict
 from pathlib import Path
 from typing import List, Union, Dict, Callable, Any, TextIO, Pattern
@@ -184,7 +185,7 @@ def advance_file(file: TextIO, conds: List[Pattern]) -> Union[int, None]:
     return next_pos
 
 
-def parse_file(path: Path, parser: Callable, parser_args: dict,
+def parse_file(path: Path, parser: ResultParser, parser_args: dict,
                match_idx: Union[int, None],
                pos_regexes: List[Pattern],
                log: IndentedLog) -> Any:
@@ -205,7 +206,13 @@ def parse_file(path: Path, parser: Callable, parser_args: dict,
             if pos_regexes[-1].pattern != '':
                 log("Found potential match at pos {} in file."
                     .format(file.tell()))
-            res = parser(file, **parser_args)
+            try:
+                res = parser(file, **parser_args)
+            except Exception as exc:
+                log("Error calling result parser {}.".format(parser.name))
+                log(traceback.format_exc())
+                raise
+
             file.seek(next_pos)
 
             if res is not None:

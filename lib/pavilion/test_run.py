@@ -85,9 +85,8 @@ class TestAttributes:
     Getters should return None if no value is available.
     Getters should all have a docstring.
 
-    *************
-      WARNING
-    ************
+    **WARNING**
+
     This object is not thread or any sort of multi-processing safe. It relies
     on the expectation that the test lifecycle should generally mean there's
     only one instance of a test around that might change these values at any
@@ -307,11 +306,11 @@ class TestRun(TestAttributes):
     4. Test is run. -- ``test.run()``
     5. Results are gathered. -- ``test.gather_results()``
 
-    :ivar int id: The test id.
+    :ivar int ~.id: The test id.
     :ivar dict config: The test's configuration.
     :ivar Path test.path: The path to the test's test_run directory.
     :ivar Path suite_path: The path to the test suite file that this test came
-        from. May be None for artifically generated tests.
+        from. May be None for artificially generated tests.
     :ivar dict results: The test results. Set None if results haven't been
         gathered.
     :ivar TestBuilder builder: The test builder object, with information on the

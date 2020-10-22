@@ -65,7 +65,7 @@ class Table(parsers.ResultParser):
             ],
             defaults={
                 'delimiter_re':     r'\s+',
-                'row_ignore_re':    r'^(\s*(\||\+|-)+)+\s*$',
+                'row_ignore_re':    r'^(\s*(\||\+|-|=)+)+\s*$',
                 'table_end_re':     r'^\s*$',
                 'col_names':       [],
                 'has_row_labels':   'True',
@@ -141,10 +141,13 @@ class Table(parsers.ResultParser):
             col = col.lower()
             col = ncol = self.NON_WORD_RE.sub('_', col)
             i = 2
+
             while ncol and ncol in fixed_col_names:
                 ncol = '{}_{}'.format(col, i)
-            if ncol[0] in '0134576789':
+
+            if ncol and ncol[0] in '0134576789':
                 ncol = 'c_' + ncol
+
             fixed_col_names.append(ncol)
         col_names = fixed_col_names
 
@@ -158,8 +161,13 @@ class Table(parsers.ResultParser):
             if has_row_labels:
                 row_label = row.pop().strip().lower()
                 row_label = self.NON_WORD_RE.sub('_', row_label)
-                if not row_label or row_label[0] in '0123456789':
+                # Devise a row label if one isn't given.
+                if not row_label:
                     row_label = 'row_{}'.format(row_idx)
+
+                # Row labels can't start with a number.
+                if row_label[0] in '0123456789':
+                    row_label = 'row_{}'.format(row_label)
 
                 if row_label and row_label in table:
                     row_label = '{}_{}'.format(row_label, row_idx)

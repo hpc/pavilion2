@@ -23,6 +23,12 @@ LOGGER = logging.getLogger(__name__)
 
 class ResultParserTests(PavTestCase):
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Don't limit the size of the error diff.
+        self.maxDiff = None
+
     def setUp(self):
         # This has to run before any command plugins are loaded.
         arguments.get_parser()
@@ -377,34 +383,34 @@ class ResultParserTests(PavTestCase):
                 'data3': {'cola': None, 'soda': 'data6', 'pop': None},
             },
             'table1b': {
-                'row_0': {'Col1': 'data1', 'Col2': 3, 'Col3': 'data4'},
-                'row_1': {'Col1': 'data2', 'Col2': 8, 'Col3': 'data5'},
-                'row_2': {'Col1': 'data3', 'Col2': None, 'Col3': 'data6'},
+                'row_0': {'col1': 'data1', 'col2': 3, 'col3': 'data4'},
+                'row_1': {'col1': 'data2', 'col2': 8, 'col3': 'data5'},
+                'row_2': {'col1': 'data3', 'col2': None, 'col3': 'data6'},
             },
             'table2': {
-                'data7': {'Col2': 0, 'Col3': 'data10'},
-                'data8': {'Col2': 9, 'Col3': 'data11'},
-                'data9': {'Col2': None, 'Col3': 'data12'},
-                'row_0': {'Col2': 90, 'Col3': 'data90'}
+                'data7': {'col2': 0, 'col3': 'data10'},
+                'data8': {'col2': 9, 'col3': 'data11'},
+                'data9': {'col2': None, 'col3': 'data12'},
+                'row_0': {'col2': 90, 'col3': 'data90'}
             },
             'table2_by_col': {
-                 'Col2': {'data7': 0, 'data8': 9, 'data9': None, 'row_0': 90},
-                 'Col3': {'data7': 'data10', 'data8': 'data11',
+                 'col2': {'data7': 0, 'data8': 9, 'data9': None, 'row_0': 90},
+                 'col3': {'data7': 'data10', 'data8': 'data11',
                           'data9': 'data12', 'row_0': 'data90'}
             },
             'table3': {
-                'data13': {'Col2': 4, 'Col3': None},
-                'data14512': {'Col2': 8, 'Col3': 'data17'},
-                'data15': {'Col2': None, 'Col3': 'data18'}
+                'data13': {'col2': 4, 'col3': None},
+                'data14512': {'col2': 8, 'col3': 'data17'},
+                'data15': {'col2': None, 'col3': 'data18'}
             },
             'table4': {
-                '11111': {'colB': 12222, 'colC': 1333, 'colD': 14444},
-                '41111': {'colB': 42222, 'colC': 43333, 'colD': 44444},
-                'item1': {'colB': 'item2', 'colC': 'item3', 'colD': 'item4'},
-                'item13': {'colB': 'item14', 'colC': 'item15', 'colD':
+                'row_11111': {'colb': 12222, 'colc': 1333, 'cold': 14444},
+                'row_41111': {'colb': 42222, 'colc': 43333, 'cold': 44444},
+                'item1': {'colb': 'item2', 'colc': 'item3', 'cold': 'item4'},
+                'item13': {'colb': 'item14', 'colc': 'item15', 'cold':
                            'item16'},
-                'item5': {'colB': 'item6', 'colC': 'item7', 'colD': 'item8'},
-                'item9': {'colB': 'item10', 'colC': 'item11', 'colD': 'item12'}
+                'item5': {'colb': 'item6', 'colc': 'item7', 'cold': 'item8'},
+                'item9': {'colb': 'item10', 'colc': 'item11', 'cold': 'item12'}
             },
             'table5': {
                 'r1': {'col1': 1, 'col2': 2, 'col3': 3, 'col4': 4},
@@ -412,36 +418,29 @@ class ResultParserTests(PavTestCase):
                 'r3': {'col1': 8, 'col2': 9, 'col3': 10, 'col4': 11}
             },
             'clomp': {
-                'Bestcase OMP': {
-                    'CORAL2_RFP': 27.04, 'Efficacy': '100%', 'Overhead': 0.0,
-                    'Runtime': 0.517, 'Speedup': 5.1, 'us_Loop': 5.29},
-                'Dynamic OMP': {
-                    'CORAL2_RFP': 5.1, 'Efficacy': '3.2%', 'Overhead': 162.56,
-                    'Runtime': 16.392, 'Speedup': 0.2, 'us_Loop': 167.85},
-                'Manual OMP': {
-                    'CORAL2_RFP': 18.72, 'Efficacy': '22.2%', 'Overhead': 18.5,
-                    'Runtime': 2.324, 'Speedup': 1.1, 'us_Loop': 23.79},
-                'OMP Barrier': {
-                    'CORAL2_RFP': 1.0, 'Efficacy': 'N/A', 'Overhead': 'N/A',
-                    'Runtime': 0.919, 'Speedup': 'N/A', 'us_Loop': 9.41},
-                'Scaled Serial Ref': {
-                    'CORAL2_RFP': 27.04, 'Efficacy': 'N/A', 'Overhead': 'N/A',
-                    'Runtime': 2.641,
-                                 'Speedup': 1.0,
-                                 'us_Loop': 27.04},
-           'Static OMP': {'CORAL2_RFP': 9.41,
-                          'Efficacy': '22.0%',
-                          'Overhead': 18.72,
-                          'Runtime': 2.345,
-                          'Speedup': 1.1,
-                          'us_Loop': 24.01},
-           'calc_deposit': {'CORAL2_RFP': '4 -1 256 10 32 1 100',
-                            'Efficacy': 'N/A',
-                            'Overhead': 'N/A',
-                            'Runtime': 0.0,
-                            'Speedup': 'N/A',
-                            'us_Loop': 0.0}},
-
+                'bestcase_omp': {
+                    'coral2_rfp': 27.04, 'efficacy': '100%', 'overhead': 0.0,
+                    'runtime': 0.517, 'speedup': 5.1, 'us_loop': 5.29},
+                'dynamic_omp': {
+                    'coral2_rfp': 5.1, 'efficacy': '3.2%', 'overhead': 162.56,
+                    'runtime': 16.392, 'speedup': 0.2, 'us_loop': 167.85},
+                'manual_omp': {
+                    'coral2_rfp': 18.72, 'efficacy': '22.2%', 'overhead': 18.5,
+                    'runtime': 2.324, 'speedup': 1.1, 'us_loop': 23.79},
+                'omp_barrier': {
+                    'coral2_rfp': 1.0, 'efficacy': 'N/A', 'overhead': 'N/A',
+                    'runtime': 0.919, 'speedup': 'N/A', 'us_loop': 9.41},
+                'scaled_serial_ref': {
+                    'coral2_rfp': 27.04, 'efficacy': 'N/A', 'overhead': 'N/A',
+                    'runtime': 2.641, 'speedup': 1.0, 'us_loop': 27.04},
+                'static_omp': {
+                    'coral2_rfp': 9.41, 'efficacy': '22.0%', 'overhead': 18.72,
+                    'runtime': 2.345, 'speedup': 1.1, 'us_loop': 24.01},
+                'calc_deposit': {
+                    'coral2_rfp': '4 -1 256 10 32 1 100', 'efficacy': 'N/A',
+                    'overhead': 'N/A', 'runtime': 0.0, 'speedup': 'N/A',
+                    'us_loop': 0.0},
+            },
         }
 
         test = self._quick_test(cfg, 'table_test')
@@ -450,11 +449,9 @@ class ResultParserTests(PavTestCase):
         log_file = open(test.path / 'results.log', 'w')
         results = test.gather_results(0, log_file=log_file)
 
-        import pprint
-        pprint.pprint(results)
-
         for key in expected:
-            self.assertEqual(expected[key], results[key])
+            self.assertEqual(expected[key], results[key],
+                             msg="Table {} doesn't match results.".format(key))
 
     def test_evaluate(self):
 

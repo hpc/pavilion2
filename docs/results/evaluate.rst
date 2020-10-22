@@ -1,13 +1,12 @@
-.. _tests.results.evaluate:
 
-.. contents::
+.. _results.evaluate:
 
 Result Evaluations
 ==================
 
-In addition to the points made in :ref:`tests.results.basics.evaluations`,
-there are a few other notable features and constraints with result
-evaluations.
+This covers the workings of the 'result_evaluate' system in depth.
+
+.. contents::
 
 Type Conversion
 ---------------
@@ -20,7 +19,6 @@ conversion is applied both to constants and the contents of variables.
 - True -> boolean 'True'
 - "hello" -> string
 - hello -> variable
-- You can refer to deeply nested values using dot notation:
 
 Complex Variable References
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -63,82 +61,6 @@ matching value.
 To get the keys of a dictionary, use the ``keys`` function. The keys are
 guaranteed to be in the same order as the values produced when using a '*'.
 
-A Complex Example
-^^^^^^^^^^^^^^^^^
-
-Given a test that produces values per node and gathers them using the result
-parser :ref:`tests.results.per_file` feature, you may want to use all of
-those values to calculate an average or outliers.
-
-.. code-block:: yaml
-
-    multi_val:
-        slurm:
-            num_nodes: all
-
-        run:
-            # Get the root filesystem usage per node.
-            cmds: '{{test_cmd}} -o "%N.out" df /'
-
-        result_parse:
-            regex:
-                used:
-                    regex: '^rootfs\s+\d+\s+(\d+)'
-                    files: '*.out'
-                    per_file: 'name'
-
-1. This will give us a ``<node_name>.out`` file for each node with the command
-   output.
-2. The result parser will parse out the 3rd column from the 'rootfs' line from
-   each of these files.
-3. The 'per_file' option of 'name' will store these results in the 'n'
-   dictionary by the root filename.
-
-The results will look like:
-
-.. code-block:: json
-
-    {
-        "name": "examples.multi_val",
-        "n": {
-            "node01": {"used": "709248"},
-            "node03": {"used": "802218"},
-            "node04": {"used": "699320"},
-            "node05": {"used": "2030531"},
-        },
-        "etc": "...",
-    }
-
-We could then add the following to our test config to perform calculations
-on these values.
-
-.. code-block:: yaml
-
-    multi_val:
-        # ...
-
-    result_evaluate:
-        mean_used: 'avg(n.*.used)'
-        outlier_data: 'outliers(n.*.used, keys(n), 1.5)'
-        outliers: 'keys(outlier_data)'
-
-Would give us results like:
-
-.. code-block:: json
-
-    {
-        "name": "examples.multi_val",
-        "n": {
-            "node01": {"used": "709248"},
-            "node03": {"used": "802218"},
-            "node04": {"used": "699320"},
-            "node05": {"used": "2030531"},
-        },
-        "mean_used": 1060329.25,
-        "outlier_data": {"node05": 1.7276},
-        "outliers": {"node05"},
-    }
-
 String Expressions in Result Evaluations
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -155,7 +77,7 @@ later evaluated in result evaluations.
             num_var: 'num'
             num: 8
             base: 2
-            message: "hello world"
+            message: "Hiya"
 
         result_evaluate:
             # Set the result 'num' key to 52
@@ -171,8 +93,8 @@ later evaluated in result evaluations.
             # If we want to include a Pavilion variable as a string, it must
             # be put in quotes.
             msg_len: 'len("{{message}}")'
-            # This will become: 'len("hello world")'
-            # Which will evaluate to ``11``.
+            # This will become: 'len("Hiya")'
+            # Which will evaluate to ``4``.
 
             # You can actually include more complex expressions in both
             # the string expression and the evaluation, but this should be

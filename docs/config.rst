@@ -81,7 +81,7 @@ The result log holds all the result json for every test you run. If you
 want to feed that into splunk, you may want to specify where to write
 it.
 
-.. _config.flatten_results
+.. _config.flatten_results:
 
 flatten_results
 ^^^^^^^^^^^^^^^

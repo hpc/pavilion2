@@ -450,7 +450,7 @@ tests goes into getting to this point.
 Gathering Test Results
 ~~~~~~~~~~~~~~~~~~~~~~
 
-This is described fully in :ref:`tests.results`.
+This is described fully in :ref:`results.basics`.
 
 Mark the Test as Complete
 ~~~~~~~~~~~~~~~~~~~~~~~~~

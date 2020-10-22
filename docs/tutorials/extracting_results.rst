@@ -1,11 +1,13 @@
 .. contents::
 
+.. _tutorials.extracting_results:
+
 Extracting Results Tutorial
 ===========================
 
 This tutorial is meant to teach you how to parse a variety of results from
 your test output. For a full accounting of all the features of result
-parsers and evaluations, see :ref:`tests.results`.
+parsers and evaluations, see :ref:`results`.
 
 For every test run under Pavilion that completes, a result JSON 'mapping' is
 created with keys and values that describe the run. Pavilion provides a lot of
@@ -286,11 +288,12 @@ our results.
 That gets me:
 
 .. code-block:: json
+
     {
-     'dim_results': {'1': {'cubism': 16, 'elasticity': 45.234},
-                     '2': {'cubism': 121, 'elasticity': 25.9},
-                     '4': {'cubism': 144, 'elasticity': 35.11}},
-     'duration': 0.032327,
+     "dim_results": {"1": {"cubism": 16, "elasticity": 45.234},
+                     "2": {"cubism": 121, "elasticity": 25.9},
+                     "4": {"cubism": 144, "elasticity": 35.11}},
+     "duration": 0.032327,
     }
 
 - The first column becomes the row name. You can turn that off.
@@ -381,13 +384,13 @@ Would get results that look like:
 .. code-block:: json
 
     {
-     'per_file': {'node1': {'flops': 34.89},
-                  'node2': {'flops': 37.2},
-                  'node3': {'flops': 39.49},
-                  'node4': {'flops': 139.72},
-                  'node5': {'flops': 31.67}},
-     'result': 'PASS',
-     'return_value': 0,
+     "per_file": {"node1": {"flops": 34.89},
+                  "node2": {"flops": 37.2},
+                  "node3": {"flops": 39.49},
+                  "node4": {"flops": 139.72},
+                  "node5": {"flops": 31.67}},
+     "result": "PASS",
+     "return_value": 0,
     }
 
 **TASK:** Add a parser for the 'accel' data in the per-node results.
@@ -452,12 +455,12 @@ Constants
 Sometimes the value you need to add to the results is already in a Pavilion
 variable, or
 
-As discussed in :ref:`tests.expressions`, you can add expressions to almost any
-Pavilion value string, including 'result_evaluate'. These are resolved before
-results are processed, altering the *configuration* strings before they are
-processed for result evaluations. The result of that is always a string,
-which is then evaluated as a 'result_evaluate' expression, which can produce
-a variety of types.
+As discussed in :ref:`tests.values.expressions`, you can add expressions to
+almost any Pavilion value string, including 'result_evaluate'. These are
+resolved before results are processed, altering the *configuration* strings
+before they are processed for result evaluations. The result of that is
+always a string, which is then evaluated as a 'result_evaluate' expression,
+which can produce a variety of types.
 
 This can be useful for simply adding constants, either as a whole result
 values or as a constant in a calculation. You should, however, be wary of
@@ -492,6 +495,7 @@ This would result in an error.
             message2: '"The answer is Forty-Two"'
 
 **TASK**:
+
 - Add 'baseline' pavilion variable to your config under 'variables' set to 23.
 - Then use it to produce an 'adj_pflops' result values, which should be the
   extracted pflops value divided by that baseline.

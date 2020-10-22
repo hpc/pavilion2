@@ -156,8 +156,6 @@ def per_name(results: dict, key: str, file_vals: Dict[Path, Any],
         normalized[name] = normalized.get(name, []) + [file]
         per_file[name] = per_file.get(name, {})
 
-        print(file)
-
         errors.extend(store_values(per_file[name], key, action(val)))
 
     for name, files in normalized.items():

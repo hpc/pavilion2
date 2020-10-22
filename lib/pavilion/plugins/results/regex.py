@@ -3,8 +3,7 @@
 import re
 import sre_constants
 
-import pavilion.result.base
-import pavilion.result.common
+from pavilion.result import ResultError
 import yaml_config as yc
 from pavilion.result import parsers
 
@@ -47,7 +46,7 @@ class Regex(parsers.ResultParser):
         try:
             kwargs['regex'] = re.compile(kwargs['regex'])
         except (ValueError, sre_constants.error) as err:
-            raise pavilion.result.common.ResultError(
+            raise ResultError(
                 "Invalid regular expression: {}".format(err))
 
         return kwargs

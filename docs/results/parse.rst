@@ -1,6 +1,5 @@
-.. _tests.results.parse:
 
-.. contents::
+.. _results.parse:
 
 Result Parsers
 ==============
@@ -8,43 +7,60 @@ Result Parsers
 Result parsers are fairly simple in practice, yet contain a wide variety of
 options to help you pull results from test output.
 
-Base Options
-------------
+.. contents::
+
+General Operations
+------------------
+
+To see what result parsers are available, run:
+
+.. code-block:: bash
+
+    $ pav show result_parsers
+
+To see full documentation for one these:
+
+.. code-block:: bash
+
+    $ pav show result_parsers --doc regex
+
+Base Option Overview
+~~~~~~~~~~~~~~~~~~~~
 
 Result parser plugins define their own configuration options, but many options
 are handled at a higher level. These options are available for every result
 parser, though some don't allow for any settings other than the default.
 
-`for_lines_matching`_
+`for_lines_matching <tests.results.parse.line_select>`_
   A regular expression that tells Pavilion which
   lines in the file should be examined with the result parser.
 
   **Default:** match every line.
 
-`preceded_by`_
+`preceded_by <tests.results.parse.line_select>`_
   A list of regular expressions used to match the series
   of lines before lines where we call the result parser.
 
   **Default:** No pre-conditions
 
-`match_select`_
+`match_select <tests.results.parse.match_select>`_
   When multiple lines match, which is the result?
 
   **Default:** Use the first matched result.
 
-`files`_
+`files <tests.results.parse.files>`_
   One or more filename globs (``*.txt``, ``test.out``) that selects which
   file to parse results from. These are relative to the test build directory
   (which is the working directory when the test runs).
 
   **Default:** '../run.log' (the run script output)
 
-`per_file`_
+`per_file <tests.results.parse.per_file>`_
   What to do with results from multiple files.
 
   **Default:** Keep the results from the first file with matches.
 
-`action`_
+`action <tests.results.parse.action>`_
   Manage the output type of the result parser.
 
   **Default:** Auto-convert to a numeric type, if possible.
@@ -58,13 +74,17 @@ steps.
 1. A list of files is generated from the globs in the ``files`` option, in
    order.
 
-   - If a glob matches no files, the glob is given a 'no matches' entry
-     in our list of results per file.
+   - If a glob matches no files, the glob is given a '_unmatched_glob' entry
+     in our list of results per file. These start with an underscore, so
+     won't be in the final results, but will be evaluated when using
+     'per_file: all' or 'per_file: any'.
 2. Each file is searched using the the ``for_lines_matching`` *AND*
    ``preceded_by`` options. The result parser is called to look at
    any lines that match all of these conditions.
 
-   - The parser can look at more than just the matched line.
+   - The parser can look at more than just the matched line. The file is reset
+     such that we continue looking at lines starting at the line after the
+     matched line, regardless of what the result parser does.
 3. The result parser returns matched data, or not.
 4. The ``match_select`` option which result to return from the list of
    matches.
@@ -74,85 +94,20 @@ steps.
    - It may involve storing results in multiple keys (see below).
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-.. _match_select:
-.. _for_lines_matching:
-.. _preceded_by:
-
-
-The ``result_parse`` section of each test config lets us configure additional
-result parsers that can pull data out of test output files. By default
-each parser reads from the run log, which contains the stdout and stderr
-from the run script and your test.
-
-.. code:: yaml
-
-    mytest:
-      scheduler: raw
-      run:
-        cmds:
-          - ping -c 10 google.com
-
-      result_parse:
-        # The results.parse section is comprised of configs for result parsers,
-        # identified by name. Each parser can have a list of one or more
-        # configs, each of which will parse a different result value from
-        # the test output.
-        result_parse:
-          regex:
-          # Each result parser can have multiple configs.
-            # The value matched will be stored in this key
-            loss:
-              # This tells the regex parser what regular expression to use.
-              # Single quotes are recommended, as they are literal in yaml.
-              regex: '\d+% packet loss'
-
-              # We're storing this value in the result key. If it's found
-              # (and has a value of 'True', then the test will 'PASS'.
-            result:
-              regex: '10 received'
-              # The action denotes how to handle the parser's data. In this case
-              # a successful match will give a 'True' value.
-              action: store_true
-
-The results for this test run might look like:
-
-.. code:: json
-
-    {
-      "name": "mytest",
-      "id": 51,
-      "created": "2019-06-18 16:00:35.692878-06:00",
-      "started": "2019-06-18 16:00:36.744221-06:00",
-      "finished": "2019-06-18 16:01:39.997299-06:00",
-      "duration": "0:01:04.304421",
-      "result": "PASS",
-      "loss": "0% packet loss"
-    }
-
+.. _results.parse.keys:
 
 Result Keys
------------
+~~~~~~~~~~~
 
 By default, the value found by the result parser is simply stored in the
 result json under the given key. Key names can be alpha-numeric with
 underscores.
 
+**Keys that begin with an underscore are temporary.**
+They will not be present in the final results.
+
 Multiple Result Keys
-~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^
 
 *(New in 2.3)*
 
@@ -170,8 +125,7 @@ result parsers.
                 regex: 'results: ([0-9.]+) ([0-9.]+) (\d+)'
 
             "
-
-
+.. _result_value_types:
 
 Result Value Types
 ~~~~~~~~~~~~~~~~~~
@@ -190,6 +144,7 @@ groups these into a few internal categories.
 The *actions* and *per\_file* sections below work with these categories
 when deciding how to handle result parser values.
 
+.. _results.parse.defaults:
 
 Result Parser Defaults
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -208,23 +163,24 @@ parser, and they all use the same, non-default, settings:
             mykey1:
                 regex: 'mykey: (\s*)'
                 per_file: name
-                files: *.out
+                files: '*.out'
             mykey2:
                 regex: 'mykey: (\s*)'
                 per_file: name
-                files: *.out
+                files: '*.out'
             # etc...
 
 You can use the '_default' key to set defaults for all keys under that
 result parser. Be careful with keys that don't need your new defaults though:
 
 .. code-block:: yaml
+
     result_parse:
         regex:
             # Note that there is no order to these keys.
             _default:
                 per_file: name
-                files: *.out
+                files: '*.out'
             normal_key:
                 # You have to go back to the defaults here, unfortunately.
                 regex: 'normal_key: (\s*)'
@@ -236,23 +192,102 @@ result parser. Be careful with keys that don't need your new defaults though:
                 regex: 'mykey: (\s*)'
             # etc...
 
-.. _tests.results.actions:
+.. _results.parse.line_select:
+
+Preceded_By and For_Lines_Matching
+----------------------------------
+
+As mentioned a above, these are used to select which lines to call the result
+parser on. They are combined to form a 'sliding window' of regexes that are
+applied, in order, to check that a sequence of lines matches each of them. The
+result parser is then called on the line matching the 'for_lines_matching'
+regex.
+
+Given:
+
+.. code-block:: yaml
+
+    result_parse:
+        regex:
+            foo:
+                preceded_by:
+                    - '^a'
+                    - '^b'
+                for_lines_matching: '^flm'
+
+and a file that looks like:
+
+.. code-block:: text
+
+    c
+    a
+    a
+    b
+    flm
+    a
+    b
+    flm
+
+We'll match like:
+
+.. code-block:: text
+
+    c       ^a   X |      |        |
+    a              | ^a ✓ |        |
+    a              | ^b X | ^a ✓   |
+    b                     | ^b ✓   |
+    flm                   | ^flm ✓ |
+    a                              | ^a ✓
+    b                              | ^b ✓
+    flm                            | ^flm ✓
+
+Resulting in the the result parser being called twice.
+
+- We resume checking from the line after any positive selection.
+- Since the default 'for_lines_matching' is ``''`` (which matches everything),
+  and 'preceded_by' is empty, by default pavilion calls the result parser on
+  every line.
+
+.. _results.parse.match_select:
+
+Match_Select
+------------
+
+Pavilion calls each result parser for every preceded_by/for_lines_matching
+match found. Match select allows us to control which match to use.
+
+This is typically the first one (which is default), in which case Pavilion
+stops searching the file after a single successful match is found.
+
+You can also give an integer index (counting from zero, or backwards from -1)
+to select the Nth match. If the match at that index doesn't exist, an error
+is noted. The keywords 'first', and 'last' also work.
+
+The 'all' keywords causes the full list of matches to be returned, including
+instances where the result parser returned nothing.
+
+.. _results.parse.action:
 
 Actions
 ~~~~~~~
 
-We saw in the above example that we can use an *action* to change how
-the results are stored. There are several additional *actions* that can
-be selected:
+Actions change how Pavilion stores the final result value in the results.
 
--  **store** - *(Default, mostly)* Simply store the result parser's output.
+-  **store** - *(Default, mostly)* Store the auto-type converted result into
+    the given key/s. Strings that look like ints/floats/True/False will become
+    that native type.
+-  **store\_str** - Don't auto-convert strings, just store them.
 -  **store\_true** - *(Default for 'result' key)* Store ``true`` if the result
    is a **match** (non-empty and not false).
 -  **store\_false** - Stores ``true`` if the result is not a **match**.
 -  **count** - Count the length of list matches, regardless of contents.
    Non-list matches are 1 if a match, 0 otherwise.
 
-.. _tests.results.files:
+Some 'per_file' settings bypass the action step, namely 'namelist', which
+doesn't store the value at all. Others, like 'all', will apply the 'action'
+before the 'all' calculation.
+
+.. _results.files:
 
 Files
 ~~~~~
@@ -294,7 +329,7 @@ depends on the **per\_file** attribute for the result parser.
                   files: '*.out'
                   per_file: # We'll demonstrate these settings below
 
-.. _tests.results.per_file:
+.. _results.per_file:
 
 per\_file: Manipulating Multiple File Results
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -357,6 +392,61 @@ result (because it is null) and taking node3's:
 
     {
       "huge_size": "4K",
+    }
+
+name - Stores in a filename based dict.
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code:: yaml
+
+    result_parse:
+        regex:
+          huge_size:
+              regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
+              files: '*.out'
+              per_file: fullname
+
+Put the result under the key, but in a dictionary specific to that file. All
+the file specific dictionaries are stored under the ``per_file`` key.
+
+.. code:: json
+
+    {
+      "fn": {
+        "node1": {"huge_size": null},
+        "node2": {"huge_size": "2M"},
+        "node3": {"huge_size": "4K"},
+        "node4": {"huge_size": null}
+      }
+    }
+
+- When using the **fullname** *per\_file* setting, the key cannot be
+  ``result``.
+- The final extension is removed from the filename.
+- The names are normalized and made unique. Non alphanumeric characters are
+  changed to underscores. Ex: 'node%3.foo.out' -> 'node_3_foo'.
+
+
+name_list - Stores the name of the files that matched.
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code:: yaml
+
+    result_parse:
+        regex:
+          huge_size:
+              regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
+              files: '*.out'
+              per_file: fullname_list
+
+Stores a list of the names of the files that matched. The actual matched values
+aren't saved. This also normalizes the names and removes the extension as with
+'per_file: name'.
+
+.. code:: json
+
+    {
+      "huge_size": ["node2", "node3"],
     }
 
 all - True if each file returned a True result
@@ -444,106 +534,4 @@ already, then each of the values in the list is added.
 
     {
       "huge_size": ["2M", "4K"],
-    }
-
-fullname - Stores in a filename based dict.
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-.. code:: yaml
-
-    result_parse:
-        regex:
-          huge_size:
-              regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
-              files: '*.out'
-              per_file: fullname
-
-Put the result under the key, but in a dictionary specific to that file. All
-the file specific dictionaries are stored under the ``fn`` key by filename.
-
-.. code:: json
-
-    {
-      "fn": {
-        "node1.out": {"huge_size": null},
-        "node2.out": {"huge_size": "2M"},
-        "node3.out": {"huge_size": "4K"},
-        "node4.out": {"huge_size": null}
-      }
-    }
-
--  When using the **fullname** *per\_file* setting, the key cannot be
-   ``result``.
--  The rest of the file's path is ignored, so there is potential for
-   file name collisions, as the same filename could exist in multiple
-   places. Pavilion will report such collisions in the results under the
-   ``error`` key.
-
-name - Stores in a filename (without extension) based dict.
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-.. code:: yaml
-
-    result_parse:
-        regex:
-          huge_size:
-              regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
-              files: '*.out'
-              per_file: fullname
-
-Just like **fullname**, but instead the file name with the file extension
-removed. These are stored under the ``n`` key in the results.
-
-.. code:: json
-
-    {
-      "n": {
-        "node1": {"huge_size": null},
-        "node2": {"huge_size": "2M"},
-        "node3": {"huge_size": "4K"},
-        "node4": {"huge_size": null}
-      }
-    }
-
-
-fullname_list - Stores the name of the files that matched.
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-.. code:: yaml
-
-    result_parse:
-        regex:
-          huge_size:
-              regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
-              files: '*.out'
-              per_file: fullname_list
-
-Stores a list of the names of the files that matched. The actual matched values
-aren't saved.
-
-.. code:: json
-
-    {
-      "huge_size": ["node2.out", "node3.out"],
-    }
-
-name_list - Stores the name of the files that matched.
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-.. code:: yaml
-
-    result_parse:
-        regex:
-          huge_size:
-              regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
-              files: '*.out'
-              per_file: name_list
-
-Stores a list of the names of the files that matched, minus extension. The
-actual matched values aren't saved.
-
-.. code:: json
-
-    {
-      "huge_size": ["node2", "node3"],
     }
