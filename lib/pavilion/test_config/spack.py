@@ -9,7 +9,8 @@ class SpackEnvConfig(yc.YamlConfigLoader):
                 yc.KeyedElem(
                     'config', elements=[
                         yc.StrElem('install_tree'),
-                        yc.StrElem('build_jobs', default=6)
+                        yc.StrElem('build_jobs', default=6),
+                        yc.StrElem('install_path_scheme')
                     ]
                 ),
                 yc.CategoryElem(
