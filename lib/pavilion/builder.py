@@ -582,7 +582,7 @@ class TestBuilder:
                     # New spack installs will be built in the specified
                     # build_dir.
                     'install_tree': str(build_dir/'spack_installs'),
-                    'install_path_scheme': "${PACKAGE}",
+                    'install_path_scheme': "{name}-{version}-{hash}",
                     'build_jobs': spack_config.get('build_jobs', 6)
                 },
                 'mirrors': spack_config.get('mirrors', {}),
