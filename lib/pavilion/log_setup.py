@@ -1,6 +1,7 @@
 """Manages the setup of various logging mechanisms for Pavilion."""
 
 import logging
+from logging import handlers
 import socket
 import sys
 import traceback
@@ -171,10 +172,10 @@ def setup_loggers(pav_cfg, verbose=False, err_out=sys.stderr):
                       color=output.YELLOW,
                       file=err_out)
     else:
-        file_handler = LockFileRotatingFileHandler(
-            file_name=log_fn,
-            max_bytes=1024 ** 2,
-            backup_count=3)
+        file_handler = handlers.RotatingFileHandler(
+            filename=log_fn,
+            maxBytes=1024 ** 2,
+            backupCount=3)
         file_handler.setFormatter(logging.Formatter(pav_cfg.log_format,
                                                     style='{'))
         file_handler.setLevel(getattr(logging,
