@@ -27,7 +27,7 @@ For a scheduler to work with Pavilion, it must:
 - Produce jobs that can be cancelled
 - Allow a job to be started asynchronously.
 
-The Pavilion Scheduler plugin system was designed to be as flexible
+The Pavilion Scheduler plugin system was designed to be flexible
 in order to support as many schedulers as possible.
 
 Scheduler Plugins
@@ -117,7 +117,7 @@ directly to the user.
 Init
 ~~~~
 
-Scheduler plugins initialize much like other Pavilion Plugins:
+Scheduler plugins initialize much like other Pavilion plugins:
 
 .. code-block:: python
 
@@ -165,8 +165,9 @@ don't accept the same values.
                     'num_nodes', default="1",
                     help_text="Number of nodes requested for this test. "
                               "This can be a range (e.g. 12-24)."),
-                yc.StrElem('tasks_per_node', default="1",
-                           help_text="Number of tasks to run per node."),
+                yc.StrElem(
+                    'tasks_per_node', default="1",
+                    help_text="Number of tasks to run per node."),
                 yc.StrElem(
                     'mem_per_node',
                     help_text="The minimum amount of memory required in GB. "
@@ -182,14 +183,15 @@ don't accept the same values.
                               "when determining job size. Will set the minimum"
                               "number of nodes "
                 ),
-                yc.StrElem('qos',
-                           help_text="The QOS that this test should use."),
-                yc.StrElem('account',
-                           help_text="The account that this test should run "
-                                     "under."),
-                yc.StrElem('reservation',
-                           help_text="The reservation that this test should "
-                                     "run under."),
+                yc.StrElem(
+                    'qos',
+                    help_text="The QOS that this test should use."),
+                yc.StrElem(
+                    'account',
+                    help_text="The account that this test should run under."),
+                yc.StrElem(
+                    'reservation',
+                    help_text="The reservation this test should run under."),
                 yc.StrElem(
                     'time_limit', regex=r'^(\d+-)?(\d+:)?\d+(:\d+)?$',
                     help_text="The time limit to specify for the slurm job in"
@@ -226,9 +228,9 @@ is not strictly required. As a side effect, it means you can also support
 other dynamic node selection options for your scheduler.
 
 Setting num_nodes to 'all' tells Pavilion to use all currently useable nodes
-in the allocation. Most schedulers (to our knowledge) don't natively support
-this, however. Your plugin will have to determine what 'all' means, given the
-state of the nodes on the system.
+that also meet other restrictions such as the partition. Most schedulers (to
+our knowledge) don't natively support this, however. Your plugin will have to
+determine what 'all' means, given the state of the nodes on the system.
 
 To do this, you will have to gather the state of all nodes on the system.
 Most schedulers provide a means to do this; for slurm we do it through the
@@ -239,7 +241,7 @@ itself, which is part of why Pavilion 'lazily' evaluates these calls.
 To gather data for your scheduler, override the ``_get_data()`` method, which
 should return a dictionary of the information. The structure of this
 dictionary is entirely up to you. How to gather that data is
-scheduler dependent, and thus out of the scope of this tutorial.
+scheduler dependent, and thus out the scope of this tutorial.
 
 Filtering Node Data
 ~~~~~~~~~~~~~~~~~~~
@@ -416,7 +418,8 @@ to commands can be found with the distutils module.
 
     subprocess.run(my_cmd)
 
-To find commands on a system, the
+To find commands on a system, 'distutils.spawn.find_executable' is essentially
+an in-python version of 'which'.
 
 Environment Variables
 ^^^^^^^^^^^^^^^^^^^^^
@@ -431,6 +434,7 @@ need to make sure to include the base environment in most cases.
 
     myenv = dict(os.environ)
     myenv['MY_ENV_VAR'] = 'Hiya!'
+    myenv['PATH'] = '{}:/opt/share/something/bin'.format(os.environ['PATH'])
 
     subprocess.run(my_cmd, env=myenv)
 
@@ -514,7 +518,7 @@ Additionally, there are four basic cases that need to be handled:
 3. The job is running.
 4. The job has finished.
 
-Most of the time, this simply means you will try to cancel the job id,
+Most of the time, this simply means you will try to cancel the job id
 and capture any errors.
 
 Additionally, if your job id encodes information that could denote that
