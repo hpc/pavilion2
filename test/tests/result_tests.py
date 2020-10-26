@@ -206,8 +206,8 @@ class ResultParserTests(PavTestCase):
             'mp5': 2,
             'name_list': ['other', 'other3'],
             'lists': [
-                "I'm here to cause World",
                 "In a World",
+                "I'm here to cause World",
                 "and someone saves the World"],
             'all': False,
             'result': 'PASS',  # Any test
