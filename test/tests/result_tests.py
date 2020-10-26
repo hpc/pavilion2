@@ -446,7 +446,7 @@ class ResultParserTests(PavTestCase):
         test = self._quick_test(cfg, 'table_test')
         test.run()
 
-        log_file = open(test.path / 'results.log', 'w')
+        log_file = (test.path / 'results.log').open('w')
         results = test.gather_results(0, log_file=log_file)
 
         for key in expected:

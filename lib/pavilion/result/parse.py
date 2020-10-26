@@ -292,7 +292,7 @@ def parse_result(results: Dict, key: str, parser_cfg: Dict,
         paths_found = glob.glob(file_glob)
         paths_found.reverse()
         if paths_found:
-            paths.extend(Path(path) for path in paths_found)
+            paths.extend(Path(path) for path in sorted(paths_found))
         else:
             presults[Path('_unmatched_glob_' + base_glob.split('/')[-1])] = None
             log("Setting a non match result for unmatched glob '{}'"
