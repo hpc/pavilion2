@@ -45,9 +45,15 @@ slurm kickoff script.
 
         lines = super().get_lines()
 
-        lines.append(
-            '#SBATCH --job-name "pav test #{s._test_id}"'
-            .format(s=self))
+         if self._conf.get('job_name') is not None:
+             lines.append(
+                 '#SBATCH --job-name {s._conf[job_name]}'
+                 .format(s=self))
+         else:
+             lines.append(
+                 '#SBATCH --job-name "pav test #{s._test_id}"'
+                 .format(s=self))
+
         lines.append('#SBATCH -p {s._conf[partition]}'.format(s=self))
         if self._conf.get('reservation') is not None:
             lines.append('#SBATCH --reservation {s._conf[reservation]}'
@@ -99,6 +105,7 @@ class SlurmVars(SchedulerVariables):
         "test_node_list_short": "node00[4-5]",
         "test_nodes": "2",
         "test_procs": "2",
+        "job_name": "pav",
     }
 
     @var_method
@@ -411,6 +418,10 @@ class Slurm(SchedulerPlugin):
                         help_text="When looking for nodes that could be  "
                                   "allocated, they must be in one of these "
                                   "states."),
+            yc.StrElem(
+                'job_name', default="pav",
+                help_text="The job name for this test."),
+
         ]
 
     def get_conf(self):
