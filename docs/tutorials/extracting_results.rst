@@ -1,4 +1,3 @@
-.. contents::
 
 .. _tutorials.extracting_results:
 
@@ -14,6 +13,8 @@ created with keys and values that describe the run. Pavilion provides a lot of
 information by default. Try ``pav show result_base`` to see a list and
 description of those keys. We'll be adding to that by parsing values from files
 and then doing some math.
+
+.. contents::
 
 Setup
 -----
@@ -49,13 +50,13 @@ help with debugging.
 3. You don't have to re-run a test to alter its result gathering. For an
    existing test run, just use the '--re-run' option. This will use the current
    test config to re-run the result gathering step, and report the new results
-   accordingly (it doesn't save them).
+   accordingly (it doesn't save them, just prints them).
 
 Some Test Output
 ----------------
 
 In our case, it's two types of files. First is the output of the
-test.sh script Pavilion created from our run section, which looks like this:
+'run.sh' script Pavilion created from our run section, which looks like this:
 
 .. code-block:: text
 
@@ -77,7 +78,7 @@ test.sh script Pavilion created from our run section, which looks like this:
     That went terribly.
 
 Use ``pav status`` to find your test's id, and then run
-``pav log run <test_id`` to see this for yourself.
+``pav log run <test_id>`` to see this for yourself.
 
 In addition, the test produced per-node output files. These are named
 ``<node_name>.out`` (ie 'node0045.out'), and look like this inside:
@@ -123,7 +124,8 @@ the test provided number is probably more accurate.
                     # By default Pavilion applies the result parser to every line
                     # in the file, until it finds a match. That works here.
                     # We'll define a regular expression with a matching group;
-                    #   a section in parenthesis that the regex will extract.
+                    # a section in parenthesis that the regex will capture.
+                    # That captured value will be the value stored.
                     regex: 'Ran for: (\d+\.\d+)s'
 
 **NOTE: Always put your regexes in single quotes.** It prevents YAML from
@@ -179,14 +181,15 @@ are temporary and won't be in the results!
         # but the *variables* are result keys! So we can reference '_gflops'
         # here.
         result_evaluate:
-            pflops: 'gflops/1000'
+            tflops: 'gflops/1000'
+            pflops: 'tflops/1000'
 
-- result 'evaluate' keys will be stored in the results JSON mapping
+- Result 'evaluate' keys will be stored in the results JSON mapping
 - You can reference other 'evaluated' keys. Order doesn't matter.
 
 **TASK**
 
-Add the '_gflops' and 'pflops' keys to your results, and test it all out.
+Add the '_gflops' and 'tflops' keys to your results, and test it all out.
 Notice that '_gflops' won't be in your results!.
 
 Line Selection and Multiple Keys
@@ -206,8 +209,8 @@ doesn't even look for more, but you can get 'all', 'last', or specify an
 integer to pull out a specific one (Counting from zero, or backwards from -1).
 
 The 'preceded_by' option is a list of regexes that must match the lines that
-precede line we're looking for, one-to-one. Let's use it to find the 'Settings'
-in our results.
+precede the line we're looking for, one-to-one. Let's use it to find the
+'Settings' in our results.
 
 .. code-block:: yaml
 
@@ -336,8 +339,6 @@ to set 'result' to false only if we find that message in the results.
                     action: store_false
                     regex: 'That went terribly'
 
-One couple things
-
 - if we were looking for a particular message to denote success rather than
   failure, then we wouldn't have to set 'action' at all. While 'store' is the
   normal default, 'store_true' is the default for the 'result' key.
@@ -345,8 +346,9 @@ One couple things
   means you somehow succeeded in assigning a non-boolean to 'result'. Don't
   do that.
 
-**TASK**: Add this to the result parsing, and run the test until you see both
-a 'PASS' and 'FAIL' example.
+**TASK**: Our the example test will randomly print one of several messages. Add
+this result parser to your config, and run the test mulitple times until you
+see both a 'PASS' and a 'FAIL' result.
 
 Parsing Multiple Files
 ----------------------
@@ -354,15 +356,16 @@ Parsing Multiple Files
 You may have noticed the 'files' key in the general options for result
 parsers. Not only can you specify a different file than the default (the run
 log at '../run.log'), you can give multiple file globs to parse data from a
-bunch of files at once. These are looked for in the test_runs ``build/``
+bunch of files at once. These are looked for in the test run's ``build/``
 directory, which is the working directory when a test runs.
 
 By default Pavilion just uses the result from the first file with a result. It
-can do a variety of other things by using the 'per_files', such as make a
-list of all files with a match, or build a mapping of results from each file.
-We'll use this second option now.
+can do a variety of other things by using the 'per_file' option, such as
+make a list of all files with a match, or build a mapping of results from
+each file. We'll use this second option now.
 
-**TASK:** Use ``pav cat <test_id> node1.out`` to review a per-node output file.
+**TASK:** Use ``pav cat <test_id> build/node1.out`` to review a per-node output
+file.
 
 .. code-block:: yaml
 
@@ -395,8 +398,8 @@ Would get results that look like:
 
 **TASK:** Add a parser for the 'accel' data in the per-node results.
 
-Wild Evaluations
-----------------
+Wildcard Evaluations
+--------------------
 
 What if we want the average flops across all the nodes? How about finding
 outliers? We can use the 'result_evaluate' section and functions to do that.
@@ -453,7 +456,8 @@ Constants
 ---------
 
 Sometimes the value you need to add to the results is already in a Pavilion
-variable, or
+variable, or is simply a constant. We can add those to our results using
+the 'result_evaluate' section.
 
 As discussed in :ref:`tests.values.expressions`, you can add expressions to
 almost any Pavilion value string, including 'result_evaluate'. These are
@@ -474,14 +478,18 @@ they types you're inserting. Let's walk through an example:
             answer2: 'Forty-Two'
 
         result_evaluate:
+            # This is ok, because 42 looks like a number.
             answer: '{{answer}}'
+            # This needs to be in quotes, though.
             message: 'The answer is {{answer2}}'
+            # better
+            message2: '"The answer is {{answer2}}"'
 
 
-This would result in an error.
-
-- The '{{answer}}' in each of the evaluate expressions would resolve to the
-  string '42', giving us:
+This would result in an error because 'message' isn't a valid expression. The
+error wouldn't show up until we gather the test run's results. The
+substitutions for 'answer' and 'answer2' would happen when we resolve the test
+configuration, giving us a test that looks like this:
 
 .. code-block:: yaml
 
@@ -497,8 +505,8 @@ This would result in an error.
 **TASK**:
 
 - Add 'baseline' pavilion variable to your config under 'variables' set to 23.
-- Then use it to produce an 'adj_pflops' result values, which should be the
-  extracted pflops value divided by that baseline.
+- Then use it to produce an 'adj_tflops' result values, which should be the
+  extracted tflops value divided by that baseline.
 
 .. _github: https://github.com/hpc/pavilion2
 

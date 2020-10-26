@@ -33,13 +33,15 @@ For example, given a result structure that looks like:
 
     {
         "name": "example_results",
-        "table":
+        "table": {
             "node1": {"speed": 30.0, "items": 5},
             "node2": {"speed": 50.0, "items": 4},
             "node3": {"speed": 70.0, "items": 3}
-        "sched": {
+        },
+        "sched":{
             "test_nodes": 3,
             "test_node_list": ["node1", "node2", "node3"],
+        }
     }
 
 - "table.node1.speed" - Would refer to the 'speed' key of the 'node1' dict which
@@ -95,6 +97,8 @@ later evaluated in result evaluations.
             msg_len: 'len("{{message}}")'
             # This will become: 'len("Hiya")'
             # Which will evaluate to ``4``.
+            # WITHOUT QUOTES - it would be 'len(Hiya)', and the evaluation
+            # step would try to look up 'Hiya' as a variable.
 
             # You can actually include more complex expressions in both
             # the string expression and the evaluation, but this should be

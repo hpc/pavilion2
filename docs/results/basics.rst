@@ -23,7 +23,7 @@ There are three different result logs:
 per-test-run results json
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The result json is written to a file named ``results`` in the test run
+The result json is written to a file named ``results.json`` in the test run
 directory. This is used to recall results from test runs.
 
 per-test-run result log
@@ -36,7 +36,7 @@ available via the ``pav log results <test_id>`` command.
 Pavilion-wide result log
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-The general results log keeps a record of the results of every test run under
+The general result log keeps a record of the results of every test run under
 your instance of Pavilion. It's location is configured via the general
 ``pavilion.yaml`` config, but defaults to residing in the working directory.
 It's format is designed to be easily read by Splunk and similar tools.

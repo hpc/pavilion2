@@ -207,7 +207,7 @@ You can also alter environment variables when writing a module wrapper. The
 second return value is a dictionary of these changes. Each key in the
 dictionary is the variable name to be exported, and the value is what it will
 be set to. Values of ``None`` will unset the variable. All of this is written
-as a sequence of ``export``/``unset`` shell commands in the run or build
+as a sequence of ``export``/``unset`` bash commands in the run or build
 scripts.
 
 Since the values are written directly to the scripts, they can include any

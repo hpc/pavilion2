@@ -5,7 +5,7 @@ Result Parsers
 ==============
 
 Result parsers are fairly simple in practice, yet contain a wide variety of
-options to help you pull results from test output.
+options to help you collect results from test output.
 
 .. contents::
 
@@ -64,6 +64,7 @@ parser, though some don't allow for any settings other than the default.
   Manage the output type of the result parser.
 
   **Default:** Auto-convert to a numeric type, if possible.
+  **Default (for the result key):** 'store_true'
 
 Parsing Process
 ~~~~~~~~~~~~~~~
@@ -74,7 +75,7 @@ steps.
 1. A list of files is generated from the globs in the ``files`` option, in
    order.
 
-   - If a glob matches no files, the glob is given a '_unmatched_glob' entry
+   - If a glob matches no files, the glob is given an '_unmatched_glob' entry
      in our list of results per file. These start with an underscore, so
      won't be in the final results, but will be evaluated when using
      'per_file: all' or 'per_file: any'.
@@ -124,7 +125,15 @@ result parsers.
             "speed, runtime, points":
                 regex: 'results: ([0-9.]+) ([0-9.]+) (\d+)'
 
-            "
+        split:
+            # You can use underscore as the key for values you want to discard.
+            # If there are more values than keys, that's fine too (the extras
+            # will be dropped).
+            "_, speed2, boats":
+                sep: ","
+                # Our comma separated line is after this one.
+                preceded_by: ['^Results2']
+
 .. _result_value_types:
 
 Result Value Types
@@ -197,7 +206,7 @@ result parser. Be careful with keys that don't need your new defaults though:
 Preceded_By and For_Lines_Matching
 ----------------------------------
 
-As mentioned a above, these are used to select which lines to call the result
+As mentioned above, these are used to select which lines to call the result
 parser on. They are combined to form a 'sliding window' of regexes that are
 applied, in order, to check that a sequence of lines matches each of them. The
 result parser is then called on the line matching the 'for_lines_matching'
@@ -295,10 +304,13 @@ Files
 By default, each result parser reads through the test's ``run.log``
 file. You can specify a different file, a file glob, or even multiple
 file globs to match an assortment of files. The files are parsed in the
-order given.
+order given, though ordering for files matched by glob wildcards is
+filesystem dependent.
 
+Relative paths are relative to the test run's *build* directory, which is the
+working directory when the run/build scripts are run.
 If you need to reference the run log in addition to other files, it is
-one directory up from the test's run directory, in ``../run.log``.
+one directory up from there, in ``../run.log``.
 
 This test runs across a bunch of nodes, and produces an output file for
 each. The regex parser runs across each of these, and (because it
@@ -314,10 +326,10 @@ depends on the **per\_file** attribute for the result parser.
           num_nodes: 4
 
         run:
-          cmds:
-            # Use the srun --output option to specify that results are
-            # to be written to separate files.
-            - {{sched.test_cmd}} --output="%N.out" env
+            cmds:
+                # Use the srun --output option to specify that results are
+                # to be written to separate files.
+                - {{sched.test_cmd}} --output="%N.out" env
 
         result_parse:
             regex:
@@ -404,7 +416,7 @@ name - Stores in a filename based dict.
           huge_size:
               regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
               files: '*.out'
-              per_file: fullname
+              per_file: name
 
 Put the result under the key, but in a dictionary specific to that file. All
 the file specific dictionaries are stored under the ``per_file`` key.
@@ -420,7 +432,7 @@ the file specific dictionaries are stored under the ``per_file`` key.
       }
     }
 
-- When using the **fullname** *per\_file* setting, the key cannot be
+- When using the **name** *per\_file* setting, the key cannot be
   ``result``.
 - The final extension is removed from the filename.
 - The names are normalized and made unique. Non alphanumeric characters are
@@ -437,7 +449,7 @@ name_list - Stores the name of the files that matched.
           huge_size:
               regex: 'HUGETLB_DEFAULT_PAGE_SIZE=(.+)'
               files: '*.out'
-              per_file: fullname_list
+              per_file: name_list
 
 Stores a list of the names of the files that matched. The actual matched values
 aren't saved. This also normalizes the names and removes the extension as with
