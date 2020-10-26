@@ -456,7 +456,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
         raise NotImplementedError
 
-    def job_status(self, pav_cfg, test):
+    def job_status(self, pav_cfg, test) -> StatusInfo:
         """Get the job state from the scheduler, and map it to one of the
         on of the following states: SCHEDULED, SCHED_ERROR, SCHED_CANCELLED.
         This may also simply re-fetch the latest state from the state file,
@@ -465,7 +465,6 @@ class SchedulerPlugin(IPlugin.IPlugin):
         :param pav_cfg: The pavilion configuration.
         :param pavilion.test_run.TestRun test: The test we're checking on.
         :return: A StatusInfo object representing the status.
-        :rtype: pavilion.status_file.StatusInfo
         """
 
         raise NotImplementedError
@@ -570,9 +569,9 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
         job_id = test.job_id
         if job_id is None:
-            test.status.set(STATES.SCHED_CANCELLED, "Job was never started.")
             test.set_run_complete()
-            return StatusInfo(STATES.SCHED_CANCELLED, "Job was never started.")
+            return test.status.set(STATES.SCHED_CANCELLED,
+                                   "Job was never started.")
 
         return self._cancel_job(test)
 
