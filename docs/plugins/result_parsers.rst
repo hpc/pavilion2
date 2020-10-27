@@ -5,7 +5,7 @@ Pavilion Result Parser Plugins
 
 This is an overview of how to write Pavilion Result Parser plugins. It
 assumes you've already read :ref:`plugins.basics`. You should also read up on
-how to use :ref:`tests.results.result_parsers`.
+how to use :ref:`results.parse`.
 
 .. contents::
 
@@ -18,8 +18,9 @@ files. None of those, or even the key that the result will be stored in, are
 exposed to the result parser itself.
 
 A result parser is essentially a function that takes a pre-opened file
-object, plus any arguments it specifically needs, processes that file, and
-returns some result data or structure.
+object (automatically advanced to points of interest), plus any arguments it
+specifically needs, processes that file, and returns some result data or
+structure.
 
 They also have to provide a way to validate their
 arguments (to catch errors early) and define what those arguments are.
@@ -32,44 +33,51 @@ Result Parser Class
 While the result parsing functionality is just a function, you still have to
 define the result parser as Yapsy plugin class as detailed in
 :ref:`plugins.basics`. You must give your parser a name, should give it
-a description, and can give it a priority.
+a description, and can give it a priority. We'll use the regex parser as an
+example:
 
 .. code-block:: python
 
     import yaml_config as yc
+    # Remember to not import ResultParser directly to avoid yapsy confusion.
+    from pavilion.result import parsers, ResultError
 
-    class Command(parsers.ResultParser):
-        """Runs a given command."""
+    class Split(parsers.ResultParser):
+        """Split a line by some substring, and return the list of parts."""
 
         def __init__(self):
             super().__init__(
-                name='command',
-                description="Runs a command, and uses it's output or return "
-                            "values as a result value.",
+                name='split',
+                description="Split by a substring, are return the whitespace "
+                            "stripped parts.",
+                # This adds a 'sep' configuration option to the test_config
+                # format.
                 config_elems=[
                     yc.StrElem(
-                        'command', required=True,
-                        help_text="Run this command in a sub-shell and collect "
-                                  "its return value or stdout."
-                    ),
-                    yc.StrElem(
-                        'output_type',
-                        help_text="Whether to return the return value or stdout."
-                    ),
-                    yc.StrElem(
-                        'stderr_dest',
-                        help_text="Where to redirect stderr."
-                    )
-                ],
-                validators={
-                    'output_type': ('return_value', 'stdout'),
-                    'stderr_dest': ('null', 'stdout'),
-                },
+                        'sep',
+                        help_text="The substring to split by. Default is "
+                                  "to split by whitespace.")],
+                # Set the default value for each argument (optional)
+                # (The real 'split' parser doesn't do this)
                 defaults={
-                    'output_type': 'return_value',
-                    'stderr_dest': 'stdout',
+                    'sep': '',
+                },
+                # Set a validator for sep. In this case only allow these three
+                # strings. (The real 'split' allows any string)
+                validators={
+                    'sep': (',', '', ':')
                 }
+
             )
+
+        def __call__(self, file, sep=None):
+            """Simply use the split string method to split"""
+
+            sep = None if sep == '' else sep
+
+            line = file.readline().strip()
+
+            return [part.strip() for part in line.split(sep)]
 
 Additional Arguments
 ~~~~~~~~~~~~~~~~~~~~
@@ -86,8 +94,10 @@ that can appear under ``result_parse`` in your test configs. Dynamically
 adding to a config like this can be complicated, but Pavilion takes care of
 all of the difficult bits for you.
 
-Every result parser gets 'action', 'per_file', and 'files' added as arguments
-automatically, so you won't have to add those.
+Every result parser gets 'action', 'per_file', and 'files', 'match_select',
+'preceded_by', and 'for_lines_matching' added as arguments automatically, so
+you won't have to add those. You also don't have to handle those, as they're
+not passed to your result parser anyway.
 
 Configuration items are added using the `yaml_config`_ library. Each
 config item (or element in yaml_config speak) is defined using a yaml_config
@@ -95,12 +105,12 @@ instance. There are a few rules to adding such elements that apply to Pavilion.
 
 - All values should be ``StrElem`` or a ``ListElem`` of ``StrElem`` instances.
   Pavilion expects every config value to be a string so that Pavilion
-  variables can be used.
+  variables and expressions can be used.
 - **Don't** do any validation (or type conversions) here, even though
   ``yaml_config`` supports it.
 - **Don't** set choices with ``yaml_config``.
-- Do give the 'help_text' for each element.
-- Do set required elements as such with 'required=True'.
+- **Do** give the 'help_text' for each element.
+- **Do** set required elements as such with 'required=True'.
 - The order of your arguments doesn't matter.
 
 Multi-Valued Config Elements
@@ -123,23 +133,6 @@ To add an config item that can take one or more values, use ``ListElem``:
             ]
         )
 
-The 'match_type' Argument
-'''''''''''''''''''''''''
-
-If your parser may return multiple items, consider using the pre-defined
-standard 'match_type' configuration element. It provides a standard way for
-the user to tell your plugin whether they want all of those items, or just
-the first or last. Plugins that use this will need to accept a 'match_type'
-argument that should change what your result parser returns:
-
-- **all** - Return a list of all matched values.
-- **first** - Return only the first matched value.
-- **last** - Return only the last matched value.
-
-The 'match_type' argument is automatically validated and will have its default
-set for you.
-
-
 Argument Defaults (defaults)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -158,28 +151,26 @@ the validated value.
 Type conversion functions, like ``int`` or ``float``, are all valid here.
 
 ValueError exceptions are caught during validation and reported in the
-results as errors;
-other exceptions are not. If your validation function raises other
-exceptions, make sure to catch and convert them into ValueErrors.
-
+results as errors; other exceptions are not. If your validation function
+raises other exceptions, make sure to catch and convert them into ValueErrors.
 
 File Handling (open_mode)
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
 By default, your result parser function will be handed a file object that
-has already been opened in text (unicode) read mode. The ``open_mode`` class
-property can be used to change what mode the file should be opened in. Any
-string is handed directly to Python's ``open`` function.
+has already been opened in text (unicode) read mode. It will also be advanced
+to a position dictated by the :ref:`results.parse.line_select` options.
 
-The value ``None``, however, tells Pavilion that your function would like the
-path instead (given as a pathlib.Path object).
-
+As a result, your result parser generally needs to only read the next line of
+the file using ``file.readline()``, but it is free to read more, less, or
+seek to other positions in the file as needed.
 
 Further Validating Arguments
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 You can also provide a ``_check_args`` method to validate the arguments your
-result parser accepts.
+result parser accepts. This is in addition to the 'validators' you passed
+in the init().
 
   - Catch any expected exceptions (let bug related exceptions through).
     - On type conversions, catch `ValueError`.
@@ -222,31 +213,20 @@ Result parsers use the special ``__call__()`` method to define the result
 parser function (This lets python use the class as a function, but that
 doesn't matter here).
 
-It must accept a test object and the file object as the first two positional
-arguments. The arguments you defined in the ``__init__`` will be passed as
+It must accept a file object as the first positional argument. The arguments
+you defined in the ``__init__`` will be passed as
 keyword arguments. You can accept them using either ``**kwargs`` or by just
-defining them normally. Any values you set as defaults should always be
-ignored, so you can just set them to None.
+defining them normally. If you provided a validation function, the value
+passed will be the value returned from that function.
 
 
 .. code-block:: python
 
-    def __call__(self, test, file, regex=None, match_type=None):
+    def __call__(self, file, sep=None):
 
-        matches = []
+        line = file.readline()
 
-        for line in file.readlines():
-            # Find all non-overlapping matches and return them as a list.
-            # if more than one capture is used, list contains tuples of
-            # captured strings.
-            matches.extend(regex.findall(line))
-
-        if match_type == parsers.MATCH_ALL:
-            return matches
-        elif match_type == parsers.MATCH_FIRST:
-            return matches[0] if matches else None
-        elif match_type == parsers.MATCH_LAST:
-            return matches[-1] if matches else None
+        return line.split(sep)
 
 
 Return Value
