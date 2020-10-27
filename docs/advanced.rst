@@ -37,7 +37,6 @@ variables.
 
 Variables
 ~~~~~~~~~
-
 *Full Docs:* :ref:`tests.variables`
 
 Test configs can contain *expressions* within their config values that
@@ -64,16 +63,10 @@ contain numbers, dashes and underscores.
 
       run:
         cmds:
-          - "sleep {{var.sleep_time}}"
-          - 'echo "Slept {{sleep_time}} seconds on node {{sched.node_num}}."'
+          - "sleep {{var.sleep_time + 12}}"
+          - 'echo "Slept {{sleep_time + 12}} seconds on node
+             {{sched.node_num}}."'
 
-Expressions
-^^^^^^^^^^^
-
-*Full Docs:* :ref:`tests.variables`
-
-Expressions allow you to access and manipulate variable values and insert them
-into Pavilion configuration strings.
 
 -  Use double curly brackets ``{{var.myvar}}``.
 -  Variable category is optional. ``{{myvar}}`` is fine.
@@ -83,7 +76,7 @@ into Pavilion configuration strings.
 -  You'll also see ``{{myvar.2}}`` list references, ``{{myvar.foo}}``
    attribute references, and the combination of the two
    ``{{myvar.1.bar}}``.
--  These can also contain math and function calls: ``{{ foo + 1 / bar }}``
+
 
 Listing Variables
 ^^^^^^^^^^^^^^^^^
@@ -131,8 +124,8 @@ Expressions
 
 The double curly brace sections that can contain variables are really fully
 capable :ref:`tests.values.expressions`, and can contain math operations and
-function calls.
-Functions are provided via plugins.
+function calls. Functions are provided via
+:ref:`plugins <plugins.expression_functions>`.
 
 .. code-block:: yaml
 

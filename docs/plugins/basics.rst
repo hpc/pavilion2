@@ -8,6 +8,8 @@ The majority of Pavilion works via several plugin systems. This
 documentation describes how to work with and debug Pavilion plugins in
 general.
 
+.. contents::
+
 Plugin Files
 ------------
 

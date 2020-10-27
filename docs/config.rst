@@ -9,6 +9,10 @@ the ``pavilion.yaml`` file, which sets global pavilion settings.
 See :ref:`tests.format` for information on the other types of
 pavilion configuration.
 
+This documentation only covers a few important settings. For a full list
+of settings, use the ``pav show config --template`` command, which will give
+the full docs.
+
 .. contents::
 
 .. _config.config_dirs:
@@ -76,6 +80,31 @@ result_log
 The result log holds all the result json for every test you run. If you
 want to feed that into splunk, you may want to specify where to write
 it.
+
+.. _config.flatten_results:
+
+flatten_results
+^^^^^^^^^^^^^^^
+
+When writing results to the result log, create a separate entry for each
+item under the ``per_file`` key in results. Each such entry is merged into
+base results, and the name of the per_file entry is added under the "file"
+key.  This is useful for applications like Splunk, which expect
+separate log entries for each distinct item.
+
+.. code-block:: text
+
+    {"name": "test1", "avg_speed": 32.5,
+     per_file: {"node1": {"speed": 32}, "node2": {"speed": 33}}}
+
+This would be logged in the central results log as:
+
+.. code-block:: text
+
+    {"name": "test1", "avg_speed": 32.5, "file": "node1", "speed": 32}
+    {"name": "test1", "avg_speed": 32.5, "file": "node2", "speed": 33}
+
+This does not change how logs are written to the per-test-run results file.
 
 proxies
 ^^^^^^^

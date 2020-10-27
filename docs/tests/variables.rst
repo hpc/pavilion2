@@ -3,8 +3,9 @@
 Pavilion Test Variables
 =======================
 
-Pavilion test configs can contain variable references in their various
-value strings. Here we look at these variables in full detail.
+Pavilion provides a wide variety of variable you can substitute into your
+test configuration values using :ref:`tests.values.expressions`. This covers
+where those values come from.
 
 .. contents::
 
@@ -36,8 +37,8 @@ Test Variables (var)
 ^^^^^^^^^^^^^^^^^^^^
 
 The test's ``variables`` section provides these variables, as
-demonstrated in many examples. See the `Test
-Variables <#test-variables>`__ section for more on these. While these
+demonstrated in many examples. See the :ref:`tests.variables.detail`
+section for more on these. While these
 generally come from the test config, they can also be provided via host
 and mode configuration files.
 
@@ -48,7 +49,7 @@ System variables are provided via system plugins. These are designed to
 be easy to write, and provide a way for people working with Pavilion to
 provide extra information about the system or cluster that Pavilion is
 currently running on. The values may be
-`deferred <#deferred-variables>`__.
+:ref:`tests.variables.deferred`.
 
 Use ``pav show sys_vars`` to list the system variables.
 
@@ -89,7 +90,7 @@ are several variable data structures available.
 
 **Note: While all of the following examples use variables from the 'test
 variables' set, variables from any variable set may have such data
-structures.**
+structures (but nothing more complex).**
 
 Single Value
 ^^^^^^^^^^^^

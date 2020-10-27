@@ -5,39 +5,18 @@ it contains the functions used to get the base result values, as well as
 resolving result evaluations."""
 
 import json
-import textwrap
 from pathlib import Path
-from typing import IO, Callable, List
+from typing import List
 
 from pavilion import lockfile as _lockfile
+from pavilion import utils
 from pavilion.test_config import resolver
 from . import parsers
-from .base import base_results, ResultError, BASE_RESULTS
+from .base import base_results, BASE_RESULTS, RESULT_ERRORS
+from .common import ResultError
 from .evaluations import check_expression, evaluate_results, StringParserError
-from .parsers import parse_results, ResultParser
-
-
-def get_result_logger(log_file: IO[str]) -> Callable[..., None]:
-    """Return a result logger function that will write to the given outfile
-    and track the indentation level. The logger will take
-    the string to log, and an optional lvl argument to change the
-    indent level. If the log file is None, this will silently drop all logs."""
-
-    log_tab_level = 0
-
-    def log(msg, lvl=None):
-        """Log the given message to the log_file."""
-
-        nonlocal log_tab_level
-
-        if lvl is not None:
-            log_tab_level = lvl
-
-        if log_file is not None:
-            log_file.write(textwrap.indent(msg, "  " * log_tab_level))
-            log_file.write('\n')
-
-    return log
+from .parse import parse_results, DEFAULT_KEY
+from .parsers import ResultParser
 
 
 def check_config(parser_conf, evaluate_conf):
@@ -54,7 +33,7 @@ For evaluations we check for:
 - Reserved key names.
 - Invalid expression syntax.
 
-:raises TestRunError: When a config breaks the rules.
+:raises ResultError: When a config breaks the rules.
 """
 
     # Track the key_names seen, along with the 'per_file' setting for each.
@@ -67,28 +46,40 @@ For evaluations we check for:
 
         defaults = parser_conf[rtype].get('_defaults', {})
 
-        for key, rconf in parser_conf[rtype].items():
+        for key_str, rconf in parser_conf[rtype].items():
 
-            # Don't process this as a normal result parser
-            if key == parsers.DEFAULT_KEY:
-                continue
+            if ',' in key_str:
+                keys = [k.strip() for k in key_str.split() if k.strip()]
+                if parse.DEFAULT_KEY in keys:
+                    raise ResultError(
+                        "The default setting key '{}' can't be used in "
+                        "a key list. Found in '{}' under parser '{}'"
+                        .format(parse.DEFAULT_KEY, key_str, rtype))
+            else:
+                keys = [key_str]
 
-            if key in BASE_RESULTS.keys():
-                raise ResultError(
-                    "Result parser key '{}' under parser '{}' is reserved."
-                    .format(key, rtype)
-                )
+            for key in keys:
+                # Don't process this as a normal result parser
+                if key == parse.DEFAULT_KEY:
+                    continue
 
-            if key in key_names:
-                raise ResultError(
-                    "Duplicate result parser key name '{}' under parser '{}'"
-                    .format(key, rtype))
+                if key in BASE_RESULTS.keys():
+                    raise ResultError(
+                        "Result parser key '{}' under parser '{}' is reserved."
+                        .format(key, rtype)
+                    )
 
-            key_names.add(key)
+                if key in key_names:
+                    raise ResultError(
+                        "Duplicate result parser key name '{}' under parser "
+                        "'{}'".format(key, rtype))
+
+                key_names.add(key)
+
             parser = parsers.get_plugin(rtype)
 
-            rconf = parsers.set_parser_defaults(rconf, defaults)
-            parsers.check_parser_conf(rconf, key, parser)
+            rconf = parser.set_parser_defaults(rconf, defaults)
+            parser.check_config(rconf, keys)
 
     for key, expr in evaluate_conf.items():
         if key in BASE_RESULTS:
@@ -149,3 +140,14 @@ def prune_result_log(log_path: Path, ids: List[str]) -> List[dict]:
         rewrite_log_path.rename(log_path)
 
     return pruned
+
+
+def remove_temp_results(results: dict, log: utils.IndentedLog) -> None:
+    """Remove all result keys that start with an underscore."""
+
+    for key, value in list(results.items()):
+        if key.startswith('_'):
+            log("Removing temp key: '{}'".format(key))
+            del results[key]
+        if isinstance(value, dict):
+            remove_temp_results(value, log)

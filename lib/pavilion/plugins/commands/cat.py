@@ -60,13 +60,13 @@ class FileCommand(commands.Command):
                     output.fprint(block, width=None, file=self.outfile, end="")
 
         except FileNotFoundError:
-            output.fprint("file '{}' does not exist.".format(file), sys.stderr,
-                          color=output.RED)
+            output.fprint("file '{}' does not exist.".format(file),
+                          file=sys.stderr, color=output.RED)
             return errno.EEXIST
 
         except IsADirectoryError:
-            output.fprint("{} is a directory.".format(file), sys.stderr,
-                          color=output.RED)
+            output.fprint("{} is a directory.".format(file),
+                          file=sys.stderr, color=output.RED)
             return errno.EINVAL
 
         except (IOError, OSError, PermissionError) as err:

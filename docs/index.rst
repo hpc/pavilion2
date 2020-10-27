@@ -26,12 +26,28 @@ Project goals:
    :maxdepth: 2
    :caption: Contents:
 
-   basics.rst
    install.rst
+   basics.rst
    advanced.rst
    config.rst
    test_run_lifecycle.rst
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Test Configuration
+
    tests/index.rst
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Test Results Gathering
+
+   results/index.rst
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Plugins
+
    plugins/index.rst
 
 .. toctree::
