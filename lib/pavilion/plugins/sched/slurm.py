@@ -470,46 +470,37 @@ class Slurm(SchedulerPlugin):
         if node_list is None or node_list == '':
             return []
 
-        match = cls.NODE_LIST_RE.match(node_list)
-        if match is None:
-            node_part_re = re.compile(cls.NODE_SEQ_REGEX_STR + r'$')
-            for part in node_list.split(','):
-                if not node_part_re.match(part):
-                    raise ValueError(
-                        "Invalid Node List: '{}'. Syntax error in item '{}'. "
-                        "Node lists components be a hostname or hostname "
-                        "prefix followed by a range of node numbers. "
-                        "Ex: foo003,foo0[10-20],foo[103-104]"
-                        .format(node_list, part)
-                    )
+        match = re.search(r'([a-zA-Z][a-zA-Z_-]*\d*)\[(.*)\]', node_list)
 
-            # If all the parts matched, then it's an overall format issue.
-            raise ValueError("Invalid Node List: '{}' "
-                             "Good Example: foo003,foo0[10-20],"
-                             "foo[103-104]")
+        if match is None:
+            raise ValueError(
+                "Invalid Node List: '{}'. Node lists components be a hostname "
+                "prefix followed by a list of node numbers and node number "
+                "ranges. Ex: foo[3], foo[10-20], foo[3,10-20]".format(node_list)
+            )
+
+        host, nodelist = match.groups()
 
         nodes = []
-        for part in node_list.split(','):
-            if '[' in part:
-                base, nrange = part.split('[')
-                # Drop the closing bracket
-                nrange = nrange[:-1]
-                start, end = nrange.split('-')
-                digits = min(len(start), len(end))
-                start = int(start)
-                end = int(end)
-                if end < start:
-                    raise ValueError(
-                        "In node list '{}' part '{}', node range ends before"
-                        "it starts."
+        for part in nodelist.split(','):
+            start = part
+            end = part
+            if '-' in part:
+                start, end = part.split("-")
+
+            if end < start:
+                raise ValueError(
+                    "In node list '{}' part '{}', node range ends before"
+                    "it starts."
                         .format(node_list, part)
-                    )
-                for i in range(start, end+1):
-                    node = ('{base}{num:0{digits}d}'
-                            .format(base=base, num=i, digits=digits))
-                    nodes.append(node)
-            else:
-                nodes.append(part)
+                )
+
+            digits = min(len(start), len(end))
+
+            for i in range(int(start), int(end)+1):
+                node = ('{base}{num:0{digits}d}'
+                        .format(base=host, num=i, digits=digits))
+                nodes.append(node)
 
         return nodes
 
