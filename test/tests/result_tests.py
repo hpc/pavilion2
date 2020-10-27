@@ -58,6 +58,7 @@ class ResultParserTests(PavTestCase):
                     'echo "D: 7"',
                     'echo "E: 8"',
                     'echo "In a World where..." >> other.log',
+                    'echo "What in the World" >> other.log',
                     'echo "something happens..." >> other2.log',
                     'echo "and someone saves the World." >> other3.log',
                     'echo "I\'m here to cause Worldwide issues." >> other.txt'
@@ -191,8 +192,8 @@ class ResultParserTests(PavTestCase):
             'false': False,
             'per_file': {
                 'other': {
-                    'count': 1,
-                    'name': 'In a World'},
+                    'count': 2,
+                    'name': "I'm here to cause World"},
                 'other2': {
                     'count': 0},
                 'other3': {
@@ -207,6 +208,7 @@ class ResultParserTests(PavTestCase):
             'name_list': ['other', 'other3'],
             'lists': [
                 "In a World",
+                "What in the World",
                 "I'm here to cause World",
                 "and someone saves the World"],
             'all': False,
@@ -214,10 +216,11 @@ class ResultParserTests(PavTestCase):
         }
 
         for key in expected:
-            self.assertEqual(results[key], expected[key])
+            self.assertEqual(results[key], expected[key],
+                             msg="Difference for key {}".format(key))
         self.assertIn(
             "When storing value for key 'name' per 'name', multiple files "
-            "normalized to the name 'other': other.txt, other.log",
+            "normalized to the name 'other': other.log, other.txt",
             results[result.RESULT_ERRORS])
 
         def find_hidden(resultd: dict) -> set:
