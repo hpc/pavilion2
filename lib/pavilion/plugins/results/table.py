@@ -12,7 +12,8 @@ class Table(parsers.ResultParser):
     def __init__(self):
         super().__init__(
             name='table',
-            description="Parses tables.",
+            description="Parses tables of data, creating a mapping of "
+                        "row to a mapping of data by column.",
             config_elems=[
                 yc.StrElem(
                     'delimiter_re',
@@ -74,7 +75,6 @@ class Table(parsers.ResultParser):
             validators={
                 'has_header': ('True', 'False'),
                 'by_column':  ('True', 'False'),
-                'col_num':    int,
                 'delimiter_re': re.compile,
                 'table_end_re': re.compile,
             }
