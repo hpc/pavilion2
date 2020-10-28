@@ -1,21 +1,37 @@
+"""Graph pavilion results data."""
+
 import errno
 import re
 import statistics
-from datetime import datetime
 from typing import Dict
 
 from pavilion import cmd_utils
 from pavilion import commands
 from pavilion import filters
 from pavilion import output
-from pavilion.commands import Command, CommandError
-from pavilion.result.evaluations import check_evaluations, evaluate_results
+from pavilion.commands import CommandError
 from pavilion.result.base import ResultError
-from pavilion.status_file import STATES
-from pavilion.test_run import TestRun
+from pavilion.result.evaluations import check_evaluations, evaluate_results
+from pavilion.test_run import TestRun, TestRunError
+
+
+try:
+    import matplotlib
+
+    matplotlib.use('agg')
+    import matplotlib.pyplot
+
+    matplotlib.pyplot.ioff()
+
+    HAS_MATPLOT_LIB = True
+
+except ImportError:
+
+    HAS_MATPLOT_LIB = False
 
 
 class GraphCommand(commands.Command):
+    """Command to graph Pavilion results data."""
 
     def __init__(self):
         super().__init__(
@@ -33,7 +49,7 @@ class GraphCommand(commands.Command):
             help='Specific Test Ids to graph.'
         )
         parser.add_argument(
-            '--filename', action='store',
+            '--filename', action='store', required=True,
             help='File name to use for saving graph.'
         )
         parser.add_argument(
@@ -41,12 +57,12 @@ class GraphCommand(commands.Command):
             help='Exclude Test Ids from the graph.'
         )
         parser.add_argument(
-            '--y', nargs='+', action='store',
+            '--y', nargs='+', action='store', required=True,
             help='Specify the value(s) graphed from the results '
                  'for each test.'
         )
         parser.add_argument(
-            '--x', nargs=1, action='store',
+            '--x', nargs=1, action='store', required=True,
             help='Specify the value to be used on the X axis.'
         )
         parser.add_argument(
@@ -63,45 +79,62 @@ class GraphCommand(commands.Command):
         )
 
     def run(self, pav_cfg, args):
+        """"""
 
-        try:
-            import matplotlib
-            matplotlib.use('agg')
-            import matplotlib.pyplot
-            matplotlib.pyplot.ioff()
-        except ImportError as err:
-            output.fprint("Error importing matplotlib: {}".format(err),
-                          color=output.RED)
+        if HAS_MATPLOT_LIB:
+            output.fprint(
+                "The command requires matplotlib to function. Matplotlib is an"
+                "optional requirement of Pavilion.")
+
             return errno.EINVAL
 
         try:
-            self.validate_args(args)
-        except CommandError as err:
-            output.fprint("Invalid command arguments:", color=output.RED)
-            output.fprint(err)
-            return errno.EINVAL
+            exclude = [int(test) for test in args.exclude]
         except ValueError as err:
-            output.fprint("Invalid '--exclude' argument:", color=output.RED)
-            output.fprint(err)
+            output.fprint(
+                "Invalid '--exclude' test id:\n{}".format(err.args[0]),
+                color=output.RED, file=self.errfile)
             return errno.EINVAL
 
-        output.fprint("Generating Graph...", file=self.outfile, end='\r')
+        output.fprint("Generating Graph...", file=self.outfile)
         # Get filtered Test IDs.
         test_ids = cmd_utils.arg_filtered_tests(pav_cfg, args)
 
         # Load TestRun for all tests, skip those that are to be excluded.
-        tests = [TestRun.load(pav_cfg, test_id) for test_id in test_ids
-                 if test_id not in args.exclude]
+        tests = []
+        for test_id in test_ids:
+            if test_id in exclude:
+                continue
+
+            try:
+                TestRun.load(pav_cfg, test_id)
+            except TestRunError as err:
+                output.fprint(
+                    "Error loading test run {}. Use '--exclude' to stop "
+                    "seeing this message.\n{}"
+                    .format(test_id, err.args[0]),
+                    color=output.YELLOW, file=self.errfile)
 
         if not tests:
             output.fprint("Test filtering resulted in an empty list.")
             return errno.EINVAL
 
-        evaluations, stats_dict = self.build_dicts(args.x, args.y)
+        y_evals = {'y' + str(i): args.y for i in range(len(args.y))}
+        stats_dict = {key: {'x': [], 'y': []} for key in y_evals}
+
+        all_evals = y_evals.copy()
+        all_evals['x'] = args.x
+        try:
+            check_evaluations(all_evals)
+        except ResultError as err:
+            output.fprint(
+                "Invalid graph evaluation:\n{}".format(err.args[0]),
+                file=self.errfile, color=output.RED)
 
         colormap = matplotlib.pyplot.get_cmap('tab20')
         colormap = self.set_colors(evaluations, colormap.colors)
 
+        # Rename 'graph data' or something'
         results = {}
         for test in tests:
             try:
@@ -159,9 +192,10 @@ class GraphCommand(commands.Command):
                       .format(args.filename), color=output.GREEN,
                       file=self.outfile)
 
-    def gather_results(self, evaluations, test_results) -> Dict:
+    def gather_results(self, x_eval, y_evals, test_results) -> Dict:
         """
         Gather and format a test run objects results.
+
         :param evaluations: The evaluations dictionary to be used to gather
                results.
         :param test_results: A test run's result dictionary.
@@ -169,7 +203,16 @@ class GraphCommand(commands.Command):
                  the given test run.
         """
 
-        evaluate_results(test_results, evaluations)
+        all_evals = y_evals.copy()
+        all_evals['x'] = x_eval
+        try:
+            evaluate_results(test_results, all_evals)
+        except ResultError as err:
+            output.fprint(
+                "Invalid graph evaluation:\n{}".format(err.args[0]),
+                file=self.errfile, color=output.RED)
+
+        x_vals = test_results['x']
 
         # X value evaluations should only result in a list when graphing
         # individual node results from a single test run.
@@ -177,7 +220,7 @@ class GraphCommand(commands.Command):
             if not isinstance(test_results['x'][-1], (int, str, float)):
                 raise ResultTypeError("x value evaluation '{}' resulted in a "
                                       "list of invalid type {}."
-                                      .format(evaluations['x'],
+                                      .format(x_eval,
                                               type(test_results['x'][-1])
                                               .__name__))
             results = {}
@@ -191,13 +234,13 @@ class GraphCommand(commands.Command):
                         x = int(node.groups()[0])
 
                 evals = {}
-                for key in evaluations.keys():
+                for key in y_evals.keys():
                     if key == 'x':
                         continue
                     if not isinstance(test_results[key], list):
                         raise ResultTypeError("y value evaluation '{}' resulted"
                                               " in invalid type {}."
-                                              .format(evaluations[key],
+                                              .format(y_evals[key],
                                                       type(test_results[key])
                                                       .__name__))
                     evals.update({key: test_results[key][i]})
@@ -210,7 +253,7 @@ class GraphCommand(commands.Command):
 
             x = test_results['x']
 
-            for key in evaluations.keys():
+            for key in y_evals.keys():
                 if key == 'x':
                     continue
                 evals.update({key: test_results[key]})
@@ -219,58 +262,15 @@ class GraphCommand(commands.Command):
         else:
             raise ResultTypeError("x value  evaluation '{}' resulted in invalid"
                                   " type {}."
-                                  .format(evaluations['x'],
+                                  .format(y_evals['x'],
                                           type(test_results['x']).__name__))
 
         return results
 
-    def validate_args(self, args) -> None:
-        """
-        Validate command arguments.
-        :param args: the passed args parse object.
-        :return:
-        """
-
-        if not args.x:
-            raise CommandError("No value was given to graph on X-axis. Use "
-                               "'--x' flag to specify.")
-        if not args.y:
-            raise CommandError("No values were given to graph on y-axis. "
-                               "Use '--y' flag to specify.")
-
-        if not args.filename:
-            raise CommandError("No filename provided. Use '--filename' to "
-                               "specify an output file.")
-
-        # Convert test exclude args into integers
-        args.exclude = [int(test) for test in args.exclude]
-
-    def build_dicts(self, x_eval, y_eval) -> (Dict, Dict):
-        """
-        Take the parsed command arguments for --x and  --y and build an
-        evaluations dictionary to be used later for gathering results.
-        Additionally, build a statistics dict based on evaluations dict.
-        :param x_eval: List of evaluation string for x value.
-        :param y_eval: List of evaluation string for y values.
-        :return: A dictionary to be used with pavilion's evaluations module.
-        """
-
-        evaluations = dict()
-        stats_dict = dict()
-        evaluations['x'] = x_eval[0]
-        for i in range(len(y_eval)):
-            key = 'y'+str(i)
-            evaluations[key] = y_eval[i]
-            stats_dict.update({key: {'x': [], 'y': []}})
-
-        check_evaluations(evaluations)
-
-        return evaluations, stats_dict
-
-    def set_colors(self, evaluations, colors) -> Dict:
+    def set_colors(self, y_evals, colors) -> Dict:
         """
         Set color for each y value to be plotted.
-        :param evaluations: evaluations dictionary.
+        :param y_evals: y axis evaluations dictionary.
         :param colors: Tuple of colors from a matplotlib color map.
         :return: A dictionary with color lookups, by y value.
         """
@@ -278,9 +278,7 @@ class GraphCommand(commands.Command):
         colormap = {}
         colors = [color for color in colors]
 
-        for key in evaluations.keys():
-            if key == 'x':
-                continue
+        for key in y_evals.keys():
             colormap[key] = {'plot': colors.pop(0), 'stat': colors.pop(0)}
 
         return colormap
