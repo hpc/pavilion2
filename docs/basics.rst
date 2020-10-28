@@ -196,18 +196,36 @@ command.
      supermagic | 41 | PASS   | 3.825702 | 19-05-16 10:38 | 19-05-16 10:38 | 19-05-16 10:38
 
 
-Every test has a results object that contains at least the keys listed
-above. - result - The PASS/FAIL/ERROR result for the test. - duration -
-How long the test lasted in seconds (finished - started) - created -
-When the test run was created - started - When the test actually started
-- finished - When the test run completed
-
-By default, a test passes if it's last command returns 0. You can
-override this behaviour by using result parsers and evaluations
-(:ref:`tests.results`).
-You can also use result parsers to add additional, arbitrary values to
-the test results.
+Every test has a results object that contains a variety of useful,
+automatically populated keys. Additional keys can be defined through
+:ref:`result parsing and result evaluations <results.basics>`.
 
 Results are saved alongside each test, as well being written to a
 central result log that is suitable for import into Splunk or other
 tools.
+
+The Overall Result
+^^^^^^^^^^^^^^^^^^
+
+By default, a test passes if its last command returns ``0``, but this can be
+easily overridden.
+
+.. code-block:: yaml
+
+    mytest:
+        run:
+            cmds:
+                # We'll use the result parsers below to parse values from
+                # the output of the run script.
+                - './test_script.sh'
+
+        result_parse:
+            regex:
+                # Use the regex parser to extract a speed key and add it to
+                # the results.
+                speed:
+                    regex: '^speed (\d+)'
+
+        result_evaluate:
+            # The test will PASS if the speed (extracted above) is more than 50.
+            result: 'speed > 50'

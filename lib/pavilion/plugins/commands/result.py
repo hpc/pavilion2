@@ -11,7 +11,7 @@ from pavilion import cmd_utils
 from pavilion import commands
 from pavilion import filters
 from pavilion import output
-from pavilion.result import check_config
+from pavilion import result
 from pavilion.test_config import resolver
 from pavilion.test_run import (TestRun, TestRunError, TestRunNotFoundError)
 
@@ -259,9 +259,11 @@ class ResultsCommand(commands.Command):
             test.config['result_evaluate'] = updates['result_evaluate']
 
             try:
-                check_config(test.config['result_parse'],
-                             test.config['result_evaluate'])
-            except TestRunError as err:
+                result.check_config(
+                    test.config['result_parse'],
+                    test.config['result_evaluate'])
+
+            except result.ResultError as err:
                 output.fprint(
                     "Error found in results configuration: {}"
                     .format(err.args[0]),

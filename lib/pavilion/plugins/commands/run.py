@@ -7,6 +7,7 @@ import time
 from collections import defaultdict
 from typing import List, Union
 
+import pavilion.result.common
 from pavilion import commands
 from pavilion import output
 from pavilion import result
