@@ -11,6 +11,7 @@ from typing import List
 
 import yaml_config as yc
 from pavilion import scriptcomposer
+from pavilion import output
 from pavilion.schedulers import SchedulerPlugin
 from pavilion.schedulers import SchedulerPluginError
 from pavilion.schedulers import SchedulerVariables
@@ -332,11 +333,17 @@ class Slurm(SchedulerPlugin):
         # The characters in a valid hostname.
         r'[a-zA-Z][a-zA-Z_-]*\d*'
         # A numeric range of nodes in square brackets.
-        r'(?:\[\d+-\d+\])?'
+        r'(?:\[.*\])?'
     )
     NODE_LIST_RE = re.compile(
         # Match a comma separated list of these things.
         r'{0}(?:,{0})*$'.format(NODE_SEQ_REGEX_STR)
+    )
+
+    NODE_BRACKET_FORMAT_RE = re.compile(
+        # Match hostname followed by square brackets,
+        # group whats in the brackets.
+        r'([a-zA-Z][a-zA-Z_-]*\d*)\[(.*)\]'
     )
 
     def __init__(self):
@@ -470,37 +477,65 @@ class Slurm(SchedulerPlugin):
         if node_list is None or node_list == '':
             return []
 
-        match = re.search(r'([a-zA-Z][a-zA-Z_-]*\d*)\[(.*)\]', node_list)
-
+        match = cls.NODE_LIST_RE.match(node_list)
         if match is None:
-            raise ValueError(
-                "Invalid Node List: '{}'. Node lists components be a hostname "
-                "prefix followed by a list of node numbers and node number "
-                "ranges. Ex: foo[3], foo[10-20], foo[3,10-20]".format(node_list)
-            )
+            node_part_re = re.compile(cls.NODE_SEQ_REGEX_STR + r'$')
+            # The following is required to handle foo[3,6-9].
+            prev = ""
+            for part in node_list.split(','):
+                # Logic used to recombined 'foo[3', '6-9]' after split. 
+                if prev:
+                    part = prev + "," + part
+                    prev = ""
+                if '[' in part and '-' not in part:
+                    prev = part
+                    continue
+                if not node_part_re.match(part):
+                    raise ValueError(
+                        "Invalid Node List: '{}'. Syntax error in item '{}'. "
+                        "Node lists components be a hostname or hostname "
+                        "prefix followed by a range of node numbers. "
+                        "Ex: foo003,foo0[10-20],foo[103-104]"
+                        .format(node_list, part)
+                    )
 
-        host, nodelist = match.groups()
+            # If all the parts matched, then it's an overall format issue.
+            raise ValueError("Invalid Node List: '{}' "
+                             "Good Example: foo003,foo0[10-20],"
+                             "foo[103-104]")
 
         nodes = []
-        for part in nodelist.split(','):
-            start = part
-            end = part
-            if '-' in part:
-                start, end = part.split("-")
-
-            if end < start:
-                raise ValueError(
-                    "In node list '{}' part '{}', node range ends before"
-                    "it starts."
-                        .format(node_list, part)
-                )
-
-            digits = min(len(start), len(end))
-
-            for i in range(int(start), int(end)+1):
-                node = ('{base}{num:0{digits}d}'
-                        .format(base=host, num=i, digits=digits))
-                nodes.append(node)
+        prev = ""
+        for part in node_list.split(','):
+            if prev:
+                part = prev + "," + part
+                prev = ""
+            if '[' in part and '-' not in part:
+                prev = part
+                continue
+            match = cls.NODE_BRACKET_FORMAT_RE.match(part)
+            if match:
+                host, nodelist = match.groups()
+                for node in nodelist.split(","):
+                    if '-' in node:
+                        start, end = node.split('-')
+                        digits = min(len(start), len(end))
+                        if end < start:
+                            raise ValueError(
+                                "In node list '{}' part '{}', node range ends "
+                                "before it starts."
+                                .format(node_list, part)
+                            )
+                        for i in range(int(start), int(end)+1):
+                            node = ('{base}{num:0{digits}d}'
+                                    .format(base=host, num=i, digits=digits))
+                            nodes.append(node)
+                    else:
+                        node = ('{base}{num}'
+                                .format(base=host, num=node))
+                        nodes.append(node)
+            else:
+                nodes.append(part)
 
         return nodes
 
