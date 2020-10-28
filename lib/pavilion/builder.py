@@ -563,7 +563,7 @@ class TestBuilder:
         """Creates a spack.yaml file in the build dir, so that each unique
         build can activate it's own spack environment."""
 
-        spack_path = self._pav_cfg.get('spack_path')
+        spack_path = self._pav_cfg['spack_path']
         spack_dir = spack_path/'opt'/'spack'
 
         # Set up upstreams, will always have 'main', so that builds in the
@@ -615,7 +615,7 @@ class TestBuilder:
 
         # Generate an anonymous spack environment for a new build.
         spack_config = self.test.config.get('spack', {})
-        if self.test.enable_spack():
+        if self.test.spack_enabled():
             self.create_spack_env(spack_config, build_dir)
 
         try:

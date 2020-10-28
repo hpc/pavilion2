@@ -477,7 +477,7 @@ class TestRun(TestAttributes):
         """Validate test configs, specifically those that are spack related."""
 
         spack_path = self._pav_cfg.get('spack_path', None)
-        spack_enable = self.enable_spack()
+        spack_enable = self.spack_enabled()
         if spack_enable is True and spack_path is None:
             raise TestRunError("Spack cannot be enabled without 'spack_path' "
                                "being defined in the pavilion config.")
@@ -666,21 +666,15 @@ class TestRun(TestAttributes):
         finally:
             config_lock.unlock()
 
-    def enable_spack(self):
+    def spack_enabled(self):
+        """Check if spack is being used by this test run."""
 
         spack_build = self.config.get('build', {}).get('spack', {})
         spack_run = self.config.get('run', {}).get('spack', {})
 
-        if spack_build.get('install', []):
-            return True
-
-        if spack_build.get('load', []):
-            return True
-
-        if spack_run.get('load', []):
-            return True
-
-        return False
+        return (spack_build.get('install', [])
+                or spack_build.get('load', [])
+                or spack_run.get('load', []))
 
     def build(self, cancel_event=None):
         """Build the test using its builder object and symlink copy it to
@@ -1117,7 +1111,7 @@ be set by the scheduler plugin as soon as it's known."""
             script.comment('Output the environment for posterity')
             script.command("declare -p")
 
-        if self.enable_spack():
+        if self.spack_enabled():
             spack_commands = config.get('spack', {})
             install_packages = spack_commands.get('install', [])
             load_packages = spack_commands.get('load', [])
