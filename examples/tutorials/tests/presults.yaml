@@ -1,0 +1,16 @@
+# This example goes with the 'parsing_results' tutorial in the 
+# Pavilion documentation at https://pavilion2.readthedocs.io/
+
+ex:
+    summary: "An example test for following the results tutorial at 
+              https://pavilion2.readthedocs.io/"
+
+    build:
+        source_path: 'presults_code'
+    
+    run:
+        cmds:
+            - ./main.sh
+            - for i in 1 2 3 4 5; do
+            -   ./node.sh ${i} > node${i}.out
+            - done 

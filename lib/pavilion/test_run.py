@@ -15,6 +15,7 @@ import uuid
 from pathlib import Path
 from typing import Callable, Any
 
+import pavilion.result.common
 from pavilion import builder
 from pavilion import dir_db
 from pavilion import lockfile
@@ -84,9 +85,8 @@ class TestAttributes:
     Getters should return None if no value is available.
     Getters should all have a docstring.
 
-    *************
-      WARNING
-    ************
+    **WARNING**
+
     This object is not thread or any sort of multi-processing safe. It relies
     on the expectation that the test lifecycle should generally mean there's
     only one instance of a test around that might change these values at any
@@ -306,11 +306,11 @@ class TestRun(TestAttributes):
     4. Test is run. -- ``test.run()``
     5. Results are gathered. -- ``test.gather_results()``
 
-    :ivar int id: The test id.
+    :ivar int ~.id: The test id.
     :ivar dict config: The test's configuration.
     :ivar Path test.path: The path to the test's test_run directory.
     :ivar Path suite_path: The path to the test suite file that this test came
-        from. May be None for artifically generated tests.
+        from. May be None for artificially generated tests.
     :ivar dict results: The test results. Set None if results haven't been
         gathered.
     :ivar TestBuilder builder: The test builder object, with information on the
@@ -430,6 +430,13 @@ class TestRun(TestAttributes):
         self.results_log = self.path/'results.log'
         self.results_path = self.path/'results.json'
         self.build_origin_path = self.path/'build_origin'
+        self.build_timeout_file = config.get('build', {}).get('timeout_file')
+
+        # Use run.log as the default run timeout file
+        self.timeout_file = self.run_log
+        run_timeout_file = config.get('run', {}).get('timeout_file')
+        if run_timeout_file is not None:
+            self.timeout_file = self.path/run_timeout_file
 
         build_config = self.config.get('build', {})
 
@@ -762,8 +769,17 @@ class TestRun(TestAttributes):
                 try:
                     ret = proc.wait(timeout=timeout)
                 except subprocess.TimeoutExpired:
-                    out_stat = self.run_log.stat()
-                    quiet_time = time.time() - out_stat.st_mtime
+                    if self.timeout_file.exists():
+                        timeout_file = self.timeout_file
+                    else:
+                        timeout_file = self.run_log
+
+                    try:
+                        out_stat = timeout_file.stat()
+                        quiet_time = time.time() - out_stat.st_mtime
+                    except OSError:
+                        pass
+
                     # Has the output file changed recently?
                     if self.run_timeout < quiet_time:
                         # Give up on the build, and call it a failure.
@@ -870,14 +886,15 @@ of result keys.
 
         parser_configs = self.config['result_parse']
 
-        result_log = result.get_result_logger(log_file)
+        result_log = utils.IndentedLog(log_file)
 
         result_log("Gathering base results.")
         results = result.base_results(self)
 
         results['return_value'] = run_result
 
-        result_log("Base results:", lvl=1)
+        result_log("Base results:")
+        result_log.indent = 1
         result_log(pprint.pformat(results))
 
         if not regather:
@@ -887,7 +904,7 @@ of result keys.
 
         try:
             result.parse_results(self, results, log=result_log)
-        except result.ResultError as err:
+        except pavilion.result.common.ResultError as err:
             results['result'] = self.ERROR
             results['pav_result_errors'].append(
                 "Error parsing results: {}".format(err.args[0]))
@@ -905,7 +922,7 @@ of result keys.
                 self.config['result_evaluate'],
                 result_log
             )
-        except result.ResultError as err:
+        except pavilion.result.common.ResultError as err:
             results['result'] = self.ERROR
             results['pav_result_errors'].append(err.args[0])
             if not regather:
@@ -924,6 +941,10 @@ of result keys.
 
         result_log("Set final result key to: '{}'".format(results['result']))
         result_log("See results.json for the final result json.")
+
+        result_log("Removing temporary values.")
+        result_log.indent = 1
+        result.remove_temp_results(results, result_log)
 
         self._results = results
 

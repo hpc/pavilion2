@@ -69,7 +69,7 @@ class FunctionPlugin(IPlugin.IPlugin):
         :param str description: A short description of this function. The
             class docstring is used by default.
         :param int priority: The plugin priority.
-        :param [type] arg_specs: A list of type specs for each function
+        :param [type] arg_specs: A tuple of type specs for each function
             argument. The spec for each argument defines what structure
             and types the value will have, and the auto-conversions that
             will happen if possible. ``None`` denotes that arg_specs
@@ -139,7 +139,7 @@ class FunctionPlugin(IPlugin.IPlugin):
               or bool. ints and floats are left alone, bools become
               ints, and strings become an int or a float if they can.
             - 'None' may be given as the type of contained items for lists
-              or dicts, denoting that contained time doesn't matter.
+              or dicts, denoting that contained type doesn't matter.
         :raises FunctionPluginError: On a bad arg spec.
         """
 

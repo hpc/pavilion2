@@ -6,21 +6,28 @@ import pprint
 from collections import OrderedDict
 
 import pavilion.result
+import pavilion.result.common
 import yaml_config as yc
 from pavilion import arguments
 from pavilion import commands
 from pavilion import plugins
 from pavilion import result
+from pavilion import utils
 from pavilion.plugins.commands import run
 from pavilion.result import parsers, ResultError, base
 from pavilion.test_run import TestRun
 from pavilion.unittest import PavTestCase
-from pavilion.test_config import resolver
 
 LOGGER = logging.getLogger(__name__)
 
 
 class ResultParserTests(PavTestCase):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Don't limit the size of the error diff.
+        self.maxDiff = None
 
     def setUp(self):
         # This has to run before any command plugins are loaded.
@@ -41,7 +48,17 @@ class ResultParserTests(PavTestCase):
                 'cmds': [
                     'echo "Hello World."',
                     'echo "Goodbye Cruel World."',
+                    'echo "Multipass 1, 2, 3"',
+                    'echo "A: 1"',
+                    'echo "B: 2"',
+                    'echo "B: 3"',
+                    'echo "C: 4"',
+                    'echo "D: 5"',
+                    'echo "B: 6"',
+                    'echo "D: 7"',
+                    'echo "E: 8"',
                     'echo "In a World where..." >> other.log',
+                    'echo "What in the World" >> other.log',
                     'echo "something happens..." >> other2.log',
                     'echo "and someone saves the World." >> other3.log',
                     'echo "I\'m here to cause Worldwide issues." >> other.txt'
@@ -49,8 +66,54 @@ class ResultParserTests(PavTestCase):
             },
             'result_parse': {
                 'regex': {
-
                     'basic': {'regex': r'.* World'},
+                    'bc': {
+                        'regex': r'.: (\d)',
+                        'preceded_by': [r'^B:', r'^C:'],
+                        'match_select': 'all',
+                    },
+                    'bcd': {
+                        'regex': r'.: (\d)',
+                        'preceded_by': [r'^B:', r'^C:'],
+                        'for_lines_matching': r'^D:',
+                        'match_select': 'all',
+                    },
+                    'bees': {
+                        'regex': r'.: (\d)',
+                        'for_lines_matching': r'^B:',
+                        'match_select': 'all',
+                    },
+                    'last_b': {
+                        'regex':              r'.: (\d)',
+                        'for_lines_matching': r'^B:',
+                        'match_select':       'last',
+                    },
+                    'middle_b': {
+                        'regex':              r'.: (\d)',
+                        'for_lines_matching': r'^B:',
+                        'match_select':       '1',
+                    },
+                    'other_middle_b': {
+                        'regex':              r'.: (\d)',
+                        'for_lines_matching': r'^B:',
+                        'match_select':       '-2',
+                    },
+                    'no_lines_match': {
+                        'regex':              r'.*',
+                        'for_lines_matching': r'nothing',
+                        'match_select':       parsers.MATCH_ALL,
+                    },
+                    'no_lines_match_last': {
+                        'regex':              r'.*',
+                        'for_lines_matching': r'nothing',
+                        'match_select':       parsers.MATCH_FIRST,
+                    },
+                    'mp1, _  ,   mp3': {
+                        'regex': r'Multipass (\d), (\d), (\d)'
+                    },
+                    'mp4,mp5': {
+                        'regex': r'Multipass (\d), (\d), (\d)'
+                    },
                     'true': {
                         # Look all the log files, and save 'True' on match.
                         'files': ['../run.log'],
@@ -68,15 +131,9 @@ class ResultParserTests(PavTestCase):
                         # As before, but keep match counts.
                         'files': ['../run.log', '*.log'],
                         'regex': r'.* World',
-                        'match_type': parsers.MATCH_ALL,
+                        'match_select': parsers.MATCH_ALL,
                         'action': parsers.ACTION_COUNT,
-                        'per_file': parsers.PER_FULLNAME,
-                    },
-                    'fullname': {
-                        # Store matches by fullname
-                        'files': ['../run.log', '*.log'],
-                        'regex': r'.* World',
-                        'per_file': parsers.PER_FULLNAME,
+                        'per_file': parsers.PER_NAME,
                     },
                     'name': {
                         # Store matches by name stub
@@ -94,18 +151,10 @@ class ResultParserTests(PavTestCase):
                         'regex': r'World',
                         'per_file': parsers.PER_NAME_LIST,
                     },
-                    'fullname_list': {
-                        # Store matches by name stub
-                        # Note there is a name conflict here between other.txt
-                        # and other.log.
-                        'files': ['*.log'],
-                        'regex': r'World',
-                        'per_file': parsers.PER_FULLNAME_LIST,
-                    },
                     'lists': {
                         'files': ['other*'],
                         'regex': r'.* World',
-                        'match_type': parsers.MATCH_ALL,
+                        'match_select': parsers.MATCH_ALL,
                         'per_file': parsers.PER_LIST,
                     },
                     'all': {
@@ -127,55 +176,76 @@ class ResultParserTests(PavTestCase):
         test = self._quick_test(test_cfg, 'result_parser_test')
         test.run()
 
-        results = base.base_results(test)
-        parsers.parse_results(test, results)
+        results = test.gather_results(0)
 
-        # Check all the different results to make sure they're what we expect.
-        self.assertEqual(
-            results['basic'],
-            'Hello World')
+        expected = {
+            'basic': 'Hello World',
+            'bc': [5],
+            'bcd': [5],
+            'bees': [2, 3, 6],
+            'last_b': 6,
+            'middle_b': 3,
+            'other_middle_b': 3,
+            'no_lines_match': None,
+            'no_lines_match_last': None,
+            'true': True,
+            'false': False,
+            'per_file': {
+                'other': {
+                    'count': 2,
+                    'name': "I'm here to cause World"},
+                'other2': {
+                    'count': 0},
+                'other3': {
+                    'count': 1},
+                'run': {
+                    'count': 2},
+            },
+            'mp1': 1,
+            'mp3': 3,
+            'mp4': 1,
+            'mp5': 2,
+            'name_list': ['other', 'other3'],
+            'lists': [
+                "In a World",
+                "What in the World",
+                "I'm here to cause World",
+                "and someone saves the World"],
+            'all': False,
+            'result': 'PASS',  # Any test
+        }
 
-        self.assertEqual(
-            results['true'],
-            True,
-        )
+        for key in expected:
+            self.assertEqual(results[key], expected[key],
+                             msg="Difference for key {}".format(key))
+        self.assertIn(
+            "When storing value for key 'name' per 'name', multiple files "
+            "normalized to the name 'other': other.log, other.txt",
+            results[result.RESULT_ERRORS])
 
-        self.assertEqual(
-            results['false'],
-            False,
-        )
+        def find_hidden(resultd: dict) -> set:
+            """Find any result bits that start with underscore."""
 
-        self.assertEqual(results['per_file']['run.log']['count'], 2)
-        self.assertEqual(results['per_file']['other.log']['count'], 1)
+            found = set()
 
-        self.assertEqual(results['per_file']['other.log']['fullname'],
-                         'In a World')
+            for rkey, value in resultd.items():
+                if rkey.startswith('_'):
+                    found.add(rkey)
+                if isinstance(value, dict):
+                    found.update(find_hidden(value))
 
-        self.assertEqual(results['name_list'],
-                         ['other', 'other3'])
+            return found
 
-        self.assertEqual(results['fullname_list'],
-                         ['other.log', 'other3.log'])
-
-        self.assertIn(results['per_file']['other']['name'],
-                      ['In a World', "I'm here to cause World"])
-        self.assertIn("Duplicate file key 'other' matched by name",
-                      [e['msg'] for e in results['pav_result_errors']])
-
-        self.assertEqual(sorted(results['lists']),
-                         sorted(['and someone saves the World',
-                                 'In a World',
-                                 "I'm here to cause World"]))
-
-        self.assertEqual(results['all'], False)
-        self.assertEqual(results['result'], True)
+        self.assertEqual(find_hidden(results), set(),
+                         msg="All hidden ('_' prefixed) result keys were "
+                             "supposed to be deleted.")
 
     def test_check_config(self):
 
         # A list of regex
         parser_tests = [
             # Should work fine.
-            ({'ok':{'regex': r'foo'}}, None),
+            ({'ok': {'regex': r'foo'}}, None),
             # Reserved key
             ({'created': {'regex': r'foo'}}, ResultError),
             # Missing regex
@@ -249,123 +319,142 @@ class ResultParserTests(PavTestCase):
                 base_results[key],
                 msg="Base result key '{}' was None.".format(key))
 
-    def test_table_result_parser(self):
-        """
-        Makes sure Table Result Parser Works
-        :return:
-        """
+    def test_table_parser(self):
+        """Check table result parser operation."""
 
-        # line+space delimiter
-        table_test1 = {
+        # start & nth start with line+space delimiter
+        cfg = {
             'scheduler': 'raw',
+            'build': {
+                'source_path': 'tables.txt'
+            },
             'run': {
                 'cmds': [
-                    'echo "SAMPLE TABLE"',
-                    'echo "Col1 | Col2 | Col3"',
-                    'echo "------------------"',
-                    'echo "data1 | 3 | data2"',
-                    'echo "data3 | 8 | data4"',
-                    'echo "data5 |   | data6"',
-                    'echo "some other text that doesnt matter"'
+                    'cat tables.txt'
                 ]
             },
             'result_parse': {
                 'table': {
                     'table1': {
-                        'delimiter': r'\|',
-                        'col_num': '3'
+                        'delimiter_re': r'\|',
+                        'col_names': ['cola', 'soda', 'pop'],
+                        'preceded_by': ['table1', '', ''],
+                        'for_lines_matching': '^- - -',
                     },
-                },
-            }
-        }
-
-        test = self._quick_test(table_test1, 'result_parser_test')
-        test.run()
-
-        results = {'pav_result_errors': []}
-        parsers.parse_results(test, results)
-
-        self.assertEqual(['data1', 'data3', 'data5'], results['table1']['Col1'])
-        self.assertEqual(['3', '8', ' '], results['table1']['Col2'])
-        self.assertEqual(['data2', 'data4', 'data6'], results['table1']['Col3'])
-
-        # space delimiter
-        table_test2 = {
-            'scheduler': 'raw',
-            'run': {
-                'cmds': [
-                    'echo "SAMPLE TABLE"',
-                    'echo "d1 d2 d3"',
-                    'echo "d4 d5 d6"',
-                    'echo "d7   d9"',
-                    'echo "some other text that doesnt matter"'
-                ]
-            },
-            'result_parse': {
-                'table': {
+                    'table1b': {
+                        'delimiter_re': r'\|',
+                        'has_row_labels': 'False',
+                        'preceded_by': ['table1'],
+                        'for_lines_matching': '^--  --  --',
+                    },
                     'table2': {
-                        'delimiter': ' ',
-                        'col_num': '3'
+                        'delimiter_re':       r'\|',
+                        'preceded_by':        ['table2'],
+                        'for_lines_matching': '^--  --  --',
                     },
-                },
-            }
-        }
-
-        test = self._quick_test(table_test2, 'result_parser_test')
-        test.run()
-
-        results = {'pav_result_errors': []}
-        parsers.parse_results(test, results)
-
-        self.assertEqual(['d4', 'd7'], results['table2']['d1'])
-        self.assertEqual(['d5', ' '], results['table2']['d2'])
-        self.assertEqual(['d6', 'd9'], results['table2']['d3'])
-
-        # comma delimiter
-        table_test3 = {
-            'scheduler': 'raw',
-            'run': {
-                'cmds': [
-                    'echo "----------- Comma-delimited summary ---------"',
-                    'echo "./clomp_hwloc 4 -1 256 10 32 1 100, calc_deposit, OMP Barrier, Scaled Serial Ref, Bestcase OMP, Static OMP, Dynamic OMP, Manual OMP"',
-                    'echo "Runtime,   0.000,   0.919,   2.641,   0.517,   2.345,  16.392,   2.324"',
-                    'echo "us/Loop,    0.00,    9.41,   27.04,    5.29,   24.01,  167.85,   23.79"',
-                    'echo "Speedup,     N/A,     N/A,    1.00,     5.1,     1.1,     0.2,     1.1"',
-                    'echo "Efficacy,    N/A,     N/A,     N/A,   100%,   22.0%,    3.2%, 22.2%"',
-                    'echo "Overhead,    N/A,     N/A,     N/A,    0.00,   18.72,  162.56,   18.50"',
-                    'echo "CORAL2 RFP, 4 -1 256 10 32 1 100, 1.00, 27.04, 27.04, 9.41, 5.1, 18.72, 1.1, 162.56, 0.2, 18.50, 1.1"'
-                ]
-            },
-            'result_parse': {
-                'table': {
+                    'table2_by_col': {
+                        'delimiter_re':       r'\|',
+                        'preceded_by':        ['table2'],
+                        'for_lines_matching': '^--  --  --',
+                        'by_column':          'True',
+                    },
                     'table3': {
-                        'delimiter': ',',
-                        'col_num': '8',
-                        'has_header': 'True',
+                        'delimiter_re':       r'\|',
+                        'for_lines_matching': '^Col1',
+                        'match_select': '1',
+                    },
+                    'table4': {
+                        'for_lines_matching': 'colA',
+                    },
+                    'table5': {
+                        'for_lines_matching': r'\s+col1',
+                        'table_end_re': r'^some other words',
+                    },
+                    'clomp': {
+                        'preceded_by': '-+ Comma-delimited summary -+',
+                        'delimiter_re': r',',
                         'by_column': 'True',
-                        'col_names': [
-                            ' ', 'calc_deposit', 'OMP Barrier',
-                            'Scaled Serial Ref', 'Bestcase OMP',
-                            'Static OMP', 'Dynamic OMP', 'Manual OMP']
-                    }
+                    },
                 }
             }
         }
 
-        test = self._quick_test(table_test3, 'result_parser_test')
+        expected = {
+            'table1': {
+                'data1': {'cola': 3,    'soda': 'data4', 'pop': None},
+                'data2': {'cola': 8,    'soda': 'data5', 'pop': None},
+                'data3': {'cola': None, 'soda': 'data6', 'pop': None},
+            },
+            'table1b': {
+                'row_0': {'col1': 'data1', 'col2': 3, 'col3': 'data4'},
+                'row_1': {'col1': 'data2', 'col2': 8, 'col3': 'data5'},
+                'row_2': {'col1': 'data3', 'col2': None, 'col3': 'data6'},
+            },
+            'table2': {
+                'data7': {'col2': 0, 'col3': 'data10'},
+                'data8': {'col2': 9, 'col3': 'data11'},
+                'data9': {'col2': None, 'col3': 'data12'},
+                'row_0': {'col2': 90, 'col3': 'data90'}
+            },
+            'table2_by_col': {
+                 'col2': {'data7': 0, 'data8': 9, 'data9': None, 'row_0': 90},
+                 'col3': {'data7': 'data10', 'data8': 'data11',
+                          'data9': 'data12', 'row_0': 'data90'}
+            },
+            'table3': {
+                'data13': {'col2': 4, 'col3': None},
+                'data14512': {'col2': 8, 'col3': 'data17'},
+                'data15': {'col2': None, 'col3': 'data18'}
+            },
+            'table4': {
+                'row_11111': {'colb': 12222, 'colc': 1333, 'cold': 14444},
+                'row_41111': {'colb': 42222, 'colc': 43333, 'cold': 44444},
+                'item1': {'colb': 'item2', 'colc': 'item3', 'cold': 'item4'},
+                'item13': {'colb': 'item14', 'colc': 'item15', 'cold':
+                           'item16'},
+                'item5': {'colb': 'item6', 'colc': 'item7', 'cold': 'item8'},
+                'item9': {'colb': 'item10', 'colc': 'item11', 'cold': 'item12'}
+            },
+            'table5': {
+                'r1': {'col1': 1, 'col2': 2, 'col3': 3, 'col4': 4},
+                'r2': {'col1': 5, 'col2': 6, 'col3': 7, 'col4': 7},
+                'r3': {'col1': 8, 'col2': 9, 'col3': 10, 'col4': 11}
+            },
+            'clomp': {
+                'bestcase_omp': {
+                    'coral2_rfp': 27.04, 'efficacy': '100%', 'overhead': 0.0,
+                    'runtime': 0.517, 'speedup': 5.1, 'us_loop': 5.29},
+                'dynamic_omp': {
+                    'coral2_rfp': 5.1, 'efficacy': '3.2%', 'overhead': 162.56,
+                    'runtime': 16.392, 'speedup': 0.2, 'us_loop': 167.85},
+                'manual_omp': {
+                    'coral2_rfp': 18.72, 'efficacy': '22.2%', 'overhead': 18.5,
+                    'runtime': 2.324, 'speedup': 1.1, 'us_loop': 23.79},
+                'omp_barrier': {
+                    'coral2_rfp': 1.0, 'efficacy': 'N/A', 'overhead': 'N/A',
+                    'runtime': 0.919, 'speedup': 'N/A', 'us_loop': 9.41},
+                'scaled_serial_ref': {
+                    'coral2_rfp': 27.04, 'efficacy': 'N/A', 'overhead': 'N/A',
+                    'runtime': 2.641, 'speedup': 1.0, 'us_loop': 27.04},
+                'static_omp': {
+                    'coral2_rfp': 9.41, 'efficacy': '22.0%', 'overhead': 18.72,
+                    'runtime': 2.345, 'speedup': 1.1, 'us_loop': 24.01},
+                'calc_deposit': {
+                    'coral2_rfp': '4 -1 256 10 32 1 100', 'efficacy': 'N/A',
+                    'overhead': 'N/A', 'runtime': 0.0, 'speedup': 'N/A',
+                    'us_loop': 0.0},
+            },
+        }
+
+        test = self._quick_test(cfg, 'table_test')
         test.run()
 
-        results = {'pav_result_errors': []}
-        parsers.parse_results(test, results)
+        log_file = (test.path / 'results.log').open('w')
+        results = test.gather_results(0, log_file=log_file)
 
-        self.assertEqual('0.000', results['table3']['calc_deposit']['Runtime'])
-        self.assertEqual('9.41', results['table3']['OMP Barrier']['us/Loop'])
-        self.assertEqual('1.00',
-                         results['table3']['Scaled Serial Ref']['Speedup'])
-        self.assertEqual('100%', results['table3']['Bestcase OMP']['Efficacy'])
-        self.assertEqual('18.72', results['table3']['Static OMP']['Overhead'])
-        self.assertEqual('16.392', results['table3']['Dynamic OMP']['Runtime'])
-        self.assertEqual('23.79', results['table3']['Manual OMP']['us/Loop'])
+        for key in expected:
+            self.assertEqual(expected[key], results[key],
+                             msg="Table {} doesn't match results.".format(key))
 
     def test_evaluate(self):
 
@@ -448,8 +537,8 @@ class ResultParserTests(PavTestCase):
             test = self._quick_test(cfg)
             test.run()
 
-            with self.assertRaises(result.ResultError):
-                result.evaluate_results({}, error_conf)
+            with self.assertRaises(pavilion.result.common.ResultError):
+                result.evaluate_results({}, error_conf, utils.IndentedLog())
 
     def test_result_cmd(self):
         """Make sure the result command works as expected, including the
@@ -528,7 +617,7 @@ class ResultParserTests(PavTestCase):
                       .format(cmd_out, cmd_err))
 
     def test_re_search(self):
-        """"""
+        """Check basic re functionality."""
 
         answers = {
             'hello': '33',
@@ -543,6 +632,101 @@ class ResultParserTests(PavTestCase):
 
         for key, answer in answers.items():
             self.assertEqual(results[key], answer)
+
+    def test_constant_parser(self):
+        """Check the constant parser."""
+
+        cfg = self._quick_test_cfg()
+        cfg['variables'] = {
+            'foo': ['bar']
+        }
+        cfg['result_parse'] = {
+            'constant': {
+                'foo': {
+                    'const': '{{foo}}',
+                },
+                'baz': {
+                    'const': '33',
+                }
+            }
+        }
+
+        expected = {
+            'foo': 'bar',
+            'baz': 33,
+        }
+
+        test = self._quick_test(cfg, 'const_parser_test')
+        test.run()
+        results = test.gather_results(0)
+
+        for key in expected:
+            self.assertEqual(results[key], expected[key])
+
+    def test_forced_parser_defaults(self):
+        """Make sure we honor the result parser's FORCED_DEFAULTS."""
+
+        cfg = self._quick_test_cfg()
+        cfg['result_parse'] = {
+            'constant': {
+                'foo': {
+                    'const': 'bar',
+                    'preceded_by': 'unsettable',
+                }
+            }
+        }
+
+        with self.assertRaises(pavilion.result.common.ResultError):
+            result.check_config(cfg['result_parse'], {})
+
+        test = self._quick_test(cfg, 'split_test')
+        test.run()
+        results = test.gather_results(0)
+
+        self.assertNotIn('foo', results)
+        self.assertTrue(results[result.RESULT_ERRORS][0].endswith(
+            "This parser requires that you not set the 'preceded_by' key, as "
+            "the default value is the only valid option."
+        ))
+
+    def test_split_parser(self):
+        """Check the split parser."""
+
+        cfg = self._quick_test_cfg()
+
+        cfg['run']['cmds'] = [
+            'echo "Results1"',
+            'echo " 1 1.2       hello "',
+            'echo "Results2"',
+            'echo "1, 3, 5, 9, blarg, 11"',
+        ]
+
+        cfg['result_parse'] = {
+            'split': {
+                'a1,b1,c1': {
+                    'preceded_by': [r'Results1']
+                },
+                'a2, _, _, _, b2':      {
+                    'sep': ',',
+                    'preceded_by':        [r'Results2'],
+                },
+            }
+        }
+
+        expected = {
+            'a1': 1,
+            'b1': 1.2,
+            'c1': 'hello',
+            'a2': 1,
+            'b2': 'blarg',
+        }
+
+        test = self._quick_test(cfg, 'split_test')
+        test.run()
+        results = test.gather_results(0)
+
+        for key in expected:
+            self.assertEqual(results[key], expected[key])
 
     def test_flatten_results(self):
         """Make sure result flattening works as expected, as well as regular

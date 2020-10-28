@@ -11,7 +11,7 @@ from typing import List
 
 import yaml_config as yc
 from pavilion import scriptcomposer
-from pavilion.schedulers import SchedulerPlugin
+from pavilion import schedulers
 from pavilion.schedulers import SchedulerPluginError
 from pavilion.schedulers import SchedulerVariables
 from pavilion.schedulers import dfr_var_method
@@ -319,7 +319,7 @@ def slurm_states(state):
     return states
 
 
-class Slurm(SchedulerPlugin):
+class Slurm(schedulers.SchedulerPlugin):
     """Schedule tests with Slurm!"""
 
     KICKOFF_SCRIPT_EXT = '.sbatch'
@@ -769,10 +769,7 @@ class Slurm(SchedulerPlugin):
             stderr=subprocess.DEVNULL,
         )
 
-        if ret != 0:
-            return False
-
-        return True
+        return ret == 0
 
     def _schedule(self, test, kickoff_path):
         """Submit the kick off script using sbatch.
@@ -986,21 +983,19 @@ class Slurm(SchedulerPlugin):
             if status.state != STATES.SCHEDULED:
                 return status
             else:
-                test.status.set(
+                return test.status.set(
                     STATES.SCHED_ERROR,
                     "The scheduler killed the job, it has job state '{}'"
                     .format(job_state))
-                return test.status.current()
 
         elif job_state in self.SCHED_CANCELLED:
             # The job appears to have been cancelled without running.
 
-            test.status.set(
+            test.set_run_complete()
+            return test.status.set(
                 STATES.SCHED_CANCELLED,
                 "Job cancelled, has job state '{}'".format(job_state)
             )
-            test.set_run_complete()
-            return test.status.current()
 
         self.logger.warning("Encountered unhandled job state '%s' for"
                             "job '%s'.", job_state, test.job_id)
@@ -1088,24 +1083,13 @@ class Slurm(SchedulerPlugin):
 
         if proc.poll() == 0:
             # Scancel successful, pass the stdout message
-
-            msg = "Slurm jobid {} canceled via slurm.".format(test.job_id)
-            # Someday I'll add a method to do this in one shot.
-            test.status.set(
-                STATES.SCHED_CANCELLED,
-                msg
-            )
             test.set_run_complete()
-            return StatusInfo(
+            return test.status.set(
                 STATES.SCHED_CANCELLED,
-                msg
+                "Slurm jobid {} canceled via slurm.".format(test.job_id),
             )
         else:
-            test.status.set(
+            return test.status.set(
                 STATES.SCHED_CANCELLED,
                 "Tried (but failed) to cancel job: {}".format(stderr))
             # Scancel failed, pass the stderr message
-            return StatusInfo(
-                STATES.SCHED_ERROR,
-                stderr
-            )

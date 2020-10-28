@@ -410,14 +410,14 @@ result_parse
 
 This sub-section defines how test results are parsed.
 
-See :ref:`tests.results.result_parsers` for the sub-section keys and usage.
+See :ref:`results.basics` for the sub-section keys and usage.
 
 result_evaluate
 ~~~~~~~~~~~~~~~
 
 Allows you to further modify and analyze test results.
 
-See :ref:`tests.results.evaluations`.
+See :ref:`results.basics`.
 
 only_if and not_if
 ~~~~~~~~~~~~~~~~~~
