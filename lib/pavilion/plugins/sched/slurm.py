@@ -520,7 +520,7 @@ class Slurm(SchedulerPlugin):
                     if '-' in node:
                         start, end = node.split('-')
                         digits = min(len(start), len(end))
-                        if end < start:
+                        if int(end) < int(start):
                             raise ValueError(
                                 "In node list '{}' part '{}', node range ends "
                                 "before it starts."
