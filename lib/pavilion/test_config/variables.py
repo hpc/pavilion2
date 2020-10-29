@@ -397,6 +397,11 @@ index, sub_var) tuple.
                     "Variables '{}' contained reference loop"
                     .format([k[1] for k in unresolved_vars.keys()]))
 
+        print('Values after "resolve_references"')
+        print('deferred', self.deferred)
+        import pprint
+        pprint.pprint(self.as_dict())
+
     def __getitem__(self, key):
         """Find the item that corresponds to the given complex key.
         :param Union(str, list, tuple) key: A variable key. See parse_key for
@@ -604,6 +609,11 @@ index, sub_var) tuple.
             variable set manager.
         """
 
+        print('Values before "undefer"')
+        print('deferred', self.deferred)
+        import pprint
+        pprint.pprint(self.as_dict())
+
         # There are a lot of assumptions in here about what variables exist
         # in new_vars. new_vars should have a value for every variable in
         # self, because it should be from the same pavilion instance, with
@@ -649,6 +659,11 @@ index, sub_var) tuple.
                     "Reference loop in variable resolution for variables: {}."
                     .format(list(self.deferred))
                 )
+
+        print('Values after "undefer"')
+        print('deferred', self.deferred)
+        import pprint
+        pprint.pprint(self.as_dict())
 
     def __deepcopy__(self, memodict=None):
         """Deeply copy this variable set manager."""
