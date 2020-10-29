@@ -38,6 +38,7 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace) -> List[int]:
         incomplete=args.incomplete,
         passed=args.passed,
         failed=args.failed,
+        name=args.name,
         user=args.user,
         sys_name=args.sys_name,
         older_than=args.older_than,
@@ -83,7 +84,7 @@ def test_list_to_paths(pav_cfg, req_tests) -> List[Path]:
     """Given a list of test id's and series id's, return a list of paths
     to those tests.
     The keyword 'last' may also be given to get the last series run by
-    the current user on the curren machine.
+    the current user on the current machine.
 
     :param pav_cfg: The Pavilion config.
     :param req_tests: A list of test id's, series id's, or 'last'.
