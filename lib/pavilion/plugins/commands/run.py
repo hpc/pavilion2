@@ -3,7 +3,6 @@
 import errno
 import pathlib
 import threading
-import time
 import copy
 from collections import defaultdict
 from typing import List, Union
@@ -17,9 +16,7 @@ from pavilion import test_config
 from pavilion import cmd_utils
 from pavilion.builder import MultiBuildTracker
 from pavilion.output import fprint
-from pavilion.plugins.commands.status import print_from_tests
 from pavilion.series import TestSeries, test_obj_from_id
-from pavilion.status_file import STATES
 from pavilion.test_run import TestRun, TestRunError, TestConfigError
 
 
@@ -180,100 +177,13 @@ class RunCommand(commands.Command):
                     file=self.outfile, color=output.YELLOW)
             return 0
 
-        return self.run_tests(
+        return series.run_tests(
             pav_cfg=pav_cfg,
-            test_list=test_list,
-            series=series,
             wait=wait,
             report_status=report_status,
+            outfile=self.outfile,
+            errfile=self.errfile
         )
-
-    def run_tests(self, pav_cfg, test_list, series, wait, report_status):
-        """
-        :param pav_cfg:
-        :param list[TestRun] test_list: A list of test objects.
-        :param series: The test series.
-        :param int wait: Wait this long for a test to start before exiting.
-        :param bool report_status: Do a 'pav status' after tests have started.
-            on nodes, and kick them off in build only mode.
-        :return:
-        """
-
-        all_tests = test_list
-
-        for test in test_list:
-            sched_name = test.scheduler
-            sched = schedulers.get_plugin(sched_name)
-
-            if not sched.available():
-                fprint("1 test started with the {} scheduler, but"
-                       "that scheduler isn't available on this system."
-                       .format(sched_name),
-                       file=self.errfile, color=output.RED)
-                return errno.EINVAL
-
-        for test in test_list:
-
-            # don't run this test if it was meant to be skipped
-            if test.skipped:
-                continue
-
-            # tests that are build-only or build-local should already be completed, therefore don't run these
-            if test.complete:
-                continue
-
-            sched = schedulers.get_plugin(test.scheduler)
-            try:
-                sched.schedule_tests(pav_cfg, [test])
-            except schedulers.SchedulerPluginError as err:
-                fprint('Error scheduling test: ', file=self.errfile,
-                       color=output.RED)
-                fprint(err, bullet='  ', file=self.errfile)
-                fprint('Cancelling already kicked off tests.',
-                       file=self.errfile)
-                sched.cancel_job(test)
-                return errno.EINVAL
-
-        # Tests should all be scheduled now, and have the SCHEDULED state
-        # (at some point, at least). Wait until something isn't scheduled
-        # anymore (either running or dead), or our timeout expires.
-        wait_result = None
-        if wait is not None:
-            end_time = time.time() + wait
-            while time.time() < end_time and wait_result is None:
-                last_time = time.time()
-                for test in test_list:
-                    sched = schedulers.get_plugin(test.scheduler)
-                    status = test.status.current()
-                    if status == STATES.SCHEDULED:
-                        status = sched.job_status(pav_cfg, test)
-
-                    if status != STATES.SCHEDULED:
-                        # The test has moved past the scheduled state
-                        wait_result = None
-                        break
-
-                if wait_result is None:
-                    # Sleep at most SLEEP INTERVAL seconds, minus the time
-                    # we spent checking our jobs.
-                    time.sleep(self.SLEEP_INTERVAL - (time.time() - last_time))
-
-        fprint("{} test{} started as test series {}."
-               .format(len(all_tests),
-                       's' if len(all_tests) > 1 else '',
-                       series.sid),
-               file=self.outfile,
-               color=output.GREEN)
-
-        if report_status:
-            tests = list(series.tests.keys())
-            tests, _ = test_obj_from_id(pav_cfg, tests)
-            return print_from_tests(
-                pav_cfg=pav_cfg,
-                tests=tests,
-                outfile=self.outfile)
-
-        return 0
 
     def _get_tests(self, pav_cfg, args, mb_tracker, build_only=False,
                    local_builds_only=False):
