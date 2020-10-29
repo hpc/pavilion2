@@ -27,8 +27,6 @@ class RunCmdTests(PavTestCase):
             For the most part we're relying on tests of the various components
             of test_config.setup and the test_obj tests."""
 
-        run_cmd = commands.get_command('run')  # type: RunCommand
-
         test_configs = cmd_utils.get_test_configs(pav_cfg=self.pav_cfg,
                                                   host='this', test_files=[],
                                                   tests=['hello_world'],
@@ -41,16 +39,12 @@ class RunCmdTests(PavTestCase):
             test_configs=test_configs,
         )
 
-        t1 = tests[0]
-        t2 = tests[1]
-        # Make sure our tests are in the right order
-        if t1.name != 'hello_world.hello':
-            t1, t2 = t2, t1
-
         # Make sure all the tests are there, under the right schedulers.
-        self.assertEqual(t1.name, 'hello_world.hello')
-        self.assertEqual(t2.name, 'hello_world.world')
-        self.assertEqual(tests[2].name, 'hello_world.narf')
+        for test in tests:
+            if test.scheduler == 'raw':
+                self.assertIn(test.name, ['hello_world.hello', 'hello_world.world'])
+            else:
+                self.assertEqual(test.name, 'hello_world.narf')
 
         tests_file = self.TEST_DATA_ROOT/'run_test_list'
 
@@ -66,8 +60,11 @@ class RunCmdTests(PavTestCase):
             test_configs=test_configs,
         )
 
-        self.assertEqual(tests[0].name, 'hello_world.world')
-        self.assertEqual(tests[1].name, 'hello_world.narf')
+        for test in tests:
+            if test.name == 'hello_world.world':
+                self.assertEqual(test.scheduler, 'raw')
+            else:
+                self.assertEqual(test.scheduler, 'dummy')
 
     def test_run(self):
 
