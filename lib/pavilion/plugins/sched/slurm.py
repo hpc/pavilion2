@@ -11,7 +11,6 @@ from typing import List
 
 import yaml_config as yc
 from pavilion import scriptcomposer
-from pavilion import output
 from pavilion.schedulers import SchedulerPlugin
 from pavilion.schedulers import SchedulerPluginError
 from pavilion.schedulers import SchedulerVariables
