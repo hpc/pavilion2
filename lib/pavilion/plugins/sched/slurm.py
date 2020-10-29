@@ -333,7 +333,7 @@ class Slurm(SchedulerPlugin):
         # The characters in a valid hostname.
         r'[a-zA-Z][a-zA-Z_-]*\d*'
         # A numeric range of nodes in square brackets.
-        r'(?:\[.*\])?'
+        r'(?:\[(?:\d+|\d+-\d+)(?:,\d+|,\d+-\d+)*\])?'
     )
     NODE_LIST_RE = re.compile(
         # Match a comma separated list of these things.
@@ -495,14 +495,14 @@ class Slurm(SchedulerPlugin):
                         "Invalid Node List: '{}'. Syntax error in item '{}'. "
                         "Node lists components be a hostname or hostname "
                         "prefix followed by a range of node numbers. "
-                        "Ex: foo003,foo0[10-20],foo[103-104]"
+                        "Ex: foo003,foo0[10-20],foo[103-104], foo[10,12-14]"
                         .format(node_list, part)
                     )
 
             # If all the parts matched, then it's an overall format issue.
             raise ValueError("Invalid Node List: '{}' "
                              "Good Example: foo003,foo0[10-20],"
-                             "foo[103-104]")
+                             "foo[103-104], foo[10,12-14]")
 
         nodes = []
         prev = ""
