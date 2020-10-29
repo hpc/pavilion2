@@ -134,8 +134,7 @@ def get_test_configs(pav_cfg, host, test_files, tests, modes,
                      overrides, logger=None, outfile=None):
     """Translate a general set of pavilion test configs into the final,
     resolved configurations. These objects will be organized in a
-    dictionary by scheduler, and have a scheduler object instantiated and
-    attached.
+    list made of tuples of configs and variable manages.
     :param pav_cfg: The pavilion config
     :param str host: The host config to target these tests with
     :param list(str) modes: The mode configs to use.
@@ -174,20 +173,20 @@ name) of lists of tuples
     except TestConfigError as err:
         raise commands.CommandError(err.args[0])
 
-    tests_by_scheduler = defaultdict(lambda: [])
+    test_configs = []
     for cfg, var_man in resolved_cfgs:
-        tests_by_scheduler[cfg['scheduler']].append((cfg, var_man))
+        test_configs.append((cfg, var_man))
 
-    return tests_by_scheduler
+    return test_configs
 
 
-def configs_to_tests(pav_cfg, configs_by_sched, mb_tracker=None,
+def configs_to_tests(pav_cfg, test_configs, mb_tracker=None,
                      build_only=False, rebuild=False, outfile=None):
     """Convert the dictionary of test configs by scheduler into actual
     tests.
 
     :param pav_cfg: The Pavilion config
-    :param dict[str,list] configs_by_sched: A dictionary of lists of test
+    :param dict[str,list] test_configs: A list of test
     configs.
     :param Union[MultiBuildTracker,None] mb_tracker: The build tracker.
     :param bool build_only: Whether to only build these tests.
@@ -195,34 +194,31 @@ def configs_to_tests(pav_cfg, configs_by_sched, mb_tracker=None,
     :return:
     """
 
-    tests_by_sched = {}
+    test_list = []
     progress = 0
-    tot_tests = sum([len(tests) for tests in configs_by_sched.values()])
+    tot_tests = len(test_configs)
 
-    for sched_name in configs_by_sched.keys():
-        tests_by_sched[sched_name] = []
+    for cfg, var_man in test_configs:
         try:
-            for i in range(len(configs_by_sched[sched_name])):
-                cfg, var_man = configs_by_sched[sched_name][i]
-                tests_by_sched[sched_name].append(TestRun(
-                    pav_cfg=pav_cfg,
-                    config=cfg,
-                    var_man=var_man,
-                    build_tracker=mb_tracker,
-                    build_only=build_only,
-                    rebuild=rebuild,
-                ))
-                progress += 1.0/tot_tests
-                if outfile is not None:
-                    output.fprint("Creating Test Runs: {:.0%}".format(progress),
-                                  file=outfile, end='\r')
+            test_list.append(TestRun(
+                pav_cfg=pav_cfg,
+                config=cfg,
+                var_man=var_man,
+                build_tracker=mb_tracker,
+                build_only=build_only,
+                rebuild=rebuild
+            ))
+            progress += 1.0/tot_tests
+            if outfile is not None:
+                output.fprint("Creating Test Runs: {:.0%}".format(progress),
+                              file=outfile, end='\r')
         except (TestRunError, TestConfigError) as err:
             raise commands.CommandError(err)
 
     if outfile is not None:
         output.fprint('', file=outfile)
 
-    return tests_by_sched
+    return test_list
 
 
 def build_local(tests, max_threads, mb_tracker, build_verbosity, outfile=None, errfile=None):

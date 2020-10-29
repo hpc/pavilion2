@@ -29,19 +29,20 @@ class RunCmdTests(PavTestCase):
 
         run_cmd = commands.get_command('run')  # type: RunCommand
 
-        configs_by_sched = cmd_utils.get_test_configs(pav_cfg=self.pav_cfg,
-                                                      host='this', test_files=[],
-                                                      tests=['hello_world'],
-                                                      modes=[], overrides={},
-                                                      logger=self.logger, outfile=sys.stdout
-                                                      )
+        test_configs = cmd_utils.get_test_configs(pav_cfg=self.pav_cfg,
+                                                  host='this', test_files=[],
+                                                  tests=['hello_world'],
+                                                  modes=[], overrides={},
+                                                  logger=self.logger, outfile=sys.stdout
+                                                  )
 
         tests = cmd_utils.configs_to_tests(
             pav_cfg=self.pav_cfg,
-            configs_by_sched=configs_by_sched,
+            test_configs=test_configs,
         )
 
-        t1, t2 = tests['raw']
+        t1 = tests[0]
+        t2 = tests[1]
         # Make sure our tests are in the right order
         if t1.name != 'hello_world.hello':
             t1, t2 = t2, t1
@@ -49,24 +50,24 @@ class RunCmdTests(PavTestCase):
         # Make sure all the tests are there, under the right schedulers.
         self.assertEqual(t1.name, 'hello_world.hello')
         self.assertEqual(t2.name, 'hello_world.world')
-        self.assertEqual(tests['dummy'][0].name, 'hello_world.narf')
+        self.assertEqual(tests[2].name, 'hello_world.narf')
 
         tests_file = self.TEST_DATA_ROOT/'run_test_list'
 
-        configs_by_sched = cmd_utils.get_test_configs(pav_cfg=self.pav_cfg,
-                                                      host='this',
-                                                      test_files=[tests_file],
-                                                      tests=[], modes=[],
-                                                      overrides={},
-                                                      logger=self.logger, outfile=sys.stdout)
+        test_configs = cmd_utils.get_test_configs(pav_cfg=self.pav_cfg,
+                                                  host='this',
+                                                  test_files=[tests_file],
+                                                  tests=[], modes=[],
+                                                  overrides={},
+                                                  logger=self.logger, outfile=sys.stdout)
 
         tests = cmd_utils.configs_to_tests(
             pav_cfg=self.pav_cfg,
-            configs_by_sched=configs_by_sched,
+            test_configs=test_configs,
         )
 
-        self.assertEqual(tests['raw'][0].name, 'hello_world.world')
-        self.assertEqual(tests['dummy'][0].name, 'hello_world.narf')
+        self.assertEqual(tests[0].name, 'hello_world.world')
+        self.assertEqual(tests[1].name, 'hello_world.narf')
 
     def test_run(self):
 
