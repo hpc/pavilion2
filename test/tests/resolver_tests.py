@@ -305,7 +305,8 @@ class ResolverTests(PavTestCase):
 
         vars = test.var_man.as_dict()['var']
         for var in expected:
-            self.assertEqual(expected[var], vars[var])
+            self.assertEqual(expected[var], vars[var],
+                             msg="Mismatch for var '{}'".format(var))
 
     def test_resolve_vars_in_vars(self):
         test = {
