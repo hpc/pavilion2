@@ -81,7 +81,7 @@ class GraphCommand(commands.Command):
     def run(self, pav_cfg, args):
         """"""
 
-        if HAS_MATPLOT_LIB:
+        if not HAS_MATPLOT_LIB:
             output.fprint(
                 "The command requires matplotlib to function. Matplotlib is an"
                 "optional requirement of Pavilion.")
@@ -107,23 +107,28 @@ class GraphCommand(commands.Command):
                 continue
 
             try:
-                TestRun.load(pav_cfg, test_id)
+                tests.append(TestRun.load(pav_cfg, test_id))
             except TestRunError as err:
                 output.fprint(
                     "Error loading test run {}. Use '--exclude' to stop "
                     "seeing this message.\n{}"
                     .format(test_id, err.args[0]),
                     color=output.YELLOW, file=self.errfile)
+                pass
 
         if not tests:
             output.fprint("Test filtering resulted in an empty list.")
             return errno.EINVAL
 
-        y_evals = {'y' + str(i): args.y for i in range(len(args.y))}
+        # Build respective evaluation dictionaries.
+        x_eval = {'x': args.x[0]}
+        y_evals = {'y' + str(i): args.y[i] for i in range(len(args.y))}
         stats_dict = {key: {'x': [], 'y': []} for key in y_evals}
 
+        # Check to ensure all evaluations are valid.
         all_evals = y_evals.copy()
-        all_evals['x'] = args.x
+        all_evals.update(x_eval)
+
         try:
             check_evaluations(all_evals)
         except ResultError as err:
@@ -131,27 +136,167 @@ class GraphCommand(commands.Command):
                 "Invalid graph evaluation:\n{}".format(err.args[0]),
                 file=self.errfile, color=output.RED)
 
+        # Set colormap and build colormap dict
         colormap = matplotlib.pyplot.get_cmap('tab20')
-        colormap = self.set_colors(evaluations, colormap.colors)
+        colormap = self.set_colors(y_evals, colormap.colors)
 
-        # Rename 'graph data' or something'
-        results = {}
+        # Populate graph data dict with evaluation data from all tests provided.
+        graph_data = {}
         for test in tests:
             try:
-                test_results = self.gather_results(evaluations, test.results)
+                test_graph_data = self.gather_graph_data(x_eval, y_evals,
+                                                         test.results)
             except (ResultError, ResultTypeError) as err:
                 output.fprint("Error gathering results for test {}: \n{}"
                               .format(test.id, err))
                 return errno.EINVAL
 
-            results = self.update_results_dict(results, test_results)
+            graph_data = self.combine_graph_data(graph_data, test_graph_data)
+
+        # Graph the data.
+        self.graph(args.xlabel, args.ylabel, y_evals, graph_data, stats_dict,
+                   args.plot_average, colormap, args.filename)
+
+    def set_colors(self, y_evals, colors) -> Dict:
+        """
+        Set color for each y value to be plotted.
+        :param y_evals: y axis evaluations dictionary.
+        :param colors: Tuple of colors from a matplotlib color map.
+        :return: A dictionary with color lookups, by y value.
+        """
+
+        colormap = {}
+        colors = [color for color in colors]
+
+        for key in y_evals.keys():
+            colormap[key] = {'plot': colors.pop(0), 'stat': colors.pop(0)}
+
+        return colormap
+
+    def gather_graph_data(self, x_eval, y_evals, test_results) -> Dict:
+        """
+        Gather and format a test run objects results.
+
+        :param x_eval:
+        :param y_evals:
+        :param test_results: A test run's result dictionary.
+        :return: result, a dictionary containing parsed/formatted results for
+                 the given test run.
+        """
+
+        all_evals = y_evals.copy()
+        all_evals.update(x_eval)
+        try:
+            evaluate_results(test_results, all_evals)
+        except ResultError as err:
+            output.fprint(
+                "Invalid graph evaluation:\n{}".format(err.args[0]),
+                file=self.errfile, color=output.RED)
+
+        x_vals = test_results['x']
+        output.fprint(x_vals)
+
+        if isinstance(x_vals, (int, float, str)):
+            graph_data = {}
+            evaluations = {}
+
+            x = x_vals
+
+            for key in y_evals.keys():
+                evaluations.update({key: test_results[key]})
+            graph_data[x] = evaluations
+
+        # X value evaluations should only result in a list when graphing
+        # individual node results from a single test run.
+        elif isinstance(x_vals, list):
+            if not x_vals:
+                raise ResultTypeError("x value evaluation '{}' resulted in an "
+                                      "empty list."
+                                      .format(x_eval))
+            for item in x_vals:
+                if not isinstance(item, (int, str, float)):
+                    raise ResultTypeError("x value evaluation '{}' resulted in "
+                                          "a list, but contained invalid "
+                                          "type {} '{}'."
+                                          .format(x_eval, type(item).__name__,
+                                                  item))
+            graph_data = {}
+            for i in range(len(x_vals)):
+                x = x_vals[i]
+
+                # Determines if x value is node name, if so convert name to int.
+                if isinstance(x, str):
+                    node = re.match(r'[a-zA-Z]*(\d*)$', x)
+                    if node:
+                        x = int(node.groups()[0])
+
+                evaluations = {}
+                for key in y_evals.keys():
+                    if not isinstance(test_results[key], list):
+                        raise ResultTypeError("y value evaluation '{}' "
+                                              "resulted in {}. Since x value "
+                                              "evaluation resulted in a list, "
+                                              "this must be a list."
+                                              .format(y_evals[key],
+                                                      type(test_results[key])
+                                                      .__name__))
+                    evaluations.update({key: test_results[key][i]})
+
+                graph_data[x] = evaluations
+
+        else:
+            raise ResultTypeError("x value  evaluation '{}' resulted in invalid"
+                                  " type {}."
+                                  .format(x_eval,
+                                          type(x_vals).__name__))
+
+        return graph_data
+
+    def combine_graph_data(self, graph_data, test_graph_data) -> Dict:
+        """
+        Takes individual test run graph data and tries to extend
+        lists of values for the same x value and evaluation so they can be
+        graphed in a single pass.
+        :param graph_data: Passed  pav graph data dict.
+        :param test_graph_data: Passed individual TestRun's graph data dict.
+        :return: Updated/Combined graph_data dict.
+        """
+
+        for key, values in test_graph_data.items():
+            if key not in graph_data:
+                graph_data[key] = {}
+            for evl, value in values.items():
+                if evl not in graph_data[key]:
+                    graph_data[key][evl] = []
+                if isinstance(value, list):
+                    graph_data[key][evl].extend(value)
+                else:
+                    graph_data[key][evl].extend([value])
+
+        return graph_data
+
+    def graph(self, xlabel, ylabel, y_evals, graph_data, stats_dict,
+              plot_averages, colormap, filename):
+        """
+        Graph the data collected from all test runs provided. Graph_data has
+        formatted everything so you can graph every y value for each respective
+        x value in a single pass.
+        :param xlabel:
+        :param ylabel:
+        :param graph_data:
+        :param stats_dict:
+        :param plot_averages:
+        :param colormap:
+        :param filename:
+        :return:
+        """
 
         labels = set()
-        for x, eval_dict in results.items():
+        for x, eval_dict in graph_data.items():
             for evl, y_list in eval_dict.items():
                 color = colormap[evl]['plot']
 
-                label = evaluations[evl].split(".")[0]
+                label = y_evals[evl].split(".")[0]
                 label = label if label not in labels else ""
                 labels.add(label)
 
@@ -170,141 +315,27 @@ class GraphCommand(commands.Command):
 
                     return errno.EINVAL
 
-                if evaluations[evl] in args.plot_average:
+                if y_evals[evl] in plot_averages:
                     stats_dict[evl]['x'].append(x)
                     stats_dict[evl]['y'].append(statistics.mean(y_list))
 
         for evl, values in stats_dict.items():
-            if evaluations[evl] not in args.plot_average:
+            if y_evals[evl] not in plot_averages:
                 continue
-            label = evaluations[evl].split(".")[0]
+            label = y_evals[evl].split(".")[0]
             matplotlib.pyplot.scatter(values['x'], values['y'],
                                       marker="+",
                                       color=colormap[evl]['stat'],
                                       label="average({})".format(label))
 
-        matplotlib.pyplot.ylabel(args.ylabel)
-        matplotlib.pyplot.xlabel(args.xlabel)
+        matplotlib.pyplot.ylabel(ylabel)
+        matplotlib.pyplot.xlabel(xlabel)
         matplotlib.pyplot.legend()
 
-        matplotlib.pyplot.savefig(args.filename)
+        matplotlib.pyplot.savefig(filename)
         output.fprint("Completed. Graph saved as '{}.png'."
-                      .format(args.filename), color=output.GREEN,
+                      .format(filename), color=output.GREEN,
                       file=self.outfile)
-
-    def gather_results(self, x_eval, y_evals, test_results) -> Dict:
-        """
-        Gather and format a test run objects results.
-
-        :param evaluations: The evaluations dictionary to be used to gather
-               results.
-        :param test_results: A test run's result dictionary.
-        :return: result, a dictionary containing parsed/formatted results for
-                 the given test run.
-        """
-
-        all_evals = y_evals.copy()
-        all_evals['x'] = x_eval
-        try:
-            evaluate_results(test_results, all_evals)
-        except ResultError as err:
-            output.fprint(
-                "Invalid graph evaluation:\n{}".format(err.args[0]),
-                file=self.errfile, color=output.RED)
-
-        x_vals = test_results['x']
-
-        # X value evaluations should only result in a list when graphing
-        # individual node results from a single test run.
-        if isinstance(test_results['x'], list):
-            if not isinstance(test_results['x'][-1], (int, str, float)):
-                raise ResultTypeError("x value evaluation '{}' resulted in a "
-                                      "list of invalid type {}."
-                                      .format(x_eval,
-                                              type(test_results['x'][-1])
-                                              .__name__))
-            results = {}
-            for i in range(len(test_results['x'])):
-                x = test_results['x'][i]
-
-                # Determines if x value is node name, if so convert name to int.
-                if isinstance(x, str):
-                    node = re.match(r'[a-zA-Z]*(\d*)$', x)
-                    if node:
-                        x = int(node.groups()[0])
-
-                evals = {}
-                for key in y_evals.keys():
-                    if key == 'x':
-                        continue
-                    if not isinstance(test_results[key], list):
-                        raise ResultTypeError("y value evaluation '{}' resulted"
-                                              " in invalid type {}."
-                                              .format(y_evals[key],
-                                                      type(test_results[key])
-                                                      .__name__))
-                    evals.update({key: test_results[key][i]})
-
-                results[x] = evals
-
-        elif isinstance(test_results['x'], (int, float, str)):
-            results = {}
-            evals = {}
-
-            x = test_results['x']
-
-            for key in y_evals.keys():
-                if key == 'x':
-                    continue
-                evals.update({key: test_results[key]})
-            results[x] = evals
-
-        else:
-            raise ResultTypeError("x value  evaluation '{}' resulted in invalid"
-                                  " type {}."
-                                  .format(y_evals['x'],
-                                          type(test_results['x']).__name__))
-
-        return results
-
-    def set_colors(self, y_evals, colors) -> Dict:
-        """
-        Set color for each y value to be plotted.
-        :param y_evals: y axis evaluations dictionary.
-        :param colors: Tuple of colors from a matplotlib color map.
-        :return: A dictionary with color lookups, by y value.
-        """
-
-        colormap = {}
-        colors = [color for color in colors]
-
-        for key in y_evals.keys():
-            colormap[key] = {'plot': colors.pop(0), 'stat': colors.pop(0)}
-
-        return colormap
-
-    def update_results_dict(self, results, test_results) -> Dict:
-        """
-        Update results dictionary with the passed test run results. Will extend
-        lists of values for the same x value and evaluation so they can be
-        graphed in a single pass.
-        :param results: Passed  pav graph results dict.
-        :param test_results: Passed individual TestRun's results dict.
-        :return: Updated results dict.
-        """
-
-        for key, values in test_results.items():
-            if key not in results:
-                results[key] = {}
-            for evl, value in values.items():
-                if evl not in results[key]:
-                    results[key][evl] = []
-                if isinstance(value, list):
-                    results[key][evl].extend(value)
-                else:
-                    results[key][evl].extend([value])
-
-        return results
 
 
 class ResultTypeError(RuntimeError):
