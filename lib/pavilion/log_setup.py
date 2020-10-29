@@ -173,7 +173,7 @@ def setup_loggers(pav_cfg, verbose=False, err_out=sys.stderr):
                       file=err_out)
     else:
         file_handler = handlers.RotatingFileHandler(
-            filename=log_fn,
+            filename=log_fn.as_posix(),
             maxBytes=1024 ** 2,
             backupCount=3)
         file_handler.setFormatter(logging.Formatter(pav_cfg.log_format,
