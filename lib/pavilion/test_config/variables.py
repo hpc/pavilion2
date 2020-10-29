@@ -481,6 +481,12 @@ index, sub_var) tuple.
 
         """
 
+        dref = (var_set, var)
+        if idx is not None:
+            dref += (idx,)
+
+
+
         self.deferred.add((var_set, var, idx, sub_var))
 
     def len(self, var_set, var):
