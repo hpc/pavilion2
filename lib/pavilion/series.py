@@ -257,7 +257,7 @@ differentiate it from test ids."""
                 "No such test series '{}'. Looked in {}."
                 .format(sid, series_path))
 
-        return dir_db.select(series_path)
+        return dir_db.select(series_path)[0]
 
     @classmethod
     def from_id(cls, pav_cfg, sid: str):
@@ -279,7 +279,7 @@ differentiate it from test ids."""
         logger = logging.getLogger(cls.LOGGER_FMT.format(sid))
 
         tests = []
-        for path in dir_db.select(series_path):
+        for path in dir_db.select(series_path)[0]:
             try:
                 test_id = int(path.name)
             except ValueError:
@@ -366,7 +366,7 @@ class SeriesInfo:
         self.path = path
 
         self._complete = None
-        self._tests = [tpath for tpath in dir_db.select(self.path)]
+        self._tests = [tpath for tpath in dir_db.select(self.path)[0]]
 
     @classmethod
     def list_attrs(cls):
