@@ -9,9 +9,10 @@ import errno
 import os
 import re
 import subprocess
+import textwrap
 import zipfile
 from pathlib import Path
-from typing import Iterator, Union
+from typing import Iterator, Union, TextIO
 
 
 # Python 3.5 issue. Python 3.6 Path.resolve() handles this correctly.
@@ -322,3 +323,62 @@ def hr_cutoff_to_datetime(cutoff_time: str,
             )
 
     raise ValueError("Invalid cutoff value '{}'".format(cutoff_time))
+
+
+def auto_type_convert(value):
+    """Try to convert 'value' to a int, float, or bool. Otherwise leave
+    as a string. This is done recursively with complex values."""
+
+    if value is None:
+        return None
+
+    if isinstance(value, list):
+        return [auto_type_convert(item) for item in value]
+    elif isinstance(value, dict):
+        return {key: auto_type_convert(val) for key, val in value.items()}
+
+    if isinstance(value, (int, float, bool)):
+        return value
+
+    # Probably a string?
+    try:
+        return int(value)
+    except ValueError:
+        pass
+
+    try:
+        return float(value)
+    except ValueError:
+        pass
+
+    if value in ('True', 'False'):
+        return value == 'True'
+
+    return value
+
+
+class IndentedLog:
+    """A logging object for writing indented, easy to follow logs."""
+
+    def __init__(self, log_file: Union[TextIO, None] = None):
+
+        self._indent = 0
+        self._file = log_file
+
+    @property
+    def indent(self):
+        """The level of indentation for logged items."""
+        return self._indent
+
+    @indent.setter
+    def indent(self, val):
+        self._indent = val
+
+    def __call__(self, msg):
+        """Write the message to log with the set indentation level."""
+
+        if self._file is None:
+            return
+
+        self._file.write(textwrap.indent(msg, "  " * self._indent))
+        self._file.write('\n')

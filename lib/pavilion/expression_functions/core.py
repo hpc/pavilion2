@@ -325,7 +325,7 @@ class Outliers(CoreFunctionPlugin):
         for i in range(len(values)):
             val = values[i]
 
-            dev = (val - mean)/stddev
+            dev = abs(val - mean)/stddev
             if dev > limit:
                 deviations[names[i]] = dev
 

@@ -12,6 +12,7 @@ import lark
 import pavilion.expression_functions.common
 from pavilion import expression_functions as functions
 from .common import PavTransformer, ParserValueError
+from pavilion.utils import auto_type_convert
 
 EXPR_GRAMMAR = r'''
 
@@ -88,8 +89,9 @@ FLOAT: /\d+\.\d+/
 // This will be prioritized over 'NAME' matches
 BOOL.2: "True" | "False"
 
-// Names can be lower-case or capitalized, but must start with a letter.
-NAME.1: /[a-zA-Z][a-zA-Z0-9_]*/
+// Names can be lower-case or capitalized, but must start with a letter or 
+// underscore
+NAME.1: /[a-zA-Z_][a-zA-Z0-9_]*/
 
 // Ignore all whitespace between tokens. 
 %ignore  / +(?=[^.(])/
@@ -459,30 +461,6 @@ class BaseExprTransformer(PavTransformer):
         tok.value = ast.literal_eval('r' + tok.value)
         return tok
 
-    def _convert(self, value):
-        """Try to convert 'value' to a int, float, or bool. Otherwise leave
-        as a string."""
-
-        if isinstance(value, list):
-            return [self._convert(item) for item in value]
-        elif isinstance(value, dict):
-            return {key: self._convert(val) for key, val in value.items()}
-
-        try:
-            return int(value)
-        except ValueError:
-            pass
-
-        try:
-            return float(value)
-        except ValueError:
-            pass
-
-        if value in ('True', 'False'):
-            return bool(value)
-
-        return value
-
 
 class ExprTransformer(BaseExprTransformer):
     """Convert Pavilion string expressions into their final values given
@@ -524,7 +502,7 @@ class ExprTransformer(BaseExprTransformer):
 
         # Convert val into the type it looks most like.
         if isinstance(val, str):
-            val = self._convert(val)
+            val = auto_type_convert(val)
 
         return self._merge_tokens(items, val)
 
@@ -584,7 +562,7 @@ class EvaluationExprTransformer(BaseExprTransformer):
         key_parts = key_parts.copy()
 
         if not key_parts:
-            return self._convert(base)
+            return auto_type_convert(base)
 
         key_part = key_parts.pop(0)
         seen_parts = seen_parts + (key_part,)

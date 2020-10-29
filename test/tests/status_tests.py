@@ -1,8 +1,9 @@
-from pavilion.status_file import StatusFile, STATES
+"""Test the operation of the status file objects."""
+
+from pavilion.status_file import StatusFile, STATES, StatusInfo
 from pavilion.unittest import PavTestCase
 from pathlib import Path
 import datetime
-#import os
 import subprocess
 import tempfile
 import time
@@ -52,12 +53,12 @@ class StatusTests(PavTestCase):
 
         self.assertLessEqual(len(status_info.state), STATES.max_length)
         self.assertEqual(status_info.state, STATES.INVALID)
-        self.assertLessEqual(len(status_info.note), status.NOTE_MAX)
+        self.assertLessEqual(len(status_info.note), StatusInfo.NOTE_MAX)
 
-        with fn.open('r') as sf:
+        with fn.open() as sf:
             lines = sf.readlines()
 
-            self.assertLessEqual(len(lines[-1]), status.LINE_MAX)
+            self.assertLessEqual(len(lines[-1]), StatusInfo.LINE_MAX)
 
         fn.unlink()
 

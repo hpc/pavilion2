@@ -14,7 +14,6 @@ pavilion\.pav\_test module
 
     .. autoclass:: TestRun
         :members: __init__, load, build, run, set_run_complete, wait,
-                  gather_results, save_results, load_results, is_built, job_id,
-                  timestamp
+                  gather_results, save_results, load_results, is_built, job_id
         :undoc-members:
 
