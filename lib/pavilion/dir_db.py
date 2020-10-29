@@ -152,7 +152,7 @@ def select_from(paths: Iterable[Path],
               of untransformed paths.
     """
 
-    items = []
+    selected = []
     for path in paths:
         if not path.is_dir():
             continue
@@ -172,12 +172,13 @@ def select_from(paths: Iterable[Path],
         if order_func is not None and order_func(item) is None:
             continue
 
-        items.append(item)
+        selected.append((item, path))
 
     if order_func is not None:
-        items.sort(key=order_func, reverse=not order_asc)
+        selected.sort(key=lambda d: order_func(d[0]), reverse=not order_asc)
 
-    return items[:limit]
+    return ([item[0] for item in selected][:limit],
+            [item[1] for item in selected][:limit])
 
 
 def paths_to_ids(paths: List[Path]) -> List[int]:
