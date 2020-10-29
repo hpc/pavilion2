@@ -1,10 +1,13 @@
 from pavilion import plugins
 from pavilion import commands
+from pavilion import cmd_utils
 from pavilion.unittest import PavTestCase
 from pavilion import arguments
 from pavilion.plugins.commands.run import RunCommand
 from pavilion.status_file import STATES
 import io
+import sys
+import logging
 
 
 class RunCmdTests(PavTestCase):
@@ -14,6 +17,7 @@ class RunCmdTests(PavTestCase):
         run_cmd = commands.get_command('run')
         run_cmd.outfile = io.StringIO()
         run_cmd.errfile = run_cmd.outfile
+        self.logger = logging.getLogger('unittest.RunCmdTests')
 
     def tearDown(self):
         plugins._reset_plugins()
@@ -25,12 +29,14 @@ class RunCmdTests(PavTestCase):
 
         run_cmd = commands.get_command('run')  # type: RunCommand
 
-        configs_by_sched = run_cmd._get_test_configs(pav_cfg=self.pav_cfg,
-                                                     host='this', test_files=[],
-                                                     tests=['hello_world'],
-                                                     modes=[], overrides={})
+        configs_by_sched = cmd_utils.get_test_configs(pav_cfg=self.pav_cfg,
+                                                      host='this', test_files=[],
+                                                      tests=['hello_world'],
+                                                      modes=[], overrides={},
+                                                      logger=self.logger, outfile=sys.stdout
+                                                      )
 
-        tests = run_cmd._configs_to_tests(
+        tests = cmd_utils.configs_to_tests(
             pav_cfg=self.pav_cfg,
             configs_by_sched=configs_by_sched,
         )
@@ -47,13 +53,14 @@ class RunCmdTests(PavTestCase):
 
         tests_file = self.TEST_DATA_ROOT/'run_test_list'
 
-        configs_by_sched = run_cmd._get_test_configs(pav_cfg=self.pav_cfg,
-                                                     host='this',
-                                                     test_files=[tests_file],
-                                                     tests=[], modes=[],
-                                                     overrides={})
+        configs_by_sched = cmd_utils.get_test_configs(pav_cfg=self.pav_cfg,
+                                                      host='this',
+                                                      test_files=[tests_file],
+                                                      tests=[], modes=[],
+                                                      overrides={},
+                                                      logger=self.logger, outfile=sys.stdout)
 
-        tests = run_cmd._configs_to_tests(
+        tests = cmd_utils.configs_to_tests(
             pav_cfg=self.pav_cfg,
             configs_by_sched=configs_by_sched,
         )
