@@ -486,7 +486,7 @@ class Slurm(SchedulerPlugin):
                 if prev:
                     part = prev + "," + part
                     prev = ""
-                if '[' in part and '-' not in part:
+                if '[' in part and ']' not in part:
                     prev = part
                     continue
                 if not node_part_re.match(part):
@@ -509,7 +509,7 @@ class Slurm(SchedulerPlugin):
             if prev:
                 part = prev + "," + part
                 prev = ""
-            if '[' in part and '-' not in part:
+            if '[' in part and ']' not in part:
                 prev = part
                 continue
             match = cls.NODE_BRACKET_FORMAT_RE.match(part)
