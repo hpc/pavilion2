@@ -36,7 +36,7 @@ def resolve_path(path, strict=False):
                 # parent dir
                 path_, _, _ = path_.rpartition(sep)
                 continue
-            newpath = path_ + sep + name
+            newpath = str(path_) + sep + name
             if newpath in seen:
                 # Already seen this path
                 path_ = seen[newpath]
@@ -59,7 +59,7 @@ def resolve_path(path, strict=False):
                 path_ = _resolve(path_, target)
                 seen[newpath] = path_  # resolved symlink
 
-        return path_
+        return Path(path_)
 
     # NOTE: according to POSIX, getcwd() cannot contain path components
     # which are symlinks.

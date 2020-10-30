@@ -264,7 +264,7 @@ class FiltersTest(PavTestCase):
         self.assertTrue(ascending)
         sorted_tests = dir_db.select_from(
             paths=paths,
-            transform=TestAttributes, order_func=sort, order_asc=ascending)
+            transform=TestAttributes, order_func=sort, order_asc=ascending)[0]
         self.assertEqual([t.id for t in sorted_tests], ids)
 
         # And descending.
@@ -272,5 +272,5 @@ class FiltersTest(PavTestCase):
         self.assertFalse(ascending)
         sorted_tests = dir_db.select_from(
             paths=paths,
-            transform=TestAttributes, order_func=sort, order_asc=ascending)
+            transform=TestAttributes, order_func=sort, order_asc=ascending)[0]
         self.assertEqual([t.id for t in sorted_tests], list(reversed(ids)))
