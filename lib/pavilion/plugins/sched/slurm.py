@@ -45,14 +45,14 @@ slurm kickoff script.
 
         lines = super().get_lines()
 
-         if self._conf.get('job_name') is not None:
-             lines.append(
-                 '#SBATCH --job-name {s._conf[job_name]}'
-                 .format(s=self))
-         else:
-             lines.append(
-                 '#SBATCH --job-name "pav test #{s._test_id}"'
-                 .format(s=self))
+        if self._conf.get('job_name') is not None:
+            lines.append(
+                '#SBATCH --job-name {s._conf[job_name]}'
+                .format(s=self))
+        else:
+            lines.append(
+                '#SBATCH --job-name "pav test #{s._test_id}"'
+                .format(s=self))
 
         lines.append('#SBATCH -p {s._conf[partition]}'.format(s=self))
         if self._conf.get('reservation') is not None:
