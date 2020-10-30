@@ -444,12 +444,12 @@ class ShowCommand(commands.Command):
                     title=var
                 )
             else:
-                output.fprint(var)
+                output.fprint(var, file=self.outfile)
                 output.fprint("(Showing as json due to the insane number of "
-                              "keys)")
+                              "keys)", file=self.outfile)
                 output.fprint(pprint.pformat(cfg['variables'][var],
-                                             compact=True))
-            output.fprint("\n")
+                                             compact=True), file=self.outfile)
+            output.fprint("\n", file=self.outfile)
 
     def show_configs_table(self, pav_cfg, args, conf_type):
         """Default config table, shows the config name and if it can be
