@@ -1,5 +1,6 @@
 """Graph pavilion results data."""
 
+import collections
 import errno
 import re
 import statistics
@@ -172,6 +173,8 @@ class GraphCommand(commands.Command):
 
             graph_data = self.combine_graph_data(graph_data, test_graph_data)
 
+        graph_data = collections.OrderedDict(sorted(graph_data.items()))
+
         # Graph the data.
         try:
             self.graph(args.xlabel, args.ylabel, y_evals, graph_data,
@@ -207,6 +210,15 @@ class GraphCommand(commands.Command):
         :param test_results: A test run's result dictionary.
         :return: result, a dictionary containing parsed/formatted results for
                  the given test run.
+
+        Builds a result data structure that looks like:
+
+        graph_data = {
+            x value: {
+                y eval 1: [result values],
+                y eval 2: [result values]
+            }
+        }
         """
 
         all_evals = y_evals.copy()
@@ -275,8 +287,10 @@ class GraphCommand(commands.Command):
     def combine_graph_data(self, graph_data, test_graph_data) -> Dict:
         """
         Takes individual test run graph data and tries to extend
-        lists of values for the same x value and evaluation so they can be
-        graphed in a single pass.
+        lists of values for the same x value and y evaluation if they exist
+        otherwise add the respective keys to the updated graph_data dict. This
+        is so every y value for any given x value can be plotted in a single
+        pass.
         :param graph_data: Passed  pav graph data dict.
         :param test_graph_data: Passed individual TestRun's graph data dict.
         :return: Updated/Combined graph_data dict.
