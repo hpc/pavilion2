@@ -23,11 +23,11 @@ try:
 
     matplotlib.pyplot.ioff()
 
-    HAS_MATPLOT_LIB = True
+    HAS_MATPLOTLIB = True
 
 except ImportError:
 
-    HAS_MATPLOT_LIB = False
+    HAS_MATPLOTLIB = False
 
 
 class GraphCommand(commands.Command):
@@ -45,24 +45,25 @@ class GraphCommand(commands.Command):
         filters.add_test_filter_args(parser)
 
         parser.add_argument(
-            'tests', nargs='*', action='store',
-            help='Specific Test Ids to graph.'
+            'tests', nargs='*', default=[], action='store',
+            help='Specific Test Ids to graph. '
         )
         parser.add_argument(
             '--filename', action='store', required=True,
             help='File name to use for saving graph.'
         )
         parser.add_argument(
-            '--exclude', nargs='*', default=[], action='store',
-            help='Exclude Test Ids from the graph.'
+            '--exclude', default=[], action='store',
+            help='Exclude Test Ids from the graph, must be a comma separated '
+                 'list. Ex \'[123, 125, 126]\'.'
         )
         parser.add_argument(
-            '--y', nargs='+', action='store', required=True,
+            '--y', action='append', required=True,
             help='Specify the value(s) graphed from the results '
                  'for each test.'
         )
         parser.add_argument(
-            '--x', nargs=1, action='store', required=True,
+            '--x', action='store', required=True,
             help='Specify the value to be used on the X axis.'
         )
         parser.add_argument(
@@ -74,16 +75,20 @@ class GraphCommand(commands.Command):
             help='Specify the y axis label.'
         )
         parser.add_argument(
-            '--plot-average', nargs='+', action='store', default=[],
+            '--plot-average', action='append', default=[],
             help='Generate an average plot for the specified x value(s).'
+        )
+        parser.add_argument(
+            '--dimensions', action='store', default='',
+            help='Specify the image size.'
         )
 
     def run(self, pav_cfg, args):
         """"""
 
-        if not HAS_MATPLOT_LIB:
+        if not HAS_MATPLOTLIB:
             output.fprint(
-                "The command requires matplotlib to function. Matplotlib is an"
+                "The command requires matplotlib to function. Matplotlib is an "
                 "optional requirement of Pavilion.")
 
             return errno.EINVAL
@@ -121,7 +126,7 @@ class GraphCommand(commands.Command):
             return errno.EINVAL
 
         # Build respective evaluation dictionaries.
-        x_eval = {'x': args.x[0]}
+        x_eval = {'x': args.x}
         y_evals = {'y' + str(i): args.y[i] for i in range(len(args.y))}
         stats_dict = {key: {'x': [], 'y': []} for key in y_evals}
 
@@ -148,14 +153,21 @@ class GraphCommand(commands.Command):
                                                          test.results)
             except (ResultError, ResultTypeError) as err:
                 output.fprint("Error gathering results for test {}: \n{}"
-                              .format(test.id, err))
+                              .format(test.id, err), file=self.errfile,
+                              color=output.RED)
                 return errno.EINVAL
 
             graph_data = self.combine_graph_data(graph_data, test_graph_data)
 
         # Graph the data.
-        self.graph(args.xlabel, args.ylabel, y_evals, graph_data, stats_dict,
-                   args.plot_average, colormap, args.filename)
+        try:
+            self.graph(args.xlabel, args.ylabel, y_evals, graph_data,
+                       stats_dict, args.plot_average, colormap,
+                       args.filename, args.dimensions)
+        except GraphingError as err:
+            output.fprint("Error while graphing data:\n{}".format(err),
+                          file=self.errfile, color=output.RED)
+            return errno.EINVAL
 
     def set_colors(self, y_evals, colors) -> Dict:
         """
@@ -186,15 +198,16 @@ class GraphCommand(commands.Command):
 
         all_evals = y_evals.copy()
         all_evals.update(x_eval)
+
         try:
             evaluate_results(test_results, all_evals)
         except ResultError as err:
             output.fprint(
-                "Invalid graph evaluation:\n{}".format(err.args[0]),
+                "Invalid graph evaluation for test {}:\n{}"
+                .format(test_results['id'], err.args[0]),
                 file=self.errfile, color=output.RED)
 
         x_vals = test_results['x']
-        output.fprint(x_vals)
 
         if isinstance(x_vals, (int, float, str)):
             graph_data = {}
@@ -223,12 +236,6 @@ class GraphCommand(commands.Command):
             graph_data = {}
             for i in range(len(x_vals)):
                 x = x_vals[i]
-
-                # Determines if x value is node name, if so convert name to int.
-                if isinstance(x, str):
-                    node = re.match(r'[a-zA-Z]*(\d*)$', x)
-                    if node:
-                        x = int(node.groups()[0])
 
                 evaluations = {}
                 for key in y_evals.keys():
@@ -276,18 +283,22 @@ class GraphCommand(commands.Command):
         return graph_data
 
     def graph(self, xlabel, ylabel, y_evals, graph_data, stats_dict,
-              plot_averages, colormap, filename):
+              plot_averages, colormap, filename, dimensions):
         """
         Graph the data collected from all test runs provided. Graph_data has
         formatted everything so you can graph every y value for each respective
         x value in a single pass.
-        :param xlabel:
-        :param ylabel:
-        :param graph_data:
+        :param xlabel: Label for the graph's x-axis.
+        :param ylabel: Label for the graph's y-axis.
+        :param graph_data: Data to be plotted on the graph. Expects a nested
+        dictionary.
         :param stats_dict:
-        :param plot_averages:
-        :param colormap:
-        :param filename:
+        :param plot_averages: List of evaluations to plot averages of.
+        :param colormap: dictionary of colors mapped to expected y value
+        evaluations.
+        :param filename: String name to save graph as.
+        :param dimensions: String representing desired graph dimension in a
+        'width x height' format.
         :return:
         """
 
@@ -307,13 +318,14 @@ class GraphCommand(commands.Command):
                                               color=color,
                                               label=label)
                 except ValueError:
-                    output.fprint("Evaluations '{}, {}' resulted in "
-                                  "un-plottable point with types ({}, {})."
-                                  .format(evaluations['x'], evaluations[evl],
-                                          type(x_list[-1]).__name__,
-                                          type(y_list[-1]).__name__))
-
-                    return errno.EINVAL
+                    raise PlottingError("Evaluations '{}, {}' resulted in "
+                                        "un-plottable values.\n"
+                                        "X list: {}\n"
+                                        "Y list: {}\n"
+                                        .format(evaluations['x'],
+                                                evaluations[evl],
+                                                x_list,
+                                                y_list))
 
                 if y_evals[evl] in plot_averages:
                     stats_dict[evl]['x'].append(x)
@@ -340,3 +352,7 @@ class GraphCommand(commands.Command):
 
 class ResultTypeError(RuntimeError):
     """Raise when evaluation results in an invalid type"""
+
+
+class PlottingError(RuntimeError):
+    """Raise when something goes wrong when graphing"""
