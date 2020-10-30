@@ -29,6 +29,8 @@ except ImportError:
 
     HAS_MATPLOTLIB = False
 
+DIMENSIONS_RE = re.compile(r'\d+x\d+')
+
 
 class GraphCommand(commands.Command):
     """Command to graph Pavilion results data."""
@@ -101,6 +103,17 @@ class GraphCommand(commands.Command):
                 color=output.RED, file=self.errfile)
             return errno.EINVAL
 
+        if args.dimensions:
+            match = DIMENSIONS_RE.match(args.dimensions)
+            if not match:
+                output.fprint(
+                    "Invalid '--dimensions' format '{}' (Expects 'width x "
+                    "height'), using default dimensions."
+                    .format(args.dimensions),
+                    color=output.YELLOW, file=self.errfile
+                )
+                args.dimensions = ''
+
         output.fprint("Generating Graph...", file=self.outfile)
         # Get filtered Test IDs.
         test_ids = cmd_utils.arg_filtered_tests(pav_cfg, args)
@@ -164,7 +177,7 @@ class GraphCommand(commands.Command):
             self.graph(args.xlabel, args.ylabel, y_evals, graph_data,
                        stats_dict, args.plot_average, colormap,
                        args.filename, args.dimensions)
-        except GraphingError as err:
+        except PlottingError as err:
             output.fprint("Error while graphing data:\n{}".format(err),
                           file=self.errfile, color=output.RED)
             return errno.EINVAL
@@ -314,7 +327,7 @@ class GraphCommand(commands.Command):
                 x_list = [x] * len(y_list)
 
                 try:
-                    matplotlib.pyplot.scatter(x=x_list, y=y_list, marker=".",
+                    matplotlib.pyplot.scatter(x=x_list, y=y_list, marker="o",
                                               color=color,
                                               label=label)
                 except ValueError:
@@ -344,7 +357,13 @@ class GraphCommand(commands.Command):
         matplotlib.pyplot.xlabel(xlabel)
         matplotlib.pyplot.legend()
 
-        matplotlib.pyplot.savefig(filename)
+        fig = matplotlib.pyplot.gcf()
+
+        if dimensions:
+            width, height = dimensions.split('x')
+            fig.set_size_inches(float(width), float(height))
+
+        fig.savefig(filename)
         output.fprint("Completed. Graph saved as '{}.png'."
                       .format(filename), color=output.GREEN,
                       file=self.outfile)
