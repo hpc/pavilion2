@@ -3,6 +3,7 @@
 import copy
 import io
 import json
+import random
 
 from pavilion import arguments
 from pavilion import commands
@@ -288,7 +289,21 @@ class ResolverTests(PavTestCase):
                 'd2': '{{testc.1}}',
             },
             'teste': '{{testd.d1}}',
+            'testf': '{{testi}}',
+            'testg': '{{testh}}',
+            'testh': '{{testa}}',
+            'testi': '{{testg}}',
+            'testj': ['hello', '{{testa}}'],
+            'testk': '{{len(testj.*)}}'
         }
+
+        # Shuffle the dictionary order, to make sure order doesn't matter.
+        new_vars = {}
+        keys = list(cfg['variables'].keys())
+        random.shuffle(keys)
+        for key in keys:
+            new_vars[key] = cfg['variables'][key]
+        cfg['variables'] = new_vars
 
         test = self._quick_test(cfg, 'deep_deferred')
 
@@ -301,6 +316,11 @@ class ResolverTests(PavTestCase):
             'testc': [host_name, host_name],
             'testd': [{'d1': host_name, 'd2': host_name}],
             'teste': [host_name],
+            'testf': [host_name],
+            'testg': [host_name],
+            'testh': [host_name],
+            'testi': [host_name],
+            'testj': []
         }
 
         vars = test.var_man.as_dict()['var']
