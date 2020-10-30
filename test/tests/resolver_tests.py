@@ -293,8 +293,8 @@ class ResolverTests(PavTestCase):
             'testg': '{{testh}}',
             'testh': '{{testa}}',
             'testi': '{{testg}}',
-            'testj': ['hello', '{{testa}}'],
-            'testk': '{{len(testj.*)}}'
+            # Resolved, this will have four elements.
+            'testj': '{{len(sys.dumb_list.*)}}'
         }
 
         # Shuffle the dictionary order, to make sure order doesn't matter.
@@ -320,7 +320,7 @@ class ResolverTests(PavTestCase):
             'testg': [host_name],
             'testh': [host_name],
             'testi': [host_name],
-            'testj': []
+            'testj': ["4"]
         }
 
         vars = test.var_man.as_dict()['var']

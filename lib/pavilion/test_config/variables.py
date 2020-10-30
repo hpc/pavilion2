@@ -345,6 +345,10 @@ index, sub_var) tuple.
                         unresolved_vars[('var', var, idx, key)] = (tree,
                                                                    variables)
 
+        import pprint
+        print('unresolved vars')
+        pprint.pprint(unresolved_vars)
+
         # unresolved variables form a tree where the leaves should all be
         # resolved variables. This iteratively finds unresolved variables whose
         # references are resolved and resolves them. This should collapse the
@@ -364,8 +368,9 @@ index, sub_var) tuple.
                             break
                     else:
                         if var_key[2] is None:
-                            var_key = (var_key[0], var_key[1], 0, var_key[2])
+                            var_key = (var_key[0], var_key[1], 0, var_key[3])
 
+                        print('checking_unresolved', var_key, var_key in unresolved_vars)
                         if var_key in unresolved_vars:
                             break
                 else:
@@ -397,7 +402,7 @@ index, sub_var) tuple.
                     "Variables '{}' contained reference loop"
                     .format([k[1] for k in unresolved_vars.keys()]))
 
-        print('Values after "resolve_references"')
+        print('-------------- Values after "resolve_references"')
         print('deferred', self.deferred)
         import pprint
         pprint.pprint(self.as_dict())

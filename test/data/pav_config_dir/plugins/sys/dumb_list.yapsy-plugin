@@ -1,0 +1,9 @@
+[Core]
+Name = Dumb List Variable
+Module = dumb_list
+
+[Documentation]
+Description = A dumb system variable to mimic a username variable for unit tests.
+Author = Calvin
+Version = 1.0
+Website =
