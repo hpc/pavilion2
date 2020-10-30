@@ -53,12 +53,11 @@ class GraphCommand(commands.Command):
         )
         parser.add_argument(
             '--filename', action='store', required=True,
-            help='File name to use for saving graph.'
+            help='Desired name of graph when saved to PNG.'
         )
         parser.add_argument(
-            '--exclude', default=[], action='store',
-            help='Exclude Test Ids from the graph, must be a comma separated '
-                 'list. Ex \'[123, 125, 126]\'.'
+            '--exclude', default=[], action='append',
+            help='Exclude specific Test Ids from the graph.'
         )
         parser.add_argument(
             '--y', action='append', required=True,
@@ -79,11 +78,11 @@ class GraphCommand(commands.Command):
         )
         parser.add_argument(
             '--plot-average', action='append', default=[],
-            help='Generate an average plot for the specified x value(s).'
+            help='Generate an average plot for the specified y value(s).'
         )
         parser.add_argument(
             '--dimensions', action='store', default='',
-            help='Specify the image size.'
+            help='Specify the image size. Expects a \'width x height\' format.'
         )
 
     def run(self, pav_cfg, args):
@@ -92,7 +91,8 @@ class GraphCommand(commands.Command):
         if not HAS_MATPLOTLIB:
             output.fprint(
                 "The command requires matplotlib to function. Matplotlib is an "
-                "optional requirement of Pavilion.")
+                "optional requirement of Pavilion.",
+                file=self.errfile)
 
             return errno.EINVAL
 
@@ -108,16 +108,19 @@ class GraphCommand(commands.Command):
             match = DIMENSIONS_RE.match(args.dimensions)
             if not match:
                 output.fprint(
-                    "Invalid '--dimensions' format '{}' (Expects 'width x "
-                    "height'), using default dimensions."
+                    "Invalid '--dimensions' string '{}', doesn't match "
+                    "expected format. Using matplotlib default dimensions."
                     .format(args.dimensions),
                     color=output.YELLOW, file=self.errfile
                 )
                 args.dimensions = ''
 
         output.fprint("Generating Graph...", file=self.outfile)
+
         # Get filtered Test IDs.
         test_ids = cmd_utils.arg_filtered_tests(pav_cfg, args)
+        # Add any additional tests provided via the command line.
+        test_ids.append(args.tests)
 
         # Load TestRun for all tests, skip those that are to be excluded.
         tests = []
@@ -136,7 +139,8 @@ class GraphCommand(commands.Command):
                 pass
 
         if not tests:
-            output.fprint("Test filtering resulted in an empty list.")
+            output.fprint("Test filtering resulted in an empty list.",
+                          file=self.errfile)
             return errno.EINVAL
 
         # Build respective evaluation dictionaries.
@@ -167,8 +171,8 @@ class GraphCommand(commands.Command):
                                                          test.results)
             except (ResultError, ResultTypeError) as err:
                 output.fprint("Error gathering results for test {}: \n{}"
-                              .format(test.id, err), file=self.errfile,
-                              color=output.RED)
+                              .format(test.id, err),
+                              file=self.errfile, color=output.RED)
                 return errno.EINVAL
 
             graph_data = self.combine_graph_data(graph_data, test_graph_data)
@@ -266,21 +270,22 @@ class GraphCommand(commands.Command):
                 for key in y_evals.keys():
                     if not isinstance(test_results[key], list):
                         raise ResultTypeError("y value evaluation '{}' "
-                                              "resulted in {}. Since x value "
-                                              "evaluation resulted in a list, "
-                                              "this must be a list."
+                                              "resulted in {} '{}'. Since x "
+                                              "value evaluation resulted in a "
+                                              "list, this must be a list."
                                               .format(y_evals[key],
                                                       type(test_results[key])
-                                                      .__name__))
+                                                      .__name__,
+                                                      test_results[key]))
                     evaluations.update({key: test_results[key][i]})
 
                 graph_data[x] = evaluations
 
         else:
             raise ResultTypeError("x value  evaluation '{}' resulted in invalid"
-                                  " type {}."
-                                  .format(x_eval,
-                                          type(x_vals).__name__))
+                                  " type {}, '{}'."
+                                  .format(x_eval, type(x_vals).__name__,
+                                          x_vals))
 
         return graph_data
 
@@ -334,7 +339,7 @@ class GraphCommand(commands.Command):
             for evl, y_list in eval_dict.items():
                 color = colormap[evl]['plot']
 
-                label = y_evals[evl].split(".")[0]
+                label = y_evals[evl].split(".")[-1]
                 label = label if label not in labels else ""
                 labels.add(label)
 
@@ -361,7 +366,7 @@ class GraphCommand(commands.Command):
         for evl, values in stats_dict.items():
             if y_evals[evl] not in plot_averages:
                 continue
-            label = y_evals[evl].split(".")[0]
+            label = y_evals[evl].split(".")[-1]
             matplotlib.pyplot.scatter(values['x'], values['y'],
                                       marker="+",
                                       color=colormap[evl]['stat'],
@@ -379,8 +384,7 @@ class GraphCommand(commands.Command):
 
         fig.savefig(filename)
         output.fprint("Completed. Graph saved as '{}.png'."
-                      .format(filename), color=output.GREEN,
-                      file=self.outfile)
+                      .format(filename), color=output.GREEN, file=self.outfile)
 
 
 class ResultTypeError(RuntimeError):
