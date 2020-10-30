@@ -1,24 +1,28 @@
 """The module contains functions and classes that are generally useful across
 multiple commands."""
 
-from pavilion import dir_db
-from pavilion.series import TestSeries, TestSeriesError
-from pavilion.test_run import TestAttributes, TestConfigError, TestRunError, TestRun
-from pavilion.builder import MultiBuildTracker
-from pavilion.status_file import STATES
-from pavilion import filters
-from pavilion import test_config
-from pavilion import commands
-from pavilion import output
-
 import argparse
+import errno
+import logging
 import pathlib
 import threading
 import time
-import errno
-from typing import List
+from io import StringIO
 from pathlib import Path
-from collections import defaultdict
+from typing import Dict, List, Union, TextIO
+
+from pavilion import commands
+from pavilion import dir_db
+from pavilion import filters
+from pavilion import output
+from pavilion import test_config
+from pavilion.builder import MultiBuildTracker
+from pavilion.series import TestSeries, TestSeriesError
+from pavilion.status_file import STATES
+from pavilion.test_run import TestAttributes, TestConfigError, TestRunError, \
+    TestRun
+
+LOGGER = logging.getLogger(__name__)
 
 
 def arg_filtered_tests(pav_cfg, args: argparse.Namespace) -> List[int]:
@@ -131,22 +135,22 @@ def test_list_to_paths(pav_cfg, req_tests) -> List[Path]:
     return test_paths
 
 
-def get_test_configs(pav_cfg, host, test_files, tests, modes,
-                     overrides, logger=None, outfile=None):
+def get_test_configs(
+        pav_cfg, host: str, test_files: List[Union[str, Path]],
+        tests: List[str], modes: List[str], overrides: Dict[str, str],
+        outfile: TextIO = StringIO()) -> List[test_config.ProtoTest]:
     """Translate a general set of pavilion test configs into the final,
-    resolved configurations. These objects will be organized in a
-    list made of tuples of configs and variable manages.
+    resolved configurations.
+
     :param pav_cfg: The pavilion config
-    :param str host: The host config to target these tests with
-    :param list(str) modes: The mode configs to use.
-    :param list(Path) test_files: Files containing a newline separated
-        list of tests.
-    :param list(str) tests: The tests to run.
-    :param list(str) overrides: Overrides to apply to the configurations.
-name) of lists of tuples
-        test configs and their variable managers.
+    :param host: The host config to target these tests with
+    :param modes: The mode configs to use.
+    :param test_files: Files containing a newline separated list of tests.
+    :param tests: The tests to run.
+    :param overrides: Overrides to apply to the configurations.
+        name) of lists of tuples test configs and their variable managers.
+    :param outfile: Where to print user error messages.
     """
-    logger.debug("Finding Configs")
 
     resolver = test_config.TestConfigResolver(pav_cfg)
 
@@ -159,9 +163,8 @@ name) of lists of tuples
                     if line and not line.startswith('#'):
                         tests.append(line)
         except (OSError, IOError) as err:
-            msg = "Could not read test file {}: {}".format(file, err)
-            logger.error(msg)
-            raise commands.CommandError(msg)
+            raise commands.CommandError(
+                "Could not read test file {}: {}".format(file, err))
 
     try:
         resolved_cfgs = resolver.load(
@@ -174,37 +177,35 @@ name) of lists of tuples
     except TestConfigError as err:
         raise commands.CommandError(err.args[0])
 
-    test_configs = []
-    for cfg, var_man in resolved_cfgs:
-        test_configs.append((cfg, var_man))
-
-    return test_configs
+    return resolved_cfgs
 
 
-def configs_to_tests(pav_cfg, test_configs, mb_tracker=None,
-                     build_only=False, rebuild=False, outfile=None):
-    """Convert the dictionary of test configs by scheduler into actual
+def configs_to_tests(
+        pav_cfg, proto_tests: List[test_config.ProtoTest],
+        mb_tracker: Union[MultiBuildTracker, None] = None,
+        build_only: bool = False, rebuild: bool = False,
+        outfile: TextIO = None) -> List[TestRun]:
+    """Convert configs/var_man tuples into actual
     tests.
 
     :param pav_cfg: The Pavilion config
-    :param dict[str,list] test_configs: A list of test
-    configs.
-    :param Union[MultiBuildTracker,None] mb_tracker: The build tracker.
-    :param bool build_only: Whether to only build these tests.
-    :param bool rebuild: After figuring out what build to use, rebuild it.
-    :return:
+    :param proto_tests: A list of test configs.
+    :param mb_tracker: The build tracker.
+    :param build_only: Whether to only build these tests.
+    :param rebuild: After figuring out what build to use, rebuild it.
+    :param outfile: Output file for printing messages
     """
 
     test_list = []
     progress = 0
-    tot_tests = len(test_configs)
+    tot_tests = len(proto_tests)
 
-    for cfg, var_man in test_configs:
+    for ptest in proto_tests:
         try:
             test_list.append(TestRun(
                 pav_cfg=pav_cfg,
-                config=cfg,
-                var_man=var_man,
+                config=ptest.config,
+                var_man=ptest.var_man,
                 build_tracker=mb_tracker,
                 build_only=build_only,
                 rebuild=rebuild
@@ -222,19 +223,27 @@ def configs_to_tests(pav_cfg, test_configs, mb_tracker=None,
     return test_list
 
 
-def build_local(tests, max_threads, mb_tracker, build_verbosity, outfile=None, errfile=None):
+BUILD_STATUS_PREAMBLE = '{when:20s} {test_id:6} {state:{state_len}s}'
+BUILD_SLEEP_TIME = 0.1
+
+
+def build_local(tests: List[TestRun],
+                mb_tracker: MultiBuildTracker,
+                max_threads: int = 4,
+                build_verbosity: int = 0,
+                outfile: TextIO = StringIO(),
+                errfile: TextIO = StringIO()):
     """Build all tests that request for their build to occur on the
     kickoff host.
 
-    :param list[TestRun] tests: The list of tests to potentially build.
-    :param int max_threads: Maximum number of build threads to start.
-    :param int build_verbosity: How much info to print during building.
-        See the -b/--build-verbose argument for more info.
-    :param MultiBuildTracker mb_tracker: The tracker for all builds.
+    :param tests: The list of tests to potentially build.
+    :param max_threads: Maximum number of build threads to start.
+    :param build_verbosity: How much info to print during building.
+        0 - Quiet, 1 - verbose, 2+ - very verbose
+    :param mb_tracker: The tracker for all builds.
+    :param outfile: Where to print user messages.
+    :param errfile: Where to print user error messages.
     """
-
-    BUILD_STATUS_PREAMBLE = '{when:20s} {test_id:6} {state:{state_len}s}'
-    BUILD_SLEEP_TIME = 0.1
 
     test_threads = []   # type: List[Union[threading.Thread, None]]
     remote_builds = []
@@ -277,10 +286,11 @@ def build_local(tests, max_threads, mb_tracker, build_verbosity, outfile=None, e
     test_by_threads = {}
 
     if build_verbosity > 0:
-        output.fprint(BUILD_STATUS_PREAMBLE
-                      .format(when='When', test_id='TestID',
-                      state_len=STATES.max_length, state='State'),
-                      'Message', file=outfile, width=None)
+        output.fprint(
+            BUILD_STATUS_PREAMBLE.format(
+                when='When', test_id='TestID',
+                state_len=STATES.max_length, state='State'),
+            'Message', file=outfile, width=None)
 
     builds_running = 0
     # Run and track <max_threads> build threads, giving output according
@@ -335,18 +345,22 @@ def build_local(tests, max_threads, mb_tracker, build_verbosity, outfile=None, e
                         STATES.ABORTED,
                         "Run aborted due to failures in other builds.")
 
-            output.fprint("Build error while building tests. Cancelling runs.",
-                          color=output.RED, file=outfile, clear=True)
-            output.fprint("Failed builds are placed in <working_dir>/test_runs/"
-                          "<test_id>/build for the corresponding test run.",
-                          color=output.CYAN, file=outfile)
+            output.fprint(
+                "Build error while building tests. Cancelling runs.",
+                color=output.RED, file=outfile, clear=True)
+            output.fprint(
+                "Failed builds are placed in <working_dir>/test_runs/"
+                "<test_id>/build for the corresponding test run.",
+                color=output.CYAN, file=outfile)
 
             for failed_build in mb_tracker.failures():
-                output.fprint("Build error for test {f.test.name} (#{f.test.id})."
-                              .format(f=failed_build), file=errfile)
-                output.fprint("See test status file (pav cat {id} status) and/or "
-                              "the test build log (pav log build {id})"
-                              .format(id=failed_build.test.id), file=errfile)
+                output.fprint(
+                    "Build error for test {f.test.name} (#{f.test.id})."
+                    .format(f=failed_build), file=errfile)
+                output.fprint(
+                    "See test status file (pav cat {id} status) and/or "
+                    "the test build log (pav log build {id})"
+                    .format(id=failed_build.test.id), file=errfile)
 
             return errno.EINVAL
 

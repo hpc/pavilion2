@@ -30,13 +30,14 @@ class RunCmdTests(PavTestCase):
         test_configs = cmd_utils.get_test_configs(pav_cfg=self.pav_cfg,
                                                   host='this', test_files=[],
                                                   tests=['hello_world'],
-                                                  modes=[], overrides={},
-                                                  logger=self.logger, outfile=sys.stdout
+                                                  modes=[],
+                                                  overrides={},
+                                                  outfile=sys.stdout
                                                   )
 
         tests = cmd_utils.configs_to_tests(
             pav_cfg=self.pav_cfg,
-            test_configs=test_configs,
+            proto_tests=test_configs,
         )
 
         # Make sure all the tests are there, under the right schedulers.
@@ -53,11 +54,11 @@ class RunCmdTests(PavTestCase):
                                                   test_files=[tests_file],
                                                   tests=[], modes=[],
                                                   overrides={},
-                                                  logger=self.logger, outfile=sys.stdout)
+                                                  outfile=sys.stdout)
 
         tests = cmd_utils.configs_to_tests(
             pav_cfg=self.pav_cfg,
-            test_configs=test_configs,
+            proto_tests=test_configs,
         )
 
         for test in tests:

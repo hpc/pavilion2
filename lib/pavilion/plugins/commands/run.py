@@ -1,23 +1,17 @@
 """The run command resolves tests by their names, builds them, and runs them."""
 
 import errno
-import pathlib
-import threading
-import copy
-from collections import defaultdict
-from typing import List, Union
+from typing import List
 
-import pavilion.result.common
+from pavilion import cmd_utils
 from pavilion import commands
 from pavilion import output
 from pavilion import result
 from pavilion import schedulers
-from pavilion import test_config
-from pavilion import cmd_utils
 from pavilion.builder import MultiBuildTracker
 from pavilion.output import fprint
-from pavilion.series import TestSeries, test_obj_from_id
-from pavilion.test_run import TestRun, TestRunError, TestConfigError
+from pavilion.series import TestSeries
+from pavilion.test_run import TestRun
 
 
 class RunCommand(commands.Command):
@@ -206,22 +200,20 @@ class RunCommand(commands.Command):
                                                       tests=args.tests,
                                                       modes=args.modes,
                                                       overrides=args.overrides,
-                                                      logger=self.logger,
                                                       outfile=self.outfile)
 
             # Remove non-local builds when doing only local builds.
             if build_only and local_builds_only:
-                test_configs_copy = copy.deepcopy(test_configs)
-                for i in range(len(test_configs)):
-                    config, _ = test_configs[i]
-                    if config['build']['on_nodes'].lower() == 'true':
-                        test_configs_copy[i] = None
-                test_configs_copy = [cfg for cfg in test_configs_copy if cfg is not None]
-                test_configs = test_configs_copy
+                locally_built_tests = []
+                for ptest in test_configs:
+                    if ptest.config['build']['on_nodes'].lower() != 'true':
+                        locally_built_tests.append(ptest)
+
+                test_configs = locally_built_tests
 
             test_list = cmd_utils.configs_to_tests(
                 pav_cfg=pav_cfg,
-                test_configs=test_configs,
+                proto_tests=test_configs,
                 mb_tracker=mb_tracker,
                 build_only=build_only,
                 rebuild=args.rebuild,
@@ -275,4 +267,3 @@ class RunCommand(commands.Command):
             return errno.EINVAL
 
         return 0
-

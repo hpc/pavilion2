@@ -12,8 +12,8 @@ import io
 import logging
 import os
 import re
-from collections import defaultdict
-from typing import List, IO, Tuple
+from collections import defaultdict, namedtuple
+from typing import List, IO, Dict
 
 import yc_yaml
 from pavilion import output
@@ -36,6 +36,11 @@ CONF_TEST = 'tests'
 LOGGER = logging.getLogger('pav.' + __name__)
 
 TEST_VERS_RE = re.compile(r'^\d+(\.\d+){0,2}$')
+
+
+ProtoTest = namedtuple('ProtoTest', ['config', 'var_man'])
+"""An simple object that holds the pair of a test config and its variable
+manager."""
 
 
 class TestConfigResolver:
@@ -208,10 +213,12 @@ class TestConfigResolver:
         return suites
 
     def load(self, tests: List[str], host: str = None,
-             modes: List[str] = None, overrides: List[str] = None,
+             modes: List[str] = None, overrides: Dict[str, str] = None,
              output_file: IO[str] = None) \
-            -> List[Tuple[dict, variables.VariableSetManager]]:
+            -> List[ProtoTest]:
         """Load the given tests, updated with their host and mode files.
+        Returns 'ProtoTests', a simple object with 'config' and 'var_man'
+        attributes for each resolved test.
 
         :param tests: A list of test names to load.
         :param host: The host to load tests for. Defaults to the value
@@ -219,9 +226,6 @@ class TestConfigResolver:
         :param modes: A list of modes to load.
         :param overrides: A dict of key:value pairs to apply as overrides.
         :param output_file: Where to write status output.
-
-        :returns: A list test_config dict and var_man tuples
-        :rtype: [(dict, VariableSetManager)]
         """
 
         if modes is None:
@@ -290,7 +294,7 @@ class TestConfigResolver:
 
                     raise TestConfigError(msg)
 
-                resolved_tests.append((resolved_config, pvar_man))
+                resolved_tests.append(ProtoTest(resolved_config, pvar_man))
 
             if output_file is not None:
                 progress += 1.0/len(raw_tests)
