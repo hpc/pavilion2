@@ -1,10 +1,13 @@
 from pavilion import plugins
 from pavilion import commands
+from pavilion import cmd_utils
 from pavilion.unittest import PavTestCase
 from pavilion import arguments
 from pavilion.plugins.commands.run import RunCommand
 from pavilion.status_file import STATES
 import io
+import sys
+import logging
 
 
 class RunCmdTests(PavTestCase):
@@ -14,6 +17,7 @@ class RunCmdTests(PavTestCase):
         run_cmd = commands.get_command('run')
         run_cmd.outfile = io.StringIO()
         run_cmd.errfile = run_cmd.outfile
+        self.logger = logging.getLogger('unittest.RunCmdTests')
 
     def tearDown(self):
         plugins._reset_plugins()
@@ -23,43 +27,45 @@ class RunCmdTests(PavTestCase):
             For the most part we're relying on tests of the various components
             of test_config.setup and the test_obj tests."""
 
-        run_cmd = commands.get_command('run')  # type: RunCommand
+        test_configs = cmd_utils.get_test_configs(pav_cfg=self.pav_cfg,
+                                                  host='this', test_files=[],
+                                                  tests=['hello_world'],
+                                                  modes=[],
+                                                  overrides={},
+                                                  outfile=sys.stdout
+                                                  )
 
-        configs_by_sched = run_cmd._get_test_configs(pav_cfg=self.pav_cfg,
-                                                     host='this', test_files=[],
-                                                     tests=['hello_world'],
-                                                     modes=[], overrides={})
-
-        tests = run_cmd._configs_to_tests(
+        tests = cmd_utils.configs_to_tests(
             pav_cfg=self.pav_cfg,
-            configs_by_sched=configs_by_sched,
+            proto_tests=test_configs,
         )
 
-        t1, t2 = tests['raw']
-        # Make sure our tests are in the right order
-        if t1.name != 'hello_world.hello':
-            t1, t2 = t2, t1
-
         # Make sure all the tests are there, under the right schedulers.
-        self.assertEqual(t1.name, 'hello_world.hello')
-        self.assertEqual(t2.name, 'hello_world.world')
-        self.assertEqual(tests['dummy'][0].name, 'hello_world.narf')
+        for test in tests:
+            if test.scheduler == 'raw':
+                self.assertIn(test.name, ['hello_world.hello', 'hello_world.world'])
+            else:
+                self.assertEqual(test.name, 'hello_world.narf')
 
         tests_file = self.TEST_DATA_ROOT/'run_test_list'
 
-        configs_by_sched = run_cmd._get_test_configs(pav_cfg=self.pav_cfg,
-                                                     host='this',
-                                                     test_files=[tests_file],
-                                                     tests=[], modes=[],
-                                                     overrides={})
+        test_configs = cmd_utils.get_test_configs(pav_cfg=self.pav_cfg,
+                                                  host='this',
+                                                  test_files=[tests_file],
+                                                  tests=[], modes=[],
+                                                  overrides={},
+                                                  outfile=sys.stdout)
 
-        tests = run_cmd._configs_to_tests(
+        tests = cmd_utils.configs_to_tests(
             pav_cfg=self.pav_cfg,
-            configs_by_sched=configs_by_sched,
+            proto_tests=test_configs,
         )
 
-        self.assertEqual(tests['raw'][0].name, 'hello_world.world')
-        self.assertEqual(tests['dummy'][0].name, 'hello_world.narf')
+        for test in tests:
+            if test.name == 'hello_world.world':
+                self.assertEqual(test.scheduler, 'raw')
+            else:
+                self.assertEqual(test.scheduler, 'dummy')
 
     def test_run(self):
 
