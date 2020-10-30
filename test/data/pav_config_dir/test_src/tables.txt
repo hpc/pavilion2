@@ -1,0 +1,53 @@
+table1
+--  --  --  --  --
+Col1 | Col2 | Col3
+- - - - - - - - -
+data1 | 3   | data4
+data2 | 8   | data5
+data3 |     | data6
+
+asdf
+
+table2
+--  --  --  --  --
+      | Col2 |     | Col3 |
+- - - - - - - - -
+      | 90  | a    | data90 |
+data7 | 0   | b    | data10 |
+data8 | 9   | c    | data11
+data9 |     | d    | data12
+
+table3
+--  --  --  --  --
+Col1  | Col2 | Col3
+======================
+data13 | 4   |
+data14512 | 8   | data17
+data15 |     | data18
+
+colA   colB   colC   colD
+-----  -----  ----   ----
+11111  12222   1333  14444
+item1  item2  item3  item4
+item5  item6  item7  item8
+41111  42222  43333  44444
+item9  item10 item11 item12
+item13 item14 item15 item16
+
+a    b     c     d     e
+-    -     -     -     -
+   col1  col2  col3  col4
+r1   1     2      3     4
+r2   5     6      7     7
+r3   8     9     10     11
+some other words not  needed
+more words that are unnecessary
+
+----------- Comma-delimited summary ---------
+./clomp_hwloc 4 -1 256 10 32 1 100, calc_deposit, OMP Barrier, Scaled Serial Ref, Bestcase OMP, Static OMP, Dynamic OMP, Manual OMP
+Runtime,   0.000,   0.919,   2.641,   0.517,   2.345,  16.392,   2.324
+us/Loop,    0.00,    9.41,   27.04,    5.29,   24.01,  167.85,   23.79
+Speedup,     N/A,     N/A,    1.00,     5.1,     1.1,     0.2,     1.1
+Efficacy,    N/A,     N/A,     N/A,   100%,   22.0%,    3.2%, 22.2%
+Overhead,    N/A,     N/A,     N/A,    0.00,   18.72,  162.56,   18.50
+CORAL2 RFP, 4 -1 256 10 32 1 100, 1.00, 27.04, 27.04, 9.41, 5.1, 18.72, 1.1, 162.56, 0.2, 18.50, 1.1

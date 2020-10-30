@@ -50,8 +50,9 @@ class _RunCommand(commands.Command):
             except Exception as err:
                 test.status.set(
                     STATES.RUN_ERROR,
-                    "Unexpected error finalizing test\n{}"
-                    .format(err.args[0]))
+                    "Unexpected error finalizing test\n{}\n"
+                    "See 'pav log kickoff {}' for the full error."
+                    .format(err.args[0], test.id))
                 raise
 
             try:
@@ -103,7 +104,8 @@ class _RunCommand(commands.Command):
         except Exception:
             test.status.set(STATES.RUN_ERROR,
                             "Unknown error getting pavilion variables at "
-                            "run time.")
+                            "run time. See'pav log kickoff {}' for the "
+                            "full error.".format(test.id))
             raise
 
         return var_man
@@ -143,7 +145,7 @@ class _RunCommand(commands.Command):
             try:
                 result.check_config(test.config['result_parse'],
                                     test.config['result_evaluate'])
-            except TestRunError as err:
+            except result.ResultError as err:
                 test.status.set(
                     STATES.RESULTS_ERROR,
                     "Error checking result parser configs: {}"
@@ -161,7 +163,8 @@ class _RunCommand(commands.Command):
             test.status.set(STATES.RESULTS_ERROR,
                             "Unexpected error parsing results: {}. (This is a "
                             "bug, you should report it.)"
-                            .format(err))
+                            "See 'pav log kickoff {}' for the full error."
+                            .format(err, test.id))
             raise
 
         try:
