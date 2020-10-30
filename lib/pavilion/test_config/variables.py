@@ -441,32 +441,6 @@ index, sub_var) tuple.
 
         self.variable_sets[var_set].set_value(var, index, sub_var, value)
 
-    def is_deferred(self, key):
-        """Return whether the given variable is deferred. Fully specified
-        variables (with idx and sub_var set) may be deferred specifically
-        or in general at various levels.
-
-        :rtype: bool
-        """
-
-        var_set, var, idx, sub_var = self.resolve_key(key)
-        if idx is None:
-            idx = 0
-
-        is_def = ((var_set, var, None, None) in self.deferred or
-                (var_set, var, idx, None) in self.deferred or
-                (var_set, var, idx, sub_var) in self.deferred)
-        return is_def
-
-    def any_deferred(self, key: Union[str, tuple]) -> bool:
-        """Return whether any members of the given variable are deferred."""
-
-        var_set, var, _, _ = self.resolve_key(key)
-
-        all_def_vars = [dkey[:2] for dkey in self.deferred]
-
-        return (var_set, var) in all_def_vars
-
     def set_deferred(self, var_set, var, idx=None, sub_var=None):
         """Set the given variable as deferred. Variables may be deferred
         as a whole, or as individual list or sub_var items.
@@ -478,16 +452,55 @@ index, sub_var) tuple.
             valued variables have an index of zero.
         :param Union(str, None) sub_var: The sub_variable name that is
             deferred.
-
         """
 
-        dref = (var_set, var)
-        if idx is not None:
-            dref += (idx,)
+        # There are three cases in what a deferred variable record may look
+        # like:
+        #
+        # 1. (var_set, var, None, None) - A single (simple) valued variable or
+        #    a generally deferred variable (like from sys or sched).
+        # 2. (var_set, var, #, None) - A specific simple valued variable.
+        # 3. (var_set, var, #, sub_var) - A specific subvar.
 
-
+        # Note there is no case where you have a subvar but not an index.
+        if idx is None and sub_var is not None:
+            idx = 0
 
         self.deferred.add((var_set, var, idx, sub_var))
+
+    def is_deferred(self, key):
+        """Return whether the given variable is deferred. Fully specified
+        variables (with idx and sub_var set) may be deferred specifically
+        or in general at various levels.
+
+        :rtype: bool
+        """
+
+        var_set, var, idx, sub_var = self.resolve_key(key)
+        # When the idx is None, check generally and against index 0.
+        if idx is None:
+            idx = 0
+
+        print("Checking for deferal", var_set, var, idx, sub_var)
+        print(self.deferred)
+
+        # See set_deferred for the cases...
+        return (
+            # This is generally deferred
+            (var_set, var, None, None) in self.deferred or
+            # A specific simple value.
+            (var_set, var, idx, None) in self.deferred or
+            # A specific sub-value.
+            (var_set, var, idx, sub_var) in self.deferred)
+
+    def any_deferred(self, key: Union[str, tuple]) -> bool:
+        """Return whether any members of the given variable are deferred."""
+
+        var_set, var, _, _ = self.resolve_key(key)
+
+        all_def_vars = [dkey[:2] for dkey in self.deferred]
+
+        return (var_set, var) in all_def_vars
 
     def len(self, var_set, var):
         """Get the length of the given key.
