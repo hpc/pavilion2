@@ -11,7 +11,7 @@ from pavilion import commands
 from pavilion import filters
 from pavilion import output
 from pavilion.commands import CommandError
-from pavilion.result.base import ResultError
+from pavilion.result.common import ResultError
 from pavilion.result.evaluations import check_evaluations, evaluate_results
 from pavilion.test_run import TestRun, TestRunError
 
