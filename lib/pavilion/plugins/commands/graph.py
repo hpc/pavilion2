@@ -97,7 +97,7 @@ class GraphCommand(commands.Command):
             help='Specify the y axis label.'
         )
         parser.add_argument(
-            '--plot-average', action='append', default=[],
+            '--average', action='append', default=[],
             help='Generate an average plot for the specified y value(s).'
         )
         parser.add_argument(
@@ -209,7 +209,7 @@ class GraphCommand(commands.Command):
         # Graph the data.
         try:
             self.graph(args.xlabel, args.ylabel, y_evals, graph_data,
-                       stats_dict, args.plot_average, colormap,
+                       stats_dict, args.average, colormap,
                        args.filename, args.dimensions)
         except PlottingError as err:
             output.fprint("Error while graphing data:\n{}".format(err),
@@ -342,7 +342,7 @@ class GraphCommand(commands.Command):
         return graph_data
 
     def graph(self, xlabel, ylabel, y_evals, graph_data, stats_dict,
-              plot_averages, colormap, filename, dimensions):
+              averages, colormap, filename, dimensions):
         """
         Graph the data collected from all test runs provided. Graph_data has
         formatted everything so you can graph every y value for each respective
@@ -352,7 +352,7 @@ class GraphCommand(commands.Command):
         :param graph_data: Data to be plotted on the graph. Expects a nested
         dictionary.
         :param stats_dict:
-        :param plot_averages: List of evaluations to plot averages of.
+        :param averages: List of evaluations to plot averages of.
         :param colormap: dictionary of colors mapped to expected y value
         evaluations.
         :param filename: String name to save graph as.
@@ -386,12 +386,12 @@ class GraphCommand(commands.Command):
                                                 x_list,
                                                 y_list))
 
-                if y_evals[evl] in plot_averages:
+                if y_evals[evl] in averages:
                     stats_dict[evl]['x'].append(x)
                     stats_dict[evl]['y'].append(statistics.mean(y_list))
 
         for evl, values in stats_dict.items():
-            if y_evals[evl] not in plot_averages:
+            if y_evals[evl] not in averages:
                 continue
             label = y_evals[evl].split(".")[-1]
             matplotlib.pyplot.scatter(values['x'], values['y'],
