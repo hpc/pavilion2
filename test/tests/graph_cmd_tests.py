@@ -6,7 +6,7 @@ from pavilion import commands
 from pavilion import output
 from pavilion import plugins
 from pavilion.unittest import PavTestCase
-from pavilion.result.base import ResultError
+from pavilion.result.common import ResultError
 from pavilion.plugins.commands.graph import ResultTypeError
 
 
