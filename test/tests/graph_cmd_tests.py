@@ -31,72 +31,6 @@ class ResolverTests(PavTestCase):
     def tearDown(self):
         plugins._reset_plugins()
 
-    def test_arg_validation(self):
-        """Make sure arguments get validated correctly, and catch the right
-        errors."""
-
-        arg_parser = arguments.get_parser()
-        args = arg_parser.parse_args([
-            'graph',
-            '--x', 'cool',
-            '--y', 'beans'
-        ])
-
-        graph_cmd = commands.get_command(args.command_name)
-        graph_cmd.silence()
-
-        self.assertEqual(graph_cmd.validate_args(args), None)
-
-        args = arg_parser.parse_args([
-            'graph'
-        ])
-
-        graph_cmd = commands.get_command(args.command_name)
-        graph_cmd.silence()
-
-        self.assertEqual(graph_cmd.run(self.pav_cfg, args), errno.EINVAL)
-
-    def test_build_evaluations_dict(self):
-        """Make sure the evaluations dictionary is built correctly."""
-
-        arg_parser = arguments.get_parser()
-        args = arg_parser.parse_args([
-            'graph',
-            '--x', 'cool',
-            '--y', 'beans'
-        ])
-
-        graph_cmd = commands.get_command(args.command_name)
-        graph_cmd.silence()
-
-        evals_dict, _ = graph_cmd.build_dicts(args.x, args.y)
-
-        expected = {
-             'x': 'cool',
-             'y0': 'beans'
-        }
-
-        for key in evals_dict.keys():
-            self.assertEqual(evals_dict[key], expected[key])
-
-        args = arg_parser.parse_args([
-            'graph',
-            '--x', 'cool',
-            '--y', 'beans', 'and', 'stuff'
-        ])
-
-        evals_dict, _ = graph_cmd.build_dicts(args.x, args.y)
-
-        expected = {
-             'x': 'cool',
-             'y0': 'beans',
-             'y1': 'and',
-             'y2': 'stuff'
-        }
-
-        for key in evals_dict.keys():
-            self.assertEqual(evals_dict[key], expected[key])
-
     def test_get_data(self):
         """Make sure data is pulled out of the test results and returned as
         expected."""
@@ -122,8 +56,9 @@ class ResolverTests(PavTestCase):
         graph_cmd = commands.get_command(args.command_name)
         graph_cmd.silence()
 
-        eval_dict, _ = graph_cmd.build_dicts(args.x, args.y)
-        eval_res = graph_cmd.gather_results(eval_dict, results)
+        x_eval = {'x': args.x}
+        y_evals = {'y' + str(i): args.y[i] for i in range(len(args.y))}
+        eval_res = graph_cmd.gather_graph_data(x_eval, y_evals, results)
 
         eval_expected = {
             235: {'y0': 123424}
@@ -138,8 +73,9 @@ class ResolverTests(PavTestCase):
             '--y', 'Info.*'
         ])
 
-        eval_dict, _ = graph_cmd.build_dicts(args.x, args.y)
-        eval_res = graph_cmd.gather_results(eval_dict, results)
+        x_eval = {'x': args.x}
+        y_evals = {'y' + str(i): args.y[i] for i in range(len(args.y))}
+        eval_res = graph_cmd.gather_graph_data(x_eval, y_evals, results)
 
         eval_expected = {
             235: {'y0': [123424, 14214]}
@@ -174,8 +110,9 @@ class ResolverTests(PavTestCase):
             '--y', 'Info.*.Read'
         ])
 
-        eval_dict, _ = graph_cmd.build_dicts(args.x, args.y)
-        eval_res = graph_cmd.gather_results(eval_dict, results)
+        x_eval = {'x': args.x}
+        y_evals = {'y' + str(i): args.y[i] for i in range(len(args.y))}
+        eval_res = graph_cmd.gather_graph_data(x_eval, y_evals, results)
 
         eval_expected = {
             1: {'y0': 123424},
@@ -189,11 +126,13 @@ class ResolverTests(PavTestCase):
         args = arg_parser.parse_args([
             'graph',
             '--x', 'keys(Info)',
-            '--y', 'Info.*.Read', 'Info.*.Write'
+            '--y', 'Info.*.Read',
+            '--y', 'Info.*.Write'
         ])
 
-        eval_dict, _ = graph_cmd.build_dicts(args.x, args.y)
-        eval_res = graph_cmd.gather_results(eval_dict, results)
+        x_eval = {'x': args.x}
+        y_evals = {'y' + str(i): args.y[i] for i in range(len(args.y))}
+        eval_res = graph_cmd.gather_graph_data(x_eval, y_evals, results)
 
         eval_expected = {
             1: {'y0': 123424, 'y1': 14214},
