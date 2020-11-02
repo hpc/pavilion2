@@ -39,7 +39,27 @@ class GraphCommand(commands.Command):
     def __init__(self):
         super().__init__(
             'graph',
-            'Command used to produce graph for a set of test results.',
+            description='Command used to produce graph for a set of test '
+                        'results. Can filter tests by various fields, provide '
+                        'specific test IDs, or both. Additionally, you can '
+                        'provide test IDs to be skipped using the '
+                        '\'--exclude\' flag. There can only be one x value '
+                        'evaluation provided (using \'--x\'), but as '
+                        'many y value evaluations (using \'--y\') as needed, '
+                        'although color only supports 20 unique colors. These '
+                        'evaluations work the exact same as the \'results_'
+                        'evaluate\' section of a test config. Because of this, '
+                        'all values get pulled out of a test run\'s results.'
+                        'json. If a given key doesn\'t exist it will result in '
+                        'a warning and that test will be skipped. If any '
+                        'evaluation results in an invalid type the command '
+                        'will error and no graph will be generated. A '
+                        'successful run will save a generated graph as a PNG '
+                        'in the current directory \'pav graph\' was called '
+                        'from. The following is an example that should work '
+                        'for every test run: \'pav graph --passed --x id --y '
+                        'duration --xlabel \'Test ID\', --ylabel \'Duration in '
+                        'Seconds\' --filename tutorial\'',
             short_help="Produce a graph from a set of test results."
         )
 
@@ -120,7 +140,8 @@ class GraphCommand(commands.Command):
         # Get filtered Test IDs.
         test_ids = cmd_utils.arg_filtered_tests(pav_cfg, args)
         # Add any additional tests provided via the command line.
-        test_ids.append(args.tests)
+        if args.tests:
+            test_ids.append(args.tests)
 
         # Load TestRun for all tests, skip those that are to be excluded.
         tests = []
@@ -130,7 +151,7 @@ class GraphCommand(commands.Command):
 
             try:
                 tests.append(TestRun.load(pav_cfg, test_id))
-            except TestRunError as err:
+            except (TypeError, TestRunError) as err:
                 output.fprint(
                     "Error loading test run {}. Use '--exclude' to stop "
                     "seeing this message.\n{}"
@@ -169,8 +190,14 @@ class GraphCommand(commands.Command):
             try:
                 test_graph_data = self.gather_graph_data(x_eval, y_evals,
                                                          test.results)
-            except (ResultError, ResultTypeError) as err:
-                output.fprint("Error gathering results for test {}: \n{}"
+            except InvalidEvaluationError as err:
+                output.fprint("Error gathering graph data for test {}: \n{}"
+                              .format(test.id, err),
+                              file=self.errfile, color=output.YELLOW)
+                continue
+            except ResultTypeError as err:
+                output.fprint("Gather graph data for test {} resulted in "
+                              "invalid type: \n{}"
                               .format(test.id, err),
                               file=self.errfile, color=output.RED)
                 return errno.EINVAL
@@ -229,13 +256,13 @@ class GraphCommand(commands.Command):
         all_evals.update(x_eval)
 
         try:
-            evaluate_results(test_results, all_evals)
+            evaluate_results(results=test_results, evaluations=all_evals,
+                             log=None)
         except ResultError as err:
-            output.fprint(
-                "Invalid graph evaluation for test {}:\n{}"
-                .format(test_results['id'], err.args[0]),
-                file=self.errfile, color=output.RED)
-
+            raise InvalidEvaluationError("Invalid graph evaluation for test "
+                                         "{}:\n{}"
+                                         .format(test_results['id'],
+                                                 err.args[0]))
         x_vals = test_results['x']
 
         if isinstance(x_vals, (int, float, str)):
@@ -390,6 +417,9 @@ class GraphCommand(commands.Command):
 class ResultTypeError(RuntimeError):
     """Raise when evaluation results in an invalid type"""
 
+
+class InvalidEvaluationError(RuntimeError):
+    """Raise when evaluations result in some error."""
 
 class PlottingError(RuntimeError):
     """Raise when something goes wrong when graphing"""

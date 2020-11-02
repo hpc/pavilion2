@@ -31,7 +31,7 @@ class ResolverTests(PavTestCase):
     def tearDown(self):
         plugins._reset_plugins()
 
-    def test_get_data(self):
+    def test_get_graph_data(self):
         """Make sure data is pulled out of the test results and returned as
         expected."""
 
