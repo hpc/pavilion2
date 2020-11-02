@@ -6,6 +6,7 @@ import os
 from typing import Union
 
 import pavilion.result.base
+import pavilion.result.common
 import yaml_config
 from pavilion import commands
 from pavilion.commands import sub_cmd
@@ -475,7 +476,7 @@ class ShowCommand(commands.Command):
         if args.doc:
             try:
                 res_plugin = parsers.get_plugin(args.doc)
-            except pavilion.result.base.ResultError:
+            except pavilion.result.common.ResultError:
                 output.fprint(
                     "Invalid result parser '{}'.".format(args.doc),
                     color=output.RED

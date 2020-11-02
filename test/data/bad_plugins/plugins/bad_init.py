@@ -1,3 +1,4 @@
+import pavilion.result.common
 from pavilion.result import parsers
 
 import pavilion.result.base
@@ -29,7 +30,7 @@ class BadInit(parsers.ResultParser):
     def _check_args(self, const=None):
 
         if const == "":
-            raise pavilion.result.base.ResultError(
+            raise pavilion.result.common.ResultError(
                 "Constant required."
         )
 

@@ -1,5 +1,5 @@
 """Execute a command and get its output or return value."""
-
+import pavilion.result.common
 from pavilion.result import parsers
 
 import pavilion.result.base
@@ -9,6 +9,8 @@ import subprocess
 
 class Command(parsers.ResultParser):
     """Runs a given command."""
+
+    FORCE_DEFAULTS = ['match_select', 'files', 'per_file']
 
     def __init__(self):
         super().__init__(
@@ -40,7 +42,7 @@ class Command(parsers.ResultParser):
             }
         )
 
-    def __call__(self, test, file, command=None, output_type=None,
+    def __call__(self, file, command=None, output_type=None,
                  stderr_dest=None):
 
         # where to redirect stderr
@@ -57,7 +59,7 @@ class Command(parsers.ResultParser):
                 stderr=err,
             )
         except subprocess.CalledProcessError as err:
-            raise pavilion.result.base.ResultError(
+            raise pavilion.result.common.ResultError(
                 "Command cannot be executed: '{}'\n{}"
                 .format(command, err.args[0])
             )
