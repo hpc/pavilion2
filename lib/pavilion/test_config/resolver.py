@@ -298,7 +298,8 @@ class TestConfigResolver:
             for ptest_cfg, pvar_man in permuted_tests:
                 # Resolve all variables for the test (that aren't deferred).
                 try:
-                    resolved_config = self.resolve_config(ptest_cfg, pvar_man)
+                    resolved_config = self.resolve_test_vars(
+                        ptest_cfg, pvar_man)
                 except TestConfigError as err:
                     msg = ('In test {} from {}:\n{}'
                            .format(test_cfg['name'], test_cfg['suite_path'],
@@ -755,8 +756,7 @@ class TestConfigResolver:
 
         return suite_tests
 
-    @staticmethod
-    def resolve_permutations(test_cfg, base_var_man):
+    def resolve_permutations(self, test_cfg, base_var_man):
         """Resolve permutations for all used permutation variables, returning a
         variable manager for each permuted version of the test config. We use
         this opportunity to populate the variable manager with most other
@@ -955,7 +955,7 @@ class TestConfigResolver:
         return val.startswith(cls.DEFERRED_PREFIX)
 
     @classmethod
-    def resolve_config(cls, config, var_man):
+    def resolve_test_vars(cls, config, var_man):
         """Recursively resolve the variables in the value strings in the given
         configuration.
 
