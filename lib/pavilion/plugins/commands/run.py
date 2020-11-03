@@ -1,27 +1,17 @@
 """The run command resolves tests by their names, builds them, and runs them."""
 
 import errno
-import pathlib
-import threading
-import subprocess
-import os
-import time
-import argparse
-from collections import defaultdict
-from typing import List, Union
+from typing import List
 
+from pavilion import cmd_utils
 from pavilion import commands
 from pavilion import output
 from pavilion import result
 from pavilion import schedulers
-from pavilion import test_config
-from pavilion import cmd_utils
 from pavilion.builder import MultiBuildTracker
 from pavilion.output import fprint
-from pavilion.plugins.commands.status import print_from_tests
-from pavilion.series import TestSeries, test_obj_from_id
-from pavilion.status_file import STATES
-from pavilion.test_run import TestRun, TestRunError, TestConfigError
+from pavilion.series import TestSeries
+from pavilion.test_run import TestRun
 
 
 class RunCommand(commands.Command):
@@ -131,14 +121,14 @@ class RunCommand(commands.Command):
 
         local_builds_only = getattr(args, 'local_builds_only', False)
 
-        tests_by_sched = self._get_tests(
+        test_list = self._get_tests(
             pav_cfg, args, mb_tracker, build_only=self.BUILD_ONLY,
             local_builds_only=getattr(args, 'local_builds_only', False))
-        if tests_by_sched is None:
+        if test_list is None:
             return errno.EINVAL
 
-        all_tests = sum(tests_by_sched.values(), [])
-        self.last_tests = list(all_tests)
+        all_tests = test_list
+        self.last_tests = all_tests
 
         if not all_tests:
             fprint("You must specify at least one test.", file=self.errfile)
@@ -181,111 +171,13 @@ class RunCommand(commands.Command):
                     file=self.outfile, color=output.YELLOW)
             return 0
 
-        return self.run_tests(
+        return series.run_tests(
             pav_cfg=pav_cfg,
-            tests_by_sched=tests_by_sched,
-            series=series,
             wait=wait,
             report_status=report_status,
+            outfile=self.outfile,
+            errfile=self.errfile
         )
-
-    def run_tests(self, pav_cfg, tests_by_sched, series, wait, report_status):
-        """
-        :param pav_cfg:
-        :param dict[str,[TestRun]] tests_by_sched: A dict by scheduler name
-            of the tests (in a list).
-        :param series: The test series.
-        :param int wait: Wait this long for a test to start before exiting.
-        :param bool report_status: Do a 'pav status' after tests have started.
-            on nodes, and kick them off in build only mode.
-        :return:
-        """
-
-        all_tests = sum(tests_by_sched.values(), [])
-
-        for sched_name in tests_by_sched.keys():
-            sched = schedulers.get_plugin(sched_name)
-
-            if not sched.available():
-                fprint("{} tests started with the {} scheduler, but "
-                       "that scheduler isn't available on this system."
-                       .format(len(tests_by_sched[sched_name]), sched_name),
-                       file=self.errfile, color=output.RED)
-                return errno.EINVAL
-
-        for sched_name, tests in tests_by_sched.items():
-            tests = [test for test in tests if not test.skipped]
-            sched = schedulers.get_plugin(sched_name)
-
-            # Filter out any 'build_only' tests (it should be all or none)
-            # that shouldn't be scheduled.
-            tests = [test for test in tests if
-                     # The non-build only tests
-                     (not test.build_only) or
-                     # The build only tests that are built on nodes
-                     (not test.build_local and
-                      # As long they need to be built.
-                      (test.rebuild or not test.builder.exists()))]
-
-            # Skip this scheduler if it doesn't have tests that need to run.
-            if not tests:
-                continue
-
-            try:
-                sched.schedule_tests(pav_cfg, tests)
-            except schedulers.SchedulerPluginError as err:
-                fprint('Error scheduling tests:', file=self.errfile,
-                       color=output.RED)
-                fprint(err, bullet='  ', file=self.errfile)
-                fprint('Cancelling already kicked off tests.',
-                       file=self.errfile)
-                self._cancel_all(tests_by_sched)
-                # return so the rest of the tests don't actually run
-                return errno.EINVAL
-
-        # Tests should all be scheduled now, and have the SCHEDULED state
-        # (at some point, at least). Wait until something isn't scheduled
-        # anymore (either running or dead), or our timeout expires.
-        wait_result = None
-        if wait is not None:
-            end_time = time.time() + wait
-            while time.time() < end_time and wait_result is None:
-                last_time = time.time()
-                for sched_name, tests in tests_by_sched.items():
-                    sched = schedulers.get_plugin(sched_name)
-                    for test in tests:
-                        status = test.status.current()
-                        if status == STATES.SCHEDULED:
-                            status = sched.job_status(pav_cfg, test)
-
-                        if status != STATES.SCHEDULED:
-                            # The test has moved past the scheduled state.
-                            wait_result = None
-                            break
-
-                        break
-
-                if wait_result is None:
-                    # Sleep at most SLEEP INTERVAL seconds, minus the time
-                    # we spent checking our jobs.
-                    time.sleep(self.SLEEP_INTERVAL - (time.time() - last_time))
-
-        fprint("{} test{} started as test series {}."
-               .format(len(all_tests),
-                       's' if len(all_tests) > 1 else '',
-                       series.sid),
-               file=self.outfile,
-               color=output.GREEN)
-
-        if report_status:
-            tests = list(series.tests.keys())
-            tests, _ = test_obj_from_id(pav_cfg, tests)
-            return print_from_tests(
-                pav_cfg=pav_cfg,
-                tests=tests,
-                outfile=self.outfile)
-
-        return 0
 
     def _get_tests(self, pav_cfg, args, mb_tracker, build_only=False,
                    local_builds_only=False):
@@ -298,35 +190,30 @@ class RunCommand(commands.Command):
         :param bool local_builds_only: Only include tests that would be built
             locally.
         :return:
-        :rtype: {}
+        :rtype: []
         """
 
         try:
-            configs_by_sched = cmd_utils.get_test_configs(
-                pav_cfg=pav_cfg,
-                host=args.host,
-                test_files=args.files,
-                tests=args.tests,
-                modes=args.modes,
-                logger=self.logger,
-                overrides=args.overrides,
-                outfile=self.outfile)
+            test_configs = cmd_utils.get_test_configs(pav_cfg=pav_cfg,
+                                                      host=args.host,
+                                                      test_files=args.files,
+                                                      tests=args.tests,
+                                                      modes=args.modes,
+                                                      overrides=args.overrides,
+                                                      outfile=self.outfile)
 
             # Remove non-local builds when doing only local builds.
             if build_only and local_builds_only:
-                for sched in configs_by_sched:
-                    sched_cfgs = configs_by_sched[sched]
-                    for i in range(len(sched_cfgs)):
-                        config, _ = sched_cfgs[i]
-                        if config['build']['on_nodes'].lower() == 'true':
-                            sched_cfgs[i] = None
-                    sched_cfgs = [cfg for cfg in sched_cfgs
-                                  if cfg is not None]
-                    configs_by_sched[sched] = sched_cfgs
+                locally_built_tests = []
+                for ptest in test_configs:
+                    if ptest.config['build']['on_nodes'].lower() != 'true':
+                        locally_built_tests.append(ptest)
 
-            tests_by_sched = cmd_utils.configs_to_tests(
+                test_configs = locally_built_tests
+
+            test_list = cmd_utils.configs_to_tests(
                 pav_cfg=pav_cfg,
-                configs_by_sched=configs_by_sched,
+                proto_tests=test_configs,
                 mb_tracker=mb_tracker,
                 build_only=build_only,
                 rebuild=args.rebuild,
@@ -337,7 +224,7 @@ class RunCommand(commands.Command):
             fprint(err, file=self.errfile, flush=True)
             return None
 
-        return tests_by_sched
+        return test_list
 
     @staticmethod
     def _cancel_all(tests_by_sched):
@@ -380,4 +267,3 @@ class RunCommand(commands.Command):
             return errno.EINVAL
 
         return 0
-

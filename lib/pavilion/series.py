@@ -11,20 +11,23 @@ import subprocess
 import sys
 import signal
 import logging
+import errno
+import time
 from pathlib import Path
 
 from pavilion import dir_db
 from pavilion import utils
 from pavilion import commands
-from pavilion import schedulers
 from pavilion import test_config
 from pavilion import system_variables
-from pavilion import output
-from pavilion import cmd_utils
+from pavilion import cmd_utils  # shouldn't need this later
 from pavilion.test_config import resolver
-from pavilion.status_file import STATES
-from pavilion.builder import MultiBuildTracker
+from pavilion.builder import MultiBuildTracker  # shouldn't need this later as well
+from pavilion import schedulers
+from pavilion import output
+from pavilion.output import fprint
 from pavilion.lockfile import LockFile
+from pavilion.status_file import STATES
 from pavilion.test_run import (
     TestRun, TestRunError, TestRunNotFoundError, TestAttributes)
 
@@ -69,7 +72,7 @@ class TestSet:
                  series_obj):
         self.name = name
         # self.tests = tests
-        self.tests = {} # { 'test_name': <test obj> }
+        self.tests = {}  # { 'test_name': <test obj> }
         for test in tests:
             self.tests[test] = None
         self.modes = modes
@@ -121,7 +124,6 @@ class TestSet:
     def run_set(self):
         """Runs tests in set. """
 
-        # basically copy what the run command is doing here
         mb_tracker = MultiBuildTracker()
 
         run_cmd = commands.get_command('run')
@@ -134,21 +136,20 @@ class TestSet:
             }
 
             # resolve configs
-            configs_by_sched = cmd_utils.get_test_configs(
+            test_configs = cmd_utils.get_test_configs(
                 pav_cfg=self.pav_cfg,
                 host=self.host,
                 test_files=[],
                 tests=self.tests,
                 modes=self.modes,
                 overrides=None,
-                logger=self.logger,
                 conditions=new_conditions,
             )
 
             # configs->tests
-            tests_by_sched = cmd_utils.configs_to_tests(
+            test_list = cmd_utils.configs_to_tests(
                 pav_cfg=self.pav_cfg,
-                configs_by_sched=configs_by_sched,
+                proto_tests=test_configs,
                 mb_tracker=mb_tracker,
                 build_only=False,
                 rebuild=False,
@@ -163,12 +164,12 @@ class TestSet:
         except test_config.file_format.TestConfigError as err:
             return None
 
-        if tests_by_sched is None:
+        if test_list is None:
             # probably won't happen but just in case
             return None
 
-        all_tests = sum(tests_by_sched.values(), [])
-        run_cmd.last_tests = list(all_tests)
+        all_tests = test_list
+        run_cmd.last_tests = all_tests
 
         if not all_tests:
             # probalby won't happen but just in case
@@ -202,30 +203,26 @@ class TestSet:
 
         # deal with simultaneous here
         if self.series_obj.config['simultaneous'] is None:
-            run_cmd.run_tests(
+            self.series_obj.run_tests(
                 pav_cfg=self.pav_cfg,
-                tests_by_sched=tests_by_sched,
-                series=self.series_obj,
                 wait=None,
-                report_status=False
+                report_status=False,
+                outfile=sys.stdout,
+                errfile=sys.stderr,
+                tests_to_run=all_tests
             )
         else:
             simult = int(self.series_obj.config['simultaneous'])
 
-            # [ { sched: test_obj }, { sched: test_obj }, etc. ]
-            list_of_tests_by_sched = []
-            for sched, test_objs in tests_by_sched.items():
-                for test_obj in test_objs:
-                    list_of_tests_by_sched.append({sched: [test_obj]})
-
-            for test in list_of_tests_by_sched:
+            for test in all_tests:
                 self.test_wait(simult)
-                run_cmd.run_tests(
+                self.series_obj.run_tests(
                     pav_cfg=self.pav_cfg,
-                    tests_by_sched=test,
-                    series=self.series_obj,
                     wait=None,
-                    report_status=False
+                    report_status=False,
+                    outfile=sys.stdout,
+                    errfile=sys.stderr,
+                    tests_to_run=[test]
                 )
 
     def test_wait(self, simul):
@@ -329,7 +326,7 @@ class TestSeries:
             self.dep_graph = {}
         else:
             self.dep_graph = dep_graph
-        self.test_sets = {} # { set_name: TestSetObject }
+        self.test_sets = {}  # { set_name: TestSetObject }
         self.test_objs = {}
 
         if tests:
@@ -530,6 +527,97 @@ class TestSeries:
             fprint("Could not write dependency tree to file. Cancelling.",
                    color=output.RED)
 
+    def run_tests(self, pav_cfg, wait, report_status, outfile, errfile, tests_to_run=None):
+        """
+        :param pav_cfg:
+        :param int wait: Wait this long for a test to start before exiting.
+        :param bool report_status: Do a 'pav status' after tests have started.
+            on nodes, and kick them off in build only mode.
+        :param Path outfile: Direct standard output to here.
+        :param Path errfile: Direct standard error to here.
+        :return:
+        """
+
+        SLEEP_INTERVAL = 1
+
+        if not tests_to_run:
+            tests_to_run = list(self.tests.values())
+
+        all_tests = tests_to_run
+
+        for test in tests_to_run:
+            sched_name = test.scheduler
+            sched = schedulers.get_plugin(sched_name)
+
+            if not sched.available():
+                fprint("1 test started with the {} scheduler, but"
+                       "that scheduler isn't available on this system."
+                       .format(sched_name),
+                       file=errfile, color=output.RED)
+                return errno.EINVAL
+
+        for test in tests_to_run:
+
+            # don't run this test if it was meant to be skipped
+            if test.skipped:
+                continue
+
+            # tests that are build-only or build-local should already be completed, therefore don't run these
+            if test.complete:
+                continue
+
+            sched = schedulers.get_plugin(test.scheduler)
+            try:
+                sched.schedule_tests(pav_cfg, [test])
+            except schedulers.SchedulerPluginError as err:
+                fprint('Error scheduling test: ', file=errfile,
+                       color=output.RED)
+                fprint(err, bullet='  ', file=errfile)
+                fprint('Cancelling already kicked off tests.',
+                       file=errfile)
+                sched.cancel_job(test)
+                return errno.EINVAL
+
+        # Tests should all be scheduled now, and have the SCHEDULED state
+        # (at some point, at least). Wait until something isn't scheduled
+        # anymore (either running or dead), or our timeout expires.
+        wait_result = None
+        if wait is not None:
+            end_time = time.time() + wait
+            while time.time() < end_time and wait_result is None:
+                last_time = time.time()
+                for test in tests_to_run:
+                    sched = schedulers.get_plugin(test.scheduler)
+                    status = test.status.current()
+                    if status == STATES.SCHEDULED:
+                        status = sched.job_status(pav_cfg, test)
+
+                    if status != STATES.SCHEDULED:
+                        # The test has moved past the scheduled state
+                        wait_result = None
+                        break
+
+                if wait_result is None:
+                    # Sleep at most SLEEP INTERVAL seconds, minus the time
+                    # we spent checking our jobs.
+                    time.sleep(SLEEP_INTERVAL - (time.time() - last_time))
+
+        fprint("{} test{} started as test series {}."
+               .format(len(all_tests),
+                       's' if len(all_tests) > 1 else '',
+                       self.sid),
+               file=outfile,
+               color=output.GREEN)
+
+        if report_status:
+            from pavilion.plugins.commands.status import print_from_tests
+            return print_from_tests(
+                pav_cfg=pav_cfg,
+                tests=all_tests,
+                outfile=outfile)
+
+        return 0
+
     @property
     def sid(self):  # pylint: disable=invalid-name
         """Return the series id as a string, with an 's' in the front to
@@ -601,7 +689,7 @@ differentiate it from test ids."""
                 "No such test series '{}'. Looked in {}."
                 .format(sid, series_path))
 
-        return dir_db.select(series_path)
+        return dir_db.select(series_path)[0]
 
     @classmethod
     def from_id(cls, pav_cfg, sid: str):
@@ -623,7 +711,7 @@ differentiate it from test ids."""
         logger = logging.getLogger(cls.LOGGER_FMT.format(sid))
 
         tests = []
-        for path in dir_db.select(series_path):
+        for path in dir_db.select(series_path)[0]:
             try:
                 test_id = int(path.name)
             except ValueError:
@@ -905,7 +993,7 @@ class SeriesInfo:
         self.path = path
 
         self._complete = None
-        self._tests = [tpath for tpath in dir_db.select(self.path)]
+        self._tests = [tpath for tpath in dir_db.select(self.path)[0]]
 
     @classmethod
     def list_attrs(cls):

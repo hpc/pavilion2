@@ -1,3 +1,4 @@
+import argparse
 import errno
 import time
 from io import StringIO
@@ -27,7 +28,7 @@ class CancelCmdTests(PavTestCase):
             'clean_test'
         ])
         run_cmd = commands.get_command(args.command_name)
-        run_cmd.outfile = StringIO()
+        run_cmd.silence()
         run_cmd.run(self.pav_cfg, args)
 
         args = arg_parser.parse_args([
@@ -35,8 +36,7 @@ class CancelCmdTests(PavTestCase):
         ])
 
         clean_cmd = commands.get_command(args.command_name)
-        clean_cmd.outfile = StringIO()
-        clean_cmd.errfile = StringIO()
+        clean_cmd.silence()
 
         self.assertEqual(clean_cmd.run(self.pav_cfg, args), 0)
 
@@ -51,7 +51,7 @@ class CancelCmdTests(PavTestCase):
             'clean_test'
         ])
         run_cmd = commands.get_command(args.command_name)
-        run_cmd.outfile = StringIO()
+        run_cmd.silence()
         run_cmd.run(self.pav_cfg, args)
 
         time.sleep(1)
@@ -61,8 +61,7 @@ class CancelCmdTests(PavTestCase):
         ])
 
         clean_cmd = commands.get_command(args.command_name)
-        clean_cmd.outfile = StringIO()
-        clean_cmd.errfile = StringIO()
+        clean_cmd.silence()
 
         self.assertEqual(clean_cmd.run(self.pav_cfg, args), 0)
 
@@ -77,7 +76,7 @@ class CancelCmdTests(PavTestCase):
             'clean_test'
         ])
         run_cmd = commands.get_command(args.command_name)
-        run_cmd.outfile = StringIO()
+        run_cmd.silence()
         run_cmd.run(self.pav_cfg, args)
 
         args = arg_parser.parse_args([
@@ -86,8 +85,7 @@ class CancelCmdTests(PavTestCase):
         ])
 
         clean_cmd = commands.get_command(args.command_name)
-        clean_cmd.outfile = StringIO()
-        clean_cmd.errfile = StringIO()
+        clean_cmd.silence()
 
         self.assertEqual(clean_cmd.run(self.pav_cfg, args), 0)
 
@@ -97,42 +95,6 @@ class CancelCmdTests(PavTestCase):
             'clean_test'
         ])
         run_cmd = commands.get_command(args.command_name)
-        run_cmd.outfile = StringIO()
+        run_cmd.silence()
         run_cmd.run(self.pav_cfg, args)
-
-        args = arg_parser.parse_args([
-            'clean',
-            '--older-than', 'Jul 3 2019'
-        ])
-
-        clean_cmd = commands.get_command(args.command_name)
-        clean_cmd.outfile = StringIO()
-        clean_cmd.errfile = StringIO()
-
-        self.assertEqual(clean_cmd.run(self.pav_cfg, args), 0)
-
-    def test_clean_with_invalid_date(self):
-        """Test clean command with invalid arguments."""
-
-        arg_parser = arguments.get_parser()
-
-        args = arg_parser.parse_args([
-            'run',
-            '-H', 'this',
-            'clean_test'
-        ])
-        run_cmd = commands.get_command(args.command_name)
-        run_cmd.outfile = StringIO()
-        run_cmd.run(self.pav_cfg, args)
-
-        args = arg_parser.parse_args([
-            'clean',
-            '--older-than', '5 foo invalid'
-        ])
-
-        clean_cmd = commands.get_command(args.command_name)
-        clean_cmd.outfile = StringIO()
-        clean_cmd.errfile = StringIO()
-
-        self.assertEqual(clean_cmd.run(self.pav_cfg, args), errno.EINVAL)
 

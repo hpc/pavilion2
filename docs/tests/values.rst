@@ -11,12 +11,25 @@ alter the each test configuration.
 
 .. _tests.values.expressions:
 
+Environment Variables
+---------------------
+
+Environment variables can be used in Pavilion configs **only** in certain
+areas that will be written to a run or build script. This is limited to
+the 'cmds' and 'env' values under either 'run' or 'build'.
+
+Anywhere else, you must use Pavilion variables. If there's an environment
+variable you need, consider capturing it using a
+:ref:`system variable plugin <plugins.sys_vars>`.
+
 Expressions
 -----------
 
 Expressions are contained within double curly braces. They can contain
-variable references, function calls, and math operations.  **Expressions behave
-similarly to Python3, but they are not Python3 code.**
+:ref:`variable references <tests.variables>`, function calls, and math
+operations.  **Expressions often behave similarly to Python3, but they are
+not Python3 code.**
+
 
 .. code-block:: yaml
 
@@ -36,6 +49,14 @@ similarly to Python3, but they are not Python3 code.**
                 # reference.
                 - "{{sched.test_cmds}} ./my_cmd"
 
+Types of Expressions
+^^^^^^^^^^^^^^^^^^^^
+
+This documentation covers expressions within the context of Pavilion value
+strings. They may also be used, with the exact same syntax (but using result
+keys as variables), in the 'result_evaluate' section. See
+:ref:`results.evaluate`.
+
 Supported Math
 ^^^^^^^^^^^^^^
 
@@ -47,6 +68,29 @@ identically to Python3 (with one noted exception). This includes:
 - Power operations, though Pavilion uses ``^`` to denote these. ``a ^ 3``
 - Logical operations ``a and b or not False``.
 - Parenthetical expressions ``a * (b + 1)``
+
+List Operations
+```````````````
+
+When using math operations with list values, the operation is applied
+recursively to each element. Operations between two lists require that the
+lists be equal length, and apply the operation between each corresponding pair
+of items.
+
+.. code-block::
+
+    list_expr_test:
+        variables:
+            nums: [1, 2, 3, 4]
+            mult: [4, 4, 2, 1.5]
+
+            # This would add 3 to each value in the num list, then take average.
+            # The result would thus be (4 + 5 + 6 + 7)/4 == 5.5
+            avg_adj_nums: '{{avg(nums + 3)}}'
+
+            # This would produce (1*4 + 2*4 + 3*2 + 4*1.5)/4 == 6.0
+            mult_avg: '{{avg(nums*mult)}}'
+
 
 Types and End Results
 ^^^^^^^^^^^^^^^^^^^^^
@@ -95,6 +139,7 @@ Functions can be used within expressions as well.
 - Functions auto-convert argument types as appropriate.
 
 .. _tests.values.iterations:
+
 
 Iterations
 ----------

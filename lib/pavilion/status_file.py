@@ -147,6 +147,14 @@ class StatusInfo:
 :ivar datetime when: A datetime object representing when this state was saved.
 """
 
+    TIME_FORMAT = '%Y-%m-%dT%H:%M:%S.%f'
+    TS_LEN = 5 + 3 + 3 + 3 + 3 + 3 + 6
+
+    LINE_MAX = 4096
+    # Maximum length of a note. They can use every byte minux the timestamp
+    # and status sizes, the spaces in-between, and the trailing newline.
+    NOTE_MAX = LINE_MAX - TS_LEN - 1 - STATES.max_length - 1 - 1
+
     def __init__(self, state, note, when=None):
 
         self.state = state
@@ -156,6 +164,29 @@ class StatusInfo:
             self.when = datetime.datetime.now()
         else:
             self.when = when
+
+    def status_line(self):
+        """Convert this to a line of text as it would be written to the
+        status file."""
+
+        # If we were given an invalid status, make the status invalid but add
+        # what was given to the note.
+        if not STATES.validate(self.state):
+            note = '({}) {}'.format(self.state, self.note)
+            state = STATES.INVALID
+        else:
+            state = self.state
+            note = self.note
+
+        when = self.when.strftime(StatusInfo.TIME_FORMAT)
+
+        note = note.replace('\n', '\\n')
+
+        # Truncate the note such that, even when encoded in utf-8, it is
+        # shorter than NOTE_MAX
+        note = note.encode()[:self.NOTE_MAX].decode('utf-8', 'ignore')
+
+        return '{} {} {}\n'.format(when, state, note).encode()
 
     def __str__(self):
         return 'Status: {s.when} {s.state} {s.note}'.format(s=self)
@@ -185,15 +216,7 @@ appends of a size such that those writes should be atomic.
 
     STATES = STATES
 
-    TIME_FORMAT = '%Y-%m-%dT%H:%M:%S.%f'
-    TS_LEN = 5 + 3 + 3 + 3 + 3 + 3 + 6
-
     LOGGER = logging.getLogger('pav.{}'.format(__file__))
-
-    LINE_MAX = 4096
-    # Maximum length of a note. They can use every byte minux the timestamp
-    # and status sizes, the spaces in-between, and the trailing newline.
-    NOTE_MAX = LINE_MAX - TS_LEN - 1 - STATES.max_length - 1 - 1
 
     def __init__(self, path):
         """Create the status file object.
@@ -231,7 +254,7 @@ could be wrong with the file format.
         if parts:
             try:
                 when = datetime.datetime.strptime(parts.pop(0),
-                                                  self.TIME_FORMAT)
+                                                  StatusInfo.TIME_FORMAT)
             except ValueError as err:
                 self.LOGGER.warning(
                     "Bad date in log line '%s' in file '%s': %s",
@@ -274,7 +297,7 @@ could be wrong with the file format.
 """
 
         # We read a bit extra to avoid off-by-one errors
-        end_read_len = self.LINE_MAX + 16
+        end_read_len = StatusInfo.LINE_MAX + 16
 
         try:
             with self.path.open('rb') as status_file:
@@ -301,29 +324,17 @@ could be wrong with the file format.
             raise TestStatusError("Error reading status file '{}': {}"
                                   .format(self.path, err))
 
-    def set(self, state, note):
-        """Set the status.
+    def set(self, state: str, note: str) -> StatusInfo:
+        """Set the status and return the StatusInfo object.
 
-:param state: The current state.
-:param note: A note about this particular instance of the state.
-"""
+    :param state: The current state.
+    :param note: A note about this particular instance of the state.
+    """
 
-        when = datetime.datetime.now()
-        when = when.strftime(self.TIME_FORMAT)
+        stinfo = StatusInfo(state, note, when=datetime.datetime.now())
 
-        # If we were given an invalid status, make the status invalid but add
-        # what was given to the note.
-        if not STATES.validate(state):
-            note = '({}) {}'.format(state, note)
-            state = STATES.INVALID
+        status_line = stinfo.status_line()
 
-        note = note.replace('\n', '\\n')
-
-        # Truncate the note such that, even when encoded in utf-8, it is
-        # shorter than NOTE_MAX
-        note = note.encode('utf-8')[:self.NOTE_MAX].decode('utf-8', 'ignore')
-
-        status_line = '{} {} {}\n'.format(when, state, note).encode('utf-8')
         try:
             with self.path.open('ab') as status_file:
                 status_file.write(status_line)
@@ -331,6 +342,8 @@ could be wrong with the file format.
             raise TestStatusError("Could not write status line '{}' to status "
                                   "file '{}': {}"
                                   .format(status_line, self.path, err))
+
+        return stinfo
 
     def __eq__(self, other):
         return (
