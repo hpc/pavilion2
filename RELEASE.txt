@@ -13,7 +13,7 @@ RELEASE=2.2
  - Added the 'list' command for searching test runs and series
  - Added 'maint' command for maintanence operations.
  - Results now include a 'uuid' key - A completely unique id for each test.
-
+ - Modules may now have nested paths (True lmod module organization)
 
  - Backwards compatibility breaks
    - 'fn' and 'n' result fields have been merged into 'per_file'.
