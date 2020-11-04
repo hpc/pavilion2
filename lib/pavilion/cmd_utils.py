@@ -13,11 +13,9 @@ from typing import Dict, List, Union, TextIO
 
 from pavilion import commands
 from pavilion import dir_db
-from pavilion import filters
 from pavilion import output
 from pavilion import test_config
 from pavilion.builder import MultiBuildTracker
-from pavilion.series import TestSeries, TestSeriesError
 from pavilion.status_file import STATES
 from pavilion.test_run import TestAttributes, TestConfigError, TestRunError, \
     TestRun
@@ -44,6 +42,8 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace) -> List[int]:
         keyword.
     :return: A list of test id ints.
     """
+
+    from pavilion import filters
 
     limit = args.limit
 
@@ -139,7 +139,8 @@ def test_list_to_paths(pav_cfg, req_tests) -> List[Path]:
 
 def get_test_configs(
         pav_cfg, host: str, test_files: List[Union[str, Path]],
-        tests: List[str], modes: List[str], overrides: Dict[str, str], conditions=None,
+        tests: List[str], modes: List[str], overrides: Dict[str, str],
+        conditions: Dict[str, Dict[str, List[str]]] = None,
         outfile: TextIO = StringIO()) -> List[test_config.ProtoTest]:
     """Translate a general set of pavilion test configs into the final,
     resolved configurations.

@@ -8,11 +8,12 @@ class AutoSeries(commands.Command):
     def __init__(self):
         super().__init__(
             name='_series',
-            description='Runs series in background.',
-            short_help='Runs series in background.',
+            description='Runs an existing series object.',
+            short_help='Runs an existing series object.',
         )
 
     def _setup_arguments(self, parser):
+        """Sets up arguments for _series command. Only needs series ID."""
 
         parser.add_argument(
             'series_id', action='store',
@@ -20,6 +21,7 @@ class AutoSeries(commands.Command):
         )
 
     def run(self, pav_cfg, args):
+        """Loads series object from directory and runs series."""
 
         # load series obj
         sid = 's' + args.series_id

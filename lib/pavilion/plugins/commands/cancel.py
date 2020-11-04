@@ -72,6 +72,7 @@ class CancelCommand(commands.Command):
             if test_id.startswith('s'):
                 try:
                     series_pgid = series.TestSeries.get_pgid(pav_cfg, test_id)
+                    # if there's a series PGID, kill the series PGID
                     if series_pgid:
                         os.killpg(series_pgid, signal.SIGTERM)
                         output.fprint('Killed process {}, which is series {}.'
