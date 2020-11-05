@@ -54,6 +54,10 @@ class WaitCommand(commands.Command):
             '--oneline', action='store_true',
             help="Prints entire status on one line."
         )
+        group.add_argument(
+            '--summary', action='store_true',
+            help="Prints a summary of the status."
+        )
 
     def run(self, pav_cfg, args):
 
@@ -85,7 +89,29 @@ class WaitCommand(commands.Command):
                     stats = status.get_statuses(pav_cfg, args, self.errfile)
                     stats_out = []
 
-                    if not args.oneline:
+                    if args.oneline:
+                        stats_out.extend([
+                            str(time.ctime(time.time())), ': '
+                        ])
+                        for test in stats:
+                            stat = [str(test['test_id']),
+                                    '(', test['name'], ') ',
+                                    test['state'], ' | ']
+                            stats_out.append(''.join(stat))
+                        fprint(''.join(map(str, stats_out)), end='\r',
+                               file=self.outfile, width=None)
+                    elif args.summary:
+                        states = {}
+                        for test in stats:
+                            if test['state'] not in states.keys():
+                                states[test['state']] = 1
+                            else:
+                                states[test['state']] += 1
+                        status_counts = []
+                        for state, count in states.items():
+                            status_counts.append(state + ': ' + str(count))
+                        fprint(' | '.join(status_counts), file=self.outfile, end='\r', width=None)
+                    else:
                         for test in stats:
                             stat = [str(time.ctime(time.time())), ':',
                                     'test #',
@@ -96,17 +122,6 @@ class WaitCommand(commands.Command):
                                     "\n"]
                             stats_out.append(' '.join(stat))
                         fprint(''.join(map(str, stats_out)),
-                               file=self.outfile, width=None)
-                    else:
-                        stats_out.extend([
-                            str(time.ctime(time.time())), ': '
-                        ])
-                        for test in stats:
-                            stat = [str(test['test_id']),
-                                    '(', test['name'], ') ',
-                                    test['state'], ' | ']
-                            stats_out.append(''.join(stat))
-                        fprint(''.join(map(str, stats_out)), end='\r',
                                file=self.outfile, width=None)
 
                     periodic_status_count += 1
