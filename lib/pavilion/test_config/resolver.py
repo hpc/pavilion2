@@ -12,8 +12,8 @@ import io
 import logging
 import os
 import re
-from collections import defaultdict
-from typing import List, IO, Tuple
+from collections import defaultdict, namedtuple
+from typing import List, IO, Dict
 
 import yc_yaml
 from pavilion import output
@@ -36,6 +36,11 @@ CONF_TEST = 'tests'
 LOGGER = logging.getLogger('pav.' + __name__)
 
 TEST_VERS_RE = re.compile(r'^\d+(\.\d+){0,2}$')
+
+
+ProtoTest = namedtuple('ProtoTest', ['config', 'var_man'])
+"""An simple object that holds the pair of a test config and its variable
+manager."""
 
 
 class TestConfigResolver:
@@ -208,10 +213,12 @@ class TestConfigResolver:
         return suites
 
     def load(self, tests: List[str], host: str = None,
-             modes: List[str] = None, overrides: List[str] = None,
+             modes: List[str] = None, overrides: Dict[str, str] = None,
              output_file: IO[str] = None) \
-            -> List[Tuple[dict, variables.VariableSetManager]]:
+            -> List[ProtoTest]:
         """Load the given tests, updated with their host and mode files.
+        Returns 'ProtoTests', a simple object with 'config' and 'var_man'
+        attributes for each resolved test.
 
         :param tests: A list of test names to load.
         :param host: The host to load tests for. Defaults to the value
@@ -219,9 +226,6 @@ class TestConfigResolver:
         :param modes: A list of modes to load.
         :param overrides: A dict of key:value pairs to apply as overrides.
         :param output_file: Where to write status output.
-
-        :returns: A list test_config dict and var_man tuples
-        :rtype: [(dict, VariableSetManager)]
         """
 
         if modes is None:
@@ -279,7 +283,8 @@ class TestConfigResolver:
             for ptest_cfg, pvar_man in permuted_tests:
                 # Resolve all variables for the test (that aren't deferred).
                 try:
-                    resolved_config = self.resolve_config(ptest_cfg, pvar_man)
+                    resolved_config = self.resolve_test_vars(
+                        ptest_cfg, pvar_man)
                 except TestConfigError as err:
                     msg = ('In test {} from {}:\n{}'
                            .format(test_cfg['name'], test_cfg['suite_path'],
@@ -290,7 +295,7 @@ class TestConfigResolver:
 
                     raise TestConfigError(msg)
 
-                resolved_tests.append((resolved_config, pvar_man))
+                resolved_tests.append(ProtoTest(resolved_config, pvar_man))
 
             if output_file is not None:
                 progress += 1.0/len(raw_tests)
@@ -447,33 +452,21 @@ class TestConfigResolver:
             self.apply_modes(test_cfg, modes)
             for test_cfg in picked_tests]
 
-        # Get the default configuration for a const result parser.
-        const_elem = TestConfigLoader().find('result_parse.constant.*')
-
         # Add the pav_cfg default_result configuration items to each test.
         for test_cfg in picked_tests:
-
-            if 'constant' not in test_cfg['result_parse']:
-                test_cfg['result_parse']['constant'] = []
-
-            const_keys = [
-                key for key in test_cfg['result_parse']['constant']]
+            result_evals = test_cfg['result_evaluate']
 
             for key, const in self.pav_cfg.default_results.items():
-
-                if key in const_keys:
+                if key in result_evals:
                     # Don't override any that are already there.
                     continue
 
-                new_const = const_elem.validate({
-                    'const': const,
-                })
-                test_cfg['result_parse']['constant']['key'] = new_const
+                test_cfg['result_evaluate'][key] = '"{}"'.format(const)
 
         return picked_tests
 
-
-    def verify_version_range(comp_versions):
+    def verify_version_range(self, comp_versions):
+        """Validate a version range value."""
 
         if comp_versions.count('-') > 1:
             raise TestConfigError(
@@ -483,12 +476,12 @@ class TestConfigResolver:
         min_str = comp_versions.split('-')[0]
         max_str = comp_versions.split('-')[-1]
 
-        min_version = TestConfigResolver.verify_version(min_str, comp_versions)
-        max_version = TestConfigResolver.verify_version(max_str, comp_versions)
+        min_version = self.verify_version(min_str, comp_versions)
+        max_version = self.verify_version(max_str, comp_versions)
 
         return min_version, max_version
 
-    def verify_version(version_str, comp_versions):
+    def verify_version(self, version_str, comp_versions):
         """Ensures version was provided in the correct format, and returns the
         version as a list of digits."""
 
@@ -501,7 +494,7 @@ class TestConfigResolver:
                 "Compatible versions must be of form X, X.X, or X.X.X ."
                 .format(version_str, comp_versions))
 
-    def check_version_compatibility(test_cfg):
+    def check_version_compatibility(self, test_cfg):
         """Returns a bool on if the test is compatible with the current version
         of pavilion."""
 
@@ -513,11 +506,11 @@ class TestConfigResolver:
         if not comp_versions:
             return True
 
-        min_version, max_version = TestConfigResolver.verify_version_range(comp_versions)
+        min_version, max_version = self.verify_version_range(comp_versions)
 
         # Trim pavilion version to the degree dictated by min and max version.
-        # This only matters if they are equal, and only occurs when a specific 
-        # version is provided.  
+        # This only matters if they are equal, and only occurs when a specific
+        # version is provided.
         if min_version == max_version and len(min_version) < len(version):
             offset = len(version) - len(min_version)
             version = version[:-offset]
@@ -567,7 +560,7 @@ class TestConfigResolver:
                         "Host config '{}' raised a type error, but that "
                         "should never happen. {}".format(host_cfg_path, err))
 
-            test_cfg = resolve_cmd_inheritance(test_cfg)
+            test_cfg = self.resolve_cmd_inheritance(test_cfg)
 
         return test_cfg
 
@@ -616,12 +609,11 @@ class TestConfigResolver:
                     "Mode config '{}' raised a type error, but that "
                     "should never happen. {}".format(mode_cfg_path, err))
 
-            test_cfg = resolve_cmd_inheritance(test_cfg)
+            test_cfg = self.resolve_cmd_inheritance(test_cfg)
 
         return test_cfg
 
-    @staticmethod
-    def resolve_inheritance(base_config, suite_cfg, suite_path):
+    def resolve_inheritance(self, base_config, suite_cfg, suite_path):
         """Resolve inheritance between tests in a test suite. There's potential
         for loops in the inheritance hierarchy, so we have to be careful of
         that.
@@ -692,8 +684,8 @@ class TestConfigResolver:
             suite_tests[test_cfg_name] = test_config_loader.merge(parent,
                                                                   test_cfg)
 
-            suite_tests[test_cfg_name] = \
-            resolve_cmd_inheritance(suite_tests[test_cfg_name])
+            suite_tests[test_cfg_name] = self.resolve_cmd_inheritance(
+                suite_tests[test_cfg_name])
 
             # Now all tests that depend on this one are ready to resolve.
             ready_to_resolve.extend(depended_on_by.get(test_cfg_name, []))
@@ -741,7 +733,7 @@ class TestConfigResolver:
                     "but that should never happen. {}"
                     .format(test_name, suite_path, err))
             try:
-                TestConfigResolver.check_version_compatibility(test_config)
+                self.check_version_compatibility(test_config)
             except TestConfigError as err:
                 raise TestConfigError(
                    "Test '{}' in suite '{}' has incompatibility issues:\n{}"
@@ -749,8 +741,7 @@ class TestConfigResolver:
 
         return suite_tests
 
-    @staticmethod
-    def resolve_permutations(test_cfg, base_var_man):
+    def resolve_permutations(self, test_cfg, base_var_man):
         """Resolve permutations for all used permutation variables, returning a
         variable manager for each permuted version of the test config. We use
         this opportunity to populate the variable manager with most other
@@ -949,7 +940,7 @@ class TestConfigResolver:
         return val.startswith(cls.DEFERRED_PREFIX)
 
     @classmethod
-    def resolve_config(cls, config, var_man):
+    def resolve_test_vars(cls, config, var_man):
         """Recursively resolve the variables in the value strings in the given
         configuration.
 
@@ -1166,20 +1157,23 @@ class TestConfigResolver:
                                   "resolving strings."
                                   .format(type(component), component))
 
-def resolve_cmd_inheritance(test_cfg):
+    def resolve_cmd_inheritance(self, test_cfg):
+        """Extend the command list by adding any prepend or append commands,
+        then clear those sections so they don't get added at additional
+        levels of config merging."""
 
-    for section in ['build', 'run']:
-        config = test_cfg.get(section)
-        if not config:
-            continue
-        new_cmd_list = []
-        if config.get('prepend_cmds', []):
-            new_cmd_list.extend(config.get('prepend_cmds'))
-            config['prepend_cmds'] = []
-        new_cmd_list += test_cfg[section]['cmds']
-        if config.get('append_cmds', []):
-            new_cmd_list.extend(config.get('append_cmds'))
-            config['append_cmds'] = []
-        test_cfg[section]['cmds'] = new_cmd_list
+        for section in ['build', 'run']:
+            config = test_cfg.get(section)
+            if not config:
+                continue
+            new_cmd_list = []
+            if config.get('prepend_cmds', []):
+                new_cmd_list.extend(config.get('prepend_cmds'))
+                config['prepend_cmds'] = []
+            new_cmd_list += test_cfg[section]['cmds']
+            if config.get('append_cmds', []):
+                new_cmd_list.extend(config.get('append_cmds'))
+                config['append_cmds'] = []
+            test_cfg[section]['cmds'] = new_cmd_list
 
-    return test_cfg
+        return test_cfg
