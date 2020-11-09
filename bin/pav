@@ -2,15 +2,16 @@
 
 PYTHON=$(which python3)
 
-PAV_DIR=$(dirname $(dirname $(realpath ${BASH_SOURCE[0]})))
+PAV_DIR="$(dirname "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")"
 
 export PYTHONPATH="${PYTHONPATH}:${PAV_DIR}/lib:${PAV_DIR}/lib/pavilion/dependencies"
 
-SHARED_GROUP=$(${PYTHON} ${PAV_DIR}/bin/query_config.py shared_group)
-UMASK=$(${PYTHON} ${PAV_DIR}/bin/query_config.py umask)
+SHARED_GROUP=$(${PYTHON} "${PAV_DIR}/bin/query_config.py" shared_group)
 
-# Set the umask according to the pavilion config.
-[[ -n ${UMASK} ]] && umask ${UMASK}
+# Set to restrict files to owner only permissions. All files
+# written by Pavilion will have their correct permissions applied after
+# being written.
+umask 077
 
 if [[ -n ${SHARED_GROUP} ]]; then
     # We have to construct a command string that has properly escaped and
@@ -22,10 +23,10 @@ if [[ -n ${SHARED_GROUP} ]]; then
     done
 
     # Run pavilion under the given shared group, if one is in the config.
-    newgrp ${SHARED_GROUP} <<EOF
+    newgrp "${SHARED_GROUP}" <<EOF
         ${CMD}
 EOF
 
 else
-    ${PYTHON} ${PAV_DIR}/bin/pav.py "$@"
+    ${PYTHON} "${PAV_DIR}/bin/pav.py" "$@"
 fi

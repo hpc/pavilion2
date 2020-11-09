@@ -17,7 +17,7 @@ class PermissionsManager:
     """
 
     def __init__(self, path: Union[Path, str],
-                 group: Union[str, None], umask: Union[int, None],
+                 group: Union[str, None], umask: int,
                  silent: bool = True):
         """Set the managed path and permission info.
         :param path: The file/directory to manage the permissions of. This is
@@ -39,11 +39,11 @@ class PermissionsManager:
         self.logger = logging.getLogger(__name__)
 
     def __enter__(self):
-        """Set the umask to only allow access by the owner. This will be
-        restored on exit."""
+        """We don't need to do anything here."""
 
-        if self.umask is not None:
-            self._orig_umask = os.umask(0o077)
+        # Note that we trust that we have a reasonably secure umask already.
+        # On exit, this will apply permissions according to the given umask,
+        # rather than the system one.
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Recursively set the group of all files to the given group, and
@@ -74,9 +74,6 @@ class PermissionsManager:
                 self.path.as_posix(), str(err), exc_info=err)
             if not self.silent:
                 raise
-
-        if self.umask is not None:
-            os.umask(self._orig_umask)
 
     def set_perms(self, path: Path) -> None:
         """Set the permissions for path.

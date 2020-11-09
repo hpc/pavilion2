@@ -534,7 +534,9 @@ class TestRun(TestAttributes):
                     file_path.unlink()
 
                 # Write file.
-                with file_path.open('w') as file_:
+                with PermissionsManager(file_path, self.group, self.umask), \
+                        file_path.open('w') as file_:
+
                     for line in contents:
                         file_.write("{}\n".format(line))
 
@@ -582,6 +584,8 @@ class TestRun(TestAttributes):
                 raise RuntimeError(
                     "Invalid umask. This should have been enforced by the "
                     "by the config format.")
+        else:
+            umask = 0o077
 
         return group, umask
 
@@ -614,15 +618,17 @@ class TestRun(TestAttributes):
         config_path = self.path/'config'
 
         # make lock
-        lock_path = self.path/'config.lockfile'
-        config_lock = lockfile.LockFile(
-            lock_path,
-            group=self._pav_cfg.shared_group)
+        tmp_path = config_path.with_suffix('.tmp')
 
         try:
-            config_lock.lock()
-            with config_path.open('w') as json_file:
+            with PermissionsManager(config_path, self.group, self.umask), \
+                    tmp_path.open('w') as json_file:
                 output.json_dump(self.config, json_file)
+                try:
+                    config_path.unlink()
+                except OSError:
+                    pass
+                tmp_path.rename(config_path)
         except (OSError, IOError) as err:
             raise TestRunError(
                 "Could not save TestRun ({}) config at {}: {}"
@@ -631,8 +637,6 @@ class TestRun(TestAttributes):
             raise TestRunError(
                 "Invalid type in config for ({}): {}"
                 .format(self.name, err))
-        finally:
-            config_lock.unlock()
 
     @classmethod
     def _load_config(cls, test_path):
@@ -789,15 +793,17 @@ class TestRun(TestAttributes):
         # Write the current time to the file. We don't actually use the contents
         # of the file, but it's nice to have another record of when this was
         # run.
+        import stat
         complete_path = self.path/self.COMPLETE_FN
         complete_tmp_path = complete_path.with_suffix('.tmp')
-        with complete_tmp_path.open('w') as run_complete, \
-                PermissionsManager(complete_tmp_path,
-                                   self.group, self.umask):
-            json.dump({
-                'complete': dt.datetime.now().isoformat(),
-            }, run_complete)
+        with PermissionsManager(complete_tmp_path, self.group, self.umask), \
+                complete_tmp_path.open('w') as run_complete:
+            json.dump(
+                {'complete': dt.datetime.now().isoformat()},
+                run_complete)
+            print('complete?', stat.filemode(complete_tmp_path.stat().st_mode))
         complete_tmp_path.rename(complete_path)
+        print('complete2?', stat.filemode(complete_path.stat().st_mode))
 
         self.complete = True
         self.save_attributes()
@@ -937,8 +943,8 @@ of result keys.
         """
 
         results_tmp_path = self.results_path.with_suffix('.tmp')
-        with results_tmp_path.open('w') as results_file, \
-                PermissionsManager(results_tmp_path, self.group, self.umask):
+        with PermissionsManager(results_tmp_path, self.group, self.umask), \
+                results_tmp_path.open('w') as results_file:
             json.dump(results, results_file)
         try:
             self.results_path.unlink()
@@ -1043,7 +1049,8 @@ be set by the scheduler plugin as soon as it's known."""
         path = self.path/self.JOB_ID_FN
 
         try:
-            with path.open('w') as job_id_file:
+            with PermissionsManager(path, self.group, self.umask), \
+                    path.open('w') as job_id_file:
                 job_id_file.write(job_id)
         except (IOError, OSError) as err:
             self.logger.error("Could not write jobid file '%s': %s",
