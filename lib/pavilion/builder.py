@@ -9,6 +9,7 @@ import logging
 import os
 import shutil
 import subprocess
+import stat
 import tarfile
 import threading
 import time
@@ -796,8 +797,23 @@ class TestBuilder:
         do_copy = set()
         copy_globs = self._config.get('copy_files', [])
         for copy_glob in copy_globs:
-            do_copy.update(glob.glob(self.path.as_posix() + '/' + copy_glob,
-                                     recursive=True))
+            final_glob = self.path.as_posix() + '/' + copy_glob
+            blob = glob.glob(final_glob, recursive=True)
+            if not blob:
+                avail = '\n'.join(glob.glob(final_glob.rsplit('/')[0]))
+                self.tracker.error(
+                    state=STATES.BUILD_ERROR,
+                    note=("Could not perform build copy. Files meant to be "
+                          "fully copied (rather than symlinked) could not be "
+                          "found:\n"
+                          "base_glob: {}\n"
+                          "full_glob: {}\n"
+                          "These files were available in the top glob dir:\n"
+                          "{}"
+                          .format(copy_glob, final_glob, avail)))
+                return False
+
+            do_copy.update(blob)
 
         def maybe_symlink_copy(src, dst):
             """Makes a symlink from src to dst, unless the file is in
@@ -806,7 +822,10 @@ class TestBuilder:
 
             if src in do_copy:
                 # Actually copy files that were explicitly asked for.
-                return shutil.copy2(src, dst, follow_symlinks=True)
+                cpy_path = shutil.copy2(src, dst, follow_symlinks=True)
+                base_mode = os.stat(cpy_path).st_mode
+                os.chmod(cpy_path, base_mode | stat.S_IWUSR | stat.S_IWGRP)
+                return cpy_path
             else:
                 src = os.path.realpath(src)
                 return os.symlink(src, dst)

@@ -386,7 +386,9 @@ The default config is: ::
         if sched_vars is not None:
             var_man.add_var_set('sched', sched_vars)
 
-        cfg = resolver.TestConfigResolver.resolve_config(cfg, var_man)
+        var_man.resolve_references()
+
+        cfg = resolver.TestConfigResolver.resolve_test_vars(cfg, var_man)
 
         test = TestRun(
             pav_cfg=self.pav_cfg,

@@ -153,14 +153,14 @@ in one of three formats:
             mod = mod_line
 
         if '/' in mod:
-            mod_name, mod_vers = mod.split('/')
+            mod_name, mod_vers = mod.rsplit('/', 1)
         else:
             mod_name = mod
             mod_vers = None
 
         if old_mod is not None:
             if '/' in old_mod:
-                old_mod_name, old_mod_vers = old_mod.split('/')
+                old_mod_name, old_mod_vers = old_mod.rsplit('/', 1)
             else:
                 old_mod_name = old_mod
                 old_mod_vers = None
