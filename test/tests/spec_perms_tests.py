@@ -102,7 +102,7 @@ class SpecificPermsTests(PavTestCase):
             'spec_perms2': (self.alt_group2, 0o002),
         }
 
-        for test_path in dir_db.select(self.working_dir / 'test_runs'):
+        for test_path in dir_db.select(self.working_dir / 'test_runs')[0]:
             with (test_path/'config').open() as config_file:
                 test_config = yaml.load(config_file)
 

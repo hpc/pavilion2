@@ -65,6 +65,12 @@ class CondCategoryElem(yc.CategoryElem):
     _NAME_RE = re.compile(r'^.*$')
 
 
+class EvalCategoryElem(yc.CategoryElem):
+    """Allow keys that start with underscore. Lowercase only."""
+
+    _NAME_RE = re.compile(r'[a-z_][a-z0-9_]*')
+
+
 class VarKeyCategoryElem(yc.CategoryElem):
     """Allow Pavilion variable name like keys."""
 
@@ -72,6 +78,12 @@ class VarKeyCategoryElem(yc.CategoryElem):
     # including a '*'.
     _NAME_RE = re.compile(r'^(?:[a-zA-Z][a-zA-Z0-9_-]*)'
                           r'(?:\.|[a-zA-Z][a-zA-Z0-9_-]*)*')
+
+
+class ResultParserCatElem(yc.CategoryElem):
+    _NAME_RE = re.compile(
+        r'^[a-zA-Z_]\w*(\s*,\s*[a-zA-Z_]\w*)*$'
+    )
 
 
 class VarCatElem(yc.CategoryElem):
@@ -433,7 +445,7 @@ expected to be added to by various plugins.
             help_text="The test run configuration. This will be used "
                       "to dynamically generate a run script for the "
                       "test."),
-        yc.CategoryElem(
+        EvalCategoryElem(
             'result_evaluate',
             sub_elem=yc.StrElem(),
             help_text="The keys and values in this section will also "
@@ -525,7 +537,7 @@ expected to be added to by various plugins.
             elements=config_items
         )
 
-        list_elem = yc.CategoryElem(name, sub_elem=config)
+        list_elem = ResultParserCatElem(name, sub_elem=config)
 
         if name in [e.name for e in cls._RESULT_PARSERS.config_elems.values()]:
             raise ValueError("Tried to add result parser with name '{}'"

@@ -1,0 +1,9 @@
+[Core]
+Name = Split Result Parser
+Module = split
+
+[Documentation]
+Description = Returns values seperated by some substring.
+Author = Paul Ferrell
+Version = 1.0
+Website =

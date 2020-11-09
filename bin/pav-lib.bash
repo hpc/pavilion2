@@ -1,5 +1,5 @@
 
-PAV_PATH=$(dirname ${BASH_SOURCE[0]})/pav
+PAV_PATH=$(dirname "${BASH_SOURCE[0]}")/pav
 
 # Find the module command to use. It's printed to stdout, nothing is printed if
 # be found.
@@ -8,14 +8,14 @@ function find_module_cmd() {
     ret_code="$?"
 
     if [[ "$ret_code" -eq 1 ]]; then
-        echo "module"
+        echo "lmod"
         return 0
     elif [[ "$ret_code" -eq 0 ]]; then
         echo "module"
         return 0
     fi
 
-    if which lmod >/dev/null 2>&1; then
+    if command -v lmod >/dev/null 2>&1; then
         echo "lmod"
         return 0
     fi
@@ -46,7 +46,7 @@ function module_avail() {
         case $opt in
             l)
                 # Load the given module before listing
-                if ! module load $OPTARG; then
+                if ! module load "$OPTARG"; then
                     echo "Could not pre-load module $OPTARG"
                     return 1
                 fi
@@ -69,20 +69,18 @@ function module_avail() {
         esac
     done
 
-    modules=()
-
-    local MOD_CMD=$(find_module_cmd)
+    local MOD_CMD
+    MOD_CMD=$(find_module_cmd)
     if [[ -z ${MOD_CMD} ]];then
         echo "No module system found." 1>&2
         return 1
     fi
 
     # The module command may be generic. Figure out what system we're using.
-    local MOD_SYSTEM=$(module_system)
+    local MOD_SYSTEM
+    MOD_SYSTEM=$(module_system)
     MOD_SYSTEM=$(module_system)
 
-    local curr_mod=
-    local curr_mod_found_default=
     if [[ "${MOD_SYSTEM}" == "lmod" ]]; then
         all_defaults=$(${MOD_CMD} avail -dt 2>&1 |
                        grep -v '.*:$')
@@ -90,20 +88,22 @@ function module_avail() {
 
     # Get the available modules
     local mod_name mod_vers is_default
-    for mod in $(${MOD_CMD} avail --terse 2>&1 |
+    for mod in $(${MOD_CMD} -t avail 2>&1 |
                  grep -v -E '.*(:|/)$' |
                  sort); do
-        mod_name=$(echo $mod | awk -F/ '{ print $1 }')
-        mod_vers=$(echo $mod | awk -F/ '{ print $2 }')
+        mod_name=$(echo "$mod" | awk -F/ '{ print $1 }')
+        mod_vers=$(echo "$mod" | awk -F/ '{ print $2 }')
         is_default=
         if [[ "${MOD_SYSTEM}" = "env_mod" ]]; then
             if echo "$mod_vers" | grep '(default)$' > /dev/null; then
                 is_default=default
                 # Remove the trailing "(default)"
+                # shellcheck disable=SC2001
                 mod_vers=$(echo "$mod_vers" | sed 's/\([^( ]*\).*/\1/')
             fi
         else
-            default_vers=$(for m in $all_defaults; do echo $m; done | grep "^${mod_name}/")
+            default_vers=$(for m in $all_defaults; do echo "$m"; done |
+                           grep "^${mod_name}/")
             if [[ "${default_vers}" == "${mod}" ]]; then
                 is_default=default
             fi
@@ -131,7 +131,7 @@ function split() {
     local splitter=$2
 
     if [ -z "${splitter}" ]; then
-        echo "No splitter string given" >2
+        echo "No splitter string given" >&2
         return 1;
     fi
 
@@ -162,7 +162,7 @@ function module_exists {
         return 1
     fi
 
-    module -t avail $1 2>&1 | grep -E "^$1(\(default\))?$" >> /dev/null
+    module -t avail "$1" 2>&1 | grep -E "^$1(\(default\))?$" >> /dev/null
     return $?
 }
 
@@ -173,7 +173,7 @@ function module_exists {
 # - module name (e.g. gcc, tkdiff); this is the base name of a module
 # - version list: a comma separated list of versions to append to the module
 #   name: <ver1>[,<ver2>,...]
-# Output:
+# Output:/
 # - a space separated list of <module name>/<ver1> <module name>/<ver2> ...
 #   Each constructed module given has been checked to exist in the modules
 #   system, so it is possible for this function to return an empty list.
@@ -181,7 +181,7 @@ function module_exists {
 # - 0: function completed.
 function construct_mod_list {
     local class="$1"
-    split $2 ,
+    split "$2" ,
     local vers=("${SPLIT_RESULT[@]}")
     local mods=()
     local mod_line
@@ -191,7 +191,7 @@ function construct_mod_list {
         local mod_vers=${SPLIT_RESULT[1]}
         local v
         if [[ "${mod_name}" = "${class}" ]]; then
-            for v in ${vers[@]}; do
+            for v in "${vers[@]}"; do
                 if [[ "${v}" = "${mod_vers}" ]]; then
                     mods+=("${mod_name}/${mod_vers}")
                 fi
@@ -209,8 +209,7 @@ function construct_mod_list {
 #
 # Output:
 #   stdout - Prints the version number of the given module that is loaded. If the module
-#            has no version, prints an empty string. Print '<none>' if no loaded version was
-#            found.
+#            has no version, prints an empty string.
 function module_loaded_version() {
     if [[ "$1" = "-h" ]]; then
         echo "Usage: $0 <module_name>"
@@ -219,13 +218,14 @@ function module_loaded_version() {
         return 1
     fi
 
-    local mod=$(module -t list 2>&1 | grep -E "^$1(/|$)" | head -1)
+    local mod
+    mod=$(module -t list 2>&1 | grep -E "^$1(/|$)" | head -1)
     if [[ -z "${mod}" ]]; then
-        # Module is not loaded.
-        echo '<none>'
+        return 1
     fi
 
-    local version=$(echo ${mod} | awk -F/ '{ print $2 }')
+    local version
+    version=$(echo "${mod}" | awk -F/ '{ print $NF }')
 
     echo "${version}"
     return 0
@@ -260,13 +260,14 @@ function module_loaded() {
                      grep ",default" | head -1 | awk -F, '{ print $2 }')
   fi
 
-
   # Get the version of the module that is currently loaded, if at all.
-  local loaded_version=$(module_loaded_version $1)
-  if [[ ${loaded_version} == "<none>" ]]; then
+  local loaded_version
+  if ! loaded_version=$(module_loaded_version "${module_name}"); then
     echo "Error: module ${module_name} was not loaded."
     return 1
   fi
+
+  echo "mod_vers, loaded_vers: ${module_version}, ${loaded_version}"
 
   if [[ -z "$module_version" ]]; then
     # No version was specified, and we couldn't find a default to check against.
@@ -307,7 +308,7 @@ function verify_module_loaded() {
 
     local module_loaded_result
 
-    module_loaded ${module_name} ${module_version}
+    module_loaded "${module_name}" "${module_version}"
     module_loaded_result=$?
 
     local msg
@@ -316,20 +317,20 @@ function verify_module_loaded() {
         1)
             msg="Module ${module_name}, version ${module_version} was not "
             msg="${msg}loaded. See the test log."
-            ${PAV_PATH} set_status -s ENV_FAILED -n"${msg}" ${test_id}
+            ${PAV_PATH} set_status -s ENV_FAILED -n"${msg}" "${test_id}"
             echo "$msg"
             exit 1
             ;;
         2)
             msg="Expected module ${module_name}, ${module_version}, but "
             msg="${msg}${module_version} was loaded instead."
-            ${PAV_PATH} set_status -s ENV_FAILED -n"${msg}" ${test_id}
+            ${PAV_PATH} set_status -s ENV_FAILED -n"${msg}" "${test_id}"
             echo "$msg"
             exit 1
             ;;
         3)
             msg="Error checking loaded modules."
-            ${PAV_PATH} set_status -s ENV_FAILED -n"${msg}" ${test_id}
+            ${PAV_PATH} set_status -s ENV_FAILED -n"${msg}" "${test_id}"
             echo "$msg"
             exit 1
             ;;
@@ -359,9 +360,9 @@ function verify_module_removed() {
     local module_version=$3
 
     # Get the version of the module that is currently loaded, if at all.
-    local loaded_version=$(module_loaded_version $1)
-    if [[ "${loaded_version}" == "<none>" ]]; then
-        return 0
+    local loaded_version
+    if ! loaded_version=$(module_loaded_version "$1"); then
+      return 0
     fi
 
     # A module version wasn't specified, so no version of the module should be loaded.
@@ -372,7 +373,7 @@ function verify_module_removed() {
         fi
         msg="Module ${module_name} shouldn't be loaded, but a version "
         msg="${msg}(${loaded_version}) was."
-        ${PAV_PATH} set_status -s ENV_FAILED -n"${msg}" ${test_id}
+        ${PAV_PATH} set_status -s ENV_FAILED -n"${msg}" "${test_id}"
         echo "${msg}"
         exit 1
     fi
@@ -383,7 +384,7 @@ function verify_module_removed() {
     fi
 
     msg="Module ${module_name}/${module_version} shouldn't be loaded, but was."
-    pav set_status -s ENV_FAILED -n"${msg}" ${test_id}
+    pav set_status -s ENV_FAILED -n"${msg}" "${test_id}"
     echo "${msg}"
     exit 1
 }

@@ -295,7 +295,7 @@ Link References
   accessing labels across documents. Use it for both internal and external
   links. In this case, the section name is the link text.
 
-  - ``:ref:`test.results``` -> :ref:`tests.results`
+  - ``:ref:`test.format``` -> :ref:`tests.format`
 - Refs to non-section labels must include the link text.
 
   - ``:ref:`ref examples <tutorials.writing_docs.ref_examples>```
