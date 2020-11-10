@@ -175,6 +175,3 @@ but it is not setup to do so by default.
 
 Enabling Spack under Pavilion requires the path to a Spack instance be provided
 under the ``spack_path`` key in your ``pavilion.yaml`` file.
-
-For more information about Spack configuration keys and usage, see
-:ref:`advanced.spack`.

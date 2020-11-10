@@ -373,6 +373,34 @@ such that it loads normally on some systems, but it performs a module swap
 on an odd system that loads a different compiler by default. This can allow
 for a single, host-agnostic set of tests.
 
+Spack Packages
+~~~~~~~~~~~~~~
+
+*Full Docs:* :ref:`tests.env.spack_packages`
+
+Pavilion supports both the installing and loading of Spack packages inside of
+test scripts. This is not enabled by default as it requires an external Spack
+instance.
+
+Spack features can be added by providing a Spack instance's path
+under the ``spack_path`` key in your pavilion config file (``pavilion.yaml``).
+For more pavilion configuration information, see
+:ref:`_config.configuring_pavilion`.
+
+Once configured, you can install and load Spack packages in your test scripts
+using the 'spack' section under both 'build' and 'run'.
+
+.. code-block:: yaml
+
+    build:
+        spack:
+            install:
+                - ember
+    run:
+        spack:
+            load:
+                - ember
+
 Schedulers
 ----------
 
