@@ -9,6 +9,7 @@ and Pavilion gives you several options for doing so.
 -  `Environment Variables <#environment-variables>`__
 -  `Modules <#modules>`__
 -  `Module Wrappers <#module-wrappers>`__
+-  `Spack Packages <#spack-packages>`__
 
 Assumptions
 -----------
@@ -165,3 +166,15 @@ modules within run and build scripts, and checks to see if they've been
 successfully loaded (or unloaded).
 
 For more information on writing these, see :ref:`plugins.module_wrappers`.
+
+Spack Packages
+______________
+
+Pavilion supports installing and loading Spack packages inside of test configs,
+but it is not setup to do so by default.
+
+Enabling Spack under Pavilion requires the path to a Spack instance be provided
+under the ``spack_path`` key in your ``pavilion.yaml`` file.
+
+For more information about Spack configuration keys and usage, see
+:ref:`advanced.spack`.
