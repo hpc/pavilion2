@@ -912,7 +912,7 @@ class TestBuilder:
         """
 
         stat = path.stat()
-        hash_fn = path.with_suffix('.hash')
+        hash_fn = path.with_name('.' + path.name + '.hash')
 
         # Read the has from the hashfile as long as it was created after
         # our test source's last update.
