@@ -358,7 +358,7 @@ class TestRun(TestAttributes):
 
         # Get an id for the test, if we weren't given one.
         if _id is None:
-            id_tmp, run_path = dir_db.create_id_dir(tests_path)
+            id_tmp, run_path = dir_db.create_id_dir(tests_path, group, umask)
             super().__init__(
                 path=run_path,
                 group=group, umask=umask)
@@ -576,7 +576,9 @@ class TestRun(TestAttributes):
                     "exist on this system. {}"
                     .format(group, err))
 
-        umask = config.get('umask', pav_cfg['umask'])
+        umask = config.get('umask')
+        if umask is None:
+            umask = pav_cfg['umask']
         if umask is not None:
             try:
                 umask = int(umask, 8)
@@ -697,8 +699,11 @@ class TestRun(TestAttributes):
                     cancel_event.set()
             build_result = True
         else:
-            self.builder.fail_path.rename(self.build_path)
-            build_result = False
+            with PermissionsManager(self.build_path, self.group, self.umask):
+                self.builder.fail_path.rename(self.build_path)
+                for file in utils.flat_walk(self.build_path):
+                    file.chmod(file.stat().st_mode | 0o200)
+                build_result = False
 
         self.build_log.symlink_to(self.build_path/'pav_build_log')
         return build_result
@@ -801,9 +806,7 @@ class TestRun(TestAttributes):
             json.dump(
                 {'complete': dt.datetime.now().isoformat()},
                 run_complete)
-            print('complete?', stat.filemode(complete_tmp_path.stat().st_mode))
         complete_tmp_path.rename(complete_path)
-        print('complete2?', stat.filemode(complete_path.stat().st_mode))
 
         self.complete = True
         self.save_attributes()

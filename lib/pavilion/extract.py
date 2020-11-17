@@ -124,7 +124,7 @@ def unzip_file(src, dest):
     try:
         # Extract the zipfile, under the same conditions as
         # above with tarfiles.
-        with zipfile.ZipFile(src.as_posix()) as zipped:
+        with FixedZipFile(src.as_posix()) as zipped:
 
             tmpdir.mkdir()
             zipped.extractall(tmpdir.as_posix())

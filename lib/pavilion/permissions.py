@@ -16,14 +16,14 @@ class PermissionsManager:
     group and other, and then masked.
     """
 
-    def __init__(self, path: Union[Path, str],
-                 group: Union[str, None], umask: int,
+    def __init__(self, path: Union[Path, str, None],
+                 group: Union[str, None], umask: Union[int, str],
                  silent: bool = True):
         """Set the managed path and permission info.
         :param path: The file/directory to manage the permissions of. This is
             recursive.
         :param group: The group to set. It must exist.
-        :param umask: The umask to apply.
+        :param umask: The umask to apply. If given as a string, should be octal.
         :param silent: Whether to quietly log system errors.
         """
 
@@ -31,8 +31,11 @@ class PermissionsManager:
             self.gid = grp.getgrnam(group).gr_gid
         else:
             self.gid = None
+        if isinstance(umask, str):
+            umask = int(umask, 8)
         self.umask = umask
-        self.path = Path(path)
+        if path is not None:
+            self.path = Path(path)
         self.silent = silent
         self._orig_umask = None
 

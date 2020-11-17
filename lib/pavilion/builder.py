@@ -290,7 +290,7 @@ class TestBuilder:
         hash_obj = hashlib.sha256()
 
         # Update the hash with the contents of the build script.
-        hash_obj.update(self._hash_file(self._script_path))
+        hash_obj.update(self._hash_file(self._script_path, save=False))
         group = self._group.encode() if self._group is not None else b'<def>'
         hash_obj.update(group)
         umask = oct(self._umask).encode() if self._umask is not None \
@@ -537,14 +537,16 @@ class TestBuilder:
                     built_by_path = self.path / '.built_by'
                     try:
                         with PermissionsManager(built_by_path, self._group,
-                                                self._umask), \
+                                                self._umask | 0o222), \
                                 built_by_path.open('w') as built_by:
                             built_by.write(str(self.test.id))
                     except OSError:
                         self.tracker.warn("Could not create built_by file.")
 
                     try:
-                        self.finished_path.touch()
+                        with PermissionsManager(self.finished_path,
+                                                self._group, self._umask):
+                            self.finished_path.touch()
                     except OSError:
                         self.tracker.warn("Could not touch '<build>.finished' "
                                           "file.")
@@ -709,6 +711,7 @@ class TestBuilder:
                 note=("Copying source directory {} for build {} "
                       "as the build directory."
                       .format(src_path, dest)))
+
             shutil.copytree(src_path.as_posix(),
                             dest.as_posix(),
                             symlinks=True)
@@ -867,20 +870,12 @@ class TestBuilder:
 
         # We rely on the umask to handle most restrictions.
         # This just masks out the write bits.
-        umask = int(self._pav_cfg['umask'])
-        file_mask = 0o222 | umask
-
-        root_path.chmod(root_path.stat().st_mode & ~umask)
-        root_path.group()
+        file_mask = 0o222 | self._umask
 
         # We shouldn't have to do anything to directories, they should have
         # the correct permissions already.
         for path, dirs, files in os.walk(root_path.as_posix()):
             path = Path(path)
-            for directory in dirs:
-                dir_path = path/directory
-                dir_path.chmod(dir_path.stat().st_mode & ~umask)
-
             for file in files:
                 file_path = path/file
                 file_stat = file_path.stat()
@@ -911,8 +906,7 @@ class TestBuilder:
 
         return hash_obj.digest()
 
-    @classmethod
-    def _hash_file(cls, path):
+    def _hash_file(self, path, save=True):
         """Hash the given file (which is assumed to exist).
         :param Path path: Path to the file to hash.
         """
@@ -932,16 +926,18 @@ class TestBuilder:
         hash_obj = hashlib.sha256()
 
         with path.open('rb') as file:
-            chunk = file.read(cls._BLOCK_SIZE)
+            chunk = file.read(self._BLOCK_SIZE)
             while chunk:
                 hash_obj.update(chunk)
-                chunk = file.read(cls._BLOCK_SIZE)
+                chunk = file.read(self._BLOCK_SIZE)
 
         file_hash = hash_obj.digest()
 
-        # This should all be under the build lock.
-        with hash_fn.open('wb') as hash_file:
-            hash_file.write(file_hash)
+        if save:
+            # This should all be under the build lock.
+            with PermissionsManager(hash_fn, self._group, self._umask), \
+                    hash_fn.open('wb') as hash_file:
+                hash_file.write(file_hash)
 
         return file_hash
 
@@ -1095,7 +1091,7 @@ def delete_unused(tests_dir: Path, builds_dir: Path, verbose: bool = False) \
         for path in dir_db.select(builds_dir, filter_builds, fn_base=16)[0]:
             try:
                 shutil.rmtree(path.as_posix())
-                path.with_suffix('.finished').unlink()
+                path.with_suffix(TestBuilder.FINISHED_SUFFIX).unlink()
             except OSError as err:
                 msgs.append("Could not remove build {}: {}"
                             .format(path, err))
