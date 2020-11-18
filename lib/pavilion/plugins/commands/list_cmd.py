@@ -266,7 +266,7 @@ class ListCommand(commands.Command):
                 order_func=order_func,
                 order_asc=ascending,
                 limit=args.limit,
-            )
+            )[0]
 
         self.write_output(
             mode=mode,
@@ -316,7 +316,7 @@ class ListCommand(commands.Command):
             transform=SeriesInfo,
             order_func=series_order,
             order_asc=ascending,
-        )
+        )[0]
         self.write_output(
             mode=mode,
             rows=[sinfo.attr_dict() for sinfo in series],

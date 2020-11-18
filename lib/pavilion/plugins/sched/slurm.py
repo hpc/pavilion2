@@ -45,9 +45,15 @@ slurm kickoff script.
 
         lines = super().get_lines()
 
-        lines.append(
-            '#SBATCH --job-name "pav test #{s._test_id}"'
-            .format(s=self))
+        if self._conf.get('job_name') is not None:
+            lines.append(
+                '#SBATCH --job-name {s._conf[job_name]}'
+                .format(s=self))
+        else:
+            lines.append(
+                '#SBATCH --job-name "pav test #{s._test_id}"'
+                .format(s=self))
+
         lines.append('#SBATCH -p {s._conf[partition]}'.format(s=self))
         if self._conf.get('reservation') is not None:
             lines.append('#SBATCH --reservation {s._conf[reservation]}'
@@ -99,6 +105,7 @@ class SlurmVars(SchedulerVariables):
         "test_node_list_short": "node00[4-5]",
         "test_nodes": "2",
         "test_procs": "2",
+        "job_name": "pav",
     }
 
     @var_method
@@ -332,11 +339,17 @@ class Slurm(schedulers.SchedulerPlugin):
         # The characters in a valid hostname.
         r'[a-zA-Z][a-zA-Z_-]*\d*'
         # A numeric range of nodes in square brackets.
-        r'(?:\[\d+-\d+\])?'
+        r'(?:\[(?:\d+|\d+-\d+)(?:,\d+|,\d+-\d+)*\])?'
     )
     NODE_LIST_RE = re.compile(
         # Match a comma separated list of these things.
         r'{0}(?:,{0})*$'.format(NODE_SEQ_REGEX_STR)
+    )
+
+    NODE_BRACKET_FORMAT_RE = re.compile(
+        # Match hostname followed by square brackets,
+        # group whats in the brackets.
+        r'([a-zA-Z][a-zA-Z_-]*\d*)\[(.*)\]'
     )
 
     def __init__(self):
@@ -411,6 +424,10 @@ class Slurm(schedulers.SchedulerPlugin):
                         help_text="When looking for nodes that could be  "
                                   "allocated, they must be in one of these "
                                   "states."),
+            yc.StrElem(
+                'job_name', default="pav",
+                help_text="The job name for this test."),
+
         ]
 
     def get_conf(self):
@@ -473,41 +490,60 @@ class Slurm(schedulers.SchedulerPlugin):
         match = cls.NODE_LIST_RE.match(node_list)
         if match is None:
             node_part_re = re.compile(cls.NODE_SEQ_REGEX_STR + r'$')
+            # The following is required to handle foo[3,6-9].
+            prev = ""
             for part in node_list.split(','):
+                # Logic used to recombined 'foo[3', '6-9]' after split. 
+                if prev:
+                    part = prev + "," + part
+                    prev = ""
+                if '[' in part and ']' not in part:
+                    prev = part
+                    continue
                 if not node_part_re.match(part):
                     raise ValueError(
                         "Invalid Node List: '{}'. Syntax error in item '{}'. "
                         "Node lists components be a hostname or hostname "
                         "prefix followed by a range of node numbers. "
-                        "Ex: foo003,foo0[10-20],foo[103-104]"
+                        "Ex: foo003,foo0[10-20],foo[103-104], foo[10,12-14]"
                         .format(node_list, part)
                     )
 
             # If all the parts matched, then it's an overall format issue.
             raise ValueError("Invalid Node List: '{}' "
                              "Good Example: foo003,foo0[10-20],"
-                             "foo[103-104]")
+                             "foo[103-104], foo[10,12-14]")
 
         nodes = []
+        prev = ""
         for part in node_list.split(','):
-            if '[' in part:
-                base, nrange = part.split('[')
-                # Drop the closing bracket
-                nrange = nrange[:-1]
-                start, end = nrange.split('-')
-                digits = min(len(start), len(end))
-                start = int(start)
-                end = int(end)
-                if end < start:
-                    raise ValueError(
-                        "In node list '{}' part '{}', node range ends before"
-                        "it starts."
-                        .format(node_list, part)
-                    )
-                for i in range(start, end+1):
-                    node = ('{base}{num:0{digits}d}'
-                            .format(base=base, num=i, digits=digits))
-                    nodes.append(node)
+            if prev:
+                part = prev + "," + part
+                prev = ""
+            if '[' in part and ']' not in part:
+                prev = part
+                continue
+            match = cls.NODE_BRACKET_FORMAT_RE.match(part)
+            if match:
+                host, nodelist = match.groups()
+                for node in nodelist.split(","):
+                    if '-' in node:
+                        start, end = node.split('-')
+                        digits = min(len(start), len(end))
+                        if int(end) < int(start):
+                            raise ValueError(
+                                "In node list '{}' part '{}', node range ends "
+                                "before it starts."
+                                .format(node_list, part)
+                            )
+                        for i in range(int(start), int(end)+1):
+                            node = ('{base}{num:0{digits}d}'
+                                    .format(base=host, num=i, digits=digits))
+                            nodes.append(node)
+                    else:
+                        node = ('{base}{num}'
+                                .format(base=host, num=node))
+                        nodes.append(node)
             else:
                 nodes.append(part)
 

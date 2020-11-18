@@ -204,7 +204,7 @@ class BaseExprTransformer(PavTransformer):
 
         while or_items:
             next_tok = or_items.pop()
-            acc = self._apply_op(lambda a, b: a or b, base_tok, next_tok)
+            acc = self._apply_op(lambda a, b: bool(a or b), base_tok, next_tok)
             base_tok = self._merge_tokens([base_tok, next_tok], acc)
 
         return base_tok
@@ -223,7 +223,8 @@ class BaseExprTransformer(PavTransformer):
 
         while and_items:
             next_tok = and_items.pop()
-            acc = self._apply_op(lambda a, b: a and b, base_tok, next_tok)
+            acc = self._apply_op(lambda a, b: bool(a and b),
+                                 base_tok, next_tok)
             base_tok = self._merge_tokens([base_tok, next_tok], acc)
 
         return base_tok
