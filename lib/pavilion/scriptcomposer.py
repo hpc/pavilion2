@@ -9,8 +9,6 @@ from pathlib import Path
 from pavilion import module_wrapper
 from pavilion.module_actions import ModuleAction
 
-from pavilion.permissions import PermissionsManager
-
 
 class ScriptComposerError(RuntimeError):
     """Class level exception during script composition."""
