@@ -112,12 +112,12 @@ def main():
 
         stats_path = '/tmp/{}_pav_pstats'.format(os.getlogin())
 
-        cProfile.runctx('run_cmd(pav_cfg, args)', globals(), locals(), 
+        cProfile.runctx('run_cmd(pav_cfg, args)', globals(), locals(),
                         stats_path)
         stats = pstats.Stats(stats_path)
         print("Profile Table")
         stats.strip_dirs().sort_stats(args.profile_sort)\
-             .print_stats(args.profile_count) 
+             .print_stats(args.profile_count)
 
 def run_cmd(pav_cfg, args):
 
@@ -133,6 +133,8 @@ def run_cmd(pav_cfg, args):
 
     try:
         sys.exit(cmd.run(pav_cfg, args))
+    except KeyboardInterrupt:
+        sys.exit(-1)
     except Exception as err:
         exc_info = {
             'traceback': traceback.format_exc(),

@@ -88,7 +88,7 @@ def get_test_statuses(pav_cfg, test_ids):
     return test_statuses
 
 
-def get_tests(pav_cfg, tests: List['str'], errfile: IO['str']):
+def get_tests(pav_cfg, tests: List['str'], errfile: IO['str']) -> List[int]:
     """
     Gets the tests depending on arguments.
 
@@ -134,7 +134,7 @@ def get_tests(pav_cfg, tests: List['str'], errfile: IO['str']):
     return test_list
 
 
-def get_statuses(pav_cfg, tests: List[str], errfile: IO['str']):
+def get_statuses(pav_cfg, tests: List[int], errfile: IO['str']):
     """Get the statuses of the listed tests or series.
 
 :param pav_cfg: The pavilion config.

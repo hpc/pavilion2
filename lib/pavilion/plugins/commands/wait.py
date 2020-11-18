@@ -31,7 +31,6 @@ class WaitCommand(commands.Command):
 
     OUT_SILENT = 'silent'
     OUT_SUMMARY = 'summary'
-    OUT_ONELINE = 'oneline'
 
     def _setup_arguments(self, parser):
 
@@ -54,11 +53,6 @@ class WaitCommand(commands.Command):
             help="No periodic status output."
         )
         group.add_argument(
-            '--oneline',
-            action='store_const', dest='out_mode', const=self.OUT_ONELINE,
-            help="Prints entire status on one line."
-        )
-        group.add_argument(
             '--summary',
             action='store_const', dest='out_mode', const=self.OUT_SUMMARY,
             help="Prints a summary of the status."
@@ -77,14 +71,12 @@ class WaitCommand(commands.Command):
         if args.timeout is not None:
             end_time = start_time + float(args.timeout)
 
-        try:
-            self.wait(pav_cfg, tests, end_time, args.out_mode)
-        except KeyboardInterrupt:
-            pass
+        self.wait(pav_cfg, tests, end_time, args.out_mode)
+        return 0
 
     STATUS_UPDATE_PERIOD = 5  # seconds
 
-    def wait(self, pav_cfg, tests: List['str'], end_time: float,
+    def wait(self, pav_cfg, tests: List[int], end_time: float,
              out_mode: str) -> None:
         """Wait on each of the given tests to complete, printing a status
         message """
@@ -111,14 +103,6 @@ class WaitCommand(commands.Command):
 
                 if out_mode == self.OUT_SILENT:
                     pass
-                elif out_mode == self.OUT_ONELINE:
-                    stats_out.extend([str(time.ctime(time.time())), ': '])
-                    for test in stats:
-                        stat = "{t[test_id]}({t[name]}) {t[state]} | "\
-                            .format(t=test)
-                        stats_out.append(stat)
-                    fprint(''.join(stats_out), end='\r',
-                           file=self.outfile, width=None)
                 elif out_mode == self.OUT_SUMMARY:
                     states = {}
                     for test in stats:
