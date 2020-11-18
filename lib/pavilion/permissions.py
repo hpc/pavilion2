@@ -16,14 +16,14 @@ class PermissionsManager:
     group and other, and then masked.
     """
 
-    def __init__(self, path: Union[Path, str],
-                 group: Union[str, None], umask: Union[int, None],
+    def __init__(self, path: Union[Path, str, None],
+                 group: Union[str, None], umask: Union[int, str],
                  silent: bool = True):
         """Set the managed path and permission info.
         :param path: The file/directory to manage the permissions of. This is
             recursive.
         :param group: The group to set. It must exist.
-        :param umask: The umask to apply.
+        :param umask: The umask to apply. If given as a string, should be octal.
         :param silent: Whether to quietly log system errors.
         """
 
@@ -31,19 +31,22 @@ class PermissionsManager:
             self.gid = grp.getgrnam(group).gr_gid
         else:
             self.gid = None
+        if isinstance(umask, str):
+            umask = int(umask, 8)
         self.umask = umask
-        self.path = Path(path)
+        if path is not None:
+            self.path = Path(path)
         self.silent = silent
         self._orig_umask = None
 
         self.logger = logging.getLogger(__name__)
 
     def __enter__(self):
-        """Set the umask to only allow access by the owner. This will be
-        restored on exit."""
+        """We don't need to do anything here."""
 
-        if self.umask is not None:
-            self._orig_umask = os.umask(0o077)
+        # Note that we trust that we have a reasonably secure umask already.
+        # On exit, this will apply permissions according to the given umask,
+        # rather than the system one.
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Recursively set the group of all files to the given group, and
@@ -74,9 +77,6 @@ class PermissionsManager:
                 self.path.as_posix(), str(err), exc_info=err)
             if not self.silent:
                 raise
-
-        if self.umask is not None:
-            os.umask(self._orig_umask)
 
     def set_perms(self, path: Path) -> None:
         """Set the permissions for path.

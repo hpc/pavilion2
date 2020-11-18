@@ -7,6 +7,37 @@ import shutil
 import tarfile
 import zipfile
 
+from typing import Union
+
+
+class FixedZipFile(zipfile.ZipFile):
+    """The python zipfile library doesn't do a good job handling unix
+    permissions in zip files. Notably, it drops execute permissions on files."""
+
+    def _extract_member(self, member: Union[str, zipfile.ZipInfo],
+                        targetpath: str, pwd):
+        """
+        :param member:
+        :param targetpath:
+        :param pwd:
+        :return:
+        """
+
+        if not isinstance(member, zipfile.ZipInfo):
+            member = self.getinfo(member)
+
+        file_path = super()._extract_member(member, targetpath, pwd)
+
+        # The Unix attributes are in the high order bits.
+        mode = member.external_attr >> 16
+        # Only set the owner bits; the group and user bits will be applied
+        # by the Permission manager.
+        mode = mode & 0o700
+
+        # Only apply them if they exist. Otherwise leave things as-is.
+        if mode:
+            os.chmod(file_path, mode)
+
 
 def extract_tarball(src: pathlib.Path, dest: pathlib.Path):
     """Extract the given tarball at 'src' to the directory 'dest'. If the
@@ -87,11 +118,13 @@ def decompress_file(src: pathlib.Path, dest: pathlib.Path, subtype: str):
 
 
 def unzip_file(src, dest):
+    """Extract the contents of a zipfile."""
+
     tmpdir = dest.with_suffix('.unzipped')
     try:
         # Extract the zipfile, under the same conditions as
         # above with tarfiles.
-        with zipfile.ZipFile(src.as_posix()) as zipped:
+        with FixedZipFile(src.as_posix()) as zipped:
 
             tmpdir.mkdir()
             zipped.extractall(tmpdir.as_posix())
