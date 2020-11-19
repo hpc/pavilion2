@@ -1,7 +1,13 @@
-from pavilion.unittest import PavTestCase
-import unittest
-import subprocess
 import distutils.spawn
+import os
+import re
+import io
+import subprocess
+import unittest
+from pathlib import Path
+from collections import defaultdict
+
+from pavilion.unittest import PavTestCase
 
 _PYLINT_PATH = distutils.spawn.find_executable('pylint')
 if _PYLINT_PATH is None:
@@ -78,3 +84,74 @@ class StyleTests(PavTestCase):
 
         if proc.poll() != 0:
             self.fail('\n' + stdout.decode('utf8'))
+
+    def test_debug_prints(self):
+        """greps for unnecessary dbg_print statements."""
+
+        matches = self.find_prints(self.PAV_ROOT_DIR/'lib'/'pavilion',
+                                   excludes=['output.py'])
+        test_matches = self.find_prints(
+            self.PAV_ROOT_DIR/'test'/'tests',
+            excludes=['style_tests.py', 'blarg.py', 'poof.py'])
+
+        for tmatch, values in test_matches.items():
+            matches[tmatch].extend(values)
+
+        if matches:
+            msg = io.StringIO()
+
+            print("Found debug print statements:", file=msg)
+            for match, values in matches.items():
+                print('\n', match, file=msg)
+                for line_num, line in values:
+                    print("{:5d}: {}".format(line_num, line[:60]), file=msg)
+
+            self.fail(msg=msg.getvalue())
+
+    # Skip a line if it has an '# ext-print: ignore' comment on it.
+    SKIP_LINE_RE = re.compile(r'\S+.*#\s+ext[-_]print:\s*ignore')
+    # Skip the next line if it is just an '# ext-print: ignore' comment.
+    SKIP_NEXT_RE = re.compile(r'^\s*#\s+ext[-_]print:\s*ignore')
+
+    PRINT_RE = re.compile(r'^\s*[^"\'#].*[^f]print\(')
+
+    def find_prints(self, path, excludes=None):
+        """Find any code with print( statements."""
+
+        if excludes is None:
+            excludes = []
+
+        matches = defaultdict(lambda: list())
+
+        for path, _, filenames in os.walk(path.as_posix()):
+            for fn in filenames:
+                if not fn.endswith('.py'):
+                    continue
+
+                if fn in excludes:
+                    continue
+
+                fn = Path(path)/fn
+
+                line_num = -1
+                with fn.open() as file:
+                    skip_next = False
+
+                    for line in file:
+                        line_num += 1
+
+                        if skip_next:
+                            skip_next = False
+                            continue
+
+                        if self.SKIP_LINE_RE.search(line) is not None:
+                            continue
+                        if self.SKIP_NEXT_RE.match(line) is not None:
+                            skip_next = True
+                            continue
+
+                        if self.PRINT_RE.match(line):
+                            matches[fn.as_posix()].append((line_num,
+                                                           line.strip()))
+
+        return matches

@@ -25,6 +25,7 @@ from pavilion.test_config import resolver
 from pavilion.builder import MultiBuildTracker  # shouldn't need this later as well
 from pavilion import schedulers
 from pavilion import output
+from pavilion.permissions import PermissionsManager
 from pavilion.output import fprint
 from pavilion.lockfile import LockFile
 from pavilion.status_file import STATES
@@ -338,7 +339,10 @@ class TestSeries:
         if _id is None:
             # Get the series id and path.
             try:
-                self._id, self.path = dir_db.create_id_dir(series_path)
+                self._id, self.path = dir_db.create_id_dir(
+                    series_path,
+                    pav_cfg['shared_group'],
+                    pav_cfg['umask'])
             except (OSError, TimeoutError) as err:
                 raise TestSeriesError(
                     "Could not get id or series directory in '{}': {}"
@@ -352,6 +356,9 @@ class TestSeries:
             # save series config
             self.save_series_config()
 
+            perm_man = PermissionsManager(None, pav_cfg['shared_group'],
+                                          pav_cfg['umask'])
+
             # Create a soft link to the test directory of each test in the
             # series.
             if tests:
@@ -360,6 +367,7 @@ class TestSeries:
 
                     try:
                         link_path.symlink_to(test.path)
+                        perm_man.set_perms(link_path)
                     except OSError as err:
                         raise TestSeriesError(
                             "Could not link test '{}' in series at '{}': {}"
@@ -942,13 +950,17 @@ differentiate it from test ids."""
                     except json.decoder.JSONDecodeError:
                         # File was empty, therefore json couldn't be loaded.
                         pass
-                with json_file.open('w') as json_series_file:
+                with PermissionsManager(json_file, self.pav_cfg['shared_group'],
+                                        self.pav_cfg['umask']), \
+                        json_file.open('w') as json_series_file:
                     data[sys_name] = self.sid
                     json_series_file.write(json.dumps(data))
 
             except FileNotFoundError:
                 # File hadn't been created yet.
-                with json_file.open('w') as json_series_file:
+                with PermissionsManager(json_file, self.pav_cfg['shared_group'],
+                                        self.pav_cfg['umask']), \
+                         json_file.open('w') as json_series_file:
                     data[sys_name] = self.sid
                     json_series_file.write(json.dumps(data))
 

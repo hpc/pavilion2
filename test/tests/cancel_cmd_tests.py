@@ -36,7 +36,7 @@ class CancelCmdTests(PavTestCase):
             'cancel'
         ])
 
-        get_statuses(self.pav_cfg, args, StringIO())
+        get_statuses(self.pav_cfg, args.tests, StringIO())
 
         cancel_cmd = commands.get_command(args.command_name)
         cancel_cmd.outfile = cancel_cmd.errfile = StringIO()
