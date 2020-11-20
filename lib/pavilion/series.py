@@ -802,21 +802,25 @@ differentiate it from test ids."""
 
         return
 
+    def cancel_series(self):
+        """Goes through all test objects assigned to series and cancels tests
+        that haven't been completed. """
+
+        for test_id, test_obj in self.tests.items():
+            if not (test_obj.path/'RUN_COMPLETE').exists():
+                sched = schedulers.get_plugin(test_obj.scheduler)
+                sched.cancel_job(test_obj)
+                test_obj.status.set(STATES.COMPLETE, "Killed by SIGTERM.")
+                test_obj.set_run_complete()
+
     def run_series(self):
         """Runs series."""
 
         # handles SIGTERM (15) signal
         def sigterm_handler(*args):
-            """Goes through all test objects assigned to series and cancels
-            tests that haven't completed. """
+            """Calls cancel_series and exists."""
 
-            for test_id, test_obj in self.tests.items():
-                if not (test_obj.path/'RUN_COMPLETE').exists():
-                    sched = schedulers.get_plugin(test_obj.scheduler)
-                    sched.cancel_job(test_obj)
-                    test_obj.status.set(STATES.COMPLETE, "Killed by SIGTERM.")
-                    test_obj.set_run_complete()
-
+            self.cancel_series()
             sys.exit()
 
         signal.signal(signal.SIGTERM, sigterm_handler)
