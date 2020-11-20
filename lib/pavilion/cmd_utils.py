@@ -168,7 +168,7 @@ def get_test_configs(
                         tests.append(line)
         except (OSError, IOError) as err:
             raise commands.CommandError(
-                "Could not read test file {}: {}".format(file, err))
+                "Could not read test file {}: {}".format(file, err.args[0]))
 
     try:
         resolved_cfgs = resolver.load(
@@ -220,7 +220,7 @@ def configs_to_tests(
                 output.fprint("Creating Test Runs: {:.0%}".format(progress),
                               file=outfile, end='\r')
         except (TestRunError, TestConfigError) as err:
-            raise commands.CommandError(err)
+            raise commands.CommandError(err.args[0])
 
     if outfile is not None:
         output.fprint('', file=outfile)
