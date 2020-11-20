@@ -24,8 +24,7 @@ class AutoSeries(commands.Command):
         """Loads series object from directory and runs series."""
 
         # load series obj
-        sid = 's' + args.series_id
-        series_obj = series.TestSeries.from_id(pav_cfg, sid)
+        series_obj = series.TestSeries.from_id(pav_cfg, args.series_id)
 
         # call function to actually run series
         series_obj.run_series()

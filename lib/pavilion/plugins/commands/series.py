@@ -41,7 +41,9 @@ class RunSeries(commands.Command):
 
         # create brand-new series object
         series_obj = series.TestSeries(pav_cfg,
-                                       series_config=series_cfg)
+                                       series_config=series_cfg,
+                                       outfile=self.outfile,
+                                       errfile=self.errfile)
 
         # pav _series runs in background using subprocess
         series_obj.run_series_background()
