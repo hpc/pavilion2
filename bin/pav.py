@@ -13,6 +13,7 @@ from pavilion import log_setup
 from pavilion import output
 from pavilion import pavilion_variables
 from pavilion import plugins
+from pavilion import permissions
 
 try:
     import yc_yaml
@@ -57,6 +58,8 @@ def main():
 
     # Create the basic directories in the working directory and the .pavilion
     # directory.
+    perm_man = permissions.PermissionsManager(None, pav_cfg['shared_group'],
+                                              pav_cfg['umask'])
     for path in [
             config.USER_HOME_PAV,
             config.USER_HOME_PAV/'working_dir',
@@ -67,6 +70,7 @@ def main():
         try:
             path = path.expanduser()
             path.mkdir(exist_ok=True)
+            perm_man.set_perms(path)
         except OSError as err:
             output.fprint(
                 "Could not create base directory '{}': {}"
@@ -112,12 +116,12 @@ def main():
 
         stats_path = '/tmp/{}_pav_pstats'.format(os.getlogin())
 
-        cProfile.runctx('run_cmd(pav_cfg, args)', globals(), locals(), 
+        cProfile.runctx('run_cmd(pav_cfg, args)', globals(), locals(),
                         stats_path)
         stats = pstats.Stats(stats_path)
         print("Profile Table")
         stats.strip_dirs().sort_stats(args.profile_sort)\
-             .print_stats(args.profile_count) 
+             .print_stats(args.profile_count)
 
 def run_cmd(pav_cfg, args):
 

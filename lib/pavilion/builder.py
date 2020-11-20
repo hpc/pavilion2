@@ -9,14 +9,16 @@ import logging
 import os
 import shutil
 import subprocess
+import stat
 import tarfile
 import threading
 import time
 import urllib.parse
 from collections import defaultdict
 from pathlib import Path
-from typing import Union
+from typing import Union, List
 
+from pavilion import dir_db
 from pavilion import extract
 from pavilion import lockfile
 from pavilion import utils
@@ -32,15 +34,13 @@ class TestBuilderError(RuntimeError):
 
 class MultiBuildTracker:
     """Allows for the central organization of multiple build tracker objects.
-
         :ivar {StatusFile} status_files: The dictionary of status
             files by build.
     """
 
     def __init__(self, log=True):
         """Setup the build tracker.
-
-        :param bool log: Whether to also log messages in some instances.
+       :param bool log: Whether to also log messages in some instances.
         """
 
         # A map of build tokens to build names
@@ -55,7 +55,6 @@ class MultiBuildTracker:
 
     def register(self, builder, test_status_file):
         """Register a builder, and get your own build tracker.
-
         :param TestBuilder builder: The builder object to track.
         :param status_file.StatusFile test_status_file: The status file object
             for the corresponding test.
@@ -73,7 +72,6 @@ class MultiBuildTracker:
 
     def update(self, builder, note, state=None, log=None):
         """Add a message for the given builder without changes the status.
-
         :param TestBuilder builder: The builder object to set the message.
         :param note: The message to set.
         :param str state: A status_file state to set on this builder's status
@@ -293,7 +291,7 @@ class TestBuilder:
         hash_obj = hashlib.sha256()
 
         # Update the hash with the contents of the build script.
-        hash_obj.update(self._hash_file(self._script_path))
+        hash_obj.update(self._hash_file(self._script_path, save=False))
         group = self._group.encode() if self._group is not None else b'<def>'
         hash_obj.update(group)
         umask = oct(self._umask).encode() if self._umask is not None \
@@ -540,14 +538,16 @@ class TestBuilder:
                     built_by_path = self.path / '.built_by'
                     try:
                         with PermissionsManager(built_by_path, self._group,
-                                                self._umask), \
+                                                self._umask | 0o222), \
                                 built_by_path.open('w') as built_by:
                             built_by.write(str(self.test.id))
                     except OSError:
                         self.tracker.warn("Could not create built_by file.")
 
                     try:
-                        self.finished_path.touch()
+                        with PermissionsManager(self.finished_path,
+                                                self._group, self._umask):
+                            self.finished_path.touch()
                     except OSError:
                         self.tracker.warn("Could not touch '<build>.finished' "
                                           "file.")
@@ -754,6 +754,7 @@ class TestBuilder:
                 note=("Copying source directory {} for build {} "
                       "as the build directory."
                       .format(src_path, dest)))
+
             shutil.copytree(src_path.as_posix(),
                             dest.as_posix(),
                             symlinks=True)
@@ -842,8 +843,23 @@ class TestBuilder:
         do_copy = set()
         copy_globs = self._config.get('copy_files', [])
         for copy_glob in copy_globs:
-            do_copy.update(glob.glob(self.path.as_posix() + '/' + copy_glob,
-                                     recursive=True))
+            final_glob = self.path.as_posix() + '/' + copy_glob
+            blob = glob.glob(final_glob, recursive=True)
+            if not blob:
+                avail = '\n'.join(glob.glob(final_glob.rsplit('/')[0]))
+                self.tracker.error(
+                    state=STATES.BUILD_ERROR,
+                    note=("Could not perform build copy. Files meant to be "
+                          "fully copied (rather than symlinked) could not be "
+                          "found:\n"
+                          "base_glob: {}\n"
+                          "full_glob: {}\n"
+                          "These files were available in the top glob dir:\n"
+                          "{}"
+                          .format(copy_glob, final_glob, avail)))
+                return False
+
+            do_copy.update(blob)
 
         def maybe_symlink_copy(src, dst):
             """Makes a symlink from src to dst, unless the file is in
@@ -852,7 +868,10 @@ class TestBuilder:
 
             if src in do_copy:
                 # Actually copy files that were explicitly asked for.
-                return shutil.copy2(src, dst, follow_symlinks=True)
+                cpy_path = shutil.copy2(src, dst, follow_symlinks=True)
+                base_mode = os.stat(cpy_path).st_mode
+                os.chmod(cpy_path, base_mode | stat.S_IWUSR | stat.S_IWGRP)
+                return cpy_path
             else:
                 src = os.path.realpath(src)
                 return os.symlink(src, dst)
@@ -894,20 +913,12 @@ class TestBuilder:
 
         # We rely on the umask to handle most restrictions.
         # This just masks out the write bits.
-        umask = int(self._pav_cfg['umask'])
-        file_mask = 0o222 | umask
-
-        root_path.chmod(root_path.stat().st_mode & ~umask)
-        root_path.group()
+        file_mask = 0o222 | self._umask
 
         # We shouldn't have to do anything to directories, they should have
         # the correct permissions already.
         for path, dirs, files in os.walk(root_path.as_posix()):
             path = Path(path)
-            for directory in dirs:
-                dir_path = path/directory
-                dir_path.chmod(dir_path.stat().st_mode & ~umask)
-
             for file in files:
                 file_path = path/file
                 file_stat = file_path.stat()
@@ -938,14 +949,13 @@ class TestBuilder:
 
         return hash_obj.digest()
 
-    @classmethod
-    def _hash_file(cls, path):
+    def _hash_file(self, path, save=True):
         """Hash the given file (which is assumed to exist).
         :param Path path: Path to the file to hash.
         """
 
         stat = path.stat()
-        hash_fn = path.with_suffix('.hash')
+        hash_fn = path.with_name('.' + path.name + '.hash')
 
         # Read the has from the hashfile as long as it was created after
         # our test source's last update.
@@ -959,16 +969,18 @@ class TestBuilder:
         hash_obj = hashlib.sha256()
 
         with path.open('rb') as file:
-            chunk = file.read(cls._BLOCK_SIZE)
+            chunk = file.read(self._BLOCK_SIZE)
             while chunk:
                 hash_obj.update(chunk)
-                chunk = file.read(cls._BLOCK_SIZE)
+                chunk = file.read(self._BLOCK_SIZE)
 
         file_hash = hash_obj.digest()
 
-        # This should all be under the build lock.
-        with hash_fn.open('wb') as hash_file:
-            hash_file.write(file_hash)
+        if save:
+            # This should all be under the build lock.
+            with PermissionsManager(hash_fn, self._group, self._umask), \
+                    hash_fn.open('wb') as hash_file:
+                hash_file.write(file_hash)
 
         return file_hash
 
@@ -1074,3 +1086,61 @@ class TestBuilder:
         compares = [getattr(self, key) == getattr(other, key)
                     for key in compare_keys]
         return all(compares)
+
+
+def _get_used_build_paths(tests_dir: Path) -> set:
+    """Generate a set of all build paths currently used by one or more test
+    runs."""
+
+    used_builds = set()
+
+    for path in dir_db.select(tests_dir)[0]:
+        build_origin_symlink = path/'build_origin'
+        build_origin = None
+        if (build_origin_symlink.exists() and
+            build_origin_symlink.is_symlink() and
+                utils.resolve_path(build_origin_symlink).exists()):
+            build_origin = build_origin_symlink.resolve()
+
+        if build_origin is not None:
+            used_builds.add(build_origin.name)
+
+    return used_builds
+
+
+def delete_unused(tests_dir: Path, builds_dir: Path, verbose: bool = False) \
+        -> (int, List[str]):
+    """Delete all the build directories, that are unused by any test run.
+
+    :param tests_dir: The test_runs directory path object.
+    :param builds_dir: The builds directory path object.
+    :param verbose: Print
+
+    :return int count: The number of builds that were removed.
+
+    """
+
+    used_build_paths = _get_used_build_paths(tests_dir)
+
+    def filter_builds(build_path: Path) -> bool:
+        """Return whether a build is not used."""
+        return build_path.name not in used_build_paths
+
+    count = 0
+
+    lock_path = builds_dir.with_suffix('.lock')
+    msgs = []
+    with lockfile.LockFile(lock_path):
+        for path in dir_db.select(builds_dir, filter_builds, fn_base=16)[0]:
+            try:
+                shutil.rmtree(path.as_posix())
+                path.with_suffix(TestBuilder.FINISHED_SUFFIX).unlink()
+            except OSError as err:
+                msgs.append("Could not remove build {}: {}"
+                            .format(path, err))
+                continue
+            count += 1
+            if verbose:
+                msgs.append('Removed build {}.'.format(path.name))
+
+    return count, msgs

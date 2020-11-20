@@ -3,12 +3,19 @@
 import datetime as dt
 import json
 import logging
+import errno
+import time
 from pathlib import Path
 
 from pavilion import dir_db
 from pavilion import system_variables
 from pavilion import utils
+from pavilion import schedulers
+from pavilion import output
+from pavilion.permissions import PermissionsManager
+from pavilion.output import fprint
 from pavilion.lockfile import LockFile
+from pavilion.status_file import STATES
 from pavilion.test_run import (
     TestRun, TestRunError, TestRunNotFoundError, TestAttributes)
 
@@ -65,12 +72,17 @@ class TestSeries:
         if _id is None:
             # Get the series id and path.
             try:
-                self._id, self.path = dir_db.create_id_dir(series_path)
+                self._id, self.path = dir_db.create_id_dir(
+                    series_path,
+                    pav_cfg['shared_group'],
+                    pav_cfg['umask'])
             except (OSError, TimeoutError) as err:
                 raise TestSeriesError(
                     "Could not get id or series directory in '{}': {}"
                     .format(series_path, err))
 
+            perm_man = PermissionsManager(None, pav_cfg['shared_group'],
+                                          pav_cfg['umask'])
             # Create a soft link to the test directory of each test in the
             # series.
             for test in tests:
@@ -78,6 +90,7 @@ class TestSeries:
 
                 try:
                     link_path.symlink_to(test.path)
+                    perm_man.set_perms(link_path)
                 except OSError as err:
                     raise TestSeriesError(
                         "Could not link test '{}' in series at '{}': {}"
@@ -91,6 +104,94 @@ class TestSeries:
             self.path = dir_db.make_id_path(series_path, self._id)
 
         self._logger = logging.getLogger(self.LOGGER_FMT.format(self._id))
+
+    def run_tests(self, pav_cfg, wait, report_status, outfile, errfile):
+        """
+        :param pav_cfg:
+        :param int wait: Wait this long for a test to start before exiting.
+        :param bool report_status: Do a 'pav status' after tests have started.
+            on nodes, and kick them off in build only mode.
+        :param Path outfile: Direct standard output to here.
+        :param Path errfile: Direct standard error to here.
+        :return:
+        """
+
+        SLEEP_INTERVAL = 1
+
+        all_tests = list(self.tests.values())
+
+        for test in self.tests.values():
+            sched_name = test.scheduler
+            sched = schedulers.get_plugin(sched_name)
+
+            if not sched.available():
+                fprint("1 test started with the {} scheduler, but"
+                       "that scheduler isn't available on this system."
+                       .format(sched_name),
+                       file=errfile, color=output.RED)
+                return errno.EINVAL
+
+        for test in self.tests.values():
+
+            # don't run this test if it was meant to be skipped
+            if test.skipped:
+                continue
+
+            # tests that are build-only or build-local should already be completed, therefore don't run these
+            if test.complete:
+                continue
+
+            sched = schedulers.get_plugin(test.scheduler)
+            try:
+                sched.schedule_tests(pav_cfg, [test])
+            except schedulers.SchedulerPluginError as err:
+                fprint('Error scheduling test: ', file=errfile,
+                       color=output.RED)
+                fprint(err, bullet='  ', file=errfile)
+                fprint('Cancelling already kicked off tests.',
+                       file=errfile)
+                sched.cancel_job(test)
+                return errno.EINVAL
+
+        # Tests should all be scheduled now, and have the SCHEDULED state
+        # (at some point, at least). Wait until something isn't scheduled
+        # anymore (either running or dead), or our timeout expires.
+        wait_result = None
+        if wait is not None:
+            end_time = time.time() + wait
+            while time.time() < end_time and wait_result is None:
+                last_time = time.time()
+                for test in self.tests.values():
+                    sched = schedulers.get_plugin(test.scheduler)
+                    status = test.status.current()
+                    if status == STATES.SCHEDULED:
+                        status = sched.job_status(pav_cfg, test)
+
+                    if status != STATES.SCHEDULED:
+                        # The test has moved past the scheduled state
+                        wait_result = None
+                        break
+
+                if wait_result is None:
+                    # Sleep at most SLEEP INTERVAL seconds, minus the time
+                    # we spent checking our jobs.
+                    time.sleep(SLEEP_INTERVAL - (time.time() - last_time))
+
+        fprint("{} test{} started as test series {}."
+               .format(len(all_tests),
+                       's' if len(all_tests) > 1 else '',
+                       self.sid),
+               file=outfile,
+               color=output.GREEN)
+
+        if report_status:
+            from pavilion.plugins.commands.status import print_from_tests
+            return print_from_tests(
+                pav_cfg=pav_cfg,
+                tests=list(self.tests.values()),
+                outfile=outfile)
+
+        return 0
 
     @property
     def sid(self):  # pylint: disable=invalid-name
@@ -163,7 +264,7 @@ differentiate it from test ids."""
                 "No such test series '{}'. Looked in {}."
                 .format(sid, series_path))
 
-        return dir_db.select(series_path)
+        return dir_db.select(series_path)[0]
 
     @classmethod
     def from_id(cls, pav_cfg, sid: str):
@@ -185,7 +286,7 @@ differentiate it from test ids."""
         logger = logging.getLogger(cls.LOGGER_FMT.format(sid))
 
         tests = []
-        for path in dir_db.select(series_path):
+        for path in dir_db.select(series_path)[0]:
             try:
                 test_id = int(path.name)
             except ValueError:
@@ -221,13 +322,17 @@ differentiate it from test ids."""
                     except json.decoder.JSONDecodeError:
                         # File was empty, therefore json couldn't be loaded.
                         pass
-                with json_file.open('w') as json_series_file:
+                with PermissionsManager(json_file, self.pav_cfg['shared_group'],
+                                        self.pav_cfg['umask']), \
+                        json_file.open('w') as json_series_file:
                     data[sys_name] = self.sid
                     json_series_file.write(json.dumps(data))
 
             except FileNotFoundError:
                 # File hadn't been created yet.
-                with json_file.open('w') as json_series_file:
+                with PermissionsManager(json_file, self.pav_cfg['shared_group'],
+                                        self.pav_cfg['umask']), \
+                         json_file.open('w') as json_series_file:
                     data[sys_name] = self.sid
                     json_series_file.write(json.dumps(data))
 
@@ -272,7 +377,7 @@ class SeriesInfo:
         self.path = path
 
         self._complete = None
-        self._tests = [tpath for tpath in dir_db.select(self.path)]
+        self._tests = [tpath for tpath in dir_db.select(self.path)[0]]
 
     @classmethod
     def list_attrs(cls):
