@@ -72,31 +72,34 @@ class CancelCommand(commands.Command):
             if test_id.startswith('s'):
                 try:
                     series_pgid = series.TestSeries.get_pgid(pav_cfg, test_id)
-                    # if there's a series PGID, kill the series PGID
-                    if series_pgid:
-                        os.killpg(series_pgid, signal.SIGTERM)
-                        output.fprint('Killed process {}, which is series {}.'
-                                      .format(series_pgid, test_id))
-
                     test_list.extend(series.TestSeries.from_id(pav_cfg,
                                                                test_id)
                                      .tests)
                 except series.TestSeriesError as err:
                     output.fprint(
-                        "Series {} could not be found.\n{}".format(test_id,
-                                                                   err),
+                        "Series {} could not be found.\n{}"
+                        .format(test_id, err.args[0]),
                         file=self.errfile, color=output.RED)
                     return errno.EINVAL
                 except ValueError as err:
                     output.fprint(
                         "Series {} is not a valid series.\n{}"
-                        .format(test_id, err),
+                        .format(test_id, err.args[0]),
                         color=output.RED, file=self.errfile)
                     return errno.EINVAL
+
+                try:
+                    # if there's a series PGID, kill the series PGID
+                    if series_pgid:
+                        os.killpg(series_pgid, signal.SIGTERM)
+                        output.fprint('Killed process {}, which is series {}.'
+                                      .format(series_pgid, test_id),
+                                      file=self.outfile)
+
                 except ProcessLookupError:
                     output.fprint("Unable to kill {}. No such process: {}"
                                   .format(test_id, series_pgid),
-                                  color=output.RED)
+                                  color=output.RED, file=self.errfile)
             else:
                 try:
                     test_list.append(int(test_id))

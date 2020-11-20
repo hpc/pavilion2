@@ -162,20 +162,17 @@ class TestSet:
 
         except (commands.CommandError, test_config.TestConfigError) as err:
             self.done = True
-            self.all_pass = False
             output.fprint("Error resolving configs. \n{}".format(err.args[0]),
                           color=output.RED)
             return None
 
-        if test_list is None:
+        if not test_list:
+            self.done = True
+            self.all_pass = True
             return None
 
         all_tests = test_list
         run_cmd.last_tests = all_tests
-
-        if not all_tests:
-            # probalby won't happen but just in case
-            return None
 
         # assign tests to series and vice versa
         self.series_obj.add_tests(all_tests)
@@ -187,6 +184,7 @@ class TestSet:
         # make sure result parsers are ok
         res = run_cmd.check_result_format(all_tests)
         if res != 0:
+            self.done = True
             run_cmd.complete_tests(all_tests)
             return None
 
@@ -196,10 +194,11 @@ class TestSet:
             max_threads=self.pav_cfg.build_threads,
             mb_tracker=mb_tracker,
             build_verbosity=0,
-            outfile=sys.stdout,  # writing to stdout because subprocess will
-            errfile=sys.stdout   # redirect output to series out file anyway
+            outfile=self.outfile,
+            errfile=self.errfile
         )
         if res != 0:
+            self.done = True
             run_cmd.complete_tests(all_tests)
             return None
 
@@ -209,8 +208,8 @@ class TestSet:
                 pav_cfg=self.pav_cfg,
                 wait=None,
                 report_status=False,
-                outfile=sys.stdout,
-                errfile=sys.stderr,
+                outfile=self.outfile,
+                errfile=self.errfile,
                 tests_to_run=all_tests
             )
         else:
@@ -222,8 +221,8 @@ class TestSet:
                     pav_cfg=self.pav_cfg,
                     wait=None,
                     report_status=False,
-                    outfile=sys.stdout,
-                    errfile=sys.stderr,
+                    outfile=self.outfile,
+                    errfile=self.errfile,
                     tests_to_run=[test]
                 )
 
@@ -239,6 +238,9 @@ class TestSet:
 
     def is_done(self):
         """Returns True if all the tests in the set are completed."""
+
+        if self.done:
+            return True
 
         all_tests_passed = True
 
@@ -464,8 +466,11 @@ class TestSeries:
 
         series_config_path = self.path/CONFIG_FN
         try:
-            with series_config_path.with_suffix('.tmp').open('w') as \
-                    config_file:
+            series_config_tmp = series_config_path.with_suffix('.tmp')
+            with PermissionsManager(series_config_tmp,
+                                    self.pav_cfg['shared_group'],
+                                    self.pav_cfg['umask']), \
+                    series_config_tmp.open('w') as config_file:
                 config_file.write(json.dumps(self.config))
 
             series_config_path.with_suffix('.tmp').rename(series_config_path)
@@ -537,8 +542,12 @@ class TestSeries:
         """
 
         series_dep_path = self.path/DEPENDENCY_FN
+        series_dep_tmp = series_dep_path.with_suffix('.tmp')
         try:
-            with series_dep_path.with_suffix('.tmp').open('w') as dep_file:
+            with PermissionsManager(series_dep_tmp,
+                                    self.pav_cfg['shared_group'],
+                                    self.pav_cfg['umask']), \
+                  series_dep_tmp.open('w') as dep_file:
                 dep_file.write(json.dumps(self.dep_graph))
 
             series_dep_path.with_suffix('.tmp').rename(series_dep_path)
