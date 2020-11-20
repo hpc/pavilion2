@@ -38,7 +38,10 @@ class TestLocking(PavTestCase):
 
         # Making sure that we can automatically acquire and delete an
         # expired lockfile.
-        lockfile.LockFile._create_lockfile(self.lock_path, -100, '1234')
+        lockfile.LockFile._create_lockfile(
+            path=self.lock_path,
+            expires=-100,
+            lock_id='1234')
         with lockfile.LockFile(self.lock_path, timeout=1):
             pass
 

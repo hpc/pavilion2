@@ -118,11 +118,12 @@ def prune_result_log(log_path: Path, ids: List[str]) -> List[dict]:
     rewrite_log_path = log_path.with_suffix('.rewrite')
     lockfile_path = log_path.with_suffix(log_path.suffix + '.lock')
 
-    with _lockfile.LockFile(lockfile_path), \
+    with _lockfile.LockFile(lockfile_path) as lock, \
          log_path.open() as result_log, \
             rewrite_log_path.open('w') as rewrite_log:
 
         for line in result_log:
+            lock.renew()
             try:
                 result = json.loads(line)
             except json.JSONDecodeError:
