@@ -114,4 +114,4 @@ status of and kill the series.
 
   $ pav series sanity_tests
   Started series s19. Run `pav status s19` to view status. PGID is 9102.
-  To kill, use `kill -15 -9102` or `pav cancel s19`.
+  To kill, use `pav cancel s19` or `kill -15 -9102`.

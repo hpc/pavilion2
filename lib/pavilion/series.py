@@ -426,12 +426,12 @@ class TestSeries:
             output.fprint("Started series {}. "
                           "Run `pav status {}` to view status. "
                           "PGID is {}. "
-                          "To kill, use `kill -15 -{}` or `pav cancel {}`."
+                          "To kill, use `pav cancel {}` or `kill -15 -{}`."
                           .format(self.sid,
                                   self.sid,
                                   series_pgid,
-                                  series_pgid,
-                                  self.sid),
+                                  self.sid,
+                                  series_pgid),
                           file=self.outfile)
         except OSError as err:
             output.fprint("Warning: Could not write series PGID to a file. \n{}"
