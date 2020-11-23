@@ -382,8 +382,10 @@ Pavilion supports both the installing and loading of Spack packages inside of
 test scripts. This is not enabled by default as it requires an external Spack
 instance.
 
-Once configured, you can install and load Spack packages in your test scripts
-using the 'spack' section under both 'build' and 'run'.
+Once configured, Spack packages can be installed and loaded in Pavilion test
+scripts using the 'spack' section inside both the 'build' and 'run' sections of
+a test config. This section has two keys, 'install' and 'load', that take a list
+of package names with optional spec and dependency options.
 
 .. code-block:: yaml
 
@@ -391,10 +393,37 @@ using the 'spack' section under both 'build' and 'run'.
         spack:
             install:
                 - ember
+                - mpich@3.0.4
+                - mpileaks @1.2:1.4 %gcc@4.7.5 +debug
     run:
         spack:
             load:
                 - ember
+                - mpich
+                - mpileaks
+
+Pavilion will also allow for Spack specific configuration changes to be added
+inside test configs under the 'spack' section. The following Spack specific
+options are currently supported:
+
+- build_jobs - The max number of jobs to use when running `make` in parallel.
+- package repos - Paths to package repositories.
+- mirrors - URLs that point to a directories that contain Spack packages.
+- upstreams - Other Spack instances.
+
+.. code-block:: yaml
+
+    base:
+        spack:
+            build_jobs: 4
+            mirrors:
+                MIRROR1: https://a_spack_mirror.com
+            repos:
+                - /a/path/to/package/repo
+                - /a/different/path/to/package/repo
+            upstreams:
+                Upstream1:
+                    install_tree: /path/to/other/spack/instance
 
 Schedulers
 ----------

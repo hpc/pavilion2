@@ -178,7 +178,7 @@ Enabling Spack Features
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 Spack features can be added by providing a Spack instance's path
-under the ``spack_path`` key in your Pavilion config file (``pavilion.yaml``).
+under the ``spack_path`` key in the Pavilion config file (``pavilion.yaml``).
 For more Pavilion configuration information, see
 :ref:`_config.configuring_pavilion`.
 
@@ -195,19 +195,19 @@ Spack environment file that is activated at the beginning of both the build and
 run scripts. The generated environment file, ``spack.yaml``, is placed in the
 respective build directory so that it can be reactivated when a build is reused.
 
-The Spack environment file is modified so that new Spack packages are installed
-inside a test config's build directory.
-
+The Spack environment file is modified so that Spack packages are installed
+inside their respective build directory in a directory named ``spack_installs``,
+as seen below:
 .. code-block:: yaml
 
-    # SPACK(opt): Spack environment configuration file.
+    # SPACK: Spack environment configuration file.
     spack:
-        # CONFIG(opt)
         config:
             install_tree: ~/.pavilion/builds/7a3986a56e7c04a7/spack_installs
 
 This means any installs that are not in the global Spack instance will only be
-in the scope of this build. Global Spack packages or packages in upstreams will
-still require to be listed under the install section for both the build and run
-sections of a test config so that those packages can be added to the Spack
-environment correctly.
+in the scope of this build.
+
+Global Spack packages or packages in upstreams will still require to be listed
+under the install section for both the build and run sections of a test config
+so that those packages can be added to the Spack environment correctly.
