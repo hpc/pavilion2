@@ -2,12 +2,12 @@ spack_stuff:
         summary: This test does spack stuff
         build:
             spack:
-                install: m4
-                load: m4
+                install: unzip
+                load: unzip
             cmds:
-                - 'which m4'
+                - 'which unzip'
         run:
             spack:
-                load: m4
+                load: unzip
             cmds:
-                - 'which m4'
+                - 'which unzip'
