@@ -5,6 +5,7 @@ from pathlib import Path
 
 from pavilion import arguments
 from pavilion import commands
+from pavilion import output
 from pavilion import plugins
 from pavilion import series
 from pavilion import test_run
@@ -75,6 +76,7 @@ class SpackTests(PavTestCase):
         with build_log_path.open('r') as build_log:
             build_log_str = build_log.read()
 
+        output.dbg_print(build_log_str)
         # Ensure spack package is installed. The plus lets us know the package
         # was successfully added as a spec to the env.
         self.assertTrue("[+]" in build_log_str)
