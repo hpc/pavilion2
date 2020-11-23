@@ -1,3 +1,6 @@
 #!/bin/bash
 
 git clone "https://github.com/spack/spack.git" "test/spack/"
+cd test/spack
+git checkout tags/v0.15.4
+cd ../..
