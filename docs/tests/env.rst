@@ -178,9 +178,14 @@ Enabling Spack Features
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 Spack features can be added by providing a Spack instance's path
-under the ``spack_path`` key in your pavilion config file (``pavilion.yaml``).
-For more pavilion configuration information, see
+under the ``spack_path`` key in your Pavilion config file (``pavilion.yaml``).
+For more Pavilion configuration information, see
 :ref:`_config.configuring_pavilion`.
+
+There is no way to explicitly enable Spack features inside a test config as this
+is determined by Pavilion during the test build process. Pavilion will only
+attempt to use Spack features when the ``spack_path`` key exists in the Pavilion
+config file and Spack packages are being installed or loaded.
 
 How Pavilion Uses Spack
 ~~~~~~~~~~~~~~~~~~~~~~~
