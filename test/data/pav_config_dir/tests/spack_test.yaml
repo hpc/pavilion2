@@ -2,12 +2,12 @@ spack_stuff:
         summary: This test does spack stuff
         build:
             spack:
-                install: activemq
-                load: activemq
+                install: m4
+                load: m4
             cmds:
-                - 'which activemq'
+                - 'which m4'
         run:
             spack:
-                load: activemq
+                load: m4
             cmds:
-                - 'which activemq'
+                - 'which m4'
