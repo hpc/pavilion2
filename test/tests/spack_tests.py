@@ -88,7 +88,7 @@ class SpackTests(PavTestCase):
 
         # Ensure spack package can be loaded in the build section. Will only
         # see the following if the package install was unsuccessful.
-        self.assertFalse("==> Error: Spec 'unzip' matches no installed "
+        self.assertFalse("==> Error: Spec 'activemq' matches no installed "
                          "packages." in build_log_str)
 
         run_log_path = test_dir/'run.log'
@@ -96,7 +96,7 @@ class SpackTests(PavTestCase):
             run_log_str = run_log.read()
 
         # Ensure spack package can be loaded in the run section.
-        self.assertFalse("==> Error: Spec 'unzip' matches no installed "
+        self.assertFalse("==> Error: Spec 'activemq' matches no installed "
                          "packages." in run_log_str)
 
         # Demonstrates it is using the package installed in it's build dir.
