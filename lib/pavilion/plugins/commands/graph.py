@@ -4,6 +4,7 @@ import collections
 import errno
 import re
 import statistics
+from argparse import RawDescriptionHelpFormatter
 from typing import Dict
 
 from pavilion import cmd_utils
@@ -39,28 +40,33 @@ class GraphCommand(commands.Command):
     def __init__(self):
         super().__init__(
             'graph',
-            description='Command used to produce graph for a set of test '
-                        'results. Can filter tests by various fields, provide '
-                        'specific test IDs, or both. Additionally, you can '
-                        'provide test IDs to be skipped using the '
-                        '\'--exclude\' flag. There can only be one x value '
-                        'evaluation provided (using \'--x\'), but as '
-                        'many y value evaluations (using \'--y\') as needed, '
-                        'although color only supports 20 unique colors. These '
-                        'evaluations work the exact same as the \'results_'
-                        'evaluate\' section of a test config. Because of this, '
-                        'all values get pulled out of a test run\'s results.'
-                        'json. If a given key doesn\'t exist it will result in '
-                        'a warning and that test will be skipped. If any '
-                        'evaluation results in an invalid type the command '
-                        'will error and no graph will be generated. A '
-                        'successful run will save a generated graph as a PNG '
-                        'in the current directory \'pav graph\' was called '
-                        'from. The following is an example that should work '
-                        'for every test run: \'pav graph --passed --x id --y '
-                        'duration --xlabel \'Test ID\', --ylabel \'Duration in '
-                        'Seconds\' --filename tutorial\'',
-            short_help="Produce a graph from a set of test results."
+            description=("Command used to produce graph for a set of test "
+                         "results.\n\n"
+                         "Graph Command Instructions:\n"
+                         "  1. Determine which test run results you want to\n"
+                         "     graph. Provide these test runs specifically\n"
+                         "     using test IDs or filter test runs using the\n"
+                         "     built in test filtering flags.\n\n"
+                         "  2. Determine what values you want to plot. Each \n"
+                         "     value must be a plottable key from a test\n"
+                         "     run's result dictionary or any valid \n"
+                         "     evaluation using a key from a test run's\n"
+                         "     result dictionary.\n\n"
+                         "  3. Add the value to be used on the X axis using\n"
+                         "     the '--x' flag.\n\n"
+                         "  4. Add all the values to be plotted on the Y\n"
+                         "     axis, each one should be preceded by a '--y'\n"
+                         "     flag. \n\n"
+                         "  5. Labels for both the X axis and Y axis can be \n"
+                         "     added using the '--xlabel' and '--ylabel'\n"
+                         "     flags, respectively.\n\n"
+                         "  6. Specify the filename to use when storing the \n"
+                         "     generated graph using the '--filename' flag. \n"
+                         "     Note: The graph will be saved in the current\n"
+                         "     directory the user is in.\n"
+                         ),
+            short_help="Produce a graph from a set of test results.",
+            formatter_class=RawDescriptionHelpFormatter
         )
 
     def _setup_arguments(self, parser):
