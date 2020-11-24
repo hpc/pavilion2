@@ -1,36 +1,37 @@
 """Series are a collection of test runs."""
 
-import datetime as dt
-import json
-import os
-import pathlib
-import time
 import copy
-import codecs
+import datetime as dt
+import errno
+import json
+import logging
+import os
+import signal
 import subprocess
 import sys
-import signal
-import logging
-import errno
 import time
+from io import StringIO
 from pathlib import Path
+from typing import List, Dict, TextIO, Union
 
-from pavilion import dir_db
-from pavilion import utils
-from pavilion import commands
-from pavilion import test_config
-from pavilion import system_variables
 from pavilion import cmd_utils
-from pavilion.test_config import resolver
-from pavilion.builder import MultiBuildTracker
-from pavilion import schedulers
+from pavilion import commands
+from pavilion import dir_db
 from pavilion import output
-from pavilion.permissions import PermissionsManager
-from pavilion.output import fprint
+from pavilion import schedulers
+from pavilion import system_variables
+from pavilion import test_config
+from pavilion import utils
+from pavilion.builder import MultiBuildTracker
 from pavilion.lockfile import LockFile
+from pavilion.output import fprint
+from pavilion.permissions import PermissionsManager
 from pavilion.status_file import STATES
+from pavilion.status_utils import print_from_tests
+from pavilion.test_config import resolver
 from pavilion.test_run import (
     TestRun, TestRunError, TestRunNotFoundError, TestAttributes)
+from pavilion.utils import str_bool
 
 
 class TestSeriesError(RuntimeError):
@@ -69,13 +70,12 @@ class TestSet:
 
     # need info like
     # modes, only/not_ifs, next, prev
-    def __init__(self, name, tests, modes, host, only_if, not_if, pav_cfg,
-                 series_obj, outfile=sys.stdout, errfile=sys.stderr):
+    def __init__(self, pav_cfg, name: str, tests: List[str], modes: List[str],
+                 host: str, only_if: Dict[str, List[str]],
+                 not_if: Dict[str, List[str]], series_obj: 'TestSeries'):
         self.name = name
-        # self.tests = tests
-        self.tests = {}  # { 'test_name': <test obj> }
-        for test in tests:
-            self.tests[test] = None
+        self.tests: Dict[str, TestRun] = {}
+        self._test_names = tests
         self.modes = modes
         self.host = host
         self.only_if = only_if
@@ -83,8 +83,8 @@ class TestSet:
         self.pav_cfg = pav_cfg
         self.series_obj = series_obj
 
-        self._before = []
-        self._after = []
+        self.before = set()
+        self.after = set()
 
         self.done = False
         self.all_pass = False
@@ -92,43 +92,13 @@ class TestSet:
         self.logger = logging.getLogger(
             self.LOGGER_FMT.format(self.series_obj._id))
 
-        self.outfile = outfile
-        self.errfile = errfile
-
-    @property
-    def before(self):
-        """Returns the list of sets that this set depends on. """
-        return self._before
-
-    @before.setter
-    def before(self, prev_tests):
-
-        if isinstance(prev_tests, list):
-            self._before.extend(prev_tests)
-        elif isinstance(prev_tests, str):
-            self._before.append(prev_tests)
-        else:
-            raise TestSeriesError("Something went wrong.")
-
-    @property
-    def after(self):
-        """Returns list of sets that depend on this set. """
-        return self._after
-
-    @after.setter
-    def after(self, next_tests):
-
-        if isinstance(next_tests, list):
-            self._after.extend(next_tests)
-        elif isinstance(next_tests, str):
-            self._after.append(next_tests)
-        else:
-            raise TestSeriesError("Something went wrong.")
+        self.outfile = series_obj.outfile
+        self.errfile = series_obj.errfile
 
     def run_set(self):
         """Runs tests in set. """
 
-        mb_tracker = MultiBuildTracker()
+        mb_tracker = MultiBuildTracker(log=False)
 
         run_cmd = commands.get_command('run')
 
@@ -144,9 +114,9 @@ class TestSet:
                 pav_cfg=self.pav_cfg,
                 host=self.host,
                 test_files=[],
-                tests=self.tests,
+                tests=self._test_names,
                 modes=self.modes,
-                overrides=None,
+                overrides={},
                 conditions=new_conditions,
             )
 
@@ -155,15 +125,13 @@ class TestSet:
                 pav_cfg=self.pav_cfg,
                 proto_tests=test_configs,
                 mb_tracker=mb_tracker,
-                build_only=False,
-                rebuild=False,
-                outfile=sys.stdout
+                outfile=self.outfile,
             )
 
         except (commands.CommandError, test_config.TestConfigError) as err:
             self.done = True
             output.fprint("Error resolving configs. \n{}".format(err.args[0]),
-                          color=output.RED)
+                          file=self.errfile, color=output.RED)
             return None
 
         if not test_list:
@@ -182,10 +150,10 @@ class TestSet:
         run_cmd.last_series = self.series_obj
 
         # make sure result parsers are ok
-        res = run_cmd.check_result_format(all_tests)
+        res = cmd_utils.check_result_format(all_tests, self.errfile)
         if res != 0:
             self.done = True
-            run_cmd.complete_tests(all_tests)
+            cmd_utils.complete_tests(all_tests)
             return None
 
         # attempt to build
@@ -193,38 +161,23 @@ class TestSet:
             tests=all_tests,
             max_threads=self.pav_cfg.build_threads,
             mb_tracker=mb_tracker,
-            build_verbosity=0,
             outfile=self.outfile,
             errfile=self.errfile
         )
         if res != 0:
             self.done = True
-            run_cmd.complete_tests(all_tests)
+            cmd_utils.complete_tests(all_tests)
             return None
 
         # deal with simultaneous here
         if self.series_obj.config['simultaneous'] is None:
-            self.series_obj.run_tests(
-                pav_cfg=self.pav_cfg,
-                wait=None,
-                report_status=False,
-                outfile=self.outfile,
-                errfile=self.errfile,
-                tests_to_run=all_tests
-            )
+            self.series_obj.run_tests(tests=all_tests)
         else:
             simult = int(self.series_obj.config['simultaneous'])
 
             for test in all_tests:
                 self.test_wait(simult)
-                self.series_obj.run_tests(
-                    pav_cfg=self.pav_cfg,
-                    wait=None,
-                    report_status=False,
-                    outfile=self.outfile,
-                    errfile=self.errfile,
-                    tests_to_run=[test]
-                )
+                self.series_obj.run_tests(tests=[test])
 
     def test_wait(self, simul):
         """Returns when the number of tests running is less than or equal to
@@ -281,12 +234,11 @@ class TestSet:
         for config in raw_configs:
             # Delete conditionals - we're already skipping this test but for
             # different reasons
-            del config['only_if']
-            del config['not_if']
+            #config['only_if'] = {}
+            #config['not_if'] = {}
             skipped_test = TestRun(self.pav_cfg, config)
-            skipped_test.status.set(STATES.SKIPPED,
-                                    'Skipping. Previous test did not PASS.')
-            skipped_test.set_run_complete()
+            skipped_test.set_skipped('Previous test in series did not PASS.')
+            skipped_test.save_attributes()
             self.series_obj.add_tests([skipped_test])
             self.tests[skipped_test.name] = skipped_test
 
@@ -308,19 +260,24 @@ SERIES_PGID_FN = 'series.pgid'
 
 
 class TestSeries:
-    """Series are a collection of tests. Every time """
+    """Series are a well defined collection of tests, potentially with
+    relationships, skip conditions, and other features by test set."""
 
     LOGGER_FMT = 'series({})'
 
     def __init__(self, pav_cfg, tests=None, _id=None, series_config=None,
-                 dep_graph=None, outfile=sys.stdout, errfile=sys.stderr):
+                 dep_graph=None, outfile: TextIO = StringIO(),
+                 errfile: TextIO = StringIO()):
         """Initialize the series.
 
         :param pav_cfg: The pavilion configuration object.
         :param list tests: The list of test objects that belong to this series.
-        :param int _id: The test id number. If this is given, it implies that
+        :param _id: The test id number. If this is given, it implies that
             we're regenerating this series from saved files.
-        :param dict series_cfg: Series config, if generated from a series file.
+        :param series_config: Series config, if generated from a series file.
+        :param dep_graph: The saved dependency graph (when loading).
+        :param outfile: Where to send user output.
+        :param errfile: Where to send user error output.
         """
 
         self.pav_cfg = pav_cfg
@@ -332,7 +289,7 @@ class TestSeries:
             self.dep_graph = {}
         else:
             self.dep_graph = dep_graph
-        self.test_sets = {}  # { set_name: TestSetObject }
+        self.test_sets = {}  # type: Dict[str, TestSet]
         self.test_objs = {}
 
         if tests:
@@ -423,29 +380,16 @@ class TestSeries:
                 series_id_file.write(str(series_pgid))
 
             series_pgid_tmp.rename(series_pgid_path)
-            output.fprint("Started series {}. "
-                          "Run `pav status {}` to view status. "
-                          "PGID is {}. "
-                          "To kill, use `pav cancel {}` or `kill -15 -{}`."
-                          .format(self.sid,
-                                  self.sid,
-                                  series_pgid,
-                                  self.sid,
-                                  series_pgid),
-                          file=self.outfile)
         except OSError as err:
-            output.fprint("Warning: Could not write series PGID to a file. \n{}"
-                          .format(err.args[0]),
+            output.fprint("Warning: Could not write series PGID to a file.\n"
+                          "To cancel, use `kill -14 -s{pgid}\n{err}"
+                          .format(err=err.args[0], pgid=series_pgid),
                           color=output.YELLOW, file=self.outfile)
-            output.fprint("Started series s{}."
-                          "Run `pav status s{}` to view status. "
-                          "PGID is {}."
-                          "To kill, use `kill -15 -s{}`."
-                          .format(self._id,
-                                  self._id,
-                                  series_pgid,
-                                  series_pgid),
-                          file=self.outfile)
+        output.fprint("Started series {sid}.\n"
+                      "Run `pav status {sid}` to view status.\n"
+                      "PGID is {pgid}.\nTo kill, use `pav cancel {sid}`."
+                      .format(sid=self.sid, pgid=series_pgid),
+                      file=self.outfile)
 
     def get_currently_running(self):
         """Returns list of tests that have states of either SCHEDULED or
@@ -458,11 +402,8 @@ class TestSeries:
                 cur_run.append(test_obj)
         return cur_run
 
-    def save_series_config(self):
-        """
-        Saves series config to a file.
-        :return:
-        """
+    def save_series_config(self) -> None:
+        """Saves series config to a file."""
 
         series_config_path = self.path/CONFIG_FN
         try:
@@ -478,21 +419,18 @@ class TestSeries:
             fprint("Could not write series config to file. Cancelling.",
                    color=output.RED)
 
-    def create_dependency_graph(self):
-        """
-        Create self.dep_graph, apply ordered: True, check for circular
-        dependencies.
-        :return:
-        """
+    def create_dependency_graph(self) -> Union[Dict, None]:
+        """Create the dependency graph. Order is either explicit (through
+        before and after) or implicit through the 'ordered' option."""
 
         if not self.config:
-            return
+            return None
 
         dep_graph = {}
 
         # create dependency tree
         last_set_name = None
-        is_ordered = self.config['ordered'] in ['True', 'true']
+        is_ordered = str_bool(self.config['ordered'])
         for set_name, set_config in self.config['series'].items():
             dep_graph[set_name] = set_config['depends_on']
 
@@ -553,28 +491,27 @@ class TestSeries:
             series_dep_path.with_suffix('.tmp').rename(series_dep_path)
         except OSError:
             fprint("Could not write dependency tree to file. Cancelling.",
-                   color=output.RED)
+                   color=output.RED, file=self.errfile)
 
-    def run_tests(self, pav_cfg, wait, report_status, outfile, errfile,
-                  tests_to_run=None):
-        """
-        :param pav_cfg:
+    WAIT_INTERVAL = 1
+
+    def run_tests(self, wait: Union[None, int] = None,
+                  report_status: bool = False,
+                  tests: List[TestRun] = None) -> int:
+        """Run the tests for this test series.
         :param int wait: Wait this long for a test to start before exiting.
         :param bool report_status: Do a 'pav status' after tests have started.
-            on nodes, and kick them off in build only mode.
-        :param Path outfile: Direct standard output to here.
-        :param Path errfile: Direct standard error to here.
-        :return:
+        :param tests: Manually specified list of tests to run. Defaults to
+            the series' test list.
+        :return A return code based on the success of this action.
         """
 
-        SLEEP_INTERVAL = 1
+        if tests is None:
+            tests = list(self.tests.values())
 
-        if not tests_to_run:
-            tests_to_run = list(self.tests.values())
+        all_tests = tests
 
-        all_tests = tests_to_run
-
-        for test in tests_to_run:
+        for test in tests:
             sched_name = test.scheduler
             sched = schedulers.get_plugin(sched_name)
 
@@ -582,10 +519,10 @@ class TestSeries:
                 fprint("1 test started with the {} scheduler, but"
                        "that scheduler isn't available on this system."
                        .format(sched_name),
-                       file=errfile, color=output.RED)
+                       file=self.errfile, color=output.RED)
                 return errno.EINVAL
 
-        for test in tests_to_run:
+        for test in tests:
 
             # don't run this test if it was meant to be skipped
             if test.skipped:
@@ -598,13 +535,13 @@ class TestSeries:
 
             sched = schedulers.get_plugin(test.scheduler)
             try:
-                sched.schedule_tests(pav_cfg, [test])
+                sched.schedule_tests(self.pav_cfg, [test])
             except schedulers.SchedulerPluginError as err:
-                fprint('Error scheduling test: ', file=errfile,
+                fprint('Error scheduling test: ', file=self.errfile,
                        color=output.RED)
-                fprint(err, bullet='  ', file=errfile)
+                fprint(err, bullet='  ', file=self.errfile)
                 fprint('Cancelling already kicked off tests.',
-                       file=errfile)
+                       file=self.errfile)
                 sched.cancel_job(test)
                 return errno.EINVAL
 
@@ -616,11 +553,11 @@ class TestSeries:
             end_time = time.time() + wait
             while time.time() < end_time and wait_result is None:
                 last_time = time.time()
-                for test in tests_to_run:
+                for test in tests:
                     sched = schedulers.get_plugin(test.scheduler)
                     status = test.status.current()
                     if status == STATES.SCHEDULED:
-                        status = sched.job_status(pav_cfg, test)
+                        status = sched.job_status(self.pav_cfg, test)
 
                     if status != STATES.SCHEDULED:
                         # The test has moved past the scheduled state
@@ -630,21 +567,19 @@ class TestSeries:
                 if wait_result is None:
                     # Sleep at most SLEEP INTERVAL seconds, minus the time
                     # we spent checking our jobs.
-                    time.sleep(SLEEP_INTERVAL - (time.time() - last_time))
+                    time.sleep(self.WAIT_INTERVAL - (time.time() - last_time))
 
         fprint("{} test{} started as test series {}."
                .format(len(all_tests),
-                       's' if len(all_tests) > 1 else '',
-                       self.sid),
-               file=outfile,
+                       's' if len(all_tests) > 1 else '', self.sid),
+               file=self.outfile,
                color=output.GREEN)
 
         if report_status:
-            from pavilion.plugins.commands.status import print_from_tests
             return print_from_tests(
-                pav_cfg=pav_cfg,
+                pav_cfg=self.pav_cfg,
                 tests=all_tests,
-                outfile=outfile)
+                outfile=self.outfile)
 
         return 0
 
@@ -708,9 +643,8 @@ differentiate it from test ids."""
     @classmethod
     def list_series_tests(cls, pav_cfg, sid: str):
         """Return a list of paths to test run directories for the given series
-        id.
-        :raises TestSeriesError: If the series doesn't exist.
-        """
+    id.
+    :raises TestSeriesError: If the series doesn't exist."""
 
         series_path = cls.path_from_id(pav_cfg, sid)
 
@@ -722,12 +656,12 @@ differentiate it from test ids."""
         return dir_db.select(series_path)[0]
 
     @classmethod
-    def from_id(cls, pav_cfg, sid: str):
+    def from_id(cls, pav_cfg, sid: str,
+                outfile: TextIO = StringIO(), errfile: TextIO = StringIO()):
         """Load a series object from the given id, along with all of its
     associated tests.
 
-        :raises TestSeriesError: From invalid series id or path.
-        """
+    :raises TestSeriesError: From invalid series id or path."""
 
         sid = cls.sid_to_id(sid)
 
@@ -759,7 +693,7 @@ differentiate it from test ids."""
                 logger.info("Error loading test %s: %s",
                             test_id, err.args[0])
 
-        return cls(pav_cfg, tests, _id=sid)
+        return cls(pav_cfg, tests, _id=sid, outfile=outfile, errfile=errfile)
 
     def load_dep_graph(self):
         """Load a series object from the given id, along with the config and
@@ -785,20 +719,20 @@ differentiate it from test ids."""
         universal_modes = self.config['modes']
         for set_name, set_info in self.config['series'].items():
             modes = universal_modes + set_info['modes']
-            set_obj = TestSet(set_name, set_info['tests'], modes,
+            set_obj = TestSet(self.pav_cfg, set_name, set_info['tests'], modes,
                               self.config['host'], set_info['only_if'],
-                              set_info['not_if'], self.pav_cfg, self)
+                              set_info['not_if'], self)
             self.test_sets[set_name] = set_obj
 
         # create doubly linked graph of TestSet objects
         for set_name in self.dep_graph:
-            self.test_sets[set_name].before = self.dep_graph[set_name]
+            self.test_sets[set_name].before.update(self.dep_graph[set_name])
 
             next_list = []
             for s_n in self.dep_graph:
                 if set_name in self.dep_graph[s_n]:
                     next_list.append(s_n)
-            self.test_sets[set_name].after = next_list
+            self.test_sets[set_name].after.update(next_list)
 
         return
 
@@ -817,7 +751,7 @@ differentiate it from test ids."""
         """Runs series."""
 
         # handles SIGTERM (15) signal
-        def sigterm_handler(*args):
+        def sigterm_handler(_signals, _frame_type):
             """Calls cancel_series and exists."""
 
             self.cancel_series()
@@ -844,14 +778,13 @@ differentiate it from test ids."""
                     waiting = set(all_sets) - set(started)
 
             while waiting:
-
                 self.series_test_handler(finished, started, waiting)
                 time.sleep(0.1)
 
             self.update_finished_list(finished, started)
 
             # if restart isn't necessary, break out of loop
-            if self.config['restart'] not in ['True', 'true']:
+            if not str_bool(self.config['restart']):
                 break
             else:
                 # wait for all the tests to be finished to continue
@@ -890,11 +823,10 @@ differentiate it from test ids."""
                         for prev in self.test_sets[set_name].before)
             if ready:
                 # this set requires that the sets it depends on passes
-                if self.config['series'][set_name]['depends_pass'] in \
-                        ['True', 'true']:
+                if str_bool(self.config['series'][set_name]['depends_pass']):
                     # all the tests passed, so run this test
                     if self.test_sets[set_name].all_pass:
-                        self.tests_sets[set_name].run_set()
+                        self.test_sets[set_name].run_set()
                         started.append(set_name)
                         waiting.remove(set_name)
                     # the tests didn't all pass, so skip this test
@@ -915,7 +847,7 @@ differentiate it from test ids."""
 
         try:
             id_ = int(id_[1:])
-        except TypeError as err:
+        except ValueError:
             pass
 
         series_path = pav_cfg.working_dir/'series'
@@ -1103,4 +1035,3 @@ class SeriesInfo:
             return None
 
         return TestAttributes(self._tests[0]).sys_name
-

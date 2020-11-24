@@ -1,3 +1,5 @@
+.. _tutorials.series:
+
 Writing a Series File
 =====================
 
@@ -15,7 +17,7 @@ the tests in a continuous manner.
 Where to Write Series Files
 ---------------------------
 
-Series configs are yaml files and are placed in the <pav config dir>/series
+Series configs are yaml files and are placed in the ``<pav config dir>/series``
 directory. Like all the other config files in Pavilion, the config file name
 must follow the format ``<series name>.yaml``.
 
@@ -75,6 +77,8 @@ tests that are normally run just to make sure the machine works.
 
     mp_tests:
 
+      # The 'mpi8.yaml' mode file will be applied to each of the tests in
+      # this group.
       modes: ['mpi8']
 
       depends_on: ['front_end_tests']

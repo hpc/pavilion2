@@ -1149,9 +1149,17 @@ be set by the scheduler plugin as soon as it's known."""
         if len(skip_reason_list) == 0:
             return False
         else:
-            self.status.set(STATES.COMPLETE, matches)
-            self.set_run_complete()
+            self.set_skipped(matches)
             return True
+
+    def set_skipped(self, reason: str):
+        """Set the test as skipped (and complete).
+        :param reason: Why the test is being skipped.
+        """
+
+        self.status.set(STATES.SKIPPED, reason)
+        self.skipped = True
+        self.set_run_complete()
 
     def _evaluate_skip_conditions(self):
         """Match grabs conditional keys from the config. It checks for

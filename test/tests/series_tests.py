@@ -1,12 +1,12 @@
 import time
+import io
 from datetime import datetime
 
-from pavilion.unittest import PavTestCase
-from pavilion import commands
 from pavilion import arguments
-from pavilion import output
+from pavilion import commands
 from pavilion import plugins
 from pavilion import series
+from pavilion.unittest import PavTestCase
 
 
 class SeriesFileTests(PavTestCase):
@@ -33,18 +33,18 @@ class SeriesFileTests(PavTestCase):
 
         series_config = {
             'series':
-                { 'only_set':
-                      { 'modes': [],
-                        'tests': ['echo_test.b'],
-                        'only_if': {},
-                        'depends_on': [],
-                        'not_if': {}}
-                },
-            'modes': ['smode2'],
+                            {'only_set':
+                                 {'modes':      [],
+                                  'tests':      ['echo_test.b'],
+                                  'only_if':    {},
+                                  'depends_on': [],
+                                  'not_if':     {}}
+                             },
+            'modes':        ['smode2'],
             'simultaneous': '1',
-            'restart': False,
-            'ordered': False,
-            'host': None
+            'restart':      False,
+            'ordered':      False,
+            'host':         None
         }
 
         test_series_obj = series.TestSeries(self.pav_cfg,
@@ -73,22 +73,25 @@ class SeriesFileTests(PavTestCase):
 
         series_config = {
             'series':
-                { 'only_set':
-                      { 'modes': ['smode1'],
-                        'depends_on': [],
-                        'tests': ['echo_test.a'],
-                        'only_if': {},
-                        'not_if': {}}
-                },
-            'modes': ['smode2'],
+                            {'only_set':
+                                 {'modes':      ['smode1'],
+                                  'depends_on': [],
+                                  'tests':      ['echo_test.a'],
+                                  'only_if':    {},
+                                  'not_if':     {}}
+                             },
+            'modes':        ['smode2'],
             'simultaneous': None,
-            'ordered': False,
-            'restart': False,
-            'host': 'this'
+            'ordered':      False,
+            'restart':      False,
+            'host':         'this'
         }
 
+        outfile = io.StringIO()
+
         test_series_obj = series.TestSeries(self.pav_cfg,
-                                            series_config=series_config)
+                                            series_config=series_config,
+                                            outfile=outfile, errfile=outfile)
 
         test_series_obj.create_set_graph()
 
@@ -113,30 +116,32 @@ class SeriesFileTests(PavTestCase):
 
         series_config = {
             'series':
-                { 'set_d':
-                      { 'modes': [],
-                        'tests': ['echo_test.d'],
-                        'depends_on': ['set_c'],
-                        'depends_pass': 'True',
-                        'only_if': {},
-                        'not_if': {}},
-                  'set_c':
-                      { 'modes': [],
-                        'tests': ['echo_test.c'],
-                        'depends_on': [],
-                        'only_if': {},
-                        'not_if': {}
-                      }
-                },
-            'modes': ['smode2'],
+                            {'set_d':
+                                 {'modes':        [],
+                                  'tests':        ['echo_test.d'],
+                                  'depends_on':   ['set_c'],
+                                  'depends_pass': 'True',
+                                  'only_if':      {},
+                                  'not_if':       {}},
+                             'set_c':
+                                 {'modes':      [],
+                                  'tests':      ['echo_test.c'],
+                                  'depends_on': [],
+                                  'only_if':    {},
+                                  'not_if':     {}
+                                  }
+                             },
+            'modes':        ['smode2'],
             'simultaneous': None,
-            'ordered': False,
-            'restart': False,
-            'host': None
+            'ordered':      False,
+            'restart':      False,
+            'host':         None
         }
 
+        outfile = io.StringIO()
         test_series_obj = series.TestSeries(self.pav_cfg,
-                                            series_config=series_config)
+                                            series_config=series_config,
+                                            outfile=outfile, errfile=outfile)
 
         test_series_obj.create_dependency_graph()
 
@@ -149,7 +154,7 @@ class SeriesFileTests(PavTestCase):
         # check if echo_test.d is skipped
         for test_id, test_obj in test_series_obj.tests.items():
             if test_obj.name == 'echo_test.d':
-                self.assertTrue(test_obj.status.has_state('SKIPPED'))
+                self.assertTrue(test_obj.skipped)
 
     def test_series_conditionals(self):
         """Test if conditionals work as intended."""
@@ -157,22 +162,25 @@ class SeriesFileTests(PavTestCase):
 
         series_config = {
             'series':
-                { 'only_set':
-                      { 'modes': ['smode1'],
-                        'depends_on': [],
-                        'tests': ['echo_test.wrong_year'],
-                        'only_if': {},
-                        'not_if': {}}
-                  },
-            'modes': ['smode2'],
+                            {'only_set':
+                                 {'modes':      ['smode1'],
+                                  'depends_on': [],
+                                  'tests':      ['echo_test.wrong_year'],
+                                  'only_if':    {},
+                                  'not_if':     {}}
+                             },
+            'modes':        ['smode2'],
             'simultaneous': None,
-            'ordered': False,
-            'restart': False,
-            'host': None
+            'ordered':      False,
+            'restart':      False,
+            'host':         None
         }
 
-        test_series_obj = series.TestSeries(self.pav_cfg,
-                                            series_config=series_config)
+        outfile = io.StringIO()
+
+        test_series_obj = series.TestSeries(
+            self.pav_cfg, series_config=series_config,
+            outfile=outfile, errfile=outfile)
 
         test_series_obj.create_set_graph()
 
@@ -184,4 +192,3 @@ class SeriesFileTests(PavTestCase):
 
         for test_id, test_obj in test_series_obj.tests.items():
             self.assertIsNone(test_obj.results['result'])
-

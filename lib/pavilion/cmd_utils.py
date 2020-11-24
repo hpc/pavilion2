@@ -14,6 +14,7 @@ from typing import Dict, List, Union, TextIO
 from pavilion import commands
 from pavilion import dir_db
 from pavilion import output
+from pavilion import result
 from pavilion import test_config
 from pavilion.builder import MultiBuildTracker
 from pavilion.status_file import STATES
@@ -226,6 +227,39 @@ def configs_to_tests(
         output.fprint('', file=outfile)
 
     return test_list
+
+
+def check_result_format(tests: List[TestRun], errfile: TextIO):
+    """Make sure the result parsers for each test are ok."""
+
+    rp_errors = []
+    for test in tests:
+
+        # Make sure the result parsers have reasonable arguments.
+        try:
+            result.check_config(test.config['result_parse'],
+                                test.config['result_evaluate'])
+        except result.ResultError as err:
+            rp_errors.append((test, str(err)))
+
+    if rp_errors:
+        output.fprint("Result Parser configurations had errors:",
+                      file=errfile, color=output.RED)
+        for test, msg in rp_errors:
+            output.fprint(test.name, '-', msg, file=errfile)
+        return errno.EINVAL
+
+    return 0
+
+
+def complete_tests(tests: List[TestRun]):
+    """Mark all of the given tests as complete. We generally do this after
+    an error has been encountered, or if it was only built.
+    :param tests: The tests to mark complete.
+    """
+
+    for test in tests:
+        test.set_run_complete()
 
 
 BUILD_STATUS_PREAMBLE = '{when:20s} {test_id:6} {state:{state_len}s}'

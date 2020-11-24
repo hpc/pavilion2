@@ -15,6 +15,18 @@ from pathlib import Path
 from typing import Iterator, Union, TextIO
 
 
+def str_bool(val):
+    """Returns true if the string value is the string 'true' with allowances
+    for capitalization."""
+
+    if isinstance(val, str) and val.lower() == 'true':
+        return True
+    elif isinstance(val, bool):
+        return val
+    else:
+        return False
+
+
 # Python 3.5 issue. Python 3.6 Path.resolve() handles this correctly.
 # pylint: disable=protected-access
 def resolve_path(path, strict=False):

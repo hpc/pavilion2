@@ -8,7 +8,7 @@ from pavilion import commands
 from pavilion import output
 from pavilion import schedulers
 from pavilion import series
-from pavilion.plugins.commands.status import print_from_tests
+from pavilion.status_utils import print_from_tests
 from pavilion.status_file import STATES
 from pavilion.test_run import TestRun, TestRunError
 
