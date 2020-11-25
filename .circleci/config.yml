@@ -20,11 +20,13 @@ jobs:
             groupadd group_bar
             useradd -G users,group_foo,group_bar pav_test 
             ln -s pavilion.yaml.travis-ci test/data/pav_config_dir/pavilion.yaml
-            chown -R pav_test /root/project
+            groups
+            #chown -R pav_test /root/project
+        
       - python/save-cache
       - run:
           command: |
-            su pav_test -c "./test/run_tests"
+            su root -c "./test/run_tests"
 
 workflows:
   main:
