@@ -20,14 +20,10 @@ jobs:
           command: |
             groupadd group_foo
             groupadd group_bar
-            useradd -m -G users,group_foo,group_bar pav_test 
+            useradd -G users,group_foo,group_bar pav_test 
             ln -s pavilion.yaml.travis-ci test/data/pav_config_dir/pavilion.yaml
             chown -R pav_test /root/project
-            mv /root/project /home/pav_test/
-            ls -l /
-            ls -l /home
-            ls -l /home/pav_test
-        
+            chmod o+rx /root
       - python/save-cache
       - run:
           command: |
