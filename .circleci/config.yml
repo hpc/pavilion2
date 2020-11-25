@@ -1,0 +1,30 @@
+version: 2.1
+
+orbs:
+  python: circleci/python@0.2.1
+
+jobs:
+  unittests:
+    docker:
+      - image: python:3.5
+      #- image: python:3.8
+      
+    steps:
+      - checkout
+      - python/load-cache
+      - python/install-deps
+      - python/save-cache
+      - run:
+          command: |
+            sudo groupadd group_foo
+            sudo groupadd group_bar
+            sudo usermod -a -G group_foo,group_bar $USER
+            ln -s pavilion.yaml.travis-ci test/data/pav_config_dir/pavilion.yaml
+      - run:
+          command: |
+            sudo -E su $USER -c "./test/run_tests"
+
+workflows:
+  main:
+    jobs:
+      - unittests
