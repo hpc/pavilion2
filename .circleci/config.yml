@@ -27,7 +27,7 @@ jobs:
       - python/save-cache
       - run:
           command: |
-            su pav_test -c "/root/test/run_tests"
+            su pav_test -c "/root/project/test/run_tests"
 
 workflows:
   main:
