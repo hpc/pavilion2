@@ -74,7 +74,7 @@ class TestSet:
                  host: str, only_if: Dict[str, List[str]],
                  not_if: Dict[str, List[str]], series_obj: 'TestSeries'):
         self.name = name
-        self.tests: Dict[str, TestRun] = {}
+        self.tests = {}  # type: Dict[str, TestRun]
         self._test_names = tests
         self.modes = modes
         self.host = host
@@ -234,8 +234,6 @@ class TestSet:
         for config in raw_configs:
             # Delete conditionals - we're already skipping this test but for
             # different reasons
-            #config['only_if'] = {}
-            #config['not_if'] = {}
             skipped_test = TestRun(self.pav_cfg, config)
             skipped_test.set_skipped('Previous test in series did not PASS.')
             skipped_test.save_attributes()
