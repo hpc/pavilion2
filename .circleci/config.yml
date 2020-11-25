@@ -13,7 +13,8 @@ jobs:
       - checkout
       - python/load-cache
       - python/install-deps
-      - build:
+      - run:
+          name: setup
           command: |
             groupadd group_foo
             groupadd group_bar
