@@ -13,13 +13,13 @@ jobs:
       - checkout
       - python/load-cache
       - python/install-deps
-      - python/save-cache
-      - run:
+      - build:
           command: |
-            sudo groupadd group_foo
-            sudo groupadd group_bar
-            sudo usermod -a -G group_foo,group_bar $USER
+            groupadd group_foo
+            groupadd group_bar
+            useradd -G users,group_foo,group_bar pav_test 
             ln -s pavilion.yaml.travis-ci test/data/pav_config_dir/pavilion.yaml
+      - python/save-cache
       - run:
           command: |
             sudo -E su $USER -c "./test/run_tests"
