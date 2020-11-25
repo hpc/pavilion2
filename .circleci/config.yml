@@ -11,6 +11,7 @@ jobs:
       
     steps:
       - checkout
+      - chmod -R o+r /root/project
       - python/load-cache
       - python/install-deps
       - run:
