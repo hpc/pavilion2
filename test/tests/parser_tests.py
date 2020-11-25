@@ -119,8 +119,8 @@ class ParserTests(unittest.PavTestCase):
         'not False': True,
         'not True and False or not True and True': False,
         'not True or not False': True,
-        '"foo" or "bar"': 'foo',
-        '"foo" and 7': 7,
+        '"foo" or "bar"': True,
+        '"foo" and 7': True,
         # Check that multi-argument functions work.
         'int("0x44", 16)': 68,
         # And that no argument functions work.
@@ -132,7 +132,7 @@ class ParserTests(unittest.PavTestCase):
         '[1, 2, 3, 4] ^ 2':           [1, 4, 9, 16],
         '[1, 2, 3, 4] * [4, 4, 2, 1]': [4, 8, 6, 4],
         '[1, 2, 3, 4] < 3 < 10 < [10, 11, 12, 13]': [False, True, False, False],
-        '[1, "foo", False, 0, ""] and 2': [2, 2, False, 0, ""],
+        '[1, "foo", False, 0, ""] and 2': [True, True, False, False, False],
     }
 
     def test_good_expressions(self):
