@@ -122,7 +122,8 @@ def clear_line(outfile):
     """Clear the last line written to output. Assumes the line ended with
     a \\r rather than a newline."""
 
-    size = shutil.get_terminal_size()
+    size = shutil.get_terminal_size().columns
+    size = 80 if size == 0 else size
 
     outfile.write('\r')
     outfile.write(' '*size.columns)
@@ -158,6 +159,7 @@ def fprint(*args, color=None, bullet='', width=0, wrap_indent=0,
 
     if width == 0:
         width = shutil.get_terminal_size().columns
+        width = 80 if width == 0 else width
 
     wrap_indent = ' '*wrap_indent
 
@@ -731,6 +733,7 @@ def dt_calc_table_width(min_widths: Dict[str, int], pad: bool, border: bool,
     # Gets the effective window width.
     if table_width is None:
         table_width = shutil.get_terminal_size().columns
+        table_width = 80 if table_width == 0 else table_width
     table_width -= deco_size
 
     # Makes sure window is at least large enough to display our smallest
