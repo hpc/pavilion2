@@ -119,7 +119,7 @@ class ResultsCommand(commands.Command):
                               color=output.RED, file=self.outfile)
                 return errno.EINVAL
 
-            width = shutil.get_terminal_size().columns
+            width = shutil.get_terminal_size().columns or 80
 
             try:
                 if args.json:
