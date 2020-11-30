@@ -8,11 +8,11 @@ jobs:
     docker:
       - image: python:3.5
       #- image: python:3.8
-      
+
     steps:
       - checkout
       - run: git submodule sync
-      - run: git submodule update --init    
+      - run: git submodule update --init
       - python/load-cache
       - python/install-deps
       - run:
@@ -20,8 +20,9 @@ jobs:
           command: |
             groupadd group_foo
             groupadd group_bar
-            useradd -G users,group_foo,group_bar pav_test 
+            useradd -G users,group_foo,group_bar pav_test
             ln -s pavilion.yaml.travis-ci test/data/pav_config_dir/pavilion.yaml
+            echo "working_dir: $(pwd)/test/working_dir" >> test/data/pav_config_dir/pavilion.yaml
             chown -R pav_test /root/project
             chmod o+rx /root
       - python/save-cache

@@ -126,7 +126,7 @@ def clear_line(outfile):
     size = 80 if size == 0 else size
 
     outfile.write('\r')
-    outfile.write(' '*size.columns)
+    outfile.write(' '*size)
     outfile.write('\r')
 
 
