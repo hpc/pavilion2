@@ -5,7 +5,7 @@ import errno
 import os
 import time
 from datetime import datetime
-from typing import List
+from typing import List, IO
 
 from pavilion import commands
 from pavilion import dir_db
@@ -88,21 +88,23 @@ def get_test_statuses(pav_cfg, test_ids):
     return test_statuses
 
 
-def get_tests(pav_cfg, args, errfile):
+def get_tests(pav_cfg, tests: List['str'], errfile: IO['str']) -> List[int]:
     """
     Gets the tests depending on arguments.
 
-:param pav_cfg: The pavilion config
-:param argparse namespace args: The tests via command line args.
-:param errfile: stream to output errors as needed
-:return: List of test objects
+    :param pav_cfg: The pavilion config
+    :param tests: A list of tests or test series names.
+    :param errfile: stream to output errors as needed
+    :return: List of test objects
     """
 
-    if not args.tests:
+    tests = [str(test) for test in tests.copy()]
+
+    if not tests:
         # Get the last series ran by this user
         series_id = series.TestSeries.load_user_series_id(pav_cfg)
         if series_id is not None:
-            args.tests.append(series_id)
+            tests.append(series_id)
         else:
             raise commands.CommandError(
                 "No tests specified and no last series was found."
@@ -110,7 +112,7 @@ def get_tests(pav_cfg, args, errfile):
 
     test_list = []
 
-    for test_id in args.tests:
+    for test_id in tests:
         # Series
         if test_id.startswith('s'):
             try:
@@ -132,18 +134,18 @@ def get_tests(pav_cfg, args, errfile):
     return test_list
 
 
-def get_statuses(pav_cfg, args, errfile):
+def get_statuses(pav_cfg, tests: List[int], errfile: IO['str']):
     """Get the statuses of the listed tests or series.
 
 :param pav_cfg: The pavilion config.
-:param argparse namespace args: The tests via the command line args.
+:param tests: A list of test ids or series ids.
 :param errfile: stream to output errors as needed.
 :returns: List of dictionary objects with the test id, name, state,
           time that the most recent status was set, and the associated
           note.
 """
 
-    test_list = get_tests(pav_cfg, args, errfile)
+    test_list = get_tests(pav_cfg, tests, errfile)
     test_statuses = []
     test_obj_list = []
     for test_id in test_list:

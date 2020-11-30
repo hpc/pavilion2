@@ -17,6 +17,7 @@ import urllib.parse
 from collections import defaultdict
 from pathlib import Path
 from typing import Union, List
+from concurrent.futures import ThreadPoolExecutor
 
 from pavilion import dir_db
 from pavilion import extract
@@ -489,7 +490,9 @@ class TestBuilder:
                 state=STATES.BUILD_WAIT,
                 note="Waiting on lock for build {}.".format(self.name))
             lock_path = self.path.with_suffix('.lock')
-            with lockfile.LockFile(lock_path, group=self._pav_cfg.shared_group):
+            with lockfile.LockFile(lock_path,
+                                   group=self._pav_cfg.shared_group)\
+                    as lock:
                 # Make sure the build wasn't created while we waited for
                 # the lock.
                 if not self.finished_path.exists():
@@ -518,7 +521,7 @@ class TestBuilder:
                     # non-catastrophic cases.
                     with PermissionsManager(self.path, self._group,
                                             self._umask):
-                        if not self._build(self.path, cancel_event):
+                        if not self._build(self.path, cancel_event, lock=lock):
 
                             try:
                                 self.path.rename(self.fail_path)
@@ -602,17 +605,26 @@ class TestBuilder:
         with open(spack_env_config.as_posix(), "w+") as spack_env_file:
             SpackEnvConfig().dump(spack_env_file, values=config,)
 
-    def _build(self, build_dir, cancel_event):
+    def _build(self, build_dir, cancel_event, lock: lockfile.LockFile = None):
         """Perform the build. This assumes there actually is a build to perform.
         :param Path build_dir: The directory in which to perform the build.
         :param threading.Event cancel_event: Event to signal that the build
-        should stop.
+            should stop.
+        :param lock: The lockfile object. This will need to be refreshed to
+            keep it from expiring.
         :returns: True or False, depending on whether the build appears to have
             been successful.
         """
 
         try:
-            self._setup_build_dir(build_dir)
+            future = ThreadPoolExecutor().submit(
+                self._setup_build_dir,
+                build_dir)
+            while future.running():
+                time.sleep(lock.SLEEP_PERIOD)
+                lock.renew()
+            # Raise any errors raised by the thread.
+            future.result()
         except TestBuilderError as err:
             self.tracker.error(
                 note=("Error setting up build directory '{}': {}"
@@ -640,6 +652,7 @@ class TestBuilder:
                     try:
                         result = proc.wait(timeout=1)
                     except subprocess.TimeoutExpired:
+                        lock.renew()
                         if self._timeout_file.exists():
                             timeout_file = self._timeout_file
                         else:
@@ -1130,8 +1143,9 @@ def delete_unused(tests_dir: Path, builds_dir: Path, verbose: bool = False) \
 
     lock_path = builds_dir.with_suffix('.lock')
     msgs = []
-    with lockfile.LockFile(lock_path):
+    with lockfile.LockFile(lock_path) as lock:
         for path in dir_db.select(builds_dir, filter_builds, fn_base=16)[0]:
+            lock.renew()
             try:
                 shutil.rmtree(path.as_posix())
                 path.with_suffix(TestBuilder.FINISHED_SUFFIX).unlink()

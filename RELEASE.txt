@@ -29,6 +29,8 @@ RELEASE=2.2
    - 'test_node_list' in the results has been replaced with the much shorter
      'test_node_list_short' key.
    - The results command '-l' (--show-logs) option is now '-L'.
+   - The results command '--json' argument and '--oneline' argments were removed. 
+     Use --summary instead.
 
 ## 2.2 Release notes
  - All new test config parser.

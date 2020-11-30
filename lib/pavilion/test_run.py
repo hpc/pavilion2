@@ -656,16 +656,11 @@ class TestRun(TestAttributes):
         """Load a saved test configuration."""
         config_path = test_path/'config'
 
-        # make lock
-        lock_path = test_path/'config.lockfile'
-        config_lock = lockfile.LockFile(lock_path)
-
         if not config_path.is_file():
             raise TestRunError("Could not find config file for test at {}."
                                .format(test_path))
 
         try:
-            config_lock.lock()
             with config_path.open('r') as config_file:
                 # Because only string keys are allowed in test configs,
                 # this is a reasonable way to load them.
@@ -676,8 +671,6 @@ class TestRun(TestAttributes):
         except (IOError, OSError) as err:
             raise TestRunError("Error reading config file '{}': {}"
                                .format(config_path, err))
-        finally:
-            config_lock.unlock()
 
     def spack_enabled(self):
         """Check if spack is being used by this test run."""

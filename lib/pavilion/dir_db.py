@@ -219,7 +219,7 @@ def delete(id_dir: Path, filter_func: Callable[[Path], bool] = default_filter,
     msgs = []
 
     lock_path = id_dir.with_suffix('.lock')
-    with lockfile.LockFile(lock_path):
+    with lockfile.LockFile(lock_path, timeout=1):
         for path in select(id_dir=id_dir, filter_func=filter_func,
                            transform=transform)[1]:
             try:
