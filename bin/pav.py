@@ -137,6 +137,8 @@ def run_cmd(pav_cfg, args):
 
     try:
         sys.exit(cmd.run(pav_cfg, args))
+    except KeyboardInterrupt:
+        sys.exit(-1)
     except Exception as err:
         exc_info = {
             'traceback': traceback.format_exc(),
