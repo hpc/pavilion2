@@ -170,9 +170,57 @@ For more information on writing these, see :ref:`plugins.module_wrappers`.
 Spack Packages
 ______________
 
-Pavilion supports both the installing and loading of Spack packages inside of
+Pavilion supports both the installation and loading of Spack packages inside of
 test scripts. This is not enabled by default as it requires an external Spack
 instance.
+
+Once configured, Spack packages can be installed and loaded in Pavilion test
+scripts using the 'spack' section inside both the 'build' and 'run' sections of
+a test config. This section has two keys, 'install' and 'load', that take a list
+of package names with optional spec and dependency options.
+
+.. code-block:: yaml
+
+    build:
+        spack:
+            install:
+                - ember
+                - mpich@3.0.4
+                - mpileaks @1.2:1.4 %gcc@4.7.5 +debug
+            load:
+                - gcc
+    run:
+        spack:
+            load:
+                - ember
+                - mpich
+                - mpileaks
+
+Pavilion will also allow for Spack specific configuration changes to be added
+inside test configs under the 'spack' section. The following Spack specific
+options are currently supported:
+
+- build_jobs - The max number of jobs to use when running `make` in parallel.
+- repos - Paths to package repositories.
+- mirrors - URLs that point to a directories that contain Spack packages.
+- upstreams - Other Spack instances.
+
+These are directly inserted into the Spack build environment's spack.yaml
+file. Refer to Spack documentation on usage for these.
+
+.. code-block:: yaml
+
+    base:
+        spack:
+            build_jobs: 4
+            mirrors:
+                MIRROR1: https://a_spack_mirror.com
+            repos:
+                - /a/path/to/package/repo
+                - /a/different/path/to/package/repo
+            upstreams:
+                Upstream1:
+                    install_tree: /path/to/other/spack/instance
 
 Enabling Spack Features
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -180,12 +228,12 @@ Enabling Spack Features
 Spack features can be added by providing a Spack instance's path
 under the ``spack_path`` key in the Pavilion config file (``pavilion.yaml``).
 For more Pavilion configuration information, see
-:ref:`_config.configuring_pavilion`.
+:ref:`config.configuring_pavilion`.
 
-There is no way to explicitly enable Spack features inside a test config as this
-is determined by Pavilion during the test build process. Pavilion will only
-attempt to use Spack features when the ``spack_path`` key exists in the Pavilion
-config file and Spack packages are being installed or loaded.
+Once Spack is enabled globally for Pavilion, it can be enabled for individual
+tests simply by including a spack.load or spack.install key under the run or
+build sections of a test config. Trying to use Spack in a test when it is not
+globally enabled first results in an error.
 
 How Pavilion Uses Spack
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -198,6 +246,7 @@ respective build directory so that it can be reactivated when a build is reused.
 The Spack environment file is modified so that Spack packages are installed
 inside their respective build directory in a directory named ``spack_installs``,
 as seen below:
+
 .. code-block:: yaml
 
     # SPACK: Spack environment configuration file.
@@ -211,3 +260,4 @@ in the scope of this build.
 Global Spack packages or packages in upstreams will still require to be listed
 under the install section for both the build and run sections of a test config
 so that those packages can be added to the Spack environment correctly.
+

@@ -306,10 +306,12 @@ expected to be added to by various plugins.
                     'upstreams', sub_elem=yc.KeyedElem(
                         elements=[
                             yc.StrElem('install_tree')
-                        ])
+                        ]),
+                    help_text="Upstream spack installs."
                 ),
             ],
-            help_text="Spack configuration items to set for this test."
+            help_text="Spack configuration items to set in this test's "
+                      "spack.yaml file."
         ),
         yc.KeyedElem(
             'build', elements=[
