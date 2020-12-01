@@ -1,6 +1,5 @@
 """Common constants and bits for all of result handling."""
 from pathlib import Path
-from pavilion import utils
 from typing import Any
 
 NON_MATCH_VALUES = (None, [], False)
@@ -22,11 +21,11 @@ def normalize_filename(name: Path) -> str:
     name = name.name.lower().split('.')[0]
 
     parts = []
-    for p in name:
-        if not p.isalnum():
+    for part in name:
+        if not part.isalnum():
             parts.append('_')
         else:
-            parts.append(p)
+            parts.append(part)
     return ''.join(parts)
 
 

@@ -1,12 +1,12 @@
 """A command to (relatively) quickly list tests, series, and other (as yet
 undefined) bits."""
+import errno
+
 import pavilion.result.common
 from pavilion import commands
-from pavilion.commands import sub_cmd
-from pavilion import result
 from pavilion import output
-
-import errno
+from pavilion import result
+from pavilion.commands import sub_cmd
 
 
 class MaintCommand(commands.Command):

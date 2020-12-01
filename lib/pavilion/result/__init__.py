@@ -10,7 +10,7 @@ from typing import List
 
 from pavilion import lockfile as _lockfile
 from pavilion import utils
-from pavilion.test_config import resolver
+from pavilion.test_config import variables
 from . import parsers
 from .base import base_results, BASE_RESULTS, RESULT_ERRORS
 from .common import ResultError
@@ -89,7 +89,7 @@ For evaluations we check for:
             )
 
         # Don't check the expression if it is deferred.
-        if resolver.TestConfigResolver.was_deferred(expr):
+        if variables.DeferredVariable.was_deferred(expr):
             continue
 
         try:

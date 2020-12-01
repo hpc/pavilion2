@@ -7,6 +7,7 @@ import datetime as dt
 import grp
 import json
 import logging
+import pprint
 import re
 import subprocess
 import threading
@@ -18,14 +19,13 @@ from typing import Callable, Any
 import pavilion.result.common
 from pavilion import builder
 from pavilion import dir_db
-from pavilion import lockfile
 from pavilion import output
 from pavilion import result
 from pavilion import scriptcomposer
 from pavilion import utils
 from pavilion.permissions import PermissionsManager
 from pavilion.status_file import StatusFile, STATES
-from pavilion.test_config import variables, resolver
+from pavilion.test_config import variables
 from pavilion.test_config.file_format import TestConfigError
 
 
@@ -62,6 +62,7 @@ class TestRunNotFoundError(RuntimeError):
     """For when we try to find an existing test, but it doesn't exist."""
 
 
+# pylint: disable=protected-access
 def basic_attr(name, doc):
     """Create a basic attribute for the TestAttribute class. This
     will produce a property object with a getter and setter that
@@ -332,18 +333,17 @@ class TestRun(TestAttributes):
         """Create an new TestRun object. If loading an existing test
     instance, use the ``TestRun.from_id()`` method.
 
-:param pav_cfg: The pavilion configuration.
-:param dict config: The test configuration dictionary.
-:param builder.MultiBuildTracker build_tracker: Tracker for watching
-    and managing the status of multiple builds.
-:param variables.VariableSetManager var_man: The variable set manager for this
-    test.
-:param bool build_only: Only build this test run, do not run it.
-:param bool rebuild: After determining the build name, deprecate it and select
-    a new, non-deprecated build.
-:param int _id: The test id of an existing test. (You should be using
-    TestRun.load).
-"""
+    :param pav_cfg: The pavilion configuration.
+    :param dict config: The test configuration dictionary.
+    :param pavilion.build_tracker.MultiBuildTracker build_tracker: Tracker for
+        watching and managing the status of multiple builds.
+    :param variables.VariableSetManager var_man: The variable set manager for
+        this test.
+    :param bool build_only: Only build this test run, do not run it.
+    :param bool rebuild: After determining the build name, deprecate it and
+        select a new, non-deprecated build.
+    :param int _id: The test id of an existing test. (You should be using
+        TestRun.load)."""
 
         # Just about every method needs this
         self._pav_cfg = pav_cfg
@@ -366,7 +366,7 @@ class TestRun(TestAttributes):
                 group=group, umask=umask)
 
             # Set basic attributes
-            self.id = id_tmp
+            self.id = id_tmp  # pylint: disable=invalid-name
             self.build_only = build_only
             self.complete = False
             self.created = dt.datetime.now()
@@ -509,14 +509,14 @@ class TestRun(TestAttributes):
 
         return TestRun(pav_cfg, config, _id=test_id)
 
-    def finalize(self, var_man):
+    def _finalize(self):
         """Resolve any remaining deferred variables, and generate the final
-        run script."""
+        run script.
 
-        self.var_man.undefer(new_vars=var_man)
+        DO NOT USE THIS DIRECTLY - Use the resolver finalize method, which
+            will call this.
+        """
 
-        self.config = resolver.TestConfigResolver.resolve_deferred(
-            self.config, self.var_man)
         self._save_config()
         # Save our newly updated variables.
         self.var_man.save(self._variables_path)
@@ -811,7 +811,6 @@ class TestRun(TestAttributes):
         # Write the current time to the file. We don't actually use the contents
         # of the file, but it's nice to have another record of when this was
         # run.
-        import stat
         complete_path = self.path/self.COMPLETE_FN
         complete_tmp_path = complete_path.with_suffix('.tmp')
         with PermissionsManager(complete_tmp_path, self.group, self.umask), \
@@ -876,7 +875,6 @@ of result keys.
     test itself.
 :param IO[str] log_file: The file to save result logs to.
 """
-        import pprint
         if self.finished is None:
             raise RuntimeError(
                 "test.gather_results can't be run unless the test was run"
@@ -1206,12 +1204,12 @@ be set by the scheduler plugin as soon as it's known."""
 
         for key in not_if:
             # Skip any keys that were deferred.
-            if resolver.TestConfigResolver.was_deferred(key):
+            if variables.DeferredVariable.was_deferred(key):
                 continue
 
             for val in not_if[key]:
                 # Also skip deferred values.
-                if resolver.TestConfigResolver.was_deferred(val):
+                if variables.DeferredVariable.was_deferred(val):
                     continue
 
                 if not val.endswith('$'):
@@ -1225,13 +1223,13 @@ be set by the scheduler plugin as soon as it's known."""
         for key in only_if:
             match = False
 
-            if resolver.TestConfigResolver.was_deferred(key):
+            if variables.DeferredVariable.was_deferred(key):
                 continue
 
             for val in only_if[key]:
 
                 # We have to assume a match if one of the values is deferred.
-                if resolver.TestConfigResolver.was_deferred(val):
+                if variables.DeferredVariable.was_deferred(val):
                     match = True
                     break
 

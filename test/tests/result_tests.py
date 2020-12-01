@@ -579,6 +579,7 @@ class ResultParserTests(PavTestCase):
                       .format(cmd_out, cmd_err))
 
         for test in run_cmd.last_tests:
+            test.wait(1)
             # Each of these tests should have a 'FAIL' as the result.
             self.assertEqual(test.results['result'], TestRun.FAIL)
 

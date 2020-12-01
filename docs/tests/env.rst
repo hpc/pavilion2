@@ -167,8 +167,10 @@ successfully loaded (or unloaded).
 
 For more information on writing these, see :ref:`plugins.module_wrappers`.
 
+.. _tests.env.spack_packages:
+
 Spack Packages
-______________
+--------------
 
 Pavilion supports both the installation and loading of Spack packages inside of
 test scripts. This is not enabled by default as it requires an external Spack
@@ -228,7 +230,7 @@ Enabling Spack Features
 Spack features can be added by providing a Spack instance's path
 under the ``spack_path`` key in the Pavilion config file (``pavilion.yaml``).
 For more Pavilion configuration information, see
-:ref:`config.configuring_pavilion`.
+:ref:`config`.
 
 Once Spack is enabled globally for Pavilion, it can be enabled for individual
 tests simply by including a spack.load or spack.install key under the run or

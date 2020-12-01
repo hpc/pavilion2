@@ -493,7 +493,7 @@ class Slurm(schedulers.SchedulerPlugin):
             # The following is required to handle foo[3,6-9].
             prev = ""
             for part in node_list.split(','):
-                # Logic used to recombined 'foo[3', '6-9]' after split. 
+                # Logic used to recombined 'foo[3', '6-9]' after split.
                 if prev:
                     part = prev + "," + part
                     prev = ""
@@ -1047,7 +1047,7 @@ class Slurm(schedulers.SchedulerPlugin):
     def _get_kickoff_script_header(self, test):
         """Get the kickoff header. Most of the work here """
 
-        sched_config = test.config[self.name]
+        sched_config = test.cfg[self.name]
 
         nodes = self.get_data()['nodes']
 

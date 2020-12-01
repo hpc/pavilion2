@@ -284,4 +284,3 @@ class ResultsCommand(commands.Command):
                     log_file.write("See results.json for updated results.\n")
 
         return True
-

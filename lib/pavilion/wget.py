@@ -235,7 +235,7 @@ def update(pav_cfg, url, dest):
         # If the file .info file doesn't exist, check to see if we can get a
         # matching Content-Length and fetch it if we can't.
         if (not info_path.exists() and
-            (head_data.get('Content-Length') != info['size'])):
+                (head_data.get('Content-Length') != info['size'])):
             fetch = True
 
         # If we do have an info file and neither the ETag or content length

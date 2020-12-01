@@ -1,6 +1,5 @@
 #!/bin/bash
 
 git clone "https://github.com/spack/spack.git" "test/spack/"
-cd test/spack
+cd test/spack || exit
 git checkout tags/v0.15.4
-cd ../..

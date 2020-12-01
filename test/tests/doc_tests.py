@@ -191,9 +191,13 @@ class DocTests(PavTestCase):
 
         return bad_links, external_links
 
-    @unittest.skipIf(not has_sphinx(), "Could not find Sphinx.")
     def test_doc_build(self):
         """Build the documentation and check for warnings/errors."""
+
+        self.assertTrue(has_sphinx(),
+                        msg="Sphinx missing. All other doc tests will skip.\n"
+                            "See docs/README.md for instructions on setting "
+                            "up Sphinx for testing.")
 
         self.assertEqual(self.docs_build_ret, 0,
                          msg="Error building docs:\n{}"
