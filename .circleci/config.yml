@@ -16,6 +16,10 @@ jobs:
       - python/load-cache
       - python/install-deps
       - run:
+          name: extra_deps
+          command: |
+            pip3 install sphinx pylint
+      - run:
           name: setup
           command: |
             groupadd group_foo
@@ -27,6 +31,7 @@ jobs:
             chmod o+rx /root
       - python/save-cache
       - run:
+          name: run_tests
           command: |
             ./test/utils/spack_setup
             su pav_test -c "/root/project/test/run_tests"
