@@ -1,3 +1,0 @@
-default_results:
-    def_results_test: '{{pav.user}}'
-spack_path: /home/travis/build/hpc/pavilion2/test/spack

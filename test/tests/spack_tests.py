@@ -1,15 +1,13 @@
-import io
+import os
 import os
 import unittest
-from pathlib import Path
 
 from pavilion import arguments
 from pavilion import commands
-from pavilion import output
 from pavilion import plugins
 from pavilion import series
-from pavilion import test_run
 from pavilion.unittest import PavTestCase
+
 
 def has_spack_path():
 
