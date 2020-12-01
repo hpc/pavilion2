@@ -68,6 +68,7 @@ class StyleTests(PavTestCase):
             'missing-docstring',
             'consider-using-enumerate',
             'bad-builtin',
+            'raise-missing-from'
         ]
 
         cmd = [
