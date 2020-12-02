@@ -12,7 +12,6 @@ def has_spack_path():
     """Check if we have an activated spack install."""
 
     spack_path = Path(__file__).parents[1]/'spack'
-    print('spack path', spack_path, spack_path.exists())
 
     return spack_path.exists()
 
@@ -68,7 +67,8 @@ class SpackTests(PavTestCase):
         # Ensure spack package can be loaded in the build section. Will only
         # see the following if the package install was unsuccessful.
         self.assertFalse("==> Error: Spec 'time' matches no installed "
-                         "packages." in build_log_str)
+                         "packages." in build_log_str,
+                         msg="Build Log:\n{}".format(build_log_str))
 
         run_log_path = test.path/'run.log'
         with run_log_path.open() as run_log:
@@ -76,8 +76,10 @@ class SpackTests(PavTestCase):
 
         # Ensure spack package can be loaded in the run section.
         self.assertFalse("==> Error: Spec 'time' matches no installed "
-                         "packages." in run_log_str)
+                         "packages." in run_log_str,
+                         msg="Run Log:\n{}".format(run_log_str))
 
         # Demonstrates it is using the package installed in it's build dir.
         self.assertIn((test.builder.path/'spack_installs').as_posix(),
-                      run_log_str)
+                      run_log_str,
+                      msg="Run Log:\n{}".format(run_log_str))
