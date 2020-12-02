@@ -25,17 +25,16 @@ jobs:
         python -m pip install --upgrade pip
         pip install sphinx pylint
         pip install -r requirements.txt
+        
     - name: setup
       run: |
-        groupadd group_foo
-        groupadd group_bar
-        useradd -m -G users,group_foo,group_bar pav_test
+        sudo groupadd group_foo
+        sudo groupadd group_bar
         ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
         echo "working_dir: $(pwd)/test/working_dir" >> test/data/pav_config_dir/pavilion.yaml
         echo "spack_path: $(pwd)/test/spack" >> test/data/pav_config_dir/pavilion.yaml
         ./test/utils/spack_setup test
-        chown -R pav_test /root/project
-        chmod o+rx /root/project
+        
     - name: run_tests
       run: | 
         su pav_test -c "/root/project/test/run_tests"
