@@ -28,7 +28,7 @@ jobs:
             ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
             echo "working_dir: $(pwd)/test/working_dir" >> test/data/pav_config_dir/pavilion.yaml
             echo "spack_path: $(pwd)/test/spack" >> test/data/pav_config_dir/pavilion.yaml
-            ./test/utils/spack_setup
+            ./test/utils/spack_setup test
             chown -R pav_test /root/project
             chmod o+rx /root
       - python/save-cache

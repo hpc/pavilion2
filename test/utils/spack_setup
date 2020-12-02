@@ -13,5 +13,5 @@ cd $DEST || exit
 git checkout tags/v0.15.4
 
 # This will initialize the spack database
-. $DEST/share/spack/setup-env.sh
+. $DEST/spack/share/spack/setup-env.sh
 spack find
