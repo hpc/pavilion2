@@ -44,4 +44,4 @@ jobs:
         
     - name: run_tests
       run: | 
-        sudo -E su $USER -c "./test/run_tests"
+        sudo -E su $USER -c "./test/run_tests -o *doc* -o style -q"

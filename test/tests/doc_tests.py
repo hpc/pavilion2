@@ -20,6 +20,11 @@ def has_sphinx():
 
     global _HAS_SPHINX
 
+    import os
+    print('nviron', os.environ)
+    print('sphinx-build', shutil.which('sphinx-build'))
+    print('pylint', shutil.which('pylint'))
+
     if _HAS_SPHINX is not None:
         return _HAS_SPHINX
 
