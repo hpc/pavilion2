@@ -1151,13 +1151,14 @@ be set by the scheduler plugin as soon as it's known."""
                 script.newline()
                 script.comment('Install spack packages.')
                 for package in install_packages:
-                    script.command('spack install {}'.format(package))
+                    script.command('spack install -v --fail-fast {} || exit 1'
+                        .format(package))
 
             if load_packages:
                 script.newline()
                 script.comment('Load spack packages.')
                 for package in load_packages:
-                    script.command('spack load {}'
+                    script.command('spack load {} || exit 1'
                                    .format(package))
 
         script.newline()

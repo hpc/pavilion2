@@ -1,18 +1,20 @@
-import os
+"""Test the functionality of the Spack integration."""
+
 import os
 import unittest
+from pathlib import Path
 
-from pavilion import arguments
-from pavilion import commands
 from pavilion import plugins
-from pavilion import series
 from pavilion.unittest import PavTestCase
 
 
 def has_spack_path():
+    """Check if we have an activated spack install."""
 
-    spack_path = os.getcwd() + '/test/spack'
-    return os.path.exists(spack_path)
+    spack_path = Path(__file__).parents[1]/'spack'
+    print('spack path', spack_path, spack_path.exists())
+
+    return spack_path.exists()
 
 
 class SpackTests(PavTestCase):
@@ -30,48 +32,28 @@ class SpackTests(PavTestCase):
     def test_spack_build(self):
         """Test to ensure that a test is built correctly."""
 
-        # This test contains spack commands
-        arg_parser = arguments.get_parser()
-        args = arg_parser.parse_args([
-            'run',
-            'spack_test'
-        ])
+        cfg = self._quick_test_cfg()
 
-        run_cmd = commands.get_command(args.command_name)
-        run_cmd.silence()
-        run_cmd.run(self.pav_cfg, args)
+        cfg['build']['spack'] = {
+            'install': 'time',
+            'load': 'time',
+        }
+        cfg['run']['spack'] = {
+            'load': 'time'
+        }
+        cfg['run']['cmds'] = [
+            'which time'
+        ]
 
-        series_id = series.TestSeries.load_user_series_id(self.pav_cfg)
-        test_obj = list(series.TestSeries.from_id(self.pav_cfg,
-                                                  series_id)
-                        .tests.values())[0]
-
-        build_name = test_obj.build_name
-        test_id = str(test_obj.id)
-
-        args = arg_parser.parse_args([
-            'wait',
-            test_id
-        ])
-
-        wait_cmd = commands.get_command(args.command_name)
-        wait_cmd.silence()
-        wait_cmd.run(self.pav_cfg, args)
-
-        args = arg_parser.parse_args([
-            'cat',
-            test_id,
-            'build.log'
-        ])
-
-        test_dir = self.working_dir/'test_runs'/test_id.zfill(7)
-        spack_build_env = test_dir/'build'/'spack.yaml'
+        test = self._quick_test(cfg, 'spack_build')
+        test.run()
+        spack_build_env = test.path/'build'/'spack.yaml'
 
         # We should have created a spack.yaml (spack build env) file.
         self.assertTrue(spack_build_env.exists())
 
-        build_log_path = test_dir/'build.log'
-        with build_log_path.open('r') as build_log:
+        build_log_path = test.path/'build.log'
+        with build_log_path.open() as build_log:
             build_log_str = build_log.read()
 
         # Ensure spack package is installed. The plus lets us know the package
@@ -80,22 +62,22 @@ class SpackTests(PavTestCase):
 
         # Ensure spack package is installed in the correct location. If it
         # installed correctly, this directory should not be empty.
-        spack_install_dir = test_dir/'build'/'spack_installs'
+        spack_install_dir = test.path/'build'/'spack_installs'
         self.assertIsNot(os.listdir(str(spack_install_dir)), [])
 
         # Ensure spack package can be loaded in the build section. Will only
         # see the following if the package install was unsuccessful.
-        self.assertFalse("==> Error: Spec 'activemq' matches no installed "
+        self.assertFalse("==> Error: Spec 'time' matches no installed "
                          "packages." in build_log_str)
 
-        run_log_path = test_dir/'run.log'
-        with run_log_path.open('r') as run_log:
+        run_log_path = test.path/'run.log'
+        with run_log_path.open() as run_log:
             run_log_str = run_log.read()
 
         # Ensure spack package can be loaded in the run section.
-        self.assertFalse("==> Error: Spec 'activemq' matches no installed "
+        self.assertFalse("==> Error: Spec 'time' matches no installed "
                          "packages." in run_log_str)
 
         # Demonstrates it is using the package installed in it's build dir.
-        self.assertTrue("/builds/{}/spack_installs/".format(build_name) in
-                        run_log_str)
+        self.assertIn((test.builder.path/'spack_installs').as_posix(),
+                      run_log_str)
