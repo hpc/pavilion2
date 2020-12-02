@@ -36,8 +36,8 @@ jobs:
         sudo groupadd group_bar
         ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
         echo "working_dir: $(pwd)/test/working_dir" >> test/data/pav_config_dir/pavilion.yaml
-        #echo "spack_path: $(pwd)/test/spack" >> test/data/pav_config_dir/pavilion.yaml
-        #./test/utils/spack_setup test
+        echo "spack_path: $(pwd)/test/spack" >> test/data/pav_config_dir/pavilion.yaml
+        ./test/utils/spack_setup test
         
     - name: run_tests
       run: | 
