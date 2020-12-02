@@ -29,8 +29,9 @@ jobs:
         python -m pip install --upgrade pip
         pip install sphinx pylint
         pip install -r requirements.txt
-        which sphinx-build
-        which pylint
+        sphinx-build --version
+        pylint --version
+
         
     - name: setup
       run: |

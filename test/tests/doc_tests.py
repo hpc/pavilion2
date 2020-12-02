@@ -4,12 +4,13 @@ import subprocess
 import unittest
 from collections import defaultdict
 from html.parser import HTMLParser
+import shutil
 
 from pavilion import wget
 from pavilion.unittest import PavTestCase
 from pavilion.utils import flat_walk
 
-_SPHINX_PATH = distutils.spawn.find_executable('sphinx-build')
+_SPHINX_PATH = shutil.which('sphinx-build')
 _MIN_SPHINX_VERSION = (3, 0, 0)
 _HAS_SPHINX = None
 
