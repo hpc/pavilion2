@@ -57,7 +57,8 @@ class TestLocking(PavTestCase):
         groups = os.getgroups()
         if os.getuid() != 0:
             # This is only valid for non-root users.
-            groups.remove(os.getuid())
+            if os.getuid() in groups:
+                groups.remove(os.getuid())
 
             if groups:
                 group = groups.pop()
