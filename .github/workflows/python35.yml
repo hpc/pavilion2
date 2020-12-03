@@ -13,7 +13,8 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
-    container.options: '--group-add: group_foo,group_bar --user=runner:docker,adm,systemd-journal,group_foo,group_bar'
+    container:
+        options: '--group-add: group_foo,group_bar --user=runner:docker,adm,systemd-journal,group_foo,group_bar'
 
     steps:
     - uses: actions/checkout@v2
