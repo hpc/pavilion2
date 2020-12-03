@@ -8,7 +8,8 @@ import textwrap
 from typing import List
 
 import yaml_config as yc
-from pavilion.test_config import file_format, resolver
+from pavilion.test_config import file_format
+from pavilion.test_config import variables
 from yapsy import IPlugin
 from .common import ResultError
 from .options import (PER_FIRST, PER_LAST, PER_NAME, PER_LIST,
@@ -514,7 +515,7 @@ Example: ::
                 values = [values]
 
             for value in values:
-                if resolver.TestConfigResolver.was_deferred(value):
+                if variables.DeferredVariable.was_deferred(value):
                     found_deferred = True
 
         if found_deferred:

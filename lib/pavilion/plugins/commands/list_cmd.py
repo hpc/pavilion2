@@ -63,7 +63,7 @@ class ListCommand(commands.Command):
                  "Default fields: {}".format(self.RUN_LONG_FIELDS)
         )
         output_mode.add_argument(
-            '--csv',  action='store_const', const=self.OUTMODE_CSV,
+            '--csv', action='store_const', const=self.OUTMODE_CSV,
             dest='output_mode', help="Write output as CSV."
         )
         output_mode.add_argument(

@@ -10,7 +10,7 @@ from typing import List
 
 from pavilion import lockfile as _lockfile
 from pavilion import utils
-from pavilion.test_config import resolver
+from pavilion.test_config import variables
 from . import parsers
 from .base import base_results, BASE_RESULTS, RESULT_ERRORS
 from .common import ResultError
@@ -89,7 +89,7 @@ For evaluations we check for:
             )
 
         # Don't check the expression if it is deferred.
-        if resolver.TestConfigResolver.was_deferred(expr):
+        if variables.DeferredVariable.was_deferred(expr):
             continue
 
         try:
@@ -118,11 +118,12 @@ def prune_result_log(log_path: Path, ids: List[str]) -> List[dict]:
     rewrite_log_path = log_path.with_suffix('.rewrite')
     lockfile_path = log_path.with_suffix(log_path.suffix + '.lock')
 
-    with _lockfile.LockFile(lockfile_path), \
+    with _lockfile.LockFile(lockfile_path) as lock, \
          log_path.open() as result_log, \
             rewrite_log_path.open('w') as rewrite_log:
 
         for line in result_log:
+            lock.renew()
             try:
                 result = json.loads(line)
             except json.JSONDecodeError:

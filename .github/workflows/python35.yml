@@ -1,0 +1,49 @@
+# This workflow will install Python dependencies, run tests and lint with a single version of Python
+# For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
+
+name: Python application
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: recursive
+      
+    - name: Set up Python 3.5
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.5
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install sphinx pylint
+        pip install -r requirements.txt
+        sphinx-build --version
+        pylint --version
+
+        
+    - name: setup
+      run: |
+        #sudo groupadd group_foo
+        #sudo groupadd group_bar
+        #sudo usermod -a -G group_foo,group_bar,$USER $USER
+        ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
+        echo "working_dir: $(pwd)/test/working_dir" >> test/data/pav_config_dir/pavilion.yaml
+        echo "spack_path: $(pwd)/test/spack" >> test/data/pav_config_dir/pavilion.yaml
+        ./test/utils/spack_setup test
+        
+    - name: run_tests
+      run: | 
+        groups
+        sudo -E su $USER -c "PATH=$PATH; ./test/run_tests -o 'doc*' -o style -q"

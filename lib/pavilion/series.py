@@ -528,6 +528,7 @@ class TestSeries:
 
             # tests that are build-only or build-local should
             # already be completed, therefore don't run these
+
             if test.complete:
                 continue
 
@@ -994,7 +995,7 @@ class SeriesInfo:
         return TestSeries.path_to_sid(self.path)
 
     @property
-    def id(self):
+    def id(self):  # pylint: disable=invalid-name
         """The id of this series."""
         return int(self.path.name)
 

@@ -16,7 +16,8 @@ from pavilion import dir_db
 from pavilion import output
 from pavilion import result
 from pavilion import test_config
-from pavilion.builder import MultiBuildTracker
+from pavilion.build_tracker import MultiBuildTracker
+from pavilion.series import TestSeries, TestSeriesError
 from pavilion.status_file import STATES
 from pavilion.test_run import TestAttributes, TestConfigError, TestRunError, \
     TestRun
@@ -140,9 +141,8 @@ def test_list_to_paths(pav_cfg, req_tests) -> List[Path]:
 
 def get_test_configs(
         pav_cfg, host: str, test_files: List[Union[str, Path]],
-        tests: List[str], modes: List[str], overrides: Dict[str, str],
+        tests: List[str], modes: List[str], overrides: List[str]
         conditions: Dict[str, Dict[str, List[str]]] = None,
-        outfile: TextIO = StringIO()) -> List[test_config.ProtoTest]:
     """Translate a general set of pavilion test configs into the final,
     resolved configurations.
 

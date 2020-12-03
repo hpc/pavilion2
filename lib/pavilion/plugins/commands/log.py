@@ -37,19 +37,19 @@ class LogCommand(commands.Command):
         subparsers.add_parser(
             'kickoff',
             help="Show a test's kickoff.log",
-            description="""Displays the kickoff log (kickoff.log)"""
+            description="Displays the kickoff log (kickoff.log)"
         )
 
         subparsers.add_parser(
             'build',
-            help = "Show a test's build.log",
-            description = """Displays the build log (build.log)"""
+            help="Show a test's build.log",
+            description="Displays the build log (build.log)"
         )
 
         subparsers.add_parser(
             'results',
-            help = "Show a test's results.log",
-            description = """Displays the results log (results.log)"""
+            help="Show a test's results.log",
+            description="Displays the results log (results.log)"
         )
 
         parser.add_argument('test', type=int,
