@@ -46,6 +46,5 @@ jobs:
     - name: run_tests
       shell: bash -l --noprofile --norc -eo pipefail {0}
       run: | 
-        echo $PATH
         groups
-        ./test/run_tests -o 'doc*' -o style -q
+        sudo -E su $USER -c "PATH=$PATH; ./test/run_tests -o 'doc*' -o style -q"
