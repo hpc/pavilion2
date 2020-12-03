@@ -44,7 +44,6 @@ jobs:
         ./test/utils/spack_setup test
         
     - name: run_tests
-      shell: bash -l --noprofile --norc -eo pipefail {0}
       run: | 
         groups
         sudo -E su $USER -c "PATH=$PATH; ./test/run_tests -o 'doc*' -o style -q"
