@@ -13,6 +13,7 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
+    container.options: '--group-add: group_foo,group_bar --user=runner:docker,adm,systemd-journal,group_foo,group_bar'
 
     steps:
     - uses: actions/checkout@v2
@@ -35,8 +36,8 @@ jobs:
         
     - name: setup
       run: |
-        sudo groupadd group_foo
-        sudo groupadd group_bar
+        #sudo groupadd group_foo
+        #sudo groupadd group_bar
         sudo usermod -a -G group_foo,group_bar,$USER $USER
         ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
         echo "working_dir: $(pwd)/test/working_dir" >> test/data/pav_config_dir/pavilion.yaml
@@ -44,6 +45,7 @@ jobs:
         ./test/utils/spack_setup test
         
     - name: run_tests
+      shell: bash -l --noprofile --norc -eo pipefail {0}
       run: | 
         echo $PATH
         groups
