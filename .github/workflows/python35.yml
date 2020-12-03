@@ -37,6 +37,8 @@ jobs:
       run: |
         sudo groupadd group_foo
         sudo groupadd group_bar
+        sudo groupadd $USER
+        sudo usermod -a -G group_foo,group_bar,$USER $USER
         ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
         echo "working_dir: $(pwd)/test/working_dir" >> test/data/pav_config_dir/pavilion.yaml
         echo "spack_path: $(pwd)/test/spack" >> test/data/pav_config_dir/pavilion.yaml
@@ -45,4 +47,5 @@ jobs:
     - name: run_tests
       run: | 
         echo $PATH
-        sudo -E su $USER -c "./test/run_tests -o 'doc*' -o style -q"
+        groups
+        ./test/run_tests -o 'doc*' -o style -q
