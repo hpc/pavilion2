@@ -3,14 +3,14 @@
 from typing import Dict, Callable
 
 import lark as _lark
+from pavilion import utils
 from pavilion.test_config.parsers import (check_expression, StringParserError,
                                           get_expr_parser,
                                           EvaluationExprTransformer,
                                           VarRefVisitor, match_examples,
                                           BAD_EXAMPLES, ParserValueError)
+from .common import ResultError
 from .base import BASE_RESULTS
-from . import ResultError
-from pavilion import utils
 
 
 def check_evaluations(evaluations: Dict[str, str]):

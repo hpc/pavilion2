@@ -88,6 +88,19 @@ circumstances, and output an escape sequence when converted to a str.
             "Attempted to get the length of a deferred variable."
         )
 
+    DEFERRED_PREFIX = '!deferred!'
+
+    @classmethod
+    def was_deferred(cls, val):
+        """Return true if config item val was deferred when we tried to resolve
+        the config.
+
+        :param str val: The config value to check.
+        :rtype: bool
+        """
+
+        return val.startswith(cls.DEFERRED_PREFIX)
+
 
 class VariableSetManager:
     """This class manages the various sets of variables, provides complex key
@@ -360,7 +373,7 @@ index, sub_var) tuple.
                         # make sure all are resolved.
                         if [key for key in unresolved_vars
                                 if (key[:2], key[3]) ==
-                                    (var_key[:2], var_key[3])]:
+                                (var_key[:2], var_key[3])]:
                             break
                     else:
                         if var_key[2] is None:

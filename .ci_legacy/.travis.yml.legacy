@@ -1,7 +1,6 @@
 language: python
 python:
     - "3.5"
-    - "3.6"
     - "3.7"
 
 before_install:
@@ -14,9 +13,10 @@ before_install:
 
 install:
     - pip install -r requirements.txt sphinx pylint
-    - ln -s pavilion.yaml.travis-ci test/data/pav_config_dir/pavilion.yaml
+    - ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
 
-script: 
+script:
+    - ./test/utils/spack_setup
     # This has to run this way to pick up the groups we've added above.
     - sudo -E su $USER -c "./test/run_tests"
 

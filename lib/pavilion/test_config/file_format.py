@@ -274,7 +274,7 @@ expected to be added to by various plugins.
         ),
         yc.StrElem(
             'compatible_pav_versions', default='',
-            help_text="Specify compatibile pavilion versions for this "
+            help_text="Specify compatible pavilion versions for this "
                       "specific test. Can be represented as a single "
                       "version, ex: 1, 1.2, 1.2.3, or a range, "
                       "ex: 1.2-1.3.4, etc."
@@ -282,6 +282,36 @@ expected to be added to by various plugins.
         yc.StrElem(
             'test_version', default='0.0',
             help_text="Documented test version."
+        ),
+        yc.KeyedElem(
+            'spack', elements=[
+                yc.StrElem(
+                    'build_jobs', default='4',
+                    help_text='The maximum number of jobs to use '
+                              'when running \'make\' in parallel.'
+                ),
+                yc.CategoryElem(
+                    'mirrors', sub_elem=yc.StrElem(),
+                    help_text='The keys and values of this section '
+                              'wil be added as mirrors to the spack '
+                              'environment for this build.'
+                ),
+                yc.ListElem(
+                    'repos', sub_elem=yc.StrElem(),
+                    help_text='This is a list of repos spack will '
+                              'search through for packages before '
+                              'attempting to build.'
+                ),
+                yc.CategoryElem(
+                    'upstreams', sub_elem=yc.KeyedElem(
+                        elements=[
+                            yc.StrElem('install_tree')
+                        ]),
+                    help_text="Upstream spack installs."
+                ),
+            ],
+            help_text="Spack configuration items to set in this test's "
+                      "spack.yaml file."
         ),
         yc.KeyedElem(
             'build', elements=[
@@ -364,6 +394,20 @@ expected to be added to by various plugins.
                               "source, tracking changes by "
                               "file size/timestamp/hash."
                 ),
+                yc.KeyedElem(
+                    'spack', elements=[
+                        yc.ListElem(
+                            'install', sub_elem=yc.StrElem(),
+                            help_text='The list of spack packages to be '
+                                      'installed.'
+                        ),
+                        yc.ListElem(
+                            'load', sub_elem=yc.StrElem(),
+                            help_text='The list of spack packages to be '
+                                      'loaded.'
+                        ),
+                    ],
+                    help_text='Spack package build configs.'),
                 yc.StrElem(
                     'specificity',
                     default='',
@@ -426,6 +470,16 @@ expected to be added to by various plugins.
                               "script. Added to the beginning of the run "
                               "script. These are generally expected to "
                               "be host rather than test specific."),
+                yc.KeyedElem(
+                    'spack', elements=[
+                        yc.ListElem(
+                            'load', sub_elem=yc.StrElem(),
+                            help_text='The list of spack packages to be '
+                                      'loaded.'
+                        )
+                    ],
+                    help_text='Used to specify spack package loads and '
+                              'installs.'),
                 yc.StrElem(
                     'timeout', default='300',
                     help_text="Time that a build can continue without "
@@ -512,7 +566,7 @@ expected to be added to by various plugins.
     @classmethod
     def add_result_parser_config(cls, name, config_items):
         """Add the given list of config items as a result parser
-        configuration named 'name'. Throws errors for invalid configuraitons.
+        configuration named 'name'. Throws errors for invalid configurations.
         """
 
         # Validate the config.

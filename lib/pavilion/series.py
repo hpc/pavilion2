@@ -105,6 +105,8 @@ class TestSeries:
 
         self._logger = logging.getLogger(self.LOGGER_FMT.format(self._id))
 
+    SLEEP_INTERVAL = 1
+
     def run_tests(self, pav_cfg, wait, report_status, outfile, errfile):
         """
         :param pav_cfg:
@@ -115,8 +117,6 @@ class TestSeries:
         :param Path errfile: Direct standard error to here.
         :return:
         """
-
-        SLEEP_INTERVAL = 1
 
         all_tests = list(self.tests.values())
 
@@ -137,7 +137,8 @@ class TestSeries:
             if test.skipped:
                 continue
 
-            # tests that are build-only or build-local should already be completed, therefore don't run these
+            # tests that are build-only or build-local should already be
+            # completed, therefore don't run these
             if test.complete:
                 continue
 
@@ -175,7 +176,7 @@ class TestSeries:
                 if wait_result is None:
                     # Sleep at most SLEEP INTERVAL seconds, minus the time
                     # we spent checking our jobs.
-                    time.sleep(SLEEP_INTERVAL - (time.time() - last_time))
+                    time.sleep(self.SLEEP_INTERVAL - (time.time() - last_time))
 
         fprint("{} test{} started as test series {}."
                .format(len(all_tests),
@@ -185,6 +186,7 @@ class TestSeries:
                color=output.GREEN)
 
         if report_status:
+            # pylint: disable=import-outside-toplevel
             from pavilion.plugins.commands.status import print_from_tests
             return print_from_tests(
                 pav_cfg=pav_cfg,
@@ -410,7 +412,7 @@ class SeriesInfo:
         return TestSeries.path_to_sid(self.path)
 
     @property
-    def id(self):
+    def id(self):  # pylint: disable=invalid-name
         """The id of this series."""
         return int(self.path.name)
 
@@ -449,4 +451,3 @@ class SeriesInfo:
             return None
 
         return TestAttributes(self._tests[0]).sys_name
-

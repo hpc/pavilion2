@@ -1,9 +1,10 @@
 """Options and constants common to all result parsers."""
 
-from typing import Dict, Callable, Any, List
 from pathlib import Path
-from .common import EMPTY_VALUES, NON_MATCH_VALUES, normalize_filename
+from typing import Dict, Callable, Any, List
+
 from pavilion.utils import auto_type_convert
+from .common import EMPTY_VALUES, NON_MATCH_VALUES, normalize_filename
 
 
 def store_values(stor: dict, keys: str, values: Any) -> List[str]:

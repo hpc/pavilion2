@@ -556,7 +556,7 @@ A more complicated example: ::
     # Add 2 dashes to each break line if we're padding the data
     brk_pad_extra = 2 if pad else 0
     horizontal_break = isep.join([hsep * (column_widths[field] + brk_pad_extra)
-                                 for field in fields])
+                                  for field in fields])
     if border:
         horizontal_break = isep + horizontal_break + isep
     horizontal_break += '\n'

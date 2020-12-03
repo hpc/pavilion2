@@ -38,9 +38,13 @@ LOGGER = logging.getLogger('pav.' + __name__)
 TEST_VERS_RE = re.compile(r'^\d+(\.\d+){0,2}$')
 
 
-ProtoTest = namedtuple('ProtoTest', ['config', 'var_man'])
-"""An simple object that holds the pair of a test config and its variable
-manager."""
+class ProtoTest:
+    """An simple object that holds the pair of a test config and its variable
+    manager."""
+
+    def __init__(self, config, var_man):
+        self.config = config
+        self.var_man = var_man
 
 
 class TestConfigResolver:
@@ -213,7 +217,7 @@ class TestConfigResolver:
         return suites
 
     def load(self, tests: List[str], host: str = None,
-             modes: List[str] = None, overrides: Dict[str, str] = None,
+             modes: List[str] = None, overrides: List[str] = None,
              output_file: IO[str] = None) \
             -> List[ProtoTest]:
         """Load the given tests, updated with their host and mode files.
@@ -485,6 +489,8 @@ class TestConfigResolver:
         """Ensures version was provided in the correct format, and returns the
         version as a list of digits."""
 
+        _ = self
+
         if TEST_VERS_RE.match(version_str) is not None:
             version = version_str.split(".")
             return [int(i) for i in version]
@@ -736,8 +742,8 @@ class TestConfigResolver:
                 self.check_version_compatibility(test_config)
             except TestConfigError as err:
                 raise TestConfigError(
-                   "Test '{}' in suite '{}' has incompatibility issues:\n{}"
-                   .format(test_name, suite_path, err))
+                    "Test '{}' in suite '{}' has incompatibility issues:\n{}"
+                    .format(test_name, suite_path, err))
 
         return suite_tests
 
@@ -756,6 +762,8 @@ class TestConfigResolver:
         :raises TestConfigError: When there are problems with variables or the
             permutations.
         """
+
+        _ = self
 
         permute_on = test_cfg['permute_on']
 
@@ -1162,6 +1170,8 @@ class TestConfigResolver:
         then clear those sections so they don't get added at additional
         levels of config merging."""
 
+        _ = self
+
         for section in ['build', 'run']:
             config = test_cfg.get(section)
             if not config:
@@ -1177,3 +1187,14 @@ class TestConfigResolver:
             test_cfg[section]['cmds'] = new_cmd_list
 
         return test_cfg
+
+    @classmethod
+    def finalize(cls, test_run, new_vars):
+        """Finalize the given test run object with the given new variables."""
+
+        test_run.var_man.undefer(new_vars=new_vars)
+
+        test_run.config = cls.resolve_deferred(
+            test_run.config, test_run.var_man)
+
+        test_run._finalize()  # pylint: disable=protected-access

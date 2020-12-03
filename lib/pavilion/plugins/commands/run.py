@@ -8,7 +8,7 @@ from pavilion import commands
 from pavilion import output
 from pavilion import result
 from pavilion import schedulers
-from pavilion.builder import MultiBuildTracker
+from pavilion.build_tracker import MultiBuildTracker
 from pavilion.output import fprint
 from pavilion.series import TestSeries
 from pavilion.test_run import TestRun

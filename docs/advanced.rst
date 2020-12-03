@@ -373,6 +373,27 @@ such that it loads normally on some systems, but it performs a module swap
 on an odd system that loads a different compiler by default. This can allow
 for a single, host-agnostic set of tests.
 
+Spack Packages
+~~~~~~~~~~~~~~
+
+*Full Docs:* :ref:`tests.env.spack_packages`
+
+Pavilion can be configured to use Spack to build code or provide modules. This
+requires a working instance of Spack to be configured globally for Pavilion.
+
+.. code-block:: yaml
+
+    build:
+        spack:
+            install:
+                - ember
+            load:
+                - gcc
+    run:
+        spack:
+            load:
+                - ember
+
 Schedulers
 ----------
 
