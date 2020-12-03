@@ -37,7 +37,6 @@ jobs:
       run: |
         sudo groupadd group_foo
         sudo groupadd group_bar
-        sudo groupadd $USER
         sudo usermod -a -G group_foo,group_bar,$USER $USER
         ln -s pavilion.yaml.ci test/data/pav_config_dir/pavilion.yaml
         echo "working_dir: $(pwd)/test/working_dir" >> test/data/pav_config_dir/pavilion.yaml
