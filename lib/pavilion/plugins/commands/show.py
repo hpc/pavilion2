@@ -22,6 +22,7 @@ from pavilion.result import parsers
 from pavilion.test_config import DeferredVariable
 from pavilion.test_config import file_format
 from pavilion.test_config import resolver
+from pavilion import series_config
 
 
 class ShowCommand(commands.Command):
@@ -103,7 +104,7 @@ class ShowCommand(commands.Command):
         modes = subparsers.add_parser(
             'modes',
             aliases=['mode'],
-            help="Show available hosts and their information.",
+            help="Show available modes and their information.",
             description="Pavilion can support different default configs "
                         "depending on the mode that is specified."
         )
@@ -292,6 +293,23 @@ class ShowCommand(commands.Command):
                         "configs should be under a test_name: key in a suite "
                         "file. The same format applies to host and mode "
                         "configs, except without the test name.")
+
+        series = subparsers.add_parser(
+            'series',
+            help="Show available series and their information.",
+            description="Pavilion series."
+        )
+        series.add_argument(
+            '--verbose', '-v',
+            action='store_true', default=False,
+            help="Display tests involved in series and paths of series."
+        )
+        series.add_argument(
+            '--err',
+            action='store_true', default=False,
+            help='Display any errors encountered.'
+        )
+
 
     def run(self, pav_cfg, args):
         """Run the show command's chosen sub-command."""
@@ -742,6 +760,50 @@ class ShowCommand(commands.Command):
             fields=fields,
             rows=rows,
             title="Available Tests"
+        )
+
+    @sub_cmd('series')
+    def _series_cmd(self, pav_cfg, args):
+
+        series_dict = series_config.find_all_series(pav_cfg)
+
+        rows = []
+
+        for series_name in sorted(list(series_dict.keys())):
+            series = series_dict[series_name]
+
+            if series['err']:
+                series = output.ANSIString(series_name, output.RED)
+
+                rows.append({
+                    'name':    '{}.*'.format(series_name),
+                    'summary': 'Loading the series failed.  '
+                               'For more info, run `pav show series --err`.',
+                    'path':    series['path'],
+                    'err':     series['err']
+                })
+            elif args.err:
+                continue
+
+            rows.append({
+                'name':    '{}'.format(series_name),
+                'path':    series['path'],
+                'tests':   series['tests'],
+                'err':     'None'
+            })
+
+        fields = ['name']
+        if args.verbose or args.err:
+            fields.extend(['tests', 'path'])
+
+            if args.err:
+                fields.append('err')
+
+        output.draw_table(
+            self.outfile,
+            field_info={},
+            fields=fields,
+            rows=rows
         )
 
     def _test_docs_subcmd(self, pav_cfg, args):
