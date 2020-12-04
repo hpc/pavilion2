@@ -79,6 +79,8 @@ class CleanCommand(commands.Command):
         output.fprint("Removing Builds...", file=self.outfile, end=end)
         rm_builds_count, msgs = clean.delete_builds(builds_dir, tests_dir,
                                                     args.verbose)
+        msgs.extend(clean.delete_lingering_build_files(builds_dir, tests_dir,
+                                                       args.verbose))
         if args.verbose:
             for msg in msgs:
                 output.fprint(msg, color=output.YELLOW)
