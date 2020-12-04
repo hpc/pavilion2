@@ -1,5 +1,4 @@
-"""Pavilion Series Configuration.
-"""
+"""Pavilion Series Configuration."""
 
 import yaml_config as yc
 
@@ -47,5 +46,3 @@ class SeriesConfigLoader(yc.YamlConfigLoader):
         )
     ]
     """Describes elements in Series Config Loader."""
-
-

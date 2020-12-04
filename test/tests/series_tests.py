@@ -2,6 +2,7 @@ import time
 import io
 from datetime import datetime
 
+import pavilion.series_util
 from pavilion import arguments
 from pavilion import commands
 from pavilion import plugins
@@ -25,7 +26,7 @@ class SeriesFileTests(PavTestCase):
         arg_parser = arguments.get_parser()
         series_args = arg_parser.parse_args(['series', 'series_circle1'])
 
-        self.assertRaises(series.TestSeriesError,
+        self.assertRaises(pavilion.series_util.TestSeriesError,
                           lambda: series_cmd.run(self.pav_cfg, series_args))
 
     def test_series_simultaneous(self):

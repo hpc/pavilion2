@@ -1,9 +1,9 @@
 import os
-import yc_yaml
 from typing import List
 
-from .file_format import SeriesConfigLoader
+import yc_yaml
 from pavilion.test_config.resolver import TestConfigResolver, TestConfigError
+from .file_format import SeriesConfigLoader
 
 
 class SeriesConfigError(RuntimeError):
@@ -104,4 +104,3 @@ def load_series_configs(pav_cfg, series_name: str, cl_modes: List[str],
                                 .format(series_name, err.args[0]))
 
     return series_cfg
-

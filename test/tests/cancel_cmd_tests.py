@@ -1,11 +1,12 @@
+"""Test the cancel command."""
+
 import errno
 import sys
-from io import StringIO
 
 from pavilion import arguments
 from pavilion import commands
 from pavilion import plugins
-from pavilion import series
+from pavilion import series_util
 from pavilion.status_utils import get_statuses
 from pavilion.unittest import PavTestCase
 
@@ -58,7 +59,7 @@ class CancelCmdTests(PavTestCase):
 
         self.assertEqual(cancel_cmd.run(self.pav_cfg, args), errno.EINVAL)
 
-    def test_cancel_series_test(self):
+    def test_cancel_series(self):
         """Test cancel command with combination of series and tests."""
 
         arg_parser = arguments.get_parser()
@@ -76,7 +77,7 @@ class CancelCmdTests(PavTestCase):
 
         tests = []
 
-        series_id = series.TestSeries.load_user_series_id(self.pav_cfg)
+        series_id = series_util.load_user_series_id(self.pav_cfg)
         tests.append(series_id)
 
         args = arg_parser.parse_args([

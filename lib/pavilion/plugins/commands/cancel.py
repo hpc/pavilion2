@@ -8,8 +8,9 @@ from pavilion import commands
 from pavilion import output
 from pavilion import schedulers
 from pavilion import series
-from pavilion.status_utils import print_from_tests
+from pavilion import series_util
 from pavilion.status_file import STATES
+from pavilion.status_utils import print_from_tests
 from pavilion.test_run import TestRun, TestRunError
 
 
@@ -63,7 +64,7 @@ class CancelCommand(commands.Command):
                             args.tests.append(test_id)
             else:
                 # Get the last series ran by this user.
-                series_id = series.TestSeries.load_user_series_id(pav_cfg)
+                series_id = series_util.load_user_series_id(pav_cfg)
                 if series_id is not None:
                     args.tests.append(series_id)
 
@@ -75,7 +76,7 @@ class CancelCommand(commands.Command):
                     test_list.extend(series.TestSeries.from_id(pav_cfg,
                                                                test_id)
                                      .tests)
-                except series.TestSeriesError as err:
+                except series_util.TestSeriesError as err:
                     output.fprint(
                         "Series {} could not be found.\n{}"
                         .format(test_id, err.args[0]),

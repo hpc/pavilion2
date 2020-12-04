@@ -13,14 +13,15 @@ from typing import Dict, List, Union, TextIO
 
 from pavilion import commands
 from pavilion import dir_db
+from pavilion import filters
 from pavilion import output
 from pavilion import result
 from pavilion import test_config
 from pavilion.build_tracker import MultiBuildTracker
-from pavilion.series import TestSeries, TestSeriesError
+from pavilion import series_util
 from pavilion.status_file import STATES
 from pavilion.test_run import TestAttributes, TestConfigError, TestRunError, \
-    TestRun
+    TestRun, TestRunNotFoundError
 
 LOGGER = logging.getLogger(__name__)
 
@@ -44,8 +45,6 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace) -> List[int]:
         keyword.
     :return: A list of test id ints.
     """
-
-    from pavilion import filters
 
     limit = args.limit
 
@@ -107,19 +106,17 @@ def test_list_to_paths(pav_cfg, req_tests) -> List[Path]:
     :return: A list of test id's.
     """
 
-    from pavilion.series import TestSeries, TestSeriesError
-
     test_paths = []
     for test_id in req_tests:
 
         if test_id == 'last':
-            test_id = TestSeries.load_user_series_id(pav_cfg)
+            test_id = series_util.load_user_series_id(pav_cfg)
 
         if test_id.startswith('s'):
             try:
                 test_paths.extend(
-                    TestSeries.list_series_tests(pav_cfg, test_id))
-            except TestSeriesError:
+                    series_util.list_series_tests(pav_cfg, test_id))
+            except series_util.TestSeriesError:
                 raise ValueError("Invalid series id '{}'".format(test_id))
 
         else:
@@ -140,9 +137,13 @@ def test_list_to_paths(pav_cfg, req_tests) -> List[Path]:
 
 
 def get_test_configs(
-        pav_cfg, host: str, test_files: List[Union[str, Path]],
-        tests: List[str], modes: List[str], overrides: List[str]
-        conditions: Dict[str, Dict[str, List[str]]] = None,
+        pav_cfg, host: str,
+        test_files: List[Union[str, Path]] = None,
+        tests: List[str] = None,
+        modes: List[str] = None,
+        overrides: List[str] = None,
+        outfile: TextIO = StringIO(),
+        conditions: Dict[str, Dict[str, List[str]]] = None):
     """Translate a general set of pavilion test configs into the final,
     resolved configurations.
 
@@ -156,6 +157,12 @@ def get_test_configs(
     :param conditions: A dict containing the only_if and not_if conditions.
     :param outfile: Where to print user error messages.
     """
+
+    overrides = overrides if overrides else []
+    tests = tests if tests else []
+    modes = modes if modes else []
+    test_files = test_files if test_files else []
+    conditions = conditions if conditions else {}
 
     resolver = test_config.TestConfigResolver(pav_cfg)
 
@@ -435,3 +442,28 @@ def build_local(tests: List[TestRun],
         output.fprint(width=None, file=outfile)
 
     return 0
+
+
+def test_obj_from_id(pav_cfg, test_ids):
+    """Return the test object(s) associated with the id(s) provided.
+
+    :param dict pav_cfg: Base pavilion configuration.
+    :param Union(list,str) test_ids: One or more test IDs."
+    :return tuple(list(test_obj),list(failed_ids)): tuple containing a list of
+        test objects and a list of test IDs for which no test could be found.
+    """
+
+    test_obj_list = []
+    test_failed_list = []
+
+    if not isinstance(test_ids, list):
+        test_ids = [test_ids]
+
+    for test_id in test_ids:
+        try:
+            test = TestRun.load(pav_cfg, test_id)
+            test_obj_list.append(test)
+        except (TestRunError, TestRunNotFoundError):
+            test_failed_list.append(test_id)
+
+    return test_obj_list, test_failed_list

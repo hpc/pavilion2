@@ -49,4 +49,3 @@ class RunSeries(commands.Command):
         series_obj.run_series_background()
 
         return
-

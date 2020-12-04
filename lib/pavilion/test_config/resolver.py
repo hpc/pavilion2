@@ -12,8 +12,8 @@ import io
 import logging
 import os
 import re
-from collections import defaultdict, namedtuple
-from typing import List, IO, Dict
+from collections import defaultdict
+from typing import List, IO
 
 import yc_yaml
 from pavilion import output
@@ -25,10 +25,9 @@ from pavilion.test_config import parsers
 from pavilion.test_config import variables
 from pavilion.test_config.file_format import (TestConfigError, TEST_NAME_RE,
                                               KEY_NAME_RE)
-from pavilion.test_config.file_format import TestConfigLoader, \
-    TestSuiteLoader, SeriesConfigLoader
 from pavilion.utils import union_dictionary
 from yaml_config import RequiredError
+from .file_format import TestConfigLoader, TestSuiteLoader
 
 # Config file types
 CONF_HOST = 'hosts'

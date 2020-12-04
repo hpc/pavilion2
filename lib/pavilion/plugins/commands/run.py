@@ -7,6 +7,7 @@ from pavilion import cmd_utils
 from pavilion import commands
 from pavilion import output
 from pavilion import schedulers
+from pavilion import status_utils
 from pavilion.build_tracker import MultiBuildTracker
 from pavilion.output import fprint
 from pavilion.series import TestSeries
@@ -170,7 +171,15 @@ class RunCommand(commands.Command):
                     file=self.outfile, color=output.YELLOW)
             return 0
 
-        return series.run_tests(wait=wait, report_status=report_status)
+        res = series.run_tests(wait=wait)
+
+        if report_status:
+            status_utils.print_from_tests(
+                pav_cfg=pav_cfg,
+                tests=all_tests,
+                outfile=self.outfile)
+
+        return res
 
     def _get_tests(self, pav_cfg, args, mb_tracker, build_only=False,
                    local_builds_only=False):
