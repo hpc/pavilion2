@@ -28,12 +28,14 @@ class GeneralTests(PavTestCase):
                        and def_gid != group.gr_gid)]
 
         if not candidates:
-            self.fail("Your user must be in at least two groups (other than "
-                      "the user's group) to run this test.")
+            self.orig_group = None
+            self.alt_group = None
+            self.alt_group2 = None
+        else:
+            self.orig_group = grp.getgrgid(def_gid).gr_name
+            self.alt_group = candidates[0]  # type: grp.struct_group
+            self.alt_group2 = candidates[1]  # type: grp.struct_group
 
-        self.orig_group = grp.getgrgid(def_gid).gr_name
-        self.alt_group = candidates[0]  # type: grp.struct_group
-        self.alt_group2 = candidates[1]  # type: grp.struct_group
         self.umask = 0o007
 
     def setUp(self) -> None:
@@ -47,6 +49,10 @@ class GeneralTests(PavTestCase):
             shutil.rmtree(self.working_dir.as_posix())
 
         self.working_dir.mkdir()
+
+        if self.alt_group is None:
+            self.fail("Your user must be in at least two groups (other than "
+                      "the user's group) to run this test.")
 
         raw_cfg['shared_group'] = self.alt_group.gr_name
         raw_cfg['umask'] = self.umask
