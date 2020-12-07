@@ -1152,7 +1152,7 @@ be set by the scheduler plugin as soon as it's known."""
                 script.comment('Install spack packages.')
                 for package in install_packages:
                     script.command('spack install -v --fail-fast {} || exit 1'
-                        .format(package))
+                                   .format(package))
 
             if load_packages:
                 script.newline()
@@ -1189,9 +1189,17 @@ be set by the scheduler plugin as soon as it's known."""
         if len(skip_reason_list) == 0:
             return False
         else:
-            self.status.set(STATES.SKIPPED, matches)
-            self.set_run_complete()
+            self.set_skipped(matches)
             return True
+
+    def set_skipped(self, reason: str):
+        """Set the test as skipped (and complete).
+        :param reason: Why the test is being skipped.
+        """
+
+        self.status.set(STATES.SKIPPED, reason)
+        self.skipped = True
+        self.set_run_complete()
 
     def _evaluate_skip_conditions(self):
         """Match grabs conditional keys from the config. It checks for

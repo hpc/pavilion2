@@ -1,11 +1,11 @@
+import argparse
+import io
+
 from pavilion import commands
 from pavilion import plugins
 from pavilion.series import TestSeries
-from pavilion.test_config import file_format, VariableSetManager
+from pavilion.test_config import file_format
 from pavilion.unittest import PavTestCase
-from pavilion.test_run import TestRun
-import argparse
-import io
 
 
 class WaitCmdTests(PavTestCase):

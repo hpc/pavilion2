@@ -1,10 +1,13 @@
+"""Wait for the specified tests to finish, printing progress reports along
+the way."""
+
 import copy
 import time
 from typing import List
 
 from pavilion import commands
 from pavilion.output import fprint
-from pavilion.plugins.commands import status
+from pavilion import status_utils
 from pavilion.status_file import STATES
 from pavilion.test_run import TestRun
 
@@ -64,7 +67,7 @@ class WaitCommand(commands.Command):
         # get start time
         start_time = time.time()
 
-        tests = status.get_tests(pav_cfg, args.tests, self.errfile)
+        tests = status_utils.get_tests(pav_cfg, args.tests, self.errfile)
 
         # determine timeout time, if there is one
         end_time = None
@@ -98,7 +101,7 @@ class WaitCommand(commands.Command):
             if time.time() > status_time:
                 status_time = time.time() + self.STATUS_UPDATE_PERIOD
 
-                stats = status.get_statuses(pav_cfg, tests, self.errfile)
+                stats = status_utils.get_statuses(pav_cfg, tests)
                 stats_out = []
 
                 if out_mode == self.OUT_SILENT:
@@ -128,6 +131,6 @@ class WaitCommand(commands.Command):
                     fprint(''.join(map(str, stats_out)),
                            file=self.outfile, width=None)
 
-        final_stats = status.get_statuses(pav_cfg, tests, self.errfile)
+        final_stats = status_utils.get_statuses(pav_cfg, tests)
         fprint('\n', file=self.outfile)
-        status.print_status(final_stats, self.outfile)
+        status_utils.print_status(final_stats, self.outfile)

@@ -9,7 +9,7 @@ from typing import Dict, Any, Callable, List
 
 from pavilion import system_variables
 from pavilion import utils
-from pavilion.series import SeriesInfo
+from pavilion.series_util import SeriesInfo
 from pavilion.test_run import TestAttributes, TestRun
 
 LOCAL_SYS_NAME = '<local_sys_name>'

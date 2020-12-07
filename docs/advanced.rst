@@ -28,6 +28,17 @@ set of slurm vars:
 
     $ pav run -m tester -f post_dst_tests.txt
 
+Test Series
+-----------
+
+A test series is a well defined group of tests that are designated to be
+run together. A series is created automatically whenever you use ``pav run``,
+but you can also explicitly define series using a
+``configs/series/<series_name>.yaml`` file. This allows you defined
+relationships and dependencies between the tests, among other things.
+
+See :ref:`tutorials.series`.
+
 Advanced Test Configs
 ---------------------
 

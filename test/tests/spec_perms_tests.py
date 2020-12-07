@@ -27,15 +27,21 @@ class SpecificPermsTests(PavTestCase):
                        and def_gid != group.gr_gid)]
 
         if not candidates:
-            self.fail("Your user must be in at least two groups (other than "
-                      "the user's group) to run this test.")
+            self.orig_group = None
+            self.alt_group = None
+            self.alt_group2 = None
+        else:
+            self.orig_group = grp.getgrgid(def_gid).gr_name
+            self.alt_group = candidates[0]  # type: grp.struct_group
+            self.alt_group2 = candidates[1]  # type: grp.struct_group
 
-        self.orig_group = grp.getgrgid(def_gid).gr_name
-        self.alt_group = candidates[0]  # type: grp.struct_group
-        self.alt_group2 = candidates[1]  # type: grp.struct_group
         self.umask = 0o007
 
     def setUp(self) -> None:
+
+        if self.alt_group is None:
+            self.fail("Your user must be in at least two groups (other than "
+                      "the user's group) to run this test.")
 
         with self.PAV_CONFIG_PATH.open() as pav_cfg_file:
             raw_cfg = yaml.load(pav_cfg_file)

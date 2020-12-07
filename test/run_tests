@@ -56,7 +56,7 @@ def main():
     working_dir = this_file.parent/'working_dir'
     if not args.no_clear and working_dir.exists():
         print("Clearing out the working directory from prior unit test runs.")
-        shutil.rmtree(working_dir, ignore_errors=False)
+        shutil.rmtree(working_dir.as_posix(), ignore_errors=False)
 
     log_setup.setup_loggers(PavTestCase().pav_cfg, verbose=args.verbose)
 
