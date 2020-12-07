@@ -333,8 +333,8 @@ The default config is: ::
         test_cfgs = res.load([name], host, modes)
 
         tests = []
-        for test_cfg, var_man in test_cfgs:
-            test = TestRun(self.pav_cfg, test_cfg, var_man=var_man)
+        for ptest in test_cfgs:
+            test = TestRun(self.pav_cfg, ptest.config, var_man=ptest.var_man)
 
             if build:
                 test.build()
@@ -343,7 +343,7 @@ The default config is: ::
                 fin_sys = system_variables.SysVarDict(unique=True)
                 fin_var_man = VariableSetManager()
                 fin_var_man.add_var_set('sys', fin_sys)
-                test.finalize(fin_var_man)
+                res.finalize(test, fin_var_man)
 
             tests.append(test)
 
@@ -399,10 +399,10 @@ The default config is: ::
         if build:
             test.build()
         if finalize:
-            fin_sys = system_variables.SysVarDict(defer=False, unique=True)
+            fin_sys = system_variables.SysVarDict(unique=True)
             fin_var_man = VariableSetManager()
             fin_var_man.add_var_set('sys', fin_sys)
-            test.finalize(fin_var_man)
+            resolver.TestConfigResolver.finalize(test, fin_var_man)
         return test
 
     def wait_tests(self, working_dir: Path, timeout=5):

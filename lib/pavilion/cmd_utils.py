@@ -15,12 +15,13 @@ from pavilion import commands
 from pavilion import dir_db
 from pavilion import filters
 from pavilion import output
+from pavilion import result
 from pavilion import test_config
-from pavilion.builder import MultiBuildTracker
-from pavilion.series import TestSeries, TestSeriesError
+from pavilion.build_tracker import MultiBuildTracker
+from pavilion import series_util
 from pavilion.status_file import STATES
 from pavilion.test_run import TestAttributes, TestConfigError, TestRunError, \
-    TestRun
+    TestRun, TestRunNotFoundError
 
 LOGGER = logging.getLogger(__name__)
 
@@ -109,13 +110,13 @@ def test_list_to_paths(pav_cfg, req_tests) -> List[Path]:
     for test_id in req_tests:
 
         if test_id == 'last':
-            test_id = TestSeries.load_user_series_id(pav_cfg)
+            test_id = series_util.load_user_series_id(pav_cfg)
 
         if test_id.startswith('s'):
             try:
                 test_paths.extend(
-                    TestSeries.list_series_tests(pav_cfg, test_id))
-            except TestSeriesError:
+                    series_util.list_series_tests(pav_cfg, test_id))
+            except series_util.TestSeriesError:
                 raise ValueError("Invalid series id '{}'".format(test_id))
 
         else:
@@ -136,9 +137,13 @@ def test_list_to_paths(pav_cfg, req_tests) -> List[Path]:
 
 
 def get_test_configs(
-        pav_cfg, host: str, test_files: List[Union[str, Path]],
-        tests: List[str], modes: List[str], overrides: Dict[str, str],
-        outfile: TextIO = StringIO()) -> List[test_config.ProtoTest]:
+        pav_cfg, host: str,
+        test_files: List[Union[str, Path]] = None,
+        tests: List[str] = None,
+        modes: List[str] = None,
+        overrides: List[str] = None,
+        outfile: TextIO = StringIO(),
+        conditions: Dict[str, Dict[str, List[str]]] = None):
     """Translate a general set of pavilion test configs into the final,
     resolved configurations.
 
@@ -149,8 +154,15 @@ def get_test_configs(
     :param tests: The tests to run.
     :param overrides: Overrides to apply to the configurations.
         name) of lists of tuples test configs and their variable managers.
+    :param conditions: A dict containing the only_if and not_if conditions.
     :param outfile: Where to print user error messages.
     """
+
+    overrides = overrides if overrides else []
+    tests = tests if tests else []
+    modes = modes if modes else []
+    test_files = test_files if test_files else []
+    conditions = conditions if conditions else {}
 
     resolver = test_config.TestConfigResolver(pav_cfg)
 
@@ -164,7 +176,7 @@ def get_test_configs(
                         tests.append(line)
         except (OSError, IOError) as err:
             raise commands.CommandError(
-                "Could not read test file {}: {}".format(file, err))
+                "Could not read test file {}: {}".format(file, err.args[0]))
 
     try:
         resolved_cfgs = resolver.load(
@@ -172,6 +184,7 @@ def get_test_configs(
             host,
             modes,
             overrides,
+            conditions=conditions,
             output_file=outfile,
         )
     except TestConfigError as err:
@@ -215,12 +228,45 @@ def configs_to_tests(
                 output.fprint("Creating Test Runs: {:.0%}".format(progress),
                               file=outfile, end='\r')
         except (TestRunError, TestConfigError) as err:
-            raise commands.CommandError(err)
+            raise commands.CommandError(err.args[0])
 
     if outfile is not None:
         output.fprint('', file=outfile)
 
     return test_list
+
+
+def check_result_format(tests: List[TestRun], errfile: TextIO):
+    """Make sure the result parsers for each test are ok."""
+
+    rp_errors = []
+    for test in tests:
+
+        # Make sure the result parsers have reasonable arguments.
+        try:
+            result.check_config(test.config['result_parse'],
+                                test.config['result_evaluate'])
+        except result.ResultError as err:
+            rp_errors.append((test, str(err)))
+
+    if rp_errors:
+        output.fprint("Result Parser configurations had errors:",
+                      file=errfile, color=output.RED)
+        for test, msg in rp_errors:
+            output.fprint(test.name, '-', msg, file=errfile)
+        return errno.EINVAL
+
+    return 0
+
+
+def complete_tests(tests: List[TestRun]):
+    """Mark all of the given tests as complete. We generally do this after
+    an error has been encountered, or if it was only built.
+    :param tests: The tests to mark complete.
+    """
+
+    for test in tests:
+        test.set_run_complete()
 
 
 BUILD_STATUS_PREAMBLE = '{when:20s} {test_id:6} {state:{state_len}s}'
@@ -396,3 +442,28 @@ def build_local(tests: List[TestRun],
         output.fprint(width=None, file=outfile)
 
     return 0
+
+
+def test_obj_from_id(pav_cfg, test_ids):
+    """Return the test object(s) associated with the id(s) provided.
+
+    :param dict pav_cfg: Base pavilion configuration.
+    :param Union(list,str) test_ids: One or more test IDs."
+    :return tuple(list(test_obj),list(failed_ids)): tuple containing a list of
+        test objects and a list of test IDs for which no test could be found.
+    """
+
+    test_obj_list = []
+    test_failed_list = []
+
+    if not isinstance(test_ids, list):
+        test_ids = [test_ids]
+
+    for test_id in test_ids:
+        try:
+            test = TestRun.load(pav_cfg, test_id)
+            test_obj_list.append(test)
+        except (TestRunError, TestRunNotFoundError):
+            test_failed_list.append(test_id)
+
+    return test_obj_list, test_failed_list

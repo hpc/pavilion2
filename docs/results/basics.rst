@@ -162,7 +162,7 @@ It must be set as a single True or False value.
 - For result parsers, this means you should use an 'action' of 'store_true'
   (the default) or 'store_false' (See :ref:`results.parse.action`). You
   will also need to use a 'per_file' setting that produces a single value, like
-  'first' or 'all' (See :ref:`results.per_file`).
+  'first' or 'all' (See :ref:`results.parse.per_file`).
 - For result evaluations this simply means ensuring that the evaluation
   returns a boolean, typically by way of a comparison operator.
 

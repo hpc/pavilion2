@@ -1,0 +1,42 @@
+a:
+    run:
+        cmds:
+            - "sleep 0.5s"
+            - "echo pass"
+    variables:
+        num: 12
+
+    result_parse:
+        constant:
+            number:
+                const: '{{num}}'
+            other_num:
+                const: '{{another_num}}'
+        regex:
+            fake_result:
+                regex: 'pass'
+    result_evaluate:
+        asdf: 'number - 10'
+        result: 'asdf < 3'
+
+b: 
+    inherits_from: a
+    permute_on: ['num']
+    variables:
+        num: [20, 11, 9]
+
+c:
+    inherits_from: a
+    only_if:
+        "{{num1}}": 12
+
+d:
+    inherits_from: a
+
+e:
+    inherits_from: a
+
+wrong_year:
+    run:
+        cmds: 'echo hello'
+

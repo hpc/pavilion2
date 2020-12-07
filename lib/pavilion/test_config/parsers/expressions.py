@@ -11,8 +11,8 @@ from typing import Dict, Callable, Any
 import lark
 import pavilion.expression_functions.common
 from pavilion import expression_functions as functions
-from .common import PavTransformer, ParserValueError
 from pavilion.utils import auto_type_convert
+from .common import PavTransformer, ParserValueError
 
 EXPR_GRAMMAR = r'''
 
@@ -204,7 +204,7 @@ class BaseExprTransformer(PavTransformer):
 
         while or_items:
             next_tok = or_items.pop()
-            acc = self._apply_op(lambda a, b: a or b, base_tok, next_tok)
+            acc = self._apply_op(lambda a, b: bool(a or b), base_tok, next_tok)
             base_tok = self._merge_tokens([base_tok, next_tok], acc)
 
         return base_tok
@@ -223,7 +223,8 @@ class BaseExprTransformer(PavTransformer):
 
         while and_items:
             next_tok = and_items.pop()
-            acc = self._apply_op(lambda a, b: a and b, base_tok, next_tok)
+            acc = self._apply_op(lambda a, b: bool(a and b),
+                                 base_tok, next_tok)
             base_tok = self._merge_tokens([base_tok, next_tok], acc)
 
         return base_tok

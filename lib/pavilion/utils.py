@@ -15,6 +15,18 @@ from pathlib import Path
 from typing import Iterator, Union, TextIO
 
 
+def str_bool(val):
+    """Returns true if the string value is the string 'true' with allowances
+    for capitalization."""
+
+    if isinstance(val, str) and val.lower() == 'true':
+        return True
+    elif isinstance(val, bool):
+        return val
+    else:
+        return False
+
+
 # Python 3.5 issue. Python 3.6 Path.resolve() handles this correctly.
 # pylint: disable=protected-access
 def resolve_path(path, strict=False):
@@ -323,6 +335,15 @@ def hr_cutoff_to_datetime(cutoff_time: str,
             )
 
     raise ValueError("Invalid cutoff value '{}'".format(cutoff_time))
+
+
+def union_dictionary(dict1, dict2):
+    """Combines two dictionaries with nested lists."""
+
+    for key in dict2.keys():
+        dict1[key] = dict1.get(key, []) + dict2[key]
+
+    return dict1
 
 
 def auto_type_convert(value):

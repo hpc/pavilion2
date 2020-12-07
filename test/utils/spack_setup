@@ -1,0 +1,17 @@
+#!/bin/bash
+
+if [ -z $1 ]; then
+    DEST=spack
+else
+    DEST=$1/spack
+fi
+
+echo $DEST
+
+git clone "https://github.com/spack/spack.git" "$DEST"
+cd $DEST || exit
+git checkout tags/v0.15.4
+
+# This will initialize the spack database
+. share/spack/setup-env.sh
+spack find

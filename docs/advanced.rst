@@ -28,6 +28,17 @@ set of slurm vars:
 
     $ pav run -m tester -f post_dst_tests.txt
 
+Test Series
+-----------
+
+A test series is a well defined group of tests that are designated to be
+run together. A series is created automatically whenever you use ``pav run``,
+but you can also explicitly define series using a
+``configs/series/<series_name>.yaml`` file. This allows you defined
+relationships and dependencies between the tests, among other things.
+
+See :ref:`tutorials.series`.
+
 Advanced Test Configs
 ---------------------
 
@@ -372,6 +383,27 @@ have distinct module setups. For instance, one might wrap the gcc module
 such that it loads normally on some systems, but it performs a module swap
 on an odd system that loads a different compiler by default. This can allow
 for a single, host-agnostic set of tests.
+
+Spack Packages
+~~~~~~~~~~~~~~
+
+*Full Docs:* :ref:`tests.env.spack_packages`
+
+Pavilion can be configured to use Spack to build code or provide modules. This
+requires a working instance of Spack to be configured globally for Pavilion.
+
+.. code-block:: yaml
+
+    build:
+        spack:
+            install:
+                - ember
+            load:
+                - gcc
+    run:
+        spack:
+            load:
+                - ember
 
 Schedulers
 ----------

@@ -24,7 +24,7 @@ class CleanCommand(commands.Command):
         parser.add_argument(
             '-v', '--verbose', action='store_true', default=False,
             help='Verbose output.'
-        ),
+        )
         filters.add_test_filter_args(parser)
         parser.add_argument(
             '-a', '--all', action='store_true',

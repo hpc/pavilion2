@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Callable, List, Iterable, Any
 
 from pavilion import lockfile
+from pavilion import permissions
 
 ID_DIGITS = 7
 ID_FMT = '{id:0{digits}d}'
@@ -37,15 +38,17 @@ def reset_pkey(id_dir: Path) -> None:
             pass
 
 
-def create_id_dir(id_dir: Path) -> (int, Path):
+def create_id_dir(id_dir: Path, group: str, umask: int) -> (int, Path):
     """In the given directory, create the lowest numbered (positive integer)
     directory that doesn't already exist.
 
-:param Path id_dir: Path to the directory that contains these 'id'
-    directories
-:returns: The id and path to the created directory.
-:raises OSError: on directory creation failure.
-:raises TimeoutError: If we couldn't get the lock in time.
+    :param id_dir: Path to the directory that contains these 'id'
+        directories
+    :param group: The group owner for this path.
+    :param umask: The umask to apply to this path.
+    :returns: The id and path to the created directory.
+    :raises OSError: on directory creation failure.
+    :raises TimeoutError: If we couldn't get the lock in time.
 """
 
     lockfile_path = id_dir/'.lockfile'
@@ -87,9 +90,11 @@ def create_id_dir(id_dir: Path) -> (int, Path):
 
             next_id_path = make_id_path(id_dir, next_id)
 
-        next_id_path.mkdir()
-        with next_fn.open('w') as next_file:
-            next_file.write(str(next_id + 1))
+        with permissions.PermissionsManager(next_id_path, group, umask), \
+                permissions.PermissionsManager(next_fn, group, umask):
+            next_id_path.mkdir()
+            with next_fn.open('w') as next_file:
+                next_file.write(str(next_id + 1))
 
         return next_id, next_id_path
 
@@ -110,10 +115,11 @@ def select(id_dir: Path,
     """Takes the same arguments as 'select_from', except a directory to search
     from instead of a list of paths. Then picks from the files in that
     directory according to the given filter.
+
     :returns: A filtered, ordered list of transformed objects, and the list
               of untransformed paths.
-    Other arguments are as per select_from.
-    """
+
+    Other arguments are as per select_from."""
 
     return select_from(
         paths=id_dir.iterdir(),
@@ -135,6 +141,7 @@ def select_from(paths: Iterable[Path],
                 limit: int = None) -> (List[Any], List[Path]):
     """Return a list of test paths in the given id_dir, filtered, ordered, and
     potentially limited.
+
     :param paths: A list of paths to filter, order, and limit.
     :param transform: Function to apply to each path before applying filters
         or ordering. The filter and order functions should expect the type
@@ -214,7 +221,7 @@ def delete(id_dir: Path, filter_func: Callable[[Path], bool] = default_filter,
     msgs = []
 
     lock_path = id_dir.with_suffix('.lock')
-    with lockfile.LockFile(lock_path):
+    with lockfile.LockFile(lock_path, timeout=1):
         for path in select(id_dir=id_dir, filter_func=filter_func,
                            transform=transform)[1]:
             try:
