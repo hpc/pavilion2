@@ -7,6 +7,7 @@ import datetime as dt
 import grp
 import json
 import logging
+import pprint
 import re
 import subprocess
 import threading
@@ -18,14 +19,13 @@ from typing import Callable, Any
 import pavilion.result.common
 from pavilion import builder
 from pavilion import dir_db
-from pavilion import lockfile
 from pavilion import output
 from pavilion import result
 from pavilion import scriptcomposer
 from pavilion import utils
 from pavilion.permissions import PermissionsManager
 from pavilion.status_file import StatusFile, STATES
-from pavilion.test_config import variables, resolver
+from pavilion.test_config import variables
 from pavilion.test_config.file_format import TestConfigError
 
 
@@ -62,6 +62,7 @@ class TestRunNotFoundError(RuntimeError):
     """For when we try to find an existing test, but it doesn't exist."""
 
 
+# pylint: disable=protected-access
 def basic_attr(name, doc):
     """Create a basic attribute for the TestAttribute class. This
     will produce a property object with a getter and setter that
@@ -332,18 +333,17 @@ class TestRun(TestAttributes):
         """Create an new TestRun object. If loading an existing test
     instance, use the ``TestRun.from_id()`` method.
 
-:param pav_cfg: The pavilion configuration.
-:param dict config: The test configuration dictionary.
-:param builder.MultiBuildTracker build_tracker: Tracker for watching
-    and managing the status of multiple builds.
-:param variables.VariableSetManager var_man: The variable set manager for this
-    test.
-:param bool build_only: Only build this test run, do not run it.
-:param bool rebuild: After determining the build name, deprecate it and select
-    a new, non-deprecated build.
-:param int _id: The test id of an existing test. (You should be using
-    TestRun.load).
-"""
+    :param pav_cfg: The pavilion configuration.
+    :param dict config: The test configuration dictionary.
+    :param pavilion.build_tracker.MultiBuildTracker build_tracker: Tracker for
+        watching and managing the status of multiple builds.
+    :param variables.VariableSetManager var_man: The variable set manager for
+        this test.
+    :param bool build_only: Only build this test run, do not run it.
+    :param bool rebuild: After determining the build name, deprecate it and
+        select a new, non-deprecated build.
+    :param int _id: The test id of an existing test. (You should be using
+        TestRun.load)."""
 
         # Just about every method needs this
         self._pav_cfg = pav_cfg
@@ -356,6 +356,8 @@ class TestRun(TestAttributes):
 
         group, umask = self.get_permissions(pav_cfg, config)
 
+        self._validate_config()
+
         # Get an id for the test, if we weren't given one.
         if _id is None:
             id_tmp, run_path = dir_db.create_id_dir(tests_path, group, umask)
@@ -364,7 +366,7 @@ class TestRun(TestAttributes):
                 group=group, umask=umask)
 
             # Set basic attributes
-            self.id = id_tmp
+            self.id = id_tmp  # pylint: disable=invalid-name
             self.build_only = build_only
             self.complete = False
             self.created = dt.datetime.now()
@@ -478,6 +480,15 @@ class TestRun(TestAttributes):
 
         self.skipped = self._get_skipped()  # eval skip.
 
+    def _validate_config(self):
+        """Validate test configs, specifically those that are spack related."""
+
+        spack_path = self._pav_cfg.get('spack_path', None)
+        spack_enable = self.spack_enabled()
+        if spack_enable and spack_path is None:
+            raise TestRunError("Spack cannot be enabled without 'spack_path' "
+                               "being defined in the pavilion config.")
+
     @classmethod
     def load(cls, pav_cfg, test_id):
         """Load an old TestRun object given a test id.
@@ -498,14 +509,14 @@ class TestRun(TestAttributes):
 
         return TestRun(pav_cfg, config, _id=test_id)
 
-    def finalize(self, var_man):
+    def _finalize(self):
         """Resolve any remaining deferred variables, and generate the final
-        run script."""
+        run script.
 
-        self.var_man.undefer(new_vars=var_man)
+        DO NOT USE THIS DIRECTLY - Use the resolver finalize method, which
+            will call this.
+        """
 
-        self.config = resolver.TestConfigResolver.resolve_deferred(
-            self.config, self.var_man)
         self._save_config()
         # Save our newly updated variables.
         self.var_man.save(self._variables_path)
@@ -645,16 +656,11 @@ class TestRun(TestAttributes):
         """Load a saved test configuration."""
         config_path = test_path/'config'
 
-        # make lock
-        lock_path = test_path/'config.lockfile'
-        config_lock = lockfile.LockFile(lock_path)
-
         if not config_path.is_file():
             raise TestRunError("Could not find config file for test at {}."
                                .format(test_path))
 
         try:
-            config_lock.lock()
             with config_path.open('r') as config_file:
                 # Because only string keys are allowed in test configs,
                 # this is a reasonable way to load them.
@@ -665,8 +671,15 @@ class TestRun(TestAttributes):
         except (IOError, OSError) as err:
             raise TestRunError("Error reading config file '{}': {}"
                                .format(config_path, err))
-        finally:
-            config_lock.unlock()
+
+    def spack_enabled(self):
+        """Check if spack is being used by this test run."""
+
+        spack_build = self.config.get('build', {}).get('spack', {})
+        spack_run = self.config.get('run', {}).get('spack', {})
+        return (spack_build.get('install', [])
+                or spack_build.get('load', [])
+                or spack_run.get('load', []))
 
     def build(self, cancel_event=None):
         """Build the test using its builder object and symlink copy it to
@@ -798,7 +811,6 @@ class TestRun(TestAttributes):
         # Write the current time to the file. We don't actually use the contents
         # of the file, but it's nice to have another record of when this was
         # run.
-        import stat
         complete_path = self.path/self.COMPLETE_FN
         complete_tmp_path = complete_path.with_suffix('.tmp')
         with PermissionsManager(complete_tmp_path, self.group, self.umask), \
@@ -863,7 +875,6 @@ of result keys.
     test itself.
 :param IO[str] log_file: The file to save result logs to.
 """
-        import pprint
         if self.finished is None:
             raise RuntimeError(
                 "test.gather_results can't be run unless the test was run"
@@ -1121,6 +1132,35 @@ be set by the scheduler plugin as soon as it's known."""
             script.comment('Output the environment for posterity')
             script.command("declare -p")
 
+        if self.spack_enabled():
+            spack_commands = config.get('spack', {})
+            install_packages = spack_commands.get('install', [])
+            load_packages = spack_commands.get('load', [])
+
+            script.newline()
+            script.comment('Source spack setup script.')
+            script.command('source {}/share/spack/setup-env.sh'
+                           .format(self._pav_cfg.get('spack_path')))
+            script.newline()
+            script.command('spack env deactivate &>/dev/null')
+            script.comment('Activate spack environment.')
+            script.command('spack env activate -d .')
+            script.command('if [ -z $SPACK_ENV ]; then exit 1; fi')
+
+            if install_packages:
+                script.newline()
+                script.comment('Install spack packages.')
+                for package in install_packages:
+                    script.command('spack install -v --fail-fast {} || exit 1'
+                                   .format(package))
+
+            if load_packages:
+                script.newline()
+                script.comment('Load spack packages.')
+                for package in load_packages:
+                    script.command('spack load {} || exit 1'
+                                   .format(package))
+
         script.newline()
         cmds = config.get('cmds', [])
         if cmds:
@@ -1149,9 +1189,17 @@ be set by the scheduler plugin as soon as it's known."""
         if len(skip_reason_list) == 0:
             return False
         else:
-            self.status.set(STATES.SKIPPED, matches)
-            self.set_run_complete()
+            self.set_skipped(matches)
             return True
+
+    def set_skipped(self, reason: str):
+        """Set the test as skipped (and complete).
+        :param reason: Why the test is being skipped.
+        """
+
+        self.status.set(STATES.SKIPPED, reason)
+        self.skipped = True
+        self.set_run_complete()
 
     def _evaluate_skip_conditions(self):
         """Match grabs conditional keys from the config. It checks for
@@ -1165,12 +1213,12 @@ be set by the scheduler plugin as soon as it's known."""
 
         for key in not_if:
             # Skip any keys that were deferred.
-            if resolver.TestConfigResolver.was_deferred(key):
+            if variables.DeferredVariable.was_deferred(key):
                 continue
 
             for val in not_if[key]:
                 # Also skip deferred values.
-                if resolver.TestConfigResolver.was_deferred(val):
+                if variables.DeferredVariable.was_deferred(val):
                     continue
 
                 if not val.endswith('$'):
@@ -1184,13 +1232,13 @@ be set by the scheduler plugin as soon as it's known."""
         for key in only_if:
             match = False
 
-            if resolver.TestConfigResolver.was_deferred(key):
+            if variables.DeferredVariable.was_deferred(key):
                 continue
 
             for val in only_if[key]:
 
                 # We have to assume a match if one of the values is deferred.
-                if resolver.TestConfigResolver.was_deferred(val):
+                if variables.DeferredVariable.was_deferred(val):
                     match = True
                     break
 

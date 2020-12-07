@@ -9,7 +9,7 @@ from typing import Dict, Any, Callable, List
 
 from pavilion import system_variables
 from pavilion import utils
-from pavilion.series import SeriesInfo
+from pavilion.series_util import SeriesInfo
 from pavilion.test_run import TestAttributes, TestRun
 
 LOCAL_SYS_NAME = '<local_sys_name>'
@@ -58,19 +58,19 @@ def add_common_filter_args(target: str,
     ci_group = arg_parser.add_mutually_exclusive_group()
     ci_group.add_argument(
         '--complete', action='store_true', default=defaults['complete'],
-        help='Include only completed test runs. Default: {}'
-            .format(defaults['complete'])
+        help=('Include only completed test runs. Default: {}'
+              .format(defaults['complete']))
     )
     ci_group.add_argument(
         '--incomplete', action='store_true',
         default=defaults['incomplete'],
-        help='Include only test runs that are incomplete. Default: {}'
-            .format(defaults['complete'])
+        help=('Include only test runs that are incomplete. Default: {}'
+              .format(defaults['complete']))
     )
     arg_parser.add_argument(
         '-l', '--limit', type=int, default=defaults['limit'],
-        help="Max number of {} to display.  Default: {}"
-        .format(target, defaults['limit'])
+        help=("Max number of {} to display.  Default: {}"
+              .format(target, defaults['limit']))
 
     )
     arg_parser.add_argument(
@@ -90,8 +90,7 @@ def add_common_filter_args(target: str,
         '--newer-than', type=utils.hr_cutoff_to_datetime,
         default=defaults['newer_than'],
         help='As per older-than, but include only {} newer than the given'
-             'time.  Default: {}'
-             .format(target, defaults['newer_than'])
+             'time.  Default: {}'.format(target, defaults['newer_than'])
     )
     arg_parser.add_argument(
         '--sys-name', type=str, default=defaults['sys_name'],
@@ -108,10 +107,10 @@ def add_common_filter_args(target: str,
         arg_parser.add_argument(
             '--sort-by', type=str, default=defaults['sort_by'],
             choices=sort_options,
-            help="How to sort the {}. Ascending by default. Prepend a '-' to "
-                 "sort descending. This will also filter any items that "
-                 "don't have the sorted attribute. Default: {}"
-                 .format(target, defaults['sort_by'])
+            help=("How to sort the {}. Ascending by default. Prepend a '-' to "
+                  "sort descending. This will also filter any items that "
+                  "don't have the sorted attribute. Default: {}"
+                  .format(target, defaults['sort_by']))
         )
 
 
@@ -152,32 +151,32 @@ def add_test_filter_args(arg_parser: argparse.ArgumentParser,
 
     arg_parser.add_argument(
         '--name', default=defaults['name'],
-        help="Include only tests that match this name. Globbing wildcards are "
-             "allowed. Default: {}"
-             .format(defaults['name'])
+        help=("Include only tests that match this name. Globbing wildcards are "
+              "allowed. Default: {}"
+              .format(defaults['name']))
     )
     arg_parser.add_argument(
         '--show-skipped', action='store', choices=('yes', 'no', 'only'),
         default=defaults['show_skipped'],
-        help='Include skipped test runs.  Default: {}'
-             .format(defaults['show_skipped']))
+        help=('Include skipped test runs.  Default: {}'
+              .format(defaults['show_skipped'])))
 
     pf_group = arg_parser.add_mutually_exclusive_group()
     pf_group.add_argument(
         '--passed', action='store_true', default=defaults['passed'],
-        help='Include only passed test runs. Default: {}'
-             .format(defaults['passed'])
+        help=('Include only passed test runs. Default: {}'
+              .format(defaults['passed']))
     )
     pf_group.add_argument(
         '--failed', action='store_true', default=defaults['failed'],
-        help='Include only failed test runs. Default: {}'
-             .format(defaults['failed'])
+        help=('Include only failed test runs. Default: {}'
+              .format(defaults['failed']))
     )
     pf_group.add_argument(
         '--result-error', action='store_true',
         default=defaults['result_error'],
-        help='Include only test runs with a result error. Default: {}'
-            .format(defaults['result_error'])
+        help=('Include only test runs with a result error. Default: {}'
+              .format(defaults['result_error']))
     )
     arg_parser.add_argument(
         '--force-filter', default=False, action='store_true',

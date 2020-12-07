@@ -4,12 +4,13 @@ import subprocess
 import unittest
 from collections import defaultdict
 from html.parser import HTMLParser
+import shutil
 
 from pavilion import wget
 from pavilion.unittest import PavTestCase
 from pavilion.utils import flat_walk
 
-_SPHINX_PATH = distutils.spawn.find_executable('sphinx-build')
+_SPHINX_PATH = shutil.which('sphinx-build')
 _MIN_SPHINX_VERSION = (3, 0, 0)
 _HAS_SPHINX = None
 
@@ -191,9 +192,13 @@ class DocTests(PavTestCase):
 
         return bad_links, external_links
 
-    @unittest.skipIf(not has_sphinx(), "Could not find Sphinx.")
     def test_doc_build(self):
         """Build the documentation and check for warnings/errors."""
+
+        self.assertTrue(has_sphinx(),
+                        msg="Sphinx missing. All other doc tests will skip.\n"
+                            "See docs/README.md for instructions on setting "
+                            "up Sphinx for testing.")
 
         self.assertEqual(self.docs_build_ret, 0,
                          msg="Error building docs:\n{}"

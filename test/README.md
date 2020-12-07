@@ -43,6 +43,12 @@ If you need any special configuration for slurm, put it in a mode file in
 `data/pav_config_dir/modes/local_slurm.yaml`. The `_quick_test_cfg()` method 
 (see below) will include that as the slurm defaults.
 
+## Spack Setup
+There is a script `test/utils/spack_setup`, that installs and sets up a simple spack instance for 
+the spack tests running under Travis CI. Additionally, the install path for this instance is added 
+to the Travis `pavilion.yaml` found at `test/data/pav_cfg_dir/pavilion.yaml.travis-ci`, under the 
+config key `spack_path`.
+
 ## Adding Unit Tests
 To add a unit test, simply add a new module to the `tests/` directory and utilize the `unitest` 
 module. Here's an example:

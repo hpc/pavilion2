@@ -11,8 +11,8 @@ from typing import Dict, Callable, Any
 import lark
 import pavilion.expression_functions.common
 from pavilion import expression_functions as functions
-from .common import PavTransformer, ParserValueError
 from pavilion.utils import auto_type_convert
+from .common import PavTransformer, ParserValueError
 
 EXPR_GRAMMAR = r'''
 

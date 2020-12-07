@@ -87,6 +87,7 @@ Result Parser Class
 You first must define a Yapsy plugin class, as per the basic instructions.
 
 .. code-block:: python
+
     # This module has the module_wrapper base plugin class
     import pavilion.module_wrapper as module_wrapper
 
@@ -194,10 +195,10 @@ to change module loading behavior based on any variables available to the test.
 Version
 ^^^^^^^
 
-The 'version' argument to ``_load()``/``_unload``/``_swap`` is the version the
-user asks for in the modules section in the test config. For instance,
-``modules: ['gcc/2.2']``would result in '2.2' being passed. If the module
-doesn't have a version, that can either be because the module is
+The 'version' argument to ``_load()``/``_unload()``/``_swap()`` is the
+version the user asks for in the modules section in the test config. For
+instance, ``modules: ['gcc/2.2']`` would result in '2.2' being passed. If the
+module doesn't have a version, that can either be because the module is
 un-versioned, or because the user wants the default version.
 
 Adding to the Environment

@@ -6,9 +6,9 @@ from typing import List
 from pavilion import cmd_utils
 from pavilion import commands
 from pavilion import output
-from pavilion import result
 from pavilion import schedulers
-from pavilion.builder import MultiBuildTracker
+from pavilion import status_utils
+from pavilion.build_tracker import MultiBuildTracker
 from pavilion.output import fprint
 from pavilion.series import TestSeries
 from pavilion.test_run import TestRun
@@ -137,9 +137,9 @@ class RunCommand(commands.Command):
         series = TestSeries(pav_cfg, all_tests)
         self.last_series = series
 
-        res = self.check_result_format(all_tests)
+        res = cmd_utils.check_result_format(all_tests, self.errfile)
         if res != 0:
-            self._complete_tests(all_tests)
+            cmd_utils.complete_tests(all_tests)
             return res
 
         all_tests = [test for test in all_tests if not test.skipped]
@@ -152,11 +152,11 @@ class RunCommand(commands.Command):
             outfile=self.outfile,
             errfile=self.errfile)
         if res != 0:
-            self._complete_tests(all_tests)
+            cmd_utils.complete_tests(all_tests)
             return res
 
-        self._complete_tests([test for test in all_tests if
-                              test.build_only and test.build_local])
+        cmd_utils.complete_tests([test for test in all_tests if
+                                 test.build_only and test.build_local])
 
         wait = getattr(args, 'wait', None)
         report_status = getattr(args, 'status', False)
@@ -171,13 +171,15 @@ class RunCommand(commands.Command):
                     file=self.outfile, color=output.YELLOW)
             return 0
 
-        return series.run_tests(
-            pav_cfg=pav_cfg,
-            wait=wait,
-            report_status=report_status,
-            outfile=self.outfile,
-            errfile=self.errfile
-        )
+        res = series.run_tests(wait=wait)
+
+        if report_status:
+            status_utils.print_from_tests(
+                pav_cfg=pav_cfg,
+                tests=all_tests,
+                outfile=self.outfile)
+
+        return res
 
     def _get_tests(self, pav_cfg, args, mb_tracker, build_only=False,
                    local_builds_only=False):
@@ -235,35 +237,3 @@ class RunCommand(commands.Command):
 
             for test in tests:
                 sched.cancel_job(test)
-
-    @staticmethod
-    def _complete_tests(tests):
-        """Mark all of the given tests as complete. We generally do this after
-        an error has been encountered, or if it was only built.
-        :param [TestRun] tests: The tests to mark complete.
-        """
-
-        for test in tests:
-            test.set_run_complete()
-
-    def check_result_format(self, tests):
-        """Make sure the result parsers for each test are ok."""
-
-        rp_errors = []
-        for test in tests:
-
-            # Make sure the result parsers have reasonable arguments.
-            try:
-                result.check_config(test.config['result_parse'],
-                                    test.config['result_evaluate'])
-            except result.ResultError as err:
-                rp_errors.append((test, str(err)))
-
-        if rp_errors:
-            fprint("Result Parser configurations had errors:",
-                   file=self.errfile, color=output.RED)
-            for test, msg in rp_errors:
-                fprint(test.name, '-', msg, file=self.errfile)
-            return errno.EINVAL
-
-        return 0

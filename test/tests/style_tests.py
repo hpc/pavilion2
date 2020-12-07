@@ -43,9 +43,17 @@ def has_pylint():
 
 class StyleTests(PavTestCase):
 
+    def test_has_style(self):
+        """Check that we can perform style checking."""
+
+        self.assertTrue(has_pylint(),
+                        msg="Pylint is missing or has an insufficient version.")
+        self.assertTrue(_PYLINT_PATH, msg="pylint3 not found.")
+
     @unittest.skipIf(not _PYLINT_PATH, "pylint3 not found.")
     @unittest.skipIf(not has_pylint(), "pylint version insufficient.")
     def test_style(self):
+        """Perform style checking, if we can."""
 
         enabled = [
             'logging',
@@ -60,6 +68,7 @@ class StyleTests(PavTestCase):
             'missing-docstring',
             'consider-using-enumerate',
             'bad-builtin',
+            'raise-missing-from'
         ]
 
         cmd = [

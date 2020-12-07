@@ -1,11 +1,10 @@
 import io
-import io
 import os
 from pathlib import Path
 
 from pavilion import plugins
 from pavilion.series import TestSeries
-from pavilion.test_config import VariableSetManager
+from pavilion.test_config import VariableSetManager, TestConfigResolver
 from pavilion.test_run import TestRunError, TestRun
 from pavilion.unittest import PavTestCase
 
@@ -82,7 +81,8 @@ class TestRunTests(PavTestCase):
 
         test = TestRun(self.pav_cfg, config1)
         self.assert_(test.build())
-        test.finalize(VariableSetManager())
+
+        TestConfigResolver.finalize(test, VariableSetManager())
 
         self.assertEqual(test.run(), 0, msg="Test failed to run.")
 
@@ -92,7 +92,7 @@ class TestRunTests(PavTestCase):
         test = TestRun(self.pav_cfg, config2)
         self.assert_(test.build())
 
-        test.finalize(VariableSetManager())
+        TestConfigResolver.finalize(test, VariableSetManager())
 
         self.assertEqual(
             test.run(), 1,
@@ -113,7 +113,7 @@ class TestRunTests(PavTestCase):
 
         test = TestRun(self.pav_cfg, config3)
         self.assertTrue(test.build())
-        test.finalize(VariableSetManager())
+        TestConfigResolver.finalize(test, VariableSetManager())
         with self.assertRaises(TimeoutError,
                                msg="Test should have failed due "
                                    "to timeout. {}"):
@@ -223,8 +223,6 @@ class TestRunTests(PavTestCase):
         # And that the test paths are unique
         self.assertEqual(len(set(test_paths)),
                          len([p.resolve() for p in test_paths]))
-
-        self._is_softlink_dir(series.path)
 
         series2 = TestSeries.from_id(self.pav_cfg, series.sid)
         self.assertEqual(sorted(series.tests.keys()),

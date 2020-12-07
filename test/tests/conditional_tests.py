@@ -1,7 +1,7 @@
 from pavilion import plugins
 from pavilion import system_variables
 from pavilion import unittest
-from pavilion.test_config import VariableSetManager
+from pavilion.test_config import VariableSetManager, resolver
 
 
 class conditionalTest(unittest.PavTestCase):
@@ -154,7 +154,7 @@ class conditionalTest(unittest.PavTestCase):
             fin_sys = system_variables.SysVarDict(defer=False, unique=True)
             fin_var_man = VariableSetManager()
             fin_var_man.add_var_set('sys', fin_sys)
-            test.finalize(fin_var_man)
+            resolver.TestConfigResolver.finalize(test, fin_var_man)
             self.assertTrue(test.skipped, msg="Now it should skip")
 
         test_list = []
@@ -193,8 +193,8 @@ class conditionalTest(unittest.PavTestCase):
                                                " with skip not assigned to"
                                                " the test.")
 
-            fin_sys = system_variables.SysVarDict(defer=False, unique=True)
+            fin_sys = system_variables.SysVarDict(unique=True)
             fin_var_man = VariableSetManager()
             fin_var_man.add_var_set('sys', fin_sys)
-            test.finalize(fin_var_man)
+            resolver.TestConfigResolver.finalize(test, fin_var_man)
             self.assertFalse(test.skipped, msg="Test Should NOT skip.")

@@ -115,10 +115,11 @@ def select(id_dir: Path,
     """Takes the same arguments as 'select_from', except a directory to search
     from instead of a list of paths. Then picks from the files in that
     directory according to the given filter.
+
     :returns: A filtered, ordered list of transformed objects, and the list
               of untransformed paths.
-    Other arguments are as per select_from.
-    """
+
+    Other arguments are as per select_from."""
 
     return select_from(
         paths=id_dir.iterdir(),
@@ -140,6 +141,7 @@ def select_from(paths: Iterable[Path],
                 limit: int = None) -> (List[Any], List[Path]):
     """Return a list of test paths in the given id_dir, filtered, ordered, and
     potentially limited.
+
     :param paths: A list of paths to filter, order, and limit.
     :param transform: Function to apply to each path before applying filters
         or ordering. The filter and order functions should expect the type
@@ -219,7 +221,7 @@ def delete(id_dir: Path, filter_func: Callable[[Path], bool] = default_filter,
     msgs = []
 
     lock_path = id_dir.with_suffix('.lock')
-    with lockfile.LockFile(lock_path):
+    with lockfile.LockFile(lock_path, timeout=1):
         for path in select(id_dir=id_dir, filter_func=filter_func,
                            transform=transform)[1]:
             try:

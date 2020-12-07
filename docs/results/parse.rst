@@ -31,36 +31,36 @@ Result parser plugins define their own configuration options, but many options
 are handled at a higher level. These options are available for every result
 parser, though some don't allow for any settings other than the default.
 
-`for_lines_matching <tests.results.parse.line_select>`_
+:ref:`for_lines_matching <results.parse.line_select>`
   A regular expression that tells Pavilion which
   lines in the file should be examined with the result parser.
 
   **Default:** match every line.
 
-`preceded_by <tests.results.parse.line_select>`_
+:ref:`preceded_by <results.parse.line_select>`
   A list of regular expressions used to match the series
   of lines before lines where we call the result parser.
 
   **Default:** No pre-conditions
 
-`match_select <tests.results.parse.match_select>`_
+:ref:`match_select <results.parse.match_select>`
   When multiple lines match, which is the result?
 
   **Default:** Use the first matched result.
 
-`files <tests.results.parse.files>`_
+:ref:`files <results.parse.files>`
   One or more filename globs (``*.txt``, ``test.out``) that selects which
   file to parse results from. These are relative to the test build directory
   (which is the working directory when the test runs).
 
   **Default:** '../run.log' (the run script output)
 
-`per_file <tests.results.parse.per_file>`_
+:ref:`per_file <results.parse.per_file>`
   What to do with results from multiple files.
 
   **Default:** Keep the results from the first file with matches.
 
-`action <tests.results.parse.action>`_
+:ref:`action <results.parse.action>`
   Manage the output type of the result parser.
 
   **Default:** Auto-convert to a numeric type, if possible.
@@ -296,7 +296,7 @@ Some 'per_file' settings bypass the action step, namely 'namelist', which
 doesn't store the value at all. Others, like 'all', will apply the 'action'
 before the 'all' calculation.
 
-.. _results.files:
+.. _results.parse.files:
 
 Files
 ~~~~~
@@ -341,7 +341,7 @@ depends on the **per\_file** attribute for the result parser.
                   files: '*.out'
                   per_file: # We'll demonstrate these settings below
 
-.. _results.per_file:
+.. _results.parse.per_file:
 
 per\_file: Manipulating Multiple File Results
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

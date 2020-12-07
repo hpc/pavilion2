@@ -119,7 +119,7 @@ class ResultsCommand(commands.Command):
                               color=output.RED, file=self.outfile)
                 return errno.EINVAL
 
-            width = shutil.get_terminal_size().columns
+            width = shutil.get_terminal_size().columns or 80
 
             try:
                 if args.json:
@@ -284,4 +284,3 @@ class ResultsCommand(commands.Command):
                     log_file.write("See results.json for updated results.\n")
 
         return True
-
