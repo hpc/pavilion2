@@ -401,8 +401,7 @@ class ShowCommand(commands.Command):
         """Show the variables of a config, each variable is displayed as a
         table."""
 
-        file = resolver.TestConfigResolver(pav_cfg)._find_config(conf_type,
-                                                                 cfg)
+        file = resolver.TestConfigResolver(pav_cfg).find_config(conf_type, cfg)
         with file.open() as config_file:
             cfg = file_format.TestConfigLoader().load(config_file)
 
@@ -451,7 +450,7 @@ class ShowCommand(commands.Command):
                 for idx in range(len(cfg['variables'][var])):
                     dict_data = {'index': idx}
                     for key, val in cfg['variables'][var][idx].items():
-                        if idx is 0:
+                        if idx == 0:
                             fields.append(key)
                         dict_data.update({key: val})
                     simple_vars.append(dict_data)
@@ -470,7 +469,8 @@ class ShowCommand(commands.Command):
                                              compact=True), file=self.outfile)
             output.fprint("\n", file=self.outfile)
 
-    def show_configs_table(self, pav_cfg, args, conf_type):
+    def show_configs_table(self, pav_cfg, conf_type, errors=False,
+                           verbose=False):
         """Default config table, shows the config name and if it can be
         loaded."""
 
@@ -480,10 +480,10 @@ class ShowCommand(commands.Command):
         data = []
         col_names = ['name', 'summary']
 
-        if args.verbose:
+        if verbose:
             col_names.append('path')
 
-        if args.err:
+        if errors:
             col_names.append('path')
             col_names.append('err')
 
@@ -504,8 +504,8 @@ class ShowCommand(commands.Command):
     def show_full_config(self, pav_cfg, cfg_name, conf_type):
         """Show the full config of a given host/mode."""
 
-        file = resolver.TestConfigResolver(pav_cfg)._find_config(conf_type,
-                                                                 cfg_name)
+        file = resolver.TestConfigResolver(pav_cfg).find_config(conf_type,
+                                                                cfg_name)
         with file.open() as config_file:
             config_data = file_format.TestConfigLoader().load_raw(config_file)
 
@@ -522,22 +522,26 @@ class ShowCommand(commands.Command):
         """List all known host files."""
 
         if args.vars:
-            self.show_vars(pav_cfg, args.vars, args.sub_cmd)
+            self.show_vars(pav_cfg, args.vars, 'hosts')
         elif args.config:
-            self.show_full_config(pav_cfg, args.config, args.sub_cmd)
+            self.show_full_config(pav_cfg, args.config, 'hosts')
         else:
-            self.show_configs_table(pav_cfg, args, args.sub_cmd)
+            self.show_configs_table(pav_cfg, 'hosts',
+                                    verbose=args.verbose,
+                                    errors=args.err)
 
     @sub_cmd('mode')
     def _modes_cmd(self, pav_cfg, args):
         """List all known mode files."""
 
         if args.vars:
-            self.show_vars(pav_cfg, args.vars, args.sub_cmd)
+            self.show_vars(pav_cfg, args.vars, 'modes')
         elif args.config:
-            self.show_full_config(pav_cfg, args.config, args.sub_cmd)
+            self.show_full_config(pav_cfg, args.config, 'modes')
         else:
-            self.show_configs_table(pav_cfg, args, args.sub_cmd)
+            self.show_configs_table(pav_cfg, 'hosts',
+                                    verbose=args.verbose,
+                                    errors=args.err)
 
     @sub_cmd('mod', 'module', 'modules', 'wrappers')
     def _module_wrappers_cmd(self, _, args):
