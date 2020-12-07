@@ -506,8 +506,11 @@ class ShowCommand(commands.Command):
 
         file = resolver.TestConfigResolver(pav_cfg).find_config(conf_type,
                                                                 cfg_name)
-        with file.open() as config_file:
-            config_data = file_format.TestConfigLoader().load_raw(config_file)
+        config_data = None
+        if file is not None:
+            with file.open() as config_file:
+                config_data = file_format.TestConfigLoader()\
+                              .load_raw(config_file)
 
         if config_data is not None:
             output.fprint(pprint.pformat(config_data, compact=True),
