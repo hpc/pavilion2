@@ -160,16 +160,36 @@ class TestAttributes:
 
         attr_path = self.path/self.ATTR_FILE_NAME
 
+        attrs = {}
         if not attr_path.exists():
-            return
-
-        with attr_path.open() as attr_file:
-            try:
-                attrs = json.load(attr_file)
-            except (json.JSONDecodeError, OSError, ValueError, KeyError) as err:
-                raise TestRunError(
-                    "Could not load attributes file: \n{}"
-                    .format(err.args))
+            attrs = {
+                'build_only': None,
+                'build_name': None, # !!!!
+                'complete': (self.path/TestRun.COMPLETE_FN).exists(),
+                'created': utils.serialize_datetime(
+                    dt.datetime.utcfromtimestamp(self.path.stat().st_mtime)),
+                'finished': utils.serialize_datetime(
+                    dt.datetime.utcfromtimestamp(self.path.stat().st_mtime)),
+                'id': int(self.path.name),
+                'rebuild': False,
+                'result': None,
+                'skipped': None,
+                'started': utils.serialize_datetime(
+                    dt.datetime.utcfromtimestamp(self.path.stat().st_mtime)),
+                'suite_path': None,
+                'sys_name': None,
+                'user': self.path.owner(),
+                'uuid': None,
+            }
+        else:
+            with attr_path.open() as attr_file:
+                try:
+                    attrs = json.load(attr_file)
+                except (json.JSONDecodeError, OSError,
+                        ValueError, KeyError) as err:
+                    raise TestRunError(
+                        "Could not load attributes file: \n{}"
+                        .format(err.args))
 
         for key, val in attrs.items():
             deserializer = self.deserializers.get(key, lambda v: v)
