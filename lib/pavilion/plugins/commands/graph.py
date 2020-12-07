@@ -11,11 +11,9 @@ from pavilion import cmd_utils
 from pavilion import commands
 from pavilion import filters
 from pavilion import output
-from pavilion.commands import CommandError
 from pavilion.result.common import ResultError
 from pavilion.result.evaluations import check_evaluations, evaluate_results
 from pavilion.test_run import TestRun, TestRunError
-
 
 try:
     import matplotlib
@@ -28,8 +26,8 @@ try:
     HAS_MATPLOTLIB = True
 
 except ImportError:
-
     HAS_MATPLOTLIB = False
+    matplotlib = None
 
 DIMENSIONS_RE = re.compile(r'\d+x\d+')
 
@@ -40,30 +38,41 @@ class GraphCommand(commands.Command):
     def __init__(self):
         super().__init__(
             'graph',
-            description=("Command used to produce graph for a set of test "
-                         "results.\n\n"
-                         "Graph Command Instructions:\n"
-                         "  1. Determine which test run results you want to\n"
-                         "     graph. Provide these test runs specifically\n"
-                         "     using test IDs or filter test runs using the\n"
-                         "     built in test filtering flags.\n\n"
-                         "  2. Add the value to be used on the X axis using\n"
-                         "     the '--x' flag. Each value must be a plottable\n"
-                         "     key from a test run's result dictionary or any\n"
-                         "     valid evaluation using a key from a test run's\n"
-                         "     result dictionary.\n\n"
-                         "  3. Add all the values to be plotted on the Y\n"
-                         "     axis, each one should be preceded by a '--y'\n"
-                         "     flag. These again have to be valid result keys\n"
-                         "     or evaluations.\n\n"
-                         "  4. Labels for both the X axis and Y axis can be \n"
-                         "     added using the '--xlabel' and '--ylabel'\n"
-                         "     flags, respectively.\n\n"
-                         "  5. Specify the filename to use when storing the \n"
-                         "     generated graph using the '--filename' flag. \n"
-                         "     Note: The graph will be saved in the current\n"
-                         "     directory the user is in.\n"
-                         ),
+            description=(
+                "Produce a graph from a set of test results. Each x value for"
+                "each test run matched will be plotted. You can graph multiple "
+                "result values , but it's up to you to make sure units and the "
+                "plot as a whole makes sense. Wildcards in the x and y "
+                "specifiers can be used to plot more complicated graphs."
+                ".\n\n"
+                "Graph Command Instructions:\n"
+                "  1. Determine which test run results you want to\n"
+                "     graph. Provide these test runs specifically\n"
+                "     using test IDs or filter test runs using the\n"
+                "     built in test filtering flags. You can use the result"
+                "     command, which takes the same arguments, to narrow "
+                "     the results down.\n\n"
+                "  2. Add the values to be used on the X axis using\n"
+                "     the '-x' flag. Each value must be a numeric\n"
+                "     key from a test run's result dictionary or any\n"
+                "     valid evaluation using a key from a test run's\n"
+                "     result dictionary.\n\n"
+                "  3. Add all the values to be plotted on the Y\n"
+                "     axis, each one should be preceded by a '-y'\n"
+                "     flag. These again have to be valid result keys\n"
+                "     or evaluations.\n\n"
+                "  4. Labels for both the X axis and Y axis can be \n"
+                "     added using the '--xlabel' and '--ylabel'\n"
+                "     flags, respectively.\n\n"
+                "  5. Specify the filename to use when storing the \n"
+                "     generated graph using the '--outfile' flag. \n"
+                "     Note: The graph will be saved in the current\n"
+                "     directory the user is in.\n\n"
+                " X-axis and Y-axis specifiers can contain wildcards, just\n"
+                " like with result evaluations. For example, given a test\n"
+                " with per_file/per_node values, you could plot them by node\n"
+                " using '-x per_file.*.some_key' and '-y keys(per_file).'\n"
+                ),
             short_help="Produce a graph from a set of test results.",
             formatter_class=RawDescriptionHelpFormatter
         )
@@ -77,7 +86,7 @@ class GraphCommand(commands.Command):
             help='Specific Test Ids to graph. '
         )
         parser.add_argument(
-            '--filename', action='store', required=True,
+            '--outfile', '-o', action='store', required=True,
             help='Desired name of graph when saved to PNG.'
         )
         parser.add_argument(
@@ -85,12 +94,12 @@ class GraphCommand(commands.Command):
             help='Exclude specific Test Ids from the graph.'
         )
         parser.add_argument(
-            '--y', action='append', required=True,
+            '--y', '-y', action='append', required=True,
             help='Specify the value(s) graphed from the results '
                  'for each test.'
         )
         parser.add_argument(
-            '--x', action='store', required=True,
+            '--x', '-x', action='store', required=True,
             help='Specify the value to be used on the X axis.'
         )
         parser.add_argument(
@@ -111,7 +120,7 @@ class GraphCommand(commands.Command):
         )
 
     def run(self, pav_cfg, args):
-        """"""
+        """Create a graph."""
 
         if not HAS_MATPLOTLIB:
             output.fprint(
@@ -215,15 +224,15 @@ class GraphCommand(commands.Command):
         try:
             self.graph(args.xlabel, args.ylabel, y_evals, graph_data,
                        stats_dict, args.average, colormap,
-                       args.filename, args.dimensions)
+                       args.outfile, args.dimensions)
         except PlottingError as err:
             output.fprint("Error while graphing data:\n{}".format(err),
                           file=self.errfile, color=output.RED)
             return errno.EINVAL
 
     def set_colors(self, y_evals, colors) -> Dict:
-        """
-        Set color for each y value to be plotted.
+        """Set color for each y value to be plotted.
+
         :param y_evals: y axis evaluations dictionary.
         :param colors: Tuple of colors from a matplotlib color map.
         :return: A dictionary with color lookups, by y value.
@@ -261,8 +270,7 @@ class GraphCommand(commands.Command):
         all_evals.update(x_eval)
 
         try:
-            evaluate_results(results=test_results, evaluations=all_evals,
-                             log=None)
+            evaluate_results(results=test_results, evaluations=all_evals)
         except ResultError as err:
             raise InvalidEvaluationError("Invalid graph evaluation for test "
                                          "{}:\n{}"
@@ -347,20 +355,21 @@ class GraphCommand(commands.Command):
         return graph_data
 
     def graph(self, xlabel, ylabel, y_evals, graph_data, stats_dict,
-              averages, colormap, filename, dimensions):
+              averages, colormap, outfile, dimensions):
         """
         Graph the data collected from all test runs provided. Graph_data has
         formatted everything so you can graph every y value for each respective
         x value in a single pass.
         :param xlabel: Label for the graph's x-axis.
         :param ylabel: Label for the graph's y-axis.
+        :param y_evals: Y axis eval strings.
         :param graph_data: Data to be plotted on the graph. Expects a nested
         dictionary.
         :param stats_dict:
         :param averages: List of evaluations to plot averages of.
         :param colormap: dictionary of colors mapped to expected y value
         evaluations.
-        :param filename: String name to save graph as.
+        :param outfile: String name to save graph as.
         :param dimensions: String representing desired graph dimension in a
         'width x height' format.
         :return:
@@ -386,8 +395,8 @@ class GraphCommand(commands.Command):
                                         "un-plottable values.\n"
                                         "X list: {}\n"
                                         "Y list: {}\n"
-                                        .format(evaluations['x'],
-                                                evaluations[evl],
+                                        .format(eval_dict,
+                                                y_evals[evl],
                                                 x_list,
                                                 y_list))
 
@@ -414,9 +423,9 @@ class GraphCommand(commands.Command):
             width, height = dimensions.split('x')
             fig.set_size_inches(float(width), float(height))
 
-        fig.savefig(filename)
+        fig.savefig(outfile)
         output.fprint("Completed. Graph saved as '{}.png'."
-                      .format(filename), color=output.GREEN, file=self.outfile)
+                      .format(outfile), color=output.GREEN, file=self.outfile)
 
 
 class ResultTypeError(RuntimeError):
@@ -425,6 +434,7 @@ class ResultTypeError(RuntimeError):
 
 class InvalidEvaluationError(RuntimeError):
     """Raise when evaluations result in some error."""
+
 
 class PlottingError(RuntimeError):
     """Raise when something goes wrong when graphing"""
