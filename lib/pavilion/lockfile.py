@@ -109,27 +109,30 @@ lock regularly while it's in use for longer periods of time.
                     time.sleep(self.SLEEP_PERIOD)
                     continue
 
-                if expiration is None:
-                    _, _, expiration, _ = self.read_lockfile()
+                lock_stat = self._lock_path.stat()
+                _, _, expiration, _ = self.read_lockfile()
 
                 if expiration is None or expiration < time.time():
                     # The file is expired. Try to delete it.
                     try:
                         exp_file = self._lock_path.with_name(
-                            self._lock_path.name + '.expired'
-                        )
+                            self._lock_path.name + '.expired')
 
-                        with LockFile(exp_file):
+                        with LockFile(exp_file, timeout=1):
+
+                            # Make sure it's the same file as before we checked
+                            # the expiration.
+                            lock_stat2 = self._lock_path.stat()
+                            if (lock_stat.st_ino != lock_stat2.st_ino or
+                                    lock_stat.st_mtime != lock_stat2.st_mtime):
+                                continue
+
                             try:
                                 self._lock_path.unlink()
                             except OSError:
                                 pass
                     except TimeoutError:
-                        # Only try this once.
-                        expiration = time.time() + NEVER
-
-                else:
-                    time.sleep(self.SLEEP_PERIOD)
+                        pass
 
         if not acquired:
             raise TimeoutError("Lock on file '{}' could not be acquired."

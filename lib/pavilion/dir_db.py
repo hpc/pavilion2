@@ -1,10 +1,14 @@
 """Manage 'id' directories. The name of the directory is an integer, which
 essentially serves as a filesystem primary key."""
 
+import json
 import os
 import shutil
+import time
+import logging
 from pathlib import Path
-from typing import Callable, List, Iterable, Any
+from typing import Callable, List, Iterable, Any, Dict, NewType
+from collections import namedtuple
 
 from pavilion import lockfile
 from pavilion import permissions
@@ -13,6 +17,12 @@ ID_DIGITS = 7
 ID_FMT = '{id:0{digits}d}'
 
 PKEY_FN = 'next_id'
+
+
+LOGGER = logging.getLogger(__file__)
+
+
+DBItem = namedtuple("DBItem", ['data', 'path'])
 
 
 def make_id_path(base_path, id_) -> Path:
@@ -103,6 +113,93 @@ def default_filter(_: Path) -> bool:
     """Pass every path."""
 
     return True
+
+
+Index = NewType("Index", Dict[int, Dict['str', Any]])
+
+
+def index(id_dir: Path, idx_name: str,
+          transform: Callable[[Path], Dict[str, Any]],
+          complete_key: str = None,
+          refresh_period: int = 2,
+          fn_base: int = 10) -> Index:
+    """Load and/or update an index of the given directory for the given
+    transform, and return it. The returned index is a dictionary by id of
+    the transformed data.
+
+    :param id_dir: The directory to index.
+    :param idx_name: The name of the index.
+    :param transform: A transformation function that produces a json
+        compatible dictionary.
+    :param complete_key: The key in the transformed dictionary that marks a
+        record as complete. If not given, the record is always assumed to be
+        complete. Incomplete records are recompiled every time the index is
+        updated (hopefully they will be complete eventually).
+    :param refresh_period: Only update the index if this much time (in seconds)
+        has passed since the last update.
+    :param fn_base: The integer base for dir_db.
+    """
+
+    idx_path = (id_dir/idx_name).with_suffix('.idx')
+
+    # Open and read the index if it exists. Any errors cause the index to
+    # regenerate from scratch.
+    if idx_path.exists():
+        with idx_path.open() as idx_file:
+            try:
+                idx = json.load(idx_file)
+                idx_stat = idx_path.stat()
+            except (OSError, json.JSONDecodeError) as err:
+                # In either error case, start from scratch.
+                LOGGER.warning(
+                    "Error reading index at '%s'. Regenerating from "
+                    "scratch. %s", idx_path.as_posix(), err.args[0])
+                idx = {}
+    else:
+        idx = {}
+
+    # If the index hasn't been updated lately (or is empty) do so.
+    # Small updates should happen unnoticeably fast, while full generation
+    # will take a bit.
+    if not idx or time.time() - idx_stat.st_mtime > refresh_period:
+        seen = []
+
+        for file in os.scandir(id_dir.as_posix()):
+
+            # Only directories with integer names are db entries.
+            if not file.is_dir():
+                continue
+
+            dir_ = Path(file)
+            try:
+                id_ = int(dir_.name, fn_base)
+            except ValueError:
+                continue
+
+            seen.append(id_)
+
+            # Skip entries that are known and complete.
+            if id_ in idx and idx[id_].get(complete_key, True):
+                continue
+
+            # Update incomplete or unknown entries.
+            try:
+                idx[id_] = transform(dir_)
+            except ValueError:
+                continue
+
+        # Delete entries that no longer exist.
+        for id_ in list(idx.keys()):
+            if id_ not in seen:
+                del idx[id_]
+
+        # Write our updated index atomically.
+        tmp_path = idx_path.with_suffix(idx_path.suffix + '.tmp')
+        with tmp_path.open('w') as tmp_file:
+            json.dump(idx, tmp_file)
+        tmp_path.rename(idx_path)
+
+    return idx
 
 
 def select(id_dir: Path,
