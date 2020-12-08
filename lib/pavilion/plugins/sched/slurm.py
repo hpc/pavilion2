@@ -1047,7 +1047,7 @@ class Slurm(schedulers.SchedulerPlugin):
     def _get_kickoff_script_header(self, test):
         """Get the kickoff header. Most of the work here """
 
-        sched_config = test.cfg[self.name]
+        sched_config = test.config[self.name]
 
         nodes = self.get_data()['nodes']
 
