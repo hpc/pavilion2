@@ -2,14 +2,13 @@
 
 import argparse
 import errno
-import os
+import pprint
 from typing import Union
 
 import pavilion.result.base
 import pavilion.result.common
 import yaml_config
 from pavilion import commands
-from pavilion.commands import sub_cmd
 from pavilion import config
 from pavilion import expression_functions
 from pavilion import module_wrapper
@@ -18,6 +17,7 @@ from pavilion import result
 from pavilion import schedulers
 from pavilion import status_file
 from pavilion import system_variables
+from pavilion.commands import sub_cmd
 from pavilion.result import parsers
 from pavilion.test_config import DeferredVariable
 from pavilion.test_config import file_format
@@ -94,11 +94,27 @@ class ShowCommand(commands.Command):
             description="Pavilion can support different default configs "
                         "depending on the host."
         )
+
         hosts_group = hosts.add_mutually_exclusive_group()
+        hosts_group.add_argument(
+            '--config', action='store', type=str, metavar='<host>',
+            help="Show full host config for desired host"
+        )
+
+        hosts_group.add_argument(
+            '--err', action='store_true', default=False,
+            help="Display any errors encountered while reading a host file."
+        )
+
+        hosts_group.add_argument(
+            '--vars', action='store', type=str, metavar='<host>',
+            help="Show defined variables for desired host config."
+        )
+
         hosts_group.add_argument(
             '--verbose', '-v',
             action='store_true', default=False,
-            help="Display paths to the host files"
+            help="Display paths to the host files."
         )
 
         modes = subparsers.add_parser(
@@ -108,11 +124,27 @@ class ShowCommand(commands.Command):
             description="Pavilion can support different default configs "
                         "depending on the mode that is specified."
         )
+
         modes_group = modes.add_mutually_exclusive_group()
+        modes_group.add_argument(
+            '--config', action='store', type=str, metavar='<mode>',
+            help="Show full mode config for desired mode."
+        )
+
+        modes_group.add_argument(
+            '--err', action='store_true', default=False,
+            help="Display any errors encountered while reading a mode file."
+        )
+
+        modes_group.add_argument(
+            '--vars', action='store', type=str, metavar='<mode>',
+            help="Show defined variables for desired mode config."
+        )
+
         modes_group.add_argument(
             '--verbose', '-v',
             action='store_true', default=False,
-            help="Display paths to mode files"
+            help="Display paths to mode files."
         )
 
         module_wrappers = subparsers.add_parser(
@@ -365,67 +397,154 @@ class ShowCommand(commands.Command):
                 title="Available Expression Functions"
             )
 
-    @sub_cmd('host')
-    def _hosts_cmd(self, pav_cfg, args):
-        """List all known host files."""
+    def show_vars(self, pav_cfg, cfg, conf_type):
+        """Show the variables of a config, each variable is displayed as a
+        table."""
 
-        hosts = []
-        col_names = ['Name']
-        if args.verbose:
-            col_names.append('Path')
-        for conf_dir in pav_cfg.config_dirs:
-            path = conf_dir / 'hosts'
+        file = resolver.TestConfigResolver(pav_cfg).find_config(conf_type, cfg)
+        with file.open() as config_file:
+            cfg = file_format.TestConfigLoader().load(config_file)
 
-            if not (path.exists() and path.is_dir()):
+        simple_vars = []
+        complex_vars = []
+        for var in cfg.get('variables').keys():
+            subvar = cfg['variables'][var]
+            if isinstance(subvar, list) and (len(subvar) > 1
+                                             or isinstance(subvar[0], dict)):
+                complex_vars.append(var)
                 continue
+            simple_vars.append({
+                'name':  var,
+                'value': cfg['variables'][var]
+            })
+        if simple_vars:
+            output.draw_table(
+                self.outfile,
+                field_info={},
+                fields=['name', 'value'],
+                rows=simple_vars,
+                title="Simple Variables"
+            )
 
-            for file in os.listdir(path.as_posix()):
-
-                file = path / file
-                if file.suffix == '.yaml' and file.is_file():
-                    host_id = file.stem
-                    host_path = file
-                    hosts.append({
-                        'Name': host_id,
-                        'Path': host_path
+        for var in complex_vars:
+            subvar = cfg['variables'][var][0]
+            # List of strings.
+            if isinstance(subvar, str):
+                simple_vars = []
+                for idx in range(len(cfg['variables'][var])):
+                    simple_vars.append({
+                        'index': idx,
+                        'value': cfg['variables'][var][idx]
                     })
+                output.draw_table(
+                    self.outfile,
+                    field_info={},
+                    fields=['index', 'value'],
+                    rows=simple_vars,
+                    title=var
+                )
+            # List of dicts.
+            elif len(subvar) < 10:
+                simple_vars = []
+                fields = ['index']
+                for idx in range(len(cfg['variables'][var])):
+                    dict_data = {'index': idx}
+                    for key, val in cfg['variables'][var][idx].items():
+                        if idx == 0:
+                            fields.append(key)
+                        dict_data.update({key: val})
+                    simple_vars.append(dict_data)
+                output.draw_table(
+                    self.outfile,
+                    field_info={},
+                    fields=fields,
+                    rows=simple_vars,
+                    title=var
+                )
+            else:
+                output.fprint(var, file=self.outfile)
+                output.fprint("(Showing as json due to the insane number of "
+                              "keys)", file=self.outfile)
+                output.fprint(pprint.pformat(cfg['variables'][var],
+                                             compact=True), file=self.outfile)
+            output.fprint("\n", file=self.outfile)
+
+    def show_configs_table(self, pav_cfg, conf_type, errors=False,
+                           verbose=False):
+        """Default config table, shows the config name and if it can be
+        loaded."""
+
+        configs = resolver.TestConfigResolver(pav_cfg).find_all_configs(
+            conf_type)
+
+        data = []
+        col_names = ['name', 'summary']
+
+        if verbose:
+            col_names.append('path')
+
+        if errors:
+            col_names.append('path')
+            col_names.append('err')
+
+        for name in configs:
+            data.append({
+                'name': name,
+                'summary': configs[name]['status'],
+                'path': configs[name]['path'],
+                'err': configs[name]['error']
+            })
 
         output.draw_table(
             self.outfile,
             fields=col_names,
-            rows=hosts
+            rows=data
         )
+
+    def show_full_config(self, pav_cfg, cfg_name, conf_type):
+        """Show the full config of a given host/mode."""
+
+        file = resolver.TestConfigResolver(pav_cfg).find_config(conf_type,
+                                                                cfg_name)
+        config_data = None
+        if file is not None:
+            with file.open() as config_file:
+                config_data = file_format.TestConfigLoader()\
+                              .load_raw(config_file)
+
+        if config_data is not None:
+            output.fprint(pprint.pformat(config_data, compact=True),
+                          file=self.outfile)
+        else:
+            output.fprint("No {} config found for "
+                          "{}.".format(conf_type.strip('s'), cfg_name))
+            return errno.EINVAL
+
+    @sub_cmd('host')
+    def _hosts_cmd(self, pav_cfg, args):
+        """List all known host files."""
+
+        if args.vars:
+            self.show_vars(pav_cfg, args.vars, 'hosts')
+        elif args.config:
+            self.show_full_config(pav_cfg, args.config, 'hosts')
+        else:
+            self.show_configs_table(pav_cfg, 'hosts',
+                                    verbose=args.verbose,
+                                    errors=args.err)
 
     @sub_cmd('mode')
     def _modes_cmd(self, pav_cfg, args):
         """List all known mode files."""
 
-        modes = []
-        col_names = ['Name']
-        if args.verbose:
-            col_names.append('Path')
-        for conf_dir in pav_cfg.config_dirs:
-            path = conf_dir / 'modes'
-
-            if not (path.exists() and path.is_dir()):
-                continue
-
-            for file in os.listdir(path.as_posix()):
-
-                file = path / file
-                if file.suffix == '.yaml' and file.is_file():
-                    mode_id = file.stem
-                    mode_path = file
-                    modes.append({
-                        'Name': mode_id,
-                        'Path': mode_path
-                    })
-
-        output.draw_table(
-            self.outfile,
-            fields=col_names,
-            rows=modes
-        )
+        if args.vars:
+            self.show_vars(pav_cfg, args.vars, 'modes')
+        elif args.config:
+            self.show_full_config(pav_cfg, args.config, 'modes')
+        else:
+            self.show_configs_table(pav_cfg, 'hosts',
+                                    verbose=args.verbose,
+                                    errors=args.err)
 
     @sub_cmd('mod', 'module', 'modules', 'wrappers')
     def _module_wrappers_cmd(self, _, args):
