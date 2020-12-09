@@ -80,7 +80,7 @@ def load_series_configs(pav_cfg, series_name: str, cl_modes: List[str],
                                                         series_name)
     if not series_file_path:
         raise SeriesConfigError('Cannot find series config: {}'.
-                                format(args.series_name))
+                                format(series_name))
 
     try:
         with series_file_path.open() as series_file:
