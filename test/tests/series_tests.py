@@ -56,10 +56,12 @@ class SeriesFileTests(PavTestCase):
         test_series_obj.run_series()
 
         # make sure test actually ends
-        time.sleep(2)
+        time.sleep(3)
 
         test_starts = []
         for test_id, test_obj in test_series_obj.tests.items():
+            from pavilion import output
+            output.dbg_print(test_obj.results, color=output.RED)
             test_starts.append(datetime.strptime(test_obj.results['started'],
                                                  '%Y-%m-%d %H:%M:%S.%f'))
 
