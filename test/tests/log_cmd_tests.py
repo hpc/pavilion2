@@ -37,7 +37,7 @@ class LogCmdTest(PavTestCase):
 
         # test `pav log run test`
         args = parser.parse_args(['run', str(test.id)])
-        self.assertEqual(args.test, test.id)
+        self.assertEqual(args.ts_id, str(test.id))
 
         out = io.StringIO()
         err = io.StringIO()

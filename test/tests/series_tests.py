@@ -56,7 +56,7 @@ class SeriesFileTests(PavTestCase):
         test_series_obj.run_series()
 
         # make sure test actually ends
-        time.sleep(2)
+        time.sleep(3)
 
         test_starts = []
         for test_id, test_obj in test_series_obj.tests.items():
