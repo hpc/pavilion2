@@ -141,17 +141,18 @@ def get_mime_type(path):
     return category, subtype
 
 
-def serialize_datetime(when: dt.datetime) -> str:
-    """Return a serialized datetime string."""
-
-    return when.isoformat(" ")
-
-
-def deserialize_datetime(when_str: str) -> dt.datetime:
+def deserialize_datetime(when) -> float:
     """Return a datetime object from a serialized representation produced
     by serialize_datetime()."""
 
-    return dt.datetime.strptime(when_str, "%Y-%m-%d %H:%M:%S.%f")
+    if isinstance(when, float):
+        return when
+
+    if isinstance(when, str):
+        when = dt.datetime.strptime(when, "%Y-%m-%d %H:%M:%S.%f")
+        return when.timestamp()
+
+    return 0
 
 
 def get_login():
@@ -252,8 +253,8 @@ def repair_symlinks(base: Path) -> None:
                 file.symlink_to(rel_target)
 
 
-def hr_cutoff_to_datetime(cutoff_time: str,
-                          _now: dt.datetime = None) -> Union[dt.datetime, None]:
+def hr_cutoff_to_ts(cutoff_time: str,
+                    _now: dt.datetime = None) -> Union[float, None]:
     """Convert a human readable datetime string to an actual datetime. The
     string can come in two forms:
 
@@ -310,11 +311,11 @@ def hr_cutoff_to_datetime(cutoff_time: str,
             raise ValueError("Invalid unit time unit '{}'".format(time_unit))
 
         try:
-            return now - delta
+            return (now - delta).timestamp()
         except OverflowError:
             # Make the assumption if the user asks for tests in the last
             # 10,000 year we just return the oldest possible datetime obj.
-            return dt.datetime(1, 1, 1)
+            return dt.datetime(1, 1, 1).timestamp()
 
     match = ts_regex.match(cutoff_time)
     if match is not None:
@@ -328,7 +329,7 @@ def hr_cutoff_to_datetime(cutoff_time: str,
                 parts[i] = defaults[i]
 
         try:
-            return dt.datetime(*parts)
+            return dt.datetime(*parts).timestamp()
         except ValueError as err:
             raise ValueError(
                 "Invalid time '{}':\n{}".format(cutoff_time, err.args[0])

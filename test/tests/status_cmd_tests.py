@@ -1,3 +1,6 @@
+import argparse
+import io
+
 from pavilion import commands
 from pavilion import plugins
 from pavilion import schedulers
@@ -5,9 +8,6 @@ from pavilion import status_file
 from pavilion.series import TestSeries
 from pavilion.test_config import file_format, VariableSetManager
 from pavilion.unittest import PavTestCase
-from pavilion.test_run import TestRun
-import argparse
-import io
 
 
 class StatusCmdTests(PavTestCase):

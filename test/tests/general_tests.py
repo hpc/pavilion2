@@ -9,6 +9,7 @@ from typing import List
 import yc_yaml as yaml
 from pavilion import utils
 from pavilion.unittest import PavTestCase
+from pavilion import test_run
 
 
 class GeneralTests(PavTestCase):
@@ -174,7 +175,31 @@ class GeneralTests(PavTestCase):
             else:
                 self.fail("Found unhandled file {}.".format(file))
 
+    def test_legacy_runs(self):
+        """Check loading of legacy run dirs."""
 
+        legacy_path = self.TEST_DATA_ROOT/'legacy'
+        runs_path = legacy_path/'runs.txt'
+        wdir = self.pav_cfg.working_dir
 
+        runs = []
+        with runs_path.open() as runs_file:
+            for line in runs_file:
+                line = line.strip()
+                if line and not line.startswith('#'):
+                    runs.append(line)
 
+        for run in runs:
+            run_path = legacy_path/run
+            dst_path = wdir/'test_runs'/run
+            shutil.copytree(run_path.as_posix(), dst_path.as_posix(),
+                            symlinks=True)
 
+            # Move the build directory into place
+            build_dst = Path(os.readlink((run_path/'build_origin').as_posix()))
+            build_dst = dst_path/build_dst
+            (dst_path/'build_dir').rename(build_dst)
+
+            test = test_run.TestRun.load(self.pav_cfg, int(run))
+            self.assertTrue(test.results)
+            self.assertTrue(test.complete)
