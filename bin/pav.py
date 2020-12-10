@@ -70,7 +70,6 @@ def main():
         try:
             path = path.expanduser()
             path.mkdir(exist_ok=True)
-            perm_man.set_perms(path)
         except OSError as err:
             output.fprint(
                 "Could not create base directory '{}': {}"
@@ -79,6 +78,12 @@ def main():
                 file=sys.stderr,
             )
             sys.exit(1)
+        
+        try:
+            perm_man.set_perms(path)
+        except OSError:
+            pass
+
 
     # Setup all the loggers for Pavilion
     if not log_setup.setup_loggers(pav_cfg):

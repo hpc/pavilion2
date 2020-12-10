@@ -291,10 +291,12 @@ def make_test_run_filter(
         if result_error and test_attrs.result != TestRun.ERROR:
             return False
 
-        if older_than is not None and test_attrs.created > older_than:
+        if older_than is not None and \
+            (test_attrs.created is None or test_attrs.created > older_than):
             return False
 
-        if newer_than is not None and test_attrs.created < newer_than:
+        if newer_than is not None and \
+            (test_attrs.created is None or test_attrs.created < newer_than):
             return False
 
         if name and not fnmatch.fnmatch(test_attrs.name, name):

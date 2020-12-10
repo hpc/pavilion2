@@ -109,7 +109,7 @@ class TestAttributes:
         'created': utils.deserialize_datetime,
         'finished': utils.deserialize_datetime,
         'started': utils.deserialize_datetime,
-        'suite_path': Path,
+        'suite_path': lambda p: Path(p) if p is not None else None,
     }
 
     def __init__(self, path: Path, group: str = None, umask: int = None):
@@ -164,7 +164,7 @@ class TestAttributes:
         if not attr_path.exists():
             attrs = {
                 'build_only': None,
-                'build_name': None, # !!!!
+                'build_name': None, 
                 'complete': (self.path/TestRun.COMPLETE_FN).exists(),
                 'created': utils.serialize_datetime(
                     dt.datetime.utcfromtimestamp(self.path.stat().st_mtime)),
