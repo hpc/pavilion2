@@ -448,7 +448,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
     def _now():
         """Convenience method for getting a reasonable current time object."""
 
-        return datetime.datetime.now()
+        return
 
     def available(self):
         """Returns true if this scheduler is available on this host.

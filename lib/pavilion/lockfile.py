@@ -109,7 +109,11 @@ lock regularly while it's in use for longer periods of time.
                     time.sleep(self.SLEEP_PERIOD)
                     continue
 
-                lock_stat = self._lock_path.stat()
+                try:
+                    lock_stat = self._lock_path.stat()
+                except (FileNotFoundError, OSError):
+                    continue
+
                 _, _, expiration, _ = self.read_lockfile()
 
                 if expiration is None or expiration < time.time():
@@ -122,7 +126,11 @@ lock regularly while it's in use for longer periods of time.
 
                             # Make sure it's the same file as before we checked
                             # the expiration.
-                            lock_stat2 = self._lock_path.stat()
+                            try:
+                                lock_stat2 = self._lock_path.stat()
+                            except (FileNotFoundError, OSError):
+                                continue
+
                             if (lock_stat.st_ino != lock_stat2.st_ino or
                                     lock_stat.st_mtime != lock_stat2.st_mtime):
                                 continue
@@ -131,7 +139,7 @@ lock regularly while it's in use for longer periods of time.
                                 self._lock_path.unlink()
                             except OSError:
                                 pass
-                    except TimeoutError:
+                    except (TimeoutError, OSError, IOError):
                         pass
 
         if not acquired:

@@ -7,11 +7,12 @@ import shutil
 import time
 import logging
 from pathlib import Path
-from typing import Callable, List, Iterable, Any, Dict, NewType
-from collections import namedtuple
+from typing import Callable, List, Iterable, Any, Dict, NewType, \
+    Union, NamedTuple
 
 from pavilion import lockfile
 from pavilion import permissions
+from pavilion import output
 
 ID_DIGITS = 7
 ID_FMT = '{id:0{digits}d}'
@@ -20,9 +21,6 @@ PKEY_FN = 'next_id'
 
 
 LOGGER = logging.getLogger(__file__)
-
-
-DBItem = namedtuple("DBItem", ['data', 'path'])
 
 
 def make_id_path(base_path, id_) -> Path:
@@ -120,7 +118,7 @@ Index = NewType("Index", Dict[int, Dict['str', Any]])
 
 def index(id_dir: Path, idx_name: str,
           transform: Callable[[Path], Dict[str, Any]],
-          complete_key: str = None,
+          complete_key: str = 'complete',
           refresh_period: int = 2,
           fn_base: int = 10) -> Index:
     """Load and/or update an index of the given directory for the given
@@ -147,7 +145,7 @@ def index(id_dir: Path, idx_name: str,
     if idx_path.exists():
         with idx_path.open() as idx_file:
             try:
-                idx = json.load(idx_file)
+                idx = {int(k): v for k, v in json.load(idx_file).items()}
                 idx_stat = idx_path.stat()
             except (OSError, json.JSONDecodeError) as err:
                 # In either error case, start from scratch.
@@ -179,7 +177,7 @@ def index(id_dir: Path, idx_name: str,
             seen.append(id_)
 
             # Skip entries that are known and complete.
-            if id_ in idx and idx[id_].get(complete_key, True):
+            if id_ in idx and idx[id_].get(complete_key, False):
                 continue
 
             # Update incomplete or unknown entries.
@@ -196,48 +194,105 @@ def index(id_dir: Path, idx_name: str,
         # Write our updated index atomically.
         tmp_path = idx_path.with_suffix(idx_path.suffix + '.tmp')
         with tmp_path.open('w') as tmp_file:
-            json.dump(idx, tmp_file)
+            output.json_dump(idx, tmp_file)
         tmp_path.rename(idx_path)
 
     return idx
 
 
+SelectItems = NamedTuple("SelectItems", [('data', List[Dict[str, Any]]),
+                                         ('paths', List[Path])])
+
+
 def select(id_dir: Path,
            filter_func: Callable[[Any], bool] = default_filter,
-           transform: Callable[[Path], Any] = lambda v: v,
+           transform: Callable[[Path], Any] = None,
            order_func: Callable[[Any], Any] = None,
            order_asc: bool = True,
            fn_base: int = 10,
+           idx_complete_key: 'str' = 'complete',
+           use_index: Union[bool, str] = True,
            limit: int = None) -> (List[Any], List[Path]):
-    """Takes the same arguments as 'select_from', except a directory to search
-    from instead of a list of paths. Then picks from the files in that
-    directory according to the given filter.
+    """Filter and order found paths in the id directory based on the filter and
+    other parameters. If a transform is given, this will create an index of the
+    data returned by the transform to hasten this process.
 
+    :param id_dir: The director
+    :param transform: Function to apply to each path before applying filters
+        or ordering. The filter and order functions should expect the type
+        returned by this.
+    :param filter_func: A function that takes a directory, and returns whether
+        to include that directory. True -> include, False -> exclude
+    :param order_func: A function that returns a comparable value for sorting,
+        as per the list.sort keys argument. Items for which this returns
+        None are removed.
+    :param order_asc: Whether to sort in ascending or descending order.
+    :param use_index: The name of (and whether to use) an index. When this is
+        the literal 'True', the index name is pulled from the transform
+        function name. A string can also be given to manually specify the name.
+    :param idx_complete_key: The key used to identify directories as 'complete'
+        for indexing purposes. Incomplete directories will be re-indexed until
+        complete.
+    :param fn_base: Number base for file names. 10 by default, ensure dir name
+        is a valid integer.
+    :param limit: The max items to return. None denotes return all.
     :returns: A filtered, ordered list of transformed objects, and the list
               of untransformed paths.
+    """
+    if transform and use_index:
+        # Bwahaha - I'm checking that use_index is actually the singleton True,
+        # not anything else that might evaluate to True.
+        if use_index is True:
+            index_name = transform.__name__
+        else:
+            index_name = use_index
 
-    Other arguments are as per select_from."""
+        if index_name == '<lambda>':
+            raise RuntimeError(
+                "You must provide an index name using the 'use_index' "
+                "parameter when using a lambda function as the transform.")
 
-    return select_from(
-        paths=id_dir.iterdir(),
-        transform=transform,
-        filter_func=filter_func,
-        order_func=order_func,
-        order_asc=order_asc,
-        fn_base=fn_base,
-        limit=limit,
-    )
+        selected = []
+
+        idx = index(id_dir, index_name, transform,
+                    complete_key=idx_complete_key)
+        for id_, data in idx.items():
+            path = make_id_path(id_dir, id_)
+
+            if order_func is not None and order_func(data) is None:
+                continue
+
+            if not filter_func(data):
+                continue
+
+            selected.append((data, path))
+
+        if order_func is not None:
+            selected.sort(key=lambda d: order_func(d[0]), reverse=not order_asc)
+
+        return SelectItems(
+                [item[0] for item in selected][:limit],
+                [item[1] for item in selected][:limit])
+    else:
+        return select_from(
+            paths=id_dir.iterdir(),
+            transform=transform,
+            filter_func=filter_func,
+            order_func=order_func,
+            order_asc=order_asc,
+            fn_base=fn_base,
+            limit=limit)
 
 
 def select_from(paths: Iterable[Path],
                 filter_func: Callable[[Any], bool] = default_filter,
-                transform: Callable[[Path], Any] = lambda v: v,
+                transform: Callable[[Path], Any] = None,
                 order_func: Callable[[Any], Any] = None,
                 order_asc: bool = True,
                 fn_base: int = 10,
                 limit: int = None) -> (List[Any], List[Path]):
-    """Return a list of test paths in the given id_dir, filtered, ordered, and
-    potentially limited.
+    """Filter, order, and truncate the given paths based on the filter and
+    other parameters.
 
     :param paths: A list of paths to filter, order, and limit.
     :param transform: Function to apply to each path before applying filters
@@ -255,6 +310,9 @@ def select_from(paths: Iterable[Path],
     :returns: A filtered, ordered list of transformed objects, and the list
               of untransformed paths.
     """
+
+    if transform is None:
+        transform = lambda v: v
 
     selected = []
     for path in paths:
@@ -281,8 +339,9 @@ def select_from(paths: Iterable[Path],
     if order_func is not None:
         selected.sort(key=lambda d: order_func(d[0]), reverse=not order_asc)
 
-    return ([item[0] for item in selected][:limit],
-            [item[1] for item in selected][:limit])
+    return SelectItems(
+        [item[0] for item in selected][:limit],
+        [item[1] for item in selected][:limit])
 
 
 def paths_to_ids(paths: List[Path]) -> List[int]:
@@ -303,7 +362,7 @@ def paths_to_ids(paths: List[Path]) -> List[int]:
 
 
 def delete(id_dir: Path, filter_func: Callable[[Path], bool] = default_filter,
-           transform: Callable[[Path], Any] = lambda v: v,
+           transform: Callable[[Path], Any] = None,
            verbose: bool = False):
     """Delete all id directories in a given path that match the given filter.
     :param id_dir: The directory to iterate through.
@@ -320,7 +379,7 @@ def delete(id_dir: Path, filter_func: Callable[[Path], bool] = default_filter,
     lock_path = id_dir.with_suffix('.lock')
     with lockfile.LockFile(lock_path, timeout=1):
         for path in select(id_dir=id_dir, filter_func=filter_func,
-                           transform=transform)[1]:
+                           transform=transform).paths:
             try:
                 shutil.rmtree(path.as_posix())
             except OSError as err:

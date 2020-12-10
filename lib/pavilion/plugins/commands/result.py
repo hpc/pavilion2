@@ -137,22 +137,11 @@ class ResultsCommand(commands.Command):
             fields = self.BASE_FIELDS + args.key
             results = [test.results for test in tests]
 
-            def fix_timestamp(ts_str: str) -> str:
-                """Read the timestamp text and get a minimized,
-                formatted value."""
-                try:
-                    when = datetime.datetime.strptime(ts_str,
-                                                      '%Y-%m-%d %H:%M:%S.%f')
-                except ValueError:
-                    return ''
-
-                return output.get_relative_timestamp(when)
-
             output.draw_table(
                 outfile=self.outfile,
                 field_info={
-                    'started': {'transform': fix_timestamp},
-                    'finished': {'transform': fix_timestamp},
+                    'started': {'transform': output.get_relative_timestamp},
+                    'finished': {'transform': output.get_relative_timestamp},
                 },
                 fields=fields,
                 rows=results,

@@ -20,8 +20,8 @@ from pavilion import test_config
 from pavilion.build_tracker import MultiBuildTracker
 from pavilion import series_util
 from pavilion.status_file import STATES
-from pavilion.test_run import TestAttributes, TestConfigError, TestRunError, \
-    TestRun, TestRunNotFoundError
+from pavilion.test_run import TestConfigError, TestRunError, \
+    TestRun, TestRunNotFoundError, test_run_attr_transform
 
 LOGGER = logging.getLogger(__name__)
 
@@ -72,7 +72,7 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace) -> List[int]:
         if args.force_filter:
             tests = dir_db.select_from(
                 paths=test_paths,
-                transform=TestAttributes,
+                transform=test_run_attr_transform,
                 filter_func=filter_func,
                 order_func=order_func,
                 order_asc=order_asc,
@@ -85,12 +85,12 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace) -> List[int]:
     else:
         tests = dir_db.select(
             id_dir=pav_cfg.working_dir / 'test_runs',
-            transform=TestAttributes,
+            transform=test_run_attr_transform,
             filter_func=filter_func,
             order_func=order_func,
             order_asc=order_asc,
-            limit=limit)[0]
-        test_ids = [test.id for test in tests]
+            limit=limit).data
+        test_ids = [test['id'] for test in tests]
 
     return test_ids
 

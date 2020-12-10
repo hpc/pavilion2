@@ -587,7 +587,7 @@ differentiate it from test ids."""
         logger = logging.getLogger(cls.LOGGER_FMT.format(sid))
 
         tests = []
-        for path in dir_db.select(series_path)[0]:
+        for path in dir_db.select(series_path).paths:
             try:
                 test_id = int(path.name)
             except ValueError:
