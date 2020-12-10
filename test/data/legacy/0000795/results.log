@@ -1,0 +1,75 @@
+Gathering base results.
+  Base results:
+  {'created': '2020-07-28 16:50:52.034570',
+   'duration': 0.018265,
+   'finished': '2020-07-28 16:50:52.035368',
+   'fn': {},
+   'id': 795,
+   'job_id': 'myhost.place.org_21487',
+   'n': {},
+   'name': 'mounts.fe.hpctest',
+   'pav_result_errors': [],
+   'pav_version': '2.2',
+   'return_value': 0,
+   'sched': {'avail_mem': '120946',
+             'cpus': '36',
+             'free_mem': '120482',
+             'min_cpus': '36',
+             'min_mem': '131933.148',
+             'test_cmd': '',
+             'total_mem': '125821'},
+   'started': '2020-07-28 16:50:52.017103',
+   'sys_name': 'myhost',
+   'test_version': '0.0',
+   'user': 'somebody'}
+  Starting result parsing.
+  Got result parser configs:
+  {'command': {},
+   'constant': {},
+   'filecheck': {},
+   'ior_table': {},
+   'regex': {'nodes_missing_mounts': {'action': None,
+                                      'files': [],
+                                      'match_type': 'all',
+                                      'per_file': None,
+                                      'regex': '.*'},
+             'result': {'action': 'store_false',
+                        'files': [],
+                        'match_type': None,
+                        'per_file': None,
+                        'regex': '.*'}},
+   'table': {}}
+  ---------------
+  Parsing results for parser regex
+    Parsing value for key 'result'
+    Looking for files that match file globs: ['../run.log']
+    Found 1 matching files.
+    Results will be stored with action 'store_false'
+      Parsing for file '/usr/projects/hpctest/pav2/working_dir/test_runs/0000795/build/../run.log':
+      Raw parse result: 'None'
+      Stored value 'True' for file 'run.log'
+    Results for each found files:
+     - /usr/projects/hpctest/pav2/working_dir/test_runs/0000795/build/../run.log: True
+    Handling results for key 'result' on a per-file basis with per_file setting 'first'
+    first: Picked non-empty value 'True'
+    Parsing value for key 'nodes_missing_mounts'
+    Looking for files that match file globs: ['../run.log']
+    Found 1 matching files.
+    Results will be stored with action 'store'
+      Parsing for file '/usr/projects/hpctest/pav2/working_dir/test_runs/0000795/build/../run.log':
+      Raw parse result: '[]'
+      Stored value '[]' for file 'run.log'
+    Results for each found files:
+     - /usr/projects/hpctest/pav2/working_dir/test_runs/0000795/build/../run.log: []
+    Handling results for key 'nodes_missing_mounts' on a per-file basis with per_file setting 'first'
+    first: Picked non-empty value '[]'
+  Parsing results for parser table
+  Parsing results for parser constant
+  Parsing results for parser command
+  Parsing results for parser filecheck
+  Parsing results for parser ior_table
+Evaluating result evaluations.
+Resolving evaluations.
+Finished resolving expressions
+Set final result key to: 'PASS'
+See results.json for the final result json.

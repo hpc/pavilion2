@@ -1,4 +1,3 @@
-import datetime
 import os
 import signal
 import socket
@@ -143,12 +142,12 @@ class Raw(SchedulerPlugin):
 
         host, pid = test.job_id.rsplit('_', 1)
 
-        now = datetime.datetime.now()
+        now = time.time()
 
         local_host = socket.gethostname()
         if host != local_host:
             return StatusInfo(
-                when=now,
+                when=time.time(),
                 state=STATES.SCHEDULED,
                 note=(
                     "Can't determine the scheduler status of a 'raw' "

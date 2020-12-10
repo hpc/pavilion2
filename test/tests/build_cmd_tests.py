@@ -77,6 +77,7 @@ class BuildCmdTests(PavTestCase):
         self.assertEqual(len(build_names), 2)
 
         for test in build_cmd.last_tests:
+
             self.assertEqual(test.status.current().state, STATES.BUILD_DONE,
                              msg='Test {} status: {}'
                              .format(test.id, test.status.current()))
