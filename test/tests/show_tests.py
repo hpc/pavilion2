@@ -2,7 +2,6 @@ from pavilion import unittest
 from pavilion import arguments
 from pavilion import plugins
 from pavilion import commands
-import io
 
 
 class ShowTests(unittest.PavTestCase):
@@ -18,8 +17,12 @@ class ShowTests(unittest.PavTestCase):
             ('show', 'functions', '--detail', 'int'),
             ('show', 'hosts'),
             ('show', 'hosts', '--verbose'),
+            ('show', 'hosts', '--vars', 'this'),
+            ('show', 'hosts', '--config', 'this'),
             ('show', 'modes'),
             ('show', 'modes', '--verbose'),
+            ('show', 'modes', '--vars', 'defaulted'),
+            ('show', 'modes', '--config', 'defaulted'),
             ('show', 'module_wrappers'),
             ('show', 'module_wrappers', '--verbose'),
             ('show', 'pav_vars'),
@@ -47,8 +50,7 @@ class ShowTests(unittest.PavTestCase):
         parser = arguments.get_parser()
 
         show_cmd = commands.get_command('show')
-        show_cmd.outfile = io.StringIO()
-        show_cmd.errfile = io.StringIO()
+        show_cmd.silence()
 
         for arg_list in arg_lists:
             args = parser.parse_args(arg_list)

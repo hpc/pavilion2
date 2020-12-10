@@ -9,9 +9,8 @@ class AutoSeries(commands.Command):
 
     def __init__(self):
         super().__init__(
-            name='_series',
-            description='Runs an existing series object.',
-            short_help='Runs an existing series object.',
+            '_series',
+            'Runs an existing series object.',
         )
 
     def _setup_arguments(self, parser):
