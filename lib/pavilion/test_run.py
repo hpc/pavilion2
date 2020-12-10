@@ -889,6 +889,8 @@ class TestRun(TestAttributes):
         if the test was never marked as complete."""
 
         run_complete_path = self.path/self.COMPLETE_FN
+        # This will force a meta-data update on the directory.
+        list(self.path.iterdir())
 
         if run_complete_path.exists():
             try:
