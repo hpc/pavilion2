@@ -140,21 +140,22 @@ def index(id_dir: Path, idx_name: str,
 
     idx_path = (id_dir/idx_name).with_suffix('.idx')
 
+    idx = Index({})
+
     # Open and read the index if it exists. Any errors cause the index to
     # regenerate from scratch.
     if idx_path.exists():
         with idx_path.open() as idx_file:
             try:
-                idx = {int(k): v for k, v in json.load(idx_file).items()}
+                idx = Index({int(k): v for k, v in json.load(idx_file).items()})
                 idx_stat = idx_path.stat()
             except (OSError, json.JSONDecodeError) as err:
                 # In either error case, start from scratch.
                 LOGGER.warning(
                     "Error reading index at '%s'. Regenerating from "
                     "scratch. %s", idx_path.as_posix(), err.args[0])
-                idx = {}
-    else:
-        idx = {}
+
+    changed = False
 
     # If the index hasn't been updated lately (or is empty) do so.
     # Small updates should happen unnoticeably fast, while full generation
@@ -182,20 +183,27 @@ def index(id_dir: Path, idx_name: str,
 
             # Update incomplete or unknown entries.
             try:
-                idx[id_] = transform(dir_)
+                new = transform(dir_)
             except ValueError:
                 continue
 
+            old = idx.get(id_)
+            if new != old:
+                changed = True
+                idx[id_] = new
+
         # Delete entries that no longer exist.
         for id_ in list(idx.keys()):
+            changed = True
             if id_ not in seen:
                 del idx[id_]
 
-        # Write our updated index atomically.
-        tmp_path = idx_path.with_suffix(idx_path.suffix + '.tmp')
-        with tmp_path.open('w') as tmp_file:
-            output.json_dump(idx, tmp_file)
-        tmp_path.rename(idx_path)
+        if changed:
+            # Write our updated index atomically.
+            tmp_path = idx_path.with_suffix(idx_path.suffix + '.tmp')
+            with tmp_path.open('w') as tmp_file:
+                output.json_dump(idx, tmp_file)
+            tmp_path.rename(idx_path)
 
     return idx
 
