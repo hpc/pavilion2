@@ -1,6 +1,7 @@
 """Manages the setup of various logging mechanisms for Pavilion."""
 
 import logging
+from logging import handlers
 import socket
 import sys
 import traceback
@@ -8,6 +9,7 @@ from pathlib import Path
 
 from pavilion import output
 from pavilion.lockfile import LockFile
+from pavilion.permissions import PermissionsManager
 
 
 class LockFileRotatingFileHandler(logging.Handler):
@@ -125,6 +127,8 @@ class LockFileRotatingFileHandler(logging.Handler):
             if dest_fn.exists():
                 dest_fn.unlink()
             self.file_name.rename(dest_fn)
+            self.file_name.touch()
+            self.file_name.chmod(0o660)
 
 
 # We don't want to have to look this up every time we log.
@@ -158,6 +162,9 @@ def setup_loggers(pav_cfg, verbose=False, err_out=sys.stderr):
     # Setup the new record factory.
     logging.setLogRecordFactory(record_factory)
 
+    perm_man = PermissionsManager(None, pav_cfg['shared_group'],
+                                  pav_cfg['umask'])
+
     # Put the log file in the lowest common pav config directory we can write
     # to.
     log_fn = pav_cfg.working_dir/'pav.log'
@@ -165,16 +172,14 @@ def setup_loggers(pav_cfg, verbose=False, err_out=sys.stderr):
     # than 1 MB.
     try:
         log_fn.touch()
+        perm_man.set_perms(log_fn)
     except (PermissionError, FileNotFoundError) as err:
         output.fprint("Could not write to pavilion log at '{}': {}"
                       .format(log_fn, err),
                       color=output.YELLOW,
                       file=err_out)
     else:
-        file_handler = LockFileRotatingFileHandler(
-            file_name=log_fn,
-            max_bytes=1024 ** 2,
-            backup_count=3)
+        file_handler = logging.FileHandler(filename=log_fn.as_posix())
         file_handler.setFormatter(logging.Formatter(pav_cfg.log_format,
                                                     style='{'))
         file_handler.setLevel(getattr(logging,
@@ -189,6 +194,7 @@ def setup_loggers(pav_cfg, verbose=False, err_out=sys.stderr):
     # Results will be logged to both the main log and the result log.
     try:
         pav_cfg.result_log.touch()
+        perm_man.set_perms(pav_cfg.result_log)
     except (PermissionError, FileNotFoundError) as err:
         output.fprint(
             "Could not write to result log at '{}': {}"
@@ -213,6 +219,7 @@ def setup_loggers(pav_cfg, verbose=False, err_out=sys.stderr):
     exc_logger = logging.getLogger('exceptions')
     try:
         pav_cfg.exception_log.touch()
+        perm_man.set_perms(pav_cfg.exception_log)
     except (PermissionError, FileNotFoundError) as err:
         output.fprint(
             "Could not write to exception log at '{}': {}"

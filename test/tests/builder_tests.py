@@ -3,6 +3,7 @@ import io
 import os
 import pathlib
 import shutil
+import stat
 import threading
 import time
 import unittest
@@ -205,6 +206,10 @@ class BuilderTests(PavTestCase):
                             msg="Missing {}".format(real))
             self.assertTrue(real.is_file(),
                             msg="{} is not a regular file.".format(real))
+            # Make sure the copied files are writable.
+            mode = real.stat().st_mode
+            self.assertTrue(mode & stat.S_IWGRP)
+            self.assertTrue(mode & stat.S_IWUSR)
 
         # Make sure the following exist, but are symlinks.
         sym_files = [

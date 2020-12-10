@@ -333,8 +333,8 @@ The default config is: ::
         test_cfgs = res.load([name], host, modes)
 
         tests = []
-        for test_cfg, var_man in test_cfgs:
-            test = TestRun(self.pav_cfg, test_cfg, var_man=var_man)
+        for ptest in test_cfgs:
+            test = TestRun(self.pav_cfg, ptest.config, var_man=ptest.var_man)
 
             if build:
                 test.build()
@@ -343,7 +343,7 @@ The default config is: ::
                 fin_sys = system_variables.SysVarDict(unique=True)
                 fin_var_man = VariableSetManager()
                 fin_var_man.add_var_set('sys', fin_sys)
-                test.finalize(fin_var_man)
+                res.finalize(test, fin_var_man)
 
             tests.append(test)
 
@@ -386,7 +386,9 @@ The default config is: ::
         if sched_vars is not None:
             var_man.add_var_set('sched', sched_vars)
 
-        cfg = resolver.TestConfigResolver.resolve_config(cfg, var_man)
+        var_man.resolve_references()
+
+        cfg = resolver.TestConfigResolver.resolve_test_vars(cfg, var_man)
 
         test = TestRun(
             pav_cfg=self.pav_cfg,
@@ -397,10 +399,10 @@ The default config is: ::
         if build:
             test.build()
         if finalize:
-            fin_sys = system_variables.SysVarDict(defer=False, unique=True)
+            fin_sys = system_variables.SysVarDict(unique=True)
             fin_var_man = VariableSetManager()
             fin_var_man.add_var_set('sys', fin_sys)
-            test.finalize(fin_var_man)
+            resolver.TestConfigResolver.finalize(test, fin_var_man)
         return test
 
     def wait_tests(self, working_dir: Path, timeout=5):
@@ -419,7 +421,8 @@ The default config is: ::
         end_time = time.time() + timeout
         while time.time() < end_time:
 
-            completed = [is_complete(test) for test in dir_db.select(runs_dir)]
+            completed = [is_complete(test)
+                         for test in dir_db.select(runs_dir)[0]]
 
             if not completed:
                 self.fail("No tests started.")
@@ -432,7 +435,7 @@ The default config is: ::
         else:
             raise TimeoutError(
                 "Waiting on tests: {}"
-                .format(test.name for test in dir_db.select(runs_dir)
+                .format(test.name for test in dir_db.select(runs_dir)[0]
                         if is_complete(test)))
 
 

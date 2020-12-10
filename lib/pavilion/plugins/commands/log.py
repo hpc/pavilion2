@@ -5,6 +5,7 @@ import errno
 from pavilion import commands
 from pavilion import output
 from pavilion import test_run
+from pavilion import series, series_config
 
 
 class LogCommand(commands.Command):
@@ -37,29 +38,36 @@ class LogCommand(commands.Command):
         subparsers.add_parser(
             'kickoff',
             help="Show a test's kickoff.log",
-            description="""Displays the kickoff log (kickoff.log)"""
+            description="Displays the kickoff log (kickoff.log)"
         )
 
         subparsers.add_parser(
             'build',
-            help = "Show a test's build.log",
-            description = """Displays the build log (build.log)"""
+            help="Show a test's build.log",
+            description="Displays the build log (build.log)"
         )
 
         subparsers.add_parser(
             'results',
-            help = "Show a test's results.log",
-            description = """Displays the results log (results.log)"""
+            help="Show a test's results.log",
+            description="Displays the results log (results.log)"
         )
 
-        parser.add_argument('test', type=int,
-                            help="Test number argument.")
+        subparsers.add_parser(
+            'series',
+            help="Show a series's output (series.out).",
+            description="Displays the series output (series.log)."
+        )
+
+        parser.add_argument('ts_id', type=str,
+                            help="Test number or series id (e.g. s7) argument.")
 
     LOG_PATHS = {
         'build': 'build.log',
         'kickoff': 'kickoff.log',
         'results': 'results.log',
         'run': 'run.log',
+        'series': 'series.out'
     }
 
     def run(self, pav_cfg, args):
@@ -72,9 +80,17 @@ class LogCommand(commands.Command):
             cmd_name = args.log_cmd
 
         try:
-            test = test_run.TestRun.load(pav_cfg, args.test)
+            if cmd_name == 'series':
+                test = series.TestSeries.from_id(pav_cfg, args.ts_id)
+            else:
+                test = test_run.TestRun.load(pav_cfg, int(args.ts_id))
         except test_run.TestRunError as err:
             output.fprint("Error loading test: {}".format(err),
+                          color=output.RED,
+                          file=self.errfile)
+            return 1
+        except series_config.SeriesConfigError as err:
+            output.fprint("Error loading series: {}".format(err),
                           color=output.RED,
                           file=self.errfile)
             return 1

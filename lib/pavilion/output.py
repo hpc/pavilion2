@@ -122,10 +122,11 @@ def clear_line(outfile):
     """Clear the last line written to output. Assumes the line ended with
     a \\r rather than a newline."""
 
-    size = shutil.get_terminal_size()
+    size = shutil.get_terminal_size().columns
+    size = 80 if size == 0 else size
 
     outfile.write('\r')
-    outfile.write(' '*size.columns)
+    outfile.write(' '*size)
     outfile.write('\r')
 
 
@@ -158,6 +159,7 @@ def fprint(*args, color=None, bullet='', width=0, wrap_indent=0,
 
     if width == 0:
         width = shutil.get_terminal_size().columns
+        width = 80 if width == 0 else width
 
     wrap_indent = ' '*wrap_indent
 
@@ -554,7 +556,7 @@ A more complicated example: ::
     # Add 2 dashes to each break line if we're padding the data
     brk_pad_extra = 2 if pad else 0
     horizontal_break = isep.join([hsep * (column_widths[field] + brk_pad_extra)
-                                 for field in fields])
+                                  for field in fields])
     if border:
         horizontal_break = isep + horizontal_break + isep
     horizontal_break += '\n'
@@ -731,6 +733,7 @@ def dt_calc_table_width(min_widths: Dict[str, int], pad: bool, border: bool,
     # Gets the effective window width.
     if table_width is None:
         table_width = shutil.get_terminal_size().columns
+        table_width = 80 if table_width == 0 else table_width
     table_width -= deco_size
 
     # Makes sure window is at least large enough to display our smallest

@@ -91,8 +91,9 @@ FLOAT: /\d+\.\d+/
 // This will be prioritized over 'NAME' matches
 BOOL.2: "True" | "False"
 
-// Names can be lower-case or capitalized, but must start with a letter.
-NAME.1: /[a-zA-Z][a-zA-Z0-9_]*/
+// Names can be lower-case or capitalized, but must start with a letter or 
+// underscore
+NAME.1: /[a-zA-Z_][a-zA-Z0-9_]*/
 
 // Ignore all whitespace between tokens. 
 %ignore  / +(?=[^.(])/
@@ -239,7 +240,7 @@ class ExpressionTransformer(PavTransformer):
 
         while or_items:
             next_tok = or_items.pop()
-            acc = self._apply_op(lambda a, b: a or b, base_tok, next_tok)
+            acc = self._apply_op(lambda a, b: bool(a or b), base_tok, next_tok)
             base_tok = merge_tokens([base_tok, next_tok], acc)
 
         return base_tok
@@ -258,7 +259,7 @@ class ExpressionTransformer(PavTransformer):
 
         while and_items:
             next_tok = and_items.pop()
-            acc = self._apply_op(lambda a, b: a and b, base_tok, next_tok)
+            acc = self._apply_op(lambda a, b: boo(a and b), base_tok, next_tok)
             base_tok = merge_tokens([base_tok, next_tok], acc)
 
         return base_tok
@@ -517,7 +518,6 @@ class ExpressionInterpreter(lark.visitors.Interpreter):
     order to generate the context needed for dynamically included variables.
     This is mainly (only at this time) because of list comprehensions; the
     right side of the comprehensions create values needed by the left side.
-
     This will resolve all variable references in the tree. It will also
     resolve and convert list comprehensions into a token with the resulting
     value (presumably a list).
@@ -634,6 +634,7 @@ class ResultEvalInterpreter(ExpressionInterpreter):
 
         if not key_parts:
             return convert(base)
+
 
         key_part = key_parts.pop(0)
         seen_parts = seen_parts + (key_part,)

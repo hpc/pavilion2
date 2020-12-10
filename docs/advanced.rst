@@ -28,6 +28,17 @@ set of slurm vars:
 
     $ pav run -m tester -f post_dst_tests.txt
 
+Test Series
+-----------
+
+A test series is a well defined group of tests that are designated to be
+run together. A series is created automatically whenever you use ``pav run``,
+but you can also explicitly define series using a
+``configs/series/<series_name>.yaml`` file. This allows you defined
+relationships and dependencies between the tests, among other things.
+
+See :ref:`tutorials.series`.
+
 Advanced Test Configs
 ---------------------
 
@@ -37,7 +48,6 @@ variables.
 
 Variables
 ~~~~~~~~~
-
 *Full Docs:* :ref:`tests.variables`
 
 Test configs can contain *expressions* within their config values that
@@ -64,16 +74,10 @@ contain numbers, dashes and underscores.
 
       run:
         cmds:
-          - "sleep {{var.sleep_time}}"
-          - 'echo "Slept {{sleep_time}} seconds on node {{sched.node_num}}."'
+          - "sleep {{var.sleep_time + 12}}"
+          - 'echo "Slept {{sleep_time + 12}} seconds on node
+             {{sched.node_num}}."'
 
-Expressions
-^^^^^^^^^^^
-
-*Full Docs:* :ref:`tests.variables`
-
-Expressions allow you to access and manipulate variable values and insert them
-into Pavilion configuration strings.
 
 -  Use double curly brackets ``{{var.myvar}}``.
 -  Variable category is optional. ``{{myvar}}`` is fine.
@@ -83,7 +87,7 @@ into Pavilion configuration strings.
 -  You'll also see ``{{myvar.2}}`` list references, ``{{myvar.foo}}``
    attribute references, and the combination of the two
    ``{{myvar.1.bar}}``.
--  These can also contain math and function calls: ``{{ foo + 1 / bar }}``
+
 
 Listing Variables
 ^^^^^^^^^^^^^^^^^
@@ -131,8 +135,8 @@ Expressions
 
 The double curly brace sections that can contain variables are really fully
 capable :ref:`tests.values.expressions`, and can contain math operations and
-function calls.
-Functions are provided via plugins.
+function calls. Functions are provided via
+:ref:`plugins <plugins.expression_functions>`.
 
 .. code-block:: yaml
 
@@ -379,6 +383,27 @@ have distinct module setups. For instance, one might wrap the gcc module
 such that it loads normally on some systems, but it performs a module swap
 on an odd system that loads a different compiler by default. This can allow
 for a single, host-agnostic set of tests.
+
+Spack Packages
+~~~~~~~~~~~~~~
+
+*Full Docs:* :ref:`tests.env.spack_packages`
+
+Pavilion can be configured to use Spack to build code or provide modules. This
+requires a working instance of Spack to be configured globally for Pavilion.
+
+.. code-block:: yaml
+
+    build:
+        spack:
+            install:
+                - ember
+            load:
+                - gcc
+    run:
+        spack:
+            load:
+                - ember
 
 Schedulers
 ----------

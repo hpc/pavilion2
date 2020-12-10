@@ -88,6 +88,19 @@ circumstances, and output an escape sequence when converted to a str.
             "Attempted to get the length of a deferred variable."
         )
 
+    DEFERRED_PREFIX = '!deferred!'
+
+    @classmethod
+    def was_deferred(cls, val):
+        """Return true if config item val was deferred when we tried to resolve
+        the config.
+
+        :param str val: The config value to check.
+        :rtype: bool
+        """
+
+        return val.startswith(cls.DEFERRED_PREFIX)
+
 
 class VariableSetManager:
     """This class manages the various sets of variables, provides complex key
@@ -358,21 +371,25 @@ index, sub_var) tuple.
                     if var_key[2] == '*':
                         # If the var references a whole list of items,
                         # make sure all are resolved.
-                        list_matches = [key for key in unresolved_vars
-                                        if (key[:2], key[3]) ==
-                                        (var_key[:2], var_key[3])]
-                        if list_matches:
-                            continue
+                        if [key for key in unresolved_vars
+                                if (key[:2], key[3]) ==
+                                (var_key[:2], var_key[3])]:
+                            break
                     else:
                         if var_key[2] is None:
-                            var_key = (var_key[0], var_key[1], 0, var_key[2])
+                            var_key = (var_key[0], var_key[1], 0, var_key[3])
 
                         if var_key in unresolved_vars:
                             break
                 else:
                     # All variables referenced in uvar are resolvable
                     var_set, var_name, index, sub_var = uvar
-                    res_val = transformer.transform(tree)
+
+                    try:
+                        res_val = transformer.transform(tree)
+                    except DeferredError:
+                        res_val = None
+
                     if res_val is None:
                         # One or more of the variables is deferred, so we can't
                         # resolve this now. Mark it as deferred.
@@ -432,29 +449,6 @@ index, sub_var) tuple.
 
         self.variable_sets[var_set].set_value(var, index, sub_var, value)
 
-    def is_deferred(self, key):
-        """Return whether the given variable is deferred. Fully specified
-        variables (with idx and sub_var set) may be deferred specifically
-        or in general at various levels.
-
-        :rtype: bool
-        """
-
-        var_set, var, idx, sub_var = self.resolve_key(key)
-
-        return ((var_set, var, None, None) in self.deferred or
-                (var_set, var, idx, None) in self.deferred or
-                (var_set, var, idx, sub_var) in self.deferred)
-
-    def any_deferred(self, key: Union[str, tuple]) -> bool:
-        """Return whether any members of the given variable are deferred."""
-
-        var_set, var, _, _ = self.resolve_key(key)
-
-        all_def_vars = [dkey[:2] for dkey in self.deferred]
-
-        return (var_set, var) in all_def_vars
-
     def set_deferred(self, var_set, var, idx=None, sub_var=None):
         """Set the given variable as deferred. Variables may be deferred
         as a whole, or as individual list or sub_var items.
@@ -466,10 +460,52 @@ index, sub_var) tuple.
             valued variables have an index of zero.
         :param Union(str, None) sub_var: The sub_variable name that is
             deferred.
-
         """
 
+        # There are three cases in what a deferred variable record may look
+        # like:
+        #
+        # 1. (var_set, var, None, None) - A single (simple) valued variable or
+        #    a generally deferred variable (like from sys or sched).
+        # 2. (var_set, var, #, None) - A specific simple valued variable.
+        # 3. (var_set, var, #, sub_var) - A specific subvar.
+
+        # Note there is no case where you have a subvar but not an index.
+        if idx is None and sub_var is not None:
+            idx = 0
+
         self.deferred.add((var_set, var, idx, sub_var))
+
+    def is_deferred(self, key):
+        """Return whether the given variable is deferred. Fully specified
+        variables (with idx and sub_var set) may be deferred specifically
+        or in general at various levels.
+
+        :rtype: bool
+        """
+
+        var_set, var, idx, sub_var = self.resolve_key(key)
+        # When the idx is None, check generally and against index 0.
+        if idx is None:
+            idx = 0
+
+        # See set_deferred for the cases...
+        return (
+            # This is generally deferred
+            (var_set, var, None, None) in self.deferred or
+            # A specific simple value.
+            (var_set, var, idx, None) in self.deferred or
+            # A specific sub-value.
+            (var_set, var, idx, sub_var) in self.deferred)
+
+    def any_deferred(self, key: Union[str, tuple]) -> bool:
+        """Return whether any members of the given variable are deferred."""
+
+        var_set, var, _, _ = self.resolve_key(key)
+
+        all_def_vars = [dkey[:2] for dkey in self.deferred]
+
+        return (var_set, var) in all_def_vars
 
     def len(self, var_set, var):
         """Get the length of the given key.
@@ -621,26 +657,26 @@ index, sub_var) tuple.
         # Now we have to go through the very specifically deferred variables
         # (an artifact of when we resolved variable value references)
         # and resolve them. This will look a lot like resolve_references
-        def_parsed = {key: parsers.parse_text(self[key], self) for key in
-                      self.deferred}
 
-        while def_parsed:
+        while self.deferred:
             resolved_any = False
-            for key, p_val in def_parsed.items():
-                for var in p_val.variables:
-                    if self.is_deferred(var):
-                        break
-                else:
-                    # This variable can be resolved.
-                    self._set_value(key, p_val.resolve(self))
-                    self.deferred.remove(key)
-                    del def_parsed[key]
-                    resolved_any = True
+            for def_key in self.deferred.copy():
+                var_set, var, index, sub_var = def_key
+                def_val = self.variable_sets[var_set].get(var, index, sub_var)
+
+                try:
+                    resolved = parsers.parse_text(def_val, self)
+                except DeferredError:
+                    continue
+
+                self._set_value(def_key, resolved)
+                self.deferred.remove(def_key)
+                resolved_any = True
 
             if not resolved_any:
                 raise VariableError(
                     "Reference loop in variable resolution for variables: {}."
-                    .format(list(def_parsed.keys()))
+                    .format(list(self.deferred))
                 )
 
     def __deepcopy__(self, memodict=None):

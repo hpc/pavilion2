@@ -13,10 +13,12 @@ from functools import wraps
 from pathlib import Path
 
 from pavilion import scriptcomposer
+from pavilion.permissions import PermissionsManager
 from pavilion.lockfile import LockFile
 from pavilion.status_file import STATES, StatusInfo
 from pavilion.test_config import file_format
 from pavilion.test_config.variables import DeferredVariable
+from pavilion.test_run import TestRun
 from pavilion.var_dict import VarDict, var_method, normalize_value
 from yapsy import IPlugin
 
@@ -456,7 +458,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
         raise NotImplementedError
 
-    def job_status(self, pav_cfg, test):
+    def job_status(self, pav_cfg, test) -> StatusInfo:
         """Get the job state from the scheduler, and map it to one of the
         on of the following states: SCHEDULED, SCHED_ERROR, SCHED_CANCELLED.
         This may also simply re-fetch the latest state from the state file,
@@ -465,7 +467,6 @@ class SchedulerPlugin(IPlugin.IPlugin):
         :param pav_cfg: The pavilion configuration.
         :param pavilion.test_run.TestRun test: The test we're checking on.
         :return: A StatusInfo object representing the status.
-        :rtype: pavilion.status_file.StatusInfo
         """
 
         raise NotImplementedError
@@ -505,7 +506,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
         path = (test.path/'kickoff')
         return path.with_suffix(self.KICKOFF_SCRIPT_EXT)
 
-    def _create_kickoff_script(self, pav_cfg, test_obj):
+    def _create_kickoff_script(self, pav_cfg, test_obj: TestRun):
         """Function to accept a list of lines and generate a script that is
         then submitted to the scheduler.
 
@@ -537,7 +538,8 @@ class SchedulerPlugin(IPlugin.IPlugin):
         script.command('pav _run {t.id}'.format(t=test_obj))
 
         path = self._kickoff_script_path(test_obj)
-        script.write(path)
+        with PermissionsManager(path, test_obj.group, test_obj.umask):
+            script.write(path)
 
         return path
 
@@ -570,9 +572,9 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
         job_id = test.job_id
         if job_id is None:
-            test.status.set(STATES.SCHED_CANCELLED, "Job was never started.")
             test.set_run_complete()
-            return StatusInfo(STATES.SCHED_CANCELLED, "Job was never started.")
+            return test.status.set(STATES.SCHED_CANCELLED,
+                                   "Job was never started.")
 
         return self._cancel_job(test)
 

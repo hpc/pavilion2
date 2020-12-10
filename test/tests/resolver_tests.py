@@ -3,6 +3,7 @@
 import copy
 import io
 import json
+import random
 
 from pavilion import arguments
 from pavilion import commands
@@ -34,35 +35,35 @@ class ResolverTests(PavTestCase):
 
         tests = self.resolver.load(['hello_world'], host='this')
         self.assertEqual(sorted(['narf', 'hello', 'world']),
-                         sorted([test['name'] for test, _ in tests]))
+                         sorted([ptest.config['name'] for ptest in tests]))
 
         tests = self.resolver.load(['hello_world.hello'], host='this')
-        hello, _ = tests.pop()
+        hello_cfg = tests[0].config
 
         # There should have only been 1
-        self.assertFalse(tests)
+        self.assertEqual(len(tests), 1)
         # Check some basic test attributes.
-        self.assertEqual(hello['scheduler'], 'raw')
-        self.assertEqual(hello['suite'], 'hello_world')
+        self.assertEqual(hello_cfg['scheduler'], 'raw')
+        self.assertEqual(hello_cfg['suite'], 'hello_world')
         # Make sure the variable from the host config got propagated.
-        self.assertIn('hosty', hello['variables'])
+        self.assertIn('hosty', hello_cfg['variables'])
 
         tests = self.resolver.load(['hello_world.narf'], host='this')
-        narf, _ = tests.pop()
+        narf_cfg = tests[0].config
         # Make sure this got overridden from 'world'
-        self.assertEqual(narf['scheduler'], 'dummy')
+        self.assertEqual(narf_cfg['scheduler'], 'dummy')
         # Make sure this didn't get lost.
-        self.assertEqual(narf['run']['cmds'], ['echo "Running World"'])
+        self.assertEqual(narf_cfg['run']['cmds'], ['echo "Running World"'])
 
     def test_loading_hidden(self):
         """Make sure we only get hidden tests when specifically requested."""
 
-        tests = self.resolver.load(['hidden'], 'this', [], {})
-        names = sorted([t['name'] for t, _ in tests])
+        tests = self.resolver.load(['hidden'], 'this', [])
+        names = sorted([t.config['name'] for t in tests])
         self.assertEqual(names, ['hello', 'narf'])
 
-        tests = self.resolver.load(['hidden._hidden'], 'this', [], {})
-        names = sorted([t['name'] for t, _ in tests])
+        tests = self.resolver.load(['hidden._hidden'], 'this', [])
+        names = sorted([t.config['name'] for t in tests])
         self.assertEqual(names, ['_hidden'])
 
     def test_layering(self):
@@ -84,9 +85,8 @@ class ResolverTests(PavTestCase):
                         [test],
                         host=host,
                         modes=modes)
-                    test_cfg, _ = tests[0]
                     self.assertEqual(
-                        test_cfg['summary'], answer,
+                        tests[0].config['summary'], answer,
                         msg="host: {}, test: {}, modes: {}"
                             .format(host, test, modes))
 
@@ -99,11 +99,11 @@ class ResolverTests(PavTestCase):
             modes=['defaulted'],
         )
 
-        test, _ = tests[0]
-        self.assertEqual(test['variables']['host_def'], ['host'])
-        self.assertEqual(test['variables']['mode_def'], ['mode'])
-        self.assertEqual(test['variables']['test_def'], ['test'])
-        self.assertNotIn('no_val', test['variables'])
+        cfg = tests[0].config
+        self.assertEqual(cfg['variables']['host_def'], ['host'])
+        self.assertEqual(cfg['variables']['mode_def'], ['mode'])
+        self.assertEqual(cfg['variables']['test_def'], ['test'])
+        self.assertNotIn('no_val', cfg['variables'])
 
         with self.assertRaises(TestConfigError):
             self.resolver.load(
@@ -121,18 +121,18 @@ class ResolverTests(PavTestCase):
             modes=['extended'],
         )
 
-        test, _ = tests[0]
-        self.assertEqual(test['variables']['long_base'],
+        cfg = tests[0].config
+        self.assertEqual(cfg['variables']['long_base'],
                          ['what', 'are', 'you', 'up', 'to', 'punk?'])
-        self.assertEqual(test['variables']['single_base'],
+        self.assertEqual(cfg['variables']['single_base'],
                          ['host', 'test', 'mode'])
-        self.assertEqual(test['variables']['no_base_mode'],
+        self.assertEqual(cfg['variables']['no_base_mode'],
                          ['mode'])
-        self.assertEqual(test['variables']['no_base'],
+        self.assertEqual(cfg['variables']['no_base'],
                          ['test'])
-        self.assertEqual(test['variables']['null_base_mode'],
+        self.assertEqual(cfg['variables']['null_base_mode'],
                          ['mode'])
-        self.assertEqual(test['variables']['null_base'],
+        self.assertEqual(cfg['variables']['null_base'],
                          ['test'])
 
     def test_apply_overrides(self):
@@ -164,18 +164,18 @@ class ResolverTests(PavTestCase):
             "summary={asdf",
         ]
 
-        cfgs = self.resolver.load(['hello_world'], 'this',
-                                  overrides=overrides)
+        proto_tests = self.resolver.load(['hello_world'], 'this',
+                                         overrides=overrides)
 
-        for cfg, _ in cfgs:
-            alt_cfg = copy.deepcopy(cfg)
+        for ptest in proto_tests:
+            alt_cfg = copy.deepcopy(ptest.config)
 
             # Make sure the overrides were applied
             self.assertEqual(alt_cfg['slurm']['num_nodes'], "3")
             self.assertEqual(alt_cfg['run']['cmds'], ['echo nope'])
             # Make sure other stuff wasn't changed.
-            self.assertEqual(cfg['build'], alt_cfg['build'])
-            self.assertEqual(cfg['run']['env'], alt_cfg['run']['env'])
+            self.assertEqual(ptest.config['build'], alt_cfg['build'])
+            self.assertEqual(ptest.config['run']['env'], alt_cfg['run']['env'])
 
         # Make sure we get appropriate errors in several bad key cases.
         for bad_override in bad_overrides:
@@ -273,13 +273,67 @@ class ResolverTests(PavTestCase):
         with self.assertRaises(TestConfigError):
             self.resolver.resolve_permutations(test, var_man)
 
+    def test_resolve_deferred(self):
+        """Make sure deeply nested deferred references are resolved
+        correctly"""
+
+        cfg = self._quick_test_cfg()
+
+        cfg['variables'] = {
+            'testa': '{{sys.host_name}}',
+            'testb': '{{testa}}',
+            'testc': ['{{testa}}', '{{testb}}'],
+            'testd': {
+                'd1': '{{testa}}',
+                'd2': '{{testc.1}}',
+            },
+            'teste': '{{testd.d1}}',
+            'testf': '{{testi}}',
+            'testg': '{{testh}}',
+            'testh': '{{testa}}',
+            'testi': '{{testg}}',
+            # Resolved, this will have four elements.
+            'testj': '{{len(sys.dumb_list.*)}}'
+        }
+
+        # Shuffle the dictionary order, to make sure order doesn't matter.
+        new_vars = {}
+        keys = list(cfg['variables'].keys())
+        random.shuffle(keys)
+        for key in keys:
+            new_vars[key] = cfg['variables'][key]
+        cfg['variables'] = new_vars
+
+        test = self._quick_test(cfg, 'deep_deferred')
+
+        host_name = test.var_man['sys.host_name']
+        # It looks nuts that these all resolve to the same basic thing, but
+        # what's important is that they get resolved at all.
+        expected = {
+            'testa': [host_name],
+            'testb': [host_name],
+            'testc': [host_name, host_name],
+            'testd': [{'d1': host_name, 'd2': host_name}],
+            'teste': [host_name],
+            'testf': [host_name],
+            'testg': [host_name],
+            'testh': [host_name],
+            'testi': [host_name],
+            'testj': ["4"]
+        }
+
+        vars = test.var_man.as_dict()['var']
+        for var in expected:
+            self.assertEqual(expected[var], vars[var],
+                             msg="Mismatch for var '{}'".format(var))
+
     def test_resolve_vars_in_vars(self):
         test = {
             'permute_on': ['fruit', 'snacks'],
             'variables': {
                 'fruit': ['apple', 'orange', 'banana'],
                 'snacks': ['{{fruit}}-x', '{{sys.soda}}'],
-                'stuff': 'y{{fruit}}-{{snacks}}'
+                'stuff': 'y{{fruit}}-{{snacks}}',
             }
         }
 
@@ -345,7 +399,7 @@ class ResolverTests(PavTestCase):
         fin_var_man = variables.VariableSetManager()
         fin_var_man.add_var_set('sys', undefered_sys_vars)
 
-        test.finalize(fin_var_man)
+        resolver.TestConfigResolver.finalize(test, fin_var_man)
 
         results = test.gather_results(test.run())
         test.save_results(results)
@@ -411,7 +465,7 @@ class ResolverTests(PavTestCase):
 
         # Make sure each of our permuted results is in the list of answers.
         for var_man in permuted:
-            out_test = self.resolver.resolve_config(test, var_man)
+            out_test = self.resolver.resolve_test_vars(test, var_man)
             self.assertIn(out_test, answers)
 
         # Make sure we can successfully disallow deferred variables in a
@@ -432,15 +486,15 @@ class ResolverTests(PavTestCase):
 
         with self.assertRaises(resolver.TestConfigError):
             # No deferred variables in the build section.
-            self.resolver.resolve_config(test, permuted[0])
+            self.resolver.resolve_test_vars(test, permuted[0])
 
     def test_env_order(self):
         """Make sure environment variables keep their order from the test
         config to the final run scripts."""
 
-        test_confs = self.resolver.load(['order'], host='this')
+        ptests = self.resolver.load(['order'], host='this')
 
-        test_conf, _ = test_confs[0]
+        test_conf = ptests[0].config
 
         test = self._quick_test(test_conf, "order")
 
@@ -475,7 +529,7 @@ class ResolverTests(PavTestCase):
     def test_command_inheritance(self):
         """Make sure command inheritance works as expected."""
 
-        test_cfgs = self.resolver.load(['cmd_inherit_extend'])
+        tests = self.resolver.load(['cmd_inherit_extend'])
 
         correct = {
             'test1': {
@@ -518,12 +572,11 @@ class ResolverTests(PavTestCase):
             }
         }
 
-        for config in test_cfgs:
-            test_cfg = config[0]
-            test_name = test_cfg.get('name')
+        for test in tests:
+            test_name = test.config.get('name')
 
             for sec in ['build', 'run']:
-                self.assertEqual(test_cfg[sec]['cmds'],
+                self.assertEqual(test.config[sec]['cmds'],
                                  correct[test_name][sec]['cmds'])
 
     def test_cmd_inheritance_layering(self):
@@ -578,7 +631,7 @@ class ResolverTests(PavTestCase):
                     answer = None
 
                     tests = self.resolver.load([test], host=host,modes=modes)
-                    test_cfg, _ = tests[0]
+                    test_cfg = tests[0].config
                     test_name = test_cfg.get('name')
                     for sec in ['build', 'run']:
                         self.assertEqual(test_cfg[sec]['cmds'],
@@ -590,7 +643,7 @@ class ResolverTests(PavTestCase):
         """Make sure version compatibility checks are working and populate the
         results.json file correctly."""
 
-        pav_version = PavVars.version(self)
+        pav_version = PavVars().version()
 
         arg_parser = arguments.get_parser()
         args = arg_parser.parse_args([
@@ -622,6 +675,7 @@ class ResolverTests(PavTestCase):
         run_cmd.run(self.pav_cfg, args)
 
         for test in run_cmd.last_tests:
+            test.wait(timeout=1)
             results = test.load_results()
             name = results['name']
             for key in expected_results[name].keys():

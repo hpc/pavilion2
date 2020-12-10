@@ -1,18 +1,16 @@
 """Given a pre-existing test run, runs the test in the scheduled
 environment."""
 
-import logging
 import traceback
 
-from pavilion import result
-from pavilion import output
 from pavilion import commands
+from pavilion import result
 from pavilion import schedulers
 from pavilion import system_variables
-from pavilion.test_config import VariableSetManager
-from pavilion.test_run import TestRun, TestRunError
-from pavilion.status_file import STATES
 from pavilion.permissions import PermissionsManager
+from pavilion.status_file import STATES
+from pavilion.test_config import VariableSetManager, TestConfigResolver
+from pavilion.test_run import TestRun, TestRunError
 
 
 class _RunCommand(commands.Command):
@@ -46,12 +44,13 @@ class _RunCommand(commands.Command):
             var_man = self._get_var_man(test, sched)
 
             try:
-                test.finalize(var_man)
+                TestConfigResolver.finalize(test, var_man)
             except Exception as err:
                 test.status.set(
                     STATES.RUN_ERROR,
-                    "Unexpected error finalizing test\n{}"
-                    .format(err.args[0]))
+                    "Unexpected error finalizing test\n{}\n"
+                    "See 'pav log kickoff {}' for the full error."
+                    .format(err.args[0], test.id))
                 raise
 
             try:
@@ -103,7 +102,8 @@ class _RunCommand(commands.Command):
         except Exception:
             test.status.set(STATES.RUN_ERROR,
                             "Unknown error getting pavilion variables at "
-                            "run time.")
+                            "run time. See'pav log kickoff {}' for the "
+                            "full error.".format(test.id))
             raise
 
         return var_man
@@ -143,7 +143,7 @@ class _RunCommand(commands.Command):
             try:
                 result.check_config(test.config['result_parse'],
                                     test.config['result_evaluate'])
-            except TestRunError as err:
+            except result.ResultError as err:
                 test.status.set(
                     STATES.RESULTS_ERROR,
                     "Error checking result parser configs: {}"
@@ -161,7 +161,8 @@ class _RunCommand(commands.Command):
             test.status.set(STATES.RESULTS_ERROR,
                             "Unexpected error parsing results: {}. (This is a "
                             "bug, you should report it.)"
-                            .format(err))
+                            "See 'pav log kickoff {}' for the full error."
+                            .format(err, test.id))
             raise
 
         try:

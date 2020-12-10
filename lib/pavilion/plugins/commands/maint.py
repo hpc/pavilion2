@@ -1,13 +1,12 @@
 """A command to (relatively) quickly list tests, series, and other (as yet
 undefined) bits."""
-
-
-from pavilion import commands
-from pavilion.commands import sub_cmd
-from pavilion import result
-from pavilion import output
-
 import errno
+
+import pavilion.result.common
+from pavilion import commands
+from pavilion import output
+from pavilion import result
+from pavilion.commands import sub_cmd
 
 
 class MaintCommand(commands.Command):
@@ -66,7 +65,7 @@ class MaintCommand(commands.Command):
 
         try:
             pruned = result.prune_result_log(pav_cfg.result_log, args.ids)
-        except result.ResultError as err:
+        except pavilion.result.common.ResultError as err:
             output.fprint(err.args[0], file=self.errfile, color=output.RED)
             return errno.EACCES
 

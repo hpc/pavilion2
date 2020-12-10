@@ -22,8 +22,11 @@ class LockFile:
 on what host and user created the lock, and have a built in expiration
 date. To be used in a 'with' context.
 
-:cvar int DEFAULT_EXPIRE: Time till file is considered stale, in seconds. (5
-    minute default)
+In general, you should use a short expire period if possible and '.renew()' the
+lock regularly while it's in use for longer periods of time.
+
+:cvar int DEFAULT_EXPIRE: Time till file is considered stale, in seconds. (3
+    seconds by default)
 :cvar int SLEEP_PERIOD: How long to sleep between lock attempts.
     This shouldn't be any less than 0.01 or so on a regular filesystem.
     0.2 is pretty reasonable for an nfs filesystem and sporadically used
@@ -31,7 +34,7 @@ date. To be used in a 'with' context.
 :cvar int LOCK_PERMS: Default lock permissions
 """
 
-    DEFAULT_EXPIRE = 60 * 60 * 5
+    DEFAULT_EXPIRE = 3
 
     SLEEP_PERIOD = 0.2
 
@@ -58,6 +61,7 @@ date. To be used in a 'with' context.
         self._timeout = timeout
         self._expire_period = expires_after
         self._group = None
+        self._last_renew = time.time()
 
         if group is not None:
             # This could error out, but should be checked by pavilion
@@ -80,7 +84,7 @@ date. To be used in a 'with' context.
 
         start = time.time()
         acquired = False
-        expires = None
+        expiration = None
         first = True
 
         # Try until we timeout (at least once).
@@ -102,32 +106,28 @@ date. To be used in a 'with' context.
 
             except (OSError, IOError):
                 if self._timeout is None:
+                    time.sleep(self.SLEEP_PERIOD)
                     continue
 
-                if expires is None:
-                    _, _, expires, _ = self.read_lockfile()
+                if expiration is None:
+                    _, _, expiration, _ = self.read_lockfile()
 
-                    if expires is None:
-                        expires = time.time() + NEVER
-
-                if expires < time.time():
+                if expiration is None or expiration < time.time():
                     # The file is expired. Try to delete it.
                     try:
                         exp_file = self._lock_path.with_name(
                             self._lock_path.name + '.expired'
                         )
 
-                        with LockFile(exp_file,
-                                      expires_after=NEVER):
+                        with LockFile(exp_file):
                             try:
                                 self._lock_path.unlink()
                             except OSError:
                                 pass
                     except TimeoutError:
-                        pass
+                        # Only try this once.
+                        expiration = time.time() + NEVER
 
-                    # Only try this once.
-                    expires = time.time() + NEVER
                 else:
                     time.sleep(self.SLEEP_PERIOD)
 
@@ -171,6 +171,21 @@ date. To be used in a 'with' context.
     def __enter__(self):
         return self.lock()
 
+    def renew(self):
+        """Renew a lockfile that's been acquired by touching the file. This
+        rate limits the renewal to not be overly stressful on the filesystem."""
+
+        now = time.time()
+
+        if self._timeout is None or self._last_renew + self._timeout/2 < now:
+            return
+
+        self._last_renew = now
+        try:
+            self._lock_path.touch()
+        except OSError:
+            pass
+
     @classmethod
     def _create_lockfile(cls, path, expires, lock_id, group_id=None):
         """Create and fill out a lockfile at the given path.
@@ -191,8 +206,7 @@ date. To be used in a 'with' context.
         path = str(path)
 
         file_num = os.open(path, os.O_EXCL | os.O_CREAT | os.O_RDWR)
-        expiration = time.time() + expires
-        file_note = ",".join([os.uname()[1], utils.get_login(), str(expiration),
+        file_note = ",".join([os.uname()[1], utils.get_login(), str(expires),
                               lock_id])
         file_note = file_note.encode('utf8')
         os.write(file_num, file_note)
@@ -219,7 +233,7 @@ these values if there was an error..
 """
 
         try:
-            with self._lock_path.open(mode='r') as lock_file:
+            with self._lock_path.open() as lock_file:
                 data = lock_file.read()
 
             try:
@@ -228,7 +242,12 @@ these values if there was an error..
             except ValueError:
                 LOGGER.warning("Invalid format in lockfile '%s': %s",
                                self._lock_path, data)
-                return None, None, None, None
+                return None, None, 0, None
+
+            try:
+                expiration = expiration + self._lock_path.stat().st_mtime
+            except OSError:
+                expiration = 0
 
         except (OSError, IOError):
             return None, None, None, None

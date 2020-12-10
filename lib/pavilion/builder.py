@@ -1,166 +1,46 @@
 """Contains the object for tracking multi-threaded builds, along with
 the TestBuilder class itself."""
 
-import datetime
 import glob
 import hashlib
 import io
-import logging
 import os
 import shutil
 import subprocess
+import stat
 import tarfile
 import threading
 import time
 import urllib.parse
-from collections import defaultdict
 from pathlib import Path
 from typing import Union
+from concurrent.futures import ThreadPoolExecutor
 
 from pavilion import extract
 from pavilion import lockfile
 from pavilion import utils
 from pavilion import wget
+from pavilion.build_tracker import MultiBuildTracker
 from pavilion.permissions import PermissionsManager
 from pavilion.status_file import STATES
+from pavilion.test_config.spack import SpackEnvConfig
 
 
 class TestBuilderError(RuntimeError):
     """Exception raised when builds encounter an error."""
 
 
-class MultiBuildTracker:
-    """Allows for the central organization of multiple build tracker objects.
-
-        :ivar {StatusFile} status_files: The dictionary of status
-            files by build.
-    """
-
-    def __init__(self, log=True):
-        """Setup the build tracker.
-
-        :param bool log: Whether to also log messages in some instances.
-        """
-
-        # A map of build tokens to build names
-        self.messages = {}
-        self.status = {}
-        self.status_files = {}
-        self.lock = threading.Lock()
-
-        self.logger = None
-        if log:
-            self.logger = logging.getLogger(__name__)
-
-    def register(self, builder, test_status_file):
-        """Register a builder, and get your own build tracker.
-
-        :param TestBuilder builder: The builder object to track.
-        :param status_file.StatusFile test_status_file: The status file object
-            for the corresponding test.
-        :return: A build tracker instance that can be used by builds directly.
-        :rtype: BuildTracker
-        """
-
-        with self.lock:
-            self.status_files[builder] = test_status_file
-            self.status[builder] = None
-            self.messages[builder] = []
-
-        tracker = BuildTracker(builder, self)
-        return tracker
-
-    def update(self, builder, note, state=None, log=None):
-        """Add a message for the given builder without changes the status.
-
-        :param TestBuilder builder: The builder object to set the message.
-        :param note: The message to set.
-        :param str state: A status_file state to set on this builder's status
-            file.
-        :param int log: A log level for the python logger. If set, also
-            log the message to the Pavilion log.
-        """
-
-        if state is not None:
-            self.status_files[builder].set(state, note)
-
-        now = datetime.datetime.now()
-
-        with self.lock:
-            self.messages[builder].append((now, state, note))
-            if state is not None:
-                self.status[builder] = state
-
-        if log is not None and self.logger:
-            self.logger.log(level=log, msg=note)
-
-    def get_notes(self, builder):
-        """Return all notes for the given builder.
-        :param TestBuilder builder: The test builder object to get notes for.
-        :rtype: [str]
-        """
-
-        return self.messages[builder]
-
-    def state_counts(self):
-        """Return a dictionary of the states across all builds and the number
-        of occurrences of each."""
-        counts = defaultdict(lambda: 0)
-        for state in self.status.values():
-            counts[state] += 1
-
-        return counts
-
-    def failures(self):
-        """Returns a list of builders that have failed."""
-        return [builder for builder in self.status.keys()
-                if builder.tracker.failed]
-
-
-class BuildTracker:
-    """Tracks the status updates for a single build."""
-
-    def __init__(self, builder, tracker):
-        self.builder = builder
-        self.tracker = tracker
-        self.failed = False
-
-    def update(self, note, state=None, log=None):
-        """Update the tracker for this build with the given note."""
-
-        self.tracker.update(self.builder, note, log=log, state=state)
-
-    def warn(self, note, state=None):
-        """Add a note and warn via the logger."""
-        self.tracker.update(self.builder, note, log=logging.WARNING,
-                            state=state)
-
-    def error(self, note, state=STATES.BUILD_ERROR):
-        """Add a note and error via the logger denote as a failure."""
-        self.tracker.update(self.builder, note, log=logging.ERROR, state=state)
-
-        self.failed = True
-
-    def fail(self, note, state=STATES.BUILD_FAILED):
-        """Denote that the test has failed."""
-        self.error(note, state=state)
-
-    def notes(self):
-        """Return the notes for this tracker."""
-        return self.tracker.get_notes(self.builder)
-
-
 class TestBuilder:
     """Manages a test build and their organization.
 
-:cvar int _BLOCK_SIZE: Chunk size when reading and hashing files.
-:cvar int BUILD_HASH_BYTES: Number of bytes in the build hash (1/2 the
-    chars)
-:cvar str DEPRECATED: The name of the build deprecation file.
-:ivar Path ~.path: The intended location of this build in the build directory.
-:ivar Path fail_path: Where this build will be placed if it fails.
-:ivar str name: The name of this build.
-"""
+    :cvar int _BLOCK_SIZE: Chunk size when reading and hashing files.
+    :cvar int BUILD_HASH_BYTES: Number of bytes in the build hash (1/2 the
+        chars)
+    :cvar str DEPRECATED: The name of the build deprecation file.
+    :ivar Path ~.path: The intended location of this build in the build
+        directory.
+    :ivar Path fail_path: Where this build will be placed if it fails.
+    :ivar str name: The name of this build."""
 
     _BLOCK_SIZE = 4096*1024
 
@@ -176,14 +56,16 @@ class TestBuilder:
     LOG_NAME = "pav_build_log"
 
     def __init__(self, pav_cfg, test, mb_tracker, build_name=None):
-        """Inititalize the build object.
+        """Initialize the build object.
+
         :param pav_cfg: The Pavilion config object
         :param pavilion.test_run.TestRun test: The test run responsible for
-        starting this build.
-        :param MultiBuildTracker mb_tracker: A thread-safe tracker object for
-        keeping info on what the build is doing.
+            starting this build.
+        :param pavilion.build_tracker.MultiBuildTracker mb_tracker: A
+            thread-safe tracker object for keeping info on what the build is
+            doing.
         :param str build_name: The build name, if this is a build that already
-        exists.
+            exists.
         :raises TestBuilderError: When the builder can't be initialized.
         """
 
@@ -292,7 +174,7 @@ class TestBuilder:
         hash_obj = hashlib.sha256()
 
         # Update the hash with the contents of the build script.
-        hash_obj.update(self._hash_file(self._script_path))
+        hash_obj.update(self._hash_file(self._script_path, save=False))
         group = self._group.encode() if self._group is not None else b'<def>'
         hash_obj.update(group)
         umask = oct(self._umask).encode() if self._umask is not None \
@@ -490,7 +372,9 @@ class TestBuilder:
                 state=STATES.BUILD_WAIT,
                 note="Waiting on lock for build {}.".format(self.name))
             lock_path = self.path.with_suffix('.lock')
-            with lockfile.LockFile(lock_path, group=self._pav_cfg.shared_group):
+            with lockfile.LockFile(lock_path,
+                                   group=self._pav_cfg.shared_group)\
+                    as lock:
                 # Make sure the build wasn't created while we waited for
                 # the lock.
                 if not self.finished_path.exists():
@@ -519,7 +403,7 @@ class TestBuilder:
                     # non-catastrophic cases.
                     with PermissionsManager(self.path, self._group,
                                             self._umask):
-                        if not self._build(self.path, cancel_event):
+                        if not self._build(self.path, cancel_event, lock=lock):
 
                             try:
                                 self.path.rename(self.fail_path)
@@ -539,14 +423,16 @@ class TestBuilder:
                     built_by_path = self.path / '.built_by'
                     try:
                         with PermissionsManager(built_by_path, self._group,
-                                                self._umask), \
+                                                self._umask | 0o222), \
                                 built_by_path.open('w') as built_by:
                             built_by.write(str(self.test.id))
                     except OSError:
                         self.tracker.warn("Could not create built_by file.")
 
                     try:
-                        self.finished_path.touch()
+                        with PermissionsManager(self.finished_path,
+                                                self._group, self._umask):
+                            self.finished_path.touch()
                     except OSError:
                         self.tracker.warn("Could not touch '<build>.finished' "
                                           "file.")
@@ -564,22 +450,73 @@ class TestBuilder:
 
         return True
 
-    def _build(self, build_dir, cancel_event):
+    def create_spack_env(self, spack_config, build_dir):
+        """Creates a spack.yaml file in the build dir, so that each unique
+        build can activate it's own spack environment."""
+
+        spack_path = self._pav_cfg['spack_path']
+        spack_dir = spack_path/'opt'/'spack'
+
+        # Set up upstreams, will always have 'main', so that builds in the
+        # global spack instance can be reused.
+        upstreams = {
+            'main': {
+                'install_tree': spack_dir
+            }
+        }
+        upstreams.update(spack_config.get('upstreams', {}))
+
+        # Set the spack env based on the passed spack_config and build_dir.
+        config = {
+            'spack': {
+                'config': {
+                    # New spack installs will be built in the specified
+                    # build_dir.
+                    'install_tree': str(build_dir/'spack_installs'),
+                    'install_path_scheme': "{name}-{version}-{hash}",
+                    'build_jobs': spack_config.get('build_jobs', 6)
+                },
+                'mirrors': spack_config.get('mirrors', {}),
+                'repos': spack_config.get('repos', []),
+                'upstreams': upstreams,
+            },
+        }
+
+        # Create the spack.yaml file with the updated configs.
+        spack_env_config = build_dir/'spack.yaml'
+        with open(spack_env_config.as_posix(), "w+") as spack_env_file:
+            SpackEnvConfig().dump(spack_env_file, values=config,)
+
+    def _build(self, build_dir, cancel_event, lock: lockfile.LockFile = None):
         """Perform the build. This assumes there actually is a build to perform.
         :param Path build_dir: The directory in which to perform the build.
         :param threading.Event cancel_event: Event to signal that the build
-        should stop.
+            should stop.
+        :param lock: The lockfile object. This will need to be refreshed to
+            keep it from expiring.
         :returns: True or False, depending on whether the build appears to have
             been successful.
         """
 
         try:
-            self._setup_build_dir(build_dir)
+            future = ThreadPoolExecutor().submit(
+                self._setup_build_dir,
+                build_dir)
+            while future.running():
+                time.sleep(lock.SLEEP_PERIOD)
+                lock.renew()
+            # Raise any errors raised by the thread.
+            future.result()
         except TestBuilderError as err:
             self.tracker.error(
                 note=("Error setting up build directory '{}': {}"
                       .format(build_dir, err)))
             return False
+
+        # Generate an anonymous spack environment for a new build.
+        spack_config = self.test.config.get('spack', {})
+        if self.test.spack_enabled():
+            self.create_spack_env(spack_config, build_dir)
 
         try:
             # Do the build, and wait for it to complete.
@@ -597,6 +534,7 @@ class TestBuilder:
                     try:
                         result = proc.wait(timeout=1)
                     except subprocess.TimeoutExpired:
+                        lock.renew()
                         if self._timeout_file.exists():
                             timeout_file = self._timeout_file
                         else:
@@ -711,6 +649,7 @@ class TestBuilder:
                 note=("Copying source directory {} for build {} "
                       "as the build directory."
                       .format(src_path, dest)))
+
             shutil.copytree(src_path.as_posix(),
                             dest.as_posix(),
                             symlinks=True)
@@ -799,8 +738,23 @@ class TestBuilder:
         do_copy = set()
         copy_globs = self._config.get('copy_files', [])
         for copy_glob in copy_globs:
-            do_copy.update(glob.glob(self.path.as_posix() + '/' + copy_glob,
-                                     recursive=True))
+            final_glob = self.path.as_posix() + '/' + copy_glob
+            blob = glob.glob(final_glob, recursive=True)
+            if not blob:
+                avail = '\n'.join(glob.glob(final_glob.rsplit('/')[0]))
+                self.tracker.error(
+                    state=STATES.BUILD_ERROR,
+                    note=("Could not perform build copy. Files meant to be "
+                          "fully copied (rather than symlinked) could not be "
+                          "found:\n"
+                          "base_glob: {}\n"
+                          "full_glob: {}\n"
+                          "These files were available in the top glob dir:\n"
+                          "{}"
+                          .format(copy_glob, final_glob, avail)))
+                return False
+
+            do_copy.update(blob)
 
         def maybe_symlink_copy(src, dst):
             """Makes a symlink from src to dst, unless the file is in
@@ -809,7 +763,10 @@ class TestBuilder:
 
             if src in do_copy:
                 # Actually copy files that were explicitly asked for.
-                return shutil.copy2(src, dst, follow_symlinks=True)
+                cpy_path = shutil.copy2(src, dst, follow_symlinks=True)
+                base_mode = os.stat(cpy_path).st_mode
+                os.chmod(cpy_path, base_mode | stat.S_IWUSR | stat.S_IWGRP)
+                return cpy_path
             else:
                 src = os.path.realpath(src)
                 return os.symlink(src, dst)
@@ -851,20 +808,12 @@ class TestBuilder:
 
         # We rely on the umask to handle most restrictions.
         # This just masks out the write bits.
-        umask = int(self._pav_cfg['umask'])
-        file_mask = 0o222 | umask
-
-        root_path.chmod(root_path.stat().st_mode & ~umask)
-        root_path.group()
+        file_mask = 0o222 | self._umask
 
         # We shouldn't have to do anything to directories, they should have
         # the correct permissions already.
         for path, dirs, files in os.walk(root_path.as_posix()):
             path = Path(path)
-            for directory in dirs:
-                dir_path = path/directory
-                dir_path.chmod(dir_path.stat().st_mode & ~umask)
-
             for file in files:
                 file_path = path/file
                 file_stat = file_path.stat()
@@ -895,18 +844,17 @@ class TestBuilder:
 
         return hash_obj.digest()
 
-    @classmethod
-    def _hash_file(cls, path):
+    def _hash_file(self, path, save=True):
         """Hash the given file (which is assumed to exist).
         :param Path path: Path to the file to hash.
         """
 
-        stat = path.stat()
-        hash_fn = path.with_suffix('.hash')
+        stat_ = path.stat()
+        hash_fn = path.with_name('.' + path.name + '.hash')
 
         # Read the has from the hashfile as long as it was created after
         # our test source's last update.
-        if hash_fn.exists() and hash_fn.stat().st_mtime > stat.st_mtime:
+        if hash_fn.exists() and hash_fn.stat().st_mtime > stat_.st_mtime:
             try:
                 with hash_fn.open('rb') as hash_file:
                     return hash_file.read()
@@ -916,16 +864,18 @@ class TestBuilder:
         hash_obj = hashlib.sha256()
 
         with path.open('rb') as file:
-            chunk = file.read(cls._BLOCK_SIZE)
+            chunk = file.read(self._BLOCK_SIZE)
             while chunk:
                 hash_obj.update(chunk)
-                chunk = file.read(cls._BLOCK_SIZE)
+                chunk = file.read(self._BLOCK_SIZE)
 
         file_hash = hash_obj.digest()
 
-        # This should all be under the build lock.
-        with hash_fn.open('wb') as hash_file:
-            hash_file.write(file_hash)
+        if save:
+            # This should all be under the build lock.
+            with PermissionsManager(hash_fn, self._group, self._umask), \
+                    hash_fn.open('wb') as hash_file:
+                hash_file.write(file_hash)
 
         return file_hash
 

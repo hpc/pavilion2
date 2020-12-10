@@ -1,8 +1,13 @@
+"""Plugin system for altering module behavior."""
+
 import inspect
 import logging
 import re
+from typing import List, Union
 
-from pavilion.module_actions import ModuleLoad, ModuleSwap, ModuleUnload
+from pavilion.module_actions import (
+    ModuleLoad, ModuleSwap, ModuleUnload, ModuleAction)
+from pavilion.test_config.variables import VariableSetManager
 from yapsy import IPlugin
 
 LOGGER = logging.getLogger('pav.{}'.format(__name__))
@@ -108,7 +113,7 @@ class ModuleWrapper(IPlugin.IPlugin):
     PRIO_COMMON = 10
     PRIO_USER = 20
 
-    NAME_VERS_RE = re.compile(r'^[a-zA-Z0-9_.-]+$')
+    NAME_VERS_RE = re.compile(r'^[a-zA-Z0-9_.-]+(/[a-zA-Z0-9_.-]+)*$')
 
     def __init__(self, name, description, version=None, priority=PRIO_COMMON):
         """Initialize the module wrapper instance. This must be overridden in
@@ -172,12 +177,13 @@ used to figure out what version to load.
 
         remove_wrapped_module(self, self._version)
 
-    def load(self, var_man, requested_version=None):
+    def load(self, var_man: VariableSetManager,
+             requested_version=None) \
+            -> (List[Union[ModuleAction, str]], dict):
         """Generate the list of module actions and environment changes to load
 this module.
 
-:param dict var_man: The system info dictionary of variables, from the
-                 system plugins.
+:param VariableSetManager var_man: The test's variable manager. al
 :param str requested_version: The version requested to load.
 :return: A list of actions (or bash command strings), and a dict of
          environment changes.
@@ -186,48 +192,84 @@ this module.
                             this instance.
 """
 
-        del var_man  # Arguments meant for use when overriding this.
+        return self._load(var_man, self.get_version(requested_version))
 
-        version = self.get_version(requested_version)
+    def _load(self, var_man: VariableSetManager, version: str) \
+            -> (List[Union[ModuleAction, str]], dict):
+        """Override this to change how the module is loaded.
+        :param VariableSetManager var_man: The variable set manager. Use
+            to get Pavilion variable values. (``var_man['sys.sys_name']``)
+        :param str version:
+        :return: This returns a list of module actions/strings and a
+        dictionary of environment changes.  The module actions and strings
+        will become lines written to run or build scripts. The dictionary of
+        environment changes will result in those variables being exported. If
+        order is important, use a collections.OrderedDict.
+        """
+
+        _ = var_man
 
         return [ModuleLoad(self.name, version)], {}
 
-    def swap(self, var_man, out_name, out_version, requested_version=None):
+    def swap(self, var_man, out_name, out_version, requested_version=None) \
+            -> (List[Union[ModuleAction, str]], dict):
         """Swap out the 'out' module and swap in the new module.
 
-:param var_man: The test's variable manager. Module wrappers can use this
-    to lookup any non-deferred test variable.
-:param str out_name: The name of the module to swap out.
-:param str out_version: The version of the module to swap out.
-:param str requested_version: The version requested to load.
-:return: A list of actions (or bash command strings), and a dict of
-         environment changes.
-:rtype: (Union(str, ModuleAction), dict)
-:raises ModuleWrapperError: If the requested version does not work
-                            with this instance.
-"""
-
-        del var_man  # Arguments meant for use when overriding this.
-
+    :param var_man: The test's variable manager. Module wrappers can use this
+        to lookup any non-deferred test variable.
+    :param str out_name: The name of the module to swap out.
+    :param str out_version: The version of the module to swap out.
+    :param str requested_version: The version requested to load.
+    :return: A list of actions (or bash command strings), and a dict of
+             environment changes.
+    :rtype: (Union(str, ModuleAction), dict)
+    :raises ModuleWrapperError: If the requested version does not work
+                                with this instance.
+    """
         version = self.get_version(requested_version)
+
+        return self._swap(var_man, out_name, out_version, version)
+
+    def _swap(self, var_man: VariableSetManager, out_name: str,
+              out_version: str, version: str) \
+            -> (List[Union[ModuleAction, str]], dict):
+        """Override to change how this module is loaded.
+
+        :param var_man: The variable set manager.
+        :param out_name: The name of the module to swap out.
+        :param out_version: The module version to swap out. May be None.
+        :param version: The version to swap in.
+        :return: A per _load()"""
+
+        _ = var_man
 
         return [ModuleSwap(self.name, version, out_name, out_version)], {}
 
     def unload(self, var_man, requested_version=None):
         """Remove this module from the environment.
 
-:param var_man: The test's variable manager. Module wrappers can use this
-    to lookup any non-deferred test variable.
-:param str requested_version: The version requested to remove.
-:return: A list of actions (or bash command strings), and a dict of
-         environment changes.
-:rtype: (Union(str, ModuleAction), dict)
-:raises ModuleWrapperError: If the requested version does not work with
-                            this instance.
-"""
-
-        del var_man  # Arguments meant for use when overriding this.
+    :param var_man: The test's variable manager. Module wrappers can use this
+        to lookup any non-deferred test variable.
+    :param str requested_version: The version requested to remove.
+    :return: A list of actions (or bash command strings), and a dict of
+             environment changes.
+    :rtype: (Union(str, ModuleAction), dict)
+    :raises ModuleWrapperError: If the requested version does not work with
+                                this instance.
+    """
 
         version = self.get_version(requested_version)
+
+        return self._unload(var_man, version)
+
+    def _unload(self, var_man, version):
+        """Override this to change how this module is unloaded.
+
+        :param var_man:
+        :param version:
+        :return:
+        """
+
+        _ = var_man
 
         return [ModuleUnload(self.name, version)], {}

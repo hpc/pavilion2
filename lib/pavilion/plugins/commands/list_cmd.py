@@ -9,7 +9,8 @@ from pavilion import dir_db
 from pavilion import filters
 from pavilion import output
 from pavilion.commands import sub_cmd
-from pavilion.series import TestSeries, TestSeriesError, SeriesInfo
+from pavilion.series import TestSeries
+from pavilion.series_util import SeriesInfo, TestSeriesError
 from pavilion.test_run import TestAttributes
 
 
@@ -63,7 +64,7 @@ class ListCommand(commands.Command):
                  "Default fields: {}".format(self.RUN_LONG_FIELDS)
         )
         output_mode.add_argument(
-            '--csv',  action='store_const', const=self.OUTMODE_CSV,
+            '--csv', action='store_const', const=self.OUTMODE_CSV,
             dest='output_mode', help="Write output as CSV."
         )
         output_mode.add_argument(
@@ -266,7 +267,7 @@ class ListCommand(commands.Command):
                 order_func=order_func,
                 order_asc=ascending,
                 limit=args.limit,
-            )
+            )[0]
 
         self.write_output(
             mode=mode,
@@ -316,7 +317,7 @@ class ListCommand(commands.Command):
             transform=SeriesInfo,
             order_func=series_order,
             order_asc=ascending,
-        )
+        )[0]
         self.write_output(
             mode=mode,
             rows=[sinfo.attr_dict() for sinfo in series],
