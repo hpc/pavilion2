@@ -702,9 +702,10 @@ differentiate it from test ids."""
                 # wait for all the tests to be finished to continue
                 done = False
                 while not done:
+                    self.update_finished_list(finished, started)
                     done = True
                     for set_name, set_obj in self.test_sets.items():
-                        if not set_obj.is_done:
+                        if not set_obj.done:
                             done = False
                             break
                     time.sleep(0.1)
