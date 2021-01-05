@@ -9,6 +9,7 @@ from typing import List
 import yc_yaml as yaml
 from pavilion import utils
 from pavilion.unittest import PavTestCase
+from pavilion import test_run
 
 
 class GeneralTests(PavTestCase):
@@ -28,12 +29,14 @@ class GeneralTests(PavTestCase):
                        and def_gid != group.gr_gid)]
 
         if not candidates:
-            self.fail("Your user must be in at least two groups (other than "
-                      "the user's group) to run this test.")
+            self.orig_group = None
+            self.alt_group = None
+            self.alt_group2 = None
+        else:
+            self.orig_group = grp.getgrgid(def_gid).gr_name
+            self.alt_group = candidates[0]  # type: grp.struct_group
+            self.alt_group2 = candidates[1]  # type: grp.struct_group
 
-        self.orig_group = grp.getgrgid(def_gid).gr_name
-        self.alt_group = candidates[0]  # type: grp.struct_group
-        self.alt_group2 = candidates[1]  # type: grp.struct_group
         self.umask = 0o007
 
     def setUp(self) -> None:
@@ -47,6 +50,10 @@ class GeneralTests(PavTestCase):
             shutil.rmtree(self.working_dir.as_posix())
 
         self.working_dir.mkdir()
+
+        if self.alt_group is None:
+            self.fail("Your user must be in at least two groups (other than "
+                      "the user's group) to run this test.")
 
         raw_cfg['shared_group'] = self.alt_group.gr_name
         raw_cfg['umask'] = self.umask
@@ -168,7 +175,31 @@ class GeneralTests(PavTestCase):
             else:
                 self.fail("Found unhandled file {}.".format(file))
 
+    def test_legacy_runs(self):
+        """Check loading of legacy run dirs."""
 
+        legacy_path = self.TEST_DATA_ROOT/'legacy'
+        runs_path = legacy_path/'runs.txt'
+        wdir = self.pav_cfg.working_dir
 
+        runs = []
+        with runs_path.open() as runs_file:
+            for line in runs_file:
+                line = line.strip()
+                if line and not line.startswith('#'):
+                    runs.append(line)
 
+        for run in runs:
+            run_path = legacy_path/run
+            dst_path = wdir/'test_runs'/run
+            shutil.copytree(run_path.as_posix(), dst_path.as_posix(),
+                            symlinks=True)
 
+            # Move the build directory into place
+            build_dst = Path(os.readlink((run_path/'build_origin').as_posix()))
+            build_dst = dst_path/build_dst
+            (dst_path/'build_dir').rename(build_dst)
+
+            test = test_run.TestRun.load(self.pav_cfg, int(run))
+            self.assertTrue(test.results)
+            self.assertTrue(test.complete)

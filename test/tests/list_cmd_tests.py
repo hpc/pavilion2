@@ -30,7 +30,7 @@ class ListCmdTest(PavTestCase):
                 name="list_cmd_tests_{}".format(i))
 
             # Forge some useful bits to filter by.
-            test.created = now - dt.timedelta(hours=i)
+            test.created = (now - dt.timedelta(hours=i)).timestamp()
             test.uuid = i
             if i % 2 == 0:
                 test.result = test.PASS

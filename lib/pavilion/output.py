@@ -69,25 +69,27 @@ COLORS = {
 }
 
 
-def get_relative_timestamp(base_dt):
+def get_relative_timestamp(base_time):
     """Print formatted time string based on the delta of time objects.
-    :param datetime.datetime base_dt: The datetime object to compare and format
+    :param float base_time: The datetime object to compare and format
     from.
     :returns: A formatted time string.
     :rtype str:
     """
 
-    if not isinstance(base_dt, datetime.datetime):
+    if not isinstance(base_time, float):
         return ''
 
     now = datetime.datetime.now()
     format_ = ['%Y', '%b', '%a', '%H:%M:%S']  # year, month, day, time
 
-    for i in range(0, len(format_)):
-        if now.strftime(format_[i]) != base_dt.strftime(format_[i]):
-            return base_dt.strftime(" ".join(format_[i:]))
+    base_time = datetime.datetime.fromtimestamp(base_time)
 
-    return base_dt.strftime(str(format_[3]))
+    for i in range(0, len(format_)):
+        if now.strftime(format_[i]) != base_time.strftime(format_[i]):
+            return base_time.strftime(" ".join(format_[i:]))
+
+    return base_time.strftime(str(format_[3]))
 
 
 def dbg_print(*args, color=YELLOW, file=sys.stderr, end="",
@@ -222,8 +224,7 @@ our custom encoder."""
                      **kw)
 
 
-def output_csv(outfile, fields, rows, field_info=None,
-               header=False):
+def output_csv(outfile, fields, rows, field_info=None, header=False):
     """Write the given rows out as a CSV.
 
     :param outfile: The file object to write to.
@@ -231,6 +232,7 @@ def output_csv(outfile, fields, rows, field_info=None,
         below. Only the title field is used.
     :param fields: A list of fields to write, and in what order.
     :param rows: A list of dictionaries to write, in the given order.
+    :param header: Whether to generate a header row.
     :return: None
     """
 
@@ -880,9 +882,7 @@ class PavEncoder(json.JSONEncoder):
         """Handle additional types."""
 
         if isinstance(o, Path):
-            return str(o)
-        elif isinstance(o, datetime.datetime):
-            return o.isoformat()
+            return o.as_posix()
         # Just auto-convert anything that looks like a dict.
         elif isinstance(o, (dict, UserDict)):
             return dict(o)

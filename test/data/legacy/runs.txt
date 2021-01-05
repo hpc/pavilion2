@@ -1,0 +1,12 @@
+# This is a list (and directory) of legacy pavilion test runs
+# They are kept to ensure compatibility between test run objects
+# of older versions of Pavilion.
+
+# This should be a newline separated list of legacy test runs to put into the 
+# working directory, where Pav legacy unit tests will load them.
+# - They should contain a 'build_dir' directory with their build
+# - All softlinks should be made relative.
+# - I think that's it.
+
+# Copy these:
+0000795

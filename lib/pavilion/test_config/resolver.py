@@ -12,21 +12,23 @@ import io
 import logging
 import os
 import re
-from collections import defaultdict, namedtuple
-from typing import List, IO, Dict
+from collections import defaultdict
+from typing import List, IO
 
 import yc_yaml
 from pavilion import output
 from pavilion import pavilion_variables
 from pavilion import schedulers
 from pavilion import system_variables
+from pavilion.test_config import file_format
 from pavilion.pavilion_variables import PavVars
 from pavilion.test_config import parsers
 from pavilion.test_config import variables
 from pavilion.test_config.file_format import (TestConfigError, TEST_NAME_RE,
                                               KEY_NAME_RE)
-from pavilion.test_config.file_format import TestConfigLoader, TestSuiteLoader
+from pavilion.utils import union_dictionary
 from yaml_config import RequiredError
+from .file_format import TestConfigLoader, TestSuiteLoader
 
 # Config file types
 CONF_HOST = 'hosts'
@@ -113,7 +115,7 @@ class TestConfigResolver:
 
         return var_man
 
-    def _find_config(self, conf_type, conf_name):
+    def find_config(self, conf_type, conf_name):
         """Search all of the known configuration directories for a config of the
         given type and name.
 
@@ -216,9 +218,61 @@ class TestConfigResolver:
                         }
         return suites
 
+    def find_all_configs(self, conf_type):
+        """ Find all configs (host/modes) within known config directories.
+
+    :return: Returns a dictionary of suite names to an info dict.
+    :rtype: dict(dict)
+
+    The returned data structure looks like: ::
+
+        config_name -> {
+            'path': Path to the suite file.
+            'config': Full config file, loaded as a dict.
+            'status': Nothing if successful, 'Loading the config failes.'
+                      if TectConfigError.
+            'error': Detailed error if applicable.
+            }
+
+        """
+
+        configs = {}
+        for conf_dir in self.pav_cfg.config_dirs:
+            path = conf_dir / conf_type
+
+            if not (path.exists() and path.is_dir()):
+                continue
+
+            for file in os.listdir(path.as_posix()):
+
+                file = path / file
+                if file.suffix == '.yaml' and file.is_file():
+                    name = file.stem
+                    configs[name] = {}
+
+                    full_path = file
+                    try:
+                        with file.open() as config_file:
+                            config = file_format.TestConfigLoader().load(
+                                config_file)
+                        configs[name]['path'] = full_path
+                        configs[name]['config'] = config
+                        configs[name]['status'] = ''
+                        configs[name]['error'] = ''
+                    except (TestConfigError, TypeError) as err:
+                        configs[name]['path'] = full_path
+                        configs[name]['config'] = ''
+                        configs[name]['status'] = ('Loading the config failed.'
+                                                   ' For more info run \'pav '
+                                                   'show {} --err\'.'
+                                                   .format(conf_type))
+                        configs[name]['error'] = err
+
+        return configs
+
     def load(self, tests: List[str], host: str = None,
              modes: List[str] = None, overrides: List[str] = None,
-             output_file: IO[str] = None) \
+             conditions=None, output_file: IO[str] = None) \
             -> List[ProtoTest]:
         """Load the given tests, updated with their host and mode files.
         Returns 'ProtoTests', a simple object with 'config' and 'var_man'
@@ -229,6 +283,7 @@ class TestConfigResolver:
             of the 'sys_name' variable.
         :param modes: A list of modes to load.
         :param overrides: A dict of key:value pairs to apply as overrides.
+        :param conditions: A dict containing the only_if and not_if conditions.
         :param output_file: Where to write status output.
         """
 
@@ -242,6 +297,18 @@ class TestConfigResolver:
             host = self.base_var_man['sys.sys_name']
 
         raw_tests = self.load_raw_configs(tests, host, modes)
+
+        # apply series-defined conditions
+        if conditions:
+            for raw_test in raw_tests:
+                raw_test['only_if'] = union_dictionary(
+                    raw_test['only_if'], conditions['only_if']
+                )
+                raw_test['not_if'] = union_dictionary(
+                    raw_test['not_if'], conditions['not_if']
+                )
+
+        raw_tests_by_sched = defaultdict(lambda: [])
 
         progress = 0
 
@@ -372,7 +439,7 @@ class TestConfigResolver:
 
             # Only load each test suite's tests once.
             if test_suite not in all_tests:
-                test_suite_path = self._find_config(CONF_TEST, test_suite)
+                test_suite_path = self.find_config(CONF_TEST, test_suite)
 
                 if test_suite_path is None:
                     if test_suite == 'log':
@@ -533,7 +600,7 @@ class TestConfigResolver:
         test_config_loader = TestConfigLoader()
 
         if host is not None:
-            host_cfg_path = self._find_config(CONF_HOST, host)
+            host_cfg_path = self.find_config(CONF_HOST, host)
 
             if host_cfg_path is not None:
                 try:
@@ -579,7 +646,7 @@ class TestConfigResolver:
         test_config_loader = TestConfigLoader()
 
         for mode in modes:
-            mode_cfg_path = self._find_config(CONF_MODE, mode)
+            mode_cfg_path = self.find_config(CONF_MODE, mode)
 
             if mode_cfg_path is None:
                 raise TestConfigError(

@@ -9,8 +9,10 @@ from pavilion import dir_db
 from pavilion import filters
 from pavilion import output
 from pavilion.commands import sub_cmd
-from pavilion.series import TestSeries, TestSeriesError, SeriesInfo
-from pavilion.test_run import TestAttributes
+from pavilion.series import TestSeries
+from pavilion.series_util import SeriesInfo, TestSeriesError, \
+    series_info_transform
+from pavilion.test_run import TestAttributes, test_run_attr_transform
 
 
 class ListCommand(commands.Command):
@@ -252,7 +254,7 @@ class ListCommand(commands.Command):
                     return errno.EINVAL
             runs = dir_db.select_from(
                 paths=picked_runs,
-                transform=TestAttributes,
+                transform=test_run_attr_transform,
                 filter_func=filter_func,
                 order_func=order_func,
                 order_asc=ascending,
@@ -261,16 +263,21 @@ class ListCommand(commands.Command):
         else:
             runs = dir_db.select(
                 id_dir=pav_cfg.working_dir/'test_runs',
-                transform=TestAttributes,
+                transform=test_run_attr_transform,
                 filter_func=filter_func,
                 order_func=order_func,
                 order_asc=ascending,
                 limit=args.limit,
-            )[0]
+            ).data
+
+        for run in runs:
+            for key, value in list(run.items()):
+                if value in [None, '']:
+                    del run[key]
 
         self.write_output(
             mode=mode,
-            rows=[run.attr_dict(include_empty=False) for run in runs],
+            rows=runs,
             fields=fields,
             header=args.header,
             vsep=args.vsep,
@@ -313,13 +320,13 @@ class ListCommand(commands.Command):
         series = dir_db.select(
             id_dir=pav_cfg.working_dir/'series',
             filter_func=series_filter,
-            transform=SeriesInfo,
+            transform=series_info_transform,
             order_func=series_order,
             order_asc=ascending,
-        )[0]
+        ).data
         self.write_output(
             mode=mode,
-            rows=[sinfo.attr_dict() for sinfo in series],
+            rows=series,
             fields=fields,
             header=args.header,
             vsep=args.vsep,

@@ -1,12 +1,13 @@
+"""Test the cancel command."""
+
 import errno
 import sys
-from io import StringIO
 
 from pavilion import arguments
 from pavilion import commands
 from pavilion import plugins
-from pavilion import series
-from pavilion.plugins.commands.status import get_statuses
+from pavilion import series_util
+from pavilion.status_utils import get_statuses
 from pavilion.unittest import PavTestCase
 
 
@@ -29,17 +30,17 @@ class CancelCmdTests(PavTestCase):
             'cancel_test'
         ])
         run_cmd = commands.get_command(args.command_name)
-        run_cmd.outfile = run_cmd.errfile = StringIO()
+        run_cmd.silence()
         run_cmd.run(self.pav_cfg, args)
 
         args = arg_parser.parse_args([
             'cancel'
         ])
 
-        get_statuses(self.pav_cfg, args.tests, StringIO())
+        get_statuses(self.pav_cfg, args.tests)
 
         cancel_cmd = commands.get_command(args.command_name)
-        cancel_cmd.outfile = cancel_cmd.errfile = StringIO()
+        cancel_cmd.silence()
 
         self.assertEqual(cancel_cmd.run(self.pav_cfg, args), 0)
 
@@ -54,11 +55,11 @@ class CancelCmdTests(PavTestCase):
         ])
 
         cancel_cmd = commands.get_command(args.command_name)
-        cancel_cmd.outfile = cancel_cmd.errfile = StringIO()
+        cancel_cmd.silence()
 
         self.assertEqual(cancel_cmd.run(self.pav_cfg, args), errno.EINVAL)
 
-    def test_cancel_series_test(self):
+    def test_cancel_series(self):
         """Test cancel command with combination of series and tests."""
 
         arg_parser = arguments.get_parser()
@@ -71,12 +72,12 @@ class CancelCmdTests(PavTestCase):
         ])
 
         run_cmd = commands.get_command(args.command_name)
-        run_cmd.outfile = StringIO()
+        run_cmd.silence()
         run_cmd.run(self.pav_cfg, args)
 
         tests = []
 
-        series_id = series.TestSeries.load_user_series_id(self.pav_cfg)
+        series_id = series_util.load_user_series_id(self.pav_cfg)
         tests.append(series_id)
 
         args = arg_parser.parse_args([
@@ -85,7 +86,7 @@ class CancelCmdTests(PavTestCase):
         ])
 
         cancel_cmd = commands.get_command(args.command_name)
-        cancel_cmd.outfile = cancel_cmd.errfile = StringIO()
+        cancel_cmd.silence()
 
         self.assertEqual(cancel_cmd.run(self.pav_cfg, args), 0)
 
@@ -101,7 +102,7 @@ class CancelCmdTests(PavTestCase):
         ])
 
         run_cmd = commands.get_command(args.command_name)
-        run_cmd.outfile = StringIO()
+        run_cmd.silence()
         run_cmd.run(self.pav_cfg, args)
 
         args = arg_parser.parse_args([
@@ -110,8 +111,7 @@ class CancelCmdTests(PavTestCase):
         ])
 
         cancel_cmd = commands.get_command(args.command_name)
-        cancel_cmd.outfile = StringIO()
-        cancel_cmd.errfile = StringIO()
+        cancel_cmd.silence()
 
         self.assertEqual(cancel_cmd.run(self.pav_cfg, args), 0)
 

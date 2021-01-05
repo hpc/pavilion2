@@ -4,8 +4,9 @@ import time
 from pavilion import arguments
 from pavilion import commands
 from pavilion import plugins
+from pavilion.status_utils import get_statuses
 from pavilion.unittest import PavTestCase
-from pavilion.plugins.commands.status import get_statuses
+
 
 class TimeoutFileTests(PavTestCase):
     """Assorted tests to ensure that timeout files work as expected."""
@@ -105,7 +106,7 @@ class TimeoutFileTests(PavTestCase):
             'status'
         ])
 
-        statuses = get_statuses(self.pav_cfg, status_args.tests, io.StringIO())
+        statuses = get_statuses(self.pav_cfg, status_args.tests)
         for test_status in statuses:
             self.assertEqual(correct_statuses[test_status['name']],
                              test_status['state'])

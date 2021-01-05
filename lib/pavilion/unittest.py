@@ -422,7 +422,7 @@ The default config is: ::
         while time.time() < end_time:
 
             completed = [is_complete(test)
-                         for test in dir_db.select(runs_dir)[0]]
+                         for test in dir_db.select(runs_dir).paths]
 
             if not completed:
                 self.fail("No tests started.")
@@ -435,7 +435,7 @@ The default config is: ::
         else:
             raise TimeoutError(
                 "Waiting on tests: {}"
-                .format(test.name for test in dir_db.select(runs_dir)[0]
+                .format(test.name for test in dir_db.select(runs_dir).paths
                         if is_complete(test)))
 
 

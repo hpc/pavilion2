@@ -18,7 +18,6 @@ Test File Format
         :members:
         :undoc-members:
         :show-inheritance:
-        :exclude-members: ELEMENTS
 
 .. _test_config.setup:
 
