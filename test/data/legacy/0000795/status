@@ -1,0 +1,13 @@
+2020-07-28T16:50:38.920490 CREATED Created status file.
+2020-07-28T16:50:38.921466 CREATED Test directory and status file created.
+2020-07-28T16:50:38.927275 BUILD_CREATED Builder created.
+2020-07-28T16:50:38.931711 CREATED Test directory setup complete.
+2020-07-28T16:50:47.701546 BUILD_REUSED Test 2de3953430e63026 run 795 reusing build.
+2020-07-28T16:50:50.564503 SCHEDULED Test raw has job ID myhost.place.org_21487.
+2020-07-28T16:50:52.014514 PREPPING_RUN Converting run template into run script.
+2020-07-28T16:50:52.016367 RUNNING Starting the run script.
+2020-07-28T16:50:52.019109 RUNNING Currently running.
+2020-07-28T16:50:52.037495 RUN_DONE Test run has completed.
+2020-07-28T16:50:52.042470 RESULTS Parsing 6 result types.
+2020-07-28T16:50:52.044960 RESULTS Performing 0 result evaluations.
+2020-07-28T16:50:52.572860 COMPLETE The test completed with result: PASS

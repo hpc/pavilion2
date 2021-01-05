@@ -17,7 +17,7 @@ def delete_tests(id_dir: Path, filter_func, verbose: bool = False):
     if filter_func is None:
         filter_func = dir_db.default_filter
     return dir_db.delete(id_dir, filter_func,
-                         transform=test_run.TestAttributes,
+                         transform=test_run.test_run_attr_transform,
                          verbose=verbose)
 
 
@@ -93,7 +93,7 @@ def _get_used_build_paths(tests_dir: Path) -> set:
 
     used_builds = set()
 
-    for path in dir_db.select(tests_dir)[0]:
+    for path in dir_db.select(tests_dir).paths:
         build_origin_symlink = path/'build_origin'
         build_origin = None
         if (build_origin_symlink.exists() and

@@ -18,6 +18,12 @@ RELEASE=2.2
    be provided in the Pavilion config under the new key `spack_path`.
  - Modules may now have nested paths (True lmod module organization)
  - Updated permissions management.
+ - Added test series files for organizing multiple test runs.
+ - Added 'pav graph' command.
+ - Added 'pav show hosts' and 'pav show modes' commands.
+ - Switched to using epoch time for all timestamps. 
+ - Test run attributes are now indexed for faster 'pav status' and 'pav result'
+   searches.
  - Backwards compatibility breaks
    - 'fn' and 'n' result fields have been merged into 'per_file'.
    - The 'status', and 'result' commands now search all available test runs

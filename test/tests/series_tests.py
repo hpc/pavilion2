@@ -56,15 +56,14 @@ class SeriesFileTests(PavTestCase):
         test_series_obj.run_series()
 
         # make sure test actually ends
-        time.sleep(2)
+        time.sleep(3)
 
         test_starts = []
         for test_id, test_obj in test_series_obj.tests.items():
-            test_starts.append(datetime.strptime(test_obj.results['started'],
-                                                 '%Y-%m-%d %H:%M:%S.%f'))
+            test_starts.append(test_obj.results['started'])
 
-        timediff1 = (test_starts[1] - test_starts[0]).total_seconds()
-        timediff2 = (test_starts[2] - test_starts[1]).total_seconds()
+        timediff1 = test_starts[1] - test_starts[0]
+        timediff2 = test_starts[2] - test_starts[1]
 
         self.assertGreaterEqual(timediff1, 0.5)
         self.assertGreaterEqual(timediff2, 0.5)

@@ -23,15 +23,14 @@ class StatusTests(PavTestCase):
         self.assertEqual(status_info.state, 'CREATED')
 
         # Get timestamp.
-        now = datetime.datetime.now()
+        now = time.time()
 
         # Make sure the timestamp is before now.
         self.assertLess(status_info.when, now)
         # Make sure the timestamp is less than a few seconds in the future.
         # If things are wrong with our timestamping code, they'll be much
         # farther off than this.
-        self.assertGreater(now + datetime.timedelta(seconds=5),
-                           status_info.when)
+        self.assertGreater(now + 5, status_info.when)
 
         self.assertEqual(status_info.note, 'Created status file.')
 
