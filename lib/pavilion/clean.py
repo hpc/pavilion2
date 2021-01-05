@@ -127,12 +127,15 @@ def delete_lingering_build_files(build_dir: Path, tests_dir: Path,
         # Not responsible for deleting build hash directories.
         if path.is_dir():
             continue
-        # Don't remove anything associated with a used build hash
+        # Don't remove anything associated with a used build hash.
         if path.stem in used_build_paths:
             continue
 
-        path.unlink()
-        if verbose:
-            msgs.append("Removed lingering build file {}."
-                        .format(path.name))
+        # Only remove .lock and .log files.
+        if path.name.endswith(".lock") or path.name.endswith(".log"):
+            path.unlink()
+            if verbose:
+                msgs.append("Removed lingering build file {}."
+                            .format(path.name))
+
     return msgs
