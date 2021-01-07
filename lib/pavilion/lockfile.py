@@ -118,11 +118,11 @@ lock regularly while it's in use for longer periods of time.
 
                 if expiration is None or expiration < time.time():
                     # The file is expired. Try to delete it.
+                    exp_file = self._lock_path.with_name(
+                        self._lock_path.name + '.expired')
                     try:
-                        exp_file = self._lock_path.with_name(
-                            self._lock_path.name + '.expired')
 
-                        with LockFile(exp_file, timeout=1):
+                        with LockFile(exp_file, timeout=3, expires_after=NEVER):
 
                             # Make sure it's the same file as before we checked
                             # the expiration.
@@ -139,7 +139,14 @@ lock regularly while it's in use for longer periods of time.
                                 self._lock_path.unlink()
                             except OSError:
                                 pass
-                    except (TimeoutError, OSError, IOError):
+                    except TimeoutError:
+                        # If we can't get the lock within 3 seconds, just
+                        # delete the expired lock if it exists.
+                        try:
+                            exp_file.unlink()
+                        except OSError:
+                            pass
+                    except OSError:
                         pass
 
         if not acquired:
