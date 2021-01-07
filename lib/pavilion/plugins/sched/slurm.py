@@ -2,6 +2,7 @@
 """The Slurm Scheduler Plugin."""
 
 import distutils.spawn
+import time
 import math
 import os
 import re
@@ -140,7 +141,7 @@ class SlurmVars(SchedulerVariables):
     def node_list(self):
         """List of nodes on the system."""
 
-        return list(self.sched_data['nodes'].keys())
+        return ' '.join(list(self.sched_data['nodes'].keys()))
 
     @var_method
     def node_up_list(self):
@@ -160,13 +161,13 @@ class SlurmVars(SchedulerVariables):
             else:
                 nodes.append(node)
 
-        return nodes
+        return ' '.join(nodes)
 
     @var_method
     def nodes_up(self):
         """Number of nodes in an 'avail' state."""
 
-        return len(self.node_up_list())
+        return len(self.node_up_list().split())
 
     @var_method
     def node_avail_list(self):
@@ -187,13 +188,13 @@ Warning: Tests that use this will fail to start if no nodes are available."""
             else:
                 nodes.append(node)
 
-        return nodes
+        return ' '.join(nodes)
 
     @var_method
     def nodes_avail(self):
         """Number of nodes in an 'avail' state."""
 
-        return len(self.node_avail_list())
+        return len(self.node_avail_list().split())
 
     @dfr_var_method
     def alloc_nodes(self):
@@ -349,7 +350,7 @@ class Slurm(schedulers.SchedulerPlugin):
     NODE_BRACKET_FORMAT_RE = re.compile(
         # Match hostname followed by square brackets,
         # group whats in the brackets.
-        r'([a-zA-Z][a-zA-Z_-]*\d*)\[(.*)\]'
+        r'([a-zA-Z][a-zA-Z_-]*\d*)\[(.*)]'
     )
 
     def __init__(self):
@@ -976,14 +977,14 @@ class Slurm(schedulers.SchedulerPlugin):
             return StatusInfo(
                 state=STATES.SCHED_ERROR,
                 note=str(err),
-                when=self._now()
+                when=time.time()
             )
 
         if not job_info:
             return StatusInfo(
                 state=STATES.SCHED_ERROR,
                 note="Could not find job {}".format(test.job_id),
-                when=self._now()
+                when=time.time()
             )
 
         # scontrol show returns a list. There should only be one item in that
@@ -998,7 +999,7 @@ class Slurm(schedulers.SchedulerPlugin):
                 state=STATES.SCHEDULED,
                 note=("Job {} has state '{}', reason '{}'"
                       .format(test.job_id, job_state, job_info.get('Reason'))),
-                when=self._now()
+                when=time.time()
             )
         elif job_state in self.SCHED_RUN:
             # The job should be running. Check it's status again.
@@ -1010,7 +1011,7 @@ class Slurm(schedulers.SchedulerPlugin):
                     state=STATES.SCHEDULED,
                     note=("Job is running or about to run. Has job state {}"
                           .format(job_state)),
-                    when=self._now()
+                    when=time.time()
                 )
         elif job_state in self.SCHED_ERROR:
             # The job should have run enough to change it's state, but
@@ -1041,13 +1042,13 @@ class Slurm(schedulers.SchedulerPlugin):
             state=STATES.SCHEDULED,
             note="Job '{}' has unknown/unhandled job state '{}'. We have no"
                  "idea what is going on.".format(test.job_id, job_state),
-            when=self._now()
+            when=time.time()
         )
 
     def _get_kickoff_script_header(self, test):
         """Get the kickoff header. Most of the work here """
 
-        sched_config = test.cfg[self.name]
+        sched_config = test.config[self.name]
 
         nodes = self.get_data()['nodes']
 

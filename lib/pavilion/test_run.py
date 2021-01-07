@@ -3,10 +3,10 @@ the list of all known test runs."""
 
 # pylint: disable=too-many-lines
 
-import datetime as dt
 import grp
 import json
 import logging
+import os
 import pprint
 import re
 import subprocess
@@ -40,7 +40,7 @@ def get_latest_tests(pav_cfg, limit):
 
     test_dir_list = []
     runs_dir = pav_cfg.working_dir/'test_runs'
-    for test_dir in dir_db.select(runs_dir)[0]:
+    for test_dir in dir_db.select(runs_dir).paths:
         mtime = test_dir.stat().st_mtime
         try:
             test_id = int(test_dir.name)
@@ -99,9 +99,6 @@ class TestAttributes:
     """
 
     serializers = {
-        'created': utils.serialize_datetime,
-        'finished': utils.serialize_datetime,
-        'started': utils.serialize_datetime,
         'suite_path': lambda p: p.as_posix(),
     }
 
@@ -162,44 +159,83 @@ class TestAttributes:
 
         attrs = {}
         if not attr_path.exists():
-            attrs = {
-                'build_only': None,
-                'build_name': None, 
-                'complete': (self.path/TestRun.COMPLETE_FN).exists(),
-                'created': utils.serialize_datetime(
-                    dt.datetime.utcfromtimestamp(self.path.stat().st_mtime)),
-                'finished': utils.serialize_datetime(
-                    dt.datetime.utcfromtimestamp(self.path.stat().st_mtime)),
-                'id': int(self.path.name),
-                'rebuild': False,
-                'result': None,
-                'skipped': None,
-                'started': utils.serialize_datetime(
-                    dt.datetime.utcfromtimestamp(self.path.stat().st_mtime)),
-                'suite_path': None,
-                'sys_name': None,
-                'user': self.path.owner(),
-                'uuid': None,
-            }
-        else:
-            with attr_path.open() as attr_file:
-                try:
-                    attrs = json.load(attr_file)
-                except (json.JSONDecodeError, OSError,
-                        ValueError, KeyError) as err:
-                    raise TestRunError(
-                        "Could not load attributes file: \n{}"
-                        .format(err.args))
+
+            self._attrs = self.load_legacy_attributes()
+            return
+
+        with attr_path.open() as attr_file:
+            try:
+                attrs = json.load(attr_file)
+            except (json.JSONDecodeError, OSError, ValueError, KeyError) as err:
+                raise TestRunError(
+                    "Could not load attributes file: \n{}"
+                    .format(err.args))
 
         for key, val in attrs.items():
-            deserializer = self.deserializers.get(key, lambda v: v)
+            deserializer = self.deserializers.get(key)
+            if deserializer is None:
+                continue
+
             try:
-                self._attrs[key] = deserializer(val)
+                attrs[key] = deserializer(val)
             except ValueError:
                 self.logger.warning(
                     "Error deserializing attribute '%s' value '%s' for test "
                     "run '%s': %s",
                     key, val, self.id, err.args[0])
+
+        # A 2.2 attributes file.
+        if 'result' not in attrs:
+            attrs = self.load_legacy_attributes(attrs)
+
+        self._attrs = attrs
+
+    def load_legacy_attributes(self, initial_attrs=None):
+        """Try to load attributes in older Pavilion formats, primarily before
+        the attributes file existed."""
+
+        initial_attrs = initial_attrs if initial_attrs else {}
+
+        attrs = {
+            'build_only': None,
+            'build_name': None,
+            'complete':   (self.path / TestRun.COMPLETE_FN).exists(),
+            'created':    self.path.stat().st_mtime,
+            'finished':   self.path.stat().st_mtime,
+            'id':         int(self.path.name),
+            'rebuild':    False,
+            'result':     None,
+            'skipped':    None,
+            'suite_path': None,
+            'sys_name':   None,
+            'user':       self.path.owner(),
+            'uuid':       None,
+        }
+
+        build_origin_path = self.path / 'build_origin'
+        if build_origin_path.exists():
+            link_dest = os.readlink(build_origin_path.as_posix())
+            attrs['build_name'] = link_dest.split('/')[-1]
+
+        run_path = self.path / 'run.sh'
+        if run_path.exists():
+            attrs['started'] = run_path.stat().st_mtime
+
+        res_path = self.path / 'results.json'
+        if res_path.exists():
+            attrs['finished'] = res_path.stat().st_mtime
+            try:
+                with res_path.open() as res_file:
+                    results = json.load(res_file)
+                attrs['result'] = results['result']
+                attrs['sys_name'] = results['sys_name']
+            except (OSError, json.JSONDecodeError, KeyError):
+                pass
+
+        # Replace with items we got from the real attributes file
+        attrs.update(initial_attrs)
+
+        return attrs
 
     @staticmethod
     def list_attrs():
@@ -306,6 +342,13 @@ class TestAttributes:
         doc="A completely unique id for this test run (test id's can rotate).")
 
 
+def test_run_attr_transform(path):
+    """A dir_db transformer to convert a test_run path into a dict of test
+    attributes."""
+
+    return TestAttributes(path).attr_dict()
+
+
 class TestRun(TestAttributes):
     """The central pavilion test object. Handle saving, monitoring and running
     tests.
@@ -389,7 +432,7 @@ class TestRun(TestAttributes):
             self.id = id_tmp  # pylint: disable=invalid-name
             self.build_only = build_only
             self.complete = False
-            self.created = dt.datetime.now()
+            self.created = time.time()
             self.name = self.make_name(config)
             self.rebuild = rebuild
             self.suite_path = Path(config.get('suite_path', '.'))
@@ -765,7 +808,7 @@ class TestRun(TestAttributes):
             self.status.set(STATES.RUNNING,
                             "Starting the run script.")
 
-            self.started = dt.datetime.now()
+            self.started = time.time()
 
             # Set the working directory to the build path, if there is one.
             run_wd = None
@@ -808,14 +851,14 @@ class TestRun(TestAttributes):
                         msg = ("Run timed out after {} seconds"
                                .format(self.run_timeout))
                         self.status.set(STATES.RUN_TIMEOUT, msg)
-                        self.finished = dt.datetime.now()
+                        self.finished = time.time()
                         self.save_attributes()
                         raise TimeoutError(msg)
                     else:
                         # Only wait a max of run_silent_timeout next 'wait'
                         timeout = timeout - quiet_time
 
-        self.finished = dt.datetime.now()
+        self.finished = time.time()
         self.save_attributes()
 
         self.status.set(STATES.RUN_DONE,
@@ -836,7 +879,7 @@ class TestRun(TestAttributes):
         with PermissionsManager(complete_tmp_path, self.group, self.umask), \
                 complete_tmp_path.open('w') as run_complete:
             json.dump(
-                {'complete': dt.datetime.now().isoformat()},
+                {'complete': time.time()},
                 run_complete)
         complete_tmp_path.rename(complete_path)
 
@@ -848,6 +891,8 @@ class TestRun(TestAttributes):
         if the test was never marked as complete."""
 
         run_complete_path = self.path/self.COMPLETE_FN
+        # This will force a meta-data update on the directory.
+        list(self.path.iterdir())
 
         if run_complete_path.exists():
             try:

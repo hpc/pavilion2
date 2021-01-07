@@ -34,8 +34,8 @@ class UtilsTests(unittest.PavTestCase):
 
         for example, answer in examples.items():
             self.assertEqual(
-                utils.hr_cutoff_to_datetime(example, _now=now),
-                answer,
+                utils.hr_cutoff_to_ts(example, _now=now),
+                answer.timestamp(),
                 msg="Parsing '{}' failed.".format(example)
             )
 
@@ -50,7 +50,7 @@ class UtilsTests(unittest.PavTestCase):
 
         for example in bad_examples:
             with self.assertRaises(ValueError):
-                utils.hr_cutoff_to_datetime(example)
+                utils.hr_cutoff_to_ts(example)
 
 
     def test_relative_to(self):

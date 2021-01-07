@@ -80,7 +80,7 @@ def load_series_configs(pav_cfg, series_name: str, cl_modes: List[str],
                                                         series_name)
     if not series_file_path:
         raise SeriesConfigError('Cannot find series config: {}'.
-                                format(args.series_name))
+                                format(series_name))
 
     try:
         with series_file_path.open() as series_file:
@@ -95,7 +95,7 @@ def load_series_configs(pav_cfg, series_name: str, cl_modes: List[str],
                 )
 
             # add modes and host from command line to config
-            series_cfg['modes'] = all_modes
+            series_cfg['modes'].extend(cl_modes)
             series_cfg['host'] = cl_host
     except AttributeError as err:
         raise SeriesConfigError("Cannot load series. {}".format(err.args[0]))

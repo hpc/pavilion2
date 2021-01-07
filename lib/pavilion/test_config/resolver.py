@@ -20,6 +20,7 @@ from pavilion import output
 from pavilion import pavilion_variables
 from pavilion import schedulers
 from pavilion import system_variables
+from pavilion.test_config import file_format
 from pavilion.pavilion_variables import PavVars
 from pavilion.test_config import parsers
 from pavilion.test_config import variables
@@ -216,6 +217,58 @@ class TestConfigResolver:
                             'doc': default(conf.get('doc', ''), ''),
                         }
         return suites
+
+    def find_all_configs(self, conf_type):
+        """ Find all configs (host/modes) within known config directories.
+
+    :return: Returns a dictionary of suite names to an info dict.
+    :rtype: dict(dict)
+
+    The returned data structure looks like: ::
+
+        config_name -> {
+            'path': Path to the suite file.
+            'config': Full config file, loaded as a dict.
+            'status': Nothing if successful, 'Loading the config failes.'
+                      if TectConfigError.
+            'error': Detailed error if applicable.
+            }
+
+        """
+
+        configs = {}
+        for conf_dir in self.pav_cfg.config_dirs:
+            path = conf_dir / conf_type
+
+            if not (path.exists() and path.is_dir()):
+                continue
+
+            for file in os.listdir(path.as_posix()):
+
+                file = path / file
+                if file.suffix == '.yaml' and file.is_file():
+                    name = file.stem
+                    configs[name] = {}
+
+                    full_path = file
+                    try:
+                        with file.open() as config_file:
+                            config = file_format.TestConfigLoader().load(
+                                config_file)
+                        configs[name]['path'] = full_path
+                        configs[name]['config'] = config
+                        configs[name]['status'] = ''
+                        configs[name]['error'] = ''
+                    except (TestConfigError, TypeError) as err:
+                        configs[name]['path'] = full_path
+                        configs[name]['config'] = ''
+                        configs[name]['status'] = ('Loading the config failed.'
+                                                   ' For more info run \'pav '
+                                                   'show {} --err\'.'
+                                                   .format(conf_type))
+                        configs[name]['error'] = err
+
+        return configs
 
     def load(self, tests: List[str], host: str = None,
              modes: List[str] = None, overrides: List[str] = None,

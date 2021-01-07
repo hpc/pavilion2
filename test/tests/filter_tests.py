@@ -1,13 +1,16 @@
-import argparse
-import datetime as dt
-import random
+"""Test the various dir_db filters."""
 
+import argparse
+import random
+import time
+from datetime import timedelta
+from pathlib import Path
+
+from pavilion import dir_db
 from pavilion import filters
 from pavilion import plugins
+from pavilion.test_run import TestAttributes, TestRun, test_run_attr_transform
 from pavilion.unittest import PavTestCase
-from pavilion.test_run import TestAttributes, TestRun
-from pathlib import Path
-from pavilion import dir_db
 
 
 class FiltersTest(PavTestCase):
@@ -56,7 +59,7 @@ class FiltersTest(PavTestCase):
                          msg="TEST_FILTER_DEFAULTS has unused keys '{}'"
                              .format(defaults))
 
-        now = dt.datetime.now()
+        now = time.time()
 
         parser = NoExitParser()
         filters.add_test_filter_args(
@@ -87,7 +90,7 @@ class FiltersTest(PavTestCase):
         self.assertIsNone(args.newer_than)
         # Really we're just testing for a datetime.
         self.assertLess(args.older_than,
-                        dt.datetime.now() - dt.timedelta(days=6))
+                        now - timedelta(days=6).total_seconds())
         self.assertEqual(args.sort_by, '-sort_foo')
 
         common_parser = NoExitParser()
@@ -109,10 +112,7 @@ class FiltersTest(PavTestCase):
     def test_make_series_filter(self):
         """Check the filter maker function."""
 
-        now = dt.datetime.now()
-
-        class DummySeriesInfo:
-            """A class to assign arbitrary attributes to."""
+        now = time.time()
 
         base = {
             'complete': False,
@@ -123,17 +123,19 @@ class FiltersTest(PavTestCase):
             'newer_than': None,
         }
 
-        always_match_series = DummySeriesInfo()
-        always_match_series.complete = True
-        always_match_series.created = now - dt.timedelta(minutes=5)
-        always_match_series.sys_name = 'this'
-        always_match_series.user = 'bob'
+        always_match_series = {
+            'complete': True,
+            'created': now - 5*60,
+            'sys_name': 'this',
+            'user': 'bob',
+        }
 
-        never_match_series = DummySeriesInfo()
-        never_match_series.complete = False
-        never_match_series.created = now - dt.timedelta(minutes=1)
-        never_match_series.sys_name = 'that'
-        never_match_series.user = 'gary'
+        never_match_series = {
+            'complete': False,
+            'created': now - 1*60,
+            'sys_name': 'that',
+            'user': 'gary',
+        }
 
         # Setting any of this will be ok for the 'always' pass test,
         # but never ok for the 'never' pass test.
@@ -141,14 +143,14 @@ class FiltersTest(PavTestCase):
             'complete': True,
             'user': 'bob',
             'sys_name': 'this',
-            'older_than': now - dt.timedelta(minutes=2),
+            'older_than': now - 2*60,
         }
 
         # These are the opposite. The 'always' pass test won't, and the
         # 'never' pass will.
         inv_opt_set = {
             'incomplete': True,
-            'newer_than': now - dt.timedelta(minutes=2),
+            'newer_than': now - 2*60,
         }
 
         for opt, val in opt_set.items():
@@ -179,22 +181,21 @@ class FiltersTest(PavTestCase):
     def test_make_test_run_filter(self):
         """Check that the series filter options all work."""
 
-        now = dt.datetime.now()
+        now = time.time()
 
-        always_match_test = TestAttributes(Path('dummy'))
-        always_match_test._attrs = {
+        always_match_test = {
             'complete': True,
-            'created':  now - dt.timedelta(minutes=5),
+            'created':  now - timedelta(minutes=5).total_seconds(),
             'name':     'mytest.always_match',
             'result':   TestRun.PASS,
             'skipped':  False,
             'sys_name': 'this',
             'user':     'bob',
         }
-        never_match_test = TestAttributes(Path('dummy'))
-        never_match_test._attrs = {
+
+        never_match_test = {
             'complete': False,
-            'created':  now - dt.timedelta(minutes=1),
+            'created':  now - timedelta(minutes=1).total_seconds(),
             'name':     'yourtest.never_match',
             'result':   TestRun.FAIL,
             'skipped':  True,
@@ -210,7 +211,7 @@ class FiltersTest(PavTestCase):
             'user':         'bob',
             'sys_name':     'this',
             'passed':       True,
-            'older_than':   now - dt.timedelta(minutes=2),
+            'older_than':   now - timedelta(minutes=2).total_seconds(),
             'name':         'mytest.*',
         }
 
@@ -220,7 +221,7 @@ class FiltersTest(PavTestCase):
             'incomplete':   True,
             'failed':       True,
             'result_error': True,
-            'newer_than':   now - dt.timedelta(minutes=2),
+            'newer_than':   now - timedelta(minutes=2).total_seconds(),
         }
 
         for opt, val in opt_set.items():
@@ -228,22 +229,22 @@ class FiltersTest(PavTestCase):
 
             self.assertTrue(tr_filter(always_match_test),
                             msg="Failed on opt, val ({}, {})\n{}"
-                            .format(opt, val, always_match_test.attr_dict()))
+                            .format(opt, val, always_match_test))
             self.assertFalse(tr_filter(never_match_test),
                              msg="Failed on opt, val ({}, {})\n{}"
-                             .format(opt, val, never_match_test.attr_dict()))
+                             .format(opt, val, never_match_test))
 
         for opt, val in inv_opt_set.items():
             tr_filter = filters.make_test_run_filter(**{opt: val})
 
             self.assertFalse(tr_filter(always_match_test),
                              msg="Failed on opt, val ({}, {})\n{}"
-                             .format(opt, val, always_match_test.attr_dict()))
+                             .format(opt, val, always_match_test))
             if opt != 'result_error':  # Fails on this one (expected)
                 self.assertTrue(
                     tr_filter(never_match_test),
                     msg="Failed on opt, val ({}, {})\n{}"
-                        .format(opt, val, never_match_test.attr_dict()))
+                        .format(opt, val, never_match_test))
 
     def test_get_sort_opts(self):
         """Check the sort operation manager."""
@@ -264,13 +265,15 @@ class FiltersTest(PavTestCase):
         self.assertTrue(ascending)
         sorted_tests = dir_db.select_from(
             paths=paths,
-            transform=TestAttributes, order_func=sort, order_asc=ascending)[0]
-        self.assertEqual([t.id for t in sorted_tests], ids)
+            transform=test_run_attr_transform,
+            order_func=sort, order_asc=ascending).data
+        self.assertEqual([t['id'] for t in sorted_tests], ids)
 
         # And descending.
         sort, ascending = filters.get_sort_opts('-id', filters.TEST_SORT_FUNCS)
         self.assertFalse(ascending)
         sorted_tests = dir_db.select_from(
             paths=paths,
-            transform=TestAttributes, order_func=sort, order_asc=ascending)[0]
-        self.assertEqual([t.id for t in sorted_tests], list(reversed(ids)))
+            transform=test_run_attr_transform,
+            order_func=sort, order_asc=ascending).data
+        self.assertEqual([t['id'] for t in sorted_tests], list(reversed(ids)))

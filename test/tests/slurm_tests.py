@@ -261,6 +261,7 @@ class SlurmTests(PavTestCase):
                     "num_nodes of {}."
                     .format(test.id, test.path, self.TEST_TIMEOUT, num_nodes))
 
+        test.wait(10)
         results = test.load_results()
         self.assertEqual(results['result'], test.PASS)
 
@@ -272,7 +273,7 @@ class SlurmTests(PavTestCase):
 
         dummy_test = self._quick_test(build=False, finalize=False)
         svars = slurm.get_vars(dummy_test.config['slurm'])
-        up_nodes = svars['node_up_list']
+        up_nodes = svars['node_up_list'].split()
 
         cfg = self._quick_test_cfg()
         cfg['scheduler'] = 'slurm'

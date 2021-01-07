@@ -3,14 +3,14 @@ to dir_db commands."""
 
 import argparse
 import datetime as dt
+import time
 import fnmatch
 from pathlib import Path
 from typing import Dict, Any, Callable, List
 
 from pavilion import system_variables
 from pavilion import utils
-from pavilion.series_util import SeriesInfo
-from pavilion.test_run import TestAttributes, TestRun
+from pavilion.test_run import TestRun
 
 LOCAL_SYS_NAME = '<local_sys_name>'
 TEST_FILTER_DEFAULTS = {
@@ -18,7 +18,7 @@ TEST_FILTER_DEFAULTS = {
     'failed': False,
     'incomplete': False,
     'name': None,
-    'newer_than': dt.datetime.now() - dt.timedelta(days=1),
+    'newer_than': time.time() - dt.timedelta(days=1).total_seconds(),
     'older_than': None,
     'passed': False,
     'result_error': False,
@@ -32,12 +32,12 @@ TEST_FILTER_DEFAULTS = {
 }
 
 TEST_SORT_FUNCS = {
-    'created': lambda test: test.created,
-    'finished': lambda test: test.finished,
-    'name': lambda test: test.name,
-    'started': lambda test: test.started,
-    'user': lambda test: test.user,
-    'id': lambda test: test.id,
+    'created': lambda test: test['created'],
+    'finished': lambda test: test['finished'],
+    'name': lambda test: test['name'],
+    'started': lambda test: test['started'],
+    'user': lambda test: test['user'],
+    'id': lambda test: test['id'],
 }
 
 
@@ -74,7 +74,7 @@ def add_common_filter_args(target: str,
 
     )
     arg_parser.add_argument(
-        '--older-than', type=utils.hr_cutoff_to_datetime,
+        '--older-than', type=utils.hr_cutoff_to_ts,
         default=defaults['older_than'],
         help=("Include only {} older than (by creation time) the given "
               "date or a time period given relative to the current date. \n\n"
@@ -87,7 +87,7 @@ def add_common_filter_args(target: str,
               "Default: {}".format(target, defaults['older_than']))
     )
     arg_parser.add_argument(
-        '--newer-than', type=utils.hr_cutoff_to_datetime,
+        '--newer-than', type=utils.hr_cutoff_to_ts,
         default=defaults['newer_than'],
         help='As per older-than, but include only {} newer than the given'
              'time.  Default: {}'.format(target, defaults['newer_than'])
@@ -191,8 +191,8 @@ add_test_filter_args.__doc__.format(
 
 
 SERIES_SORT_FUNCS = {
-    'created': lambda p: p.created,
-    'id': lambda p: p.id,
+    'created': lambda p: p['created'],
+    'id': lambda p: p['id'],
 }
 
 
@@ -235,7 +235,7 @@ def add_series_filter_args(arg_parser: argparse.ArgumentParser,
 def make_test_run_filter(
         complete: bool = False, failed: bool = False, incomplete: bool = False,
         name: str = None,
-        newer_than: dt.datetime = None, older_than: dt.datetime = None,
+        newer_than: float = None, older_than: float = None,
         passed: bool = False, result_error: bool = False,
         show_skipped: bool = False, sys_name: str = None, user: str = None):
     """Generate a filter function for use by dir_db.select and similar
@@ -261,45 +261,43 @@ def make_test_run_filter(
         sys_name = sys_vars['sys_name']
 
     #  select once so we only make one filter.
-    def filter_test_run(test_attrs: TestAttributes) -> bool:
+    def filter_test_run(test_attrs: dict) -> bool:
         """Determine whether the test run at the given path should be
         included in the set."""
 
-        if show_skipped == 'no' and test_attrs.skipped:
+        if show_skipped == 'no' and test_attrs.get('skipped'):
             return False
-        elif show_skipped == 'only' and not test_attrs.skipped:
-            return False
-
-        if complete and not test_attrs.complete:
+        elif show_skipped == 'only' and not test_attrs.get('skipped'):
             return False
 
-        if incomplete and test_attrs.complete:
+        if complete and not test_attrs.get('complete'):
             return False
 
-        if user and test_attrs.user != user:
+        if incomplete and test_attrs.get('complete'):
             return False
 
-        if sys_name and sys_name != test_attrs.sys_name:
+        if user and test_attrs.get('user') != user:
             return False
 
-        if passed and test_attrs.result != TestRun.PASS:
+        if sys_name and sys_name != test_attrs.get('sys_name'):
             return False
 
-        if failed and test_attrs.result != TestRun.FAIL:
+        if passed and test_attrs.get('result') != TestRun.PASS:
             return False
 
-        if result_error and test_attrs.result != TestRun.ERROR:
+        if failed and test_attrs.get('result') != TestRun.FAIL:
             return False
 
-        if older_than is not None and \
-            (test_attrs.created is None or test_attrs.created > older_than):
+        if result_error and test_attrs.get('result') != TestRun.ERROR:
             return False
 
-        if newer_than is not None and \
-            (test_attrs.created is None or test_attrs.created < newer_than):
+        if older_than is not None and test_attrs.get('created') > older_than:
             return False
 
-        if name and not fnmatch.fnmatch(test_attrs.name, name):
+        if newer_than is not None and test_attrs.get('created') < newer_than:
+            return False
+
+        if name and not fnmatch.fnmatch(test_attrs.get('name'), name):
             return False
 
         return True
@@ -336,7 +334,7 @@ SERIES_FILTER_DEFAULTS = {
     'sort_by': '-created',
     'complete': False,
     'incomplete': False,
-    'newer_than': dt.datetime.now() - dt.timedelta(days=1),
+    'newer_than': time.time() - dt.timedelta(days=1).seconds,
     'older_than': None,
     'sys_name': LOCAL_SYS_NAME,
     'user': utils.get_login(),
@@ -346,7 +344,7 @@ SERIES_FILTER_DEFAULTS = {
 def make_series_filter(
         user: str = None, sys_name: str = None, newer_than: dt.datetime = None,
         older_than: dt.datetime = None, complete: bool = False,
-        incomplete: bool = False) -> Callable[[SeriesInfo], bool]:
+        incomplete: bool = False) -> Callable[[Dict[str, Any]], bool]:
     """Generate a filter for using with dir_db functions to filter series. This
     is expected to operate on series.SeriesInfo objects, so make sure to pass
     Series info as the dir_db transform function.
@@ -363,25 +361,25 @@ def make_series_filter(
         sys_vars = system_variables.get_vars(defer=True)
         sys_name = sys_vars['sys_name']
 
-    def series_filter(series: SeriesInfo):
+    def series_filter(series: Dict[str, Any]):
         """Generated series filter function."""
 
-        if user is not None and series.user != user:
+        if user is not None and series['user'] != user:
             return False
 
-        if newer_than and series.created < newer_than:
+        if newer_than and series.get('created') < newer_than:
             return False
 
-        if older_than and series.created > older_than:
+        if older_than and series.get('created') > older_than:
             return False
 
-        if complete and not series.complete:
+        if complete and not series.get('complete'):
             return False
 
-        if incomplete and series.complete:
+        if incomplete and series.get('complete'):
             return False
 
-        if sys_name and series.sys_name != sys_name:
+        if sys_name and series.get('sys_name') != sys_name:
             return False
 
         return True

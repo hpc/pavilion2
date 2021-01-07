@@ -25,6 +25,7 @@ Usage: ::
 """
 
 import datetime
+import time
 import logging
 import os
 
@@ -147,21 +148,23 @@ class StatusInfo:
 :ivar datetime when: A datetime object representing when this state was saved.
 """
 
+    TS_FORMAT = '{:0.6f}'
     TIME_FORMAT = '%Y-%m-%dT%H:%M:%S.%f'
-    TS_LEN = 5 + 3 + 3 + 3 + 3 + 3 + 6
+    MAX_TS = datetime.datetime(9999, 12, 31, 1, 1, 1, 123456).timestamp()
+    TS_LEN = max([5 + 3 + 3 + 3 + 3 + 3 + 6, len(TS_FORMAT.format(MAX_TS))])
 
     LINE_MAX = 4096
     # Maximum length of a note. They can use every byte minux the timestamp
     # and status sizes, the spaces in-between, and the trailing newline.
     NOTE_MAX = LINE_MAX - TS_LEN - 1 - STATES.max_length - 1 - 1
 
-    def __init__(self, state, note, when=None):
+    def __init__(self, state: str, note: str, when: float = None):
 
         self.state = state
         self.note = note.replace('\\n', '\n')
 
         if when is None:
-            self.when = datetime.datetime.now()
+            self.when = time.time()
         else:
             self.when = when
 
@@ -178,7 +181,8 @@ class StatusInfo:
             state = self.state
             note = self.note
 
-        when = self.when.strftime(StatusInfo.TIME_FORMAT)
+        # There could be a large negative time, I guess, but it's unlikely.
+        when = self.TS_FORMAT.format(min([self.when, self.MAX_TS]))
 
         note = note.replace('\n', '\\n')
 
@@ -252,13 +256,17 @@ could be wrong with the file format.
         when = None
 
         if parts:
+            time_part = parts.pop(0)
             try:
-                when = datetime.datetime.strptime(parts.pop(0),
-                                                  StatusInfo.TIME_FORMAT)
-            except ValueError as err:
-                self.LOGGER.warning(
-                    "Bad date in log line '%s' in file '%s': %s",
-                    line, self.path, err)
+                when = float(time_part)
+            except ValueError:
+                try:
+                    when = datetime.datetime.strptime(
+                        parts.pop(0), StatusInfo.TIME_FORMAT).timestamp()
+                except ValueError as err:
+                    self.LOGGER.warning(
+                        "Bad date in log line '%s' in file '%s': %s",
+                        line, self.path, err)
 
         if parts:
             state = parts.pop(0)
@@ -331,7 +339,7 @@ could be wrong with the file format.
     :param note: A note about this particular instance of the state.
     """
 
-        stinfo = StatusInfo(state, note, when=datetime.datetime.now())
+        stinfo = StatusInfo(state, note, when=time.time())
 
         status_line = stinfo.status_line()
 

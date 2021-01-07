@@ -1,6 +1,5 @@
 """Object for summarizing series quickly."""
 
-import datetime as dt
 from pathlib import Path
 import logging
 import json
@@ -28,7 +27,7 @@ class SeriesInfo:
         self.path = path
 
         self._complete = None
-        self._tests = [tpath for tpath in dir_db.select(self.path)[0]]
+        self._tests = [tpath for tpath in dir_db.select(self.path).paths]
 
     @classmethod
     def list_attrs(cls):
@@ -82,10 +81,10 @@ class SeriesInfo:
             return None
 
     @property
-    def created(self) -> dt.datetime:
+    def created(self) -> float:
         """When the test was created."""
 
-        return dt.datetime.fromtimestamp(self.path.stat().st_mtime)
+        return self.path.stat().st_mtime
 
     @property
     def num_tests(self):
@@ -100,6 +99,12 @@ class SeriesInfo:
             return None
 
         return TestAttributes(self._tests[0]).sys_name
+
+
+def series_info_transform(path):
+    """Transform a path into a series info dict."""
+
+    return SeriesInfo(path).attr_dict()
 
 
 def path_to_sid(series_path: Path):
@@ -148,7 +153,7 @@ id.
             "No such test series '{}'. Looked in {}."
             .format(sid, series_path))
 
-    return dir_db.select(series_path)[0]
+    return dir_db.select(series_path).paths
 
 
 def path_from_id(pav_cfg, sid: str):
