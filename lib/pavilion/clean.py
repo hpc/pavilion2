@@ -7,6 +7,7 @@ from pavilion import dir_db
 from pavilion import lockfile
 from pavilion import test_run
 from pavilion import utils
+from pavilion import output
 from pavilion.builder import TestBuilder
 
 
@@ -104,3 +105,37 @@ def _get_used_build_paths(tests_dir: Path) -> set:
             used_builds.add(build_origin.name)
 
     return used_builds
+
+
+def delete_lingering_build_files(build_dir: Path, tests_dir: Path,
+                                 verbose: bool = False):
+    """
+    Delete any lingering build related files that don't get handled in
+    delete_builds. Mainly used to remove .lock and .log files that are
+    associated with build hash dirs that do not exist.
+
+    :param build_dir:  Path to the pavilion builds directory.
+    :param tests_dir: Path to the pavilion test_runs directory.
+    :param verbose: Print output
+    """
+
+    # Avoid anything that matches build hash in this list
+    used_build_paths = _get_used_build_paths(tests_dir)
+
+    msgs = []
+    for path in build_dir.iterdir():
+        # Not responsible for deleting build hash directories.
+        if path.is_dir():
+            continue
+        # Don't remove anything associated with a used build hash.
+        if path.stem in used_build_paths:
+            continue
+
+        # Only remove .lock and .log files.
+        if path.name.endswith(".lock") or path.name.endswith(".log"):
+            path.unlink()
+            if verbose:
+                msgs.append("Removed lingering build file {}."
+                            .format(path.name))
+
+    return msgs
