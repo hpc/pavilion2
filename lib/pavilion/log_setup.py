@@ -246,12 +246,12 @@ def setup_loggers(pav_cfg, verbose=False, err_out=sys.stderr):
         ))
         exc_logger.setLevel(logging.ERROR)
         exc_logger.addHandler(exc_handler)
-    
+
     try:
         perm_man.set_perms(pav_cfg.exception_log)
     except OSError:
         output.fprint("Could not set permissions on exception log at '{}'"
-                      .format(pav_cfg.result_log.as_posix(), 
+                      .format(pav_cfg.result_log.as_posix(),
                       color=output.YELLOW), file=err_out)
 
     # Setup the yapsy logger to log to terminal. We need to know immediatly
