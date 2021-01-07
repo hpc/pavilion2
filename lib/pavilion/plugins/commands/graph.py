@@ -171,7 +171,6 @@ class GraphCommand(commands.Command):
                     "seeing this message.\n{}"
                     .format(test_id, err.args[0]),
                     color=output.YELLOW, file=self.errfile)
-                pass
 
         if not tests:
             output.fprint("Test filtering resulted in an empty list.",
@@ -196,14 +195,15 @@ class GraphCommand(commands.Command):
 
         # Set colormap and build colormap dict
         colormap = matplotlib.pyplot.get_cmap('tab20')
-        colormap = self.set_colors(y_evals, colormap.colors)
+        colormap = GraphCommand.set_colors(y_evals, colormap.colors)
 
         # Populate graph data dict with evaluation data from all tests provided.
         graph_data = {}
         for test in tests:
             try:
-                test_graph_data = self.gather_graph_data(x_eval, y_evals,
-                                                         test.results)
+                test_graph_data = GraphCommand.gather_graph_data(x_eval,
+                                                                 y_evals,
+                                                                 test.results)
             except InvalidEvaluationError as err:
                 output.fprint("Error gathering graph data for test {}: \n{}"
                               .format(test.id, err),
@@ -216,7 +216,8 @@ class GraphCommand(commands.Command):
                               file=self.errfile, color=output.RED)
                 return errno.EINVAL
 
-            graph_data = self.combine_graph_data(graph_data, test_graph_data)
+            graph_data = GraphCommand.combine_graph_data(graph_data,
+                                                         test_graph_data)
 
         graph_data = collections.OrderedDict(sorted(graph_data.items()))
 
@@ -230,7 +231,8 @@ class GraphCommand(commands.Command):
                           file=self.errfile, color=output.RED)
             return errno.EINVAL
 
-    def set_colors(self, y_evals, colors) -> Dict:
+    @staticmethod
+    def set_colors(y_evals, colors) -> Dict:
         """Set color for each y value to be plotted.
 
         :param y_evals: y axis evaluations dictionary.
@@ -246,7 +248,8 @@ class GraphCommand(commands.Command):
 
         return colormap
 
-    def gather_graph_data(self, x_eval, y_evals, test_results) -> Dict:
+    @staticmethod
+    def gather_graph_data(x_eval, y_evals, test_results) -> Dict:
         """
         Gather and format a test run objects results.
 
@@ -282,11 +285,9 @@ class GraphCommand(commands.Command):
             graph_data = {}
             evaluations = {}
 
-            x = x_vals
-
             for key in y_evals.keys():
                 evaluations.update({key: test_results[key]})
-            graph_data[x] = evaluations
+            graph_data[x_vals] = evaluations
 
         # X value evaluations should only result in a list when graphing
         # individual node results from a single test run.
@@ -304,7 +305,7 @@ class GraphCommand(commands.Command):
                                                   item))
             graph_data = {}
             for i in range(len(x_vals)):
-                x = x_vals[i]
+                x_val = x_vals[i]
 
                 evaluations = {}
                 for key in y_evals.keys():
@@ -319,7 +320,7 @@ class GraphCommand(commands.Command):
                                                       test_results[key]))
                     evaluations.update({key: test_results[key][i]})
 
-                graph_data[x] = evaluations
+                graph_data[x_val] = evaluations
 
         else:
             raise ResultTypeError("x value  evaluation '{}' resulted in invalid"
@@ -329,7 +330,8 @@ class GraphCommand(commands.Command):
 
         return graph_data
 
-    def combine_graph_data(self, graph_data, test_graph_data) -> Dict:
+    @staticmethod
+    def combine_graph_data(graph_data, test_graph_data) -> Dict:
         """
         Takes individual test run graph data and tries to extend
         lists of values for the same x value and y evaluation if they exist
@@ -376,7 +378,7 @@ class GraphCommand(commands.Command):
         """
 
         labels = set()
-        for x, eval_dict in graph_data.items():
+        for x_val, eval_dict in graph_data.items():
             for evl, y_list in eval_dict.items():
                 color = colormap[evl]['plot']
 
@@ -384,7 +386,7 @@ class GraphCommand(commands.Command):
                 label = label if label not in labels else ""
                 labels.add(label)
 
-                x_list = [x] * len(y_list)
+                x_list = [x_val] * len(y_list)
 
                 try:
                     matplotlib.pyplot.scatter(x=x_list, y=y_list, marker="o",
