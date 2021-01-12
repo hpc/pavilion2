@@ -106,7 +106,7 @@ class TestAttributes:
         'created': utils.deserialize_datetime,
         'finished': utils.deserialize_datetime,
         'started': utils.deserialize_datetime,
-        'suite_path': Path,
+        'suite_path': lambda p: Path(p) if p is not None else None,
     }
 
     def __init__(self, path: Path, group: str = None, umask: int = None):
@@ -157,7 +157,9 @@ class TestAttributes:
 
         attr_path = self.path/self.ATTR_FILE_NAME
 
+        attrs = {}
         if not attr_path.exists():
+
             self._attrs = self.load_legacy_attributes()
             return
 

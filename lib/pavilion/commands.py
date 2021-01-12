@@ -67,7 +67,7 @@ class Command(IPlugin.IPlugin):
     """
 
     def __init__(self, name, description, short_help=None, aliases=None,
-                 sub_commands=False):
+                 sub_commands=False, formatter_class=None):
         """Initialize this command. This should be overridden by subclasses, to
         set reasonable values. Multiple commands of the same name are not
         allowed to exist.
@@ -96,6 +96,7 @@ class Command(IPlugin.IPlugin):
         self.description = description
         self.short_help = short_help
         self.aliases = aliases
+        self.formatter_class = formatter_class
 
         # These are to allow tests to redirect output as needed.
         self.outfile = sys.stdout
@@ -150,15 +151,28 @@ case that includes:
         # A add the short help, or not. A quirk of argparse is that if 'help'
         # is set, the subcommand is listed regardless of whether the
         # help is None. If we don't want that, we have to init without 'help'.
-        if self.short_help is None:
+        if self.short_help is not None and self.formatter_class is not None:
             parser = sub_parser.add_parser(self.name,
                                            aliases=self.aliases,
-                                           description=self.description)
-        else:
+                                           description=self.description,
+                                           help=self.short_help,
+                                           formatter_class=self.formatter_class)
+
+        elif self.short_help is None and self.formatter_class is not None:
+            parser = sub_parser.add_parser(self.name,
+                                           aliases=self.aliases,
+                                           description=self.description,
+                                           formatter_class=self.formatter_class)
+
+        elif self.short_help is not None and self.formatter_class is None:
             parser = sub_parser.add_parser(self.name,
                                            aliases=self.aliases,
                                            description=self.description,
                                            help=self.short_help)
+        else:
+            parser = sub_parser.add_parser(self.name,
+                                           aliases=self.aliases,
+                                           description=self.description)
 
         # Save the argument parser, as it can come in handy.
         self._parser = parser

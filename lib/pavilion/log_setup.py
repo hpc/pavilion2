@@ -184,6 +184,12 @@ def setup_loggers(pav_cfg, verbose=False, err_out=sys.stderr):
         file_handler.setLevel(getattr(logging,
                                       pav_cfg.log_level.upper()))
         root_logger.addHandler(file_handler)
+    try:
+        perm_man.set_perms(log_fn)
+    except OSError:
+        output.fprint("Could not set permissions on pavilion log at '{}'"
+                      .format(pav_cfg.result_log.as_posix(),
+                      color=output.YELLOW), file=err_out)
 
     try:
         perm_man.set_perms(log_fn)
@@ -202,10 +208,15 @@ def setup_loggers(pav_cfg, verbose=False, err_out=sys.stderr):
         output.fprint(
             "Could not write to result log at '{}': {}"
             .format(pav_cfg.result_log, err),
-            color=output.YELLOW,
-            file=err_out
-        )
+            color=output.YELLOW, file=err_out)
         return False
+    try:
+        perm_man.set_perms(log_fn)
+        perm_man.set_perms(pav_cfg.result_log)
+    except OSError:
+        output.fprint("Could not set permissions on result log at '{}'"
+                      .format(pav_cfg.result_log.as_posix(),
+                      color=output.YELLOW), file=err_out)
 
     try:
         perm_man.set_perms(pav_cfg.result_log)
@@ -249,7 +260,9 @@ def setup_loggers(pav_cfg, verbose=False, err_out=sys.stderr):
     try:
         perm_man.set_perms(pav_cfg.exception_log)
     except OSError:
-        pass
+        output.fprint("Could not set permissions on exception log at '{}'"
+                      .format(pav_cfg.result_log.as_posix(),
+                      color=output.YELLOW), file=err_out)
 
     # Setup the yapsy logger to log to terminal. We need to know immediatly
     # when yapsy encounters errors.

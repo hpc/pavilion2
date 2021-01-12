@@ -134,7 +134,8 @@ class RunCommand(commands.Command):
             fprint("You must specify at least one test.", file=self.errfile)
             return errno.EINVAL
 
-        series = TestSeries(pav_cfg, all_tests)
+        series = TestSeries(pav_cfg=pav_cfg, tests=all_tests,
+                            outfile=self.outfile, errfile=self.errfile)
         self.last_series = series
 
         res = cmd_utils.check_result_format(all_tests, self.errfile)

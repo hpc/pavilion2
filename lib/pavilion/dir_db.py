@@ -164,14 +164,8 @@ def index(id_dir: Path, idx_name: str,
         seen = []
 
         for file in os.scandir(id_dir.as_posix()):
-
-            # Only directories with integer names are db entries.
-            if not file.is_dir():
-                continue
-
-            dir_ = Path(file)
             try:
-                id_ = int(dir_.name, fn_base)
+                id_ = int(file.name, fn_base)
             except ValueError:
                 continue
 
@@ -181,9 +175,13 @@ def index(id_dir: Path, idx_name: str,
             if id_ in idx and idx[id_].get(complete_key, False):
                 continue
 
+            # Only directories with integer names are db entries.
+            if not file.is_dir():
+                continue
+
             # Update incomplete or unknown entries.
             try:
-                new = transform(dir_)
+                new = transform(Path(file.path))
             except ValueError:
                 continue
 

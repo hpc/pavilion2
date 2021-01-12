@@ -78,9 +78,10 @@ def main():
                 file=sys.stderr,
             )
             sys.exit(1)
+        
         try:
             perm_man.set_perms(path)
-        except OSError as err:
+        except OSError:
             pass
 
     # Setup all the loggers for Pavilion

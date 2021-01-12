@@ -35,7 +35,7 @@ def check_evaluations(evaluations: Dict[str, str]):
 
 
 def evaluate_results(results: dict, evaluations: Dict[str, str],
-                     log: utils.IndentedLog):
+                     log: utils.IndentedLog = None):
     """Perform result evaluations using an expression parser. The variables
     in such expressions are pulled from the results data structure, and the
     results are stored there too.

@@ -1,0 +1,8 @@
+[Core]
+Name = Graph Command
+Module = graph
+
+[Documentation]
+Description = Command used to generate a graph for a group of tests
+Author = Kody J. Everson
+Version = 1.0
