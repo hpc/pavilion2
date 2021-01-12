@@ -250,12 +250,15 @@ class TestAttributes:
         attrs.sort()
         return attrs
 
-    def attr_dict(self, include_empty=True):
+    def attr_dict(self, include_empty=True, serialize=False):
         """Return the attributes as a dictionary."""
 
         attrs = {}
         for key in self.list_attrs():
             val = getattr(self, key)
+            if serialize and key in self.serializers and val is not None:
+                val = self.serializers[key](val)
+
             if val is not None or include_empty:
                 attrs[key] = val
 
@@ -346,7 +349,7 @@ def test_run_attr_transform(path):
     """A dir_db transformer to convert a test_run path into a dict of test
     attributes."""
 
-    return TestAttributes(path).attr_dict()
+    return TestAttributes(path).attr_dict(serialize=True)
 
 
 class TestRun(TestAttributes):

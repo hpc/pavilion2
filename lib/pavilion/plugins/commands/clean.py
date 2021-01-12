@@ -60,7 +60,7 @@ class CleanCommand(commands.Command):
                                                   args.verbose)
         if args.verbose:
             for msg in msgs:
-                output.fprint(msg, color=output.YELLOW)
+                output.fprint(msg, color=output.YELLOW, file=self.outfile)
         output.fprint("Removed {} test(s).".format(rm_tests_count),
                       file=self.outfile, color=output.GREEN, clear=True)
 
@@ -70,7 +70,7 @@ class CleanCommand(commands.Command):
         rm_series_count, msgs = clean.delete_series(series_dir, args.verbose)
         if args.verbose:
             for msg in msgs:
-                output.fprint(msg, color=output.YELLOW)
+                output.fprint(msg, color=output.YELLOW, file=self.outfile)
         output.fprint("Removed {} series.".format(rm_series_count),
                       file=self.outfile, color=output.GREEN, clear=True)
 
@@ -83,7 +83,7 @@ class CleanCommand(commands.Command):
                                                        args.verbose))
         if args.verbose:
             for msg in msgs:
-                output.fprint(msg, color=output.YELLOW)
+                output.fprint(msg, color=output.YELLOW, file=self.outfile)
         output.fprint("Removed {} build(s).".format(rm_builds_count),
                       file=self.outfile, color=output.GREEN, clear=True)
 

@@ -5,7 +5,6 @@ import os
 import time
 from typing import TextIO, List
 
-import pavilion.series_util
 from pavilion import commands
 from pavilion import output
 from pavilion import schedulers
@@ -89,7 +88,7 @@ def get_tests(pav_cfg, tests: List['str'], errfile: TextIO) -> List[int]:
             try:
                 test_list.extend(series.TestSeries.from_id(pav_cfg,
                                                            test_id).tests)
-            except pavilion.series_util.TestSeriesError as err:
+            except series_util.TestSeriesError as err:
                 output.fprint(
                     "Suite {} could not be found.\n{}"
                     .format(test_id, err),
