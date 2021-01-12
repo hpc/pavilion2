@@ -172,7 +172,6 @@ def setup_loggers(pav_cfg, verbose=False, err_out=sys.stderr):
     # than 1 MB.
     try:
         log_fn.touch()
-        perm_man.set_perms(log_fn)
     except (PermissionError, FileNotFoundError) as err:
         output.fprint("Could not write to pavilion log at '{}': {}"
                       .format(log_fn, err),
@@ -186,6 +185,11 @@ def setup_loggers(pav_cfg, verbose=False, err_out=sys.stderr):
                                       pav_cfg.log_level.upper()))
         root_logger.addHandler(file_handler)
 
+    try:
+        perm_man.set_perms(log_fn)
+    except OSError:
+        pass
+
     # The root logger should pass all messages, even if the handlers
     # filter them.
     root_logger.setLevel(logging.DEBUG)
@@ -194,7 +198,6 @@ def setup_loggers(pav_cfg, verbose=False, err_out=sys.stderr):
     # Results will be logged to both the main log and the result log.
     try:
         pav_cfg.result_log.touch()
-        perm_man.set_perms(pav_cfg.result_log)
     except (PermissionError, FileNotFoundError) as err:
         output.fprint(
             "Could not write to result log at '{}': {}"
@@ -203,6 +206,11 @@ def setup_loggers(pav_cfg, verbose=False, err_out=sys.stderr):
             file=err_out
         )
         return False
+
+    try:
+        perm_man.set_perms(pav_cfg.result_log)
+    except OSError:
+        pass
 
     result_logger = logging.getLogger('common_results')
     result_handler = LockFileRotatingFileHandler(
@@ -219,7 +227,6 @@ def setup_loggers(pav_cfg, verbose=False, err_out=sys.stderr):
     exc_logger = logging.getLogger('exceptions')
     try:
         pav_cfg.exception_log.touch()
-        perm_man.set_perms(pav_cfg.exception_log)
     except (PermissionError, FileNotFoundError) as err:
         output.fprint(
             "Could not write to exception log at '{}': {}"
@@ -238,6 +245,11 @@ def setup_loggers(pav_cfg, verbose=False, err_out=sys.stderr):
         ))
         exc_logger.setLevel(logging.ERROR)
         exc_logger.addHandler(exc_handler)
+
+    try:
+        perm_man.set_perms(pav_cfg.exception_log)
+    except OSError:
+        pass
 
     # Setup the yapsy logger to log to terminal. We need to know immediatly
     # when yapsy encounters errors.

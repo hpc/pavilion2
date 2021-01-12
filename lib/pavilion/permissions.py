@@ -27,7 +27,9 @@ class PermissionsManager:
         :param silent: Whether to quietly log system errors.
         """
 
-        if group is not None:
+        if isinstance(group, int):
+            self.gid = group
+        elif group is not None:
             self.gid = grp.getgrnam(group).gr_gid
         else:
             self.gid = None

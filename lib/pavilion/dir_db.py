@@ -145,15 +145,15 @@ def index(id_dir: Path, idx_name: str,
     # Open and read the index if it exists. Any errors cause the index to
     # regenerate from scratch.
     if idx_path.exists():
-        with idx_path.open() as idx_file:
-            try:
+        try:
+            with idx_path.open() as idx_file:
                 idx = Index({int(k): v for k, v in json.load(idx_file).items()})
                 idx_stat = idx_path.stat()
-            except (OSError, json.JSONDecodeError) as err:
-                # In either error case, start from scratch.
-                LOGGER.warning(
-                    "Error reading index at '%s'. Regenerating from "
-                    "scratch. %s", idx_path.as_posix(), err.args[0])
+        except (OSError, PermissionError, json.JSONDecodeError) as err:
+            # In either error case, start from scratch.
+            LOGGER.warning(
+                "Error reading index at '%s'. Regenerating from "
+                "scratch. %s", idx_path.as_posix(), err.args[0])
 
     changed = False
 
@@ -199,11 +199,18 @@ def index(id_dir: Path, idx_name: str,
                 del idx[id_]
 
         if changed:
-            # Write our updated index atomically.
-            tmp_path = idx_path.with_suffix(idx_path.suffix + '.tmp')
-            with tmp_path.open('w') as tmp_file:
-                output.json_dump(idx, tmp_file)
-            tmp_path.rename(idx_path)
+            try:
+                group = idx_path.parent.stat().st_gid
+
+                # Write our updated index atomically.
+                tmp_path = idx_path.with_suffix(idx_path.suffix + '.tmp')
+                with permissions.PermissionsManager(tmp_path, group, 0o002), \
+                        tmp_path.open('w') as tmp_file:
+                    json.dump(idx, tmp_file)
+
+                tmp_path.rename(idx_path)
+            except OSError:
+                pass
 
     return idx
 

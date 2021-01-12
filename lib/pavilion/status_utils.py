@@ -10,6 +10,7 @@ from pavilion import commands
 from pavilion import output
 from pavilion import schedulers
 from pavilion import series
+from pavilion import series_util
 from pavilion.status_file import STATES
 from pavilion.test_run import (TestRun, TestRunError, TestRunNotFoundError)
 
@@ -72,7 +73,7 @@ def get_tests(pav_cfg, tests: List['str'], errfile: TextIO) -> List[int]:
 
     if not tests:
         # Get the last series ran by this user
-        series_id = series.TestSeries.load_user_series_id(pav_cfg)
+        series_id = series_util.load_user_series_id(pav_cfg)
         if series_id is not None:
             tests.append(series_id)
         else:
