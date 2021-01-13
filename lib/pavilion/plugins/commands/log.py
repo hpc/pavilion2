@@ -29,38 +29,59 @@ class LogCommand(commands.Command):
 
         self._parser = parser
 
-        subparsers.add_parser(
+        run = subparsers.add_parser(
             'run',
             help="Show a test's run.log",
             description="Displays the test run log (run.log)."
         )
+        run.add_argument('ts_id', type=str,
+                         help="Test number or series id (e.g. s7) argument.")
 
-        subparsers.add_parser(
+        kickoff = subparsers.add_parser(
             'kickoff',
             help="Show a test's kickoff.log",
             description="Displays the kickoff log (kickoff.log)"
         )
+        kickoff.add_argument('ts_id', type=str,
+                             help="Test number or series id (e.g. s7) "
+                                  "argument.")
 
-        subparsers.add_parser(
+        build = subparsers.add_parser(
             'build',
             help="Show a test's build.log",
             description="Displays the build log (build.log)"
         )
+        build.add_argument('ts_id', type=str,
+                           help="Test number or series id (e.g. s7) argument.")
 
-        subparsers.add_parser(
+        results = subparsers.add_parser(
             'results',
             help="Show a test's results.log",
             description="Displays the results log (results.log)"
         )
+        results.add_argument('ts_id', type=str,
+                             help="Test number or series id (e.g. s7) "
+                                  "argument.")
 
-        subparsers.add_parser(
+        series = subparsers.add_parser(
             'series',
             help="Show a series's output (series.out).",
             description="Displays the series output (series.log)."
         )
-
-        parser.add_argument('ts_id', type=str,
+        series.add_argument('ts_id', type=str,
                             help="Test number or series id (e.g. s7) argument.")
+
+        subparsers.add_parser(
+            'general_log',
+            help="Show Pavilion's general output log.",
+            description="Displays general Pavilion output log."
+        )
+
+        subparsers.add_parser(
+            'general_result',
+            help="Show Pavilion's general result log.",
+            description="Displays general Pavilion result log."
+        )
 
     LOG_PATHS = {
         'build': 'build.log',
@@ -79,30 +100,38 @@ class LogCommand(commands.Command):
         else:
             cmd_name = args.log_cmd
 
-        try:
-            if cmd_name == 'series':
-                test = series.TestSeries.from_id(pav_cfg, args.ts_id)
+        if cmd_name in ['series', 'results', 'build', 'kickoff', 'run']:
+            try:
+                if cmd_name == 'series':
+                    test = series.TestSeries.from_id(pav_cfg, args.ts_id)
+                else:
+                    test = test_run.TestRun.load(pav_cfg, int(args.ts_id))
+            except test_run.TestRunError as err:
+                output.fprint("Error loading test: {}".format(err),
+                              color=output.RED,
+                              file=self.errfile)
+                return 1
+            except series_config.SeriesConfigError as err:
+                output.fprint("Error loading series: {}".format(err),
+                              color=output.RED,
+                              file=self.errfile)
+                return 1
+
+            file_name = test.path/self.LOG_PATHS[cmd_name]
+
+        else:
+            if 'result' in cmd_name:
+                file_name = pav_cfg.working_dir/'results.log'
+
             else:
-                test = test_run.TestRun.load(pav_cfg, int(args.ts_id))
-        except test_run.TestRunError as err:
-            output.fprint("Error loading test: {}".format(err),
-                          color=output.RED,
-                          file=self.errfile)
-            return 1
-        except series_config.SeriesConfigError as err:
-            output.fprint("Error loading series: {}".format(err),
-                          color=output.RED,
-                          file=self.errfile)
-            return 1
+                file_name = pav_cfg.working_dir/'pav.log'
 
-        file_name = test.path/self.LOG_PATHS[cmd_name]
-
-        if not file_name.exists():
-            output.fprint("Log file does not exist: {}"
-                          .format(file_name),
-                          color=output.RED,
-                          file=self.errfile)
-            return 1
+            if not file_name.exists():
+                output.fprint("Log file does not exist: {}"
+                              .format(file_name),
+                              color=output.RED,
+                              file=self.errfile)
+                return 1
 
         try:
             with file_name.open() as file:
