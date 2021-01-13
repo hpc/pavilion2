@@ -100,7 +100,14 @@ class LogCommand(commands.Command):
         else:
             cmd_name = args.log_cmd
 
-        if cmd_name in ['series', 'results', 'build', 'kickoff', 'run']:
+        if cmd_name in ['general_log', 'general_result']:
+            if 'result' in cmd_name:
+                file_name = pav_cfg.working_dir/'results.log'
+
+            else:
+                file_name = pav_cfg.working_dir/'pav.log'
+
+        else:
             try:
                 if cmd_name == 'series':
                     test = series.TestSeries.from_id(pav_cfg, args.ts_id)
@@ -119,19 +126,12 @@ class LogCommand(commands.Command):
 
             file_name = test.path/self.LOG_PATHS[cmd_name]
 
-        else:
-            if 'result' in cmd_name:
-                file_name = pav_cfg.working_dir/'results.log'
-
-            else:
-                file_name = pav_cfg.working_dir/'pav.log'
-
-            if not file_name.exists():
-                output.fprint("Log file does not exist: {}"
-                              .format(file_name),
-                              color=output.RED,
-                              file=self.errfile)
-                return 1
+        if not file_name.exists():
+            output.fprint("Log file does not exist: {}"
+                          .format(file_name),
+                          color=output.RED,
+                          file=self.errfile)
+            return 1
 
         try:
             with file_name.open() as file:
