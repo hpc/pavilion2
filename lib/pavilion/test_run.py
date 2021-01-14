@@ -506,6 +506,8 @@ class TestRun(TestAttributes):
 
         build_config = self.config.get('build', {})
 
+        self.permute_vars = self._get_permute_vars()
+
         self.build_script_path = self.path/'build.sh'  # type: Path
         self.build_path = self.path/'build'
         if _id is None:
@@ -1244,6 +1246,18 @@ be set by the scheduler plugin as soon as it's known."""
 
     def __repr__(self):
         return "TestRun({s.name}-{s.id})".format(s=self)
+
+    def _get_permute_vars(self):
+        """Return the permute var values in a dictionary."""
+
+        var_names = self.config['permute_on']
+        if var_names:
+            vars = self.var_man.as_dict()
+            return {
+                key: vars.get(key) for key in var_names
+            }
+        else:
+            return {}
 
     def _get_skipped(self):
         """Kicks off assessing if current test is skipped."""

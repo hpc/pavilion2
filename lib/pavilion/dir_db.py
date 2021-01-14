@@ -9,10 +9,11 @@ import logging
 from pathlib import Path
 from typing import Callable, List, Iterable, Any, Dict, NewType, \
     Union, NamedTuple
+import tempfile
 
 from pavilion import lockfile
 from pavilion import permissions
-from pavilion import output
+import dbm
 
 ID_DIGITS = 7
 ID_FMT = '{id:0{digits}d}'
@@ -119,7 +120,8 @@ Index = NewType("Index", Dict[int, Dict['str', Any]])
 def index(id_dir: Path, idx_name: str,
           transform: Callable[[Path], Dict[str, Any]],
           complete_key: str = 'complete',
-          refresh_period: int = 2,
+          refresh_period: int = 1,
+          remove_missing: bool = False,
           fn_base: int = 10) -> Index:
     """Load and/or update an index of the given directory for the given
     transform, and return it. The returned index is a dictionary by id of
@@ -135,32 +137,37 @@ def index(id_dir: Path, idx_name: str,
         updated (hopefully they will be complete eventually).
     :param refresh_period: Only update the index if this much time (in seconds)
         has passed since the last update.
+    :param remove_missing: Remove items that no longer exist from the index.
     :param fn_base: The integer base for dir_db.
     """
 
-    idx_path = (id_dir/idx_name).with_suffix('.idx')
+    idx_path = (id_dir/idx_name).with_suffix('.db')
 
     idx = Index({})
 
     # Open and read the index if it exists. Any errors cause the index to
     # regenerate from scratch.
+    idx_mtime = 0
     if idx_path.exists():
         try:
-            with idx_path.open() as idx_file:
-                idx = Index({int(k): v for k, v in json.load(idx_file).items()})
-                idx_stat = idx_path.stat()
+            idx_db = dbm.open(idx_path.as_posix())
+            idx_mtime = idx_path.stat().st_mtime
+            idx = Index({int(k): json.loads(idx_db[k]) for k in idx_db.keys()})
         except (OSError, PermissionError, json.JSONDecodeError) as err:
             # In either error case, start from scratch.
             LOGGER.warning(
                 "Error reading index at '%s'. Regenerating from "
                 "scratch. %s", idx_path.as_posix(), err.args[0])
 
-    changed = False
+    import pprint
+    pprint.pprint(idx)
+
+    new_items = {}
 
     # If the index hasn't been updated lately (or is empty) do so.
     # Small updates should happen unnoticeably fast, while full generation
     # will take a bit.
-    if not idx or time.time() - idx_stat.st_mtime > refresh_period:
+    if not idx or time.time() - idx_mtime > refresh_period:
         seen = []
 
         for file in os.scandir(id_dir.as_posix()):
@@ -187,24 +194,36 @@ def index(id_dir: Path, idx_name: str,
 
             old = idx.get(id_)
             if new != old:
-                changed = True
+                new_items[id_] = new
                 idx[id_] = new
 
-        # Delete entries that no longer exist.
-        for id_ in list(idx.keys()):
-            changed = True
-            if id_ not in seen:
-                del idx[id_]
+        missing = set(idx.keys()) - set(seen)
 
-        if changed:
+        if new_items or missing:
             try:
                 group = idx_path.parent.stat().st_gid
+                tmp_path = Path(tempfile.mktemp(
+                    suffix='.dbtmp',
+                    dir=idx_path.parent.as_posix()))
+                if idx_path.exists():
+                    try:
+                        shutil.copyfile(idx_path, tmp_path.as_posix())
+                    except OSError:
+                        pass
 
                 # Write our updated index atomically.
-                tmp_path = idx_path.with_suffix(idx_path.suffix + '.tmp')
-                with permissions.PermissionsManager(tmp_path, group, 0o002), \
-                        tmp_path.open('w') as tmp_file:
-                    json.dump(idx, tmp_file)
+                with permissions.PermissionsManager(tmp_path,
+                                                    group, 0o002):
+                    db = dbm.open(tmp_path.as_posix(), 'c')
+
+                    for id_, value in new_items.items():
+                        db[str(id_)] = json.dumps(value)
+
+                    print('removing missing', missing)
+                    for id_ in missing:
+
+                        del db[str(id_)]
+                        del idx[id_]
 
                 tmp_path.rename(idx_path)
             except OSError:
