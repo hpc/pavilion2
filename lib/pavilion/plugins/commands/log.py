@@ -35,7 +35,7 @@ class LogCommand(commands.Command):
             help="Show a test's run.log",
             description="Displays the test run log (run.log)."
         )
-        run.add_argument('ts_id', type=str,
+        run.add_argument('id', type=str,
                          help="Test number or series id (e.g. s7) argument.")
 
         kickoff = subparsers.add_parser(
@@ -43,7 +43,7 @@ class LogCommand(commands.Command):
             help="Show a test's kickoff.log",
             description="Displays the kickoff log (kickoff.log)"
         )
-        kickoff.add_argument('ts_id', type=str,
+        kickoff.add_argument('id', type=str,
                              help="Test number or series id (e.g. s7) "
                                   "argument.")
 
@@ -52,7 +52,7 @@ class LogCommand(commands.Command):
             help="Show a test's build.log",
             description="Displays the build log (build.log)"
         )
-        build.add_argument('ts_id', type=str,
+        build.add_argument('id', type=str,
                            help="Test number or series id (e.g. s7) argument.")
 
         results = subparsers.add_parser(
@@ -60,7 +60,7 @@ class LogCommand(commands.Command):
             help="Show a test's results.log",
             description="Displays the results log (results.log)"
         )
-        results.add_argument('ts_id', type=str,
+        results.add_argument('id', type=str,
                              help="Test number or series id (e.g. s7) "
                                   "argument.")
 
@@ -69,7 +69,7 @@ class LogCommand(commands.Command):
             help="Show a series's output (series.out).",
             description="Displays the series output (series.log)."
         )
-        series.add_argument('ts_id', type=str,
+        series.add_argument('id', type=str,
                             help="Test number or series id (e.g. s7) argument.")
 
         general = subparsers.add_parser(
@@ -119,9 +119,9 @@ class LogCommand(commands.Command):
         else:
             try:
                 if cmd_name == 'series':
-                    test = series.TestSeries.from_id(pav_cfg, args.ts_id)
+                    test = series.TestSeries.from_id(pav_cfg, args.id)
                 else:
-                    test = test_run.TestRun.load(pav_cfg, int(args.ts_id))
+                    test = test_run.TestRun.load(pav_cfg, int(args.id))
             except test_run.TestRunError as err:
                 output.fprint("Error loading test: {}".format(err),
                               color=output.RED,
