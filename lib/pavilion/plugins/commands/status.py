@@ -44,7 +44,11 @@ class StatusCommand(commands.Command):
         """Gathers and prints the statuses from the specified test runs and/or
         series."""
 
-        test_ids = cmd_utils.arg_filtered_tests(pav_cfg, args)
+        try:
+            test_ids = cmd_utils.arg_filtered_tests(pav_cfg, args)
+        except ValueError as err:
+            output.fprint(err.args[0], color=output.RED, file=self.errfile)
+            return errno.EINVAL
 
         statuses = status_utils.get_statuses(pav_cfg, test_ids)
 

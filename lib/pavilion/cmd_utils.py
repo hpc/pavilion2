@@ -69,7 +69,9 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace) -> List[int]:
     if args.tests:
         test_paths = test_list_to_paths(pav_cfg, args.tests)
 
-        if args.force_filter:
+        if args.disable_filter:
+            test_ids = dir_db.paths_to_ids(test_paths)
+        else:
             tests = dir_db.select_from(
                 paths=test_paths,
                 transform=test_run_attr_transform,
@@ -77,10 +79,8 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace) -> List[int]:
                 order_func=order_func,
                 order_asc=order_asc,
                 limit=limit
-            )
-            test_ids = [test.id for test in tests]
-        else:
-            test_ids = dir_db.paths_to_ids(test_paths)
+            ).data
+            test_ids = [test['id'] for test in tests]
 
     else:
         tests = dir_db.select(

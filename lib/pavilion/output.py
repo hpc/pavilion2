@@ -868,7 +868,7 @@ def dt_format_row(row, fields, widths, pad, border, vsep):
     if pad:
         out.append(' ')
     if border:
-        out.append('vsep')
+        out.append(vsep)
     out.append('\n')
 
     return ''.join(out)

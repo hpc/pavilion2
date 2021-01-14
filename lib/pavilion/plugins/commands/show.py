@@ -542,7 +542,7 @@ class ShowCommand(commands.Command):
         elif args.config:
             self.show_full_config(pav_cfg, args.config, 'modes')
         else:
-            self.show_configs_table(pav_cfg, 'hosts',
+            self.show_configs_table(pav_cfg, 'modes',
                                     verbose=args.verbose,
                                     errors=args.err)
 
