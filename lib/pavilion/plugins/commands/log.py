@@ -1,6 +1,7 @@
 """Print out the contents of the various log files for a given test run.
 """
 import errno
+import subprocess
 
 from pavilion import commands
 from pavilion import output
@@ -71,16 +72,24 @@ class LogCommand(commands.Command):
         series.add_argument('ts_id', type=str,
                             help="Test number or series id (e.g. s7) argument.")
 
-        subparsers.add_parser(
+        general = subparsers.add_parser(
             'general_log',
             help="Show Pavilion's general output log.",
             description="Displays general Pavilion output log."
         )
+        general.add_argument(
+            '--lines', '-n', default=10, required=False,
+            help="Output the last N lines, default is last 10."
+        )
 
-        subparsers.add_parser(
+        general = subparsers.add_parser(
             'general_result',
             help="Show Pavilion's general result log.",
             description="Displays general Pavilion result log."
+        )
+        general.add_argument(
+            '--lines', '-n', default=10, required=False,
+            help="Output the last N lines, default is last 10."
         )
 
     LOG_PATHS = {
@@ -134,9 +143,19 @@ class LogCommand(commands.Command):
             return 1
 
         try:
-            with file_name.open() as file:
-                output.fprint(file.read(), file=self.outfile, width=None,
-                              end='')
+            # "Tail" general log files.
+            if cmd_name in ['general_log', 'general_result']:
+                with file_name.open() as file:
+                    tail = file.readlines()[-int(args.lines):]
+                    for line in tail:
+                        output.fprint(line, file=self.outfile)
+
+            # Print full files for specific IDs.
+            else:
+                with file_name.open() as file:
+                    output.fprint(file.read(), file=self.outfile, width=None,
+                                  end='')
+
         except (IOError, OSError) as err:
             output.fprint("Could not read log file '{}': {}"
                           .format(file_name, err),
