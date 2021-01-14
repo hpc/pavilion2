@@ -1,19 +1,19 @@
 """Manage 'id' directories. The name of the directory is an integer, which
 essentially serves as a filesystem primary key."""
 
+import dbm
 import json
+import logging
 import os
 import shutil
+import tempfile
 import time
-import logging
 from pathlib import Path
 from typing import Callable, List, Iterable, Any, Dict, NewType, \
     Union, NamedTuple
-import tempfile
 
 from pavilion import lockfile
 from pavilion import permissions
-import dbm
 
 ID_DIGITS = 7
 ID_FMT = '{id:0{digits}d}'
@@ -159,9 +159,6 @@ def index(id_dir: Path, idx_name: str,
                 "Error reading index at '%s'. Regenerating from "
                 "scratch. %s", idx_path.as_posix(), err.args[0])
 
-    import pprint
-    pprint.pprint(idx)
-
     new_items = {}
 
     # If the index hasn't been updated lately (or is empty) do so.
@@ -214,15 +211,14 @@ def index(id_dir: Path, idx_name: str,
                 # Write our updated index atomically.
                 with permissions.PermissionsManager(tmp_path,
                                                     group, 0o002):
-                    db = dbm.open(tmp_path.as_posix(), 'c')
+                    out_db = dbm.open(tmp_path.as_posix(), 'c')
 
                     for id_, value in new_items.items():
-                        db[str(id_)] = json.dumps(value)
+                        out_db[str(id_)] = json.dumps(value)
 
-                    print('removing missing', missing)
                     for id_ in missing:
 
-                        del db[str(id_)]
+                        del out_db[str(id_)]
                         del idx[id_]
 
                 tmp_path.rename(idx_path)

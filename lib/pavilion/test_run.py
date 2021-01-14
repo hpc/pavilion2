@@ -1250,7 +1250,7 @@ be set by the scheduler plugin as soon as it's known."""
     def _get_permute_vars(self):
         """Return the permute var values in a dictionary."""
 
-        var_names = self.config['permute_on']
+        var_names = self.config.get('permute_on', [])
         if var_names:
             vars = self.var_man.as_dict()
             return {
