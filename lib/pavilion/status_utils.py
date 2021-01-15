@@ -1,7 +1,6 @@
 """A collection of utilities for getting the current status of test runs
 and series."""
 
-import errno
 import os
 import time
 from typing import TextIO, List
