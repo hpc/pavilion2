@@ -1,6 +1,7 @@
 """A collection of utilities for getting the current status of test runs
 and series."""
 
+import errno
 import os
 import time
 from typing import TextIO, List
@@ -178,19 +179,17 @@ def print_from_tests(pav_cfg, tests, outfile, json=False):
     return print_status(status_list, outfile, json)
 
 
-def status_history_from_test_obj(pav_cfg: dict, test_id: int) -> List[dict]:
+def status_history_from_test_obj(test: TestRun) -> List[dict]:
     """Takes a test object and creates the dictionary expected by the
     print_status_history function
 
-    :param pav_cfg: Base pavilion configuration.
-    :param test_id: Test ID.
+    :param test: Pavilion test run object.
     :return: List of dictionary objects containing the test ID, name,
              stat time of state update, and note associated with that state.
     """
 
     status_history = []
 
-    test = TestRun.load(pav_cfg, test_id)
     status_history_list = test.status.history()
 
     for status in status_history_list:
@@ -214,7 +213,8 @@ def print_status_history(pav_cfg: dict, test_id: str, outfile: TextIO,
     :return: 0 for success.
     """
 
-    status_history = status_history_from_test_obj(pav_cfg, int(test_id))
+    test = TestRun.load(pav_cfg, int(test_id))
+    status_history = status_history_from_test_obj(test)
 
     ret_val = 1
     for status in status_history:
@@ -232,6 +232,6 @@ def print_status_history(pav_cfg: dict, test_id: str, outfile: TextIO,
             },
             fields=fields,
             rows=status_history,
-            title='Test {} Status History'.format(test_id))
+            title='Test {} Status History ({})'.format(test.id, test.name))
 
     return ret_val
