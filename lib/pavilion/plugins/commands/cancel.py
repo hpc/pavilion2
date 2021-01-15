@@ -121,8 +121,8 @@ class CancelCommand(commands.Command):
                 test_object_list.append(test)
 
                 status = test.status.current()
-                # ONly attempt to cancel test runs that are actually running
-                # or scheduled.
+                # Only attempt to cancel test runs that are actually running
+                # or scheduled to run.
                 if status.state in (STATES.RUNNING, STATES.SCHEDULED):
                     # Sets status based on the result of sched.cancel_job.
                     # Ran into trouble when 'cancelling' jobs that never
