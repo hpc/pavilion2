@@ -159,14 +159,14 @@ class RunCommand(commands.Command):
             outfile=self.outfile,
             errfile=self.errfile)
 
-        if failed_builds and not args.hard_fail:
-            for test in all_tests:
-                if test.id in failed_builds:
-                    all_tests.remove(test)
-
         if failed_builds and args.hard_fail:
             cmd_utils.complete_tests(all_tests)
             return res
+
+        if failed_builds:
+            for test in all_tests:
+                if test.id in failed_builds:
+                    all_tests.remove(test)
 
         cmd_utils.complete_tests([test for test in all_tests if
                                  test.build_only and test.build_local])
