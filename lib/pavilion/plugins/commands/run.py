@@ -54,6 +54,11 @@ class RunCommand(commands.Command):
             '-s', '--status', action='store_true', default=False,
             help='Display test statuses'
         )
+        parser.add_argument(
+            '--hard-fail', action='store_true', default=False,
+            help='Cancel all tests in a series when a single test fails to '
+                 'start or build.'
+        )
 
     @staticmethod
     def _generic_arguments(parser):
@@ -145,14 +150,21 @@ class RunCommand(commands.Command):
 
         all_tests = [test for test in all_tests if not test.skipped]
 
-        res = cmd_utils.build_local(
+        failed_builds = cmd_utils.build_local(
             tests=all_tests,
             max_threads=pav_cfg.build_threads,
             mb_tracker=mb_tracker,
             build_verbosity=args.build_verbosity,
+            hard_fail=args.hard_fail,
             outfile=self.outfile,
             errfile=self.errfile)
-        if res != 0:
+
+        if failed_builds and not args.hard_fail:
+            for test in all_tests:
+                if test.id in failed_builds:
+                    all_tests.remove(test)
+
+        if failed_builds and args.hard_fail:
             cmd_utils.complete_tests(all_tests)
             return res
 
@@ -172,7 +184,8 @@ class RunCommand(commands.Command):
                     file=self.outfile, color=output.YELLOW)
             return 0
 
-        res = series.run_tests(wait=wait)
+        series.tests = all_tests
+        res = series.run_tests(tests=all_tests, wait=wait)
 
         if report_status:
             status_utils.print_from_tests(

@@ -277,6 +277,7 @@ def build_local(tests: List[TestRun],
                 mb_tracker: MultiBuildTracker,
                 max_threads: int = 4,
                 build_verbosity: int = 0,
+                hard_fail: bool = False,
                 outfile: TextIO = StringIO(),
                 errfile: TextIO = StringIO()):
     """Build all tests that request for their build to occur on the
@@ -380,7 +381,7 @@ def build_local(tests: List[TestRun],
 
         test_threads = [thr for thr in test_threads if thr is not None]
 
-        if cancel_event.is_set():
+        if cancel_event.is_set() and hard_fail is True:
             for thread in test_threads:
                 thread.join()
 
@@ -409,6 +410,18 @@ def build_local(tests: List[TestRun],
                     .format(id=failed_build.test.id), file=errfile)
 
             return errno.EINVAL
+
+        failed_build_tests = []
+        if cancel_event.is_set() and hard_fail is False:
+            for failed_build in mb_tracker.failures():
+                output.fprint(
+                    "Build error for test {f.test.name} (#{f.test.id})."
+                    .format(f=failed_build), file=errfile, color=output.YELLOW)
+                output.fprint(
+                    "See test status file (pav cat {id} status) and/or "
+                    "the test build log (pav log build {id})"
+                    .format(id=failed_build.test.id), file=errfile)
+                failed_build_tests.append(failed_build.test.id)
 
         state_counts = mb_tracker.state_counts()
         if build_verbosity == 0:
@@ -441,7 +454,7 @@ def build_local(tests: List[TestRun],
         # Print a newline after our last status update.
         output.fprint(width=None, file=outfile)
 
-    return 0
+    return failed_build_tests
 
 
 def test_obj_from_id(pav_cfg, test_ids):
