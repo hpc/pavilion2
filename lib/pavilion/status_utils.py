@@ -176,3 +176,62 @@ def print_from_tests(pav_cfg, tests, outfile, json=False):
 
     status_list = [status_from_test_obj(pav_cfg, test) for test in tests]
     return print_status(status_list, outfile, json)
+
+
+def status_history_from_test_obj(pav_cfg: dict, test_id: int) -> List[dict]:
+    """Takes a test object and creates the dictionary expected by the
+    print_status_history function
+
+    :param pav_cfg: Base pavilion configuration.
+    :param test_id: Test ID.
+    :return: List of dictionary objects containing the test ID, name,
+             stat time of state update, and note associated with that state.
+    """
+
+    status_history = []
+
+    test = TestRun.load(pav_cfg, test_id)
+    status_history_list = test.status.history()
+
+    for status in status_history_list:
+        status_history.append({
+            'state':   status.state,
+            'time':    status.when,
+            'note':    status.note,
+        })
+
+    return status_history
+
+
+def print_status_history(pav_cfg: dict, test_id: str, outfile: TextIO,
+                         json: bool = False):
+    """Print the status history for a given test object.
+
+    :param pav_cfg: Base pavilion configuration.
+    :param test_id: Single test ID.
+    :param outfile: Stream to which the status history should be printed.
+    :param json: Whether the output should be a JSON object or not
+    :return: 0 for success.
+    """
+
+    status_history = status_history_from_test_obj(pav_cfg, int(test_id))
+
+    ret_val = 1
+    for status in status_history:
+        if status['note'] != "Test not found.":
+            ret_val = 0
+    if json:
+        json_data = {'status_history': status_history}
+        output.json_dump(json_data, outfile)
+    else:
+        fields = ['state', 'time', 'note']
+        output.draw_table(
+            outfile=outfile,
+            field_info={
+                'time': {'transform': output.get_relative_timestamp}
+            },
+            fields=fields,
+            rows=status_history,
+            title='Test {} Status History'.format(test_id))
+
+    return ret_val

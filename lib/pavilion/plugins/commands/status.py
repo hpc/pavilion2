@@ -37,6 +37,10 @@ class StatusCommand(commands.Command):
             '-s', '--summary', default=False, action='store_true',
             help='Display a single line summary of test statuses.'
         )
+        parser.add_argument(
+            '--history', default=False, action='store_true',
+            help='Display status history for a single test_run.'
+        )
 
         filters.add_test_filter_args(parser)
 
@@ -50,56 +54,18 @@ class StatusCommand(commands.Command):
 
         if args.summary:
             return self.print_summary(statuses)
+        elif args.history:
+            if len(test_ids) != 1:
+                output.fprint("'--history' flag requires a single test id, "
+                              "got: {}"
+                              .format(test_ids),
+                              file=self.errfile,
+                              color=output.RED)
+                return 1
+            return status_utils.print_status_history(pav_cfg, test_ids[-1],
+                                                     self.outfile, args.json)
         else:
             return status_utils.print_status(statuses, self.outfile, args.json)
-
-    def display_history(self, pav_cfg, args):
-        """Display_history takes a test_id from the command
-        line arguments and formats the status file from the id
-        and displays it for the user through draw tables.
-        :param pav_cfg: The pavilion config.
-        :param argparse namespace args: The test via command line
-        :rtype int"""
-
-        ret_val = 0
-        # status_path locates the status file per test_run id.
-        status_path = (pav_cfg.working_dir / 'test_runs' /
-                       str(args.history).zfill(7) / 'status')
-
-        try:
-            test = TestRun.load(pav_cfg, args.history)
-            name_final = test.name
-            id_final = test.id
-            states = []  # dictionary list for table output
-
-            with status_path.open() as file:
-                for line in file:
-                    val = line.split(' ', 2)
-                    states.append({
-                        'state': val[1],
-                        'time': datetime.strptime(val[0],
-                                                  '%Y-%m-%dT%H:%M:%S.%f'),
-                        'note': val[2]
-                    })
-        except (TestRunError, TestRunNotFoundError):
-            output.fprint("The test_id {} does not exist in your "
-                          "working directory.".format(args.history),
-                          file=self.errfile,
-                          color=output.RED)
-            return errno.EINVAL
-
-        fields = ['state', 'time', 'note']
-        output.draw_table(
-            outfile=self.outfile,
-            field_info={
-                'time': {'transform': output.get_relative_timestamp}
-            },
-            fields=fields,
-            rows=states,
-            title='Status history for test {} (id: {})'.format(name_final,
-                                                               id_final))
-
-        return ret_val
 
     def print_summary(self, statuses):
         """Print_summary takes in a list of test statuses.
