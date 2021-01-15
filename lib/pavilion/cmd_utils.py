@@ -415,7 +415,8 @@ def build_local(tests: List[TestRun],
         if cancel_event.is_set() and hard_fail is False:
             for failed_build in mb_tracker.failures():
                 output.fprint(
-                    "Build error for test {f.test.name} (#{f.test.id})."
+                    "Build error for test {f.test.name} (#{f.test.id}). "
+                    "Test will not be started."
                     .format(f=failed_build), file=errfile, color=output.YELLOW)
                 output.fprint(
                     "See test status file (pav cat {id} status) and/or "

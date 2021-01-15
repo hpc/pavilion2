@@ -121,10 +121,9 @@ class CancelCommand(commands.Command):
                 test_object_list.append(test)
 
                 status = test.status.current()
-                # Won't try to cancel a completed job or a job that was
-                # previously cancelled.
-                if status.state not in (STATES.COMPLETE,
-                                        STATES.SCHED_CANCELLED):
+                # ONly attempt to cancel test runs that are actually running
+                # or scheduled.
+                if status.state in (STATES.RUNNING, STATES.SCHEDULED):
                     # Sets status based on the result of sched.cancel_job.
                     # Ran into trouble when 'cancelling' jobs that never
                     # actually started, ie. build errors/created job states.
