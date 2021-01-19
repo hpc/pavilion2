@@ -596,10 +596,10 @@ class TestBuilder:
             self.tracker.warn("Error fixing build permissions: %s".format(err))
 
         if result != 0:
-            if cancel_event is not None:
-                cancel_event.set()
             self.tracker.fail(
                 note="Build returned a non-zero result.")
+            if cancel_event is not None:
+                cancel_event.set()
             return False
         else:
 
