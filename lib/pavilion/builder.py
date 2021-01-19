@@ -352,12 +352,16 @@ class TestBuilder:
                 "Source location '{}' points to something unusable."
                 .format(found_src_path))
 
-    def build(self, cancel_event=None):
+    def build(self, cancel_event=None, fail_event=None, hard_fail=False):
         """Perform the build if needed, do a soft-link copy of the build
         directory into our test directory, and note that we've used the given
         build.
         :param threading.Event cancel_event: Allows builds to tell each other
         to die.
+        :param threading.Event fail_event: Allows build to report failure,
+        without cancelling other builds.
+        :param bool hard_fail: Tells thread to use cancel_event if True and
+        fail_event if false.
         :return: True if these steps completed successfully.
         """
 
@@ -403,7 +407,8 @@ class TestBuilder:
                     # non-catastrophic cases.
                     with PermissionsManager(self.path, self._group,
                                             self._umask):
-                        if not self._build(self.path, cancel_event, lock=lock):
+                        if not self._build(self.path, cancel_event, fail_event,
+                                           hard_fail, lock=lock):
 
                             try:
                                 self.path.rename(self.fail_path)
@@ -414,8 +419,10 @@ class TestBuilder:
                                     .format(self.name, self.path,
                                             self.fail_path, err))
                                 self.fail_path.mkdir()
-                            if cancel_event is not None:
+                            if cancel_event is not None and hard_fail:
                                 cancel_event.set()
+                            else:
+                                fail_event.set()
 
                             return False
 
@@ -487,7 +494,8 @@ class TestBuilder:
         with open(spack_env_config.as_posix(), "w+") as spack_env_file:
             SpackEnvConfig().dump(spack_env_file, values=config,)
 
-    def _build(self, build_dir, cancel_event, lock: lockfile.LockFile = None):
+    def _build(self, build_dir, cancel_event, fail_event, hard_fail,
+               lock: lockfile.LockFile = None):
         """Perform the build. This assumes there actually is a build to perform.
         :param Path build_dir: The directory in which to perform the build.
         :param threading.Event cancel_event: Event to signal that the build
@@ -567,8 +575,10 @@ class TestBuilder:
                             return False
 
         except subprocess.CalledProcessError as err:
-            if cancel_event is not None:
+            if cancel_event is not None and hard_fail:
                 cancel_event.set()
+            else:
+                fail_event.set()
             self.tracker.error(
                 note="Error running build process: {}".format(err))
             return False
@@ -596,8 +606,10 @@ class TestBuilder:
             self.tracker.warn("Error fixing build permissions: %s".format(err))
 
         if result != 0:
-            if cancel_event is not None:
+            if cancel_event is not None and hard_fail:
                 cancel_event.set()
+            else:
+                fail_event.set()
             self.tracker.fail(
                 note="Build returned a non-zero result.")
             return False

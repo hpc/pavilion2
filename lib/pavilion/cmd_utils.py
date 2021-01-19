@@ -287,6 +287,7 @@ def build_local(tests: List[TestRun],
     :param max_threads: Maximum number of build threads to start.
     :param build_verbosity: How much info to print during building.
         0 - Quiet, 1 - verbose, 2+ - very verbose
+    :param hard_fail: Kill all builds on single failure or not. 
     :param mb_tracker: The tracker for all builds.
     :param outfile: Where to print user messages.
     :param errfile: Where to print user error messages.
@@ -296,6 +297,7 @@ def build_local(tests: List[TestRun],
     remote_builds = []
 
     cancel_event = threading.Event()
+    fail_event = threading.Event()
 
     # Generate new build names for each test that is rebuilding.
     # We do this here, even for non_local tests, because otherwise the
@@ -351,7 +353,8 @@ def build_local(tests: List[TestRun],
 
             test_thread = threading.Thread(
                 target=test.build,
-                args=(cancel_event,)
+                kwargs=dict(cancel_event=cancel_event, fail_event=fail_event,
+                            hard_fail=hard_fail,)
             )
             test_threads.append(test_thread)
             test_by_threads[test_thread] = test
@@ -381,7 +384,8 @@ def build_local(tests: List[TestRun],
 
         test_threads = [thr for thr in test_threads if thr is not None]
 
-        if cancel_event.is_set() and hard_fail is True:
+        # Hard-Fail. One build fails, all other builds are aborted.
+        if cancel_event.is_set():
             for thread in test_threads:
                 thread.join()
 
@@ -411,19 +415,6 @@ def build_local(tests: List[TestRun],
 
             return errno.EINVAL
 
-        failed_build_tests = []
-        if cancel_event.is_set() and hard_fail is False:
-            for failed_build in mb_tracker.failures():
-                output.fprint(
-                    "Build error for test {f.test.name} (#{f.test.id}). "
-                    "Test will not be started."
-                    .format(f=failed_build), file=errfile, color=output.YELLOW)
-                output.fprint(
-                    "See test status file (pav cat {id} status) and/or "
-                    "the test build log (pav log build {id})"
-                    .format(id=failed_build.test.id), file=errfile)
-                failed_build_tests.append(failed_build.test.id)
-
         state_counts = mb_tracker.state_counts()
         if build_verbosity == 0:
             # Print a self-clearing one-liner of the counts of the
@@ -450,6 +441,17 @@ def build_local(tests: List[TestRun],
                 message_counts[test.id] += len(msgs)
 
         time.sleep(BUILD_SLEEP_TIME)
+
+    failed_build_tests = []
+    for failed_build in mb_tracker.failures():
+        output.fprint(
+            "Build error for test {f.test.name} (#{f.test.id}). "
+            .format(f=failed_build), file=errfile, color=output.YELLOW)
+        output.fprint(
+            "See test status file (pav cat {id} status) and/or "
+            "the test build log (pav log build {id})"
+            .format(id=failed_build.test.id), file=errfile)
+        failed_build_tests.append(failed_build.test.id)
 
     if build_verbosity == 0:
         # Print a newline after our last status update.

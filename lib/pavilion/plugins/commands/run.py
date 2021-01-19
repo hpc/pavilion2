@@ -159,11 +159,11 @@ class RunCommand(commands.Command):
             outfile=self.outfile,
             errfile=self.errfile)
 
-        if failed_builds and args.hard_fail:
+        if failed_builds == errno.EINVAL:
             cmd_utils.complete_tests(all_tests)
             return res
 
-        if failed_builds:
+        else:
             for test in all_tests:
                 if test.id in failed_builds:
                     all_tests.remove(test)
