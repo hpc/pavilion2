@@ -45,7 +45,7 @@ class StatusCommand(commands.Command):
         series."""
 
         try:
-            test_ids = cmd_utils.arg_filtered_tests(pav_cfg, args)
+            test_ids = cmd_utils.arg_filtered_tests(pav_cfg, args, verbose=self.errfile)
         except ValueError as err:
             output.fprint(err.args[0], color=output.RED, file=self.errfile)
             return errno.EINVAL

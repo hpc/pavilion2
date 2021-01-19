@@ -199,7 +199,7 @@ class TestAttributes:
         attrs = {
             'build_only': None,
             'build_name': None,
-            'complete':   (self.path / TestRun.COMPLETE_FN).exists(),
+            'complete':   True, # These are so old, just call them done.
             'created':    self.path.stat().st_mtime,
             'finished':   self.path.stat().st_mtime,
             'id':         int(self.path.name),

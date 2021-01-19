@@ -551,7 +551,6 @@ class TestBuilder:
                         if time.time() > timeout:
                             # Give up on the build, and call it a failure.
                             proc.kill()
-                            cancel_event.set()
                             self.tracker.fail(
                                 state=STATES.BUILD_TIMEOUT,
                                 note="Build timed out after {} seconds."
@@ -567,15 +566,11 @@ class TestBuilder:
                             return False
 
         except subprocess.CalledProcessError as err:
-            if cancel_event is not None:
-                cancel_event.set()
             self.tracker.error(
                 note="Error running build process: {}".format(err))
             return False
 
         except (IOError, OSError) as err:
-            if cancel_event is not None:
-                cancel_event.set()
 
             self.tracker.error(
                 note="Error that's probably related to writing the "
@@ -596,8 +591,6 @@ class TestBuilder:
             self.tracker.warn("Error fixing build permissions: %s".format(err))
 
         if result != 0:
-            if cancel_event is not None:
-                cancel_event.set()
             self.tracker.fail(
                 note="Build returned a non-zero result.")
             return False

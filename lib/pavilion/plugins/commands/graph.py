@@ -152,7 +152,7 @@ class GraphCommand(commands.Command):
         output.fprint("Generating Graph...", file=self.outfile)
 
         # Get filtered Test IDs.
-        test_ids = cmd_utils.arg_filtered_tests(pav_cfg, args)
+        test_ids = cmd_utils.arg_filtered_tests(pav_cfg, args, verbose=self.errfile)
         # Add any additional tests provided via the command line.
         if args.tests:
             test_ids.append(args.tests)

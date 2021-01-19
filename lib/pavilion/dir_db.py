@@ -10,10 +10,11 @@ import tempfile
 import time
 from pathlib import Path
 from typing import Callable, List, Iterable, Any, Dict, NewType, \
-    Union, NamedTuple
+    Union, NamedTuple, IO
 
 from pavilion import lockfile
 from pavilion import permissions
+from pavilion import output
 
 ID_DIGITS = 7
 ID_FMT = '{id:0{digits}d}'
@@ -122,6 +123,7 @@ def index(id_dir: Path, idx_name: str,
           complete_key: str = 'complete',
           refresh_period: int = 1,
           remove_missing: bool = False,
+          verbose: IO[str] = None,
           fn_base: int = 10) -> Index:
     """Load and/or update an index of the given directory for the given
     transform, and return it. The returned index is a dictionary by id of
@@ -144,6 +146,7 @@ def index(id_dir: Path, idx_name: str,
     idx_path = (id_dir/idx_name).with_suffix('.db')
 
     idx = Index({})
+    idx_db = None
 
     # Open and read the index if it exists. Any errors cause the index to
     # regenerate from scratch.
@@ -167,13 +170,32 @@ def index(id_dir: Path, idx_name: str,
     if not idx or time.time() - idx_mtime > refresh_period:
         seen = []
 
-        for file in os.scandir(id_dir.as_posix()):
+        if verbose:
+            if idx_db is None:
+                output.fprint(
+                    "No index file found for '{}'. This may take a while."
+                    .format(id_dir.name),
+                    file=verbose)
+
+        last_perc = None
+        progress = 0
+
+        files = list(os.scandir(id_dir.as_posix()))
+        for file in files:
             try:
                 id_ = int(file.name, fn_base)
             except ValueError:
                 continue
 
             seen.append(id_)
+
+            progress += 1
+            complete_perc = int(100*progress/len(files))
+            if verbose and complete_perc != last_perc:
+                output.fprint(
+                    "Indexing: {}%".format(complete_perc),
+                    end='\r', file=verbose)
+                last_perc = complete_perc
 
             # Skip entries that are known and complete.
             if id_ in idx and idx[id_].get(complete_key, False):
@@ -240,6 +262,7 @@ def select(id_dir: Path,
            fn_base: int = 10,
            idx_complete_key: 'str' = 'complete',
            use_index: Union[bool, str] = True,
+           verbose: IO[str] = None,
            limit: int = None) -> (List[Any], List[Path]):
     """Filter and order found paths in the id directory based on the filter and
     other parameters. If a transform is given, this will create an index of the
@@ -264,6 +287,7 @@ def select(id_dir: Path,
     :param fn_base: Number base for file names. 10 by default, ensure dir name
         is a valid integer.
     :param limit: The max items to return. None denotes return all.
+    :param verbose: A file like object to print status info to.
     :returns: A filtered, ordered list of transformed objects, and the list
               of untransformed paths.
     """
@@ -283,7 +307,8 @@ def select(id_dir: Path,
         selected = []
 
         idx = index(id_dir, index_name, transform,
-                    complete_key=idx_complete_key)
+                    complete_key=idx_complete_key, 
+                    verbose=verbose)
         for id_, data in idx.items():
             path = make_id_path(id_dir, id_)
 

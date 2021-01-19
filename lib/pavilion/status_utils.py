@@ -43,12 +43,12 @@ def status_from_test_obj(pav_cfg: dict, test: TestRun):
         last_update = test.builder.log_updated()
         status_f.note = ' '.join([
             status_f.note, '\nLast updated: ',
-            last_update if last_update is not None else '<unknown>'])
+            str(last_update) if last_update is not None else '<unknown>'])
     elif status_f.state == STATES.RUNNING:
         last_update = get_last_ctime(test.path/'run.log')
         status_f.note = ' '.join([
             status_f.note, '\nLast updated:',
-            last_update if last_update is not None else '<unknown>'])
+            str(last_update) if last_update is not None else '<unknown>'])
 
     return {
         'test_id': test.id,

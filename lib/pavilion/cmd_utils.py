@@ -26,7 +26,8 @@ from pavilion.test_run import TestConfigError, TestRunError, \
 LOGGER = logging.getLogger(__name__)
 
 
-def arg_filtered_tests(pav_cfg, args: argparse.Namespace) -> List[int]:
+def arg_filtered_tests(pav_cfg, args: argparse.Namespace, 
+                       verbose: TextIO=None) -> List[int]:
     """Search for test runs that match based on the argument values in args,
     and return a list of matching test id's.
 
@@ -43,6 +44,7 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace) -> List[int]:
         `filters.add_test_filter_args`, plus one additional `tests` argument
         that should contain a list of test id's, series id's, or the 'last'
         keyword.
+    :param verbose: A file like object to report test search status.
     :return: A list of test id ints.
     """
 
@@ -89,6 +91,7 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace) -> List[int]:
             filter_func=filter_func,
             order_func=order_func,
             order_asc=order_asc,
+            verbose=verbose,
             limit=limit).data
         test_ids = [test['id'] for test in tests]
 
