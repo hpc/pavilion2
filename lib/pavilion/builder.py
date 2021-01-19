@@ -593,6 +593,8 @@ class TestBuilder:
         if result != 0:
             self.tracker.fail(
                 note="Build returned a non-zero result.")
+            if cancel_event is not None:
+                cancel_event.set()
             return False
         else:
 
