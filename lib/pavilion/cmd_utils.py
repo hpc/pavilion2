@@ -287,7 +287,7 @@ def build_local(tests: List[TestRun],
     :param max_threads: Maximum number of build threads to start.
     :param build_verbosity: How much info to print during building.
         0 - Quiet, 1 - verbose, 2+ - very verbose
-    :param hard_fail: Kill all builds on single failure or not. 
+    :param hard_fail: Kill all builds on single failure or not.
     :param mb_tracker: The tracker for all builds.
     :param outfile: Where to print user messages.
     :param errfile: Where to print user error messages.
