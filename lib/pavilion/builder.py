@@ -84,18 +84,21 @@ class TestBuilder:
 
         self._fix_source_path()
 
-        if not test.build_local:
-            self.tracker.update(state=STATES.BUILD_DEFERRED,
-                                note="Build will run on nodes.")
-
         if build_name is None:
             self.name = self.name_build()
-            self.tracker.update(state=STATES.BUILD_CREATED,
-                                note="Builder created.")
         else:
             self.name = build_name
 
         self.path = pav_cfg.working_dir/'builds'/self.name  # type: Path
+
+        if not self.path.exists():
+            if not test.build_local:
+                self.tracker.update(state=STATES.BUILD_DEFERRED,
+                                    note="Build will run on nodes.")
+
+            self.tracker.update(state=STATES.BUILD_CREATED,
+                                note="Builder created.")
+
         self.tmp_log_path = self.path.with_suffix('.log')
         self.log_path = self.path/self.LOG_NAME
         fail_name = 'fail.{}.{}'.format(self.name, self.test.id)

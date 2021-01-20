@@ -13,8 +13,8 @@ from typing import Callable, List, Iterable, Any, Dict, NewType, \
     Union, NamedTuple, IO
 
 from pavilion import lockfile
-from pavilion import permissions
 from pavilion import output
+from pavilion import permissions
 
 ID_DIGITS = 7
 ID_FMT = '{id:0{digits}d}'
@@ -307,7 +307,7 @@ def select(id_dir: Path,
         selected = []
 
         idx = index(id_dir, index_name, transform,
-                    complete_key=idx_complete_key, 
+                    complete_key=idx_complete_key,
                     verbose=verbose)
         for id_, data in idx.items():
             path = make_id_path(id_dir, id_)

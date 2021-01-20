@@ -83,7 +83,8 @@ class MultiBuildTracker:
         of occurrences of each."""
         counts = defaultdict(lambda: 0)
         for state in self.status.values():
-            counts[state] += 1
+            if state is not None:
+                counts[state] += 1
 
         return counts
 

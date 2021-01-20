@@ -26,7 +26,7 @@ from pavilion.test_run import TestConfigError, TestRunError, \
 LOGGER = logging.getLogger(__name__)
 
 
-def arg_filtered_tests(pav_cfg, args: argparse.Namespace, 
+def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
                        verbose: TextIO=None) -> List[int]:
     """Search for test runs that match based on the argument values in args,
     and return a list of matching test id's.
