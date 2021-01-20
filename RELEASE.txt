@@ -1,6 +1,6 @@
 # This number should track progressive changes in this software, and correspond to git tags
 # denoting releases. It is entirely independent of the the Pavilion's VERSION.
-RELEASE=2.2
+RELEASE=2.3
 
 # Release History
 
