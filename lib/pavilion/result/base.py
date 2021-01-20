@@ -53,6 +53,8 @@ BASE_RESULTS = {
              "The user that started the test."),
     'job_id': (lambda test: test.job_id,
                "The scheduler plugin's jobid for the test."),
+    'permute_on': (lambda test: test.permute_vars,
+                   "The permutation variables and values."),
     'sched': (get_sched_keys,
               "Most of the scheduler variables."),
     'sys_name': (lambda test: test.var_man['sys.sys_name'],

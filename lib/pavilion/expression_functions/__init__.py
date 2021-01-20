@@ -16,6 +16,7 @@ def get_plugin(name: str) -> FunctionPlugin:
     else:
         return _FUNCTIONS[name]
 
+
 def list_plugins():
     """Return the list of function plugin names."""
 

@@ -205,13 +205,16 @@ class Raw(SchedulerPlugin):
         :return: '<host>_<pid>'
         """
 
+        raw_log = (kickoff_path.parent/'raw_kickoff.log').open('wb')
+
         # Run the submit job script. We don't want to wait for it to finish,
         # just redirect the output to a reasonable place.
         proc = subprocess.Popen([str(kickoff_path),
                                  # We include the test id as an argument,
                                  # so we can identify this invocation later
                                  # via /proc/<jobid>/cmdline.
-                                 '-{}-'.format(test_obj.id)])
+                                 '-{}-'.format(test_obj.id)],
+                                stdout=raw_log, stderr=subprocess.STDOUT)
 
         return '{}_{}'.format(socket.gethostname(), proc.pid)
 

@@ -844,7 +844,10 @@ class TestConfigResolver:
                     .format(per_var))
             if index is not None or subvar is not None:
                 raise TestConfigError(
-                    "Permutation variable '{}' contains index or subvar."
+                    "Permutation variable '{}' contains index or subvar. "
+                    "When giving a permutation variable only the variable name "
+                    "and variable set (optional) are allowed. Ex: 'sys.foo' "
+                    " or just 'foo'."
                     .format(per_var))
             elif base_var_man.any_deferred(per_var):
 
