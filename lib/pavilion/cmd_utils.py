@@ -319,6 +319,10 @@ def build_local(tests: List[TestRun],
     seen_build_names = set()
 
     for test in tests:
+        # Don't try to build tests that are skipped
+        if test.skipped:
+            continue
+
         if not test.build_local:
             remote_builds.append(test)
         elif test.builder.name not in seen_build_names:
