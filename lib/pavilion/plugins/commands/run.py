@@ -7,7 +7,9 @@ from pavilion import cmd_utils
 from pavilion import commands
 from pavilion import output
 from pavilion import schedulers
+from pavilion import series
 from pavilion import status_utils
+from pavilion import series_config
 from pavilion.build_tracker import MultiBuildTracker
 from pavilion.output import fprint
 from pavilion.series import TestSeries
@@ -116,6 +118,21 @@ class RunCommand(commands.Command):
         #   - Get sched vars from scheduler.
         #   - Compile variables.
         #
+
+        # create series config
+        series_cfg = series_config.generate_series_config(args.tests,
+                                                          args.modes,
+                                                          args.host)
+
+        output.dbg_print(series_cfg)
+
+        # create brand-new series object
+        series_obj = TestSeries(pav_cfg,
+                                series_config=series_cfg,
+                                outfile=self.outfile,
+                                errfile=self.errfile)
+
+        return
 
         mb_tracker = MultiBuildTracker()
 
