@@ -11,7 +11,7 @@ from pavilion import output
 from pavilion.commands import sub_cmd
 from pavilion.series import TestSeries
 from pavilion.series_util import SeriesInfo, TestSeriesError, \
-    series_info_transform
+    series_info_transform, list_series_tests
 from pavilion.test_run import TestAttributes, test_run_attr_transform
 
 
@@ -243,7 +243,7 @@ class ListCommand(commands.Command):
             picked_runs = []
             for series_id in args.series:
                 try:
-                    picked_runs.extend(TestSeries.list_series_tests(
+                    picked_runs.extend(list_series_tests(
                         pav_cfg=pav_cfg,
                         sid=series_id))
                 except TestSeriesError as err:
@@ -259,7 +259,7 @@ class ListCommand(commands.Command):
                 order_func=order_func,
                 order_asc=ascending,
                 limit=args.limit,
-            )
+            ).data
         else:
             runs = dir_db.select(
                 id_dir=pav_cfg.working_dir/'test_runs',

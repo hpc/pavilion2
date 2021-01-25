@@ -199,7 +199,7 @@ class TestAttributes:
         attrs = {
             'build_only': None,
             'build_name': None,
-            'complete':   (self.path / TestRun.COMPLETE_FN).exists(),
+            'complete':   True, # These are so old, just call them done.
             'created':    self.path.stat().st_mtime,
             'finished':   self.path.stat().st_mtime,
             'id':         int(self.path.name),
@@ -250,12 +250,15 @@ class TestAttributes:
         attrs.sort()
         return attrs
 
-    def attr_dict(self, include_empty=True):
+    def attr_dict(self, include_empty=True, serialize=False):
         """Return the attributes as a dictionary."""
 
         attrs = {}
         for key in self.list_attrs():
             val = getattr(self, key)
+            if serialize and key in self.serializers and val is not None:
+                val = self.serializers[key](val)
+
             if val is not None or include_empty:
                 attrs[key] = val
 
@@ -346,7 +349,7 @@ def test_run_attr_transform(path):
     """A dir_db transformer to convert a test_run path into a dict of test
     attributes."""
 
-    return TestAttributes(path).attr_dict()
+    return TestAttributes(path).attr_dict(serialize=True)
 
 
 class TestRun(TestAttributes):
@@ -502,6 +505,8 @@ class TestRun(TestAttributes):
             self.timeout_file = self.path/run_timeout_file
 
         build_config = self.config.get('build', {})
+
+        self.permute_vars = self._get_permute_vars()
 
         self.build_script_path = self.path/'build.sh'  # type: Path
         self.build_path = self.path/'build'
@@ -1241,6 +1246,18 @@ be set by the scheduler plugin as soon as it's known."""
 
     def __repr__(self):
         return "TestRun({s.name}-{s.id})".format(s=self)
+
+    def _get_permute_vars(self):
+        """Return the permute var values in a dictionary."""
+
+        var_names = self.config.get('permute_on', [])
+        if var_names:
+            vars = self.var_man.as_dict()
+            return {
+                key: vars.get(key) for key in var_names
+            }
+        else:
+            return {}
 
     def _get_skipped(self):
         """Kicks off assessing if current test is skipped."""

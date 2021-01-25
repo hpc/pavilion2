@@ -27,7 +27,7 @@ TEST_FILTER_DEFAULTS = {
     'sys_name': LOCAL_SYS_NAME,
     'user': utils.get_login(),
     'limit': None,
-    'force_filter': False,
+    'disable_filter': False,
 
 }
 
@@ -179,8 +179,8 @@ def add_test_filter_args(arg_parser: argparse.ArgumentParser,
               .format(defaults['result_error']))
     )
     arg_parser.add_argument(
-        '--force-filter', default=False, action='store_true',
-        help="Apply filtering even to tests that are specifically "
+        '--disable-filter', default=False, action='store_true',
+        help="Disable filtering for tests that are specifically "
              "requested."
     )
 
@@ -334,7 +334,7 @@ SERIES_FILTER_DEFAULTS = {
     'sort_by': '-created',
     'complete': False,
     'incomplete': False,
-    'newer_than': time.time() - dt.timedelta(days=1).seconds,
+    'newer_than': time.time() - dt.timedelta(days=1).total_seconds(),
     'older_than': None,
     'sys_name': LOCAL_SYS_NAME,
     'user': utils.get_login(),
