@@ -744,16 +744,13 @@ class TestRun(TestAttributes):
                 or spack_build.get('load', [])
                 or spack_run.get('load', []))
 
-    def build(self, cancel_event=None, fail_event=None, hard_fail=False):
+    def build(self, fail_event=None):
         """Build the test using its builder object and symlink copy it to
         it's final location. The build tracker will have the latest
         information on any encountered errors.
 
-        :param threading.Event cancel_event: Event to tell builds when to die.
         :param threading.Event fail_event: Event to report build failure
             without killing other builds.
-        :param bool hard_fail: Tells thread to use cancel_event when true, and
-            fail_event when false.
 
         :returns: True if build successful
         """
@@ -764,14 +761,10 @@ class TestRun(TestAttributes):
                 "This should never happen for a given test run ({s.id})."
                 .format(s=self))
 
-        if cancel_event is None:
-            cancel_event = threading.Event()
-
         if fail_event is None:
             fail_event = threading.Event()
 
-        if self.builder.build(cancel_event=cancel_event, fail_event=fail_event,
-                              hard_fail=hard_fail):
+        if self.builder.build(fail_event=fail_event):
             # Create the build origin path, to make tracking a test's build
             # a bit easier.
             with PermissionsManager(self.build_origin_path, self.group,
@@ -780,10 +773,7 @@ class TestRun(TestAttributes):
 
             with PermissionsManager(self.build_path, self.group, self.umask):
                 if not self.builder.copy_build(self.build_path):
-                    if hard_fail:
-                        cancel_event.set()
-                    else:
-                        fail_event.set()
+                    fail_event.set()
             build_result = True
         else:
             with PermissionsManager(self.build_path, self.group, self.umask):

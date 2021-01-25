@@ -352,16 +352,12 @@ class TestBuilder:
                 "Source location '{}' points to something unusable."
                 .format(found_src_path))
 
-    def build(self, cancel_event=None, fail_event=None, hard_fail=False):
+    def build(self, fail_event=None):
         """Perform the build if needed, do a soft-link copy of the build
         directory into our test directory, and note that we've used the given
         build.
-        :param threading.Event cancel_event: Allows builds to tell each other
-        to die.
         :param threading.Event fail_event: Allows build to report failure,
         without cancelling other builds.
-        :param bool hard_fail: Tells thread to use cancel_event if True and
-        fail_event if false.
         :return: True if these steps completed successfully.
         """
 
@@ -407,8 +403,7 @@ class TestBuilder:
                     # non-catastrophic cases.
                     with PermissionsManager(self.path, self._group,
                                             self._umask):
-                        if not self._build(self.path, cancel_event, fail_event,
-                                           hard_fail, lock=lock):
+                        if not self._build(self.path, fail_event, lock=lock):
 
                             try:
                                 self.path.rename(self.fail_path)
@@ -419,9 +414,7 @@ class TestBuilder:
                                     .format(self.name, self.path,
                                             self.fail_path, err))
                                 self.fail_path.mkdir()
-                            if cancel_event is not None and hard_fail:
-                                cancel_event.set()
-                            else:
+                            if fail_event is not None:
                                 fail_event.set()
 
                             return False
@@ -494,12 +487,9 @@ class TestBuilder:
         with open(spack_env_config.as_posix(), "w+") as spack_env_file:
             SpackEnvConfig().dump(spack_env_file, values=config,)
 
-    def _build(self, build_dir, cancel_event, fail_event, hard_fail,
-               lock: lockfile.LockFile = None):
+    def _build(self, build_dir, fail_event, lock: lockfile.LockFile = None):
         """Perform the build. This assumes there actually is a build to perform.
         :param Path build_dir: The directory in which to perform the build.
-        :param threading.Event cancel_event: Event to signal that the build
-            should stop.
         :param lock: The lockfile object. This will need to be refreshed to
             keep it from expiring.
         :returns: True or False, depending on whether the build appears to have
@@ -559,33 +549,23 @@ class TestBuilder:
                         if time.time() > timeout:
                             # Give up on the build, and call it a failure.
                             proc.kill()
-                            cancel_event.set()
+                            fail_event.set()
                             self.tracker.fail(
                                 state=STATES.BUILD_TIMEOUT,
                                 note="Build timed out after {} seconds."
                                 .format(self._timeout))
                             return False
 
-                        if cancel_event is not None and cancel_event.is_set():
-                            proc.kill()
-                            self.tracker.update(
-                                state=STATES.ABORTED,
-                                note="Build canceled due to other builds "
-                                     "failing.")
-                            return False
-
         except subprocess.CalledProcessError as err:
-            if cancel_event is not None and hard_fail:
-                cancel_event.set()
-            else:
+            if fail_event is not None:
                 fail_event.set()
             self.tracker.error(
                 note="Error running build process: {}".format(err))
             return False
 
         except (IOError, OSError) as err:
-            if cancel_event is not None:
-                cancel_event.set()
+            if fail_event is not None:
+                fail_event.set()
 
             self.tracker.error(
                 note="Error that's probably related to writing the "
@@ -606,9 +586,7 @@ class TestBuilder:
             self.tracker.warn("Error fixing build permissions: %s".format(err))
 
         if result != 0:
-            if cancel_event is not None and hard_fail:
-                cancel_event.set()
-            else:
+            if fail_event is not None:
                 fail_event.set()
             self.tracker.fail(
                 note="Build returned a non-zero result.")

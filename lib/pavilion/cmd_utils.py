@@ -296,7 +296,6 @@ def build_local(tests: List[TestRun],
     test_threads = []   # type: List[Union[threading.Thread, None]]
     remote_builds = []
 
-    cancel_event = threading.Event()
     fail_event = threading.Event()
 
     # Generate new build names for each test that is rebuilding.
@@ -353,8 +352,7 @@ def build_local(tests: List[TestRun],
 
             test_thread = threading.Thread(
                 target=test.build,
-                kwargs=dict(cancel_event=cancel_event, fail_event=fail_event,
-                            hard_fail=hard_fail,)
+                kwargs=dict(fail_event=fail_event,)
             )
             test_threads.append(test_thread)
             test_by_threads[test_thread] = test
@@ -385,7 +383,7 @@ def build_local(tests: List[TestRun],
         test_threads = [thr for thr in test_threads if thr is not None]
 
         # Hard-Fail. One build fails, all other builds are aborted.
-        if cancel_event.is_set():
+        if fail_event.is_set() and hard_fail:
             for thread in test_threads:
                 thread.join()
 
