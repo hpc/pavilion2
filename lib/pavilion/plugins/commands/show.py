@@ -542,7 +542,7 @@ class ShowCommand(commands.Command):
         elif args.config:
             self.show_full_config(pav_cfg, args.config, 'modes')
         else:
-            self.show_configs_table(pav_cfg, 'hosts',
+            self.show_configs_table(pav_cfg, 'modes',
                                     verbose=args.verbose,
                                     errors=args.err)
 
@@ -892,23 +892,15 @@ class ShowCommand(commands.Command):
             series = series_dict[series_name]
 
             if series['err']:
-                series = output.ANSIString(series_name, output.RED)
-
-                rows.append({
-                    'name':    '{}.*'.format(series_name),
-                    'summary': 'Loading the series failed.  '
-                               'For more info, run `pav show series --err`.',
-                    'path':    series['path'],
-                    'err':     series['err']
-                })
-            elif args.err:
-                continue
+                series_name = output.ANSIString('{}.*'\
+                              .format(series_name), output.RED)
 
             rows.append({
-                'name':    '{}'.format(series_name),
+                'name':    series_name,
+                'summary': 'Loading the series failed.  '
+                           'For more info, run `pav show series --err`.',
                 'path':    series['path'],
-                'tests':   series['tests'],
-                'err':     'None'
+                'err':     series['err']
             })
 
         fields = ['name']

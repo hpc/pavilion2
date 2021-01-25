@@ -45,7 +45,7 @@ and something goes wrong."""
 
     def __str__(self):
 
-        key = [self.var]
+        key = [str(self.var)]
         if self.var_set is not None:
             key.insert(0, self.var_set)
         if self.index is not None and self.index != 0:

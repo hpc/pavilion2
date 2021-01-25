@@ -86,7 +86,7 @@ class ResultsCommand(commands.Command):
     def run(self, pav_cfg, args):
         """Print the test results in a variety of formats."""
 
-        test_ids = cmd_utils.arg_filtered_tests(pav_cfg, args)
+        test_ids = cmd_utils.arg_filtered_tests(pav_cfg, args, verbose=self.errfile)
 
         tests = []
         for id_ in test_ids:

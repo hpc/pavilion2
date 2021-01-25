@@ -79,7 +79,7 @@ class StyleTests(PavTestCase):
             '--output-format=text',
             '--msg-template="{line},{column}:  {msg}  ({symbol} - {msg_id})"',
             '--reports=n',
-            '--max-line-length=80',
+            '--max-line-length=100',
             self.PAV_LIB_DIR.as_posix()
         ]
 

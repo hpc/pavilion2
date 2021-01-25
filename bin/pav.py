@@ -84,7 +84,6 @@ def main():
         except OSError:
             pass
 
-
     # Setup all the loggers for Pavilion
     if not log_setup.setup_loggers(pav_cfg):
         sys.exit(1)

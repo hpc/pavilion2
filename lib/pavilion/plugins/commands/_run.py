@@ -53,6 +53,10 @@ class _RunCommand(commands.Command):
                     .format(err.args[0], test.id))
                 raise
 
+            if test.skipped:
+                # The test is skipped, so it shouldn't build or run.
+                return 0
+
             try:
                 if not test.build_local:
                     if not test.build():
