@@ -476,6 +476,11 @@ class TestSeries:
 
         all_tests = tests
 
+        if not all_tests:
+            fprint("{} tests started. Test list resulted in empty list."
+                   .format(len(all_tests)), file=self.outfile, color=output.RED)
+            return 0
+
         for test in tests:
             sched_name = test.scheduler
             sched = schedulers.get_plugin(sched_name)
