@@ -72,24 +72,22 @@ class LogCommand(commands.Command):
         series.add_argument('id', type=str,
                             help="Test number or series id (e.g. s7) argument.")
 
-        general = subparsers.add_parser(
-            'general_log',
-            help="Show Pavilion's general output log.",
-            description="Displays general Pavilion output log."
-        )
-        general.add_argument(
-            '--lines', '-n', default=10, required=False,
-            help="Output the last N lines, default is last 10."
+        subparsers.add_parser(
+            'global',
+            help="Show Pavilion's global output log.",
+            description="Displays Pavilion's global output log."
         )
 
-        general = subparsers.add_parser(
-            'general_result',
+        subparsers.add_parser(
+            'all_results',
+            aliases=['allresults', 'all-results'],
             help="Show Pavilion's general result log.",
             description="Displays general Pavilion result log."
         )
-        general.add_argument(
-            '--lines', '-n', default=10, required=False,
-            help="Output the last N lines, default is last 10."
+
+        parser.add_argument(
+            '--tail', '-n', default=None, required=False,
+            help="Output the last N lines."
         )
 
     LOG_PATHS = {
@@ -109,8 +107,8 @@ class LogCommand(commands.Command):
         else:
             cmd_name = args.log_cmd
 
-        if cmd_name in ['general_log', 'general_result']:
-            if 'result' in cmd_name:
+        if cmd_name in ['global', 'all_results', 'allresults', 'all-results']:
+            if 'results' in cmd_name:
                 file_name = pav_cfg.working_dir/'results.log'
 
             else:
@@ -144,17 +142,27 @@ class LogCommand(commands.Command):
 
         try:
             # "Tail" general log files.
-            if cmd_name in ['general_log', 'general_result']:
+            if cmd_name in ['global', 'all-results',
+                            'allresults', 'all_results']:
                 with file_name.open() as file:
-                    tail = file.readlines()[-int(args.lines):]
-                    for line in tail:
-                        output.fprint(line, file=self.outfile)
+                    if args.tail:
+                        tail = file.readlines()[-int(args.tail):]
+                        for line in tail:
+                            output.fprint(line, file=self.outfile)
+                    else:
+                        for line in file.readlines():
+                            output.fprint(line, file=self.outfile)
 
             # Print full files for specific IDs.
             else:
                 with file_name.open() as file:
-                    output.fprint(file.read(), file=self.outfile, width=None,
-                                  end='')
+                    if args.tail:
+                        tail = file.readlines()[-int(args.tail):]
+                        for line in tail:
+                            output.fprint(line, file=self.outfile)
+                    else:
+                        output.fprint(file.read(), file=self.outfile,
+                                      width=None, end='')
 
         except (IOError, OSError) as err:
             output.fprint("Could not read log file '{}': {}"
