@@ -33,11 +33,12 @@ class StatusCommand(commands.Command):
                  "test IDs and series IDs. Use 'last' to get just the last "
                  "series you ran."
         )
-        parser.add_argument(
+        output_mode = parser.add_mutually_exclusive_group()
+        output_mode.add_argument(
             '-s', '--summary', default=False, action='store_true',
             help='Display a single line summary of test statuses.'
         )
-        parser.add_argument(
+        output_mode.add_argument(
             '--history', default=False, action='store_true',
             help='Display status history for a single test_run.'
         )
