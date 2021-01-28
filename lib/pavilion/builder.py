@@ -52,6 +52,7 @@ class TestBuilder:
 
     DEPRECATED = ".pav_deprecated_build"
     FINISHED_SUFFIX = '.finished'
+    FAILED_SUFFIX = '.failed'
 
     LOG_NAME = "pav_build_log"
 
@@ -101,6 +102,7 @@ class TestBuilder:
         fail_name = 'fail.{}.{}'.format(self.name, self.test.id)
         self.fail_path = pav_cfg.working_dir/'builds'/fail_name
         self.finished_path = self.path.with_suffix(self.FINISHED_SUFFIX)
+        self.failed_path = self.path.with_suffix(self.FAILED_SUFFIX)
 
         if self._timeout_file is not None:
             self._timeout_file = self.path/self._timeout_file
@@ -361,6 +363,12 @@ class TestBuilder:
         :return: True if these steps completed successfully.
         """
 
+        if self.failed_path.exists():
+            fail_event.set()
+            self.tracker.fail("Run aborted due to failures in build '{}'."
+                              .format(self.name), state=STATES.ABORTED)
+            return False
+
         # Only try to do the build if it doesn't already exist and is finished.
         if not self.finished_path.exists():
             # Make sure another test doesn't try to do the build at
@@ -377,7 +385,8 @@ class TestBuilder:
                     as lock:
                 # Make sure the build wasn't created while we waited for
                 # the lock.
-                if not self.finished_path.exists():
+                if not self.finished_path.exists() and \
+                        not self.failed_path.exists():
                     self.tracker.update(
                         state=STATES.BUILDING,
                         note="Starting build {}.".format(self.name))
@@ -415,6 +424,14 @@ class TestBuilder:
                                             self.fail_path, err))
                                 self.fail_path.mkdir()
                             if fail_event is not None:
+                                try:
+                                    with PermissionsManager(self.failed_path,
+                                                            self._group,
+                                                            self._umask):
+                                        self.failed_path.touch()
+                                except OSError:
+                                    self.tracker.warn("Could not touch "
+                                                      "'<build>.finished' file")
                                 fail_event.set()
 
                             return False
@@ -438,10 +455,16 @@ class TestBuilder:
                                           "file.")
 
                 else:
-                    self.tracker.update(
-                        state=STATES.BUILD_REUSED,
-                        note="Build {s.name} created while waiting for build "
-                             "lock.".format(s=self))
+                    if self.failed_path.exists():
+                        self.tracker.fail("Run aborted due to failures in build '{}'."
+                                          .format(self.name), state=STATES.ABORTED)
+                        fail_event.set()
+                        return False
+                    else:
+                        self.tracker.update(
+                            state=STATES.BUILD_REUSED,
+                            note="Build {s.name} created while waiting for "
+                                 "build lock.".format(s=self))
         else:
             self.tracker.update(
                 note=("Test {s.name} run {s.test.id} reusing build."
@@ -549,6 +572,14 @@ class TestBuilder:
                         if time.time() > timeout:
                             # Give up on the build, and call it a failure.
                             proc.kill()
+                            try:
+                                with PermissionsManager(self.failed_path,
+                                                        self._group,
+                                                        self._umask):
+                                    self.failed_path.touch()
+                            except OSError:
+                                self.tracker.warn("Could not touch "
+                                                  "'<build>.finished' file")
                             fail_event.set()
                             self.tracker.fail(
                                 state=STATES.BUILD_TIMEOUT,
@@ -558,6 +589,14 @@ class TestBuilder:
 
         except subprocess.CalledProcessError as err:
             if fail_event is not None:
+                try:
+                    with PermissionsManager(self.failed_path,
+                                            self._group,
+                                            self._umask):
+                        self.failed_path.touch()
+                except OSError:
+                    self.tracker.warn("Could not touch "
+                                      "'<build>.finished' file")
                 fail_event.set()
             self.tracker.error(
                 note="Error running build process: {}".format(err))
@@ -565,6 +604,14 @@ class TestBuilder:
 
         except (IOError, OSError) as err:
             if fail_event is not None:
+                try:
+                    with PermissionsManager(self.failed_path,
+                                            self._group,
+                                            self._umask):
+                        self.failed_path.touch()
+                except OSError:
+                    self.tracker.warn("Could not touch "
+                                      "'<build>.finished' file")
                 fail_event.set()
 
             self.tracker.error(
@@ -587,6 +634,14 @@ class TestBuilder:
 
         if result != 0:
             if fail_event is not None:
+                try:
+                    with PermissionsManager(self.failed_path,
+                                            self._group,
+                                            self._umask):
+                        self.failed_path.touch()
+                except OSError:
+                    self.tracker.warn("Could not touch "
+                                      "'<build>.finished' file")
                 fail_event.set()
             self.tracker.fail(
                 note="Build returned a non-zero result.")

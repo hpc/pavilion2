@@ -411,7 +411,7 @@ def build_local(tests: List[TestRun],
                     "the test build log (pav log build {id})"
                     .format(id=failed_build.test.id), file=errfile)
 
-            return errno.EINVAL
+            return False
 
         state_counts = mb_tracker.state_counts()
         if build_verbosity == 0:
@@ -440,22 +440,11 @@ def build_local(tests: List[TestRun],
 
         time.sleep(BUILD_SLEEP_TIME)
 
-    failed_build_tests = []
-    for failed_build in mb_tracker.failures():
-        output.fprint(
-            "Build error for test {f.test.name} (#{f.test.id}). "
-            .format(f=failed_build), file=errfile, color=output.YELLOW)
-        output.fprint(
-            "See test status file (pav cat {id} status) and/or "
-            "the test build log (pav log build {id})"
-            .format(id=failed_build.test.id), file=errfile)
-        failed_build_tests.append(failed_build.test.id)
-
     if build_verbosity == 0:
         # Print a newline after our last status update.
         output.fprint(width=None, file=outfile)
 
-    return failed_build_tests
+    return True
 
 
 def test_obj_from_id(pav_cfg, test_ids):

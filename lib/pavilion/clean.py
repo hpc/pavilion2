@@ -111,7 +111,7 @@ def delete_lingering_build_files(build_dir: Path, tests_dir: Path,
                                  verbose: bool = False):
     """
     Delete any lingering build related files that don't get handled in
-    delete_builds. Mainly used to remove .lock and .log files that are
+    delete_builds. Mainly used to remove .lock and .log files (maybe .failed) that are
     associated with build hash dirs that do not exist.
 
     :param build_dir:  Path to the pavilion builds directory.
@@ -132,10 +132,28 @@ def delete_lingering_build_files(build_dir: Path, tests_dir: Path,
             continue
 
         # Only remove .lock and .log files.
-        if path.name.endswith(".lock") or path.name.endswith(".log"):
+        suffix = path.suffix
+        if suffix in [".lock", ".log", ".failed"]:
             path.unlink()
             if verbose:
                 msgs.append("Removed lingering build file {}."
                             .format(path.name))
 
     return msgs
+
+
+def delete_failed_build_files(build_dir: Path, builds: List):
+    """
+    Used to remove a build's '.failed' file.
+    :param build_dir: Path to the pavilion builds directory.
+    :param builds: List of builds that failed.
+    :return:
+    """
+
+    for path in build_dir.iterdir():
+        if path.is_dir():
+            continue
+        if path.stem not in builds:
+            continue
+        if path.name.endswith(".failed"):
+            path.unlink()

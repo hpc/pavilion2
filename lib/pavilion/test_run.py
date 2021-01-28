@@ -777,9 +777,14 @@ class TestRun(TestAttributes):
             build_result = True
         else:
             with PermissionsManager(self.build_path, self.group, self.umask):
-                self.builder.fail_path.rename(self.build_path)
-                for file in utils.flat_walk(self.build_path):
-                    file.chmod(file.stat().st_mode | 0o200)
+                try:
+                    self.builder.fail_path.rename(self.build_path)
+                    for file in utils.flat_walk(self.build_path):
+                        file.chmod(file.stat().st_mode | 0o200)
+                # File doesn't exist, likely Test Run was aborted before build
+                # was initialized.
+                except FileNotFoundError:
+                    pass
                 build_result = False
 
         self.build_log.symlink_to(self.build_path/'pav_build_log')

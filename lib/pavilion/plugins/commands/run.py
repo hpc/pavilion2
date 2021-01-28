@@ -3,6 +3,7 @@
 import errno
 from typing import List
 
+from pavilion import clean
 from pavilion import cmd_utils
 from pavilion import commands
 from pavilion import output
@@ -150,7 +151,7 @@ class RunCommand(commands.Command):
 
         all_tests = [test for test in all_tests if not test.skipped]
 
-        failed_builds = cmd_utils.build_local(
+        res = cmd_utils.build_local(
             tests=all_tests,
             max_threads=pav_cfg.build_threads,
             mb_tracker=mb_tracker,
@@ -159,17 +160,19 @@ class RunCommand(commands.Command):
             outfile=self.outfile,
             errfile=self.errfile)
 
-        if failed_builds == errno.EINVAL:
+        if not res:
+            failed_builds, failed_tests = self._get_failed_builds_and_tests(mb_tracker)
             cmd_utils.complete_tests(all_tests)
-            return res
+            clean.delete_failed_build_files(pav_cfg.working_dir/'builds', failed_builds)
+            return errno.EINVAL
 
-        else:
-            for test in all_tests:
-                if test.id in failed_builds:
-                    all_tests.remove(test)
+        failed_builds, failed_tests = self._get_failed_builds_and_tests(mb_tracker)
+        all_tests = [test for test in all_tests if test.id not in failed_tests]
 
         cmd_utils.complete_tests([test for test in all_tests if
                                  test.build_only and test.build_local])
+        # Clean '.failed' files.
+        clean.delete_failed_build_files(pav_cfg.working_dir/'builds', failed_builds)
 
         wait = getattr(args, 'wait', None)
         report_status = getattr(args, 'status', False)
@@ -241,6 +244,20 @@ class RunCommand(commands.Command):
             return None
 
         return test_list
+
+    def _get_failed_builds_and_tests(self, tracker):
+        """
+        Get set of failed build and list of failed test ids.
+        :param tracker MultiBuildTracker: Build tracker object.
+        :return: failed_tests List, failed_builds Set.
+        """
+        failed_tests = []
+        failed_builds = set()
+        for failed_build in tracker.failures():
+            failed_tests.append(failed_build.test.id)
+            failed_builds.add(failed_build.name)
+
+        return failed_builds, failed_tests
 
     @staticmethod
     def _cancel_all(tests_by_sched):
