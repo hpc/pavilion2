@@ -383,6 +383,8 @@ def build_local(tests: List[TestRun],
         test_threads = [thr for thr in test_threads if thr is not None]
 
         # Hard-Fail. One build fails, all other builds are aborted.
+        if len(tests) == 1:
+            hard_fail = True
         if fail_event.is_set() and hard_fail:
             for thread in test_threads:
                 thread.join()
@@ -393,23 +395,6 @@ def build_local(tests: List[TestRun],
                     test.status.set(
                         STATES.ABORTED,
                         "Run aborted due to failures in other builds.")
-
-            output.fprint(
-                "Build error while building tests. Cancelling runs.",
-                color=output.RED, file=outfile, clear=True)
-            output.fprint(
-                "Failed builds are placed in <working_dir>/test_runs/"
-                "<test_id>/build for the corresponding test run.",
-                color=output.CYAN, file=outfile)
-
-            for failed_build in mb_tracker.failures():
-                output.fprint(
-                    "Build error for test {f.test.name} (#{f.test.id})."
-                    .format(f=failed_build), file=errfile)
-                output.fprint(
-                    "See test status file (pav cat {id} status) and/or "
-                    "the test build log (pav log build {id})"
-                    .format(id=failed_build.test.id), file=errfile)
 
             return False
 

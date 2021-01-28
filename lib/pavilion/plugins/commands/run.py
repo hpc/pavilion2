@@ -160,19 +160,39 @@ class RunCommand(commands.Command):
             outfile=self.outfile,
             errfile=self.errfile)
 
-        if not res:
-            failed_builds, failed_tests = self._get_failed_builds_and_tests(mb_tracker)
-            cmd_utils.complete_tests(all_tests)
+        failures = mb_tracker.failures()
+        if failures or not res:
+            failed_tests = []
+            failed_builds = set()
+            output.fprint("Build error{p} while building test{p}. Cancelling {r}."
+                          .format(p='s' if len(failures) > 1 else '',
+                                  r='these runs' if len(failures) > 1 else 'the run'),
+                          file=self.errfile, color=output.RED if not res else output.YELLOW)
+            output.fprint(
+                "Failed builds are placed in <working_dir>/test_runs/<test_id>/build for the "
+                "corresponding test run.",
+                file=self.errfile, color=output.CYAN)
+            for failed_build in failures:
+                status = failed_build.test.status.current()
+                state = status.state.split("_")[-1].lower()
+                note = status.note
+                output.fprint("Build {state} for {f.name} (#{f.id}) - {note}"
+                              .format(state=state, f=failed_build.test, note=note))
+                failed_tests.append(failed_build.test.id)
+                failed_builds.add(failed_build.name)
+            output.fprint("See test status file (pav cat <id> status) and/or the test build log "
+                          "(pav log build <id>)",
+                          file=self.errfile)
+            all_tests = [test for test in all_tests if test.id not in failed_tests]
+            # Clean '.failed' files.
             clean.delete_failed_build_files(pav_cfg.working_dir/'builds', failed_builds)
-            return errno.EINVAL
 
-        failed_builds, failed_tests = self._get_failed_builds_and_tests(mb_tracker)
-        all_tests = [test for test in all_tests if test.id not in failed_tests]
+            if not res:
+                cmd_utils.complete_tests(all_tests)
+                return errno.EINVAL
 
         cmd_utils.complete_tests([test for test in all_tests if
                                  test.build_only and test.build_local])
-        # Clean '.failed' files.
-        clean.delete_failed_build_files(pav_cfg.working_dir/'builds', failed_builds)
 
         wait = getattr(args, 'wait', None)
         report_status = getattr(args, 'status', False)
@@ -244,20 +264,6 @@ class RunCommand(commands.Command):
             return None
 
         return test_list
-
-    def _get_failed_builds_and_tests(self, tracker):
-        """
-        Get set of failed build and list of failed test ids.
-        :param tracker MultiBuildTracker: Build tracker object.
-        :return: failed_tests List, failed_builds Set.
-        """
-        failed_tests = []
-        failed_builds = set()
-        for failed_build in tracker.failures():
-            failed_tests.append(failed_build.test.id)
-            failed_builds.add(failed_build.name)
-
-        return failed_builds, failed_tests
 
     @staticmethod
     def _cancel_all(tests_by_sched):
