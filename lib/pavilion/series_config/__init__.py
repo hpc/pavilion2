@@ -110,9 +110,14 @@ def generate_series_config(tests: List[str], modes: List[str], host: str) -> dic
     """Generates series config from test names, host, & modes. """
 
     series_cfg = SeriesConfigLoader().load_empty()
+
     series_cfg['series']['only_set'] = {}
     series_cfg['series']['only_set']['tests'] = tests
+    series_cfg['series']['only_set']['modes'] = []
     series_cfg['series']['only_set']['depends_on'] = []
+    series_cfg['series']['only_set']['only_if'] = {}
+    series_cfg['series']['only_set']['not_if'] = {}
+
     series_cfg['modes'] = modes
     series_cfg['host'] = host
 

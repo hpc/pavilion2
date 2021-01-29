@@ -119,12 +119,14 @@ class RunCommand(commands.Command):
         #   - Compile variables.
         #
 
+        local_builds_only = getattr(args, 'local_builds_only', False)
+        wait = getattr(args, 'wait', None)
+        report_status = getattr(args, 'status', False)
+
         # create series config
         series_cfg = series_config.generate_series_config(args.tests,
                                                           args.modes,
                                                           args.host)
-
-        output.dbg_print(series_cfg)
 
         # create brand-new series object
         series_obj = TestSeries(pav_cfg,
@@ -132,7 +134,19 @@ class RunCommand(commands.Command):
                                 outfile=self.outfile,
                                 errfile=self.errfile)
 
-        return
+        series_obj.create_set_graph()
+        only_set = series_obj.test_sets['only_set']
+
+        res = only_set.run_set(log=True,
+                               local_builds_only=local_builds_only,
+                               build_only=self.BUILD_ONLY,
+                               build_verbosity=args.build_verbosity,
+                               wait=wait,
+                               report_status=report_status,
+                               run_cmd=self,
+                               rebuild=args.rebuild)
+
+        return res
 
         mb_tracker = MultiBuildTracker()
 
