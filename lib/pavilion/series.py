@@ -20,7 +20,6 @@ from pavilion import schedulers
 from pavilion import system_variables
 from pavilion import test_config
 from pavilion import utils
-from pavilion import status_utils
 from pavilion.builder import MultiBuildTracker
 from pavilion.lockfile import LockFile
 from pavilion.output import fprint
@@ -74,8 +73,6 @@ class TestSet:
 
         if not run_cmd:
             run_cmd = commands.get_command('run')
-        else:
-            run_cmd = run_cmd
 
         try:
             new_conditions = {
@@ -176,6 +173,7 @@ class TestSet:
             res = self.series_obj.run_tests(tests=all_tests, wait=wait)
 
             if report_status:
+                from pavilion import status_utils
                 status_utils.print_from_tests(
                     pav_cfg=self.pav_cfg,
                     tests=all_tests,
