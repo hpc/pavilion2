@@ -77,7 +77,6 @@ class TestSet:
         else:
             run_cmd = run_cmd
 
-        # run.RunCommand._get_tests function
         try:
             new_conditions = {
                 'only_if': self.only_if,
