@@ -169,20 +169,23 @@ class RunCommand(commands.Command):
                                   r='these runs' if len(failures) > 1 else 'the run'),
                           file=self.errfile, color=output.RED if not res else output.YELLOW)
             output.fprint(
-                "Failed builds are placed in <working_dir>/test_runs/<test_id>/build for the "
-                "corresponding test run.",
+                "Failed builds are placed in <working_dir>/test_runs/<test_id>/build for {} "
+                "corresponding test run."
+                .format("each" if len(failures) > 1 else 'the'),
                 file=self.errfile, color=output.CYAN)
+            output.fprint("See test{s} status file{s} (pav cat {id} status) and/or the test{s} "
+                          "build log{s} (pav log build {id})"
+                          .format(id=all_tests[-1].id if len(all_tests) == 1 else "<id>",
+                                  s='s' if len(all_tests) > 1 else ''),
+                          file=self.errfile)
             for failed_build in failures:
                 status = failed_build.test.status.current()
                 state = status.state.split("_")[-1].lower()
                 note = status.note
-                output.fprint("Build {state} for {f.name} (#{f.id}) - {note}"
+                output.fprint("\t- Build {state} for {f.name} (#{f.id}) - {note}"
                               .format(state=state, f=failed_build.test, note=note))
                 failed_tests.append(failed_build.test.id)
                 failed_builds.add(failed_build.name)
-            output.fprint("See test status file (pav cat <id> status) and/or the test build log "
-                          "(pav log build <id>)",
-                          file=self.errfile)
             all_tests = [test for test in all_tests if test.id not in failed_tests]
 
             if not res:

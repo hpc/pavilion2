@@ -383,7 +383,7 @@ class TestBuilder:
                 # Make sure the build wasn't created while we waited for
                 # the lock.
                 if not self.finished_path.exists() and \
-                        not fail_event.set():
+                        not fail_event.is_set():
                     self.tracker.update(
                         state=STATES.BUILDING,
                         note="Starting build {}.".format(self.name))
@@ -420,7 +420,7 @@ class TestBuilder:
                                     .format(self.name, self.path,
                                             self.fail_path, err))
                                 self.fail_path.mkdir()
-                            if fail_event is not None:
+                            if fail_event is not None and not fail_event.is_set():
                                 fail_event.set()
 
                             return False
@@ -444,10 +444,9 @@ class TestBuilder:
                                           "file.")
 
                 else:
-                    if self.failed_path.exists():
+                    if fail_event is not None and fail_event.is_set():
                         self.tracker.fail("Run aborted due to failures in build '{}'."
                                           .format(self.name), state=STATES.ABORTED)
-                        fail_event.set()
                         return False
                     else:
                         self.tracker.update(
@@ -566,6 +565,15 @@ class TestBuilder:
                                 state=STATES.BUILD_TIMEOUT,
                                 note="Build timed out after {} seconds."
                                 .format(self._timeout))
+                            return False
+
+                        if fail_event is not None and fail_event.is_set():
+                            proc.kill()
+                            self.tracker.update(
+                                state=STATES.ABORTED,
+                                note="Build aborted due to failures in build '{}'."
+                                     .format(self.name)
+                            )
                             return False
 
                         if cancel_event is not None and cancel_event.is_set():
