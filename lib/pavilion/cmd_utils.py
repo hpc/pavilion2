@@ -296,7 +296,7 @@ def build_local(tests: List[TestRun],
     test_threads = []   # type: List[Union[threading.Thread, None]]
     remote_builds = []
 
-    fail_event = threading.Event()
+    cancel_event = threading.Event()
 
     # Generate new build names for each test that is rebuilding.
     # We do this here, even for non_local tests, because otherwise the
@@ -345,6 +345,10 @@ def build_local(tests: List[TestRun],
     # to the verbosity level. As threads finish, new ones are started until
     # either all builds complete or a build fails, in which case all tests
     # are aborted.
+    fail_events = {}
+    for build in seen_build_names:
+        fail_events[build] = threading.Event()
+
     while build_order or test_threads:
         # Start a new thread if we haven't hit our limit.
         if build_order and builds_running < max_threads:
@@ -352,7 +356,7 @@ def build_local(tests: List[TestRun],
 
             test_thread = threading.Thread(
                 target=test.build,
-                kwargs=dict(fail_event=fail_event,)
+                kwargs=dict(fail_event=fail_events[test.build_name], cancel_event=cancel_event)
             )
             test_threads.append(test_thread)
             test_by_threads[test_thread] = test
@@ -385,18 +389,20 @@ def build_local(tests: List[TestRun],
         # Hard-Fail. One build fails, all other builds are aborted.
         if len(tests) == 1:
             hard_fail = True
-        if fail_event.is_set() and hard_fail:
-            for thread in test_threads:
-                thread.join()
+        for build, event in fail_events.items():
+            if event.is_set() and hard_fail:
+                cancel_event.set()
+                for thread in test_threads:
+                    thread.join()
 
-            for test in tests:
-                if (test.status.current().state not in
-                        (STATES.BUILD_FAILED, STATES.BUILD_ERROR)):
-                    test.status.set(
-                        STATES.ABORTED,
-                        "Run aborted due to failures in other builds.")
+                for test in tests:
+                    if (test.status.current().state not in
+                            (STATES.BUILD_FAILED, STATES.BUILD_ERROR)):
+                        test.status.set(
+                            STATES.ABORTED,
+                            "Run aborted due to failures in other builds.")
 
-            return False
+                return False
 
         state_counts = mb_tracker.state_counts()
         if build_verbosity == 0:

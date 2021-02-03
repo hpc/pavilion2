@@ -52,7 +52,6 @@ class TestBuilder:
 
     DEPRECATED = ".pav_deprecated_build"
     FINISHED_SUFFIX = '.finished'
-    FAILED_SUFFIX = '.failed'
 
     LOG_NAME = "pav_build_log"
 
@@ -102,7 +101,6 @@ class TestBuilder:
         fail_name = 'fail.{}.{}'.format(self.name, self.test.id)
         self.fail_path = pav_cfg.working_dir/'builds'/fail_name
         self.finished_path = self.path.with_suffix(self.FINISHED_SUFFIX)
-        self.failed_path = self.path.with_suffix(self.FAILED_SUFFIX)
 
         if self._timeout_file is not None:
             self._timeout_file = self.path/self._timeout_file
@@ -354,7 +352,7 @@ class TestBuilder:
                 "Source location '{}' points to something unusable."
                 .format(found_src_path))
 
-    def build(self, fail_event=None):
+    def build(self, cancel_event=None, fail_event=None):
         """Perform the build if needed, do a soft-link copy of the build
         directory into our test directory, and note that we've used the given
         build.
@@ -363,8 +361,7 @@ class TestBuilder:
         :return: True if these steps completed successfully.
         """
 
-        if self.failed_path.exists():
-            fail_event.set()
+        if fail_event.is_set():
             self.tracker.fail("Run aborted due to failures in build '{}'."
                               .format(self.name), state=STATES.ABORTED)
             return False
@@ -386,7 +383,7 @@ class TestBuilder:
                 # Make sure the build wasn't created while we waited for
                 # the lock.
                 if not self.finished_path.exists() and \
-                        not self.failed_path.exists():
+                        not fail_event.set():
                     self.tracker.update(
                         state=STATES.BUILDING,
                         note="Starting build {}.".format(self.name))
@@ -412,11 +409,11 @@ class TestBuilder:
                     # non-catastrophic cases.
                     with PermissionsManager(self.path, self._group,
                                             self._umask):
-                        if not self._build(self.path, fail_event, lock=lock):
+                        if not self._build(self.path, cancel_event, fail_event, lock=lock):
 
                             try:
                                 self.path.rename(self.fail_path)
-                            except FileNotFoundError as err:
+                            except (OSError, FileNotFoundError) as err:
                                 self.tracker.error(
                                     "Failed to move build {} from {} to "
                                     "failure path {}: {}"
@@ -424,14 +421,6 @@ class TestBuilder:
                                             self.fail_path, err))
                                 self.fail_path.mkdir()
                             if fail_event is not None:
-                                try:
-                                    with PermissionsManager(self.failed_path,
-                                                            self._group,
-                                                            self._umask):
-                                        self.failed_path.touch()
-                                except OSError:
-                                    self.tracker.warn("Could not touch "
-                                                      "'<build>.finished' file")
                                 fail_event.set()
 
                             return False
@@ -510,7 +499,7 @@ class TestBuilder:
         with open(spack_env_config.as_posix(), "w+") as spack_env_file:
             SpackEnvConfig().dump(spack_env_file, values=config,)
 
-    def _build(self, build_dir, fail_event, lock: lockfile.LockFile = None):
+    def _build(self, build_dir, cancel_event, fail_event, lock: lockfile.LockFile = None):
         """Perform the build. This assumes there actually is a build to perform.
         :param Path build_dir: The directory in which to perform the build.
         :param lock: The lockfile object. This will need to be refreshed to
@@ -572,14 +561,6 @@ class TestBuilder:
                         if time.time() > timeout:
                             # Give up on the build, and call it a failure.
                             proc.kill()
-                            try:
-                                with PermissionsManager(self.failed_path,
-                                                        self._group,
-                                                        self._umask):
-                                    self.failed_path.touch()
-                            except OSError:
-                                self.tracker.warn("Could not touch "
-                                                  "'<build>.finished' file")
                             fail_event.set()
                             self.tracker.fail(
                                 state=STATES.BUILD_TIMEOUT,
@@ -587,16 +568,16 @@ class TestBuilder:
                                 .format(self._timeout))
                             return False
 
+                        if cancel_event is not None and cancel_event.is_set():
+                            proc.kill()
+                            self.tracker.update(
+                                state=STATES.ABORTED,
+                                note="Build cancelled due to other builds failing"
+                            )
+                            return False
+
         except subprocess.CalledProcessError as err:
             if fail_event is not None:
-                try:
-                    with PermissionsManager(self.failed_path,
-                                            self._group,
-                                            self._umask):
-                        self.failed_path.touch()
-                except OSError:
-                    self.tracker.warn("Could not touch "
-                                      "'<build>.finished' file")
                 fail_event.set()
             self.tracker.error(
                 note="Error running build process: {}".format(err))
@@ -604,14 +585,6 @@ class TestBuilder:
 
         except (IOError, OSError) as err:
             if fail_event is not None:
-                try:
-                    with PermissionsManager(self.failed_path,
-                                            self._group,
-                                            self._umask):
-                        self.failed_path.touch()
-                except OSError:
-                    self.tracker.warn("Could not touch "
-                                      "'<build>.finished' file")
                 fail_event.set()
 
             self.tracker.error(
@@ -634,14 +607,6 @@ class TestBuilder:
 
         if result != 0:
             if fail_event is not None:
-                try:
-                    with PermissionsManager(self.failed_path,
-                                            self._group,
-                                            self._umask):
-                        self.failed_path.touch()
-                except OSError:
-                    self.tracker.warn("Could not touch "
-                                      "'<build>.finished' file")
                 fail_event.set()
             self.tracker.fail(
                 note="Build returned a non-zero result.")

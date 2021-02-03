@@ -140,20 +140,3 @@ def delete_lingering_build_files(build_dir: Path, tests_dir: Path,
                             .format(path.name))
 
     return msgs
-
-
-def delete_failed_build_files(build_dir: Path, builds: List):
-    """
-    Used to remove a build's '.failed' file.
-    :param build_dir: Path to the pavilion builds directory.
-    :param builds: List of builds that failed.
-    :return:
-    """
-
-    for path in build_dir.iterdir():
-        if path.is_dir():
-            continue
-        if path.stem not in builds:
-            continue
-        if path.name.endswith(".failed"):
-            path.unlink()

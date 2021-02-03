@@ -184,8 +184,6 @@ class RunCommand(commands.Command):
                           "(pav log build <id>)",
                           file=self.errfile)
             all_tests = [test for test in all_tests if test.id not in failed_tests]
-            # Clean '.failed' files.
-            clean.delete_failed_build_files(pav_cfg.working_dir/'builds', failed_builds)
 
             if not res:
                 cmd_utils.complete_tests(all_tests)

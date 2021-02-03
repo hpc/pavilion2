@@ -744,7 +744,7 @@ class TestRun(TestAttributes):
                 or spack_build.get('load', [])
                 or spack_run.get('load', []))
 
-    def build(self, fail_event=None):
+    def build(self, cancel_event=None, fail_event=None):
         """Build the test using its builder object and symlink copy it to
         it's final location. The build tracker will have the latest
         information on any encountered errors.
@@ -761,10 +761,10 @@ class TestRun(TestAttributes):
                 "This should never happen for a given test run ({s.id})."
                 .format(s=self))
 
-        if fail_event is None:
-            fail_event = threading.Event()
+        if cancel_event is None:
+            cancel_event = threading.Event()
 
-        if self.builder.build(fail_event=fail_event):
+        if self.builder.build(cancel_event=cancel_event, fail_event=fail_event):
             # Create the build origin path, to make tracking a test's build
             # a bit easier.
             with PermissionsManager(self.build_origin_path, self.group,
