@@ -23,6 +23,7 @@ from pavilion import utils
 from pavilion.builder import MultiBuildTracker
 from pavilion.lockfile import LockFile
 from pavilion.output import fprint
+from pavilion.status_utils import print_from_tests
 from pavilion.permissions import PermissionsManager
 from pavilion.series_util import TestSeriesError
 from pavilion.status_file import STATES
@@ -173,8 +174,7 @@ class TestSet:
             res = self.series_obj.run_tests(tests=all_tests, wait=wait)
 
             if report_status:
-                from pavilion import status_utils
-                status_utils.print_from_tests(
+                print_from_tests(
                     pav_cfg=self.pav_cfg,
                     tests=all_tests,
                     outfile=self.outfile
