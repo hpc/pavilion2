@@ -23,7 +23,6 @@ from pavilion import utils
 from pavilion.builder import MultiBuildTracker
 from pavilion.lockfile import LockFile
 from pavilion.output import fprint
-from pavilion.status_utils import print_from_tests
 from pavilion.permissions import PermissionsManager
 from pavilion.series_util import TestSeriesError
 from pavilion.status_file import STATES
@@ -66,8 +65,7 @@ class TestSet:
         self.errfile = series_obj.errfile
 
     def run_set(self, log=False, local_builds_only=False, build_only=False,
-                build_verbosity=0, wait=None, report_status=False,
-                run_cmd=None, rebuild=False):
+                build_verbosity=0, wait=None, run_cmd=None, rebuild=False):
         """Runs tests in set. """
 
         mb_tracker = MultiBuildTracker(log=log)
@@ -172,13 +170,6 @@ class TestSet:
         # deal with simultaneous here
         if self.series_obj.config['simultaneous'] is None:
             res = self.series_obj.run_tests(tests=all_tests, wait=wait)
-
-            if report_status:
-                print_from_tests(
-                    pav_cfg=self.pav_cfg,
-                    tests=all_tests,
-                    outfile=self.outfile
-                )
 
             return res
 
