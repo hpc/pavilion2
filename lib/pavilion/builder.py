@@ -362,7 +362,7 @@ class TestBuilder:
         """
 
         if fail_event.is_set():
-            self.tracker.fail("Run aborted due to failures in build '{}'."
+            self.tracker.fail("Build aborted due to failures in build '{}'."
                               .format(self.name), state=STATES.ABORTED)
             return False
 
@@ -445,7 +445,7 @@ class TestBuilder:
 
                 else:
                     if fail_event is not None and fail_event.is_set():
-                        self.tracker.fail("Run aborted due to failures in build '{}'."
+                        self.tracker.fail("Build aborted due to failures in build '{}'."
                                           .format(self.name), state=STATES.ABORTED)
                         return False
                     else:

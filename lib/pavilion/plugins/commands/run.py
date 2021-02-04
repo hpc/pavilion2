@@ -160,37 +160,53 @@ class RunCommand(commands.Command):
             outfile=self.outfile,
             errfile=self.errfile)
 
+        failed_tests = []
         failures = mb_tracker.failures()
-        if failures or not res:
-            failed_tests = []
-            failed_builds = set()
-            output.fprint("Build error{p} while building test{p}. Cancelling {r}."
-                          .format(p='s' if len(failures) > 1 else '',
-                                  r='these runs' if len(failures) > 1 else 'the run'),
-                          file=self.errfile, color=output.RED if not res else output.YELLOW)
-            output.fprint(
-                "Failed builds are placed in <working_dir>/test_runs/<test_id>/build for {} "
-                "corresponding test run."
-                .format("each" if len(failures) > 1 else 'the'),
-                file=self.errfile, color=output.CYAN)
-            output.fprint("See test{s} status file{s} (pav cat {id} status) and/or the test{s} "
-                          "build log{s} (pav log build {id})"
-                          .format(id=all_tests[-1].id if len(all_tests) == 1 else "<id>",
-                                  s='s' if len(all_tests) > 1 else ''),
-                          file=self.errfile)
-            for failed_build in failures:
-                status = failed_build.test.status.current()
-                state = status.state.split("_")[-1].lower()
-                note = status.note
-                output.fprint("\t- Build {state} for {f.name} (#{f.id}) - {note}"
-                              .format(state=state, f=failed_build.test, note=note))
-                failed_tests.append(failed_build.test.id)
-                failed_builds.add(failed_build.name)
-            all_tests = [test for test in all_tests if test.id not in failed_tests]
 
-            if not res:
-                cmd_utils.complete_tests(all_tests)
-                return errno.EINVAL
+        # Hard-Fail, single test failure, or all tests failed/aborted.
+        if not res or len(failures) == len(all_tests):
+            output.fprint("Build error while building test. Cancelling the run.",
+                          file=self.errfile, color=output.RED)
+            output.fprint("Failed builds are placed in <working_dir>/test_runs/<test_id>/build for "
+                          "the corresponding test run.",
+                          file=self.errfile, color=output.CYAN)
+            output.fprint("See test status file (pav cat {id} status) and/or the test build "
+                          "log (pav log build {id})"
+                          .format(id=failures[-1].test.id))
+            cmd_utils.complete_tests(all_tests)
+            return errno.EINVAL
+
+        else:
+            if failures:
+                output.fprint("Build error{s} while building test{s}. Cancelling {r}."
+                              .format(s='s' if len(failures) > 1 else '',
+                                      r='these runs' if len(failures) > 1 else 'the run'),
+                              file=self.errfile, color=output.RED if not res else output.YELLOW)
+                output.fprint(
+                    "Failed builds are placed in <working_dir>/test_runs/<test_id>/build for {} "
+                    "corresponding test run."
+                    .format("each" if len(failures) > 1 else 'the'),
+                    file=self.errfile, color=output.CYAN)
+                if len(failures) == 1:
+                    output.fprint("See test status file (pav cat {id} status) and/or the test "
+                                  "build log (pav log build {id})"
+                                  .format(id=failures[-1].test.id,
+                                          s='s' if len(all_tests) > 1 else ''),
+                                  file=self.errfile)
+                else:
+                    for failed_build in failures:
+                        #status = failed_build.test.status.current()
+                        #state = status.state.split("_")[-1].lower()
+                        #note = status.note
+                        #output.fprint("- Build {state} for {f.name} (#{f.id}) - {note}"
+                        #              .format(state=state, f=failed_build.test, note=note))
+                        output.fprint("See test status file (pav cat {id} status) and/or the test "
+                                      "build log (pav log build {id})"
+                                      .format(id=failed_build.test.id),
+                                      file=self.errfile)
+                        failed_tests.append(failed_build.test.id)
+
+        built_tests = [test for test in all_tests if test.id not in failed_tests]
 
         cmd_utils.complete_tests([test for test in all_tests if
                                  test.build_only and test.build_local])
@@ -208,8 +224,7 @@ class RunCommand(commands.Command):
                     file=self.outfile, color=output.YELLOW)
             return 0
 
-        series.tests = all_tests
-        res = series.run_tests(tests=all_tests, wait=wait)
+        res = series.run_tests(tests=built_tests, wait=wait)
 
         if report_status:
             status_utils.print_from_tests(

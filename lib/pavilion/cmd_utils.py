@@ -397,7 +397,7 @@ def build_local(tests: List[TestRun],
 
                 for test in tests:
                     if (test.status.current().state not in
-                            (STATES.BUILD_FAILED, STATES.BUILD_ERROR)):
+                            (STATES.BUILD_FAILED, STATES.BUILD_ERROR, STATES.BUILD_TIMEOUT)):
                         test.status.set(
                             STATES.ABORTED,
                             "Run aborted due to failures in other builds.")
