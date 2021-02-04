@@ -12,6 +12,7 @@ from pavilion import status_utils
 from pavilion.build_tracker import MultiBuildTracker
 from pavilion.output import fprint
 from pavilion.series import TestSeries
+from pavilion.status_file import STATES
 from pavilion.test_run import TestRun
 
 
@@ -177,10 +178,14 @@ class RunCommand(commands.Command):
                           file=self.errfile, color=output.CYAN)
 
             for failed_build in failures:
-                output.fprint("See test status file (pav cat {id} status) and/or the test "
-                              "build log (pav log build {id})"
-                              .format(id=failed_build.test.id),
-                              file=self.errfile)
+                # Don't print aborted tests.
+                if failed_build.test.status.current().state in (STATES.BUILD_FAILED,
+                                                                STATES.BUILD_ERROR,
+                                                                STATES.BUILD_TIMEOUT):
+                    output.fprint("See test status file (pav cat {id} status) and/or the test "
+                                  "build log (pav log build {id})"
+                                  .format(id=failed_build.test.id),
+                                  file=self.errfile)
                 failed_tests.append(failed_build.test.id)
 
         if not res:
