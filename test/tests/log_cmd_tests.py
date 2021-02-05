@@ -95,15 +95,28 @@ class LogCmdTest(PavTestCase):
             self.assertEqual(result, 0)
             self.assertEqual(err.getvalue(), '')
 
+    def test_log_tail(self):
+        log_cmd = commands.get_command('log')
+
+        parser = argparse.ArgumentParser()
+        log_cmd._setup_arguments(parser)
+
+        out = io.StringIO()
+        err = io.StringIO()
+
+        log_cmd.outfile = out
+        log_cmd.errfile = err
+
         # test 'pav log --tail X run test'
         test_cfg = self._quick_test_cfg()
         test_cfg['run']['cmds'] = ['echo "this"', 'echo "is"', 'echo "some"',
                                    'echo "crazy"', 'echo "long"', 'echo "output"']
         test = self._quick_test(cfg=test_cfg)
 
+        raw = schedulers.get_plugin('raw')
         raw.schedule_test(self.pav_cfg, test)
-        end = time.time() + 5
 
+        end = time.time() + 5
         while test.check_run_complete() is None and time.time() < end:
             time.sleep(.1)
 
