@@ -356,10 +356,14 @@ class TestBuilder:
         """Perform the build if needed, do a soft-link copy of the build
         directory into our test directory, and note that we've used the given
         build.
+        :param threading.Event cancel_event: Signals build to stop.
         :param threading.Event fail_event: Allows build to report failure,
         without cancelling other builds.
         :return: True if these steps completed successfully.
         """
+
+        if fail_event is None:
+            fail_event = threading.Event()
 
         if fail_event.is_set():
             self.tracker.fail("Build aborted due to failures in build '{}'."

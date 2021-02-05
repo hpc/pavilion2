@@ -38,3 +38,8 @@ class BuildCommand(run_plugin.RunCommand):
                  'These files should contain a newline separated list of test '
                  'names. Lines that start with a \'#\' are ignored as '
                  'comments.')
+        parser.add_argument(
+            '--hard-fail', action='store_true', default=False,
+            help='Cancel all tests in a series when a single test fails to '
+                 'start or build.'
+        )
