@@ -37,7 +37,7 @@ class LogCmdTest(PavTestCase):
 
         # test `pav log run test`
         args = parser.parse_args(['run', str(test.id)])
-        self.assertEqual(args.ts_id, str(test.id))
+        self.assertEqual(args.id, str(test.id))
 
         out = io.StringIO()
         err = io.StringIO()
@@ -68,9 +68,54 @@ class LogCmdTest(PavTestCase):
         err.truncate(0)
         args = parser.parse_args(['kickoff', str(test.id)])
         result = log_cmd.run(self.pav_cfg, args)
+        out.seek(0)
+        err.seek(0)
         self.assertEqual(out.getvalue(), '')
         self.assertEqual(err.getvalue(), '')
         self.assertEqual(result, 0)
+
+        # test 'pav log global'
+        out.truncate(0)
+        err.truncate(0)
+        args = parser.parse_args((['global']))
+        result = log_cmd.run(self.pav_cfg, args)
+        out.seek(0)
+        err.seek(0)
+        self.assertEqual(result, 0)
+        self.assertEqual(err.getvalue(), '')
+
+        # test 'pav log all_results' and variants
+        for name in ['all_results', 'allresults', 'all-results']:
+            out.truncate(0)
+            err.truncate(0)
+            args = parser.parse_args([name])
+            result = log_cmd.run(self.pav_cfg, args)
+            out.seek(0)
+            err.seek(0)
+            self.assertEqual(result, 0)
+            self.assertEqual(err.getvalue(), '')
+
+        # test 'pav log --tail X run test'
+        test_cfg = self._quick_test_cfg()
+        test_cfg['run']['cmds'] = ['echo "this"', 'echo "is"', 'echo "some"',
+                                   'echo "crazy"', 'echo "long"', 'echo "output"']
+        test = self._quick_test(cfg=test_cfg)
+
+        raw.schedule_test(self.pav_cfg, test)
+        end = time.time() + 5
+
+        while test.check_run_complete() is None and time.time() < end:
+            time.sleep(.1)
+
+        args = parser.parse_args(['--tail', '2', 'run', str(test.id)])
+        out.truncate(0)
+        err.truncate(0)
+        result = log_cmd.run(self.pav_cfg, args)
+        self.assertEqual(result, 0)
+        out.seek(0)
+        err.seek(0)
+        self.assertEqual(err.read(), '')
+        self.assertEqual(out.read(), 'long\noutput\n')
 
         log_cmd.outfile = sys.stdout
         log_cmd.outfile = sys.stderr
