@@ -1,10 +1,11 @@
 import argparse
 import io
+import time
 
 from pavilion import commands
 from pavilion import plugins
 from pavilion import schedulers
-from pavilion import status_file
+from pavilion import status_file, status_utils
 from pavilion.series import TestSeries
 from pavilion.test_config import file_format, VariableSetManager
 from pavilion.unittest import PavTestCase
@@ -296,3 +297,29 @@ class StatusCmdTests(PavTestCase):
 
         # Testing that summary flags return correctly
         self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
+
+    def test_status_history(self):
+        # Testing that status works with history flag
+        status_cmd = commands.get_command('status')
+        out = io.StringIO()
+        status_cmd.outfile = out
+
+        parser = argparse.ArgumentParser()
+        status_cmd._setup_arguments(parser)
+
+        test = self._quick_test()
+        raw = schedulers.get_plugin('raw')
+        raw.schedule_test(self.pav_cfg, test)
+        end = time.time() + 5
+        while test.check_run_complete() is None and time.time() < end:
+            time.sleep(.1)
+
+        args = parser.parse_args(['--history', str(test.id)])
+        self.assertEqual(status_cmd.run(self.pav_cfg, args), 0)
+
+        out.seek(0)
+        output = out.readlines()[4:]
+        statuses = test.status.history()
+        self.assertEqual(len(output), len(statuses))
+        for i in range(len(output)):
+            self.assertTrue(statuses[i].state in output[i])
