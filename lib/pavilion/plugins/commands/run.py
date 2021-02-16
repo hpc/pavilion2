@@ -196,11 +196,23 @@ class RunCommand(commands.Command):
         :rtype: []
         """
 
+        tests = []
+        for test_name in args.tests:
+            if '*' in test_name:
+                name, count = test_name.split('*')
+                try:
+                    tests.extend([name]*int(count))
+                except ValueError:
+                    tests.append(test_name)
+                    continue
+            else:
+                tests.append(test_name)
+        output.fprint(tests)
         try:
             test_configs = cmd_utils.get_test_configs(pav_cfg=pav_cfg,
                                                       host=args.host,
                                                       test_files=args.files,
-                                                      tests=args.tests,
+                                                      tests=tests,
                                                       modes=args.modes,
                                                       overrides=args.overrides,
                                                       outfile=self.outfile)
