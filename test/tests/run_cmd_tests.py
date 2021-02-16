@@ -1,6 +1,7 @@
 from pavilion import plugins
 from pavilion import commands
 from pavilion import cmd_utils
+from pavilion import output
 from pavilion.unittest import PavTestCase
 from pavilion import arguments
 from pavilion.plugins.commands.run import RunCommand
@@ -192,4 +193,36 @@ class RunCmdTests(PavTestCase):
         ])
 
         run_cmd = commands.get_command(args.command_name)
+        self.assertNotEqual(run_cmd.run(self.pav_cfg, args), 0)
+
+    def test_run_repeat(self):
+        """Check that run repeat functionality works as expected."""
+
+        # Check with repeat flag.
+        arg_parser = arguments.get_parser()
+        args = arg_parser.parse_args([
+            'run', '--repeat', '3', 'hello_world.hello'
+        ])
+        run_cmd = commands.get_command(args.command_name)
+        self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
+        self.assertEqual(len(run_cmd.last_tests), 3)
+
+        # Check with * notation.
+        args = arg_parser.parse_args([
+            'run', 'hello_world.hello*5'
+        ])
+        self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
+        self.assertEqual(len(run_cmd.last_tests), 5)
+
+        # Check with * notation and --repeat flag.
+        args = arg_parser.parse_args([
+            'run', '--repeat', '2', 'hello_world.hello*2'
+        ])
+        self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
+        self.assertEqual(len(run_cmd.last_tests), 4)
+
+        # Check with invalid arguments
+        args = arg_parser.parse_args([
+            'run', 'hello_world.hello*two'
+        ])
         self.assertNotEqual(run_cmd.run(self.pav_cfg, args), 0)
