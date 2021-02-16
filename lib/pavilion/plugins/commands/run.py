@@ -51,6 +51,10 @@ class RunCommand(commands.Command):
                  'names. Lines that start with a \'#\' are ignored as '
                  'comments.')
         parser.add_argument(
+            '--repeat', action='store', type=int, default=None,
+            help='Repeat specified tests this many times.'
+        )
+        parser.add_argument(
             '-s', '--status', action='store_true', default=False,
             help='Display test statuses'
         )
@@ -118,6 +122,9 @@ class RunCommand(commands.Command):
         #
 
         mb_tracker = MultiBuildTracker()
+
+        if args.repeat:
+            args.tests = args.tests * args.repeat
 
         local_builds_only = getattr(args, 'local_builds_only', False)
 
