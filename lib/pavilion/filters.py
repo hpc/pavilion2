@@ -334,7 +334,7 @@ SERIES_FILTER_DEFAULTS = {
     'sort_by': '-created',
     'complete': False,
     'incomplete': False,
-    'newer_than': time.time() - dt.timedelta(days=1).seconds,
+    'newer_than': time.time() - dt.timedelta(days=1).total_seconds(),
     'older_than': None,
     'sys_name': LOCAL_SYS_NAME,
     'user': utils.get_login(),
