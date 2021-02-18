@@ -28,8 +28,8 @@ expr: or_expr
 
 // These set order of operations. 
 // See https://en.wikipedia.org/wiki/Operator-precedence_parser
-or_expr: and_expr ( "or" and_expr )?          
-and_expr: not_expr ( "and" not_expr )?
+or_expr: and_expr ( "or" and_expr )*        
+and_expr: not_expr ( "and" not_expr )*
 not_expr: NOT? compare_expr
 compare_expr: add_expr ((EQ | NOT_EQ | LT | GT | LT_EQ | GT_EQ ) add_expr)*
 add_expr: mult_expr ((PLUS | MINUS) mult_expr)*

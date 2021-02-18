@@ -109,6 +109,7 @@ class ParserTests(unittest.PavTestCase):
         'int1 <= 0': False,
         'True and (False and True)': False,
         'True and (int1 == 1)': True,
+        'True and False and True': False,
         'True or True': True,
         'False or True': True,
         'True or False': True,
