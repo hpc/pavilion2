@@ -94,7 +94,7 @@ BOOL.2: "True" | "False"
 NAME.1: /[a-zA-Z_][a-zA-Z0-9_]*/
 
 // Ignore all whitespace between tokens. 
-%ignore  / +(?=[^.(])/
+%ignore  / +(?=[^.])/
 '''
 
 _EXPR_PARSER = None
