@@ -204,11 +204,11 @@ class RunCommand(commands.Command):
         :rtype: []
         """
 
-        REPEAT_NAME_RE = re.compile(r'(.*)\*(\d+)')
+        repeat_re = re.compile(r'(.*)\*(\d+)')
 
         tests = []
         for test_name in args.tests:
-            match = re.search(REPEAT_NAME_RE, test_name)
+            match = re.search(repeat_re, test_name)
             if match:
                 name, count = match.groups()
                 tests.extend([name]*int(count))
