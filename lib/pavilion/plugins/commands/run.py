@@ -214,7 +214,6 @@ class RunCommand(commands.Command):
                     continue
             else:
                 tests.append(test_name)
-        output.fprint(tests)
         try:
             test_configs = cmd_utils.get_test_configs(pav_cfg=pav_cfg,
                                                       host=args.host,
