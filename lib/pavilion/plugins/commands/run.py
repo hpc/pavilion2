@@ -105,7 +105,11 @@ class RunCommand(commands.Command):
             'tests', nargs='*', action='store',
             help='The name of the tests to run. These may be suite names (in '
                  'which case every test in the suite is run), or a '
-                 '<suite_name>.<test_name>.')
+                 '<suite_name>.<test_name>. Tests can be repeated explicitly '
+                 'using a * notation that precedes or succeeds the test suite '
+                 'or test name (i.e. 5*<suite_name> and <suite_name>*5 both '
+                 'run every test in that suite 5 times).'
+        )
 
     SLEEP_INTERVAL = 1
 
