@@ -1,10 +1,12 @@
-import distutils.spawn
 import pathlib
+import queue
+import shutil
 import subprocess
+import threading
 import unittest
 from collections import defaultdict
 from html.parser import HTMLParser
-import shutil
+from typing import List
 
 from pavilion import wget
 from pavilion.unittest import PavTestCase
@@ -240,10 +242,38 @@ class DocTests(PavTestCase):
         for origin, href in ext_links:
             origins_by_href[href].append(origin)
 
-        # Check the external links too.
+        href_queue = queue.Queue()
         for href in origins_by_href.keys():
-            try:
-                wget.head(self.pav_cfg, href)
-            except wget.WGetError:
-                self.fail("Could not fetch HEAD for doc external href '{}'"
-                          .format(href))
+            href_queue.put(href)
+
+        bad_hrefs = queue.Queue()
+
+        def check_hrefs(hrefs: queue.Queue, errors: queue.Queue):
+            """Check hrefs on the href queue. Add those that can't be reached
+            to the bad queue."""
+
+            while True:
+                try:
+                    hrefs.get(block=False)
+                except queue.Empty:
+                    break
+
+                try:
+                    wget.head(self.pav_cfg, href)
+                except wget.WGetError:
+                    errors.put(href)
+
+        threads = []  # type: List[threading.Thread]
+        for i in range(6):
+            threading.Thread(target=check_hrefs, args=(href_queue, bad_hrefs))
+
+        for thread in threads:
+            thread.join()
+
+        error_hrefs = []
+        while not bad_hrefs.empty():
+            error_hrefs.append(bad_hrefs.get())
+
+        if error_hrefs:
+            msg = "Could not reach the following: {}".format(', '.join(error_hrefs))
+            self.fail(msg)

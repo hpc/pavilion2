@@ -26,7 +26,8 @@ from pavilion.test_run import TestConfigError, TestRunError, \
 LOGGER = logging.getLogger(__name__)
 
 
-def arg_filtered_tests(pav_cfg, args: argparse.Namespace) -> List[int]:
+def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
+                       verbose: TextIO=None) -> List[int]:
     """Search for test runs that match based on the argument values in args,
     and return a list of matching test id's.
 
@@ -43,6 +44,7 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace) -> List[int]:
         `filters.add_test_filter_args`, plus one additional `tests` argument
         that should contain a list of test id's, series id's, or the 'last'
         keyword.
+    :param verbose: A file like object to report test search status.
     :return: A list of test id ints.
     """
 
@@ -69,7 +71,9 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace) -> List[int]:
     if args.tests:
         test_paths = test_list_to_paths(pav_cfg, args.tests)
 
-        if args.force_filter:
+        if args.disable_filter:
+            test_ids = dir_db.paths_to_ids(test_paths)
+        else:
             tests = dir_db.select_from(
                 paths=test_paths,
                 transform=test_run_attr_transform,
@@ -77,10 +81,8 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace) -> List[int]:
                 order_func=order_func,
                 order_asc=order_asc,
                 limit=limit
-            )
-            test_ids = [test.id for test in tests]
-        else:
-            test_ids = dir_db.paths_to_ids(test_paths)
+            ).data
+            test_ids = [test['id'] for test in tests]
 
     else:
         tests = dir_db.select(
@@ -89,6 +91,7 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace) -> List[int]:
             filter_func=filter_func,
             order_func=order_func,
             order_asc=order_asc,
+            verbose=verbose,
             limit=limit).data
         test_ids = [test['id'] for test in tests]
 
@@ -316,6 +319,10 @@ def build_local(tests: List[TestRun],
     seen_build_names = set()
 
     for test in tests:
+        # Don't try to build tests that are skipped
+        if test.skipped:
+            continue
+
         if not test.build_local:
             remote_builds.append(test)
         elif test.builder.name not in seen_build_names:

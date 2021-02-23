@@ -1,18 +1,20 @@
 """Manage 'id' directories. The name of the directory is an integer, which
 essentially serves as a filesystem primary key."""
 
+import dbm
 import json
+import logging
 import os
 import shutil
+import tempfile
 import time
-import logging
 from pathlib import Path
 from typing import Callable, List, Iterable, Any, Dict, NewType, \
-    Union, NamedTuple
+    Union, NamedTuple, IO
 
 from pavilion import lockfile
-from pavilion import permissions
 from pavilion import output
+from pavilion import permissions
 
 ID_DIGITS = 7
 ID_FMT = '{id:0{digits}d}'
@@ -119,7 +121,9 @@ Index = NewType("Index", Dict[int, Dict['str', Any]])
 def index(id_dir: Path, idx_name: str,
           transform: Callable[[Path], Dict[str, Any]],
           complete_key: str = 'complete',
-          refresh_period: int = 2,
+          refresh_period: int = 1,
+          remove_missing: bool = False,
+          verbose: IO[str] = None,
           fn_base: int = 10) -> Index:
     """Load and/or update an index of the given directory for the given
     transform, and return it. The returned index is a dictionary by id of
@@ -135,41 +139,63 @@ def index(id_dir: Path, idx_name: str,
         updated (hopefully they will be complete eventually).
     :param refresh_period: Only update the index if this much time (in seconds)
         has passed since the last update.
+    :param remove_missing: Remove items that no longer exist from the index.
     :param fn_base: The integer base for dir_db.
     """
 
-    idx_path = (id_dir/idx_name).with_suffix('.idx')
+    idx_path = (id_dir/idx_name).with_suffix('.db')
 
     idx = Index({})
+    idx_db = None
 
     # Open and read the index if it exists. Any errors cause the index to
     # regenerate from scratch.
+    idx_mtime = 0
     if idx_path.exists():
-        with idx_path.open() as idx_file:
-            try:
-                idx = Index({int(k): v for k, v in json.load(idx_file).items()})
-                idx_stat = idx_path.stat()
-            except (OSError, json.JSONDecodeError) as err:
-                # In either error case, start from scratch.
-                LOGGER.warning(
-                    "Error reading index at '%s'. Regenerating from "
-                    "scratch. %s", idx_path.as_posix(), err.args[0])
+        try:
+            idx_db = dbm.open(idx_path.as_posix())
+            idx_mtime = idx_path.stat().st_mtime
+            idx = Index({int(k): json.loads(idx_db[k]) for k in idx_db.keys()})
+        except (OSError, PermissionError, json.JSONDecodeError) as err:
+            # In either error case, start from scratch.
+            LOGGER.warning(
+                "Error reading index at '%s'. Regenerating from "
+                "scratch. %s", idx_path.as_posix(), err.args[0])
 
-    changed = False
+    new_items = {}
 
     # If the index hasn't been updated lately (or is empty) do so.
     # Small updates should happen unnoticeably fast, while full generation
     # will take a bit.
-    if not idx or time.time() - idx_stat.st_mtime > refresh_period:
+    if not idx or time.time() - idx_mtime > refresh_period:
         seen = []
 
-        for file in os.scandir(id_dir.as_posix()):
+        if verbose:
+            if idx_db is None:
+                output.fprint(
+                    "No index file found for '{}'. This may take a while."
+                    .format(id_dir.name),
+                    file=verbose)
+
+        last_perc = None
+        progress = 0
+
+        files = list(os.scandir(id_dir.as_posix()))
+        for file in files:
             try:
                 id_ = int(file.name, fn_base)
             except ValueError:
                 continue
 
             seen.append(id_)
+
+            progress += 1
+            complete_perc = int(100*progress/len(files))
+            if verbose and complete_perc != last_perc:
+                output.fprint(
+                    "Indexing: {}%".format(complete_perc),
+                    end='\r', file=verbose)
+                last_perc = complete_perc
 
             # Skip entries that are known and complete.
             if id_ in idx and idx[id_].get(complete_key, False):
@@ -187,21 +213,39 @@ def index(id_dir: Path, idx_name: str,
 
             old = idx.get(id_)
             if new != old:
-                changed = True
+                new_items[id_] = new
                 idx[id_] = new
 
-        # Delete entries that no longer exist.
-        for id_ in list(idx.keys()):
-            changed = True
-            if id_ not in seen:
-                del idx[id_]
+        missing = set(idx.keys()) - set(seen)
 
-        if changed:
-            # Write our updated index atomically.
-            tmp_path = idx_path.with_suffix(idx_path.suffix + '.tmp')
-            with tmp_path.open('w') as tmp_file:
-                output.json_dump(idx, tmp_file)
-            tmp_path.rename(idx_path)
+        if new_items or missing:
+            try:
+                group = idx_path.parent.stat().st_gid
+                tmp_path = Path(tempfile.mktemp(
+                    suffix='.dbtmp',
+                    dir=idx_path.parent.as_posix()))
+                if idx_path.exists():
+                    try:
+                        shutil.copyfile(idx_path, tmp_path.as_posix())
+                    except OSError:
+                        pass
+
+                # Write our updated index atomically.
+                with permissions.PermissionsManager(tmp_path,
+                                                    group, 0o002):
+                    out_db = dbm.open(tmp_path.as_posix(), 'c')
+
+                    for id_, value in new_items.items():
+                        out_db[str(id_)] = json.dumps(value)
+
+                    for id_ in missing:
+
+                        del out_db[str(id_)]
+                        del idx[id_]
+
+                tmp_path.rename(idx_path)
+            except OSError:
+                pass
 
     return idx
 
@@ -218,6 +262,7 @@ def select(id_dir: Path,
            fn_base: int = 10,
            idx_complete_key: 'str' = 'complete',
            use_index: Union[bool, str] = True,
+           verbose: IO[str] = None,
            limit: int = None) -> (List[Any], List[Path]):
     """Filter and order found paths in the id directory based on the filter and
     other parameters. If a transform is given, this will create an index of the
@@ -242,6 +287,7 @@ def select(id_dir: Path,
     :param fn_base: Number base for file names. 10 by default, ensure dir name
         is a valid integer.
     :param limit: The max items to return. None denotes return all.
+    :param verbose: A file like object to print status info to.
     :returns: A filtered, ordered list of transformed objects, and the list
               of untransformed paths.
     """
@@ -261,7 +307,8 @@ def select(id_dir: Path,
         selected = []
 
         idx = index(id_dir, index_name, transform,
-                    complete_key=idx_complete_key)
+                    complete_key=idx_complete_key,
+                    verbose=verbose)
         for id_, data in idx.items():
             path = make_id_path(id_dir, id_)
 

@@ -186,7 +186,7 @@ class ResultParserTests(PavTestCase):
             'last_b': 6,
             'middle_b': 3,
             'other_middle_b': 3,
-            'no_lines_match': None,
+            'no_lines_match': [],
             'no_lines_match_last': None,
             'true': True,
             'false': False,

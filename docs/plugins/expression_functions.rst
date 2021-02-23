@@ -36,6 +36,8 @@ plugin.
 .. code-block:: python
 
     from pavilion import expression_functions
+    # The 'num' function will accept any numerical looking type generically.
+    from pavilion.expression_functions import num
 
     # All function plugins inherit from the 'FunctionPlugin' class
     class Max(expression_functions.FunctionPlugin):

@@ -84,18 +84,21 @@ class TestBuilder:
 
         self._fix_source_path()
 
-        if not test.build_local:
-            self.tracker.update(state=STATES.BUILD_DEFERRED,
-                                note="Build will run on nodes.")
-
         if build_name is None:
             self.name = self.name_build()
-            self.tracker.update(state=STATES.BUILD_CREATED,
-                                note="Builder created.")
         else:
             self.name = build_name
 
         self.path = pav_cfg.working_dir/'builds'/self.name  # type: Path
+
+        if not self.path.exists():
+            if not test.build_local:
+                self.tracker.update(state=STATES.BUILD_DEFERRED,
+                                    note="Build will run on nodes.")
+
+            self.tracker.update(state=STATES.BUILD_CREATED,
+                                note="Builder created.")
+
         self.tmp_log_path = self.path.with_suffix('.log')
         self.log_path = self.path/self.LOG_NAME
         fail_name = 'fail.{}.{}'.format(self.name, self.test.id)
@@ -551,7 +554,6 @@ class TestBuilder:
                         if time.time() > timeout:
                             # Give up on the build, and call it a failure.
                             proc.kill()
-                            cancel_event.set()
                             self.tracker.fail(
                                 state=STATES.BUILD_TIMEOUT,
                                 note="Build timed out after {} seconds."
@@ -567,15 +569,11 @@ class TestBuilder:
                             return False
 
         except subprocess.CalledProcessError as err:
-            if cancel_event is not None:
-                cancel_event.set()
             self.tracker.error(
                 note="Error running build process: {}".format(err))
             return False
 
         except (IOError, OSError) as err:
-            if cancel_event is not None:
-                cancel_event.set()
 
             self.tracker.error(
                 note="Error that's probably related to writing the "
@@ -596,10 +594,10 @@ class TestBuilder:
             self.tracker.warn("Error fixing build permissions: %s".format(err))
 
         if result != 0:
-            if cancel_event is not None:
-                cancel_event.set()
             self.tracker.fail(
                 note="Build returned a non-zero result.")
+            if cancel_event is not None:
+                cancel_event.set()
             return False
         else:
 

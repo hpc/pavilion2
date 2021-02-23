@@ -363,7 +363,7 @@ used when the string is formatted.
 
         parts = []
 
-        parts.extend((padding_left, self.data, padding_right))
+        parts.extend((padding_left, self.colorize(), padding_right))
 
         return ''.join(parts)
 
@@ -643,6 +643,12 @@ def dt_format_rows(rows, fields, field_info):
                 except (ValueError, AttributeError, KeyError):
                     data = '<transform error on {}>'.format(data)
 
+            if isinstance(data, ANSIString):
+                ansi_code = data.code
+                data = str(data)
+            else:
+                ansi_code = None
+
             # Format the data
             col_format = info.get('format', '{0}')
             try:
@@ -651,11 +657,6 @@ def dt_format_rows(rows, fields, field_info):
                 print("Bad format for data. Format: {0}, data: {1}"
                       .format(col_format, repr(data)), file=sys.stderr)
                 raise
-
-            if isinstance(data, ANSIString):
-                ansi_code = data.code
-            else:
-                ansi_code = None
 
             # Cast all data as ANSI strings, so we can get accurate lengths
             # and use ANSI friendly text wrapping.
@@ -868,7 +869,7 @@ def dt_format_row(row, fields, widths, pad, border, vsep):
     if pad:
         out.append(' ')
     if border:
-        out.append('vsep')
+        out.append(vsep)
     out.append('\n')
 
     return ''.join(out)

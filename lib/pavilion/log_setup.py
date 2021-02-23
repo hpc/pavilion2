@@ -184,12 +184,11 @@ def setup_loggers(pav_cfg, verbose=False, err_out=sys.stderr):
         file_handler.setLevel(getattr(logging,
                                       pav_cfg.log_level.upper()))
         root_logger.addHandler(file_handler)
+
     try:
         perm_man.set_perms(log_fn)
     except OSError:
-        output.fprint("Could not set permissions on pavilion log at '{}'"
-                      .format(pav_cfg.result_log.as_posix(),
-                      color=output.YELLOW), file=err_out)
+        pass
 
     # The root logger should pass all messages, even if the handlers
     # filter them.
@@ -206,12 +205,9 @@ def setup_loggers(pav_cfg, verbose=False, err_out=sys.stderr):
             color=output.YELLOW, file=err_out)
         return False
     try:
-        perm_man.set_perms(log_fn)
         perm_man.set_perms(pav_cfg.result_log)
     except OSError:
-        output.fprint("Could not set permissions on result log at '{}'"
-                      .format(pav_cfg.result_log.as_posix(),
-                      color=output.YELLOW), file=err_out)
+        pass
 
     result_logger = logging.getLogger('common_results')
     result_handler = LockFileRotatingFileHandler(
@@ -250,9 +246,7 @@ def setup_loggers(pav_cfg, verbose=False, err_out=sys.stderr):
     try:
         perm_man.set_perms(pav_cfg.exception_log)
     except OSError:
-        output.fprint("Could not set permissions on exception log at '{}'"
-                      .format(pav_cfg.result_log.as_posix(),
-                      color=output.YELLOW), file=err_out)
+        pass
 
     # Setup the yapsy logger to log to terminal. We need to know immediatly
     # when yapsy encounters errors.
