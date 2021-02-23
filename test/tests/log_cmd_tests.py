@@ -84,16 +84,15 @@ class LogCmdTest(PavTestCase):
         self.assertEqual(result, 0)
         self.assertEqual(err.getvalue(), '')
 
-        # test 'pav log all_results' and variants
-        for name in ['all_results', 'allresults', 'all-results']:
-            out.truncate(0)
-            err.truncate(0)
-            args = parser.parse_args([name])
-            result = log_cmd.run(self.pav_cfg, args)
-            out.seek(0)
-            err.seek(0)
-            self.assertEqual(result, 0)
-            self.assertEqual(err.getvalue(), '')
+        # test 'pav log all_results'
+        out.truncate(0)
+        err.truncate(0)
+        args = parser.parse_args(['all_results'])
+        result = log_cmd.run(self.pav_cfg, args)
+        out.seek(0)
+        err.seek(0)
+        self.assertEqual(result, 0)
+        self.assertEqual(err.getvalue(), '')
 
     def test_log_tail(self):
         log_cmd = commands.get_command('log')
