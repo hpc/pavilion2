@@ -209,8 +209,14 @@ class RunCommand(commands.Command):
                 left, right = test_name.split("*",1)
                 if left.isdigit():
                     tests.extend([right]*int(left))
-                else:
+                elif right.isdigit():
                     tests.extend([left]*int(right))
+                else:
+                    fprint("'{}' contains invalid literal for int() "
+                           "with base 10: '{}'"
+                           .format(test_name, [left, right]),
+                           file=self.errfile)
+                    return None
             else:
                 tests.append(test_name)
         try:

@@ -214,6 +214,12 @@ class RunCmdTests(PavTestCase):
         self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
         self.assertEqual(len(run_cmd.last_tests), 5)
 
+        args = arg_parser.parse_args([
+            'run', '5*hello_world.hello'
+        ])
+        self.assertEqual(run_cmd.run(self.pav_cfg, args), 0)
+        self.assertEqual(len(run_cmd.last_tests), 5)
+
         # Check with * notation and --repeat flag.
         args = arg_parser.parse_args([
             'run', '--repeat', '2', 'hello_world.hello*2'
