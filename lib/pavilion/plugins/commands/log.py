@@ -141,28 +141,14 @@ class LogCommand(commands.Command):
             return 1
 
         try:
-            # "Tail" general log files.
-            if cmd_name in ['global', 'all-results',
-                            'allresults', 'all_results']:
-                with file_name.open() as file:
-                    if args.tail:
-                        tail = file.readlines()[-int(args.tail):]
-                        for line in tail:
-                            output.fprint(line, file=self.outfile)
-                    else:
-                        for line in file.readlines():
-                            output.fprint(line, file=self.outfile)
-
-            # Print full files for specific IDs.
-            else:
-                with file_name.open() as file:
-                    if args.tail:
-                        tail = file.readlines()[-int(args.tail):]
-                        for line in tail:
-                            output.fprint(line, file=self.outfile)
-                    else:
-                        output.fprint(file.read(), file=self.outfile,
-                                      width=None, end='')
+            with file_name.open() as file:
+                if args.tail:
+                    tail = file.readlines()[-int(args.tail):]
+                    for line in tail:
+                        output.fprint(line, file=self.outfile)
+                else:
+                    output.fprint(file.read(), file=self.outfile,
+                                  width=None, end='')
 
         except (IOError, OSError) as err:
             output.fprint("Could not read log file '{}': {}"
