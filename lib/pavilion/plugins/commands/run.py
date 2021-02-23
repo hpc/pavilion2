@@ -1,7 +1,6 @@
 """The run command resolves tests by their names, builds them, and runs them."""
 
 import errno
-import re
 from typing import List
 
 from pavilion import cmd_utils
@@ -204,14 +203,14 @@ class RunCommand(commands.Command):
         :rtype: []
         """
 
-        repeat_re = re.compile(r'(.*)\*(\d+)')
-
         tests = []
         for test_name in args.tests:
-            match = re.search(repeat_re, test_name)
-            if match:
-                name, count = match.groups()
-                tests.extend([name]*int(count))
+            if "*" in test_name:
+                left, right = test_name.split("*",1)
+                if left.isdigit():
+                    tests.extend([right]*int(left))
+                else:
+                    tests.extend([left]*int(right))
             else:
                 tests.append(test_name)
         try:
