@@ -104,3 +104,23 @@ def load_series_configs(pav_cfg, series_name: str, cl_modes: List[str],
                                 .format(series_name, err.args[0]))
 
     return series_cfg
+
+
+def generate_series_config(
+        tests: List[str], modes: List[str], host: str) -> dict:
+    """Generates series config from test names, host, & modes. """
+
+    series_cfg = SeriesConfigLoader().load_empty()
+
+    series_cfg['modes'] = modes
+    series_cfg['host'] = host
+
+    series_cfg['series']['only_set'] = {
+        'tests': tests,
+        'modes': [],
+        'depends_on': [],
+        'only_if': {},
+        'not_if': {}
+    }
+
+    return series_cfg
