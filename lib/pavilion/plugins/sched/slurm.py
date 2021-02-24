@@ -301,6 +301,13 @@ Warning: Tests that use this will fail to start if no nodes are available."""
                '-N', self.test_nodes(),
                '-n', self.test_procs()]
 
+        mpi = self.sched_config.get('mpi')
+        if mpi:
+            cmd.append('--mpi={}'.format(mpi))
+        extra = self.sched_config.get('srun_extra')
+        if extra:
+            cmd.append(extra)
+
         return ' '.join(cmd)
 
 
@@ -385,6 +392,10 @@ class Slurm(schedulers.SchedulerPlugin):
                           "when determining job size. Will set the minimum"
                           "number of nodes "
             ),
+            yc.StrElem('srun_extra',
+                       help_text="Extra srun args to add to the test_cmd."),
+            yc.StrElem('mpi',
+                       help_text="MPI type to use, like pmix."),
             yc.StrElem('qos',
                        help_text="The QOS that this test should use."),
             yc.StrElem('account',
