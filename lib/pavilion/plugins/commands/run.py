@@ -207,27 +207,11 @@ class RunCommand(commands.Command):
         :rtype: []
         """
 
-        tests = []
-        for test_name in args.tests:
-            if "*" in test_name:
-                left, right = test_name.split("*",1)
-                if left.isdigit():
-                    tests.extend([right]*int(left))
-                elif right.isdigit():
-                    tests.extend([left]*int(right))
-                else:
-                    fprint("'{}' contains invalid literal for int() "
-                           "with base 10: '{}'"
-                           .format(test_name, [left, right]),
-                           file=self.errfile)
-                    return None
-            else:
-                tests.append(test_name)
         try:
             test_configs = cmd_utils.get_test_configs(pav_cfg=pav_cfg,
                                                       host=args.host,
                                                       test_files=args.files,
-                                                      tests=tests,
+                                                      tests=args.tests,
                                                       modes=args.modes,
                                                       overrides=args.overrides,
                                                       outfile=self.outfile)
