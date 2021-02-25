@@ -395,12 +395,13 @@ def build_local(tests: List[TestRun],
                 for thread in test_threads:
                     thread.join()
 
+                # Set status of test threads that haven't been started yet.
                 for test in tests:
-                    if (test.status.current().state not in
-                            (STATES.BUILD_FAILED, STATES.BUILD_ERROR, STATES.BUILD_TIMEOUT)):
+                    if test.status.current().state in [STATES.CREATED]:
                         test.status.set(
                             STATES.ABORTED,
-                            "Run aborted due to failures in other builds.")
+                            "Build aborted due to failures in other builds."
+                        )
 
                 return False
 

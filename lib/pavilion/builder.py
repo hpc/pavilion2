@@ -373,6 +373,11 @@ class TestBuilder:
                               .format(self.name), state=STATES.ABORTED)
             return False
 
+        if cancel_event.is_set():
+            self.tracker.fail("Build aborted due to failures in other builds.",
+                              states=STATES.ABORTED)
+            return False
+
         # Only try to do the build if it doesn't already exist and is finished.
         if not self.finished_path.exists():
             # Make sure another test doesn't try to do the build at
