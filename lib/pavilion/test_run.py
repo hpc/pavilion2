@@ -749,6 +749,7 @@ class TestRun(TestAttributes):
         it's final location. The build tracker will have the latest
         information on any encountered errors.
 
+        :param threading.Event cancel_event: Event to signal this build needs to be cancelled.
         :param threading.Event fail_event: Event to report build failure
             without killing other builds.
 
@@ -764,6 +765,9 @@ class TestRun(TestAttributes):
         if cancel_event is None:
             cancel_event = threading.Event()
 
+        if fail_event is None:
+            fail_event = threading.Event()
+
         if self.builder.build(cancel_event=cancel_event, fail_event=fail_event):
             # Create the build origin path, to make tracking a test's build
             # a bit easier.
@@ -777,12 +781,12 @@ class TestRun(TestAttributes):
             build_result = True
         else:
             with PermissionsManager(self.build_path, self.group, self.umask):
-                self.builder.fail_path.rename(self.build_path)
-                for file in utils.flat_walk(self.build_path):
-                    try:
+                try:
+                    self.builder.fail_path.rename(self.build_path)
+                    for file in utils.flat_walk(self.build_path):
                         file.chmod(file.stat().st_mode | 0o200)
-                    except FileNotFoundError:
-                        pass
+                except FileNotFoundError:
+                    pass
                 build_result = False
 
         self.build_log.symlink_to(self.build_path/'pav_build_log')
