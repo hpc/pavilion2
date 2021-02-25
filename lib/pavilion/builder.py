@@ -362,6 +362,9 @@ class TestBuilder:
         :return: True if these steps completed successfully.
         """
 
+        if cancel_event is None:
+            cancel_event = threading.Event()
+
         if fail_event is None:
             fail_event = threading.Event()
 
@@ -386,8 +389,7 @@ class TestBuilder:
                     as lock:
                 # Make sure the build wasn't created while we waited for
                 # the lock.
-                if not self.finished_path.exists() and \
-                        not fail_event.is_set():
+                if not self.finished_path.exists():
                     self.tracker.update(
                         state=STATES.BUILDING,
                         note="Starting build {}.".format(self.name))
@@ -424,7 +426,6 @@ class TestBuilder:
                                     .format(self.name, self.path,
                                             self.fail_path, err))
                                 self.fail_path.mkdir()
-                            if fail_event is not None and not fail_event.is_set():
                                 fail_event.set()
 
                             return False
@@ -448,7 +449,7 @@ class TestBuilder:
                                           "file.")
 
                 else:
-                    if fail_event is not None and fail_event.is_set():
+                    if fail_event.is_set():
                         self.tracker.fail("Build aborted due to failures in build '{}'."
                                           .format(self.name), state=STATES.ABORTED)
                         return False
@@ -571,7 +572,7 @@ class TestBuilder:
                                 .format(self._timeout))
                             return False
 
-                        if fail_event is not None and fail_event.is_set():
+                        if fail_event.is_set():
                             proc.kill()
                             self.tracker.update(
                                 state=STATES.ABORTED,
@@ -580,7 +581,7 @@ class TestBuilder:
                             )
                             return False
 
-                        if cancel_event is not None and cancel_event.is_set():
+                        if cancel_event.is_set():
                             proc.kill()
                             self.tracker.update(
                                 state=STATES.ABORTED,
@@ -589,16 +590,13 @@ class TestBuilder:
                             return False
 
         except subprocess.CalledProcessError as err:
-            if fail_event is not None:
-                fail_event.set()
+            fail_event.set()
             self.tracker.error(
                 note="Error running build process: {}".format(err))
             return False
 
         except (IOError, OSError) as err:
-            if fail_event is not None:
-                fail_event.set()
-
+            fail_event.set()
             self.tracker.error(
                 note="Error that's probably related to writing the "
                      "build output: {}".format(err))
@@ -618,8 +616,7 @@ class TestBuilder:
             self.tracker.warn("Error fixing build permissions: %s".format(err))
 
         if result != 0:
-            if fail_event is not None:
-                fail_event.set()
+            fail_event.set()
             self.tracker.fail(
                 note="Build returned a non-zero result.")
             return False
