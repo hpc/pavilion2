@@ -455,9 +455,11 @@ class TestConfigResolver:
                         if left.isdigit():
                             total_tests.extend([right] * int(left))
                             continue
-                        if right.isdigit():
+                        elif right.isdigit():
                             total_tests.extend([left] * int(right))
                             continue
+                        else:
+                            raise ValueError("No digit present in {}".format([left, right]))
                     except ValueError as err:
                         raise TestConfigError("Invalid repeat notation: {}"
                                               .format(err))
