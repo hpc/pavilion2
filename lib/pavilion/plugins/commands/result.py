@@ -86,8 +86,12 @@ class ResultsCommand(commands.Command):
     def run(self, pav_cfg, args):
         """Print the test results in a variety of formats."""
 
-        test_ids = cmd_utils.arg_filtered_tests(pav_cfg, args, verbose=self.errfile)
-
+        try:
+            test_ids = cmd_utils.arg_filtered_tests(pav_cfg, args, verbose=self.errfile)
+        except ValueError as err:
+            output.fprint(err, file=self.errfile, color=output.RED)
+            return errno.EINVAL
+        
         tests = []
         for id_ in test_ids:
             try:
