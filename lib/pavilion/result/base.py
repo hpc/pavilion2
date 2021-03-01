@@ -85,7 +85,10 @@ def base_results(test) -> dict:
     results = {}
 
     for key, (func, doc) in BASE_RESULTS.items():
-        if func is not None:
-            results[key] = func(test)
+        try:
+            if func is not None:
+                results[key] = func(test)
+        except TypeError:
+            results[key] = None
 
     return results
