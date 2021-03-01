@@ -783,7 +783,10 @@ class TestRun(TestAttributes):
             with PermissionsManager(self.build_path, self.group, self.umask):
                 self.builder.fail_path.rename(self.build_path)
                 for file in utils.flat_walk(self.build_path):
-                    file.chmod(file.stat().st_mode | 0o200)
+                    try:
+                        file.chmod(file.stat().st_mode | 0o200)
+                    except FileNotFoundError:
+                        continue
                 build_result = False
 
         self.build_log.symlink_to(self.build_path/'pav_build_log')
