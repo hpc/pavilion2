@@ -736,7 +736,7 @@ class TestRun(TestAttributes):
         except TypeError as err:
             raise TestRunError("Bad config values for config '{}': {}"
                                .format(config_path, err))
-        except (IOError, OSError) as err:
+        except (IOError, OSError, json.decoder.JSONDecodeError) as err:
             raise TestRunError("Error reading config file '{}': {}"
                                .format(config_path, err))
 
