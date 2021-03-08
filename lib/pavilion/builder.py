@@ -421,7 +421,7 @@ class TestBuilder:
                     with PermissionsManager(self.path, self._group,
                                             self._umask):
                         if not self._build(self.path, cancel_event, fail_event, lock=lock):
-
+                            fail_event.set()
                             try:
                                 self.path.rename(self.fail_path)
                             except (OSError, FileNotFoundError) as err:
@@ -431,8 +431,6 @@ class TestBuilder:
                                     .format(self.name, self.path,
                                             self.fail_path, err))
                                 self.fail_path.mkdir()
-                                fail_event.set()
-
                             return False
 
                     # Make a file with the test id of the building test.
@@ -570,20 +568,10 @@ class TestBuilder:
                         if time.time() > timeout:
                             # Give up on the build, and call it a failure.
                             proc.kill()
-                            fail_event.set()
                             self.tracker.fail(
                                 state=STATES.BUILD_TIMEOUT,
                                 note="Build timed out after {} seconds."
                                 .format(self._timeout))
-                            return False
-
-                        if fail_event.is_set():
-                            proc.kill()
-                            self.tracker.update(
-                                state=STATES.ABORTED,
-                                note="Build aborted due to failures in build '{}'."
-                                     .format(self.name)
-                            )
                             return False
 
                         if cancel_event.is_set():
@@ -595,13 +583,11 @@ class TestBuilder:
                             return False
 
         except subprocess.CalledProcessError as err:
-            fail_event.set()
             self.tracker.error(
                 note="Error running build process: {}".format(err))
             return False
 
         except (IOError, OSError) as err:
-            fail_event.set()
             self.tracker.error(
                 note="Error that's probably related to writing the "
                      "build output: {}".format(err))
@@ -621,7 +607,6 @@ class TestBuilder:
             self.tracker.warn("Error fixing build permissions: %s".format(err))
 
         if result != 0:
-            fail_event.set()
             self.tracker.fail(
                 note="Build returned a non-zero result.")
             return False
