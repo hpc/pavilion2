@@ -1,6 +1,7 @@
 """Print out the contents of the various log files for a given test run.
 """
 import errno
+import subprocess
 
 from pavilion import commands
 from pavilion import output
@@ -29,38 +30,65 @@ class LogCommand(commands.Command):
 
         self._parser = parser
 
-        subparsers.add_parser(
+        run = subparsers.add_parser(
             'run',
             help="Show a test's run.log",
             description="Displays the test run log (run.log)."
         )
+        run.add_argument('id', type=str,
+                         help="Test number or series id (e.g. s7) argument.")
 
-        subparsers.add_parser(
+        kickoff = subparsers.add_parser(
             'kickoff',
             help="Show a test's kickoff.log",
             description="Displays the kickoff log (kickoff.log)"
         )
+        kickoff.add_argument('id', type=str,
+                             help="Test number or series id (e.g. s7) "
+                                  "argument.")
 
-        subparsers.add_parser(
+        build = subparsers.add_parser(
             'build',
             help="Show a test's build.log",
             description="Displays the build log (build.log)"
         )
+        build.add_argument('id', type=str,
+                           help="Test number or series id (e.g. s7) argument.")
 
-        subparsers.add_parser(
+        results = subparsers.add_parser(
             'results',
             help="Show a test's results.log",
             description="Displays the results log (results.log)"
         )
+        results.add_argument('id', type=str,
+                             help="Test number or series id (e.g. s7) "
+                                  "argument.")
 
-        subparsers.add_parser(
+        series = subparsers.add_parser(
             'series',
             help="Show a series's output (series.out).",
             description="Displays the series output (series.log)."
         )
-
-        parser.add_argument('ts_id', type=str,
+        series.add_argument('id', type=str,
                             help="Test number or series id (e.g. s7) argument.")
+
+        subparsers.add_parser(
+            'global',
+            help="Show Pavilion's global output log.",
+            description="Displays Pavilion's global output log."
+        )
+
+        subparsers.add_parser(
+            'all_results',
+            aliases=['allresults', 'all-results'],
+            help="Show Pavilion's general result log.",
+            description="Displays general Pavilion result log."
+        )
+
+        parser.add_argument(
+            '--tail', '-n', default=None, required=False,
+            help="Output the last N lines."
+        )
 
     LOG_PATHS = {
         'build': 'build.log',
@@ -79,23 +107,31 @@ class LogCommand(commands.Command):
         else:
             cmd_name = args.log_cmd
 
-        try:
-            if cmd_name == 'series':
-                test = series.TestSeries.from_id(pav_cfg, args.ts_id)
-            else:
-                test = test_run.TestRun.load(pav_cfg, int(args.ts_id))
-        except test_run.TestRunError as err:
-            output.fprint("Error loading test: {}".format(err),
-                          color=output.RED,
-                          file=self.errfile)
-            return 1
-        except series_config.SeriesConfigError as err:
-            output.fprint("Error loading series: {}".format(err),
-                          color=output.RED,
-                          file=self.errfile)
-            return 1
+        if cmd_name in ['global', 'all_results', 'allresults', 'all-results']:
+            if 'results' in cmd_name:
+                file_name = pav_cfg.working_dir/'results.log'
 
-        file_name = test.path/self.LOG_PATHS[cmd_name]
+            else:
+                file_name = pav_cfg.working_dir/'pav.log'
+
+        else:
+            try:
+                if cmd_name == 'series':
+                    test = series.TestSeries.from_id(pav_cfg, args.id)
+                else:
+                    test = test_run.TestRun.load(pav_cfg, int(args.id))
+            except test_run.TestRunError as err:
+                output.fprint("Error loading test: {}".format(err),
+                              color=output.RED,
+                              file=self.errfile)
+                return 1
+            except series_config.SeriesConfigError as err:
+                output.fprint("Error loading series: {}".format(err),
+                              color=output.RED,
+                              file=self.errfile)
+                return 1
+
+            file_name = test.path/self.LOG_PATHS[cmd_name]
 
         if not file_name.exists():
             output.fprint("Log file does not exist: {}"
@@ -106,8 +142,14 @@ class LogCommand(commands.Command):
 
         try:
             with file_name.open() as file:
-                output.fprint(file.read(), file=self.outfile, width=None,
-                              end='')
+                if args.tail:
+                    tail = file.readlines()[-int(args.tail):]
+                    for line in tail:
+                        output.fprint(line, file=self.outfile)
+                else:
+                    output.fprint(file.read(), file=self.outfile,
+                                  width=None, end='')
+
         except (IOError, OSError) as err:
             output.fprint("Could not read log file '{}': {}"
                           .format(file_name, err),

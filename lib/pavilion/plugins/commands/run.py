@@ -7,7 +7,10 @@ from pavilion import cmd_utils
 from pavilion import commands
 from pavilion import output
 from pavilion import schedulers
+from pavilion import series
 from pavilion import status_utils
+from pavilion import series_config
+from pavilion.status_utils import print_from_tests
 from pavilion.build_tracker import MultiBuildTracker
 from pavilion.output import fprint
 from pavilion.series import TestSeries
@@ -124,121 +127,45 @@ class RunCommand(commands.Command):
         #   - Get sched vars from scheduler.
         #   - Compile variables.
         #
-
         mb_tracker = MultiBuildTracker()
 
         if args.repeat:
             args.tests = args.tests * args.repeat
 
         local_builds_only = getattr(args, 'local_builds_only', False)
-
-        test_list = self._get_tests(
-            pav_cfg, args, mb_tracker, build_only=self.BUILD_ONLY,
-            local_builds_only=getattr(args, 'local_builds_only', False))
-        if test_list is None:
-            return errno.EINVAL
-
-        all_tests = test_list
-        self.last_tests = all_tests
-
-        if not all_tests:
-            fprint("You must specify at least one test.", file=self.errfile)
-            return errno.EINVAL
-
-        series = TestSeries(pav_cfg=pav_cfg, tests=all_tests,
-                            outfile=self.outfile, errfile=self.errfile)
-        self.last_series = series
-
-        res = cmd_utils.check_result_format(all_tests, self.errfile)
-        if res != 0:
-            cmd_utils.complete_tests(all_tests)
-            return res
-
-        all_tests = [test for test in all_tests if not test.skipped]
-
-        res = cmd_utils.build_local(
-            tests=all_tests,
-            max_threads=pav_cfg.build_threads,
-            mb_tracker=mb_tracker,
-            build_verbosity=args.build_verbosity,
-            outfile=self.outfile,
-            errfile=self.errfile)
-        if res != 0:
-            cmd_utils.complete_tests(all_tests)
-            return res
-
-        cmd_utils.complete_tests([test for test in all_tests if
-                                 test.build_only and test.build_local])
-
         wait = getattr(args, 'wait', None)
         report_status = getattr(args, 'status', False)
 
-        if self.BUILD_ONLY and local_builds_only:
-            non_local_build_tests = [test for test in all_tests
-                                     if not test.build_local]
-            if non_local_build_tests:
-                fprint(
-                    "Skipping tests that are set to build on nodes: {}"
-                    .format([test.name for test in non_local_build_tests]),
-                    file=self.outfile, color=output.YELLOW)
-            return 0
+        # create series config
+        series_cfg = series_config.generate_series_config(args.tests,
+                                                          args.modes,
+                                                          args.host)
 
-        res = series.run_tests(wait=wait)
+        # create brand-new series object
+        series_obj = TestSeries(pav_cfg,
+                                series_config=series_cfg,
+                                outfile=self.outfile,
+                                errfile=self.errfile)
+
+        series_obj.create_set_graph()
+        only_set = series_obj.test_sets['only_set']
+
+        res = only_set.run_set(log=True,
+                               local_builds_only=local_builds_only,
+                               build_only=self.BUILD_ONLY,
+                               build_verbosity=args.build_verbosity,
+                               wait=wait,
+                               run_cmd=self,
+                               rebuild=args.rebuild)
 
         if report_status:
-            status_utils.print_from_tests(
+            print_from_tests(
                 pav_cfg=pav_cfg,
-                tests=all_tests,
-                outfile=self.outfile)
-
-        return res
-
-    def _get_tests(self, pav_cfg, args, mb_tracker, build_only=False,
-                   local_builds_only=False):
-        """Turn the test run arguments into actual TestRun objects.
-        :param pav_cfg: The pavilion config object
-        :param args: The run command arguments
-        :param MultiBuildTracker mb_tracker: The build tracker.
-        :param bool build_only: Whether to denote that we're only building
-            these tests.
-        :param bool local_builds_only: Only include tests that would be built
-            locally.
-        :return:
-        :rtype: []
-        """
-
-        try:
-            test_configs = cmd_utils.get_test_configs(pav_cfg=pav_cfg,
-                                                      host=args.host,
-                                                      test_files=args.files,
-                                                      tests=args.tests,
-                                                      modes=args.modes,
-                                                      overrides=args.overrides,
-                                                      outfile=self.outfile)
-
-            # Remove non-local builds when doing only local builds.
-            if build_only and local_builds_only:
-                locally_built_tests = []
-                for ptest in test_configs:
-                    if ptest.config['build']['on_nodes'].lower() != 'true':
-                        locally_built_tests.append(ptest)
-
-                test_configs = locally_built_tests
-
-            test_list = cmd_utils.configs_to_tests(
-                pav_cfg=pav_cfg,
-                proto_tests=test_configs,
-                mb_tracker=mb_tracker,
-                build_only=build_only,
-                rebuild=args.rebuild,
-                outfile=self.outfile,
+                tests=self.last_tests,
+                outfile=self.outfile
             )
 
-        except commands.CommandError as err:
-            fprint(err, file=self.errfile, flush=True)
-            return None
-
-        return test_list
+        return res
 
     @staticmethod
     def _cancel_all(tests_by_sched):

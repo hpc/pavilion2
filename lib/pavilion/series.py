@@ -64,14 +64,15 @@ class TestSet:
         self.outfile = series_obj.outfile
         self.errfile = series_obj.errfile
 
-    def run_set(self):
+    def run_set(self, log=False, local_builds_only=False, build_only=False,
+                build_verbosity=0, wait=None, run_cmd=None, rebuild=False):
         """Runs tests in set. """
 
-        mb_tracker = MultiBuildTracker(log=False)
+        mb_tracker = MultiBuildTracker(log=log)
 
-        run_cmd = commands.get_command('run')
+        if not run_cmd:
+            run_cmd = commands.get_command('run')
 
-        # run.RunCommand._get_tests function
         try:
             new_conditions = {
                 'only_if': self.only_if,
@@ -88,11 +89,22 @@ class TestSet:
                 conditions=new_conditions,
             )
 
+            # Remove non-local builds when only doing local builds.
+            if build_only and local_builds_only:
+                locally_built_tests = []
+                for ptest in test_configs:
+                    if ptest.config['build']['on_nodes'].lower() != 'true':
+                        locally_built_tests.append(ptest)
+
+                test_configs = locally_built_tests
+
             # configs->tests
             test_list = cmd_utils.configs_to_tests(
                 pav_cfg=self.pav_cfg,
                 proto_tests=test_configs,
                 mb_tracker=mb_tracker,
+                build_only=build_only,
+                rebuild=rebuild,
                 outfile=self.outfile,
             )
 
@@ -100,12 +112,13 @@ class TestSet:
             self.done = True
             output.fprint("Error resolving configs. \n{}".format(err.args[0]),
                           file=self.errfile, color=output.RED)
-            return None
+            return errno.EINVAL
 
         if not test_list:
             self.done = True
             self.all_pass = True
-            return None
+            fprint("You must specify at least one test.", file=self.errfile)
+            return errno.EINVAL
 
         all_tests = test_list
         run_cmd.last_tests = all_tests
@@ -122,24 +135,44 @@ class TestSet:
         if res != 0:
             self.done = True
             cmd_utils.complete_tests(all_tests)
-            return None
+            return res
+
+        all_tests = [test for test in all_tests if not test.skipped]
 
         # attempt to build
         res = cmd_utils.build_local(
             tests=all_tests,
             max_threads=self.pav_cfg.build_threads,
             mb_tracker=mb_tracker,
+            build_verbosity=build_verbosity,
             outfile=self.outfile,
             errfile=self.errfile
         )
         if res != 0:
             self.done = True
             cmd_utils.complete_tests(all_tests)
-            return None
+            return res
+
+        cmd_utils.complete_tests([test for test in all_tests if
+                                  test.build_only and test.build_local])
+
+        if build_only and local_builds_only:
+            non_local_build_tests = [test for test in all_tests
+                                     if not test.build_local]
+            if non_local_build_tests:
+                fprint(
+                    "Skipping tests that are not set to build on nodes. {}"
+                    .format([test.name for test in non_local_build_tests]),
+                    file=self.outfile, color=output.YELLOW
+                )
+                return 0
 
         # deal with simultaneous here
         if self.series_obj.config['simultaneous'] is None:
-            self.series_obj.run_tests(tests=all_tests)
+            res = self.series_obj.run_tests(tests=all_tests, wait=wait)
+
+            return res
+
         else:
             simult = int(self.series_obj.config['simultaneous'])
 
