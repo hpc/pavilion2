@@ -111,6 +111,8 @@ def get_statuses(pav_cfg, test_ids):
 
     test_statuses = []
 
+    test_ids = get_tests(pav_cfg, test_ids, None)
+
     for test_id in test_ids:
         try:
             test = TestRun.load(pav_cfg, test_id)

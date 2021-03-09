@@ -3,13 +3,29 @@ the way."""
 
 import copy
 import time
+import os
+from pathlib import Path
 from typing import List
 
 from pavilion import commands
+from pavilion import series
+from pavilion import series_util
 from pavilion.output import fprint
 from pavilion import status_utils
 from pavilion.status_file import STATES
 from pavilion.test_run import TestRun
+
+
+def check_pgid(pgid):
+
+    try:
+        if pgid > 0:
+            pgid = -1*pgid
+        os.kill(pgid, 0)
+    except OSError:
+        return False
+    else:
+        return True
 
 
 class WaitCommand(commands.Command):
@@ -67,7 +83,27 @@ class WaitCommand(commands.Command):
         # get start time
         start_time = time.time()
 
-        tests = status_utils.get_tests(pav_cfg, args.tests, self.errfile)
+        from pavilion.output import dbg_print
+        tests = []
+        if not args.tests:
+            series_id = series_util.load_user_series_id(pav_cfg)
+            if series_id is not None:
+                tests.append(series_id)
+            else:
+                raise commands.CommandError(
+                    "No tests specified and no last series was found."
+                )
+        else:
+            tests_cli = copy.deepcopy(args.tests)
+            for test_id in tests_cli:
+                if test_id.startswith('s'):
+                    series_obj = series.TestSeries.from_id(pav_cfg, test_id)
+                    if Path(series_obj.path/'series.pgid').exists():
+                        tests.append(test_id)
+                        args.tests.remove(test_id)
+
+            tests.extend(status_utils.get_tests(pav_cfg, args.tests,
+                                                self.errfile))
 
         # determine timeout time, if there is one
         end_time = None
@@ -84,6 +120,8 @@ class WaitCommand(commands.Command):
         """Wait on each of the given tests to complete, printing a status
         message """
 
+        from pavilion.output import dbg_print
+
         status_time = time.time() + self.STATUS_UPDATE_PERIOD
         while (len(tests) != 0) and (end_time is None or
                                      time.time() < end_time):
@@ -92,10 +130,17 @@ class WaitCommand(commands.Command):
             # final list.
             temp_tests = copy.deepcopy(tests)
             for test_id in temp_tests:
-                test_obj = TestRun.load(pav_cfg, test_id)
-                run_complete_file = test_obj.path/'RUN_COMPLETE'
-                if run_complete_file.exists():
-                    tests.remove(test_id)
+                if str(test_id).startswith('s'):
+                    series_obj = series.TestSeries.from_id(pav_cfg, test_id)
+                    with (series_obj.path / 'series.pgid').open('r') as pgid_f:
+                        series_pgid = int(pgid_f.read())
+                    if not check_pgid(series_pgid):
+                        tests.remove(test_id)
+                else:
+                    test_obj = TestRun.load(pav_cfg, test_id)
+                    run_complete_file = test_obj.path/'RUN_COMPLETE'
+                    if run_complete_file.exists():
+                        tests.remove(test_id)
 
             # print status every 5 seconds
             if time.time() > status_time:
