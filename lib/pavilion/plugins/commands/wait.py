@@ -48,6 +48,8 @@ class WaitCommand(commands.Command):
                           STATES.RESULTS_ERROR,
                           STATES.COMPLETE]
 
+        self.wait_info = {}
+
     OUT_SILENT = 'silent'
     OUT_SUMMARY = 'summary'
 
@@ -87,8 +89,14 @@ class WaitCommand(commands.Command):
         tests = []
         if not args.tests:
             series_id = series_util.load_user_series_id(pav_cfg)
+            dbg_print(series_id)
             if series_id is not None:
-                tests.append(series_id)
+                series_obj = series.TestSeries.from_id(pav_cfg, series_id)
+                if Path(series_obj.path/'series.pgid').exists():
+                    tests.append(series_id)
+                else:
+                    tests.extend(status_utils.get_tests(pav_cfg, args.tests,
+                                                        self.errfile))
             else:
                 raise commands.CommandError(
                     "No tests specified and no last series was found."
