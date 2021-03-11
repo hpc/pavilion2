@@ -151,7 +151,8 @@ class WaitCommand(commands.Command):
             if time.time() > status_time:
                 status_time = time.time() + self.STATUS_UPDATE_PERIOD
 
-                stats = status_utils.get_statuses(pav_cfg, tests)
+                stats = status_utils.get_statuses(pav_cfg, tests,
+                                                  errfile=self.errfile)
                 stats_out = []
 
                 if out_mode == self.OUT_SILENT:
@@ -181,6 +182,7 @@ class WaitCommand(commands.Command):
                     fprint(''.join(map(str, stats_out)),
                            file=self.outfile, width=None)
 
-        final_stats = status_utils.get_statuses(pav_cfg, tests)
+        final_stats = status_utils.get_statuses(pav_cfg, tests,
+                                                errfile=self.errfile)
         fprint('\n', file=self.outfile)
         status_utils.print_status(final_stats, self.outfile)
