@@ -140,9 +140,8 @@ class WaitCommand(commands.Command):
             for test_id in temp_tests:
                 if str(test_id).startswith('s'):
                     series_obj = series.TestSeries.from_id(pav_cfg, test_id)
-                    with (series_obj.path / 'series.pgid').open('r') as pgid_f:
-                        series_pgid = int(pgid_f.read())
-                    if not check_pgid(series_pgid):
+                    series_complete_file = series_obj.path/'SERIES_COMPLETE'
+                    if series_complete_file.exists():
                         tests.remove(test_id)
                 else:
                     test_obj = TestRun.load(pav_cfg, test_id)
