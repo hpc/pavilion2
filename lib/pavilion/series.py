@@ -729,32 +729,21 @@ differentiate it from test ids."""
 
             self.update_finished_list(finished, started)
 
-            # if restart isn't necessary, break out of loop
+            done = False
+            while not done:
+                self.update_finished_list(finished, started)
+                done = True
+                for set_name, set_obj in self.test_sets.items():
+                    if not set_obj.done:
+                        done = False
+                        break
+                time.sleep(0.1)
+
             if not str_bool(self.config['restart']):
                 # write "SERIES_COMPLETE" file then break
-                done = False
-                while not done:
-                    self.update_finished_list(finished, started)
-                    done = True
-                    for set_name, set_obj in self.test_sets.items():
-                        if not set_obj.done:
-                            done = False
-                            break
-                    time.sleep(0.1)
                 self.set_series_complete()
                 break
             else:
-                # wait for all the tests to be finished to restart
-                done = False
-                while not done:
-                    self.update_finished_list(finished, started)
-                    done = True
-                    for set_name, set_obj in self.test_sets.items():
-                        if not set_obj.done:
-                            done = False
-                            break
-                    time.sleep(0.1)
-
                 # create a whole new test sets dictionary
                 if done:
                     self.create_set_graph()

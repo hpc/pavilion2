@@ -48,8 +48,6 @@ class WaitCommand(commands.Command):
                           STATES.RESULTS_ERROR,
                           STATES.COMPLETE]
 
-        self.wait_info = {}
-
     OUT_SILENT = 'silent'
     OUT_SUMMARY = 'summary'
 
@@ -85,13 +83,14 @@ class WaitCommand(commands.Command):
         # get start time
         start_time = time.time()
 
-        from pavilion.output import dbg_print
         tests = []
+        # if args.tests is empty, then retrieve the last series
         if not args.tests:
             series_id = series_util.load_user_series_id(pav_cfg)
-            dbg_print(series_id)
             if series_id is not None:
                 series_obj = series.TestSeries.from_id(pav_cfg, series_id)
+                # if this is a series made from a series file, add the
+                # whole series id to the list of tests
                 if Path(series_obj.path/'series.pgid').exists():
                     tests.append(series_id)
                 else:
@@ -99,8 +98,9 @@ class WaitCommand(commands.Command):
                                                         self.errfile))
             else:
                 raise commands.CommandError(
-                    "No tests specified and no last series was found."
+                    "No tests specified and no last series found"
                 )
+
         else:
             tests_cli = copy.deepcopy(args.tests)
             for test_id in tests_cli:
@@ -127,8 +127,6 @@ class WaitCommand(commands.Command):
              out_mode: str) -> None:
         """Wait on each of the given tests to complete, printing a status
         message """
-
-        from pavilion.output import dbg_print
 
         status_time = time.time() + self.STATUS_UPDATE_PERIOD
         while (len(tests) != 0) and (end_time is None or
