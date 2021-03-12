@@ -1112,7 +1112,7 @@ be set by the scheduler plugin as soon as it's known."""
 
         path = self.path/self.JOB_ID_FN
 
-        if self._job_id is not None:
+        if self._job_id:
             return self._job_id
 
         try:
