@@ -52,7 +52,7 @@ class CancelCommand(commands.Command):
         user_id = os.geteuid()  # gets unique user id
 
         if not args.tests:
-            # user wants to cancel all current tests
+            # Cancel all current tests.
             if args.all:
                 tests_dir = pav_cfg.working_dir/'test_runs'
                 # iterate through all the tests in the tests directory
@@ -63,7 +63,7 @@ class CancelCommand(commands.Command):
                             test_id = test.name
                             args.tests.append(test_id)
             else:
-                # Get the last series ran by this user.
+                # Cancel last series ran by this user.
                 series_id = series_util.load_user_series_id(pav_cfg)
                 if series_id is not None:
                     args.tests.append(series_id)
@@ -112,25 +112,27 @@ class CancelCommand(commands.Command):
                     )
                     return errno.EINVAL
 
-        cancel_failed = False
         test_object_list = []
         for test_id in test_list:
             try:
                 test = TestRun.load(pav_cfg, test_id)
-                sched = schedulers.get_plugin(test.scheduler)
                 test_object_list.append(test)
 
-                status = test.status.current()
-                # Won't try to cancel a completed job or a job that was
-                # previously cancelled.
-                if status.state not in (STATES.COMPLETE,
-                                        STATES.SCHED_CANCELLED):
-                    # Sets status based on the result of sched.cancel_job.
-                    # Ran into trouble when 'cancelling' jobs that never
-                    # actually started, ie. build errors/created job states.
-                    cancel_status = sched.cancel_job(test)
-                    test.status.set(cancel_status.state, cancel_status.note)
+                # Test hasn't completed, can be cancelled.
+                if not (test.path/'RUN_COMPLETE').exists():
                     test.set_run_complete()
+
+                    # Get current state.
+                    state = test.status.current().state
+
+                    # Scheduler cancel if SCHEDULED OR RUNNING.
+                    if state in [STATES.SCHEDULED, STATES.RUNNING]:
+                        scheduler = schedulers.get_plugin(test.scheduler)
+                        scheduler.cancel_job(test)
+
+                    # Set state to CANCELLED.
+                    test.status.set(STATES.CANCELLED,
+                                    "The test run was cancelled, through the cancel command.")
                     output.fprint(
                         "Test {} cancelled."
                         .format(test_id), file=self.outfile,
@@ -139,7 +141,7 @@ class CancelCommand(commands.Command):
                 else:
                     output.fprint(
                         "Test {} could not be cancelled has state: {}."
-                        .format(test_id, status.state),
+                        .format(test_id, test.status.current().state),
                         file=self.outfile,
                         color=output.RED)
 
@@ -156,6 +158,5 @@ class CancelCommand(commands.Command):
         if args.status and test_object_list:
             print_from_tests(pav_cfg, test_object_list, self.outfile,
                              args.json)
-            return cancel_failed
 
-        return cancel_failed
+        return 0
