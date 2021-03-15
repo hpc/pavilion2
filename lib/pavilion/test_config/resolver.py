@@ -407,11 +407,13 @@ class TestConfigResolver:
         picked_tests = []
         test_suite_loader = TestSuiteLoader()
 
-        # Find and load all of the requested tests.
+        total_tests = []
+        # Make sue we get the correct amount of tests
         for test_name in tests:
             # Make sure the test name has the right number of parts.
             # They should look like '<test_suite>.<subtest>', '<test_suite>.*'
             # or just '<test_suite>'
+
             name_parts = test_name.split('.')
             if len(name_parts) == 0 or name_parts[0] == '':
                 raise TestConfigError("Empty test name given.")
@@ -424,9 +426,54 @@ class TestConfigResolver:
             # Divide the test name into it's parts.
             if len(name_parts) == 2:
                 test_suite, requested_test = name_parts
+                if requested_test == '*':
+                    raise TestConfigError(
+                        "Invalid subtest for requested test: '*'\n"
+                        "<suite_name>.* is no longer support, use 'pav "
+                        "run <suite_name>' instead."
+                    )
+                try:
+                    if '*' in test_suite:
+                        count, test_suite = test_suite.split("*")
+                        total_tests.extend([test_suite+"."+requested_test]*int(count))
+                        continue
+
+                    if '*' in requested_test:
+                        test, count = requested_test.split("*")
+                        total_tests.extend([test_suite+"."+test]*int(count))
+                        continue
+                except ValueError as err:
+                    raise TestConfigError("Invalid repeat notation: {}"
+                                          .format(err))
+                total_tests.append(test_name)
+
             else:
                 test_suite = name_parts[0]
-                requested_test = '*'
+                if "*" in test_suite:
+                    left, right = test_suite.split("*")
+                    try:
+                        if left.isdigit():
+                            total_tests.extend([right] * int(left))
+                            continue
+                        elif right.isdigit():
+                            total_tests.extend([left] * int(right))
+                            continue
+                        else:
+                            raise ValueError("No digit present in {}".format([left, right]))
+                    except ValueError as err:
+                        raise TestConfigError("Invalid repeat notation: {}"
+                                              .format(err))
+                else:
+                    total_tests.append(test_suite)
+
+        # Find and load all of the requested tests.
+        for test_name in total_tests:
+            name_parts = test_name.split('.')
+            if len(name_parts) == 2:
+                test_suite, requested_test = name_parts
+            else:
+                test_suite = name_parts[0]
+                requested_test = "*"
 
             # Make sure our test suite and subtest names are sane.
             if KEY_NAME_RE.match(test_suite) is None:

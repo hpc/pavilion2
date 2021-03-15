@@ -54,6 +54,10 @@ class RunCommand(commands.Command):
                  'names. Lines that start with a \'#\' are ignored as '
                  'comments.')
         parser.add_argument(
+            '--repeat', action='store', type=int, default=None,
+            help='Repeat specified tests this many times.'
+        )
+        parser.add_argument(
             '-s', '--status', action='store_true', default=False,
             help='Display test statuses'
         )
@@ -104,7 +108,11 @@ class RunCommand(commands.Command):
             'tests', nargs='*', action='store',
             help='The name of the tests to run. These may be suite names (in '
                  'which case every test in the suite is run), or a '
-                 '<suite_name>.<test_name>.')
+                 '<suite_name>.<test_name>. Tests can be repeated explicitly '
+                 'using a * notation that precedes or succeeds the test suite '
+                 'or test name (i.e. 5*<suite_name> and <suite_name>*5 both '
+                 'run every test in that suite 5 times).'
+        )
 
     SLEEP_INTERVAL = 1
 
@@ -119,6 +127,10 @@ class RunCommand(commands.Command):
         #   - Get sched vars from scheduler.
         #   - Compile variables.
         #
+        mb_tracker = MultiBuildTracker()
+
+        if args.repeat:
+            args.tests = args.tests * args.repeat
 
         local_builds_only = getattr(args, 'local_builds_only', False)
         wait = getattr(args, 'wait', None)
