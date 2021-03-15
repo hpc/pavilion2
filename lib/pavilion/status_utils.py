@@ -103,13 +103,16 @@ def get_tests(pav_cfg, tests: List['str'], errfile: TextIO) -> List[int]:
     return list(map(int, test_list))
 
 
-def get_statuses(pav_cfg, test_ids):
+def get_statuses(pav_cfg, test_ids, errfile=None):
     """Return the statuses for all given test id's.
     :param pav_cfg: The Pavilion config.
-    :param List[int] test_ids: A list of test ids to load.
+    :param List[str] test_ids: A list of test ids to load.
+    :param errfile: Where to write standard error to.
     """
 
     test_statuses = []
+
+    test_ids = get_tests(pav_cfg, test_ids, errfile=errfile)
 
     for test_id in test_ids:
         try:

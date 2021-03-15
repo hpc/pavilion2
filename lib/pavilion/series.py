@@ -263,6 +263,7 @@ class TestSeries:
     relationships, skip conditions, and other features by test set."""
 
     LOGGER_FMT = 'series({})'
+    SERIES_COMPLETE_FN = 'SERIES_COMPLETE'
 
     def __init__(self, pav_cfg, tests=None, _id=None, series_config=None,
                  dep_graph=None, outfile: TextIO = StringIO(),
@@ -728,24 +729,38 @@ differentiate it from test ids."""
 
             self.update_finished_list(finished, started)
 
-            # if restart isn't necessary, break out of loop
+            done = False
+            while not done:
+                self.update_finished_list(finished, started)
+                done = True
+                for set_name, set_obj in self.test_sets.items():
+                    if not set_obj.done:
+                        done = False
+                        break
+                time.sleep(0.1)
+
             if not str_bool(self.config['restart']):
+                # write "SERIES_COMPLETE" file then break
+                self.set_series_complete()
                 break
             else:
-                # wait for all the tests to be finished to continue
-                done = False
-                while not done:
-                    self.update_finished_list(finished, started)
-                    done = True
-                    for set_name, set_obj in self.test_sets.items():
-                        if not set_obj.done:
-                            done = False
-                            break
-                    time.sleep(0.1)
-
                 # create a whole new test sets dictionary
                 if done:
                     self.create_set_graph()
+
+    def set_series_complete(self):
+        """Write a file in the series directory that indicates that the series
+        has finished."""
+
+        series_complete_path = self.path/self.SERIES_COMPLETE_FN
+        series_complete_path_tmp = series_complete_path.with_suffix('.tmp')
+        with PermissionsManager(series_complete_path_tmp,
+                                self.pav_cfg['shared_group'],
+                                self.pav_cfg['umask']), \
+                series_complete_path_tmp.open('w') as series_complete:
+            json.dump({'complete': time.time()}, series_complete)
+
+        series_complete_path_tmp.rename(series_complete_path)
 
     def update_finished_list(self, finished, started):
         """Updates finished and started lists if necessary. """

@@ -3,13 +3,34 @@ the way."""
 
 import copy
 import time
+import os
+from pathlib import Path
 from typing import List
 
 from pavilion import commands
+from pavilion import series
+from pavilion import series_util
 from pavilion.output import fprint
 from pavilion import status_utils
 from pavilion.status_file import STATES
 from pavilion.test_run import TestRun
+
+
+def check_pgid(pgid):
+    """Checks if pgid still exists. Returns false if pgid does not exist."""
+
+    try:
+        # PGID needs to be negative
+        if pgid > 0:
+            pgid = -1*pgid
+
+        # No signal is sent, but an OS Error will be raised if the PID doesn't
+        # exist
+        os.kill(pgid, 0)
+    except OSError:
+        return False
+    else:
+        return True
 
 
 class WaitCommand(commands.Command):
@@ -67,7 +88,35 @@ class WaitCommand(commands.Command):
         # get start time
         start_time = time.time()
 
-        tests = status_utils.get_tests(pav_cfg, args.tests, self.errfile)
+        tests = []
+        # if args.tests is empty, then retrieve the last series
+        if not args.tests:
+            series_id = series_util.load_user_series_id(pav_cfg)
+            if series_id is not None:
+                series_obj = series.TestSeries.from_id(pav_cfg, series_id)
+                # if this is a series made from a series file, add the
+                # whole series id to the list of tests
+                if Path(series_obj.path/'series.pgid').exists():
+                    tests.append(series_id)
+                else:
+                    tests.extend(status_utils.get_tests(pav_cfg, args.tests,
+                                                        self.errfile))
+            else:
+                raise commands.CommandError(
+                    "No tests specified and no last series found"
+                )
+
+        else:
+            tests_cli = copy.deepcopy(args.tests)
+            for test_id in tests_cli:
+                if test_id.startswith('s'):
+                    series_obj = series.TestSeries.from_id(pav_cfg, test_id)
+                    if Path(series_obj.path/'series.pgid').exists():
+                        tests.append(test_id)
+                        args.tests.remove(test_id)
+
+            tests.extend(status_utils.get_tests(pav_cfg, args.tests,
+                                                self.errfile))
 
         # determine timeout time, if there is one
         end_time = None
@@ -92,16 +141,23 @@ class WaitCommand(commands.Command):
             # final list.
             temp_tests = copy.deepcopy(tests)
             for test_id in temp_tests:
-                test_obj = TestRun.load(pav_cfg, test_id)
-                run_complete_file = test_obj.path/'RUN_COMPLETE'
-                if run_complete_file.exists():
-                    tests.remove(test_id)
+                if str(test_id).startswith('s'):
+                    series_obj = series.TestSeries.from_id(pav_cfg, test_id)
+                    series_complete_file = series_obj.path/'SERIES_COMPLETE'
+                    if series_complete_file.exists():
+                        tests.remove(test_id)
+                else:
+                    test_obj = TestRun.load(pav_cfg, test_id)
+                    run_complete_file = test_obj.path/'RUN_COMPLETE'
+                    if run_complete_file.exists():
+                        tests.remove(test_id)
 
             # print status every 5 seconds
             if time.time() > status_time:
                 status_time = time.time() + self.STATUS_UPDATE_PERIOD
 
-                stats = status_utils.get_statuses(pav_cfg, tests)
+                stats = status_utils.get_statuses(pav_cfg, tests,
+                                                  errfile=self.errfile)
                 stats_out = []
 
                 if out_mode == self.OUT_SILENT:
@@ -131,6 +187,7 @@ class WaitCommand(commands.Command):
                     fprint(''.join(map(str, stats_out)),
                            file=self.outfile, width=None)
 
-        final_stats = status_utils.get_statuses(pav_cfg, tests)
+        final_stats = status_utils.get_statuses(pav_cfg, tests,
+                                                errfile=self.errfile)
         fprint('\n', file=self.outfile)
         status_utils.print_status(final_stats, self.outfile)
