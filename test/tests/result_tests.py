@@ -556,7 +556,7 @@ class ResultParserTests(PavTestCase):
         ]
 
         arg_parser = arguments.get_parser()
-        run_args = arg_parser.parse_args(['run', 'result_tests.*'])
+        run_args = arg_parser.parse_args(['run', 'result_tests'])
         if run_cmd.run(self.pav_cfg, run_args) != 0:
             cmd_out, cmd_err = run_cmd.clear_output()
             self.fail("Run command failed: \n{}\n{}".format(cmd_out, cmd_err))
