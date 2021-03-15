@@ -17,10 +17,15 @@ from pavilion.test_run import TestRun
 
 
 def check_pgid(pgid):
+    """Checks if pgid still exists. Returns false if pgid does not exist."""
 
     try:
+        # PGID needs to be negative
         if pgid > 0:
             pgid = -1*pgid
+
+        # No signal is sent, but an OS Error will be raised if the PID doesn't
+        # exist
         os.kill(pgid, 0)
     except OSError:
         return False
