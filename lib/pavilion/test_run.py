@@ -788,6 +788,7 @@ class TestRun(TestAttributes):
                 except FileNotFoundError:
                     pass
                 build_result = False
+                self.set_run_complete()
 
         self.build_log.symlink_to(self.build_path/'pav_build_log')
         return build_result
@@ -1115,12 +1116,16 @@ be set by the scheduler plugin as soon as it's known."""
 
         path = self.path/self.JOB_ID_FN
 
-        if self._job_id is not None:
+        if self._job_id:
             return self._job_id
 
         try:
             with path.open() as job_id_file:
-                self._job_id = job_id_file.read()
+                job_id = job_id_file.read()
+                if job_id:
+                    self._job_id = job_id
+                else:
+                    return None
         except FileNotFoundError:
             return None
         except (OSError, IOError) as err:
