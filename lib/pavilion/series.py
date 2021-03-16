@@ -462,7 +462,7 @@ class TestSeries:
     WAIT_INTERVAL = 1
 
     def run_tests(self, wait: Union[None, int] = None,
-                  tests: List[TestRun] = None) -> int:
+                  tests: List[TestRun] = None, hard_fail = False) -> int:
         """Run the tests for this test series.
 
     :param int wait: Wait this long for a test to start before exiting.
@@ -479,7 +479,7 @@ class TestSeries:
         if not all_tests:
             fprint("{} tests started. Test list resulted in empty list."
                    .format(len(all_tests)), file=self.outfile, color=output.RED)
-            return 0
+            return errno.EINVAL
 
         for test in tests:
             sched_name = test.scheduler
@@ -490,7 +490,12 @@ class TestSeries:
                        "that scheduler isn't available on this system."
                        .format(sched_name),
                        file=self.errfile, color=output.RED)
-                return errno.EINVAL
+                if hard_fail:
+                    fprint('Cancelling already kicked off tests.',
+                           file=self.errfile)
+                    self.cancel_series(STATES.ABORTED,
+                                       "Run aborted due to scheduling error in other run.")
+                    return errno.EINVAL
 
         for test in tests:
 
@@ -508,13 +513,16 @@ class TestSeries:
             try:
                 sched.schedule_tests(self.pav_cfg, [test])
             except schedulers.SchedulerPluginError as err:
-                fprint('Error scheduling test: ', file=self.errfile,
-                       color=output.RED)
+                fprint('Error scheduling tests: ', file=self.errfile,
+                       color=output.YELLOW if not hard_fail else output.RED)
                 fprint(err, bullet='  ', file=self.errfile)
-                fprint('Cancelling already kicked off tests.',
-                       file=self.errfile)
                 sched.cancel_job(test)
-                return errno.EINVAL
+                if hard_fail:
+                    fprint('Cancelling already kicked off tests.',
+                           file=self.errfile)
+                    self.cancel_series(STATES.ABORTED,
+                                       "Run aborted due to scheduling error in other run.")
+                    return errno.EINVAL
 
         # Tests should all be scheduled now, and have the SCHEDULED state
         # (at some point, at least). Wait until something isn't scheduled
@@ -653,7 +661,7 @@ differentiate it from test ids."""
 
         return
 
-    def cancel_series(self):
+    def cancel_series(self, state, msg):
         """Goes through all test objects assigned to series and cancels tests
         that haven't been completed. """
 
@@ -661,7 +669,7 @@ differentiate it from test ids."""
             if not (test_obj.path/'RUN_COMPLETE').exists():
                 sched = schedulers.get_plugin(test_obj.scheduler)
                 sched.cancel_job(test_obj)
-                test_obj.status.set(STATES.COMPLETE, "Killed by SIGTERM.")
+                test_obj.status.set(state, msg)
                 test_obj.set_run_complete()
 
     def run_series(self):
@@ -671,7 +679,7 @@ differentiate it from test ids."""
         def sigterm_handler(_signals, _frame_type):
             """Calls cancel_series and exists."""
 
-            self.cancel_series()
+            self.cancel_series(STATES.COMPLETE, "Killed by SIGTERM.")
             sys.exit()
 
         signal.signal(signal.SIGTERM, sigterm_handler)

@@ -210,7 +210,7 @@ class RunCommand(commands.Command):
                     file=self.outfile, color=output.YELLOW)
             return 0
 
-        res = series.run_tests(tests=built_tests, wait=wait)
+        res = series.run_tests(tests=built_tests, wait=wait, hard_fail=args.hard_fail)
 
         if report_status:
             status_utils.print_from_tests(
