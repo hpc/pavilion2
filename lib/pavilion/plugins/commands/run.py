@@ -145,7 +145,8 @@ class RunCommand(commands.Command):
         series_obj = TestSeries(pav_cfg,
                                 series_config=series_cfg,
                                 outfile=self.outfile,
-                                errfile=self.errfile)
+                                errfile=self.errfile,
+                                overrides=args.overrides)
 
         series_obj.create_set_graph()
         only_set = series_obj.test_sets['only_set']
