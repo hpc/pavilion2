@@ -542,7 +542,7 @@ class TestSeries:
                 fprint(err, bullet='  ', file=self.errfile)
                 fprint('Cancelling already kicked off tests.',
                        file=self.errfile)
-                sched.cancel_job(test)
+                self.cancel_series(by_sigterm=False)
                 return errno.EINVAL
 
         # Tests should all be scheduled now, and have the SCHEDULED state
@@ -682,7 +682,7 @@ differentiate it from test ids."""
 
         return
 
-    def cancel_series(self):
+    def cancel_series(self, by_sigterm=True):
         """Goes through all test objects assigned to series and cancels tests
         that haven't been completed. """
 
@@ -690,7 +690,8 @@ differentiate it from test ids."""
             if not (test_obj.path/'RUN_COMPLETE').exists():
                 sched = schedulers.get_plugin(test_obj.scheduler)
                 sched.cancel_job(test_obj)
-                test_obj.status.set(STATES.COMPLETE, "Killed by SIGTERM.")
+                if by_sigterm:
+                    test_obj.status.set(STATES.COMPLETE, "Killed by SIGTERM.")
                 test_obj.set_run_complete()
 
     def run_series(self):
