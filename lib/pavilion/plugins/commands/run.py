@@ -182,7 +182,7 @@ class RunCommand(commands.Command):
             for failed_build in failures:
                 state = failed_build.test.status.current().state
                 note = failed_build.test.status.current().note
-                output.fprint("{id} {state}: {note}"
+                output.fprint("Test {id} {state}: {note}"
                               .format(id=failed_build.test.id, state=state, note=note),
                               file=self.errfile,
                               bullet='  ')

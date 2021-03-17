@@ -530,7 +530,7 @@ class TestSeries:
             fprint("See test kickoff script (pav cat <test_id> kickoff.sbatch) and/or the test "
                    "kickoff log (pav log kickoff <test_id>)")
             for test, error in scheduler_errors:
-                fprint("{} {}: {}".format(test.id, test.status.current().state, error),
+                fprint("Test {} {}: {}".format(test.id, test.status.current().state, error),
                        bullet='  ', file=self.errfile)
 
         # Tests should all be scheduled now, and have the SCHEDULED state
