@@ -152,7 +152,7 @@ class RunCommand(commands.Command):
 
         all_tests = [test for test in all_tests if not test.skipped]
 
-        res = cmd_utils.build_local(
+        result = cmd_utils.build_local(
             tests=all_tests,
             max_threads=pav_cfg.build_threads,
             mb_tracker=mb_tracker,
@@ -164,31 +164,32 @@ class RunCommand(commands.Command):
         failed_tests = []
         failures = mb_tracker.failures()
 
-        if len(failures) == len(all_tests) and res is True:
-            res = False
+        if len(failures) == len(all_tests):
+            result = False
 
         if failures:
-            output.fprint("Build error{s} while building test{s}. Cancelling {r}."
-                          .format(s='s' if len(failures) > 1 else '',
-                                  r='these runs' if len(failures) > 1 else 'the run'),
-                          file=self.errfile, color=output.RED if not res else output.YELLOW)
+            output.fprint("Error{s} while building test{s}. Cancelling the following run{s}:"
+                          .format(s='s' if len(failures) > 1 else ''),
+                          file=self.errfile, color=output.RED if not result else output.YELLOW)
             output.fprint("Failed builds are placed in <working_dir>/test_runs/<test_id>/build "
                           "for {} corresponding test run."
                           .format("each" if len(failures) > 1 else 'the'),
                           file=self.errfile, color=output.CYAN)
+            output.fprint("See test status file (pav cat <test_id> status) and/or the test build "
+                          "log (pav log build <test_id>)",
+                          file=self.errfile)
 
             for failed_build in failures:
-                # Don't print aborted tests.
-                if failed_build.test.status.current().state in (STATES.BUILD_FAILED,
-                                                                STATES.BUILD_ERROR,
-                                                                STATES.BUILD_TIMEOUT):
-                    output.fprint("See test status file (pav cat {id} status) and/or the test "
-                                  "build log (pav log build {id})"
-                                  .format(id=failed_build.test.id),
-                                  file=self.errfile)
+                state = failed_build.test.status.current().state
+                note = failed_build.test.status.current().note
+                output.fprint("{id} {state}: {note}"
+                              .format(id=failed_build.test.id, state=state, note=note),
+                              file=self.errfile,
+                              bullet='  ')
+
                 failed_tests.append(failed_build.test.id)
 
-        if not res:
+        if not result:
             cmd_utils.complete_tests(all_tests)
             return errno.EINVAL
 

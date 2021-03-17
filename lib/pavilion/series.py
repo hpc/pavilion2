@@ -462,12 +462,13 @@ class TestSeries:
     WAIT_INTERVAL = 1
 
     def run_tests(self, wait: Union[None, int] = None,
-                  tests: List[TestRun] = None, hard_fail = False) -> int:
+                  tests: List[TestRun] = None, hard_fail=False) -> int:
         """Run the tests for this test series.
 
     :param int wait: Wait this long for a test to start before exiting.
     :param tests: Manually specified list of tests to run. Defaults to
         the series' test list.
+    :param hard_fail: Bool that specifies if failure should kill all jobs or not.
     :return: A return code based on the success of this action.
     """
 
@@ -481,48 +482,56 @@ class TestSeries:
                    .format(len(all_tests)), file=self.outfile, color=output.RED)
             return errno.EINVAL
 
+        scheduler_errors = []
         for test in tests:
-            sched_name = test.scheduler
-            sched = schedulers.get_plugin(sched_name)
-
-            if not sched.available():
-                fprint("1 test started with the {} scheduler, but"
-                       "that scheduler isn't available on this system."
-                       .format(sched_name),
-                       file=self.errfile, color=output.RED)
-                if hard_fail:
-                    fprint('Cancelling already kicked off tests.',
-                           file=self.errfile)
-                    self.cancel_series(STATES.ABORTED,
-                                       "Run aborted due to scheduling error in other run.")
-                    return errno.EINVAL
-
-        for test in tests:
-
             # don't run this test if it was meant to be skipped
             if test.skipped:
                 continue
 
             # tests that are build-only or build-local should
             # already be completed, therefore don't run these
-
             if test.complete:
                 continue
 
             sched = schedulers.get_plugin(test.scheduler)
-            try:
-                sched.schedule_tests(self.pav_cfg, [test])
-            except schedulers.SchedulerPluginError as err:
-                fprint('Error scheduling tests: ', file=self.errfile,
-                       color=output.YELLOW if not hard_fail else output.RED)
-                fprint(err, bullet='  ', file=self.errfile)
-                sched.cancel_job(test)
+            if not sched.available():
+                error = "Test started with the {} scheduler, but that scheduler isn't available " \
+                        "on this system".format(test.scheduler)
                 if hard_fail:
+                    fprint(error, file=self.errfile, color=output.RED)
                     fprint('Cancelling already kicked off tests.',
                            file=self.errfile)
                     self.cancel_series(STATES.ABORTED,
                                        "Run aborted due to scheduling error in other run.")
                     return errno.EINVAL
+                else:
+                    scheduler_errors.append((test,error))
+                    continue
+
+            try:
+                sched.schedule_tests(self.pav_cfg, [test])
+            except schedulers.SchedulerPluginError as err:
+                sched.cancel_job(test)
+                if hard_fail:
+                    fprint("Error scheduling tests:", file=self.errfile, color=output.RED)
+                    fprint(err, bullet='  ', file=self.errfile)
+                    fprint('Cancelling already kicked off tests.',
+                           file=self.errfile)
+                    self.cancel_series(STATES.ABORTED,
+                                       "Run aborted due to scheduling error in other run.")
+                    return errno.EINVAL
+                else:
+                    scheduler_errors.append((test, err))
+                    continue
+
+        if scheduler_errors:
+            fprint("Errors while scheduling tests. The following could not be scheduled:",
+                   file=self.errfile, color=output.YELLOW)
+            fprint("Kickoff scripts are placed in <working_dir>/test_runs/<test_id>/kickoff.sbatch",
+                   file=self.errfile, color=output.CYAN)
+            for test, error in scheduler_errors:
+                fprint("{} {}: {}".format(test.id, test.status.current().state, error),
+                       bullet='  ', file=self.errfile)
 
         # Tests should all be scheduled now, and have the SCHEDULED state
         # (at some point, at least). Wait until something isn't scheduled
@@ -549,7 +558,7 @@ class TestSeries:
                     time.sleep(self.WAIT_INTERVAL - (time.time() - last_time))
 
         fprint("{} test{} started as test series {}."
-               .format(len(all_tests),
+               .format(len(all_tests)-len(scheduler_errors),
                        's' if len(all_tests) > 1 else '', self.sid),
                file=self.outfile,
                color=output.GREEN)
