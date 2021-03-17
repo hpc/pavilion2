@@ -375,7 +375,7 @@ class TestBuilder:
 
         if cancel_event.is_set():
             self.tracker.fail("Build aborted due to failures in other builds.",
-                              states=STATES.ABORTED)
+                              state=STATES.ABORTED)
             return False
 
         # Only try to do the build if it doesn't already exist and is finished.
