@@ -215,7 +215,9 @@ class TestSet:
             # check if test passed
             try:
                 if test_obj.results['result'] != 'PASS':
-                    all_tests_passed = False
+                    # treat "SKIPPED" tests as "PASS"
+                    if not test_obj.status.has_state(STATES.SKIPPED):
+                        all_tests_passed = False
             except KeyError:
                 all_tests_passed = False
 
