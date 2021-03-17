@@ -527,8 +527,8 @@ class TestSeries:
         if scheduler_errors:
             fprint("Errors while scheduling tests. The following could not be scheduled:",
                    file=self.errfile, color=output.YELLOW)
-            fprint("Kickoff scripts are placed in <working_dir>/test_runs/<test_id>/kickoff.sbatch",
-                   file=self.errfile, color=output.CYAN)
+            fprint("See test kickoff script (pav cat <test_id> kickoff.sbatch) and/or the test "
+                   "kickoff log (pav log kickoff <test_id>)")
             for test, error in scheduler_errors:
                 fprint("{} {}: {}".format(test.id, test.status.current().state, error),
                        bullet='  ', file=self.errfile)
