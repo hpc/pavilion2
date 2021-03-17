@@ -537,7 +537,7 @@ class TestSeries:
             try:
                 sched.schedule_tests(self.pav_cfg, [test])
             except schedulers.SchedulerPluginError as err:
-                fprint('Error scheduling test: ', file=self.errfile,
+                fprint('Error scheduling test: ', test.id, file=self.errfile,
                        color=output.RED)
                 fprint(err, bullet='  ', file=self.errfile)
                 fprint('Cancelling already kicked off tests.',
