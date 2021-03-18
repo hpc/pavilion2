@@ -356,7 +356,7 @@ class TestBuilder:
         """Perform the build if needed, do a soft-link copy of the build
         directory into our test directory, and note that we've used the given
         build.
-        :param threading.Event cancel_event: Signals build to stop.
+        :param threading.Event cancel_event: Allows builds to tell each other to die.
         :param threading.Event fail_event: Allows build to report failure,
         without cancelling other builds.
         :return: True if these steps completed successfully.
@@ -420,7 +420,7 @@ class TestBuilder:
                     # non-catastrophic cases.
                     with PermissionsManager(self.path, self._group,
                                             self._umask):
-                        if not self._build(self.path, cancel_event, fail_event, lock=lock):
+                        if not self._build(self.path, cancel_event, lock=lock):
                             fail_event.set()
                             try:
                                 self.path.rename(self.fail_path)
@@ -506,9 +506,10 @@ class TestBuilder:
         with open(spack_env_config.as_posix(), "w+") as spack_env_file:
             SpackEnvConfig().dump(spack_env_file, values=config,)
 
-    def _build(self, build_dir, cancel_event, fail_event, lock: lockfile.LockFile = None):
+    def _build(self, build_dir, cancel_event, lock: lockfile.LockFile = None):
         """Perform the build. This assumes there actually is a build to perform.
         :param Path build_dir: The directory in which to perform the build.
+        :param threading.Event cancel_event: Allows builds to tell each other to die.
         :param lock: The lockfile object. This will need to be refreshed to
             keep it from expiring.
         :returns: True or False, depending on whether the build appears to have
