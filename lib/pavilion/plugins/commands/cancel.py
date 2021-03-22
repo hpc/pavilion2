@@ -112,24 +112,24 @@ class CancelCommand(commands.Command):
                     )
                     return errno.EINVAL
 
-        cancel_failed = False
         test_object_list = []
         for test_id in test_list:
             try:
                 test = TestRun.load(pav_cfg, test_id)
-                sched = schedulers.get_plugin(test.scheduler)
                 test_object_list.append(test)
 
-                status = test.status.current()
-                # Won't try to cancel a completed job or a job that was
-                # previously cancelled.
-                if status.state not in (STATES.COMPLETE,
-                                        STATES.SCHED_CANCELLED):
-                    # Sets status based on the result of sched.cancel_job.
-                    # Ran into trouble when 'cancelling' jobs that never
-                    # actually started, ie. build errors/created job states.
-                    cancel_status = sched.cancel_job(test)
-                    test.status.set(cancel_status.state, cancel_status.note)
+                # Test hasn't completed, can be cancelled.
+                if not (test.path/'RUN_COMPLETE').exists():
+                    state = test.status.current().state
+
+                    # Test has been scheduled/is running, need to cancel using scheduler.
+                    if state in [STATES.SCHEDULED, STATES.RUNNING]:
+                        sched = schedulers.get_plugin(test.scheduler)
+                        sched.cancel_job(test)
+
+                    # Set test state to CANCELLED and set RUN_COMPLETE.
+                    test.status.set(STATES.CANCELLED,
+                                    "The test run was cancelled, through the cancel command.")
                     test.set_run_complete()
                     output.fprint(
                         "Test {} cancelled."
@@ -139,7 +139,7 @@ class CancelCommand(commands.Command):
                 else:
                     output.fprint(
                         "Test {} could not be cancelled has state: {}."
-                        .format(test_id, status.state),
+                        .format(test_id, test.status.current().state),
                         file=self.outfile,
                         color=output.RED)
 
@@ -156,6 +156,5 @@ class CancelCommand(commands.Command):
         if args.status and test_object_list:
             print_from_tests(pav_cfg, test_object_list, self.outfile,
                              args.json)
-            return cancel_failed
 
-        return cancel_failed
+        return 0

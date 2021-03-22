@@ -510,25 +510,27 @@ class TestRun(TestAttributes):
 
         self.build_script_path = self.path/'build.sh'  # type: Path
         self.build_path = self.path/'build'
+
         if _id is None:
             self._write_script(
                 'build',
                 path=self.build_script_path,
                 config=build_config)
 
-        try:
-            self.builder = builder.TestBuilder(
-                pav_cfg=pav_cfg,
-                test=self,
-                mb_tracker=build_tracker,
-                build_name=self.build_name
-            )
-            self.build_name = self.builder.name
-        except builder.TestBuilderError as err:
-            raise TestRunError(
-                "Could not create builder for test {s.name} (run {s.id}): {err}"
-                .format(s=self, err=err)
-            )
+        if not self.complete:
+            try:
+                self.builder = builder.TestBuilder(
+                    pav_cfg=pav_cfg,
+                    test=self,
+                    mb_tracker=build_tracker,
+                    build_name=self.build_name
+                )
+                self.build_name = self.builder.name
+            except builder.TestBuilderError as err:
+                raise TestRunError(
+                    "Could not create builder for test {s.name} (run {s.id}): {err}"
+                    .format(s=self, err=err)
+                )
 
         run_config = self.config.get('run', {})
         self.run_tmpl_path = self.path/'run.tmpl'
@@ -749,13 +751,13 @@ class TestRun(TestAttributes):
                 or spack_build.get('load', [])
                 or spack_run.get('load', []))
 
-    def build(self, cancel_event=None):
+    def build(self, cancel_event=None, fail_event=None):
         """Build the test using its builder object and symlink copy it to
         it's final location. The build tracker will have the latest
         information on any encountered errors.
-
         :param threading.Event cancel_event: Event to tell builds when to die.
-
+        :param threading.Event fail_event: Event to report build failure without killing other
+            builds
         :returns: True if build successful
         """
 
@@ -768,7 +770,10 @@ class TestRun(TestAttributes):
         if cancel_event is None:
             cancel_event = threading.Event()
 
-        if self.builder.build(cancel_event=cancel_event):
+        if fail_event is None:
+            fail_event = threading.Event()
+
+        if self.builder.build(cancel_event=cancel_event, fail_event=fail_event):
             # Create the build origin path, to make tracking a test's build
             # a bit easier.
             with PermissionsManager(self.build_origin_path, self.group,
@@ -777,14 +782,18 @@ class TestRun(TestAttributes):
 
             with PermissionsManager(self.build_path, self.group, self.umask):
                 if not self.builder.copy_build(self.build_path):
-                    cancel_event.set()
+                    fail_event.set()
             build_result = True
         else:
             with PermissionsManager(self.build_path, self.group, self.umask):
-                self.builder.fail_path.rename(self.build_path)
-                for file in utils.flat_walk(self.build_path):
-                    file.chmod(file.stat().st_mode | 0o200)
+                try:
+                    self.builder.fail_path.rename(self.build_path)
+                    for file in utils.flat_walk(self.build_path):
+                        file.chmod(file.stat().st_mode | 0o200)
+                except FileNotFoundError:
+                    pass
                 build_result = False
+                self.set_run_complete()
 
         self.build_log.symlink_to(self.build_path/'pav_build_log')
         return build_result
@@ -1112,12 +1121,16 @@ be set by the scheduler plugin as soon as it's known."""
 
         path = self.path/self.JOB_ID_FN
 
-        if self._job_id is not None:
+        if self._job_id:
             return self._job_id
 
         try:
             with path.open() as job_id_file:
-                self._job_id = job_id_file.read()
+                job_id = job_id_file.read()
+                if job_id:
+                    self._job_id = job_id
+                else:
+                    return None
         except FileNotFoundError:
             return None
         except (OSError, IOError) as err:
