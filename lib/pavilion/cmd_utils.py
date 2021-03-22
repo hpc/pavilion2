@@ -280,6 +280,7 @@ def build_local(tests: List[TestRun],
                 mb_tracker: MultiBuildTracker,
                 max_threads: int = 4,
                 build_verbosity: int = 0,
+                hard_fail: bool = False,
                 outfile: TextIO = StringIO(),
                 errfile: TextIO = StringIO()):
     """Build all tests that request for their build to occur on the
@@ -289,6 +290,7 @@ def build_local(tests: List[TestRun],
     :param max_threads: Maximum number of build threads to start.
     :param build_verbosity: How much info to print during building.
         0 - Quiet, 1 - verbose, 2+ - very verbose
+    :param hard_fail: Kill all builds on single failure or not.
     :param mb_tracker: The tracker for all builds.
     :param outfile: Where to print user messages.
     :param errfile: Where to print user error messages.
@@ -350,6 +352,10 @@ def build_local(tests: List[TestRun],
     # to the verbosity level. As threads finish, new ones are started until
     # either all builds complete or a build fails, in which case all tests
     # are aborted.
+    fail_events = {}
+    for build in seen_build_names:
+        fail_events[build] = threading.Event()
+
     while build_order or test_threads:
         # Start a new thread if we haven't hit our limit.
         if build_order and builds_running < max_threads:
@@ -357,7 +363,7 @@ def build_local(tests: List[TestRun],
 
             test_thread = threading.Thread(
                 target=test.build,
-                args=(cancel_event,)
+                kwargs=dict(cancel_event=cancel_event, fail_event=fail_events[test.build_name])
             )
             test_threads.append(test_thread)
             test_by_threads[test_thread] = test
@@ -387,35 +393,24 @@ def build_local(tests: List[TestRun],
 
         test_threads = [thr for thr in test_threads if thr is not None]
 
-        if cancel_event.is_set():
-            for thread in test_threads:
-                thread.join()
+        # Hard-Fail. One build fails, all other builds are aborted.
+        if len(tests) == 1:
+            hard_fail = True
+        for build, event in fail_events.items():
+            if hard_fail and event.is_set():
+                cancel_event.set()
+                for thread in test_threads:
+                    thread.join()
 
-            for test in tests:
-                if (test.status.current().state not in
-                        (STATES.BUILD_FAILED, STATES.BUILD_ERROR)):
-                    test.status.set(
-                        STATES.ABORTED,
-                        "Run aborted due to failures in other builds.")
+                # Set status of test threads that haven't been started yet.
+                for test in tests:
+                    if test.status.current().state in [STATES.CREATED]:
+                        test.status.set(
+                            STATES.ABORTED,
+                            "Build aborted due to failures in other builds."
+                        )
 
-            output.fprint(
-                "Build error while building tests. Cancelling runs.",
-                color=output.RED, file=outfile, clear=True)
-            output.fprint(
-                "Failed builds are placed in <working_dir>/test_runs/"
-                "<test_id>/build for the corresponding test run.",
-                color=output.CYAN, file=outfile)
-
-            for failed_build in mb_tracker.failures():
-                output.fprint(
-                    "Build error for test {f.test.name} (#{f.test.id})."
-                    .format(f=failed_build), file=errfile)
-                output.fprint(
-                    "See test status file (pav cat {id} status) and/or "
-                    "the test build log (pav log build {id})"
-                    .format(id=failed_build.test.id), file=errfile)
-
-            return errno.EINVAL
+                return False
 
         state_counts = mb_tracker.state_counts()
         if build_verbosity == 0:
@@ -448,7 +443,7 @@ def build_local(tests: List[TestRun],
         # Print a newline after our last status update.
         output.fprint(width=None, file=outfile)
 
-    return 0
+    return True
 
 
 def test_obj_from_id(pav_cfg, test_ids):

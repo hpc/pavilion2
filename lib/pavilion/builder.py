@@ -355,14 +355,32 @@ class TestBuilder:
                 "Source location '{}' points to something unusable."
                 .format(found_src_path))
 
-    def build(self, cancel_event=None):
+    def build(self, cancel_event=None, fail_event=None):
         """Perform the build if needed, do a soft-link copy of the build
         directory into our test directory, and note that we've used the given
         build.
         :param threading.Event cancel_event: Allows builds to tell each other
         to die.
-        :return: True if these steps completed successfully.
+        :param threading.Event fail_event: Allows build to report failure, without cancelling
+        other builds
+        :return:  True if these steps completed successfully.
         """
+
+        if cancel_event is None:
+            cancel_event = threading.Event()
+
+        if fail_event is None:
+            fail_event = threading.Event()
+
+        if cancel_event.is_set():
+            self.tracker.fail("Build aborted due to failures in other builds.",
+                              state=STATES.ABORTED)
+            return False
+
+        if fail_event.is_set():
+            self.tracker.fail("Build aborted due to failures in build '{}'."
+                              .format(self.name), state=STATES.ABORTED)
+            return False
 
         # Only try to do the build if it doesn't already exist and is finished.
         if not self.finished_path.exists():
@@ -407,18 +425,16 @@ class TestBuilder:
                     with PermissionsManager(self.path, self._group,
                                             self._umask):
                         if not self._build(self.path, cancel_event, lock=lock):
-
+                            fail_event.set()
                             try:
                                 self.path.rename(self.fail_path)
-                            except FileNotFoundError as err:
+                            except (OSError, FileNotFoundError) as err:
                                 self.tracker.error(
                                     "Failed to move build {} from {} to "
                                     "failure path {}: {}"
                                     .format(self.name, self.path,
                                             self.fail_path, err))
                                 self.fail_path.mkdir()
-                            if cancel_event is not None:
-                                cancel_event.set()
 
                             return False
 
@@ -441,10 +457,17 @@ class TestBuilder:
                                           "file.")
 
                 else:
-                    self.tracker.update(
-                        state=STATES.BUILD_REUSED,
-                        note="Build {s.name} created while waiting for build "
-                             "lock.".format(s=self))
+                    if fail_event.is_set():
+                        self.tracker.fail("Build aborted due to failures in build '{}'."
+                                          .format(self.name), state=STATE.ABORTED)
+                        return False
+                    else:
+                        self.tracker.update(
+                            state=STATES.BUILD_REUSED,
+                            note="Build {s.name} created while waiting for build lock."
+                                 .format(s=self)
+                        )
+
         else:
             self.tracker.update(
                 note=("Test {s.name} run {s.test.id} reusing build."
@@ -493,8 +516,7 @@ class TestBuilder:
     def _build(self, build_dir, cancel_event, lock: lockfile.LockFile = None):
         """Perform the build. This assumes there actually is a build to perform.
         :param Path build_dir: The directory in which to perform the build.
-        :param threading.Event cancel_event: Event to signal that the build
-            should stop.
+        :param threading.Event cancel_event: Allows builds to tell each other to die.
         :param lock: The lockfile object. This will need to be refreshed to
             keep it from expiring.
         :returns: True or False, depending on whether the build appears to have
@@ -560,12 +582,11 @@ class TestBuilder:
                                 .format(self._timeout))
                             return False
 
-                        if cancel_event is not None and cancel_event.is_set():
+                        if cancel_event.is_set():
                             proc.kill()
                             self.tracker.update(
                                 state=STATES.ABORTED,
-                                note="Build canceled due to other builds "
-                                     "failing.")
+                                note="Build canceled due to other builds failing.")
                             return False
 
         except subprocess.CalledProcessError as err:
@@ -596,8 +617,6 @@ class TestBuilder:
         if result != 0:
             self.tracker.fail(
                 note="Build returned a non-zero result.")
-            if cancel_event is not None:
-                cancel_event.set()
             return False
         else:
 

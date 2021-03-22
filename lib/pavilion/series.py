@@ -65,7 +65,7 @@ class TestSet:
         self.errfile = series_obj.errfile
 
     def run_set(self, log=False, local_builds_only=False, build_only=False,
-                build_verbosity=0, wait=None, run_cmd=None, rebuild=False):
+                build_verbosity=0, hard_fail=False, wait=None, run_cmd=None, rebuild=False):
         """Runs tests in set. """
 
         mb_tracker = MultiBuildTracker(log=log)
@@ -145,14 +145,43 @@ class TestSet:
             max_threads=self.pav_cfg.build_threads,
             mb_tracker=mb_tracker,
             build_verbosity=build_verbosity,
+            hard_fail=hard_fail,
             outfile=self.outfile,
             errfile=self.errfile
         )
-        if res != 0:
+
+        failed_tests = []
+        failures = mb_tracker.failures()
+
+        if len(failures) == len(all_tests):
+            res = False
+
+        if failures:
+            output.fprint("Error{s} while building test{s}. Cancelling the following run{s}:"
+                          .format(s='s' if len(failures) > 1 else ''),
+                          file=self.errfile, color=output.RED if not res else output.YELLOW)
+            output.fprint("Failed builds are placed in <working_dir>/test_runs/<test_id>/build"
+                          "for {} corresponding test run."
+                          .format("each" if len(failures) > 1 else 'the'),
+                          file=self.errfile, color=output.CYAN)
+            output.fprint("See test status file (pav cat <test_id> status) and/or the test "
+                          "build log (pav log build <test_id>)", file=self.errfile)
+
+            for failed_build in failures:
+                state = failed_build.test.status.current().state
+                note = failed_build.test.status.current().note
+                output.fprint("Test {id} {state}: {note}"
+                              .format(id=failed_build.test.id, state=state, note=note),
+                              bullet='  ', file=self.errfile)
+
+                failed_tests.append(failed_build.test.id)
+
+        if not res:
             self.done = True
             cmd_utils.complete_tests(all_tests)
-            return res
+            return errno.EINVAL
 
+        built_tests = [test for test in all_tests if test.id not in failed_tests]
         cmd_utils.complete_tests([test for test in all_tests if
                                   test.build_only and test.build_local])
 
@@ -169,7 +198,7 @@ class TestSet:
 
         # deal with simultaneous here
         if self.series_obj.config['simultaneous'] is None:
-            res = self.series_obj.run_tests(tests=all_tests, wait=wait)
+            res = self.series_obj.run_tests(tests=built_tests, wait=wait, hard_fail=hard_fail)
 
             return res
 
@@ -496,12 +525,13 @@ class TestSeries:
     WAIT_INTERVAL = 1
 
     def run_tests(self, wait: Union[None, int] = None,
-                  tests: List[TestRun] = None) -> int:
+                  tests: List[TestRun] = None, hard_fail: bool = False) -> int:
         """Run the tests for this test series.
 
     :param int wait: Wait this long for a test to start before exiting.
     :param tests: Manually specified list of tests to run. Defaults to
         the series' test list.
+    :param hard_fail: Bool that specififes if build failure should kill all jobs or not.
     :return: A return code based on the success of this action.
     """
 
@@ -510,17 +540,12 @@ class TestSeries:
 
         all_tests = tests
 
-        for test in tests:
-            sched_name = test.scheduler
-            sched = schedulers.get_plugin(sched_name)
+        if not all_tests:
+            fprint("{} tests started. Test list resulted in an empty list."
+                   .format(len(all_tests)), file=self.errfile, color=output.RED)
+            return errno.EINVAL
 
-            if not sched.available():
-                fprint("1 test started with the {} scheduler, but"
-                       "that scheduler isn't available on this system."
-                       .format(sched_name),
-                       file=self.errfile, color=output.RED)
-                return errno.EINVAL
-
+        scheduler_errors = []
         for test in tests:
 
             # don't run this test if it was meant to be skipped
@@ -534,16 +559,42 @@ class TestSeries:
                 continue
 
             sched = schedulers.get_plugin(test.scheduler)
+            if not sched.available():
+                error = "Test started with the {} scheduler, but that scheduler isn't available " \
+                        "on the system".format(test.scheduler)
+                if hard_fail:
+                    fprint(error, file=self.errfile, color=output.RED)
+                    fprint("Cancelling already kicked off tests.", file=self.errfile)
+                    self.cancel_series(STATES.ABORTED,
+                                       "Run aborted due to scheduling error in other run.")
+                    return errno.EINVAL
+                else:
+                    scheduler_errors.append((test, error))
+                    continue
             try:
                 sched.schedule_tests(self.pav_cfg, [test])
             except schedulers.SchedulerPluginError as err:
-                fprint('Error scheduling test: ', file=self.errfile,
-                       color=output.RED)
-                fprint(err, bullet='  ', file=self.errfile)
-                fprint('Cancelling already kicked off tests.',
-                       file=self.errfile)
                 sched.cancel_job(test)
-                return errno.EINVAL
+                if hard_fail:
+                    fprint("Error scheduling tests:", file=self.errfile, color=output.RED)
+                    fprint(err, bullet='  ', file=self.errfile)
+                    fprint("Cancelling already kicked off tests.", file=self.errfile)
+                    self.cancel_series(STATES.ABORTED,
+                                       "Run aborted due to scheduling error in other run.")
+                    return errno.EINVAL
+                else:
+                    scheduler_errors.append((test, err))
+                    continue
+
+        if scheduler_errors:
+            fprint("Errors while scheduling tests. The following could not be scheduled:",
+                   file=self.errfile, color=output.YELLOW)
+            fprint("See test kickoff script (pav cat <test_id> kickoff.sbatch) and/or the test "
+                   "kickoff log (pav log kickoff <test_id>)")
+            for test, error in scheduler_errors:
+                fprint("Test {} {}: {}"
+                       .format(test.id, test.status.current().state, error),
+                       bullet='  ', file=self.errfile)
 
         # Tests should all be scheduled now, and have the SCHEDULED state
         # (at some point, at least). Wait until something isn't scheduled
@@ -570,7 +621,7 @@ class TestSeries:
                     time.sleep(self.WAIT_INTERVAL - (time.time() - last_time))
 
         fprint("{} test{} started as test series {}."
-               .format(len(all_tests),
+               .format(len(all_tests)-len(scheduler_errors),
                        's' if len(all_tests) > 1 else '', self.sid),
                file=self.outfile,
                color=output.GREEN)
@@ -682,7 +733,7 @@ differentiate it from test ids."""
 
         return
 
-    def cancel_series(self):
+    def cancel_series(self, state, msg):
         """Goes through all test objects assigned to series and cancels tests
         that haven't been completed. """
 
@@ -690,7 +741,7 @@ differentiate it from test ids."""
             if not (test_obj.path/'RUN_COMPLETE').exists():
                 sched = schedulers.get_plugin(test_obj.scheduler)
                 sched.cancel_job(test_obj)
-                test_obj.status.set(STATES.COMPLETE, "Killed by SIGTERM.")
+                test_obj.status.set(state, msg)
                 test_obj.set_run_complete()
 
     def run_series(self):
@@ -700,7 +751,7 @@ differentiate it from test ids."""
         def sigterm_handler(_signals, _frame_type):
             """Calls cancel_series and exists."""
 
-            self.cancel_series()
+            self.cancel_series(STATES.COMPLETE, "Killed by SIGTERM.")
             sys.exit()
 
         signal.signal(signal.SIGTERM, sigterm_handler)

@@ -14,6 +14,7 @@ from pavilion.status_utils import print_from_tests
 from pavilion.build_tracker import MultiBuildTracker
 from pavilion.output import fprint
 from pavilion.series import TestSeries
+from pavilion.status_file import STATES
 from pavilion.test_run import TestRun
 
 
@@ -53,6 +54,10 @@ class RunCommand(commands.Command):
                  'These files should contain a newline separated list of test '
                  'names. Lines that start with a \'#\' are ignored as '
                  'comments.')
+        parser.add_argument(
+            '--hard-fail', action='store_true', default=False,
+            help='Cancel all tests in a series when a single test fails to build or start.'
+        )
         parser.add_argument(
             '--repeat', action='store', type=int, default=None,
             help='Repeat specified tests this many times.'
@@ -154,6 +159,7 @@ class RunCommand(commands.Command):
                                local_builds_only=local_builds_only,
                                build_only=self.BUILD_ONLY,
                                build_verbosity=args.build_verbosity,
+                               hard_fail=args.hard_fail,
                                wait=wait,
                                run_cmd=self,
                                rebuild=args.rebuild)
