@@ -120,12 +120,10 @@ class CancelCommand(commands.Command):
 
                 # Test hasn't completed, can be cancelled.
                 if not (test.path/'RUN_COMPLETE').exists():
-                    state = test.status.current().state
 
-                    # Test has been scheduled/is running, need to cancel using scheduler.
-                    if state in [STATES.SCHEDULED, STATES.RUNNING]:
-                        sched = schedulers.get_plugin(test.scheduler)
-                        sched.cancel_job(test)
+                    # Cancel the job.
+                    sched = schedulers.get_plugin(test.scheduler)
+                    sched.cancel_job(test)
 
                     # Set test state to CANCELLED and set RUN_COMPLETE.
                     test.status.set(STATES.CANCELLED,
