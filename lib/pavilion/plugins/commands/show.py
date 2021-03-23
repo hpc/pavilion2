@@ -613,7 +613,7 @@ class ShowCommand(commands.Command):
         if args.doc:
             try:
                 res_plugin = parsers.get_plugin(args.doc)
-            except pavilion.result.common.ResultError:
+            except (pavilion.result.common.ResultError, KeyError):
                 output.fprint(
                     "Invalid result parser '{}'.".format(args.doc),
                     color=output.RED

@@ -1,10 +1,11 @@
 """Execute a command and get its output or return value."""
-import pavilion.result.common
-from pavilion.result import parsers
+import subprocess
+import yaml_config as yc
+from pathlib import Path
 
 import pavilion.result.base
-import yaml_config as yc
-import subprocess
+import pavilion.result.common
+from pavilion.result import parsers
 
 
 class Command(parsers.ResultParser):
@@ -45,6 +46,9 @@ class Command(parsers.ResultParser):
     def __call__(self, file, command=None, output_type=None,
                  stderr_dest=None):
 
+        cwd = Path(file.name).resolve()
+        cwd = (cwd.parent/'build').as_posix()
+
         # where to redirect stderr
         if stderr_dest == 'null':
             err = subprocess.DEVNULL
@@ -55,6 +59,7 @@ class Command(parsers.ResultParser):
             proc = subprocess.Popen(
                 command,
                 shell=True,
+                cwd=cwd,
                 stdout=subprocess.PIPE,
                 stderr=err,
             )

@@ -81,7 +81,7 @@ def get_relative_timestamp(base_time):
         return ''
 
     now = datetime.datetime.now()
-    format_ = ['%Y', '%b', '%a', '%H:%M:%S']  # year, month, day, time
+    format_ = ['%Y', '%b', '%d', '%H:%M:%S']  # year, month, day, time
 
     base_time = datetime.datetime.fromtimestamp(base_time)
 
