@@ -757,8 +757,9 @@ class TestRun(TestAttributes):
         information on any encountered errors.
         :param threading.Event cancel_event: Event to tell builds when to die.
         :param threading.Event fail_event: Event to report build failure without killing other
-            builds
+        builds.
         :returns: True if build successful
+
         """
 
         if self.build_origin_path.exists():
