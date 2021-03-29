@@ -12,6 +12,7 @@ from pavilion import commands
 from pavilion import filters
 from pavilion import output
 from pavilion import result
+from pavilion.status_file import STATES
 from pavilion.test_config import resolver
 from pavilion.test_run import (TestRun, TestRunError, TestRunNotFoundError)
 
@@ -259,9 +260,13 @@ class ResultsCommand(commands.Command):
                     color=output.RED, file=self.errfile)
                 return False
 
+            if save:
+                test.builder.tracker.update(state=STATES.RESULTS,
+                                            note="Re-running results.")
+
             # The new results will be attached to the test (but not saved).
             results = test.gather_results(test.results.get('return_value', 1),
-                                          regather=True, log_file=log_file)
+                                          regather=True if not save else False, log_file=log_file)
 
             if save:
                 test.save_results(results)
@@ -271,5 +276,8 @@ class ResultsCommand(commands.Command):
                         .format(datetime.datetime.today()
                                 .strftime('%m-%d-%Y')))
                     log_file.write("See results.json for updated results.\n")
+                test.builder.tracker.update(state=STATES.COMPLETE,
+                                            note="The test completed with result: {}"
+                                            .format(results["result"]))
 
         return True
