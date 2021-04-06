@@ -439,6 +439,21 @@ def build_local(tests: List[TestRun],
 
         time.sleep(BUILD_SLEEP_TIME)
 
+    # Update ABORTED tests with status containing the actual Test ID that caused FAILURE/ERROR.
+    for build, event in fail_events.items():
+        if event.is_set():
+            failed_id = None
+            failed_tests = [test for test in tests if test.builder.name == build]
+            for test in failed_tests:
+                if test.status.current().state not in [STATES.ABORTED]:
+                    failed_id = test.id
+            for test in failed_tests:
+                if test.id is not failed_id:
+                    test.status.set(
+                        STATES.ABORTED,
+                        "Build '{}' failed under test {}.".format(build, failed_id)
+                    )
+
     if build_verbosity == 0:
         # Print a newline after our last status update.
         output.fprint(width=None, file=outfile)

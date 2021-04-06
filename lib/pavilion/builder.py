@@ -378,7 +378,7 @@ class TestBuilder:
             return False
 
         if fail_event.is_set():
-            self.tracker.fail("Build aborted due to failures in build '{}'."
+            self.tracker.fail("Build '{}' failed under another test."
                               .format(self.name), state=STATES.ABORTED)
             return False
 
@@ -458,8 +458,8 @@ class TestBuilder:
 
                 else:
                     if fail_event.is_set():
-                        self.tracker.fail("Build aborted due to failures in build '{}'."
-                                          .format(self.name), state=STATE.ABORTED)
+                        self.tracker.fail("Build '{}' failed under another test."
+                                          .format(self.named), state=STATE.ABORTED)
                         return False
                     else:
                         self.tracker.update(
