@@ -85,6 +85,7 @@ class TestSet:
                 host=self.host,
                 tests=self._test_names,
                 modes=self.modes,
+                overrides=self.series_obj.overrides,
                 outfile=self.outfile,
                 conditions=new_conditions,
             )
@@ -268,7 +269,7 @@ class TestSeries:
     SERIES_COMPLETE_FN = 'SERIES_COMPLETE'
 
     def __init__(self, pav_cfg, tests=None, _id=None, series_config=None,
-                 dep_graph=None, outfile: TextIO = StringIO(),
+                 dep_graph=None, overrides=None, outfile: TextIO = StringIO(),
                  errfile: TextIO = StringIO()):
         """Initialize the series.
 
@@ -293,6 +294,7 @@ class TestSeries:
             self.dep_graph = dep_graph
         self.test_sets = {}  # type: Dict[str, TestSet]
         self.test_objs = {}
+        self.overrides = overrides
 
         if tests:
             self.tests = {test.id: test for test in tests}
