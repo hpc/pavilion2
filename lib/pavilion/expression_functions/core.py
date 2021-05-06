@@ -110,6 +110,39 @@ class SumPlugin(CoreFunctionPlugin):
 
         return sum(vals)
 
+class MaxPlugin(CoreFunctionPlugin):
+    """Get the max of the given numbers."""
+
+    def __init__(self):
+        """Setup plugin."""
+
+        super().__init__(
+            name="max",
+            arg_specs=([num],)
+        )
+
+    @staticmethod
+    def max(vals):
+        """Get the max of vals."""
+
+        return max(vals)
+
+class MinPlugin(CoreFunctionPlugin):
+    """Get the min of the given numbers."""
+
+    def __init__(self):
+        """Setup plugin."""
+
+        super().__init__(
+            name="min",
+            arg_specs=([num],)
+        )
+
+    @staticmethod
+    def min(vals):
+        """Get the min of vals."""
+
+        return min(vals)
 
 class AvgPlugin(CoreFunctionPlugin):
     """Get the average of the given numbers."""
