@@ -23,7 +23,6 @@ from pavilion import output
 from pavilion import result
 from pavilion import scriptcomposer
 from pavilion import utils
-from pavilion.permissions import PermissionsManager
 from pavilion.status_file import StatusFile, STATES
 from pavilion.test_config import variables
 from pavilion.test_config.file_format import TestConfigError
@@ -146,11 +145,10 @@ class TestAttributes:
                     "'%s': %s",
                     key, val, self.id, err.args[0])
 
-        with PermissionsManager(attr_path, self.group, self.umask):
-            tmp_path = attr_path.with_suffix('.tmp')
-            with tmp_path.open('w') as attr_file:
-                json.dump(attrs, attr_file)
-            tmp_path.rename(attr_path)
+        tmp_path = attr_path.with_suffix('.tmp')
+        with tmp_path.open('w') as attr_file:
+            json.dump(attrs, attr_file)
+        tmp_path.rename(attr_path)
 
     def load_attributes(self):
         """Load the attributes from file."""
@@ -426,7 +424,7 @@ class TestRun(TestAttributes):
 
         # Get an id for the test, if we weren't given one.
         if _id is None:
-            id_tmp, run_path = dir_db.create_id_dir(tests_path, group, umask)
+            id_tmp, run_path = dir_db.create_id_dir(tests_path)
             super().__init__(
                 path=run_path,
                 group=group, umask=umask)
@@ -461,12 +459,11 @@ class TestRun(TestAttributes):
         self._variables_path = self.path / 'variables'
 
         if _id is None:
-            with PermissionsManager(self.path, self.group, self.umask):
-                self._save_config()
-                if var_man is None:
-                    var_man = variables.VariableSetManager()
-                self.var_man = var_man
-                self.var_man.save(self._variables_path)
+            self._save_config()
+            if var_man is None:
+                var_man = variables.VariableSetManager()
+            self.var_man = var_man
+            self.var_man.save(self._variables_path)
 
             self.sys_name = self.var_man.get('sys_name', '<unknown>')
         else:
@@ -479,12 +476,11 @@ class TestRun(TestAttributes):
         # This will be set by the scheduler
         self._job_id = None
 
-        with PermissionsManager(self.path/'status', self.group, self.umask):
-            # Setup the initial status file.
-            self.status = StatusFile(self.path/'status')
-            if _id is None:
-                self.status.set(STATES.CREATED,
-                                "Test directory and status file created.")
+        # Setup the initial status file.
+        self.status = StatusFile(self.path/'status')
+        if _id is None:
+            self.status.set(STATES.CREATED,
+                            "Test directory and status file created.")
 
         self.run_timeout = self.parse_timeout(
             'run', config.get('run', {}).get('timeout'))
@@ -613,9 +609,7 @@ class TestRun(TestAttributes):
                     file_path.unlink()
 
                 # Write file.
-                with PermissionsManager(file_path, self.group, self.umask), \
-                        file_path.open('w') as file_:
-
+                with file_path.open('w') as file_:
                     for line in contents:
                         file_.write("{}\n".format(line))
 
@@ -702,8 +696,7 @@ class TestRun(TestAttributes):
         tmp_path = config_path.with_suffix('.tmp')
 
         try:
-            with PermissionsManager(config_path, self.group, self.umask), \
-                    tmp_path.open('w') as json_file:
+            with tmp_path.open('w') as json_file:
                 output.json_dump(self.config, json_file)
                 try:
                     config_path.unlink()
@@ -771,20 +764,16 @@ class TestRun(TestAttributes):
         if self.builder.build(cancel_event=cancel_event):
             # Create the build origin path, to make tracking a test's build
             # a bit easier.
-            with PermissionsManager(self.build_origin_path, self.group,
-                                    self.umask):
-                self.build_origin_path.symlink_to(self.builder.path)
+            self.build_origin_path.symlink_to(self.builder.path)
 
-            with PermissionsManager(self.build_path, self.group, self.umask):
-                if not self.builder.copy_build(self.build_path):
-                    cancel_event.set()
+            if not self.builder.copy_build(self.build_path):
+                cancel_event.set()
             build_result = True
         else:
-            with PermissionsManager(self.build_path, self.group, self.umask):
-                self.builder.fail_path.rename(self.build_path)
-                for file in utils.flat_walk(self.build_path):
-                    file.chmod(file.stat().st_mode | 0o200)
-                build_result = False
+            self.builder.fail_path.rename(self.build_path)
+            for file in utils.flat_walk(self.build_path):
+                file.chmod(file.stat().st_mode | 0o200)
+            build_result = False
 
         self.build_log.symlink_to(self.build_path/'pav_build_log')
         return build_result
@@ -808,8 +797,7 @@ class TestRun(TestAttributes):
         self.status.set(STATES.PREPPING_RUN,
                         "Converting run template into run script.")
 
-        with PermissionsManager(self.path, self.group, self.umask), \
-                self.run_log.open('wb') as run_log:
+        with self.run_log.open('wb') as run_log:
             self.status.set(STATES.RUNNING,
                             "Starting the run script.")
 
@@ -881,8 +869,7 @@ class TestRun(TestAttributes):
         # run.
         complete_path = self.path/self.COMPLETE_FN
         complete_tmp_path = complete_path.with_suffix('.tmp')
-        with PermissionsManager(complete_tmp_path, self.group, self.umask), \
-                complete_tmp_path.open('w') as run_complete:
+        with complete_tmp_path.open('w') as run_complete:
             json.dump(
                 {'complete': time.time()},
                 run_complete)
@@ -1027,8 +1014,7 @@ of result keys.
         """
 
         results_tmp_path = self.results_path.with_suffix('.tmp')
-        with PermissionsManager(results_tmp_path, self.group, self.umask), \
-                results_tmp_path.open('w') as results_file:
+        with results_tmp_path.open('w') as results_file:
             json.dump(results, results_file)
         try:
             self.results_path.unlink()
@@ -1133,8 +1119,7 @@ be set by the scheduler plugin as soon as it's known."""
         path = self.path/self.JOB_ID_FN
 
         try:
-            with PermissionsManager(path, self.group, self.umask), \
-                    path.open('w') as job_id_file:
+            with path.open('w') as job_id_file:
                 job_id_file.write(job_id)
         except (IOError, OSError) as err:
             self.logger.error("Could not write jobid file '%s': %s",
@@ -1241,8 +1226,7 @@ be set by the scheduler plugin as soon as it's known."""
         else:
             script.comment('No commands given for this script.')
 
-        with PermissionsManager(path, self.group, self.umask):
-            script.write(path)
+        script.write(path)
 
     def __repr__(self):
         return "TestRun({s.name}-{s.id})".format(s=self)

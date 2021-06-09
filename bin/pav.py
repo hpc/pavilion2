@@ -13,7 +13,6 @@ from pavilion import log_setup
 from pavilion import output
 from pavilion import pavilion_variables
 from pavilion import plugins
-from pavilion import permissions
 
 try:
     import yc_yaml
@@ -55,11 +54,6 @@ def main():
             file=sys.stderr,
             color=output.RED)
         sys.exit(-1)
-
-    # Create the basic directories in the working directory and the .pavilion
-    # directory.
-    perm_man = permissions.PermissionsManager(None, pav_cfg['shared_group'],
-                                              pav_cfg['umask'])
 
     # Setup all the loggers for Pavilion
     if not log_setup.setup_loggers(pav_cfg):

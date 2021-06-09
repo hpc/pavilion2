@@ -21,7 +21,6 @@ from pavilion import lockfile
 from pavilion import utils
 from pavilion import wget
 from pavilion.build_tracker import MultiBuildTracker
-from pavilion.permissions import PermissionsManager
 from pavilion.status_file import STATES
 from pavilion.test_config.spack import SpackEnvConfig
 
@@ -404,38 +403,32 @@ class TestBuilder:
                     # wrong.
                     # This will also set the test status for
                     # non-catastrophic cases.
-                    with PermissionsManager(self.path, self._group,
-                                            self._umask):
-                        if not self._build(self.path, cancel_event, lock=lock):
+                    if not self._build(self.path, cancel_event, lock=lock):
 
-                            try:
-                                self.path.rename(self.fail_path)
-                            except FileNotFoundError as err:
-                                self.tracker.error(
-                                    "Failed to move build {} from {} to "
-                                    "failure path {}: {}"
-                                    .format(self.name, self.path,
-                                            self.fail_path, err))
-                                self.fail_path.mkdir()
-                            if cancel_event is not None:
-                                cancel_event.set()
+                        try:
+                            self.path.rename(self.fail_path)
+                        except FileNotFoundError as err:
+                            self.tracker.error(
+                                "Failed to move build {} from {} to "
+                                "failure path {}: {}"
+                                .format(self.name, self.path,
+                                        self.fail_path, err))
+                            self.fail_path.mkdir()
+                        if cancel_event is not None:
+                            cancel_event.set()
 
-                            return False
+                        return False
 
                     # Make a file with the test id of the building test.
                     built_by_path = self.path / '.built_by'
                     try:
-                        with PermissionsManager(built_by_path, self._group,
-                                                self._umask | 0o222), \
-                                built_by_path.open('w') as built_by:
+                        with built_by_path.open('w') as built_by:
                             built_by.write(str(self.test.id))
                     except OSError:
                         self.tracker.warn("Could not create built_by file.")
 
                     try:
-                        with PermissionsManager(self.finished_path,
-                                                self._group, self._umask):
-                            self.finished_path.touch()
+                        self.finished_path.touch()
                     except OSError:
                         self.tracker.warn("Could not touch '<build>.finished' "
                                           "file.")
@@ -871,8 +864,7 @@ class TestBuilder:
 
         if save:
             # This should all be under the build lock.
-            with PermissionsManager(hash_fn, self._group, self._umask), \
-                    hash_fn.open('wb') as hash_file:
+            with hash_fn.open('wb') as hash_file:
                 hash_file.write(file_hash)
 
         return file_hash

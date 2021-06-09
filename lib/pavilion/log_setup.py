@@ -1,7 +1,6 @@
 """Manages the setup of various logging mechanisms for Pavilion."""
 
 import logging
-from logging import handlers
 import socket
 import sys
 import traceback
@@ -9,7 +8,6 @@ from pathlib import Path
 
 from pavilion import output
 from pavilion.lockfile import LockFile
-from pavilion.permissions import PermissionsManager
 
 
 class LockFileRotatingFileHandler(logging.Handler):
@@ -162,9 +160,6 @@ def setup_loggers(pav_cfg, verbose=False, err_out=sys.stderr):
     # Setup the new record factory.
     logging.setLogRecordFactory(record_factory)
 
-    perm_man = PermissionsManager(None, pav_cfg['shared_group'],
-                                  pav_cfg['umask'])
-
     # Put the log file in the lowest common pav config directory we can write
     # to.
     log_fn = pav_cfg.working_dir/'pav.log'
@@ -185,11 +180,6 @@ def setup_loggers(pav_cfg, verbose=False, err_out=sys.stderr):
                                       pav_cfg.log_level.upper()))
         root_logger.addHandler(file_handler)
 
-    try:
-        perm_man.set_perms(log_fn)
-    except OSError:
-        pass
-
     # The root logger should pass all messages, even if the handlers
     # filter them.
     root_logger.setLevel(logging.DEBUG)
@@ -204,10 +194,6 @@ def setup_loggers(pav_cfg, verbose=False, err_out=sys.stderr):
             .format(pav_cfg.result_log, err),
             color=output.YELLOW, file=err_out)
         return False
-    try:
-        perm_man.set_perms(pav_cfg.result_log)
-    except OSError:
-        pass
 
     result_logger = logging.getLogger('common_results')
     result_handler = LockFileRotatingFileHandler(
@@ -242,11 +228,6 @@ def setup_loggers(pav_cfg, verbose=False, err_out=sys.stderr):
         ))
         exc_logger.setLevel(logging.ERROR)
         exc_logger.addHandler(exc_handler)
-
-    try:
-        perm_man.set_perms(pav_cfg.exception_log)
-    except OSError:
-        pass
 
     # Setup the yapsy logger to log to terminal. We need to know immediatly
     # when yapsy encounters errors.

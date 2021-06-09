@@ -23,7 +23,6 @@ from pavilion import utils
 from pavilion.builder import MultiBuildTracker
 from pavilion.lockfile import LockFile
 from pavilion.output import fprint
-from pavilion.permissions import PermissionsManager
 from pavilion.series_util import TestSeriesError
 from pavilion.status_file import STATES
 from pavilion.test_config import resolver
@@ -305,10 +304,7 @@ class TestSeries:
         if _id is None:
             # Get the series id and path.
             try:
-                self._id, self.path = dir_db.create_id_dir(
-                    series_path,
-                    pav_cfg['shared_group'],
-                    pav_cfg['umask'])
+                self._id, self.path = dir_db.create_id_dir(series_path)
             except (OSError, TimeoutError) as err:
                 raise TestSeriesError(
                     "Could not get id or series directory in '{}': {}"
@@ -322,9 +318,6 @@ class TestSeries:
             # save series config
             self.save_series_config()
 
-            perm_man = PermissionsManager(None, pav_cfg['shared_group'],
-                                          pav_cfg['umask'])
-
             # Create a soft link to the test directory of each test in the
             # series.
             if tests:
@@ -333,7 +326,6 @@ class TestSeries:
 
                     try:
                         link_path.symlink_to(test.path)
-                        perm_man.set_perms(link_path)
                     except OSError as err:
                         raise TestSeriesError(
                             "Could not link test '{}' in series at '{}': {}"
@@ -358,10 +350,7 @@ class TestSeries:
         temp_args = ['pav', '_series', self.sid]
         try:
             series_out_path = self.path/SERIES_OUT_FN
-            with PermissionsManager(series_out_path,
-                                    self.pav_cfg['shared_group'],
-                                    self.pav_cfg['umask']), \
-                    series_out_path.open('w') as series_out:
+            with series_out_path.open('w') as series_out:
                 series_proc = subprocess.Popen(temp_args,
                                                stdout=series_out,
                                                stderr=series_out)
@@ -377,10 +366,7 @@ class TestSeries:
         series_pgid_path = self.path/SERIES_PGID_FN
         try:
             series_pgid_tmp = series_pgid_path.with_suffix('.tmp')
-            with PermissionsManager(series_pgid_tmp,
-                                    self.pav_cfg['shared_group'],
-                                    self.pav_cfg['umask']), \
-                    series_pgid_tmp.open('w') as series_id_file:
+            with series_pgid_tmp.open('w') as series_id_file:
                 series_id_file.write(str(series_pgid))
 
             series_pgid_tmp.rename(series_pgid_path)
@@ -412,10 +398,7 @@ class TestSeries:
         series_config_path = self.path/CONFIG_FN
         try:
             series_config_tmp = series_config_path.with_suffix('.tmp')
-            with PermissionsManager(series_config_tmp,
-                                    self.pav_cfg['shared_group'],
-                                    self.pav_cfg['umask']), \
-                    series_config_tmp.open('w') as config_file:
+            with series_config_tmp.open('w') as config_file:
                 config_file.write(json.dumps(self.config))
 
             series_config_path.with_suffix('.tmp').rename(series_config_path)
@@ -486,10 +469,7 @@ class TestSeries:
         series_dep_path = self.path/DEPENDENCY_FN
         series_dep_tmp = series_dep_path.with_suffix('.tmp')
         try:
-            with PermissionsManager(series_dep_tmp,
-                                    self.pav_cfg['shared_group'],
-                                    self.pav_cfg['umask']), \
-                  series_dep_tmp.open('w') as dep_file:
+            with series_dep_tmp.open('w') as dep_file:
                 dep_file.write(json.dumps(self.dep_graph))
 
             series_dep_path.with_suffix('.tmp').rename(series_dep_path)
@@ -769,10 +749,7 @@ differentiate it from test ids."""
 
         series_complete_path = self.path/self.SERIES_COMPLETE_FN
         series_complete_path_tmp = series_complete_path.with_suffix('.tmp')
-        with PermissionsManager(series_complete_path_tmp,
-                                self.pav_cfg['shared_group'],
-                                self.pav_cfg['umask']), \
-                series_complete_path_tmp.open('w') as series_complete:
+        with series_complete_path_tmp.open('w') as series_complete:
             json.dump({'complete': time.time()}, series_complete)
 
         series_complete_path_tmp.rename(series_complete_path)
@@ -884,17 +861,13 @@ differentiate it from test ids."""
                     except json.decoder.JSONDecodeError:
                         # File was empty, therefore json couldn't be loaded.
                         pass
-                with PermissionsManager(json_file, self.pav_cfg['shared_group'],
-                                        self.pav_cfg['umask']), \
-                        json_file.open('w') as json_series_file:
+                with json_file.open('w') as json_series_file:
                     data[sys_name] = self.sid
                     json_series_file.write(json.dumps(data))
 
             except FileNotFoundError:
                 # File hadn't been created yet.
-                with PermissionsManager(json_file, self.pav_cfg['shared_group'],
-                                        self.pav_cfg['umask']), \
-                         json_file.open('w') as json_series_file:
+                with json_file.open('w') as json_series_file:
                     data[sys_name] = self.sid
                     json_series_file.write(json.dumps(data))
 

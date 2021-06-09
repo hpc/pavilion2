@@ -7,8 +7,8 @@ config or through other options."""
 import logging
 import os
 import sys
+from collections import OrderedDict
 from pathlib import Path
-from collections import OrderedDict, UserDict
 from typing import List
 
 import pavilion.output
@@ -258,10 +258,12 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
                       "example, 'module.gcc' would disable the gcc module "
                       "wrapper."),
         yc.StrElem(
-            "shared_group", post_validator=_invalidator(
-                "The option 'shared_group' is no longer used. Instead, use sticky group bits"
-                "on your working directories to manage permissions."),
-            help_text="No longer used."),
+            "shared_group",
+            help_text="Pavilion runs under a `newgrp` shell with this group, ensuring "
+                      "all created files are owned by this group by default. If you have "
+                      "tests that must run under a different group, separate them into "
+                      "their own config directory with it's own working_dir setting. Then "
+                      "set the group and group sticky bit for those directories."),
         yc.StrElem(
             "umask", default="2",
             help_text="The umask to apply to all files created by pavilion. "

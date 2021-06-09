@@ -1,15 +1,13 @@
 import grp
 import os
 import shutil
-import stat
 import subprocess as sp
-from pathlib import Path, PurePath
-from typing import List
+from pathlib import Path
 
 import yc_yaml as yaml
+from pavilion import test_run
 from pavilion import utils
 from pavilion.unittest import PavTestCase
-from pavilion import test_run
 
 
 class GeneralTests(PavTestCase):

@@ -4,7 +4,6 @@ mechanisms to Pavilion.
 
 # pylint: disable=no-self-use
 
-import datetime
 import inspect
 import logging
 import os
@@ -13,7 +12,6 @@ from functools import wraps
 from pathlib import Path
 
 from pavilion import scriptcomposer
-from pavilion.permissions import PermissionsManager
 from pavilion.lockfile import LockFile
 from pavilion.status_file import STATES, StatusInfo
 from pavilion.test_config import file_format
@@ -538,8 +536,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
         script.command('pav _run {t.id}'.format(t=test_obj))
 
         path = self._kickoff_script_path(test_obj)
-        with PermissionsManager(path, test_obj.group, test_obj.umask):
-            script.write(path)
+        script.write(path)
 
         return path
 

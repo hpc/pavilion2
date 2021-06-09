@@ -14,7 +14,6 @@ from typing import Callable, List, Iterable, Any, Dict, NewType, \
 
 from pavilion import lockfile
 from pavilion import output
-from pavilion import permissions
 
 ID_DIGITS = 7
 ID_FMT = '{id:0{digits}d}'
@@ -48,14 +47,12 @@ def reset_pkey(id_dir: Path) -> None:
             pass
 
 
-def create_id_dir(id_dir: Path, group: str, umask: int) -> (int, Path):
+def create_id_dir(id_dir: Path) -> (int, Path):
     """In the given directory, create the lowest numbered (positive integer)
     directory that doesn't already exist.
 
     :param id_dir: Path to the directory that contains these 'id'
         directories
-    :param group: The group owner for this path.
-    :param umask: The umask to apply to this path.
     :returns: The id and path to the created directory.
     :raises OSError: on directory creation failure.
     :raises TimeoutError: If we couldn't get the lock in time.
@@ -100,11 +97,9 @@ def create_id_dir(id_dir: Path, group: str, umask: int) -> (int, Path):
 
             next_id_path = make_id_path(id_dir, next_id)
 
-        with permissions.PermissionsManager(next_id_path, group, umask), \
-                permissions.PermissionsManager(next_fn, group, umask):
-            next_id_path.mkdir()
-            with next_fn.open('w') as next_file:
-                next_file.write(str(next_id + 1))
+        next_id_path.mkdir()
+        with next_fn.open('w') as next_file:
+            next_file.write(str(next_id + 1))
 
         return next_id, next_id_path
 
@@ -122,7 +117,6 @@ def index(id_dir: Path, idx_name: str,
           transform: Callable[[Path], Dict[str, Any]],
           complete_key: str = 'complete',
           refresh_period: int = 1,
-          remove_missing: bool = False,
           verbose: IO[str] = None,
           fn_base: int = 10) -> Index:
     """Load and/or update an index of the given directory for the given
@@ -139,7 +133,7 @@ def index(id_dir: Path, idx_name: str,
         updated (hopefully they will be complete eventually).
     :param refresh_period: Only update the index if this much time (in seconds)
         has passed since the last update.
-    :param remove_missing: Remove items that no longer exist from the index.
+    :param verbose: Print status information during indexing.
     :param fn_base: The integer base for dir_db.
     """
 
@@ -180,7 +174,7 @@ def index(id_dir: Path, idx_name: str,
         last_perc = None
         progress = 0
 
-        files = list(os.scandir(id_dir.as_posix()))
+        files = [Path(file.path) for file in os.scandir(id_dir.as_posix())]
         for file in files:
             try:
                 id_ = int(file.name, fn_base)
@@ -207,7 +201,7 @@ def index(id_dir: Path, idx_name: str,
 
             # Update incomplete or unknown entries.
             try:
-                new = transform(Path(file.path))
+                new = transform(file)
             except ValueError:
                 continue
 
@@ -220,7 +214,6 @@ def index(id_dir: Path, idx_name: str,
 
         if new_items or missing:
             try:
-                group = idx_path.parent.stat().st_gid
                 tmp_path = Path(tempfile.mktemp(
                     suffix='.dbtmp',
                     dir=idx_path.parent.as_posix()))
@@ -231,17 +224,15 @@ def index(id_dir: Path, idx_name: str,
                         pass
 
                 # Write our updated index atomically.
-                with permissions.PermissionsManager(tmp_path,
-                                                    group, 0o002):
-                    out_db = dbm.open(tmp_path.as_posix(), 'c')
+                out_db = dbm.open(tmp_path.as_posix(), 'c')
 
-                    for id_, value in new_items.items():
-                        out_db[str(id_)] = json.dumps(value)
+                for id_, value in new_items.items():
+                    out_db[str(id_)] = json.dumps(value)
 
-                    for id_ in missing:
+                for id_ in missing:
 
-                        del out_db[str(id_)]
-                        del idx[id_]
+                    del out_db[str(id_)]
+                    del idx[id_]
 
                 tmp_path.rename(idx_path)
             except OSError:
@@ -364,8 +355,7 @@ def select_from(paths: Iterable[Path],
               of untransformed paths.
     """
 
-    if transform is None:
-        transform = lambda v: v
+    transform = transform or (lambda v: v)
 
     selected = []
     for path in paths:
