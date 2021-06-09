@@ -342,7 +342,6 @@ class ShowCommand(commands.Command):
             help='Display any errors encountered.'
         )
 
-
     def run(self, pav_cfg, args):
         """Run the show command's chosen sub-command."""
 
@@ -362,12 +361,10 @@ class ShowCommand(commands.Command):
     def _config_dirs_cmd(self, pav_cfg, _):
         """List the configuration directories."""
 
-        rows = [{'path': path} for path in pav_cfg.config_dirs]
-
         output.draw_table(
             self.outfile,
-            fields=['path'],
-            rows=rows,
+            fields=['label', 'path', 'working_dir'],
+            rows=pav_cfg.configs.values(),
             title="Config directories by priority."
         )
 

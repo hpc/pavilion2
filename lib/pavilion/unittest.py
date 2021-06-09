@@ -74,14 +74,32 @@ base class.
         """Setup the pav_cfg object, and do other initialization required by
         pavilion."""
 
+        self.pav_cfg = self.make_test_config()
+
+        self.tmp_dir = tempfile.TemporaryDirectory()
+
+        # We have to get this to set up the base argument parser before
+        # plugins can add to it.
+        _ = arguments.get_parser()
+        super().__init__(*args, **kwargs)
+
+    def make_test_config(self, config_dirs: List[Path] = None):
+        """Create a pavilion config for use with tests. By default uses the `data/pav_config_dir`
+        as the config directory.
+        """
+
+        if config_dirs is None:
+            config_dirs = [self.TEST_DATA_ROOT / 'pav_config_dir']
+
+        config_dirs.append(self.PAV_LIB_DIR)
+
         # Open the default pav config file (found in
         # test/data/pav_config_dir/pavilion.yaml), modify it, and then
         # save the modified file to a temp location and read it instead.
         with self.PAV_CONFIG_PATH.open() as cfg_file:
             raw_pav_cfg = config.PavilionConfigLoader().load(cfg_file)
 
-        raw_pav_cfg.config_dirs = [self.TEST_DATA_ROOT/'pav_config_dir',
-                                   self.PAV_LIB_DIR]
+        raw_pav_cfg.config_dirs = config_dirs
 
         raw_pav_cfg.working_dir = self.PAV_ROOT_DIR/'test'/'working_dir'
         raw_pav_cfg.user_config = False
@@ -104,27 +122,12 @@ base class.
                                                raw_pav_cfg)
 
         with cfg_path.open() as cfg_file:
-            self.pav_cfg = config.PavilionConfigLoader().load(cfg_file)
+            pav_cfg = config.PavilionConfigLoader().load(cfg_file)
 
-        self.pav_cfg.pav_cfg_file = cfg_path
+        pav_cfg.pav_cfg_file = cfg_path
+        pav_cfg.pav_vars = pavilion_variables.PavVars()
 
-        self.pav_cfg.pav_vars = pavilion_variables.PavVars()
-
-        if not self.pav_cfg.working_dir.exists():
-            self.pav_cfg.working_dir.mkdir(parents=True)
-
-        # Create the basic directories in the working directory
-        for path in self.WORKING_DIRS:
-            path = self.pav_cfg.working_dir/path
-            if not path.exists():
-                path.mkdir()
-
-        self.tmp_dir = tempfile.TemporaryDirectory()
-
-        # We have to get this to set up the base argument parser before
-        # plugins can add to it.
-        _ = arguments.get_parser()
-        super().__init__(*args, **kwargs)
+        return pav_cfg
 
     def __getattribute__(self, item):
         """When the unittest framework wants a test, check if the test

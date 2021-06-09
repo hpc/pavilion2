@@ -752,6 +752,17 @@ differentiate it from test ids."""
                 if done:
                     self.create_set_graph()
 
+    def wait(self, timeout=None):
+        """Wait for the series to be complete or the timeout to expire. """
+
+        end = time.time() + timeout
+        while time.time() < end:
+            if (self.path/self.SERIES_COMPLETE_FN).exists():
+                return
+            time.sleep(0.1)
+
+        raise TimeoutError("Series {} did not complete before timeout.".format(self._id))
+
     def set_series_complete(self):
         """Write a file in the series directory that indicates that the series
         has finished."""

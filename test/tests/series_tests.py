@@ -156,19 +156,83 @@ class SeriesFileTests(PavTestCase):
             if test_obj.name == 'echo_test.d':
                 self.assertTrue(test_obj.skipped)
 
-    def test_series_conditionals(self):
-        """Test if conditionals work as intended."""
-        # only_if, not_if
+    def test_series_conditionals_only_if_ok(self):
+        """Test that adding a conditional that always matches produces tests that
+        run when expected."""
+
+        test_series_obj = self._setup_conditionals_test(
+            only_if={
+                # This will always match
+                "bob": ["bob"]
+            })
+
+        for test_id, test_obj in test_series_obj.tests.items():
+            if 'always' in test_obj.name:
+                self.assertEqual(test_obj.results['result'], 'PASS')
+            else:
+                self.assertIsNone(test_obj.results['result'])
+
+    def test_series_conditionals_only_if_nope(self):
+        """Check that adding a non-matching only_if causes all tests to skip."""
+
+        test_series_obj = self._setup_conditionals_test(
+            only_if={
+                # This will always match
+                "bob": ["suzy"]
+            })
+
+        for test_id, test_obj in test_series_obj.tests.items():
+            self.assertIsNone(
+                test_obj.results['result'],
+                msg = "Test {} should have had a null result.".format(test_obj.name))
+
+    def test_series_conditionals_not_if_ok(self):
+        """Check that adding a non-matching not_if causes no change."""
+
+        test_series_obj = self._setup_conditionals_test(
+            not_if={
+                # This will always match
+                "bob": ["suzy"]
+            })
+
+        for test_id, test_obj in test_series_obj.tests.items():
+            if 'always' in test_obj.name:
+                self.assertEqual(test_obj.results['result'], 'PASS')
+            else:
+                self.assertIsNone(test_obj.results['result'])
+
+    def test_series_conditionals_not_if_nope(self):
+        """Check that adding a matching not_if causes all tests to skip."""
+
+        test_series_obj = self._setup_conditionals_test(
+            not_if={
+                # This will always match
+                "bob": ["bob"]
+            })
+
+        for test_id, test_obj in test_series_obj.tests.items():
+            self.assertIsNone(
+                test_obj.results['result'],
+                msg="Test {} should have had a null result.".format(test_obj.name))
+
+    def _setup_conditionals_test(self, only_if=None, not_if=None) -> series.TestSeries:
+        """Setup everything for the conditionals test, and return the
+        completed test series object."""
+
+        only_if = only_if or {}
+        not_if = not_if or {}
 
         series_config = {
             'series':
-                            {'only_set':
-                                 {'modes':      ['smode1'],
-                                  'depends_on': [],
-                                  'tests':      ['echo_test.wrong_year'],
-                                  'only_if':    {},
-                                  'not_if':     {}}
-                             },
+                {'only_set':
+                    {'modes':      ['smode1'],
+                     'depends_on': [],
+                     'tests':      [
+                         'conditional'
+                     ],
+                     'only_if':    only_if,
+                     'not_if':     not_if}
+                 },
             'modes':        ['smode2'],
             'simultaneous': None,
             'ordered':      False,
@@ -183,12 +247,7 @@ class SeriesFileTests(PavTestCase):
             outfile=outfile, errfile=outfile)
 
         test_series_obj.create_set_graph()
-
         test_series_obj.run_series()
+        test_series_obj.wait(timeout=3)
 
-        time.sleep(0.1)
-
-        self.assertEqual(len(list(test_series_obj.tests.keys())), 1)
-
-        for test_id, test_obj in test_series_obj.tests.items():
-            self.assertIsNone(test_obj.results['result'])
+        return test_series_obj

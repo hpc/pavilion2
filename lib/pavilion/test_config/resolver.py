@@ -125,8 +125,8 @@ class TestConfigResolver:
         :return: The path to the first matching config found, or None if one
             wasn't found.
         """
-        for conf_dir in self.pav_cfg.config_dirs:
-            path = conf_dir/conf_type/'{}.yaml'.format(conf_name)
+        for config in self.pav_cfg.configs.values():
+            path = config['path']/conf_type/'{}.yaml'.format(conf_name)
             if path.exists():
                 return path
 
@@ -153,8 +153,8 @@ class TestConfigResolver:
 
         suites = {}
 
-        for conf_dir in self.pav_cfg.config_dirs:
-            path = conf_dir/'tests'
+        for config in self.pav_cfg.configs.values():
+            path = config['path']/'tests'
 
             if not (path.exists() and path.is_dir()):
                 continue
@@ -237,8 +237,8 @@ class TestConfigResolver:
         """
 
         configs = {}
-        for conf_dir in self.pav_cfg.config_dirs:
-            path = conf_dir / conf_type
+        for config in self.pav_cfg.configs.values():
+            path = config['path'] / conf_type
 
             if not (path.exists() and path.is_dir()):
                 continue
@@ -495,7 +495,7 @@ class TestConfigResolver:
                             "trying to get the run log, use the 'pav log run "
                             "<testid>' command.")
 
-                    cdirs = [str(cdir) for cdir in self.pav_cfg.config_dirs]
+                    cdirs = [str(cfg['path']) for cfg in self.pav_cfg.configs.values()]
                     raise TestConfigError(
                         "Could not find test suite {}. Looked in these "
                         "locations: {}"

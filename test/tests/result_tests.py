@@ -13,6 +13,7 @@ from pavilion import commands
 from pavilion import plugins
 from pavilion import result
 from pavilion import utils
+from pavilion import config
 from pavilion.plugins.commands import run
 from pavilion.result import parsers, ResultError, base
 from pavilion.test_run import TestRun
@@ -549,11 +550,16 @@ class ResultParserTests(PavTestCase):
         run_cmd = commands.get_command('run')  # type: run.RunCommand
         run_cmd.silence()
 
+        # We need to alter the config path for these, but those paths need
+        # to be processed first.
+        tmp_cfg = config.make_config({
+            'config_dirs': [
+                self.PAV_LIB_DIR,
+                self.PAV_ROOT_DIR/'test/data/configs-rerun',
+            ]})
         rerun_cfg = self.pav_cfg.copy()
-        rerun_cfg['config_dirs'] = [
-            self.PAV_LIB_DIR,
-            self.PAV_ROOT_DIR/'test/data/configs-rerun',
-        ]
+        rerun_cfg['configs'] = tmp_cfg['configs']
+        rerun_cfg['config_dirs'] = tmp_cfg['config_dirs']
 
         arg_parser = arguments.get_parser()
         run_args = arg_parser.parse_args(['run', 'result_tests'])
@@ -598,7 +604,8 @@ class ResultParserTests(PavTestCase):
         per1 = results['result_tests.permuted.1']
         per2 = results['result_tests.permuted.2']
 
-        self.assertEqual(basic['result'], TestRun.PASS)
+        self.assertEqual(basic['result'], TestRun.PASS,
+                         msg="Test {} did not produce the expected result.".format(test.id))
         self.assertEqual(per1['result'], TestRun.FAIL)
         self.assertEqual(per2['result'], TestRun.PASS)
 

@@ -927,8 +927,8 @@ class TestBuilder:
                 return None
 
         # Assemble a potential location from each config dir.
-        for config_dir in self._pav_cfg.config_dirs:
-            path = config_dir
+        for config in self._pav_cfg.configs.values():
+            path = config['path']
             if sub_dir is not None:
                 path = path/sub_dir
             path = path/file

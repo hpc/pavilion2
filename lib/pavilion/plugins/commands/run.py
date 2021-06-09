@@ -127,9 +127,11 @@ class RunCommand(commands.Command):
         #   - Get sched vars from scheduler.
         #   - Compile variables.
         #
-        mb_tracker = MultiBuildTracker()
 
-        if args.repeat:
+        # Note: We have to get a few arguments this way because this code
+        # is reused between the build and run commands, and the don't quite have the same
+        # arguments.
+        if getattr(args, 'repeat', None):
             args.tests = args.tests * args.repeat
 
         local_builds_only = getattr(args, 'local_builds_only', False)

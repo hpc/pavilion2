@@ -84,21 +84,6 @@ class GeneralTests(PavTestCase):
         for build in builds:
             self.check_permissions(build, self.alt_group, self.umask | 0o222)
 
-    def test_build_fail_permissions(self):
-        """Make sure failed builds have good permissions too."""
-
-        cmd = [(self.PAV_ROOT_DIR /'bin/pav').as_posix(),
-               'run', 'perm.build_fail']
-
-        self.run_test_cmd(cmd, run_succeeds=False)
-
-        builds = [p for p in (self.working_dir/'builds').iterdir()
-                  if p.is_dir()]
-        self.check_permissions(self.working_dir, self.alt_group, self.umask,
-                               exclude=builds)
-        for build in builds:
-            self.check_permissions(build, self.alt_group, self.umask | 0o222)
-
     def run_test_cmd(self, cmd, run_succeeds=True):
 
         env = os.environ.copy()
@@ -109,71 +94,6 @@ class GeneralTests(PavTestCase):
         if (proc.wait(3) != 0) == run_succeeds:
             self.fail("Error running command.\n{}".format(out))
         self.wait_tests(self.working_dir)
-
-    def check_permissions(self, path: Path, group: grp.struct_group,
-                          umask: int, exclude: List[Path] = None):
-        """Perform a run and make sure they have correct permissions."""
-
-        if exclude is None:
-            exclude = []
-        else:
-            exclude = [ex_path for ex_path in exclude]
-
-        dir_umask = umask & ~0o222
-
-        for file in utils.flat_walk(path):
-            excluded = False
-            for parent in file.parents:
-                if parent in exclude:
-                    excluded = True
-
-            if excluded:
-                continue
-
-            fstat = file.stat()
-            # Make sure all files have the right group.
-            grp_name = grp.getgrgid(fstat.st_gid).gr_name
-            self.assertEqual(
-                fstat.st_gid, group.gr_gid,
-                msg="File {} had the incorrect group. Expected {}, got {}"
-                    .format(file, self.alt_group.gr_name, grp_name))
-
-            mode = fstat.st_mode
-
-            if file.is_symlink():
-                mode = file.lstat().st_mode
-                self.assertEqual(
-                    mode, 0o120777,
-                    msg="Expected symlink {} to have permissions {} but "
-                        "got {}".format(file, stat.filemode(0o120777),
-                                        stat.filemode(mode)))
-            elif (file.name.startswith('binfile') or
-                  file.name in ('kickoff.sh', 'build.sh', 'run.sh',
-                                'run.tmpl')):
-                expected = (~umask) & 0o100775
-                # Binfiles should have owner/group execute.
-                self.assertEqual(
-                    mode, expected,
-                    msg="Expected {} to have perms {}, but had {}"
-                        .format(file, stat.filemode(expected),
-                                stat.filemode(mode)))
-            elif file.is_file():
-                expected = (~umask) & 0o100664
-                self.assertEqual(
-                    oct(mode), oct(expected),
-                    msg="Expected regular file {} to have permissions {} "
-                        "but got {}"
-                        .format(file, stat.filemode(expected),
-                                stat.filemode(mode)))
-            elif file.is_dir():
-                expected = 0o40775 & (~dir_umask)
-                self.assertEqual(
-                    mode, expected,
-                    msg="Expected dir {} to have permissions {} but "
-                        "got {}".format(file, stat.filemode(expected),
-                                        stat.filemode(mode)))
-            else:
-                self.fail("Found unhandled file {}.".format(file))
 
     def test_legacy_runs(self):
         """Check loading of legacy run dirs."""

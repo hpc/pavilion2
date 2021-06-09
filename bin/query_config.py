@@ -13,7 +13,7 @@ args = parser.parse_args()
 key = args.key[0]
 
 try:
-    pav_cfg = config.find(warn=False)
+    pav_cfg = config.find_pavilion_config(warn=False)
 except Exception as err:
     print(err, file=sys.stderr)
     sys.exit(1)

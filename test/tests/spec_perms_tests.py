@@ -75,7 +75,7 @@ class SpecificPermsTests(PavTestCase):
             test_yaml['spec_perms2']['group'] = self.alt_group2.gr_name
             yaml.dump(test_yaml, test)
 
-        self.pav_cfg = config.find(target=self.config_dir/'pavilion.yaml')
+        self.pav_cfg = config.find_pavilion_config(target=self.config_dir / 'pavilion.yaml')
 
         plugins.initialize_plugins(self.pav_cfg)
 
@@ -90,7 +90,7 @@ class SpecificPermsTests(PavTestCase):
 
         env['PAV_CONFIG_DIR'] = self.config_dir.as_posix()
 
-        cmd = [(self.PAV_ROOT_DIR/'bin/pav').as_posix(), 'run', 'perm.*']
+        cmd = [(self.PAV_ROOT_DIR/'bin/pav').as_posix(), 'run', 'perm']
 
         proc = sp.Popen(cmd, env=env, stdout=sp.PIPE, stderr=sp.STDOUT)
         try:

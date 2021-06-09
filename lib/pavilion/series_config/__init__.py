@@ -28,8 +28,8 @@ The returned data structure looks like: ::
 
     series = {}
 
-    for conf_dir in pav_cfg.config_dirs:
-        path = conf_dir / 'series'
+    for config in pav_cfg.configs:
+        path = config['path'] / 'series'
 
         if not (path.exists() and path.is_dir()):
             continue
@@ -48,7 +48,7 @@ The returned data structure looks like: ::
                         'supersedes': [],
                     }
                 else:
-                    suites[suite_name]['supersedes'].append(file)
+                    series[series_name]['supersedes'].append(file)
 
                 with file.open('r') as series_file:
                     try:
