@@ -12,7 +12,9 @@ import subprocess
 import textwrap
 import zipfile
 from pathlib import Path
-from typing import Iterator, Union, TextIO
+from typing import Iterator, Union, TextIO, Callable
+import shutil
+import stat
 
 
 def str_bool(val):
@@ -89,6 +91,88 @@ def dir_contains(file, directory):
             return True
         file = file.parent
     return False
+
+
+def make_umask_filtered_copystat(umask: int):
+    """Create a 'copystat' function that first applies a umask to any permissions."""
+
+    def copystat(src, dst, *, follow_symlinks=True):
+        """Simplified python3.6 shutil that assumes Linux.  Doesn't copy xattrs,
+        and masks permissions with the umask."""
+
+        # follow symlinks (aka don't not follow symlinks)
+        follow = follow_symlinks or not (os.path.islink(src) and os.path.islink(dst))
+
+        stat = os.stat(src, follow_symlinks=follow)
+        mode = stat.S_IMODE(stat.st_mode) & ~umask
+        os.utime(dst, ns=(stat.st_atime_ns, stat.st_mtime_ns), follow_symlinks=follow)
+        try:
+            os.chmod(dst, mode, follow_symlinks=follow)
+        except NotImplementedError:
+            pass
+
+    return copystat
+
+
+def copytree(src, dst, symlinks=False, ignore=None, copy_function=shutil.copy2,
+             ignore_dangling_symlinks=False, copystat=shutil.copystat):
+    """This is identical to the python 3.6 copytree, except the user can provide
+    a copystat function."""
+    names = os.listdir(src)
+    if ignore is not None:
+        ignored_names = ignore(src, names)
+    else:
+        ignored_names = set()
+
+    os.makedirs(dst)
+    errors = []
+    for name in names:
+        if name in ignored_names:
+            continue
+        srcname = os.path.join(src, name)
+        dstname = os.path.join(dst, name)
+        try:
+            if os.path.islink(srcname):
+                linkto = os.readlink(srcname)
+                if symlinks:
+                    # We can't just leave it to `copy_function` because legacy
+                    # code with a custom `copy_function` may rely on copytree
+                    # doing the right thing.
+                    os.symlink(linkto, dstname)
+                    copystat(srcname, dstname, follow_symlinks=not symlinks)
+                else:
+                    # ignore dangling symlink if the flag is on
+                    if not os.path.exists(linkto) and ignore_dangling_symlinks:
+                        continue
+                    # otherwise let the copy occurs. copy2 will raise an error
+                    if os.path.isdir(srcname):
+                        copytree(srcname, dstname, symlinks, ignore,
+                                 copy_function, ignore_dangling_symlinks, copystat)
+                    else:
+                        copy_function(srcname, dstname)
+                        copystat(srcname, dstname)
+            elif os.path.isdir(srcname):
+                copytree(srcname, dstname, symlinks, ignore, copy_function,
+                         ignore_dangling_symlinks, copystat)
+            else:
+                # Will raise a SpecialFileError for unsupported file types
+                copy_function(srcname, dstname)
+                copystat(srcname, dstname)
+        # catch the Error from the recursive copytree so that we can
+        # continue with other files
+        except shutil.Error as err:
+            errors.extend(err.args[0])
+        except OSError as why:
+            errors.append((srcname, dstname, str(why)))
+    try:
+        copystat(src, dst)
+    except OSError as why:
+        # Copying file access times may fail on Windows
+        if getattr(why, 'winerror', None) is None:
+            errors.append((src, dst, str(why)))
+    if errors:
+        raise shutil.Error(errors)
+    return dst
 
 
 def path_is_external(path: Path):

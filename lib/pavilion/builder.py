@@ -74,8 +74,6 @@ class TestBuilder:
 
         self._pav_cfg = pav_cfg
         self._config = test.config.get('build', {})
-        self._group = test.group
-        self._umask = test.umask
         self._script_path = test.build_script_path
         self.test = test
         self._timeout = test.build_timeout
@@ -166,7 +164,6 @@ class TestBuilder:
         # The hash order is:
         #  - The build script
         #  - The build specificity
-        #  - The build group and umask
         #  - The src archive.
         #    - For directories, the mtime (updated to the time of the most
         #      recently updated file) is hashed instead.
@@ -177,11 +174,6 @@ class TestBuilder:
 
         # Update the hash with the contents of the build script.
         hash_obj.update(self._hash_file(self._script_path, save=False))
-        group = self._group.encode() if self._group is not None else b'<def>'
-        hash_obj.update(group)
-        umask = oct(self._umask).encode() if self._umask is not None \
-            else b'<def>'
-        hash_obj.update(umask)
 
         specificity = self._config.get('specificity', '')
         hash_obj.update(specificity.encode('utf8'))
@@ -424,6 +416,8 @@ class TestBuilder:
                     try:
                         with built_by_path.open('w') as built_by:
                             built_by.write(str(self.test.id))
+                        built_by_path.chmod(built_by_path.stat().st_mode & ~0o222)
+
                     except OSError:
                         self.tracker.warn("Could not create built_by file.")
 
@@ -616,6 +610,9 @@ class TestBuilder:
         :return: None
         """
 
+        umask = os.umask(0)
+        os.umask(umask)
+
         raw_src_path = self._config.get('source_path')
         if raw_src_path is None:
             src_path = None
@@ -627,6 +624,8 @@ class TestBuilder:
 
             # Resolve any softlinks to get the real file.
             src_path = src_path.resolve()
+
+        umask = int(self._pav_cfg['umask'], 8)
 
         if src_path is None:
             # If there is no source archive or data, just make the build
@@ -641,14 +640,14 @@ class TestBuilder:
                       "as the build directory."
                       .format(src_path, dest)))
 
-            shutil.copytree(src_path.as_posix(),
-                            dest.as_posix(),
-                            symlinks=True)
+            utils.copytree(
+                src_path.as_posix(),
+                dest.as_posix(),
+                copy_function=shutil.copyfile,
+                copystat=utils.make_umask_filtered_copystat(umask),
+                symlinks=True)
 
         elif src_path.is_file():
-            # Handle decompression of a stream compressed file. The interfaces
-            # for the libs are all the same; we just have to choose the right
-            # one to use. Zips are handled as an archive, below.
             category, subtype = utils.get_mime_type(src_path)
 
             if category == 'application' and subtype in self.TAR_SUBTYPES:
@@ -658,7 +657,7 @@ class TestBuilder:
                         state=STATES.BUILDING,
                         note=("Extracting tarfile {} for build {}"
                               .format(src_path, dest)))
-                    extract.extract_tarball(src_path, dest)
+                    extract.extract_tarball(src_path, dest, umask)
                 else:
                     self.tracker.update(
                         state=STATES.BUILDING,
@@ -713,7 +712,7 @@ class TestBuilder:
             path = self._find_file(extra, 'test_src')
             final_dest = dest / path.name
             try:
-                shutil.copy(path.as_posix(), final_dest.as_posix())
+                shutil.copyfile(path.as_posix(), final_dest.as_posix())
             except OSError as err:
                 raise TestBuilderError(
                     "Could not copy extra file '{}' to dest '{}': {}"
@@ -797,18 +796,24 @@ class TestBuilder:
             group).
         :raises OSError: If we lack permissions or something else goes wrong."""
 
+        _ = self
+
         # We rely on the umask to handle most restrictions.
         # This just masks out the write bits.
-        file_mask = 0o222 | self._umask
+        file_mask = 0o222
 
-        # We shouldn't have to do anything to directories, they should have
-        # the correct permissions already.
         for path, dirs, files in os.walk(root_path.as_posix()):
             path = Path(path)
+            # Clear the write bits on all files
             for file in files:
                 file_path = path/file
                 file_stat = file_path.stat()
                 file_path.chmod(file_stat.st_mode & ~file_mask)
+
+            # and set them aon all directories (if needed).
+            path_mode = path.stat().st_mode
+            if (path_mode & 0o220) != 0o220:
+                path.chmod(path_mode | 0o220)
 
     @classmethod
     def _hash_dict(cls, mapping):

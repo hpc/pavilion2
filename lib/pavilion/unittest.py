@@ -121,23 +121,15 @@ base class.
             config.PavilionConfigLoader().dump(pav_cfg_file,
                                                raw_pav_cfg)
 
-        with cfg_path.open() as cfg_file:
-            pav_cfg = config.PavilionConfigLoader().load(cfg_file)
+        pav_cfg = config.find_pavilion_config(cfg_path, warn=False)
 
-        pav_cfg.pav_cfg_file = cfg_path
         pav_cfg.pav_vars = pavilion_variables.PavVars()
 
         return pav_cfg
 
     def __getattribute__(self, item):
-        """When the unittest framework wants a test, check if the test
-is in the SKIP or ONLY lists, and skip it as appropriate. Only
-test methods are effected by this.
-A test is in the SKIP or ONLY list if the filename (minus extension),
-class name, or test name (minus the test_ prefix) match one of the
-SKIP or ONLY globs (provided via ``./runtests`` ``-s`` or ``-o``
-options.
-"""
+        """Override the builtin __getattribute__ so that tests skipped via command line
+        options are properly 'wrapped'."""
         attr = super().__getattribute__(item)
 
         cls = super().__getattribute__('__class__')
