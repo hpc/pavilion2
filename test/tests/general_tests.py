@@ -1,8 +1,10 @@
 import grp
+import stat
 import os
 import shutil
 import subprocess as sp
 from pathlib import Path
+from typing import List
 
 import yc_yaml as yaml
 from pavilion import test_run
@@ -38,6 +40,7 @@ class GeneralTests(PavTestCase):
         self.umask = 0o007
 
     def setUp(self) -> None:
+        """Setup the special pav config for these tests."""
 
         with self.PAV_CONFIG_PATH.open() as pav_cfg_file:
             raw_cfg = yaml.load(pav_cfg_file)
@@ -71,7 +74,7 @@ class GeneralTests(PavTestCase):
             'perm.dir',
         ]
 
-        cmd = [(self.PAV_ROOT_DIR/'bin'/'pav').as_posix(), 'run'] + tests
+        cmd = [(self.PAV_ROOT_DIR/'bin'/'pav').as_posix(), 'run', '-bbbb'] + tests
 
         self.run_test_cmd(cmd)
 
@@ -83,6 +86,7 @@ class GeneralTests(PavTestCase):
             self.check_permissions(build, self.alt_group, self.umask | 0o222)
 
     def run_test_cmd(self, cmd, run_succeeds=True):
+        """Run the given test command and check that it succeeds."""
 
         env = os.environ.copy()
         env['PAV_CONFIG_DIR'] = self.config_dir.as_posix()
@@ -121,3 +125,68 @@ class GeneralTests(PavTestCase):
             test = test_run.TestRun.load(self.pav_cfg, int(run))
             self.assertTrue(test.results)
             self.assertTrue(test.complete)
+
+    def check_permissions(self, path: Path, group: grp.struct_group,
+                          umask: int, exclude: List[Path] = None):
+        """Perform a run and make sure they have correct permissions."""
+
+        if exclude is None:
+            exclude = []
+        else:
+            exclude = [ex_path for ex_path in exclude]
+
+        dir_umask = umask & ~0o222
+
+        for file in utils.flat_walk(path):
+            excluded = False
+            for parent in file.parents:
+                if parent in exclude:
+                    excluded = True
+
+            if excluded:
+                continue
+
+            fstat = file.stat()
+            # Make sure all files have the right group.
+            grp_name = grp.getgrgid(fstat.st_gid).gr_name
+            self.assertEqual(
+                fstat.st_gid, group.gr_gid,
+                msg="File {} had the incorrect group. Expected {}, got {}"
+                    .format(file, self.alt_group.gr_name, grp_name))
+
+            mode = fstat.st_mode
+
+            if file.is_symlink():
+                mode = file.lstat().st_mode
+                self.assertEqual(
+                    mode, 0o120777,
+                    msg="Expected symlink {} to have permissions {} but "
+                        "got {}".format(file, stat.filemode(0o120777),
+                                        stat.filemode(mode)))
+            elif (file.name.startswith('binfile') or
+                  file.name in ('kickoff.sh', 'build.sh', 'run.sh',
+                                'run.tmpl')):
+                expected = (~umask) & 0o100775
+                # Binfiles should have owner/group execute.
+                self.assertEqual(
+                    mode, expected,
+                    msg="Expected {} to have perms {}, but had {}"
+                        .format(file, stat.filemode(expected),
+                                stat.filemode(mode)))
+            elif file.is_file():
+                expected = (~umask) & 0o100664
+                self.assertEqual(
+                    oct(mode), oct(expected),
+                    msg="Expected regular file {} to have permissions {} "
+                        "but got {}"
+                        .format(file, stat.filemode(expected),
+                                stat.filemode(mode)))
+            elif file.is_dir():
+                expected = 0o40775 & (~dir_umask)
+                self.assertEqual(
+                    mode, expected,
+                    msg="Expected dir {} to have permissions {} but "
+                        "got {}".format(file, stat.filemode(expected),
+                                        stat.filemode(mode)))
+            else:
+                self.fail("Found unhandled file {}.".format(file))
