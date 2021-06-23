@@ -44,6 +44,7 @@ class TestRunTests(PavTestCase):
 
         # Make sure we can create a test from a fairly populated config.
         t = TestRun(self.pav_cfg, config)
+        t.save()
         t.build()
 
         # Make sure we can recreate the object from id.
@@ -80,6 +81,7 @@ class TestRunTests(PavTestCase):
         }
 
         test = TestRun(self.pav_cfg, config1)
+        test.save()
         self.assert_(test.build())
 
         TestConfigResolver.finalize(test, VariableSetManager())
@@ -90,6 +92,7 @@ class TestRunTests(PavTestCase):
         config2['run']['modules'] = ['asdlfkjae', 'adjwerloijeflkasd']
 
         test = TestRun(self.pav_cfg, config2)
+        test.save()
         self.assert_(test.build())
 
         TestConfigResolver.finalize(test, VariableSetManager())
@@ -112,6 +115,7 @@ class TestRunTests(PavTestCase):
         }
 
         test = TestRun(self.pav_cfg, config3)
+        test.save()
         self.assertTrue(test.build())
         TestConfigResolver.finalize(test, VariableSetManager())
         with self.assertRaises(TimeoutError,
@@ -192,6 +196,7 @@ class TestRunTests(PavTestCase):
             config['build']['source_path'] = 'file_tests.tgz'
             config['build']['create_files'] = file_arg
             test = TestRun(self.pav_cfg, config)
+            test.save()
             self.assertFalse(test.build())
 
     def test_suites(self):
@@ -211,7 +216,9 @@ class TestRunTests(PavTestCase):
 
         tests = []
         for i in range(3):
-            tests.append(TestRun(self.pav_cfg, config1))
+            test = TestRun(self.pav_cfg, config1)
+            test.save()
+            tests.append(test)
 
         # Make sure this doesn't explode
         series = TestSeries(self.pav_cfg, tests)

@@ -104,7 +104,7 @@ def make_umask_filtered_copystat(umask: int):
         follow = follow_symlinks or not (os.path.islink(src) and os.path.islink(dst))
 
         stat = os.stat(src, follow_symlinks=follow)
-        mode = stat.S_IMODE(stat.st_mode) & ~umask
+        mode = stat.st_mode & 0o777 & ~umask
         os.utime(dst, ns=(stat.st_atime_ns, stat.st_mtime_ns), follow_symlinks=follow)
         try:
             os.chmod(dst, mode, follow_symlinks=follow)

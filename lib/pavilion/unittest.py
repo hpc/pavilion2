@@ -330,6 +330,7 @@ The default config is: ::
         tests = []
         for ptest in test_cfgs:
             test = TestRun(self.pav_cfg, ptest.config, var_man=ptest.var_man)
+            test.save()
 
             if build:
                 test.build()
@@ -376,7 +377,7 @@ The default config is: ::
 
         var_man = VariableSetManager()
         var_man.add_var_set('var', cfg['variables'])
-        var_man.add_var_set('sys', system_variables.get_vars(defer=True))
+        var_man.add_var_set('sys', system_variables.SysVarDict(unique=True, defer=True))
         var_man.add_var_set('pav', self.pav_cfg.pav_vars)
         if sched_vars is not None:
             var_man.add_var_set('sched', sched_vars)
@@ -385,11 +386,8 @@ The default config is: ::
 
         cfg = resolver.TestConfigResolver.resolve_test_vars(cfg, var_man)
 
-        test = TestRun(
-            pav_cfg=self.pav_cfg,
-            config=cfg,
-            var_man=var_man,
-        )
+        test = TestRun(pav_cfg=self.pav_cfg, config=cfg, var_man=var_man)
+        test.save()
 
         if build:
             test.build()

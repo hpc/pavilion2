@@ -19,8 +19,9 @@ from pavilion import result
 from pavilion import test_config
 from pavilion.build_tracker import MultiBuildTracker
 from pavilion import series_util
+from pavilion.test_config import TestConfigError
 from pavilion.status_file import STATES
-from pavilion.test_run import TestConfigError, TestRunError, \
+from pavilion.test_run import TestRunError, \
     TestRun, TestRunNotFoundError, test_run_attr_transform
 
 LOGGER = logging.getLogger(__name__)
@@ -196,17 +197,16 @@ def get_test_configs(
     return resolved_cfgs
 
 
-def configs_to_tests(
-        pav_cfg, proto_tests: List[test_config.ProtoTest],
-        mb_tracker: Union[MultiBuildTracker, None] = None,
-        build_only: bool = False, rebuild: bool = False,
-        outfile: TextIO = None) -> List[TestRun]:
+def configs_to_tests(pav_cfg, proto_tests: List[test_config.ProtoTest],
+                     build_tracker: MultiBuildTracker = None,
+                     build_only: bool = False, rebuild: bool = False,
+                     outfile: TextIO = None) -> List[TestRun]:
     """Convert configs/var_man tuples into actual
     tests.
 
     :param pav_cfg: The Pavilion config
     :param proto_tests: A list of test configs.
-    :param mb_tracker: The build tracker.
+    :param build_tracker: Tracker object for tracking multi-threaded builds.
     :param build_only: Whether to only build these tests.
     :param rebuild: After figuring out what build to use, rebuild it.
     :param outfile: Output file for printing messages
@@ -218,14 +218,11 @@ def configs_to_tests(
 
     for ptest in proto_tests:
         try:
-            test_list.append(TestRun(
-                pav_cfg=pav_cfg,
-                config=ptest.config,
-                var_man=ptest.var_man,
-                build_tracker=mb_tracker,
-                build_only=build_only,
-                rebuild=rebuild
-            ))
+            test_run = TestRun(pav_cfg=pav_cfg, config=ptest.config,
+                               var_man=ptest.var_man, rebuild=rebuild,
+                               build_only=build_only)
+            test_run.save(build_tracker)
+            test_list.append(test_run)
             progress += 1.0/tot_tests
             if outfile is not None:
                 output.fprint("Creating Test Runs: {:.0%}".format(progress),

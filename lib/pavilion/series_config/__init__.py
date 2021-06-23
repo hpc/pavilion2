@@ -76,8 +76,8 @@ def load_series_configs(pav_cfg, series_name: str, cl_modes: List[str],
     series_config_loader = SeriesConfigLoader()
     test_config_resolver = TestConfigResolver(pav_cfg)
 
-    series_file_path = test_config_resolver.find_config('series',
-                                                        series_name)
+    _, series_file_path = test_config_resolver.find_config('series', series_name)
+
     if not series_file_path:
         raise SeriesConfigError('Cannot find series config: {}'.
                                 format(series_name))

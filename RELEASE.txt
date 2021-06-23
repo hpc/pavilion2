@@ -4,6 +4,14 @@ RELEASE=2.3
 
 # Release History
 
+## 2.4 Pre-release Notes
+ - Tests now have id's of the form '<label>.<id>'. The default label is 'main', 
+   so tests your 'main' (PAV_CONFIG_DIR defined) pavilion config directory
+   can leave off the label. Labels aren't saved, but determined when configs
+   are loaded.
+ - Backwards compatibility breaks
+   - Tests can no longer have skip conditions that are deferred.
+
 ## 2.3 Release Notes
  - Added 'flatten_results' option to the base Pavilion config. Allows for
    producing a separate result log line for each 'per_file' result, making

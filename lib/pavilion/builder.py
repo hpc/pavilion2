@@ -54,17 +54,17 @@ class TestBuilder:
 
     LOG_NAME = "pav_build_log"
 
-    def __init__(self, pav_cfg, test, mb_tracker, build_name=None):
+    def __init__(self, pav_cfg, test, mb_tracker=None, build_name=None):
         """Initialize the build object.
 
         :param pav_cfg: The Pavilion config object
         :param pavilion.test_run.TestRun test: The test run responsible for
             starting this build.
-        :param pavilion.build_tracker.MultiBuildTracker mb_tracker: A
+        :param Union[pavilion.build_tracker.MultiBuildTracker, None] mb_tracker: A
             thread-safe tracker object for keeping info on what the build is
             doing.
-        :param str build_name: The build name, if this is a build that already
-            exists.
+        :param build_name: The build name, if this is a build that
+            already exists.
         :raises TestBuilderError: When the builder can't be initialized.
         """
 
@@ -86,7 +86,8 @@ class TestBuilder:
         else:
             self.name = build_name
 
-        self.path = pav_cfg.working_dir/'builds'/self.name  # type: Path
+        working_dir = test.path.parents[1]
+        self.path = working_dir/'builds'/self.name  # type: Path
 
         if not self.path.exists():
             if not test.build_local:

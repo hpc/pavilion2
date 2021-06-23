@@ -99,14 +99,12 @@ class TestSet:
                 test_configs = locally_built_tests
 
             # configs->tests
-            test_list = cmd_utils.configs_to_tests(
-                pav_cfg=self.pav_cfg,
-                proto_tests=test_configs,
-                mb_tracker=mb_tracker,
-                build_only=build_only,
-                rebuild=rebuild,
-                outfile=self.outfile,
-            )
+            test_list = cmd_utils.configs_to_tests(pav_cfg=self.pav_cfg,
+                                                   proto_tests=test_configs,
+                                                   build_tracker=mb_tracker,
+                                                   build_only=build_only,
+                                                   rebuild=rebuild,
+                                                   outfile=self.outfile)
 
         except (commands.CommandError, test_config.TestConfigError) as err:
             self.done = True
@@ -237,9 +235,11 @@ class TestSet:
         for config in raw_configs:
             # Delete conditionals - we're already skipping this test but for
             # different reasons
+            # TODO: Simply log that these were skipped instead of creating a test
+            #       object.
             skipped_test = TestRun(self.pav_cfg, config)
+            skipped_test.save()
             skipped_test.set_skipped('Previous test in series did not PASS.')
-            skipped_test.save_attributes()
             self.series_obj.add_tests([skipped_test])
             self.tests[skipped_test.name] = skipped_test
 
