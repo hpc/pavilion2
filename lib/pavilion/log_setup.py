@@ -50,11 +50,6 @@ class LockFileRotatingFileHandler(logging.Handler):
 
         super().__init__()
 
-        # Test acquire the lock file and test open the file.
-        with self.lock_file:
-            with self.file_name.open(self.mode, encoding=self.encoding):
-                pass
-
     # We don't need threading based locks.
     def _do_nothing(self):
         """createLock, acquire, release, flush, and close do nothing in
