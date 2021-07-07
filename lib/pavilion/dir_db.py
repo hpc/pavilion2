@@ -16,7 +16,7 @@ from pavilion import lockfile
 from pavilion import output
 
 ID_DIGITS = 7
-ID_FMT = '{id:0{digits}d}'
+ID_FMT = '{id:d}'
 
 PKEY_FN = 'next_id'
 
@@ -33,7 +33,7 @@ def make_id_path(base_path, id_) -> Path:
     :rtype: Path
     """
 
-    return base_path / (ID_FMT.format(id=id_, digits=ID_DIGITS))
+    return base_path / (ID_FMT.format(id=id_))
 
 
 def reset_pkey(id_dir: Path) -> None:

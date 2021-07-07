@@ -564,10 +564,11 @@ class TestRun(TestAttributes):
                                "being defined in the pavilion config.")
 
     @classmethod
-    def load(cls, pav_cfg, test_id):
+    def load(cls, pav_cfg, working_dir: Path, test_id: int):
         """Load an old TestRun object given a test id.
 
         :param pav_cfg: The pavilion config
+        :param working_dir: The working directory where this test run lives.
         :param int test_id: The test's id number.
         :rtype: TestRun
         """

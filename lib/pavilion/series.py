@@ -593,19 +593,19 @@ differentiate it from test ids."""
 
     :raises TestSeriesError: From invalid series id or path."""
 
-        sid = cls.sid_to_id(sid)
+        series_id = cls.sid_to_id(sid)
 
         series_path = pav_cfg.working_dir/'series'
-        series_path = dir_db.make_id_path(series_path, sid)
+        series_path = dir_db.make_id_path(series_path, series_id)
 
         if not series_path.exists():
             raise TestSeriesError("No such series found: '{}' at '{}'"
-                                  .format(sid, series_path))
+                                  .format(series_id, series_path))
 
-        logger = logging.getLogger(cls.LOGGER_FMT.format(sid))
+        logger = logging.getLogger(cls.LOGGER_FMT.format(series_id))
 
         tests = []
-        for path in dir_db.select(series_path).paths:
+        for path in dir_db.select(series_path, use_index=False).paths:
             try:
                 test_id = int(path.name)
             except ValueError:
@@ -618,12 +618,18 @@ differentiate it from test ids."""
                 continue
 
             try:
-                tests.append(TestRun.load(pav_cfg, test_id=test_id))
+                working_dir = path.resolve().parents[1]
+            except FileNotFoundError as err:
+                logger.info("Bad test id in series %s: %s", sid, err.args[0])
+                continue
+
+            try:
+                tests.append(TestRun.load(pav_cfg, working_dir, test_id=test_id))
             except TestRunError as err:
                 logger.info("Error loading test %s: %s",
                             test_id, err.args[0])
 
-        return cls(pav_cfg, tests, _id=sid, outfile=outfile, errfile=errfile)
+        return cls(pav_cfg, tests, _id=series_id, outfile=outfile, errfile=errfile)
 
     def load_dep_graph(self):
         """Load a series object from the given id, along with the config and

@@ -28,7 +28,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
-                       verbose: TextIO=None) -> List[int]:
+                       verbose: TextIO = None) -> List[Path]:
     """Search for test runs that match based on the argument values in args,
     and return a list of matching test id's.
 
@@ -72,31 +72,32 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
     if args.tests:
         test_paths = test_list_to_paths(pav_cfg, args.tests)
 
-        if args.disable_filter:
-            test_ids = dir_db.paths_to_ids(test_paths)
-        else:
-            tests = dir_db.select_from(
+        if not args.disable_filter:
+            test_paths = dir_db.select_from(
                 paths=test_paths,
                 transform=test_run_attr_transform,
                 filter_func=filter_func,
                 order_func=order_func,
                 order_asc=order_asc,
                 limit=limit
-            ).data
-            test_ids = [test['id'] for test in tests]
-
+            ).paths
     else:
-        tests = dir_db.select(
-            id_dir=pav_cfg.working_dir / 'test_runs',
-            transform=test_run_attr_transform,
-            filter_func=filter_func,
-            order_func=order_func,
-            order_asc=order_asc,
-            verbose=verbose,
-            limit=limit).data
-        test_ids = [test['id'] for test in tests]
+        test_paths = []
+        for config in pav_cfg.configs:
+            working_dir = config['working_dir']
 
-    return test_ids
+            matching_tests = dir_db.select(
+                id_dir=working_dir / 'test_runs',
+                transform=test_run_attr_transform,
+                filter_func=filter_func,
+                order_func=order_func,
+                order_asc=order_asc,
+                verbose=verbose,
+                limit=limit).paths
+
+            test_paths.extend(matching_tests)
+
+    return test_paths
 
 
 def test_list_to_paths(pav_cfg, req_tests) -> List[Path]:
@@ -201,8 +202,7 @@ def configs_to_tests(pav_cfg, proto_tests: List[test_config.ProtoTest],
                      build_tracker: MultiBuildTracker = None,
                      build_only: bool = False, rebuild: bool = False,
                      outfile: TextIO = None) -> List[TestRun]:
-    """Convert configs/var_man tuples into actual
-    tests.
+    """Convert configs/var_man tuples into actual tests.
 
     :param pav_cfg: The Pavilion config
     :param proto_tests: A list of test configs.
@@ -446,28 +446,3 @@ def build_local(tests: List[TestRun],
         output.fprint(width=None, file=outfile)
 
     return 0
-
-
-def test_obj_from_id(pav_cfg, test_ids):
-    """Return the test object(s) associated with the id(s) provided.
-
-    :param dict pav_cfg: Base pavilion configuration.
-    :param Union(list,str) test_ids: One or more test IDs."
-    :return tuple(list(test_obj),list(failed_ids)): tuple containing a list of
-        test objects and a list of test IDs for which no test could be found.
-    """
-
-    test_obj_list = []
-    test_failed_list = []
-
-    if not isinstance(test_ids, list):
-        test_ids = [test_ids]
-
-    for test_id in test_ids:
-        try:
-            test = TestRun.load(pav_cfg, test_id)
-            test_obj_list.append(test)
-        except (TestRunError, TestRunNotFoundError):
-            test_failed_list.append(test_id)
-
-    return test_obj_list, test_failed_list
