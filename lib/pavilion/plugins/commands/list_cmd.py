@@ -236,8 +236,7 @@ class ListCommand(commands.Command):
             user=args.user,
         )
 
-        order_func, ascending = filters.get_sort_opts(
-            args.sort_by, filters.TEST_SORT_FUNCS)
+        order_func, ascending = filters.get_sort_opts(ßargs.sort_by, "TEST")
 
         if args.series:
             picked_runs = []
@@ -313,9 +312,7 @@ class ListCommand(commands.Command):
             older_than=args.older_than,
             sys_name=args.sys_name)
 
-        series_order, ascending = filters.get_sort_opts(
-            sort_name=args.sort_by,
-            choices=filters.SERIES_SORT_FUNCS)
+        series_order, ascending = filters.get_sort_opts(args.sort_by,"SERIES")
 
         series = dir_db.select(
             id_dir=pav_cfg.working_dir/'series',

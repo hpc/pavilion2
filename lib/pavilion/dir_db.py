@@ -8,6 +8,9 @@ import os
 import shutil
 import tempfile
 import time
+import psutil
+import multiprocessing as mp
+from functools import partial
 from pathlib import Path
 from typing import Callable, List, Iterable, Any, Dict, NewType, \
     Union, NamedTuple, IO
@@ -117,6 +120,9 @@ def default_filter(_: Path) -> bool:
 
 Index = NewType("Index", Dict[int, Dict['str', Any]])
 
+def identity(v):
+    """Because lambdas can't be pickled."""
+    return v
 
 def index(id_dir: Path, idx_name: str,
           transform: Callable[[Path], Dict[str, Any]],
@@ -253,6 +259,40 @@ def index(id_dir: Path, idx_name: str,
 SelectItems = NamedTuple("SelectItems", [('data', List[Dict[str, Any]]),
                                          ('paths', List[Path])])
 
+def select_one(path, ff, trans, ofunc, fnb):
+    """
+    Allows the objects to be filtered and transformed in parallel with map.
+    :param path: Path to filter and transform (input to reduced function)
+    :param ff: (filter function) Function that takes a directory, and returns
+        whether to include that directory. True -> include, False -> exclude
+    :param trans: Function to apply to each path before applying filters
+        or ordering. The filter and order functions should expect the type
+        returned by this.
+    :param ofunc: A function that returns a comparable value for sorting
+        validate against output.
+    :param fnb: Number base for file names. 10 by default, ensure dir name
+        is a valid integer.
+    :returns: A filtered, transformed object.
+    """
+
+    if trans is None: trans = identity
+
+    if not path.is_dir():
+        return None
+    try:
+        int(path.name, fnb)
+        item = trans(path)
+    except ValueError:
+        return None
+
+    if not ff(item):
+        return None
+
+    if ofunc is not None and ofunc(item) is None:
+        return None
+
+    return item
+
 
 def select(id_dir: Path,
            filter_func: Callable[[Any], bool] = default_filter,
@@ -364,30 +404,14 @@ def select_from(paths: Iterable[Path],
               of untransformed paths.
     """
 
-    if transform is None:
-        transform = lambda v: v
+    paths=list(paths)
+    ncpu = min(psutil.cpu_count(logical=False), len(paths))
+    p = mp.Pool(processes=ncpu)
 
-    selected = []
-    for path in paths:
-        if not path.is_dir():
-            continue
-        try:
-            int(path.name, fn_base)
-        except ValueError:
-            continue
+    selector = partial(select_one, ff=filter_func, trans=transform, ofunc=order_func, fnb=fn_base)
 
-        try:
-            item = transform(path)
-        except ValueError:
-            continue
-
-        if not filter_func(item):
-            continue
-
-        if order_func is not None and order_func(item) is None:
-            continue
-
-        selected.append((item, path))
+    selections = p.map(selector, paths)
+    selected = [(item,path) for item, path in zip(selections,paths) if item is not None]
 
     if order_func is not None:
         selected.sort(key=lambda d: order_func(d[0]), reverse=not order_asc)
