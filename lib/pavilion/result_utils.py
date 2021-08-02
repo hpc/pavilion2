@@ -1,14 +1,12 @@
 """A collection of utilities for getting the results of current and past
 test runs and series."""
 
-import os
-import sys
-import time
-import psutil
-import multiprocessing as mp
 
+import sys
+import multiprocessing as mp
 from functools import partial
 
+from pavilion import config
 from pavilion import status_utils
 from pavilion.test_run import (TestRun, TestRunError, TestRunNotFoundError)
 
@@ -24,10 +22,6 @@ BASE_FIELDS = [
     'result',
     'results_log'
 ]
-
-RESULT_KEYS = [ "id","name","test_version","pav_version","created","started","finished",
-                "duration","user","job_id","permute_on","sched","sys_name","pav_result_errors",
-                "per_file","uuid","return_value","result","results_log"]
 
 
 def get_result(test_id, pav_conf):
@@ -65,9 +59,9 @@ def get_results(pav_cfg, test_ids, errfile=None):
     get_this_result = partial(get_result, pav_conf=pav_cfg)
 
     if sys.version_info.minor > 6:
-        ncpu = min(psutil.cpu_count(logical=False), len(test_ids))
-        p = mp.Pool(processes=ncpu)
-        tests = p.map(get_this_result, test_ids)
+        ncpu = min(config.NCPU, len(test_ids))
+        mp_pool = mp.Pool(processes=ncpu)
+        tests = mp_pool.map(get_this_result, test_ids)
     else:
         tests = map(get_this_result, test_ids)
 
