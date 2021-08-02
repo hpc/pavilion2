@@ -4,12 +4,12 @@ and series."""
 import os
 import sys
 import time
-import psutil
 import multiprocessing as mp
 from typing import TextIO, List
 from functools import partial
 
 from pavilion import commands
+from pavilion import config
 from pavilion import output
 from pavilion import schedulers
 from pavilion import series
@@ -144,9 +144,9 @@ def get_statuses(pav_cfg, test_ids, errfile=None):
     # The TestRun object cannot be pickled in python < 3.7 because 
     # it contains threading which causes parallel execution to fail.
     if sys.version_info.minor > 6:
-        ncpu = min(psutil.cpu_count(logical=False), len(test_ids))
-        p = mp.Pool(processes=ncpu)
-        test_statuses = p.map(get_this_status, test_ids)
+        ncpu = min(config.NCPU, len(test_ids))
+        mp_pool = mp.Pool(processes=ncpu)
+        test_statuses = mp_pool.map(get_this_status, test_ids)
     else:
         test_statuses = map(get_this_status, test_ids)
 
