@@ -8,13 +8,13 @@ import os
 import shutil
 import tempfile
 import time
-import psutil
 import multiprocessing as mp
 from functools import partial
 from pathlib import Path
 from typing import Callable, List, Iterable, Any, Dict, NewType, \
     Union, NamedTuple, IO
 
+from pavilion import config
 from pavilion import lockfile
 from pavilion import output
 from pavilion import permissions
@@ -404,13 +404,13 @@ def select_from(paths: Iterable[Path],
               of untransformed paths.
     """
 
-    paths=list(paths)
-    ncpu = min(psutil.cpu_count(logical=False), len(paths))
-    p = mp.Pool(processes=ncpu)
+    paths = list(paths)
+    ncpu = min(config.NCPU, len(paths))
+    mp_pool = mp.Pool(processes=ncpu)
 
     selector = partial(select_one, ff=filter_func, trans=transform, ofunc=order_func, fnb=fn_base)
 
-    selections = p.map(selector, paths)
+    selections = mp_pool.map(selector, paths)
     selected = [(item,path) for item, path in zip(selections,paths) if item is not None]
 
     if order_func is not None:
