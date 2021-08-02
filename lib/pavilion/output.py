@@ -579,10 +579,10 @@ A more complicated example: ::
             wrap_rows = [{}]
             for field in fields:
                 wraps = row[field].wrap(width=column_widths[field])
-                for i, w in enumerate(wraps):
+                for i, wrap in enumerate(wraps):
                     if i >= len(wrap_rows):
                         wrap_rows.append({})
-                    wrap_rows[i].update({field:w})
+                    wrap_rows[i].update({field: wrap})
 
             for wrap_row in wrap_rows:
                 outfile.write(dt_format_row(
@@ -747,19 +747,19 @@ def dt_calc_table_width(min_widths: Dict[str, int], pad: bool, border: bool,
 
 
 def dt_auto_widths(rows, table_width, min_widths, max_widths):
-    """Calculate an 'optimal' width for each column. 
+    """Calculate an 'optimal' width for each column.
     If the maximum width of the column is less than the table width, use that.
     Otherwise follow the algorithm which finds the column that will benefit
     the most from a single character of width increase. In case of a tie,
     two characters of width are considered, and so on. Remaining extra
-    spaces are distributed amongst the final tied columns. To limit time cost 
+    spaces are distributed amongst the final tied columns. To limit time cost
     make a best guess using 20 random rows.
     """
 
     mxwidth = sum(max_widths.values())
     if mxwidth <= table_width:
         return max_widths
-    
+
     fields = set(min_widths.keys())
 
     mnwidth = sum(min_widths.values())
@@ -779,9 +779,8 @@ def dt_auto_widths(rows, table_width, min_widths, max_widths):
     def calc_wraps(fld_, width_):
         """Calculate the wraps for a given field at the given width."""
         wtot = 0
-        for r in rowbyfield[fld_]:
-            wtot += len(textwrap.wrap(r,width=width_))
-        # return len(textwrap.wrap(row2[fld_],width=width_))
+        for row in rowbyfield[fld_]:
+            wtot += len(textwrap.wrap(row, width=width_))
         return wtot
 
     incr = 1
