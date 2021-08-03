@@ -141,7 +141,7 @@ def get_statuses(pav_cfg, test_ids, errfile=None):
 
     get_this_status = partial(get_status, pav_conf=pav_cfg)
 
-    # The TestRun object cannot be pickled in python < 3.7 because 
+    # The TestRun object cannot be pickled in python < 3.7 because
     # it contains threading which causes parallel execution to fail.
     if sys.version_info.minor > 6:
         ncpu = min(config.NCPU, len(test_ids))
