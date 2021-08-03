@@ -62,7 +62,7 @@ def create_id_dir(id_dir: Path, group: str, umask: int) -> (int, Path):
     :returns: The id and path to the created directory.
     :raises OSError: on directory creation failure.
     :raises TimeoutError: If we couldn't get the lock in time.
-"""
+    """
 
     lockfile_path = id_dir/'.lockfile'
     with lockfile.LockFile(lockfile_path, timeout=1):
@@ -120,9 +120,11 @@ def default_filter(_: Path) -> bool:
 
 Index = NewType("Index", Dict[int, Dict['str', Any]])
 
+
 def identity(value):
     """Because lambdas can't be pickled."""
     return value
+
 
 def index(id_dir: Path, idx_name: str,
           transform: Callable[[Path], Dict[str, Any]],
@@ -260,8 +262,8 @@ SelectItems = NamedTuple("SelectItems", [('data', List[Dict[str, Any]]),
                                          ('paths', List[Path])])
 
 def select_one(path, ffunc, trans, ofunc, fnb):
-    """
-    Allows the objects to be filtered and transformed in parallel with map.
+    """Allows the objects to be filtered and transformed in parallel with map.
+
     :param path: Path to filter and transform (input to reduced function)
     :param ffunc: (filter function) Function that takes a directory, and returns
         whether to include that directory. True -> include, False -> exclude

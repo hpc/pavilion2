@@ -338,9 +338,9 @@ def get_sort_opts(
         stype: str) -> (Callable[[Path], Any], bool):
     """Return a sort function and sort order.
 
-    :param sort_name: The name of the sort, possibly prepended with '-'.
+    :param sort_name: The name of the sort, possibly prepended with -.
     :param stype: TEST or SERIES to select the list of options available
-    for sort_name.
+        for sort_name.
     """
 
     sort_ascending = True
