@@ -243,6 +243,7 @@ def filter_test_run(
     """Determine whether the test run at the given path should be
     included in the set. This function with test_attrs as the sole input is
     returned by make_test_run_filter.
+    
     :param test_attrs: Dict of attributes filtered to determine whether to
     keep or discard test.
     Arguments set by make_test_run_filter.
