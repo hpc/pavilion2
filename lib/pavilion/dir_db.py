@@ -120,9 +120,9 @@ def default_filter(_: Path) -> bool:
 
 Index = NewType("Index", Dict[int, Dict['str', Any]])
 
-def identity(v):
+def identity(value):
     """Because lambdas can't be pickled."""
-    return v
+    return value
 
 def index(id_dir: Path, idx_name: str,
           transform: Callable[[Path], Dict[str, Any]],
@@ -259,11 +259,11 @@ def index(id_dir: Path, idx_name: str,
 SelectItems = NamedTuple("SelectItems", [('data', List[Dict[str, Any]]),
                                          ('paths', List[Path])])
 
-def select_one(path, ff, trans, ofunc, fnb):
+def select_one(path, ffunc, trans, ofunc, fnb):
     """
     Allows the objects to be filtered and transformed in parallel with map.
     :param path: Path to filter and transform (input to reduced function)
-    :param ff: (filter function) Function that takes a directory, and returns
+    :param ffunc: (filter function) Function that takes a directory, and returns
         whether to include that directory. True -> include, False -> exclude
     :param trans: Function to apply to each path before applying filters
         or ordering. The filter and order functions should expect the type
@@ -275,7 +275,8 @@ def select_one(path, ff, trans, ofunc, fnb):
     :returns: A filtered, transformed object.
     """
 
-    if trans is None: trans = identity
+    if trans is None:
+        trans = identity
 
     if not path.is_dir():
         return None
@@ -285,7 +286,7 @@ def select_one(path, ff, trans, ofunc, fnb):
     except ValueError:
         return None
 
-    if not ff(item):
+    if not ffunc(item):
         return None
 
     if ofunc is not None and ofunc(item) is None:
@@ -408,7 +409,8 @@ def select_from(paths: Iterable[Path],
     ncpu = min(config.NCPU, len(paths))
     mp_pool = mp.Pool(processes=ncpu)
 
-    selector = partial(select_one, ff=filter_func, trans=transform, ofunc=order_func, fnb=fn_base)
+    selector = partial(select_one, ffunc=filter_func, trans=transform,
+                                   ofunc=order_func, fnb=fn_base)
 
     selections = mp_pool.map(selector, paths)
     selected = [(item,path) for item, path in zip(selections,paths) if item is not None]

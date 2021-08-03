@@ -235,44 +235,64 @@ def add_series_filter_args(arg_parser: argparse.ArgumentParser,
 
     add_common_filter_args("series", arg_parser, defaults, sort_options)
 
-#  select once so we only make one filter.
-def filter_test_run(test_attrs, cmp, fail, incmp, nm, nt, ot, pss, rslte, ss, sn, usr):
+
+def filter_test_run(
+        test_attrs: Dict, complete: bool, failed: bool, incomplete: bool,
+        name: str, newer_than: float, older_than: float, passed: bool,
+        result_error: bool, show_skipped: bool, sys_name: str, user: str):
     """Determine whether the test run at the given path should be
-    included in the set."""
+    included in the set. This function with test_attrs as the sole input is
+    returned by make_test_run_filter.
+    :param test_attrs: Dict of attributes filtered to determine whether to
+    keep or discard test.
+    Arguments set by make_test_run_filter.
+    :param complete: Only accept complete tests
+    :param failed: Only accept failed tests
+    :param incomplete: Only accept incomplete tests
+    :param name: Only accept names that match this glob.
+    :param newer_than: Only accept tests that are more recent than this date.
+    :param older_than: Only accept tests older than this date.
+    :param passed: Only accept passed tests
+    :param result_error: Only accept tests with a result error.
+    :param show_skipped: Accept skipped tests.
+    :param sys_name: Only accept tests with a matching sys_name.
+    :param user: Only accept tests started by this user.
+    :return:
+    """
 
-    if ss == 'no' and test_attrs.get('skipped'):
+    if show_skipped == 'no' and test_attrs.get('skipped'):
         return False
-    elif ss == 'only' and not test_attrs.get('skipped'):
-        return False
-
-    if cmp and not test_attrs.get('complete'):
-        return False
-
-    if incmp and test_attrs.get('complete'):
-        return False
-
-    if usr and test_attrs.get('user') != usr:
-        return False
-
-    if sn and sn != test_attrs.get('sys_name'):
-        return False
-
-    if pss and test_attrs.get('result') != TestRun.PASS:
-        return False
-
-    if fail and test_attrs.get('result') != TestRun.FAIL:
-        return False
-
-    if rslte and test_attrs.get('result') != TestRun.ERROR:
+    elif show_skipped == 'only' and not test_attrs.get('skipped'):
         return False
 
-    if ot is not None and test_attrs.get('created') > ot:
+    if complete and not test_attrs.get('complete'):
         return False
 
-    if nt is not None and test_attrs.get('created') < nt:
+    if incomplete and test_attrs.get('complete'):
         return False
 
-    if nm and not fnmatch.fnmatch(test_attrs.get('name'), nm):
+    if user and test_attrs.get('user') != user:
+        return False
+
+    if sys_name and test_attrs.get('sys_name') != sys_name:
+        return False
+
+    if passed and test_attrs.get('result') != TestRun.PASS:
+        return False
+
+    if failed and test_attrs.get('result') != TestRun.FAIL:
+        return False
+
+    if result_error and test_attrs.get('result') != TestRun.ERROR:
+        return False
+
+    if older_than is not None and test_attrs.get('created') > newer_than:
+        return False
+
+    if newer_than is not None and test_attrs.get('created') < newer_than:
+        return False
+
+    if name and not fnmatch.fnmatch(test_attrs.get('name'), name):
         return False
 
     return True
@@ -306,19 +326,17 @@ def make_test_run_filter(
         sys_vars = system_variables.get_vars(defer=True)
         sys_name = sys_vars['sys_name']
 
-    # cmp, fail, incmp, nm, nt, ot, pss, rslte, ss, sn, usr
+    filter_func = partial(filter_test_run, complete=complete, failed=failed, incomplete=incomplete,
+                  name=name, newer_than=newer_than, older_than=older_than, passed=passed,
+                  rslte=result_error, show_skipped=show_skipped, sys_name=sys_name, user=user)
 
-    ftr = partial(filter_test_run, cmp=complete, fail=failed, incmp=incomplete,
-                  nm=name, nt=newer_than, ot=older_than, pss=passed, rslte=result_error,
-                  ss=show_skipped, sn=sys_name, usr=user)
-
-    return ftr
+    return filter_func
 
 
 def get_sort_opts(
         sort_name: str,
         stype: str) -> (Callable[[Path], Any], bool):
-    """Return a sort function and the sort order.
+    """Return a sort function and sort order.
 
     :param sort_name: The name of the sort, possibly prepended with '-'.
     :param stype: TEST or SERIES to select the list of options available
@@ -329,7 +347,7 @@ def get_sort_opts(
     if sort_name.startswith('-'):
         sort_ascending = False
         sort_name = sort_name[1:]
-    
+
     sortf = partial(sort_func, choice=sort_name, sort_type=stype)
 
     return sortf, sort_ascending
