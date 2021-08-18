@@ -38,8 +38,8 @@ def get_result(test_id, pav_conf):
 
     except (TestRunError, TestRunNotFoundError) as err:
         test = {'id': test_id}
-        for k in BASE_FIELDS[1:]:
-            test[k] = None
+        for field in BASE_FIELDS[1:]:
+            test[field] = None
 
         test['result'] = "Test not found: {}".format(err)
 
