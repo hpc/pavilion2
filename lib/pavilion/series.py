@@ -308,7 +308,7 @@ differentiate it from test ids."""
                 "The following sub-series have circular sub-series dependencies:\n{}"
                 .format('\n'.join([ts.name for ts in test_sets])))
 
-    def reset(self):
+    def reset_test_sets(self):
         """Reset the series test sets, typically so that the series can be repeated.
         This does not preserve any manually added tests sets."""
 
@@ -326,7 +326,7 @@ differentiate it from test ids."""
                 test_obj.set_run_complete()
 
     def run(self, build_only: bool = False, rebuild: bool = False,
-            verbosity: int = 0, outfile: TextIO = None):
+            verbosity: int = 0, outfile: TextIO = None, wait=True):
         """Build and kickoff all of the test sets in the series.
 
         :param build_only: Only build the tests, do not run them.
@@ -345,6 +345,8 @@ differentiate it from test ids."""
 
         # The names of all test sets that have completed.
         complete = set()  # type: Set[str]
+
+        repeat = self.repeat
 
         simultaneous = self.config['simultaneous']
         if simultaneous == 0:
@@ -396,10 +398,23 @@ differentiate it from test ids."""
                         raise TestSeriesError(
                             "Error in series '{}': {}".format(self.sid, err.args[0]))
 
-                    test_start_count = test_set.wait(simultaneous)
+                    # If there's any sort of limit to the number of simultanious tests
+                    # then wait for each test set to complete before starting the
+                    # next.
+                    if simultaneous is not None:
+                        test_start_count = test_set.wait(simultaneous)
 
             for test_set in sets_to_run:
                 potential_sets.remove(test_set)
+
+            repeat -= 1
+
+            if not potential_sets and repeat:
+                # If we're repeating multiple times, reset the test sets for the series
+                # and recreate them to run again.
+                self.reset_test_sets()
+                self.create_test_sets()
+                potential_sets = self.test_sets.values()
 
     def wait(self, timeout=None):
         """Wait for the series to be complete or the timeout to expire. """
