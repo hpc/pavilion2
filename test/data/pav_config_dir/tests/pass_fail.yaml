@@ -1,0 +1,13 @@
+# A test that just passes
+pass:
+  run:
+    cmds:
+      - "echo pass"
+      - true
+
+fail:
+  run:
+    cmds:
+      - "echo pass"
+      - false
+

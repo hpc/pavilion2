@@ -107,20 +107,26 @@ def load_series_configs(pav_cfg, series_name: str, cl_modes: List[str],
 
 
 def generate_series_config(
-        tests: List[str], modes: List[str], host: str) -> dict:
-    """Generates series config from test names, host, & modes. """
+        host: str = None,
+        modes: List[str] = None,
+        ordered: bool = None,
+        overrides: List[str] = None,
+        repeat: int = None,
+        simultaneous: int = None,
+    ) -> dict:
+    """Generates series config given global series settings. To add test sets,
+    create a series with this config and use the add_test_set_config() method."""
 
     series_cfg = SeriesConfigLoader().load_empty()
 
-    series_cfg['modes'] = modes
+    series_cfg['modes'] = modes or []
     series_cfg['host'] = host
-
-    series_cfg['series']['only_set'] = {
-        'tests': tests,
-        'modes': [],
-        'depends_on': [],
-        'only_if': {},
-        'not_if': {}
-    }
+    series_cfg['ordered'] = ordered
+    if repeat is not None:
+        series_cfg['repeat'] = repeat
+    if simultaneous is not None:
+        series_cfg['simultaneous'] = simultaneous
+    if overrides is not None:
+        series_cfg['overrides'] = overrides
 
     return series_cfg

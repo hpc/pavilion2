@@ -28,19 +28,18 @@ class SeriesConfigLoader(yc.YamlConfigLoader):
                         'not_if', sub_elem=yc.ListElem(sub_elem=yc.StrElem()),
                         key_case=EnvCatElem.KC_MIXED
                     ),
-                    yc.ListElem(
-                        'overrides', sub_elem=yc.StrElem(), hidden=True,
-                        help_text="Command line overrides to apply to this"
-                                  "sub series (test set). This is only used when "
-                                  "ad-hoc series are created from the command line."
-                    ),
-                    yc.StrElem(
-                        'host', hidden=True,
-                        help_text="The host this series will be run on. This is not "
-                                  "configured, but dynamically added to the config."
-                    ),
                 ]
             ),
+        ),
+        yc.StrElem(
+            'host', hidden=True,
+            help_text="The host this series will be run on. This is not "
+                      "configured, but dynamically added to the config."
+        ),
+        yc.ListElem(
+            'overrides', sub_elem=yc.StrElem(), hidden=True,
+            help_text="Command line overrides to apply to this series. This is only "
+                      "used when ad-hoc series are created from the command line."
         ),
         yc.ListElem(
             'modes', sub_elem=yc.StrElem()

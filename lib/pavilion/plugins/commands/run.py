@@ -7,6 +7,7 @@ from pavilion import commands
 from pavilion import output
 from pavilion import schedulers
 from pavilion import series
+from pavilion.series_config import generate_series_config
 from pavilion.series import TestSeries
 from pavilion.status_utils import print_from_tests
 from pavilion.test_run import TestRun
@@ -35,13 +36,6 @@ class RunCommand(commands.Command):
 
         self._generic_arguments(parser)
 
-        parser.add_argument(
-            '-w', '--wait', action='store', type=int, default=None,
-            help='Wait this many seconds to make sure at least one test '
-                 'started before returning. If a test hasn\'t started by '
-                 'then, cancel all tests and return a failure. Defaults to'
-                 'not checking tests before returning.'
-        )
         parser.add_argument(
             '-f', '--file', dest='files', action='append', default=[],
             help='One or more files to read to get the list of tests to run. '
@@ -126,28 +120,24 @@ class RunCommand(commands.Command):
         # Note: We have to get a few arguments this way because this code
         # is reused between the build and run commands, and the don't quite have the
         # same arguments.
-        series_config = series.SeriesConfigLoader().load_empty()
-        series_config['repeat'] = args.repeat
+        series_cfg = generate_series_config(
+            modes=args.modes,
+            host=args.host,
+            repeat=getattr(args, 'repeat', None),
+            overrides=args.overrides,
+        )
 
-        repeat = getattr(args, 'repeat', 1)
-
+        # Todo: Figure out what to do with this...
         local_builds_only = getattr(args, 'local_builds_only', False)
-        wait = getattr(args, 'wait', None)
         report_status = getattr(args, 'status', False)
 
-        # create series config
-        series_cfg = series_config.generate_series_config(args.tests,
-                                                          args.modes,
-                                                          args.host)
-
         # create brand-new series object
-        series_obj = TestSeries(pav_cfg,
-                                series_config=series_cfg,
-                                overrides=args.overrides)
+        series_obj = TestSeries(pav_cfg, config=series_cfg)
 
         series_obj.add_test_set_config(
-            'cmd_line', args.tests, modes=args.modes, host=args.host,
-            overrides=args.overrides,
+            'cmd_line',
+            args.tests,
+            modes=args.modes,
         )
 
         try:

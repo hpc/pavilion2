@@ -54,7 +54,7 @@ class RunSeries(commands.Command):
 
         # create brand-new series object
         try:
-            series_obj = series.TestSeries(pav_cfg, series_config=series_cfg)
+            series_obj = series.TestSeries(pav_cfg, config=series_cfg)
         except series.TestSeriesError as err:
             output.fprint(
                 "Error creating test series '{}': {}"

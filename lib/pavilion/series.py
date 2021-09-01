@@ -1,4 +1,5 @@
-"""Series are a collection of test runs."""
+"""Series are built around a config that specifies a 'series' of tests to run. It
+also tracks the tests that have run under it."""
 
 import json
 import logging
@@ -30,44 +31,39 @@ class TestSeries:
     """Series are a well defined collection of tests, potentially with
     relationships, skip conditions, and other features by test set. The test runs
     in a series include all tests that have been created for that series, but not
-    necessarily all tests that will be created. These are often organized into
-    TestSets while being manipulated, but generally simply stored as a symlink to the
-    test run directory between Pavilion instantiations."""
+    necessarily all tests that will be created. These are organized into 'TestSets'
+    while being manipulated. A series is complete when all test sets have run under
+    the series as specified by its config, or when an error occurs. Series are
+    identified by a 'sid', which takes the form 's<id_num>'."""
 
     LOGGER_FMT = 'series({})'
-    SERIES_COMPLETE_FN = 'SERIES_COMPLETE'
-    SERIES_PGID_FN = 'series.pgid'
-    SERIES_OUT_FN = 'series.out'
+    COMPLETE_FN = 'SERIES_COMPLETE'
+    PGID_FN = 'series.pgid'
+    OUT_FN = 'series.out'
     CONFIG_FN = 'config'
     DEPENDENCY_FN = 'dependency'
 
-    def __init__(self, pav_cfg, _id=None,
-                 series_config=None, dep_graph=None, overrides=None):
+    def __init__(self, pav_cfg, config, _id=None):
         """Initialize the series. Test sets may be added via 'add_tests()'.
 
         :param pav_cfg: The pavilion configuration object.
+        :param config: Series config, if generated from a series file.
         :param _id: The test id number. If this is given, it implies that
             we're regenerating this series from saved files.
-        :param series_config: Series config, if generated from a series file.
-        :param dep_graph: The saved dependency graph (when loading).
         """
 
         self.pav_cfg = pav_cfg
         self.tests = {}  # type: Dict[Tuple[Path, int], TestRun]
-        self.config = series_config or SeriesConfigLoader().load_empty()
-        if not dep_graph:
-            self.dep_graph = {}
-        else:
-            self.dep_graph = dep_graph
-        self.test_sets = {}  # type: Dict[str, TestSet]
-        self.overrides = overrides
+        self.config = config or SeriesConfigLoader().load_empty()
 
         series_path = self.pav_cfg.working_dir/'series'
 
-        self.simultaneous = series_config['simultaneous']
-        self.repeat = series_config['repeat']
+        self.simultaneous = config['simultaneous']
+        self.repeat = config['repeat']
 
         self._pgid = None
+
+        self.test_sets = {}
 
         # We're creating this series from scratch.
         if _id is None:
@@ -99,7 +95,7 @@ class TestSeries:
         # start subprocess
         temp_args = ['pav', '_series', self.sid]
         try:
-            series_out_path = self.path/self.SERIES_OUT_FN
+            series_out_path = self.path/self.OUT_FN
             with series_out_path.open('w') as series_out:
                 series_proc = subprocess.Popen(temp_args,
                                                stdout=series_out,
@@ -111,7 +107,7 @@ class TestSeries:
 
         # write pgid to a file (atomically)
         series_pgid = os.getpgid(series_proc.pid)
-        series_pgid_path = self.path/self.SERIES_PGID_FN
+        series_pgid_path = self.path/self.PGID_FN
         try:
             series_pgid_tmp = series_pgid_path.with_suffix('.tmp')
             with series_pgid_tmp.open('w') as series_id_file:
@@ -195,8 +191,8 @@ differentiate it from test ids."""
             try:
                 test_id = int(path.name)
             except ValueError:
-                series_info_files = [cls.SERIES_OUT_FN,
-                                     cls.SERIES_PGID_FN,
+                series_info_files = [cls.OUT_FN,
+                                     cls.PGID_FN,
                                      cls.CONFIG_FN,
                                      cls.DEPENDENCY_FN]
                 if path.name not in series_info_files:
@@ -229,7 +225,7 @@ differentiate it from test ids."""
             raise TestSeriesError("Could not load config file for test series '{}': {}"
                                   .format(sid, err.args[0]))
 
-        return cls(pav_cfg, _id=series_id, series_config=config)
+        return cls(pav_cfg, _id=series_id, config=config)
 
     def create_test_sets(self):
         """Create test sets from the config, and set up their dependency
@@ -250,7 +246,8 @@ differentiate it from test ids."""
                 host=self.config['host'],
                 only_if=set_info['only_if'],
                 not_if=set_info['not_if'],
-                parents_must_pass=set_info['depends_pass']
+                parents_must_pass=set_info['depends_pass'],
+                overrides=self.config['overrides'],
             )
             self._add_test_set(set_obj)
 
@@ -260,21 +257,12 @@ differentiate it from test ids."""
 
         for set_name, test_set in self.test_sets.items():
             test_set = self.test_sets[set_name]
-            parents = []
             for parent in depends_on[set_name]:
                 if parent not in self.test_sets:
                     raise TestSeriesError(
                         "Test sub-series '{}' depends on '{}', but no such sub-series "
                         "exists.".format(set_name, parent))
-                parents.append(self.test_sets[parent])
-
-            children = []
-            for child in depended_on_by[set_name]:
-                # Children test sets are guaranteed to exist and missing ones are
-                # detected when looking for parents
-                children.append(self.test_sets[child])
-
-            test_set.set_dependencies(parents, children)
+                test_set.add_parent(self.test_sets[parent])
 
         # If tests are implicitly ordered within sets, split each test set
         # into a set for each given test name.
@@ -293,8 +281,8 @@ differentiate it from test ids."""
         while found_root and test_sets:
             found_root = False
             for test_set in list(test_sets):
-                for pset in test_set.parent_sets:
-                    if pset.name not in non_circular:
+                for parent_set in test_set.parent_sets:
+                    if parent_set.name not in non_circular:
                         break
                 else:
                     # Only do this if all of the parent sets are non_circular,
@@ -326,7 +314,7 @@ differentiate it from test ids."""
                 test_obj.set_run_complete()
 
     def run(self, build_only: bool = False, rebuild: bool = False,
-            verbosity: int = 0, outfile: TextIO = None, wait=True):
+            verbosity: int = 0, outfile: TextIO = None):
         """Build and kickoff all of the test sets in the series.
 
         :param build_only: Only build the tests, do not run them.
@@ -369,12 +357,16 @@ differentiate it from test ids."""
 
                 # Make sure it's ok to run this test set based on parent status.
                 if not test_set.should_run():
+                    output.fprint(
+                        "Skipping test set '{}' due to parents not passing."
+                        .format(test_set.name), file=outfile)
                     continue
 
                 # Create the test objects
                 try:
                     test_set.make(build_only, rebuild, outfile=outfile)
                 except TestSetError as err:
+                    self.set_complete()
                     raise TestSeriesError(
                         "Error making tests for series '{}': {}"
                         .format(self.sid, err.args[0]))
@@ -386,6 +378,7 @@ differentiate it from test ids."""
                 try:
                     test_set.build(verbosity=verbosity, outfile=outfile)
                 except TestSetError as err:
+                    self.set_complete()
                     raise TestSeriesError(
                         "Error building tests for series '{}': {}"
                         .format(self.sid, err.args[0]))
@@ -395,10 +388,11 @@ differentiate it from test ids."""
                     try:
                         test_set.kickoff(test_start_count)
                     except TestSetError as err:
+                        self.set_complete()
                         raise TestSeriesError(
                             "Error in series '{}': {}".format(self.sid, err.args[0]))
 
-                    # If there's any sort of limit to the number of simultanious tests
+                    # If there's any sort of limit to the number of simultaneous tests
                     # then wait for each test set to complete before starting the
                     # next.
                     if simultaneous is not None:
@@ -421,18 +415,36 @@ differentiate it from test ids."""
 
         end = time.time() + timeout
         while time.time() < end:
-            if (self.path/self.SERIES_COMPLETE_FN).exists():
+            if self.complete:
                 return
-            time.sleep(0.1)
+            time.sleep(min(1, timeout or 1))
 
         raise TimeoutError("Series {} did not complete before timeout."
                            .format(self._id))
 
-    def set_series_complete(self):
+    @property
+    def complete(self) -> bool:
+        """Check if every test in the series has completed. A series is incomplete if
+        no tests have been created."""
+
+        if (self.path/self.COMPLETE_FN).exists():
+            return True
+        else:
+            if not self.tests:
+                return False
+
+            for test in self.tests.values():
+                if not test.complete:
+                    return False
+
+            self.set_complete()
+            return True
+
+    def set_complete(self):
         """Write a file in the series directory that indicates that the series
         has finished."""
 
-        series_complete_path = self.path/self.SERIES_COMPLETE_FN
+        series_complete_path = self.path/self.COMPLETE_FN
         series_complete_path_tmp = series_complete_path.with_suffix('.tmp')
         with series_complete_path_tmp.open('w') as series_complete:
             json.dump({'complete': time.time()}, series_complete)
@@ -445,7 +457,7 @@ differentiate it from test ids."""
 
         if self._pgid is None:
 
-            pgid_path = self.path/self.SERIES_PGID_FN
+            pgid_path = self.path/self.PGID_FN
 
             if not pgid_path.exists():
                 return None
@@ -462,11 +474,25 @@ differentiate it from test ids."""
 
         return self._pgid
 
-    def add_test_set_config(self, name, test_names: List[str], modes: List[str] = None,
-                            host: str = None, overrides: List[str] = None):
+    def add_test_set_config(
+            self, name, test_names: List[str], modes: List[str] = None,
+            only_if: Dict[str, List[str]] = None,
+            not_if: Dict[str, List[str]] = None,
+            _depends_on: List[str] = None, _depends_pass: bool = False):
         """Manually add a test set to this series. The set will be added to the
         series config, and created when we create all sets for the series. After
-        adding all set configs, call save_series_config to update the saved config."""
+        adding all set configs, call save_series_config to update the saved config.
+
+        :param name: The name of the test set.
+        :param test_names: A list of test names (suite.name or name)
+        :param modes: A List of modes to add.
+        :param only_if: Only if conditions
+        :param not_if:  Not if conditions
+        :param _depends_on: A list of test names that this test depends on. For
+            unit testing only.
+        :param _depends_pass: Whether running this test set depends on it's parents
+            passing. For unit testing only.
+        """
 
         if name in self.config['series']:
             raise TestSeriesError("A test set called '{}' already exists in series {}"
@@ -474,13 +500,11 @@ differentiate it from test ids."""
 
         self.config['series'][name] = {
             'tests': test_names,
-            'depends_pass': False,
-            'depends_on': [],
+            'depends_pass': _depends_pass,
+            'depends_on': _depends_on or [],
             'modes': modes or [],
-            'host': host,
-            'only_if': [],
-            'not_if': [],
-            'overrides': overrides,
+            'only_if': only_if or {},
+            'not_if': not_if or {},
         }
 
     def _add_test_set(self, test_set):

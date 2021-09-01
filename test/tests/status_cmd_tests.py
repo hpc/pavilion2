@@ -90,7 +90,7 @@ class StatusCmdTests(PavTestCase):
             test.RUN_SILENT_TIMEOUT = 1
 
         # Make sure this doesn't explode
-        suite = TestSeries(self.pav_cfg, tests)
+        suite = TestSeries(self.pav_cfg, None, tests)
         test_str = " ".join([test.full_id for test in suite.tests.values()])
 
         status_cmd = commands.get_command('status')

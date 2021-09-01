@@ -4,6 +4,7 @@ from datetime import datetime
 
 import pavilion.series_util
 from pavilion import arguments
+from pavilion import series_config
 from pavilion import commands
 from pavilion import plugins
 from pavilion import series
@@ -32,7 +33,7 @@ class SeriesFileTests(PavTestCase):
     def test_series_simultaneous(self):
         """Tests to see if simultaneous: <num> works as intended. """
 
-        series_config = {
+        series_cfg = {
             'series':
                             {'only_set':
                                  {'modes':      [],
@@ -48,8 +49,7 @@ class SeriesFileTests(PavTestCase):
             'host':         None
         }
 
-        test_series_obj = series.TestSeries(self.pav_cfg,
-                                            series_config=series_config)
+        test_series_obj = series.TestSeries(self.pav_cfg, config=series_cfg)
 
         test_series_obj.create_test_sets()
 
@@ -71,7 +71,7 @@ class SeriesFileTests(PavTestCase):
     def test_series_modes(self):
         """Test if modes and host are applied correctly."""
 
-        series_config = {
+        series_cfg = {
             'series':
                             {'only_set':
                                  {'modes':      ['smode1'],
@@ -89,9 +89,7 @@ class SeriesFileTests(PavTestCase):
 
         outfile = io.StringIO()
 
-        test_series_obj = series.TestSeries(self.pav_cfg,
-                                            series_config=series_config,
-                                            outfile=outfile, errfile=outfile)
+        test_series_obj = series.TestSeries(self.pav_cfg, config=series_cfg)
 
         test_series_obj.create_test_sets()
 
@@ -114,7 +112,7 @@ class SeriesFileTests(PavTestCase):
     def test_series_depends(self):
         """Tests if dependencies work as intended."""
 
-        series_config = {
+        cfg = {
             'series':
                             {'set_d':
                                  {'modes':        [],
@@ -139,9 +137,7 @@ class SeriesFileTests(PavTestCase):
         }
 
         outfile = io.StringIO()
-        test_series_obj = series.TestSeries(self.pav_cfg,
-                                            series_config=series_config,
-                                            outfile=outfile, errfile=outfile)
+        test_series_obj = series.TestSeries(self.pav_cfg, config=cfg)
 
         test_series_obj.create_dependency_graph()
 
@@ -195,6 +191,8 @@ class SeriesFileTests(PavTestCase):
                 "bob": ["suzy"]
             })
 
+        print('hrr')
+
         for test_id, test_obj in test_series_obj.tests.items():
             if 'always' in test_obj.name:
                 self.assertEqual(test_obj.results['result'], 'PASS')
@@ -219,35 +217,26 @@ class SeriesFileTests(PavTestCase):
         """Setup everything for the conditionals test, and return the
         completed test series object."""
 
-        only_if = only_if or {}
-        not_if = not_if or {}
+        series_cfg = series_config.generate_series_config(
+            modes=['smode2'],
+        )
 
-        series_config = {
-            'series':
-                {'only_set':
-                    {'modes':      ['smode1'],
-                     'depends_on': [],
-                     'tests':      [
-                         'conditional'
-                     ],
-                     'only_if':    only_if,
-                     'not_if':     not_if}
-                 },
-            'modes':        ['smode2'],
-            'simultaneous': None,
-            'ordered':      False,
-            'restart':      False,
-            'host':         None
-        }
+        print('merr')
+        series_obj = series.TestSeries(self.pav_cfg, config=series_cfg)
+        print('hmm')
+        series_obj.add_test_set_config(
+            name='test',
+            test_names=['conditional'],
+            modes=['smode1'],
+            only_if=only_if,
+            not_if=not_if,
+        )
+        print('foo!')
 
-        outfile = io.StringIO()
+        import sys
+        series_obj.run(outfile=sys.stdout)
+        print('post run')
+        series_obj.wait(timeout=3)
+        print('wait')
 
-        test_series_obj = series.TestSeries(
-            self.pav_cfg, series_config=series_config,
-            outfile=outfile, errfile=outfile)
-
-        test_series_obj.create_test_sets()
-        test_series_obj.run()
-        test_series_obj.wait(timeout=3)
-
-        return test_series_obj
+        return series_obj

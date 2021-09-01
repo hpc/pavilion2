@@ -223,7 +223,7 @@ class TestRunTests(PavTestCase):
             tests.append(test)
 
         # Make sure this doesn't explode
-        series = TestSeries(self.pav_cfg, tests)
+        series = TestSeries(self.pav_cfg, None, tests)
 
         # Make sure we got all the tests
         self.assertEqual(len(series.tests), 3)

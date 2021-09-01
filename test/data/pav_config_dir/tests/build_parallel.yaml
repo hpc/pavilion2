@@ -28,3 +28,7 @@ nodes2:
     variables:
         build_num: 2-r
     inherits_from: nodes1
+
+skipped:
+  only_if:
+    "this" : ["nope"]

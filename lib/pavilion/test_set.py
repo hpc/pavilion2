@@ -2,15 +2,14 @@
 into a set of ready to run tests. They are ephemeral, and are not tracked between
 Pavilion runs."""
 
-import errno
 import logging
 import threading
 import time
 from collections import defaultdict
 from io import StringIO
-from typing import List, Dict, TextIO, Union
+from typing import List, Dict, TextIO, Union, Set
 
-from pavilion import commands, test_config, output, result, schedulers
+from pavilion import test_config, output, result, schedulers
 from pavilion.build_tracker import MultiBuildTracker
 from pavilion.status_file import STATES
 from pavilion.test_config import TestConfigError
@@ -60,15 +59,15 @@ class TestSet:
 
         self.name = name
 
-        self.modes = modes
+        self.modes = modes or []
         self.host = host
-        self.only_if = only_if
-        self.not_if = not_if
+        self.only_if = only_if or {}
+        self.not_if = not_if or {}
         self.pav_cfg = pav_cfg
-        self.overrides = overrides
+        self.overrides = overrides or []
 
-        self.parent_sets = []  # type: List[TestSet]
-        self.child_sets = []  # type: List[TestSet]
+        self.parent_sets = set()  # type: Set[TestSet]
+        self.child_sets = set()  # type: Set[TestSet]
         self.parents_must_pass = parents_must_pass
 
         self.logger = logging.getLogger(name)
@@ -82,12 +81,24 @@ class TestSet:
         self._test_names = test_names
         self.mb_tracker = MultiBuildTracker()
 
-    def set_dependencies(self, parents: List['TestSet'], children: List['TestSet']):
-        """Set the dependent test sets and properties for this test set, as they're
-        not known at instantiation time."""
+    def add_parent(self, parent: 'TestSet'):
+        """Add the given TestSet as a parent to this one."""
 
-        self.parent_sets = parents
-        self.child_sets = children
+        self.parent_sets.add(parent)
+        parent.child_sets.add(self)
+
+    def remove_parent(self, parent: 'TestSet'):
+        """Remove the given parent from this test set."""
+
+        try:
+            self.parent_sets.remove(parent)
+        except KeyError:
+            pass
+
+        try:
+            parent.child_sets.remove(self)
+        except KeyError:
+            pass
 
     def ordered_split(self) -> List['TestSet']:
         """Split this TestSet into multiple test sets, such that each set depends on
@@ -119,28 +130,22 @@ class TestSet:
         # Modify this test set so that it only includes the last test name,
         # and add it to our list.
         self.name = "{}.{}".format(self.name, len(self._test_names))
-        self._test_names = self._test_names[-1]
+        self._test_names = [self._test_names[-1]]
         test_sets.append(self)
+
+        orig_parents = self.parent_sets.copy()
 
         # Adjust the parents of each test set (except the first) to include the
         # previous test in the list.
         for i in range(1, len(test_sets)):
-            test_sets[i].parent_sets = [test_sets[i-1]]
+            test_sets[i].add_parent(test_sets[i-1])
             # Only the first set should depend on prior sets passing.
             test_sets[i].parents_must_pass = False
 
-        # Adjust the children to only be the next in the list (except for the final
-        # test set).
-        for i in range(len(test_sets) - 1):
-            test_sets[i].child_sets = test_sets[i+1]
-
-        # Since we repurposed this test set object as the final test set, all other
-        # test sets that depended on it will now depend on the final set in this chain.
-        # Similarly, whatever this originally depended on will only be depended on
-        # by the first set in this chain. We do have to adjust their children, however:
-        for parent_set in test_sets[0].parent_sets:
-            parent_set.child_sets.remove(test_sets[-1])
-            parent_set.child_sets.append(test_sets[0])
+        # Point the original parents at the new first test set.
+        for parent in orig_parents:
+            test_sets[0].add_parent(parent)
+            test_sets[-1].remove_parent(parent)
 
         return test_sets
 
@@ -202,7 +207,7 @@ class TestSet:
     BUILD_STATUS_PREAMBLE = '{when:20s} {test_id:6} {state:{state_len}s}'
     BUILD_SLEEP_TIME = 0.1
 
-    def build(self, verbosity=0, outfile: TextIO = None):
+    def build(self, verbosity=0, outfile: TextIO = StringIO()):
         """Build all the tests in this Test Set in parallel. This handles user output
         during the build process.
 
@@ -214,18 +219,28 @@ class TestSet:
         :return:
         """
 
+        if self.tests is None:
+            raise RuntimeError("You must run TestSet.make() on the test set before"
+                               "it can be built.")
+
+        output.fprint("Building {} tests for test set {}."
+                      .format(len(self.tests), self.name), file=outfile)
+
         outfile = outfile or StringIO()
 
-        tests_to_build = filter(lambda t: t.build_local and not t.skipped, self.tests)
+        local_builds = list(filter(
+            lambda t: t.build_local and not t.skipped, self.tests))
+        remote_builds = list(filter(
+            lambda t: not t.build_local and not t.skipped, self.tests))
         test_threads = []  # type: List[Union[threading.Thread, None]]
 
         cancel_event = threading.Event()
 
         # Generate new build names for each test that is rebuilding.
-        # We do this here, even for non_local tests, because otherwise the
-        # non-local tests can't tell what was built fresh either on a
+        # We do this here, even for non_local builds, because otherwise the
+        # non-local builds can't tell what was built fresh either on a
         # front-end or by other tests rebuilding on nodes.
-        for test in tests_to_build:
+        for test in local_builds + remote_builds:
             if test.rebuild and test.builder.exists():
                 test.builder.deprecate()
                 test.builder.rename_build()
@@ -240,7 +255,7 @@ class TestSet:
         # If we've seen a build name, the build can go later.
         seen_build_names = set()
 
-        for test in tests_to_build:
+        for test in local_builds:
             # Don't try to build tests that are skipped
 
             if test.builder.name not in seen_build_names:
@@ -251,7 +266,7 @@ class TestSet:
 
         # Keep track of what the last message printed per build was.
         # This is for double build verbosity.
-        message_counts = {test.full_id: 0 for test in tests_to_build}
+        message_counts = {test.full_id: 0 for test in local_builds}
 
         # Used to track which threads are for which tests.
         test_by_threads = {}
@@ -270,7 +285,7 @@ class TestSet:
         # are aborted.
         while build_order or test_threads:
             # Start a new thread if we haven't hit our limit.
-            if build_order and builds_running < self.pav_cfg.max_threads:
+            if build_order and builds_running < self.pav_cfg.build_threads:
                 test = build_order.pop()
 
                 test_thread = threading.Thread(
@@ -309,7 +324,7 @@ class TestSet:
                 for thread in test_threads:
                     thread.join()
 
-                for test in tests_to_build:
+                for test in local_builds:
                     if (test.status.current().state not in
                             (STATES.BUILD_FAILED, STATES.BUILD_ERROR)):
                         test.status.set(
@@ -356,8 +371,8 @@ class TestSet:
                 output.fprint(line, end='\r', file=outfile, width=None,
                               clear=True)
             elif verbosity > 1:
-                for test in tests_to_build:
-                    seen = message_counts[test.id]
+                for test in local_builds:
+                    seen = message_counts[test.full_id]
                     msgs = self.mb_tracker.messages[test.builder][seen:]
                     for when, state, msg in msgs:
                         when = output.get_relative_timestamp(when)
@@ -368,7 +383,7 @@ class TestSet:
 
                         output.fprint(preamble, msg, wrap_indent=len(preamble),
                                       file=outfile, width=None)
-                    message_counts[test.id] += len(msgs)
+                    message_counts[test.full_id] += len(msgs)
 
             time.sleep(self.BUILD_SLEEP_TIME)
 
@@ -376,7 +391,7 @@ class TestSet:
             # Print a newline after our last status update.
             output.fprint(width=None, file=outfile)
 
-        self.built_tests = tests_to_build
+        self.built_tests = local_builds
         self.ready_to_start_tests = defaultdict(lambda: [])
         for test in self.tests:
             if not test.build_only and not test.skipped:
@@ -402,14 +417,16 @@ class TestSet:
 
         ready_tests = self.ready_to_start_tests
 
+        self.started_tests = []
+        self.completed_tests = []
+
         if start_max is None:
             start_max = ready_count
 
-        scheds = {}
-
         start_count = 0
-        while start_max > 0:
-            for sched_name, scheduler in scheds.items():
+        while start_max > 0 and ready_tests.keys():
+            for sched_name in list(ready_tests.keys()):
+                scheduler = schedulers.get_plugin(sched_name)
                 tests = []
                 while len(tests) < start_max and ready_tests[sched_name]:
                     tests.append(ready_tests[sched_name].pop(0))
@@ -456,7 +473,6 @@ class TestSet:
         :param outfile: Where to send user output.
         """
 
-
     def check_result_format(self, tests: List[TestRun]):
         """Make sure the result parsers for each test are ok."""
 
@@ -492,6 +508,9 @@ class TestSet:
 
         marked = 0
 
+        if self.started_tests is None:
+            return 0
+
         for test in list(self.started_tests):
             if test.check_run_complete():
                 self.started_tests.remove(test)
@@ -500,13 +519,14 @@ class TestSet:
 
         return marked
 
-    TEST_WAIT_PERIOD = 1
+    TEST_WAIT_PERIOD = 0.5
 
-    def wait(self, wait_for_all=False) -> int:
+    def wait(self, wait_for_all=False, wait_period: int = TEST_WAIT_PERIOD) -> int:
         """Wait for tests to complete. Returns the number of tests that completed
         when one or more tests have completed.
 
-        :param wait_for_all: Wait for all tests to complete before returning.
+        :param wait_for_all: Wait for all started tests to complete before returning.
+        :param wait_period: How long to sleep between test status checks.
         :return: The number of tests that completed.
         """
 
@@ -518,7 +538,7 @@ class TestSet:
 
         while ((wait_for_all and self.started_tests) or
                (not wait_for_all and marked)):
-            time.sleep(self.TEST_WAIT_PERIOD)
+            time.sleep(wait_period)
             marked += self.mark_completed()
 
         return marked
@@ -567,3 +587,7 @@ class TestSet:
                 return False
 
         return True
+
+    def __repr__(self):
+        return "<TestSet {} {}>"\
+               .format(self.name, ", ".join(self._test_names))

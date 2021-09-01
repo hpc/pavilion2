@@ -64,7 +64,7 @@ class WaitCmdTests(PavTestCase):
             test.RUN_SILENT_TIMEOUT = 1
 
         # Make sure this doesn't explode
-        suite = TestSeries(self.pav_cfg, tests)
+        suite = TestSeries(self.pav_cfg, None, tests)
         test_str = " ".join([str(test) for test in suite.tests])
 
         wait_cmd = commands.get_command('wait')
