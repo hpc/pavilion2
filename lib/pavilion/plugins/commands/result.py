@@ -40,9 +40,8 @@ class ResultsCommand(commands.Command):
         )
         group = parser.add_mutually_exclusive_group()
         group.add_argument(
-            "-k", "--key",
-            action='append', nargs="*", default=[],
-            help="Additional result keys to display."
+            "-k", "--key", type=str, default='',
+            help="Comma separated list of additional result keys to display."
         )
         group.add_argument(
             "-f", "--full", action="store_true", default=False,
@@ -117,7 +116,7 @@ class ResultsCommand(commands.Command):
                 pass
 
         else:
-            fields = result_utils.BASE_FIELDS + args.key
+            fields = result_utils.BASE_FIELDS + args.key.replace(',',' ').split()
 
             output.draw_table(
                 outfile=self.outfile,
