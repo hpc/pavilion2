@@ -755,7 +755,7 @@ def dt_auto_widths(rows, table_width, min_widths, max_widths):
     so on. Remaining extra space is distributed amongst the final tied
     columns. To limit how long this takes, this makes a best guess using
     the first 20 rows."""
-	
+
     mxwidth = sum(max_widths.values())
     if mxwidth <= table_width:
         return max_widths
