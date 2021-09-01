@@ -1,19 +1,22 @@
 """Object for summarizing series quickly."""
-
-from pathlib import Path
-import logging
 import json
+import logging
+from pathlib import Path
 
 from pavilion import dir_db
-from pavilion.test_run import TestRun, TestAttributes
 from pavilion import system_variables
 from pavilion import utils
+from pavilion.test_run import TestRun, TestAttributes
 
 logger = logging.getLogger()
 
 
 class TestSeriesError(RuntimeError):
     """An error in managing a series of tests."""
+
+
+class TestSeriesWarning(RuntimeError):
+    """A non-fatal series error."""
 
 
 class SeriesInfo:
@@ -142,9 +145,8 @@ def load_user_series_id(pav_cfg):
 
 
 def list_series_tests(pav_cfg, sid: str):
-    """Return a list of paths to test run directories for the given series
-id.
-:raises TestSeriesError: If the series doesn't exist."""
+    """Return a list of paths to test run directories for the given series id.
+    :raises TestSeriesError: If the series doesn't exist."""
 
     series_path = path_from_id(pav_cfg, sid)
 

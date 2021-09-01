@@ -3,17 +3,12 @@
 import errno
 from typing import List
 
-from pavilion import cmd_utils
 from pavilion import commands
 from pavilion import output
 from pavilion import schedulers
 from pavilion import series
-from pavilion import status_utils
-from pavilion import series_config
-from pavilion.status_utils import print_from_tests
-from pavilion.build_tracker import MultiBuildTracker
-from pavilion.output import fprint
 from pavilion.series import TestSeries
+from pavilion.status_utils import print_from_tests
 from pavilion.test_run import TestRun
 
 
@@ -129,10 +124,12 @@ class RunCommand(commands.Command):
         #
 
         # Note: We have to get a few arguments this way because this code
-        # is reused between the build and run commands, and the don't quite have the same
-        # arguments.
-        if getattr(args, 'repeat', None):
-            args.tests = args.tests * args.repeat
+        # is reused between the build and run commands, and the don't quite have the
+        # same arguments.
+        series_config = series.SeriesConfigLoader().load_empty()
+        series_config['repeat'] = args.repeat
+
+        repeat = getattr(args, 'repeat', 1)
 
         local_builds_only = getattr(args, 'local_builds_only', False)
         wait = getattr(args, 'wait', None)
@@ -146,20 +143,26 @@ class RunCommand(commands.Command):
         # create brand-new series object
         series_obj = TestSeries(pav_cfg,
                                 series_config=series_cfg,
-                                outfile=self.outfile,
-                                errfile=self.errfile,
                                 overrides=args.overrides)
 
-        series_obj.create_set_graph()
-        only_set = series_obj.test_sets['only_set']
+        series_obj.add_test_set_config(
+            'cmd_line', args.tests, modes=args.modes, host=args.host,
+            overrides=args.overrides,
+        )
 
-        res = only_set.run_set(log=True,
-                               local_builds_only=local_builds_only,
-                               build_only=self.BUILD_ONLY,
-                               build_verbosity=args.build_verbosity,
-                               wait=wait,
-                               run_cmd=self,
-                               rebuild=args.rebuild)
+        try:
+            series_obj.run(
+                build_only=self.BUILD_ONLY,
+                rebuild=args.rebuild,
+                verbosity=args.build_verbosity,
+                outfile=self.outfile)
+        except series.TestSeriesError as err:
+            output.fprint(
+                str(err.args[0]),
+                file=self.errfile, color=output.RED)
+            return errno.EAGAIN
+
+        self.last_tests = series_obj.tests
 
         if report_status:
             print_from_tests(
@@ -168,7 +171,7 @@ class RunCommand(commands.Command):
                 outfile=self.outfile
             )
 
-        return res
+        return 0
 
     @staticmethod
     def _cancel_all(tests_by_sched):

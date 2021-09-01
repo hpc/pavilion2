@@ -173,6 +173,9 @@ expected to be added to by various plugins.
             'name', hidden=True, default='<unnamed>',
             help_text="The base name of the test. Value added automatically."),
         yc.StrElem(
+            'cfg_label', hidden=True, default='_none',
+            help_text="The configuration label for where this test was defined."),
+        yc.StrElem(
             'suite', hidden=True, default='<no_suite>',
             help_text="The name of the suite. Value added automatically."),
         yc.StrElem(

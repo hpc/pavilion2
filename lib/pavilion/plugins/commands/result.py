@@ -14,7 +14,7 @@ from pavilion import output
 from pavilion import result
 from pavilion.status_file import STATES
 from pavilion.test_config import resolver
-from pavilion.test_run import (TestRun, TestRunError, TestRunNotFoundError)
+from pavilion.test_run import (TestRun)
 
 
 class ResultsCommand(commands.Command):
@@ -87,16 +87,9 @@ class ResultsCommand(commands.Command):
     def run(self, pav_cfg, args):
         """Print the test results in a variety of formats."""
 
-        test_ids = cmd_utils.arg_filtered_tests(pav_cfg, args, verbose=self.errfile)
+        test_paths = cmd_utils.arg_filtered_tests(pav_cfg, args, verbose=self.errfile)
 
-        tests = []
-        for id_ in test_ids:
-            try:
-                tests.append(TestRun.load(pav_cfg, id_))
-            except TestRunError as err:
-                self.logger.warning("Could not load test %s - %s", id_, err)
-            except TestRunNotFoundError as err:
-                self.logger.warning("Could not find test %s - %s", id_, err)
+        tests = cmd_utils.get_tests_by_paths(pav_cfg, test_paths, self.errfile)
 
         log_file = None
         if args.show_log and args.re_run:

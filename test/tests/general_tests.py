@@ -117,12 +117,14 @@ class GeneralTests(PavTestCase):
             shutil.copytree(run_path.as_posix(), dst_path.as_posix(),
                             symlinks=True)
 
+            run_id = 'test.{}'.format(run)
+
             # Move the build directory into place
             build_dst = Path(os.readlink((run_path/'build_origin').as_posix()))
             build_dst = dst_path/build_dst
             (dst_path/'build_dir').rename(build_dst)
 
-            test = test_run.TestRun.load(self.pav_cfg, int(run))
+            test = test_run.TestRun.load_from_raw_id(self.pav_cfg, run_id)
             self.assertTrue(test.results)
             self.assertTrue(test.complete)
 

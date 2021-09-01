@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 from typing import List
 
+import pavilion.cmd_utils
 from pavilion import commands
 from pavilion import series
 from pavilion import series_util
@@ -93,14 +94,14 @@ class WaitCommand(commands.Command):
         if not args.tests:
             series_id = series_util.load_user_series_id(pav_cfg)
             if series_id is not None:
-                series_obj = series.TestSeries.from_id(pav_cfg, series_id)
+                series_obj = series.TestSeries.load(pav_cfg, series_id)
                 # if this is a series made from a series file, add the
                 # whole series id to the list of tests
                 if Path(series_obj.path/'series.pgid').exists():
                     tests.append(series_id)
                 else:
-                    tests.extend(status_utils.get_tests(pav_cfg, args.tests,
-                                                        self.errfile))
+                    tests.extend(pavilion.cmd_utils.get_tests_by_id(pav_cfg, args.tests,
+                                                                    self.errfile))
             else:
                 raise commands.CommandError(
                     "No tests specified and no last series found"
@@ -110,13 +111,13 @@ class WaitCommand(commands.Command):
             tests_cli = copy.deepcopy(args.tests)
             for test_id in tests_cli:
                 if test_id.startswith('s'):
-                    series_obj = series.TestSeries.from_id(pav_cfg, test_id)
+                    series_obj = series.TestSeries.load(pav_cfg, test_id)
                     if Path(series_obj.path/'series.pgid').exists():
                         tests.append(test_id)
                         args.tests.remove(test_id)
 
-            tests.extend(status_utils.get_tests(pav_cfg, args.tests,
-                                                self.errfile))
+            tests.extend(pavilion.cmd_utils.get_tests_by_id(pav_cfg, args.tests,
+                                                            self.errfile))
 
         # determine timeout time, if there is one
         end_time = None
@@ -142,7 +143,7 @@ class WaitCommand(commands.Command):
             temp_tests = copy.deepcopy(tests)
             for test_id in temp_tests:
                 if str(test_id).startswith('s'):
-                    series_obj = series.TestSeries.from_id(pav_cfg, test_id)
+                    series_obj = series.TestSeries.load(pav_cfg, test_id)
                     series_complete_file = series_obj.path/'SERIES_COMPLETE'
                     if series_complete_file.exists():
                         tests.remove(test_id)

@@ -3,13 +3,12 @@ and series."""
 
 import os
 import time
+from pathlib import Path
 from typing import TextIO, List
 
-from pavilion import commands
+from pavilion import cmd_utils
 from pavilion import output
 from pavilion import schedulers
-from pavilion import series
-from pavilion import series_util
 from pavilion.status_file import STATES
 from pavilion.test_run import (TestRun, TestRunError, TestRunNotFoundError)
 
@@ -59,69 +58,24 @@ def status_from_test_obj(pav_cfg: dict, test: TestRun):
     }
 
 
-def get_tests(pav_cfg, tests: List['str'], errfile: TextIO) -> List[int]:
-    """Convert a list of test id's and series id's into a list of test id's.
-
-    :param pav_cfg: The pavilion config
-    :param tests: A list of tests or test series names.
-    :param errfile: stream to output errors as needed
-    :return: List of test objects
-    """
-
-    tests = [str(test) for test in tests.copy()]
-
-    if not tests:
-        # Get the last series ran by this user
-        series_id = series_util.load_user_series_id(pav_cfg)
-        if series_id is not None:
-            tests.append(series_id)
-        else:
-            raise commands.CommandError(
-                "No tests specified and no last series was found."
-            )
-
-    test_list = []
-
-    for test_id in tests:
-        # Series start with 's', like 'snake'.
-        if test_id.startswith('s'):
-            try:
-                test_list.extend(series.TestSeries.from_id(pav_cfg,
-                                                           test_id).tests)
-            except series_util.TestSeriesError as err:
-                output.fprint(
-                    "Suite {} could not be found.\n{}"
-                    .format(test_id, err),
-                    file=errfile,
-                    color=output.RED
-                )
-                continue
-        # Test
-        else:
-            test_list.append(test_id)
-
-    return list(map(int, test_list))
-
-
-def get_statuses(pav_cfg, test_ids, errfile=None):
+def get_statuses(pav_cfg, test_paths: List[Path], errfile=None):
     """Return the statuses for all given test id's.
     :param pav_cfg: The Pavilion config.
-    :param List[str] test_ids: A list of test ids to load.
+    :param List[str] test_paths: A list of test ids to load.
     :param errfile: Where to write standard error to.
     """
 
     test_statuses = []
 
-    test_ids = get_tests(pav_cfg, test_ids, errfile=errfile)
+    tests = cmd_utils.get_tests_by_paths(pav_cfg, test_paths, errfile)
 
-    for test_id in test_ids:
+    for test in tests:
         try:
-            test = TestRun.load(pav_cfg, test_id)
             test_statuses.append(status_from_test_obj(pav_cfg, test))
 
         except (TestRunError, TestRunNotFoundError) as err:
             test_statuses.append({
-                'test_id': test_id,
+                'test_id': test.full_id,
                 'name':    "",
                 'state':   STATES.UNKNOWN,
                 'time':    None,
@@ -204,18 +158,17 @@ def status_history_from_test_obj(test: TestRun) -> List[dict]:
     return status_history
 
 
-def print_status_history(pav_cfg: dict, test_id: str, outfile: TextIO,
+def print_status_history(pav_cfg: dict, test: TestRun, outfile: TextIO,
                          json: bool = False):
     """Print the status history for a given test object.
 
     :param pav_cfg: Base pavilion configuration.
-    :param test_id: Single test ID.
+    :param test: Single test object.
     :param outfile: Stream to which the status history should be printed.
     :param json: Whether the output should be a JSON object or not
     :return: 0 for success.
     """
 
-    test = TestRun.load(pav_cfg, int(test_id))
     status_history = status_history_from_test_obj(test)
 
     ret_val = 1

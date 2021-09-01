@@ -2,6 +2,7 @@
 environment."""
 
 import traceback
+from pathlib import Path
 
 from pavilion import commands
 from pavilion import result
@@ -24,6 +25,11 @@ class _RunCommand(commands.Command):
     def _setup_arguments(self, parser):
 
         parser.add_argument(
+            'working_dir', action='store', type=Path,
+            help='Working directory in which this test run resides.'
+        )
+
+        parser.add_argument(
             'test_id', action='store', type=int,
             help='The id of the test to run.')
 
@@ -31,7 +37,8 @@ class _RunCommand(commands.Command):
         """Load and run an already prepped test."""
 
         try:
-            test = TestRun.load(pav_cfg, args.test_id)
+            test = TestRun.load(pav_cfg, working_dir=args.working_dir,
+                                test_id=args.test_id)
         except TestRunError as err:
             self.logger.error("Error loading test '%s': %s",
                               args.test_id, err)

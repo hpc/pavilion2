@@ -72,10 +72,9 @@ class CancelCommand(commands.Command):
         for test_id in args.tests:
             if test_id.startswith('s'):
                 try:
-                    series_pgid = series.TestSeries.get_pgid(pav_cfg, test_id)
-                    test_list.extend(series.TestSeries.from_id(pav_cfg,
-                                                               test_id)
-                                     .tests)
+                    series_pgid = series.TestSeries.pgid(pav_cfg, test_id)
+                    test_series = series.TestSeries.load(pav_cfg, test_id)
+                    test_list.extend(test_series.tests.values())
                 except series_util.TestSeriesError as err:
                     output.fprint(
                         "Series {} could not be found.\n{}"
@@ -103,20 +102,18 @@ class CancelCommand(commands.Command):
                                   color=output.RED, file=self.errfile)
             else:
                 try:
-                    test_list.append(int(test_id))
-                except ValueError as err:
+                    test_list.append(TestRun.load_from_raw_id(pav_cfg, test_id))
+                except TestRunError as err:
                     output.fprint(
-                        "Test {} is not a valid test.\n{}".format(test_id,
-                                                                  err),
+                        "Test {} is not a valid test.\n{}".format(test_id, err),
                         file=self.errfile, color=output.RED
                     )
                     return errno.EINVAL
 
         cancel_failed = False
         test_object_list = []
-        for test_id in test_list:
+        for test in test_list:
             try:
-                test = TestRun.load(pav_cfg, test_id)
                 sched = schedulers.get_plugin(test.scheduler)
                 test_object_list.append(test)
 
@@ -133,7 +130,7 @@ class CancelCommand(commands.Command):
                     test.set_run_complete()
                     output.fprint(
                         "Test {} cancelled."
-                        .format(test_id), file=self.outfile,
+                        .format(test.id), file=self.outfile,
                         color=output.GREEN)
 
                 else:

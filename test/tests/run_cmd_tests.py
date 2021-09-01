@@ -1,3 +1,6 @@
+import pavilion.series
+import pavilion.test_config.resolver
+import pavilion.test_config.util
 from pavilion import plugins
 from pavilion import commands
 from pavilion import cmd_utils
@@ -28,13 +31,13 @@ class RunCmdTests(PavTestCase):
             For the most part we're relying on tests of the various components
             of test_config.setup and the test_obj tests."""
 
-        test_configs = cmd_utils.get_test_configs(pav_cfg=self.pav_cfg,
-                                                  host='this', test_files=[],
-                                                  tests=['hello_world'],
-                                                  modes=[],
-                                                  overrides={},
-                                                  outfile=sys.stdout
-                                                  )
+        test_configs = pavilion.series.get_test_configs(pav_cfg=self.pav_cfg,
+                                                        host='this', test_files=[],
+                                                        tests=['hello_world'],
+                                                        modes=[],
+                                                        overrides={},
+                                                        outfile=sys.stdout
+                                                        )
 
         tests = cmd_utils.configs_to_tests(pav_cfg=self.pav_cfg,
                                            proto_tests=test_configs)
@@ -48,12 +51,12 @@ class RunCmdTests(PavTestCase):
 
         tests_file = self.TEST_DATA_ROOT/'run_test_list'
 
-        test_configs = cmd_utils.get_test_configs(pav_cfg=self.pav_cfg,
-                                                  host='this',
-                                                  test_files=[tests_file],
-                                                  tests=[], modes=[],
-                                                  overrides={},
-                                                  outfile=sys.stdout)
+        test_configs = pavilion.series.get_test_configs(pav_cfg=self.pav_cfg,
+                                                        host='this',
+                                                        test_files=[tests_file],
+                                                        tests=[], modes=[],
+                                                        overrides={},
+                                                        outfile=sys.stdout)
 
         tests = cmd_utils.configs_to_tests(pav_cfg=self.pav_cfg,
                                            proto_tests=test_configs)

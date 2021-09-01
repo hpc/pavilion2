@@ -52,6 +52,8 @@ PAV_ROOT = Path(__file__).resolve().parents[2]
 # Use this config file, if it exists.
 PAV_CONFIG_FILE = os.environ.get('PAV_CONFIG_FILE', None)
 
+DEFAULT_CONFIG_LABEL = 'main'
+
 
 class ExPathElem(yc.PathElem):
     """Expand environment variables in the path."""
@@ -111,7 +113,7 @@ def config_dirs_validator(config, values):
 
 
 def _setup_working_dir(working_dir: Path) -> None:
-    """Create all the expected subdirectores for a working_dir."""
+    """Create all the expected subdirectories for a working_dir."""
 
     for path in [
             working_dir,
@@ -126,7 +128,7 @@ def _setup_working_dir(working_dir: Path) -> None:
             raise RuntimeError("Could not create directory '{}': {}".format(path, err))
 
 
-def _invalidator(msg):
+def make_invalidator(msg):
     """Returns a function that provides an 'invalid option' validator. This will
     always give an error if the option isn't null."""
 
@@ -180,10 +182,11 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
         yc.StrElem(
             "shared_group",
             help_text="Pavilion runs under a `newgrp` shell with this group, ensuring "
-                      "all created files are owned by this group by default. If you have "
-                      "tests that must run under a different group, separate them into "
-                      "their own config directory with it's own working_dir setting. Then "
-                      "set the group and group sticky bit for those directories."),
+                      "all created files are owned by this group by default. If you "
+                      "have tests that must run under a different group, separate "
+                      "them into their own config directory with it's own "
+                      "working_dir setting. Then set the group and group sticky bit "
+                      "for those directories."),
         yc.StrElem(
             "umask", default="2",
             help_text="The umask to apply to all files created by pavilion. "
@@ -210,7 +213,8 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
             "result_log",
             # Derive the default from the working directory, if a value isn't
             # given.
-            post_validator=(lambda d, v: v if v is not None else d['working_dir']/'results.log'),
+            post_validator=(lambda d, v: v if v is not None
+                            else d['working_dir']/'results.log'),
             help_text="Results are put in both the general log and a specific "
                       "results log. This defaults to 'results.log' in the default "
                       "working directory."),
@@ -271,7 +275,11 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
             help_text="This will contain the pavilion variable dictionary."),
         yc.KeyedElem(
             'configs', elements=[], hidden=True, default={},
-            help_text="The configuration dictionaries for each config dir.")
+            help_text="The configuration dictionaries for each config dir."),
+        yc.StrElem(
+            'default_label', hidden=True, default=DEFAULT_CONFIG_LABEL,
+            help_text="The default config area label."
+        )
     ]
 
 
@@ -281,31 +289,37 @@ class ConfigLoader(yc.YamlConfigLoader):
     ELEMENTS = [
         yc.RegexElem(
             'label', regex=r'[a-z]+', required=False,
-            help_text="The label to apply to tests run from this configuration directory. "
-                      "This should be specified for each config directory. A label will "
-                      "be generated if absent."),
+            help_text="The label to apply to tests run from this configuration "
+                      "directory. This should be specified for each config directory. "
+                      "A label will be generated if absent."),
         ExPathElem(
             'working_dir', required=False,
-            help_text="Where pavilion puts it's run files, downloads, etc. This defaults "
-                      "to '<config_dir>/working_dir'."),
+            help_text="Where pavilion puts it's run files, downloads, etc. This "
+                      "defaults to '<config_dir>/working_dir'."),
     ]
 
 
 def add_config_dirs(pav_cfg, setup_working_dirs: bool) -> OrderedDict:
-    """Setup the config dictionaries for each configuration directory. This will involve loading
-    each directories pavilion.yaml, and saving the results in this dict. These will be
-    in an ordered dictionary by label.
+    """Setup the config dictionaries for each configuration directory. This will involve
+    loading each directories pavilion.yaml, and saving the results in this dict.
+    These will be in an ordered dictionary by label.
 
     :param pav_cfg: The pavilion config.
-    :param setup_working_dirs: Whether to create the working directory structure. Allows us
-        to bypass in cases where we would set incorrect permissions.
+    :param setup_working_dirs: Whether to create the working directory structure.
+        Allows us to bypass in cases where we would set incorrect permissions.
     """
 
     configs = OrderedDict()
-    config_dirs = pav_cfg['config_dirs']  # type: List[Path]
+    config_dirs = list(pav_cfg['config_dirs'])  # type: List[Path]
     loader = ConfigLoader()
 
     label_i = 1
+
+    # Move PAV_CONFIG_DIR to last, so that it only gets labeled as 'main' if
+    # something else didn't already take it.
+    if PAV_CONFIG_DIR in config_dirs:
+        config_dirs.remove(PAV_CONFIG_DIR)
+        config_dirs.append(PAV_CONFIG_DIR)
 
     for config_dir in config_dirs:
         config_path = config_dir/CONFIG_NAME
@@ -333,11 +347,15 @@ def add_config_dirs(pav_cfg, setup_working_dirs: bool) -> OrderedDict:
         if not label:
             if config_dir == USER_HOME_PAV:
                 label = 'user'
-            # Set the label to 'main' if the config_dir is the one set by PAV_CONFIG_DIR
+            # Set the label to 'main' if the config_dir is the one set by
+            # PAV_CONFIG_DIR. Other config directories can snatch this up first though.
             elif config_dir == PAV_CONFIG_DIR:
-                label = 'main'
+                if DEFAULT_CONFIG_LABEL not in configs:
+                    label = DEFAULT_CONFIG_LABEL
+                else:
+                    label = '_' + DEFAULT_CONFIG_LABEL
             elif config_dir == Path(__file__).parent:
-                label = 'lib'
+                label = '_lib'
 
         if label in configs or not label:
             label = '<not_defined>' if label is None else label
@@ -356,15 +374,16 @@ def add_config_dirs(pav_cfg, setup_working_dirs: bool) -> OrderedDict:
         if not working_dir.is_absolute():
             working_dir = config_dir/working_dir
 
-        try:
-            if setup_working_dirs:
-                _setup_working_dir(working_dir)
-        except RuntimeError as err:
-            pavilion.output.fprint(
-                "Could not configure working directory for config path '{}'. Skipping.\n{}"
-                    .format(config_path.as_posix(), err.args[0]),
-                file=sys.stderr, color=pavilion.output.YELLOW)
-            continue
+        if label != '_lib':
+            try:
+                if setup_working_dirs:
+                    _setup_working_dir(working_dir)
+            except RuntimeError as err:
+                pavilion.output.fprint(
+                    "Could not configure working directory for config path '{}'. "
+                    "Skipping.\n{}".format(config_path.as_posix(), err.args[0]),
+                    file=sys.stderr, color=pavilion.output.YELLOW)
+                continue
 
         config['working_dir'] = working_dir
         config['path'] = config_dir
@@ -385,8 +404,8 @@ found in these directories the default config search paths:
     :param target: A known path to a Pavilion config.
     :param warn: Issue printed warnings.
     :param setup_working_dirs: Set to False when used outside of the `bin/pav` provided
-         newgrp/umask environment. Test code generally doesn't care, unless you're testing
-         the permissions themselves.
+         newgrp/umask environment. Test code generally doesn't care, unless you're
+         testing the permissions themselves.
 """
 
     pav_cfg = None

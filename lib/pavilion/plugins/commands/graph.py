@@ -130,14 +130,6 @@ class GraphCommand(commands.Command):
 
             return errno.EINVAL
 
-        try:
-            exclude = [int(test) for test in args.exclude]
-        except ValueError as err:
-            output.fprint(
-                "Invalid '--exclude' test id:\n{}".format(err.args[0]),
-                color=output.RED, file=self.errfile)
-            return errno.EINVAL
-
         if args.dimensions:
             match = DIMENSIONS_RE.match(args.dimensions)
             if not match:
@@ -152,25 +144,14 @@ class GraphCommand(commands.Command):
         output.fprint("Generating Graph...", file=self.outfile)
 
         # Get filtered Test IDs.
-        test_ids = cmd_utils.arg_filtered_tests(pav_cfg, args, verbose=self.errfile)
+        test_paths = cmd_utils.arg_filtered_tests(pav_cfg, args, verbose=self.errfile)
         # Add any additional tests provided via the command line.
         if args.tests:
-            test_ids.append(args.tests)
+            test_paths.append(args.tests)
 
         # Load TestRun for all tests, skip those that are to be excluded.
-        tests = []
-        for test_id in test_ids:
-            if test_id in exclude:
-                continue
-
-            try:
-                tests.append(TestRun.load(pav_cfg, test_id))
-            except (TypeError, TestRunError) as err:
-                output.fprint(
-                    "Error loading test run {}. Use '--exclude' to stop "
-                    "seeing this message.\n{}"
-                    .format(test_id, err.args[0]),
-                    color=output.YELLOW, file=self.errfile)
+        tests = cmd_utils.get_tests_by_paths(
+            pav_cfg, test_paths, self.errfile, exclude_ids=args.exclude)
 
         if not tests:
             output.fprint("Test filtering resulted in an empty list.",
@@ -403,7 +384,7 @@ class GraphCommand(commands.Command):
                                                 y_list))
 
                 if y_evals[evl] in averages:
-                    stats_dict[evl]['x'].append(x)
+                    stats_dict[evl]['x'].append(x_val)
                     stats_dict[evl]['y'].append(statistics.mean(y_list))
 
         for evl, values in stats_dict.items():

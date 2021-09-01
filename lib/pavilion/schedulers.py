@@ -533,7 +533,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
             script.command(command)
 
         # Run the test via pavilion
-        script.command('pav _run {t.id}'.format(t=test_obj))
+        script.command('pav _run {t.working_dir} {t.id}'.format(t=test_obj))
 
         path = self._kickoff_script_path(test_obj)
         script.write(path)

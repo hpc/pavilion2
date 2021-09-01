@@ -273,6 +273,7 @@ though."""
     dbg_print = staticmethod(dbg_print)
 
     QUICK_TEST_BASE_CFG = {
+        'cfg_label': 'test',
         'scheduler': 'raw',
         'suite': 'unittest',
         'build': {

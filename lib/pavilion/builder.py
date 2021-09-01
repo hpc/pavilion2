@@ -69,7 +69,7 @@ class TestBuilder:
         """
 
         if mb_tracker is None:
-            mb_tracker = MultiBuildTracker(log=False)
+            mb_tracker = MultiBuildTracker()
         self.tracker = mb_tracker.register(self, test.status)
 
         self._pav_cfg = pav_cfg

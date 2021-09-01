@@ -488,7 +488,7 @@ class TestConfigResolver:
 
             # Only load each test suite's tests once.
             if test_suite not in all_tests:
-                label, test_suite_path = self.find_config(CONF_TEST, test_suite)
+                cfg_label, test_suite_path = self.find_config(CONF_TEST, test_suite)
 
                 if test_suite_path is None:
                     if test_suite == 'log':
@@ -544,7 +544,8 @@ class TestConfigResolver:
                 # Add some basic information to each test config.
                 for test_cfg_name, test_cfg in suite_tests.items():
                     test_cfg['name'] = test_cfg_name
-                    working_dir = self.pav_cfg['configs'][label]['working_dir']
+                    test_cfg['cfg_label'] = cfg_label
+                    working_dir = self.pav_cfg['configs'][cfg_label]['working_dir']
                     test_cfg['working_dir'] = working_dir.as_posix()
                     test_cfg['suite'] = test_suite
                     test_cfg['suite_path'] = str(test_suite_path)

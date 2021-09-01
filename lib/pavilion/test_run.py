@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Callable, Any
 
 import pavilion.result.common
+from pavilion.config import DEFAULT_CONFIG_LABEL
 from pavilion import builder
 from pavilion import dir_db
 from pavilion import output
@@ -37,7 +38,7 @@ def get_latest_tests(pav_cfg, limit):
 """
 
     test_dir_list = []
-    runs_dir = pav_cfg.working_dir/'test_runs'
+    runs_dir = pav_cfg.working_dir/TestRun.RUN_DIR
     for test_dir in dir_db.select(runs_dir).paths:
         mtime = test_dir.stat().st_mtime
         try:
@@ -56,7 +57,7 @@ class TestRunError(RuntimeError):
     non-recoverable way."""
 
 
-class TestRunNotFoundError(RuntimeError):
+class TestRunNotFoundError(TestRunError):
     """For when we try to find an existing test, but it doesn't exist."""
 
 
@@ -368,7 +369,12 @@ class TestRun(TestAttributes):
     4. Test is run. -- ``test.run()``
     5. Results are gathered. -- ``test.gather_results()``
 
-    :ivar int ~.id: The test id.
+    :ivar int ~.id: The test id number.
+    :ivar str ~.full_id: The full test id number, including the config label. This
+        may also be a string path to the test itself.
+    :ivar str cfg_label: The config label for the configuration directory that
+        defined this test. This is ephemeral, and may change between Pavilion
+        invocations based on available configurations.
     :ivar dict config: The test's configuration.
     :ivar Path test.path: The path to the test's test_run directory.
     :ivar Path suite_path: The path to the test suite file that this test came
@@ -387,6 +393,10 @@ class TestRun(TestAttributes):
 
     JOB_ID_FN = 'job_id'
     COMPLETE_FN = 'RUN_COMPLETE'
+
+    RUN_DIR = 'test_runs'
+
+    NO_LABEL = '_none'
 
     def __init__(self, pav_cfg, config, var_man=None, _id=None, rebuild=False,
                  build_only=False):
@@ -411,11 +421,13 @@ class TestRun(TestAttributes):
 
         # Get the working dir specific to where this test came from.
         if config.get('working_dir', NO_WORKING_DIR) == NO_WORKING_DIR:
-            self.working_dir = self._pav_cfg['working_dir']
+            self.working_dir = Path(self._pav_cfg['working_dir'])
         else:
             self.working_dir = Path(config['working_dir'])
 
-        tests_path = self.working_dir/'test_runs'
+        self.cfg_label = config.get('cfg_label', self.NO_LABEL)
+
+        tests_path = self.working_dir/self.RUN_DIR
 
         self.config = config
         self._validate_config()
@@ -460,6 +472,10 @@ class TestRun(TestAttributes):
                 self.var_man = variables.VariableSetManager.load(self._variables_path)
             except RuntimeError as err:
                 raise TestRunError(*err.args)
+
+        # If the cfg label is actually something that exists, use it in the
+        # test full_id. Otherwise give the test path.
+        self.full_id = '{}.{}'.format(self.cfg_label, self.id)
 
         self.sys_name = self.var_man.get('sys_name', '<unknown>')
 
@@ -564,16 +580,57 @@ class TestRun(TestAttributes):
                                "being defined in the pavilion config.")
 
     @classmethod
-    def load(cls, pav_cfg, working_dir: Path, test_id: int):
+    def parse_raw_id(cls, pav_cfg, raw_test_id: str) -> (str, Path, int):
+        """Parse a raw test run id and return the label, working_dir, and id
+        for that test. The test run need not exist, but the label must."""
+
+        parts = raw_test_id.split('.', 1)
+        if not parts:
+            raise TestRunNotFoundError("Blank test run id given")
+        elif len(parts) == 1:
+            cfg_label = pav_cfg.default_label
+            test_id = parts[0]
+        else:
+            cfg_label, test_id = parts
+
+        try:
+            test_id = int(test_id)
+        except ValueError:
+            raise TestRunNotFoundError("Invalid test id with label '{}': '{}'"
+                                       .format(cfg_label, test_id))
+
+        if cfg_label not in pav_cfg.configs:
+            raise TestRunNotFoundError(
+                "Invalid test label: '{}', label not found. Valid labels are {}"
+                .format(cfg_label, tuple(pav_cfg.configs.keys())))
+
+        working_dir = pav_cfg.configs[cfg_label]['working_dir']
+
+        return cfg_label, working_dir, test_id
+
+    @classmethod
+    def load_from_raw_id(cls, pav_cfg, raw_test_id: str) -> 'TestRun':
+        """Load a test given a raw test id string, in the form
+        [label].test_id. The optional label will allow us to look up the config
+        path for the test."""
+
+        cfg_label, working_dir, test_id = cls.parse_raw_id(pav_cfg, raw_test_id)
+
+        return cls.load(pav_cfg, working_dir, test_id, cfg_label=cfg_label)
+
+    @classmethod
+    def load(cls, pav_cfg, working_dir: Path, test_id: int,
+             cfg_label: str = None) -> 'TestRun':
         """Load an old TestRun object given a test id.
 
         :param pav_cfg: The pavilion config
         :param working_dir: The working directory where this test run lives.
         :param int test_id: The test's id number.
+        :param cfg_label: The configuration label for the test.
         :rtype: TestRun
         """
 
-        path = dir_db.make_id_path(pav_cfg.working_dir / 'test_runs', test_id)
+        path = dir_db.make_id_path(working_dir / cls.RUN_DIR, test_id)
 
         if not path.is_dir():
             raise TestRunError("Test directory for test id {} does not exist "
@@ -581,6 +638,9 @@ class TestRun(TestAttributes):
                                .format(test_id, path))
 
         config = cls._load_config(path)
+
+        if cfg_label is not None:
+            config['cfg_label'] = cfg_label
 
         test_run = TestRun(pav_cfg, config, _id=test_id)
         test_run.saved = True
@@ -791,7 +851,7 @@ class TestRun(TestAttributes):
                 run_wd = self.build_path.as_posix()
 
             # Run scripts take the test id as a first argument.
-            cmd = [self.run_script_path.as_posix(), str(self.id)]
+            cmd = [self.run_script_path.as_posix(), self.full_id]
             proc = subprocess.Popen(cmd,
                                     cwd=run_wd,
                                     stdout=run_log,
@@ -836,8 +896,9 @@ class TestRun(TestAttributes):
         self.finished = time.time()
         self.save_attributes()
 
-        self.status.set(STATES.RUN_DONE,
-                        "Test run has completed.")
+        if ret == 0:
+            self.status.set(STATES.RUN_DONE,
+                            "Test run has completed.")
 
         return ret
 
@@ -1231,6 +1292,13 @@ be set by the scheduler plugin as soon as it's known."""
             }
         else:
             return {}
+
+    def skip(self, reason: str):
+        """Set the test as skipped with the given reason, and save the test
+        attributes."""
+        self.skipped = True
+        self.skip_reasons.append(reason)
+        self.save_attributes()
 
     def _evaluate_skip_conditions(self):
         """Match grabs conditional keys from the config. It checks for

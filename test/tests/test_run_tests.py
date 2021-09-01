@@ -18,7 +18,6 @@ class TestRunTests(PavTestCase):
         config = {
             # The only required param.
             'name': 'blank_test',
-
             'scheduler': 'raw',
         }
 
@@ -48,7 +47,7 @@ class TestRunTests(PavTestCase):
         t.build()
 
         # Make sure we can recreate the object from id.
-        t2 = TestRun.load(self.pav_cfg, t.id)
+        t2 = TestRun.load(self.pav_cfg, t.working_dir, t.id)
 
         # Make sure the objects are identical
         # This tests the following functions
@@ -67,6 +66,7 @@ class TestRunTests(PavTestCase):
         config1 = {
             'name': 'run_test',
             'scheduler': 'raw',
+            'cfg_label': 'test',
             'build': {
                 'timeout': '30',
                 },
@@ -202,6 +202,8 @@ class TestRunTests(PavTestCase):
     def test_suites(self):
         """Test suite creation and regeneration."""
 
+        plugins.initialize_plugins(self.pav_cfg)
+
         config1 = {
             'name': 'run_test',
             'scheduler': 'raw',
@@ -231,7 +233,7 @@ class TestRunTests(PavTestCase):
         self.assertEqual(len(set(test_paths)),
                          len([p.resolve() for p in test_paths]))
 
-        series2 = TestSeries.from_id(self.pav_cfg, series.sid)
+        series2 = TestSeries.load(self.pav_cfg, series.sid)
         self.assertEqual(sorted(series.tests.keys()),
                          sorted(series2.tests.keys()))
         self.assertEqual(sorted([t.id for t in series.tests.values()]),
@@ -239,3 +241,5 @@ class TestRunTests(PavTestCase):
 
         self.assertEqual(series.path, series2.path)
         self.assertEqual(series.sid, series2.sid)
+
+        plugins._reset_plugins()

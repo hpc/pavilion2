@@ -117,9 +117,9 @@ class LogCommand(commands.Command):
         else:
             try:
                 if cmd_name == 'series':
-                    test = series.TestSeries.from_id(pav_cfg, args.id)
+                    test = series.TestSeries.load(pav_cfg, args.id)
                 else:
-                    test = test_run.TestRun.load(pav_cfg, int(args.id))
+                    test = test_run.TestRun.load_from_raw_id(pav_cfg, args.id)
             except test_run.TestRunError as err:
                 output.fprint("Error loading test: {}".format(err),
                               color=output.RED,

@@ -51,9 +51,9 @@ class SeriesFileTests(PavTestCase):
         test_series_obj = series.TestSeries(self.pav_cfg,
                                             series_config=series_config)
 
-        test_series_obj.create_set_graph()
+        test_series_obj.create_test_sets()
 
-        test_series_obj.run_series()
+        test_series_obj.run()
 
         # make sure test actually ends
         time.sleep(3)
@@ -93,9 +93,9 @@ class SeriesFileTests(PavTestCase):
                                             series_config=series_config,
                                             outfile=outfile, errfile=outfile)
 
-        test_series_obj.create_set_graph()
+        test_series_obj.create_test_sets()
 
-        test_series_obj.run_series()
+        test_series_obj.run()
 
         # make sure test actually ends
         time.sleep(0.5)
@@ -145,9 +145,9 @@ class SeriesFileTests(PavTestCase):
 
         test_series_obj.create_dependency_graph()
 
-        test_series_obj.create_set_graph()
+        test_series_obj.create_test_sets()
 
-        test_series_obj.run_series()
+        test_series_obj.run()
 
         time.sleep(0.1)
 
@@ -246,8 +246,8 @@ class SeriesFileTests(PavTestCase):
             self.pav_cfg, series_config=series_config,
             outfile=outfile, errfile=outfile)
 
-        test_series_obj.create_set_graph()
-        test_series_obj.run_series()
+        test_series_obj.create_test_sets()
+        test_series_obj.run()
         test_series_obj.wait(timeout=3)
 
         return test_series_obj

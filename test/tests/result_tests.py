@@ -1,3 +1,5 @@
+"""Test Result gathering"""
+
 import copy
 import datetime
 import json
@@ -10,10 +12,10 @@ import pavilion.result.common
 import yaml_config as yc
 from pavilion import arguments
 from pavilion import commands
+from pavilion import config
 from pavilion import plugins
 from pavilion import result
 from pavilion import utils
-from pavilion import config
 from pavilion.plugins.commands import run
 from pavilion.result import parsers, ResultError, base
 from pavilion.test_run import TestRun
@@ -31,11 +33,12 @@ class ResultParserTests(PavTestCase):
         self.maxDiff = None
 
     def setUp(self):
-        # This has to run before any command plugins are loaded.
+        """This has to run before any command plugins are loaded."""
         arguments.get_parser()
         plugins.initialize_plugins(self.pav_cfg)
 
     def tearDown(self):
+        """Reset all plugins."""
         plugins._reset_plugins()
 
     def test_parse_results(self):
@@ -605,13 +608,13 @@ class ResultParserTests(PavTestCase):
         per2 = results['result_tests.permuted.2']
 
         self.assertEqual(basic['result'], TestRun.PASS,
-                         msg="Test {} did not produce the expected result.".format(test.id))
+                         msg="Test did not produce the expected result.")
         self.assertEqual(per1['result'], TestRun.FAIL)
         self.assertEqual(per2['result'], TestRun.PASS)
 
         # Make sure we didn't save any of the changes.
         orig_test = run_cmd.last_tests[0]
-        reloaded_test = TestRun.load(self.pav_cfg, orig_test.id)
+        reloaded_test = TestRun.load(self.pav_cfg, orig_test.working_dir, orig_test.id)
         self.assertEqual(reloaded_test.results, orig_test.results)
         self.assertEqual(reloaded_test.config, orig_test.config)
 
@@ -740,12 +743,12 @@ class ResultParserTests(PavTestCase):
         """Make sure result flattening works as expected, as well as regular
         result output while we're at it."""
 
-        config = self._quick_test_cfg()
+        cfg = self._quick_test_cfg()
 
-        config['run']['cmds'] = [
+        cfg['run']['cmds'] = [
             'for i in 1 2 3 4; do echo "hello $i" > $i.out; done'
         ]
-        config['result_parse']['regex'] = {
+        cfg['result_parse']['regex'] = {
             'hello': {
                 'regex':    r'hello \d+',
                 'files':    '*.out',
@@ -753,7 +756,7 @@ class ResultParserTests(PavTestCase):
             }
         }
 
-        test = self._quick_test(config, name="flatten_results_test1")
+        test = self._quick_test(cfg, name="flatten_results_test1")
 
         run_result = test.run()
         results = test.gather_results(run_result)
@@ -761,7 +764,7 @@ class ResultParserTests(PavTestCase):
 
         flattened = {}
 
-        test2 = self._quick_test(config, name="flatten_results_test2")
+        test2 = self._quick_test(cfg, name="flatten_results_test2")
         run_result = test2.run()
         results = test2.gather_results(run_result)
         test2._pav_cfg = test2._pav_cfg.copy()
