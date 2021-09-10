@@ -12,6 +12,7 @@ from pavilion import commands
 from pavilion import filters
 from pavilion import output
 from pavilion import result
+from pavilion import result_utils
 from pavilion.status_file import STATES
 from pavilion.test_config import resolver
 from pavilion.test_run import (TestRun)
@@ -29,14 +30,6 @@ class ResultsCommand(commands.Command):
             short_help="Displays results from the given tests."
         )
 
-    BASE_FIELDS = [
-        'name',
-        'id',
-        'sys_name',
-        'started',
-        'finished',
-        'result',
-    ]
 
     def _setup_arguments(self, parser):
 
@@ -47,9 +40,8 @@ class ResultsCommand(commands.Command):
         )
         group = parser.add_mutually_exclusive_group()
         group.add_argument(
-            "-k", "--key",
-            action='append', nargs="*", default=[],
-            help="Additional result keys to display."
+            "-k", "--key", type=str, default='',
+            help="Comma separated list of additional result keys to display."
         )
         group.add_argument(
             "-f", "--full", action="store_true", default=False,
@@ -96,19 +88,17 @@ class ResultsCommand(commands.Command):
             log_file = io.StringIO()
 
         if args.re_run:
-            if not self.update_results(pav_cfg, tests, log_file):
+            if not self.update_results(pav_cfg, test_ids, log_file):
                 return errno.EINVAL
 
         if args.save:
-            if not self.update_results(pav_cfg, tests, log_file, save=True):
+            if not self.update_results(pav_cfg, test_ids, log_file, save=True):
                 return errno.EINVAL
 
+        results = result_utils.get_results(pav_cfg, test_ids, self.errfile)
+
         if args.json or args.full:
-            if len(tests) > 1:
-                results = {test.name: test.results for test in tests}
-            elif len(tests) == 1:
-                results = tests[0].results
-            else:
+            if not results:
                 output.fprint("Could not find any matching tests.",
                               color=output.RED, file=self.outfile)
                 return errno.EINVAL
@@ -128,8 +118,7 @@ class ResultsCommand(commands.Command):
                 pass
 
         else:
-            fields = self.BASE_FIELDS + args.key
-            results = [test.results for test in tests]
+            fields = result_utils.BASE_FIELDS + args.key.replace(',',' ').split()
 
             output.draw_table(
                 outfile=self.outfile,
@@ -147,11 +136,11 @@ class ResultsCommand(commands.Command):
                 output.fprint(log_file.getvalue(), file=self.outfile,
                               color=output.GREY)
             else:
-                for test in tests:
+                for test_log in results:
                     output.fprint("\nResult logs for test {}\n"
-                                  .format(test.name), file=self.outfile)
-                    if test.results_log.exists():
-                        with test.results_log.open() as log_file:
+                                  .format(test_log['name']), file=self.outfile)
+                    if test_log['results_log'].exists():
+                        with test_log['results_log'].open() as log_file:
                             output.fprint(
                                 log_file.read(), color=output.GREY,
                                 file=self.outfile)
@@ -161,7 +150,7 @@ class ResultsCommand(commands.Command):
 
         return 0
 
-    def update_results(self, pav_cfg: dict, tests: List[TestRun],
+    def update_results(self, pav_cfg: dict, test_ids: List[int],
                        log_file: IO[str], save: bool = False) -> bool:
         """Update each of the given tests with the result section from the
         current version of their configs. Then rerun result processing and
@@ -178,7 +167,8 @@ class ResultsCommand(commands.Command):
 
         reslvr = resolver.TestConfigResolver(pav_cfg)
 
-        for test in tests:
+        for test_id in test_ids:
+            test = TestRun.load(pav_cfg, test_id)
 
             # Re-load the raw config using the saved name, host, and modes
             # of the original test.

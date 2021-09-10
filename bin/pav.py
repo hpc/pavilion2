@@ -81,6 +81,14 @@ def main():
         sys.exit(0)
 
     pav_cfg.pav_vars = pavilion_variables.PavVars()
+    
+    try:
+        if args.tests:
+            if args.sys_name is not None: args.sys_name = ''
+            if args.user is not None: args.user = ''
+            if args.newer_than is not None: args.newer_than = None
+    except AttributeError:
+        pass
 
     if not args.profile:
         run_cmd(pav_cfg, args)

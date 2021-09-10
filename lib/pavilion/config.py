@@ -54,6 +54,11 @@ PAV_CONFIG_FILE = os.environ.get('PAV_CONFIG_FILE', None)
 
 DEFAULT_CONFIG_LABEL = 'main'
 
+NCPU = os.cpu_count()
+if NCPU > 40:
+    NCPU = NCPU//2
+NCPU = NCPU//2
+
 
 class ExPathElem(yc.PathElem):
     """Expand environment variables in the path."""
