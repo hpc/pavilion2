@@ -32,7 +32,7 @@ class LogCmdTest(PavTestCase):
         state = test.status.current().state
         end = time.time() + 5
 
-        while test.check_run_complete() is None and time.time() < end:
+        while not test.complete and time.time() < end:
             time.sleep(.1)
 
         # test `pav log run test`
@@ -115,7 +115,7 @@ class LogCmdTest(PavTestCase):
         raw.schedule_test(self.pav_cfg, test)
 
         end = time.time() + 5
-        while test.check_run_complete() is None and time.time() < end:
+        while not test.complete and time.time() < end:
             time.sleep(.1)
 
         args = parser.parse_args(['--tail', '2', 'run', test.full_id])

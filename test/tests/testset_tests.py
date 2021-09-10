@@ -1,9 +1,11 @@
+"""Tests for the test_set module."""
+
 from pavilion import plugins
-from pavilion.test_set import TestSet, TestSetError
+from pavilion.series.test_set import TestSet, TestSetError
 from pavilion.unittest import PavTestCase
 
 
-class SeriesFileTests(PavTestCase):
+class TestSetTests(PavTestCase):
 
     def setUp(self):
         plugins.initialize_plugins(self.pav_cfg)
@@ -22,33 +24,34 @@ class SeriesFileTests(PavTestCase):
         """Check dependency functions."""
 
         ts1 = TestSet(self.pav_cfg, "ts1", ['foo'])
-        ts2= TestSet(self.pav_cfg, "ts2", ['bar1', 'bar2', 'bar3'])
+        ts2 = TestSet(self.pav_cfg, "ts2", ['bar1', 'bar2', 'bar3'])
         ts3 = TestSet(self.pav_cfg, "ts3", ['baz'])
 
-        ts1.add_parent(ts2)
-        ts3.add_parent(ts1)
-        ts3.add_parent(ts1)
+        ts2.add_parents(ts1)
+        ts3.add_parents(ts2)
+        ts3.add_parents(ts1)
 
         self.assertEqual(ts1.child_sets, {ts2, ts3})
-        self.assertEqual(ts1.parent_sets, {ts2})
-        self.assertEqual(ts1.child_sets, {ts3})
+        self.assertEqual(ts1.parent_sets, set())
+        self.assertEqual(ts2.parent_sets, {ts1})
+        self.assertEqual(ts2.child_sets, {ts3})
         self.assertEqual(ts3.parent_sets, {ts1, ts2})
+        self.assertEqual(ts3.child_sets, set())
 
-        ts2a, ts2b, ts2c = ts2.ordered_split()
+        # TODO: Ordered split is no longer used, but may be some day.
+        # ts2a, ts2b, ts2c = ts2.ordered_split()
 
-        for ts in ts1, ts2a, ts2b, ts2c, ts3:
-            print(ts.name, ts.parent_sets, ts.child_sets)
-
-        self.assertEqual(ts2c, ts2)  # These should be the same object.
-        # Anything with ts1 as a child should now have ts2a instead
-        self.assertEqual(ts1.child_sets, {ts2a, ts3})
-        self.assertEqual(ts2a.parent_sets, {ts2})
-        self.assertEqual(ts2a.child_sets, {ts2b})
-        self.assertEqual(ts2b.parent_sets, {ts2a})
-        self.assertEqual(ts2b.child_sets, {ts2c})
-        self.assertEqual(ts2c.parent_sets, {ts2b})
-        self.assertEqual(ts2c.child_sets, {ts3})
-        self.assertEqual(ts3.parent_sets, {ts1, ts2c})
+        # self.assertEqual(ts2c, ts2)  # These should be the same object.
+        # self.assertEqual(ts1.parent_sets, set())
+        # Anything with ts2 as a child should now have ts2a instead
+        # self.assertEqual(ts1.child_sets, {ts2a, ts3})
+        # self.assertEqual(ts2a.parent_sets, {ts1})
+        # self.assertEqual(ts2a.child_sets, {ts2b})
+        # self.assertEqual(ts2b.parent_sets, {ts2a})
+        # self.assertEqual(ts2b.child_sets, {ts2c})
+        # self.assertEqual(ts2c.parent_sets, {ts2b})
+        # self.assertEqual(ts2c.child_sets, {ts3})
+        # self.assertEqual(ts3.parent_sets, {ts1, ts2c})
 
     def test_make(self):
         """Check that TestRun creation works and throws the correct errors."""
@@ -106,7 +109,7 @@ class SeriesFileTests(PavTestCase):
         ts1 = TestSet(self.pav_cfg, "test_rebuild2", ['build_parallel'])
         ts1.make(rebuild=True)
         ts1.build()
-        for test in filter(lambda test: not test.skipped, ts1.tests):
+        for test in filter(lambda tst: not tst.skipped, ts1.tests):
             self.assertNotIn(test.build_name, build_names)
 
     def test_build_verbosity(self):
@@ -118,7 +121,7 @@ class SeriesFileTests(PavTestCase):
             ts.build(verbosity=i)
 
     def test_kickoff(self):
-        """oh no"""
+        """Check kickoff functionality."""
 
         ts1 = TestSet(self.pav_cfg, "test_kickoff1", ["pass_fail"] * 5)
         ts1.make()
@@ -129,19 +132,19 @@ class SeriesFileTests(PavTestCase):
         # It shouldn't hurt to kickoff when there aren't any tests.
         ts1.kickoff()
 
-        ts1 = TestSet(self.pav_cfg, "test_kickoff2", ["pass_fail"] * 5)
-        ts1.make()
-        ts1.build()
+        ts2 = TestSet(self.pav_cfg, "test_kickoff2", ["pass_fail"] * 5)
+        ts2.make()
+        ts2.build()
         remain = 10
         for i in range(4):
             expected = min(remain, 3)
-            self.assertEqual(ts1.kickoff(start_max=3), expected)
+            self.assertEqual(ts2.kickoff(start_max=3), expected)
             remain -= 3
-            ts1.wait(wait_for_all=True)
+            ts2.wait(wait_for_all=True)
             if remain > 0:
-                self.assertFalse(ts1.done)
+                self.assertFalse(ts2.done)
             else:
-                self.assertTrue(ts1.done)
+                self.assertTrue(ts2.done)
 
         # Empty set kickoff is fine.
         ts3 = TestSet(self.pav_cfg, "test_kickoff3", [])
@@ -157,14 +160,99 @@ class SeriesFileTests(PavTestCase):
         ts1.make()
         ts1.build()
         ts1.kickoff()
-        finished = ts1.wait()
-        print("finished", finished)
+        self.assertNotEqual(ts1.wait(), 3)
 
     def test_all_passed(self):
         """Make sure we properly verify pass/fail status."""
 
+        ts1 = TestSet(self.pav_cfg, "test_all_passed1", ["pass_fail"] * 2)
+        ts1.make()
+        ts1.build()
+        ts1.kickoff()
+        ts1.wait(wait_for_all=True)
+        self.assertFalse(ts1.all_passed)
 
+        ts2 = TestSet(self.pav_cfg, "test_all_passed2", ["pass_fail.pass"] * 2)
+        ts2.make()
+        ts2.build()
+        ts2.kickoff()
+        ts2.wait(wait_for_all=True)
+        self.assertTrue(ts2.all_passed, ts2.tests)
 
+    def test_cancel(self):
+        """Check test set cancellation."""
+        ts1 = TestSet(self.pav_cfg, "test_cancel", ["varied_time"] * 2)
+        ts1.make()
+        ts1.build()
+        ts1.kickoff()
+        ts1.cancel("Testing cancelation.")
+        ts1.wait(wait_for_all=True)
+        for test in ts1.tests:
+            self.assertEqual(test.status.current().state,
+                             test.status.STATES.ABORTED)
+        self.assertFalse(ts1.all_passed)
 
+    def test_should_run(self):
+        """Make sure test_sets properly understand when they should and shouldn't
+        run."""
 
+        # A Test set should only run if all of it's parents should run.
+        #       ts1        - Will fail
+        #      /   \
+        #    ts2    ts2_pmp  - ts2 should run, but ts2_pmp should not
+        #     |  \ /   |
+        #     |  / \   |
+        #     ts3   ts3_pmp  - Neither should run, because they both depend on a test
+        #     |                set (ts2_pmp) that shouldn't run.
+        #     ts4            - Shouldn't run, because t3 shouldn't.
 
+        ts1 = TestSet(self.pav_cfg, "test_should", ["pass_fail"])
+        ts2_pmp = TestSet(self.pav_cfg, "test_should2_pmp", ["varied_time"],
+                          parents_must_pass=True)
+        ts2 = TestSet(self.pav_cfg, "test_should2", ["varied_time"])
+        ts3_pmp = TestSet(self.pav_cfg, "test_should3_pmp", ["varied_time"],
+                          parents_must_pass=True)
+        ts3 = TestSet(self.pav_cfg, "test_should3", ["varied_time"])
+        ts4 = TestSet(self.pav_cfg, "test_should4", ["pass_fail"])
+
+        ts2.add_parents(ts1)
+        ts2_pmp.add_parents(ts1)
+        ts3.add_parents(ts2, ts2_pmp)
+        ts3_pmp.add_parents(ts2, ts2_pmp)
+        ts4.add_parents(ts3)
+        ts1.make()
+        ts1.build()
+        ts1.kickoff()
+        ts1.wait(wait_for_all=True)
+        self.assertTrue(ts2.should_run)
+        self.assertFalse(ts2_pmp.should_run)
+        self.assertFalse(ts3.should_run)
+        self.assertFalse(ts3_pmp.should_run)
+        self.assertFalse(ts4.should_run)
+
+        # Do this again, but this time ts1 should pass and all but a one 'should_run'.
+        ts1 = TestSet(self.pav_cfg, "test_should", ["pass_fail.pass"])
+        ts2_pmp = TestSet(self.pav_cfg, "test_should2_pmp", ["varied_time"],
+                          parents_must_pass=True)
+        ts2 = TestSet(self.pav_cfg, "test_should2", ["varied_time"])
+        ts3_pmp = TestSet(self.pav_cfg, "test_should3_pmp", ["varied_time"],
+                          parents_must_pass=True)
+        ts3 = TestSet(self.pav_cfg, "test_should3", ["varied_time"])
+        ts4 = TestSet(self.pav_cfg, "test_should4", ["pass_fail"])
+
+        ts2.add_parents(ts1)
+        ts2_pmp.add_parents(ts1)
+        ts3.add_parents(ts2, ts2_pmp)
+        ts3_pmp.add_parents(ts2, ts2_pmp)
+        ts4.add_parents(ts3)
+        ts1.make()
+        ts1.build()
+        ts1.kickoff()
+        ts1.wait(wait_for_all=True)
+        self.assertTrue(ts2.should_run)
+        self.assertTrue(ts2_pmp.should_run)
+        self.assertTrue(ts3.should_run)
+        # This should be None in this case because we can't know if it should run
+        # until all of its parents tests have run.
+        self.assertIsNone(ts3_pmp.should_run)
+        self.assertTrue(ts4.should_run)

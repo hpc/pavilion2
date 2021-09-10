@@ -18,7 +18,7 @@ from pavilion import utils
 from pavilion.lockfile import LockFile
 from pavilion.output import fprint
 from pavilion.series_config import SeriesConfigLoader
-from pavilion.series_util import TestSeriesError, TestSeriesWarning
+from pavilion.series_utils import TestSeriesError, TestSeriesWarning
 from pavilion.status_file import STATES
 from pavilion.test_run import (
     TestRun, TestRunError)
@@ -58,8 +58,8 @@ class TestSeries:
 
         series_path = self.pav_cfg.working_dir/'series'
 
-        self.simultaneous = config['simultaneous']
-        self.repeat = config['repeat']
+        self.simultaneous = self.config['simultaneous']
+        self.repeat = self.config['repeat']
 
         self._pgid = None
 
@@ -227,13 +227,19 @@ differentiate it from test ids."""
 
         return cls(pav_cfg, _id=series_id, config=config)
 
-    def create_test_sets(self):
+    def _create_test_sets(self):
         """Create test sets from the config, and set up their dependency
-        relationships."""
+        relationships. This is meant to be called by 'run()', but may be used
+        separately for unit testing."""
+
+        if self.test_sets:
+            raise RuntimeError("_create_test_sets should only run when there are"
+                               "no test sets for a series, but this series has: {}"
+                               .format(self.test_sets))
 
         # What each test depends on.
         depends_on = {}
-        depended_on_by = defaultdict(lambda: set())
+        depended_on_by = defaultdict(set)
 
         # create all TestSet objects
         universal_modes = self.config['modes']
@@ -255,6 +261,7 @@ differentiate it from test ids."""
             for parent in set_info['depends_on']:
                 depended_on_by[parent].add(set_name)
 
+        previous = None
         for set_name, test_set in self.test_sets.items():
             test_set = self.test_sets[set_name]
             for parent in depends_on[set_name]:
@@ -262,17 +269,24 @@ differentiate it from test ids."""
                     raise TestSeriesError(
                         "Test sub-series '{}' depends on '{}', but no such sub-series "
                         "exists.".format(set_name, parent))
-                test_set.add_parent(self.test_sets[parent])
+                test_set.add_parents(self.test_sets[parent])
 
+            if self.config['ordered'] and previous:
+                test_set.add_parents(previous)
+
+            previous = test_set
+
+        # TODO: I goofed and coded ordering to be within a set. Maybe we'll want that
+        #       feature eventually though.
         # If tests are implicitly ordered within sets, split each test set
         # into a set for each given test name.
-        if str_bool(self.config['ordered']):
-            all_sets = list(self.test_sets.items())
-            for set_name, test_set in all_sets:
-                new_sets = test_set.ordered_split()
-                del self.test_sets[set_name]
-                for new_set in new_sets:
-                    self.test_sets[new_set.name] = new_set
+        # if str_bool(self.config['ordered']):
+        #    all_sets = list(self.test_sets.items())
+        #    for set_name, test_set in all_sets:
+        #        new_sets = test_set.ordered_split()
+        #        del self.test_sets[set_name]
+        #        for new_set in new_sets:
+        #            self.test_sets[new_set.name] = new_set
 
         # Check for circular dependencies
         non_circular = []
@@ -314,11 +328,14 @@ differentiate it from test ids."""
                 test_obj.set_run_complete()
 
     def run(self, build_only: bool = False, rebuild: bool = False,
-            verbosity: int = 0, outfile: TextIO = None):
+            local_builds_only: bool = False, verbosity: int = 0,
+            outfile: TextIO = None):
         """Build and kickoff all of the test sets in the series.
 
         :param build_only: Only build the tests, do not run them.
         :param rebuild: Rebuild tests instead of relying on cached builds.
+        :param local_builds_only: When building, only build the tests that would build
+            locally.
         :param verbosity: Verbosity level. 0 - rolling summaries,
             1 - continuous summary, 2 - full verbose
         :param outfile: The outfile to write status info to.
@@ -329,7 +346,7 @@ differentiate it from test ids."""
             outfile = open('/dev/null', 'w')
 
         # create the test sets and link together.
-        self.create_test_sets()
+        self._create_test_sets()
 
         # The names of all test sets that have completed.
         complete = set()  # type: Set[str]
@@ -356,7 +373,8 @@ differentiate it from test ids."""
             for test_set in sets_to_run:
 
                 # Make sure it's ok to run this test set based on parent status.
-                if not test_set.should_run():
+                if not test_set.should_run:
+                    test_set.mark_completed()
                     output.fprint(
                         "Skipping test set '{}' due to parents not passing."
                         .format(test_set.name), file=outfile)
@@ -364,7 +382,8 @@ differentiate it from test ids."""
 
                 # Create the test objects
                 try:
-                    test_set.make(build_only, rebuild, outfile=outfile)
+                    test_set.make(build_only, rebuild,
+                                  local_builds_only=local_builds_only, outfile=outfile)
                 except TestSetError as err:
                     self.set_complete()
                     raise TestSeriesError(
@@ -386,7 +405,11 @@ differentiate it from test ids."""
                 test_start_count = simultaneous
                 while not test_set.done:
                     try:
-                        test_set.kickoff(test_start_count)
+                        # TODO: Log when and how many tests kicked off.
+                        kicked_off = test_set.kickoff(test_start_count)
+                        fprint("Kicked off '{}' tests of test set '{}' in series '{}'."
+                               .format(kicked_off, test_set.name, self.sid),
+                               file=outfile)
                     except TestSetError as err:
                         self.set_complete()
                         raise TestSeriesError(
@@ -397,6 +420,8 @@ differentiate it from test ids."""
                     # next.
                     if simultaneous is not None:
                         test_start_count = test_set.wait(simultaneous)
+                    else:
+                        break
 
             for test_set in sets_to_run:
                 potential_sets.remove(test_set)
@@ -407,8 +432,8 @@ differentiate it from test ids."""
                 # If we're repeating multiple times, reset the test sets for the series
                 # and recreate them to run again.
                 self.reset_test_sets()
-                self.create_test_sets()
-                potential_sets = self.test_sets.values()
+                self._create_test_sets()
+                potential_sets = list(self.test_sets.values())
 
     def wait(self, timeout=None):
         """Wait for the series to be complete or the timeout to expire. """
@@ -478,16 +503,19 @@ differentiate it from test ids."""
             self, name, test_names: List[str], modes: List[str] = None,
             only_if: Dict[str, List[str]] = None,
             not_if: Dict[str, List[str]] = None,
+            save: bool = True,
             _depends_on: List[str] = None, _depends_pass: bool = False):
         """Manually add a test set to this series. The set will be added to the
         series config, and created when we create all sets for the series. After
-        adding all set configs, call save_series_config to update the saved config.
+        adding all set configs, call save_config to update the saved config.
 
         :param name: The name of the test set.
         :param test_names: A list of test names (suite.name or name)
         :param modes: A List of modes to add.
         :param only_if: Only if conditions
         :param not_if:  Not if conditions
+        :param save: Save the series config after adding the test set. Setting this
+            to false is useful if you want to add multiple configs before saving.
         :param _depends_on: A list of test names that this test depends on. For
             unit testing only.
         :param _depends_pass: Whether running this test set depends on it's parents
@@ -506,6 +534,9 @@ differentiate it from test ids."""
             'only_if': only_if or {},
             'not_if': not_if or {},
         }
+
+        if save:
+            self.save_config()
 
     def _add_test_set(self, test_set):
         """Add a test set to this series."""
@@ -529,14 +560,17 @@ differentiate it from test ids."""
                                "it will have tests to add.")
 
         for test in test_set.tests:
-            self.tests[(test.working_dir, test.id)] = test
+            self._add_test(test)
 
-            # attempt to make symlink
-            link_path = dir_db.make_id_path(self.path, test.id)
+    def _add_test(self, test: TestRun):
+        """Add the given test to the series."""
 
-            if link_path.exists():
-                continue
+        # attempt to make symlink
+        link_path = dir_db.make_id_path(self.path, test.id)
 
+        self.tests[(test.working_dir, test.id)] = test
+
+        if not link_path.exists():
             try:
                 link_path.symlink_to(test.path)
             except OSError as err:

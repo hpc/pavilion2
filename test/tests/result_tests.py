@@ -544,7 +544,7 @@ class ResultParserTests(PavTestCase):
             with self.assertRaises(pavilion.result.common.ResultError):
                 result.evaluate_results({}, error_conf, utils.IndentedLog())
 
-    def test_result_cmd(self):
+    def test_result_command(self):
         """Make sure the result command works as expected, including the
         re-run option."""
 
@@ -565,7 +565,7 @@ class ResultParserTests(PavTestCase):
         rerun_cfg['config_dirs'] = tmp_cfg['config_dirs']
 
         arg_parser = arguments.get_parser()
-        run_args = arg_parser.parse_args(['run', 'result_tests'])
+        run_args = arg_parser.parse_args(['run', '-b', 'result_tests'])
         if run_cmd.run(self.pav_cfg, run_args) != 0:
             cmd_out, cmd_err = run_cmd.clear_output()
             self.fail("Run command failed: \n{}\n{}".format(cmd_out, cmd_err))
@@ -574,21 +574,20 @@ class ResultParserTests(PavTestCase):
             test.wait(3)
 
         res_args = arg_parser.parse_args(
-            ('result', '--full') + tuple(str(t.id) for t in run_cmd.last_tests))
+            ('result', '--full') + tuple(t.full_id for t in run_cmd.last_tests))
         if result_cmd.run(self.pav_cfg, res_args) != 0:
             cmd_out, cmd_err = result_cmd.clear_output()
             self.fail("Result command failed: \n{}\n{}"
                       .format(cmd_out, cmd_err))
 
         res_args = arg_parser.parse_args(
-            ('result',) + tuple(str(t.id) for t in run_cmd.last_tests))
+            ('result',) + tuple(t.full_id for t in run_cmd.last_tests))
         if result_cmd.run(self.pav_cfg, res_args) != 0:
             cmd_out, cmd_err = result_cmd.clear_output()
             self.fail("Result command failed: \n{}\n{}"
                       .format(cmd_out, cmd_err))
 
         for test in run_cmd.last_tests:
-            test.wait(1)
             # Each of these tests should have a 'FAIL' as the result.
             self.assertEqual(test.results['result'], TestRun.FAIL)
 
@@ -597,7 +596,7 @@ class ResultParserTests(PavTestCase):
         result_cmd.clear_output()
         res_args = arg_parser.parse_args(
             ('result', '--re-run', '--json') +
-            tuple(str(t.id) for t in run_cmd.last_tests))
+            tuple(t.full_id for t in run_cmd.last_tests))
         result_cmd.run(rerun_cfg, res_args)
 
         data, err = result_cmd.clear_output()
@@ -614,14 +613,14 @@ class ResultParserTests(PavTestCase):
 
         # Make sure we didn't save any of the changes.
         orig_test = run_cmd.last_tests[0]
-        reloaded_test = TestRun.load(self.pav_cfg, orig_test.working_dir, orig_test.id)
+        reloaded_test = TestRun.load(self.pav_cfg, orig_test.working_dir,
+                                     orig_test.id)
         self.assertEqual(reloaded_test.results, orig_test.results)
         self.assertEqual(reloaded_test.config, orig_test.config)
 
         # Make sure the log argument doesn't blow up.
         res_args = arg_parser.parse_args(
-            ('result', '--show-log') +
-            tuple(str(t.id) for t in run_cmd.last_tests))
+            ('result', '--show-log') + tuple(t.full_id for t in run_cmd.last_tests))
         if result_cmd.run(self.pav_cfg, res_args) != 0:
             cmd_out, cmd_err = result_cmd.clear_output()
             self.fail("Result command failed: \n{}\n{}"

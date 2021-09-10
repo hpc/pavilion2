@@ -648,8 +648,6 @@ class ResolverTests(PavTestCase):
         arg_parser = arguments.get_parser()
         args = arg_parser.parse_args([
             'run',
-            '-w',
-            '5',
             'version_compatible'
         ])
 
@@ -668,14 +666,14 @@ class ResolverTests(PavTestCase):
             }
         }
 
-        # Ensures Version information gets populated correclty even with empty
+        # Ensures Version information gets populated correctly even with empty
         # version section in test config
         run_cmd = commands.get_command(args.command_name)
         run_cmd.silence()
         run_cmd.run(self.pav_cfg, args)
 
         for test in run_cmd.last_tests:
-            test.wait(timeout=1)
+            test.wait(timeout=5)
             results = test.load_results()
             name = results['name']
             for key in expected_results[name].keys():
@@ -695,4 +693,4 @@ class ResolverTests(PavTestCase):
         run_cmd = commands.get_command(args.command_name)
         run_cmd.outfile = io.StringIO()
         run_cmd.errfile = run_cmd.outfile
-        self.assertEqual(run_cmd.run(self.pav_cfg, args), 22)
+        self.assertNotEqual(run_cmd.run(self.pav_cfg, args), 0)

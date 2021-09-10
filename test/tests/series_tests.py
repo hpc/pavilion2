@@ -1,17 +1,12 @@
-import time
-import io
-from datetime import datetime
-
-import pavilion.series_util
-from pavilion import arguments
-from pavilion import series_config
-from pavilion import commands
+"""Tests for the Series object."""
+import pavilion.series.errors
 from pavilion import plugins
 from pavilion import series
+from pavilion import series_config
 from pavilion.unittest import PavTestCase
 
 
-class SeriesFileTests(PavTestCase):
+class SeriesTests(PavTestCase):
 
     def setUp(self):
         plugins.initialize_plugins(self.pav_cfg)
@@ -19,138 +14,159 @@ class SeriesFileTests(PavTestCase):
     def tearDown(self):
         plugins._reset_plugins()
 
+    def test_init(self):
+        """Check initialization of the series object."""
+
+        # Initialize from scratch
+        series1 = series.TestSeries(
+            pav_cfg=self.pav_cfg,
+            config=series_config.generate_series_config()
+        )
+
+        # Add a basic test set and save.
+        series1.add_test_set_config('series1', ['pass_fail'])
+        series1.save_config()
+
+        series2 = series.TestSeries.load(self.pav_cfg, series1.sid)
+
+        # Make sure a loaded series is the same as the original
+        for attr in series1.__dict__.keys():
+            self.assertEqual(series1.__getattribute__(attr),
+                             series2.__getattribute__(attr), attr)
+
+    def test_set_ordering(self):
+        """Verify that the order of entries in series files is kept intact on load."""
+
+        cfg = series_config.load_series_config(self.pav_cfg, 'order')
+
+        series1 = series.TestSeries(self.pav_cfg, cfg)
+        series1.add_test_set_config('test3', ['foo'])
+        series1._create_test_sets()
+
+        expected_order = ['zazzle', 'blargl', 'foo', 'snit', 'r2d2', 'test3']
+        order = list(series1.test_sets.keys())
+
+        self.assertEqual(expected_order, order, "Test sets improperly ordered.")
+
     def test_series_circle(self):
         """Test if it can detect circular references and that ordered: True
         works as intended."""
 
-        series_cmd = commands.get_command('series')
-        arg_parser = arguments.get_parser()
-        series_args = arg_parser.parse_args(['series', 'series_circle1'])
+        config = series_config.make_config({
+            'series': {
+                'set1': {
+                    },
+                'set2': {
+                    'depends_on': ['set1', 'set4']
+                },
+                'set3': {
+                    'depends_on': ['set2']
+                },
+                'set4': {
+                    'depends_on': ['set3']
+                }
+            }})
 
-        self.assertRaises(pavilion.series_util.TestSeriesError,
-                          lambda: series_cmd.run(self.pav_cfg, series_args))
+        series1 = series.TestSeries(self.pav_cfg, config)
+        with self.assertRaises(pavilion.series.errors.TestSeriesError):
+            series1._create_test_sets()
+
+        config = series_config.make_config({
+            'ordered': True,
+            'series': {
+                'set1': {},
+                'set2': {'depends_on': 'set4'},
+                'set3': {},
+                'set4': {},
+                }
+            })
+        series2 = series.TestSeries(self.pav_cfg, config)
+        with self.assertRaises(pavilion.series.errors.TestSeriesError):
+            series2._create_test_sets()
 
     def test_series_simultaneous(self):
         """Tests to see if simultaneous: <num> works as intended. """
 
-        series_cfg = {
-            'series':
-                            {'only_set':
-                                 {'modes':      [],
-                                  'tests':      ['echo_test.b'],
-                                  'only_if':    {},
-                                  'depends_on': [],
-                                  'not_if':     {}}
-                             },
-            'modes':        ['smode2'],
-            'simultaneous': '1',
-            'restart':      False,
-            'ordered':      False,
-            'host':         None
-        }
+        series_cfg = series_config.make_config({
+                'series': {
+                    'set1': {'tests':      ['echo_test.b']},
+                    'set2': {'tests':      ['echo_test.b']},
+                },
+                'modes':        ['smode2'],
+                'simultaneous': '1',
+            })
 
         test_series_obj = series.TestSeries(self.pav_cfg, config=series_cfg)
-
-        test_series_obj.create_test_sets()
-
         test_series_obj.run()
+        test_series_obj.wait(timeout=3)
 
-        # make sure test actually ends
-        time.sleep(3)
-
-        test_starts = []
+        last_ended = None
         for test_id, test_obj in test_series_obj.tests.items():
-            test_starts.append(test_obj.results['started'])
-
-        timediff1 = test_starts[1] - test_starts[0]
-        timediff2 = test_starts[2] - test_starts[1]
-
-        self.assertGreaterEqual(timediff1, 0.5)
-        self.assertGreaterEqual(timediff2, 0.5)
+            started = test_obj.results['started']
+            ended = test_obj.results['finished']
+            if last_ended is not None:
+                self.assertLessEqual(last_ended, started)
+            last_ended = ended
 
     def test_series_modes(self):
         """Test if modes and host are applied correctly."""
 
-        series_cfg = {
-            'series':
-                            {'only_set':
-                                 {'modes':      ['smode1'],
-                                  'depends_on': [],
-                                  'tests':      ['echo_test.a'],
-                                  'only_if':    {},
-                                  'not_if':     {}}
-                             },
-            'modes':        ['smode2'],
-            'simultaneous': None,
-            'ordered':      False,
-            'restart':      False,
-            'host':         'this'
-        }
-
-        outfile = io.StringIO()
+        series_cfg = series_config.make_config({
+            'series': {
+                'only_set': {
+                    'modes':      ['smode1'],
+                    'tests':      ['echo_test.a']},
+            },
+            'modes': ['smode2'],
+            'host': 'this'
+        })
 
         test_series_obj = series.TestSeries(self.pav_cfg, config=series_cfg)
-
-        test_series_obj.create_test_sets()
-
         test_series_obj.run()
-
-        # make sure test actually ends
-        time.sleep(0.5)
+        test_series_obj.wait(5)
 
         self.assertNotEqual(test_series_obj.tests, {})
 
         for test_id, test_obj in test_series_obj.tests.items():
-            vars = test_obj.var_man.variable_sets['var']
-            a_num_value = vars.get('another_num', None, None)
+            varsets = test_obj.var_man.variable_sets['var']
+            a_num_value = varsets.get('another_num', None, None)
             self.assertEqual(a_num_value, '13')
-            asdf_value = vars.get('asdf', None, None)
+            asdf_value = varsets.get('asdf', None, None)
             self.assertEqual(asdf_value, 'asdf1')
-            hosty_value = vars.get('hosty', None, None)
+            hosty_value = varsets.get('hosty', None, None)
             self.assertEqual(hosty_value, 'this')
 
     def test_series_depends(self):
         """Tests if dependencies work as intended."""
 
-        cfg = {
-            'series':
-                            {'set_d':
-                                 {'modes':        [],
-                                  'tests':        ['echo_test.d'],
-                                  'depends_on':   ['set_c'],
-                                  'depends_pass': 'True',
-                                  'only_if':      {},
-                                  'not_if':       {}},
-                             'set_c':
-                                 {'modes':      [],
-                                  'tests':      ['echo_test.c'],
-                                  'depends_on': [],
-                                  'only_if':    {},
-                                  'not_if':     {}
-                                  }
-                             },
-            'modes':        ['smode2'],
-            'simultaneous': None,
-            'ordered':      False,
-            'restart':      False,
-            'host':         None
-        }
+        cfg = series_config.make_config({
+                'series': {
+                    'a': {},
+                    'b': {'depends_on': ['a']},
+                    'c': {'depends_on': ['a', 'b']},
+                    'd': {'depends_on': ['c', 'b']},
+                    'e': {},
+                }})
 
-        outfile = io.StringIO()
-        test_series_obj = series.TestSeries(self.pav_cfg, config=cfg)
+        series1 = series.TestSeries(self.pav_cfg, config=cfg)
+        series1._create_test_sets()
 
-        test_series_obj.create_dependency_graph()
+        a = series1.test_sets['a']
+        b = series1.test_sets['b']
+        c = series1.test_sets['c']
+        d = series1.test_sets['d']
+        e = series1.test_sets['e']
 
-        test_series_obj.create_test_sets()
-
-        test_series_obj.run()
-
-        time.sleep(0.1)
-
-        # check if echo_test.d is skipped
-        for test_id, test_obj in test_series_obj.tests.items():
-            if test_obj.name == 'echo_test.d':
-                self.assertTrue(test_obj.skipped)
+        self.assertEqual(a.parent_sets, set())
+        self.assertEqual(a.child_sets, {b, c})
+        self.assertEqual(b.parent_sets, {a})
+        self.assertEqual(b.child_sets, {c, d})
+        self.assertEqual(c.parent_sets, {a, b})
+        self.assertEqual(c.child_sets, {d})
+        self.assertEqual(d.parent_sets, {b, c})
+        self.assertEqual(d.child_sets, set())
+        self.assertEqual(e.parent_sets, set())
+        self.assertEqual(e.child_sets, set())
 
     def test_series_conditionals_only_if_ok(self):
         """Test that adding a conditional that always matches produces tests that
@@ -191,8 +207,6 @@ class SeriesFileTests(PavTestCase):
                 "bob": ["suzy"]
             })
 
-        print('hrr')
-
         for test_id, test_obj in test_series_obj.tests.items():
             if 'always' in test_obj.name:
                 self.assertEqual(test_obj.results['result'], 'PASS')
@@ -221,9 +235,7 @@ class SeriesFileTests(PavTestCase):
             modes=['smode2'],
         )
 
-        print('merr')
         series_obj = series.TestSeries(self.pav_cfg, config=series_cfg)
-        print('hmm')
         series_obj.add_test_set_config(
             name='test',
             test_names=['conditional'],
@@ -231,12 +243,9 @@ class SeriesFileTests(PavTestCase):
             only_if=only_if,
             not_if=not_if,
         )
-        print('foo!')
 
         import sys
         series_obj.run(outfile=sys.stdout)
-        print('post run')
         series_obj.wait(timeout=3)
-        print('wait')
 
         return series_obj

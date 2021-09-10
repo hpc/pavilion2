@@ -3,11 +3,11 @@ pass:
   run:
     cmds:
       - "echo pass"
-      - true
+      - "true"
 
 fail:
   run:
     cmds:
       - "echo pass"
-      - false
+      - "false"
 

@@ -1,1 +1,2 @@
-label: rerun
+label: test
+working_dir: ../../working_dir

@@ -23,7 +23,7 @@ local2:
     variables:
         build_num: 2
     inherits_from: local1
-             
+  
 nodes2:
     variables:
         build_num: 2-r

@@ -13,6 +13,7 @@ from pavilion import test_config, output, result, schedulers
 from pavilion.build_tracker import MultiBuildTracker
 from pavilion.status_file import STATES
 from pavilion.test_config import TestConfigError
+from pavilion.utils import str_bool
 from pavilion.test_run import TestRun, TestRunError
 
 
@@ -78,14 +79,16 @@ class TestSet:
         self.started_tests = None  # type: Union[List[TestRun], None]
         self.completed_tests = None  # type: Union[List[TestRun], None]
 
+        self._should_run = None
         self._test_names = test_names
         self.mb_tracker = MultiBuildTracker()
 
-    def add_parent(self, parent: 'TestSet'):
-        """Add the given TestSet as a parent to this one."""
+    def add_parents(self, *parents: 'TestSet'):
+        """Add the given TestSets as a parent to this one."""
 
-        self.parent_sets.add(parent)
-        parent.child_sets.add(self)
+        for parent in parents:
+            self.parent_sets.add(parent)
+            parent.child_sets.add(self)
 
     def remove_parent(self, parent: 'TestSet'):
         """Remove the given parent from this test set."""
@@ -100,7 +103,8 @@ class TestSet:
         except KeyError:
             pass
 
-    def ordered_split(self) -> List['TestSet']:
+    # This was written by mistake, but may be useful in the future.
+    def __ordered_split(self) -> List['TestSet']:
         """Split this TestSet into multiple test sets, such that each set depends on
         the last and the tests run in the order given."""
 
@@ -138,23 +142,24 @@ class TestSet:
         # Adjust the parents of each test set (except the first) to include the
         # previous test in the list.
         for i in range(1, len(test_sets)):
-            test_sets[i].add_parent(test_sets[i-1])
+            test_sets[i].add_parents(test_sets[i - 1])
             # Only the first set should depend on prior sets passing.
             test_sets[i].parents_must_pass = False
 
         # Point the original parents at the new first test set.
         for parent in orig_parents:
-            test_sets[0].add_parent(parent)
+            test_sets[0].add_parents(parent)
             test_sets[-1].remove_parent(parent)
 
         return test_sets
 
-    def make(self, build_only=False, rebuild=False, outfile: TextIO = StringIO()):
+    def make(self, build_only=False, rebuild=False, local_builds_only=False,
+             outfile: TextIO = StringIO()):
         """Resolve the given tests names and options into actual tests, and print
         the test creation status."""
 
         if self.tests is not None:
-            self.cancel_all("System Error")
+            self.cancel("System Error")
             raise RuntimeError("Already created the tests for TestSet '{}'"
                                .format(self.name))
 
@@ -184,6 +189,12 @@ class TestSet:
         self.tests = []
 
         for ptest in test_configs:
+            if local_builds_only:
+                # Don't create test objects for tests that would build remotely.
+                if str_bool(ptest.config.get('build', {}).get('on_nodes', 'False')):
+                    # TODO: Log that the test was not created.
+                    continue
+
             try:
                 test_run = TestRun(pav_cfg=self.pav_cfg, config=ptest.config,
                                    var_man=ptest.var_man, rebuild=rebuild,
@@ -194,8 +205,8 @@ class TestSet:
                 output.fprint("Creating Test Runs: {:.0%}".format(progress),
                               file=outfile, end='\r')
             except (TestRunError, TestConfigError) as err:
-                self.cancel_all("Error creating other tests in test set '{}'"
-                                .format(self.name))
+                self.cancel("Error creating other tests in test set '{}'"
+                            .format(self.name))
                 raise TestSetError("Error creating tests in test set '{}': {}"
                                    .format(self.name, err.args[0]))
 
@@ -312,7 +323,7 @@ class TestSet:
                         when, state, msg = notes[-1]
                         when = output.get_relative_timestamp(when)
                         preamble = (self.BUILD_STATUS_PREAMBLE
-                                    .format(when=when, test_id=test.id,
+                                    .format(when=when, test_id=test.full_id,
                                             state_len=STATES.max_length,
                                             state=state))
                         output.fprint(preamble, msg, wrap_indent=len(preamble),
@@ -324,12 +335,13 @@ class TestSet:
                 for thread in test_threads:
                     thread.join()
 
-                for test in local_builds:
+                for test in self.tests:
                     if (test.status.current().state not in
                             (STATES.BUILD_FAILED, STATES.BUILD_ERROR)):
                         test.status.set(
                             STATES.ABORTED,
                             "Run aborted due to failures in other builds.")
+                    test.set_run_complete()
 
                 output.fprint(
                     color=output.RED, file=outfile, clear=True)
@@ -354,9 +366,6 @@ class TestSet:
                         "the test build log (pav log build {id})"
                         .format(f=failed_build, id=failed_build.test.id,
                                 set_name=self.name))
-
-                self.cancel_all("Build error in tests '{}'"
-                                .format(', '.join(failed_test_ids)))
 
                 raise TestSetError(msg)
 
@@ -394,7 +403,7 @@ class TestSet:
         self.built_tests = local_builds
         self.ready_to_start_tests = defaultdict(lambda: [])
         for test in self.tests:
-            if not test.build_only and not test.skipped:
+            if not (test.build_only and test.build_local) and not test.skipped:
                 self.ready_to_start_tests[test.scheduler].append(test)
 
     def kickoff(self, start_max: int = None) -> int:
@@ -405,10 +414,10 @@ class TestSet:
     """
 
         if self.tests is None:
-            self.cancel_all("System error.")
+            self.cancel("System error.")
             raise RuntimeError("You must run TestRun.make() before kicking off tests.")
         elif self.built_tests is None:
-            self.cancel_all("System error.")
+            self.cancel("System error.")
             raise RuntimeError("You must run TestRun.build() before kicking off tests.")
 
         ready_count = sum(map(len, self.ready_to_start_tests.values()))
@@ -440,7 +449,7 @@ class TestSet:
                 try:
                     scheduler.schedule_tests(self.pav_cfg, tests)
                 except schedulers.SchedulerPluginError as err:
-                    self.cancel_all(
+                    self.cancel(
                         "Error scheduling tests (not necessarily this one): {}"
                         .format(err.args[0]))
                     raise TestSetError(
@@ -451,7 +460,7 @@ class TestSet:
 
         return start_count
 
-    def cancel_all(self, reason):
+    def cancel(self, reason):
         """Cancel all the tests in the test set."""
 
         for test in self.tests:
@@ -459,21 +468,8 @@ class TestSet:
             scheduler.cancel_job(test)
             test.status.set(test.status.STATES.ABORTED, reason)
 
-    def configs_to_tests(self, proto_tests: List[test_config.ProtoTest],
-                         build_tracker: MultiBuildTracker = None,
-                         build_only: bool = False,
-                         rebuild: bool = False,
-                         outfile: TextIO = StringIO()) -> List[TestRun]:
-        """Convert configs/var_man tuples into actual tests.
-
-        :param proto_tests: A list of test configs.
-        :param build_tracker: Tracker object for tracking multi-threaded builds.
-        :param build_only: Whether to only build these tests.
-        :param rebuild: After figuring out what build to use, rebuild it.
-        :param outfile: Where to send user output.
-        """
-
-    def check_result_format(self, tests: List[TestRun]):
+    @staticmethod
+    def check_result_format(tests: List[TestRun]):
         """Make sure the result parsers for each test are ok."""
 
         rp_errors = []
@@ -512,7 +508,7 @@ class TestSet:
             return 0
 
         for test in list(self.started_tests):
-            if test.check_run_complete():
+            if test.complete:
                 self.started_tests.remove(test)
                 self.completed_tests.append(test)
                 marked += 1
@@ -543,26 +539,59 @@ class TestSet:
 
         return marked
 
-    def should_run(self) -> bool:
-        """Evaluate whether this set should run at all, and mark it as complete
-        if not. Returns whether this set should run."""
+    @property
+    def should_run(self) -> Union[bool, None]:
+        """Evaluate whether this set should run at all, and mark it as 'done'
+        if not. Returns whether this set should run, or None if that can't be
+        determined."""
 
-        should_run = True
+        if self._should_run is None:
 
-        if self.parents_must_pass:
-            # Find any parent test set where not all tests passed.
+            all_should = True
+            all_done = True
+            all_passed = True
+
             for parent in self.parent_sets:
-                if not parent.all_passed:
-                    should_run = False
+                # If a parent shouldn't run, neither should we.
+                if not parent.should_run:
+                    all_should = False
                     break
 
-        if not should_run:
-            # We won't have any tests created
-            self.tests = []
-            self.ready_to_start_tests = {}
-            self.started_tests = []
+                if self.parents_must_pass:
+                    # If the parent should run and has to pass, check that all
+                    # tests are done and passing.
+                    if parent.done:
+                        if not parent.all_passed:
+                            all_passed = False
+                            break
+                    else:
+                        all_done = False
+                        break
 
-        return should_run
+            if not all_should:  # When any parent shouldn't run, this shouldn't either.
+                self._should_run = False
+            elif self.parents_must_pass:
+                if not all_passed:
+                    # We care about parents passing, and a parent failed
+                    self._should_run = False
+                elif all_done:
+                    # We care about parents passing, and they all finished and passed.
+                    self._should_run = True
+                else:
+                    # We don't know yet what the answer is.
+                    pass
+            else:
+                # We should run if all parents should and we don't care about parents
+                # passing
+                self._should_run = True
+
+            if self._should_run is False:
+                # We won't have any tests created. This is done
+                self.tests = []
+                self.ready_to_start_tests = {}
+                self.started_tests = []
+
+        return self._should_run
 
     @property
     def done(self) -> bool:
