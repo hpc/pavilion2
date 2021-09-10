@@ -65,7 +65,9 @@ class StatusCommand(commands.Command):
             return status_utils.print_status_history(pav_cfg, tests[-1],
                                                      self.outfile, args.json)
 
-        statuses = status_utils.get_statuses(pav_cfg, test_paths)
+        tests = cmd_utils.get_tests_by_paths(pav_cfg, test_paths, self.errfile)
+
+        statuses = status_utils.get_statuses(pav_cfg, tests)
         if args.summary:
             return self.print_summary(statuses)
         else:

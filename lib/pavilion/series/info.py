@@ -3,8 +3,8 @@ import logging
 from pathlib import Path
 
 from pavilion import dir_db
-from . import path_to_sid
 from pavilion.test_run import TestRun, TestAttributes
+from .errors import TestSeriesError
 
 logger = logging.getLogger()
 
@@ -98,3 +98,16 @@ def series_info_transform(path):
     """Transform a path into a series info dict."""
 
     return SeriesInfo(path).attr_dict()
+
+
+def path_to_sid(series_path: Path):
+    """Return the sid for a given series path.
+    :raises TestSeriesError: For an invalid series path."""
+
+    try:
+        return 's{}'.format(int(series_path.name))
+    except ValueError:
+        raise TestSeriesError(
+            "Series paths must have a numerical directory name, got '{}'"
+            .format(series_path.as_posix())
+        )

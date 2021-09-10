@@ -156,6 +156,9 @@ def index(id_dir: Path, idx_name: str,
                 "Error reading index at '%s'. Regenerating from "
                 "scratch. %s", idx_path.as_posix(), err.args[0])
 
+    if not id_dir.exists():
+        return idx
+
     new_items = {}
 
     # If the index hasn't been updated lately (or is empty) do so.

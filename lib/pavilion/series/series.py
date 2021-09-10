@@ -18,13 +18,11 @@ from pavilion import utils
 from pavilion.lockfile import LockFile
 from pavilion.output import fprint
 from pavilion.series_config import SeriesConfigLoader
-from pavilion.series_utils import TestSeriesError, TestSeriesWarning
 from pavilion.status_file import STATES
-from pavilion.test_run import (
-    TestRun, TestRunError)
-from pavilion.test_set import TestSet, TestSetError
-from pavilion.utils import str_bool
+from pavilion.test_run import TestRun, TestRunError
 from yaml_config import YAMLError, RequiredError
+from .errors import TestSeriesError, TestSeriesWarning
+from .test_set import TestSet, TestSetError
 
 
 class TestSeries:

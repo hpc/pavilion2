@@ -9,9 +9,8 @@ from pavilion import dir_db
 from pavilion import filters
 from pavilion import output
 from pavilion.commands import sub_cmd
-from pavilion.series import TestSeries
-from pavilion.series_util import SeriesInfo, TestSeriesError, \
-    series_info_transform, list_series_tests
+from pavilion.series.info import SeriesInfo, series_info_transform
+from pavilion.series import TestSeriesError, list_series_tests
 from pavilion.test_run import TestAttributes, test_run_attr_transform
 
 

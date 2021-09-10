@@ -16,7 +16,6 @@ from pathlib import Path
 from typing import Callable, Any
 
 import pavilion.result.common
-from pavilion.config import DEFAULT_CONFIG_LABEL
 from pavilion import builder
 from pavilion import dir_db
 from pavilion import output
@@ -108,18 +107,24 @@ class TestAttributes:
         'suite_path': lambda p: Path(p) if p is not None else None,
     }
 
-    def __init__(self, path: Path):
+    COMPLETE_FN = 'RUN_COMPLETE'
+
+    def __init__(self, path: Path, load=True):
         """Initialize attributes.
         :param path: Path to the test directory.
+        :param load: Whether to autoload the attributes.
         """
 
         self.path = path
 
         self._attrs = {}
-        self.load_attributes()
+
+        self._complete = False
 
         # Set a logger more specific to this test.
         self.logger = logging.getLogger('pav.TestRun.{}'.format(path.name))
+        if load:
+            self.load_attributes()
 
     ATTR_FILE_NAME = 'attributes'
 
@@ -155,7 +160,6 @@ class TestAttributes:
 
         attrs = {}
         if not attr_path.exists():
-
             self._attrs = self.load_legacy_attributes()
             return
 
@@ -180,10 +184,6 @@ class TestAttributes:
                     "run '%s': %s",
                     key, val, self.id, err.args[0])
 
-        # A 2.2 attributes file.
-        if 'result' not in attrs:
-            attrs = self.load_legacy_attributes(attrs)
-
         self._attrs = attrs
 
     def load_legacy_attributes(self, initial_attrs=None):
@@ -195,7 +195,6 @@ class TestAttributes:
         attrs = {
             'build_only': None,
             'build_name': None,
-            'complete':   True,  # These are so old, just call them done.
             'created':    self.path.stat().st_mtime,
             'finished':   self.path.stat().st_mtime,
             'id':         int(self.path.name),
@@ -231,16 +230,23 @@ class TestAttributes:
         # Replace with items we got from the real attributes file
         attrs.update(initial_attrs)
 
+        # These are so old always consider them complete
+        self._complete = True
+
         return attrs
 
-    @staticmethod
-    def list_attrs():
+    LIST_ATTRS_EXCEPTIONS = ['complete']
+
+    @classmethod
+    def list_attrs(cls):
         """List the available attributes. This always operates on the
         base RunAttributes class, so it won't contain anything from child
         classes."""
 
         attrs = []
         for key, val in TestAttributes.__dict__.items():
+            if key in cls.LIST_ATTRS_EXCEPTIONS:
+                continue
             if isinstance(val, property):
                 attrs.append(key)
         attrs.sort()
@@ -257,6 +263,8 @@ class TestAttributes:
 
             if val is not None or include_empty:
                 attrs[key] = val
+
+        attrs['complete'] = self.complete
 
         return attrs
 
@@ -291,16 +299,27 @@ class TestAttributes:
 
         return attr_prop.__doc__
 
+    @property
+    def complete(self) -> bool:
+        """Returns whether the test is complete."""
+
+        if not self._complete:
+            run_complete_path = self.path / self.COMPLETE_FN
+            # This will force a meta-data update on the directory.
+            list(self.path.iterdir())
+
+            if run_complete_path.exists():
+                self._complete = True
+                return True
+
+        return self._complete
+
     build_only = basic_attr(
         name='build_only',
         doc="Only build this test, never run it.")
     build_name = basic_attr(
         name='build_name',
         doc="The name of the test run's build.")
-    complete = basic_attr(
-        name='complete',
-        doc='Whether the test run considers itself done (regardless of '
-            'whether it ran).')
     created = basic_attr(
         name='created',
         doc="When the test was created.")
@@ -392,7 +411,6 @@ class TestRun(TestAttributes):
     logger = logging.getLogger('pav.TestRun')
 
     JOB_ID_FN = 'job_id'
-    COMPLETE_FN = 'RUN_COMPLETE'
 
     RUN_DIR = 'test_runs'
 
@@ -436,7 +454,7 @@ class TestRun(TestAttributes):
         if new_test:
             # These will be set by save() or on load.
             id_tmp, run_path = dir_db.create_id_dir(tests_path)
-            super().__init__(path=run_path)
+            super().__init__(path=run_path, load=False)
             self._variables_path = self.path / 'variables'
             self.var_man = None
             self.status = None
@@ -446,7 +464,7 @@ class TestRun(TestAttributes):
             # Set basic attributes
             self.id = id_tmp  # pylint: disable=invalid-name
             self.build_only = build_only
-            self.complete = False
+            self._complete = False
             self.created = time.time()
             self.name = self.make_name(config)
             self.rebuild = rebuild
@@ -464,7 +482,6 @@ class TestRun(TestAttributes):
                 raise TestRunNotFoundError(
                     "No test with id '{}' could be found.".format(self.id))
 
-            self.load_attributes()
             self._variables_path = self.path / 'variables'
             self.status = StatusFile(self.path / 'status')
 
@@ -644,6 +661,8 @@ class TestRun(TestAttributes):
 
         test_run = TestRun(pav_cfg, config, _id=test_id)
         test_run.saved = True
+        # Force the completion check to ensure that ._complete is populated.
+
         return test_run
 
     def _finalize(self):
@@ -656,7 +675,7 @@ class TestRun(TestAttributes):
 
         if not self.saved:
             raise RuntimeError("You must call the 'test.save()' method before "
-                               "you can finalize a test. Test: {}".format(self.id))
+                               "you can finalize a test. Test: {}".format(self.full_id))
 
         self._save_config()
         # Save our newly updated variables.
@@ -719,7 +738,7 @@ class TestRun(TestAttributes):
 
         pav_path = self._pav_cfg.pav_root/'bin'/'pav'
 
-        return '{} run {}'.format(pav_path, self.id)
+        return '{} run {}'.format(pav_path, self.full_id)
 
     def _save_config(self):
         """Save the configuration for this test to the test config file."""
@@ -788,7 +807,7 @@ class TestRun(TestAttributes):
 
         if not self.saved:
             raise RuntimeError("The .save() method must be called before you "
-                               "can build test '{}'".format(self.id))
+                               "can build test '{}'".format(self.full_id))
 
         if self.build_origin_path.exists():
             raise RuntimeError(
@@ -814,6 +833,10 @@ class TestRun(TestAttributes):
             build_result = False
 
         self.build_log.symlink_to(self.build_path/'pav_build_log')
+
+        if self.build_only:
+            self.set_run_complete()
+
         return build_result
 
     def run(self):
@@ -828,7 +851,7 @@ class TestRun(TestAttributes):
 
         if not self.saved:
             raise RuntimeError("You must call the .save() method before running "
-                               "test {}".format(self.id))
+                               "test {}".format(self.full_id))
 
         if self.build_only:
             self.status.set(
@@ -909,7 +932,7 @@ class TestRun(TestAttributes):
 
         if not self.saved:
             raise RuntimeError("You must call the .save() method before run {} "
-                               "can be marked complete.".format(self.id))
+                               "can be marked complete.".format(self.full_id))
 
         # Write the current time to the file. We don't actually use the contents
         # of the file, but it's nice to have another record of when this was
@@ -922,29 +945,7 @@ class TestRun(TestAttributes):
                 run_complete)
         complete_tmp_path.rename(complete_path)
 
-        self.complete = True
-        self.save_attributes()
-
-    def check_run_complete(self):
-        """Return the complete time from the run complete file, or None
-        if the test was never marked as complete."""
-
-        run_complete_path = self.path/self.COMPLETE_FN
-        # This will force a meta-data update on the directory.
-        list(self.path.iterdir())
-
-        if run_complete_path.exists():
-            try:
-                with run_complete_path.open() as complete_file:
-                    data = json.load(complete_file)
-                    return data.get('complete')
-            except (OSError, ValueError, json.JSONDecodeError) as err:
-                self.logger.warning(
-                    "Failed to read run complete file for at %s: %s",
-                    run_complete_path.as_posix(), err)
-                return None
-        else:
-            return None
+        self._complete = True
 
     WAIT_INTERVAL = 0.5
 
@@ -961,14 +962,14 @@ class TestRun(TestAttributes):
             timeout = time.time() + timeout
 
         while 1:
-            if self.check_run_complete() is not None:
+            if self.complete:
                 return
 
             time.sleep(self.WAIT_INTERVAL)
 
             if timeout is not None and time.time() > timeout:
                 raise TimeoutError("Timed out waiting for test '{}' to "
-                                   "complete".format(self.id))
+                                   "complete".format(self.full_id))
 
     def gather_results(self, run_result, regather=False, log_file=None):
         """Process and log the results of the test, including the default set
@@ -1061,7 +1062,7 @@ of result keys.
 
         if not self.saved:
             raise RuntimeError("You must call the .save() method before saving "
-                               "results for test {}".format(self.id))
+                               "results for test {}".format(self.full_id))
 
         results_tmp_path = self.results_path.with_suffix('.tmp')
         with results_tmp_path.open('w') as results_file:
@@ -1121,7 +1122,7 @@ of result keys.
                 'name': self.name,
                 'sys_name': self.var_man['sys_name'],
                 'created': self.created,
-                'id': self.id,
+                'id': self.full_id,
                 'result': None,
             }
         else:
@@ -1176,6 +1177,25 @@ be set by the scheduler plugin as soon as it's known."""
                               path, err)
 
         self._job_id = job_id
+
+    @property
+    def complete_time(self):
+        """Returns the completion time from the completion file."""
+
+        if not self.complete:
+            return None
+
+        run_complete_path = self.path/self.COMPLETE_FN
+
+        try:
+            with run_complete_path.open() as complete_file:
+                data = json.load(complete_file)
+                return data.get('complete')
+        except (OSError, ValueError, json.JSONDecodeError) as err:
+            self.logger.warning(
+                "Failed to read run complete file for at %s: %s",
+                run_complete_path.as_posix(), err)
+            return None
 
     def _write_script(self, stype, path, config):
         """Write a build or run script or template. The formats for each are
@@ -1279,7 +1299,7 @@ be set by the scheduler plugin as soon as it's known."""
         script.write(path)
 
     def __repr__(self):
-        return "TestRun({s.name}-{s.id})".format(s=self)
+        return "TestRun({s.name}-{s.full_id})".format(s=self)
 
     def _get_permute_vars(self):
         """Return the permute var values in a dictionary."""

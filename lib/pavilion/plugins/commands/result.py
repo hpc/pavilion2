@@ -88,7 +88,6 @@ class ResultsCommand(commands.Command):
         """Print the test results in a variety of formats."""
 
         test_paths = cmd_utils.arg_filtered_tests(pav_cfg, args, verbose=self.errfile)
-
         tests = cmd_utils.get_tests_by_paths(pav_cfg, test_paths, self.errfile)
 
         log_file = None
@@ -96,11 +95,7 @@ class ResultsCommand(commands.Command):
             log_file = io.StringIO()
 
         if args.re_run:
-            if not self.update_results(pav_cfg, tests, log_file):
-                return errno.EINVAL
-
-        if args.save:
-            if not self.update_results(pav_cfg, tests, log_file, save=True):
+            if not self.update_results(pav_cfg, tests, log_file, save=args.save):
                 return errno.EINVAL
 
         if args.json or args.full:

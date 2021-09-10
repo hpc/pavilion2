@@ -3,6 +3,7 @@
 import signal
 import sys
 
+import pavilion.series.errors
 from pavilion import commands
 from pavilion import output
 from pavilion import series
@@ -31,7 +32,7 @@ class AutoSeries(commands.Command):
         # load series obj
         try:
             series_obj = series.TestSeries.load(pav_cfg, args.series_id)
-        except series.TestSeriesError as err:
+        except pavilion.series.errors.TestSeriesError as err:
             output.fprint("Error in _series cmd: {}".format(err.args[0]))
             sys.exit(1)
 
@@ -47,7 +48,7 @@ class AutoSeries(commands.Command):
         try:
             # call function to actually run series
             series_obj.run(outfile=self.outfile)
-        except series.TestSeriesError as err:
+        except pavilion.series.errors.TestSeriesError as err:
             output.fprint("Error while running series '{}'. {}"
                           .format(args.series, err.args[0]),
                           file=self.errfile)

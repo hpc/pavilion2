@@ -3,12 +3,14 @@
 import errno
 from typing import List
 
+import pavilion.series.errors
 from pavilion import commands
 from pavilion import output
 from pavilion import schedulers
 from pavilion import series
+from pavilion import cmd_utils
 from pavilion.series_config import generate_series_config
-from pavilion.series import TestSeries
+from pavilion.series.series import TestSeries
 from pavilion.status_utils import print_from_tests
 from pavilion.test_run import TestRun
 
@@ -127,7 +129,14 @@ class RunCommand(commands.Command):
             overrides=args.overrides,
         )
 
-        # Todo: Figure out what to do with this...
+        tests = args.tests
+        try:
+            tests.extend(cmd_utils.read_test_files(args.files))
+        except ValueError as err:
+            output.fprint("Error reading given test list files.\n{}"
+                          .format(err))
+            return errno.EINVAL
+
         local_builds_only = getattr(args, 'local_builds_only', False)
         report_status = getattr(args, 'status', False)
 
@@ -136,23 +145,26 @@ class RunCommand(commands.Command):
 
         series_obj.add_test_set_config(
             'cmd_line',
-            args.tests,
+            tests,
             modes=args.modes,
         )
+
+        self.last_series = series_obj
 
         try:
             series_obj.run(
                 build_only=self.BUILD_ONLY,
                 rebuild=args.rebuild,
+                local_builds_only=local_builds_only,
                 verbosity=args.build_verbosity,
                 outfile=self.outfile)
-        except series.TestSeriesError as err:
+            self.last_tests = list(series_obj.tests.values())
+        except pavilion.series.errors.TestSeriesError as err:
+            self.last_tests = list(series_obj.tests.values())
             output.fprint(
                 str(err.args[0]),
                 file=self.errfile, color=output.RED)
             return errno.EAGAIN
-
-        self.last_tests = series_obj.tests
 
         if report_status:
             print_from_tests(

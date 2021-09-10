@@ -3,10 +3,8 @@ and series."""
 
 import os
 import time
-from pathlib import Path
 from typing import TextIO, List
 
-from pavilion import cmd_utils
 from pavilion import output
 from pavilion import schedulers
 from pavilion.status_file import STATES
@@ -58,16 +56,13 @@ def status_from_test_obj(pav_cfg: dict, test: TestRun):
     }
 
 
-def get_statuses(pav_cfg, test_paths: List[Path], errfile=None):
+def get_statuses(pav_cfg, tests: List[TestRun]):
     """Return the statuses for all given test id's.
     :param pav_cfg: The Pavilion config.
-    :param List[str] test_paths: A list of test ids to load.
-    :param errfile: Where to write standard error to.
+    :param tests: A list of test ids to load.
     """
 
     test_statuses = []
-
-    tests = cmd_utils.get_tests_by_paths(pav_cfg, test_paths, errfile)
 
     for test in tests:
         try:

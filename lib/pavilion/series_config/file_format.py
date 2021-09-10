@@ -15,9 +15,7 @@ class SeriesConfigLoader(yc.YamlConfigLoader):
             'series', sub_elem=yc.KeyedElem(
                 elements=[
                     yc.ListElem('tests', sub_elem=yc.StrElem()),
-                    yc.StrElem('depends_pass',
-                               choices=['True', 'true', 'False', 'false'],
-                               default='False'),
+                    yc.BoolElem('depends_pass', default=False),
                     yc.ListElem('depends_on', sub_elem=yc.StrElem()),
                     yc.ListElem('modes', sub_elem=yc.StrElem()),
                     CondCategoryElem(
@@ -47,9 +45,8 @@ class SeriesConfigLoader(yc.YamlConfigLoader):
         yc.IntElem(
             'simultaneous', default=0,
         ),
-        yc.StrElem(
-            'ordered', choices=['True', 'true', 'False', 'false'],
-            default='False'
+        yc.BoolElem(
+            'ordered', default=False,
         ),
         yc.IntElem(
             'repeat', default=1,

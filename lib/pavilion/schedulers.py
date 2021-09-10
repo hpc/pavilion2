@@ -554,7 +554,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
         script.comment("Within the allocation, run the command.")
         script.command(test.run_cmd())
 
-    def cancel_job(self, test):
+    def cancel_job(self, test) -> StatusInfo:
         """Tell the scheduler to cancel the given test, if it can. This should
         simply try it's best for the test given, and note in the test status
         (with a SCHED_ERROR) if there were problems. Update the test status to
@@ -573,7 +573,9 @@ class SchedulerPlugin(IPlugin.IPlugin):
             return test.status.set(STATES.SCHED_CANCELLED,
                                    "Job was never started.")
 
-        return self._cancel_job(test)
+        cancel_result = self._cancel_job(test)
+        test.set_run_complete()
+        return cancel_result
 
     def _cancel_job(self, test):
         """Override in scheduler plugins to handle cancelling a job.

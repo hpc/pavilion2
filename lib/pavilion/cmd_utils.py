@@ -10,7 +10,6 @@ from pavilion import commands, series
 from pavilion import dir_db
 from pavilion import filters
 from pavilion import output
-from pavilion import series_util
 from pavilion.test_run import TestRunError, \
     TestRun, test_run_attr_transform
 
@@ -92,6 +91,27 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
     return test_paths
 
 
+def read_test_files(files: List[str]) -> List[str]:
+    """Read the given files which contain a list of tests (removing comments)
+    and return a list of test names."""
+
+    tests = []
+    for path in files:
+        path = Path(path)
+        try:
+            with path.open() as file:
+                for line in file:
+                    line = line.strip()
+                    if line.startswith('#'):
+                        pass
+                    test = line.split('#')[0].strip() # Removing any trailing comments.
+                    tests.append(test)
+        except OSError as err:
+            raise ValueError("Could not read test list file at '{}': {}")
+
+    return tests
+
+
 def test_list_to_paths(pav_cfg, req_tests, errfile=None) -> List[Path]:
     """Given a list of raw test id's and series id's, return a list of paths
     to those tests.
@@ -106,15 +126,14 @@ def test_list_to_paths(pav_cfg, req_tests, errfile=None) -> List[Path]:
 
     test_paths = []
     for test_id in req_tests:
-
         if test_id == 'last':
-            test_id = series_util.load_user_series_id(pav_cfg)
+            test_id = series.load_user_series_id(pav_cfg)
 
         if '.' not in test_id and test_id.startswith('s'):
             try:
                 test_paths.extend(
-                    series_util.list_series_tests(pav_cfg, test_id))
-            except series_util.TestSeriesError:
+                    series.list_series_tests(pav_cfg, test_id))
+            except series.errors.TestSeriesError:
                 raise ValueError("Invalid series id '{}'".format(test_id))
 
         else:
@@ -196,7 +215,7 @@ def get_tests_by_id(pav_cfg, test_ids: List['str'], errfile: TextIO,
 
     if not test_ids:
         # Get the last series ran by this user
-        series_id = series_util.load_user_series_id(pav_cfg)
+        series_id = series.load_user_series_id(pav_cfg)
         if series_id is not None:
             test_ids.append(series_id)
         else:
@@ -213,7 +232,7 @@ def get_tests_by_id(pav_cfg, test_ids: List['str'], errfile: TextIO,
             try:
                 test_list.extend(series.TestSeries.load(pav_cfg,
                                                         test_id).tests)
-            except series_util.TestSeriesError as err:
+            except series.TestSeriesError as err:
                 output.fprint(
                     "Suite {} could not be found.\n{}"
                     .format(test_id, err),

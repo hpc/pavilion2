@@ -102,6 +102,12 @@ class TestConfigResolver:
                 "Could not find scheduler '{}'"
                 .format(scheduler))
 
+        if not sched.available():
+            raise TestConfigError(
+                "Scheduler '{}' is not available on this system"
+                .format(sched.name)
+            )
+
         try:
             sched_vars = sched.get_vars(raw_test_cfg.get(scheduler, {}))
             var_man.add_var_set('sched', sched_vars)
