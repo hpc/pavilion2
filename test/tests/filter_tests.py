@@ -95,7 +95,7 @@ class FiltersTest(PavTestCase):
 
         common_parser = NoExitParser()
         series_parser = NoExitParser()
-        sort_opts = list(filters.SERIES_SORT_FUNCS.keys())
+        sort_opts = list(filters.SORT_KEYS["SERIES"])
 
         filters.add_common_filter_args("", common_parser,
                                        filters.SERIES_FILTER_DEFAULTS,
@@ -261,7 +261,7 @@ class FiltersTest(PavTestCase):
         paths = [test.path for test in tests]
 
         # Check sorting in ascending direction
-        sort, ascending = filters.get_sort_opts('id', filters.TEST_SORT_FUNCS)
+        sort, ascending = filters.get_sort_opts('id', "TEST")
         self.assertTrue(ascending)
         sorted_tests = dir_db.select_from(
             paths=paths,
@@ -270,7 +270,7 @@ class FiltersTest(PavTestCase):
         self.assertEqual([t['id'] for t in sorted_tests], ids)
 
         # And descending.
-        sort, ascending = filters.get_sort_opts('-id', filters.TEST_SORT_FUNCS)
+        sort, ascending = filters.get_sort_opts('-id', "TEST")
         self.assertFalse(ascending)
         sorted_tests = dir_db.select_from(
             paths=paths,

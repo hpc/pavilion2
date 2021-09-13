@@ -2,10 +2,16 @@
 and series."""
 
 import os
+import sys
 import time
+import multiprocessing as mp
 from typing import TextIO, List
+from functools import partial
 
+from pavilion import commands
+from pavilion import config
 from pavilion import output
+from pavilion import series
 from pavilion import schedulers
 from pavilion.status_file import STATES
 from pavilion.test_run import (TestRun, TestRunError, TestRunNotFoundError)
@@ -56,26 +62,88 @@ def status_from_test_obj(pav_cfg: dict, test: TestRun):
     }
 
 
-def get_statuses(pav_cfg, tests: List[TestRun]):
+def get_tests(pav_cfg, tests: List['str'], errfile: TextIO) -> List[int]:
+    """Convert a list of test id's and series id's into a list of test id's.
+
+    :param pav_cfg: The pavilion config
+    :param tests: A list of tests or test series names.
+    :param errfile: stream to output errors as needed
+    :return: List of test objects
+    """
+
+    tests = [str(test) for test in tests.copy()]
+
+    if not tests:
+        # Get the last series ran by this user
+        series_id = series.load_user_series_id(pav_cfg)
+        if series_id is not None:
+            tests.append(series_id)
+        else:
+            raise commands.CommandError(
+                "No tests specified and no last series was found."
+            )
+
+    test_list = []
+
+    for test_id in tests:
+        # Series start with 's', like 'snake'.
+        if test_id.startswith('s'):
+            try:
+                test_list.extend(series.TestSeries.load(pav_cfg, test_id).tests)
+            except series.TestSeriesError as err:
+                output.fprint(
+                    "Suite {} could not be found.\n{}"
+                        .format(test_id, err),
+                    file=errfile,
+                    color=output.RED
+                )
+                continue
+        # Test
+        else:
+            test_list.append(test_id)
+
+    return list(map(int, test_list))
+
+
+def get_status(test_id, pav_conf):
+    """Return the status of a single test_id.
+    Allows the statuses to be queried in parallel with map.
+    :param test_id: The test id being queried.
+    :param pav_conf: The Pavilion config.
+    """
+
+    try:
+        test = TestRun.load(pav_conf, test_id)
+        test_status = status_from_test_obj(pav_conf, test)
+
+    except (TestRunError, TestRunNotFoundError) as err:
+        test_status = {
+            'test_id': test_id,
+            'name':    "",
+            'state':   STATES.UNKNOWN,
+            'time':    None,
+            'note':    "Test not found: {}".format(err)
+        }
+
+    return test_status
+
+
+def get_statuses(pav_cfg, tests: List[TestRun], errfile=None):
     """Return the statuses for all given test id's.
     :param pav_cfg: The Pavilion config.
     :param tests: A list of test ids to load.
     """
 
-    test_statuses = []
+    get_this_status = partial(get_status, pav_conf=pav_cfg)
 
-    for test in tests:
-        try:
-            test_statuses.append(status_from_test_obj(pav_cfg, test))
-
-        except (TestRunError, TestRunNotFoundError) as err:
-            test_statuses.append({
-                'test_id': test.full_id,
-                'name':    "",
-                'state':   STATES.UNKNOWN,
-                'time':    None,
-                'note':    "Test not found: {}".format(err)
-            })
+    # The TestRun object cannot be pickled in python < 3.7 because
+    # it contains threading which causes parallel execution to fail.
+    if sys.version_info.minor > 6:
+        ncpu = min(config.NCPU, len(tests))
+        mp_pool = mp.Pool(processes=ncpu)
+        test_statuses = mp_pool.map(get_this_status, tests)
+    else:
+        test_statuses = map(get_this_status, tests)
 
     return test_statuses
 

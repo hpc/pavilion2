@@ -46,7 +46,6 @@ def get_result(test_id, pav_conf):
     return test
 
 
-
 def get_results(pav_cfg, test_ids, errfile=None):
     """Return the results for all given test id's.
     :param pav_cfg: The Pavilion config.

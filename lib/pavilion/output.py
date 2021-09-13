@@ -33,7 +33,8 @@ import re
 import shutil
 import sys
 import textwrap
-from collections import UserString, defaultdict, UserDict
+import random
+from collections import UserString, UserDict
 from pathlib import Path
 from typing import List, Dict
 
@@ -571,20 +572,17 @@ A more complicated example: ::
             outfile.write(title_format.format(title))
             outfile.write(horizontal_break)
 
-        for row_i in range(len(rows)):
-            row = rows[row_i]
+        for row_i, row in enumerate(rows):
 
-            wrap_rows = defaultdict(
-                lambda: defaultdict(lambda: ANSIString('')))
-            # Creates wrap list that holds list of strings for the wrapped text
+            # Collect a list of dicts where the index is the subrow,
+            # the key is the field and the value is the text.
+            wrap_rows = [{}]
             for field in fields:
                 wraps = row[field].wrap(width=column_widths[field])
-                for wrap_i in range(len(wraps)):
-                    wrap_row = wrap_rows[wrap_i]
-                    wrap_row[field] = wraps[wrap_i]
-
-            # Turn the wrapped rows into a list sorted by index
-            wrap_rows = [wrap_rows[i] for i in sorted(list(wrap_rows.keys()))]
+                for i, wrap in enumerate(wraps):
+                    if i >= len(wrap_rows):
+                        wrap_rows.append({})
+                    wrap_rows[i].update({field: wrap})
 
             for wrap_row in wrap_rows:
                 outfile.write(dt_format_row(
@@ -749,37 +747,47 @@ def dt_calc_table_width(min_widths: Dict[str, int], pad: bool, border: bool,
 
 
 def dt_auto_widths(rows, table_width, min_widths, max_widths):
-    """Calculate an 'optimal' width for each column. This works by finding
-    the column that will benefit the most from a single character of width
-    increase. In case of a tie, two characters of width are considered, and
-    so on. Remaining extra space is distributed amongst the final tied
-    columns. To limit how long this takes, this makes a best guess using
-    the first 20 rows."""
+    """Calculate an 'optimal' width for each column.
+    If the maximum width of the column is less than the table width, use that.
+    Otherwise follow the algorithm which finds the column that will benefit
+    the most from a single character of width increase. In case of a tie,
+    two characters of width are considered, and so on. Remaining extra
+    spaces are distributed amongst the final tied columns. To limit time cost
+    make a best guess using 20 random rows.
+    """
 
     mxwidth = sum(max_widths.values())
     if mxwidth <= table_width:
         return max_widths
 
-    fields = list(min_widths.keys())
+    fields = set(min_widths.keys())
 
-    extra_spaces = table_width - sum(min_widths.values())
+    mnwidth = sum(min_widths.values())
+    extra_spaces = table_width - mnwidth
 
     final_widths = min_widths.copy()
 
+    maxrows = 20
+    nrows   = min(len(rows), maxrows)
+    rowsamp = [rows[0]] + random.sample(rows[1:], nrows)
+
     # Limit to just the first 20 rows for speed.
-    rows = rows[:20]
+    # rows = rows[:100]
+    rowbyfield = {field: [row[field].data for row in rowsamp] for field in fields}
+    # row2 = {field: " ".join(rows) for field, rows in rowbyfield.items()}
 
     def calc_wraps(fld_, width_):
         """Calculate the wraps for a given field at the given width."""
-        return sum([len(row_[fld_].wrap(width=width_))
-                    for row_ in rows])
+        wtot = 0
+        for row in rowbyfield[fld_]:
+            wtot += len(textwrap.wrap(row, width=width_))
+        return wtot
 
-    field_wraps_by_width = defaultdict(dict)
     incr = 1
     # Consume the additional spaces available by growing the columns according
     # to which column would benefit the most from the extra space. If there
     # is a tie, increase the number of spaces considered.
-    growable_fields = fields.copy()
+    growable_fields = list(fields)
     while extra_spaces and growable_fields:
         best_fields = []
         best_diff = 0
@@ -795,34 +803,29 @@ def dt_auto_widths(rows, table_width, min_widths, max_widths):
                 growable_fields.remove(field)
                 continue
 
-            curr_wraps = field_wraps_by_width[field].get(
-                curr_width,
-                calc_wraps(field, curr_width))
-
-            # Make sure we don't exceed the max width for the column.
-            incr_wraps = field_wraps_by_width[field].get(
-                incr_width,
-                calc_wraps(field, curr_width + incr))
-
-            diff = (curr_wraps - incr_wraps)
-
             if incr_width > max_width:
                 # Don't consider this column for an increase if the increase
                 # exceeds the max width for the column.
                 continue
-            elif incr_width == max_width and diff == 0:
-                # Increasing the width of this column won't help. Skip it from
-                # now on.
-                growable_fields.remove(field)
+
+            curr_wraps = calc_wraps(field, curr_width)
+
+            # Make sure we don't exceed the max width for the column.
+            incr_wraps = calc_wraps(field, incr_width)
+
+            diff = (curr_wraps - incr_wraps)
+
+            if diff == 0:
+                if incr_width == max_width:
+                    # Increasing the width of this column won't help. Skip it from
+                    # now on.
+                    growable_fields.remove(field)
                 continue
 
             # If this field beats all previous, make it the best.
             if diff > best_diff:
                 best_diff = diff
                 best_fields = [field]
-            # Don't consider fields whose diff is 0.
-            elif diff == 0:
-                continue
             # If we tie, add it to the list of the best.
             elif diff == best_diff:
                 best_fields.append(field)
@@ -844,7 +847,7 @@ def dt_auto_widths(rows, table_width, min_widths, max_widths):
 
     return final_widths
 
-
+ast = ANSIString('')
 def dt_format_row(row, fields, widths, pad, border, vsep):
     """Format a single row according to the table parameters and widths."""
     out = []
@@ -858,11 +861,10 @@ def dt_format_row(row, fields, widths, pad, border, vsep):
     else:
         col_sep = vsep
 
-    for field_i in range(len(fields)):
-        field = fields[field_i]
+    for field_i, field in enumerate(fields):
         if field_i != 0:
             out.append(col_sep)
-        data = row[field]
+        data = row.get(field, ast)
         if isinstance(data, ANSIString):
             color_data = data.colorize()
             out.append(color_data)
