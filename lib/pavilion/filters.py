@@ -6,6 +6,8 @@ import datetime as dt
 import time
 import fnmatch
 from pathlib import Path
+from functools import partial
+
 from typing import Dict, Any, Callable, List
 
 from pavilion import system_variables
@@ -28,18 +30,26 @@ TEST_FILTER_DEFAULTS = {
     'user': utils.get_login(),
     'limit': None,
     'disable_filter': False,
-
 }
 
-TEST_SORT_FUNCS = {
-    'created': lambda test: test['created'],
-    'finished': lambda test: test['finished'],
-    'name': lambda test: test['name'],
-    'started': lambda test: test['started'],
-    'user': lambda test: test['user'],
-    'id': lambda test: test['id'],
+SORT_KEYS = {
+    "TEST": ["created", "finished", "name", "started", "user", "id"],
+    "SERIES": ["created", "id"]
 }
 
+def sort_func(test, choice, sort_type):
+    """Use partial to reduce inputs and use as key in sort function.
+    :param test: Dict within list to sort on.
+    :param choice: Key in dict to sort by.
+    :param sort_type: Type of list of dicts to sort by, check for key.
+    """
+
+    if sort_type not in SORT_KEYS.keys():
+        return None
+    elif choice not in SORT_KEYS[sort_type]:
+        return None
+    else:
+        return test[choice]
 
 def add_common_filter_args(target: str,
                            arg_parser: argparse.ArgumentParser,
@@ -142,10 +152,10 @@ def add_test_filter_args(arg_parser: argparse.ArgumentParser,
                 )
 
     if sort_functions is None:
-        sort_functions = TEST_SORT_FUNCS.copy()
+        sort_functions = SORT_KEYS['TEST']
 
-    sort_options = (list(sort_functions.keys())
-                    + ['-' + key for key in sort_functions.keys()])
+    sort_options = (sort_functions
+                    + ['-' + key for key in sort_functions])
 
     add_common_filter_args("test runs", arg_parser, defaults, sort_options)
 
@@ -190,12 +200,6 @@ add_test_filter_args.__doc__.format(
                for key, val in TEST_FILTER_DEFAULTS.items()]))
 
 
-SERIES_SORT_FUNCS = {
-    'created': lambda p: p['created'],
-    'id': lambda p: p['id'],
-}
-
-
 def add_series_filter_args(arg_parser: argparse.ArgumentParser,
                            default_overrides: Dict[str, Any] = None,
                            sort_functions: Dict[str, Callable] = None) -> None:
@@ -224,12 +228,74 @@ def add_series_filter_args(arg_parser: argparse.ArgumentParser,
                 )
 
     if sort_functions is None:
-        sort_functions = SERIES_SORT_FUNCS.copy()
+        sort_functions = SORT_KEYS["SERIES"]
 
-    sort_options = (list(sort_functions.keys())
-                    + ['-' + key for key in sort_functions.keys()])
+    sort_options = (sort_functions
+                    + ['-' + key for key in sort_functions])
 
     add_common_filter_args("series", arg_parser, defaults, sort_options)
+
+
+def filter_test_run(
+        test_attrs: Dict, complete: bool, failed: bool, incomplete: bool,
+        name: str, newer_than: float, older_than: float, passed: bool,
+        result_error: bool, show_skipped: bool, sys_name: str, user: str):
+    """Determine whether the test run at the given path should be
+    included in the set. This function with test_attrs as the sole input is
+    returned by make_test_run_filter.
+
+    :param test_attrs: Dict of attributes filtered to determine whether to
+        keep or discard test.
+    :param complete: Only accept complete tests
+    :param failed: Only accept failed tests
+    :param incomplete: Only accept incomplete tests
+    :param name: Only accept names that match this glob.
+    :param newer_than: Only accept tests that are more recent than this date.
+    :param older_than: Only accept tests older than this date.
+    :param passed: Only accept passed tests
+    :param result_error: Only accept tests with a result error.
+    :param show_skipped: Accept skipped tests.
+    :param sys_name: Only accept tests with a matching sys_name.
+    :param user: Only accept tests started by this user.
+    :return:
+    """
+
+    if show_skipped == 'no' and test_attrs.get('skipped'):
+        return False
+    elif show_skipped == 'only' and not test_attrs.get('skipped'):
+        return False
+
+    if complete and not test_attrs.get('complete'):
+        return False
+
+    if incomplete and test_attrs.get('complete'):
+        return False
+
+    if user and test_attrs.get('user') != user:
+        return False
+
+    if sys_name and test_attrs.get('sys_name') != sys_name:
+        return False
+
+    if passed and test_attrs.get('result') != TestRun.PASS:
+        return False
+
+    if failed and test_attrs.get('result') != TestRun.FAIL:
+        return False
+
+    if result_error and test_attrs.get('result') != TestRun.ERROR:
+        return False
+
+    if older_than is not None and test_attrs.get('created') > newer_than:
+        return False
+
+    if newer_than is not None and test_attrs.get('created') < newer_than:
+        return False
+
+    if name and not fnmatch.fnmatch(test_attrs.get('name'), name):
+        return False
+
+    return True
 
 
 def make_test_run_filter(
@@ -260,61 +326,21 @@ def make_test_run_filter(
         sys_vars = system_variables.get_vars(defer=True)
         sys_name = sys_vars['sys_name']
 
-    #  select once so we only make one filter.
-    def filter_test_run(test_attrs: dict) -> bool:
-        """Determine whether the test run at the given path should be
-        included in the set."""
+    filter_func = partial(filter_test_run, complete=complete, failed=failed, incomplete=incomplete,
+                  name=name, newer_than=newer_than, older_than=older_than, passed=passed,
+                  rslte=result_error, show_skipped=show_skipped, sys_name=sys_name, user=user)
 
-        if show_skipped == 'no' and test_attrs.get('skipped'):
-            return False
-        elif show_skipped == 'only' and not test_attrs.get('skipped'):
-            return False
-
-        if complete and not test_attrs.get('complete'):
-            return False
-
-        if incomplete and test_attrs.get('complete'):
-            return False
-
-        if user and test_attrs.get('user') != user:
-            return False
-
-        if sys_name and sys_name != test_attrs.get('sys_name'):
-            return False
-
-        if passed and test_attrs.get('result') != TestRun.PASS:
-            return False
-
-        if failed and test_attrs.get('result') != TestRun.FAIL:
-            return False
-
-        if result_error and test_attrs.get('result') != TestRun.ERROR:
-            return False
-
-        if older_than is not None and test_attrs.get('created') > older_than:
-            return False
-
-        if newer_than is not None and test_attrs.get('created') < newer_than:
-            return False
-
-        if name and not fnmatch.fnmatch(test_attrs.get('name'), name):
-            return False
-
-        return True
-
-    return filter_test_run
+    return filter_func
 
 
 def get_sort_opts(
         sort_name: str,
-        choices: Dict[str, Callable[[Any], Any]]) \
-        -> (Callable[[Path], Any], bool):
-    """Return a sort function and the sort order.
+        stype: str) -> (Callable[[Path], Any], bool):
+    """Return a sort function and sort order.
 
-    :param sort_name: The name of the sort, possibly prepended with '-'.
-    :param choices: A dictionary of sort order names and
-        key functions (ala list.sort). Defaults to TEST_SORT_FUNCS
-    :returns: A tuple of the sort function and ascending boolean
+    :param sort_name: The name of the sort, possibly prepended with -.
+    :param stype: TEST or SERIES to select the list of options available
+        for sort_name.
     """
 
     sort_ascending = True
@@ -322,11 +348,9 @@ def get_sort_opts(
         sort_ascending = False
         sort_name = sort_name[1:]
 
-    if sort_name not in choices:
-        raise ValueError("Invalid sort name '{}'. Must be one of {}."
-                         .format(sort_name, tuple(choices.keys())))
+    sortf = partial(sort_func, choice=sort_name, sort_type=stype)
 
-    return choices[sort_name], sort_ascending
+    return sortf, sort_ascending
 
 
 SERIES_FILTER_DEFAULTS = {
