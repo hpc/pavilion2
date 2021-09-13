@@ -4,3 +4,5 @@ PAV/scripts/site
 *.swp
 *.swo
 pav.pstats
+.local/
+__pycache__/

@@ -2,10 +2,14 @@
 and series."""
 
 import os
+import sys
 import time
+import multiprocessing as mp
 from typing import TextIO, List
+from functools import partial
 
 from pavilion import commands
+from pavilion import config
 from pavilion import output
 from pavilion import schedulers
 from pavilion import series
@@ -103,6 +107,29 @@ def get_tests(pav_cfg, tests: List['str'], errfile: TextIO) -> List[int]:
     return list(map(int, test_list))
 
 
+def get_status(test_id, pav_conf):
+    """Return the status of a single test_id.
+    Allows the statuses to be queried in parallel with map.
+    :param test_id: The test id being queried.
+    :param pav_conf: The Pavilion config.
+    """
+
+    try:
+        test = TestRun.load(pav_conf, test_id)
+        test_status = status_from_test_obj(pav_conf, test)
+
+    except (TestRunError, TestRunNotFoundError) as err:
+        test_status = {
+            'test_id': test_id,
+            'name':    "",
+            'state':   STATES.UNKNOWN,
+            'time':    None,
+            'note':    "Test not found: {}".format(err)
+        }
+
+    return test_status
+
+
 def get_statuses(pav_cfg, test_ids, errfile=None):
     """Return the statuses for all given test id's.
     :param pav_cfg: The Pavilion config.
@@ -110,23 +137,18 @@ def get_statuses(pav_cfg, test_ids, errfile=None):
     :param errfile: Where to write standard error to.
     """
 
-    test_statuses = []
-
     test_ids = get_tests(pav_cfg, test_ids, errfile=errfile)
 
-    for test_id in test_ids:
-        try:
-            test = TestRun.load(pav_cfg, test_id)
-            test_statuses.append(status_from_test_obj(pav_cfg, test))
+    get_this_status = partial(get_status, pav_conf=pav_cfg)
 
-        except (TestRunError, TestRunNotFoundError) as err:
-            test_statuses.append({
-                'test_id': test_id,
-                'name':    "",
-                'state':   STATES.UNKNOWN,
-                'time':    None,
-                'note':    "Test not found: {}".format(err)
-            })
+    # The TestRun object cannot be pickled in python < 3.7 because
+    # it contains threading which causes parallel execution to fail.
+    if sys.version_info.minor > 6:
+        ncpu = min(config.NCPU, len(test_ids))
+        mp_pool = mp.Pool(processes=ncpu)
+        test_statuses = mp_pool.map(get_this_status, test_ids)
+    else:
+        test_statuses = map(get_this_status, test_ids)
 
     return test_statuses
 
