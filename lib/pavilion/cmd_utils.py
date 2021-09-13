@@ -63,10 +63,7 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
         show_skipped=args.show_skipped,
     )
 
-    order_func, order_asc = filters.get_sort_opts(
-        sort_name=args.sort_by,
-        choices=filters.TEST_SORT_FUNCS,
-    )
+    order_func, order_asc = filters.get_sort_opts(args.sort_by, "TEST")
 
     if args.tests:
         test_paths = test_list_to_paths(pav_cfg, args.tests)

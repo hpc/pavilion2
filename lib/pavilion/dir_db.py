@@ -8,10 +8,13 @@ import os
 import shutil
 import tempfile
 import time
+import multiprocessing as mp
+from functools import partial
 from pathlib import Path
 from typing import Callable, List, Iterable, Any, Dict, NewType, \
     Union, NamedTuple, IO
 
+from pavilion import config
 from pavilion import lockfile
 from pavilion import output
 from pavilion import permissions
@@ -59,7 +62,7 @@ def create_id_dir(id_dir: Path, group: str, umask: int) -> (int, Path):
     :returns: The id and path to the created directory.
     :raises OSError: on directory creation failure.
     :raises TimeoutError: If we couldn't get the lock in time.
-"""
+    """
 
     lockfile_path = id_dir/'.lockfile'
     with lockfile.LockFile(lockfile_path, timeout=1):
@@ -116,6 +119,11 @@ def default_filter(_: Path) -> bool:
 
 
 Index = NewType("Index", Dict[int, Dict['str', Any]])
+
+
+def identity(value):
+    """Because lambdas can't be pickled."""
+    return value
 
 
 def index(id_dir: Path, idx_name: str,
@@ -253,6 +261,41 @@ def index(id_dir: Path, idx_name: str,
 SelectItems = NamedTuple("SelectItems", [('data', List[Dict[str, Any]]),
                                          ('paths', List[Path])])
 
+def select_one(path, ffunc, trans, ofunc, fnb):
+    """Allows the objects to be filtered and transformed in parallel with map.
+
+    :param path: Path to filter and transform (input to reduced function)
+    :param ffunc: (filter function) Function that takes a directory, and returns
+        whether to include that directory. True -> include, False -> exclude
+    :param trans: Function to apply to each path before applying filters
+        or ordering. The filter and order functions should expect the type
+        returned by this.
+    :param ofunc: A function that returns a comparable value for sorting
+        validate against output.
+    :param fnb: Number base for file names. 10 by default, ensure dir name
+        is a valid integer.
+    :returns: A filtered, transformed object.
+    """
+
+    if trans is None:
+        trans = identity
+
+    if not path.is_dir():
+        return None
+    try:
+        int(path.name, fnb)
+        item = trans(path)
+    except ValueError:
+        return None
+
+    if not ffunc(item):
+        return None
+
+    if ofunc is not None and ofunc(item) is None:
+        return None
+
+    return item
+
 
 def select(id_dir: Path,
            filter_func: Callable[[Any], bool] = default_filter,
@@ -364,30 +407,15 @@ def select_from(paths: Iterable[Path],
               of untransformed paths.
     """
 
-    if transform is None:
-        transform = lambda v: v
+    paths = list(paths)
+    ncpu = min(config.NCPU, len(paths))
+    mp_pool = mp.Pool(processes=ncpu)
 
-    selected = []
-    for path in paths:
-        if not path.is_dir():
-            continue
-        try:
-            int(path.name, fn_base)
-        except ValueError:
-            continue
+    selector = partial(select_one, ffunc=filter_func, trans=transform,
+                                   ofunc=order_func, fnb=fn_base)
 
-        try:
-            item = transform(path)
-        except ValueError:
-            continue
-
-        if not filter_func(item):
-            continue
-
-        if order_func is not None and order_func(item) is None:
-            continue
-
-        selected.append((item, path))
+    selections = mp_pool.map(selector, paths)
+    selected = [(item,path) for item, path in zip(selections,paths) if item is not None]
 
     if order_func is not None:
         selected.sort(key=lambda d: order_func(d[0]), reverse=not order_asc)
