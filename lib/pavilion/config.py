@@ -46,6 +46,10 @@ PAV_ROOT = Path(__file__).resolve().parents[2]
 # Use this config file, if it exists.
 PAV_CONFIG_FILE = os.environ.get('PAV_CONFIG_FILE', None)
 
+NCPU = os.cpu_count()
+if NCPU > 40:
+    NCPU = NCPU//2
+NCPU = NCPU//2
 
 class ExPathElem(yc.PathElem):
     """Expand environment variables in the path."""
