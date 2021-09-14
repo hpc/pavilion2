@@ -4,16 +4,16 @@ environment."""
 import traceback
 from pathlib import Path
 
-from pavilion import commands
 from pavilion import result
 from pavilion import schedulers
-from pavilion import system_variables
 from pavilion.status_file import STATES
+from pavilion.sys_vars import base_classes
 from pavilion.test_config import VariableSetManager, TestConfigResolver
 from pavilion.test_run import TestRun, TestRunError
+from .base_classes import Command
 
 
-class _RunCommand(commands.Command):
+class _RunCommand(Command):
 
     def __init__(self):
 
@@ -106,7 +106,7 @@ class _RunCommand(commands.Command):
         # Re-add var sets that may have had deferred variables.
         try:
             var_man = VariableSetManager()
-            var_man.add_var_set('sys', system_variables.get_vars(defer=False))
+            var_man.add_var_set('sys', base_classes.get_vars(defer=False))
             sched_config = test.config[test.scheduler]
             var_man.add_var_set('sched', sched.get_vars(sched_config))
         except Exception:

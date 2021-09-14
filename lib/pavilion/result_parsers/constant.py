@@ -1,10 +1,10 @@
 """Return a constant."""
 
 import yaml_config as yc
-from pavilion.result import base_classes
+from .base_classes import ResultParser
 
 
-class Constant(base_classes.ResultParser):
+class Constant(ResultParser):
     """Set a constant as result."""
 
     FORCE_DEFAULTS = [

@@ -8,15 +8,15 @@ import textwrap
 from typing import List
 
 import yaml_config as yc
-from pavilion.test_config import file_format
-from pavilion.test_config import variables
-from yapsy import IPlugin
 from pavilion.result.common import ResultError
 from pavilion.result.options import (PER_FIRST, PER_LAST, PER_NAME, PER_LIST,
                                      PER_NAME_LIST, PER_ALL, PER_ANY, PER_FILES,
                                      MATCH_FIRST, MATCH_LAST, MATCH_ALL, MATCH_CHOICES,
                                      ACTION_STORE, ACTION_STORE_STR, ACTION_TRUE,
                                      ACTION_FALSE, ACTION_COUNT, ACTIONS)
+from pavilion.test_config import file_format
+from pavilion.test_config import variables
+from yapsy import IPlugin
 
 LOGGER = logging.getLogger(__file__)
 
@@ -90,7 +90,11 @@ class ResultParser(IPlugin.IPlugin):
 a callable that implements operations on the test or test files. The
 arguments for the callable are provided automatically via the test
 config. The doc string of result parser classes is used as the user help
-text for that class, along with the help from the config items."""
+text for that class, along with the help from the config items.
+
+The parser itself should be implemented by overriding the __call__ method. It should
+take a `file` argument and kwargs to match the config arguments.
+"""
 
     PRIO_CORE = 0
     PRIO_COMMON = 10
@@ -169,21 +173,6 @@ text for that class, along with the help from the config items."""
         self.priority = priority
 
         super().__init__()
-
-    def __call__(self, file, **kwargs):
-        """This is where the result parser is actually implemented.
-
-:param pavilion.test_run.TestRun test: The test run object.
-:param file: This will be a file object advanced to a position that fits
-    the criteria of the 'preceded_by' and 'for_lines_matching' options.
-:param dict kwargs: The arguments are the config values from the the
-    test's result config section for this parser. These should be
-    explicitly defined in your result parser class.
-:raises ResultParserError: When something goes wrong.
-"""
-
-        raise NotImplementedError("A result parser plugin must implement"
-                                  "the __call__ method.")
 
     def _check_args(self, **kwargs) -> dict:
         """Override this to add custom checking of the arguments at test

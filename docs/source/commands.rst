@@ -22,7 +22,7 @@ Included Command Plugins
 cancel command
 ~~~~~~~~~~~~~~
 
-.. automodule:: pavilion.plugins.commands.cancel
+.. automodule:: pavilion.commands.cancel
     :members:
     :undoc-members:
     :show-inheritance:
@@ -30,7 +30,7 @@ cancel command
 clean command
 ~~~~~~~~~~~~~
 
-.. automodule:: pavilion.plugins.commands.clean
+.. automodule:: pavilion.commands.clean
     :members:
     :undoc-members:
     :show-inheritance:
@@ -38,7 +38,7 @@ clean command
 log command
 ~~~~~~~~~~~
 
-.. automodule:: pavilion.plugins.commands.log
+.. automodule:: pavilion.commands.log
     :members:
     :undoc-members:
     :show-inheritance:
@@ -46,7 +46,7 @@ log command
 result command
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. automodule:: pavilion.plugins.commands.result
+.. automodule:: pavilion.commands.result
     :members:
     :undoc-members:
     :show-inheritance:
@@ -54,7 +54,7 @@ result command
 run command
 ~~~~~~~~~~~
 
-.. automodule:: pavilion.plugins.commands.run
+.. automodule:: pavilion.commands.run
     :members:
     :undoc-members:
     :show-inheritance:
@@ -62,7 +62,7 @@ run command
 set\_status command
 ~~~~~~~~~~~~~~~~~~~
 
-.. automodule:: pavilion.plugins.commands.set_status
+.. automodule:: pavilion.commands.set_status
     :members:
     :undoc-members:
     :show-inheritance:
@@ -70,7 +70,7 @@ set\_status command
 show command
 ~~~~~~~~~~~~
 
-.. automodule:: pavilion.plugins.commands.show
+.. automodule:: pavilion.commands.show
     :members:
     :undoc-members:
     :show-inheritance:
@@ -78,7 +78,7 @@ show command
 status command
 ~~~~~~~~~~~~~~
 
-.. automodule:: pavilion.plugins.commands.status
+.. automodule:: pavilion.commands.status
     :members:
     :undoc-members:
     :show-inheritance:
@@ -86,7 +86,7 @@ status command
 view command
 ~~~~~~~~~~~~
 
-.. automodule:: pavilion.plugins.commands.view
+.. automodule:: pavilion.commands.view
     :members:
     :undoc-members:
     :show-inheritance:
@@ -94,9 +94,7 @@ view command
 wait command
 ~~~~~~~~~~~~
 
-.. automodule:: pavilion.plugins.commands.wait
+.. automodule:: pavilion.commands.wait
     :members:
     :undoc-members:
     :show-inheritance:
-
-

@@ -37,7 +37,7 @@ Slurm
 Slurm Variables
 ^^^^^^^^^^^^^^^
 
-.. autoclass:: pavilion.plugins.sched.slurm.SlurmVars
+.. autoclass:: pavilion.schedulers.slurm.SlurmVars
     :members:
     :show-inheritance:
     :undoc-members:
@@ -45,14 +45,14 @@ Slurm Variables
 Slurm Scheduler Plugin
 ^^^^^^^^^^^^^^^^^^^^^^
 
-.. autoclass:: pavilion.plugins.sched.slurm.SbatchHeader
+.. autoclass:: pavilion.schedulers.slurm.SbatchHeader
     :members:
     :show-inheritance:
     :undoc-members:
     :special-members:
     :private-members:
 
-.. autoclass:: pavilion.plugins.sched.slurm.Slurm
+.. autoclass:: pavilion.schedulers.slurm.Slurm
     :members:
     :show-inheritance:
     :undoc-members:
@@ -65,7 +65,7 @@ Raw
 Raw Variables
 ^^^^^^^^^^^^^
 
-.. autoclass:: pavilion.plugins.sched.raw.RawVars
+.. autoclass:: pavilion.schedulers.raw.RawVars
     :members:
     :show-inheritance:
     :undoc-members:
@@ -73,7 +73,7 @@ Raw Variables
 Raw Scheduler
 ^^^^^^^^^^^^^
 
-.. autoclass:: pavilion.plugins.sched.raw.Raw
+.. autoclass:: pavilion.schedulers.raw.Raw
     :members:
     :show-inheritance:
     :undoc-members:

@@ -3,13 +3,12 @@ undefined) bits."""
 import errno
 
 import pavilion.result.common
-from pavilion import commands
 from pavilion import output
 from pavilion import result
-from pavilion.commands import sub_cmd
+from .base_classes import Command, sub_cmd
 
 
-class MaintCommand(commands.Command):
+class MaintCommand(Command):
     """Perform various maintanance tasks."""
 
     def __init__(self):

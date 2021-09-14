@@ -1,8 +1,8 @@
 import subprocess
-import pavilion.system_variables as system_plugins
+from .base_classes import SystemPlugin
 
 
-class HostName( system_plugins.SystemPlugin ):
+class HostName(SystemPlugin):
 
     def __init__( self ):
         super().__init__(
@@ -16,4 +16,3 @@ class HostName( system_plugins.SystemPlugin ):
 
         out = subprocess.check_output(['hostname', '-s'])
         return out.strip().decode('UTF-8')
-

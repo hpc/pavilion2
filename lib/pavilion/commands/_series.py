@@ -4,12 +4,12 @@ import signal
 import sys
 
 import pavilion.series.errors
-from pavilion import commands
 from pavilion import output
 from pavilion import series
+from .base_classes import Command
 
 
-class AutoSeries(commands.Command):
+class AutoSeries(Command):
     """Command to kickoff series."""
 
     def __init__(self):

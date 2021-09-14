@@ -13,16 +13,16 @@ import logging
 import os
 import re
 from collections import defaultdict
-from typing import List, IO, Union
 from pathlib import Path
+from typing import List, IO, Union
 
 import yc_yaml
 from pavilion import output
 from pavilion import pavilion_variables
 from pavilion import schedulers
-from pavilion import system_variables
-from pavilion.test_config import file_format
+from pavilion import sys_vars
 from pavilion.pavilion_variables import PavVars
+from pavilion.test_config import file_format
 from pavilion.test_config import parsers
 from pavilion.test_config import variables
 from pavilion.test_config.file_format import (TestConfigError, TEST_NAME_RE,
@@ -61,9 +61,9 @@ class TestConfigResolver:
 
         try:
             self.base_var_man.add_var_set(
-                'sys', system_variables.get_vars(defer=True)
+                'sys', sys_vars.get_vars(defer=True)
             )
-        except system_variables.SystemPluginError as err:
+        except sys_vars.SystemPluginError as err:
             raise TestConfigError(
                 "Error in system variables: {}"
                 .format(err)

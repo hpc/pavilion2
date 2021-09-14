@@ -1,4 +1,4 @@
-# Base classes and methods for Command plugins
+""""Base classes and methods for Command plugins"""
 
 # pylint: disable=W0603
 
@@ -25,10 +25,6 @@ def __reset():
     _COMMANDS = {}
 
     arguments.reset_parser()
-
-
-class CommandError(RuntimeError):
-    """The error type commands should raise for semi-expected errors."""
 
 
 def add_command(command):
@@ -107,7 +103,6 @@ class Command(IPlugin.IPlugin):
             self._inventory_sub_commands()
 
         self._parser = None
-
 
     def _inventory_sub_commands(self):
         """Find all the sub commands and populate the sub_cmds dict."""

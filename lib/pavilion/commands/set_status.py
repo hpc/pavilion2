@@ -3,14 +3,13 @@ errors inside its run script."""
 
 import errno
 
-from pavilion import commands
 from pavilion import cmd_utils
 from pavilion import output
 from pavilion.status_file import STATES
-from pavilion.test_run import TestRunNotFoundError, TestRunError, TestRun
+from .base_classes import Command
 
 
-class SetStatusCommand(commands.Command):
+class SetStatusCommand(Command):
     """Plugin for setting the status of a test."""
 
     def __init__(self):

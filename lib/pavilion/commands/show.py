@@ -8,24 +8,23 @@ from typing import Union
 import pavilion.result.base
 import pavilion.result.common
 import yaml_config
-from pavilion import commands
 from pavilion import config
 from pavilion import expression_functions
 from pavilion import module_wrapper
 from pavilion import output
 from pavilion import result
+from pavilion import result_parsers
 from pavilion import schedulers
+from pavilion import series_config
 from pavilion import status_file
-from pavilion import system_variables
-from pavilion.commands import sub_cmd
-from pavilion.result import parsers
+from pavilion import sys_vars
 from pavilion.test_config import DeferredVariable
 from pavilion.test_config import file_format
 from pavilion.test_config import resolver
-from pavilion import series_config
+from .base_classes import Command, sub_cmd
 
 
-class ShowCommand(commands.Command):
+class ShowCommand(Command):
     """Plugin to show Pavilion internal info."""
 
     def __init__(self):
@@ -249,7 +248,7 @@ class ShowCommand(commands.Command):
             custom information to the state file during a run."""
         )
 
-        sys_vars = subparsers.add_parser(
+        sys_vars_cmd = subparsers.add_parser(
             'system_variables',
             aliases=['sys_vars', 'sys', 'sys_var'],
             help="Show the available system variables.",
@@ -262,7 +261,7 @@ class ShowCommand(commands.Command):
                         "they are resolved at test kickoff time on the "
                         "kickoff host."
         )
-        sys_vars.add_argument(
+        sys_vars_cmd.add_argument(
             '--verbose', '-v',
             action='store_true', default=False,
             help='Display the path to the plugin file.'
@@ -608,7 +607,7 @@ class ShowCommand(commands.Command):
 
         if args.doc:
             try:
-                res_plugin = parsers.get_plugin(args.doc)
+                res_plugin = result_parsers.get_plugin(args.doc)
             except pavilion.result.common.ResultError:
                 output.fprint(
                     "Invalid result parser '{}'.".format(args.doc),
@@ -621,8 +620,8 @@ class ShowCommand(commands.Command):
         else:
 
             rps = []
-            for rp_name in parsers.list_plugins():
-                res_plugin = parsers.get_plugin(rp_name)
+            for rp_name in result_parsers.list_plugins():
+                res_plugin = result_parsers.get_plugin(rp_name)
                 desc = " ".join(str(res_plugin.__doc__).split())
                 rps.append({
                     'name':        rp_name,
@@ -739,15 +738,15 @@ class ShowCommand(commands.Command):
 
         rows = []
 
-        sys_vars = system_variables.get_vars(defer=True)
+        svars = sys_vars.get_vars(defer=True)
 
-        for key in sorted(list(sys_vars.keys())):
+        for key in sorted(list(svars.keys())):
             try:
-                value = sys_vars[key]
+                value = svars[key]
                 deferred = isinstance(value, DeferredVariable)
-                help_str = sys_vars.help(key)
+                help_str = svars.help(key)
 
-            except system_variables.SystemPluginError as err:
+            except sys_vars.SystemPluginError as err:
                 value = output.ANSIString('error', code=output.RED)
                 deferred = False
                 help_str = output.ANSIString(str(err), code=output.RED)
@@ -756,7 +755,7 @@ class ShowCommand(commands.Command):
                 'name':        key,
                 'value':       value if not deferred else '<deferred>',
                 'description': help_str,
-                'path':        sys_vars.get_obj(key).path,
+                'path':        svars.get_obj(key).path,
             })
 
         fields = ['name', 'value', 'description']

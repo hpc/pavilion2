@@ -1,10 +1,9 @@
-import pavilion.plugins.sched.slurm as slurm
 import yaml_config as yc
-from pavilion.schedulers import SchedulerPlugin
-from pavilion.schedulers import dfr_var_method
+from .slurm import Slurm, SlurmVars
+from .base_classes import SchedulerPlugin, dfr_var_method
 
 
-class SlurmMPIVars(slurm.SlurmVars):
+class SlurmMPIVars(SlurmVars):
     """Variables for SlurmMPI scheduler."""
 
     EXAMPLE = {
@@ -72,13 +71,13 @@ class SlurmMPIVars(slurm.SlurmVars):
         return ' '.join(cmd)
 
 
-class SlurmMPI(slurm.Slurm):
+class SlurmMPI(Slurm):
     """Schedules tests using Slurm, but uses mpirun instead of srun."""
 
     VAR_CLASS = SlurmMPIVars
 
-    def __init__(self): # pylint: disable=W0231
-        SchedulerPlugin.__init__( # pylint: disable=W0233
+    def __init__(self):  # pylint: disable=W0231
+        SchedulerPlugin.__init__(  # pylint: disable=W0233
             self,
             'slurm_mpi',
             'Schedules tests via Slurm but runs them using mpirun',

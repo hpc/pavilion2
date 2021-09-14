@@ -6,11 +6,11 @@ import time
 from typing import List
 
 from pavilion import cmd_utils
-from pavilion import commands
 from pavilion import status_utils
 from pavilion.output import fprint
 from pavilion.status_file import STATES
 from pavilion.test_run import TestRun
+from .base_classes import Command
 
 
 def check_pgid(pgid):
@@ -30,7 +30,7 @@ def check_pgid(pgid):
         return True
 
 
-class WaitCommand(commands.Command):
+class WaitCommand(Command):
     """A command to wait for test completion."""
 
     def __init__(self):

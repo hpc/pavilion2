@@ -6,10 +6,11 @@ import logging
 from pathlib import Path
 from typing import List, TextIO
 
-from pavilion import commands, series
 from pavilion import dir_db
+from pavilion import exceptions
 from pavilion import filters
 from pavilion import output
+from pavilion import series
 from pavilion.test_run import TestRunError, \
     TestRun, test_run_attr_transform
 
@@ -216,7 +217,7 @@ def get_tests_by_id(pav_cfg, test_ids: List['str'], errfile: TextIO,
         if series_id is not None:
             test_ids.append(series_id)
         else:
-            raise commands.CommandError(
+            raise exceptions.CommandError(
                 "No tests specified and no last series was found."
             )
 

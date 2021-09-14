@@ -13,7 +13,7 @@ from typing import List, Dict, Set, Tuple, Union, TextIO
 from pavilion import dir_db
 from pavilion import output
 from pavilion import schedulers
-from pavilion import system_variables
+from pavilion import sys_vars
 from pavilion import utils
 from pavilion.lockfile import LockFile
 from pavilion.output import fprint
@@ -580,8 +580,8 @@ differentiate it from test ids."""
         """Save the series id to json file that tracks last series ran by user
         on a per system basis."""
 
-        sys_vars = system_variables.get_vars(True)
-        sys_name = sys_vars['sys_name']
+        svars = sys_vars.get_vars(True)
+        sys_name = svars['sys_name']
 
         json_file = self.pav_cfg.working_dir/'users'
         json_file /= '{}.json'.format(utils.get_login())

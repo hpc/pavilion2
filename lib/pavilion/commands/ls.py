@@ -4,12 +4,12 @@ import errno
 import os
 import sys
 
-from pavilion import commands
 from pavilion import dir_db
 from pavilion import output
+from .base_classes import Command
 
 
-class FileCommand(commands.Command):
+class LSCommand(Command):
     """List the directory (and maybe subdirs) of the given run."""
 
     def __init__(self):

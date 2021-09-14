@@ -1,10 +1,10 @@
 """Execute a command and get its output or return value."""
-import pavilion.result.common
-from pavilion.result import base_classes
+import subprocess
 
 import pavilion.result.base
+import pavilion.result.common
 import yaml_config as yc
-import subprocess
+from pavilion.result_parsers import base_classes
 
 
 class Command(base_classes.ResultParser):

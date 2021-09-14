@@ -1,21 +1,24 @@
+"""Command for showing fully resolved test config."""
+
 import errno
 import pprint
-import sys
 
-from pavilion import commands
 from pavilion import output
-from pavilion import system_variables
-from pavilion.plugins.commands import run
+from pavilion.commands import run
 from pavilion.output import fprint
+from pavilion.test_config import resolver
+from .base_classes import Command
+from ..exceptions import CommandError
 
 
 class ViewCommand(run.RunCommand):
+    """Command for showing fully resolved test config."""
 
     def __init__(self):  # pylint: disable=W0231
 
         # Use the base command class init
         # pylint: disable=non-parent-init-called
-        commands.Command.__init__(
+        Command.__init__(
             self=self,
             name='view',
             description='Show the resolved config for a test.',
@@ -50,10 +53,9 @@ class ViewCommand(run.RunCommand):
     def run(self, pav_cfg, args):
         """Resolve the test configurations into individual tests and assign to
         schedulers. Have those schedulers kick off jobs to run the individual
-        tests themselves.
-        :param err_file: """
+        tests themselves."""
 
-        overrides = {}
+        overrides = []
         for ovr in args.overrides:
             if '=' not in ovr:
                 fprint("Invalid override value. Must be in the form: "
@@ -68,22 +70,20 @@ class ViewCommand(run.RunCommand):
 
         self.logger.debug("Finding Configs")
 
-        sys_vars = system_variables.get_vars(True)
+        res = resolver.TestConfigResolver(pav_cfg)
 
         try:
-            configs_by_sched = self.get_test_configs(pav_cfg=pav_cfg,
-                                                     host=args.host,
-                                                     test_files=[],
-                                                     tests=tests,
-                                                     modes=args.modes,
-                                                     overrides=overrides)
-        except commands.CommandError as err:
+            proto_tests = res.load(
+                host=args.host,
+                tests=tests,
+                modes=args.modes,
+                overrides=overrides,
+                output_file=self.outfile,
+            )
+        except CommandError as err:
             fprint(err, file=self.errfile, color=output.RED)
             return errno.EINVAL
 
-        configs = []
-        for conf_tuples in configs_by_sched.values():
-            configs.extend([conf for conf, _ in conf_tuples])
-
+        configs = [pt.config for pt in proto_tests]
         for config in configs:
             pprint.pprint(config, stream=self.outfile)  # ext-print: ignore

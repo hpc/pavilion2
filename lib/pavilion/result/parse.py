@@ -7,14 +7,14 @@ import re
 import traceback
 from collections import OrderedDict
 from pathlib import Path
-from typing import List, Union, Dict, Callable, Any, TextIO, Pattern
+from typing import List, Union, Dict, Any, TextIO, Pattern
 
+from pavilion.result_parsers import ResultParser, get_plugin
 from pavilion.utils import IndentedLog
 from .base import RESULT_ERRORS
 from .common import ResultError
 from .options import (PER_FILES, ACTIONS, MATCH_CHOICES, per_first,
                       ACTION_TRUE, ACTION_FALSE)
-from .parsers import ResultParser, get_plugin
 
 
 class ParseErrorMsg:

@@ -1,7 +1,5 @@
-import glob
-
 import pavilion.result.common
-from pavilion.result import base_classes
+from pavilion.result_parsers import base_classes
 
 
 class Filecheck(base_classes.ResultParser):
