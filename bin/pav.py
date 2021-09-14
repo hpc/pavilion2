@@ -81,7 +81,7 @@ def main():
         sys.exit(0)
 
     pav_cfg.pav_vars = pavilion_variables.PavVars()
-    
+
     try:
         if args.tests:
             if args.sys_name is not None: args.sys_name = ''
@@ -90,21 +90,7 @@ def main():
     except AttributeError:
         pass
 
-    if not args.profile:
-        run_cmd(pav_cfg, args)
-
-    else:
-        import cProfile
-        import pstats
-
-        stats_path = '/tmp/{}_pav_pstats'.format(os.getlogin())
-
-        cProfile.runctx('run_cmd(pav_cfg, args)', globals(), locals(),
-                        stats_path)
-        stats = pstats.Stats(stats_path)
-        print("Profile Table")
-        stats.strip_dirs().sort_stats(args.profile_sort)\
-             .print_stats(args.profile_count)
+    run_cmd(pav_cfg, args)
 
 
 def run_cmd(pav_cfg, args):
@@ -151,5 +137,33 @@ def run_cmd(pav_cfg, args):
         sys.exit(-1)
 
 
+def _get_arg_val(arg_name, default):
+    """Get the given (long) argument value from sys.argv. We won't have the actual
+    argparser up and ready at this point."""
+
+    for i in range(len(sys.argv)):
+        arg = sys.argv[i]
+        if arg.startswith('--{}='.format(arg_name)):
+            return arg.split('=', 1)[1]
+        elif arg == '--{}'.format(arg_name) and (i + 1) < len(sys.argv):
+            return sys.argv[i + 1]
+
+    return default
+
+
 if __name__ == '__main__':
-    main()
+    if '--profile' in sys.argv:
+        import cProfile
+        import pstats
+
+        p_sort = _get_arg_val('profile-sort', arguments.PROFILE_SORT_DEFAULT)
+        p_count = _get_arg_val('profile-count', arguments.PROFILE_COUNT_DEFAULT)
+
+        stats_path = '/tmp/{}_pav_pstats'.format(os.getlogin())
+
+        cProfile.runctx('main()', globals(), locals(), stats_path)
+        stats = pstats.Stats(stats_path)
+        print("Profile Table")
+        stats.strip_dirs().sort_stats(p_sort).print_stats(p_count)
+    else:
+        main()
