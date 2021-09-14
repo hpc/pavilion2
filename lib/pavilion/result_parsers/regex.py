@@ -5,10 +5,10 @@ import sre_constants
 
 from pavilion.result import ResultError
 import yaml_config as yc
-from pavilion.result import parsers
+from pavilion.result import base_classes
 
 
-class Regex(parsers.ResultParser):
+class Regex(base_classes.ResultParser):
     """Find matches to the given regex in the given file. The matched string
     or strings are returned as the result."""
 

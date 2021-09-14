@@ -1,9 +1,0 @@
-[Core]
-Name = Wait Command
-Module = wait
-
-[Documentation]
-Description = Command that waits for all tests to finish before returning.
-Author = Nicholas Sly/Paul Ferrell
-Version = 1.0
-Website =

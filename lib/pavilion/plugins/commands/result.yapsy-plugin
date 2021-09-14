@@ -1,9 +1,0 @@
-[Core]
-Name = Results command
-Module = result
-
-[Documentation]
-Description = Show test results
-Author = Nicholas Sly/Paul Ferrell
-Version = 1.0
-Website =

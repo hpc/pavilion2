@@ -2,13 +2,12 @@
 
 import copy
 import io
-import json
 import random
 
 from pavilion import arguments
 from pavilion import commands
 from pavilion import plugins
-from pavilion import system_variables
+from pavilion.sys_vars import base_classes
 from pavilion.pavilion_variables import PavVars
 from pavilion.test_config import TestConfigError, resolver
 from pavilion.test_config import variables
@@ -392,7 +391,7 @@ class ResolverTests(PavTestCase):
 
         test.build()
 
-        undefered_sys_vars = system_variables.SysVarDict(
+        undefered_sys_vars = base_classes.SysVarDict(
             unique=True,
         )
 

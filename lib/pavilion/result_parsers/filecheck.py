@@ -1,11 +1,10 @@
 import glob
 
 import pavilion.result.common
-import yaml_config as yc
-from pavilion.result import parsers
+from pavilion.result import base_classes
 
 
-class Filecheck(parsers.ResultParser):
+class Filecheck(base_classes.ResultParser):
     """Checks the working directory for a given file.
     The parser will tell the user if the filename exists or not. """
 
@@ -22,11 +21,11 @@ class Filecheck(parsers.ResultParser):
     def check_args(self, **kwargs) -> dict:
         """This should always have match_select set to 'first'."""
 
-        if kwargs.get('match_select') != parsers.MATCH_FIRST:
+        if kwargs.get('match_select') != base_classes.MATCH_FIRST:
             raise pavilion.result.common.ResultError(
                 "You must use 'match_select: {}' with the filecheck parser. "
                 "(it's the default)"
-                .format(parsers.MATCH_FIRST))
+                .format(base_classes.MATCH_FIRST))
 
         return super().check_args(**kwargs)
 

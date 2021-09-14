@@ -1,9 +1,0 @@
-[Core]
-Name = Run Command
-Module = run
-
-[Documentation]
-Description = Command to run tests
-Author = Nicholas Sly/Paul Ferrell
-Version = 1.0
-Website =

@@ -1,9 +1,0 @@
-[Core]
-Name = System Name
-Module = sys_name
-
-[Documentation]
-Description = Uses 'hostname -s' to determine the name of the node running the test in a deferred manner.
-Author = Nicholas Sly
-Version = 1.0
-Website =
