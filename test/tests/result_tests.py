@@ -601,6 +601,7 @@ class ResultParserTests(PavTestCase):
 
         data, err = result_cmd.clear_output()
         results = json.loads(data)
+        results = {res['name']: res for res in results}
 
         basic = results['result_tests.basic']
         per1 = results['result_tests.permuted.1']

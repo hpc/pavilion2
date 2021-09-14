@@ -105,21 +105,19 @@ def get_tests(pav_cfg, tests: List['str'], errfile: TextIO) -> List[int]:
     return list(map(int, test_list))
 
 
-def get_status(test_id, pav_conf):
+def get_status(test: TestRun, pav_conf):
     """Return the status of a single test_id.
     Allows the statuses to be queried in parallel with map.
-    :param test_id: The test id being queried.
+    :param test: The test id being queried.
     :param pav_conf: The Pavilion config.
     """
 
     try:
-        test = TestRun.load(pav_conf, test_id)
         test_status = status_from_test_obj(pav_conf, test)
-
     except (TestRunError, TestRunNotFoundError) as err:
         test_status = {
-            'test_id': test_id,
-            'name':    "",
+            'test_id': test.full_id,
+            'name':    test.name,
             'state':   STATES.UNKNOWN,
             'time':    None,
             'note':    "Test not found: {}".format(err)
@@ -128,7 +126,7 @@ def get_status(test_id, pav_conf):
     return test_status
 
 
-def get_statuses(pav_cfg, tests: List[TestRun], errfile=None):
+def get_statuses(pav_cfg, tests: List[TestRun]):
     """Return the statuses for all given test id's.
     :param pav_cfg: The Pavilion config.
     :param tests: A list of test ids to load.
@@ -141,9 +139,9 @@ def get_statuses(pav_cfg, tests: List[TestRun], errfile=None):
     if sys.version_info.minor > 6:
         ncpu = min(config.NCPU, len(tests))
         mp_pool = mp.Pool(processes=ncpu)
-        test_statuses = mp_pool.map(get_this_status, tests)
+        test_statuses = list(mp_pool.map(get_this_status, tests))
     else:
-        test_statuses = map(get_this_status, tests)
+        test_statuses = list(map(get_this_status, tests))
 
     return test_statuses
 

@@ -39,7 +39,7 @@ class LockFileRotatingFileHandler(logging.Handler):
         self.file_name = Path(file_name)
         self.max_bytes = max_bytes
         self.backup_count = backup_count
-        self.mode = 'a'
+        self.mode = 'a+'
         self.encoding = encoding
         self.lock_timeout = lock_timeout
         lockfile_path = self.file_name.parent/(self.file_name.name + '.lock')
@@ -92,6 +92,9 @@ class LockFileRotatingFileHandler(logging.Handler):
 
     def _should_rollover(self, msg):
         """Check if the message will exceed our rollover limit."""
+
+        if not self.file_name.exists():
+            return False
 
         if 0 < self.max_bytes < self.file_name.stat().st_size + len(msg) + 1:
             return True

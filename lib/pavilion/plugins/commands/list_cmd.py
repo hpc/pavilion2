@@ -235,7 +235,7 @@ class ListCommand(commands.Command):
             user=args.user,
         )
 
-        order_func, ascending = filters.get_sort_opts(ßargs.sort_by, "TEST")
+        order_func, ascending = filters.get_sort_opts(args.sort_by, "TEST")
 
         if args.series:
             picked_runs = []

@@ -90,7 +90,7 @@ class ResultsCommand(commands.Command):
             if not self.update_results(pav_cfg, tests, log_file, save=args.save):
                 return errno.EINVAL
 
-        results = result_utils.get_results(pav_cfg, test_ids, self.errfile)
+        results = result_utils.get_results(tests)
 
         if args.json or args.full:
             if not results:
@@ -145,7 +145,7 @@ class ResultsCommand(commands.Command):
 
         return 0
 
-    def update_results(self, pav_cfg: dict, test_ids: List[int],
+    def update_results(self, pav_cfg: dict, tests: List[TestRun],
                        log_file: IO[str], save: bool = False) -> bool:
         """Update each of the given tests with the result section from the
         current version of their configs. Then rerun result processing and
@@ -162,8 +162,7 @@ class ResultsCommand(commands.Command):
 
         reslvr = resolver.TestConfigResolver(pav_cfg)
 
-        for test_id in test_ids:
-            test = TestRun.load(pav_cfg, test_id)
+        for test in tests:
 
             # Re-load the raw config using the saved name, host, and modes
             # of the original test.

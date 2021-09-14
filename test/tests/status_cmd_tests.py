@@ -279,7 +279,7 @@ class StatusCmdTests(PavTestCase):
     def test_status_summary(self):
         # Testing that status works with summary flag
         status_cmd = commands.get_command('status')
-        status_cmd.outfile = io.StringIO()
+        status_cmd.silence()
         parser = argparse.ArgumentParser()
         status_cmd._setup_arguments(parser)
         arg_list = ['-s']

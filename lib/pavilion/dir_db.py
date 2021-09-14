@@ -255,6 +255,7 @@ def index(id_dir: Path, idx_name: str,
 SelectItems = NamedTuple("SelectItems", [('data', List[Dict[str, Any]]),
                                          ('paths', List[Path])])
 
+
 def select_one(path, ffunc, trans, ofunc, fnb):
     """Allows the objects to be filtered and transformed in parallel with map.
 
@@ -409,7 +410,8 @@ def select_from(paths: Iterable[Path],
                        ofunc=order_func, fnb=fn_base)
 
     selections = mp_pool.map(selector, paths)
-    selected = [(item,path) for item, path in zip(selections,paths) if item is not None]
+    selected = [(item, path) for item, path in zip(selections, paths)
+                if item is not None]
 
     if order_func is not None:
         selected.sort(key=lambda d: order_func(d[0]), reverse=not order_asc)
