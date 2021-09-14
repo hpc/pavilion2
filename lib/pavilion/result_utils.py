@@ -19,8 +19,7 @@ BASE_FIELDS = [
     'sys_name',
     'started',
     'finished',
-    'result',
-    'results_log'
+    'result'
 ]
 
 
