@@ -4,18 +4,17 @@ import errno
 from typing import List
 
 import pavilion.series.errors
-from pavilion import commands
+from pavilion import cmd_utils
 from pavilion import output
 from pavilion import schedulers
-from pavilion import series
-from pavilion import cmd_utils
-from pavilion.series_config import generate_series_config
 from pavilion.series.series import TestSeries
+from pavilion.series_config import generate_series_config
 from pavilion.status_utils import print_from_tests
 from pavilion.test_run import TestRun
+from .base_classes import Command
 
 
-class RunCommand(commands.Command):
+class RunCommand(Command):
     """Resolve tests by name, build, and run them.
 
     :ivar TestSeries last_series: The suite number of the last suite to run

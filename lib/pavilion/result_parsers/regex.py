@@ -3,12 +3,11 @@
 import re
 import sre_constants
 
-from pavilion.result import ResultError
 import yaml_config as yc
-from pavilion.result import base_classes
+from .base_classes import ResultError, ResultParser
 
 
-class Regex(base_classes.ResultParser):
+class Regex(ResultParser):
     """Find matches to the given regex in the given file. The matched string
     or strings are returned as the result."""
 

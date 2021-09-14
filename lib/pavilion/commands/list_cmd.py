@@ -4,17 +4,16 @@ undefined) bits."""
 import errno
 from typing import List
 
-from pavilion import commands
 from pavilion import dir_db
 from pavilion import filters
 from pavilion import output
-from pavilion.commands import sub_cmd
 from pavilion.series.info import SeriesInfo, series_info_transform
 from pavilion.series import TestSeriesError, list_series_tests
 from pavilion.test_run import TestAttributes, test_run_attr_transform
+from .base_classes import Command, sub_cmd
 
 
-class ListCommand(commands.Command):
+class ListCommand(Command):
     """List test runs, series, and other bits."""
 
     def __init__(self):
@@ -311,7 +310,7 @@ class ListCommand(commands.Command):
             older_than=args.older_than,
             sys_name=args.sys_name)
 
-        series_order, ascending = filters.get_sort_opts(args.sort_by,"SERIES")
+        series_order, ascending = filters.get_sort_opts(args.sort_by, "SERIES")
 
         series = dir_db.select(
             id_dir=pav_cfg.working_dir/'series',

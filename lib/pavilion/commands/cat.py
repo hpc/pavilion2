@@ -4,12 +4,12 @@ import errno
 import os
 import sys
 
-from pavilion import commands
 from pavilion import dir_db
 from pavilion import output
+from .base_classes import Command
 
 
-class FileCommand(commands.Command):
+class CatCommand(Command):
     """Prints the given file for a given test run id."""
 
     def __init__(self):

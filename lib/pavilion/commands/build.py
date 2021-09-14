@@ -1,11 +1,11 @@
 """The build commands builds tests, but does not run them. It is actually
 the run command with a few different options."""
 
-from pavilion import commands
-from pavilion.plugins.commands import run as run_plugin
+from .base_classes import Command
+from .run import RunCommand
 
 
-class BuildCommand(run_plugin.RunCommand):
+class BuildCommand(RunCommand):
     """Build tests locally, and kick off any that require building on nodes."""
 
     BUILD_ONLY = True
@@ -14,7 +14,7 @@ class BuildCommand(run_plugin.RunCommand):
 
         # pylint: disable=non-parent-init-called
         # pylint: disable=super-init-not-called
-        commands.Command.__init__(
+        Command.__init__(
             self,
             name="build",
             description="Perform just the build step on the given tests, "

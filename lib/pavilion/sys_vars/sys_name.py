@@ -1,17 +1,16 @@
 import subprocess
-import pavilion.system_variables as system_plugins
+from .base_classes import SystemPlugin
 
 
-class SystemName( system_plugins.SystemPlugin ):
+class SystemName(SystemPlugin):
 
-    def __init__( self ):
+    def __init__(self):
         super().__init__(
             name='sys_name',
             description='The system name (not necessarily hostname).',
-            priority=self.PRIO_CORE,
-            is_deferable=False)
+            priority=self.PRIO_CORE)
 
-    def _get( self ):
+    def _get(self):
         """Base method for determining the system name."""
 
         name = subprocess.check_output(['hostname', '-s'])

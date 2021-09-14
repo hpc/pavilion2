@@ -4,16 +4,16 @@ import errno
 import os
 import signal
 
-from pavilion import commands
 from pavilion import output
 from pavilion import schedulers
 from pavilion import series
 from pavilion.status_file import STATES
 from pavilion.status_utils import print_from_tests
 from pavilion.test_run import TestRun, TestRunError
+from .base_classes import Command
 
 
-class CancelCommand(commands.Command):
+class CancelCommand(Command):
     """Cancel a set of commands using the appropriate scheduler."""
 
     def __init__(self):

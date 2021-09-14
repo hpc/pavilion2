@@ -3,12 +3,12 @@
 from pathlib import Path
 
 from pavilion import clean
-from pavilion import commands
 from pavilion import filters
 from pavilion import output
+from .base_classes import Command
 
 
-class CleanCommand(commands.Command):
+class CleanCommand(Command):
     """Cleans outdated test and series run directories."""
 
     def __init__(self):

@@ -1,8 +1,8 @@
-import pavilion.system_variables as system_plugins
 from pathlib import Path
+from .base_classes import SystemPlugin
 
 
-class HostOS(system_plugins.SystemPlugin):
+class HostOS(SystemPlugin):
 
     def __init__(self):
         super().__init__(
@@ -17,12 +17,12 @@ class HostOS(system_plugins.SystemPlugin):
         with Path('/etc/os-release').open('r') as release:
             rlines = release.readlines()
 
-        os = {}
+        os_info = {}
 
         for line in rlines:
             if line[:3] == 'ID=':
-                os['name'] = line[3:].strip().strip('"')
+                os_info['name'] = line[3:].strip().strip('"')
             elif line[:11] == 'VERSION_ID=':
-                os['version'] = line[11:].strip().strip('"')
+                os_info['version'] = line[11:].strip().strip('"')
 
-        return os
+        return os_info

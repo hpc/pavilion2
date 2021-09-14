@@ -1,15 +1,14 @@
 """Print out the contents of the various log files for a given test run.
 """
 import errno
-import subprocess
 
-from pavilion import commands
 from pavilion import output
-from pavilion import test_run
 from pavilion import series, series_config
+from pavilion import test_run
+from .base_classes import Command
 
 
-class LogCommand(commands.Command):
+class LogCommand(Command):
     """Print the contents of log files for test runs."""
 
     def __init__(self):
@@ -64,13 +63,13 @@ class LogCommand(commands.Command):
                              help="Test number or series id (e.g. s7) "
                                   "argument.")
 
-        series = subparsers.add_parser(
+        series_cmd = subparsers.add_parser(
             'series',
             help="Show a series's output (series.out).",
             description="Displays the series output (series.log)."
         )
-        series.add_argument('id', type=str,
-                            help="Test number or series id (e.g. s7) argument.")
+        series_cmd.add_argument('id', type=str,
+                                help="Test number or series id (e.g. s7) argument.")
 
         subparsers.add_parser(
             'global',

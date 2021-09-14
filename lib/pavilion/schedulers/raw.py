@@ -1,3 +1,5 @@
+"""The Raw (local system) scheduler."""
+
 import os
 import signal
 import socket
@@ -7,9 +9,8 @@ from pathlib import Path
 
 import yaml_config as yc
 from pavilion.pavilion_variables import var_method
-from pavilion.schedulers import SchedulerPlugin
-from pavilion.schedulers import SchedulerVariables
 from pavilion.status_file import STATES, StatusInfo
+from .base_classes import SchedulerPlugin, SchedulerVariables
 
 
 class RawVars(SchedulerVariables):
@@ -73,6 +74,7 @@ class RawVars(SchedulerVariables):
 
 
 class Raw(SchedulerPlugin):
+    """The Raw (local system) scheduler."""
 
     VAR_CLASS = RawVars
 

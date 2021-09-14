@@ -4,13 +4,13 @@ other commands to print statuses."""
 import errno
 
 from pavilion import cmd_utils
-from pavilion import commands
 from pavilion import filters
 from pavilion import output
 from pavilion import status_utils
+from .base_classes import Command
 
 
-class StatusCommand(commands.Command):
+class StatusCommand(Command):
     """Prints the status of a set of tests."""
 
     def __init__(self):

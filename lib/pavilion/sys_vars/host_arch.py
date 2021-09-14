@@ -1,7 +1,9 @@
 import subprocess
-import pavilion.system_variables as system_plugins
+from .base_classes import SystemPlugin
 
-class HostArch(system_plugins.SystemPlugin):
+
+class HostArch(SystemPlugin):
+    """Get the host architecture."""
 
     def __init__(self):
         super().__init__(
@@ -16,4 +18,3 @@ class HostArch(system_plugins.SystemPlugin):
         out = subprocess.check_output(['uname', '-i'])
 
         return out.strip().decode('utf8')
-

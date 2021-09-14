@@ -3,13 +3,13 @@
 import errno
 
 import pavilion.series.errors
-from pavilion import commands
 from pavilion import output
 from pavilion import series
 from pavilion import series_config
+from .base_classes import Command
 
 
-class RunSeries(commands.Command):
+class RunSeries(Command):
     """Command to kickoff series."""
 
     def __init__(self):

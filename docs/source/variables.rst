@@ -45,7 +45,7 @@ Pavilion Defined Variables (pav_vars)
 System Variable Plugins
 -----------------------
 
-.. automodule:: pavilion.system_variables
+.. automodule:: pavilion.sys_vars
     :members:
     :undoc-members:
     :show-inheritance:

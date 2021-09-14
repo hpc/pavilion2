@@ -2,22 +2,20 @@
 """The Slurm Scheduler Plugin."""
 
 import distutils.spawn
-import time
 import math
 import os
 import re
 import subprocess
+import time
 from pathlib import Path
 from typing import List
 
 import yaml_config as yc
 from pavilion import scriptcomposer
-from pavilion import schedulers
-from pavilion.schedulers import SchedulerPluginError
-from pavilion.schedulers import SchedulerVariables
-from pavilion.schedulers import dfr_var_method
 from pavilion.status_file import STATES, StatusInfo
 from pavilion.var_dict import var_method
+from .base_classes import (SchedulerPluginError, SchedulerVariables, dfr_var_method,
+                           SchedulerPlugin)
 
 
 class SbatchHeader(scriptcomposer.ScriptHeader):
@@ -327,7 +325,7 @@ def slurm_states(state):
     return states
 
 
-class Slurm(schedulers.SchedulerPlugin):
+class Slurm(SchedulerPlugin):
     """Schedule tests with Slurm!"""
 
     KICKOFF_SCRIPT_EXT = '.sbatch'

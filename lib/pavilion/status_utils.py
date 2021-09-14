@@ -1,18 +1,18 @@
 """A collection of utilities for getting the current status of test runs
 and series."""
 
+import multiprocessing as mp
 import os
 import sys
 import time
-import multiprocessing as mp
-from typing import TextIO, List
 from functools import partial
+from typing import TextIO, List
 
-from pavilion import commands
 from pavilion import config
+from pavilion import exceptions
 from pavilion import output
-from pavilion import series
 from pavilion import schedulers
+from pavilion import series
 from pavilion.status_file import STATES
 from pavilion.test_run import (TestRun, TestRunError, TestRunNotFoundError)
 
@@ -79,7 +79,7 @@ def get_tests(pav_cfg, tests: List['str'], errfile: TextIO) -> List[int]:
         if series_id is not None:
             tests.append(series_id)
         else:
-            raise commands.CommandError(
+            raise exceptions.CommandError(
                 "No tests specified and no last series was found."
             )
 

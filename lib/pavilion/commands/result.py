@@ -8,7 +8,6 @@ import shutil
 from typing import List, IO
 
 from pavilion import cmd_utils
-from pavilion import commands
 from pavilion import filters
 from pavilion import output
 from pavilion import result
@@ -16,9 +15,10 @@ from pavilion import result_utils
 from pavilion.status_file import STATES
 from pavilion.test_config import resolver
 from pavilion.test_run import (TestRun)
+from .base_classes import Command
 
 
-class ResultsCommand(commands.Command):
+class ResultsCommand(Command):
     """Plugin for result printing."""
 
     def __init__(self):
@@ -29,7 +29,6 @@ class ResultsCommand(commands.Command):
             description="Displays results from the given tests.",
             short_help="Displays results from the given tests."
         )
-
 
     def _setup_arguments(self, parser):
 
@@ -113,7 +112,7 @@ class ResultsCommand(commands.Command):
                 pass
 
         else:
-            fields = result_utils.BASE_FIELDS + args.key.replace(',',' ').split()
+            fields = result_utils.BASE_FIELDS + args.key.replace(',', ' ').split()
 
             output.draw_table(
                 outfile=self.outfile,
@@ -243,7 +242,8 @@ class ResultsCommand(commands.Command):
 
             # The new results will be attached to the test (but not saved).
             results = test.gather_results(test.results.get('return_value', 1),
-                                          regather=True if not save else False, log_file=log_file)
+                                          regather=True if not save else False,
+                                          log_file=log_file)
 
             if save:
                 test.save_results(results)

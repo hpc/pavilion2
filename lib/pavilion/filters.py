@@ -10,7 +10,7 @@ from functools import partial
 
 from typing import Dict, Any, Callable, List
 
-from pavilion import system_variables
+from pavilion.sys_vars import base_classes
 from pavilion import utils
 from pavilion.test_run import TestRun
 
@@ -325,7 +325,7 @@ def make_test_run_filter(
     """
 
     if sys_name == LOCAL_SYS_NAME:
-        sys_vars = system_variables.get_vars(defer=True)
+        sys_vars = base_classes.get_vars(defer=True)
         sys_name = sys_vars['sys_name']
 
     filter_func = partial(
@@ -387,7 +387,7 @@ def make_series_filter(
     """
 
     if sys_name == LOCAL_SYS_NAME:
-        sys_vars = system_variables.get_vars(defer=True)
+        sys_vars = base_classes.get_vars(defer=True)
         sys_name = sys_vars['sys_name']
 
     def series_filter(series: Dict[str, Any]):

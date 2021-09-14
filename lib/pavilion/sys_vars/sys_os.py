@@ -1,28 +1,27 @@
-import pavilion.system_variables as system_plugins
 from pathlib import Path
+from .base_classes import SystemPlugin
 
 
-class SystemOS(system_plugins.SystemPlugin):
+class SystemOS(SystemPlugin):
 
     def __init__(self):
         super().__init__(
             name='sys_os',
             description="The system os info (name, version).",
-            priority=self.PRIO_CORE,
-            is_deferable=False)
+            priority=self.PRIO_CORE)
 
     def _get(self):
         """Base method for determining the operating system and version."""
 
-        with Path('/etc/os-release').open('r') as release:
+        with Path('/etc/os-release').open() as release:
             rlines = release.readlines()
 
-        os = {}
+        os_info = {}
 
         for line in rlines:
             if line[:3] == 'ID=':
-                os['name'] = line[3:].strip().strip('"')
+                os_info['name'] = line[3:].strip().strip('"')
             elif line[:11] == 'VERSION_ID=':
-                os['version'] = line[11:].strip().strip('"')
+                os_info['version'] = line[11:].strip().strip('"')
 
-        return os
+        return os_info

@@ -18,7 +18,7 @@ from pavilion import arguments
 from pavilion import config
 from pavilion import dir_db
 from pavilion import pavilion_variables
-from pavilion import system_variables
+from pavilion.sys_vars import base_classes
 from pavilion.output import dbg_print
 from pavilion.test_config import VariableSetManager
 from pavilion.test_config import resolver
@@ -337,7 +337,7 @@ The default config is: ::
                 test.build()
 
             if finalize:
-                fin_sys = system_variables.SysVarDict(unique=True)
+                fin_sys = base_classes.SysVarDict(unique=True)
                 fin_var_man = VariableSetManager()
                 fin_var_man.add_var_set('sys', fin_sys)
                 res.finalize(test, fin_var_man)
@@ -378,7 +378,7 @@ The default config is: ::
 
         var_man = VariableSetManager()
         var_man.add_var_set('var', cfg['variables'])
-        var_man.add_var_set('sys', system_variables.SysVarDict(unique=True, defer=True))
+        var_man.add_var_set('sys', base_classes.SysVarDict(unique=True, defer=True))
         var_man.add_var_set('pav', self.pav_cfg.pav_vars)
         if sched_vars is not None:
             var_man.add_var_set('sched', sched_vars)
@@ -393,7 +393,7 @@ The default config is: ::
         if build:
             test.build()
         if finalize:
-            fin_sys = system_variables.SysVarDict(unique=True)
+            fin_sys = base_classes.SysVarDict(unique=True)
             fin_var_man = VariableSetManager()
             fin_var_man.add_var_set('sys', fin_sys)
             resolver.TestConfigResolver.finalize(test, fin_var_man)

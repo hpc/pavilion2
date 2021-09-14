@@ -8,12 +8,11 @@ from argparse import RawDescriptionHelpFormatter
 from typing import Dict
 
 from pavilion import cmd_utils
-from pavilion import commands
 from pavilion import filters
 from pavilion import output
 from pavilion.result.common import ResultError
 from pavilion.result.evaluations import check_evaluations, evaluate_results
-from pavilion.test_run import TestRun, TestRunError
+from .base_classes import Command
 
 try:
     import matplotlib
@@ -32,7 +31,7 @@ except ImportError:
 DIMENSIONS_RE = re.compile(r'\d+x\d+')
 
 
-class GraphCommand(commands.Command):
+class GraphCommand(Command):
     """Command to graph Pavilion results data."""
 
     def __init__(self):

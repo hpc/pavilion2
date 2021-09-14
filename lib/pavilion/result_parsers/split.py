@@ -1,7 +1,7 @@
 """Split line by a substring."""
 
 import yaml_config as yc
-from pavilion.result import base_classes
+from pavilion.result_parsers import base_classes
 
 
 class Split(base_classes.ResultParser):
