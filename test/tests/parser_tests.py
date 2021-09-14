@@ -6,7 +6,7 @@ from pavilion import plugins
 from pavilion import unittest
 from pavilion.test_config import parsers
 from pavilion.test_config import variables
-from pavilion import system_variables
+from pavilion.sys_vars import base_classes
 
 
 class ParserTests(unittest.PavTestCase):
@@ -34,7 +34,7 @@ class ParserTests(unittest.PavTestCase):
                 {'type': 'fish', 'bites': '1', 'evil_rating': '9.7'},
             ]
         })
-        self.var_man.add_var_set('sys', system_variables.get_vars(defer=True))
+        self.var_man.add_var_set('sys', base_classes.get_vars(defer=True))
 
     def tearDown(self) -> None:
         plugins._reset_plugins()

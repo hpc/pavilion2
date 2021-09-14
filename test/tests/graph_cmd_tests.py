@@ -1,13 +1,9 @@
-import errno
 import unittest
 
 from pavilion import arguments
 from pavilion import commands
-from pavilion import output
 from pavilion import plugins
 from pavilion.unittest import PavTestCase
-from pavilion.result.common import ResultError
-from pavilion.plugins.commands.graph import ResultTypeError
 
 
 def has_matplotlib():

@@ -16,8 +16,9 @@ from pavilion import config
 from pavilion import plugins
 from pavilion import result
 from pavilion import utils
-from pavilion.plugins.commands import run
-from pavilion.result import parsers, ResultError, base
+from pavilion.commands import run
+from pavilion.result import ResultError, base
+from pavilion.result_parsers import base_classes
 from pavilion.test_run import TestRun
 from pavilion.unittest import PavTestCase
 
@@ -105,12 +106,12 @@ class ResultParserTests(PavTestCase):
                     'no_lines_match': {
                         'regex':              r'.*',
                         'for_lines_matching': r'nothing',
-                        'match_select':       parsers.MATCH_ALL,
+                        'match_select':       base_classes.MATCH_ALL,
                     },
                     'no_lines_match_last': {
                         'regex':              r'.*',
                         'for_lines_matching': r'nothing',
-                        'match_select':       parsers.MATCH_FIRST,
+                        'match_select':       base_classes.MATCH_FIRST,
                     },
                     'mp1, _  ,   mp3': {
                         'regex': r'Multipass (\d), (\d), (\d)'
@@ -120,58 +121,58 @@ class ResultParserTests(PavTestCase):
                     },
                     'true': {
                         # Look all the log files, and save 'True' on match.
-                        'files': ['../run.log'],
+                        'files':  ['../run.log'],
                         'regex': r'.* World',
-                        'action': parsers.ACTION_TRUE,
+                        'action': base_classes.ACTION_TRUE,
                     },
                     'false': {
                         # As before, but false. Also, with lists of data.
                         # By multiple globs.
-                        'files': ['../run.log', 'other.*'],
+                        'files':  ['../run.log', 'other.*'],
                         'regex': r'.* World',
-                        'action': parsers.ACTION_FALSE,
+                        'action': base_classes.ACTION_FALSE,
                     },
                     'count': {
                         # As before, but keep match counts.
-                        'files': ['../run.log', '*.log'],
+                        'files':        ['../run.log', '*.log'],
                         'regex': r'.* World',
-                        'match_select': parsers.MATCH_ALL,
-                        'action': parsers.ACTION_COUNT,
-                        'per_file': parsers.PER_NAME,
+                        'match_select': base_classes.MATCH_ALL,
+                        'action':       base_classes.ACTION_COUNT,
+                        'per_file':     base_classes.PER_NAME,
                     },
                     'name': {
                         # Store matches by name stub
                         # Note there is a name conflict here between other.txt
                         # and other.log.
-                        'files': ['other.*'],
+                        'files':    ['other.*'],
                         'regex': r'.* World',
-                        'per_file': parsers.PER_NAME,
+                        'per_file': base_classes.PER_NAME,
                     },
                     'name_list': {
                         # Store matches by name stub
                         # Note there is a name conflict here between other.txt
                         # and other.log.
-                        'files': ['*.log'],
+                        'files':    ['*.log'],
                         'regex': r'World',
-                        'per_file': parsers.PER_NAME_LIST,
+                        'per_file': base_classes.PER_NAME_LIST,
                     },
                     'lists': {
-                        'files': ['other*'],
+                        'files':        ['other*'],
                         'regex': r'.* World',
-                        'match_select': parsers.MATCH_ALL,
-                        'per_file': parsers.PER_LIST,
+                        'match_select': base_classes.MATCH_ALL,
+                        'per_file':     base_classes.PER_LIST,
                     },
                     'all': {
-                        'files': ['other*'],
+                        'files':    ['other*'],
                         'regex': r'.* World',
-                        'action': parsers.ACTION_TRUE,
-                        'per_file': parsers.PER_ALL
+                        'action':   base_classes.ACTION_TRUE,
+                        'per_file': base_classes.PER_ALL
                     },
                     'result': {
-                        'files': ['other*'],
+                        'files':    ['other*'],
                         'regex': r'.* World',
-                        'action': parsers.ACTION_TRUE,
-                        'per_file': parsers.PER_ANY
+                        'action':   base_classes.ACTION_TRUE,
+                        'per_file': base_classes.PER_ANY
                     },
                 }
             }

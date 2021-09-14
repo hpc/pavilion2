@@ -2,7 +2,7 @@ from pavilion import plugins
 from pavilion import commands
 from pavilion.unittest import PavTestCase
 from pavilion import arguments
-from pavilion.plugins.commands.run import RunCommand
+from pavilion.commands.run import RunCommand
 from pavilion.status_file import STATES
 import io
 import logging

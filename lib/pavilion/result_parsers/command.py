@@ -1,13 +1,13 @@
 """Execute a command and get its output or return value."""
 import pavilion.result.common
-from pavilion.result import parsers
+from pavilion.result import base_classes
 
 import pavilion.result.base
 import yaml_config as yc
 import subprocess
 
 
-class Command(parsers.ResultParser):
+class Command(base_classes.ResultParser):
     """Runs a given command."""
 
     FORCE_DEFAULTS = ['match_select', 'files', 'per_file']

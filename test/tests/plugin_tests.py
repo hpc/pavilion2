@@ -1,11 +1,15 @@
+"""Test plugin system functionality."""
+
+import argparse
+
 from pavilion import arguments
 from pavilion import commands
 from pavilion import config
 from pavilion import module_wrapper
 from pavilion import plugins
 from pavilion import output
-from pavilion.result import parsers
-from pavilion import system_variables
+from pavilion import result_parsers
+from pavilion import sys_vars
 from pavilion import expression_functions
 from pavilion.test_config import variables
 from pavilion.unittest import PavTestCase
@@ -60,8 +64,11 @@ class PluginTests(PavTestCase):
 
         plugins.initialize_plugins(pav_cfg)
 
-        commands.get_command('poof').run(pav_cfg, [])
-        commands.get_command('blarg').run(pav_cfg, [])
+        parser = argparse.ArgumentParser()
+        args = parser.parse_args()
+
+        commands.get_command('poof').run(pav_cfg, args)
+        commands.get_command('blarg').run(pav_cfg, args)
 
         plugins._reset_plugins()
 
@@ -128,7 +135,8 @@ class PluginTests(PavTestCase):
         self.assertRaises(module_wrapper.ModuleWrapperError,
                           lambda: bar2.get_version('1.3.0'))
 
-        bar1.load({})
+        vsm = variables.VariableSetManager()
+        bar1.load(vsm)
 
         plugins._reset_plugins()
 
@@ -138,8 +146,6 @@ class PluginTests(PavTestCase):
 
         # Get an empty pavilion config and set some config dirs on it.
         plugins.initialize_plugins(self.pav_cfg)
-
-        self.assertFalse(system_variables._LOADED_PLUGINS is None)
 
         host_arch = subprocess.check_output(['uname', '-i'])
         host_arch = host_arch.strip().decode('UTF-8')
@@ -157,59 +163,59 @@ class PluginTests(PavTestCase):
             elif line[:11] == 'VERSION_ID=':
                 host_os['version'] = line[11:].strip().strip('"')
 
-        sys_vars = system_variables.get_vars(defer=False)
+        svars = sys_vars.get_vars(defer=False)
 
-        self.assertFalse('sys_arch' in sys_vars)
-        self.assertEqual(host_arch, sys_vars['sys_arch'])
-        self.assertTrue('sys_arch' in sys_vars)
+        self.assertFalse('sys_arch' in svars)
+        self.assertEqual(host_arch, svars['sys_arch'])
+        self.assertTrue('sys_arch' in svars)
 
-        self.assertFalse('sys_host' in sys_vars)
-        self.assertEqual(host_name, sys_vars['sys_host'])
-        self.assertTrue('sys_host' in sys_vars)
+        self.assertFalse('sys_host' in svars)
+        self.assertEqual(host_name, svars['sys_host'])
+        self.assertTrue('sys_host' in svars)
 
-        self.assertFalse('sys_os' in sys_vars)
-        self.assertEqual(host_os['name'], sys_vars['sys_os']['name'])
+        self.assertFalse('sys_os' in svars)
+        self.assertEqual(host_os['name'], svars['sys_os']['name'])
         self.assertEqual(host_os['version'],
-                         sys_vars['sys_os']['version'])
-        self.assertTrue('sys_os' in sys_vars)
+                         svars['sys_os']['version'])
+        self.assertTrue('sys_os' in svars)
 
-        self.assertFalse('host_arch' in sys_vars)
-        self.assertEqual(host_arch, sys_vars['host_arch'])
-        self.assertTrue('host_arch' in sys_vars)
+        self.assertFalse('host_arch' in svars)
+        self.assertEqual(host_arch, svars['host_arch'])
+        self.assertTrue('host_arch' in svars)
 
-        self.assertFalse('host_name' in sys_vars)
-        self.assertEqual(host_name, sys_vars['host_name'])
-        self.assertTrue('host_name' in sys_vars)
+        self.assertFalse('host_name' in svars)
+        self.assertEqual(host_name, svars['host_name'])
+        self.assertTrue('host_name' in svars)
 
-        self.assertFalse('host_os' in sys_vars)
-        self.assertEqual(host_os['name'], sys_vars['host_os']['name'])
+        self.assertFalse('host_os' in svars)
+        self.assertEqual(host_os['name'], svars['host_os']['name'])
         self.assertEqual(host_os['version'],
-                         sys_vars['host_os']['version'])
-        self.assertTrue('host_os' in sys_vars)
+                         svars['host_os']['version'])
+        self.assertTrue('host_os' in svars)
 
         # Re-initialize the plugin system.
         plugins._reset_plugins()
         # Make sure these have been wiped
-        self.assertIsNone(system_variables._LOADED_PLUGINS)
+        self.assertIsNone(sys_vars.base_classes._LOADED_PLUGINS)
         # Make sure these have been wiped.
-        self.assertIsNone(system_variables._SYS_VAR_DICT)
+        self.assertIsNone(sys_vars.base_classes._SYS_VAR_DICT)
 
         plugins.initialize_plugins(self.pav_cfg)
 
         # but these are back
-        self.assertIsNotNone(system_variables._LOADED_PLUGINS)
+        self.assertIsNotNone(sys_vars.base_classes._LOADED_PLUGINS)
 
-        sys_vars = system_variables.get_vars(defer=True)
+        svars = sys_vars.get_vars(defer=True)
 
         # Check that the deferred values are actually deferred.
-        self.assertFalse('host_arch' in sys_vars)
-        self.assertTrue(isinstance(sys_vars['host_arch'],
+        self.assertFalse('host_arch' in svars)
+        self.assertTrue(isinstance(svars['host_arch'],
                                    variables.DeferredVariable))
-        self.assertFalse('host_name' in sys_vars)
-        self.assertTrue(isinstance(sys_vars['host_name'],
+        self.assertFalse('host_name' in svars)
+        self.assertTrue(isinstance(svars['host_name'],
                                    variables.DeferredVariable))
-        self.assertFalse('host_os' in sys_vars)
-        self.assertTrue(isinstance(sys_vars['host_os'],
+        self.assertFalse('host_os' in svars)
+        self.assertTrue(isinstance(svars['host_os'],
                                    variables.DeferredVariable))
 
         plugins._reset_plugins()
@@ -219,7 +225,7 @@ class PluginTests(PavTestCase):
 
         plugins.initialize_plugins(self.pav_cfg)
 
-        regex = parsers.get_plugin('regex')
+        _ = result_parsers.get_plugin('regex')
 
         plugins._reset_plugins()
 

@@ -1,7 +1,5 @@
 from pavilion import plugins
-from pavilion import system_variables
 from pavilion import unittest
-from pavilion.test_config import VariableSetManager, resolver
 from pavilion.test_run import TestRunError
 
 

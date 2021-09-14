@@ -1,11 +1,10 @@
 import io
 import json
-import os
 
 from pavilion import arguments
 from pavilion import commands
 from pavilion import plugins
-from pavilion import system_variables
+from pavilion.sys_vars import base_classes
 from pavilion import utils
 from pavilion.unittest import PavTestCase
 
@@ -23,7 +22,7 @@ class SysNameSeriesTrackerTests(PavTestCase):
 
         user = utils.get_login()
 
-        sys_vars = system_variables.get_vars(True)
+        sys_vars = base_classes.get_vars(True)
         sys_name = sys_vars['sys_name']
 
         arg_parser = arguments.get_parser()

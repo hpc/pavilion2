@@ -11,12 +11,12 @@ import yaml_config as yc
 from pavilion.test_config import file_format
 from pavilion.test_config import variables
 from yapsy import IPlugin
-from .common import ResultError
-from .options import (PER_FIRST, PER_LAST, PER_NAME, PER_LIST,
-                      PER_NAME_LIST, PER_ALL, PER_ANY, PER_FILES,
-                      MATCH_FIRST, MATCH_LAST, MATCH_ALL, MATCH_CHOICES,
-                      ACTION_STORE, ACTION_STORE_STR, ACTION_TRUE,
-                      ACTION_FALSE, ACTION_COUNT, ACTIONS)
+from pavilion.result.common import ResultError
+from pavilion.result.options import (PER_FIRST, PER_LAST, PER_NAME, PER_LIST,
+                                     PER_NAME_LIST, PER_ALL, PER_ANY, PER_FILES,
+                                     MATCH_FIRST, MATCH_LAST, MATCH_ALL, MATCH_CHOICES,
+                                     ACTION_STORE, ACTION_STORE_STR, ACTION_TRUE,
+                                     ACTION_FALSE, ACTION_COUNT, ACTIONS)
 
 LOGGER = logging.getLogger(__file__)
 

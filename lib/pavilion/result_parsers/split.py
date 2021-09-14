@@ -1,10 +1,10 @@
 """Split line by a substring."""
 
 import yaml_config as yc
-from pavilion.result import parsers
+from pavilion.result import base_classes
 
 
-class Split(parsers.ResultParser):
+class Split(base_classes.ResultParser):
     """Split a line by some substring, and return the list of parts."""
 
     def __init__(self):

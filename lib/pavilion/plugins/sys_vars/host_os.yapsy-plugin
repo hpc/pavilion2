@@ -1,9 +1,0 @@
-[Core]
-Name = Host OS
-Module = host_os
-
-[Documentation]
-Description = Uses the /etc/os-release file to determine the name of the host.
-Author = Nicholas Sly
-Version = 1.0
-Website =

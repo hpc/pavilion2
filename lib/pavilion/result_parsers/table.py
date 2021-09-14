@@ -3,10 +3,10 @@
 import re
 
 import yaml_config as yc
-from pavilion.result import parsers, ResultError
+from pavilion.result import base_classes, ResultError
 
 
-class Table(parsers.ResultParser):
+class Table(base_classes.ResultParser):
     """Parses tables."""
 
     def __init__(self):

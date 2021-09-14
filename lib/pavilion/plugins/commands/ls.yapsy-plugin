@@ -1,9 +1,0 @@
-[Core]
-Name = ls Command
-Module = ls
-
-[Documentation]
-Description = Command that lists files of a pavilion job.
-Author = Jordan A. Ogas
-Version = 1.0
-Website =

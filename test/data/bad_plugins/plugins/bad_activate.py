@@ -1,7 +1,7 @@
-from pavilion.result import parsers
+from pavilion.result_parsers import base_classes
 
 
-class BadActivate(parsers.ResultParser):
+class BadActivate(base_classes.ResultParser):
 
     def __init__(self):
         super().__init__(
