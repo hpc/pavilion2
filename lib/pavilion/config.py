@@ -202,6 +202,11 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
             help_text="Maximum simultaneous builds. Note that each build may "
                       "itself spawn off threads/processes, so it's probably "
                       "reasonable to keep this at just a few."),
+        yc.IntRangeElem(
+            "max_cpu", default=NCPU, vmin=1,
+            help_text="Maximum number of cpus to use when spawning multiple processes."
+                      "The number used may be less depending on the task."
+        ),
         yc.StrElem(
             "log_format",
             default="{asctime}, {levelname}, {hostname}, {name}: {message}",

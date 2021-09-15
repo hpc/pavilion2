@@ -4,10 +4,9 @@ provide ``<function_name>:<return value>`` key:value pairs. The functions are
 lazily executed, and the results are cached.
 """
 
+import inspect
 from collections import UserDict
 from functools import wraps
-import logging
-import inspect
 
 
 def var_method(func):
@@ -77,8 +76,6 @@ class VarDict(UserDict):
         self._name = name
 
         self._keys = self._find_vars()
-
-        self.logger = logging.getLogger('{}_vars'.format(name))
 
     def _find_vars(self):
         """Find all the scheduler variables and add them as variables."""
