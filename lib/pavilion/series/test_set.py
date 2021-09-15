@@ -177,7 +177,7 @@ class TestSet:
                 self.modes,
                 self.overrides,
                 conditions=global_conditions,
-                output_file=outfile,
+                outfile=outfile,
             )
         except TestConfigError as err:
             raise TestSetError(

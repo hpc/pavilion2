@@ -78,7 +78,7 @@ class ViewCommand(run.RunCommand):
                 tests=tests,
                 modes=args.modes,
                 overrides=overrides,
-                output_file=self.outfile,
+                outfile=self.outfile,
             )
         except CommandError as err:
             fprint(err, file=self.errfile, color=output.RED)

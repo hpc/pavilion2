@@ -10,6 +10,7 @@ are all handled by the TestConfigResolver
 import copy
 import io
 import logging
+import multiprocessing as mp
 import os
 import re
 from collections import defaultdict
@@ -72,8 +73,6 @@ class TestConfigResolver:
         self.base_var_man.add_var_set(
             'pav', pavilion_variables.PavVars()
         )
-
-        self.logger = logging.getLogger(__file__)
 
     def build_variable_manager(self, raw_test_cfg):
         """Get all of the different kinds of Pavilion variables into a single
@@ -278,9 +277,11 @@ class TestConfigResolver:
 
         return configs
 
+    PROGRESS_PERIOD = 0.5
+
     def load(self, tests: List[str], host: str = None,
              modes: List[str] = None, overrides: List[str] = None,
-             conditions=None, output_file: IO[str] = None) \
+             conditions=None, outfile: IO[str] = None) \
             -> List[ProtoTest]:
         """Load the given tests, updated with their host and mode files.
         Returns 'ProtoTests', a simple object with 'config' and 'var_man'
@@ -292,7 +293,7 @@ class TestConfigResolver:
         :param modes: A list of modes to load.
         :param overrides: A dict of key:value pairs to apply as overrides.
         :param conditions: A dict containing the only_if and not_if conditions.
-        :param output_file: Where to write status output.
+        :param outfile: Where to write status output.
         """
 
         if modes is None:
@@ -316,73 +317,95 @@ class TestConfigResolver:
                     raw_test['not_if'], conditions['not_if']
                 )
 
-        raw_tests_by_sched = defaultdict(lambda: [])
+        resolved_tests = []
 
-        progress = 0
+        complete = 0
+
+        if len(raw_tests) == 0:
+            return []
+        elif len(raw_tests) == 1:
+            return self.resolve(raw_tests[0], overrides)
+        else:
+            async_results = []
+            proc_count = min(self.pav_cfg['max_cpu'], len(raw_tests))
+            with mp.Pool(processes=proc_count) as pool:
+                for raw_test in raw_tests:
+                    async_results.append(
+                        pool.apply_async(self.resolve, (raw_test, overrides))
+                    )
+
+                while async_results:
+                    for aresult in list(async_results):
+                        if aresult.ready():
+                            async_results.remove(aresult)
+
+                            resolved_tests.extend(aresult.get())
+
+                            complete += 1
+                            progress = len(raw_tests) - complete
+                            progress = (1 - progress/len(raw_tests))
+                            output.fprint(
+                                "Resolving Test Configs: {:.0%}".format(progress),
+                                file=outfile, end='\r')
+
+                    try:
+                        aresult.wait(0.5)
+                    except TimeoutError:
+                        pass
+
+        if outfile:
+            output.fprint('', file=outfile)
+
+        return resolved_tests
+
+    def resolve(self, test_cfg: dict, overrides: List[str] = None):
+        """Resolve one test config, and apply the given overrides."""
+
+        overrides = overrides or []
 
         resolved_tests = []
 
-        # Apply config overrides.
-        for test_cfg in raw_tests:
-            # Apply the overrides to each of the config values.
+        # Apply the overrides to each of the config values.
+        try:
+            self.apply_overrides(test_cfg, overrides)
+        except (KeyError, ValueError) as err:
+            msg = 'Error applying overrides to test {} from {}: {}' \
+                .format(test_cfg['name'], test_cfg['suite_path'], err)
+            raise TestConfigError(msg)
+
+        base_var_man = self.build_variable_manager(test_cfg)
+
+        # A list of tuples of test configs and their permuted var_man
+        permuted_tests = []  # type: (dict, variables.VariableSetManager)
+
+        # Resolve all configuration permutations.
+        try:
+            p_cfg, permutes = self.resolve_permutations(
+                test_cfg,
+                base_var_man=base_var_man
+            )
+            for p_var_man in permutes:
+                # Get the scheduler from the config.
+                permuted_tests.append((p_cfg, p_var_man))
+
+        except TestConfigError as err:
+            msg = 'Error resolving permutations for test {} from {}: {}' \
+                .format(test_cfg['name'], test_cfg['suite_path'], err)
+            raise TestConfigError(msg)
+
+        # Set the scheduler variables for each test.
+        for ptest_cfg, pvar_man in permuted_tests:
+            # Resolve all variables for the test (that aren't deferred).
             try:
-                self.apply_overrides(test_cfg, overrides)
-            except (KeyError, ValueError) as err:
-                msg = 'Error applying overrides to test {} from {}: {}' \
-                    .format(test_cfg['name'], test_cfg['suite_path'], err)
-                self.logger.error(msg)
-                if output_file:
-                    output.clear_line(output_file)
-                raise TestConfigError(msg)
-
-            base_var_man = self.build_variable_manager(test_cfg)
-
-            # A list of tuples of test configs and their permuted var_man
-            permuted_tests = []  # type: (dict, variables.VariableSetManager)
-
-            # Resolve all configuration permutations.
-            try:
-                p_cfg, permutes = self.resolve_permutations(
-                    test_cfg,
-                    base_var_man=base_var_man
-                )
-                for p_var_man in permutes:
-                    # Get the scheduler from the config.
-                    permuted_tests.append((p_cfg, p_var_man))
-
+                resolved_config = self.resolve_test_vars(
+                    ptest_cfg, pvar_man)
             except TestConfigError as err:
-                msg = 'Error resolving permutations for test {} from {}: {}' \
-                    .format(test_cfg['name'], test_cfg['suite_path'], err)
-                self.logger.error(msg)
-                if output_file:
-                    output.clear_line(output_file)
+                msg = ('In test {} from {}:\n{}'
+                       .format(test_cfg['name'], test_cfg['suite_path'],
+                               err.args[0]))
                 raise TestConfigError(msg)
 
-            # Set the scheduler variables for each test.
-            for ptest_cfg, pvar_man in permuted_tests:
-                # Resolve all variables for the test (that aren't deferred).
-                try:
-                    resolved_config = self.resolve_test_vars(
-                        ptest_cfg, pvar_man)
-                except TestConfigError as err:
-                    msg = ('In test {} from {}:\n{}'
-                           .format(test_cfg['name'], test_cfg['suite_path'],
-                                   err.args[0]))
-                    self.logger.error(msg)
-                    if output_file:
-                        output.clear_line(output_file)
-
-                    raise TestConfigError(msg)
-
-                resolved_tests.append(ProtoTest(resolved_config, pvar_man))
-
-            if output_file is not None:
-                progress += 1.0/len(raw_tests)
-                output.fprint("Resolving Test Configs: {:.0%}".format(progress),
-                              file=output_file, end='\r')
-
-        if output_file:
-            output.fprint('', file=output_file)
+            resolved_tests.append(ProtoTest(resolved_config, pvar_man))
 
         return resolved_tests
 
@@ -467,7 +490,8 @@ class TestConfigResolver:
                             total_tests.extend([left] * int(right))
                             continue
                         else:
-                            raise ValueError("No digit present in {}".format([left, right]))
+                            raise ValueError("No digit present in {}"
+                                             .format([left, right]))
                     except ValueError as err:
                         raise TestConfigError("Invalid repeat notation: {}"
                                               .format(err))
