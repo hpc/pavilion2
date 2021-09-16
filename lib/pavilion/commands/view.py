@@ -71,7 +71,7 @@ class ViewCommand(run.RunCommand):
             key, value = ovr.split('=', 1)
             overrides[key] = value
 
-        tests = [args.test]
+        tests = args.tests
 
         self.logger.debug("Finding Configs")
 
