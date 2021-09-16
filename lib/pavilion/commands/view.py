@@ -91,6 +91,6 @@ class ViewCommand(run.RunCommand):
             fprint(err, file=self.errfile, color=output.RED)
             return errno.EINVAL
 
-        configs = [pt.config for pt in proto_tests]
-        for config in configs:
-            pprint.pprint(config, stream=self.outfile)  # ext-print: ignore
+        configs = {pt.config['name']: pt.config for pt in proto_tests}
+        pprint.pprint(configs, stream=self.outfile)  # ext-print: ignore
+        return 0
