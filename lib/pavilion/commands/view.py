@@ -4,6 +4,7 @@ import errno
 import pprint
 
 from pavilion import output
+from pavilion import cmd_utils
 from pavilion.commands import run
 from pavilion.output import fprint
 from pavilion.test_config import resolver
@@ -44,7 +45,11 @@ class ViewCommand(run.RunCommand):
                  '\'key=value\', where key is the dot separated key name, '
                  'and value is a json object.')
         parser.add_argument(
-            'test', action='store',
+            '-f', '--file', dest='files', action='append', default=[],
+            help='Add tests listed in the given file, as per the "pav run" command',
+        )
+        parser.add_argument(
+            'tests', action='store', nargs='*',
             help='The name of the test to view. Should be in the format'
                  '<suite_name>.<test_name>.')
 
@@ -71,6 +76,8 @@ class ViewCommand(run.RunCommand):
         self.logger.debug("Finding Configs")
 
         res = resolver.TestConfigResolver(pav_cfg)
+
+        tests.extend(cmd_utils.read_test_files(args.files))
 
         try:
             proto_tests = res.load(
