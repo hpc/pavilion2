@@ -1,8 +1,6 @@
 """Test sets translate the specifications of which tests to run (with which options),
 into a set of ready to run tests. They are ephemeral, and are not tracked between
 Pavilion runs."""
-
-import logging
 import threading
 import time
 from collections import defaultdict
@@ -11,10 +9,12 @@ from typing import List, Dict, TextIO, Union, Set
 
 from pavilion import test_config, output, result, schedulers
 from pavilion.build_tracker import MultiBuildTracker
-from pavilion.status_file import STATES
+from pavilion.status_file import SeriesStatusFile, STATES, SERIES_STATES
 from pavilion.test_config import TestConfigError
-from pavilion.utils import str_bool
 from pavilion.test_run import TestRun, TestRunError
+from pavilion.utils import str_bool
+
+S_STATES = SERIES_STATES
 
 
 class TestSetError(RuntimeError):
@@ -39,6 +39,7 @@ class TestSet:
                  pav_cfg,
                  name: str,
                  test_names: List[str],
+                 status: SeriesStatusFile = None,
                  modes: List[str] = None,
                  host: str = None,
                  only_if: Dict[str, List[str]] = None,
@@ -56,7 +57,13 @@ class TestSet:
         :param not_if: Global 'not_if' conditions.
         :param overrides: Configuration overrides.
         :param parents_must_pass: Parent test sets must pass for this test set to run.
+        :param status: A file-like object to log status and error messages to.
         """
+
+        if status is not None:
+            self.status = status
+        else:
+            self.status = SeriesStatusFile(None)
 
         self.name = name
 
@@ -71,8 +78,6 @@ class TestSet:
         self.child_sets = set()  # type: Set[TestSet]
         self.parents_must_pass = parents_must_pass
 
-        self.logger = logging.getLogger(name)
-
         self.tests = None  # type: Union[List[TestRun], None]
         self.built_tests = None
         self.ready_to_start_tests = None  # type: Union[Dict[str, List[TestRun]], None]
@@ -82,6 +87,8 @@ class TestSet:
         self._should_run = None
         self._test_names = test_names
         self.mb_tracker = MultiBuildTracker()
+        self.status.set(S_STATES.SET_CREATED,
+                        "Created test set {}.".format(self.name))
 
     def add_parents(self, *parents: 'TestSet'):
         """Add the given TestSets as a parent to this one."""
@@ -124,6 +131,7 @@ class TestSet:
                 pav_cfg=self.pav_cfg,
                 name="{}.{}".format(self.name, i),
                 test_names=[self._test_names[i]],
+                status=self.status,
                 modes=self.modes,
                 host=self.host,
                 only_if=self.only_if,
@@ -158,10 +166,13 @@ class TestSet:
         """Resolve the given tests names and options into actual tests, and print
         the test creation status."""
 
+        self.status.set(S_STATES.SET_MAKE, "Creating test runs.")
+
         if self.tests is not None:
+            msg = "Already created the tests for TestSet '{}'".format(self.name)
+            self.status.set(S_STATES.ERROR, msg)
             self.cancel("System Error")
-            raise RuntimeError("Already created the tests for TestSet '{}'"
-                               .format(self.name))
+            raise RuntimeError(msg)
 
         global_conditions = {
             'only_if': self.only_if,
@@ -180,37 +191,66 @@ class TestSet:
                 outfile=outfile,
             )
         except TestConfigError as err:
-            raise TestSetError(
-                "Error loading test configs for test set '{}': {}"
-                .format(self.name, err.args[0]))
+            msg = ("Error loading test configs for test set '{}': {}"
+                   .format(self.name, err.args[0]))
+            self.status.set(S_STATES.ERROR, msg)
+            raise TestSetError(msg)
 
         progress = 0
         tot_tests = len(test_configs)
         self.tests = []
 
+        skip_count = 0
+
         for ptest in test_configs:
-            if local_builds_only:
+            progress += 1.0 / tot_tests
+            output.fprint("Creating Test Runs: {:.0%}".format(progress),
+                          file=outfile, end='\r')
+
+            if build_only and local_builds_only:
                 # Don't create test objects for tests that would build remotely.
                 if str_bool(ptest.config.get('build', {}).get('on_nodes', 'False')):
-                    # TODO: Log that the test was not created.
+                    skip_count += 1
+                    self.status.set(
+                        S_STATES.SKIPPED,
+                        "Skipped test named '{}' from series '{}' - We're just "
+                        "building locally, and this test builds only on nodes."
+                        .format(ptest.config.get('name'), ptest.config.get('suite')))
                     continue
 
             try:
                 test_run = TestRun(pav_cfg=self.pav_cfg, config=ptest.config,
                                    var_man=ptest.var_man, rebuild=rebuild,
                                    build_only=build_only)
-                test_run.save(self.mb_tracker)
-                self.tests.append(test_run)
-                progress += 1.0 / tot_tests
-                output.fprint("Creating Test Runs: {:.0%}".format(progress),
-                              file=outfile, end='\r')
+                if not test_run.skipped:
+                    test_run.save()
+                    self.tests.append(test_run)
+                else:
+                    skip_count += 1
+                    self.status.set(
+                        S_STATES.SKIPPED,
+                        "Test {} skipped because '{}'"
+                        .format(test_run.name, test_run.skip_reasons[0])
+                    )
+                    if not test_run.abort_skipped():
+                        self.status.set(
+                            S_STATES.SKIPPED,
+                            "Cleanup of skipped test {} was unsuccessful.")
+
             except (TestRunError, TestConfigError) as err:
+                msg = ("Error creating tests in test set '{}': {}"
+                       .format(self.name, err.args[0]))
+                self.status.set(S_STATES.ERROR, msg)
                 self.cancel("Error creating other tests in test set '{}'"
                             .format(self.name))
-                raise TestSetError("Error creating tests in test set '{}': {}"
-                                   .format(self.name, err.args[0]))
+                raise TestSetError(msg)
 
         output.fprint('', file=outfile)
+
+        self.status.set(
+            S_STATES.SET_MAKE,
+            "Test set '{}' created {} tests, skipped {}"
+            .format(self.name, len(self.tests), skip_count))
 
         # make sure result parsers are ok
         self.check_result_format(self.tests)
@@ -229,6 +269,8 @@ class TestSet:
         :param outfile: Where to forward user output
         :return:
         """
+
+        self.status.set(S_STATES.SET_BUILD, "Building test set {}".format(self.name))
 
         if self.tests is None:
             raise RuntimeError("You must run TestSet.make() on the test set before"
@@ -266,6 +308,9 @@ class TestSet:
         # If we've seen a build name, the build can go later.
         seen_build_names = set()
 
+        trackers = {}
+        tests_by_tracker = {}
+
         for test in local_builds:
             # Don't try to build tests that are skipped
 
@@ -274,6 +319,10 @@ class TestSet:
                 seen_build_names.add(test.builder.name)
             else:
                 build_order.insert(0, test)
+
+            tracker = self.mb_tracker.register(test.builder, test.status)
+            trackers[test] = tracker
+            tests_by_tracker[tracker] = test
 
         # Keep track of what the last message printed per build was.
         # This is for double build verbosity.
@@ -301,7 +350,7 @@ class TestSet:
 
                 test_thread = threading.Thread(
                     target=test.build,
-                    args=(cancel_event,)
+                    args=(cancel_event, trackers[test])
                 )
                 test_threads.append(test_thread)
                 test_by_threads[test_thread] = test
@@ -320,14 +369,15 @@ class TestSet:
                     # Only output test status after joining a thread.
                     if verbosity == 1:
                         notes = self.mb_tracker.get_notes(test.builder)
-                        when, state, msg = notes[-1]
-                        when = output.get_relative_timestamp(when)
-                        preamble = (self.BUILD_STATUS_PREAMBLE
-                                    .format(when=when, test_id=test.full_id,
-                                            state_len=STATES.max_length,
-                                            state=state))
-                        output.fprint(preamble, msg, wrap_indent=len(preamble),
-                                      file=outfile, width=None)
+                        if notes:
+                            when, state, msg = notes[-1]
+                            when = output.get_relative_timestamp(when)
+                            preamble = (self.BUILD_STATUS_PREAMBLE
+                                        .format(when=when, test_id=test.full_id,
+                                                state_len=STATES.max_length,
+                                                state=state))
+                            output.fprint(preamble, msg, wrap_indent=len(preamble),
+                                          file=outfile, width=None)
 
             test_threads = [thr for thr in test_threads if thr is not None]
 
@@ -355,16 +405,15 @@ class TestSet:
                     "Errors:"
                 ]
 
-                failed_test_ids = []
-                for failed_build in self.mb_tracker.failures():
-                    failed_test_ids.append(str(failed_build.test.id))
+                for tracker in self.mb_tracker.failures():
+                    test = tests_by_tracker[tracker]
 
                     msg.append(
-                        "Build error for test {f.test.name} (#{id}) in "
+                        "Build error for test {test} (#{id}) in "
                         "test set '{set_name}'."
                         "See test status file (pav cat {id} status) and/or "
                         "the test build log (pav log build {id})"
-                        .format(f=failed_build, id=failed_build.test.id,
+                        .format(test=test.name, id=test.full_id,
                                 set_name=self.name))
 
                 raise TestSetError(msg)
@@ -382,7 +431,7 @@ class TestSet:
             elif verbosity > 1:
                 for test in local_builds:
                     seen = message_counts[test.full_id]
-                    msgs = self.mb_tracker.messages[test.builder][seen:]
+                    msgs = self.mb_tracker.get_notes(test.builder)[seen:]
                     for when, state, msg in msgs:
                         when = output.get_relative_timestamp(when)
                         state = '' if state is None else state
@@ -466,7 +515,7 @@ class TestSet:
         for test in self.tests:
             scheduler = schedulers.get_plugin(test.scheduler)
             scheduler.cancel_job(test)
-            test.status.set(test.status.STATES.ABORTED, reason)
+            test.status.set(test.status.states.ABORTED, reason)
 
     @staticmethod
     def check_result_format(tests: List[TestRun]):

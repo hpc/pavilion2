@@ -9,7 +9,7 @@ from pathlib import Path
 
 import yaml_config as yc
 from pavilion.pavilion_variables import var_method
-from pavilion.status_file import STATES, StatusInfo
+from pavilion.status_file import STATES, TestStatusInfo
 from .base_classes import SchedulerPlugin, SchedulerVariables
 
 
@@ -139,7 +139,7 @@ class Raw(SchedulerPlugin):
         """Raw jobs will either be scheduled (waiting on a concurrency
         lock), or in an unknown state (as there aren't records of dead jobs).
 
-        :rtype: StatusInfo
+        :rtype: TestStatusInfo
         """
 
         host, pid = test.job_id.rsplit('_', 1)
@@ -148,7 +148,7 @@ class Raw(SchedulerPlugin):
 
         local_host = socket.gethostname()
         if host != local_host:
-            return StatusInfo(
+            return TestStatusInfo(
                 when=time.time(),
                 state=STATES.SCHEDULED,
                 note=(
@@ -173,7 +173,7 @@ class Raw(SchedulerPlugin):
             # Make sure we're looking at the same job.
             if ('kickoff.sh' in cmdline and
                     '-{}-'.format(test.id) in cmdline):
-                return StatusInfo(
+                return TestStatusInfo(
                     when=now,
                     state=STATES.SCHEDULED,
                     note="Process is running, and probably waiting on a "
@@ -188,7 +188,7 @@ class Raw(SchedulerPlugin):
             msg = ("Job died or was killed. Check '{}' for more info."
                    .format(test.path/'kickoff.out'))
             test.status.set(STATES.SCHED_ERROR, msg)
-            return StatusInfo(
+            return TestStatusInfo(
                 when=now,
                 state=STATES.SCHED_ERROR,
                 note=msg)
@@ -269,9 +269,9 @@ class Raw(SchedulerPlugin):
 
         hostname = socket.gethostname()
         if host != hostname:
-            return StatusInfo(STATES.SCHED_ERROR,
+            return TestStatusInfo(STATES.SCHED_ERROR,
                               "Job started on different host ({})."
-                              .format(hostname))
+                                  .format(hostname))
 
         if not self._verify_pid(pid, test.id):
             # Test was no longer running, just return it's current state.
@@ -280,12 +280,12 @@ class Raw(SchedulerPlugin):
         try:
             os.kill(int(pid), signal.SIGTERM)
         except PermissionError:
-            return StatusInfo(
+            return TestStatusInfo(
                 STATES.SCHED_ERROR,
                 "You don't have permission to kill PID {}".format(pid)
             )
         except OSError as err:
-            return StatusInfo(
+            return TestStatusInfo(
                 STATES.SCHED_ERROR,
                 "Unexpected error cancelling job {}: {}"
                 .format(pid, str(err))
@@ -299,12 +299,12 @@ class Raw(SchedulerPlugin):
             test.status.set(STATES.SCHED_CANCELLED,
                             "Canceled via pavilion.")
             test.set_run_complete()
-            return StatusInfo(
+            return TestStatusInfo(
                 STATES.SCHED_CANCELLED,
                 "PID {} was terminated.".format(pid)
             )
         else:
-            return StatusInfo(
+            return TestStatusInfo(
                 STATES.SCHED_ERROR,
                 "PID {} refused to die.".format(pid)
             )

@@ -91,8 +91,6 @@ base class.
         if config_dirs is None:
             config_dirs = [self.TEST_DATA_ROOT / 'pav_config_dir']
 
-        config_dirs.append(self.PAV_LIB_DIR)
-
         # Open the default pav config file (found in
         # test/data/pav_config_dir/pavilion.yaml), modify it, and then
         # save the modified file to a temp location and read it instead.
@@ -388,6 +386,10 @@ The default config is: ::
         cfg = resolver.TestConfigResolver.resolve_test_vars(cfg, var_man)
 
         test = TestRun(pav_cfg=self.pav_cfg, config=cfg, var_man=var_man)
+        if test.skipped:
+            # You can't proceed further with a skipped test.
+            return test
+
         test.save()
 
         if build:

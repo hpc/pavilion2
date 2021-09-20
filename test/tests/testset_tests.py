@@ -189,7 +189,7 @@ class TestSetTests(PavTestCase):
         ts1.wait(wait_for_all=True)
         for test in ts1.tests:
             self.assertEqual(test.status.current().state,
-                             test.status.STATES.ABORTED)
+                             test.status.states.ABORTED)
         self.assertFalse(ts1.all_passed)
 
     def test_should_run(self):

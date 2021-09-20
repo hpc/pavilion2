@@ -5,6 +5,7 @@ import argparse
 import logging
 from pathlib import Path
 from typing import List, TextIO
+import threading
 
 from pavilion import dir_db
 from pavilion import exceptions
