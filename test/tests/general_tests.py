@@ -92,8 +92,8 @@ class GeneralTests(PavTestCase):
         env['PAV_CONFIG_DIR'] = self.config_dir.as_posix()
 
         proc = sp.Popen(cmd, env=env, stdout=sp.PIPE, stderr=sp.STDOUT)
-        out = proc.stdout.read().decode()
         if (proc.wait(3) != 0) == run_succeeds:
+            out = proc.stdout.read().decode()
             self.fail("Error running command.\n{}".format(out))
         self.wait_tests(self.working_dir)
 

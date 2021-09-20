@@ -6,22 +6,22 @@ import hashlib
 import io
 import os
 import shutil
-import subprocess
 import stat
+import subprocess
 import tarfile
 import threading
 import time
 import urllib.parse
 from pathlib import Path
 from typing import Union
-from concurrent.futures import ThreadPoolExecutor
 
+import pavilion.test_config.utils
 from pavilion import extract
 from pavilion import lockfile
 from pavilion import utils
 from pavilion import wget
-from pavilion.build_tracker import MultiBuildTracker
-from pavilion.status_file import STATES
+from pavilion.build_tracker import BuildTracker
+from pavilion.status_file import TestStatusFile, STATES
 from pavilion.test_config.spack import SpackEnvConfig
 
 
@@ -54,30 +54,37 @@ class TestBuilder:
 
     LOG_NAME = "pav_build_log"
 
-    def __init__(self, pav_cfg, test, mb_tracker=None, build_name=None):
+    def __init__(self, pav_cfg, working_dir: Path, config: dict, script: Path,
+                 status: TestStatusFile, download_dest: Path, spack_config: dict = None,
+                 build_name=None):
         """Initialize the build object.
 
         :param pav_cfg: The Pavilion config object
-        :param pavilion.test_run.TestRun test: The test run responsible for
-            starting this build.
-        :param Union[pavilion.build_tracker.MultiBuildTracker, None] mb_tracker: A
-            thread-safe tracker object for keeping info on what the build is
-            doing.
+        :param working_dir: The working directory where this build should go.
+        :param config: The build configuration.
+        :param script: Path to the build script
+        :param suite_path: Path to the originating test suite.
+        :param spack_config: Give a spack config to enable spack builds.
         :param build_name: The build name, if this is a build that
             already exists.
         :raises TestBuilderError: When the builder can't be initialized.
         """
 
-        if mb_tracker is None:
-            mb_tracker = MultiBuildTracker()
-        self.tracker = mb_tracker.register(self, test.status)
-
         self._pav_cfg = pav_cfg
-        self._config = test.config.get('build', {})
-        self._script_path = test.build_script_path
-        self.test = test
-        self._timeout = test.build_timeout
-        self._timeout_file = test.build_timeout_file
+        self._config = config
+        self._spack_config = spack_config
+        self._script_path = script
+        self._download_dest = download_dest
+
+        try:
+            self._timeout = pavilion.test_config.utils.parse_timeout(config.get('timeout'))
+        except ValueError:
+            raise TestBuilderError("Build timeout must be a positive integer or null, "
+                                   "got '{}'".format(config.get('timeout')))
+
+        self.status = status
+
+        self._timeout_file = config.get('timeout_file')
 
         self._fix_source_path()
 
@@ -86,20 +93,14 @@ class TestBuilder:
         else:
             self.name = build_name
 
-        working_dir = test.path.parents[1]
         self.path = working_dir/'builds'/self.name  # type: Path
 
         if not self.path.exists():
-            if not test.build_local:
-                self.tracker.update(state=STATES.BUILD_DEFERRED,
-                                    note="Build will run on nodes.")
-
-            self.tracker.update(state=STATES.BUILD_CREATED,
-                                note="Builder created.")
+            status.set(state=STATES.BUILD_CREATED, note="Builder created.")
 
         self.tmp_log_path = self.path.with_suffix('.log')
         self.log_path = self.path/self.LOG_NAME
-        fail_name = 'fail.{}.{}'.format(self.name, self.test.id)
+        fail_name = 'fail.{}.{}'.format(self.name, time.time())
         self.fail_path = pav_cfg.working_dir/'builds'/fail_name
         self.finished_path = self.path.with_suffix(self.FINISHED_SUFFIX)
 
@@ -254,7 +255,7 @@ class TestBuilder:
 
         self.name = self.name_build()
         self.path = self._pav_cfg.working_dir/'builds'/self.name  # type: Path
-        fail_name = 'fail.{}.{}'.format(self.name, self.test.id)
+        fail_name = 'fail.{}.{}'.format(self.name, time.time())
         self.fail_path = self._pav_cfg.working_dir/'builds'/fail_name
         self.finished_path = self.path.with_suffix(self.FINISHED_SUFFIX)
 
@@ -293,6 +294,14 @@ class TestBuilder:
                 and ((src_download == 'missing' and found_src_path is None)
                      or src_download == 'latest')):
 
+            if self._download_dest is None:
+                raise TestBuilderError(
+                    """Cannot update source, no download directory available."""
+                )
+
+            if not self._download_dest.exists():
+                self._download_dest.mkdir(parents=True)
+
             # Make sure we have the library support to perform a download.
             missing_libs = wget.missing_libs()
             if missing_libs:
@@ -303,7 +312,7 @@ class TestBuilder:
                     .format(', '.join(missing_libs)))
 
             if not src_path.is_absolute():
-                dwn_dest = self.test.suite_path.parents[1]/'test_src'/src_path
+                dwn_dest = self._download_dest/src_path
             else:
                 dwn_dest = src_path
 
@@ -315,9 +324,8 @@ class TestBuilder:
                         "Could not create parent directory to place "
                         "downloaded source:\n{}".format(err.args[0]))
 
-            self.tracker.update("Updating source at '{}'."
-                                .format(found_src_path),
-                                STATES.BUILDING)
+            self.status.set(STATES.BUILDING,
+                            "Updating source at '{}'.".format(found_src_path))
 
             try:
                 wget.update(self._pav_cfg, src_url, dwn_dest)
@@ -347,12 +355,17 @@ class TestBuilder:
                 "Source location '{}' points to something unusable."
                 .format(found_src_path))
 
-    def build(self, cancel_event=None):
+    def build(self, test_id: str, tracker: BuildTracker,
+              cancel_event: threading.Event = None):
         """Perform the build if needed, do a soft-link copy of the build
         directory into our test directory, and note that we've used the given
         build.
-        :param threading.Event cancel_event: Allows builds to tell each other
-        to die.
+
+        :param test_id: The test 'full_id' for the test initiating this build.
+        :param tracker: A thread-safe tracker object for keeping info on what the
+            build is doing.
+        :param cancel_event: Allows builds to tell each other
+            to die.
         :return: True if these steps completed successfully.
         """
 
@@ -363,7 +376,7 @@ class TestBuilder:
             # Note cleanup of failed builds HAS to occur under this lock to
             # avoid a race condition, even though it would be way simpler to
             # do it in .build()
-            self.tracker.update(
+            tracker.update(
                 state=STATES.BUILD_WAIT,
                 note="Waiting on lock for build {}.".format(self.name))
             lock_path = self.path.with_suffix('.lock')
@@ -373,20 +386,20 @@ class TestBuilder:
                 # Make sure the build wasn't created while we waited for
                 # the lock.
                 if not self.finished_path.exists():
-                    self.tracker.update(
+                    tracker.update(
                         state=STATES.BUILDING,
                         note="Starting build {}.".format(self.name))
 
                     # If the build directory exists, we're assuming there was
                     # an incomplete build at this point.
                     if self.path.exists():
-                        self.tracker.warn(
+                        tracker.warn(
                             "Build lock acquired, but build exists that was "
                             "not marked as finished. Deleting...")
                         try:
                             shutil.rmtree(self.path)
                         except OSError as err:
-                            self.tracker.error(
+                            tracker.error(
                                 "Could not remove unfinished build.\n{}"
                                 .format(err.args[0]))
                             return False
@@ -396,12 +409,13 @@ class TestBuilder:
                     # wrong.
                     # This will also set the test status for
                     # non-catastrophic cases.
-                    if not self._build(self.path, cancel_event, lock=lock):
+                    if not self._build(self.path, cancel_event, test_id,
+                                       tracker, lock=lock):
 
                         try:
                             self.path.rename(self.fail_path)
                         except FileNotFoundError as err:
-                            self.tracker.error(
+                            tracker.error(
                                 "Failed to move build {} from {} to "
                                 "failure path {}: {}"
                                 .format(self.name, self.path,
@@ -412,38 +426,28 @@ class TestBuilder:
 
                         return False
 
-                    # Make a file with the test id of the building test.
-                    built_by_path = self.path / '.built_by'
-                    try:
-                        with built_by_path.open('w') as built_by:
-                            built_by.write(str(self.test.id))
-                        built_by_path.chmod(built_by_path.stat().st_mode & ~0o222)
-
-                    except OSError:
-                        self.tracker.warn("Could not create built_by file.")
-
                     try:
                         self.finished_path.touch()
                     except OSError:
-                        self.tracker.warn("Could not touch '<build>.finished' "
-                                          "file.")
+                        tracker.warn("Could not touch '<build>.finished' file.")
 
                 else:
-                    self.tracker.update(
+                    tracker.update(
                         state=STATES.BUILD_REUSED,
                         note="Build {s.name} created while waiting for build "
                              "lock.".format(s=self))
         else:
-            self.tracker.update(
-                note=("Test {s.name} run {s.test.id} reusing build."
-                      .format(s=self)),
+            tracker.update(
+                note=("Build {s.name} is being reused.".format(s=self)),
                 state=STATES.BUILD_REUSED)
 
         return True
 
-    def create_spack_env(self, spack_config, build_dir):
+    def create_spack_env(self, build_dir):
         """Creates a spack.yaml file in the build dir, so that each unique
         build can activate it's own spack environment."""
+
+        spack_config = self._spack_config
 
         spack_path = self._pav_cfg['spack_path']
         spack_dir = spack_path/'opt'/'spack'
@@ -478,11 +482,14 @@ class TestBuilder:
         with open(spack_env_config.as_posix(), "w+") as spack_env_file:
             SpackEnvConfig().dump(spack_env_file, values=config,)
 
-    def _build(self, build_dir, cancel_event, lock: lockfile.LockFile = None):
+    def _build(self, build_dir, cancel_event, test_id,
+               tracker: BuildTracker, lock: lockfile.LockFile = None):
         """Perform the build. This assumes there actually is a build to perform.
         :param Path build_dir: The directory in which to perform the build.
         :param threading.Event cancel_event: Event to signal that the build
             should stop.
+        :param test_id: The 'full_id' of the test initiating the build.
+        :param tracker: Build tracker for this build.
         :param lock: The lockfile object. This will need to be refreshed to
             keep it from expiring.
         :returns: True or False, depending on whether the build appears to have
@@ -490,37 +497,29 @@ class TestBuilder:
         """
 
         try:
-            future = ThreadPoolExecutor().submit(
-                self._setup_build_dir,
-                build_dir)
-            while future.running():
-                time.sleep(lock.SLEEP_PERIOD)
-                lock.renew()
-            # Raise any errors raised by the thread.
-            future.result()
+            self._setup_build_dir(build_dir, tracker)
         except TestBuilderError as err:
-            self.tracker.error(
+            tracker.error(
                 note=("Error setting up build directory '{}': {}"
                       .format(build_dir, err)))
             return False
 
         # Generate an anonymous spack environment for a new build.
-        spack_config = self.test.config.get('spack', {})
-        if self.test.spack_enabled():
-            self.create_spack_env(spack_config, build_dir)
+        if self._spack_config is not None:
+            self.create_spack_env(build_dir)
 
         try:
             # Do the build, and wait for it to complete.
             with self.tmp_log_path.open('w') as build_log:
                 # Build scripts take the test id as a first argument.
-                cmd = [self._script_path.as_posix(), str(self.test.id)]
+                cmd = [self._script_path.as_posix(), test_id]
                 proc = subprocess.Popen(cmd,
                                         cwd=build_dir.as_posix(),
                                         stdout=build_log,
                                         stderr=build_log)
 
                 result = None
-                timeout = self._timeout
+                timeout = time.time() + self._timeout
                 while result is None:
                     try:
                         result = proc.wait(timeout=1)
@@ -542,7 +541,7 @@ class TestBuilder:
                         if time.time() > timeout:
                             # Give up on the build, and call it a failure.
                             proc.kill()
-                            self.tracker.fail(
+                            tracker.fail(
                                 state=STATES.BUILD_TIMEOUT,
                                 note="Build timed out after {} seconds."
                                 .format(self._timeout))
@@ -550,20 +549,20 @@ class TestBuilder:
 
                         if cancel_event is not None and cancel_event.is_set():
                             proc.kill()
-                            self.tracker.update(
+                            tracker.update(
                                 state=STATES.ABORTED,
                                 note="Build canceled due to other builds "
                                      "failing.")
                             return False
 
         except subprocess.CalledProcessError as err:
-            self.tracker.error(
+            tracker.error(
                 note="Error running build process: {}".format(err))
             return False
 
         except (IOError, OSError) as err:
 
-            self.tracker.error(
+            tracker.error(
                 note="Error that's probably related to writing the "
                      "build output: {}".format(err))
             return False
@@ -571,7 +570,7 @@ class TestBuilder:
             try:
                 self.tmp_log_path.rename(build_dir/self.LOG_NAME)
             except OSError as err:
-                self.tracker.warn(
+                tracker.warn(
                     "Could not move build log from '{}' to final location "
                     "'{}': {}"
                     .format(self.tmp_log_path, build_dir, err))
@@ -579,17 +578,17 @@ class TestBuilder:
         try:
             self._fix_build_permissions(build_dir)
         except OSError as err:
-            self.tracker.warn("Error fixing build permissions: %s".format(err))
+            tracker.warn("Error fixing build permissions: %s".format(err))
 
         if result != 0:
-            self.tracker.fail(
+            tracker.fail(
                 note="Build returned a non-zero result.")
             if cancel_event is not None:
                 cancel_event.set()
             return False
         else:
 
-            self.tracker.update(
+            tracker.update(
                 state=STATES.BUILD_DONE,
                 note="Build completed successfully.")
             return True
@@ -603,11 +602,12 @@ class TestBuilder:
         'x-lzma',
     )
 
-    def _setup_build_dir(self, dest):
+    def _setup_build_dir(self, dest, tracker: BuildTracker):
         """Setup the build directory, by extracting or copying the source
             and any extra files.
         :param dest: Path to the intended build directory. This is generally a
-        temporary location.
+            temporary location.
+        :param tracker: Build tracker for this build.
         :return: None
         """
 
@@ -635,7 +635,7 @@ class TestBuilder:
 
         elif src_path.is_dir():
             # Recursively copy the src directory to the build directory.
-            self.tracker.update(
+            tracker.update(
                 state=STATES.BUILDING,
                 note=("Copying source directory {} for build {} "
                       "as the build directory."
@@ -654,13 +654,13 @@ class TestBuilder:
             if category == 'application' and subtype in self.TAR_SUBTYPES:
 
                 if tarfile.is_tarfile(src_path.as_posix()):
-                    self.tracker.update(
+                    tracker.update(
                         state=STATES.BUILDING,
                         note=("Extracting tarfile {} for build {}"
                               .format(src_path, dest)))
                     extract.extract_tarball(src_path, dest, umask)
                 else:
-                    self.tracker.update(
+                    tracker.update(
                         state=STATES.BUILDING,
                         note=(
                             "Extracting {} file {} for build {} into the "
@@ -668,7 +668,7 @@ class TestBuilder:
                             .format(subtype, src_path, dest)))
                     extract.decompress_file(src_path, dest, subtype)
             elif category == 'application' and subtype == 'zip':
-                self.tracker.update(
+                tracker.update(
                     state=STATES.BUILDING,
                     note=("Extracting zip file {} for build {}."
                           .format(src_path, dest)))
@@ -677,7 +677,7 @@ class TestBuilder:
             else:
                 # Finally, simply copy any other types of files into the build
                 # directory.
-                self.tracker.update(
+                tracker.update(
                     state=STATES.BUILDING,
                     note="Copying file {} for build {} into the build "
                          "directory.".format(src_path, dest))
@@ -719,10 +719,11 @@ class TestBuilder:
                     "Could not copy extra file '{}' to dest '{}': {}"
                     .format(path, dest, err))
 
-    def copy_build(self, dest):
+    def copy_build(self, dest: Path):
         """Copy the build (using 'symlink' copying to the destination.
 
-        :param Path dest: Where to copy the build to.
+        :param dest: Where to copy the build to.
+        :raises TestBuilderError: When copy errors happen
         :returns: True on success, False on failure
         """
 
@@ -733,17 +734,13 @@ class TestBuilder:
             blob = glob.glob(final_glob, recursive=True)
             if not blob:
                 avail = '\n'.join(glob.glob(final_glob.rsplit('/')[0]))
-                self.tracker.error(
-                    state=STATES.BUILD_ERROR,
-                    note=("Could not perform build copy. Files meant to be "
-                          "fully copied (rather than symlinked) could not be "
-                          "found:\n"
-                          "base_glob: {}\n"
-                          "full_glob: {}\n"
-                          "These files were available in the top glob dir:\n"
-                          "{}"
-                          .format(copy_glob, final_glob, avail)))
-                return False
+                raise TestBuilderError(
+                    "Could not perform build copy. Files meant to be fully copied ("
+                    "rather than symlinked) could not be found:\n"
+                    "base_glob: {}\n"
+                    "full_glob: {}\n"
+                    "These files were available in the top glob dir: {}"
+                    .format(copy_glob, final_glob, avail))
 
             do_copy.update(blob)
 
@@ -754,7 +751,7 @@ class TestBuilder:
 
             if src in do_copy:
                 # Actually copy files that were explicitly asked for.
-                cpy_path = shutil.copy2(src, dst, follow_symlinks=True)
+                cpy_path = shutil.copy2(src, dst)
                 base_mode = os.stat(cpy_path).st_mode
                 os.chmod(cpy_path, base_mode | stat.S_IWUSR | stat.S_IWGRP)
                 return cpy_path
@@ -770,11 +767,8 @@ class TestBuilder:
                             symlinks=True,
                             copy_function=maybe_symlink_copy)
         except OSError as err:
-            self.tracker.error(
-                state=STATES.BUILD_ERROR,
-                note=("Could not perform the build directory copy: {}"
-                      .format(err)))
-            return False
+            raise TestBuilderError(
+                "Could not perform the build directory copy: {}".format(err))
 
         # Touch the original build directory, so that we know it was used
         # recently.
@@ -782,7 +776,8 @@ class TestBuilder:
             now = time.time()
             os.utime(self.path.as_posix(), (now, now))
         except OSError as err:
-            self.tracker.warn(
+            self.status.set(
+                STATES.WARNING,
                 "Could not update timestamp on build directory '%s': %s"
                 .format(self.path, err))
 
@@ -907,16 +902,16 @@ class TestBuilder:
         parsed = urllib.parse.urlparse(url)
         return parsed.scheme != ''
 
-    def _find_file(self, file: Path, sub_dir=None) -> Union[Path, None]:
+    def _find_file(self, file: Path, sub_dir: Union[str, Path] = None) \
+            -> Union[Path, None]:
         """Look for the given file and return a full path to it. Relative paths
         are searched for in all config directories under 'test_src'.
 
-:param file: The path to the file.
-:param str sub_dir: The subdirectory in each config directory in which to
-    search.
-:returns: The full path to the found file, or None if no such file
-    could be found.
-"""
+    :param file: The path to the file.
+    :param sub_dir: The subdirectory in each config directory in which to
+        search.
+    :returns: The full path to the found file, or None if no such file
+        could be found."""
 
         if file.is_absolute():
             if file.exists():
@@ -968,7 +963,6 @@ class TestBuilder:
             '_timeout',
             '_script_path',
             'path',
-            'fail_path'
         ]
 
         if self is other:

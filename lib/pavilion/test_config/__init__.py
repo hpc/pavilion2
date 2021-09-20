@@ -3,3 +3,4 @@ from .variables import DeferredVariable, VariableSetManager, VariableError
 from . import variables
 from .resolver import TestConfigError, TestConfigResolver, ProtoTest
 from .file_format import TestConfigLoader, TestSuiteLoader
+from .utils import parse_timeout

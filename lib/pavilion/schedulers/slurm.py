@@ -12,7 +12,7 @@ from typing import List
 
 import yaml_config as yc
 from pavilion import scriptcomposer
-from pavilion.status_file import STATES, StatusInfo
+from pavilion.status_file import STATES, TestStatusInfo
 from pavilion.var_dict import var_method
 from .base_classes import (SchedulerPluginError, SchedulerVariables, dfr_var_method,
                            SchedulerPlugin)
@@ -972,14 +972,14 @@ class Slurm(SchedulerPlugin):
         try:
             job_info = self._scontrol_show('job', test.job_id)
         except ValueError as err:
-            return StatusInfo(
+            return TestStatusInfo(
                 state=STATES.SCHED_ERROR,
                 note=str(err),
                 when=time.time()
             )
 
         if not job_info:
-            return StatusInfo(
+            return TestStatusInfo(
                 state=STATES.SCHED_ERROR,
                 note="Could not find job {}".format(test.job_id),
                 when=time.time()
@@ -993,7 +993,7 @@ class Slurm(SchedulerPlugin):
 
         job_state = job_info.get('JobState', 'UNKNOWN')
         if job_state in self.SCHED_WAITING:
-            return StatusInfo(
+            return TestStatusInfo(
                 state=STATES.SCHEDULED,
                 note=("Job {} has state '{}', reason '{}'"
                       .format(test.job_id, job_state, job_info.get('Reason'))),
@@ -1005,7 +1005,7 @@ class Slurm(SchedulerPlugin):
             if status.state != STATES.SCHEDULED:
                 return status
             else:
-                return StatusInfo(
+                return TestStatusInfo(
                     state=STATES.SCHEDULED,
                     note=("Job is running or about to run. Has job state {}"
                           .format(job_state)),
@@ -1036,7 +1036,7 @@ class Slurm(SchedulerPlugin):
                             "job '%s'.", job_state, test.job_id)
         # The best we can say is that the test is still SCHEDULED. After all,
         # it might be! Who knows.
-        return StatusInfo(
+        return TestStatusInfo(
             state=STATES.SCHEDULED,
             note="Job '{}' has unknown/unhandled job state '{}'. We have no"
                  "idea what is going on.".format(test.job_id, job_state),
@@ -1106,7 +1106,7 @@ class Slurm(SchedulerPlugin):
 
         :param pavilion.test_run.TestRun test: The test to cancel.
         :returns: A statusInfo object with the latest scheduler state.
-        :rtype: StatusInfo
+        :rtype: TestStatusInfo
         """
 
         cmd = ['scancel', test.job_id]

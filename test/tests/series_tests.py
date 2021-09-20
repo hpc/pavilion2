@@ -25,7 +25,6 @@ class SeriesTests(PavTestCase):
 
         # Add a basic test set and save.
         series1.add_test_set_config('series1', ['pass_fail'])
-        series1.save_config()
 
         series2 = series.TestSeries.load(self.pav_cfg, series1.sid)
 
@@ -244,8 +243,7 @@ class SeriesTests(PavTestCase):
             not_if=not_if,
         )
 
-        import sys
-        series_obj.run(outfile=sys.stdout)
+        series_obj.run()
         series_obj.wait(timeout=3)
 
         return series_obj

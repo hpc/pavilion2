@@ -454,13 +454,12 @@ differentiate it from test ids."""
             return True
         else:
             if not self.tests:
-                return False
+                return True
 
             for test in self.tests.values():
                 if not test.complete:
                     return False
 
-            self.set_complete()
             return True
 
     def set_complete(self):
