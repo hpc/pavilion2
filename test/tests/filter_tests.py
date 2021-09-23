@@ -4,12 +4,11 @@ import argparse
 import random
 import time
 from datetime import timedelta
-from pathlib import Path
 
 from pavilion import dir_db
 from pavilion import filters
 from pavilion import plugins
-from pavilion.test_run import TestAttributes, TestRun, test_run_attr_transform
+from pavilion.test_run import TestRun, test_run_attr_transform
 from pavilion.unittest import PavTestCase
 
 
@@ -190,7 +189,6 @@ class FiltersTest(PavTestCase):
             'created':  now - timedelta(minutes=5).total_seconds(),
             'name':     'mytest.always_match',
             'result':   TestRun.PASS,
-            'skipped':  False,
             'sys_name': 'this',
             'user':     'bob',
         }
@@ -200,7 +198,6 @@ class FiltersTest(PavTestCase):
             'created':  now - timedelta(minutes=1).total_seconds(),
             'name':     'yourtest.never_match',
             'result':   TestRun.FAIL,
-            'skipped':  True,
             'sys_name': 'that',
             'user':     'dave',
         }
@@ -208,7 +205,6 @@ class FiltersTest(PavTestCase):
         # Setting any of this will be ok for the 'always' pass test,
         # but never ok for the 'never' pass test.
         opt_set = {
-            'show_skipped': 'no',
             'complete':     True,
             'user':         'bob',
             'sys_name':     'this',

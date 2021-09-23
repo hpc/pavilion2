@@ -2,9 +2,10 @@
 """
 import errno
 
+import pavilion.exceptions
 from pavilion import output
 from pavilion import series, series_config
-from pavilion import test_run
+from pavilion.test_run import TestRun
 from .base_classes import Command
 
 
@@ -118,8 +119,8 @@ class LogCommand(Command):
                 if cmd_name == 'series':
                     test = series.TestSeries.load(pav_cfg, args.id)
                 else:
-                    test = test_run.TestRun.load_from_raw_id(pav_cfg, args.id)
-            except test_run.TestRunError as err:
+                    test = TestRun.load_from_raw_id(pav_cfg, args.id)
+            except pavilion.exceptions.TestRunError as err:
                 output.fprint("Error loading test: {}".format(err),
                               color=output.RED,
                               file=self.errfile)

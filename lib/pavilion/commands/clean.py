@@ -46,7 +46,6 @@ class CleanCommand(Command):
                 older_than=args.older_than,
                 passed=args.passed,
                 result_error=args.result_error,
-                show_skipped=args.show_skipped,
                 sys_name=args.sys_name,
                 user=args.user
             )

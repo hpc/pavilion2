@@ -9,7 +9,8 @@ from pavilion import schedulers
 from pavilion.status_file import STATES
 from pavilion.sys_vars import base_classes
 from pavilion.test_config import VariableSetManager, TestConfigResolver
-from pavilion.test_run import TestRun, TestRunError
+from pavilion.test_run import TestRun
+from ..exceptions import TestRunError
 from .base_classes import Command
 
 

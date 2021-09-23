@@ -9,7 +9,8 @@ from pavilion import schedulers
 from pavilion import series
 from pavilion.status_file import STATES
 from pavilion.status_utils import print_from_tests
-from pavilion.test_run import TestRun, TestRunError
+from pavilion.test_run import TestRun
+from ..exceptions import TestRunError
 from .base_classes import Command
 
 
