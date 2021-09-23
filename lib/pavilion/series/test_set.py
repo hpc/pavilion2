@@ -11,7 +11,8 @@ from pavilion import test_config, output, result, schedulers
 from pavilion.build_tracker import MultiBuildTracker
 from pavilion.status_file import SeriesStatusFile, STATES, SERIES_STATES
 from pavilion.test_config import TestConfigError
-from pavilion.test_run import TestRun, TestRunError
+from pavilion.test_run import TestRun
+from pavilion.exceptions import TestRunError
 from pavilion.utils import str_bool
 
 S_STATES = SERIES_STATES

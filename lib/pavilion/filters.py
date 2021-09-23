@@ -24,7 +24,6 @@ TEST_FILTER_DEFAULTS = {
     'older_than': None,
     'passed': False,
     'result_error': False,
-    'show_skipped': 'no',
     'sort_by': '-created',
     'sys_name': LOCAL_SYS_NAME,
     'user': utils.get_login(),
@@ -167,11 +166,6 @@ def add_test_filter_args(arg_parser: argparse.ArgumentParser,
               "allowed. Default: {}"
               .format(defaults['name']))
     )
-    arg_parser.add_argument(
-        '--show-skipped', action='store', choices=('yes', 'no', 'only'),
-        default=defaults['show_skipped'],
-        help=('Include skipped test runs.  Default: {}'
-              .format(defaults['show_skipped'])))
 
     pf_group = arg_parser.add_mutually_exclusive_group()
     pf_group.add_argument(
@@ -241,7 +235,7 @@ def add_series_filter_args(arg_parser: argparse.ArgumentParser,
 def filter_test_run(
         test_attrs: Dict, complete: bool, failed: bool, incomplete: bool,
         name: str, newer_than: float, older_than: float, passed: bool,
-        result_error: bool, show_skipped: bool, sys_name: str, user: str):
+        result_error: bool, sys_name: str, user: str):
     """Determine whether the test run at the given path should be
     included in the set. This function with test_attrs as the sole input is
     returned by make_test_run_filter.
@@ -256,16 +250,10 @@ def filter_test_run(
     :param older_than: Only accept tests older than this date.
     :param passed: Only accept passed tests
     :param result_error: Only accept tests with a result error.
-    :param show_skipped: Accept skipped tests.
     :param sys_name: Only accept tests with a matching sys_name.
     :param user: Only accept tests started by this user.
     :return:
     """
-
-    if show_skipped == 'no' and test_attrs.get('skipped'):
-        return False
-    elif show_skipped == 'only' and not test_attrs.get('skipped'):
-        return False
 
     if complete and not test_attrs.get('complete'):
         return False
@@ -305,7 +293,7 @@ def make_test_run_filter(
         name: str = None,
         newer_than: float = None, older_than: float = None,
         passed: bool = False, result_error: bool = False,
-        show_skipped: bool = False, sys_name: str = None, user: str = None):
+        sys_name: str = None, user: str = None):
     """Generate a filter function for use by dir_db.select and similar
     functions. This operates on TestAttribute objects, so make sure to
     pass the TestAttribute class as the transform to dir_db functions.
@@ -318,7 +306,6 @@ def make_test_run_filter(
     :param older_than: Only accept tests older than this date.
     :param passed: Only accept passed tests
     :param result_error: Only accept tests with a result error.
-    :param show_skipped: Accept skipped tests.
     :param sys_name: Only accept tests with a matching sys_name.
     :param user: Only accept tests started by this user.
     :return:
@@ -332,7 +319,7 @@ def make_test_run_filter(
         filter_test_run,
         complete=complete, failed=failed, incomplete=incomplete, name=name,
         newer_than=newer_than, older_than=older_than, passed=passed,
-        result_error=result_error, show_skipped=show_skipped,  sys_name=sys_name,
+        result_error=result_error, sys_name=sys_name,
         user=user)
 
     return filter_func

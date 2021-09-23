@@ -1,7 +1,7 @@
 """A collection of utilities for getting the current status of test runs
 and series."""
 
-import multiprocessing as mp
+from concurrent.futures import ThreadPoolExecutor
 import os
 import sys
 import time
@@ -14,7 +14,8 @@ from pavilion import output
 from pavilion import schedulers
 from pavilion import series
 from pavilion.status_file import STATES
-from pavilion.test_run import (TestRun, TestRunError, TestRunNotFoundError)
+from pavilion.test_run import (TestRun)
+from pavilion.exceptions import TestRunError, TestRunNotFoundError
 
 
 def get_last_ctime(path):
@@ -134,16 +135,8 @@ def get_statuses(pav_cfg, tests: List[TestRun]):
 
     get_this_status = partial(get_status, pav_conf=pav_cfg)
 
-    # The TestRun object cannot be pickled in python < 3.7 because
-    # it contains threading which causes parallel execution to fail.
-    if sys.version_info.minor > 6:
-        ncpu = min(config.NCPU, len(tests))
-        mp_pool = mp.Pool(processes=ncpu)
-        test_statuses = list(mp_pool.map(get_this_status, tests))
-    else:
-        test_statuses = list(map(get_this_status, tests))
-
-    return test_statuses
+    with ThreadPoolExecutor(pav_cfg['max_threads']) as pool:
+        return list(pool.map(get_this_status, tests))
 
 
 def print_status(statuses, outfile, json=False):

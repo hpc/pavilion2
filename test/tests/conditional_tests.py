@@ -1,6 +1,6 @@
 from pavilion import plugins
 from pavilion import unittest
-from pavilion.test_run import TestRunError
+from pavilion.exceptions import TestRunError
 
 
 class conditionalTest(unittest.PavTestCase):

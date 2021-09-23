@@ -203,6 +203,10 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
                       "itself spawn off threads/processes, so it's probably "
                       "reasonable to keep this at just a few."),
         yc.IntRangeElem(
+            "max_threads", default=8, vmin=1,
+            help_text="Maximum threads for general multi-threading usage."
+        ),
+        yc.IntRangeElem(
             "max_cpu", default=NCPU, vmin=1,
             help_text="Maximum number of cpus to use when spawning multiple processes."
                       "The number used may be less depending on the task."

@@ -229,7 +229,6 @@ class ListCommand(Command):
             newer_than=args.newer_than,
             older_than=args.older_than,
             passed=args.passed,
-            show_skipped=args.show_skipped,
             sys_name=args.sys_name,
             user=args.user,
         )

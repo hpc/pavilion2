@@ -5,15 +5,14 @@ import argparse
 import logging
 from pathlib import Path
 from typing import List, TextIO
-import threading
 
 from pavilion import dir_db
 from pavilion import exceptions
 from pavilion import filters
 from pavilion import output
 from pavilion import series
-from pavilion.test_run import TestRunError, \
-    TestRun, test_run_attr_transform
+from pavilion.test_run import TestRun, ID_Pair, test_run_attr_transform, load_tests
+from pavilion.exceptions import TestRunError
 
 LOGGER = logging.getLogger(__name__)
 
@@ -52,7 +51,6 @@ def arg_filtered_tests(pav_cfg, args: argparse.Namespace,
         sys_name=args.sys_name,
         older_than=args.older_than,
         newer_than=args.newer_than,
-        show_skipped=args.show_skipped,
     )
 
     order_func, order_asc = filters.get_sort_opts(args.sort_by, "TEST")
@@ -103,10 +101,11 @@ def read_test_files(files: List[str]) -> List[str]:
                     line = line.strip()
                     if line.startswith('#'):
                         pass
-                    test = line.split('#')[0].strip() # Removing any trailing comments.
+                    test = line.split('#')[0].strip()  # Removing any trailing comments.
                     tests.append(test)
         except OSError as err:
-            raise ValueError("Could not read test list file at '{}': {}")
+            raise ValueError("Could not read test list file at '{}': {}"
+                             .format(path, err))
 
     return tests
 
@@ -124,20 +123,20 @@ def test_list_to_paths(pav_cfg, req_tests, errfile=None) -> List[Path]:
     """
 
     test_paths = []
-    for test_id in req_tests:
-        if test_id == 'last':
-            test_id = series.load_user_series_id(pav_cfg)
+    for raw_id in req_tests:
+        if raw_id == 'last':
+            raw_id = series.load_user_series_id(pav_cfg)
 
-        if '.' not in test_id and test_id.startswith('s'):
+        if '.' not in raw_id and raw_id.startswith('s'):
             try:
                 test_paths.extend(
-                    series.list_series_tests(pav_cfg, test_id))
+                    series.list_series_tests(pav_cfg, raw_id))
             except series.errors.TestSeriesError:
-                raise ValueError("Invalid series id '{}'".format(test_id))
+                raise ValueError("Invalid series id '{}'".format(raw_id))
 
         else:
             try:
-                _, test_wd, _id = TestRun.parse_raw_id(pav_cfg, test_id)
+                test_wd, _id = TestRun.parse_raw_id(pav_cfg, raw_id)
             except TestRunError as err:
                 output.fprint(err.args[0], file=errfile, color=output.YELLOW)
                 continue
@@ -147,22 +146,34 @@ def test_list_to_paths(pav_cfg, req_tests, errfile=None) -> List[Path]:
     return test_paths
 
 
-def _filter_tests_by_raw_id(pav_cfg, tests: List[TestRun], exclude_ids: List[str]) \
-        -> List[TestRun]:
+def _filter_tests_by_raw_id(pav_cfg, id_pairs: List[ID_Pair],
+                            exclude_ids: List[str]) -> List[ID_Pair]:
     """Filter the given tests by raw id."""
-    exclude_ids.sort()
 
-    def _exclude_filter(test: TestRun):
-        """Return False for any test in the exclude_ids list."""
+    exclude_pairs = []
 
-        if (test.full_id in exclude_ids or
-                (test.cfg_label == pav_cfg.default_label and
-                 str(test.id) in exclude_ids)):
-            return False
+    for raw_id in exclude_ids:
+        if '.' in raw_id:
+            label, ex_id = raw_id.split('.', 1)
         else:
-            return True
+            label = 'main'
+            ex_id = raw_id
 
-    return list(filter(_exclude_filter, tests))
+        ex_wd = pav_cfg['configs'].get(label, None)
+        if ex_wd is None:
+            # Invalid label.
+            continue
+
+        ex_wd = Path(ex_wd)
+
+        try:
+            ex_id = int(ex_id)
+        except ValueError:
+            continue
+
+        exclude_pairs.append((ex_wd, ex_id))
+
+    return [pair for pair in id_pairs if pair not in exclude_pairs]
 
 
 def get_tests_by_paths(pav_cfg, test_paths: List[Path], errfile: TextIO,
@@ -176,26 +187,24 @@ def get_tests_by_paths(pav_cfg, test_paths: List[Path], errfile: TextIO,
     :param exclude_ids: A list of test raw id's to filter out.
     """
 
-    tests = []
+    test_pairs = []  # type: List[ID_Pair]
 
     for test_path in test_paths:
+        test_wd = test_path.parents[1]
         try:
-            test_wd = test_path.parents[1]
             test_id = int(test_path.name)
-            tests.append(TestRun.load(pav_cfg, test_wd, test_id))
-        except TestRunError as err:
-            output.fprint("Error loading test at '{}': {}"
-                          .format(test_path, err.args[0]),
-                          file=errfile)
         except ValueError:
             output.fprint("Invalid test id '{}' from test path '{}'"
                           .format(test_path.name, test_path),
-                          file=errfile)
+                          color=output.YELLOW, file=errfile)
+            continue
+
+        test_pairs.append(ID_Pair((test_wd, test_id)))
 
     if exclude_ids:
-        tests = _filter_tests_by_raw_id(pav_cfg, tests, exclude_ids)
+        test_pairs = _filter_tests_by_raw_id(pav_cfg, test_pairs, exclude_ids)
 
-    return tests
+    return load_tests(pav_cfg, test_pairs, errfile)
 
 
 def get_tests_by_id(pav_cfg, test_ids: List['str'], errfile: TextIO,
@@ -222,33 +231,35 @@ def get_tests_by_id(pav_cfg, test_ids: List['str'], errfile: TextIO,
                 "No tests specified and no last series was found."
             )
 
-    test_list = []
+    # Convert series and test ids into test paths.
+    test_id_pairs = []
 
-    for test_id in test_ids:
+    for raw_id in test_ids:
 
         # Series start with 's' (like 'snake') and never have labels
-        if '.' not in test_id and test_id.startswith('s'):
+        if '.' not in raw_id and raw_id.startswith('s'):
             try:
-                test_list.extend(series.TestSeries.load(pav_cfg,
-                                                        test_id).tests)
+                series_obj = series.TestSeries.load(pav_cfg, raw_id)
             except series.TestSeriesError as err:
                 output.fprint(
                     "Suite {} could not be found.\n{}"
-                    .format(test_id, err),
+                    .format(raw_id, err),
                     file=errfile,
                     color=output.RED
                 )
                 continue
+            test_id_pairs.extend(list(series_obj.tests.keys()))
 
         # Just a plain test id.
         else:
             try:
-                test_list.append(TestRun.load_from_raw_id(pav_cfg, test_id))
+                test_id_pairs.append(TestRun.parse_raw_id(pav_cfg, raw_id))
+
             except TestRunError as err:
                 output.fprint("Error loading test '{}': {}"
-                              .format(test_id, err.args[0]))
+                              .format(raw_id, err.args[0]))
 
     if exclude_ids:
-        test_list = _filter_tests_by_raw_id(pav_cfg, test_list, exclude_ids)
+        test_id_pairs = _filter_tests_by_raw_id(pav_cfg, test_id_pairs, exclude_ids)
 
-    return test_list
+    return load_tests(pav_cfg, test_id_pairs, errfile)
