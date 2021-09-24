@@ -1,0 +1,43 @@
+base:
+    summary: Intel MPI Test.
+
+    maintainer:
+        name: Francine Lapid
+        email: lapid@lanl.gov
+
+    doc: |
+
+      This tests the ability to complete MPI communications between all of the
+      nodes.  Failures will mostly indicate nodes that aren't able to communicate
+      across the HSN fabric.  MPI errors should indicate where to look for the
+      source of the issue.
+      If other failures are encountered, be sure to take notes of the form of the
+      failure and the fix to be merged into this file.
+
+    slurm:
+        tasks_per_node: 2
+
+    build:
+        source_path: IMB-v2019.3.tar.gz
+        modules:
+            - "{{var.compilers}}"
+            - "{{var.mpis}}"
+
+        cmds:
+            - cd src_c
+            - "make CC=$PAV_MPI_CC"
+    run:
+        modules:
+            - "{{var.compilers}}"
+            - "{{var.mpis}}"
+
+        cmds:
+            - cd src_c
+            - "{{sched.test_cmd}} ./IMB-MPI1 -npmin {{sched.alloc_cpu_total}} -mem 50 alltoall"
+
+knl:
+  inherits_from: base
+  only_if:
+    "{{sys_name}}": [trinitite, trinity]
+  slurm:
+    partition: knl

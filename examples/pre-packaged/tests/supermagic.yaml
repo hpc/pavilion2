@@ -1,0 +1,47 @@
+base:
+    maintainer:
+        name: Nicholas Sly
+        email: sly@lanl.gov
+    summary: Run all supermagic tests.
+    subtitle: "{{scratch_all.name}}"
+
+    doc: |
+
+      This test verifiest the MPI communication and parallel communication to
+      the scratch spaces.  Failures can occur if a scratch space is not mounted.
+      If it's just the convenience mount on a TOSS system and the yeti-scripts
+      rpmquery test fails as well, the admins need to run the yeti-script to
+      colorize the node and put those mounts in place.
+
+    permute_on: scratch_all
+
+    build:
+        source_path: supermagic.xz
+        modules:
+            - "{{compilers}}"
+            - "{{mpis}}"
+
+        cmds:
+            $PAV_MPI_CC -o super_magic super_magic.c
+
+    run:
+        timeout: 600
+        modules:
+            - "{{compilers}}"
+            - "{{mpis}}"
+
+        cmds:
+            - "{{sched.test_cmd}} {{srun_opts}} ./super_magic -a [~-w {{scratch_all.path}}/ ~]"
+
+    result_parse:
+        regex:
+            result:
+                regex: '<results> PASSED'
+                action: 'store_true'
+
+knl:
+  inherits_from: base
+  only_if:
+    "{{sys_name}}": [trinitite, trinity]
+  slurm:
+    partition: knl

@@ -1,0 +1,135 @@
+base:
+  summary: Builds and runs an MPI-based Hello, World program.
+  subtitle: '{{compilers}}-{{mpis}}'
+  maintainer:
+    name: Nicholas Sly
+    email: sly@lanl.gov
+
+  doc: |
+
+    This tests the ability to compile an MPI executable as well as run it across
+    multiple nodes.  Failures can take a few forms:
+    Build failures:
+     - Should get module errors if the module is not available.
+     - GCC error - Ensure it's finding the appropriate version of GCC (by the
+                   path). If it's using the right GCC installation, investigate
+                   the error to see what is wrong.  Could be with our GCC.
+     - License error - Licensed products such as PGI, Intel, and Intel-MPI require
+                       access to the license server in order to build the tests.
+                       If they can't access the license server, it could be the
+                       license daemon not running (test on other machines),
+                       firewall access is blocked (check other FEs or machines),
+                       or the module file could be pointing to the wrong address
+                       (check module files on other networks and test there if
+                       different).
+      - Other error - Check the error to see what product caused the error.
+    Run failures:
+      - Probably emits an MPI failure.  Check with product maintainer to learn
+        more.  May indicate an issue with the HSN fabric.  May just be a bad node.
+    If other failures are encountered, be sure to take notes of the form of the
+    failure and the fix to be merged into this file.
+
+  variables:
+    # These are meant to 
+    compilers?: []
+    mpis?: []
+    build_flags: ''
+
+  slurm:
+    tasks_per_node: 2
+
+  # Create a permuted copy of this test for each compiler and mpi in the 'compilers' and 
+  # 'mpis' variables.
+  permute_on: [compilers, mpis]
+
+  build:
+    timeout: 300
+    # Always rebuild this test every time it runs.
+    specificity: "{{pav.timestamp}}"
+    # This is included in the test_src directory.
+    source_path: mpi_hello.c
+    modules:
+      - "{{compilers}}"
+      - "{{mpis}}"
+    cmds:
+      - "set -x"
+      - "$PAV_MPI_CC -o mpi_hello mpi_hello.c {{build_flags}}"
+  run:
+    timeout: 600
+    modules:
+      - "{{compilers}}"
+      - "{{mpis}}"
+    cmds:
+      - "set -x"
+      - "{{sched.test_cmd}} {{srun_opts}} {{srun_opts_verbose}} ./mpi_hello"
+
+intel-mpi:
+  inherits_from: base
+  summary: Builds and runs an MPI-based Hello, World program using intel-mpi.
+
+  only_if:
+    "{{sys_os.name}}": [toss]
+
+  variables:
+    compilers: intel
+    mpis: intel-mpi
+
+toss-mvapich2:
+  inherits_from: base
+  summary: Builds and runs an MPI-based Hello, World program on Toss.
+
+  only_if:
+    "{{sys_os.name}}": [toss]
+
+  variables:
+    compilers: [gcc, intel] #, pgi]
+    mpis: mvapich2
+
+  run:
+    cmds:
+      - "set -x"
+      - "{{sched.test_cmd}} ./mpi_hello"
+
+toss-openmpi:
+  inherits_from: base
+  summary: Builds and runs an MPI-based Hello, World program on Toss.
+
+  only_if:
+    "{{sys_os.name}}": [toss]
+
+  variables:
+    compilers: [gcc, intel, pgi]
+    mpis: openmpi
+
+  run:
+    cmds:
+      - "set -x"
+      - "{{sched.test_cmd}} {{srun_opts}} {{srun_opts_verbose}} ./mpi_hello"
+
+toss-mpirun:
+  inherits_from: base
+  summary: Builds and runs an MPI-based Hello, World program on Toss.
+
+  only_if:
+    "{{sys_os.name}}": [toss]
+  not_if:
+    "{{sys_name}}": [woodchuck]
+
+  scheduler: slurm_mpi
+
+  variables:
+    compilers: [gcc, intel, pgi]
+    mpis: openmpi
+
+  run:
+    cmds:
+      - "set -x"
+      - "{{sched.test_cmd}} ./mpi_hello"
+
+knl:
+  inherits_from: base
+  only_if:
+    "{{sys_os.name}}": [trinitite, trinity]
+  slurm:
+    partition: knl
+
