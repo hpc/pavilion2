@@ -1,21 +1,19 @@
 """A collection of utilities for getting the current status of test runs
 and series."""
 
-from concurrent.futures import ThreadPoolExecutor
 import os
-import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from typing import TextIO, List
 
-from pavilion import config
 from pavilion import exceptions
 from pavilion import output
 from pavilion import schedulers
 from pavilion import series
+from pavilion.exceptions import TestRunError, TestRunNotFoundError
 from pavilion.status_file import STATES
 from pavilion.test_run import (TestRun)
-from pavilion.exceptions import TestRunError, TestRunNotFoundError
 
 
 def get_last_ctime(path):
@@ -94,7 +92,7 @@ def get_tests(pav_cfg, tests: List['str'], errfile: TextIO) -> List[int]:
             except series.TestSeriesError as err:
                 output.fprint(
                     "Suite {} could not be found.\n{}"
-                        .format(test_id, err),
+                    .format(test_id, err),
                     file=errfile,
                     color=output.RED
                 )
@@ -212,11 +210,9 @@ def status_history_from_test_obj(test: TestRun) -> List[dict]:
     return status_history
 
 
-def print_status_history(pav_cfg: dict, test: TestRun, outfile: TextIO,
-                         json: bool = False):
+def print_status_history(test: TestRun, outfile: TextIO, json: bool = False):
     """Print the status history for a given test object.
 
-    :param pav_cfg: Base pavilion configuration.
     :param test: Single test object.
     :param outfile: Stream to which the status history should be printed.
     :param json: Whether the output should be a JSON object or not
