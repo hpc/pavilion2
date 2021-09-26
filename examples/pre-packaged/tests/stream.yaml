@@ -1,0 +1,18 @@
+base:
+
+    subtitle: Runs STREAM benchmark
+
+    build:
+        # source_url: 'http://www.cs.virginia.edu/stream/FTP/Code/stream.c'
+        source_path: 'stream/stream.c'
+        cmds:
+            - which gcc
+            - gcc -O stream.c -o stream
+
+    scheduler: slurm
+    slurm:
+        num_nodes: 2
+
+    run:
+        cmds:
+            - ./stream
