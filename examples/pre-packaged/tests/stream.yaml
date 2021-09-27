@@ -3,8 +3,8 @@ base:
     subtitle: Runs STREAM benchmark
 
     build:
-        # source_url: 'http://www.cs.virginia.edu/stream/FTP/Code/stream.c'
-        source_path: 'stream/stream.c'
+        source_url: 'http://www.cs.virginia.edu/stream/FTP/Code/stream.c'
+        source_path: 'stream.c'
         cmds:
             - which gcc
             - gcc -O stream.c -o stream

@@ -1,4 +1,5 @@
-test_src
+test_src/*
+!test_src/mpi_hello.c
 working_dir
 hosts/*
 # Don't ignore the example hosts file.
