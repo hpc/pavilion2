@@ -16,3 +16,12 @@ configuration, so you'll need to create a host file for the system you intend to
 Pavilion uses the short hostname of the system (basically, the output of `hostname -s`). 
 
 Copy the example file so that it's named for your host, and modify it as needed.
+
+
+## Test source files
+
+All the tests included here either have no source to compile, have the source already included, or
+are configured to download the source from the internet. If you can't download the source directly
+on your system, simply download it manually (using the link in given in the `build.source_url`
+config item) and put it in the `test_src` directory under the filename given in the test's 
+`build.source_path` configuration item.

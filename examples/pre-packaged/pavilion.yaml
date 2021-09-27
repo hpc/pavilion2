@@ -3,3 +3,6 @@
 
 working_dir: ~/pav_demo_working_dir
 
+proxies:
+    # http: http://myproxy.mysite.com:1234
+    # https: http://myproxy.mysite.com:1234
