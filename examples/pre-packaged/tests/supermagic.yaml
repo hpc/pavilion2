@@ -12,6 +12,13 @@ base:
       rpmquery test fails as well, the admins need to run the yeti-script to
       colorize the node and put those mounts in place.
 
+    variables:
+      # The question mark at the end of the variable names denote that 
+      # these are expected to be set in the hosts file. See hosts/__example_host_file.yaml
+      mpi_cc?: mpicc
+      compilers?: []
+      mpis?: []    
+      
     build:
         source_url: 'https://github.com/hpc/supermagic/archive/refs/heads/master.zip'
         source_path: supermagic.xz
@@ -19,8 +26,13 @@ base:
             - "{{compilers}}"
             - "{{mpis}}"
 
+        env:
+            CC: '{{mpi_cc}}'
+
         cmds:
-            $PAV_MPI_CC -o super_magic super_magic.c
+            - './autogen || exit 1'
+            - './configure || exit 1'
+            - 'make' 
 
     run:
         timeout: 600
@@ -29,7 +41,7 @@ base:
             - "{{mpis}}"
 
         cmds:
-            - "{{sched.test_cmd}} ./super_magic"
+            - "{{sched.test_cmd}} ./supermagic"
 
     result_parse:
         regex:
