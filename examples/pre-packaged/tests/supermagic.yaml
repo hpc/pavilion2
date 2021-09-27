@@ -3,7 +3,6 @@ base:
         name: Nicholas Sly
         email: sly@lanl.gov
     summary: Run all supermagic tests.
-    subtitle: "{{scratch_all.name}}"
 
     doc: |
 
@@ -13,9 +12,8 @@ base:
       rpmquery test fails as well, the admins need to run the yeti-script to
       colorize the node and put those mounts in place.
 
-    permute_on: scratch_all
-
     build:
+        source_url: 'https://github.com/hpc/supermagic/archive/refs/heads/master.zip'
         source_path: supermagic.xz
         modules:
             - "{{compilers}}"
@@ -31,7 +29,7 @@ base:
             - "{{mpis}}"
 
         cmds:
-            - "{{sched.test_cmd}} {{srun_opts}} ./super_magic -a [~-w {{scratch_all.path}}/ ~]"
+            - "{{sched.test_cmd}} ./super_magic"
 
     result_parse:
         regex:
@@ -39,9 +37,3 @@ base:
                 regex: '<results> PASSED'
                 action: 'store_true'
 
-knl:
-  inherits_from: base
-  only_if:
-    "{{sys_name}}": [trinitite, trinity]
-  slurm:
-    partition: knl
