@@ -1,2 +1,5 @@
 test_src
 working_dir
+hosts/*
+# Don't ignore the example hosts file.
+!hosts/__example_hosts_file.yaml
