@@ -19,6 +19,9 @@ base:
       If other failures are encountered, be sure to take notes of the form of the
       failure and the fix to be merged into this file.
 
+    variables:
+      mpi_cc: mpicc
+
     slurm:
         tasks_per_node: 'all'
 
@@ -27,8 +30,8 @@ base:
         source_path: 'hpcg.zip'
         modules: ["{{compilers}}", "{{mpis}}"]
         cmds:
-            - 'sed -e "s@\\(CXX *= \\).*@\\1$PAV_MPI_CXX@g" setup/Make.Linux_MPI >setup/Make.Linux_$(basename $PAV_MPI_CXX)'
-            - "make arch=Linux_$(basename $PAV_MPI_CXX)"
+            - 'sed -e "s@\\(CXX *= \\).*@\\1{{mpi_cc}}@g" setup/Make.Linux_MPI > setup/Make.Linux_$(basename {{mpi_cc}})'
+            - "make arch=Linux_$(basename {{mpi_cc}})"
             - "cp bin/hpcg.dat ."
 
     run:
@@ -42,10 +45,3 @@ base:
         Summary_GFLOPS:
           files: 'HPCG-Benchmark_*.txt'
           regex: '.*GFLOP/s rating of=(.*)$'
-
-knl:
-  inherits_from: base
-  only_if:
-    "{{sys_name}}": [trinitite, trinity]
-  slurm:
-    partition: knl
