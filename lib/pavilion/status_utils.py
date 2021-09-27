@@ -92,7 +92,6 @@ def get_tests(pav_cfg, tests: List['str'], errfile: TextIO) -> List[int]:
             try:
                 test_list.extend(series.TestSeries.from_id(pav_cfg,
                                                            test_id).tests)
-                print(test_list)
             except series_util.TestSeriesError as err:
                 output.fprint(
                     "Suite {} could not be found.\n{}"
