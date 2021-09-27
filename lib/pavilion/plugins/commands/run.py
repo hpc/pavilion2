@@ -129,7 +129,7 @@ class RunCommand(commands.Command):
         #
         mb_tracker = MultiBuildTracker()
 
-        if args.repeat:
+        if hasattr(args, 'repeat'):
             args.tests = args.tests * args.repeat
 
         local_builds_only = getattr(args, 'local_builds_only', False)

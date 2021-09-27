@@ -1,0 +1,51 @@
+base:
+    maintainer:
+        name: Nicholas Sly
+        email: sly@lanl.gov
+    summary: Run all supermagic tests.
+
+    doc: |
+
+      This test verifiest the MPI communication and parallel communication to
+      the scratch spaces.  Failures can occur if a scratch space is not mounted.
+      If it's just the convenience mount on a TOSS system and the yeti-scripts
+      rpmquery test fails as well, the admins need to run the yeti-script to
+      colorize the node and put those mounts in place.
+
+    variables:
+      # The question mark at the end of the variable names denote that 
+      # these are expected to be set in the hosts file. See hosts/__example_host_file.yaml
+      mpi_cc?: mpicc
+      compilers?: []
+      mpis?: []    
+      
+    build:
+        source_url: 'https://github.com/hpc/supermagic/archive/refs/heads/master.zip'
+        source_path: supermagic.xz
+        modules:
+            - "{{compilers}}"
+            - "{{mpis}}"
+
+        env:
+            CC: '{{mpi_cc}}'
+
+        cmds:
+            - './autogen || exit 1'
+            - './configure || exit 1'
+            - 'make' 
+
+    run:
+        timeout: 600
+        modules:
+            - "{{compilers}}"
+            - "{{mpis}}"
+
+        cmds:
+            - "{{sched.test_cmd}} ./supermagic"
+
+    result_parse:
+        regex:
+            result:
+                regex: '<results> PASSED'
+                action: 'store_true'
+

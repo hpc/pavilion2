@@ -1,0 +1,6 @@
+test_src/*
+!test_src/mpi_hello.c
+working_dir
+hosts/*
+# Don't ignore the example hosts file.
+!hosts/__example_hosts_file.yaml
