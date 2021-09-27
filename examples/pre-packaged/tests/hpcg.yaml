@@ -20,25 +20,31 @@ base:
       failure and the fix to be merged into this file.
 
     variables:
-      mpi_cc: mpicc
+      # The question mark at the end of the variable names denote that 
+      # these are expected to be set in the hosts file. See hosts/__example_host_file.yaml
+      mpi_cxx?: mpicxx
+      compilers?: []
+      mpis?: []    
 
+    scheduler: slurm
     slurm:
-        tasks_per_node: 'all'
+        tasks_per_node: 2
+        num_nodes: 4
 
     build:
         source_url: 'https://github.com/hpcg-benchmark/hpcg/archive/master.zip'
         source_path: 'hpcg.zip'
         modules: ["{{compilers}}", "{{mpis}}"]
         cmds:
-            - 'sed -e "s@\\(CXX *= \\).*@\\1{{mpi_cc}}@g" setup/Make.Linux_MPI > setup/Make.Linux_$(basename {{mpi_cc}})'
-            - "make arch=Linux_$(basename {{mpi_cc}})"
+            - 'sed -e "s@\\(CXX *= \\).*@\\1{{mpi_cxx}}@g" setup/Make.Linux_MPI > setup/Make.Linux_$(basename {{mpi_cxx}})'
+            - "make arch=Linux_$(basename {{mpi_cxx}}) || exit 1"
             - "cp bin/hpcg.dat ."
 
     run:
         timeout: 1200
         modules: ["{{compilers}}", "{{mpis}}"]
         cmds:
-            - "{{sched.test_cmd}} {{srun_opts}} ./bin/xhpcg"
+            - "{{sched.test_cmd}} ./bin/xhpcg"
 
     result_parse:
       regex:

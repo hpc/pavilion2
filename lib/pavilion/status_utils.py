@@ -92,6 +92,7 @@ def get_tests(pav_cfg, tests: List['str'], errfile: TextIO) -> List[int]:
             try:
                 test_list.extend(series.TestSeries.from_id(pav_cfg,
                                                            test_id).tests)
+                print(test_list)
             except series_util.TestSeriesError as err:
                 output.fprint(
                     "Suite {} could not be found.\n{}"
@@ -145,10 +146,10 @@ def get_statuses(pav_cfg, test_ids, errfile=None):
     # it contains threading which causes parallel execution to fail.
     if sys.version_info.minor > 6:
         ncpu = min(config.NCPU, len(test_ids))
-        mp_pool = mp.Pool(processes=ncpu)
-        test_statuses = mp_pool.map(get_this_status, test_ids)
+        with mp.Pool(processes=ncpu) as mp_pool:
+            test_statuses = list(mp_pool.map(get_this_status, test_ids))
     else:
-        test_statuses = map(get_this_status, test_ids)
+        test_statuses = list(map(get_this_status, test_ids))
 
     return test_statuses
 

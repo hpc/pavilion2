@@ -9,14 +9,17 @@ base:
        multiple nodes and same-node tasks. 
 
   variables:
-    # These are meant to set in the 'host' file.  Create a file in 
-    # ../hosts/<your-host-name.yaml>, and add a variables section that sets these.
+    # The question mark at the end of the variable names denote that 
+    # these are expected to be set in the hosts file. See hosts/__example_host_file.yaml
+    mpi_cc?: mpicc
     compilers?: []
-    mpis?: []
+    mpis?: []    
     build_flags: ''
 
+  scheduler: slurm
   slurm:
     tasks_per_node: 2
+    num_nodes: 4
 
   # Create a permuted copy of this test for each compiler and mpi in the 'compilers' and 
   # 'mpis' variables.
@@ -33,7 +36,7 @@ base:
       - "{{mpis}}"
     cmds:
       - "set -x"
-      - "$PAV_MPI_CC -o mpi_hello mpi_hello.c {{build_flags}}"
+      - "{{mpi_cc}} -o mpi_hello mpi_hello.c {{build_flags}}"
   run:
     timeout: 600
     modules:
@@ -41,4 +44,4 @@ base:
       - "{{mpis}}"
     cmds:
       - "set -x"
-      - "{{sched.test_cmd}} {{srun_opts}} {{srun_opts_verbose}} ./mpi_hello"
+      - "{{sched.test_cmd}} ./mpi_hello"
