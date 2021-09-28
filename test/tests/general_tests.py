@@ -45,6 +45,9 @@ class GeneralTests(PavTestCase):
         with self.PAV_CONFIG_PATH.open() as pav_cfg_file:
             raw_cfg = yaml.load(pav_cfg_file)
 
+        if raw_cfg is None:
+            raw_cfg = {}
+
         self.working_dir = self.PAV_ROOT_DIR/'test'/'working_dir'/'wd_perms'
 
         if self.working_dir.exists():

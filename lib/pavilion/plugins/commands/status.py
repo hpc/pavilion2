@@ -46,9 +46,6 @@ class StatusCommand(commands.Command):
         """Gathers and prints the statuses from the specified test runs and/or
         series."""
 
-        test_ids = status_utils.get_tests(pav_cfg, args.tests, self.errfile)
-        args.tests = list(map(str, test_ids))
-
         try:
             test_paths = cmd_utils.arg_filtered_tests(pav_cfg, args,
                                                       verbose=self.errfile)
