@@ -771,6 +771,7 @@ def dt_auto_widths(rows, table_width, min_widths, max_widths):
     nrows   = min(len(rows), maxrows)
     rowsamp = [rows[0]] + random.sample(rows[1:], min(len(rows[1:]), nrows))
 
+
     # Limit to just the first 20 rows for speed.
     # rows = rows[:100]
     rowbyfield = {field: [row[field].data for row in rowsamp] for field in fields}

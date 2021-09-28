@@ -11,7 +11,7 @@ lib_dir = this_file.parents[1]/'lib'
 tests_dir = this_file.parent/'tests'
 
 # Setup our paths to the pavilion libraries.
-sys.path.append(str(lib_dir))
+sys.path.insert(0, str(lib_dir))
 
 
 def main():
