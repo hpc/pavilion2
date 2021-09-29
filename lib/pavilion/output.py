@@ -770,7 +770,7 @@ def dt_auto_widths(rows, table_width, min_widths, max_widths):
 
     maxrows = 20
     nrows   = min(len(rows), maxrows)
-    rowsamp = [rows[0]] + random.sample(rows[1:], nrows)
+    rowsamp = [rows[0]] + random.sample(rows[1:], min(nrows, len(rows)-1))
 
     # Limit to just the first 20 rows for speed.
     # rows = rows[:100]

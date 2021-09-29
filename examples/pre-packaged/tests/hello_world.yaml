@@ -1,0 +1,40 @@
+base:
+    summary: This test simply prints hello world and exits.
+
+    run:
+        cmds:
+            - echo "hello world"
+
+fail_build:
+    summary: This test fails to build (the build script returns non-zero).
+
+    build:
+        cmds:
+            - echo "oh no I'm going to fail!!!!"
+            - 'false'  # The last command in this script returns non-zero, so the script does too.
+
+    run:
+        cmds:
+            - echo "hello world"
+
+
+fail:
+    summary: This test prints "hello world" but fails because the script returns a non-zero result.
+
+    run:
+        cmds:
+            - echo "hello world"
+            - exit 1
+
+fail2:
+    summary: This test prints "hello fail", and then checks for "hello world" being printed (and thus fails)."
+
+    run:
+        cmds:
+            - echo "hello fail"
+
+    result_parse:
+        regex:
+            result:
+                regex: "hello world"
+                action: store_true

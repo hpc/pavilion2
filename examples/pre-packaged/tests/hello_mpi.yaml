@@ -1,0 +1,47 @@
+base:
+  summary: Builds and runs an MPI-based Hello, World program.
+  subtitle: '{{compilers}}-{{mpis}}'
+  maintainer:
+    name: Nicholas Sly
+    email: sly@lanl.gov
+
+  doc: This tests the ability to compile an MPI executable as well as run it across
+       multiple nodes and same-node tasks. 
+
+  variables:
+    # The question mark at the end of the variable names denote that 
+    # these are expected to be set in the hosts file. See hosts/__example_host_file.yaml
+    mpi_cc?: mpicc
+    compilers?: []
+    mpis?: []    
+    build_flags: ''
+
+  scheduler: slurm
+  slurm:
+    tasks_per_node: 2
+    num_nodes: 4
+
+  # Create a permuted copy of this test for each compiler and mpi in the 'compilers' and 
+  # 'mpis' variables.
+  permute_on: [compilers, mpis]
+
+  build:
+    timeout: 300
+    # Always rebuild this test every time it runs.
+    specificity: "{{pav.timestamp}}"
+    # This is included in the test_src directory.
+    source_path: mpi_hello.c
+    modules:
+      - "{{compilers}}"
+      - "{{mpis}}"
+    cmds:
+      - "set -x"
+      - "{{mpi_cc}} -o mpi_hello mpi_hello.c {{build_flags}}"
+  run:
+    timeout: 600
+    modules:
+      - "{{compilers}}"
+      - "{{mpis}}"
+    cmds:
+      - "set -x"
+      - "{{sched.test_cmd}} ./mpi_hello"

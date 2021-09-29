@@ -327,8 +327,9 @@ def make_test_run_filter(
         sys_name = sys_vars['sys_name']
 
     filter_func = partial(filter_test_run, complete=complete, failed=failed, incomplete=incomplete,
-        name=name, newer_than=newer_than, older_than=older_than, passed=passed,
-        result_error=result_error, show_skipped=show_skipped, sys_name=sys_name, user=user)
+                  name=name, newer_than=newer_than, older_than=older_than, passed=passed,
+                  result_error=result_error, show_skipped=show_skipped,
+                  sys_name=sys_name, user=user)
 
     return filter_func
 
