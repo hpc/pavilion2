@@ -148,7 +148,7 @@ class TestAttributes:
             'skipped':    None,
             'suite_path': None,
             'sys_name':   None,
-            'user':       self.path.owner(),
+            'user':       utils.owner(self.path),
             'uuid':       None,
             'warnings':   [],
         }

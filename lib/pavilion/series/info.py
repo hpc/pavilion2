@@ -3,6 +3,7 @@ import logging
 from pathlib import Path
 
 from pavilion import dir_db
+from pavilion import utils
 from pavilion.test_run import TestRun, TestAttributes
 from .errors import TestSeriesError
 
@@ -69,7 +70,7 @@ class SeriesInfo:
     def user(self):
         """The user who created the suite."""
         try:
-            return self.path.owner()
+            return utils.owner(self.path)
         except KeyError:
             return None
 
