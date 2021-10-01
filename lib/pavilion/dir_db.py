@@ -8,7 +8,7 @@ import os
 import shutil
 import tempfile
 import time
-import multiprocessing as mp
+from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from pathlib import Path
 from typing import Callable, List, Iterable, Any, Dict, NewType, \
@@ -149,6 +149,7 @@ def index(id_dir: Path, idx_name: str,
 
     idx = Index({})
     idx_db = None
+    print('oh no',flush=True)
 
     # Open and read the index if it exists. Any errors cause the index to
     # regenerate from scratch.
@@ -159,22 +160,23 @@ def index(id_dir: Path, idx_name: str,
             idx_mtime = idx_path.stat().st_mtime
             idx = Index({int(k): json.loads(idx_db[k]) for k in idx_db.keys()})
         except (OSError, PermissionError, json.JSONDecodeError) as err:
+            print('nope', err)
             # In either error case, start from scratch.
             LOGGER.warning(
                 "Error reading index at '%s'. Regenerating from "
                 "scratch. %s", idx_path.as_posix(), err.args[0])
+    print('oh yes')
 
     if not id_dir.exists():
         return idx
 
-    new_items = {}
+    print('wtrf')
 
     # If the index hasn't been updated lately (or is empty) do so.
     # Small updates should happen unnoticeably fast, while full generation
     # will take a bit.
     if not idx or time.time() - idx_mtime > refresh_period:
-        seen = []
-
+        print(idx, time.time()-idx_mtime)
         if verbose:
             if idx_db is None:
                 output.fprint(
@@ -182,72 +184,94 @@ def index(id_dir: Path, idx_name: str,
                     .format(id_dir.name),
                     file=verbose)
 
-        last_perc = None
-        progress = 0
-
         files = [Path(file.path) for file in os.scandir(id_dir.as_posix())]
-        for file in files:
+
+        def make_int_id(path: Path) -> Union[None, int]:
+            """Convert an filename to an integer if we can."""
             try:
-                id_ = int(file.name, fn_base)
+                return int(path.name, fn_base)
             except ValueError:
+                return None
+
+        # This sequence leaves us with a list of id, path pairs that need an index
+        # update.
+        id_pairs = [(make_int_id(path), path) for path in files]
+        # Grab the set of all ids. We'll use it to identify missing ids.
+        all_seen_ids = {id_ for id_, _ in id_pairs}
+        update_id_pairs = []
+        for id_, path in id_pairs:
+            if id_ is None:
                 continue
-
-            seen.append(id_)
-
-            progress += 1
-            complete_perc = int(100*progress/len(files))
-            if verbose and complete_perc != last_perc:
-                output.fprint(
-                    "Indexing: {}%".format(complete_perc),
-                    end='\r', file=verbose)
-                last_perc = complete_perc
-
-            # Skip entries that are known and complete.
             if id_ in idx and idx[id_].get(complete_key, False):
                 continue
+            update_id_pairs.append((id_, path))
 
-            # Only directories with integer names are db entries.
-            if not file.is_dir():
-                continue
+        import pprint
+        pprint.pprint({id_: idx[id_].get(complete_key) for id_, _ in update_id_pairs
+                       if id_ in idx})
 
-            # Update incomplete or unknown entries.
+        missing = set(idx.keys()) - all_seen_ids
+        print('all_seen', all_seen_ids, set(idx.keys()), missing)
+
+        def do_transform(pair):
+            """Do the transform on the id and file pair."""
+            id_, file = pair
+
             try:
-                new = transform(file)
-            except ValueError:
-                continue
+                data = transform(file)
+                json_data = json.dumps(data)
+            except (ValueError, KeyError, TypeError, OSError):
+                return id_, None, None
 
-            old = idx.get(id_)
-            if new != old:
-                new_items[id_] = new
-                idx[id_] = new
+            return id_, data, json_data
 
-        missing = set(idx.keys()) - set(seen)
+        thread_max = min(config.PAV_CONFIG.get('max_threads'), len(update_id_pairs))
+        if thread_max > 1:
+            with ThreadPoolExecutor(max_workers=thread_max) as pool:
+                results = pool.map(do_transform, update_id_pairs)
+        else:
+            results = map(do_transform, id_pairs)
 
-        if new_items or missing:
+        if update_id_pairs or missing:
             try:
                 tmp_path = Path(tempfile.mktemp(
                     suffix='.dbtmp',
                     dir=idx_path.parent.as_posix()))
-                if idx_path.exists():
-                    try:
-                        shutil.copyfile(idx_path, tmp_path.as_posix())
-                    except OSError:
-                        pass
+            except OSError:
+                return idx
 
-                # Write our updated index atomically.
-                out_db = dbm.open(tmp_path.as_posix(), 'c')
+            if idx_path.exists():
+                try:
+                    shutil.copyfile(idx_path, tmp_path.as_posix())
+                except OSError:
+                    pass
+            try:
+                with dbm.open(tmp_path.as_posix(), 'c') as out_db:
+                    for id_, data, json_data in results:
+                        if data is None:
+                            continue
 
-                for id_, value in new_items.items():
-                    out_db[str(id_)] = json.dumps(value)
+                        print('updating entry for', id_)
 
-                for id_ in missing:
+                        # The data should already be converted to json
+                        out_db[str(id_)] = json_data
+                        idx[id_] = data
 
-                    del out_db[str(id_)]
-                    del idx[id_]
+                    for id_ in missing:
+                        del idx[id_]
+                        del out_db[str(id_)]
 
                 tmp_path.rename(idx_path)
-            except OSError:
-                pass
+            except OSError as err:
+                print('os error', err)
+                return idx
+            except (Exception, KeyboardInterrupt) as err:
+                print("Database failures", err)
+                try:
+                    tmp_path.unlink()
+                except OSError:
+                    pass
+                raise err
 
     return idx
 
@@ -403,13 +427,17 @@ def select_from(paths: Iterable[Path],
     """
 
     paths = list(paths)
-    ncpu = min(config.NCPU, len(paths))
-    mp_pool = mp.Pool(processes=ncpu)
+    max_threads = min(config.PAV_CONFIG.get('max_threads', 1), len(paths))
 
     selector = partial(select_one, ffunc=filter_func, trans=transform,
                        ofunc=order_func, fnb=fn_base)
 
-    selections = mp_pool.map(selector, paths)
+    if max_threads > 1:
+        with ThreadPoolExecutor(max_workers=max_threads) as pool:
+            selections = pool.map(selector, paths)
+    else:
+        selections = map(selector, paths)
+
     selected = [(item, path) for item, path in zip(selections, paths)
                 if item is not None]
 

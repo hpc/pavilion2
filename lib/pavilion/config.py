@@ -9,12 +9,16 @@ import os
 import sys
 from collections import OrderedDict
 from pathlib import Path
-from typing import List
+from typing import List, Union
 
 import pavilion.output
 import yaml_config as yc
 
 LOGGER = logging.getLogger('pavilion.' + __file__)
+
+# While we generally use a functional style and pass the pavilion config around,
+# it should almost always be accessible from here as well.
+PAV_CONFIG = None  # type: Union[dict, None]
 
 # Figure out what directories we'll search for the base configuration.
 PAV_CONFIG_SEARCH_DIRS = [Path('./').resolve()]
@@ -422,6 +426,11 @@ found in these directories the default config search paths:
          testing the permissions themselves.
 """
 
+    global PAV_CONFIG
+
+    if PAV_CONFIG is not None:
+        return PAV_CONFIG
+
     pav_cfg = None
 
     for path in target, PAV_CONFIG_FILE:
@@ -458,6 +467,8 @@ found in these directories the default config search paths:
         pav_cfg = PavilionConfigLoader().load_empty()
 
     pav_cfg['configs'] = add_config_dirs(pav_cfg, setup_working_dirs)
+
+    PAV_CONFIG = pav_cfg
 
     return pav_cfg
 

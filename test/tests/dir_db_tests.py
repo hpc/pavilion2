@@ -72,10 +72,11 @@ class DirDBTests(unittest.PavTestCase):
         import pprint
         self.assertEqual(set(idx.keys()), set(entries.keys()))
         for key in idx:
-            print('idx', key)
-            pprint.pprint(idx[key])
-            print('entries', key)
-            pprint.pprint(entries[key])
+            if idx[key] != entries[key]:
+                print('idx', key)
+                pprint.pprint(idx[key])
+                print('entries', key)
+                pprint.pprint(entries[key])
             self.assertEqual(idx[key], entries[key])
 
         shutil.rmtree(index_path)
