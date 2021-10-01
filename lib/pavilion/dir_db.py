@@ -1,6 +1,7 @@
 """Manage 'id' directories. The name of the directory is an integer, which
 essentially serves as a filesystem primary key."""
 
+import math
 import pickle
 import json
 import logging
@@ -145,7 +146,7 @@ def index(id_dir: Path, idx_name: str,
     :param fn_base: The integer base for dir_db.
     """
 
-    idx_path = (id_dir/idx_name).with_suffix('.db')
+    idx_path = (id_dir/idx_name).with_suffix('.pkl')
 
     idx = Index({})
     idx_db = None
@@ -172,35 +173,23 @@ def index(id_dir: Path, idx_name: str,
     if idx and time.time() - idx_mtime <= refresh_period:
         return idx
 
-    files = [Path(file.path) for file in os.scandir(id_dir.as_posix())]
+    files = [file.path for file in os.scandir(id_dir.as_posix())]
 
-    def make_int_id(path: Path) -> Union[None, int]:
+    def make_int_ids(paths: Path) -> Union[None, int]:
         """Convert an filename to an integer if we can."""
-        try:
-            return int(path.name, fn_base)
-        except ValueError:
-            return None
 
-    # This sequence leaves us with a list of id, path pairs that need an index
-    # update.
-    id_pairs = [(make_int_id(path), path) for path in files]
-    # Grab the set of all ids. We'll use it to identify missing ids.
-    all_seen_ids = {id_ for id_, _ in id_pairs}
-    update_id_pairs = []
-    for id_, path in id_pairs:
-        if id_ is None:
-            continue
-        if id_ in idx and idx[id_].get(complete_key, False):
-            continue
-        update_id_pairs.append((id_, path))
+        results = []
 
-    missing = set(idx.keys()) - all_seen_ids
+        for path in paths:
+            path = Path(path)
 
-    print(idx, missing, update_id_pairs)
+            try:
+                results.append((int(path.name, fn_base), path))
+            except ValueError as err:
+                pass
 
-    if not (missing or update_id_pairs):
-        # No changes
-        return idx
+        return results
+
 
     def do_transform(pair):
         """Do the transform on the id and file pair."""
@@ -211,14 +200,33 @@ def index(id_dir: Path, idx_name: str,
         except (ValueError, KeyError, TypeError, OSError):
             return id_, None
 
-    thread_max = min(config.PAV_CONFIG.get('max_threads'), len(update_id_pairs))
-    if thread_max > 1:
-        with ThreadPoolExecutor(max_workers=thread_max) as pool:
-            results = pool.map(do_transform, update_id_pairs)
-    else:
-        results = map(do_transform, id_pairs)
+    thread_max = config.PAV_CONFIG.get('max_threads')
+    with ThreadPoolExecutor(max_workers=thread_max) as pool:
+        # This sequence leaves us with a list of id, path pairs that need an index
+        # update.
+        chunk_size = int(math.ceil(len(files)/float(thread_max)))
+        chunks = [files[i*chunk_size:(i+1)*chunk_size] for i in range(thread_max)]
 
-    for id_, data in results:
+        id_pairs = pool.map(make_int_ids, chunks)
+        # Grab the set of all ids. We'll use it to identify missing ids.
+        all_seen_ids = set()
+        update_id_pairs = []
+        for chunked_results in id_pairs:
+            for id_, path in chunked_results:
+                if id_ is None:
+                    continue
+
+                all_seen_ids.add(id_)
+
+                if id_ in idx and idx[id_].get(complete_key, False):
+                    continue
+                update_id_pairs.append((id_, path))
+
+        missing = set(idx.keys()) - all_seen_ids
+
+        transformed_data  = pool.map(do_transform, update_id_pairs)
+
+    for id_, data in transformed_data:
         if data is None:
             continue
 
