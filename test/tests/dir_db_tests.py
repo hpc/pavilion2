@@ -61,14 +61,21 @@ class DirDBTests(unittest.PavTestCase):
         # This is already complete, so the entry should never be updated.
         self._make_entry(index_path, 11, d=1)
 
+        print('hrrm')
         idx = dir_db.index(
             id_dir=index_path,
             idx_name='test',
             refresh_period=0,
             transform=entry_transform)
+        print('hrr2m2')
 
+        import pprint
         self.assertEqual(set(idx.keys()), set(entries.keys()))
         for key in idx:
+            print('idx', key)
+            pprint.pprint(idx[key])
+            print('entries', key)
+            pprint.pprint(entries[key])
             self.assertEqual(idx[key], entries[key])
 
         shutil.rmtree(index_path)
