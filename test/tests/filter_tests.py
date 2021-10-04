@@ -262,6 +262,7 @@ class FiltersTest(PavTestCase):
         sort, ascending = filters.get_sort_opts('id', "TEST")
         self.assertTrue(ascending)
         sorted_tests = dir_db.select_from(
+            self.pav_cfg,
             paths=paths,
             transform=test_run_attr_transform,
             order_func=sort, order_asc=ascending).data
@@ -271,6 +272,7 @@ class FiltersTest(PavTestCase):
         sort, ascending = filters.get_sort_opts('-id', "TEST")
         self.assertFalse(ascending)
         sorted_tests = dir_db.select_from(
+            self.pav_cfg,
             paths=paths,
             transform=test_run_attr_transform,
             order_func=sort, order_asc=ascending).data
