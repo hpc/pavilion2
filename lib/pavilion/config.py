@@ -16,10 +16,6 @@ import yaml_config as yc
 
 LOGGER = logging.getLogger('pavilion.' + __file__)
 
-# While we generally use a functional style and pass the pavilion config around,
-# it should almost always be accessible from here as well.
-PAV_CONFIG = None  # type: Union[dict, None]
-
 # Figure out what directories we'll search for the base configuration.
 PAV_CONFIG_SEARCH_DIRS = [Path('./').resolve()]
 
@@ -410,7 +406,8 @@ def add_config_dirs(pav_cfg, setup_working_dirs: bool) -> OrderedDict:
     return configs
 
 
-def find_pavilion_config(target=None, warn=True, setup_working_dirs=True):
+def find_pavilion_config(target: Path = None, warn: bool = True,
+                         setup_working_dirs=True):
     """Search for a pavilion.yaml configuration file. Use the one pointed
 to by the PAV_CONFIG_FILE environment variable. Otherwise, use the first
 found in these directories the default config search paths:
@@ -425,11 +422,6 @@ found in these directories the default config search paths:
          newgrp/umask environment. Test code generally doesn't care, unless you're
          testing the permissions themselves.
 """
-
-    global PAV_CONFIG
-
-    if PAV_CONFIG is not None:
-        return PAV_CONFIG
 
     pav_cfg = None
 
@@ -467,8 +459,6 @@ found in these directories the default config search paths:
         pav_cfg = PavilionConfigLoader().load_empty()
 
     pav_cfg['configs'] = add_config_dirs(pav_cfg, setup_working_dirs)
-
-    PAV_CONFIG = pav_cfg
 
     return pav_cfg
 

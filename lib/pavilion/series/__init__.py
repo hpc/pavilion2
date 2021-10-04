@@ -45,7 +45,7 @@ def list_series_tests(pav_cfg, sid: str):
             "No such test series '{}'. Looked in {}."
             .format(sid, series_path))
 
-    return dir_db.select(series_path).paths
+    return dir_db.select(pav_cfg, series_path).paths
 
 
 def path_from_id(pav_cfg, sid: str):

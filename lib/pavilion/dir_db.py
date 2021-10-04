@@ -1,11 +1,11 @@
 """Manage 'id' directories. The name of the directory is an integer, which
 essentially serves as a filesystem primary key."""
 
-import math
-import pickle
 import json
 import logging
+import math
 import os
+import pickle
 import shutil
 import tempfile
 import time
@@ -13,9 +13,8 @@ from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from pathlib import Path
 from typing import Callable, List, Iterable, Any, Dict, NewType, \
-    Union, NamedTuple, IO
+    Union, NamedTuple, IO, Tuple
 
-from pavilion import config
 from pavilion import lockfile
 from pavilion import output
 
@@ -122,7 +121,8 @@ def identity(value):
     return value
 
 
-def index(id_dir: Path, idx_name: str,
+def index(pav_cfg,
+          id_dir: Path, idx_name: str,
           transform: Callable[[Path], Dict[str, Any]],
           complete_key: str = 'complete',
           refresh_period: int = 1,
@@ -132,6 +132,7 @@ def index(id_dir: Path, idx_name: str,
     transform, and return it. The returned index is a dictionary by id of
     the transformed data.
 
+    :param pav_cfg: The pavilion config.
     :param id_dir: The directory to index.
     :param idx_name: The name of the index.
     :param transform: A transformation function that produces a json
@@ -149,8 +150,6 @@ def index(id_dir: Path, idx_name: str,
     idx_path = (id_dir/idx_name).with_suffix('.pkl')
 
     idx = Index({})
-    idx_db = None
-    print('oh no',flush=True)
 
     # Open and read the index if it exists. Any errors cause the index to
     # regenerate from scratch.
@@ -160,12 +159,11 @@ def index(id_dir: Path, idx_name: str,
             with idx_path.open('rb') as idx_file:
                 idx = pickle.load(idx_file)
         except (OSError, PermissionError, json.JSONDecodeError) as err:
-            print('nope', err)
             # In either error case, start from scratch.
-            LOGGER.warning(
-                "Error reading index at '%s'. Regenerating from "
-                "scratch. %s", idx_path.as_posix(), err.args[0])
-    print('oh yes')
+            output.fprint(
+                "Error reading index at '{}'. Regenerating from "
+                "scratch. {}".format(idx_path.as_posix(), err.args[0]),
+                file=verbose, color=output.GRAY)
 
     if not id_dir.exists():
         return idx
@@ -175,32 +173,32 @@ def index(id_dir: Path, idx_name: str,
 
     files = [file.path for file in os.scandir(id_dir.as_posix())]
 
-    def make_int_ids(paths: Path) -> Union[None, int]:
+    def make_int_ids(paths: List[Path]) -> List[Tuple[int, Path]]:
         """Convert an filename to an integer if we can."""
 
-        results = []
+        id_results = []
 
-        for path in paths:
-            path = Path(path)
+        for id_path in paths:
+            id_path = Path(id_path)
 
             try:
-                results.append((int(path.name, fn_base), path))
-            except ValueError as err:
+                id_results.append((int(id_path.name, fn_base), id_path))
+            except ValueError:
                 pass
 
-        return results
-
+        return id_results
 
     def do_transform(pair):
         """Do the transform on the id and file pair."""
-        id_, file = pair
+
+        tid, file = pair
 
         try:
-            return id_, transform(file)
+            return tid, transform(file)
         except (ValueError, KeyError, TypeError, OSError):
-            return id_, None
+            return tid, None
 
-    thread_max = config.PAV_CONFIG.get('max_threads')
+    thread_max = pav_cfg.get('max_threads')
     with ThreadPoolExecutor(max_workers=thread_max) as pool:
         # This sequence leaves us with a list of id, path pairs that need an index
         # update.
@@ -224,7 +222,7 @@ def index(id_dir: Path, idx_name: str,
 
         missing = set(idx.keys()) - all_seen_ids
 
-        transformed_data  = pool.map(do_transform, update_id_pairs)
+        transformed_data = pool.map(do_transform, update_id_pairs)
 
     for id_, data in transformed_data:
         if data is None:
@@ -242,11 +240,9 @@ def index(id_dir: Path, idx_name: str,
         with tmp_path.open('wb') as tmp_file:
             pickle.dump(idx, tmp_file)
         tmp_path.rename(idx_path)
-    except OSError as err:
-        print('os error', err)
+    except OSError:
         return idx
     except (Exception, KeyboardInterrupt) as err:
-        print("Database failures", err)
         try:
             tmp_path.unlink()
         except OSError:
@@ -296,7 +292,8 @@ def select_one(path, ffunc, trans, ofunc, fnb):
     return item
 
 
-def select(id_dir: Path,
+def select(pav_cfg,
+           id_dir: Path,
            filter_func: Callable[[Any], bool] = default_filter,
            transform: Callable[[Path], Any] = None,
            order_func: Callable[[Any], Any] = None,
@@ -310,6 +307,7 @@ def select(id_dir: Path,
     other parameters. If a transform is given, this will create an index of the
     data returned by the transform to hasten this process.
 
+    :param pav_cfg: The pavilion config.
     :param id_dir: The director
     :param transform: Function to apply to each path before applying filters
         or ordering. The filter and order functions should expect the type
@@ -348,9 +346,8 @@ def select(id_dir: Path,
 
         selected = []
 
-        idx = index(id_dir, index_name, transform,
-                    complete_key=idx_complete_key,
-                    verbose=verbose)
+        idx = index(pav_cfg, id_dir, index_name, transform,
+                    complete_key=idx_complete_key, verbose=verbose)
         for id_, data in idx.items():
             path = make_id_path(id_dir, id_)
 
@@ -370,6 +367,7 @@ def select(id_dir: Path,
                 [item[1] for item in selected][:limit])
     else:
         return select_from(
+            pav_cfg,
             paths=id_dir.iterdir(),
             transform=transform,
             filter_func=filter_func,
@@ -379,7 +377,8 @@ def select(id_dir: Path,
             limit=limit)
 
 
-def select_from(paths: Iterable[Path],
+def select_from(pav_cfg,
+                paths: Iterable[Path],
                 filter_func: Callable[[Any], bool] = default_filter,
                 transform: Callable[[Path], Any] = None,
                 order_func: Callable[[Any], Any] = None,
@@ -389,6 +388,7 @@ def select_from(paths: Iterable[Path],
     """Filter, order, and truncate the given paths based on the filter and
     other parameters.
 
+    :param pav_cfg: The pavilion config.
     :param paths: A list of paths to filter, order, and limit.
     :param transform: Function to apply to each path before applying filters
         or ordering. The filter and order functions should expect the type
@@ -407,7 +407,7 @@ def select_from(paths: Iterable[Path],
     """
 
     paths = list(paths)
-    max_threads = min(config.PAV_CONFIG.get('max_threads', 1), len(paths))
+    max_threads = min(pav_cfg.get('max_threads', 1), len(paths))
 
     selector = partial(select_one, ffunc=filter_func, trans=transform,
                        ofunc=order_func, fnb=fn_base)
@@ -446,10 +446,12 @@ def paths_to_ids(paths: List[Path]) -> List[int]:
     return ids
 
 
-def delete(id_dir: Path, filter_func: Callable[[Path], bool] = default_filter,
+def delete(pav_cfg, id_dir: Path, filter_func: Callable[[Path], bool] = default_filter,
            transform: Callable[[Path], Any] = None,
            verbose: bool = False):
     """Delete all id directories in a given path that match the given filter.
+
+    :param pav_cfg: The pavilion config.
     :param id_dir: The directory to iterate through.
     :param filter_func: A passed filter function, to be passed to select.
     :param transform: As per 'select_from'
@@ -463,7 +465,7 @@ def delete(id_dir: Path, filter_func: Callable[[Path], bool] = default_filter,
 
     lock_path = id_dir.with_suffix('.lock')
     with lockfile.LockFile(lock_path, timeout=1):
-        for path in select(id_dir=id_dir, filter_func=filter_func,
+        for path in select(pav_cfg, id_dir=id_dir, filter_func=filter_func,
                            transform=transform).paths:
             try:
                 shutil.rmtree(path.as_posix())

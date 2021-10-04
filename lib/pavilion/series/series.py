@@ -51,7 +51,7 @@ class LazyTestRunDict(UserDict):
     def find_tests(self, series_path: Path):
         """Find all the tests for the series and add their keys."""
 
-        for path in dir_db.select(series_path, use_index=False).paths:
+        for path in dir_db.select(self._pav_cfg, series_path, use_index=False).paths:
             if not path.is_symlink():
                 continue
 

@@ -7,7 +7,7 @@ from typing import List
 from pavilion import dir_db
 from pavilion import filters
 from pavilion import output
-from pavilion.series.info import SeriesInfo, series_info_transform
+from pavilion.series.info import SeriesInfo, mk_series_info_transform
 from pavilion.series import TestSeriesError, list_series_tests
 from pavilion.test_run import TestAttributes, test_run_attr_transform
 from .base_classes import Command, sub_cmd
@@ -249,6 +249,7 @@ class ListCommand(Command):
                         color=output.RED, file=self.errfile)
                     return errno.EINVAL
             runs = dir_db.select_from(
+                pav_cfg,
                 paths=picked_runs,
                 transform=test_run_attr_transform,
                 filter_func=filter_func,
@@ -258,6 +259,7 @@ class ListCommand(Command):
             ).data
         else:
             runs = dir_db.select(
+                pav_cfg,
                 id_dir=pav_cfg.working_dir/'test_runs',
                 transform=test_run_attr_transform,
                 filter_func=filter_func,
@@ -312,9 +314,10 @@ class ListCommand(Command):
         series_order, ascending = filters.get_sort_opts(args.sort_by, "SERIES")
 
         series = dir_db.select(
+            pav_cfg,
             id_dir=pav_cfg.working_dir/'series',
             filter_func=series_filter,
-            transform=series_info_transform,
+            transform=mk_series_info_transform(pav_cfg),
             order_func=series_order,
             order_asc=ascending,
         ).data

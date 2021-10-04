@@ -16,12 +16,12 @@ class SeriesInfo:
     of properties for a given series path. It should be replaced with
     something like TestAttributes in the future."""
 
-    def __init__(self, path: Path):
+    def __init__(self, pav_cfg, path: Path):
 
         self.path = path
 
         self._complete = None
-        self._tests = [tpath for tpath in dir_db.select(self.path).paths]
+        self._tests = [tpath for tpath in dir_db.select(pav_cfg, self.path).paths]
 
     @classmethod
     def list_attrs(cls):
@@ -94,11 +94,19 @@ class SeriesInfo:
 
         return TestAttributes(self._tests[0]).sys_name
 
-
 def series_info_transform(path):
-    """Transform a path into a series info dict."""
+    pass
 
-    return SeriesInfo(path).attr_dict()
+
+def mk_series_info_transform(pav_cfg):
+    """Create and return a series info transform function."""
+
+    def series_info_transform(path):
+        """Transform a path into a series info dict."""
+
+        return SeriesInfo(pav_cfg, path).attr_dict()
+
+    return series_info_transform
 
 
 def path_to_sid(series_path: Path):
