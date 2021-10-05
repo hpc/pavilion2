@@ -32,7 +32,7 @@ from io import BytesIO
 from typing import List, Union
 
 
-class TestStatusError(RuntimeError):
+class StatusError(RuntimeError):
     """Error raised by any status file related problems."""
 
 
@@ -118,7 +118,7 @@ class TestStatesStruct(StatesStruct):
     # name, as the instance values of these attributes will be changed and
     # the help stored elsewhere.
     CREATED = "The test object/directory is being created."
-    ABORTED = "The test run was aborted, through no fault of it's own."
+    ABORTED = "Aborted, through no fault of it's own."
     CREATION_ERROR = "The test object/directory could not be created."
     SCHEDULED = "The test has been scheduled with a scheduler."
     SCHED_ERROR = "There was a scheduler related error."
@@ -155,6 +155,7 @@ class SeriesStatesStruct(StatesStruct):
     # to the help/usage for that state. States will end up comparing by key
     # name, as the instance values of these attributes will be changed and
     # the help stored elsewhere.
+    ABORTED = "Aborted, through no fault of it's own."
     CREATED = "The series object/directory is being created."
     CREATION_ERROR = "The test object/directory could not be created."
     SET_CREATED = "For when test sets are created."
@@ -162,7 +163,7 @@ class SeriesStatesStruct(StatesStruct):
     SET_BUILD = "For when test sets are building."
     SET_KICKOFF = "For when test sets are being kicked off."
     SKIPPED = "For logging when tests are skipped."
-    RUN = "Running the "
+    RUN = "Running the series."
     ERROR = "General (fatal) error status."
     COMPLETE = "For when the test is completely complete."
 

@@ -17,7 +17,7 @@ from pavilion import utils
 from pavilion.lockfile import LockFile
 from pavilion.output import fprint
 from pavilion.series_config import SeriesConfigLoader
-from pavilion.status_file import STATES
+from pavilion.status_file import STATES, SeriesStatusFile, SERIES_STATES
 from pavilion.test_run import TestRun, ID_Pair
 from yaml_config import YAMLError, RequiredError
 from .errors import TestSeriesError, TestSeriesWarning
@@ -77,12 +77,13 @@ class TestSeries:
     the series as specified by its config, or when an error occurs. Series are
     identified by a 'sid', which takes the form 's<id_num>'."""
 
-    LOGGER_FMT = 'series({})'
     COMPLETE_FN = 'SERIES_COMPLETE'
-    PGID_FN = 'series.pgid'
-    OUT_FN = 'series.out'
     CONFIG_FN = 'config'
     DEPENDENCY_FN = 'dependency'
+    LOGGER_FMT = 'series({})'
+    OUT_FN = 'series.out'
+    PGID_FN = 'series.pgid'
+    STATUS_FN = 'status'
 
     def __init__(self, pav_cfg, config, _id=None):
         """Initialize the series. Test sets may be added via 'add_tests()'.
@@ -122,15 +123,20 @@ class TestSeries:
 
             # Update user.json to record last series run per sys_name
             self._save_series_id()
+            self.status = SeriesStatusFile(self.path/self.STATUS_FN)
+            self.status.set(SERIES_STATES.CREATED, "Created series.")
 
         # We're not creating this from scratch (an object was made ahead of
         # time).
         else:
             self._id = _id
             self.path = dir_db.make_id_path(series_path, self._id)
+            self.status = SeriesStatusFile(self.path/self.STATUS_FN)
 
     def run_background(self):
         """Run pav _series in background using subprocess module."""
+
+        self.status.set(SERIES_STATES.RUN, "Running in background.")
 
         # start subprocess
         temp_args = ['pav', '_series', self.sid]
@@ -268,6 +274,7 @@ differentiate it from test ids."""
                 not_if=set_info['not_if'],
                 parents_must_pass=set_info['depends_pass'],
                 overrides=self.config['overrides'],
+                status=self.status,
             )
             self._add_test_set(set_obj)
 
@@ -334,6 +341,8 @@ differentiate it from test ids."""
         """Goes through all test objects assigned to series and cancels tests
         that haven't been completed. """
 
+        self.status.set(SERIES_STATES.ABORTED, "Series cancelled: {}".format(message))
+
         for test_obj in self.tests.values():
             if test_obj.complete:
                 sched = schedulers.get_plugin(test_obj.scheduler)
@@ -355,6 +364,8 @@ differentiate it from test ids."""
         :param outfile: The outfile to write status info to.
         :return:
         """
+
+        self.status.set(SERIES_STATES.RUN, "Series running.")
 
         if outfile is None:
             outfile = open('/dev/null', 'w')
@@ -449,6 +460,8 @@ differentiate it from test ids."""
                 self._create_test_sets()
                 potential_sets = list(self.test_sets.values())
 
+        self.status.set(SERIES_STATES.RUN, "Series run complete.")
+
     def wait(self, timeout=None):
         """Wait for the series to be complete or the timeout to expire. """
 
@@ -465,6 +478,8 @@ differentiate it from test ids."""
     def complete(self) -> bool:
         """Check if every test in the series has completed. A series is incomplete if
         no tests have been created."""
+
+        self.status.set(SERIES_STATES.COMPLETE, "Series has completed.")
 
         if (self.path/self.COMPLETE_FN).exists():
             return True

@@ -189,7 +189,7 @@ class TestAttributes:
         base RunAttributes class, so it won't contain anything from child
         classes."""
 
-        attrs = []
+        attrs = ['path']
         for key, val in TestAttributes.__dict__.items():
             if key in cls.LIST_ATTRS_EXCEPTIONS:
                 continue
@@ -211,6 +211,7 @@ class TestAttributes:
                 attrs[key] = val
 
         attrs['complete'] = self.complete
+        attrs['path'] = self.path.as_posix()
 
         return attrs
 
