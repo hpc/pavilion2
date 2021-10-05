@@ -187,9 +187,9 @@ class TestAttributes:
     def list_attrs(cls):
         """List the available attributes. This always operates on the
         base RunAttributes class, so it won't contain anything from child
-        classes."""
+        classes. It should return only attributes to be saved. """
 
-        attrs = ['path']
+        attrs = []
         for key, val in TestAttributes.__dict__.items():
             if key in cls.LIST_ATTRS_EXCEPTIONS:
                 continue

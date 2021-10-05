@@ -247,7 +247,7 @@ class TestStatusInfo:
 class SeriesStatusInfo(TestStatusInfo):
     """A status info object, except for series."""
 
-    status_obj = SERIES_STATES
+    states_obj = SERIES_STATES
 
 
 class TestStatusFile:

@@ -22,6 +22,7 @@ from pavilion.test_run import TestRun, ID_Pair
 from yaml_config import YAMLError, RequiredError
 from .errors import TestSeriesError, TestSeriesWarning
 from .test_set import TestSet, TestSetError
+from .info import SeriesInfo
 
 
 class LazyTestRunDict(UserDict):
@@ -269,11 +270,11 @@ differentiate it from test ids."""
                 name=set_name,
                 test_names=set_info['tests'],
                 modes=universal_modes + set_info['modes'],
-                host=self.config['host'],
+                host=self.config.get('host'),
                 only_if=set_info['only_if'],
                 not_if=set_info['not_if'],
                 parents_must_pass=set_info['depends_pass'],
-                overrides=self.config['overrides'],
+                overrides=self.config.get('overrides', []),
                 status=self.status,
             )
             self._add_test_set(set_obj)
@@ -503,6 +504,13 @@ differentiate it from test ids."""
             json.dump({'complete': time.time()}, series_complete)
 
         series_complete_path_tmp.rename(series_complete_path)
+
+    def info(self) -> SeriesInfo:
+        """Return the series info object for this test. Note that this is super
+        inefficient - the series info object exists to get series info without
+        loading the series."""
+
+        return SeriesInfo(self.pav_cfg, self.path)
 
     @property
     def pgid(self) -> Union[int, None]:

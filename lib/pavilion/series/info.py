@@ -32,8 +32,6 @@ class SeriesInfo:
             if isinstance(val, property)
         ]
 
-        attrs.append('path')
-
         return attrs
 
     def attr_dict(self):
@@ -41,6 +39,7 @@ class SeriesInfo:
 
         attr_dict = {key: getattr(self, key) for key in self.list_attrs()}
         attr_dict['path'] = self.path.as_posix()
+        return attr_dict
 
     @classmethod
     def attr_doc(cls, attr):

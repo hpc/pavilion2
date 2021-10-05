@@ -20,7 +20,7 @@ LOCAL_SYS_NAME = '<local_sys_name>'
 TEST_FILTER_DEFAULTS = {
     'complete': False,
     'failed': False,
-    'has-state': None,
+    'has_state': None,
     'incomplete': False,
     'name': None,
     'newer_than': time.time() - dt.timedelta(days=1).total_seconds(),
@@ -318,10 +318,10 @@ def filter_test_run(
 
 
 def make_test_run_filter(
-        complete: bool = False, failed: bool = False, incomplete: bool = False,
-        name: str = None,
+        complete: bool = False, failed: bool = False, has_state: str = None,
+        incomplete: bool = False, name: str = None,
         newer_than: float = None, older_than: float = None,
-        passed: bool = False, result_error: bool = False,
+        passed: bool = False, result_error: bool = False, state: str = None,
         sys_name: str = None, user: str = None):
     """Generate a filter function for use by dir_db.select and similar
     functions. This operates on TestAttribute objects, so make sure to
@@ -346,9 +346,10 @@ def make_test_run_filter(
 
     filter_func = partial(
         filter_test_run,
-        complete=complete, failed=failed, incomplete=incomplete, name=name,
+        complete=complete, failed=failed, has_state=has_state,
+        incomplete=incomplete, name=name,
         newer_than=newer_than, older_than=older_than, passed=passed,
-        result_error=result_error, sys_name=sys_name,
+        result_error=result_error, state=state, sys_name=sys_name,
         user=user)
 
     return filter_func
@@ -375,12 +376,14 @@ def get_sort_opts(
 
 
 SERIES_FILTER_DEFAULTS = {
-    'limit': None,
-    'sort_by': '-created',
     'complete': False,
+    'has_state': None,
     'incomplete': False,
+    'limit': None,
     'newer_than': time.time() - dt.timedelta(days=1).total_seconds(),
     'older_than': None,
+    'sort_by': '-created',
+    'state': None,
     'sys_name': LOCAL_SYS_NAME,
     'user': utils.get_login(),
 }
@@ -434,13 +437,13 @@ def make_series_filter(complete: bool = False, has_state: str = None,
             series_status_path = Path(series['path'])/TestSeries.STATUS_FN
             try:
                 series_status = SeriesStatusFile(series_status_path)
-            except StatusError:
+            except StatusError as err:
                 # Couldn't get a status to check.
                 return False
 
             if state and not state.upper() == series_status.current().state:
                 return False
-            elif has_state and series_status.has_state(has_state):
+            elif has_state and not series_status.has_state(has_state):
                 return False
 
         return True
