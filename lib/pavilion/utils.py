@@ -8,13 +8,11 @@ import datetime as dt
 import errno
 import os
 import re
+import shutil
 import subprocess
-import textwrap
 import zipfile
 from pathlib import Path
-from typing import Iterator, Union, TextIO, Callable
-import shutil
-import stat
+from typing import Iterator, Union, List
 
 
 def str_bool(val):
@@ -479,25 +477,27 @@ def auto_type_convert(value):
 class IndentedLog:
     """A logging object for writing indented, easy to follow logs."""
 
-    def __init__(self, log_file: Union[TextIO, None] = None):
+    INDENT = '  '
 
-        self._indent = 0
-        self._file = log_file
+    def __init__(self):
 
-    @property
-    def indent(self):
-        """The level of indentation for logged items."""
-        return self._indent
-
-    @indent.setter
-    def indent(self, val):
-        self._indent = val
+        self.lines = []
 
     def __call__(self, msg):
         """Write the message to log with the set indentation level."""
 
-        if self._file is None:
-            return
+        self.lines.append(msg)
 
-        self._file.write(textwrap.indent(msg, "  " * self._indent))
-        self._file.write('\n')
+    def save(self, path: Path):
+        """Save the log to the given path."""
+
+        with path.open('w') as file:
+            for line in self.lines:
+                file.write(line)
+                file.write('\n')
+
+    def extend(self, lines: List[str]):
+        """Extend the log with the given lines, indenting them one level."""
+
+        for line in lines:
+            self.lines.append(self.INDENT + line)

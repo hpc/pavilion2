@@ -715,7 +715,7 @@ of result keys.
                             .format(len(parser_configs)))
 
         try:
-            result.parse_results(self, results, log=result_log)
+            result.parse_results(self._pav_cfg, self, results, log=result_log)
         except pavilion.result.common.ResultError as err:
             results['result'] = self.ERROR
             results['pav_result_errors'].append(

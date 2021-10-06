@@ -308,7 +308,7 @@ deferred args. On error, should raise a ResultParserError.
                 "How to save results for multiple file matches.\n"
                 "{FIRST} - (default) The result from the first file with a \n"
                 "  non-empty result. If no files were found, this is \n"
-                "  considerd an error. (default)\n"
+                "  considered an error. (default)\n"
                 "{LAST} - As '{FIRST}', but last result.\n"
                 "{NAME} - Store the results on a per file basis under \n"
                 "  results['per_name'][<filename>][<key>]. The \n"
@@ -570,3 +570,8 @@ In this case it:
 
         # Remove from list of available result parsers.
         del _RESULT_PARSERS[self.name]
+
+    def __call__(self, *args, **kwargs):
+        """Override with the result parser function."""
+
+        raise NotImplementedError
