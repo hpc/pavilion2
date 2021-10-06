@@ -5,7 +5,7 @@ from pavilion import arguments
 from pavilion import commands
 from pavilion import plugins
 from pavilion.test_run import TestAttributes
-from pavilion.series import TestSeries
+from pavilion.series.series import TestSeries
 from pavilion.unittest import PavTestCase
 
 
@@ -35,7 +35,7 @@ class ListCmdTest(PavTestCase):
             if i % 2 == 0:
                 test.result = test.PASS
             if i % 3 == 0:
-                test.complete = True
+                test.set_run_complete()
             test.save_attributes()
 
             tests.append(test)
@@ -43,10 +43,7 @@ class ListCmdTest(PavTestCase):
         series = []
         for i in range(0, 30, 5):
             time.sleep(0.01)
-            series.append(TestSeries(
-                pav_cfg=self.pav_cfg,
-                tests=tests[i:i+5]
-            ))
+            series.append(TestSeries(pav_cfg=self.pav_cfg, config={}))
 
         parser = arguments.get_parser()
 

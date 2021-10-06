@@ -15,7 +15,7 @@ from pavilion import result
 from pavilion import result_utils
 from pavilion.status_file import STATES
 from pavilion.test_config import resolver
-from pavilion.test_run import (TestRun, TestRunError, TestRunNotFoundError)
+from pavilion.test_run import (TestRun)
 
 
 class ResultsCommand(commands.Command):
@@ -79,21 +79,18 @@ class ResultsCommand(commands.Command):
     def run(self, pav_cfg, args):
         """Print the test results in a variety of formats."""
 
-        test_ids = cmd_utils.arg_filtered_tests(pav_cfg, args, verbose=self.errfile)
+        test_paths = cmd_utils.arg_filtered_tests(pav_cfg, args, verbose=self.errfile)
+        tests = cmd_utils.get_tests_by_paths(pav_cfg, test_paths, self.errfile)
 
         log_file = None
         if args.show_log and args.re_run:
             log_file = io.StringIO()
 
         if args.re_run:
-            if not self.update_results(pav_cfg, test_ids, log_file):
+            if not self.update_results(pav_cfg, tests, log_file, save=args.save):
                 return errno.EINVAL
 
-        if args.save:
-            if not self.update_results(pav_cfg, test_ids, log_file, save=True):
-                return errno.EINVAL
-
-        results = result_utils.get_results(pav_cfg, test_ids, self.errfile)
+        results = result_utils.get_results(tests)
 
         if args.json or args.full:
             if not results:
@@ -148,7 +145,7 @@ class ResultsCommand(commands.Command):
 
         return 0
 
-    def update_results(self, pav_cfg: dict, test_ids: List[int],
+    def update_results(self, pav_cfg: dict, tests: List[TestRun],
                        log_file: IO[str], save: bool = False) -> bool:
         """Update each of the given tests with the result section from the
         current version of their configs. Then rerun result processing and
@@ -165,8 +162,7 @@ class ResultsCommand(commands.Command):
 
         reslvr = resolver.TestConfigResolver(pav_cfg)
 
-        for test_id in test_ids:
-            test = TestRun.load(pav_cfg, test_id)
+        for test in tests:
 
             # Re-load the raw config using the saved name, host, and modes
             # of the original test.

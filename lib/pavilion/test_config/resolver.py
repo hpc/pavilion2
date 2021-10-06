@@ -13,7 +13,8 @@ import logging
 import os
 import re
 from collections import defaultdict
-from typing import List, IO
+from typing import List, IO, Union
+from pathlib import Path
 
 import yc_yaml
 from pavilion import output
@@ -101,6 +102,12 @@ class TestConfigResolver:
                 "Could not find scheduler '{}'"
                 .format(scheduler))
 
+        if not sched.available():
+            raise TestConfigError(
+                "Scheduler '{}' is not available on this system"
+                .format(sched.name)
+            )
+
         try:
             sched_vars = sched.get_vars(raw_test_cfg.get(scheduler, {}))
             var_man.add_var_set('sched', sched_vars)
@@ -115,22 +122,21 @@ class TestConfigResolver:
 
         return var_man
 
-    def find_config(self, conf_type, conf_name):
+    def find_config(self, conf_type, conf_name) -> (str, Path):
         """Search all of the known configuration directories for a config of the
         given type and name.
 
         :param str conf_type: 'host', 'mode', or 'test'
         :param str conf_name: The name of the config (without a file extension).
-        :rtype: Path
-        :return: The path to the first matching config found, or None if one
-            wasn't found.
+        :return: A tuple of the config label under which a matching config was found
+            and the path to that config. If nothing was found, returns (None, None).
         """
-        for conf_dir in self.pav_cfg.config_dirs:
-            path = conf_dir/conf_type/'{}.yaml'.format(conf_name)
+        for label, config in self.pav_cfg.configs.items():
+            path = config['path']/conf_type/'{}.yaml'.format(conf_name)
             if path.exists():
-                return path
+                return label, path
 
-        return None
+        return None, None
 
     def find_all_tests(self):
         """Find all the tests within known config directories.
@@ -142,6 +148,7 @@ class TestConfigResolver:
 
         suite_name -> {
             'path': Path to the suite file.
+            'label': Config dir label.
             'err': Error loading suite file.
             'supersedes': [superseded_suite_files]
             'tests': name -> {
@@ -153,8 +160,8 @@ class TestConfigResolver:
 
         suites = {}
 
-        for conf_dir in self.pav_cfg.config_dirs:
-            path = conf_dir/'tests'
+        for label, config in self.pav_cfg.configs.items():
+            path = config['path']/'tests'
 
             if not (path.exists() and path.is_dir()):
                 continue
@@ -168,6 +175,7 @@ class TestConfigResolver:
                     if suite_name not in suites:
                         suites[suite_name] = {
                             'path': file,
+                            'label': label,
                             'err': '',
                             'tests': {},
                             'supersedes': [],
@@ -237,8 +245,8 @@ class TestConfigResolver:
         """
 
         configs = {}
-        for conf_dir in self.pav_cfg.config_dirs:
-            path = conf_dir / conf_type
+        for config in self.pav_cfg.configs.values():
+            path = config['path'] / conf_type
 
             if not (path.exists() and path.is_dir()):
                 continue
@@ -486,7 +494,7 @@ class TestConfigResolver:
 
             # Only load each test suite's tests once.
             if test_suite not in all_tests:
-                test_suite_path = self.find_config(CONF_TEST, test_suite)
+                cfg_label, test_suite_path = self.find_config(CONF_TEST, test_suite)
 
                 if test_suite_path is None:
                     if test_suite == 'log':
@@ -495,7 +503,7 @@ class TestConfigResolver:
                             "trying to get the run log, use the 'pav log run "
                             "<testid>' command.")
 
-                    cdirs = [str(cdir) for cdir in self.pav_cfg.config_dirs]
+                    cdirs = [str(cfg['path']) for cfg in self.pav_cfg.configs.values()]
                     raise TestConfigError(
                         "Could not find test suite {}. Looked in these "
                         "locations: {}"
@@ -542,6 +550,9 @@ class TestConfigResolver:
                 # Add some basic information to each test config.
                 for test_cfg_name, test_cfg in suite_tests.items():
                     test_cfg['name'] = test_cfg_name
+                    test_cfg['cfg_label'] = cfg_label
+                    working_dir = self.pav_cfg['configs'][cfg_label]['working_dir']
+                    test_cfg['working_dir'] = working_dir.as_posix()
                     test_cfg['suite'] = test_suite
                     test_cfg['suite_path'] = str(test_suite_path)
                     test_cfg['host'] = host
@@ -647,7 +658,7 @@ class TestConfigResolver:
         test_config_loader = TestConfigLoader()
 
         if host is not None:
-            host_cfg_path = self.find_config(CONF_HOST, host)
+            _, host_cfg_path = self.find_config(CONF_HOST, host)
 
             if host_cfg_path is not None:
                 try:
@@ -693,7 +704,7 @@ class TestConfigResolver:
         test_config_loader = TestConfigLoader()
 
         for mode in modes:
-            mode_cfg_path = self.find_config(CONF_MODE, mode)
+            _, mode_cfg_path = self.find_config(CONF_MODE, mode)
 
             if mode_cfg_path is None:
                 raise TestConfigError(

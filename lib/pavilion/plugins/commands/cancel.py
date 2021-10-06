@@ -8,7 +8,6 @@ from pavilion import commands
 from pavilion import output
 from pavilion import schedulers
 from pavilion import series
-from pavilion import series_util
 from pavilion.status_file import STATES
 from pavilion.status_utils import print_from_tests
 from pavilion.test_run import TestRun, TestRunError
@@ -64,7 +63,7 @@ class CancelCommand(commands.Command):
                             args.tests.append(test_id)
             else:
                 # Get the last series ran by this user.
-                series_id = series_util.load_user_series_id(pav_cfg)
+                series_id = series.load_user_series_id(pav_cfg)
                 if series_id is not None:
                     args.tests.append(series_id)
 
@@ -72,11 +71,10 @@ class CancelCommand(commands.Command):
         for test_id in args.tests:
             if test_id.startswith('s'):
                 try:
-                    series_pgid = series.TestSeries.get_pgid(pav_cfg, test_id)
-                    test_list.extend(series.TestSeries.from_id(pav_cfg,
-                                                               test_id)
-                                     .tests)
-                except series_util.TestSeriesError as err:
+                    test_series = series.TestSeries.load(pav_cfg, test_id)
+                    series_pgid = test_series.pgid
+                    test_list.extend(test_series.tests.values())
+                except series.errors.TestSeriesError as err:
                     output.fprint(
                         "Series {} could not be found.\n{}"
                         .format(test_id, err.args[0]),
@@ -103,20 +101,18 @@ class CancelCommand(commands.Command):
                                   color=output.RED, file=self.errfile)
             else:
                 try:
-                    test_list.append(int(test_id))
-                except ValueError as err:
+                    test_list.append(TestRun.load_from_raw_id(pav_cfg, test_id))
+                except TestRunError as err:
                     output.fprint(
-                        "Test {} is not a valid test.\n{}".format(test_id,
-                                                                  err),
+                        "Test {} is not a valid test.\n{}".format(test_id, err),
                         file=self.errfile, color=output.RED
                     )
                     return errno.EINVAL
 
         cancel_failed = False
         test_object_list = []
-        for test_id in test_list:
+        for test in test_list:
             try:
-                test = TestRun.load(pav_cfg, test_id)
                 sched = schedulers.get_plugin(test.scheduler)
                 test_object_list.append(test)
 
@@ -133,7 +129,7 @@ class CancelCommand(commands.Command):
                     test.set_run_complete()
                     output.fprint(
                         "Test {} cancelled."
-                        .format(test_id), file=self.outfile,
+                        .format(test.id), file=self.outfile,
                         color=output.GREEN)
 
                 else:

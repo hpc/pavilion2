@@ -46,7 +46,7 @@ __all__ = [
 
 
 class PluginError(RuntimeError):
-    pass
+    """General Plugin Error"""
 
 
 def initialize_plugins(pav_cfg):
@@ -69,8 +69,9 @@ def initialize_plugins(pav_cfg):
     # Always look here for plugins
     plugin_dirs = [Path(__file__).parent.as_posix()]
     # And in all the user provided plugin directories.
-    for cfg_dir in pav_cfg.config_dirs:
-        plugin_dirs.append((cfg_dir/'plugins').as_posix())
+    for config in pav_cfg.configs.values():
+        if (config['path']/'plugins').exists():
+            plugin_dirs.append((config['path']/'plugins').as_posix())
 
     try:
         pman = PluginManager.PluginManager(directories_list=plugin_dirs,

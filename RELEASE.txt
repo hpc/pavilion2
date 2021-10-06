@@ -4,6 +4,27 @@ RELEASE=2.3
 
 # Release History
 
+## 2.4 Pre-release Notes
+ - Tests now have id's of the form '<label>.<id>'. The default label is 'main', 
+   so tests your 'main' (PAV_CONFIG_DIR defined) pavilion config directory
+   can leave off the label. Labels aren't saved, but determined when configs
+   are loaded.
+ - Every config directory can now have a 'config.yaml' that sets the label for tests
+   built from that config directory, as well as the working_directory for tests created 
+   from those configs. If this does not exist, a default label is applied to the tests, 
+   and the general pavilion.yaml defined working directory is used.
+ - Pavilion has removed all permissions management, except to operate with 'shared_group' as
+   the default group. Given multiple working directories, it is now up to the user
+   to set sticky bits on those directories if specific permissions are desired for those tests.
+ - Test series files now have a 'repeat' config item, to specify the number of times the tests
+   in the series should be repeated.
+
+ - Backwards compatibility breaks
+   - Tests can no longer have skip conditions that are deferred.
+   - The '--wait' argument of the run command has been removed.
+   - Tests can no longer set test specific group and permissions
+   - The 'restart' test series config item is no longer supported.
+
 ## 2.3 Release Notes
  - Added 'flatten_results' option to the base Pavilion config. Allows for
    producing a separate result log line for each 'per_file' result, making

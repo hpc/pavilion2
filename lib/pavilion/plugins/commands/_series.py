@@ -1,6 +1,11 @@
 """Runs a process that manages series and their dependencies."""
 
+import signal
+import sys
+
+import pavilion.series.errors
 from pavilion import commands
+from pavilion import output
 from pavilion import series
 
 
@@ -25,11 +30,27 @@ class AutoSeries(commands.Command):
         """Loads series object from directory and runs series."""
 
         # load series obj
-        series_obj = series.TestSeries.from_id(
-            pav_cfg, args.series_id,
-            outfile=self.outfile, errfile=self.errfile)
+        try:
+            series_obj = series.TestSeries.load(pav_cfg, args.series_id)
+        except pavilion.series.errors.TestSeriesError as err:
+            output.fprint("Error in _series cmd: {}".format(err.args[0]))
+            sys.exit(1)
 
-        # call function to actually run series
-        series_obj.run_series()
+        # handles SIGTERM (15) signal
+        def sigterm_handler(_signals, _frame_type):
+            """Calls cancel_series and exists."""
+
+            series_obj.cancel(message="Series killed by SIGTERM.")
+            sys.exit(1)
+
+        signal.signal(signal.SIGTERM, sigterm_handler)
+
+        try:
+            # call function to actually run series
+            series_obj.run(outfile=self.outfile)
+        except pavilion.series.errors.TestSeriesError as err:
+            output.fprint("Error while running series '{}'. {}"
+                          .format(args.series, err.args[0]),
+                          file=self.errfile)
 
         return 0

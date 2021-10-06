@@ -1,9 +1,6 @@
 import io
-import os
-from pathlib import Path
 
 from pavilion import plugins
-from pavilion.series import TestSeries
 from pavilion.test_config import VariableSetManager, TestConfigResolver
 from pavilion.test_run import TestRunError, TestRun
 from pavilion.unittest import PavTestCase
@@ -18,7 +15,6 @@ class TestRunTests(PavTestCase):
         config = {
             # The only required param.
             'name': 'blank_test',
-
             'scheduler': 'raw',
         }
 
@@ -43,11 +39,12 @@ class TestRunTests(PavTestCase):
         }
 
         # Make sure we can create a test from a fairly populated config.
-        t = TestRun(self.pav_cfg, config)
-        t.build()
+        orig = TestRun(self.pav_cfg, config)
+        orig.save()
+        orig.build()
 
         # Make sure we can recreate the object from id.
-        t2 = TestRun.load(self.pav_cfg, t.id)
+        loaded = TestRun.load(self.pav_cfg, orig.working_dir, orig.id)
 
         # Make sure the objects are identical
         # This tests the following functions
@@ -55,17 +52,18 @@ class TestRunTests(PavTestCase):
         #  - save_config, load_config
         #  - get_test_path
         #  - write_tmpl
-        for key in set(t.__dict__.keys()).union(t2.__dict__.keys()):
-            val1 = t.__dict__[key]
-            val2 = t2.__dict__[key]
+        for key in set(orig.__dict__.keys()).union(loaded.__dict__.keys()):
+            orig_val = orig.__dict__[key]
+            loaded_val = loaded.__dict__[key]
             self.assertEqual(
-                val1, val2,
-                msg="Mismatch for key {}.\n{}\n{}".format(key, val1, val2))
+                orig_val, loaded_val,
+                msg="Mismatch for key {}.\n{}\n{}".format(key, orig_val, loaded_val))
 
     def test_run(self):
         config1 = {
             'name': 'run_test',
             'scheduler': 'raw',
+            'cfg_label': 'test',
             'build': {
                 'timeout': '30',
                 },
@@ -80,6 +78,7 @@ class TestRunTests(PavTestCase):
         }
 
         test = TestRun(self.pav_cfg, config1)
+        test.save()
         self.assert_(test.build())
 
         TestConfigResolver.finalize(test, VariableSetManager())
@@ -90,6 +89,7 @@ class TestRunTests(PavTestCase):
         config2['run']['modules'] = ['asdlfkjae', 'adjwerloijeflkasd']
 
         test = TestRun(self.pav_cfg, config2)
+        test.save()
         self.assert_(test.build())
 
         TestConfigResolver.finalize(test, VariableSetManager())
@@ -112,6 +112,7 @@ class TestRunTests(PavTestCase):
         }
 
         test = TestRun(self.pav_cfg, config3)
+        test.save()
         self.assertTrue(test.build())
         TestConfigResolver.finalize(test, VariableSetManager())
         with self.assertRaises(TimeoutError,
@@ -192,43 +193,5 @@ class TestRunTests(PavTestCase):
             config['build']['source_path'] = 'file_tests.tgz'
             config['build']['create_files'] = file_arg
             test = TestRun(self.pav_cfg, config)
+            test.save()
             self.assertFalse(test.build())
-
-    def test_suites(self):
-        """Test suite creation and regeneration."""
-
-        config1 = {
-            'name': 'run_test',
-            'scheduler': 'raw',
-            'run': {
-                'env': {
-                    'foo': 'bar',
-                },
-                #
-                'cmds': ['echo "I ran, punks"'],
-            },
-        }
-
-        tests = []
-        for i in range(3):
-            tests.append(TestRun(self.pav_cfg, config1))
-
-        # Make sure this doesn't explode
-        series = TestSeries(self.pav_cfg, tests)
-
-        # Make sure we got all the tests
-        self.assertEqual(len(series.tests), 3)
-        test_paths = [Path(series.path, p)
-                      for p in os.listdir(str(series.path))]
-        # And that the test paths are unique
-        self.assertEqual(len(set(test_paths)),
-                         len([p.resolve() for p in test_paths]))
-
-        series2 = TestSeries.from_id(self.pav_cfg, series.sid)
-        self.assertEqual(sorted(series.tests.keys()),
-                         sorted(series2.tests.keys()))
-        self.assertEqual(sorted([t.id for t in series.tests.values()]),
-                         sorted([t.id for t in series2.tests.values()]))
-
-        self.assertEqual(series.path, series2.path)
-        self.assertEqual(series.sid, series2.sid)

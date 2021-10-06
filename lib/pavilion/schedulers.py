@@ -4,7 +4,6 @@ mechanisms to Pavilion.
 
 # pylint: disable=no-self-use
 
-import datetime
 import inspect
 import logging
 import os
@@ -13,7 +12,6 @@ from functools import wraps
 from pathlib import Path
 
 from pavilion import scriptcomposer
-from pavilion.permissions import PermissionsManager
 from pavilion.lockfile import LockFile
 from pavilion.status_file import STATES, StatusInfo
 from pavilion.test_config import file_format
@@ -535,11 +533,10 @@ class SchedulerPlugin(IPlugin.IPlugin):
             script.command(command)
 
         # Run the test via pavilion
-        script.command('pav _run {t.id}'.format(t=test_obj))
+        script.command('pav _run {t.working_dir} {t.id}'.format(t=test_obj))
 
         path = self._kickoff_script_path(test_obj)
-        with PermissionsManager(path, test_obj.group, test_obj.umask):
-            script.write(path)
+        script.write(path)
 
         return path
 
@@ -557,7 +554,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
         script.comment("Within the allocation, run the command.")
         script.command(test.run_cmd())
 
-    def cancel_job(self, test):
+    def cancel_job(self, test) -> StatusInfo:
         """Tell the scheduler to cancel the given test, if it can. This should
         simply try it's best for the test given, and note in the test status
         (with a SCHED_ERROR) if there were problems. Update the test status to
@@ -576,7 +573,9 @@ class SchedulerPlugin(IPlugin.IPlugin):
             return test.status.set(STATES.SCHED_CANCELLED,
                                    "Job was never started.")
 
-        return self._cancel_job(test)
+        cancel_result = self._cancel_job(test)
+        test.set_run_complete()
+        return cancel_result
 
     def _cancel_job(self, test):
         """Override in scheduler plugins to handle cancelling a job.

@@ -2,12 +2,12 @@
 environment."""
 
 import traceback
+from pathlib import Path
 
 from pavilion import commands
 from pavilion import result
 from pavilion import schedulers
 from pavilion import system_variables
-from pavilion.permissions import PermissionsManager
 from pavilion.status_file import STATES
 from pavilion.test_config import VariableSetManager, TestConfigResolver
 from pavilion.test_run import TestRun, TestRunError
@@ -25,6 +25,11 @@ class _RunCommand(commands.Command):
     def _setup_arguments(self, parser):
 
         parser.add_argument(
+            'working_dir', action='store', type=Path,
+            help='Working directory in which this test run resides.'
+        )
+
+        parser.add_argument(
             'test_id', action='store', type=int,
             help='The id of the test to run.')
 
@@ -32,7 +37,8 @@ class _RunCommand(commands.Command):
         """Load and run an already prepped test."""
 
         try:
-            test = TestRun.load(pav_cfg, args.test_id)
+            test = TestRun.load(pav_cfg, working_dir=args.working_dir,
+                                test_id=args.test_id)
         except TestRunError as err:
             self.logger.error("Error loading test '%s': %s",
                               args.test_id, err)
@@ -154,9 +160,7 @@ class _RunCommand(commands.Command):
                     .format(err.args[0]))
                 return 1
 
-            with PermissionsManager(test.results_log,
-                                    group=test.group, umask=test.umask), \
-                    test.results_log.open('w') as log_file:
+            with test.results_log.open('w') as log_file:
                 results = test.gather_results(run_result, log_file=log_file)
 
         except Exception as err:

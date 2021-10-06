@@ -37,6 +37,7 @@ SORT_KEYS = {
     "SERIES": ["created", "id"]
 }
 
+
 def sort_func(test, choice, sort_type):
     """Use partial to reduce inputs and use as key in sort function.
     :param test: Dict within list to sort on.
@@ -50,6 +51,7 @@ def sort_func(test, choice, sort_type):
         return None
     else:
         return test[choice]
+
 
 def add_common_filter_args(target: str,
                            arg_parser: argparse.ArgumentParser,
@@ -286,7 +288,7 @@ def filter_test_run(
     if result_error and test_attrs.get('result') != TestRun.ERROR:
         return False
 
-    if older_than is not None and test_attrs.get('created') > newer_than:
+    if older_than is not None and test_attrs.get('created') > older_than:
         return False
 
     if newer_than is not None and test_attrs.get('created') < newer_than:
@@ -326,10 +328,12 @@ def make_test_run_filter(
         sys_vars = system_variables.get_vars(defer=True)
         sys_name = sys_vars['sys_name']
 
-    filter_func = partial(filter_test_run, complete=complete, failed=failed, incomplete=incomplete,
-                  name=name, newer_than=newer_than, older_than=older_than, passed=passed,
-                  result_error=result_error, show_skipped=show_skipped,
-                  sys_name=sys_name, user=user)
+    filter_func = partial(
+        filter_test_run,
+        complete=complete, failed=failed, incomplete=incomplete, name=name,
+        newer_than=newer_than, older_than=older_than, passed=passed,
+        result_error=result_error, show_skipped=show_skipped,  sys_name=sys_name,
+        user=user)
 
     return filter_func
 

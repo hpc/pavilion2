@@ -1,15 +1,15 @@
 import grp
+import stat
 import os
 import shutil
-import stat
 import subprocess as sp
-from pathlib import Path, PurePath
+from pathlib import Path
 from typing import List
 
 import yc_yaml as yaml
+from pavilion import test_run
 from pavilion import utils
 from pavilion.unittest import PavTestCase
-from pavilion import test_run
 
 
 class GeneralTests(PavTestCase):
@@ -40,9 +40,13 @@ class GeneralTests(PavTestCase):
         self.umask = 0o007
 
     def setUp(self) -> None:
+        """Setup the special pav config for these tests."""
 
         with self.PAV_CONFIG_PATH.open() as pav_cfg_file:
             raw_cfg = yaml.load(pav_cfg_file)
+
+        if raw_cfg is None:
+            raw_cfg = {}
 
         self.working_dir = self.PAV_ROOT_DIR/'test'/'working_dir'/'wd_perms'
 
@@ -73,7 +77,7 @@ class GeneralTests(PavTestCase):
             'perm.dir',
         ]
 
-        cmd = [(self.PAV_ROOT_DIR/'bin'/'pav').as_posix(), 'run'] + tests
+        cmd = [(self.PAV_ROOT_DIR/'bin'/'pav').as_posix(), 'run', '-bbbb'] + tests
 
         self.run_test_cmd(cmd)
 
@@ -84,22 +88,8 @@ class GeneralTests(PavTestCase):
         for build in builds:
             self.check_permissions(build, self.alt_group, self.umask | 0o222)
 
-    def test_build_fail_permissions(self):
-        """Make sure failed builds have good permissions too."""
-
-        cmd = [(self.PAV_ROOT_DIR /'bin/pav').as_posix(),
-               'run', 'perm.build_fail']
-
-        self.run_test_cmd(cmd, run_succeeds=False)
-
-        builds = [p for p in (self.working_dir/'builds').iterdir()
-                  if p.is_dir()]
-        self.check_permissions(self.working_dir, self.alt_group, self.umask,
-                               exclude=builds)
-        for build in builds:
-            self.check_permissions(build, self.alt_group, self.umask | 0o222)
-
     def run_test_cmd(self, cmd, run_succeeds=True):
+        """Run the given test command and check that it succeeds."""
 
         env = os.environ.copy()
         env['PAV_CONFIG_DIR'] = self.config_dir.as_posix()
@@ -109,6 +99,37 @@ class GeneralTests(PavTestCase):
         if (proc.wait(3) != 0) == run_succeeds:
             self.fail("Error running command.\n{}".format(out))
         self.wait_tests(self.working_dir)
+
+    def test_legacy_runs(self):
+        """Check loading of legacy run dirs."""
+
+        legacy_path = self.TEST_DATA_ROOT/'legacy'
+        runs_path = legacy_path/'runs.txt'
+        wdir = self.pav_cfg.working_dir
+
+        runs = []
+        with runs_path.open() as runs_file:
+            for line in runs_file:
+                line = line.strip()
+                if line and not line.startswith('#'):
+                    runs.append(line)
+
+        for run in runs:
+            run_path = legacy_path/run
+            dst_path = wdir/'test_runs'/run
+            shutil.copytree(run_path.as_posix(), dst_path.as_posix(),
+                            symlinks=True)
+
+            run_id = 'test.{}'.format(run)
+
+            # Move the build directory into place
+            build_dst = Path(os.readlink((run_path/'build_origin').as_posix()))
+            build_dst = dst_path/build_dst
+            (dst_path/'build_dir').rename(build_dst)
+
+            test = test_run.TestRun.load_from_raw_id(self.pav_cfg, run_id)
+            self.assertTrue(test.results)
+            self.assertTrue(test.complete)
 
     def check_permissions(self, path: Path, group: grp.struct_group,
                           umask: int, exclude: List[Path] = None):
@@ -174,32 +195,3 @@ class GeneralTests(PavTestCase):
                                         stat.filemode(mode)))
             else:
                 self.fail("Found unhandled file {}.".format(file))
-
-    def test_legacy_runs(self):
-        """Check loading of legacy run dirs."""
-
-        legacy_path = self.TEST_DATA_ROOT/'legacy'
-        runs_path = legacy_path/'runs.txt'
-        wdir = self.pav_cfg.working_dir
-
-        runs = []
-        with runs_path.open() as runs_file:
-            for line in runs_file:
-                line = line.strip()
-                if line and not line.startswith('#'):
-                    runs.append(line)
-
-        for run in runs:
-            run_path = legacy_path/run
-            dst_path = wdir/'test_runs'/run
-            shutil.copytree(run_path.as_posix(), dst_path.as_posix(),
-                            symlinks=True)
-
-            # Move the build directory into place
-            build_dst = Path(os.readlink((run_path/'build_origin').as_posix()))
-            build_dst = dst_path/build_dst
-            (dst_path/'build_dir').rename(build_dst)
-
-            test = test_run.TestRun.load(self.pav_cfg, int(run))
-            self.assertTrue(test.results)
-            self.assertTrue(test.complete)
