@@ -58,14 +58,14 @@ class PluginTests(PavTestCase):
         """Make sure command plugin loading is sane."""
 
         # Get an empty pavilion config and set some config dirs on it.
-        pav_cfg = self.make_test_config(config_dirs=[
+        pav_cfg = self.make_pav_config(config_dirs=[
             self.TEST_DATA_ROOT/'pav_config_dir',
             self.TEST_DATA_ROOT/'pav_config_dir2'])
 
         plugins.initialize_plugins(pav_cfg)
 
         parser = argparse.ArgumentParser()
-        args = parser.parse_args()
+        args = parser.parse_args([])
 
         commands.get_command('poof').run(pav_cfg, args)
         commands.get_command('blarg').run(pav_cfg, args)
@@ -74,7 +74,7 @@ class PluginTests(PavTestCase):
 
     def test_plugin_conflicts(self):
 
-        pav_cfg = self.make_test_config(config_dirs=[
+        pav_cfg = self.make_pav_config(config_dirs=[
             self.TEST_DATA_ROOT/'pav_config_dir',
             self.TEST_DATA_ROOT/'pav_config_dir2',
             self.TEST_DATA_ROOT / 'pav_config_dir_conflicts'])
@@ -117,7 +117,7 @@ class PluginTests(PavTestCase):
         """Make sure module wrapper loading is sane too."""
 
         # Get an empty pavilion config and set some config dirs on it.
-        pav_cfg = self.make_test_config(config_dirs=[
+        pav_cfg = self.make_pav_config(config_dirs=[
             self.TEST_DATA_ROOT/'pav_config_dir',
             self.TEST_DATA_ROOT/'pav_config_dir2'])
 
@@ -244,7 +244,7 @@ class PluginTests(PavTestCase):
         hndlr = logging.StreamHandler(stream)
         yapsy_logger.addHandler(hndlr)
 
-        pav_cfg = self.make_test_config(config_dirs=[
+        pav_cfg = self.make_pav_config(config_dirs=[
             self.TEST_DATA_ROOT/'bad_plugins',
         ])
 

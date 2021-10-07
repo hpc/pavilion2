@@ -63,7 +63,6 @@ class TestBuilder:
         :param working_dir: The working directory where this build should go.
         :param config: The build configuration.
         :param script: Path to the build script
-        :param suite_path: Path to the originating test suite.
         :param spack_config: Give a spack config to enable spack builds.
         :param build_name: The build name, if this is a build that
             already exists.
@@ -77,7 +76,8 @@ class TestBuilder:
         self._download_dest = download_dest
 
         try:
-            self._timeout = pavilion.test_config.utils.parse_timeout(config.get('timeout'))
+            self._timeout = pavilion.test_config.utils.parse_timeout(
+                config.get('timeout'))
         except ValueError:
             raise TestBuilderError("Build timeout must be a positive integer or null, "
                                    "got '{}'".format(config.get('timeout')))
@@ -87,6 +87,8 @@ class TestBuilder:
         self._timeout_file = config.get('timeout_file')
 
         self._fix_source_path()
+
+        self._version = 1
 
         if build_name is None:
             self.name = self.name_build()
@@ -158,7 +160,7 @@ class TestBuilder:
             except OSError:
                 return None
 
-    def create_build_hash(self):
+    def create_build_hash(self) -> str:
         """Turn the build config, and everything the build needs, into a hash.
         This includes the build config itself, the source tarball, and all
         extra files."""
@@ -229,26 +231,31 @@ class TestBuilder:
 
         hash_obj.update(self._config.get('specificity', '').encode())
 
-        return hash_obj.hexdigest()[:self.BUILD_HASH_BYTES * 2]
+        return hash_obj.hexdigest()
 
-    def name_build(self):
+    def name_build(self) -> str:
         """Search for the first non-deprecated version of this build (whether
         or not it exists) and name the build for it."""
 
-        bhash = self.create_build_hash()
+        base_hash = self.create_build_hash()[:self.BUILD_HASH_BYTES*2]
 
         builds_dir = self._pav_cfg.working_dir/'builds'
-        version = 1
-        base_name = bhash[:self.BUILD_HASH_BYTES*2]
-        name = base_name
+        name = base_hash
         path = builds_dir/name
 
         while path.exists() and (path/self.DEPRECATED).exists():
-            version += 1
-            name = '{base}-{version}'.format(base=base_name, version=version)
+            self._version += 1
+            name = self.rehash_name(name)
             path = builds_dir/name
 
         return name
+
+    @classmethod
+    def rehash_name(cls, name: str) -> str:
+        """Rehash the given build name with the given version."""
+
+        rehash = hashlib.sha256(name.encode())
+        return rehash.hexdigest()[:cls.BUILD_HASH_BYTES*2]
 
     def rename_build(self):
         """Rechecks deprecation and updates the build name."""

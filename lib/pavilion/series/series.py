@@ -2,13 +2,12 @@
 also tracks the tests that have run under it."""
 
 import json
-import logging
 import os
 import subprocess
 import time
-from collections import defaultdict
+from collections import defaultdict, UserDict
 from pathlib import Path
-from typing import List, Dict, Set, Tuple, Union, TextIO
+from typing import List, Dict, Set, Union, TextIO
 
 from pavilion import dir_db
 from pavilion import output
@@ -18,11 +17,56 @@ from pavilion import utils
 from pavilion.lockfile import LockFile
 from pavilion.output import fprint
 from pavilion.series_config import SeriesConfigLoader
-from pavilion.status_file import STATES
-from pavilion.test_run import TestRun, TestRunError
+from pavilion.status_file import STATES, SeriesStatusFile, SERIES_STATES
+from pavilion.test_run import TestRun, ID_Pair
 from yaml_config import YAMLError, RequiredError
 from .errors import TestSeriesError, TestSeriesWarning
 from .test_set import TestSet, TestSetError
+from .info import SeriesInfo
+
+
+class LazyTestRunDict(UserDict):
+    """A lazily evaluated dictionary of tests."""
+
+    def __init__(self, pav_cfg):
+        """Initialize the lazy TestRun dict."""
+
+        self._pav_cfg = pav_cfg
+
+        super().__init__()
+
+    def add_key(self, id_pair: ID_Pair):
+        """Add an ID_Pair key, but don't actually load the test."""
+
+        self.data[id_pair] = None
+
+    def __getitem__(self, id_pair: ID_Pair) -> TestRun:
+        """When the item exists as a key but not a test object, load the test object."""
+
+        if id_pair in self.data and self.data[id_pair] is None:
+            working_dir, test_id = id_pair
+            self.data[id_pair] = TestRun.load(self._pav_cfg, working_dir, test_id)
+
+        return super().__getitem__(id_pair)
+
+    def find_tests(self, series_path: Path):
+        """Find all the tests for the series and add their keys."""
+
+        for path in dir_db.select(self._pav_cfg, series_path, use_index=False).paths:
+            if not path.is_symlink():
+                continue
+
+            try:
+                test_id = int(path.name)
+            except ValueError:
+                continue
+
+            try:
+                working_dir = path.resolve().parents[1]
+            except FileNotFoundError:
+                continue
+
+            self.add_key(ID_Pair((working_dir, test_id)))
 
 
 class TestSeries:
@@ -34,12 +78,13 @@ class TestSeries:
     the series as specified by its config, or when an error occurs. Series are
     identified by a 'sid', which takes the form 's<id_num>'."""
 
-    LOGGER_FMT = 'series({})'
     COMPLETE_FN = 'SERIES_COMPLETE'
-    PGID_FN = 'series.pgid'
-    OUT_FN = 'series.out'
     CONFIG_FN = 'config'
     DEPENDENCY_FN = 'dependency'
+    LOGGER_FMT = 'series({})'
+    OUT_FN = 'series.out'
+    PGID_FN = 'series.pgid'
+    STATUS_FN = 'status'
 
     def __init__(self, pav_cfg, config, _id=None):
         """Initialize the series. Test sets may be added via 'add_tests()'.
@@ -51,7 +96,8 @@ class TestSeries:
         """
 
         self.pav_cfg = pav_cfg
-        self.tests = {}  # type: Dict[Tuple[Path, int], TestRun]
+        self.tests = LazyTestRunDict(pav_cfg)
+
         self.config = config or SeriesConfigLoader().load_empty()
 
         series_path = self.pav_cfg.working_dir/'series'
@@ -78,17 +124,20 @@ class TestSeries:
 
             # Update user.json to record last series run per sys_name
             self._save_series_id()
+            self.status = SeriesStatusFile(self.path/self.STATUS_FN)
+            self.status.set(SERIES_STATES.CREATED, "Created series.")
 
         # We're not creating this from scratch (an object was made ahead of
         # time).
         else:
             self._id = _id
             self.path = dir_db.make_id_path(series_path, self._id)
-
-        self._logger = logging.getLogger(self.LOGGER_FMT.format(self._id))
+            self.status = SeriesStatusFile(self.path/self.STATUS_FN)
 
     def run_background(self):
         """Run pav _series in background using subprocess module."""
+
+        self.status.set(SERIES_STATES.RUN, "Running in background.")
 
         # start subprocess
         temp_args = ['pav', '_series', self.sid]
@@ -182,34 +231,6 @@ differentiate it from test ids."""
             raise TestSeriesError("No such series found: '{}' at '{}'"
                                   .format(series_id, series_path))
 
-        logger = logging.getLogger(cls.LOGGER_FMT.format(series_id))
-
-        tests = []
-        for path in dir_db.select(series_path, use_index=False).paths:
-            try:
-                test_id = int(path.name)
-            except ValueError:
-                series_info_files = [cls.OUT_FN,
-                                     cls.PGID_FN,
-                                     cls.CONFIG_FN,
-                                     cls.DEPENDENCY_FN]
-                if path.name not in series_info_files:
-                    logger.info("Bad test id in series from dir '%s'", path)
-                continue
-
-            try:
-                working_dir = path.resolve().parents[1]
-            except FileNotFoundError as err:
-                logger.info("Bad test id in series %s: %s", sid, err.args[0])
-                continue
-
-            try:
-                test = TestRun.load(pav_cfg, working_dir, test_id)
-                tests.append(test)
-            except TestRunError as err:
-                logger.info("Error loading test %s: %s",
-                            test_id, err.args[0])
-
         loader = SeriesConfigLoader()
         try:
             with (series_path/cls.CONFIG_FN).open() as config_file:
@@ -223,7 +244,9 @@ differentiate it from test ids."""
             raise TestSeriesError("Could not load config file for test series '{}': {}"
                                   .format(sid, err.args[0]))
 
-        return cls(pav_cfg, _id=series_id, config=config)
+        series = cls(pav_cfg, _id=series_id, config=config)
+        series.tests.find_tests(series.path)
+        return series
 
     def _create_test_sets(self):
         """Create test sets from the config, and set up their dependency
@@ -247,11 +270,12 @@ differentiate it from test ids."""
                 name=set_name,
                 test_names=set_info['tests'],
                 modes=universal_modes + set_info['modes'],
-                host=self.config['host'],
+                host=self.config.get('host'),
                 only_if=set_info['only_if'],
                 not_if=set_info['not_if'],
                 parents_must_pass=set_info['depends_pass'],
-                overrides=self.config['overrides'],
+                overrides=self.config.get('overrides', []),
+                status=self.status,
             )
             self._add_test_set(set_obj)
 
@@ -318,6 +342,8 @@ differentiate it from test ids."""
         """Goes through all test objects assigned to series and cancels tests
         that haven't been completed. """
 
+        self.status.set(SERIES_STATES.ABORTED, "Series cancelled: {}".format(message))
+
         for test_obj in self.tests.values():
             if test_obj.complete:
                 sched = schedulers.get_plugin(test_obj.scheduler)
@@ -339,6 +365,8 @@ differentiate it from test ids."""
         :param outfile: The outfile to write status info to.
         :return:
         """
+
+        self.status.set(SERIES_STATES.RUN, "Series running.")
 
         if outfile is None:
             outfile = open('/dev/null', 'w')
@@ -433,6 +461,8 @@ differentiate it from test ids."""
                 self._create_test_sets()
                 potential_sets = list(self.test_sets.values())
 
+        self.status.set(SERIES_STATES.RUN, "Series run complete.")
+
     def wait(self, timeout=None):
         """Wait for the series to be complete or the timeout to expire. """
 
@@ -449,6 +479,8 @@ differentiate it from test ids."""
     def complete(self) -> bool:
         """Check if every test in the series has completed. A series is incomplete if
         no tests have been created."""
+
+        self.status.set(SERIES_STATES.COMPLETE, "Series has completed.")
 
         if (self.path/self.COMPLETE_FN).exists():
             return True
@@ -472,6 +504,13 @@ differentiate it from test ids."""
             json.dump({'complete': time.time()}, series_complete)
 
         series_complete_path_tmp.rename(series_complete_path)
+
+    def info(self) -> SeriesInfo:
+        """Return the series info object for this test. Note that this is super
+        inefficient - the series info object exists to get series info without
+        loading the series."""
+
+        return SeriesInfo(self.pav_cfg, self.path)
 
     @property
     def pgid(self) -> Union[int, None]:
@@ -565,7 +604,7 @@ differentiate it from test ids."""
         # attempt to make symlink
         link_path = dir_db.make_id_path(self.path, test.id)
 
-        self.tests[(test.working_dir, test.id)] = test
+        self.tests[test.id_pair] = test
 
         if not link_path.exists():
             try:
