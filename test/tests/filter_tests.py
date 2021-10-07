@@ -8,8 +8,10 @@ from datetime import timedelta
 from pavilion import dir_db
 from pavilion import filters
 from pavilion import plugins
+from pavilion.series import TestSeries, SeriesInfo
 from pavilion.test_run import TestRun, test_run_attr_transform
 from pavilion.unittest import PavTestCase
+from pavilion.status_file import STATES, SERIES_STATES
 
 
 class FiltersTest(PavTestCase):
@@ -57,42 +59,6 @@ class FiltersTest(PavTestCase):
         self.assertEqual(set(), defaults,
                          msg="TEST_FILTER_DEFAULTS has unused keys '{}'"
                              .format(defaults))
-
-        now = time.time()
-
-        # TODO: Dan's changes that enabled multi-process filtering broke this
-        # TODO: functionality. It will be restored in another ticket.
-        #parser = NoExitParser()
-        #filters.add_test_filter_args(
-        #    parser,
-        #    default_overrides={
-        #        'newer_than': now,
-        #        'name': 'foo.*',
-        #    },
-        #    sort_functions={
-        #        'sort_foo': lambda d: 'foo',
-        #        'sort_bar': lambda d: 'bar',
-        #    }
-        #)
-
-        #with self.assertRaises(ExitError):
-        #    parser.parse_args(['--sort-by=name'])
-
-        #args = parser.parse_args([
-        #    '--passed',
-        #    '--complete',
-        #    '--newer-than=',  # Clearing a default.
-        #    '--older-than=1 week',
-        #    '--sort-by=-sort_foo',
-        #])
-
-        #self.assertTrue(args.passed)
-        #self.assertTrue(args.complete)
-        #self.assertIsNone(args.newer_than)
-        # Really we're just testing for a datetime.
-        # self.assertLess(args.older_than,
-        #               now - timedelta(days=6).total_seconds())
-        # self.assertEqual(args.sort_by, '-sort_foo')
 
         common_parser = NoExitParser()
         series_parser = NoExitParser()
@@ -243,6 +209,42 @@ class FiltersTest(PavTestCase):
                     tr_filter(never_match_test),
                     msg="Failed on opt, val ({}, {})\n{}"
                         .format(opt, val, never_match_test))
+
+    def test_filter_states(self):
+        """Check filtering by test state. These filters require an actual test to
+        exist, so are checked separately."""
+
+        test = self._quick_test()
+        test2 = self._quick_test()
+        test2.run()
+
+        t_filter = filters.make_test_run_filter(state=STATES.RUN_DONE)
+        self.assertFalse(t_filter(test.attr_dict()))
+        self.assertTrue(t_filter(test2.attr_dict()))
+
+        t_filter2 = filters.make_test_run_filter(has_state=STATES.RUNNING)
+        self.assertFalse(t_filter2(test.attr_dict()))
+        self.assertTrue(t_filter2(test2.attr_dict()))
+
+    def test_filter_series_states(self):
+        """Check series filtering."""
+
+        series = TestSeries(self.pav_cfg, None)
+        series.add_test_set_config('test', test_names=['hello_world'])
+        series_info = series.info().attr_dict()
+        series.run()
+
+        series2 = TestSeries(self.pav_cfg, None)
+        series2.add_test_set_config('test', test_names=['hello_world'])
+        series2_info = series2.info().attr_dict()
+
+        state_filter = filters.make_series_filter(state=SERIES_STATES.RUN)
+        has_state_filter = filters.make_series_filter(has_state=SERIES_STATES.SET_MAKE)
+
+        self.assertTrue(state_filter(series_info))
+        self.assertFalse(state_filter(series2_info))
+        self.assertTrue(has_state_filter(series_info))
+        self.assertFalse(has_state_filter(series2_info))
 
     def test_get_sort_opts(self):
         """Check the sort operation manager."""

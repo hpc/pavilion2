@@ -187,7 +187,7 @@ class TestAttributes:
     def list_attrs(cls):
         """List the available attributes. This always operates on the
         base RunAttributes class, so it won't contain anything from child
-        classes."""
+        classes. It should return only attributes to be saved. """
 
         attrs = []
         for key, val in TestAttributes.__dict__.items():
@@ -211,6 +211,7 @@ class TestAttributes:
                 attrs[key] = val
 
         attrs['complete'] = self.complete
+        attrs['path'] = self.path.as_posix()
 
         return attrs
 
