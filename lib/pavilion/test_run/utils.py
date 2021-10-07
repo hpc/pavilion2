@@ -19,7 +19,7 @@ def get_latest_tests(pav_cfg, limit):
 
     test_dir_list = []
     runs_dir = pav_cfg.working_dir/TestRun.RUN_DIR
-    for test_dir in dir_db.select(runs_dir).paths:
+    for test_dir in dir_db.select(pav_cfg, runs_dir).paths:
         mtime = test_dir.stat().st_mtime
         try:
             test_id = int(test_dir.name)

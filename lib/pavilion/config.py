@@ -9,7 +9,7 @@ import os
 import sys
 from collections import OrderedDict
 from pathlib import Path
-from typing import List
+from typing import List, Union
 
 import pavilion.output
 import yaml_config as yc
@@ -406,7 +406,8 @@ def add_config_dirs(pav_cfg, setup_working_dirs: bool) -> OrderedDict:
     return configs
 
 
-def find_pavilion_config(target=None, warn=True, setup_working_dirs=True):
+def find_pavilion_config(target: Path = None, warn: bool = True,
+                         setup_working_dirs=True):
     """Search for a pavilion.yaml configuration file. Use the one pointed
 to by the PAV_CONFIG_FILE environment variable. Otherwise, use the first
 found in these directories the default config search paths:

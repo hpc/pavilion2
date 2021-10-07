@@ -1,20 +1,20 @@
 """Manage 'id' directories. The name of the directory is an integer, which
 essentially serves as a filesystem primary key."""
 
-import dbm
 import json
 import logging
+import math
 import os
+import pickle
 import shutil
 import tempfile
 import time
-import multiprocessing as mp
+from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from pathlib import Path
 from typing import Callable, List, Iterable, Any, Dict, NewType, \
-    Union, NamedTuple, IO
+    Union, NamedTuple, IO, Tuple
 
-from pavilion import config
 from pavilion import lockfile
 from pavilion import output
 
@@ -121,7 +121,8 @@ def identity(value):
     return value
 
 
-def index(id_dir: Path, idx_name: str,
+def index(pav_cfg,
+          id_dir: Path, idx_name: str,
           transform: Callable[[Path], Dict[str, Any]],
           complete_key: str = 'complete',
           refresh_period: int = 1,
@@ -131,6 +132,7 @@ def index(id_dir: Path, idx_name: str,
     transform, and return it. The returned index is a dictionary by id of
     the transformed data.
 
+    :param pav_cfg: The pavilion config.
     :param id_dir: The directory to index.
     :param idx_name: The name of the index.
     :param transform: A transformation function that produces a json
@@ -145,109 +147,107 @@ def index(id_dir: Path, idx_name: str,
     :param fn_base: The integer base for dir_db.
     """
 
-    idx_path = (id_dir/idx_name).with_suffix('.db')
+    idx_path = (id_dir/idx_name).with_suffix('.pkl')
 
     idx = Index({})
-    idx_db = None
 
     # Open and read the index if it exists. Any errors cause the index to
     # regenerate from scratch.
     idx_mtime = 0
     if idx_path.exists():
         try:
-            idx_db = dbm.open(idx_path.as_posix())
-            idx_mtime = idx_path.stat().st_mtime
-            idx = Index({int(k): json.loads(idx_db[k]) for k in idx_db.keys()})
+            with idx_path.open('rb') as idx_file:
+                idx = pickle.load(idx_file)
         except (OSError, PermissionError, json.JSONDecodeError) as err:
             # In either error case, start from scratch.
-            LOGGER.warning(
-                "Error reading index at '%s'. Regenerating from "
-                "scratch. %s", idx_path.as_posix(), err.args[0])
+            output.fprint(
+                "Error reading index at '{}'. Regenerating from "
+                "scratch. {}".format(idx_path.as_posix(), err.args[0]),
+                file=verbose, color=output.GRAY)
 
     if not id_dir.exists():
         return idx
 
-    new_items = {}
+    if idx and time.time() - idx_mtime <= refresh_period:
+        return idx
 
-    # If the index hasn't been updated lately (or is empty) do so.
-    # Small updates should happen unnoticeably fast, while full generation
-    # will take a bit.
-    if not idx or time.time() - idx_mtime > refresh_period:
-        seen = []
+    files = [file.path for file in os.scandir(id_dir.as_posix())]
 
-        if verbose:
-            if idx_db is None:
-                output.fprint(
-                    "No index file found for '{}'. This may take a while."
-                    .format(id_dir.name),
-                    file=verbose)
+    def make_int_ids(paths: List[Path]) -> List[Tuple[int, Path]]:
+        """Convert an filename to an integer if we can."""
 
-        last_perc = None
-        progress = 0
+        id_results = []
 
-        files = [Path(file.path) for file in os.scandir(id_dir.as_posix())]
-        for file in files:
+        for id_path in paths:
+            id_path = Path(id_path)
+
             try:
-                id_ = int(file.name, fn_base)
+                id_results.append((int(id_path.name, fn_base), id_path))
             except ValueError:
-                continue
-
-            seen.append(id_)
-
-            progress += 1
-            complete_perc = int(100*progress/len(files))
-            if verbose and complete_perc != last_perc:
-                output.fprint(
-                    "Indexing: {}%".format(complete_perc),
-                    end='\r', file=verbose)
-                last_perc = complete_perc
-
-            # Skip entries that are known and complete.
-            if id_ in idx and idx[id_].get(complete_key, False):
-                continue
-
-            # Only directories with integer names are db entries.
-            if not file.is_dir():
-                continue
-
-            # Update incomplete or unknown entries.
-            try:
-                new = transform(file)
-            except ValueError:
-                continue
-
-            old = idx.get(id_)
-            if new != old:
-                new_items[id_] = new
-                idx[id_] = new
-
-        missing = set(idx.keys()) - set(seen)
-
-        if new_items or missing:
-            try:
-                tmp_path = Path(tempfile.mktemp(
-                    suffix='.dbtmp',
-                    dir=idx_path.parent.as_posix()))
-                if idx_path.exists():
-                    try:
-                        shutil.copyfile(idx_path, tmp_path.as_posix())
-                    except OSError:
-                        pass
-
-                # Write our updated index atomically.
-                out_db = dbm.open(tmp_path.as_posix(), 'c')
-
-                for id_, value in new_items.items():
-                    out_db[str(id_)] = json.dumps(value)
-
-                for id_ in missing:
-
-                    del out_db[str(id_)]
-                    del idx[id_]
-
-                tmp_path.rename(idx_path)
-            except OSError:
                 pass
+
+        return id_results
+
+    def do_transform(pair):
+        """Do the transform on the id and file pair."""
+
+        tid, file = pair
+
+        try:
+            return tid, transform(file)
+        except (ValueError, KeyError, TypeError, OSError):
+            return tid, None
+
+    thread_max = pav_cfg.get('max_threads')
+    with ThreadPoolExecutor(max_workers=thread_max) as pool:
+        # This sequence leaves us with a list of id, path pairs that need an index
+        # update.
+        chunk_size = int(math.ceil(len(files)/float(thread_max)))
+        chunks = [files[i*chunk_size:(i+1)*chunk_size] for i in range(thread_max)]
+
+        id_pairs = pool.map(make_int_ids, chunks)
+        # Grab the set of all ids. We'll use it to identify missing ids.
+        all_seen_ids = set()
+        update_id_pairs = []
+        for chunked_results in id_pairs:
+            for id_, path in chunked_results:
+                if id_ is None:
+                    continue
+
+                all_seen_ids.add(id_)
+
+                if id_ in idx and idx[id_].get(complete_key, False):
+                    continue
+                update_id_pairs.append((id_, path))
+
+        missing = set(idx.keys()) - all_seen_ids
+
+        transformed_data = pool.map(do_transform, update_id_pairs)
+
+    for id_, data in transformed_data:
+        if data is None:
+            continue
+
+        idx[id_] = data
+
+    for id_ in missing:
+        del idx[id_]
+
+    tmp_path = Path(tempfile.mktemp(
+        suffix='.dbtmp',
+        dir=idx_path.parent.as_posix()))
+    try:
+        with tmp_path.open('wb') as tmp_file:
+            pickle.dump(idx, tmp_file)
+        tmp_path.rename(idx_path)
+    except OSError:
+        return idx
+    except (Exception, KeyboardInterrupt) as err:
+        try:
+            tmp_path.unlink()
+        except OSError:
+            pass
+        raise err
 
     return idx
 
@@ -292,7 +292,8 @@ def select_one(path, ffunc, trans, ofunc, fnb):
     return item
 
 
-def select(id_dir: Path,
+def select(pav_cfg,
+           id_dir: Path,
            filter_func: Callable[[Any], bool] = default_filter,
            transform: Callable[[Path], Any] = None,
            order_func: Callable[[Any], Any] = None,
@@ -306,6 +307,7 @@ def select(id_dir: Path,
     other parameters. If a transform is given, this will create an index of the
     data returned by the transform to hasten this process.
 
+    :param pav_cfg: The pavilion config.
     :param id_dir: The director
     :param transform: Function to apply to each path before applying filters
         or ordering. The filter and order functions should expect the type
@@ -344,9 +346,8 @@ def select(id_dir: Path,
 
         selected = []
 
-        idx = index(id_dir, index_name, transform,
-                    complete_key=idx_complete_key,
-                    verbose=verbose)
+        idx = index(pav_cfg, id_dir, index_name, transform,
+                    complete_key=idx_complete_key, verbose=verbose)
         for id_, data in idx.items():
             path = make_id_path(id_dir, id_)
 
@@ -366,6 +367,7 @@ def select(id_dir: Path,
                 [item[1] for item in selected][:limit])
     else:
         return select_from(
+            pav_cfg,
             paths=id_dir.iterdir(),
             transform=transform,
             filter_func=filter_func,
@@ -375,7 +377,8 @@ def select(id_dir: Path,
             limit=limit)
 
 
-def select_from(paths: Iterable[Path],
+def select_from(pav_cfg,
+                paths: Iterable[Path],
                 filter_func: Callable[[Any], bool] = default_filter,
                 transform: Callable[[Path], Any] = None,
                 order_func: Callable[[Any], Any] = None,
@@ -385,6 +388,7 @@ def select_from(paths: Iterable[Path],
     """Filter, order, and truncate the given paths based on the filter and
     other parameters.
 
+    :param pav_cfg: The pavilion config.
     :param paths: A list of paths to filter, order, and limit.
     :param transform: Function to apply to each path before applying filters
         or ordering. The filter and order functions should expect the type
@@ -403,13 +407,17 @@ def select_from(paths: Iterable[Path],
     """
 
     paths = list(paths)
-    ncpu = min(config.NCPU, len(paths))
-    mp_pool = mp.Pool(processes=ncpu)
+    max_threads = min(pav_cfg.get('max_threads', 1), len(paths))
 
     selector = partial(select_one, ffunc=filter_func, trans=transform,
                        ofunc=order_func, fnb=fn_base)
 
-    selections = mp_pool.map(selector, paths)
+    if max_threads > 1:
+        with ThreadPoolExecutor(max_workers=max_threads) as pool:
+            selections = pool.map(selector, paths)
+    else:
+        selections = map(selector, paths)
+
     selected = [(item, path) for item, path in zip(selections, paths)
                 if item is not None]
 
@@ -438,10 +446,12 @@ def paths_to_ids(paths: List[Path]) -> List[int]:
     return ids
 
 
-def delete(id_dir: Path, filter_func: Callable[[Path], bool] = default_filter,
+def delete(pav_cfg, id_dir: Path, filter_func: Callable[[Path], bool] = default_filter,
            transform: Callable[[Path], Any] = None,
            verbose: bool = False):
     """Delete all id directories in a given path that match the given filter.
+
+    :param pav_cfg: The pavilion config.
     :param id_dir: The directory to iterate through.
     :param filter_func: A passed filter function, to be passed to select.
     :param transform: As per 'select_from'
@@ -455,7 +465,7 @@ def delete(id_dir: Path, filter_func: Callable[[Path], bool] = default_filter,
 
     lock_path = id_dir.with_suffix('.lock')
     with lockfile.LockFile(lock_path, timeout=1):
-        for path in select(id_dir=id_dir, filter_func=filter_func,
+        for path in select(pav_cfg, id_dir=id_dir, filter_func=filter_func,
                            transform=transform).paths:
             try:
                 shutil.rmtree(path.as_posix())

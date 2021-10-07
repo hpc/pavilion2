@@ -1,5 +1,4 @@
 from pavilion import commands
-import sys
 
 
 class Blarg(commands.Command):

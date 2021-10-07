@@ -55,7 +55,7 @@ class CleanCommand(Command):
         # Clean Tests
         tests_dir = pav_cfg.working_dir / 'test_runs'     # type: Path
         output.fprint("Removing Tests...", file=self.outfile, end=end)
-        rm_tests_count, msgs = clean.delete_tests(tests_dir, filter_func,
+        rm_tests_count, msgs = clean.delete_tests(pav_cfg, tests_dir, filter_func,
                                                   args.verbose)
         if args.verbose:
             for msg in msgs:
@@ -66,7 +66,7 @@ class CleanCommand(Command):
         # Clean Series
         series_dir = pav_cfg.working_dir / 'series'       # type: Path
         output.fprint("Removing Series...", file=self.outfile, end=end)
-        rm_series_count, msgs = clean.delete_series(series_dir, args.verbose)
+        rm_series_count, msgs = clean.delete_series(pav_cfg, series_dir, args.verbose)
         if args.verbose:
             for msg in msgs:
                 output.fprint(msg, color=output.YELLOW, file=self.outfile)
@@ -76,9 +76,9 @@ class CleanCommand(Command):
         # Clean Builds
         builds_dir = pav_cfg.working_dir / 'builds'        # type: Path
         output.fprint("Removing Builds...", file=self.outfile, end=end)
-        rm_builds_count, msgs = clean.delete_builds(builds_dir, tests_dir,
+        rm_builds_count, msgs = clean.delete_builds(pav_cfg, builds_dir, tests_dir,
                                                     args.verbose)
-        msgs.extend(clean.delete_lingering_build_files(builds_dir, tests_dir,
+        msgs.extend(clean.delete_lingering_build_files(pav_cfg, builds_dir, tests_dir,
                                                        args.verbose))
         if args.verbose:
             for msg in msgs:
