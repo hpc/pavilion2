@@ -1,0 +1,9 @@
+varied_time:
+  permute_on: test_time
+  variables:
+    test_time: [0, 0.5, 1]
+
+  run:
+    cmds:
+      - echo "hello"
+      - 'sleep {{test_time}}'

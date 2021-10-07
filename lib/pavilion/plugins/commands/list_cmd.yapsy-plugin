@@ -1,9 +1,0 @@
-[Core]
-Name = List command
-Module = list_cmd
-
-[Documentation]
-Description = Show (summarized) log
-Author = Paul Ferrell
-Version = 1.0
-Website =

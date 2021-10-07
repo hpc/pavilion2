@@ -6,12 +6,14 @@ PAV_DIR="$(dirname "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")"
 
 export PYTHONPATH="${PYTHONPATH}:${PAV_DIR}/lib:${PAV_DIR}/lib/pavilion/dependencies"
 
-SHARED_GROUP=$(${PYTHON} "${PAV_DIR}/bin/query_config.py" shared_group)
+CONFIG_KEYS=$(${PYTHON} "${PAV_DIR}/bin/query_config.py" shared_group umask)
+SHARED_GROUP=$(echo "${CONFIG_KEYS}" | awk -F: '/shared_group/{ print $2 }' )
+UMASK=$(echo "${CONFIG_KEYS}" | awk -F: '/umask/{ print $2 }' )
 
 # Set to restrict files to owner only permissions. All files
 # written by Pavilion will have their correct permissions applied after
 # being written.
-umask 077
+umask ${UMASK}
 
 if [[ -n ${SHARED_GROUP} ]]; then
     # We have to construct a command string that has properly escaped and

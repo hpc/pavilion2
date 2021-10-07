@@ -1,0 +1,5 @@
+bad_results:
+  result_parse:
+    regex:
+      foo:
+        regex: '[nope'

@@ -3,10 +3,11 @@
 import errno
 import sys
 
+import pavilion.series
 from pavilion import arguments
 from pavilion import commands
 from pavilion import plugins
-from pavilion import series_util
+from pavilion.series import info
 from pavilion.status_utils import get_statuses
 from pavilion.unittest import PavTestCase
 
@@ -77,7 +78,7 @@ class CancelCmdTests(PavTestCase):
 
         tests = []
 
-        series_id = series_util.load_user_series_id(self.pav_cfg)
+        series_id = pavilion.series.load_user_series_id(self.pav_cfg)
         tests.append(series_id)
 
         args = arg_parser.parse_args([

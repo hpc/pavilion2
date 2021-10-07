@@ -1,9 +1,0 @@
-[Core]
-Name = Hidden Series Command
-Module = _series
-
-[Documentation]
-Description =
-Author = Francine Lapid
-Version = 1.0
-Website =

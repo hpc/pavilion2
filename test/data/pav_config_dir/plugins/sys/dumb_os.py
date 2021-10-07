@@ -1,4 +1,4 @@
-import pavilion.system_variables as dumb_system_plugins
+import pavilion.sys_vars.base_classes as dumb_system_plugins
 
 class DumbOSVar(dumb_system_plugins.SystemPlugin):
 

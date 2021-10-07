@@ -10,18 +10,20 @@ are all handled by the TestConfigResolver
 import copy
 import io
 import logging
+import multiprocessing as mp
 import os
 import re
 from collections import defaultdict
-from typing import List, IO
+from pathlib import Path
+from typing import List, IO, Union
 
 import yc_yaml
 from pavilion import output
 from pavilion import pavilion_variables
 from pavilion import schedulers
-from pavilion import system_variables
-from pavilion.test_config import file_format
+from pavilion import sys_vars
 from pavilion.pavilion_variables import PavVars
+from pavilion.test_config import file_format
 from pavilion.test_config import parsers
 from pavilion.test_config import variables
 from pavilion.test_config.file_format import (TestConfigError, TEST_NAME_RE,
@@ -60,9 +62,9 @@ class TestConfigResolver:
 
         try:
             self.base_var_man.add_var_set(
-                'sys', system_variables.get_vars(defer=True)
+                'sys', sys_vars.get_vars(defer=True)
             )
-        except system_variables.SystemPluginError as err:
+        except sys_vars.SystemPluginError as err:
             raise TestConfigError(
                 "Error in system variables: {}"
                 .format(err)
@@ -71,8 +73,6 @@ class TestConfigResolver:
         self.base_var_man.add_var_set(
             'pav', pavilion_variables.PavVars()
         )
-
-        self.logger = logging.getLogger(__file__)
 
     def build_variable_manager(self, raw_test_cfg):
         """Get all of the different kinds of Pavilion variables into a single
@@ -101,6 +101,12 @@ class TestConfigResolver:
                 "Could not find scheduler '{}'"
                 .format(scheduler))
 
+        if not sched.available():
+            raise TestConfigError(
+                "Scheduler '{}' is not available on this system"
+                .format(sched.name)
+            )
+
         try:
             sched_vars = sched.get_vars(raw_test_cfg.get(scheduler, {}))
             var_man.add_var_set('sched', sched_vars)
@@ -115,22 +121,21 @@ class TestConfigResolver:
 
         return var_man
 
-    def find_config(self, conf_type, conf_name):
+    def find_config(self, conf_type, conf_name) -> (str, Path):
         """Search all of the known configuration directories for a config of the
         given type and name.
 
         :param str conf_type: 'host', 'mode', or 'test'
         :param str conf_name: The name of the config (without a file extension).
-        :rtype: Path
-        :return: The path to the first matching config found, or None if one
-            wasn't found.
+        :return: A tuple of the config label under which a matching config was found
+            and the path to that config. If nothing was found, returns (None, None).
         """
-        for conf_dir in self.pav_cfg.config_dirs:
-            path = conf_dir/conf_type/'{}.yaml'.format(conf_name)
+        for label, config in self.pav_cfg.configs.items():
+            path = config['path']/conf_type/'{}.yaml'.format(conf_name)
             if path.exists():
-                return path
+                return label, path
 
-        return None
+        return None, None
 
     def find_all_tests(self):
         """Find all the tests within known config directories.
@@ -142,6 +147,7 @@ class TestConfigResolver:
 
         suite_name -> {
             'path': Path to the suite file.
+            'label': Config dir label.
             'err': Error loading suite file.
             'supersedes': [superseded_suite_files]
             'tests': name -> {
@@ -153,8 +159,8 @@ class TestConfigResolver:
 
         suites = {}
 
-        for conf_dir in self.pav_cfg.config_dirs:
-            path = conf_dir/'tests'
+        for label, config in self.pav_cfg.configs.items():
+            path = config['path']/'tests'
 
             if not (path.exists() and path.is_dir()):
                 continue
@@ -168,6 +174,7 @@ class TestConfigResolver:
                     if suite_name not in suites:
                         suites[suite_name] = {
                             'path': file,
+                            'label': label,
                             'err': '',
                             'tests': {},
                             'supersedes': [],
@@ -237,8 +244,8 @@ class TestConfigResolver:
         """
 
         configs = {}
-        for conf_dir in self.pav_cfg.config_dirs:
-            path = conf_dir / conf_type
+        for config in self.pav_cfg.configs.values():
+            path = config['path'] / conf_type
 
             if not (path.exists() and path.is_dir()):
                 continue
@@ -270,9 +277,11 @@ class TestConfigResolver:
 
         return configs
 
+    PROGRESS_PERIOD = 0.5
+
     def load(self, tests: List[str], host: str = None,
              modes: List[str] = None, overrides: List[str] = None,
-             conditions=None, output_file: IO[str] = None) \
+             conditions=None, outfile: IO[str] = None) \
             -> List[ProtoTest]:
         """Load the given tests, updated with their host and mode files.
         Returns 'ProtoTests', a simple object with 'config' and 'var_man'
@@ -284,7 +293,7 @@ class TestConfigResolver:
         :param modes: A list of modes to load.
         :param overrides: A dict of key:value pairs to apply as overrides.
         :param conditions: A dict containing the only_if and not_if conditions.
-        :param output_file: Where to write status output.
+        :param outfile: Where to write status output.
         """
 
         if modes is None:
@@ -308,73 +317,95 @@ class TestConfigResolver:
                     raw_test['not_if'], conditions['not_if']
                 )
 
-        raw_tests_by_sched = defaultdict(lambda: [])
+        resolved_tests = []
 
-        progress = 0
+        complete = 0
+
+        if len(raw_tests) == 0:
+            return []
+        elif len(raw_tests) == 1:
+            return self.resolve(raw_tests[0], overrides)
+        else:
+            async_results = []
+            proc_count = min(self.pav_cfg['max_cpu'], len(raw_tests))
+            with mp.Pool(processes=proc_count) as pool:
+                for raw_test in raw_tests:
+                    async_results.append(
+                        pool.apply_async(self.resolve, (raw_test, overrides))
+                    )
+
+                while async_results:
+                    for aresult in list(async_results):
+                        if aresult.ready():
+                            async_results.remove(aresult)
+
+                            resolved_tests.extend(aresult.get())
+
+                            complete += 1
+                            progress = len(raw_tests) - complete
+                            progress = (1 - progress/len(raw_tests))
+                            output.fprint(
+                                "Resolving Test Configs: {:.0%}".format(progress),
+                                file=outfile, end='\r')
+
+                    try:
+                        aresult.wait(0.5)
+                    except TimeoutError:
+                        pass
+
+        if outfile:
+            output.fprint('', file=outfile)
+
+        return resolved_tests
+
+    def resolve(self, test_cfg: dict, overrides: List[str] = None):
+        """Resolve one test config, and apply the given overrides."""
+
+        overrides = overrides or []
 
         resolved_tests = []
 
-        # Apply config overrides.
-        for test_cfg in raw_tests:
-            # Apply the overrides to each of the config values.
+        # Apply the overrides to each of the config values.
+        try:
+            self.apply_overrides(test_cfg, overrides)
+        except (KeyError, ValueError) as err:
+            msg = 'Error applying overrides to test {} from {}: {}' \
+                  .format(test_cfg['name'], test_cfg['suite_path'], err)
+            raise TestConfigError(msg)
+
+        base_var_man = self.build_variable_manager(test_cfg)
+
+        # A list of tuples of test configs and their permuted var_man
+        permuted_tests = []  # type: (dict, variables.VariableSetManager)
+
+        # Resolve all configuration permutations.
+        try:
+            p_cfg, permutes = self.resolve_permutations(
+                test_cfg,
+                base_var_man=base_var_man
+            )
+            for p_var_man in permutes:
+                # Get the scheduler from the config.
+                permuted_tests.append((p_cfg, p_var_man))
+
+        except TestConfigError as err:
+            msg = 'Error resolving permutations for test {} from {}: {}' \
+                .format(test_cfg['name'], test_cfg['suite_path'], err)
+            raise TestConfigError(msg)
+
+        # Set the scheduler variables for each test.
+        for ptest_cfg, pvar_man in permuted_tests:
+            # Resolve all variables for the test (that aren't deferred).
             try:
-                self.apply_overrides(test_cfg, overrides)
-            except (KeyError, ValueError) as err:
-                msg = 'Error applying overrides to test {} from {}: {}' \
-                    .format(test_cfg['name'], test_cfg['suite_path'], err)
-                self.logger.error(msg)
-                if output_file:
-                    output.clear_line(output_file)
-                raise TestConfigError(msg)
-
-            base_var_man = self.build_variable_manager(test_cfg)
-
-            # A list of tuples of test configs and their permuted var_man
-            permuted_tests = []  # type: (dict, variables.VariableSetManager)
-
-            # Resolve all configuration permutations.
-            try:
-                p_cfg, permutes = self.resolve_permutations(
-                    test_cfg,
-                    base_var_man=base_var_man
-                )
-                for p_var_man in permutes:
-                    # Get the scheduler from the config.
-                    permuted_tests.append((p_cfg, p_var_man))
-
+                resolved_config = self.resolve_test_vars(
+                    ptest_cfg, pvar_man)
             except TestConfigError as err:
-                msg = 'Error resolving permutations for test {} from {}: {}' \
-                    .format(test_cfg['name'], test_cfg['suite_path'], err)
-                self.logger.error(msg)
-                if output_file:
-                    output.clear_line(output_file)
+                msg = ('In test {} from {}:\n{}'
+                       .format(test_cfg['name'], test_cfg['suite_path'],
+                               err.args[0]))
                 raise TestConfigError(msg)
 
-            # Set the scheduler variables for each test.
-            for ptest_cfg, pvar_man in permuted_tests:
-                # Resolve all variables for the test (that aren't deferred).
-                try:
-                    resolved_config = self.resolve_test_vars(
-                        ptest_cfg, pvar_man)
-                except TestConfigError as err:
-                    msg = ('In test {} from {}:\n{}'
-                           .format(test_cfg['name'], test_cfg['suite_path'],
-                                   err.args[0]))
-                    self.logger.error(msg)
-                    if output_file:
-                        output.clear_line(output_file)
-
-                    raise TestConfigError(msg)
-
-                resolved_tests.append(ProtoTest(resolved_config, pvar_man))
-
-            if output_file is not None:
-                progress += 1.0/len(raw_tests)
-                output.fprint("Resolving Test Configs: {:.0%}".format(progress),
-                              file=output_file, end='\r')
-
-        if output_file:
-            output.fprint('', file=output_file)
+            resolved_tests.append(ProtoTest(resolved_config, pvar_man))
 
         return resolved_tests
 
@@ -459,7 +490,8 @@ class TestConfigResolver:
                             total_tests.extend([left] * int(right))
                             continue
                         else:
-                            raise ValueError("No digit present in {}".format([left, right]))
+                            raise ValueError("No digit present in {}"
+                                             .format([left, right]))
                     except ValueError as err:
                         raise TestConfigError("Invalid repeat notation: {}"
                                               .format(err))
@@ -486,7 +518,7 @@ class TestConfigResolver:
 
             # Only load each test suite's tests once.
             if test_suite not in all_tests:
-                test_suite_path = self.find_config(CONF_TEST, test_suite)
+                cfg_label, test_suite_path = self.find_config(CONF_TEST, test_suite)
 
                 if test_suite_path is None:
                     if test_suite == 'log':
@@ -495,7 +527,7 @@ class TestConfigResolver:
                             "trying to get the run log, use the 'pav log run "
                             "<testid>' command.")
 
-                    cdirs = [str(cdir) for cdir in self.pav_cfg.config_dirs]
+                    cdirs = [str(cfg['path']) for cfg in self.pav_cfg.configs.values()]
                     raise TestConfigError(
                         "Could not find test suite {}. Looked in these "
                         "locations: {}"
@@ -542,6 +574,9 @@ class TestConfigResolver:
                 # Add some basic information to each test config.
                 for test_cfg_name, test_cfg in suite_tests.items():
                     test_cfg['name'] = test_cfg_name
+                    test_cfg['cfg_label'] = cfg_label
+                    working_dir = self.pav_cfg['configs'][cfg_label]['working_dir']
+                    test_cfg['working_dir'] = working_dir.as_posix()
                     test_cfg['suite'] = test_suite
                     test_cfg['suite_path'] = str(test_suite_path)
                     test_cfg['host'] = host
@@ -647,7 +682,7 @@ class TestConfigResolver:
         test_config_loader = TestConfigLoader()
 
         if host is not None:
-            host_cfg_path = self.find_config(CONF_HOST, host)
+            _, host_cfg_path = self.find_config(CONF_HOST, host)
 
             if host_cfg_path is not None:
                 try:
@@ -693,7 +728,7 @@ class TestConfigResolver:
         test_config_loader = TestConfigLoader()
 
         for mode in modes:
-            mode_cfg_path = self.find_config(CONF_MODE, mode)
+            _, mode_cfg_path = self.find_config(CONF_MODE, mode)
 
             if mode_cfg_path is None:
                 raise TestConfigError(
@@ -971,7 +1006,8 @@ class TestConfigResolver:
         disp_key = '.'.join(key)
 
         if key[0] in self.NOT_OVERRIDABLE:
-            raise KeyError("You can't override the '{}' key in a test config")
+            raise KeyError("You can't override the '{}' key in a test config"
+                           .format(key[0]))
 
         key_copy = list(key)
         last_cfg = None

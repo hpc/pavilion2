@@ -5,9 +5,8 @@ import logging
 
 from pavilion import config
 from pavilion import plugins
-from pavilion.result import parsers
 from pavilion import schedulers
-from pavilion.plugins.sched.slurm import Slurm
+from pavilion.schedulers.slurm import Slurm
 from pavilion.status_file import STATES
 from pavilion.unittest import PavTestCase
 
@@ -273,13 +272,14 @@ class SlurmTests(PavTestCase):
 
         dummy_test = self._quick_test(build=False, finalize=False)
         svars = slurm.get_vars(dummy_test.config['slurm'])
+        # TODO: Provide a better way to get appropriate nodes
         up_nodes = svars['node_up_list'].split()
 
         cfg = self._quick_test_cfg()
         cfg['scheduler'] = 'slurm'
         cfg['slurm']['num_nodes'] = '2'
-        cfg['slurm']['include_nodes'] = up_nodes[1]
-        cfg['slurm']['exclude_nodes'] = up_nodes[2]
+        cfg['slurm']['include_nodes'] = up_nodes[4]
+        cfg['slurm']['exclude_nodes'] = up_nodes[5]
 
         test = self._quick_test(cfg, finalize=False)
 

@@ -4,6 +4,7 @@ series:
         depends_on: ['next_tests']
 
     next_tests:
+        depends_on: ['initial_tests']
 
     last_tests: 
 

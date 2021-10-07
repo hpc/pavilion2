@@ -1,5 +1,4 @@
 from pavilion import commands
-import sys
 
 
 class Blarg(commands.Command):
@@ -8,4 +7,4 @@ class Blarg(commands.Command):
         super().__init__('blarg', 'Goes Blarg!')
 
     def run(self, pav_cfg, args):
-        print("Blarg!")
+        pass

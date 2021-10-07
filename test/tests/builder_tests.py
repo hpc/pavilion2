@@ -1,6 +1,5 @@
 import copy
 import io
-import os
 import pathlib
 import shutil
 import stat
@@ -11,8 +10,8 @@ import unittest
 from pavilion import plugins
 from pavilion import wget
 from pavilion.status_file import STATES
-from pavilion.test_run import TestRun
 from pavilion.unittest import PavTestCase
+from pavilion.build_tracker import DummyTracker
 
 
 class BuilderTests(PavTestCase):
@@ -60,7 +59,7 @@ class BuilderTests(PavTestCase):
 
             test = self._quick_test(config, build=False, finalize=False)
 
-            test.builder._setup_build_dir(test.builder.path)
+            test.builder._setup_build_dir(test.builder.path, DummyTracker())
 
             # Make sure the extracted archive is identical to the original
             # (Though the containing directory will have a different name)
@@ -78,7 +77,7 @@ class BuilderTests(PavTestCase):
         if test.builder.path.exists():
             shutil.rmtree(str(test.builder.path))
 
-        test.builder._setup_build_dir(test.builder.path)
+        test.builder._setup_build_dir(test.builder.path, DummyTracker())
         self._cmp_tree(test.builder.path, original_tree)
 
         # Test single compressed files.
@@ -96,7 +95,7 @@ class BuilderTests(PavTestCase):
             if test.builder.path.exists():
                 shutil.rmtree(str(test.builder.path))
 
-            test.builder._setup_build_dir(test.builder.path)
+            test.builder._setup_build_dir(test.builder.path, DummyTracker())
             self._cmp_files(test.builder.path/'binfile',
                             original_tree/'binfile')
 
@@ -115,7 +114,7 @@ class BuilderTests(PavTestCase):
         if test.builder.path.exists():
             shutil.rmtree(str(test.builder.path))
 
-        test.builder._setup_build_dir(test.builder.path)
+        test.builder._setup_build_dir(test.builder.path, DummyTracker())
 
         for file in config['build']['extra_files']:
             file = pathlib.Path(file)
@@ -253,7 +252,7 @@ class BuilderTests(PavTestCase):
         self.assertFalse(expected_path.exists())
 
         test = self._quick_test(config, build=False, finalize=False)
-        test.builder._setup_build_dir(test.builder.path)
+        test.builder._setup_build_dir(test.builder.path, DummyTracker())
 
         self.assertEqual(self.TEST_URL_HASH,
                          self.get_hash(test.builder.path/'README.md'))
@@ -323,8 +322,8 @@ class BuilderTests(PavTestCase):
         self.assertFalse(test.build(),
                          "Build succeeded when it should have timed out.")
         current_note = test.status.current().note
-        self.assertTrue(current_note.startswith("Build timed out"))
-
+        self.assertTrue(current_note.startswith("Build timed out"),
+                        msg="Actual note was {}".format(current_note))
         # Test general build failure.
         config = {
             'name': 'build_test',

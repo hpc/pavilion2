@@ -1,4 +1,5 @@
 pavilion.yaml
+config.yaml
 pavilion.yaml.proxy
 modes/local_slurm.yaml
 outside.hash

@@ -1,6 +1,7 @@
 """Tests for various utils functions."""
 
 import datetime as dt
+import subprocess as sp
 import os
 import tempfile
 from pathlib import Path
@@ -52,6 +53,20 @@ class UtilsTests(unittest.PavTestCase):
             with self.assertRaises(ValueError):
                 utils.hr_cutoff_to_ts(example)
 
+    def test_owner(self):
+        """Check that the owner function works."""
+
+        path = Path(tempfile.mktemp())
+        with path.open('w') as file:
+            file.write('hi there')
+
+        self.assertEqual(utils.owner(path), os.getlogin())
+
+        # Try to set the permissions of the file to an unknown user.
+        proc = sp.Popen(['sudo', '-n', 'chown', '12341', path.as_posix()],
+                        stdout=sp.PIPE, stderr=sp.PIPE, stdin=sp.PIPE)
+        if proc.wait(1) == 0:
+            self.assertEqual(utils.owner(path), "<unknown user '12341'>")
 
     def test_relative_to(self):
         """Check relative path calculations."""

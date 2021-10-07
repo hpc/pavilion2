@@ -1,11 +1,11 @@
 import pavilion.result.common
-from pavilion.result import parsers
+from pavilion.result_parsers import base_classes
 
 import pavilion.result.base
 import yaml_config as yc
 
 
-class BadInit(parsers.ResultParser):
+class BadInit(base_classes.ResultParser):
     """Set a constant as result."""
 
     def __init__(self):

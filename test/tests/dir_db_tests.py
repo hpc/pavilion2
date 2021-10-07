@@ -1,3 +1,5 @@
+"""Test directory database operations."""
+
 import json
 import shutil
 from pathlib import Path
@@ -28,6 +30,7 @@ class DirDBTests(unittest.PavTestCase):
                                           complete=bool(i % 5))
 
         idx = dir_db.index(
+            self.pav_cfg,
             id_dir=index_path,
             idx_name='test',
             transform=entry_transform)
@@ -42,6 +45,7 @@ class DirDBTests(unittest.PavTestCase):
             del entries[i]
 
         idx = dir_db.index(
+            self.pav_cfg,
             id_dir=index_path,
             idx_name='test',
             refresh_period=0,
@@ -62,6 +66,7 @@ class DirDBTests(unittest.PavTestCase):
         self._make_entry(index_path, 11, d=1)
 
         idx = dir_db.index(
+            self.pav_cfg,
             id_dir=index_path,
             idx_name='test',
             refresh_period=0,
