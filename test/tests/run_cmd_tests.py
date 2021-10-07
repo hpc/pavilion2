@@ -2,7 +2,7 @@ from pavilion import plugins
 from pavilion import commands
 from pavilion.unittest import PavTestCase
 from pavilion import arguments
-from pavilion.plugins.commands.run import RunCommand
+from pavilion.commands.run import RunCommand
 from pavilion.status_file import STATES
 import io
 import logging
@@ -58,7 +58,7 @@ class RunCmdTests(PavTestCase):
         # Make sure we actually built separate builds
         builds = [test.builder for test in run_cmd.last_tests]
         build_names = set([b.name for b in builds])
-        self.assertEqual(len(build_names), 5)
+        self.assertEqual(len(build_names), 4)
 
         for test in run_cmd.last_tests:
             if test.skipped:

@@ -1,9 +1,0 @@
-[Core]
-Name = System Host
-Module = sys_host
-
-[Documentation]
-Description = The name of the cluster we're operating on.
-Author = Nicholas Sly
-Version = 1.0
-Website =

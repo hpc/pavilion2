@@ -25,17 +25,20 @@ Usage: ::
 """
 
 import datetime
-import time
-import logging
 import os
+import pathlib
+import time
+from io import BytesIO
+from typing import List, Union
 
 
-class TestStatusError(RuntimeError):
+class StatusError(RuntimeError):
     """Error raised by any status file related problems."""
 
 
-class TestStatesStruct:
-    """A class containing the valid test state constants.
+class StatesStruct:
+    """A class containing the valid state constants. This is meant to be inherited
+from and the states added as FOO="bar" class variables.
 
 Rules:
 
@@ -55,41 +58,12 @@ value of 'ENV_FAILED' when used.
 
 Known States:
 """
-    # To add a state, simply add a valid class attribute, with the value set
-    # to the help/usage for that state. States will end up comparing by key
-    # name, as the instance values of these attributes will be changed and
-    # the help stored elsewhere.
+    # Base states available in all state classes
     UNKNOWN = "We can't determine the status."
     INVALID = "The status given to set was invalid."
-    CREATED = "The test object/directory is being created."
-    ABORTED = "The test run was aborted, through no fault of it's own."
-    CREATION_ERROR = "The test object/directory could not be created."
-    SCHEDULED = "The test has been scheduled with a scheduler."
-    SCHED_ERROR = "There was a scheduler related error."
-    SCHED_CANCELLED = "The job was cancelled."
-    BUILDING = "The test is currently being built."
-    BUILD_CREATED = "The builder for this build was created."
-    BUILD_DEFERRED = "The build will occur on nodes."
-    BUILD_FAILED = "The build has failed."
-    BUILD_TIMEOUT = "The build has timed out."
-    BUILD_ERROR = "An unexpected error occurred while setting up the build."
-    BUILD_DONE = "The build step has completed."
-    BUILD_WAIT = "Waiting for the build lock."
-    BUILD_REUSED = "The build was reused from a prior step."
-    INFO = "This is for logging information about a test, and can occur" \
-           "within any state."
-    ENV_FAILED = "Unable to load the environment requested by the test."
-    PREPPING_RUN = "Performing final (on node) steps before the test run."
-    RUNNING = "For when we're currently running the test."
-    RUN_TIMEOUT = "The test run went long without any output."
-    RUN_ERROR = "An unexpected error has occurred when setting up the test run."
-    RUN_USER = "Jobs can report extra status using pav set_status and " \
-               "this status value."
-    RUN_DONE = "For when the run step is complete."
-    RESULTS = "For when we're getting the results."
-    RESULTS_ERROR = "A result parser raised an error."
-    SKIPPED = "The test has been skipped due to an invalid condition."
-    COMPLETE = "For when the test is completely complete."
+    STATUS_ERROR = "An error with the status file itself."
+    STATUS_CREATED = "The status file has been created."
+    WARNING = "General warning (non-fatal error) status information."
 
     max_length = 15
 
@@ -136,14 +110,73 @@ Known States:
         return self._help.keys()
 
 
+class TestStatesStruct(StatesStruct):
+    """Struct containing pre-defined test states."""
+
+    # To add a state, simply add a valid class attribute, with the value set
+    # to the help/usage for that state. States will end up comparing by key
+    # name, as the instance values of these attributes will be changed and
+    # the help stored elsewhere.
+    CREATED = "The test object/directory is being created."
+    ABORTED = "Aborted, through no fault of it's own."
+    CREATION_ERROR = "The test object/directory could not be created."
+    SCHEDULED = "The test has been scheduled with a scheduler."
+    SCHED_ERROR = "There was a scheduler related error."
+    SCHED_CANCELLED = "The job was cancelled."
+    BUILDING = "The test is currently being built."
+    BUILD_CREATED = "The builder for this build was created."
+    BUILD_DEFERRED = "The build will occur on nodes."
+    BUILD_FAILED = "The build has failed."
+    BUILD_TIMEOUT = "The build has timed out."
+    BUILD_ERROR = "An unexpected error occurred while setting up the build."
+    BUILD_DONE = "The build step has completed."
+    BUILD_WAIT = "Waiting for the build lock."
+    BUILD_REUSED = "The build was reused from a prior step."
+    INFO = "This is for logging information about a test, and can occur" \
+           "within any state."
+    ENV_FAILED = "Unable to load the environment requested by the test."
+    PREPPING_RUN = "Performing final (on node) steps before the test run."
+    RUNNING = "For when we're currently running the test."
+    RUN_TIMEOUT = "The test run went long without any output."
+    RUN_ERROR = "An unexpected error has occurred when setting up the test run."
+    RUN_USER = "Jobs can report extra status using pav set_status and " \
+               "this status value."
+    RUN_DONE = "For when the run step is complete."
+    RESULTS = "For when we're getting the results."
+    RESULTS_ERROR = "A result parser raised an error."
+    SKIPPED = "The test has been skipped due to an invalid condition."
+    COMPLETE = "For when the test is completely complete."
+
+
+class SeriesStatesStruct(StatesStruct):
+    """States for series objects."""
+
+    # To add a state, simply add a valid class attribute, with the value set
+    # to the help/usage for that state. States will end up comparing by key
+    # name, as the instance values of these attributes will be changed and
+    # the help stored elsewhere.
+    ABORTED = "Aborted, through no fault of it's own."
+    CREATED = "The series object/directory is being created."
+    CREATION_ERROR = "The test object/directory could not be created."
+    SET_CREATED = "For when test sets are created."
+    SET_MAKE = "For when test runs are created in the test set."
+    SET_BUILD = "For when test sets are building."
+    SET_KICKOFF = "For when test sets are being kicked off."
+    SKIPPED = "For logging when tests are skipped."
+    RUN = "Running the series."
+    ERROR = "General (fatal) error status."
+    COMPLETE = "For when the test is completely complete."
+
+
 # There is one predefined, global status object defined at module load time.
 STATES = TestStatesStruct()
+SERIES_STATES = SeriesStatesStruct()
 
 
-class StatusInfo:
+class TestStatusInfo:
     """Represents a single status.
 
-:ivar str state: A state string (from STATES).
+:ivar str state: A state string (from STATES or SERIES_STATES).
 :ivar str note: The note for this status update.
 :ivar datetime when: A datetime object representing when this state was saved.
 """
@@ -156,7 +189,9 @@ class StatusInfo:
     LINE_MAX = 4096
     # Maximum length of a note. They can use every byte minux the timestamp
     # and status sizes, the spaces in-between, and the trailing newline.
-    NOTE_MAX = LINE_MAX - TS_LEN - 1 - STATES.max_length - 1 - 1
+    NOTE_MAX = LINE_MAX - TS_LEN - 1 - StatesStruct.max_length - 1 - 1
+
+    states_obj = STATES
 
     def __init__(self, state: str, note: str, when: float = None):
 
@@ -174,9 +209,9 @@ class StatusInfo:
 
         # If we were given an invalid status, make the status invalid but add
         # what was given to the note.
-        if not STATES.validate(self.state):
+        if not self.states_obj.validate(self.state):
             note = '({}) {}'.format(self.state, self.note)
-            state = STATES.INVALID
+            state = self.states_obj.INVALID
         else:
             state = self.state
             note = self.note
@@ -209,7 +244,13 @@ class StatusInfo:
         return status_dict
 
 
-class StatusFile:
+class SeriesStatusInfo(TestStatusInfo):
+    """A status info object, except for series."""
+
+    states_obj = SERIES_STATES
+
+
+class TestStatusFile:
     """The wraps the status file that is used in each test, and manages the
 creation, reading, and modification of that file.
 
@@ -218,21 +259,21 @@ created in an atomic manner. It does, however, limit it's writes to
 appends of a size such that those writes should be atomic.
 """
 
-    STATES = STATES
+    states = STATES
+    info_class = TestStatusInfo
 
-    LOGGER = logging.getLogger('pav.{}'.format(__file__))
-
-    def __init__(self, path):
+    def __init__(self, path: Union[pathlib.Path, None]):
         """Create the status file object.
 
-:param pathlib.Path path: The path to the status file.
-"""
+    :param path: The path to the status file. If Path is None, use a StringIO object.
+    """
 
         self.path = path
+        self._dummy = BytesIO() if path is None else None
 
-        if not self.path.is_file():
+        if self.path is not None and not self.path.is_file():
             # Make sure we can open the file, and create it if it doesn't exist.
-            self.set(STATES.CREATED, 'Created status file.')
+            self.set(self.states.STATUS_CREATED, 'Created status file.')
 
         self._cached_current = None
         self._cached_current_touched = {
@@ -241,12 +282,9 @@ appends of a size such that those writes should be atomic.
             'note': False
         }
 
-    def _parse_status_line(self, line):
+    def _parse_status_line(self, line) -> TestStatusInfo:
         """Parse a line of the status file. This assumes all sorts of things
-could be wrong with the file format.
-
-:rtype: StatusInfo
-"""
+could be wrong with the file format."""
 
         line = line.decode('utf-8')
 
@@ -262,11 +300,10 @@ could be wrong with the file format.
             except ValueError:
                 try:
                     when = datetime.datetime.strptime(
-                        parts.pop(0), StatusInfo.TIME_FORMAT).timestamp()
-                except ValueError as err:
-                    self.LOGGER.warning(
-                        "Bad date in log line '%s' in file '%s': %s",
-                        line, self.path, err)
+                        parts.pop(0), self.info_class.TIME_FORMAT).timestamp()
+                except ValueError:
+                    # Use the beginning of time on errors
+                    when = datetime.datetime(0, 0, 0)
 
         if parts:
             state = parts.pop(0)
@@ -274,82 +311,121 @@ could be wrong with the file format.
         if parts:
             note = parts.pop(0).strip()
 
-        status = StatusInfo(state, note, when=when)
+        status = self.info_class(state, note, when=when)
 
         return status
 
-    def history(self):
-        """Return a list of all statuses recorded.
+    def history(self) -> List[TestStatusInfo]:
+        """Return a list of all statuses recorded."""
 
-:rtype: list(StatusInfo)
-"""
+        if self.path is not None:
+            try:
+                with self.path.open('rb') as status_file:
+                    return self._read_history(status_file)
+            except OSError as err:
+                return [self.info_class(self.states.STATUS_ERROR,
+                                        "Could open status file at '{}': {}"
+                                        .format(self.path, err.args[0]))]
+        else:
+            return self._read_history(self._dummy)
+
+    def _read_history(self, status_file):
+        """Read the history file and return all statuses."""
+
+        lines = []
+
         try:
-            with self.path.open('rb') as status_file:
-                lines = status_file.readlines()
-        except (OSError, IOError) as err:
-            raise TestStatusError("Error opening/reading status file '{}': {}"
-                                  .format(self.path, err))
+            for line in status_file:
+                lines.append(line)
+        except OSError as err:
+            lines.append(TestStatusInfo(
+                self.states.STATUS_ERROR,
+                "Error reading status file '{}': {}".format(self.path, err)))
 
         return [self._parse_status_line(line) for line in lines]
 
-    def has_state(self, state):
+    def has_state(self, state) -> bool:
         """Check if the given state is somewhere in the history of this
         status file."""
 
         return any([state == h.state for h in self.history()])
 
-    def current(self):
-        """Return the most recent status object.
+    def current(self) -> TestStatusInfo:
+        """Return the most recent status object."""
 
-:rtype: StatusInfo
-"""
+        if self.path is not None:
+            try:
+                with self.path.open('rb') as status_file:
+                    return self._current(status_file)
+            except OSError as err:
+                return self.info_class(self.states.STATUS_ERROR,
+                                       "Could open status file at '{}': {}"
+                                       .format(self.path, err.args[0]))
+        else:
+            return self._current(self._dummy)
+
+    def _current(self, status_file):
 
         # We read a bit extra to avoid off-by-one errors
-        end_read_len = StatusInfo.LINE_MAX + 16
+        end_read_len = self.info_class.LINE_MAX + 16
 
         try:
-            with self.path.open('rb') as status_file:
-                status_file.seek(0, os.SEEK_END)
-                file_len = status_file.tell()
-                if file_len < end_read_len:
-                    status_file.seek(0)
-                else:
-                    status_file.seek(-end_read_len, os.SEEK_END)
+            status_file.seek(0, os.SEEK_END)
+            file_len = status_file.tell()
+            if file_len < end_read_len:
+                status_file.seek(0)
+            else:
+                status_file.seek(-end_read_len, os.SEEK_END)
 
-                lines = status_file.readlines()
-                if lines:
-                    # Get the last line.
-                    line = lines[-1]
-                else:
-                    return StatusInfo(
-                        state=STATES.INVALID,
-                        note="Status file was empty."
-                    )
+            lines = status_file.readlines()
+            if lines:
+                # Get the last line.
+                line = lines[-1]
+            else:
+                return self.info_class(
+                    state=self.states.INVALID,
+                    note="Status file was empty."
+                )
 
-                return self._parse_status_line(line)
+            return self._parse_status_line(line)
 
-        except (OSError, IOError) as err:
-            raise TestStatusError("Error reading status file '{}': {}"
-                                  .format(self.path, err))
+        except OSError as err:
+            return self.info_class(self.states.STATUS_ERROR,
+                                   "Error reading status file '{}': {}"
+                                   .format(self.path, err))
 
-    def set(self, state: str, note: str) -> StatusInfo:
-        """Set the status and return the StatusInfo object.
+    def set(self, state: str, note: str) -> TestStatusInfo:
+        """Set the status and return the StatusInfo object. Well return a
+        'STATUS_ERROR' status on write failures.
 
     :param state: The current state.
     :param note: A note about this particular instance of the state.
     """
 
-        stinfo = StatusInfo(state, note, when=time.time())
+        stinfo = self.info_class(state, note, when=time.time())
+
+        if self.path is not None:
+            try:
+                with self.path.open('ab') as status_file:
+                    return self._set(status_file, stinfo)
+            except OSError as err:
+                return self.info_class(self.states.STATUS_ERROR,
+                                       "Could open status file at '{}': {}"
+                                       .format(self.path, err.args[0]))
+        else:
+            return self._set(self._dummy, stinfo)
+
+    def _set(self, status_file, stinfo):
+        """Do the actual status setting step, given a file and the status object."""
 
         status_line = stinfo.status_line()
 
         try:
-            with self.path.open('ab') as status_file:
-                status_file.write(status_line)
-        except (IOError, OSError) as err:
-            raise TestStatusError("Could not write status line '{}' to status "
-                                  "file '{}': {}"
-                                  .format(status_line, self.path, err))
+            status_file.write(status_line)
+        except OSError as err:
+            stinfo = self.info_class(self.states.STATUS_ERROR,
+                                     "Could not write to status file at '{}': {}"
+                                     .format(self.path, err.args[0]))
 
         return stinfo
 
@@ -358,3 +434,10 @@ could be wrong with the file format.
             isinstance(self, type(other)) and
             self.path == other.path
         )
+
+
+class SeriesStatusFile(TestStatusFile):
+    """A status file for series."""
+
+    states = SERIES_STATES
+    info_class = SeriesStatusInfo

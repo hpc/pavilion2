@@ -113,7 +113,7 @@ class StyleTests(PavTestCase):
             for match, values in matches.items():
                 print('\n', match, file=msg)
                 for line_num, line in values:
-                    print("{:5d}: {}".format(line_num, line[:60]), file=msg)
+                    print("{:5d}: {}".format(line_num + 1, line[:60]), file=msg)
 
             self.fail(msg=msg.getvalue())
 

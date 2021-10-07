@@ -1,9 +1,0 @@
-[Core]
-Name = Status Command
-Module = status
-
-[Documentation]
-Description = Command to check the status of tests or test suites.
-Author = Nicholas Sly/Paul Ferrell
-Version = 1.0
-Website =

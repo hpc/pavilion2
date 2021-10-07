@@ -10,22 +10,25 @@ from functools import partial
 
 from typing import Dict, Any, Callable, List
 
-from pavilion import system_variables
+from pavilion.sys_vars import base_classes
 from pavilion import utils
+from pavilion.series import TestSeries
 from pavilion.test_run import TestRun
+from pavilion.status_file import TestStatusFile, SeriesStatusFile, StatusError
 
 LOCAL_SYS_NAME = '<local_sys_name>'
 TEST_FILTER_DEFAULTS = {
     'complete': False,
     'failed': False,
+    'has_state': None,
     'incomplete': False,
     'name': None,
     'newer_than': time.time() - dt.timedelta(days=1).total_seconds(),
     'older_than': None,
     'passed': False,
     'result_error': False,
-    'show_skipped': 'no',
     'sort_by': '-created',
+    'state': None,
     'sys_name': LOCAL_SYS_NAME,
     'user': utils.get_login(),
     'limit': None,
@@ -73,6 +76,11 @@ def add_common_filter_args(target: str,
         help=('Include only completed test runs. Default: {}'
               .format(defaults['complete']))
     )
+    arg_parser.add_argument(
+        '--has-state', type=str, default=defaults['state'],
+        help="Include only {} who have had the given state at some point."
+             "Default: {}".format(target, defaults['has_state'])
+    )
     ci_group.add_argument(
         '--incomplete', action='store_true',
         default=defaults['incomplete'],
@@ -103,6 +111,11 @@ def add_common_filter_args(target: str,
         default=defaults['newer_than'],
         help='As per older-than, but include only {} newer than the given'
              'time.  Default: {}'.format(target, defaults['newer_than'])
+    )
+    arg_parser.add_argument(
+        '--state', type=str, default=defaults['state'],
+        help="Include only {} whose most recent state is the one given. "
+             "Default: {}".format(target, defaults['state'])
     )
     arg_parser.add_argument(
         '--sys-name', type=str, default=defaults['sys_name'],
@@ -167,11 +180,6 @@ def add_test_filter_args(arg_parser: argparse.ArgumentParser,
               "allowed. Default: {}"
               .format(defaults['name']))
     )
-    arg_parser.add_argument(
-        '--show-skipped', action='store', choices=('yes', 'no', 'only'),
-        default=defaults['show_skipped'],
-        help=('Include skipped test runs.  Default: {}'
-              .format(defaults['show_skipped'])))
 
     pf_group = arg_parser.add_mutually_exclusive_group()
     pf_group.add_argument(
@@ -239,9 +247,9 @@ def add_series_filter_args(arg_parser: argparse.ArgumentParser,
 
 
 def filter_test_run(
-        test_attrs: Dict, complete: bool, failed: bool, incomplete: bool,
-        name: str, newer_than: float, older_than: float, passed: bool,
-        result_error: bool, show_skipped: bool, sys_name: str, user: str):
+        test_attrs: Dict, complete: bool, failed: bool, has_state: str,
+        incomplete: bool, name: str, newer_than: float, older_than: float, passed: bool,
+        result_error: bool, state: str, sys_name: str, user: str):
     """Determine whether the test run at the given path should be
     included in the set. This function with test_attrs as the sole input is
     returned by make_test_run_filter.
@@ -250,22 +258,18 @@ def filter_test_run(
         keep or discard test.
     :param complete: Only accept complete tests
     :param failed: Only accept failed tests
+    :param has_state: Only accept tests that have had the given state.
     :param incomplete: Only accept incomplete tests
     :param name: Only accept names that match this glob.
     :param newer_than: Only accept tests that are more recent than this date.
     :param older_than: Only accept tests older than this date.
     :param passed: Only accept passed tests
     :param result_error: Only accept tests with a result error.
-    :param show_skipped: Accept skipped tests.
+    :param state: Only accept tests whose state is the one given.
     :param sys_name: Only accept tests with a matching sys_name.
     :param user: Only accept tests started by this user.
     :return:
     """
-
-    if show_skipped == 'no' and test_attrs.get('skipped'):
-        return False
-    elif show_skipped == 'only' and not test_attrs.get('skipped'):
-        return False
 
     if complete and not test_attrs.get('complete'):
         return False
@@ -297,15 +301,28 @@ def filter_test_run(
     if name and not fnmatch.fnmatch(test_attrs.get('name'), name):
         return False
 
+    if state is not None or has_state is not None:
+        status_file_path = Path(test_attrs['path'])/TestRun.STATUS_FN
+        try:
+            status_file = TestStatusFile(status_file_path)
+        except StatusError:
+            # Couldn't open status file, so it can't have the given state...
+            return False
+
+        if state is not None and not state.upper() == status_file.current().state:
+            return False
+        elif has_state is not None and not status_file.has_state(has_state.upper()):
+            return False
+
     return True
 
 
 def make_test_run_filter(
-        complete: bool = False, failed: bool = False, incomplete: bool = False,
-        name: str = None,
+        complete: bool = False, failed: bool = False, has_state: str = None,
+        incomplete: bool = False, name: str = None,
         newer_than: float = None, older_than: float = None,
-        passed: bool = False, result_error: bool = False,
-        show_skipped: bool = False, sys_name: str = None, user: str = None):
+        passed: bool = False, result_error: bool = False, state: str = None,
+        sys_name: str = None, user: str = None):
     """Generate a filter function for use by dir_db.select and similar
     functions. This operates on TestAttribute objects, so make sure to
     pass the TestAttribute class as the transform to dir_db functions.
@@ -318,21 +335,21 @@ def make_test_run_filter(
     :param older_than: Only accept tests older than this date.
     :param passed: Only accept passed tests
     :param result_error: Only accept tests with a result error.
-    :param show_skipped: Accept skipped tests.
     :param sys_name: Only accept tests with a matching sys_name.
     :param user: Only accept tests started by this user.
     :return:
     """
 
     if sys_name == LOCAL_SYS_NAME:
-        sys_vars = system_variables.get_vars(defer=True)
+        sys_vars = base_classes.get_vars(defer=True)
         sys_name = sys_vars['sys_name']
 
     filter_func = partial(
         filter_test_run,
-        complete=complete, failed=failed, incomplete=incomplete, name=name,
+        complete=complete, failed=failed, has_state=has_state,
+        incomplete=incomplete, name=name,
         newer_than=newer_than, older_than=older_than, passed=passed,
-        result_error=result_error, show_skipped=show_skipped,  sys_name=sys_name,
+        result_error=result_error, state=state, sys_name=sys_name,
         user=user)
 
     return filter_func
@@ -359,35 +376,40 @@ def get_sort_opts(
 
 
 SERIES_FILTER_DEFAULTS = {
-    'limit': None,
-    'sort_by': '-created',
     'complete': False,
+    'has_state': None,
     'incomplete': False,
+    'limit': None,
     'newer_than': time.time() - dt.timedelta(days=1).total_seconds(),
     'older_than': None,
+    'sort_by': '-created',
+    'state': None,
     'sys_name': LOCAL_SYS_NAME,
     'user': utils.get_login(),
 }
 
 
-def make_series_filter(
-        user: str = None, sys_name: str = None, newer_than: dt.datetime = None,
-        older_than: dt.datetime = None, complete: bool = False,
-        incomplete: bool = False) -> Callable[[Dict[str, Any]], bool]:
+def make_series_filter(complete: bool = False, has_state: str = None,
+                       incomplete: bool = False, newer_than: dt.datetime = None,
+                       older_than: dt.datetime = None, state: str = None,
+                       sys_name: str = None, user: str = None) \
+                    -> Callable[[Dict[str, Any]], bool]:
     """Generate a filter for using with dir_db functions to filter series. This
     is expected to operate on series.SeriesInfo objects, so make sure to pass
     Series info as the dir_db transform function.
 
     :param complete: Only accept series for which all tests are complete.
+    :param has_state: Only accept tests that have had the given state.
     :param incomplete: Only accept series for which not all tests are complete.
     :param newer_than: Only accept series created after this time.
     :param older_than: Only accept series created before this time.
+    :param state: Only accept series with the given state.
     :param sys_name: Only accept series created on this system.
     :param user: Only accept series created by this user.
     """
 
     if sys_name == LOCAL_SYS_NAME:
-        sys_vars = system_variables.get_vars(defer=True)
+        sys_vars = base_classes.get_vars(defer=True)
         sys_name = sys_vars['sys_name']
 
     def series_filter(series: Dict[str, Any]):
@@ -410,6 +432,19 @@ def make_series_filter(
 
         if sys_name and series.get('sys_name') != sys_name:
             return False
+
+        if state or has_state:
+            series_status_path = Path(series['path'])/TestSeries.STATUS_FN
+            try:
+                series_status = SeriesStatusFile(series_status_path)
+            except StatusError as err:
+                # Couldn't get a status to check.
+                return False
+
+            if state and not state.upper() == series_status.current().state:
+                return False
+            elif has_state and not series_status.has_state(has_state):
+                return False
 
         return True
 

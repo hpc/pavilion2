@@ -3,7 +3,8 @@
 import json
 import logging
 
-from pavilion import utils, system_variables, dir_db
+from pavilion import utils, dir_db
+from ..sys_vars import base_classes
 from .errors import TestSeriesError, TestSeriesWarning
 from .info import SeriesInfo, path_to_sid
 from .series import TestSeries
@@ -18,7 +19,7 @@ def load_user_series_id(pav_cfg):
     last_series_fn = pav_cfg.working_dir/'users'
     last_series_fn /= '{}.json'.format(utils.get_login())
 
-    sys_vars = system_variables.get_vars(True)
+    sys_vars = base_classes.get_vars(True)
     sys_name = sys_vars['sys_name']
 
     if not last_series_fn.exists():
@@ -44,7 +45,7 @@ def list_series_tests(pav_cfg, sid: str):
             "No such test series '{}'. Looked in {}."
             .format(sid, series_path))
 
-    return dir_db.select(series_path).paths
+    return dir_db.select(pav_cfg, series_path).paths
 
 
 def path_from_id(pav_cfg, sid: str):

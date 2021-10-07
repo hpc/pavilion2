@@ -1,6 +1,6 @@
 """Test the operation of the status file objects."""
 
-from pavilion.status_file import StatusFile, STATES, StatusInfo
+from pavilion.status_file import TestStatusFile, STATES, TestStatusInfo
 from pavilion.unittest import PavTestCase
 from pathlib import Path
 import datetime
@@ -16,11 +16,11 @@ class StatusTests(PavTestCase):
 
         fn = Path(tempfile.mktemp())
 
-        status = StatusFile(fn)
+        status = TestStatusFile(fn)
 
         self.assertTrue(fn.exists())
         status_info = status.current()
-        self.assertEqual(status_info.state, 'CREATED')
+        self.assertEqual(status_info.state, STATES.STATUS_CREATED)
 
         # Get timestamp.
         now = time.time()
@@ -41,7 +41,7 @@ class StatusTests(PavTestCase):
             status.set(state, '{}_{}'.format(state, state.lower()))
 
         self.assertEqual(len(status.history()), 6)
-        self.assertEqual(status.current().state, 'RESULTS')
+        self.assertEqual(status.current().state, STATES.RESULTS)
         self.assertEqual([s.state for s in status.history()].sort(),
                          (states + ['CREATED']).sort())
 
@@ -52,12 +52,12 @@ class StatusTests(PavTestCase):
 
         self.assertLessEqual(len(status_info.state), STATES.max_length)
         self.assertEqual(status_info.state, STATES.INVALID)
-        self.assertLessEqual(len(status_info.note), StatusInfo.NOTE_MAX)
+        self.assertLessEqual(len(status_info.note), TestStatusInfo.NOTE_MAX)
 
         with fn.open() as sf:
             lines = sf.readlines()
 
-            self.assertLessEqual(len(lines[-1]), StatusInfo.LINE_MAX)
+            self.assertLessEqual(len(lines[-1]), TestStatusInfo.LINE_MAX)
 
         fn.unlink()
 
@@ -88,7 +88,7 @@ class StatusTests(PavTestCase):
                              msg="status_fight sub-test had an error.")
 
         # Make sure the entire history can be read sanely.
-        status = StatusFile(fn)
+        status = TestStatusFile(fn)
         history = status.history()
 
         for entry in history:

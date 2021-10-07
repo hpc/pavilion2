@@ -9,7 +9,7 @@ import os
 import sys
 from collections import OrderedDict
 from pathlib import Path
-from typing import List
+from typing import List, Union
 
 import pavilion.output
 import yaml_config as yc
@@ -54,10 +54,10 @@ PAV_CONFIG_FILE = os.environ.get('PAV_CONFIG_FILE', None)
 
 DEFAULT_CONFIG_LABEL = 'main'
 
-NCPU = os.cpu_count()
-if NCPU > 40:
-    NCPU = NCPU//2
-NCPU = NCPU//2
+# For multi-processing, use between 2 and 10 cpu's by default, prefering the
+# actual number of system CPU's if it's in that range.
+NCPU = min(10, os.cpu_count())
+NCPU = max(NCPU, 2)
 
 
 class ExPathElem(yc.PathElem):
@@ -202,6 +202,15 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
             help_text="Maximum simultaneous builds. Note that each build may "
                       "itself spawn off threads/processes, so it's probably "
                       "reasonable to keep this at just a few."),
+        yc.IntRangeElem(
+            "max_threads", default=8, vmin=1,
+            help_text="Maximum threads for general multi-threading usage."
+        ),
+        yc.IntRangeElem(
+            "max_cpu", default=NCPU, vmin=1,
+            help_text="Maximum number of cpus to use when spawning multiple processes."
+                      "The number used may be less depending on the task."
+        ),
         yc.StrElem(
             "log_format",
             default="{asctime}, {levelname}, {hostname}, {name}: {message}",
@@ -397,7 +406,8 @@ def add_config_dirs(pav_cfg, setup_working_dirs: bool) -> OrderedDict:
     return configs
 
 
-def find_pavilion_config(target=None, warn=True, setup_working_dirs=True):
+def find_pavilion_config(target: Path = None, warn: bool = True,
+                         setup_working_dirs=True):
     """Search for a pavilion.yaml configuration file. Use the one pointed
 to by the PAV_CONFIG_FILE environment variable. Otherwise, use the first
 found in these directories the default config search paths:
