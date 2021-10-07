@@ -13,7 +13,7 @@ from pathlib import Path
 
 from pavilion import scriptcomposer
 from pavilion.lockfile import LockFile
-from pavilion.status_file import STATES, StatusInfo
+from pavilion.status_file import STATES, TestStatusInfo
 from pavilion.test_config import file_format
 from pavilion.test_config.variables import DeferredVariable
 from pavilion.test_run import TestRun
@@ -456,7 +456,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
 
         raise NotImplementedError
 
-    def job_status(self, pav_cfg, test) -> StatusInfo:
+    def job_status(self, pav_cfg, test) -> TestStatusInfo:
         """Get the job state from the scheduler, and map it to one of the
         on of the following states: SCHEDULED, SCHED_ERROR, SCHED_CANCELLED.
         This may also simply re-fetch the latest state from the state file,
@@ -482,7 +482,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
         try:
             test_obj.job_id = self._schedule(test_obj, kick_off_path)
 
-            test_obj.status.set(test_obj.status.STATES.SCHEDULED,
+            test_obj.status.set(test_obj.status.states.SCHEDULED,
                                 "Test {} has job ID {}."
                                 .format(self.name, test_obj.job_id))
         except Exception:
@@ -554,7 +554,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
         script.comment("Within the allocation, run the command.")
         script.command(test.run_cmd())
 
-    def cancel_job(self, test) -> StatusInfo:
+    def cancel_job(self, test) -> TestStatusInfo:
         """Tell the scheduler to cancel the given test, if it can. This should
         simply try it's best for the test given, and note in the test status
         (with a SCHED_ERROR) if there were problems. Update the test status to
@@ -564,7 +564,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
         :returns: A status info object describing the state. If we actually
             cancel the job the test status will be set to SCHED_CANCELLED.
             This should return SCHED_ERROR when something goes wrong.
-        :rtype: StatusInfo
+        :rtype: TestStatusInfo
         """
 
         job_id = test.job_id
@@ -583,7 +583,7 @@ class SchedulerPlugin(IPlugin.IPlugin):
         :param pavilion.test_run.TestRun test: The test to cancel.
         :returns: Whether we're confident the job was canceled, and an
             explanation.
-        :rtype: StatusInfo
+        :rtype: TestStatusInfo
         """
         raise NotImplementedError
 

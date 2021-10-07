@@ -1,6 +1,6 @@
 from pavilion import plugins
 from pavilion import unittest
-from pavilion.test_run import TestRunError
+from pavilion.exceptions import TestRunError
 
 
 class conditionalTest(unittest.PavTestCase):
@@ -105,7 +105,6 @@ class conditionalTest(unittest.PavTestCase):
         # Run all 5 tests, all should have skip equal to true.
         for test_cfg in test_list:
             test = self._quick_test(cfg=test_cfg)
-            test.run()
             self.assertTrue(test.skipped, msg="All tests should be skipped.")
 
     def test_deferred(self):

@@ -1,15 +1,11 @@
 """A collection of utilities for getting the results of current and past
 test runs and series."""
 
-
-import sys
-import multiprocessing as mp
+from concurrent.futures import ThreadPoolExecutor
 from typing import List
-from functools import partial
 
-from pavilion import config
-from pavilion import status_utils
-from pavilion.test_run import (TestRun, TestRunError, TestRunNotFoundError)
+from pavilion.exceptions import TestRunError, TestRunNotFoundError
+from pavilion.test_run import (TestRun)
 
 # I suppose these are all the keys of the TestRun.results dict and the essential ones.
 # I'm not sure which to use here or something else, discuss with reviewer.
@@ -45,16 +41,12 @@ def get_result(test: TestRun):
     return results
 
 
-def get_results(tests: List[TestRun]):
+def get_results(pav_cfg, tests: List[TestRun]) -> List[dict]:
     """Return the results for all given test id's.
+
+    :param pav_cfg: The Pavilion configuration.
     :param tests: Tests to get result for.
     """
 
-    if sys.version_info.minor > 6:
-        ncpu = min(config.NCPU, len(tests))
-        mp_pool = mp.Pool(processes=ncpu)
-        tests = mp_pool.map(get_result, tests)
-    else:
-        tests = list(map(get_result, tests))
-
-    return tests
+    with ThreadPoolExecutor(max_workers=pav_cfg['max_threads']) as pool:
+        return list(pool.map(get_result, tests))

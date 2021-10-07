@@ -20,8 +20,8 @@ class BuildCmdTests(PavTestCase):
     def tearDown(self):
         plugins._reset_plugins()
 
-    def test_multi_build_only(self):
-        """Make sure we can just build multiple simultanious builds on
+    def test_multi_build(self):
+        """Make sure we can just build multiple simultaneous builds on
         both the front-end and the nodes."""
 
         arg_parser = arguments.get_parser()
@@ -43,7 +43,7 @@ class BuildCmdTests(PavTestCase):
         # Make sure we actually built separate builds
         builds = [test.builder for test in build_cmd.last_tests]
         build_names = set([b.name for b in builds])
-        self.assertEqual(len(build_names), 5)
+        self.assertEqual(len(build_names), 4)
 
         for test in build_cmd.last_tests:
             if not test.skipped:
@@ -75,8 +75,7 @@ class BuildCmdTests(PavTestCase):
         # Make sure we actually built separate builds
         builds = [test.builder for test in build_cmd.last_tests]
         build_names = set([b.name for b in builds])
-        # This should be 2 once we stop creating skipped tests.
-        self.assertEqual(len(build_names), 3)
+        self.assertEqual(len(build_names), 2)
 
         for test in build_cmd.last_tests:
             if not test.skipped:
@@ -134,7 +133,7 @@ class BuildCmdTests(PavTestCase):
 
         for test in build_cmd.last_tests:
             test.load_attributes()
-            expected_name = orig_names[test.name] + '-2'
+            expected_name = test.builder.rehash_name(orig_names[test.name])
             self.assertEqual(test.build_name, expected_name,
                              msg=test.name)
 

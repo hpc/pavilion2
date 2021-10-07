@@ -62,8 +62,7 @@ class StatusCommand(Command):
                               file=self.errfile,
                               color=output.RED)
                 return 1
-            return status_utils.print_status_history(pav_cfg, tests[-1],
-                                                     self.outfile, args.json)
+            return status_utils.print_status_history(tests[-1], self.outfile, args.json)
 
         tests = cmd_utils.get_tests_by_paths(pav_cfg, test_paths, self.errfile)
 

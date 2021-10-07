@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import List
 
 import yc_yaml as yaml
-from pavilion import test_run
+from pavilion.test_run import TestRun
 from pavilion import utils
 from pavilion.unittest import PavTestCase
 
@@ -95,8 +95,8 @@ class GeneralTests(PavTestCase):
         env['PAV_CONFIG_DIR'] = self.config_dir.as_posix()
 
         proc = sp.Popen(cmd, env=env, stdout=sp.PIPE, stderr=sp.STDOUT)
-        out = proc.stdout.read().decode()
         if (proc.wait(3) != 0) == run_succeeds:
+            out = proc.stdout.read().decode()
             self.fail("Error running command.\n{}".format(out))
         self.wait_tests(self.working_dir)
 
@@ -127,7 +127,7 @@ class GeneralTests(PavTestCase):
             build_dst = dst_path/build_dst
             (dst_path/'build_dir').rename(build_dst)
 
-            test = test_run.TestRun.load_from_raw_id(self.pav_cfg, run_id)
+            test = TestRun.load_from_raw_id(self.pav_cfg, run_id)
             self.assertTrue(test.results)
             self.assertTrue(test.complete)
 

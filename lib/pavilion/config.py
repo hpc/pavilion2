@@ -9,7 +9,7 @@ import os
 import sys
 from collections import OrderedDict
 from pathlib import Path
-from typing import List
+from typing import List, Union
 
 import pavilion.output
 import yaml_config as yc
@@ -202,6 +202,10 @@ class PavilionConfigLoader(yc.YamlConfigLoader):
             help_text="Maximum simultaneous builds. Note that each build may "
                       "itself spawn off threads/processes, so it's probably "
                       "reasonable to keep this at just a few."),
+        yc.IntRangeElem(
+            "max_threads", default=8, vmin=1,
+            help_text="Maximum threads for general multi-threading usage."
+        ),
         yc.IntRangeElem(
             "max_cpu", default=NCPU, vmin=1,
             help_text="Maximum number of cpus to use when spawning multiple processes."
@@ -402,7 +406,8 @@ def add_config_dirs(pav_cfg, setup_working_dirs: bool) -> OrderedDict:
     return configs
 
 
-def find_pavilion_config(target=None, warn=True, setup_working_dirs=True):
+def find_pavilion_config(target: Path = None, warn: bool = True,
+                         setup_working_dirs=True):
     """Search for a pavilion.yaml configuration file. Use the one pointed
 to by the PAV_CONFIG_FILE environment variable. Otherwise, use the first
 found in these directories the default config search paths:

@@ -3,6 +3,7 @@
 import datetime
 import threading
 from collections import defaultdict
+from typing import List
 
 from pavilion.status_file import STATES
 
@@ -19,23 +20,24 @@ class MultiBuildTracker:
         self.messages = {}
         self.status = {}
         self.status_files = {}
+        self.trackers = {}
         self.lock = threading.Lock()
 
-    def register(self, builder, test_status_file):
+    def register(self, builder, test_status_file) -> "BuildTracker":
         """Register a builder, and get your own build tracker.
 
     :param TestBuilder builder: The builder object to track.
     :param status_file.StatusFile test_status_file: The status file object
         for the corresponding test.
-    :return: A build tracker instance that can be used by builds directly.
-    :rtype: BuildTracker"""
+    :return: A build tracker instance that can be used by builds directly."""
 
+        tracker = BuildTracker(builder, self)
         with self.lock:
             self.status_files[builder] = test_status_file
             self.status[builder] = None
             self.messages[builder] = []
+            self.trackers[builder] = tracker
 
-        tracker = BuildTracker(builder, self)
         return tracker
 
     def update(self, builder, note, state=None):
@@ -76,10 +78,10 @@ class MultiBuildTracker:
 
         return counts
 
-    def failures(self):
+    def failures(self) -> List['BuildTracker']:
         """Returns a list of builders that have failed."""
-        return [builder for builder in self.status.keys()
-                if builder.tracker.failed]
+        return [self.trackers[builder] for builder in self.trackers
+                if self.trackers[builder].failed]
 
 
 class BuildTracker:
@@ -97,11 +99,11 @@ class BuildTracker:
 
     def warn(self, note, state=None):
         """Add a note and warn via the logger."""
-        self.tracker.update(self.builder, note, state=state)
+        self.update(note, state=state)
 
     def error(self, note, state=STATES.BUILD_ERROR):
         """Add a note and error via the logger denote as a failure."""
-        self.tracker.update(self.builder, note, state=state)
+        self.update(note, state=state)
 
         self.failed = True
 
@@ -112,3 +114,15 @@ class BuildTracker:
     def notes(self):
         """Return the notes for this tracker."""
         return self.tracker.get_notes(self.builder)
+
+
+class DummyTracker(BuildTracker):
+    """A tracker that does nothing."""
+
+    def __init__(self):
+        """Initalize the parent with dummy info."""
+
+        super().__init__(None, None)
+
+    def update(self, note, state=None):
+        """Do nothing."""

@@ -89,7 +89,7 @@ class ResultsCommand(Command):
             if not self.update_results(pav_cfg, tests, log_file, save=args.save):
                 return errno.EINVAL
 
-        results = result_utils.get_results(tests)
+        results = result_utils.get_results(pav_cfg, tests)
 
         if args.json or args.full:
             if not results:
